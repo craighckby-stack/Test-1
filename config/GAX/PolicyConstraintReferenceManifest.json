@@ -1,0 +1,29 @@
+{
+  "schema_version": "v1.0",
+  "purpose": "Defines stable identifiers and remediation metadata for all active GAX Policy, Stability, and Behavior constraints.",
+  "metadata": {
+    "custodian": "GAX",
+    "dse_invariant_link": "Axiomatic Integrity (III)"
+  },
+  "constraints": [
+    // Example structure for a Stability constraint defined in MPAM/PVLM
+    {
+      "id": "POL_001_NONSENSICAL_OPS",
+      "type": "Policy Prohibition",
+      "severity": "RRP",
+      "title": "Non-sense Operational Command Veto",
+      "manifest_source": "PVLM",
+      "remediation_strategy": "Consult PCSS: Require explicit policy linkage and resource attribution.",
+      "status": "Active"
+    },
+    {
+      "id": "STB_105_RAM_CEILING",
+      "type": "Stability Bound",
+      "severity": "RRP",
+      "title": "System Memory Ceiling Violation (95% Threshold)",
+      "manifest_source": "MPAM",
+      "remediation_strategy": "Consult VRRM/TVCR logs. Initiate immediate resource triage and pre-rollback snapshot capture.",
+      "threshold_value": "95%"
+    }
+  ]
+}
