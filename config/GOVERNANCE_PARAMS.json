@@ -1,15 +1,33 @@
 {
-  "viability_margin": {
-    "epsilon_floor": 0.015, 
-    "epsilon_ceiling": 0.100,
-    "vmo_stream_source": "SPDM_VOL_HISTORY",
-    "adaptation_algorithm": "ADAPTIVE_SMOOTH_AVG_V3"
+  "governance_meta": {
+    "schema_version": "v1.1",
+    "enforcement_mode": "AUTONOMOUS_HARD_FAIL",
+    "enforcement_policy_ref": "GOV_ENFORCEMENT_V9"
   },
-  "metric_efficacy_contract": {
-    "$S-01_calculation_ref": "MEC_RULES_V4.3",
-    "$S-02_calculation_ref": "MEC_RULES_V4.3"
+  "viability_adaptive_margins": {
+    "epsilon_range": {
+      "min_floor": 0.015,
+      "max_ceiling": 0.100,
+      "unit": "P_DELTA"
+    },
+    "data_stream_id": "SPDM_VOL_HISTORY",
+    "adaptation_algorithm": "ASYNC_EULER_V4"
   },
-  "deployment_monitoring": {
-    "initial_pmm_threshold_default": 0.98
+  "compliance_definitions": {
+    "contract_reference_map": {
+      "MEC_BASE_CONTRACT_ID": "MEC_RULES_V4.3"
+    },
+    "monitored_streams": [
+      {"stream_id": "S-01", "contract_ref_key": "MEC_BASE_CONTRACT_ID"},
+      {"stream_id": "S-02", "contract_ref_key": "MEC_BASE_CONTRACT_ID"}
+    ]
+  },
+  "deployment_policy": {
+    "pre_launch_assurance_threshold": 0.98,
+    "recovery_mechanism_ref": "POLICY_REVERT_V2"
+  },
+  "cycle_parameters": {
+    "evaluation_frequency_ms": 30000,
+    "max_adaptation_rate_percent": 0.05
   }
 }
