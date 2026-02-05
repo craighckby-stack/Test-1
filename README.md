@@ -6,86 +6,85 @@ SAG mandates **Deterministic State Evolution (DSE)** ($\Psi_{N} \to \Psi_{N+1}$)
 
 ---
 
-## 1.0 GOVERNANCE ARTIFACTS & OPERATIONAL CONTEXT (GAOC)
+## 1.0 GOVERNANCE SPECIFICATION ROOT (GSR)
 
-### 1.1 Canonical Component Paths
+### 1.1 Canonical Artifacts & Infrastructure
 
-| Component | Path/Stream | Role |
-|:---|:---|:---|
-| **Schema Root** | [`config/governance_schema.json`](./config/governance_schema.json) | Definitive structure for the Config State Root (CSR). |
-| **P-01 Calculus** | [`system/core/P01_calculus_engine.py`](./system/core/P01_calculus_engine.py) | Source implementation of the finality algorithm. |
-| **Event Stream** | Trusted Event Data Stream (**TEDS**) | System log stream enforcing the Auditability Tenet. |
-| **IH Sentinel** | [`system/monitoring/IH_Sentinel.py`](./system/monitoring/IH_Sentinel.py) | **PROPOSED:** Real-time TEDS contract monitor (Failure detection optimization). |
-| **Rollback Protocol** | [`system/utility/RRP_manager.py`](./system/utility/RRP_manager.py) | Manages state restoration upon Integrity Halt (IH). |
+| Artifact/Service | Acronym | Path/Stream | Role |
+|:---|:---|:---|:---|
+| **Config State Root** | CSR | [`config/governance_schema.json`](./config/governance_schema.json) | Definitive structure (P1 lock). Immutable hash of governance parameters. |
+| **Axiomatic State Manifest** | ASM | N/A | Canonical output package of the evolved state (P3 artifact). |
+| **State Transition Receipt** | STR | N/A | Cryptographic confirmation/hash of the final state transition (P6 artifact). |
+| **P-01 Calculus Engine** | P-01 | [`system/core/P01_calculus_engine.py`](./system/core/P01_calculus_engine.py) | Source implementation of the finality algorithm. |
+| **Trusted Event Data Stream** | TEDS | Stream | System log stream enforcing the Auditability Tenet. |
+| **Rollback Protocol Manager** | RRP | [`system/utility/RRP_manager.py`](./system/utility/RRP_manager.py) | Manages state restoration upon Integrity Halt (IH). |
 
-### 1.2 Core Glossary & Metrics
+### 1.2 Core Metrics and Constraints
 
-| Acronym | Definition | Type | Association (Artifact/Metric) |
-|:---:|:---|:---|:---|
-| **CSR** | Config State Root | Artifact | Immutable hash of governance parameters (P1). |
-| **ACVD** | Axiomatic Constraint Vector Definition | Constraint | Defines mandatory metric thresholds (P2). |
-| **ASM** | Axiomatic State Manifest | Artifact | Canonical output package of the evolved state (P3). |
-| **STR** | State Transition Receipt | Artifact | Cryptographic confirmation/hash of the final state transition (P6). |
-| **TEMM** | Total Evolved Metric Maximization | Metric | Calculated utility/performance score (P4). |
-| **ECVM** | Execution Context Verification Metric | Metric | Boolean confirming P3 environment integrity (P3). |
-| **GSEP-C** | Governance State Execution Pipeline | Pipeline | The mandatory 6-phase, 15-stage workflow (S00-S14). |
+| Metric/Constraint | Acronym | Association (Phase) | Definition & Requirement |
+|:---:|:---:|:---|:---|
+| **Axiomatic Constraint Vector Definition** | ACVD | P2 (Vetting) | Defines mandatory metric thresholds (Required for Axiom I). |
+| **Total Evolved Metric Maximization** | TEMM | P4 (Evaluation) | Calculated utility/performance score (Validated against ACVD). |
+| **Execution Context Verification Metric** | ECVM | P3 (Execution) | Boolean confirming environment integrity (Required for Axiom II). |
 
 ---
 
-## 2.0 INTEGRITY ARCHITECTURE: TENETS, HALTS & RECOVERY
+## 2.0 INTEGRITY HIERARCHY & HALT ARCHITECTURE
 
-### 2.1 Atomic Tenets (Failure Triggers IH)
+### 2.1 The Four Atomic Tenets
 
-System operation relies on four non-negotiable constraints. Failure triggers an Integrity Halt (**IH**) and mandates immediate execution of the Rollback Protocol (RRP).
+Failure of any of these non-negotiable constraints triggers an Integrity Halt (**IH**) and mandates immediate execution of the Rollback Protocol (RRP).
 
 1.  **Atomicity:** P-01 Finalization (S11) must resolve instantly to a singular Boolean (PASS/FAIL).
 2.  **Immutability:** The CSR is locked (P1). Any modification attempt post-S01 triggers IH.
-3.  **Auditability:** All stages (S00-S14) must log sequentially to TEDS, validated by the **IH Sentinel** against the TEDS Event Contract.
-4.  **Recovery:** Any IH failure automatically triggers RRP to restore state $\Psi_N$.
+3.  **Auditability:** All stages (S00-S14) must log sequentially to TEDS, validated against the **TEDS Event Contract** by the IH Sentinel.
+4.  **Recovery:** Any IH automatically triggers RRP to restore state $\Psi_N$.
 
-### 2.2 Integrity Halt (IH) Conditions & Flags
+### 2.2 IH Sentinel and Deviation Triggers (Flags)
 
-If the **IH Sentinel** or any phase audit identifies a critical flag as TRUE, the pipeline terminates immediately.
+The **IH Sentinel** (`./system/monitoring/IH_Sentinel.py`) monitors TEDS and internal phase outputs for deviation flags. If a flag is TRUE, the GSEP-C terminates immediately (IH).
 
-| Flag | Failure Description | Failure Phase (Audit Location) | IH Condition |
-|:---:|:---|:---|:---|
-| **PVLM** | Pre-Validation Logic Miss. | P2: Vetting (GAX) | Policy structure/logic failure. |
-| **MPAM** | Manifest Policy Axiom Miss. | P4: Evaluation (SGS) | ASM deviates from required output contract. |
-| **ADTM** | Axiomatic Deviation Threshold Miss. | P4: Evaluation (GAX) | TEMM score failure against ACVD threshold. |
+| Flag | Trigger Phase | Description (Deviation Type) | IH Condition |
+|:---:|:---:|:---|:---|
+| **PVLM** | P2: Vetting (GAX) | Pre-Validation Logic Miss. | Policy structure/logic failure, violation of ACVD format. |
+| **MPAM** | P4: Evaluation (SGS) | Manifest Policy Axiom Miss. | ASM deviates from the required structural output contract. |
+| **ADTM** | P4: Evaluation (GAX) | Axiomatic Deviation Threshold Miss. | TEMM score failure (TEMM < ACVD Threshold). |
 
 ---
 
-## 3.0 GOVERNANCE PIPELINE: GSEP-C V1.2 (6 Phases)
+## 3.0 GOVERNANCE STATE EXECUTION PIPELINE (GSEP-C)
 
-The GSEP-C enforces DSE through a mandatory, linear 15-stage workflow (S00-S14), utilizing Separation of Duties (SoD) via three specialized Agents.
+The GSEP-C enforces DSE through a mandatory, linear 15-stage workflow (S00-S14). Separation of Duties (SoD) is enforced via three specialized Agents.
 
-### 3.1 Agent Delegation (SoD)
+### 3.1 Agent Delegation Summary
 
-*   **CRoT (Root of Trust):** Anchoring (S01) and final receipt generation (**STR**, S12).
-*   **GAX (Axiomatic Governance):** Policy vetting, constraint analysis, and P-01 Finality Calculus (S11).
-*   **SGS (State & Execution):** Runtime orchestration, metric generation (**TEMM, ECVM**), and state persistence.
+| Agent | Role Summary | Primary Stages (Example) |
+|:---|:---|:---|
+| **CRoT (Root of Trust)** | Anchoring the state (S01) and final receipt generation (**STR**, S12). | P1, P6 |
+| **GAX (Axiomatic Governance)** | Constraint analysis, policy vetting, and P-01 Finality Calculus (S11). | P2, P4 (Audit), P5 |
+| **SGS (State & Execution)** | Runtime orchestration, metric generation (**TEMM, ECVM**), and state persistence. | P1, P3, P4 (Generation), P6 |
 
-### 3.2 GSEP-C Phase Summary
+### 3.2 GSEP-C Workflow Overview (6 Phases)
 
-| Phase ID | Stage Range | Agent(s) | Key Goal & Validation Check |
+| Phase ID | Stage Range | Key Goal & IH Check Location | Output Artifacts/Metrics |
 |:---:|:---:|:---|:---|
-| **P1: ANCHORING** | S00-S01 | CRoT/SGS | CSR locked; Environment verified. IH Sentinel initializes. |
-| **P2: VETTING** | S02-S04 | GAX | ACVD constraints verified; PVLM audit (IH Check). |
-| **P3: EXECUTION** | S05-S07 | SGS | System evolves state; ECVM generated. Canonical ASM finalized. |
-| **P4: EVALUATION** | S08-S10 | SGS/GAX | TEMM validated; ADTM/MPAM audits (IH Check). |
-| **P5: FINALITY** | **S11** | **GAX** | **P-01 CALCULUS: ATOMIC PASS/FAIL DECISION.** |
-| **P6: COMMITMENT** | S12-S14 | CRoT/SGS | State signed (STR); irreversible transition $\Psi_{N} \to \Psi_{N+1}$. |
+| **P1: ANCHORING** | S00-S01 | Initialize, lock CSR, Environment Verification. | CSR Lock Hash |
+| **P2: VETTING** | S02-S04 | Verify ACVD constraints. IH Check: **PVLM** Audit. | Vetted ACVD |
+| **P3: EXECUTION** | S05-S07 | System evolves state. | ASM, ECVM (True/False) |
+| **P4: EVALUATION** | S08-S10 | Validate outputs against constraints. IH Checks: **ADTM, MPAM** Audits. | TEMM Score |
+| **P5: FINALITY** | **S11** | **P-01 CALCULUS: ATOMIC PASS/FAIL DECISION (GAX Agent).** | P-01 Outcome Boolean |
+| **P6: COMMITMENT** | S12-S14 | State Persistence, Non-Reversibility enforced. | STR (Transition Hash) |
 
 ---
 
 ## 4.0 P-01 FINALIZATION CALCULUS (S11)
 
-P-01 Finality (PASS) requires simultaneous satisfaction of all three independent axioms to confirm DSE integrity. The calculation is run atomically by the GAX Agent.
+The GAX Agent runs P-01 atomically. PASS requires simultaneous satisfaction of three independent axioms, confirming DSE integrity.
 
 $$\text{P-01 PASS} \iff (\text{Axiom I}) \land (\text{Axiom II}) \land (\text{Axiom III})$$
 
-| Axiom ID | Name | Required Condition | Failure Condition | Dependency |
-|:---:|:---|:---|:---|:---|
-| **I (UMA)** | Utility Maximization Attestation | $\text{TEMM} \ge \text{ACVD Threshold}$ | ADTM = True | TEMM, ACVD |
-| **II (CA)** | Context Attestation | $\text{ECVM}$ is True | ECVM = False | ECVM |
-| **III (AI)** | Axiomatic Integrity Validation | PVLM, MPAM, ADTM are all False | PVLM $\lor$ MPAM $\lor$ ADTM is True | IH Flags |
+| Axiom ID | Name | Required Condition (PASS) | IH Flag Dependency (FAIL) |
+|:---:|:---|:---|:---|
+| **I (UMA)** | Utility Maximization Attestation | $\text{TEMM} \ge \text{ACVD Threshold}$ | $\text{ADTM} = \text{True}$ |
+| **II (CA)** | Context Attestation | $\text{ECVM}$ is True | $\text{ECVM} = \text{False}$ |
+| **III (AI)** | Axiomatic Integrity Validation | PVLM, MPAM, ADTM are all False | $\text{PVLM} \lor \text{MPAM} \lor \text{ADTM} = \text{True}$ |
