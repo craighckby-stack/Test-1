@@ -1,28 +1,41 @@
 {
-  "protocol": "System Integrity Halt Manifest V1",
-  "scope": "Post-Certified Commitment Failure (L9/TEDC)",
-  "activation_trigger": "Commitment Integrity Failure signal from L9",
-  "directives": [
+  "metadata": {
+    "protocol_id": "SIHM_V1",
+    "manifest_version": "1.1.0",
+    "name": "L9 Certified Commitment Failure Response Plan",
+    "contact": "Architecture Steering Committee (ASC)"
+  },
+  "context": {
+    "trigger_event_code": "TEDC_L9_CI_FAIL",
+    "trigger_description": "Commitment Integrity Failure signal originating from L9/TEDC.",
+    "execution_mode": "Isolated Runtime Required"
+  },
+  "response_plan": [
     {
-      "id": "SIH-001",
-      "priority": "CRITICAL",
-      "action": "Immediate Read-Only Lockdown (System Halt)",
-      "justification": "Preventing state corruption from unverified commit.",
-      "required_status": "Status Isolation Mode (SIM)"
+      "sequence_id": 10,
+      "priority_level": 900,
+      "category": "CRITICAL_ISOLATION",
+      "command": "SYSTEM.STATE_LOCKDOWN",
+      "parameters": {"mode": "READ_ONLY", "scope": "FULL_ENVIRONMENT"},
+      "required_status": "Status Isolation Mode (SIM)",
+      "justification": "Immediate halt required to prevent propagation of state corruption."
     },
     {
-      "id": "SIH-002",
-      "priority": "HIGH",
-      "action": "Trigger external Notary Audit Signal (NAS)",
-      "justification": "Immediate external auditing required for irreversible failure.",
-      "required_reporting": "Audit Log Bundle Generation (ALBG)"
+      "sequence_id": 20,
+      "priority_level": 750,
+      "category": "EXTERNAL_REPORTING",
+      "command": "REPORT.TRIGGER_AUDIT_SIGNAL",
+      "parameters": {"target": "NOTARY_SUBSYSTEM", "signal_type": "NAS_V2"},
+      "required_post_action": "Audit Log Bundle Generation (ALBG)",
+      "justification": "Notifying independent external auditor of irreversible system failure."
     },
     {
-      "id": "SIH-003",
-      "priority": "HIGH",
-      "action": "Purge high-risk cached buffers",
-      "justification": "Mitigating potential security vectors introduced during corrupt commitment phase."
+      "sequence_id": 30,
+      "priority_level": 700,
+      "category": "SECURITY_MITIGATION",
+      "command": "MEMORY.PURGE_BUFFERS",
+      "parameters": {"risk_level": "HIGH", "targets": ["CACHE_L0", "TEMPORARY_STORAGE_D"]},
+      "justification": "Mitigating potential security vectors introduced during integrity failure phase."
     }
-  ],
-  "contact": "Architecture Steering Committee (ASC)"
+  ]
 }
