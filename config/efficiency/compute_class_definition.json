@@ -1,0 +1,23 @@
+{
+  "schema_version": "COMPUTE_V1.0",
+  "compute_classes": {
+    "P_C1": {
+      "description": "Standard CPU Cluster, burstable",
+      "base_unit_cost_usd_per_s": 0.00001,
+      "max_throughput_tokens_per_s": 500,
+      "required_hardware_tag": "CPU_Standard"
+    },
+    "G_C3": {
+      "description": "Mid-tier GPU Acceleration (A100 equivalent)",
+      "base_unit_cost_usd_per_s": 0.00015,
+      "max_throughput_tokens_per_s": 3000,
+      "required_hardware_tag": "GPU_High_Mem"
+    },
+    "TPU_D5": {
+      "description": "Dedicated High Parallelism TPU Array",
+      "base_unit_cost_usd_per_s": 0.00050,
+      "max_throughput_tokens_per_s": 15000,
+      "required_hardware_tag": "TPU_Dedicated"
+    }
+  }
+}
