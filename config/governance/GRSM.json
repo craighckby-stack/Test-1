@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "v1.0",
+  "description": "Governance Rule Schema Manifest (GRSM) defining structural requirements for policies stored in GRS.",
+  "policyTypeSchema": {
+    "VETO": {
+      "definition": "Policies intended to trigger S-03 failure if conditions met.",
+      "requiredFields": ["ruleId", "severity", "triggerCondition", "targetComponent"]
+    },
+    "RISK_FLOOR": {
+      "definition": "Policies configuring inputs for C-11 (S-02 calculation).",
+      "requiredFields": ["parameterId", "ceilingValue", "updateFrequency", "dependencyMatrix"]
+    }
+  },
+  "integrityValidation": {
+    "module": "GIRAM",
+    "checksumAlgorithm": "SHA3-512"
+  }
+}
