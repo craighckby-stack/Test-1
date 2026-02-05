@@ -1,0 +1,27 @@
+{
+  "protocol_version": "DTEM V1.0",
+  "description": "Manifest defining cryptographic trust and endpoint standards for data sources required by GSEP-C stages L2 (Provenance Trust) and L5 (Data Fidelity).",
+  "default_settings": {
+    "required_trust_score": 0.95,
+    "hash_algorithm": "SHA3-512",
+    "required_signature_algorithm": "ECDSA-P384"
+  },
+  "data_streams": [
+    {
+      "stream_id": "CTM-INGRESS-001",
+      "purpose": "Initial context typing data integrity (L0/L5)",
+      "endpoint_pattern": "sentry://core_ingest/*",
+      "checksum_location": "header.x-sovereign-checksum",
+      "required_trust_score": 0.98
+    },
+    {
+      "stream_id": "METRIC-FEED-001",
+      "purpose": "Source data for S-01 and S-02 calculation (L6)",
+      "endpoint_pattern": "https://data-oracles.sys/v1/metrics/*",
+      "trust_verification": {
+        "proof_of_provenance_required": true,
+        "trusted_ca_certificate_id": "CA-AGI-001"
+      }
+    }
+  ]
+}
