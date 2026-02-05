@@ -1,0 +1,31 @@
+{
+  "spec_id": "CHR_GEN_SPEC_V1.0",
+  "title": "Configuration Hash Registry (CHR) Generation Protocol",
+  "purpose": "Define the mandatory procedure and hashing algorithms for generating the immutable CHR Manifest used during S00 C-ICR validation.",
+  "governance_principle": "P-M01 (Prerequisite Integrity)",
+  "generation_requirements": {
+    "scope": [
+      "config/gsep_c_flow.json",
+      "config/acvm.json",
+      "governance/smc_schema.json",
+      "config/dial_analysis_map.json",
+      "config/rrp_manifest.json"
+    ],
+    "hashing_algorithm": "SHA3-512 (Mandatory)",
+    "signing_authority": "AASS Pre-flight Subsystem (Cryptographic Guarantee)",
+    "output_artifact": "config/chr_manifest.json"
+  },
+  "output_format_definition": {
+    "schema_reference": "protocol/chr_schema.json",
+    "structure_example": {
+      "manifest_id": "UUID_GENERATED_PER_BUILD",
+      "timestamp_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "configuration_hashes": [
+        {"file": "config/gsep_c_flow.json", "hash": "sha3-512_checksum"},
+        {"file": "config/acvm.json", "hash": "sha3-512_checksum"}
+      ],
+      "aass_signature": "Cryptographic proof of integrity"
+    }
+  },
+  "validation_trigger": "Must be regenerated and AASS-signed on ANY change to scoped files."
+}
