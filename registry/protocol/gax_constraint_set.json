@@ -1,0 +1,17 @@
+{
+  "GAX_I_PERFORMANCE": {
+    "name": "Minimum Performance Saturation Constraint (Omega Min)",
+    "target": "S08/TEMM Snapshot",
+    "policy": "Ensure $\Omega_{\text{min}}$ metrics are satisfied throughout execution, prohibiting performance bottlenecks that may lead to non-deterministic scheduling."
+  },
+  "GAX_II_ISOLATION": {
+    "name": "Boundary and Resource Isolation Constraint",
+    "target": "S07/ECVM Snapshot",
+    "policy": "Mandatory resource segmentation validation. Memory/CPU boundaries must not exceed configured quotas (P-M02 isolation mandates).
+  },
+  "GAX_III_INTEGRITY": {
+    "name": "Baseline System Integrity Constraint",
+    "target": "S00/S01 Checkpoints",
+    "policy": "Requires validated integrity checksums (CHR) and input structuring adherence (CSR Snapshot) prior to initiating the core GSEP-C flow."
+  }
+}
