@@ -1,0 +1,35 @@
+{
+  "manifest_id": "STDM_V98.1",
+  "description": "System Telemetry Definition Manifest: Defines required operational performance metrics, resource budget checks (CAC), and reporting structures for the Governance Telemetry Bus (GTB). Required by SGS for S6 checks.",
+  "resource_budgets": [
+    {
+      "metric": "MaxComputeUnits",
+      "unit": "GigaFLOPS",
+      "threshold": 10000.0,
+      "trigger_rp": "RRP_101"
+    },
+    {
+      "metric": "MaxMemoryUsage",
+      "unit": "GB",
+      "threshold": 512.0,
+      "trigger_rp": "RRP_102"
+    }
+  ],
+  "telemetry_endpoints": [
+    {
+      "stream_name": "AgentHealthStream",
+      "format": "JSON_L",
+      "data_rate_hz": 1.0
+    },
+    {
+      "stream_name": "CISM_Metadata_Stream",
+      "format": "Avro",
+      "data_rate_hz": 0.1
+    }
+  ],
+  "required_agent_metrics": [
+    "Agent_Heartbeat_Latency_ms",
+    "CRoT_Signing_Throughput",
+    "GAX_Policy_Evaluation_Time_ms"
+  ]
+}
