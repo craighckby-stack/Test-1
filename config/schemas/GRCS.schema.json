@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://governance.agi/schemas/v94.1/GRCS.schema.json",
+  "title": "Governance Runtime Context Schema (GRCS)",
+  "description": "Defines the mandatory canonical structure for CPES results ($S_{01}$ and $S_{02}$) required for P-01 certification.",
+  "type": "object",
+  "required": [
+    "CertifiedUtilityMetrics",
+    "EstimatedFailureProfile",
+    "Timestamp",
+    "AgentVersion"
+  ],
+  "properties": {
+    "CertifiedUtilityMetrics": {
+      "description": "Output S01: The attested efficacy metric calculated by CPES.",
+      "type": "object",
+      "required": ["S01_Value", "S01_Unit", "Source_Stage", "CRoT_Signature"],
+      "properties": {
+        "S01_Value": { "type": "number", "format": "double", "minimum": 0 },
+        "S01_Unit": { "type": "string", "description": "Normalized unit of certified utility (e.g., 'NormalizedTFL')" },
+        "Source_Stage": { "type": "string", "const": "S6.7_CPES" },
+        "CRoT_Signature": { "type": "string", "description": "Cryptographic proof of metric generation integrity." }
+      },
+      "additionalProperties": false
+    },
+    "EstimatedFailureProfile": {
+      "description": "Output S02: The estimated cost or failure liability calculated by CPES.",
+      "type": "object",
+      "required": ["S02_Value", "S02_Tolerance", "Calculus_ID"],
+      "properties": {
+        "S02_Value": { "type": "number", "format": "double", "minimum": 0 },
+        "S02_Tolerance": { "type": "number", "format": "double", "minimum": 0 },
+        "Calculus_ID": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Timestamp": { "type": "string", "format": "date-time" },
+    "AgentVersion": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+$" }
+  },
+  "additionalProperties": false
+}
