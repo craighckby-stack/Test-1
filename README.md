@@ -1,8 +1,25 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V95.3: ARCHITECTURAL CORE DEFINITION
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V95.4: ARCHITECTURAL CORE DEFINITION
 
-## 0.0 MISSION & ARCHITECTURAL ANCHOR
+## 0.0 FOUNDATION & ARCHITECTURAL ANCHOR
 
-The **SGS V95.3** mandates deterministic state evolution ($\Psi_{N} \to \Psi_{N+1}$) through autonomous, self-governance. All Compliance-Certified State Transitions (CCST) must be processed exclusively via the **Governance State Evolution Pipeline (GSEP-C)**. Systemic integrity is ensured by mandated Governance Axioms (GAX) and cryptographically anchored manifests (GACR / CRoT).
+The **SGS V95.4** mandates deterministic state evolution ($\Psi_{N} \to \Psi_{N+1}$) through autonomous, self-governance. All Compliance-Certified State Transitions (CCST) must be processed exclusively via the **Governance State Evolution Pipeline (GSEP-C)**. Systemic integrity is ensured by mandated Governance Axioms (GAX) and cryptographically anchored manifests (GACR / CRoT).
+
+### 0.1 ARCHITECTURAL INDEX & GLOSSARY
+
+To ensure clarity and high-efficiency communication, the core architecture adheres to the following definitions:
+
+| Acronym | Definition | Domain/Related Section |
+|:---|:---|:---|
+| SGS | Sovereign Governance Standard / Agent | 1.0 (Execution & Orchestration) |
+| GAX | Governance Axioms / Agent | 1.0 (Policy Calculus & Certification) |
+| CRoT | Cryptographic Root of Trust / Agent | 1.0 (Integrity & Provenance) |
+| GSEP-C | Governance State Evolution Pipeline - Certified | 3.0 (Transition Mechanism) |
+| GACR | Governance Asset & Registry Manifests | 2.0 (Configuration Control) |
+| CGV | Certified Governance Variable ($S_{01}, S_{02}, S_{03}$) | 4.0 (Decision Calculus) |
+| NRALS | Non-Repudiable Audit Log Specification | 5.0 (Immutable Record) |
+| CEEP | Certified Execution Protocol | 1.1 (Modeling Isolation) |
+| PEUP | Policy Evolution Update Protocol | 1.1 (GACR Update Gate) |
+| GRTS | Governance Reporting & Telemetry Standard | 5.0 (Monitoring & Auditing) |
 
 ---
 
@@ -33,7 +50,7 @@ These protocols ensure predictable transition and resilience, governed by timing
 
 GACR manifests define the control logic and constraints of the SGS architecture. All manifests must be CRoT-signed and validated against the PESM schema during Policy Evolution Updates (PEUP).
 
-### 2.1 Policy & Calculus Manifests (GAX Domain)
+### 2.1 GAX Domain: Policy Calculus Manifests (Veto & Finality)
 
 | ID | Name | GSEP-C Gate | Function |
 |:---|:---|:---|:---|
@@ -41,7 +58,7 @@ GACR manifests define the control logic and constraints of the SGS architecture.
 | **CFTM** | Core Failure Thresholds Manifest | S7 | Defines the deviation tolerance $\epsilon$ for P-01 finality calculation. |
 | **PESM** | Policy Evolution Schema Manifest | PEUP | Defines mandatory schemas for GACR updates and integrity checks. |
 
-### 2.2 Constraints & Resource Manifests (SGS Domain)
+### 2.2 SGS Domain: Constraints & Resource Manifests
 
 | ID | Name | GSEP-C Gate | Function |
 |:---|:---|:---|:---|
@@ -49,7 +66,7 @@ GACR manifests define the control logic and constraints of the SGS architecture.
 | **SBCM** | System Baseline Configuration Manifest | S4 | Core configuration for CEEP modeling environment isolation. |
 | **SDVM** | Schema Definition Validation Manifest | S1 | Input validation rules for ensuring data structure compliance. |
 
-### 2.3 Integrity & Timekeeping Manifests (CRoT Domain)
+### 2.3 CRoT Domain: Integrity & Timekeeping Manifests
 
 | ID | Name | GSEP-C Gate | Function |
 |:---|:---|:---|:---|
@@ -60,7 +77,7 @@ GACR manifests define the control logic and constraints of the SGS architecture.
 
 ---
 
-## 3.0 GSEP-C V95.3: MANDATORY STATE TRANSITION PIPELINE
+## 3.0 GSEP-C V95.4: MANDATORY STATE TRANSITION PIPELINE
 
 GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). Failure at CRITICAL or TERMINAL stages triggers immediate System Halt (SIH) or Rollback (RRP).
 
@@ -97,9 +114,10 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 
 ---
 
-## 5.0 RESILIENCE AND LOGGING SPECIFICATIONS
+## 5.0 RESILIENCE, LOGGING, AND TELEMETRY SPECIFICATIONS
 
 *   **RRP (Rollback Protocol):** Initiates atomic state reversal (S1-S8 failure). Logs RRP status to NRALS before reversion attempt. GATM compliance is mandatory.
 *   **SIH (System Integrity Halt):** Terminal lock (S0, S9 failure). Requires Human-in-the-Loop Triage (HIL-T) authorization for restart.
 *   **NRALS (Non-Repudiable Audit Log):** Immutable logging mandated at S8 and upon SIH/RRP trigger, structured by CALS, and requiring cryptographic attestation for persistence.
-*   **PEUP (Policy Evolution Update Protocol):** Certified update path for GACR, enforcing PESM schema integrity and CRoT signing via a designated, non-SGS update service. 
+*   **PEUP (Policy Evolution Update Protocol):** Certified update path for GACR, enforcing PESM schema integrity and CRoT signing via a designated, non-SGS update service.
+*   **GRTS (Governance Reporting & Telemetry Standard):** Mandates structured, non-interfering reporting of Certified Governance Variables (CGV) immediately upon S7 Finality certification, enabling real-time monitoring and external auditing without querying the core NRALS or impacting GSEP-C latency. This standard requires a dedicated telemetry endpoint (see scaffold).
