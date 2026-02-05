@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign-agi.com/protocol/chr_schema.json",
+  "title": "Configuration Hash Registry (CHR) Schema",
+  "description": "Defines the immutable structure for tracking cryptographic hashes of all governing configuration files used by DSE/GSEP-C, ensuring Configuration Integrity Check Requirement (C-ICR) enforcement.",
+  "type": "object",
+  "properties": {
+    "protocol_version": {
+      "type": "string",
+      "description": "Version of the DSE protocol this registry conforms to (e.g., v94.1)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of hash registry generation/commitment."
+    },
+    "registry": {
+      "type": "array",
+      "description": "List of critical configurations and their expected integrity metrics.",
+      "items": {
+        "type": "object",
+        "required": ["file_path", "expected_hash", "tag", "criticality_level"],
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Relative path to the governed configuration file (e.g., config/acvm.json)."
+          },
+          "expected_hash": {
+            "type": "string",
+            "description": "SHA-512 cryptographic hash expected for the file content."
+          },
+          "tag": {
+            "type": "string",
+            "description": "Corresponding tag from the CSR (e.g., ACVM, GSEP-F)."
+          },
+          "criticality_level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Severity level for hash mismatch (5=L-9 Lockdown)."
+          }
+        }
+      }
+    }
+  },
+  "required": ["protocol_version", "timestamp", "registry"]
+}
