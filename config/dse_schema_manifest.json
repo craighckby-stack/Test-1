@@ -1,0 +1,10 @@
+{
+  "description": "Defines the required JSON schema paths for structural integrity validation (S00 Init check) of critical DSE configuration files, augmenting standard CHR hash validation.",
+  "schemas": {
+    "config/acvm.json": "schemas/acvm_schema.json",
+    "config/gsep_c_flow.json": "schemas/gsep_flow_schema.json",
+    "config/dial_analysis_map.json": "schemas/darm_schema.json",
+    "config/rrp_manifest.json": "schemas/rrp_schema.json",
+    "protocol/fdls_spec.json": "schemas/fdls_schema.json"
+  }
+}
