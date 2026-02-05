@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sag-v96/AxiomaticPolicyConstraintSchema.json",
+  "title": "Axiomatic Policy Constraint Schema (APCS)",
+  "description": "Schema defining the structural requirements for the Axiomatic Constraint Vector Definition (ACVD) file, ensuring PVLM and MPAM integrity before GAX execution.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Policy Schema Version."
+    },
+    "prohibitionVetoLogic": {
+      "type": "array",
+      "description": "Constraints governing Policy Prohibition Veto (PVLM, S03).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Executable logic statement (e.g., Target.Scope == 'RESTRICTED')."
+          }
+        },
+        "required": ["id", "condition"]
+      }
+    },
+    "stabilityBounds": {
+      "type": "object",
+      "description": "Constraints governing Stability Bounds Veto (MPAM, S04).",
+      "properties": {
+        "max_drift_pct": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "time_to_live_s": {
+          "type": "integer",
+          "minimum": 30
+        }
+      },
+      "required": ["max_drift_pct", "time_to_live_s"]
+    }
+  },
+  "required": ["version", "prohibitionVetoLogic", "stabilityBounds"]
+}
