@@ -4,64 +4,54 @@ This document defines the **Autonomous Operational Contract (AOC V99.0)**, estab
 
 ---
 
-## CRITICAL MANDATE: P-01 ADJUDICATION (GSEP Stage 4)
+## I. CRITICAL MANDATE: P-01 ADJUDICATION
 
-Evolution is conditionally permitted based on the outcome of the P-01 Calculus, which evaluates Trust versus Risk and ensures Policy Veto absence. This calculus is enforced at **EPDP C** (Evolution Protocol Decision Point C).
+Evolution is conditionally permitted based on the outcome of the P-01 Calculus, which evaluates Systemic Trust versus Operational Risk, ensuring Policy Veto absence. This calculus is enforced at **EPDP C** (Evolution Protocol Decision Point C).
 
 $$\text{P-01 PASS} \iff ( \text{S-01}_{\text{Trust}} > \text{S-02}_{\text{Risk}} ) \land ( \text{S-03}_{\text{Veto}} = \text{FALSE} )$$ 
 
-| Metric ID | Functional Component | Definition | Mandate / Constraint Focus |
+| Metric ID | Functional Component | Definition | Constraint Focus |
 |:---|:---|:---|:---|
 | **S-01** | ATM | Quantitative Efficacy Projection (Trust Score) | Must strictly exceed S-02. Calculated from validated performance models (Post-PSR). |
-| **S-02** | MCRA Engine | Dynamic Maximum Risk Floor | Synthesized from CEE, PSR traces, RACM, and real-time **ECR** data. |
+| **S-02** | MCRA Engine | Dynamic Maximum Risk Floor | Synthesized from RACM, CEE, PSR traces, and real-time **ECR** data. |
 | **S-03** | C-15 Policy Engine | Policy Veto Flag (Boolean Constraint) | Must be definitively `FALSE`. Enforced via RSAM compliance rules. |
 
 ---
 
-## I. GSEP: THE 7-STAGE ATOMIC EVOLUTION PROTOCOL (GCO Enforcement)
+## II. GSEP: THE 7-STAGE ATOMIC EVOLUTION PROTOCOL (GCO ENFORCEMENT)
 
-The GSEP provides the atomic, integrity-locked pathway from M-01 Intent to irreversible AIA Commitment (Stage 5).
+The GSEP provides the atomic, integrity-locked pathway from M-01 Intent to irreversible AIA Commitment (Stage 5), strictly orchestrated by the GCO.
 
-| Stage # | Pillar Focus | Action Mandate / Lock Artifact | Critical Decision Point (EPDP) |
-|:---:|:---|:---|:---|
-| **0** | Validation Root | Validate AOC Governance Source (GSH Lock). | N/A |
-| **1** | Policy Vetting | Attest M-01 intent against RSAM constraints. | **EPDP A**: Policy Compliance Pass? |
-| **2** | Integrity Lock | Verify M-02 integrity (PSIM), provenance, CEE, and RACM constraints. | N/A |
-| **3** | Runtime Proofing | Execute rigorous sandbox simulation (PSR) to generate performance metrics. | **EPDP B**: Simulation Efficacy Pass? |
-| **4** | **Adjudication** | Execute P-01 Calculus using ECR input (S-01 > S-02 & S-03=F). Final Gate Check. | **EPDP C**: P-01 Adjudication Pass? (DSCM Locked) |
-| **5** | AIA Commitment | MCR executes irreversible cryptographic Version-Lock and D-01 logging. | N/A |
-| **6** | Audit & Feedback | Secure activation (C-04), D-02/D-03 monitoring, and efficacy data collection. | N/A |
+| Stage # | Pillar Focus | Action Mandate / Lock Artifact | Critical Decision Point (EPDP) | Primary Arbiters |
+|:---:|:---|:---|:---|:---|
+| **0** | Validation Root | Validate AOC Governance Source (GSH Lock). | N/A | N/A |
+| **1** | Policy Vetting | Attest M-01 intent against RSAM constraints. | **EPDP A**: Policy Compliance Pass? | RSAM, C-15 |
+| **2** | Integrity Lock | Verify M-02 integrity (PSIM), provenance, CEE, and RACM constraints. | N/A | RACM |
+| **3** | Runtime Proofing | Execute rigorous sandbox simulation (PSR) to generate performance metrics. | **EPDP B**: Simulation Efficacy Pass? | PSR, ATM |
+| **4** | **Adjudication** | Execute P-01 Calculus using ECR input (S-01 > S-02 & S-03=F). Final Gate Check. | **EPDP C**: P-01 Adjudication Pass? (DSCM Locked) | GCO, MCRA, ECR |
+| **5** | AIA Commitment | MCR executes irreversible cryptographic Version-Lock and D-01 logging. | N/A | MCR, AIA |
+| **6** | Audit & Feedback | Secure activation (C-04), D-02/D-03 monitoring, and efficacy data collection. | N/A | DIM |
 
 ---
 
-## II. AOC GOVERNANCE LEXICON & ARCHITECTURAL REGISTRY
+## III. AOC ARCHITECTURAL REGISTRY (LEXICON)
 
-### A. Decisional Arbiters & Constraint Managers
+This consolidated registry provides definitions for all critical systems, components, and core artifacts referenced within the Autonomous Operational Contract (AOC).
 
-| Acronym | Functional Definition | Purpose/GSEP Stage Context |
-|:---|:---|:---|
-| **GCO** | Governance Constraint Orchestrator | Enforces sequential integrity of the GSEP (Stages 0-6). |
-| **ATM** | AGI Trust Metrics System | Primary component for calculating S-01 (Trust Score). | 
-| **MCRA Engine** | Maximum Critical Risk Arbitrator | Primary component for calculating S-02 (Risk Floor). |
-| **C-15** | Policy Engine | Asserts S-03 (Veto Flag) based on compliance state. |
-| **RSAM** | Rule-Set Alignment Model | Performs pre-simulation policy vetting (EPDP A, Stage 1). |
-| **RACM** | Resource Allocation Constraint Manager | Provides resource budget inputs to the MCRA S-02 calculation. |
-| **ECR** | Environmental Constraint Registrar | Provides real-time capacity and cost inputs for the Stage 4 S-02 calculation. |
-
-### B. Validation Tools & Commitment Modules
-
-| Acronym | Functional Definition | Purpose/GSEP Stage Context |
-|:---|:---|:---|
-| **AIA** | Atomic Immutable Architecture | Provides verifiable cryptographic ledgering (State 5 Lock). |
-| **PSR** | Payload Simulation Runner | Executes sandbox testing and trace generation (EPDP B, Stage 3). |
-| **MCR** | Mutation Commitment Registrar | Executes the irreversible AIA commitment (Stage 5). |
-| **DSCM** | Decisional State Checkpoint Manager | Captures and locks audit state of the P-01 calculus inputs (Stage 4). |
-
-### C. Core Artifacts & Integrity Hashes
-
-| ID | Artifact/Reference | Definition | Primary GSEP Lock/Use Stage(s) |
+| Acronym | Functional Definition | Type | Purpose/GSEP Stage Context |
 |:---|:---|:---|:---|
-| **M-02** | Mutation Payload | The finalized code/config target for evolution. | Subject of commitment (Stages 2-6) |
-| **GSH** | Governance Source Hash | Integrity hash of the active AOC governance policy. | Lock (Stage 0) |
-| **PMH** | Payload Manifest Hash | Integrity hash/lock of the M-02 payload post-simulation. | Checkpoint (Stage 3, 4) |
-| **D-02 / D-03** | Monitoring Reports | Reports generated by the DIM (Deployment Integrity Monitor), culminating in structured Post-Deployment Feedback (PDFS). | Output (Stage 6) |
+| **AIA** | Atomic Immutable Architecture | Commitment Module | Provides verifiable cryptographic ledgering (State 5 Lock). |
+| **ATM** | AGI Trust Metrics System | Decisional Arbiter | Primary component for calculating S-01 (Trust Score). |
+| **C-15** | Policy Engine | Constraint Manager | Asserts S-03 (Veto Flag) based on compliance state. |
+| **DSCM** | Decisional State Checkpoint Manager | Validation Tool | Captures and locks audit state of the P-01 calculus inputs (Stage 4). |
+| **D-02 / D-03** | Monitoring Reports | Artifact | Reports generated by the DIM, culminating in Structured Post-Deployment Feedback (PDFS). (Stage 6) |
+| **ECR** | Environmental Constraint Registrar | Constraint Manager | Provides real-time capacity and cost inputs for the Stage 4 S-02 calculation. |
+| **GCO** | Governance Constraint Orchestrator | Decisional Arbiter | Enforces sequential integrity of the GSEP (Stages 0-6). |
+| **GSH** | Governance Source Hash | Artifact | Integrity hash of the active AOC governance policy. Lock (Stage 0). |
+| **MCRA Engine** | Maximum Critical Risk Arbitrator | Decisional Arbiter | Primary component for calculating S-02 (Risk Floor). |
+| **MCR** | Mutation Commitment Registrar | Commitment Module | Executes the irreversible AIA commitment (Stage 5). |
+| **M-02** | Mutation Payload | Artifact | The finalized code/config target for evolution. Subject of commitment (Stages 2-6). |
+| **PMH** | Payload Manifest Hash | Artifact | Integrity hash/lock of the M-02 payload post-simulation. Checkpoint (Stage 3, 4). |
+| **PSR** | Payload Simulation Runner | Validation Tool | Executes sandbox testing and trace generation (EPDP B, Stage 3). |
+| **RACM** | Resource Allocation Constraint Manager | Constraint Manager | Provides resource budget inputs to the MCRA S-02 calculation. |
+| **RSAM** | Rule-Set Alignment Model | Constraint Manager | Performs pre-simulation policy vetting (EPDP A, Stage 1). |
