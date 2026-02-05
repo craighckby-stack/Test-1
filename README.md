@@ -1,78 +1,71 @@
-# SOVEREIGN AGI V94.1 | DETERMINISTIC STATE EXECUTION (DSE) ROOT SPECIFICATION
+# SOVEREIGN AGI V94.1 | DETERMINISTIC STATE EXECUTION (DSE)
 
-## The Atomic $\Psi$ Guarantee: Verifiable State Transition Contract
+## The $\Psi$ Contract: Verifiable State Transition Guarantee
 
-The **Deterministic State Execution (DSE)** Protocol enforces the immutable State Transition ($\Psi$) contract. Integrity is guaranteed by the concurrent satisfaction of the GAX I, GAX II, and GAX III Constraint Set (P-M02), which is centrally managed by the Governance State Execution Pipeline - Core (GSEP-C).
-
----
-
-## 1. GOVERNING PRINCIPLES (P-SET ARCHITECTURE)
-
-The system mandates three core principles. Violation of any P-Set triggers an immediate **Integrity Halt (IH)**, governed by P-R03.
-
-### P-M01: Atomic Execution (Sequencing Integrity)
-Enforces a strict, linear, 15-stage GSEP-C flow (S00 $\to$ S14). The sequence is defined and validated by `config/gsep_c_flow.json`.
-
-### P-M02: Immutable Commitment (State Finality $\Psi$)
-Requires the concurrent satisfaction of all three GAX Constraints against the **Axiom Constraint Verification Matrix (ACVM)** thresholds at the S11 finalization gate.
-
-$$
-\Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III})_{\text{ACVM}}
-$$
-
-### P-R03: Recovery Integrity (Traceability/Resolution)
-Defines the mandatory procedure for resolving an IH. Resolution requires AASS-signed DIAL certification based *only* on sealed FDLS trace data. This mandates strict rollback protocols (`RRP Manifest`).
-
-| Principle | Acronym | Focus Area | Trigger Stages | Resolution Requirement |
-|:---:|:---:|:---|:---:|:---:|
-| Atomic Execution | P-M01 | Sequencing Integrity | S00 Check $\to$ S14 Logging | GSEP-C Flow Adherence |
-| Immutable Commitment | P-M02 | State Finality (GAX $\to$ ACVM) | S11 Finalization Gate | $\Psi_{\text{final}}$ Resolution |
-| Recovery Integrity | P-R03 | Traceability/Resolution | IH Trigger / Rollback | AASS/DIAL Certification |
+The **Deterministic State Execution (DSE)** Protocol enforces the immutable State Transition ($\Psi$) contract. Integrity is guaranteed by the concurrent satisfaction of the GAX Constraint Set (I, II, and III), which is centrally managed by the Governance State Execution Pipeline - Core (GSEP-C) and evaluated against the Axiom Constraint Verification Matrix (ACVM).
 
 ---
 
-## 2. DSE EXECUTION LIFECYCLE (GSEP-C: S00 $\to$ S14)
+## 1. DSE GOVERNANCE PRINCIPLES (P-SET ARCHITECTURE)
 
-The DSE Manager orchestrates the flow. S00 (Pre-Flight) and S11 (Commitment) are the critical control gates.
+Violation of any core P-Set principle triggers an immediate **Integrity Halt (IH)**, governed by P-R03. These constraints define the fundamental DSE operational mandate.
 
-### 2.1. S00 Pre-Flight Integrity Check (C-ICR)
+| P-Set ID | Name | Constraint Description | Critical Stage / Artifact | Failure Action |
+|:---:|:---|:---|:---:|:---:|
+| **P-M01** | Atomic Execution | Strict, linear 15-stage GSEP-C sequence (S00 $\to$ S14). Defined by `config/gsep_c_flow.json`. | Sequencing Integrity | IH (Flow Non-Adherence) |
+| **P-M02** | Immutable Commitment | Concurrent GAX Constraint satisfaction required at S11 Commitment Gate. | $\Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III})_{\text{ACVM}}$ | IH ($\Psi$ Resolution Failure) |
+| **P-R03** | Recovery Integrity | Mandatory resolution via AASS-signed DIAL certification, using sealed FDLS trace data upon IH. | Traceability/Resolution (Audit Log) | IH (RRP Trigger/Audit Failure) |
 
-Mandatory execution of the C-ICR Utility ensures compliance with the operational baseline. Structural integrity (Schema Manifest) and cryptographic hash verification (`CHR Manifest`) must pass for S01 authorization.
+---
 
-| Step | Utility/Actor | Requirement | Validation Artifacts | Outcome/Lock |
-|:---:|:---:|:---:|:---:|:---:|
-| **S00 Init** | DSE Manager | Structural Compliance Baseline | DSE Schema Manifest | P-M01/P-M02 Established |
-| **S00 Check** | C-ICR Utility | Immutable State Reference Lock | CHR Manifest (Hash Verified) | Authorized Sequence Start |
+## 2. GSEP-C EXECUTION LIFECYCLE (S00 $\to$ S14)
 
-### 2.2. GAX Constraint Generation and Commitment Timeline
+The DSE Manager orchestrates the flow through critical control gates (S00 Pre-Flight, S11 Commitment) and standardized artifact generation stages, ensuring P-M01 adherence.
 
-Artifacts are generated during execution and are centralized for concurrent validation at S11, enforcing P-M02 via the $\Psi$ Resolver Agent.
+### 2.1. CRITICAL GATES & STATE LOCKS
 
-| Stage | Actor | Artifact Generated | Governing Constraint | ACVM Metric Purpose |
+| Gate | Stage | Actor/Utility | Functionality | P-Set Mandate | Outcome Artifact |
+|:---:|:---:|:---:|:---|:---:|:---:|
+| **Start** | **S00** Pre-Flight Check | C-ICR Utility | Verifies structural compliance (Schema Manifest) and immutable reference lock (CHR Manifest). | P-M01/P-M02 Establishment | Sequence Authorization Lock |
+| **Commit** | **S11** Finalization Gate | $\Psi$ Resolver Agent | Executes concurrent validation of all generated GAX Constraints against ACVM thresholds. | P-M02 Resolution | P-M02 Commitment Lock ($\Psi_{\text{final}}$) |
+| **End** | **S14** Post-Execution | AASS Service | Seals the final State Transition Receipt and generates the mandatory Audit Log. | P-R03 Audit/Traceability | State Seal & Receipt |
+
+### 2.2. GAX ARTIFACT GENERATION TIMELINE (S01 $\to$ S08)
+
+Artifacts necessary for the S11 P-M02 commitment validation.
+
+| Stage | Actor | Artifact Generated | GAX Constraint | ACVM Metric Focus |
 |:-----:|:---:|:----------:|:---------------------:|:---:|
-| **S01** | CRoT Agent | CSR Snapshot | GAX III (Structural Policy) | Policy Violation Audit |
-| **S07** | EMS | ECVM Snapshot | GAX II (Boundary Integrity) | Environment Boundary Check |
-| **S08** | EMS | TEMM Snapshot | GAX I (Performance/Throughput) | Minimum Throughput Fulfillment ($\Omega_{\text{min}}$) |
-| **S11** | $\Psi$ Resolver Agent (New) | P-M02 Commitment Lock | All GAX Constraints | Final Resolution Gate (P-M02) |
-| **S14** | AASS Service | State Transition Receipt | N/A | Final State Seal & Audit Log (P-R03) |
+| S01 | CRoT Agent | CSR Snapshot | GAX III (Structural Policy) | Configuration Integrity Audit |
+| S07 | EMS | ECVM Snapshot | GAX II (Boundary Integrity) | Runtime Environment Checks |
+| S08 | EMS | TEMM Snapshot | GAX I (Performance/Throughput) | Minimum Throughput ($\Omega_{\text{min}}$) Fulfillment |
 
 ---
 
 ## 3. DSE ARTIFACT AND GLOSSARY REGISTRY (GAR)
 
-Comprehensive reference for core contracts and components. Artifacts are subject to S00 C-ICR validation.
+### 3.1. Core Contracts and Policies
 
-| Acronym/Tag | Definition | Governing Path / Type | Governing Scope/P-Set | Dependency/Role |
-|:---:|:---|:---|:---:|:---:|
-| **DSE** | Deterministic State Execution | Protocol | Core State Integrity Guarantee ($\Psi$) | System Root |
-| **ACVM** | Axiom Constraint Verification Matrix | `config/acvm.json` (P-M02) | Constraint Thresholds Definition | P-M02 Metric Input |
-| **AASS** | Autonomous Audit & Signing Service | Service | Cryptographic certification authority. | P-R03/S14 Sealing |
-| **CHR** | Configuration Hash Registry | `registry/chr_manifest.json` | S00 Baseline/Integrity Lock | S00 Validation Target |
-| **C-ICR** | Configuration Integrity Check Requirement | Utility | Mandatory S00 Pre-flight Validation. | S00 Check Actor |
-| **DARM** | DIAL Analysis/RCA Map | `config/dial_analysis_map.json` | IH Root Cause Analysis Rules | IH Trigger Input |
-| **FDLS Spec** | Forensics Data Lockout Standard | `protocol/fdls_spec.json` (P-R03) | Telemetry Sealing & Immutable Storage. | IH Traceability |
-| **GSEP-C/F** | Governance State Execution Pipeline - Core/Flow | `config/gsep_c_flow.json` (P-M01) | Execution Sequencing Contract | P-M01 Control |
-| **IH** | Integrity Halt | P-SET Violation | Mandated immediate operational stop. | Failure State |
-| **RRP Manifest** | Rollback/Reversal Procedure | `config/rrp_manifest.json` | Auditable State Reversal Protocol | IH Resolution |
-| **SMC Schema** | Structural Compliance Schema | `governance/smc_schema.json` | Flow Structural Validation Schema | S01 Policy Check |
-| **$\Psi$** | State Transition (Symbol) | State Finality | Atomic unit of verifiable change. | Core Contract |
+| Tag | Definition | Path / Type | Scope/Mandate |
+|:---:|:---|:---|:---:|
+| **DSE** | Deterministic State Execution | Protocol Root | Core State Integrity Guarantee ($\Psi$) |
+| **GSEP-C/F** | Governance State Execution Pipeline - Core/Flow | `config/gsep_c_flow.json` (P-M01) | Execution Sequencing Contract (S00 $\to$ S14) |
+| **ACVM** | Axiom Constraint Verification Matrix | `config/acvm.json` (P-M02) | Defines GAX Constraint Thresholds |
+| **SMC Schema** | Structural Compliance Schema | `governance/smc_schema.json` | S01 Flow Structural Validation Policy |
+
+### 3.2. Operational Components and Artifacts
+
+| Tag | Definition | Artifact Source / Role | Dependency / Usage |
+|:---:|:---|:---|:---:|
+| **AASS** | Autonomous Audit & Signing Service | S14 Actor | Cryptographic certification (P-R03 Sealing) |
+| **C-ICR** | Configuration Integrity Check Requirement | S00 Utility | Mandatory Pre-flight Validation (CHR Check) |
+| **CHR** | Configuration Hash Registry | `registry/chr_manifest.json` | S00 Baseline/Integrity Lock Target |
+
+### 3.3. Integrity Halt (IH) Resolution Standard
+
+| Tag | Definition | Path / Specification | Recovery Phase Role |
+|:---:|:---|:---|:---:|
+| **IH** | Integrity Halt | P-SET Violation | Mandated immediate operational stop |
+| **FDLS Spec**| Forensics Data Lockout Standard | `protocol/fdls_spec.json` (P-R03) | Telemetry Sealing & Immutable Storage |
+| **RRP Manifest** | Rollback/Reversal Procedure | `config/rrp_manifest.json` | Auditable State Reversal Protocol (IH Resolution) |
+| **DARM** | DIAL Analysis/RCA Map | `config/dial_analysis_map.json` | IH Root Cause Analysis Rules Input |
