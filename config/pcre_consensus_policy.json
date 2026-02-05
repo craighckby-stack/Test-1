@@ -1,0 +1,25 @@
+{
+  "policy_id": "PCRE-V1.0",
+  "description": "Defines the required cryptographic signing quorum and multi-party ratification process for updating Core Mandates (P-SET) and ACVM Thresholds.",
+  "ratification_requirements": {
+    "quorum_size": 7,
+    "signer_groups_required": [
+      "Governance_DAO_Key",
+      "System_Stability_Council",
+      "Integrity_Audit_Service"
+    ],
+    "update_frequency_cap_hours": 72
+  },
+  "immutable_targets_hash_locked": [
+    "ACVM",
+    "GSEP-C/F",
+    "DARM"
+  ],
+  "process_flow": [
+    "Policy Draft Creation",
+    "Cryptographic Hash Locking (L2)",
+    "Quorum Vote Consensus Check (P-M02 Constraint Validation)",
+    "Activation/Deployment (New Hash written to CHR)"
+  ],
+  "enforcement_agent": "DMW/CHR Interlock"
+}
