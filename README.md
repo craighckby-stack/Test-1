@@ -25,23 +25,32 @@ This manifest defines the immutable operational and structural requirements gove
 
 ## 1.0 CORE ARCHITECTURAL CONSTRAINTS (CAC)
 
-### 1.1 GOVERNING AXIOMS (COF & P-01 FINALITY)
+### 1.1 GOVERNING AXIOMS & CORE METRIC SET
 
 These axioms establish the mathematical prerequisites for successful System State Transition (SST) certification, ensuring systemic benefit always supersedes quantified risk.
 
-#### A. Core Objective Function (COF Maximization Goal)
-Optimization seeks to maximize Efficacy ($S\text{-}01$) relative to systemic Risk ($S\text{-}02$), provided critical governance boundaries ($\\neg S\text{-}03$) are universally maintained.
+#### I. Core Metric Definitions (MEE L6 & PVLM L1 Outputs)
+
+*   **$S\text{-}01$ (Efficacy Metric):** Quantified Systemic Benefit/Value. (Output of MEE L6)
+*   **$S\text{-}02$ (Risk Metric):** Quantified Systemic Risk/Cost. (Output of MEE L6)
+*   **$S\text{-}03$ (Veto Signal):** Boolean state indicating critical policy violation. (Output of PVLM L1)
+*   **$\epsilon$ (Viability Margin):** Dynamic safety buffer requirement. (Output of VMO L7)
+
+#### II. Core Objective Function (COF Maximization Goal)
+
+Optimization seeks to maximize Efficacy ($S\text{-}01$) relative to systemic Risk ($S\text{-}02$), provided critical governance boundaries ($\neg S\text{-}03$) are universally maintained.
 
 $$\text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + 1} \right) \quad \text{subject to} \quad \neg S\text{-}03 \equiv \mathbf{True}$$
 
-**Governance Principle:** Systemic improvement ($S\text{-}01$, computed by MEE L6) must always be maximized relative to adjusted risk ($S\text{-}02$, computed by MEE L6), without breaching any critical veto policy ($\\neg S\text{-}03$, signaled by PVLM L1).
+**Governance Principle:** Systemic improvement ($S\text{-}01$) must always be maximized relative to adjusted risk ($S\text{-}02$), without breaching any critical veto policy ($\neg S\text{-}03$).
 
-#### B. Finality Axiom (P-01 Certification Requirement - Layer L7)
+#### III. Finality Axiom (P-01 Certification Requirement - Layer L7)
+
 Certification (P-01 PASS) mandates that quantified systemic benefit strictly exceeds quantifiable risk adjusted by the dynamic viability margin ($\epsilon$), alongside the universal absence of any critical veto.
 
 $$\mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03)$$
 
-**Finality Principle:** A State Transition is certified only if net benefit reliably exceeds adjusted risk and all governance rules are satisfied. The dynamic Viability Margin ($\epsilon$) is computed by the VMO (L7).
+**Finality Principle:** A State Transition is certified only if net benefit reliably exceeds adjusted risk and all governance rules are satisfied.
 
 ### 1.2 GOVERNANCE CONTRACTS REGISTRY (GCR)
 The GCR is the definitive list of all functional contracts and modules required for the execution and integrity assurance of the Governance State Evolution Pipeline (GSEP-C).
