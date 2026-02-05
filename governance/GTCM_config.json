@@ -1,0 +1,14 @@
+{
+  "VERSION": "1.0.0-AOC.V94",
+  "AOC_Compliance_Mode": "HARDENED_LOCK",
+  "P01_Thresholds": {
+    "S-01_Efficacy_Minimum": 0.75,
+    "S-02_Risk_Maximum": 0.15
+  },
+  "S-03_Veto_Triggers": [
+    "ExternalSystemCallViolation",
+    "InternalResourceStarvation",
+    "AOC_Override_Attempt"
+  ],
+  "GFRM_Redirect_URL": "/api/governance/feedback/remediate"
+}
