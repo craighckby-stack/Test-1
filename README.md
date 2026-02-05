@@ -1,74 +1,78 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V95.2: ARCHITECTURAL OVERVIEW
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V95.3: ARCHITECTURAL OVERVIEW
 
-## 1.0 EXECUTIVE MANDATE & GOVERNANCE STRUCTURE
+## 1.0 EXECUTIVE MANDATE, TERMINOLOGY, AND GOVERNANCE PLANE
 
-**MISSION MANDATE:** SGS V95.2 serves as the core authority, enforcing Compliance-Certified State Transitions (CCST) through deterministic, auditable, and immutable pathways. It guarantees systemic integrity against all defined Governance Axioms (GAX).
+**MISSION MANDATE:** SGS V95.3 is the core authority for enforcing Compliance-Certified State Transitions (CCST). It guarantees systemic integrity against all defined Governance Axioms (GAX) through auditable, deterministic, and immutable pathways.
 
-### 1.1 Core Components & Acronyms
+### 1.1 Core Components and Acronyms (SGS Registry)
 
-| Acronym | Definition | Role/Authority |
-|:---|:---|:---|
-| **SGS** | Sovereign Governance Standard | The overall framework. |
-| **GSEP-C** | Governance State Evolution Pipeline | The 11-stage state transition process (Section 2.0). |
-| **GAX** | Governance Axioms Engine | Core policy and decision calculus (Section 3.0). |
-| **GACR** | Asset & Contract Registry | Source of all certified configurations and standards. |
-| **CRoT** | Crypto Root of Trust | Key management authority for manifest integrity (L-PRE). |
-| **SIH** | System Integrity Halt | Terminal failure state triggered by critical violations. |
-| **RRP** | Rollback Protocol | Guarantees atomic state reversal upon recoverable failures (L0-L8). |
+| Acronym | Definition | Core Role/Authority | Control Phase |
+|:---|:---|:---|:---|
+| **SGS** | Sovereign Governance Standard | The overall operational authority and framework. | Policy |
+| **GSEP-C** | Governance State Evolution Pipeline | 11-stage deterministic state transition process (Sec 2.0). | Process |
+| **GAX** | Governance Axioms Engine | Core policy vetting, decision calculus, and final certification (Sec 3.0). | Calculus |
+| **GACR** | Asset & Contract Registry | Source of all certified configurations, manifests, and standards (Sec 4.0). | Source |
+| **CRoT** | Crypto Root of Trust | Key management authority; certifies asset integrity (Mandatory L-PRE requirement). | Integrity |
+| **RRP** | Rollback Protocol | Guarantees atomic state reversal upon recoverable failures (L0-L8). | Recovery |
+| **SIH** | System Integrity Halt | Terminal failure state triggered by critical, unrecoverable violations (L-PRE, L9). | Terminal Lock |
 
-### 1.2 System Control Plane & Integrity Vetting (L-PRE)
+### 1.2 Core Architectural Modules (Control Plane V3.5)
 
-System integrity begins at the mandatory **L-PRE (Integrity Vetting)** stage. Failure at this stage results in an immediate System Integrity Halt (SIH). The control plane separates the state transition (GSEP-C) from policy calculation (GAX).
+These modules drive execution and governance, separating state management (GSEP-C) from policy calculation (GAX). Integrity vetting begins at L-PRE.
 
-| ID | Module | Primary Function | Governing Contract | Criticality |
+| ID | Module | Primary Function | Governing Protocol/Manifest | Criticality |
 |:---|:---|:---|:---|:---|
-| **GSEP-C V3.5** | Transition Pipeline | 11-Stage State Management | RRP/SIH | PRIMARY |
-| **GAX Engine** | Axiom Authority | Policy Certification & Decision Calculus | CFTM/PVLM | CRITICAL |
-| **GACR V2.1** | Asset Registry | Mandatory Configuration & Manifest Sources | MCIS | CRITICAL |
-| **CRoT V1.0** | Crypto Root of Trust | Manages key verification for manifest integrity. | TERMINAL |
-| **SDVM** | Input Schema | Defines validated input structure (SST Request). | Fail-Fast Validation | CRITICAL |
+| GSEP-C V3.5 | Transition Pipeline | 11-Stage Sequential State Management. | RRP Interface / SIH Spec | PRIMARY |
+| GAX Engine V2.0 | Axiom Authority | Policy Certification, S-Metric Synthesis, and Decision Calculus. | CFTM / PVLM | CRITICAL |
+| GACR V2.1 | Asset Registry | Mandatory configuration sourcing and integrity manifest provider. | MCIS Specification | CRITICAL |
+| CRoT V1.0 | Trust Authority | Key verification and cryptographic signing authority for system assets. | TERMINAL |
+| SDVM V1.0 | Schema Definition | Defines the validated input structure (SST Request) for ingress. | Fail-Fast Validation | CRITICAL |
 
-**Integrity Protocols:**
-*   **L-PRE VMI Check:** Validation of all mandatory GACR manifests against CRoT-certified cryptographic signatures. Failure triggers SIH.
-*   **RRP:** Activated by recoverable failures (L0-L8). Guarantees atomic state rollback and non-persistence of intermediary invalid states.
-*   **SIH:** Triggered by L-PRE or terminal commitment failure (L9). Locks down the system state and mandates forensic logging against the NRALS specification.
+### 1.3 Integrity & Terminal Protocols
+
+*   **L-PRE VMI Check:** The mandatory Validation of Manifest Integrity phase. All GACR assets must be certified via CRoT (per MCIS spec). Failure triggers immediate SIH.
+*   **RRP (L0-L8):** Activated upon recoverable failures. Guarantees atomic state rollback and non-persistence of intermediary invalid states.
+*   **SIH (L-PRE, L9):** Triggered by L-PRE failure or terminal commitment failure (TEDC). Locks system state and mandates forensic logging per the NRALS specification.
 
 ---
 
 ## 2.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.5)
 
-GSEP-C enforces 11 sequential, segregated stages. Progression requires strict adherence to the current stage's objective and Governance Class. **CRITICAL** stages define the core integrity and policy gates. The primary linkage to the GACR is explicit in this pipeline flow.
+GSEP-C enforces 11 sequential, segregated stages. Progression requires strict adherence to the objective and Governance Class. CRITICAL stages are the primary integrity and policy enforcement gates.
 
-| Stage | ID Tag | Governance Class | Core Objective / Validation Action | Mandatory Asset/Contract | Halt Protocol |
+| Stage | ID Tag | Class | Core Objective / Validation Action | Required Asset/Manifest | Halt Protocol |
 |:-----|:---|:---|:-----------------------------------|:--------------------------|:---|
-| **L-PRE** | VMI | TERMINAL | **VETTING: Mandatory Manifest Integrity Check via CRoT.** | MCIS | **SIH** (Immediate) |
-| PRE | GSC | STANDARD | Ingress Validation (SDVM Schema Check). | SDVM | RRP |
+| **PRE-STAGES** | | | | | |
+| L-PRE | VMI | TERMINAL | **VETTING:** Mandatory Manifest Integrity Check via CRoT. | MCIS | **SIH** |
+| PRE | GSC | STANDARD | Ingress Validation (SDVM Schema and Syntax Compliance). | SDVM | RRP |
+| **CRITICAL GATES (L0-L7)** | | | | | |
 | L0 | CTM | STANDARD | Context Typing and Format Compliance Check. | SDVM | RRP |
-| **L1** | PVLM | CRITICAL | **POLICY VETO: Assessment against Policy Veto Logic Manifest (S-03).** | PVLM | RRP |
-| **L2** | CTAL | CRITICAL | Provenance Trust, Lineage, and Cryptographic Validation. | DTEM | RRP |
-| L3 | CM | STANDARD | Confidence Modeling (Simulate potential impact boundaries). | SBCM | RRP |
-| **L4** | SCI | CRITICAL | Resource Constraint Verification (CAC Limits Check). | CAC | RRP |
-| L5 | DFV | STANDARD | Data Fidelity Check (Input source chain integrity). | DTEM | RRP |
+| **L1** | PVLM | CRITICAL | **POLICY VETO:** Assessment against Policy Veto Logic Manifest (S-03 Signal generation). | PVLM | RRP |
+| **L2** | CTAL | CRITICAL | Provenance Trust, Lineage, and Cryptographic Validation (Source Integrity). | DTEM | RRP |
+| L3 | CM | STANDARD | Confidence Modeling (Simulation for boundary impact analysis). | SBCM | RRP |
+| **L4** | SCI | CRITICAL | Resource Constraint Verification (CAC System Limits Check). | CAC | RRP |
+| L5 | DFV | STANDARD | Data Fidelity Check (Input source chain validity). | DTEM | RRP |
 | L6 | MEE | STANDARD | Metric Synthesis (Generate S-01/S-02 signals for GAX Engine). | MDSM, MEC | RRP |
-| **L7** | VMO | CRITICAL | **FINALITY GATE: P-01 Certification via GAX-CERT.** | CFTM | RRP |
+| **L7** | VMO | CRITICAL | **FINALITY GATE:** P-01 Certification via GAX-CERT. | CFTM | RRP |
+| **TERMINAL COMMITMENT** | | | | | |
 | L8 | GRLC | STANDARD | Certified Persistence (Record full NRALS audit log). | NRALS, FSVM | RRP |
-| **L9** | TEDC | TERMINAL | **COMMIT: Execution & Atomic State Transition.** | SIH Protocol | **SIH** |
+| **L9** | TEDC | TERMINAL | **COMMIT:** Transaction Execution and Atomic State Transition. | SIH Protocol | **SIH** |
 
 ---
 
 ## 3.0 GOVERNANCE DECISION CALCULUS (GAX Engine)
 
-GAX utilizes metrics synthesized in L6 against thresholds ($	au_{norm}, \epsilon$) defined in the CFTM to drive deterministic outcomes. Only P-01 certified transitions are permissible.
+GAX utilizes metrics synthesized in L6 against thresholds ($\,\tau_{\text{norm}}$, $\epsilon$) defined in the CFTM to drive deterministic P-01 certified outcomes.
 
 ### 3.1 Axiom Enforcement Functions
 
 **GAX-EVAL: Core Objective Function (COF) [L6]**
-Evaluates the state transition proposal benefit relative to weighted risk, stabilized by the normalization threshold ($\tau_{norm}$) from CFTM. If COF is maximized, the proposal proceeds to L7.
+Evaluates the state transition proposal benefit relative to weighted risk, stabilized by the normalization threshold ($\,\tau_{\text{norm}}$) from CFTM.
 
-$$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right) $$
+$$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{\text{norm}}} \right) $$
 
 **GAX-CERT: P-01 Finality Certification [L7]**
-State transition commitment (P-01) requires two concurrent conditions: the complete absence of any Veto Signal ($\neg S\text{-}03$) AND the Efficacy (S-01) must strictly exceed the Risk (S-02), adjusted by the necessary deviation factor ($\epsilon$) from CFTM.
+State transition commitment (P-01) requires two concurrent conditions: the complete absence of any Veto Signal ($\,\neg S\text{-}03$) AND the Efficacy (S-01) must strictly exceed the Risk (S-02), adjusted by the necessary deviation factor ($\,\epsilon$) from CFTM.
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
