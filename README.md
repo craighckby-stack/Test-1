@@ -4,11 +4,27 @@
 
 ## 0. EXECUTIVE ABSTRACT: ATOMIC $\Psi$ GUARANTEE
 
-This specification defines the **Deterministic State Execution (DSE) Protocol**. DSE mandates and enforces verifiable, immutable state transitions ($\Psi$) throughout the system lifecycle. Governance integrity is guaranteed solely by the **Governance State Execution Pipeline - Core (GSEP-C)**, which commits all state via non-speculative, auditable mechanisms (GAX I, II, III).
+This specification defines the **Deterministic State Execution (DSE) Protocol**. DSE mandates and enforces verifiable, immutable state transitions ($\\Psi$) throughout the system lifecycle. Integrity is solely guaranteed by the **Governance State Execution Pipeline - Core (GSEP-C)**, which commits all state via non-speculative, auditable mechanisms (GAX I, II, III).
 
 ---
 
-## 1. GOVERNANCE PRINCIPLES (P-Set)
+## 1. GLOSSARY & ARCHITECTURAL ROLES
+
+### 1.1. Core System Jargon
+
+| Acronym | Definition | Core Role in GSEP-C Flow | Reference Configuration |
+|:---:|:---|:---|:---|
+| **DSE** | Deterministic State Execution Protocol | Foundational spec for state integrity ($\Psi$). | N/A |
+| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequencer (P-M01 compliance). | `config/gsep_c_flow.json` |
+| **IH** | Integrity Halt | Immediate system lockdown upon P-Set violation. | N/A |
+| **DIAL** | DSE Integrity Analyzer Logic | IH forensic Root Cause Analysis (RCA) and RRP Authorization Gate. | `config/dial_analysis_map.json` (DARM) |
+| **RRP** | Rollback Protocol | Deterministic, audited state reversal procedure (P-R03 dependency). | `config/rrp_manifest.json` |
+| **AASS** | Artifact Attestation/Signing Service | Manages cryptographic signing and sealing (DIAL Certs, S14 Receipts). | `services/aass.json` |
+| **SMC** | State Machine Controller | Enforces structural contract validation against GSEP flows. | `governance/smc_schema.json` |
+
+---
+
+## 2. GOVERNANCE PRINCIPLES (P-Set)
 
 These three principles form the non-negotiable requirements for DSE operational integrity. Compliance must be verified via mandated, observable control mechanisms.
 
@@ -20,56 +36,34 @@ These three principles form the non-negotiable requirements for DSE operational 
 
 ---
 
-## 2. GLOSSARY & ARCHITECTURAL ROLES
+## 3. DSE INTEGRITY ARTIFACTS REGISTRY (CSR)
 
-### 2.1. Central Jargon Definitions
+All governing configuration and schema files must pass the mandatory Configuration Integrity Check Requirement (C-ICR) against the Configuration Hash Registry (CHR) prior to runtime.
 
-| Acronym | Definition | Core Role in GSEP-C Flow | Reference Configuration |
-|:---:|:---|:---|:---|
-| **DSE** | Deterministic State Execution Protocol | The foundational specification for state integrity ($\Psi$). | N/A |
-| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequencer (P-M01 compliance). | `config/gsep_c_flow.json` |
-| **IH** | Integrity Halt | Immediate system lockdown upon P-Set violation. | N/A |
-| **DIAL** | DSE Integrity Analyzer | IH forensic Root Cause Analysis (RCA) and RRP Authorization Choke Point. | `config/dial_analysis_map.json` (DARM) |
-| **RRP** | Rollback Protocol | Deterministic, audited state reversal procedure (P-R03 dependent). | `config/rrp_manifest.json` |
-| **AASS** | Artifact Attestation/Signing Service | Manages cryptographic signing and integrity sealing of artifacts (DIAL Certs, S14 Receipts). | `services/aass.json` |
-| **SMC** | State Machine Controller | Enforces structural contract validation (e.g., against `GSEP-F` schema). | `governance/smc_schema.json` |
-
----
-
-## 3. GOVERNANCE ARTIFACT REGISTRY (CSR)
-
-All configuration and schema files listed below are designated as governing artifacts. Runtime requires mandatory Configuration Integrity Check Requirement (C-ICR) against the Configuration Hash Registry (CHR).
-
-### 3.1. Core Logic & Execution Artifacts
+### 3.1. Core Execution & Constraint Artifacts
 
 | Tag | Type | Governing Path | Purpose |
 |:---:|:---|:---|:---|
 | ACVM | Constraint Definitions | `config/acvm.json` | Numerical/boolean thresholds for P-M02 finality constraints. |
 | GSEP-F | Pipeline Flow Definition | `config/gsep_c_flow.json` | Defines M-01 sequencing and mandatory transition contracts. |
-| AAM Definition | Actor Registry | `governance/aam_definition.json` | Defines capabilities mapping for all authorized GSEP-C Actors. |
+| AAM Definition | Actor Registry | `governance/aam_definition.json` | Defines capability mapping for all authorized GSEP-C Actors. |
 
-### 3.2. Integrity, Recovery, and Signing Artifacts
+### 3.2. Integrity, Recovery, and Protocol Artifacts
 
 | Tag | Type | Governing Path | Purpose |
 |:---:|:---|:---|:---|
 | DARM | DIAL Logic Map | `config/dial_analysis_map.json` | Definitive rules for IH RCA and cryptographic RRP authorization. |
 | RRP Manifest | Recovery Protocol | `config/rrp_manifest.json` | Auditable state reversal procedure map (P-R03 compliance). |
-| CHR Schema | Integrity Schema | `protocol/chr_schema.json` | Defines the required structure for C-ICR validation against Configuration Hashes. |
-| Integrity Spec | Sealing Schema | `protocol/integrity_sealing_spec.json` | Defines the required format and algorithms for AASS signing and artifact integrity sealing (NEW). |
-
-### 3.3. Structural & Observability Schemas
-
-| Tag | Type | Governing Path | Purpose |
-|:---:|:---|:---|:---|
-| SMC Schema | Schema | `governance/smc_schema.json` | Enforces validity of pipeline stages and component contracts. |
-| Artifact Contract | Schema | `protocol/artifact_manifest_schema.json` | Defines structural contracts for all GSEP-C $\Psi$ transition artifacts. |
-| Telemetry Spec | Schema | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL's RCA. |
+| CHR Schema | Integrity Schema | `protocol/chr_schema.json` | Defines structure for C-ICR validation against Configuration Hashes. |
+| SMC Schema | Governance Schema | `governance/smc_schema.json` | Enforces validity of pipeline stages and component contracts. |
+| Telemetry Spec | Sensor Schema | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL's RCA. |
+| Integrity Spec | Sealing Schema | `protocol/integrity_sealing_spec.json` | Defines required format/algorithms for AASS signing and artifact integrity sealing. |
 
 ---
 
 ## 4. GSEP-C EXECUTION AND COMMITMENT (P-M01 / P-M02)
 
-GSEP-C is the mandated 15-stage pipeline (S00 $\to$ S14). P-M01 requires strict adherence to `GSEP-F`.
+GSEP-C is the mandated 15-stage pipeline (S00 $\to$ S14). P-M01 requires strict, atomic adherence to `GSEP-F` execution contracts.
 
 ### 4.1. Axiom Artifact Generation Matrix
 
@@ -95,10 +89,10 @@ $$ \Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX 
 
 ### 5.1. Configuration Integrity Check (C-ICR)
 
-C-ICR is mandatory prior to execution (S00) or recovery (RRP). All governing configurations must be verified against the Configuration Hash Registry (CHR). Failure of C-ICR results in a non-recoverable system lockdown (L-9 state).
+C-ICR is mandatory prior to execution (S00) or recovery (RRP). Governing configurations must be verified against the Configuration Hash Registry (CHR). Failure results in a non-recoverable system lockdown (L-9 state).
 
 ### 5.2. DIAL Authority and AASS Certification
 
-An IH immediately halts DSE execution. The DSE Integrity Analyzer (DIAL) is the sole authority for Root Cause Analysis (RCA) using forensic inputs (`Telemetry Spec`). RRP cannot commence until AASS generates a conforming, cryptographically sealed DIAL Certification artifact, based on `DARM` logic and conforming to `Integrity Spec`.
+An IH immediately halts DSE. DIAL is the sole authority for Root Cause Analysis (RCA) using forensic inputs defined by the `Telemetry Spec`. RRP cannot commence until AASS generates a conforming, cryptographically sealed DIAL Certification artifact, based on `DARM` logic and conforming to `Integrity Spec`.
 
 > **MANDATORY P-R03:** RRP execution must not commence without an AASS-signed DIAL Certification artifact.
