@@ -1,47 +1,48 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.4: DSE PROTOCOL DOCUMENTATION
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.5: DSE PROTOCOL DOCUMENTATION
 
-## I. CORE PROTOCOL: DETERMINISTIC STATE EXECUTION (DSE)
+## 0. EXECUTIVE SUMMARY: DETERMINISTIC STATE EXECUTION (DSE)
 
-The Deterministic State Execution Protocol (DSE) governs the lifecycle of all system state transitions ($\Psi$). DSE mandates absolute, verifiable integrity, requiring that commitment to a new state is exclusively conditional upon successful execution through the **Governance State Execution Pipeline (GSEP-C)** and achieving mandatory **P-01 Finality Resolution** (S11).
+The Deterministic State Execution Protocol (DSE) ensures absolute, verifiable integrity for all system state transitions ($\Psi$). DSE mandates that a state commitment is exclusively granted upon achieving **P-01 Finality Resolution** (Stage S11).
 
-Failure at any stage (S00-S14) triggers an **Integrity Halt (IH)** and immediate execution of the Rollback Protocol (RRP).
+Failure at any point (S00-S14) triggers an **Integrity Halt (IH)** and immediate execution of the Rollback Protocol (RRP).
 
 $$\text{P-01 Finality} \iff (\text{GAX I} \land \text{GAX II} \land \text{GAX III})$$
 
 ---
 
-## II. GOVERNANCE FOUNDATION: THE THREE AXIOS (GAX)
+## I. GOVERNANCE FOUNDATION: THE THREE AXIOS (GAX)
 
-State commitment (P-01) requires the simultaneous verification (logical conjunction) of the Three Foundational Governance Axioms (GAX). These immutable validation constraints are sourced from the Axiom Constraint Validation Domain (ACVD).
+P-01 Finality requires the simultaneous verification (logical conjunction) of the Three Foundational Governance Axioms (GAX). These immutable constraints are derived from the **Axiom Constraint Validation Domain (ACVD)**.
 
-### 2.1 GAX Definition Table
+### 1.1 GAX Definition Matrix
 
-| ID | Name | Constraint Definition | Governance Domain | Required Proof |
-|:---:|:---:|:---|:---:|:---:|
-| **I** | Utility Efficacy | Minimum Value Threshold ($\Omega_{\text{min}}$) attainment. | ACVD: Performance | TEMM (Transition Efficacy Measure) |
-| **II** | Contextual Validity | Environmental state confirmation: State must be `Permissible`. | ACVD: Environment | ECVM (Execution Context Validation Map) |
-| **III** | Constraint Integrity | Zero structural or operational policy violations detected. | ACVD: Policy | CSR (Configuration Snapshot Receipt) |
+| ID | Name | Core Constraint | Proof Artifact (Stage) | Domain | Failure Trace | 
+|:---:|:---:|:---|:---:|:---:|:---:|
+| **I** | Utility Efficacy | Minimum Value Threshold ($\Omega_{\text{min}}$) met. | TEMM (S08) | Performance | ADTM | 
+| **II** | Contextual Validity | Execution Environment is `Permissible`. | ECVM (S07) | Environment | SGS | 
+| **III** | Constraint Integrity | Zero structural or operational policy violations. | CSR (S01) | Policy | MPAM | 
+
+### Key System Components (Actors)
+
+*   **CRoT Agent:** Core Root of Trust Agent. Generates and locks the Constraint Integrity Proof (CSR) at S01.
+*   **GAX Executor:** The atomic component that executes the P-01 decision calculus at S11.
+*   **RRP:** Rollback Protocol. The mandated response to any Integrity Halt (IH).
 
 ---
 
-## III. GSEP-C PIPELINE: ARTIFACT LOCKING AND RESOLUTION
+## II. GSEP-C PIPELINE: INTEGRITY LOCKS AND RESOLUTION
 
-The Governance State Execution Pipeline (GSEP-C) is a mandatory 15-stage lifecycle (S00-S14), detailed in `config/gsep_c_flow.json`. It chronologically enforces integrity locks via the generation of immutable proof artifacts, which serve as non-negotiable prerequisites for the P-01 decision calculus at Stage S11.
+The Governance State Execution Pipeline (GSEP-C) is a mandatory, chronologically ordered 15-stage lifecycle (S00-S14), defined in `config/gsep_c_flow.json`. It enforces integrity locks via immutable proof artifacts, which are prerequisites for the GAX Executor.
 
-### 3.1 P-01 Finality Enforcement (S11)
+### 2.1 Artifact Dependencies and P-01 Enforcement (S11)
 
-The **GAX Executor** module utilizes locked stage artifacts to resolve the atomic state transition decision. This table consolidates the artifact generation stage, required proof, dependency, and resultant failure action.
-
-| Stage Lock | Artifact Generated | GAX Dependency | Verification Target | Failure Log Trace |
+| Stage Lock | Artifact Purpose | GAX Dependency | Verification Target | Failure Action |
 |:---:|:---:|:---:|:---:|:---:|
-| **S01** | CSR (Configuration Snapshot Receipt) | GAX III | Structure & Policy Immutability | MPAM (Violation Log) |
-| **S07** | ECVM (Execution Context Validation Map) | GAX II | Environment Permissibility Check | SGS (Detailed Context Trace) |
-| **S08** | TEMM (Transition Efficacy Measure) | GAX I | TEMM $\ge \Omega_{\text{min}}$ (Utility Proof) | ADTM (Utility Debt Management) |
-| **S11** | P-01 Resolution | I, II, III | All Axioms Resolved TRUE | Integrity Halt (IH) / RRP |
+| **S01** | Configuration Snapshot Receipt (CSR) | GAX III | Policy/Structure Immutability | Integrity Halt (IH) / RRP |
+| **S07** | Execution Context Validation Map (ECVM) | GAX II | Environment Permissibility Check | Integrity Halt (IH) / RRP |
+| **S08** | Transition Efficacy Measure (TEMM) | GAX I | Utility Efficacy (Proof of $\Omega_{\text{min}}$) | Integrity Halt (IH) / RRP |
+| **S11** | P-01 Resolution | I, II, III | All Axioms Resolved TRUE | STATE COMMITMENT |
 
-### 3.2 Key System Components
+### 2.2 Post-Halt Diagnosis Requirement
 
-*   **CRoT Agent:** Core Root of Trust Agent. Responsible for S01 artifact generation and locking (CSR).
-*   **GAX Executor:** The final authority component executing the atomic P-01 decision calculus at S11.
-*   **RRP:** Rollback Protocol. Initiated immediately upon any failure condition (IH).
-
+Upon an Integrity Halt (IH), structured logging (MPAM, SGS, ADTM) is finalized. These logs, combined with the required artifacts (CSR, ECVM, TEMM), must be ingested by the dedicated DSE Integrity Analyzer utility to provide automated Root Cause Analysis (RCA).
