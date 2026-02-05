@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sag.gov/ACVT_v94.2.json",
+  "title": "Axiomatic Change Validation Template (ACVT)",
+  "description": "Standardized schema for SGS-proposed changes used by GAX to validate against the Axiomatic Constraint Vector Definition (ACVD) during GSEP-C Stages S2, S3, and S6.5.",
+  "type": "object",
+  "properties": {
+    "evolution_id": {
+      "type": "string",
+      "description": "Unique ID corresponding to the TEMM/Evolution run."
+    },
+    "resource_impact": {
+      "type": "object",
+      "description": "Projected resource footprint changes for stability check (MPAM).",
+      "properties": {
+        "compute_load_baseline": {"type": "number"},
+        "compute_load_projected": {"type": "number"},
+        "memory_delta": {"type": "number"},
+        "iops_projected": {"type": "number"}
+      },
+      "required": ["compute_load_projected", "memory_delta"]
+    },
+    "dependency_map_updates": {
+      "type": "array",
+      "description": "List of external/internal dependencies that are modified or introduced for policy check (PVLM).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module_path": {"type": "string"},
+          "version_hash": {"type": "string"},
+          "data_access_level": {"type": "string", "enum": ["READ_ONLY", "WRITE_APPEND", "FULL_ACCESS"]}
+        },
+        "required": ["module_path", "version_hash"]
+      }
+    },
+    "security_impact_flags": {
+      "type": "array",
+      "description": "High-level behavioral flags for anomaly detection (ADTM).",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["evolution_id", "resource_impact", "dependency_map_updates"]
+}
