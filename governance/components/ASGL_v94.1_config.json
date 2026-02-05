@@ -1,0 +1,25 @@
+{
+  "component_name": "Axiomatic/SCoT Governance Layer (ASGL)",
+  "version": "v94.1",
+  "purpose": "Pre-runtime integrity verification of all governance input files (ACVD, SCoT) before ingress to PCS/CRoT.",
+  "priority": 1, 
+  "execution_phase": "PRE-S00 (Initialization Bootstrapping)",
+  "verification_rules": [
+    {
+      "id": "V001_HashImmutability",
+      "target": "ACVD_LATEST",
+      "check": "SHA-512 comparison against last verified state ledger."
+    },
+    {
+      "id": "V002_DependencyMapping",
+      "target": "SCoT_Dependency_Tree",
+      "check": "Validate all constraint references resolve successfully."
+    },
+    {
+      "id": "V003_SemanticLock",
+      "target": "ACVD_CORE_AXIOMS",
+      "check": "Prevent semantic modifications to P-01 required constraints without super-majority vote."
+    }
+  ],
+  "on_failure": "INTEGRITY_HALT_PRE_DSE_INIT"
+}
