@@ -1,0 +1,49 @@
+{
+  "schemaName": "ConstraintFailureReportV1.0",
+  "requiredFields": [
+    "failureId",
+    "gsepVersion",
+    "intentId",
+    "timestampUTC",
+    "adjudicationStatus",
+    "reasonVector"
+  ],
+  "structure": {
+    "failureId": {
+      "type": "UUID",
+      "description": "Unique identifier for the failure event."
+    },
+    "gsepVersion": {
+      "type": "string",
+      "description": "GSEP version active during failure."
+    },
+    "intentId": {
+      "type": "string",
+      "description": "The M-01 Intent ID that triggered the protocol run."
+    },
+    "timestampUTC": {
+      "type": "ISO8601",
+      "description": "Time of final adjudication failure."
+    },
+    "adjudicationStatus": {
+      "type": "enum",
+      "value": ["FAILED"],
+      "description": "Mandatory state flag."
+    },
+    "reasonVector": {
+      "type": "enum",
+      "value": ["RISK_EXCEEDED", "POLICY_VETOED", "INTEGRITY_FAIL"],
+      "description": "Primary cause of P-01 rejection."
+    },
+    "P01_Inputs_Captured": {
+      "type": "object",
+      "fields": ["S01_Efficacy_TrustScore", "S02_Risk_Floor", "S03_Compliance_VetoFlag"],
+      "description": "Full locked state of P-01 input vectors (L4) at Stage 4 arbitration."
+    },
+    "criticalFailureDetails": {
+      "type": "object",
+      "fields": ["moduleSource", "tracebackHash"],
+      "description": "Debugging metadata identifying the precise source of failure."
+    }
+  }
+}
