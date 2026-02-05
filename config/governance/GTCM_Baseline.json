@@ -1,0 +1,22 @@
+{
+  "description": "Baseline configuration parameters for the Governance Threshold Configuration Module (GTCM). These values dictate the minimum required Efficacy and maximum tolerable Risk for any GSEP L4 commitment.",
+  "version": "V94.1-A",
+  "thresholds": {
+    "Utility": {
+      "key": "S-01",
+      "target_score": 0.65, 
+      "units": "NormalizedEfficacyScore",
+      "min_acceptable_delta": 0.10
+    },
+    "Exposure": {
+      "key": "S-02",
+      "target_score": 0.35,
+      "units": "NormalizedRiskScore",
+      "max_acceptable_delta": -0.15
+    }
+  },
+  "compliance_lock": {
+    "S-03": "FALSE"
+  },
+  "last_modified_agent": "System/AOC_Deployment_V94.1"
+}
