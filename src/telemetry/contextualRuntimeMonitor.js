@@ -1,32 +1,61 @@
-// CRM (Contextual Runtime Monitor) v1.0
+// CRM (Contextual Runtime Monitor) v2.0
 // GSEP Alignment: Stage 3 (P-01 Adjudication Input S-02)
-// Function: Provides high-frequency, non-blocking telemetry stream for external and environment constraints (e.g., network latency, critical API uptime, I/O saturation).
+// Function: Provides high-frequency, non-blocking telemetry stream for external and environment constraints.
+
+const ExponentialMovingAverager = require('../utils/ExponentialMovingAverager');
 
 class ContextualRuntimeMonitor {
-    constructor(telemetrySourceConfig) {
-        this.config = telemetrySourceConfig;
-        this.latencyHistory = [];
-        this.maxHistorySize = 1000;
+    static NAME = 'CRM_v94.1';
+    static GSEP_ALIGNMENT = 'Stage 3 (P-01 Adjudication Input S-02)';
+
+    /**
+     * @param {Object} telemetrySourceConfig - Configuration including latencyAlpha.
+     */
+    constructor(telemetrySourceConfig = {}) {
+        this.config = {
+            latencyAlpha: 0.1, // Smoothing factor for EMA (0.0 < alpha < 1.0)
+            criticalLatencyThreshold_ms: 40,
+            stressRiskWeight: 0.4,
+            ...telemetrySourceConfig
+        };
+
+        // Initialize EMA for O(1) continuous, high-speed latency tracking
+        this.latencyEMA = new ExponentialMovingAverager(this.config.latencyAlpha);
+        
+        // Internal cached metrics (updated via updateMetrics)
+        this.currentMetrics = {
+            timestamp: null,
+            latencyMean_ms: 0,
+            stressIndex: 0,
+            telemetryReliability: 1.0 
+        };
     }
 
     /**
-     * Fetches and validates current real-time environmental metrics.
-     * @returns {Object} currentMetrics - Latency, external stress indices, etc.
+     * Fetches raw inputs (O(1) operations) and updates the internal EMA state.
+     * This should be called on a dedicated high-frequency monitoring tick.
      */
-    async getRealtimeMetrics() {
-        // Simulated logic for fetching current external state, high-priority telemetry
-        const externalLatency = this._fetchCriticalLatency();
-        const externalStressIndex = this._calculateExternalStress();
-        
-        this._updateHistory(externalLatency);
+    async updateMetrics() {
+        const rawLatency = this._fetchCriticalLatency();
+        const rawStressIndex = this._calculateExternalStress();
 
-        return {
-            timestamp: Date.now(),
-            latencyMean_ms: this._getMeanLatency(),
-            stressIndex: externalStressIndex,
-            telemetryReliability: 0.999 // Self-monitoring metric
-        };
+        // Update Latency EMA
+        this.currentMetrics.latencyMean_ms = this.latencyEMA.update(rawLatency);
+
+        // Update other metrics
+        this.currentMetrics.stressIndex = parseFloat(rawStressIndex);
+        this.currentMetrics.timestamp = Date.now();
     }
+
+    /**
+     * Retrieves the last calculated set of environmental metrics.
+     * @returns {Object} currentMetrics 
+     */
+    getRealtimeMetrics() {
+        return { ...this.currentMetrics }; // Return defensive copy
+    }
+
+    // --- Private Simulators/Fetchers ---
 
     _fetchCriticalLatency() {
         // Implement low-level, high-speed pings or buffer checks
@@ -34,34 +63,33 @@ class ContextualRuntimeMonitor {
     }
 
     _calculateExternalStress() {
-        // Logic to interpret external saturation (e.g., external API rate limits)
+        // Logic to interpret external saturation
         return Math.random().toFixed(2);
     }
-
-    _updateHistory(latency) {
-        this.latencyHistory.push(latency);
-        if (this.latencyHistory.length > this.maxHistorySize) {
-            this.latencyHistory.shift();
-        }
-    }
-
-    _getMeanLatency() {
-        if (this.latencyHistory.length === 0) return 0;
-        const sum = this.latencyHistory.reduce((a, b) => a + b, 0);
-        return sum / this.latencyHistory.length;
-    }
+    
+    // --- Risk Calculation ---
 
     /**
      * Called by C-11 (MCRA Engine) to calculate environmental impact on Risk Floor (S-02).
-     * @returns {number} Environmental risk coefficient (0.0 to 1.0).
+     * Requires prior invocation of updateMetrics().
+     * @returns {number} Environmental risk coefficient (0.0 to ~1.0).
      */
-    async calculateEnvironmentalRiskFactor() {
-        const metrics = await this.getRealtimeMetrics();
-        // High latency or stress increases the risk factor dynamically.
-        const latencyRisk = (metrics.latencyMean_ms > 40) ? 0.3 : 0.05;
-        const stressRisk = parseFloat(metrics.stressIndex) * 0.4;
+    calculateEnvironmentalRiskFactor() {
+        const { latencyMean_ms, stressIndex } = this.currentMetrics;
+        const config = this.config;
+
+        // Latency Risk: Scaled based on deviation from the configured threshold.
+        let latencyRisk = 0.05; // Baseline risk
+        if (latencyMean_ms > config.criticalLatencyThreshold_ms) {
+            // Exponentially scale risk above the critical threshold
+            const deviation = latencyMean_ms - config.criticalLatencyThreshold_ms;
+            latencyRisk += Math.min(0.5, deviation * 0.015); // Capping contribution to prevent runaway risk
+        }
+
+        // Stress Risk: Weighted directly.
+        const stressRisk = stressIndex * config.stressRiskWeight;
         
-        // The RCE handles internal resource scarcity; CRM focuses on infrastructure instability.
+        // Summation must ensure the output is appropriate for the target GSEP model.
         return latencyRisk + stressRisk;
     }
 }
