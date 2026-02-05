@@ -1,0 +1,19 @@
+{
+  "version": "v1.0.0",
+  "active_flow_hash": "SHA256:d8c1e2b5f9a0c4e7d3f2b1a0e5d4c3b2a1f0e9d8c7b6a5e4d3c2b1a0e9d8c7b6",
+  "critical_configurations": {
+    "config/gsep_c_flow.json": {
+      "hash": "SHA256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+      "status": "ACTIVE",
+      "gsep_version": "V94.1"
+    },
+    "config/acvm.json": {
+      "hash": "SHA256:b1a0c9e8d7f6e5d4c3b2a1f0e9d8c7b6a5e4d3c2b1a0e9d8c7b6a5e4d3c2b1a0",
+      "status": "ACTIVE"
+    },
+    "config/dial_analysis_map.json": {
+      "hash": "SHA256:c7b6a5e4d3c2b1a0e9d8c7b6a5e4d3c2b1a0e9d8c7b6a5e4d3c2b1a0e9d8c7b6",
+      "status": "ACTIVE"
+    }
+  }
+}
