@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sovereign State Transition Request (STR) V1",
+  "description": "Defines the mandatory input schema for initiation of the GSEP-C V3.5 pipeline, validated by SDVM.",
+  "type": "object",
+  "required": [
+    "timestamp",
+    "origin_proof",
+    "target_system_id",
+    "execution_payload"
+  ],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC initiation timestamp for non-repudiation."
+    },
+    "origin_proof": {
+      "type": "object",
+      "description": "Cryptographic signature and identity verification required for L2 (CTAL)."
+    },
+    "target_system_id": {
+      "type": "string",
+      "description": "Identifier for the architectural domain targeted by the transition."
+    },
+    "execution_payload": {
+      "type": "object",
+      "description": "The primary declarative instruction set (The change state mandate)."
+    },
+    "resource_estimate": {
+      "type": "object",
+      "description": "Preliminary resource estimates used by L4 (SCI) for pre-vetting against CAC."
+    }
+  },
+  "additionalProperties": false
+}
