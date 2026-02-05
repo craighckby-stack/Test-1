@@ -1,0 +1,20 @@
+{
+  "system_id": "AOC_V94.1",
+  "component": "Threshold Constraint Validator (TCV)",
+  "description": "Hard operational boundaries for critical P-01 metrics. These constraints MUST NOT be violated by SCR configurations, even during governance evolution. TCV checks are mandatory Pre-L1.",
+  "mandates": {
+    "S01_EfficacyProjection": {
+      "metric_name": "S-01 (Trust)",
+      "minimum_operational_threshold": 0.50,
+      "recommended_floor": 0.75,
+      "unit": "Score (0.0 to 1.0)"
+    },
+    "S02_RiskSynthesis": {
+      "metric_name": "S-02 (Risk)",
+      "maximum_tolerance_threshold": 0.20,
+      "minimum_operational_floor": 0.05,
+      "unit": "Score (0.0 to 1.0)"
+    }
+  },
+  "validation_protocol": "Pre-L1_SCR_Check"
+}
