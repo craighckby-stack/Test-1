@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign-agi/GTCM_State_Schema.json",
+  "title": "Governance Threshold Configuration Manifest (GTCM) State",
+  "description": "Defines the mandatory dynamic thresholds governing the L4 COMMIT ARBITRATION stage.",
+  "type": "object",
+  "properties": {
+    "Utility_Min": {
+      "type": "number",
+      "description": "The minimum required Efficacy Projection Score (S-01) for P-01 PASS.",
+      "minimum": 0.0,
+      "default": 0.65
+    },
+    "Exposure_Max": {
+      "type": "number",
+      "description": "The maximum acceptable Risk Synthesis Score (S-02) for P-01 PASS.",
+      "maximum": 1.0,
+      "default": 0.15
+    },
+    "AOC_Veto_Override": {
+      "type": "boolean",
+      "description": "Flag reserved for emergency administrative veto override. Must be strictly logged.",
+      "default": false
+    }
+  },
+  "required": ["Utility_Min", "Exposure_Max"]
+}
