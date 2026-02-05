@@ -1,0 +1,30 @@
+{
+  "description": "Configuration for the Predictive Constraint Sentinel (PCS) Warning Thresholds (W-Set). The PCS observes telemetry and triggers soft warnings (non-IH, PIM-addressable) when nearing hard P-Set mandates.",
+  "active": true,
+  "temporal_warning": {
+    "w-t01": {
+      "description": "Execution Stage Margin Warning",
+      "target_p_set": "P-M01",
+      "threshold_percent_of_limit": 0.85, 
+      "enforced_component": "PIM",
+      "action": "Telemetry escalation, priority logging"
+    }
+  },
+  "resource_warning": {
+    "w-r01": {
+      "description": "ACVM Memory Utilization Threshold",
+      "target_p_set": "P-M02",
+      "threshold_percent_of_limit": 0.90,
+      "enforced_component": "DRO",
+      "action": "Non-critical memory release attempt"
+    },
+    "w-r02": {
+      "description": "Input Buffer Overfill Prediction",
+      "target_p_set": "P-M02",
+      "prediction_window_ms": 50,
+      "threshold_count_percent": 0.95,
+      "enforced_component": "DHC",
+      "action": "Throttle Input State Buffer acquisition"
+    }
+  }
+}
