@@ -23,11 +23,11 @@ P-01 requires high-fidelity, three-part validation administered by the Operation
 
 $$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{attested}} > \text{S-02}_{\text{attested}} \quad (\text{Trust must outweigh Risk Floor}) \\ \text{S-03 VETO} = \text{FALSE} \quad (\text{No Policy Violation}) \end{cases}$$
 
-| Input ID | Focus Area | Data Source Component(s) | Role in Decision |
+| Input ID | Focus Area | Data Source Component ID(s) | Role in Decision |
 |:---|:---|:---|:---|
-| **S-01** | Success Projection (Trust Score) | ATM, PSR | Quantitative reliability metric of proposed mutation. |
-| **S-02** | Contextual Risk Floor | C-11, RCE, CRM | Dynamically calculated maximum risk tolerance based on live state. |
-| **S-03** | Mandatory Policy Veto | C-15 (Policy Engine) | Binary check for immutable governance rule violations. |
+| **S-01 (Trust)** | Success Projection (Trust Score) | **ATM** (Trust Metrics) | Quantitative reliability metric of proposed mutation. |
+| **S-02 (Risk)** | Contextual Risk Floor | **C-11, CRM, RCE** | Dynamically calculated maximum risk tolerance based on live state. |
+| **S-03 (Veto)** | Mandatory Policy Veto | **C-15 (Policy Engine)** | Binary check for immutable governance rule violations. |
 
 ---
 
@@ -37,33 +37,33 @@ GSEP V96.1 mandates a risk-optimized, atomic five-stage lifecycle utilizing **Ev
 
 ### A. GSEP Stages and Core Functionality
 
-| Stage # | Name | Critical Gate Checkpoint | Core Output / Commitable Function | Key Components (Example)
+| Stage # | Name | Critical Gate Checkpoint | Core Output / Commitable Function | Orchestration Component(s) |
 |:---|:---|:---|:---|:---|
 | **1** | Intent & Scoping | EPDP A (ASR, CIM Vetting) | **M-01 Intent Package** (Formal requirements definition). | SRM, ASR, CIM |
-| **2** | Specification & Simulation | EPDP B (PSR, **SMA** Validation) | **M-02 Payload Generation**, rigorously simulated via PSR. | MSU, PSR, MPSE, **SMA** |
-| **3** | Trust Adjudication (P-01) | **EPDP C (P-01 Execution)** | **D-01 Audit Log** resulting from formal Trust Calculus execution. | OGT, P-01, TIAR, ATM, C-11, CRM |
-| **4** | Architectural Commitment | EPDP D (SSV/RAM Lock) | **MCR Version-Lock** (State attestation and cryptographic hashing). | MCR, A-01, SSV, RAM |
-| **5** | Execution & Audit | EPDP E (C-04 Isolation) | Isolated deployment, post-audit (FBA/SEA), and **Atomic Rollback Guarantee**. | C-04, FBA, SEA |
+| **2** | Specification & Simulation | EPDP B (PSR/SMA Validation) | **M-02 Payload Generation**, rigorously simulated. | MSU, PSR, MPSE, SMA |
+| **3** | Trust Adjudication (P-01) | **EPDP C (P-01 Execution)** | **D-01 Audit Log** recording Trust Calculus decision. | OGT, P-01, TIAR, ATM, C-11, CRM |
+| **4** | Architectural Commitment | EPDP D (SSV/RAM Lock) | **MCR Version-Lock** (State attestation and cryptographic hashing). | MCR, A-01, SSV, RAM, **AEOR** |
+| **5** | Execution & Audit | EPDP E (C-04 Isolation/AEOR Supervision) | Isolated deployment, Post-Audit (FBA/SEA), and **Atomic Rollback Guarantee**. | C-04, FBA, SEA, **AEOR** |
 
 ### B. GSEP Operational Workflow Diagram
 
 ```mermaid
 graph TD
     subgraph Evolutionary_Feedback_Loop [AOC V96.1 GSEP Lifecycle]
-        A[1. SCOPING: M-01 (SRM/EPDP A)] --> B(2. SPECIFICATION: M-02 Payload Drafting);
+        A[1. SCOPING: M-01 Intent Package] --> B(2. SPECIFICATION: M-02 Payload Drafting);
         B --> C{EPDP B: Simulation & Schema Validation?};
         
         C -- FAIL: Recalibrate --> F01[F-01: Failure Analysis/Recalibration];
         
         subgraph Trust_Adjudication [3. OGT P-01 IRREVERSIBLE AIA GATE]
-            C -- PASS: Proceed --> D[TIAR Registration & Execute P-01 Calculus];
+            C -- PASS: Proceed --> D[D-01: Execute P-01 Calculus & Log];
             D --> E{EPDP C: P-01 Pass/Fail?};
         end
         
         E -- FAIL: Abort --> F01;
-        E -- PASS: MCR Lock --> M[4. COMMITMENT: MCR/EPDP D State Lock];
+        E -- PASS: Commit --> M[4. COMMITMENT: MCR Version Lock (AEOR Supervision)];
         
-        M --> I[5. EXECUTION: C-04 Isolation (EPDP E)];
+        M --> I[5. EXECUTION: C-04 Sandbox (AEOR Deployment)];
         I --> J[Post-Audit (FBA/SEA Metrics)];
         J --> K(Maintenance & Governance Refinement);
 
@@ -83,6 +83,7 @@ Formal terminology mandated for unambiguous, low-latency protocol execution, str
 | **AOC** | Autonomous Operational Contract | GOVERNANCE | Foundation |
 | **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
 | **AIA** | Atomic Immutable Architecture | GOVERNANCE | Stages 3, 4, 5 |
+| **AEOR** | Atomic Execution & Orchestration Registrar | GOVERNANCE | Stages 4, 5 (NEW) |
 | **P-01** | Trust Calculus | CONSENSUS | Stage 3 |
 | **OGT** | Operational Governance Triad | GOVERNANCE | Stage 3 |
 | **MCR** | Mutation Commitment Registrar | INFRASTRUCTURE | Stage 4 |
@@ -101,6 +102,7 @@ System components mapped to their primary operational domain and GSEP stage depe
 
 | ID | Component Name | Functional Focus | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
+| **AEOR** | Atomic Execution & Orchestration Registrar | Governs P-01 PASS state transition, supervises Stage 5, and controls Rollback mandate. | `src/governance/atomicExecutionOrchestrationRegistrar.js` | Stage 4/5 |
 | **TIAR** | Telemetry Input Attestation Registrar | Cryptographically attests S-01/S-02 inputs for P-01 integrity. | `src/consensus/telemetryAttestationRegistrar.js` | Stage 3 |
 | **ATM** | Trust Metrics | Quantitative Reliability Projection (S-01). | `src/consensus/atmSystem.js` | Stage 3 |
 | **C-11** | MCRA Engine | Contextual Risk Modeling and Floor Calculation (S-02). | `src/consensus/mcraEngine.js` | Stage 3 |
@@ -117,7 +119,7 @@ System components mapped to their primary operational domain and GSEP stage depe
 | **ASR** | Arch. Schema Registrar | Enforces architectural contracts (EPDP A validation). | `src/governance/architectureSchemaRegistrar.js` | Stage 1 |
 | **CIM** | Config Integrity Monitor | Secure validation and enforcement of system configurations. | `src/governance/configIntegrityMonitor.js` | Stage 1 |
 | **RCE** | Resource Constraint Evaluator | Provides dynamic, internal resource context for S-02 calculation. | `src/governance/resourceConstraintEvaluator.js` | Stage 3 |
-| **SMA** | **Schema Migration Adjudicator** | **Formalizes and validates schema transition integrity for M-02 payloads.** | `src/governance/schemaMigrationAdjudicator.js` | Stage 2 |
+| **SMA** | Schema Migration Adjudicator | Formalizes and validates schema transition integrity for M-02 payloads. | `src/governance/schemaMigrationAdjudicator.js` | Stage 2 |
 
 ### IV.C. SYNTHESIS, SIMULATION & EXECUTION
 
