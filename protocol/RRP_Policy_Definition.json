@@ -1,0 +1,17 @@
+{
+  "description": "Formal contract defining mandatory actions for each Rollback and Recovery Protocol (RRP) hook specified in the GSEP-C V3.1 pipeline (Section 3.0). Execution of all defined steps is non-negotiable upon Halt Condition.",
+  "version": "1.0.0",
+  "policy_actions": {
+    "SCHEMA_FAIL": ["LOG:IngressFailure", "STATE:CleanupInputBuffer", "ALARM:TriggerHighPriority"],
+    "FORMAT_FAIL": ["LOG:ContextFailure", "STATE:TeardownL0Context"],
+    "POLICY_VETO": ["LOG:ComplianceVeto", "NOTIFICATION:SecurityAlert", "STATE:ContextQuarantine"],
+    "SIM_DIVERGE": ["LOG:SimulationWarning", "STATE:IsolateL2Snapshot"],
+    "BUDGET_EXCEED": ["LOG:ResourceViolation", "STATE:ContextQuarantine"],
+    "TRUST_FAIL": ["LOG:ProvenanceBreach", "NOTIFICATION:SystemVulnerability", "STATE:FullShutdown"],
+    "DATA_FIDELITY": ["LOG:DataIntegrityError", "STATE:RevalidateInputChain"],
+    "METRIC_FAIL": ["LOG:L6CriticalError", "STATE:CaptureMetricDump"],
+    "FINALITY_BREACH": ["LOG:FinalityFailure", "NOTIFICATION:AuditFlag", "STATE:ContextQuarantine"],
+    "LOG_FAIL": ["LOG:PersistenceCriticalFailure", "STATE:ImmediateHalt"],
+    "AUDIT_BREACH": ["LOG:RuntimeBreach", "STATE:IsolationModeActivation"]
+  }
+}
