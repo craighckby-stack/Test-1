@@ -1,0 +1,17 @@
+{
+  "manifest_version": "V95.3-A",
+  "description": "Governance Agent Threshold Manifest (GATM) defining performance SLOs and failure tolerances for GSEP-C execution.",
+  "performance_slo_ms": {
+    "S2_VetoGate_MaxLatency": 50, 
+    "S7_FinalityGate_MaxLatency": 150,
+    "S9_Commit_Timeout": 100
+  },
+  "frequency_thresholds": {
+    "RRP_Max_Daily_Frequency": 5, 
+    "RRP_Window_Tolerance_Days": 7
+  },
+  "system_health_criteria": {
+    "transition_max_duration_s": 1.0, 
+    "transition_criticality_threshold": 0.95 
+  }
+}
