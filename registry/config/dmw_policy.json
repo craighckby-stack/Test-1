@@ -1,0 +1,26 @@
+{
+  "DMW_Version": "1.0.0",
+  "P_M01_Tolerance_Mode": "STRICT_N+1",
+  "StageTimingConstraints_ms": {
+    "S01_S06_Passive": 1200,
+    "S08_Policy_Buffer": 500,
+    "S10_Validation_Buffer": 300,
+    "S12_S13_PostCommit": 700
+  },
+  "CriticalMetricCeilings": [
+    {
+      "metric": "MemoryAllocation",
+      "limit_gb": 16,
+      "trigger": "IH_ALERT"
+    },
+    {
+      "metric": "CPUSpikeDuration",
+      "limit_ms": 5000,
+      "trigger": "IH_ALERT"
+    }
+  ],
+  "IntermediateIntegrityChecks": [
+    "ISB_SHA256_Lock",
+    "ECVM_Signature_Check"
+  ]
+}
