@@ -1,13 +1,22 @@
-## Governance Integrity & Rule Attestation Module (GIRAM) Specification V97.1
+## Governance Integrity & Rule Attestation Module (GIRAM) Specification V98.0
 
-**MISSION:** To enforce the prerequisite integrity of the Governance Rule Source (GRS) policy set and C-15 Policy Engine configuration prior to the initiation of any GSEP workflow.
+**MISSION:** To enforce the prerequisite cryptographic integrity of all critical governance artifacts, defined within the Governance Integrity Root Manifest (GIRM), and prevent the initiation of any GSEP workflow if integrity verification fails.
 
 **GSEP INTEGRATION:** Stage 0 (Pre-GSEP Constraint Orchestration).
 
+### Formal I/O Specifications:
+
+*   **Input:**
+    *   `GIRM_S01`: The current integrity manifest specifying target files and expected baselines.
+    *   `D-01_LIR`: Last Integrity Record (LIR) from the D-01 Audit Logger (immutable baseline hash).
+*   **Output (Success):**
+    *   `GIR_Anchor`: Governance Integrity Register (Attested cryptographic state anchor for GSEP).
+*   **Output (Failure):**
+    *   `VETO_CRITICAL`: VETO signal issued to GCO, requiring EGOM/HIL intervention.
+
 ### Core Functionality:
 
-1.  **Systemic Hash Validation (SHV):** On activation (Stage 0), GIRAM generates and verifies a non-repudiable cryptographic hash (SHA-384 + MAC) of the active Governance Rule Source (GRS). This hash must match the last attested, immutable baseline record held by the D-01 Audit Logger.
-2.  **Configuration Lockout:** If SHV fails, GIRAM issues an immediate VETO signal to the GCO, preventing Stage 1 initialization. This requires mandatory intervention from the EGOM/HIL plane.
-3.  **Rule Attestation:** GIRAM processes the current state policies (C-15 manifest) and generates the Governance State Hash (GSH), which serves as the integrity anchor for the entire GSEP execution, guaranteeing that the rules used for P-01 Trust Calculus (Stage 3) have not been tampered with since system boot or the last verified GSEP cycle.
-
-**OUTPUT:** Governance State Hash (GSH) provided to GCO.
+1.  **Integrity Root Manifest Validation (IRM-V):** GIRAM consumes the `GIRM_S01` and ensures its schema and non-repudiation signature are valid. This manifest defines the complete set of files required for Stage 1 operations (e.g., GRS policies, C-15 configurations).
+2.  **Cryptographic Baseline Synchronization (CBS):** GIRAM performs a Systemic Hash Validation (SHV) of all files listed in the `GIRM_S01`. The generated composite cryptographic hash (SHA-384 in a Cryptographic Non-Repudiation Envelope [CNRE]) is compared against the `D-01_LIR` (Last attested baseline).
+3.  **Constraint Orchestration Lockout:** If CBS verification fails (hash mismatch, signature invalid, or critical file missing), GIRAM transmits an immediate `VETO_CRITICAL` signal to the GCO. This hard-stops Stage 1 initialization and logs a severity P9 critical failure.
+4.  **Governance Integrity Registration (GIR):** Upon successful verification, GIRAM generates the final Governance Integrity Register (`GIR_Anchor`). The GIR is a signed, time-stamped digest representing the attested integrity state, which serves as the immutable rule-set reference anchor for the P-01 Trust Calculus (Stage 3). The `GIR_Anchor` is provided to the GCO.
