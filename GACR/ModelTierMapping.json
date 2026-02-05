@@ -1,0 +1,16 @@
+{
+  "mapping_version": "1.0",
+  "tier_assignments": [
+    {
+      "model_id": "UUID_CORE_SERVICE_X",
+      "assign_tier": "CRITICAL_P1",
+      "criteria": "Core Financial Calculation Service"
+    },
+    {
+      "model_tag_match": "environment:production",
+      "assign_tier": "STANDARD_P2",
+      "criteria": "Default for all production models without specific P1 designation"
+    }
+  ],
+  "unassigned_behavior": "ApplyDefault"
+}
