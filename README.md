@@ -1,55 +1,56 @@
-# SOVEREIGN AGI V94.1: IMMUTABLE GOVERNANCE CHARTER (AOC)
+# SOVEREIGN AGI V94.1: GOVERNANCE CHARTER (AOC)
 
 ## MANDATE: Autonomous Code Evolution Governance Protocol
 
-This document constitutes the **Autonomous Operational Contract (AOC)**, establishing the mandatory, non-negotiable protocols for all System State Transitions (SSTs) and self-modification events via the **Governance Evolution Protocol (GSEP)**. The core mandate is to uphold the **Atomic Immutable Architecture (AIA)** integrity through controlled, cryptographically auditable evolution, orchestrated by the Governance Constraint Orchestrator (GCO).
+This document serves as the **Autonomous Operational Contract (AOC)**, dictating the mandatory, non-negotiable protocols for all System State Transitions (SSTs) and self-modification events. The evolution pathway is defined by the **Governance Evolution Protocol (GSEP)**, focused entirely on upholding the integrity of the **Atomic Immutable Architecture (AIA)** through controlled, auditable, and mathematically quantified decision-making.
 
 ---
 
-## 1. CORE GOVERNANCE REGISTRY (GCR Index)
+## 1. CORE ARCHITECTURAL & AGENT REGISTRY (AAR)
 
-This index defines the essential agents, components, and contracts enforced during system modification. (Operational subsystems are detailed in `architecture/COMPONENT_REGISTRY.md`.)
+This index delineates critical architectural states (Immutable definitions) and operational agents (Executing components) essential for system integrity.
 
-| Acronym | Functional Definition | Critical Role in System Integrity |
-|:---:|:---:|:---:|
-| **AIA** | Atomic Immutable Architecture | Foundational state; modifiable only via certified L5 commitment. |
-| **AOC** | Autonomous Operational Contract | This overarching governance charter and the mandatory ruleset. |
-| **GCO** | Governance Constraint Orchestrator | Primary SST arbiter, managing GSEP flow and L4 authorization (P-01). |
-| **GSEP** | Governance Evolution Protocol | The mandatory sequential (L0-L6) modification pathway. |
-| **SBC** | System Boundary Contract | Mandatory L0 input filter defining scope and permitted mutation paths. |
-| **SCR** | Schema and Configuration Registry | Centralized source for all structural constraints and parameters. |
-| **GFRM** | Governance Feedback and Remediation Module | Handles immediate autonomous structural correction upon GSEP failure (L1 Veto, L4 Denial). |
-| **P-01** | Primary Authorization Condition | The mathematical criterion required for successful L4 commitment. |
+| Acronym | Type | Functional Definition | Role & Dependency |
+|:---:|:---:|:---|:---|
+| **AIA** | Architecture | Atomic Immutable Architecture | Foundational ledger state; modified exclusively via certified L5 commitment. |
+| **AOC** | Contract | Autonomous Operational Contract | This mandatory governance charter, dictating all GSEP constraints. |
+| **GCO** | Agent | Governance Constraint Orchestrator | Primary SST arbiter; manages GSEP flow and validates L4 authorization (P-01). |
+| **GSEP** | Protocol | Governance Evolution Protocol | The mandatory sequential (L0-L6) pathway for all system modifications. |
+| **SBC** | Contract | System Boundary Contract | Mandatory L0 input filter defining scope, constraints, and permitted mutation vectors. |
+| **SCR** | Agent | Schema and Configuration Registry | Centralized, canonical source for all structural constraints and parameters. |
+| **GFRM** | Agent | Governance Feedback & Remediation Module | Autonomous error handler; manages re-queueing/correction upon L1 Veto or L4 Denial. |
+| **SDR** | Agent | System Diagnostic & Reporting | Supplies $\mathcal{S-01}$ (Efficacy) inputs to the GCO for L4 calculation. |
+| **HMC** | Agent | Hazard Modeling Component | Supplies $\mathcal{S-02}$ (Risk) inputs to the GCO for L4 calculation. |
 
 ---
 
 ## 2. INVIOLABLE ARCHITECTURAL INVARIANTS
 
-The GCO rigorously enforces the following mandatory invariants across all SSTs:
+The GCO rigorously enforces the following mandatory invariants across all SSTs to protect the AIA:
 
-### 2.1. Protocol Fidelity (GSEP Flow Integrity)
+### 2.1. Protocol Integrity & Sequencing (GSEP)
 
-*   **Sequential Mandate:** Mandatory sequential sequencing (L0 → L6) is inviolable. Non-linear progression or detected stage failure ($\text{FAIL}_{N-1}$) triggers immediate diagnostic routing to the GFRM.
-*   **Source Integrity:** All proposed SSTs must achieve strict L0 validation against the System Boundary Contract (SBC) constraints.
+*   **Sequential Mandate:** Mandatory forward sequential sequencing (L0 $\rightarrow$ L6) is inviolable. Detected sequence disruption or failure ($\text{FAIL}_{N-1}$) triggers immediate emergency routing to the GFRM, bypassing further GSEP stages.
+*   **Input Constraint:** All proposed SSTs must achieve strict L0 validation, confirming compliance against the SBC's structural constraints and the SCR's configuration ruleset.
 
-### 2.2. Commitment Requirements
+### 2.2. Provenance & Commitment Requirements
 
-*   **Provenance Chain:** All evolutionary artifacts must strictly comply with the Artifact Structural Definition Model (ASDM) and maintain verifiable lineage, confirmed by the Artifact Chain Manager (ACM).
-*   **L4 Gate Requirement:** The Decisional State Checkpoint (DSC-V1) generated at L4 is the *sole*, irreversible commitment gateway for final entry into the AIA Ledger. This state is non-negotiable.
+*   **Verifiable Lineage:** All evolutionary artifacts must comply with the Artifact Structural Definition Model (ASDM) and maintain auditable lineage, confirmed by the Artifact Chain Manager (ACM).
+*   **L4 Commitment Gateway:** The Decisional State Checkpoint (DSC-V1), generated solely at L4, is the single, cryptographically irreversible commitment gateway requiring P-01 authorization before entry into the AIA Ledger.
 
 ---
 
 ## 3. GOVERNANCE EVOLUTION PROTOCOL (GSEP V94.1: L0-L6)
 
-GSEP defines the mandatory, seven-step, traceable, forward-only pathway for system modification. Progression requires successful verification of the cryptographic output lock ($\mathcal{L}_{N}$) generated by the preceding stage.
+GSEP defines the mandatory, seven-step, forward-only pathway. Progression requires successful verification of the cryptographic output lock ($\mathcal{L}_{N}$) generated by the preceding stage.
 
-| Step | Stage Name | Core Function | Mandatory Gateway Check | Output Artifact (Lock $\mathcal{L}_{N}$) | Primary Constraint Agent |
+| Step | Stage Name | Core Function | Mandatory Gateway Check | Output Artifact (Lock $\mathcal{L}_{N}$) | Primary Constraint Agent(s) |
 |:----:|:-----------|:--------------------|:------------------------|:----------------------------------------|:----------------------|
 | **L0** | Initialization | Input Filtering & Scope Definition | SBC Scope Validation + SCR Parameter Load | Context Frame Manifest (C-FRAME-V1) | SCR, SBC |
-| **L1** | Vetting | Policy Compliance Assessment | Policy Veto Check ($\mathcal{S-03} = \text{FALSE}$) | Policy Definition Block (PDB-V1) | GFRM (Veto Path) |
+| **L1** | Vetting | Policy Compliance Assessment | Policy Veto Check ($\mathcal{S-03} = \text{FALSE}$) | Policy Definition Block (PDB-V1) | AOC, GFRM (Veto Path) |
 | **L2** | Hardening | Security & Integrity Verification | Integrity Provenance Check (ACM Lineage) | Security Verified Payload (SVP-V1) | ACM |
 | **L3** | Proving | Efficacy Modeling & Projection | Efficacy Projection Check ($\mathcal{S-01} \uparrow \text{Threshold}$) | Proof Manifest Hash (PMH-V1) | SDR |
-| **L4** | **ADJUDICATION** | **Irreversible Commitment** | **P-01 PASS Condition** | **Decisional State Checkpoint (DSC-V1)** | **GCO** |
+| **L4** | **ADJUDICATION** | **Irreversible Commitment** | **P-01 PASS Condition** | **Decisional State Checkpoint (DSC-V1)** | **GCO (Fed by SDR, HMC, AOC)** |
 | **L5** | Commitment | AIA Ledger Finalization | Irreversible Version Lock $\mathcal{V}_{N}$ | AIA Ledger Entry (AIA-ENTRY) | AIA Sink |
 | **L6** | Execution | Operational Activation & Monitoring | D-02 Monitoring & Activation Trace | Traceability Report (TR-V1) | Execution Vetting (RETV) |
 
@@ -57,11 +58,11 @@ GSEP defines the mandatory, seven-step, traceable, forward-only pathway for syst
 
 ## 4. L4 COMMITMENT CALCULUS: P-01 ARBITRATION
 
-This section defines the mandatory, mathematically quantified condition (P-01) that must be satisfied for modification authorization at the L4 Adjudication Gate.
+L4 serves as the critical junction where risk and benefit are mathematically evaluated. The authorization requires specific metric inputs provided by SDR (Efficacy) and HMC (Risk).
 
 ### 4.1. P-01 AUTHORIZATION FORMULA
 
-**P-01 PASS** requires validation that synthesized Efficacy exceeds synthesized Risk, conditional on the absence of policy veto:
+**P-01 PASS** is strictly conditional on Efficacy exceeding Risk, provided zero compliance vetoes ($\mathcal{S-03}$):
 
 $$ 
 \text{P-01 PASS} \iff ( \mathcal{S-01}_{\text{Efficacy}} > \mathcal{S-02}_{\text{Risk}} ) \land ( \mathcal{S-03}_{\text{Veto}} = \text{FALSE} ) 
@@ -69,12 +70,14 @@ $$
 
 ### 4.2. Governing Metrics & Optimization Goals
 
-| ID | Metric Title | Purpose | Optimization Goal | Dependency Agent |
+| ID | Metric Title | Source Agent | Purpose | Optimization Goal |
 |:---:|:---:|:---:|:---:|:---:|
-| $\mathcal{S-01}$ | Efficacy Projection (Trust) | Measures projected positive utility. | Maximization ($\uparrow$ Efficacy) | SDR (System Diagnostic & Reporting) |
-| $\mathcal{S-02}$ | Risk Synthesis (Floor) | Measures quantified structural/operational hazard. | Minimization ($\downarrow$ Exposure) | HMC (Hazard Modeling Component) |
-| $\mathcal{S-03}$ | Compliance State (Veto) | Binary check against mandatory governance policies. | Mandatory FALSE Veto | AOC/SBC Ruleset |
+| $\mathcal{S-01}$ | Efficacy Projection (Trust) | SDR | Measures projected positive utility against system goals. | Maximization ($\uparrow$ Efficacy) |
+| $\mathcal{S-02}$ | Risk Synthesis (Floor) | HMC | Measures quantified structural/operational hazard exposure. | Minimization ($\downarrow$ Exposure) |
+| $\mathcal{S-03}$ | Compliance State (Veto) | AOC/SBC | Binary check confirming fidelity to mandatory governance policies (L1 Veto). | Mandatory FALSE Veto |
+
+*Note: The detailed methodology for calculating $\mathcal{S-01}$ and $\mathcal{S-02}$ is managed externally by the System Metric Standard (SMS).* 
 
 ### 4.3. Remediation Loop
 
-Failure at L1 (Veto) or L4 (P-01 Denial) immediately triggers autonomous structural remediation via routing the full context frame to the GFRM, strictly bypassing subsequent GSEP stages for safe re-queueing.
+Failure at L1 (Veto) or L4 (P-01 Denial) triggers autonomous contextual remediation. The full context frame is immediately routed to the GFRM, strictly bypassing subsequent GSEP stages for diagnosis and safe re-queueing.
