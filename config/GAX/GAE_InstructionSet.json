@@ -1,0 +1,35 @@
+{
+  "executor_id": "GAE-V1.0",
+  "description": "Instruction set mapping VRRM abstract remediation actions to concrete execution modules and methods.",
+  "action_mappings": {
+    "STATE_QUARANTINE": {
+      "module": "CISM_Integrator",
+      "method": "isolateAsset",
+      "security_level_required": "L5_ADMIN"
+    },
+    "CONFIG_ROLLBACK": {
+      "module": "PVLM_Custodian",
+      "method": "applyCertifiedHash"
+    },
+    "MODEL_RETRAINING_MANDATE": {
+      "module": "CMR_Orchestrator",
+      "method": "queueUrgentRetrain"
+    },
+    "METRIC_LOCKDOWN": {
+      "module": "MPAM_Monitor",
+      "method": "activateFreeze"
+    },
+    "INPUT_STREAM_PAUSE": {
+      "module": "S1_Input_Handler",
+      "method": "pauseIngestStream"
+    },
+    "ADTM_ADJUSTMENT": {
+      "module": "ADTM_Controller",
+      "method": "patchHeuristics"
+    }
+  },
+  "enforcement_protocols": [
+    "TRANSACTION_IDEMPOTENCE",
+    "ASSET_LOCKING_CHECK"
+  ]
+}
