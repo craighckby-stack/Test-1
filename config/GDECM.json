@@ -1,0 +1,45 @@
+{
+  "description": "Governance Dependency & Execution Constraint Manifest (GDECM) - Defines the certified, PCTM-enforced operational requirements for each GSEP-C stage.",
+  "schema_version": "V94.1.0",
+  "stages": {
+    "S0": {
+      "agent_lead": "CRoT/SGS",
+      "type": "TERMINAL",
+      "required_assets": ["HETM", "GVDM", "PCSIM"],
+      "required_inputs": ["None"],
+      "outputs": ["CRoT Attest (Host)", "CISM_Initial"] 
+    },
+    "S1": {
+      "agent_lead": "SGS",
+      "type": "STANDARD",
+      "required_assets": ["SDVM"],
+      "required_inputs": ["Raw System Input"],
+      "outputs": ["Validated_Input", "CISM_Update"] 
+    },
+    "S2": {
+      "agent_lead": "GAX",
+      "type": "CRITICAL",
+      "required_assets": ["PVLM"],
+      "required_inputs": ["Validated_Input"],
+      "veto_condition": "S03"
+    },
+    "S6": {
+      "agent_lead": "SGS/TIVS",
+      "type": "CRITICAL",
+      "required_assets": ["TQM", "GTB Feed", "STDM"],
+      "required_inputs": ["Validated_Input"],
+      "constraints": {
+        "telemetry_fidelity": "TQM_threshold"
+      },
+      "outputs": ["Vetted_Telemetry", "Computational_Budget_Check"]
+    },
+    "S6.7": {
+      "agent_lead": "SGS/CRoT",
+      "type": "CRITICAL",
+      "required_assets": ["CMR", "GRCS"],
+      "required_inputs": ["Validated_Input", "Vetted_Telemetry"],
+      "outputs": ["S01_Metric", "S02_Metric"]
+    }
+    // ... All 13 Stages Defined Here
+  }
+}
