@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "description": "Definitions for Governance Fallback Mechanisms (GFRM) used across GSEP protocols.",
+  "mechanisms": {
+    "GFRM:HALT_PROTOCOL": {
+      "type": "ImmediateTermination",
+      "log_level": "CRITICAL",
+      "error_code": 50001,
+      "description": "Protocol failed early validation; stop execution immediately."
+    },
+    "GFRM:INIT_ROLLBACK_SST_PREV": {
+      "type": "StateRollback",
+      "target_state": "SST_PREV",
+      "log_level": "WARNING",
+      "rollback_version": "stable_0.94.0",
+      "description": "Fallback to previously stable system state, utilizing known checkpoints."
+    },
+    "GFRM:RECALCULATE_CONTEXT": {
+      "type": "RetryStage",
+      "retry_limit": 2,
+      "target_stage_id": "S_03_CONTEXT_SYNC",
+      "log_level": "INFO",
+      "description": "Context synthesis failed; attempt recalculation up to two times."
+    },
+    "GFRM:LOG_AND_RETRY_S_04": {
+      "type": "Transition",
+      "transition_target_id": "S_04_METRIC_DYN",
+      "log_level": "ERROR",
+      "inject_context": {"error_type": "ConstraintBind_Vio"},
+      "description": "Constraint failure detected; log event and restart metric generation phase (S_04) to derive new viability metrics."
+    }
+  }
+}
