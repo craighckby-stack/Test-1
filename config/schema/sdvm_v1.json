@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "State Transition Proposal (STP) Schema Definition",
+  "description": "Defines the required structural integrity and context types for ingestion by the GSEP-C pipeline (GSC/CTM stages).",
+  "type": "object",
+  "required": [
+    "context",
+    "directives",
+    "provenance"
+  ],
+  "properties": {
+    "context": {
+      "type": "object",
+      "description": "Metadata defining the scope and environment of the STP."
+    },
+    "directives": {
+      "type": "array",
+      "description": "Atomic instructions for state evolution."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Cryptographic signature, source lineage, and timestamps."
+    }
+  },
+  "additionalProperties": false
+}
