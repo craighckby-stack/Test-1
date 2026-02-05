@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "contract_id": "MEE/MEC",
+  "metrics": {
+    "S-01_Efficacy": {
+      "definition": "Net Positive Impact projected over 5 cycles.",
+      "calculation_layers": [
+        {"input": "VIC.ImpactProjection.ROI", "weight": 0.5},
+        {"input": "VIC.DependencyChain.Reduction", "weight": 0.3},
+        {"input": "L2.SimulationConfidenceBound.Mean", "weight": 0.2}
+      ],
+      "normalization_function": "Sigmoid_Bounded"
+    },
+    "S-02_Risk": {
+      "definition": "Systemic Volatility Exposure Index.",
+      "calculation_layers": [
+        {"input": "VIC.ResourceConsumption.PeakSpike", "weight": 0.4},
+        {"input": "L2.SimulationConfidenceBound.Variance", "weight": 0.4},
+        {"input": "L5.DataFidelity.AnomalyRate", "weight": 0.2}
+      ],
+      "risk_threshold_static": 10.0,
+      "risk_mitigation_adjustment": 0.95
+    }
+  }
+}
