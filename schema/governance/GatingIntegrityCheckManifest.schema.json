@@ -1,51 +1,98 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "http://sovereign-agi.com/governance/GICM.schema.json",
   "title": "Gating Integrity Check Manifest (GICM)",
   "description": "Defines mandatory environmental and data state prerequisites for entering the Axial Gating Phase (GSEP-C P2). Used at Stage S1.5.",
   "type": "object",
-  "required": ["sag_version", "timestamp", "prerequisites"],
+  "required": [
+    "sag_version",
+    "manifest_timestamp",
+    "required_integrity_checks"
+  ],
   "properties": {
     "sag_version": {
       "type": "string",
-      "description": "Expected SAG specification version for execution compatibility (e.g., V94.4)"
+      "description": "Expected SAG specification version for execution compatibility (e.g., V94.4)",
+      "pattern": "^V\\d+\\.\\d+$"
     },
-    "timestamp": {
+    "manifest_timestamp": {
       "type": "string",
       "format": "date-time",
-      "description": "Timestamp of GICM validation initiation."
+      "description": "Timestamp when this specific GICM manifest was finalized and issued."
     },
-    "prerequisites": {
+    "required_integrity_checks": {
       "type": "array",
-      "description": "A list of mandatory checks that must resolve to true for RRP clearance at S1.5.",
+      "description": "A list of critical checks that must resolve to true for clearance at Stage S1.5.",
       "items": {
-        "type": "object",
-        "required": ["check_id", "target_component", "expected_state"],
-        "properties": {
-          "check_id": {
-            "type": "string",
-            "description": "Unique identifier for the integrity check."
-          },
-          "target_component": {
-            "type": "string",
-            "enum": ["CRoT", "GAX", "SGS", "Environment"],
-            "description": "Custodian or execution environment component being checked."
-          },
-          "check_type": {
-            "type": "string",
-            "enum": ["checksum", "version_parity", "availability_check", "resource_boundary"],
-            "default": "version_parity"
-          },
-          "expected_state": {
-            "type": ["string", "number", "boolean"],
-            "description": "The definitive required value or state (e.g., 'SHA256:...')"
-          },
-          "veto_if_fail": {
-            "type": "boolean",
-            "default": true
-          }
+        "$ref": "#/$defs/GatingCheckItem"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "TargetComponentEnum": {
+      "type": "string",
+      "enum": [
+        "CRoT",
+        "GAX",
+        "SGS",
+        "AxialEngine",
+        "Environment"
+      ],
+      "description": "The specific Sovereign core component or execution environment under scrutiny."
+    },
+    "CheckTypeEnum": {
+      "type": "string",
+      "enum": [
+        "checksum_parity",
+        "version_parity",
+        "availability_test",
+        "resource_boundary",
+        "configuration_match"
+      ],
+      "description": "The methodology applied for the integrity assessment."
+    },
+    "GatingCheckItem": {
+      "type": "object",
+      "required": [
+        "check_id",
+        "target_component",
+        "expected_value"
+      ],
+      "properties": {
+        "check_id": {
+          "type": "string",
+          "description": "A canonical unique ID for tracking the check failure/success (e.g., GIC-SGS-001)."
+        },
+        "target_component": {
+          "$ref": "#/$defs/TargetComponentEnum"
+        },
+        "check_type": {
+          "$ref": "#/$defs/CheckTypeEnum",
+          "default": "version_parity"
+        },
+        "expected_value": {
+          "description": "The required definitive value, structure, or state for comparison.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "object",
+            "array"
+          ],
+          "nullable": true
+        },
+        "critical_veto": {
+          "type": "boolean",
+          "description": "If true, failure of this check halts gating immediately, regardless of other successful checks.",
+          "default": true
+        },
+        "failure_context": {
+          "type": "string",
+          "description": "Short explanation detailing the consequence of check failure."
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }
