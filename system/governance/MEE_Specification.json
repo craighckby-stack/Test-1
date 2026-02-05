@@ -1,0 +1,17 @@
+{
+  "component_id": "MEE-V1.0",
+  "purpose": "Isolated and cryptographically attested execution of metric calculations ($S\text{-}01$, $S\text{-}02$ $), enforcing strict compliance with the MEC ruleset before L5 registration.",
+  "ingress": {
+    "source": "MSB (L5)",
+    "data_dependency": ["SST Proposal Vector", "MEC Quantification Ruleset"]
+  },
+  "logic": {
+    "1_verification": "Verify $H_{MEC}$ integrity.",
+    "2_isolation": "Execute calculation in sandboxed, non-persistent environment.",
+    "3_output_signature": "Sign metric outputs ($S\text{-}01$, $S\text{-}02$) using MEE Attestation Key (MAK)."
+  },
+  "egress": {
+    "target": "MSB Registry (L5)",
+    "format": "Attested Metric Payload (AMP)"
+  }
+}
