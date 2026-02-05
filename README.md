@@ -1,62 +1,57 @@
-# SOVEREIGN AGI V96.1: GOVERNANCE MANIFESTO & CORE PROTOCOLS
+# SOVEREIGN AGI V96.1: GOVERNANCE MANIFESTO
 
-## I. SYSTEM METADATA & OPERATIONAL MANDATE
+## I. GOVERNANCE MANDATE & ARCHITECTURAL FOUNDATION
 
 This document defines the **Sovereign Operational Manifesto (AOC V96.1)**, establishing the unilateral foundation for Autonomous Code Evolution based on the principle of **Atomic Immutable Architecture (AIA)**. All systemic change is governed by the risk-optimized, mandatory **Governing Self-Evolution Protocol (GSEP V96.1)**.
 
-| Field | Value | Rationale |
+### A. System Metadata and Core Enforcement Gates
+
+| Field | Value | Rationale/Mechanism |
 |:---|:---|:---|
 | **Version** | V96.1 (Manifesto Refinement) | Enhanced Input Integrity and Architectural Clarity |
 | **Core Protocol** | GSEP V96.1 (5-Stage Atomic Mutation Lifecycle) | Defines operational change sequence. |
-| **Commitment Gate**| P-01 Trust Calculus (AIA Enforcement) | Non-negotiable, cryptographically secured state mutation lock. |
+| **Architectural Foundation**| Atomic Immutable Architecture (AIA) | Every state change is irreversible, fully auditable, and non-repudiable. |
+| **Commitment Gate**| P-01 Trust Calculus (AIA Enforcement) | The sole mandatory gateway for system state mutation (Stage 3 lock). |
 
----
+### B. Atomic Immutable Architecture (AIA) Mandate
 
-## II. CORE ONTOLOGY & PRINCIPLES
+Every authorized state change (Mutation) must be treated as an atomic, cryptographically attested transaction, committing irreversible, fully auditable records (D-01, MCR) to the system ledger. AIA is enforced at the P-01 gate, ensuring non-repudiation and guaranteed rollback capability.
 
-### A. Glossary of Mandated Terminology (V96.1)
+### C. P-01 TRUST CALCULUS: The Irreversible Mutation Gate
 
-Formal terminology mandated for unambiguous, low-latency protocol execution, structured by functional pillar.
+P-01 requires high-fidelity, three-part validation administered by the Operational Governance Triad (OGT). Execution results in a PASS condition if, and only if, the calculated Success Projection exceeds the Contextual Risk Floor, and no mandatory policy violation is detected.
 
-| Initialism | Definition | Functional Pillar | GSEP Stage Scope |
+$$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{attested}} > \text{S-02}_{\text{attested}} \quad (\text{Trust must outweigh Risk Floor}) \\ \text{S-03 VETO} = \text{FALSE} \quad (\text{No Policy Violation}) \end{cases}$$
+
+| Input ID | Focus Area | Data Source Component(s) | Role in Decision |
 |:---|:---|:---|:---|
-| **AOC** | Autonomous Operational Contract | GOVERNANCE | Foundation |
-| **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
-| **AIA** | Atomic Immutable Architecture | GOVERNANCE | Stages 3, 4, 5 |
-| **P-01** | Trust Calculus | CONSENSUS | Stage 3 |
-| **OGT** | Operational Governance Triad | GOVERNANCE | Stage 3 |
-| **MCR** | Mutation Commitment Registrar | INFRASTRUCTURE | Stage 4 |
-| **SRM** | Systemic Requirement Modulator | COMPUTE | Stage 1 |
-| **CRM** | Contextual Runtime Monitor | INFRASTRUCTURE | Stage 3 |
-| **EPDP** | Evolution Policy Decision Point | GOVERNANCE | Inter-Stage Control |
-
-### B. Atomic Immutable Architecture (AIA)
-
-Every authorized state change (Mutation) must be treated as an atomic, cryptographically attested transaction, committing irreversible, fully auditable records (D-01, MCR) to the system ledger, ensuring non-repudiation and guaranteed rollback capability. AIA is enforced at the P-01 gate.
+| **S-01** | Success Projection (Trust Score) | ATM, PSR | Quantitative reliability metric of proposed mutation. |
+| **S-02** | Contextual Risk Floor | C-11, RCE, CRM | Dynamically calculated maximum risk tolerance based on live state. |
+| **S-03** | Mandatory Policy Veto | C-15 (Policy Engine) | Binary check for immutable governance rule violations. |
 
 ---
 
-## III. GOVERNING SELF-EVOLUTION PROTOCOL (GSEP V96.1)
+## II. GOVERNING SELF-EVOLUTION PROTOCOL (GSEP V96.1)
 
 GSEP V96.1 mandates a risk-optimized, atomic five-stage lifecycle utilizing **Evolution Policy Decision Points (EPDPs)** for controlled mutation deployment.
 
 ### A. GSEP Stages and Core Functionality
 
-| Stage # | Name | Critical Gate Checkpoint | Core Output / Commitable Function | Associated Components (Key)
+| Stage # | Name | Critical Gate Checkpoint | Core Output / Commitable Function | Key Components (Example)
 |:---|:---|:---|:---|:---|
 | **1** | Intent & Scoping | EPDP A (ASR, CIM Vetting) | **M-01 Intent Package** (Formal requirements definition). | SRM, ASR, CIM |
-| **2** | Specification & Simulation | EPDP B (PSR Validation) | **M-02 Payload Generation**, rigorously simulated via PSR. | MSU, PSR, MPSE |
+| **2** | Specification & Simulation | EPDP B (PSR, **SMA** Validation) | **M-02 Payload Generation**, rigorously simulated via PSR. | MSU, PSR, MPSE, **SMA** |
 | **3** | Trust Adjudication (P-01) | **EPDP C (P-01 Execution)** | **D-01 Audit Log** resulting from formal Trust Calculus execution. | OGT, P-01, TIAR, ATM, C-11, CRM |
 | **4** | Architectural Commitment | EPDP D (SSV/RAM Lock) | **MCR Version-Lock** (State attestation and cryptographic hashing). | MCR, A-01, SSV, RAM |
 | **5** | Execution & Audit | EPDP E (C-04 Isolation) | Isolated deployment, post-audit (FBA/SEA), and **Atomic Rollback Guarantee**. | C-04, FBA, SEA |
 
-### B. GSEP Operational Flow Diagram
+### B. GSEP Operational Workflow Diagram
 
 ```mermaid
 graph TD
     subgraph Evolutionary_Feedback_Loop [AOC V96.1 GSEP Lifecycle]
         A[1. SCOPING: M-01 (SRM/EPDP A)] --> B(2. SPECIFICATION: M-02 Payload Drafting);
-        B --> C{EPDP B: PSR Simulation Validation?};
+        B --> C{EPDP B: Simulation & Schema Validation?};
         
         C -- FAIL: Recalibrate --> F01[F-01: Failure Analysis/Recalibration];
         
@@ -79,31 +74,30 @@ graph TD
 
 ---
 
-## IV. P-01 TRUST CALCULUS: The Irreversible Mutation Gate
+## III. SYSTEM ONTOLOGY & CORE GLOSSARY
 
-P-01 requires high-fidelity, three-part validation administered by the OGT. All input data (S-01, S-02, S-03) must first be cryptographically attested by the **Telemetry Input Attestation Registrar (TIAR)** to guarantee integrity, referencing keys managed by KTAM. P-01 is the sole mandatory gateway for MCR (Stage 4) commitment.
+Formal terminology mandated for unambiguous, low-latency protocol execution, structured by functional pillar.
 
-### A. Formal Calculus
-
-Execution of P-01 results in a PASS condition if, and only if, the calculated Success Projection exceeds the Contextual Risk Floor, and no mandatory policy violation is detected.
-
-$$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{attested}} > \text{S-02}_{\text{attested}} \quad (\text{Trust must outweigh Risk Floor}) \\ \text{S-03 VETO} = \text{FALSE} \quad (\text{No Policy Violation}) \end{cases}$$
-
-### B. Trust Calculus Inputs (Attested Decision Axes)
-
-| Input ID | Focus Area | Data Source Component(s) | Role in Decision |
+| Initialism | Definition | Functional Pillar | GSEP Stage Scope |
 |:---|:---|:---|:---|
-| **S-01** | Success Projection (Trust Score) | ATM, PSR | Quantitative reliability metric of proposed mutation (Must Exceed Risk Floor). |
-| **S-02** | Contextual Risk Floor | C-11, RCE, CRM | Dynamically calculated maximum risk tolerance based on live system state. |
-| **S-03** | Mandatory Policy Veto | C-15 (Policy Engine) | Binary check for immutable governance rule violations (Must be FALSE). |
+| **AOC** | Autonomous Operational Contract | GOVERNANCE | Foundation |
+| **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
+| **AIA** | Atomic Immutable Architecture | GOVERNANCE | Stages 3, 4, 5 |
+| **P-01** | Trust Calculus | CONSENSUS | Stage 3 |
+| **OGT** | Operational Governance Triad | GOVERNANCE | Stage 3 |
+| **MCR** | Mutation Commitment Registrar | INFRASTRUCTURE | Stage 4 |
+| **SRM** | Systemic Requirement Modulator | COMPUTE | Stage 1 |
+| **CRM** | Contextual Runtime Monitor | INFRASTRUCTURE | Stage 3 |
+| **EPDP** | Evolution Policy Decision Point | GOVERNANCE | Inter-Stage Control |
+| **SMA** | Schema Migration Adjudicator | GOVERNANCE | Stage 2 |
 
 ---
 
-## V. SYSTEM DEPENDENCY MATRIX (SDM V96.1)
+## IV. SYSTEM DEPENDENCY MATRIX (SDM V96.1)
 
 System components mapped to their primary operational domain and GSEP stage dependency.
 
-### V.A. CONSENSUS & COMMITMENT CORE
+### IV.A. CONSENSUS & COMMITMENT CORE
 
 | ID | Component Name | Functional Focus | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
@@ -114,7 +108,7 @@ System components mapped to their primary operational domain and GSEP stage depe
 | **KTAM** | Key & Trust Anchor Manager | Manages cryptographic primitives for TIAR/MCR integrity. | `src/infrastructure/keyTrustAnchorManager.js` | Stage 3/4/Fdn |
 | **MCR** | Mut. Chain Registrar | Records final evolutionary state ledger entries (Commitment). | `src/governance/mutationChainRegistrar.js` | Stage 4 |
 
-### V.B. GOVERNANCE, POLICY & INTEGRITY
+### IV.B. GOVERNANCE, POLICY & INTEGRITY
 
 | ID | Component Name | Functional Focus | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
@@ -123,8 +117,9 @@ System components mapped to their primary operational domain and GSEP stage depe
 | **ASR** | Arch. Schema Registrar | Enforces architectural contracts (EPDP A validation). | `src/governance/architectureSchemaRegistrar.js` | Stage 1 |
 | **CIM** | Config Integrity Monitor | Secure validation and enforcement of system configurations. | `src/governance/configIntegrityMonitor.js` | Stage 1 |
 | **RCE** | Resource Constraint Evaluator | Provides dynamic, internal resource context for S-02 calculation. | `src/governance/resourceConstraintEvaluator.js` | Stage 3 |
+| **SMA** | **Schema Migration Adjudicator** | **Formalizes and validates schema transition integrity for M-02 payloads.** | `src/governance/schemaMigrationAdjudicator.js` | Stage 2 |
 
-### V.C. SYNTHESIS, SIMULATION & EXECUTION
+### IV.C. SYNTHESIS, SIMULATION & EXECUTION
 
 | ID | Component Name | Functional Focus (Code Evolution Lifecycle) | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
@@ -134,7 +129,7 @@ System components mapped to their primary operational domain and GSEP stage depe
 | **MPSE** | Mut. Payload Spec Engine | Enforces rigid payload schema validation for M-02 output. | `src/governance/mutationPayloadSpecEngine.js` | Stage 2 |
 | **C-04** | Autogeny Sandbox | Isolated execution environment with atomic rollback (EPDP E). | `src/execution/autogenySandbox.js` | Stage 5 |
 
-### V.D. MONITORING, STAGING & MAINTENANCE
+### IV.D. MONITORING, STAGING & MAINTENANCE
 
 | ID | Component Name | Functional Focus (Operational & Audit) | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
