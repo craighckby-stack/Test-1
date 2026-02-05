@@ -39,7 +39,10 @@ These protocols define certified operational pathways and mandate CRoT-signed GA
 
 ## 2.0 GSEP-C V97.1: MANDATORY STATE TRANSITION PIPELINE
 
-GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). This pipeline is the *sole* path for atomic state evolution. Failures at **TERMINAL** stages trigger an immediate System Integrity Halt (SIH).
+GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). This pipeline is the *sole* path for atomic state evolution.
+Failure Modes are strictly governed:
+1. **STANDARD/CRITICAL** failure (Stages S1-S8) triggers the Rollback Protocol (RRP).
+2. **TERMINAL** failure (Stages S0, S9) triggers an immediate System Integrity Halt (SIH).
 
 | Group | Stage | Agent | Type | Core Objective | Primary Control Manifest | Failure Action |
 |:---|:-----|:-----|:-----|:-----------------------------------|:---|:---|
@@ -87,6 +90,7 @@ All Governance Asset & Registry (GACR) manifests define state and control logic 
 | **SBCM** | S4 | System Baseline Configuration Manifest. Immutable config for CEEP modeling isolation. Requires CDVP distribution. |
 | **CAC** | S5 | Core Architectural Constraints. Runtime resource limits (load, memory budget). |
 | **MDSM** | S6 | Metric Definition Manifest. Specifications for generating Certified Governance Variables ($S_{01}, S_{02}$). |
+| **GTEM** | S7/GRTS | Governance Telemetry Manifest. Defines the required output structure, endpoints, and latency thresholds for Certified Governance Variable (CGV) reporting (GRTS). |
 | **CALS** | S8 | Certified Audit Log Specification. Persistence requirements for the NRALS. |
 
 ---
@@ -110,7 +114,7 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 *   **RRP (Rollback Protocol):** Initiates atomic state reversal upon STANDARD or CRITICAL stage failure (S1-S8). Mandates NRALS logging prior to reversion attempt.
 *   **SIH (System Integrity Halt):** Terminal lock initiated by S0 or S9 failure. Triggers mandatory **Human-in-the-Loop Triage (HIL-T)** authorization via the GEIDM standard. Restart requires CRoT-attested compliance with the **HARM** protocol.
 *   **NRALS (Non-Repudiable Audit Log Specification):** Immutable logging mandated at S8 and upon SIH/RRP trigger, requiring cryptographic attestation (CALS).
-*   **GRTS (Governance Reporting & Telemetry Standard):** Mandates structured, low-latency reporting of CGV upon S7 Finality certification (GTEM).
+*   **GRTS (Governance Reporting & Telemetry Standard):** Mandates structured, low-latency reporting of CGV upon S7 Finality certification (via GTEM).
 
 ---
 
@@ -134,6 +138,7 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 | GICM | Governance Inter-Agent Contract Manifest | 3.1, S2, S7, S9 (Inter-Agent Handoff) |
 | GSEP-C | Governance State Evolution Pipeline - Certified | 1.2, 2.0 (Transition Mechanism) |
 | GRTS | Governance Reporting & Telemetry Standard | 5.0 (Telemetry) |
+| **GTEM** | **Governance Telemetry Manifest** | **3.3, S7 (Reporting Structure)** |
 | HARM | Human Authorization and Recovery Manifest | 1.2, 5.0 (HIL-T Protocol Standard) |
 | HETM | Host Environment Trust Manifest | 3.2, S0 (Infrastructure Integrity) |
 | MDSM | Metric Definition Manifest | 3.3, S6 (Synthesis Specification) |
