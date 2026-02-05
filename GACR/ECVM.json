@@ -1,0 +1,30 @@
+{
+  "manifest_version": "1.0.0",
+  "owner_agent": "SGS",
+  "certification_protocol": "ECVP",
+  "gate_id": "S4.5",
+  "constraints": [
+    {
+      "constraint_id": "CVA-201",
+      "type": "external_api_latency_slo",
+      "target_endpoint_pattern": "^/critical/",
+      "max_latency_ms": 50,
+      "failure_action": "RRP"
+    },
+    {
+      "constraint_id": "CVA-305",
+      "type": "data_recency_threshold",
+      "source_registry": "DTEM/CoreCache",
+      "max_staleness_seconds": 300,
+      "failure_action": "RRP"
+    },
+    {
+      "constraint_id": "CVA-412",
+      "type": "system_resource_availability",
+      "required_resources": ["GPU_T4:1", "CPU_Vcores:4"],
+      "minimum_availability_percent": 95,
+      "failure_action": "RRP"
+    }
+  ],
+  "attestation_period": "continuous"
+}
