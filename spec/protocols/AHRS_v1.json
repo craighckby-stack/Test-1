@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "specification_name": "Audit Halt and Remediation Specification (AHRS)",
+  "purpose": "Defines the structured requirements for post-SIH/Post-RRP forensic analysis, outlining the mandatory data fields from NRALS/FSVM required to generate remediation and recovery instructions.",
+  "core_requirements": [
+    {
+      "id": "RRP-TRC-01",
+      "name": "Traceable Root Cause Identification",
+      "mandate": "Map the SIH or RRP trigger back to the specific GSEP-C stage (L-ID) and the implicated GACR asset (ID/Hash).
+    },
+    {
+      "id": "SIH-ISR-02",
+      "name": "Isolation State Reporting",
+      "mandate": "Formal definition of the isolation boundary (scope of contamination/rollback) established during the halt."
+    },
+    {
+      "id": "AHA-RCI-03",
+      "name": "Recovery Criteria Integration",
+      "mandate": "Specify the minimum criteria required for system resumption, mandatory external sign-off requirements, and authorized restart paths."
+    }
+  ],
+  "data_source_dependencies": ["NRALS_v1", "FSVM_v1", "SIH_protocol_v1", "RRP_interface_v1"]
+}
