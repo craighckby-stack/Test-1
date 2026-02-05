@@ -1,0 +1,36 @@
+{
+  "description": "Configuration governing the Protocol Integrity Manager (PIM) failure triggers and expected artifact properties at GSEP-C Synchronization Gates.",
+  "version": "v1.0.0",
+  "gates": {
+    "G0_PRE_FLIGHT_LOCK": {
+      "validation_type": "GAX_III_HASH_CHECK",
+      "required_artifact_hash": "$EMSU.EMS_HASH$",
+      "constraints": [
+        {"check": "IsManifestSealed", "failure_mode": "P-M02"}
+      ]
+    },
+    "G1_BOUNDARY_CHECK": {
+      "validation_type": "GAX_II_RESOURCE_BOUNDING",
+      "required_artifact_hash": "$DRO.ECVM_SIGNATURE$",
+      "constraints": [
+        {"check": "ExecutionTimeUnderBudget", "failure_mode": "P-M01"},
+        {"check": "ACVMThresholdsMet", "failure_mode": "P-M02"}
+      ]
+    },
+    "G2_COMMITMENT_GATE": {
+      "validation_type": "GAX_I_FINALITY",
+      "required_artifact_hash": "$AASS.PSI_FINAL_HASH$",
+      "constraints": [
+        {"check": "ISBImmutabilityVerified", "failure_mode": "P-M02"},
+        {"check": "PsiFinalDeterminismCheck", "failure_mode": "P-M02"}
+      ]
+    },
+    "G3_FINALITY_SEAL": {
+      "validation_type": "P_R03_AUDITABILITY",
+      "required_artifact_hash": "$AASS.STATE_SEAL_CERTIFICATE$",
+      "constraints": [
+        {"check": "AASS_SignatureValidity", "failure_mode": "P-R03"}
+      ]
+    }
+  }
+}
