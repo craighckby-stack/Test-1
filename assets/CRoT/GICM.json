@@ -1,0 +1,33 @@
+{
+  "name": "Governance Inter-Agent Contract Manifest",
+  "version": "V97.1.0",
+  "description": "Defines strict cryptographic and schema requirements for communication interfaces during critical GSEP-C stages, ensuring non-repudiable state transfer between the Triumvirate Agents (SGS, GAX, CRoT).",
+  "criticality_level": "Axiomatic",
+  "gsep_c_binding": [ "S2", "S7", "S9" ],
+  "contracts": [
+    {
+      "stage": "S2_VETO",
+      "caller": "SGS",
+      "target": "GAX",
+      "required_input_schema_ref": "PVLM_Input_Schema_ID",
+      "required_output_schema_ref": "PVLM_Veto_Signal_Schema_ID",
+      "required_crypto_attestation": "GAX_Agent_Signature_Required"
+    },
+    {
+      "stage": "S7_CERT",
+      "caller": "SGS",
+      "target": "GAX",
+      "required_input_schema_ref": "MDSM_S6_Output_Schema_ID",
+      "required_output_schema_ref": "CFTM_Finality_Tuple_Schema_ID",
+      "required_crypto_attestation": "GAX_Agent_Signature_Required"
+    },
+    {
+      "stage": "S9_COMMIT",
+      "caller": "SGS",
+      "target": "CRoT",
+      "required_input_schema_ref": "NRALS_Commit_Tuple_Schema_ID",
+      "required_output_schema_ref": "CRoT_Finality_Key_Attestation_ID",
+      "required_crypto_attestation": "CRoT_Master_Key_Binding_Required"
+    }
+  ]
+}
