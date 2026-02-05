@@ -1,0 +1,28 @@
+{
+  "manifest_version": "V94.1",
+  "asset_control_scope": "GAX.Policy/CRoT.Integrity",
+  "dependency_criticality_level": "CRITICAL",
+  "purpose": "Validate that the Governance Dependency & Execution Constraint Manifest (GDECM) reflects the latest, ACPE-validated policy and model configurations prior to the S0 GSEP-C trigger.",
+  "validation_targets": [
+    {
+      "target": "GDECM.Structure",
+      "check_source": "PCSIM",
+      "validation_type": "Schema Integrity Match",
+      "assertion": "The runtime GDECM schema must cryptographically match the PCSIM canonical hash."
+    },
+    {
+      "target": "GDECM.PolicyConstraints",
+      "check_source": "PVLM/ACPE",
+      "validation_type": "Constraint Inclusion Proof",
+      "assertion": "Every mandate within PVLM must have a corresponding, non-contradictory stage dependency defined within the GDECM."
+    },
+    {
+      "target": "GDECM.ModelReferences",
+      "check_source": "CMR/MPAM",
+      "validation_type": "Version Attestation",
+      "assertion": "GDECM model pointers (e.g., S5/S6.7 references) must correlate to the current CRoT-certified model version and pass MPAM integrity checks."
+    }
+  ],
+  "trigger_event": "Pre-S0/Initialization Phase",
+  "certification_output": "DCCA-Veto (Halt/RRP if certification fails)"
+}
