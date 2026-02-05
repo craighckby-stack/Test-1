@@ -1,6 +1,6 @@
 # SOVEREIGN AGI V97.2 GOVERNANCE ARCHITECTURE DEFINITION (AOC)
 
-This document defines the governing architecture and operational mandate of the **Autonomous Operational Contract (AOC V97.2)**, ensuring systemic integrity and irreversible state transition. The system relies on three foundational, interdependent pillars:
+This document defines the governing architecture and operational mandate of the **Autonomous Operational Contract (AOC V97.2)**. The AOC ensures systemic integrity and manages irreversible state transitions via three foundational, interdependent pillars:
 
 1.  **Governing Self-Evolution Protocol (GSEP V97.2)**: The mandatory, risk-minimized, 7-phase atomic mutation lifecycle (Stages 0-6).
 2.  **P-01 Trust Calculus**: The quantitative threshold mandating that calculated Trust rigorously exceeds Risk, determining Stage 4 commitment status.
@@ -10,13 +10,7 @@ Supervision and constraint enforcement are maintained by the Governance Constrai
 
 ---
 
-## I. EXECUTIVE ARCHITECTURAL SUMMARY: The Irreversible Commitment
-
-The AIA defines the ledger-based operational integrity. All evolutionary change (Mutation Payload **M-02**) must successfully pass through the **GSEP** lifecycle. The single most critical checkpoint in this flow is **Stage 4 (COMMITMENT ADJUDICATION)**, where the GSEP hinges entirely on the successful resolution of the **P-01 Trust Calculus**. Failure at any point initiates the **F-01 Compliance Trace Generator (CTG)** path, forcing refinement or abort.
-
----
-
-## II. CORE CONCEPTS & INITIALISM REGISTRY (AOC V97.2)
+## I. CORE CONCEPTS & INITIALISM REGISTRY (AOC V97.2)
 
 | Initialism/Concept | Governance Mandate Definition | Governing Component |
 |:---|:---|:---|
@@ -27,6 +21,16 @@ The AIA defines the ledger-based operational integrity. All evolutionary change 
 | **GSEP** | Governing Self-Evolution Protocol (The mandatory 7-stage lifecycle). | GCO |
 | **P-01 Gate** | Stage 4 Commitment Adjudication Mechanism (The irreversible decision point). | OGT/TIAR |
 | **M-02** | Confirmed Mutation Payload (Artifact committed to Stage 4). | MSU |
+| **GIRAM/RSAM** | Governance/Rule Attestation Modules. | Stage 0/1 Vetting |
+| **MICM** | Mutation Input Configuration Manager (Input Lock). | Stage 3/4 Boundary |
+
+---
+
+## II. EXECUTIVE ARCHITECTURAL SUMMARY: Irreversible Commitment via Quantified Trust
+
+The AOC V97.2 system is designed around the principle of **Irreversible Commitment**. All proposed evolutionary change (Mutation Payload **M-02**) must successfully traverse the **GSEP** lifecycle, culminating in the single most critical checkpoint: **Stage 4 (COMMITMENT ADJUDICATION)**.
+
+Commitment is entirely conditional on the successful, auditable resolution of the **P-01 Trust Calculus**. Failure at this or any preceding stage initiates the robust **F-01 Compliance Trace Generator (CTG)** path, forcing iterative refinement or mandatory abort, ensuring no non-validated state transition occurs.
 
 ---
 
@@ -39,7 +43,7 @@ GSEP mandates a secure, atomic path from developmental intent (**M-01**) to comm
 | Stage # | Stage Name | Core Objective & Gate Function | Governance Gate (EPDP) | Key Artifacts |
 |:---:|:---|:---|:---|:---|
 | **0** | **Initialization** | Governance Integrity Validation (GIRAM) and intent formalization. | N/A | Governance State Hash (GSH) |
-| **1** | **Intent & Scoping** | Translation of requirements into M-01 scope package; RSAM vetting. | EPDP A: RSAM Vetting | M-01 Intent Package |
+| **1** | **Intent & Scoping** | Translation of requirements into M-01 package; RSAM policy vetting. | EPDP A: RSAM Vetting | M-01 Intent Package |
 | **2** | **Structural Vetting** | PSIM/APSM validation against AIA schema; supply chain integrity checks. | PSIM/APSM Gate | Structural Integrity Report |
 | **3** | **Specification & Test** | Construction of M-02 payload; rigorous testing (PSR simulation) and configuration lock (**MICM**). | EPDP B: PSR Validation | M-02 Payload, Locked Config (MICM) |
 | **4** | **COMMITMENT ADJUDICATION** | **IRREVERSIBLE COMMITMENT GATE.** P-01 calculus execution based on TIAR-attested S-0x metrics. | **EPDP C: P-01 Pass/Fail** | D-01 Audit Log |
@@ -53,10 +57,10 @@ graph TD
     subgraph Evolutionary_Feedback_Loop [AOC V97.2 GSEP Lifecycle]
         G(0. INIT / GIRAM) --> A[1. SCOPING (M-01/RSAM)];
         A --> V[2. VALIDATION (PSIM/APSM)];
-        V -- FAIL: Structural/Provenance --> F01[F-01: CTG/Failure Analysis];
+        V -- FAIL --> F01(F-01: CTG Trace Triggered);
         V --> B(3. SPECIFICATION & TEST/MICM);
         B --> C{EPDP B: PSR Pass?};
-        C -- FAIL: Operational Error --> F01;
+        C -- FAIL --> F01;
         
         subgraph P-01_GATE [4. IRREVERSIBLE TRUST ADJUDICATION (EPDP C)]
             style P-01_GATE fill:#FCD34D,stroke:#92400E,stroke-width:2px;
@@ -64,7 +68,7 @@ graph TD
             D --> E{P-01 PASS?};
         end
         
-        E -- FAIL: CTG Trace Triggered --> F01;
+        E -- FAIL --> F01;
         E -- PASS --> M[5. COMMITMENT LOCK (MCR/AEOR)];
         
         M --> I[6. EXECUTION (C-04)];
@@ -95,11 +99,11 @@ $$ \text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{Trust}} > \text{S-02}_
 
 ---
 
-## V. ARCHITECTURAL CONSTRAINTS & COMPONENT REGISTRY (AIA Mandate)
+## V. COMPONENT & MANDATE REGISTRY (AIA Mandate)
 
-AIA mandates that Stage 4 P-01 PASS initiates an irreversible ledger transaction (**D-01** log) locked by Stage 5 **MCR** hashing. Rollback (**RCR** policies) is confined strictly to the **AEOR** supervision API, preserving the AIA ledger structure.
+AIA mandates that the Stage 4 P-01 PASS initiates an irreversible ledger transaction (**D-01** log) locked by Stage 5 **MCR** hashing. Components are grouped by functional mandate:
 
-### A. Governance and Integrity Modules (Stages 0-3)
+### A. Governance, Vetting, and Pre-Commitment Modules (Stages 0-3)
 
 | ID | Component Name | GSEP Scope | Key Mandate | Constraint Registry Role |
 |:---|:---|:---|:---|:---|
@@ -108,20 +112,25 @@ AIA mandates that Stage 4 P-01 PASS initiates an irreversible ledger transaction
 | **RSAM** | Rule Set Attestation Manager | Stage 1/4 | Attests M-01/M-02 compliance to GRS rules. | GRS Vetting |
 | **PSIM** | Payload Structural Integrity Manager | Stage 2 | Verifies M-02 Payload adherence to AIA schema. | AIA Schema |
 | **APSM** | Artifact Provenance & Security Module | Stage 2 | Verifies source, dependency security, and supply chain integrity. | N/A |
-| **MICM** | Mutation Input Configuration Manager | Stage 3/4 Boundary | Cryptographically locks down all complex inputs (RFCI, ATM model versions) used by Stage 4 calculus. | RFCI Lock |
-| **CTG** | Compliance Trace Generator | Failure Path (F-01) | Executes comprehensive trace analysis upon GSEP failure state. | N/A |
+| **CTG** | Compliance Trace Generator | Failure Path (F-01) | Executes comprehensive trace analysis upon GSEP failure state. | Failure State Analysis |
 
-### B. P-01 Adjudication and Commitment Modules (Stages 4-6)
+### B. P-01 Trust Adjudication Modules (Stage 4)
 
 | ID | Component Name | GSEP Scope | Key Mandate (S-0x Source) | Dependencies |
 |:---|:---|:---|:---|:---|
+| **MICM** | Mutation Input Configuration Manager | Stage 3/4 Boundary | Cryptographically locks all P-01 calculus inputs (RFCI, model versions). | RFCI Lock |
 | **OGT** | Operational Governance Triad | Stage 4 Coordination | Orchestrates P-01 input pipeline (S-0x sources). | TIAR, MICM |
-| **TIAR** | Telemetry Input Attestation Registrar | Stage 4 Input Integrity Lock | Cryptographically attests integrity of S-0x data (via MICM). | MICM, OGT |
+| **TIAR** | Telemetry Input Attestation Registrar | Stage 4 Input Integrity Lock | Cryptographically attests integrity of S-0x data via MICM. | MICM, OGT |
 | **ATM** | Trust Metrics System | S-01 Calculation | Calculates Quantitative Reliability Projection. | TIAR |
 | **C-11** | MCRA Engine | S-02 Calculation | Calculates Dynamic Risk Floor. | RGCM, TIAR |
 | **C-15** | Policy Engine | S-03 Veto Check | Executes mandatory policy infraction check using GRS. | GRS, TIAR |
 | **RGCM** | Risk Governance Compliance Module | Pre-S-02 Vetting | Validates Risk Floor Configuration Interface (RFCI) parameters. | RFCI, C-11 |
 | **D-01** | Decision Audit Logger | Stage 4 Transaction Logging | Immutable ledger record keeper for P-01 results. | MCR |
+
+### C. Commitment and Execution Modules (Stages 5-6)
+
+| ID | Component Name | GSEP Scope | Key Mandate | Dependencies |
+|:---|:---|:---|:---|:---|
 | **MCR** | Mutation Commitment Registrar | Stage 5 (EPDP D) | Executes cryptographic state hashing and Version-Lock. | D-01 |
 | **AEOR** | Atomic Execution & Orchestration Registrar | Stage 5/6 Supervision | Supervises P-01 transition and governs RCR rollback API. | RCR, C-04 |
 | **C-04** | Autogeny Sandbox | Stage 6 Deployment | Isolated, monitored environment for secure deployment. | AEOR |
