@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://aoc.v94.1/P01_Adjudication_Inputs.json",
+  "title": "P-01 Decisional Checkpoint (DSCM) Schema",
+  "description": "Defines the mandatory and immutable input structure locked by DSCM in GSEP Stage 4 for the final P-01 calculus.",
+  "type": "object",
+  "properties": {
+    "p01_timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the DSCM lock."
+    },
+    "m02_payload_hash": {
+      "type": "string",
+      "description": "Verifiable hash of M-02 (must match PMH)."
+    },
+    "gsep_stage": {
+      "type": "integer",
+      "const": 4,
+      "description": "Mandatory execution stage."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Core S-metrics used in the P-01 calculation.",
+      "properties": {
+        "S01_efficacy_trust": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Efficacy projection (Trust Score) sourced from ATM (Stage 3 PSR trace)."
+        },
+        "S02_risk_floor": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum Critical Risk floor sourced from MCRA (Stage 4 ECR/RACM calculation)."
+        },
+        "S03_policy_veto": {
+          "type": "boolean",
+          "description": "Policy compliance state sourced from C-15 Policy Engine (Stage 1 RSAM check)."
+        }
+      },
+      "required": ["S01_efficacy_trust", "S02_risk_floor", "S03_policy_veto"]
+    }
+  },
+  "required": ["p01_timestamp_utc", "m02_payload_hash", "gsep_stage", "metrics"]
+}
