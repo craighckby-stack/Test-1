@@ -1,0 +1,17 @@
+{
+  "protocol_version": "CRITICAL_STATE_FALLBACK_V1.0",
+  "trigger_manager": "DIM (Deployment Integrity Monitor)",
+  "rollback_component": "CSRL (Critical State Rollback Ledger)",
+  "integrity_failure_metrics": [
+    {"id": "TF-01", "metric": "Systemic Trust Floor Breach", "threshold": 0.05, "duration_s": 60, "action": "IMMEDIATE_ROLLBACK"},
+    {"id": "RF-02", "metric": "Critical Resource Exhaustion Rate", "threshold_pct": 95, "duration_s": 30, "action": "IMMEDIATE_ROLLBACK"},
+    {"id": "GF-03", "metric": "Governance Policy Constraint Violation Count", "threshold": 3, "duration_s": 1, "action": "HALT_AUDIT_ROLLBACK"}
+  ],
+  "fallback_payload_requirements": {
+    "manifest_hash": "H_AIA_PREV_STABLE",
+    "required_signature_level": "Level_4_MCR_PreSigned",
+    "log_destination": "D-01_Audit_Commitment_Log"
+  },
+  "gsep_bypass_authorization": true,
+  "justification": "Mitigate catastrophic post-activation state corruption."
+}
