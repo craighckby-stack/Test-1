@@ -1,0 +1,18 @@
+{
+  "schemaId": "WITS_V94.1",
+  "description": "Schema definition for Workflow Integrity Telemetry System (WITS). Mandated structure for GCO state logging.",
+  "requiredFields": [
+    "timestamp",
+    "gsep_stage",
+    "gco_instance_id",
+    "mutation_id",
+    "status",
+    "arbitration_result",
+    "elapsed_time_ms"
+  ],
+  "fieldDefinitions": {
+    "gsep_stage": "Integer 0-6 indicating current stage of GSEP.",
+    "status": "ENUM: 'INITIATED', 'PROCESSING', 'LOCKED', 'FAIL', 'PASS', 'TERMINAL'.",
+    "arbitration_result": "Conditional structure capturing EPDP output (A, B, or C) if applicable. Must lock S-01, S-02, S-03 at EPDP C."
+  }
+}
