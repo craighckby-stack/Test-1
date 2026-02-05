@@ -1,0 +1,25 @@
+{
+  "description": "Configuration for the mandatory L3 Simulated Execution environment.",
+  "SEM_Enabled": true,
+  "GTCM_Dependency": "GTCM.Simulation_Complexity_Max",
+  "Mandatory_Tests": [
+    {
+      "type": "StateFork",
+      "target": "Current_V_N",
+      "duration_s": 300,
+      "failure_threshold": 0
+    },
+    {
+      "type": "FaultInjection",
+      "mode": "random_subset",
+      "probability": 0.05,
+      "required_falsification_metric": "F_N=0"
+    },
+    {
+      "type": "ConcurrencyStress",
+      "load_factor": 1.5,
+      "duration_s": 60
+    }
+  ],
+  "Artifact_Storage": "/artifacts/SCM/V1"
+}
