@@ -2,33 +2,104 @@
  * Component ID: RCE
  * Name: Resource Constraint Evaluator
  * Function: Provides dynamic, real-time operational context (e.g., CPU load, I/O latency, memory pressure)
- *           to the MCRA Engine (C-11) to inform the calculation of the Contextual Risk Floor (S-02).
+ *           to the MCRA Engine (C-11) by calculating a weighted Constraint Factor derived from tunable thresholds.
  * GSEP Alignment: Stage 3 (P-01 Input)
  */
 
+const DEFAULT_CONSTRAINTS = {
+    cpu_util: { threshold: 0.85, weight: 0.40, severity_boost: 1.5 }, // High utilization
+    memory_used_ratio: { threshold: 0.90, weight: 0.50, severity_boost: 2.0 }, // Near critical memory pressure
+    io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.2 } // Significant I/O wait
+};
+
 class ResourceConstraintEvaluator {
-    constructor(metricsService) {
-        this.metricsService = metricsService; // Dependency injection for core system metrics
+    /**
+     * @param {Object} metricsService Dependency injected service for system metrics access.
+     * @param {Object} [constraintsConfig] Optional configuration to override default risk thresholds and weights.
+     */
+    constructor(metricsService, constraintsConfig = {}) {
+        this.metricsService = metricsService;
+        // Merge provided configuration over defaults. In a deployed environment, this would be provided by RTM.
+        this.config = {
+            ...DEFAULT_CONSTRAINTS,
+            ...constraintsConfig
+        };
     }
 
     /**
-     * Gathers current environmental constraints and quantifies them into a contextual overhead metric.
-     * @returns {Object} Constraint mapping (e.g., {cpu_utilization: 0.85, io_pressure: 'high', stability_factor: 0.1}).
+     * Internal utility to gather all raw metrics.
+     * @returns {Object} Raw metrics structure.
      */
-    getOperationalContext() {
-        // Simulated retrieval of live system resource metrics
+    _fetchRawMetrics() {
         const load = this.metricsService.getCurrentLoad();
         const memory = this.metricsService.getMemoryPressure();
+        // Assuming metrics service provides a structure that can be flattened based on config keys.
         const iowait = this.metricsService.getIOWaitFactor();
 
-        // The RCE quantifies environmental risk.
-        let contextualOverhead = 0;
-        if (load.cpu_util > 0.8) contextualOverhead += 0.3; // High CPU load increases risk
-        if (memory.used_ratio > 0.95) contextualOverhead += 0.5; // Critical memory pressure drastically increases risk
+        // Standardizing the flat structure for easy configuration-based processing
+        return {
+            cpu_util: load.cpu_util,
+            memory_used_ratio: memory.used_ratio,
+            io_wait_factor: iowait.iowait_factor
+        };
+    }
+
+    /**
+     * Quantifies raw metrics into a weighted, normalized constraint score using non-linear scaling beyond thresholds.
+     * @param {Object} rawMetrics - Flattened current system metrics.
+     * @returns {{score: number, triggers: Array<string>}} Calculated score and list of triggered constraints.
+     */
+    _calculateAggregateConstraintScore(rawMetrics) {
+        let totalWeightedScore = 0;
+        let totalWeight = 0;
+        const triggeredConstraints = [];
+
+        for (const [metricKey, config] of Object.entries(this.config)) {
+            const value = rawMetrics[metricKey];
+            if (value === undefined) continue; // Skip if metric not available
+
+            const { threshold, weight, severity_boost } = config;
+            totalWeight += weight;
+
+            if (value > threshold) {
+                // Calculate ratio above threshold
+                const ratioAboveThreshold = Math.max(0, (value - threshold)); 
+                
+                // Use a dynamic risk multiplier: exponentially penalize resources deep into critical territory.
+                const riskMultiplier = 1 + ratioAboveThreshold * severity_boost * 2; 
+
+                const metricScore = weight * Math.min(3.0, riskMultiplier); // Cap multiplier influence
+
+                totalWeightedScore += metricScore;
+                triggeredConstraints.push(metricKey);
+            } else if (value > threshold * 0.75) {
+                // Proximity penalty: apply a minor cost for being close to the critical zone
+                totalWeightedScore += weight * 0.1;
+            }
+        }
+
+        // Normalize the score based on the total configured weight, capped at 1.0 (Critical Constraint)
+        const normalizedScore = Math.min(1.0, totalWeightedScore / totalWeight);
 
         return {
-            constraintMetric: Math.min(1.0, contextualOverhead), // Capped at 1.0 (maximum constraint)
-            details: { load, memory, iowait }
+            score: normalizedScore,
+            triggers: triggeredConstraints
+        };
+    }
+
+
+    /**
+     * Gathers current environmental constraints and quantifies them into a contextual overhead metric.
+     * @returns {{constraintMetric: number, triggeredConstraints: Array<string>, details: Object}} 
+     */
+    getOperationalContext() {
+        const rawMetrics = this._fetchRawMetrics();
+        const scoreData = this._calculateAggregateConstraintScore(rawMetrics);
+
+        return {
+            constraintMetric: scoreData.score, // Normalized factor (0.0 to 1.0)
+            triggeredConstraints: scoreData.triggers, // Explicit list of factors driving the score up
+            details: rawMetrics
         };
     }
 
