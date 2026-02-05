@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Policy Veto Logic Manifest (PVLM) V98.3 Schema",
+  "type": "object",
+  "description": "Defines the mandatory structure for the Policy Veto Logic Manifest, ensuring valid, axiomatically-enforceable policy input for GAX (Stage S2).",
+  "properties": {
+    "version": {"type": "string", "description": "SGS version applied to this manifest (e.g., V98.3)"},
+    "activation_state": {"type": "string", "enum": ["ACTIVE", "PAUSED", "AUDIT_ONLY"], "default": "ACTIVE"},
+    "critical_thresholds": {
+      "type": "object",
+      "properties": {
+        "max_risk_score": {"type": "number", "description": "Maximum tolerated S02 risk score upon initial proposal."},
+        "veto_trigger_severity": {"type": "string", "enum": ["HIGH", "CRITICAL"], "description": "Minimum severity required to trigger a hard Veto (¬S03)."}
+      },
+      "required": ["max_risk_score", "veto_trigger_severity"]
+    },
+    "axiomatic_rules": {
+      "type": "array",
+      "description": "A list of formalized policy constraints that must evaluate to TRUE.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule_id": {"type": "string", "pattern": "^P[0-9]{3}$", "description": "Unique policy identifier (P001, P002, etc.)"},
+          "description": {"type": "string"},
+          "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+          "evaluation_trigger": {"type": "string", "enum": ["PRE_EXECUTION", "CONTEXT_CHECK", "DATA_INTEGRITY"]},
+          "logic_expression": {"type": "string", "description": "The formalized constraint evaluated by the GAX engine (e.g., 'TargetScope == External AND Budget > MaxLimit')."}
+        },
+        "required": ["rule_id", "severity", "logic_expression"]
+      }
+    }
+  },
+  "required": ["version", "axiomatic_rules"]
+}
