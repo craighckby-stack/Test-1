@@ -1,0 +1,30 @@
+{
+  "PROTOCOL_ID": "RCR-A9",
+  "VERSION": "1.0",
+  "DESCRIPTION": "Mandatory payload schema for triggering Root Cause Resolution (RCR) sequence from a monitor instance (DIM), ensuring high-integrity state handoff.",
+  "HANDSHAKE_REQUIREMENTS": {
+    "AUTHENTICATION_TYPE": "MUTUAL_TLS_V2",
+    "EXPECTED_ACK_TIMEOUT_MS": 3000
+  },
+  "PAYLOAD_SCHEMA": {
+    "type": "object",
+    "properties": {
+      "dim_instance_id": {"type": "string"},
+      "failure_time_utc": {"type": "string", "format": "date-time"},
+      "violated_metrics": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "metric_key": {"type": "string"},
+            "measured_value": {"type": "number"},
+            "critical_threshold": {"type": "number"}
+          }
+        }
+      },
+      "system_state_dump_ref": {"type": "string", "description": "Reference path to the integrity-locked state dump/trace."}, 
+      "trigger_reason_code": {"type": "string"}
+    },
+    "required": ["dim_instance_id", "failure_time_utc", "violated_metrics", "trigger_reason_code"]
+  }
+}
