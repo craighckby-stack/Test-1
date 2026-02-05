@@ -1,0 +1,18 @@
+{
+  "manifest_version": "1.0.0",
+  "artifact_id": "DCM",
+  "description": "Drift Control Manifest for L8 DERE operations.",
+  "target_metrics": [
+    "S-01"
+  ],
+  "drift_thresholds": {
+    "max_efficacy_drift_percent": 0.05,
+    "max_risk_drift_absolute": 0.01
+  },
+  "recalibration_policy": {
+    "observation_frequency_seconds": 3600,
+    "recalibration_target_delta": "S-01_predicted - S-01_actual",
+    "fallback_action": "R-01_soft_rollback"
+  },
+  "reporting_contract": "AIA_L8_Audit_Endpoint"
+}
