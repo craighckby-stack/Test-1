@@ -1,0 +1,28 @@
+{
+  "PVLM_Version": "V97.1-A",
+  "Policy_Veto_Signal_S03": "Mandatory Constraint",
+  "OCM_Veto_Rules": [
+    {
+      "rule_id": "VETO-C-101",
+      "metric_target": "Systemic_Debt_Index",
+      "threshold_type": "Hard Max",
+      "threshold_value": 0.05,
+      "policy_status_if_exceeded": "S-03 ACTIVE"
+    },
+    {
+      "rule_id": "VETO-C-102",
+      "metric_target": "External_Regulatory_Compliance_Flag",
+      "threshold_type": "Binary Must Equal",
+      "threshold_value": "CLEARED",
+      "policy_status_if_not_met": "S-03 ACTIVE"
+    },
+    {
+      "rule_id": "VETO-C-103",
+      "metric_target": "Resource_Volatility_Spike_Count_1H",
+      "threshold_type": "Soft Max",
+      "threshold_value": 3,
+      "policy_status_if_exceeded": "S-03 PENDING_REVIEW"
+    }
+  ],
+  "Veto_Resolution_Policy": "Immediate rejection (L0 Re-entry) if S-03 ACTIVE. Manual review required if PENDING_REVIEW."
+}
