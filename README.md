@@ -5,51 +5,55 @@
 | Parameter | Value | Directive |
 |:---|:---|:---|
 | Protocol Version | SGM V95.0 | High-Security Iteration (V94.8 Refinement) |
-| Core Mission | Deterministic System State Transition (SST) | Integrity and Predictability |
-| Execution Engine | Governance State Evolution Pipeline (GSEP-C V3.5) | Auditable Control Flow |
-| Governing Axioms | Objective Value Max. (GAX-EVAL) & Cert. Sec. (GAX-CERT) | Foundational Compliance |
+| Core Mission | Deterministic System State Transition (SST) | Integrity and Predictability Assurance |
+| Execution Engine | Governance State Evolution Pipeline (GSEP-C V3.5) | Auditable Control Flow Management |
+| Governing Axioms | Objective Value Max. (GAX-EVAL) & Cert. Sec. (GAX-CERT) | Foundational Compliance Framework |
+
+---
+
+## EXECUTIVE SUMMARY: DETERMINISTIC STATE CERTIFICATION
+
+SGM V95.0 defines the authoritative compliance pathway for all System State Transitions (SSTs). It enforces strict, ten-stage auditing via the GSEP-C V3.5 Pipeline, culminating in the cryptographic certification mandated by the Governance Axioms (GAX). The framework operates under the **Principle of Immutable Staging (Fail-Fast)**, guaranteeing immediate rollback upon any failure.
 
 ---
 
 ## 1.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.5)
 
-The GSEP-C V3.5 is a sequential, ten-stage (PRE, L0-L9) enforcement mechanism. It guarantees deterministic, auditable governance adherence to the **Principle of Immutable Staging (Fail-Fast)**. Any failure triggers the immediate Rollback and Recovery Protocol (RRP).
+This sequential enforcement mechanism guarantees deterministic, auditable governance adherence. Mandatory, high-security enforcement checkpoints are marked in **bold**.
 
-Mandatory, high-security enforcement checkpoints are marked in **bold**.
-
-| Stage | ID Tag | Stage Title | Core Validation Objective | Halt Trigger | Axiom/Metric Link |
+| Stage | ID Tag | Title | Core Validation Objective | Dependency / Halt Trigger | Axiom/Metric Link |
 |:-----|:---|:---|:-----------------------------------|:------------------------------|:---|
 | PRE | GSC | Schema Ingress | Assert structural integrity against the data model. | Invalid Schema Structure | N/A |
-| L0 | CTM | Context Typing | Formal format and schema compliance verification. | Format Integrity Fail | N/A |
-| **L1** | **PVLM** | **CRITICAL VETO** | Policy Violation Assessment (S-03 generation). | **CRITICAL POLICY VIOLATION** | S-03 |
-| **L2** | **CTAL** | **Provenance Trust** | Source authenticity, lineage, and cryptographic trust validation. (Requires DTEM V1.0) | Provenance Trust Failure | N/A |
+| L0 | CTM | Context Typing | Formal format and schema compliance verification. | Format Integrity Failure | N/A |
+| **L1** | **PVLM** | **CRITICAL VETO** | Policy Violation Assessment (Generates S-03 signal). | **CRITICAL POLICY VIOLATION** [Ref: PVLM] | S-03 |
+| **L2** | **CTAL** | **Provenance Trust** | Source authenticity, lineage, and cryptographic trust validation. | Provenance Trust Failure [Ref: DTEM] | N/A |
 | L3 | CM | Confidence Modeling | Simulate impact bounds and confidence margins. | Simulation Divergence | N/A |
-| **L4** | **SCI** | **Resource Constraint** | Verification against Core Architectural Limits (CAC). | **Budget Threshold Exceeded** | N/A |
-| L5 | DFV | Data Fidelity | Input data lineage, source chain, and integrity check. (Requires DTEM V1.0) | Data Corruption | N/A |
-| L6 | MEE | Metric Synthesis | Quantify objective metrics (S-01: Efficacy, S-02: Risk). | Metric Synthesis Failure | S-01, S-02 |
-| **L7** | **VMO** | **FINALITY GATE** | Enforce GAX-CERT (P-01 Certification Check). | **FINALITY RULE BREACH** | GAX-EVAL, GAX-CERT |
+| **L4** | **SCI** | **Resource Constraint** | Verification against Core Architectural Limits (CAC). | **Budget Threshold Exceeded** [Ref: CAC] | N/A |
+| L5 | DFV | Data Fidelity | Input data lineage, source chain, and integrity check. | Data Corruption [Ref: DTEM] | N/A |
+| L6 | MEE | Metric Synthesis | Quantify objective metrics (S-01: Efficacy, S-02: Risk). | Metric Synthesis Failure [Ref: MEC] | S-01, S-02 |
+| **L7** | **VMO** | **FINALITY GATE** | Enforce GAX-CERT (P-01 Certification Check). | **FINALITY RULE BREACH** [Ref: CFTM] | GAX-EVAL, GAX-CERT |
 | L8 | GRLC | Certified Persistence | Record, notarize, and verify auditable transaction log. | Persistence Logging Failure | N/A |
 | L9 | TEDC | Execution & Decommitment | Final compliance sign-off and atomic state trigger. | Runtime Threshold Breach | N/A |
 
 ---
 
-## 2.0 GOVERNANCE AXIOMS (GAX) & THRESHOLD DEPENDENCY (CFTM)
+## 2.0 GOVERNANCE AXIOMS (GAX)
 
-The immutable prerequisites enforced by L6 and L7 that dictate SST certification. All thresholds ($\tau_{norm}, \epsilon$) are defined in the **Core Failure Thresholds Manifest (CFTM)**.
+The immutable prerequisites, enforced primarily by L6 and L7, dictating SST certification. All thresholds ($\tau_{norm}, \epsilon$) are sourced from the **Core Failure Thresholds Manifest (CFTM)**.
 
-### 2.1 GAX-EVAL: Core Objective Function (Optimization Target)
+### 2.1 GAX-EVAL: Core Objective Function (COF)
 
-Maximizes the transition's objective value. $S\text{-}02$ is normalized by $\tau_{norm}$ (sourced from CFTM) to ensure stability in low-risk environments.
+Defines the system's optimization target: maximizing normalized objective value. $S\text{-}02$ is stabilized using $\tau_{norm}$ (Normalization Factor from CFTM).
 
 $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right) $$
 
-### 2.2 GAX-CERT: P-01 Finality Certification (L7 Enforcement)
+### 2.2 GAX-CERT: P-01 Finality Certification
 
-Certification ($\mathbf{P\text{-}01\ PASS}$) is achieved only if benefit ($S\text{-}01$) strictly outweighs adjusted risk ($S\text{-}02$) by the Safety Margin ($\epsilon$), and no critical veto signal ($S\text{-}03$) is present.
+Certification ($\mathbf{P\text{-}01\ PASS}$) requires the benefit ($S\text{-}01$) to strictly outweigh the adjusted risk ($S\text{-}02$) by the Safety Margin ($\epsilon$), alongside the absence of any critical veto signal ($S\text{-}03$).
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
-Where $\epsilon \ge \epsilon_{min}$ (Safety Margin) is sourced directly from the CFTM.
+Where $\epsilon \ge \epsilon_{min}$ (Minimum Safety Margin) is sourced directly from CFTM.
 
 ---
 
@@ -59,20 +63,22 @@ Standardized identifiers and system dependencies critical for deterministic pipe
 
 ### 3.1 Governance Input Signals (S-Metrics)
 
-S-Metrics are generated by L1 (PVLM) and L6 (MEE) and consumed by L7 (VMO) and GAX-EVAL/CERT.
+Generated by L1 and L6, consumed primarily by L7 (VMO) and the GAX evaluation functions.
 
-*   **S-01 (Efficacy):** Quantified Systemic Benefit/Value ($\ge 0$).
-*   **S-02 (Risk):** Quantified Systemic Risk/Cost ($\ge 0$).
-*   **S-03 (Veto Signal):** Boolean flag indicating critical policy violation.
+| ID | Title | Description | Type |
+|:---|:---|:---|:---|
+| S-01 | Efficacy Metric | Quantified Systemic Benefit/Value ($\ge 0$). | Numeric |
+| S-02 | Risk Metric | Quantified Systemic Risk/Cost ($\ge 0$). | Numeric |
+| S-03 | Veto Signal | Boolean flag indicating critical policy violation (L1 halt trigger). | Boolean |
 
 ### 3.2 Key System Contracts and Dependencies
 
-| ID | Type | Definition | Reference Path / Notes |
-|:---|:---|:---|:---|
-| CAC | Constraint | Core Architectural Constraints (Resource limits for L4). | Ref: `config/system_limits_v3.json` |
-| **CFTM** | **Configuration** | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). Critical for GAX (2.0). | **Ref: `config/security/cftm_v3.json`** |
-| **DTEM** | **Configuration** | **Data Trust Endpoint Manifest.** Defines endpoints and standards for L2/L5 validation. | **Ref: `config/security/data_trust_endpoints_v1.json` (New)** |
-| MEC | Service | Metric Engine Contract. Calculates official objective metrics (S-01, S-02) via L6. | Ref: `config/metrics_oracles_v1.json` |
-| PVLM | Policy | Policy Veto Logic Manifest. Defines criteria for generating S-03 (L1). | Ref: `policies/critical_veto_manifest_v1.yaml` |
-| RRP | Protocol | Rollback and Recovery Protocol (Standardized remediation). | Ref: `spec/RRP_interface_v1.yaml` |
-| SST | Domain | System State Transition. The central event requiring certification. | N/A |
+| ID | Type | Definition | Pipeline Stage Use | Reference Path |
+|:---|:---|:---|:---|:---|
+| CAC | Constraint | Core Architectural Constraints (Resource limits). | L4 (SCI) | `config/system_limits_v3.json` |
+| **CFTM** | **Configuration** | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). | L7 (VMO) & GAX | **`config/security/cftm_v3.json`** |
+| DTEM | Configuration | Data Trust Endpoint Manifest. Defines validation standards. | L2 (CTAL), L5 (DFV) | `config/security/data_trust_endpoints_v1.json` |
+| MEC | Service | Metric Engine Contract. Calculates official objective metrics (S-01, S-02). | L6 (MEE) | `config/metrics_oracles_v1.json` |
+| PVLM | Policy | Policy Veto Logic Manifest. Defines criteria for generating S-03. | L1 (PVLM) | `policies/critical_veto_manifest_v1.yaml` |
+| RRP | Protocol | Rollback and Recovery Protocol. | L8 (GRLC) (Implicit) | `spec/RRP_interface_v1.yaml` |
+| SST | Domain | System State Transition. Central event requiring certification. | N/A | N/A |
