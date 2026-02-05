@@ -1,0 +1,39 @@
+{
+  "manifest_version": "MDSM V1.0",
+  "description": "Defines the deterministic semantic structure and required normalization for critical Governance Input Signals (S-Metrics). Ensures consistent calculation across all MEC implementations.",
+  "metrics": [
+    {
+      "id": "S-01",
+      "title": "Efficacy Metric",
+      "unit": "Normalized_Objective_Value",
+      "semantic_domain": "Benefit / Value Addition",
+      "constraints": {
+        "data_type": "float",
+        "min_value": 0.0,
+        "normalization_required": true,
+        "normalization_algorithm_id": "ALGO_NORM_V2"
+      }
+    },
+    {
+      "id": "S-02",
+      "title": "Risk Metric",
+      "unit": "Normalized_Cost_Exposure",
+      "semantic_domain": "Systemic Hazard / Liability",
+      "constraints": {
+        "data_type": "float",
+        "min_value": 0.0,
+        "normalization_required": true,
+        "normalization_algorithm_id": "ALGO_NORM_V2"
+      }
+    },
+    {
+      "id": "S-03",
+      "title": "Veto Signal",
+      "unit": "Boolean",
+      "semantic_domain": "Critical Policy Compliance",
+      "constraints": {
+        "data_type": "boolean"
+      }
+    }
+  ]
+}
