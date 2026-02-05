@@ -1,22 +1,22 @@
 # SOVEREIGN AGI GOVERNANCE CONTRACT MANIFEST (GCM V97.1)
 
-## 1. CORE GOVERNANCE CONTEXT & SYSTEM STATUS
+## 1. CORE SYSTEM CONTEXT & STATE DEFINITIONS
 
-The GCM governs all System State Transitions ($SST$). An $SST$ represents any modification, deployment, or configuration change executed under the Core Mandate: Autonomous Self-Evolution.
+The Governance Contract Manifest (GCM) dictates all System State Transitions ($SST$), enforcing Autonomous Self-Evolution under the Core Mandate.
 
-| Parameter | Value | Definition |
-|:---|:---|:---|
-| **System Designation** | AIA + DERE Hybrid Architecture | Manifest Origin/Scope |
-| **GCM Version** | V97.1 (Current) | Active Protocol Enforcement |
-| **Operational Status** | MASE Operational | Enforcement: L0 through L8 Pipeline |
-| **Governing Protocol** | Governance Evolution Protocol (GSEP-C) | Sequential Mandate Pathway |
-| **Core Mandate** | Autonomous Self-Evolution via validated $SST$. | Primary System Objective |
+| Parameter | Identifier | Value/State | Definition |
+|:---|:---|:---|:---|
+| Designation | `$SYS_ARCH` | AIA + DERE Hybrid | Core Manifest Origin/Scope |
+| Manifest Version | `$GCM_VER` | V97.1 | Active Protocol Enforcement Version |
+| Status | `$SYS_STATUS` | MASE Operational | Enforcement Pipeline (L0-L8) Status |
+| Protocol | `$GOV_PROT` | GSEP-C | Governing Protocol Stack (Sequential Mandate Pathway) |
+| Core Objective | `$CM_OBJ` | $SST$ via Self-Evolution | Primary Mandate |
 
 ---
 
-## 2. P-01 FINALITY CONTRACT: SST COMMITMENT RULE (GSEP L6)
+## 2. FINALITY CONTRACT P-01: SST COMMITMENT RULE (GSEP L6)
 
-The P-01 Contract defines the threshold for committing a proposed $SST$. Finality requires demonstrable systemic benefit that significantly exceeds quantified risk, coupled with zero active policy veto signals. Arbitration is executed at GSEP-C Stage L6 by the Governance Contract Oracle (GCO).
+The P-01 Contract defines the criteria for committing a proposed $SST$. Finality mandates that quantified systemic benefit ($S\text{-}01$) must demonstrably exceed quantifiable risk ($S\text{-}02$) by an adaptive margin ($\epsilon$), contingent upon the absence of active policy veto signals. Arbitration is executed by the Governance Contract Oracle (GCO) at GSEP-C Stage L6.
 
 ### P-01 Certification Formula
 
@@ -24,42 +24,41 @@ $$
 \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\text{OCM Clearance})
 $$
 
-| Variable | Description | Source Entity (GSEP Layer) |
+| Metric/Variable | Definition | Data Source (GSEP Layer) |
 |:---|:---|:---|
-| $S\text{-}01$ (Efficacy) | Projected beneficial impact (quantified utility/efficiency gain). | MSB (L5) |
-| $S\text{-}02$ (Risk) | Quantified systemic volatility and failure exposure magnitude. | MSB (L5) |
-| $\epsilon$ (Margin Scalar) | Adaptive Viability Margin (Dynamically computed confidence threshold derived from VMO). | VMO / SPDM (L6) |
-| OCM Clearance | Boolean state (TRUE if Policy Veto Signal $S\text{-}03$ is absent, referencing PVLM). | OCM (L1) |
+| $S\text{-}01$ (Efficacy Score) | Projected beneficial impact (quantified utility/efficiency gain). | MSB (L5) |
+| $S\text{-}02$ (Risk Score) | Quantified systemic volatility and failure exposure magnitude. | MSB (L5) |
+| $\epsilon$ (Viability Margin) | Adaptive confidence threshold ensuring required safety margin. | VMO (L6) / SPDM |
+| OCM Clearance | Policy Veto Status (TRUE if $S\text{-}03$ policy veto signal is absent). | OCM (L1) / PVLM |
 
 ---
 
-## 3. GSEP-C: MANDATORY EVOLUTION PIPELINE (L0-L8)
+## 3. GOVERNANCE EVOLUTION PIPELINE (GSEP-C L0-L8)
 
-GSEP-C enforces an eight-stage, sequential verification pipeline for all $SST$ submissions. Any failure results in immediate $SST$ rejection and mandatory return to L0 ingestion.
+GSEP-C enforces an eight-stage, sequential, non-re-entrant verification pipeline. Failure at any level results in immediate $SST$ rejection.
 
-| Level | Module | Function & Enforcement Constraint | Reference Register |
-|:-----:|:------:|:----------------------------------|:-------------------|
-| **L0** | SCR | **Ingress Check:** Validates $SST$ manifest schema and integrity. | SCR Schema V97.1 |
-| **L1** | OCM | **Policy Veto:** Evaluates $S\text{-}03$ signal against pre-registered veto policies. | PVLM Specification |
-| **L2** | CBM | **Resource Constraint:** Static verification against utilization limits (compute/memory). | L2 Constraint Matrix |
-| **L3** | ACM | **Provenance Audit:** Validates cryptographic signatures and dependency trust chain. | L3 Trust Anchor |
-| **L4** | DPIM | **Data Trust:** Mandatory checkpoint for source data veracity and lineage validation. | L4 Provenance Log |
-| **L5** | MSB | **Metric Synthesis:** Calculates and certifies core metrics $S\text{-}01$ (Efficacy) and $S\text{-}02$ (Risk). | MEC Governance Rules |
-| **L6** | GCO | **Finality Arbitration:** Executes P-01 Commitment Rule; requires $\epsilon$ and OCM input. | P-01 Commitment |
-| **L7** | AIA | **Persistence Log:** Logs immutable transition (TXID) and associated metadata to ledger. | Immutable TX Log |
-| **L8** | DERE | **Deployment & Audit:** Activates $SST$; initiates runtime audit against operational bounds. | PMM Thresholds |
+| Layer | Module | Verification Stage | Key Register Dependency |
+|:-----:|:------:|:--------------------------------------|:------------------------|
+| **L0** | SCR | **Schema Check & Ingress Integrity** | SCR Schema V97.1 |
+| **L1** | OCM | **Operational Constraint Validation** | PVLM Specification |
+| **L2** | CBM | **Resource Constraint Audit** (Static Limits) | L2 Constraint Matrix |
+| **L3** | ACM | **Provenance & Trust Chain Audit** | L3 Trust Anchor |
+| **L4** | DPIM | **Data Integrity Check** (Veracity & Lineage) | L4 Provenance Log |
+| **L5** | MSB | **Metric Synthesis & Certification** ($S\text{-}01, S\text{-}02$) | MEC Governance Rules |
+| **L6** | GCO | **Finality Arbitration** (P-01 Commitment) | P-01 Commitment Rule |
+| **L7** | AIA | **Persistence Logging** (Immutable TXID Recording) | Immutable TX Log |
+| **L8** | DERE | **Deployment & Runtime Audit** | PMM Thresholds |
 
 ---
 
-## 4. AUXILIARY GOVERNANCE REGISTERS (Input Feeders)
+## 4. AUXILIARY SYSTEM REGISTERS (Dynamic Input Feeders)
 
-These registers provide critical dynamic parameters or external definitions required by GSEP-C modules, specifically VMO (L6) and MSB (L5).
+These external registers provide dynamic parameters or foundational rules utilized by specific GSEP-C modules (L5, L6, L8).
 
-### 4.1. VMO (Viability Margin Oracle)
-Feeds the $\epsilon$ scalar to L6 (GCO). $\epsilon$ adapts dynamically based on recent system volatility history, increasing the required safety margin $S\text{-}01$ must exceed $S\text{-}02$ by, ensuring resilience during periods of stress.
-
-### 4.2. MEC (Metric Efficacy Contract)
-Defines the mandated mathematical procedures and rule sets used by MSB (L5) to quantify $S\text{-}01$ and $S\text{-}02$ for various $SST$ types.
-
-### 4.3. PMM (Post-Metric Manifest)
-Defines the required performance monitoring thresholds used by DERE (L8) for validating successful $SST$ deployment and detecting subsequent system drift.
+| Register | Consumer (GSEP Layer) | Purpose & Function | Key Data Provided |
+|:---|:---|:---|:---|
+| **VMO** (Viability Margin Oracle) | GCO (L6) | Dynamically computes and feeds the $\epsilon$ scalar based on systemic volatility history. | Adaptive Safety Margin ($\epsilon$) |
+| **MEC** (Metric Efficacy Contract) | MSB (L5) | Defines mandated mathematical procedures for quantifying $S\text{-}01$ and $S\text{-}02$ based on $SST$ type. | Quantification Ruleset |
+| **PMM** (Post-Metric Manifest) | DERE (L8) | Defines runtime monitoring and validation thresholds following $SST$ deployment. | Operational Bounds & Thresholds |
+| **PVLM** (Policy Veto List Manifest) | OCM (L1) | Stores pre-registered constraints that trigger the policy veto signal ($S\text{-}03$). | Veto Policy Definitions |
+| **SPDM** (System Performance Dynamics Monitor) | VMO (L6) | Feeds raw and filtered volatility indices derived from post-deployment audits. | Volatility History Index |
