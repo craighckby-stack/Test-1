@@ -1,46 +1,46 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.1: DETERMINISTIC STATE EVOLUTION (DSE) [V94.2 Refactor]
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.2: DETERMINISTIC STATE EVOLUTION (DSE) [OFFICIAL RELEASE]
 
-The **SGS V94.1** mandates non-repudiable state transitions ($\Psi_{N} \to \Psi_{N+1}$) via the **Governance State Evolution Pipeline (GSEP-C) V94.1**. Integrity is guaranteed through deterministic execution, cryptographic attestation (**CRoT**), and strict adherence to the Governance Calculus (Section 3.0).
+The **SGS V94.2** mandates non-repudiable state transitions ($\Psi_{N} \to \Psi_{N+1}$) via the **Certified State Evolution Pipeline (GSEP-C) V94.2**. Integrity is guaranteed through deterministic execution, cryptographic attestation (**CRoT**), and strict adherence to the formal **Governance Calculus (Section 3.0)**. The goal is provable, audited autonomy (DSE Principle).
 
 ---
 
 ## 1.0 CORE GOVERNANCE STACK (DSE FOUNDATION)
 
-This system relies on five primary components defining the state commitment lifecycle:
+This system relies on five foundational agents/protocols defining the deterministic state commitment lifecycle:
 
-| Acronym | Definition | Role Summary |
+| Acronym | Definition | Role Summary / DSE Mandate |
 |:---|:---|:---|
-| **SGS** | Sovereign Governance System | Orchestrates the entire pipeline (GSEP-C) and ensures CISM data continuity. |
-| **GAX** | Governance Axiom Enforcer | Enforces axiomatic policies (Vetoes) and certifies P-01 finality based on risk bounds ($\epsilon$). |
-| **CRoT** | Certified Root of Trust | Provides cryptographic proofs (S0, S10), secures the host (HETM), and guarantees data provenance. |
-| **GSEP-C**| Certified State Evolution Pipeline | The formal, multi-stage protocol defining all mandatory system state transitions. |
-| **P-01** | Primary Decision Axiom | The fundamental rule governing final state commitment authorization (Section 3.1). |
+| **SGS** | Sovereign Governance System | Orchestrates GSEP-C flow and guarantees Certified Intermediate State Manager (CISM) data continuity and atomic execution (S11). |
+| **GAX** | Governance Axiom Enforcer | Enforces axiomatic policy constraints, monitors deviation, and certifies **P-01 finality** based on defined risk bounds ($\epsilon$). |
+| **CRoT** | Certified Root of Trust | Provides immutable cryptographic proofs (S0, S10), secures the host (HETM), and guarantees system integrity and data provenance. |
+| **GSEP-C**| Certified State Evolution Pipeline | The formal, 11-stage, multi-agent protocol defining all mandatory system state transitions and commitments. |
+| **P-01** | Primary Decision Axiom | The core condition governing final state commitment authorization (Must hold true for state evolution). |
 
 ---
 
 ## 2.0 GOVERNANCE TRIUMVIRATE: Separation of Duties (SoD)
 
-The three specialized, attested agents coordinate state commitment using the **GICM**. This isolation mitigates systemic risk by segregating execution, policy enforcement, and cryptographic trust.
+Three specialized, attested agents coordinate state commitment using the **Governance Inter-Agent Commitment Manifest (GICM)**. This isolation mitigates systemic risk by segregating execution, policy enforcement, and cryptographic trust.
 
 | Agent | Control Plane | Core Trust Vector | Key Responsibilities | Primary Veto Gates |
 |:---|:---|:---|:---|:---|
 | **SGS** | Workflow & Execution | Orchestration & Lifecycle | Pipeline flow, CISM data continuity, Atomic Execution (S11). | S1, S5, S7, S11 |
-| **GAX** | Veto & Finality | Axiomatic Policy & Risk | Enforces policy constraints, monitors deviation, P-01 finality sign-off (S8). | S2, S3, S6.5, S8 |
+| **GAX** | Veto & Finality | Axiomatic Policy & Risk | Enforces policy constraints, deviation monitoring, P-01 finality sign-off (S8). | S2, S3, S6.5, S8 |
 | **CRoT** | Provenance & Crypto | Integrity & Non-Repudiation | Secures host (HETM), attests data lineage (DTEM), commitment locks (S10). | S0, S4, S10 |
 
 ---
 
 ## 3.0 GOVERNANCE CALCULUS: THE P-01 DECISION MECHANISM
 
-Autonomous State commitment requires maximizing Certified Utility ($S_{01}$) while strictly satisfying all critical Veto Gates ($\neg V_i$) and maintaining the minimum utility margin ($\epsilon$) defined by the CFTM.
+Autonomous State commitment requires maximizing Certified Utility ($S_{01}$) while strictly satisfying all critical Veto Gates ($\neg V_i$) and maintaining the minimum utility margin ($\epsilon$) defined by the Core Failure Threshold Manifest (CFTM).
 
 ### 3.1 P-01 Finality Condition
 
-Commitment requires Utility Maximization, Policy Clarity, Stability Guarantee, and Context Verification to hold true.
+Commitment requires Utility Maximization, Policy Clarity, Stability Guarantee, and Context Verification to hold true. The failure of any single condition triggers a CRITICAL or TERMINAL halt.
 
 $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg V_{Policy}) \land (\neg V_{Stability}) \land (\neg V_{Behavior}) \land (S_{Context\ Pass})$$
 
-| Veto Variable | Veto Condition Check (GAX Role) | Governing Asset | GSEP-C Stage |
+| Governing Condition | Veto Condition Check (GAX Role) | Governing Asset | GSEP-C Stage |
 |:---|:---|:---|:---|
 | $S_{01} > S_{02} + \epsilon$ | Utility/Risk Margin Compliance | CFTM | S8 (Finality) |
 | $\neg V_{Policy}$ | Axiomatic Policy Prohibitions | PVLM | S2 |
@@ -50,13 +50,13 @@ $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg V_{Po
 
 ---
 
-## 4.0 GOVERNANCE ASSET REGISTRY (GACR V94.1): FUNCTIONAL SEGREGATION
+## 4.0 GOVERNANCE ASSET REGISTRY (GACR V94.2): FUNCTIONAL SEGREGATION
 
-The **GACR** catalogues certified assets, structured by their functional control domain. The assigned Trust Boundary dictates the required level of cryptographic attestation (S0/CRoT vs. GAX/Policy Lock).
+The **GACR** catalogues certified assets, structured by their functional control domain. The assigned Trust Boundary dictates the required level of cryptographic attestation (CRoT/S0 vs. GAX/Policy Lock).
 
 ### 4.1 INTEGRITY & FOUNDATIONAL ASSETS (CRoT Trust Boundary)
 
-These assets define the infrastructure, schema, and version integrity, requiring mandatory S0 validation.
+These assets define the infrastructure, schema, and version integrity, requiring mandatory S0 or S4 cryptographic validation.
 
 | Acronym | Control Focus | Primary Gate(s) | Role Summary |
 |:---|:---|:---|:---|
@@ -65,7 +65,7 @@ These assets define the infrastructure, schema, and version integrity, requiring
 | **PCSIM** | Policy Schema Integrity | S0 | Canonical hash of the Policy Configuration Schema Repository (PCSR). |
 | **DTEM** | Data Lineage & Trust | S4 | Validation rules for input data lineage.|
 | **ECVM** | Context Attestation | S4.5 | Attested environmental prerequisites validation.|
-| **CMR** | Certified Execution Models | S5, S6.7 | Repository of attested models required for simulation.|
+| **CMR** | Certified Execution Models | S5, S6.7 | Repository of attested planning models.|
 | **GRDM** | Resilience Configuration | RRP Protocol | Triage state definition for CRITICAL failures. |
 
 ### 4.2 AXIOM & VETO ASSETS (GAX Policy Enforcement Boundary)
@@ -84,9 +84,9 @@ These assets define operational constraints, risk thresholds, and veto logic enf
 
 ---
 
-## 5.0 GSEP-C V94.1: CERTIFIED STATE TRANSITION PIPELINE
+## 5.0 GSEP-C V94.2: CERTIFIED STATE TRANSITION PIPELINE
 
-Inter-stage data integrity is maintained by the **CISM**. Stages are governed by **GDECM** constraints and validated by **GEDM**. *Failure types are defined in Section 7.0.*
+The GSEP-C defines the mandatory, sequential flow for state commitment. Inter-stage data integrity is maintained by the **CISM**, and execution constraints are governed by **GDECM** / validated by **GEDM**.
 
 ### A. Initialization & Attestation (CRoT/SGS Pre-Commitment)
 | Stage | Agent | Failure Type | Commitment/Veto Variable | Dependency Focus (Asset Ref) |
@@ -134,6 +134,7 @@ Inter-stage data integrity is maintained by the **CISM**. Stages are governed by
 | **CPES** | Certified Pre-Execution Sandbox | Isolated, attested simulation environment ($S_{01}, S_{02}$ generation reliability). | Planning Assurance Layer | S6.7 |
 | **ACPE** | Axiomatic Consistency Proof Engine | Formal verification utility ensuring PVLM constraints are non-contradictory. | Pre-Commitment Validation | Off-GSEP-C |
 | **GCVS** | Governance Configuration Validation Service | Mandatory pre-flight utility ensuring internal consistency of GAX operational assets (PVLM, CFTM, ADTM). | Pre-S0 Integrity Layer | Pre-S0 |
+| **SIG** | Sovereign Interface Gateway | Attested external API layer for secure ingress/egress and commitment state querying. | External Trust Layer | Pre-S1, Post-S11 |
 
 ---
 
@@ -166,7 +167,6 @@ Failure handling is stratified to ensure controlled system response, dictated by
 | DTEM | Data Trust and Execution Manifest |
 | ECVM | Environmental Context Validation Manifest |
 | GAX | Governance Axiom Enforcer |
-| GCVM | Governance Configuration Validation Manifest |
 | GCVS | Governance Configuration Validation Service |
 | GEDM | Governance Execution Dependency Manager |
 | GDECM | Governance Dependency & Execution Constraint Manifest |
@@ -182,6 +182,7 @@ Failure handling is stratified to ensure controlled system response, dictated by
 | RRP | Resilience/Recovery Protocol |
 | SDVM | Schema Definition Validation Manifest |
 | SGS | Sovereign Governance System |
+| SIG | Sovereign Interface Gateway |
 | SIH | System Integrity Halt |
 | TIVS | Telemetry Integrity Vetting System |
 | TQM | Telemetry Quality Manifest |
