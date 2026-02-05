@@ -1,60 +1,61 @@
 # SOVEREIGN AGI GOVERNANCE CONTRACT MANIFEST (GCM)
-## MANIFEST VERSION: V94.1 | ARCHITECTURE: AIA
 
-### EXECUTIVE DECLARATION: IMMUTABLE L5 CORE CONSTRAINTS
+## MANIFEST VERSION: V94.1 | ARCHITECTURE: AIA | STATUS: ACTIVE
 
-This Governance Contract Manifest (GCM) defines the foundational constraints governing Sovereign AGI operation. Every proposed System State Transition ($SST$) is strictly routed through the mandatory **Governance Evolution Protocol (GSEP)**. Final commitment requires unanimous resolution at the **P-01 Finality Gate** (GSEP L5), enforced by the **Atomic Immutable Architecture (AIA)**.
+### EXECUTIVE MANDATE: Level 5 Immutability Constraint
+
+This Governance Contract Manifest (GCM) dictates the foundational operating constraints of the Sovereign AGI. All System State Transitions ($SST$) must successfully resolve the mandatory **Governance Evolution Protocol (GSEP)**, leading to unanimous determination at the **P-01 Finality Gate** (GSEP L5). This determination is irreversibly logged via the **Atomic Immutable Architecture (AIA)**.
 
 ***
 
-## 0. GLOSSARY OF CORE TERMS
+## 0. GLOSSARY OF CORE CONCEPTS
 
-| Acronym | Definition | Context |
-|:--------|:-----------|:--------|
-| **$SST$** | System State Transition | Any proposed internal or external system change. |
-| **GCM** | Governance Contract Manifest | This root configuration and constraint definition. |
-| **GSEP** | Governance Evolution Protocol | The mandatory 7-level validation pipeline for $SST$. |
+| Acronym | Definition | Role |
+|:--------|:-----------|:-------------------------------------------|
+| **$SST$** | System State Transition | Proposed internal or external change. |
+| **GCM** | Governance Contract Manifest | Root configuration and constraint definition. |
+| **GSEP** | Governance Evolution Protocol | Mandatory 7-level validation pipeline for $SST$. |
 | **P-01** | Finality Gate | The decisive, binary (PASS/FAIL) L5 commitment trigger. |
-| **GTCM** | Governance Threshold Contract Manifest | Dynamic configuration constraints (L4 binding). |
+| **GTCM** | Governance Threshold Contract Manifest | Dynamic operational safety thresholds (L4 source). |
 
 ***
 
 ## 1. ARCHITECTURAL & AGENT REGISTRY (AAR)
 
-### 1.1 Protocols, Architectures, and Modules
+### 1.1 Core Components & Configurations
 
-| Acronym | Type | Role Definition / Focus | Configuration/Path |
-|:--------|:-----|:------------------------|:------------------|
-| **AIA** | Architecture | Atomic Immutable Architecture. Enforces L6 Persistence. | /kernel/AIA |
-| **GSEP** | Protocol | Mandatory 7-level Evolution Path for $SST$ processing. | System Wide |
-| **GTCM** | Configuration | Governance Threshold Contract Manifest. Defines operational limits (L4 binding). | `/governance/GTCM_V94.1.json` |
-| **LCR** | Resolver | L4 Constraint Resolver Module. Parses GTCM and applies thresholds. | /governance/LCR_Module |
-| **GFRM** | Module | Governance Failure Response Module. Manages terminal failure states outside of GSEP flow. | L0-L7 Termination |
+| ID | Type | Focus | Path/Dependencies |
+|:---|:-----|:--------------------------------------------|:-----------------------------------------------------|
+| AIA | Architecture | Atomic Immutability (L6 Persistence Enforcement). | `/kernel/AIA` |
+| GSEP | Protocol | The sequential validation framework for $SST$ processing. | System Wide |
+| LCR | Resolver | L4 Constraint Resolver. Parses GTCM for threshold application. | `/governance/LCR_Module` |
+| GTCM | Configuration | Defines $S-01$ Min and $S-02$ Max limits. | `/governance/GTCM_V94.1.json` |
+| GFRM | Module | Manages failure states outside standard GSEP flow (L0-L7 Termination). | System Wide |
 
-### 1.2 Operational Agents & Gates
+### 1.2 Operational Agents & Arbitrators
 
-| Acronym | Type | Role Definition / Focus | Signal Dependencies |
-|:--------|:-----|:------------------------|:--------------------|
-| **P-01** | Gate | **L5 Operational Finality Arbitration.** Core commitment determinant. | GCO, SDR, HMC, AOC |
-| **GCO** | Agent | Governance Commitment Officer. Manages P-01 determination. | $S-01, S-02, S-03$ |
-| **AOC** | Agent | Autonomous Operational Charter (AOC) Compliance Veto Agent ($S-03$). | Policy Enforcement |
-| **SDR** | Agent | Efficacy Reporting Agent (Generates $S-01$, Utility). | Utility Calculation |
-| **HMC** | Agent | Risk Synthesis Agent (Generates $S-02$, Exposure). | Exposure Calculation |
-| **TAA** | Agent | Threshold Adaptation Agent. Proposes necessary GTCM updates. | GTCM Tuning Pipeline |
+| ID | Type | Role Definition / Signal Outputs | Input Dependency |
+|:---|:-----|:--------------------------------|:-----------------|
+| P-01 | Gate | **L5 Commitment Arbitration.** Core determination trigger. | GCO, SDR, HMC, AOC |
+| GCO | Agent | Governance Commitment Officer. Manages P-01 calculation and resolution. | $S-01, S-02, S-03$ |
+| SDR | Agent | Efficacy Reporting Agent. **Generates $S-01$ (Utility Projection).** | Utility Calculation |
+| HMC | Agent | Risk Synthesis Agent. **Generates $S-02$ (Composite Exposure).** | Exposure Calculation |
+| AOC | Agent | Autonomous Operational Charter Veto Agent. **Generates $S-03$.** | Policy Enforcement |
+| TAA | Agent | Threshold Adaptation Agent. Proposes necessary GTCM updates (via GSEP). | GTCM Tuning Pipeline |
 
 ***
 
 ## 2. CORE ARBITRATION MANDATE (P-01) - GSEP L5
 
-System viability (P-01 PASS) is the singular, non-negotiable requirement for L5 Commit Finality. The determination is based on the calculation provided by SDR ($S-01$), HMC ($S-02$), and the mandatory AOC Veto ($S-03$).
+L5 Finality requires P-01 PASS resolution, which is non-negotiable for system viability. The GCO determines PASS based on metric outputs from SDR ($S-01$), HMC ($S-02$), and the AOC Veto ($S-03$).
 
 ### P-01 PASS LOGIC (GCO Determination):
 
-| ID | Metric / Derivation | Source Agent | Definition | Constraint |
-|:---|:--------------------|:-------------|:-----------|:-----------|
-| $S-01$ | Efficacy Projection (Utility) | SDR | Calculated projected utility outcome. | MUST strictly outweigh $S-02$. |
-| $S-02$ | Risk Synthesis (Exposure) | HMC | Calculated composite systemic exposure. | MUST be strictly less than $S-01$. |
-| $S-03$ | Compliance Veto (Mandate) | AOC | Mandatory: Operational charter check. | MUST register as FALSE (No violation). |
+| ID | Metric / Derivation | Source Agent | Constraint / Purpose |
+|:---|:--------------------|:-------------|:----------------------------------------------------|
+| $S-01$ | Efficacy Projection | SDR | Calculated utility outcome. MUST strictly outweigh $S-02$. |
+| $S-02$ | Risk Synthesis | HMC | Calculated systemic exposure. MUST be strictly less than $S-01$. |
+| $S-03$ | Compliance Veto | AOC | Operational charter check. MUST register as FALSE (No violation). |
 
 $$\text{P-01 PASS} \implies (S-01 > S-02) \land (S-03 = \text{FALSE})$$
 
@@ -62,15 +63,15 @@ $$\text{P-01 PASS} \implies (S-01 > S-02) \land (S-03 = \text{FALSE})$$
 
 ## 3. GOVERNANCE EVOLUTION PROTOCOL (GSEP: L0 \rightarrow L7)
 
-GSEP provides the strictly sequential, non-bypassable validation pipeline for all $SST$ processing. The system requires successful L5 resolution prior to L6 Ledger Finality.
+GSEP is the strictly sequential, non-bypassable validation pipeline. Metrics ($S-01, S-02$) are generated during the Simulation/Synthesis phase (L3) prior to threshold validation (L4).
 
 | Level | Stage Name | Responsible Component | Objective / Gate Check | Enforcement Constraint |
-|:-----:|:--------------------|:----------------------|:-----------------------------------------------------|:-----------------------|
+|:-----:|:----------------------|:----------------------|:-----------------------------------------------------|:-----------------------|
 | L0 | Input Vetting | SCR / SBC | Schema Validation (C-FRAME) | N/A |
 | L1 | Compliance Lock | AOC | Mandatory $S-03$ Veto Check (Policy Enforcement) | $S-03$ = FALSE |
 | L2 | Code Provenance | ACM | Signature & Integrity Check | N/A |
-| L3 | Simulated Finality | SEM | Falsification Check ($F_{N}=0$) | N/A |
-| **L4** | **Constraint Binding** | **LCR** | **GTCM Threshold Enforcement (V94.1)** | $S-01 > \text{Min} \land S-02 < \text{Max}$ |
-| **L5** | **Commit Arbitration** | **GCO** | **P-01 FINALITY CHECK** (The Decisive Point) | $\text{P-01} = \text{PASS}$ |
+| **L3** | **Metric Synthesis** | **SDR / HMC / SEM** | **Simulation: Generates $S-01$ and $S-02$ signals.** | $F_N=0$ (Falsification Check) |
+| **L4** | **Constraint Binding** | **LCR** | **GTCM Threshold Enforcement.** Checks $S-01 > \text{Min}$ and $S-02 < \text{Max}$. | LCR PASS |
+| L5 | Commit Arbitration | GCO | **P-01 FINALITY CHECK** (Core Arbitration: $S-01 > S-02$). | $\text{P-01} = \text{PASS}$ |
 | L6 | Ledger Finality | AIA | Immutable Entry & Version Lock ($V_{N}$) | N/A |
 | L7 | Deployment Signal | RETV | Operational Activation Trace D-02 | N/A |
