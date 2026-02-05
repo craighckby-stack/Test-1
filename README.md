@@ -1,59 +1,37 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.4: DETERMINISTIC STATE EVOLUTION (DSE)
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.4: CORE DOCUMENTATION
 
-The **SGS V94.4** enforces non-repudiable state transitions ($\\Psi_{N} \to \\Psi_{N+1}$) via the **Certified State Evolution Pipeline (GSEP-C)**. Integrity is guaranteed through deterministic execution, cryptographic attestation (**CRoT**), and strict adherence to the formal Governance Calculus. The core objective is provable, audited autonomy (DSE Principle).
+## 0.0 INTRODUCTION & CORE PRINCIPLE
+
+The **SGS V94.4** enforces non-repudiable state transitions ($\Psi_{N} \to \Psi_{N+1}$) via the **Certified State Evolution Pipeline (GSEP-C)**. Integrity is guaranteed through deterministic execution, cryptographic attestation (**CRoT**), and strict adherence to the formal Governance Calculus (Section 3.0). The core objective is provable, audited autonomy: the **Deterministic State Evolution (DSE)** Principle.
 
 ---
 
-## 1.0 ARCHITECTURAL FOUNDATION: THE GOVERNANCE TRIUMVIRATE
+## 1.0 COMPREHENSIVE GLOSSARY & ACRONYMS
+
+| Acronym | Definition | Acronym | Definition |
+|:---|:---|:---|:---|
+| **ACPE** | Axiomatic Consistency Proof Engine | **GEDM** | Governance Execution Dependency Manager |
+| **CALS** | Certified Audit Log System | **GRCS** | Governance Runtime Context Schema |
+| **CEEP** | Certified Execution Preparation | **RRP** | Resilience/Recovery Protocol |
+| **CSTL** | Certified State Transition Ledger | **SIH** | System Integrity Halt |
+| **DSE** | Deterministic State Evolution | **SoD** | Separation of Duties |
+| **TIVS** | Telemetry Integrity Vetting System | **CPES** | Certified Pre-Execution Sandbox |
+
+---
+
+## 2.0 ARCHITECTURAL FOUNDATION: THE GOVERNANCE TRIUMVIRATE
 
 The system relies on three specialized, attested agents coordinating state commitment, ensuring the crucial Separation of Duties (SoD) principle. Their interactions are formalized by the Governance Inter-Agent Commitment Manifest (GICM).
 
-| Agent | Control Plane | Core Trust Vector | Key Responsibilities & Critical Veto Gates |
+| Agent | Control Plane | Trust Anchor | Key Responsibilities & Veto Gates |
 |:---|:---|:---|:---|
-| **SGS** | Workflow & Execution | Orchestration & Lifecycle | Orchestrates GSEP-C flow, manages intermediate state (CISM), guarantees atomic execution (S11). **Veto Authority: S1, S5, S7, S11** |
-| **GAX** | Policy & Finality | Axiomatic Policy & Risk | Enforces constraints (PVLM/MPAM/ADTM), monitors deviation, certifies P-01 finality (S8). **Veto Authority: S2, S3, S6.5, S8** |
+| **SGS** | Workflow & Execution | Orchestration & Lifecycle | Manages GSEP-C flow, intermediate state (CISM), guarantees atomic execution (S11). **Veto Authority: S1, S5, S7, S11** |
+| **GAX** | Policy & Finality | Axiomatic Policy & Risk | Enforces constraints (PVLM, MPAM, ADTM), monitors deviation, certifies P-01 finality (S8). **Veto Authority: S2, S3, S6.5, S8** |
 | **CRoT** | Provenance & Crypto | Integrity & Non-Repudiation | Secures the host (HETM), provides immutable cryptographic proofs (S0, S10), attests data lineage (DTEM). **Veto Authority: S0, S4, S10** |
 
 ---
 
-## 2.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
-
-The formal, 11-stage, multi-agent protocol defining all mandatory state transitions and commitments.
-
-### Phase A: Initialization & Trust Anchoring (CRoT/SGS)
-| Stage | Agent | Failure Type | Focus / Veto Check | Reference |
-|:---|:---|:---|:---|:---|
-| **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL | Validate Host, Version, & Schema Integrity (HETM, GVDM, PCSIM) | CRoT/Integrity |
-| S1: INGRESS VALIDATION | SGS | STANDARD | Check Input Schema Compliance (SDVM) | Input/SDVM |
-
-### Phase B: Critical Policy & Context Vetting (GAX Veto Gates)
-| Stage | Agent | Failure Type | Focus / Veto Check (P-01 Component)| Reference |
-|:---|:---|:---|:---|:---|
-| **S2: POLICY VETO GATE** | GAX | CRITICAL | Policy Prohibitions Check (PVLM): $\\neg V_{Policy}$ | GCM 2.1 |
-| **S3: STABILITY VETO GATE** | GAX | CRITICAL | Model Drift/Integrity Bounds Check (MPAM): $\\neg V_{Stability}$ | GCM 2.2 |
-| S4: PROVENANCE TRUST | CRoT | CRITICAL | Data Lineage Validation (DTEM) | CRoT/Provenance |
-| S4.5: CONTEXT ATTESTATION| SGS | CRITICAL | Verify Environmental Prerequisites (ECVM): $S_{Context\\ Pass}$ | GCM 2.4 |
-
-### Phase C: Planning, Metrics & Behavior Vetting (SGS/GAX)
-| Stage | Agent | Failure Type | Focus / Veto Check | Reference |
-|:---|:---|:---|:---|:---|
-| S5: CEEP MODELING | SGS | STANDARD | Certified Execution Preparation (CEEP) using CMR | SGS/Planning |
-| S6: TELEMETRY VETTING | SGS/TIVS | CRITICAL | Input Quality Check (TQM) | Data/TQM |
-| **S6.5: BEHAVIOR VETO** | GAX | CRITICAL | Runtime Anomaly Detection (ADTM): $\\neg V_{Behavior}$ | GCM 2.3 |
-| **S6.7: CPES SIMULATION**| SGS/CRoT | CRITICAL | Certified Metric Generation ($S_{01}/S_{02}$) via CPES Sandbox | SGS/Metric Gen |
-| S7: METRIC VALIDATION | SGS | STANDARD | Utility/Risk calculation validation against parameters (MPAM, GRCS) | SGS/Metric Check |
-
-### Phase D: Final Commitment & Execution Lock (GAX/CRoT/SGS)
-| Stage | Agent | Failure Type | Focus / Veto Check | Reference |
-|:---|:---|:---|:---|:---|
-| **S8: FINALITY CERT** | GAX | CRITICAL | P-01 PASS/FAIL Check against CFTM ($\epsilon$) | GCM 2.0 |
-| S9: NRALS LOGGING | SGS | STANDARD | Non-Repudiable Audit Log Persistence (CALS) | Audit/CALS |
-| **S10: CRoT ATTESTATION** | CRoT | TERMINAL | Final state cryptographic signing of GICM into CSTL | CRoT/Commitment |
-| **S11: ATOMIC EXECUTION** | SGS | TERMINAL | Non-repudiable state transition commitment ($\\Psi_{N} \to \\Psi_{N+1}$) | DSE Principle |
-
----
-
-## 3.0 GOVERNANCE CALCULUS: THE P-01 FINALITY DECISION
+## 3.0 GOVERNANCE CALCULUS: P-01 FINALITY DECISION
 
 Autonomous State commitment requires maximizing Certified Utility ($S_{01}$) while strictly satisfying all critical Veto Gates ($\neg V_i$) and maintaining the minimum required utility margin ($\epsilon$). The final decision is certified by GAX at S8.
 
@@ -71,79 +49,55 @@ $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg V_{Po
 
 ---
 
-## 4.0 GOVERNANCE ASSET REGISTRY & INFRASTRUCTURE
+## 4.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The Certified Assets and Core Operational Utilities required for DSE compliance, grouped by functional domain. All asset changes must pass the GACMS protocol.
+The formal, 11-stage, multi-agent protocol defining mandatory state transitions, relying on the **Certified Data Schema Manifest (CDSM)** for structure conformity.
 
-### 4.1 Core Integrity & Trust Assets (CRoT Boundary)
-
-Assets that define infrastructure integrity, schema baseline, and non-repudiable provenance.
-
-| Acronym | Role Summary | Primary Gate(s) | Agent |
-|:---|:---|:---|:---|
-| **HETM** | Host Environment Trust Anchor Proofs. | S0 | CRoT |
-| **GVDM** | Authorized Governance Version Manifest. | S0 | CRoT |
-| **PCSIM** | Canonical Hash of Policy Configuration Schema Integrity. | S0 | CRoT |
-| **DTEM** | Input Data Lineage and Trust Validation Rules. | S4 | CRoT |
-| **CMR** | Repository of Attested Planning Models. | S5, S6.7 | CRoT/SGS |
-
-### 4.2 Policy & Axiomatic Veto Assets (GAX Enforcement Boundary)
-
-Assets defining operational constraints, risk thresholds, and veto logic that directly feed the GCM.
-
-| Acronym | Role Summary | Primary Veto/Stage | Agent |
-|:---|:---|:---|:---|
-| **PVLM** | Defines axiomatic prohibitions (GCM 2.1). | S2 ($\neg V_{Policy}$) | GAX |
-| **CFTM** | Defines Core Failure Threshold ($\epsilon$) (GCM 2.0). | S8 | GAX |
-| **MPAM** | Tracks model drift against certified parameters (GCM 2.2). | S3, S7 | GAX |
-| **ADTM** | Heuristics for behavioral veto based on runtime anomalies (GCM 2.3). | S6.5 | GAX |
-| **VRRM** | Veto Rationale & Remediation Manifest | **NEW:** Maps veto conditions to mandatory RRP mandates. | S2, S3, S6.5, S8 |
-
-### 4.3 Operational Services & Protocols (Active Handlers)
-
-Key utilities supporting pipeline execution and formal process management.
-
-| Protocol/Service | Acronym | Purpose | Related Stage(s) |
-|:---|:---|:---|:---|
-| **PFMV** | Pre-Flight Mandate Validator | Enforces separation of duties and agent mandate compliance (IMCM) before S1 ingress. | Pre-S1 |
-| **GACMS** | Governance Asset Change Mgmt. Service | Formal protocol governing change to critical assets. | Off-GSEP-C |
-| **GCVS** | Configuration Validation Service | Mandatory pre-flight utility ensuring internal consistency of GAX assets. | Pre-S0 |
-| **ACPE** | Axiomatic Consistency Proof Engine | Formal verification utility ensuring PVLM constraints are non-contradictory. | Off-GSEP-C |
-| **RRP** | Resilience/Recovery Protocol | Formal procedure triggered by CRITICAL failures, guided by VRRM. | CRITICAL Stages |
-| **TIVS** | Telemetry Integrity Vetting System | Real-time validation of input telemetry adherence to TQM. | S6, S6.5 |
-| **CPES** | Certified Pre-Execution Sandbox | Isolated, attested simulation environment ($S_{01}, S_{02}$ generation reliability). | S6.7 |
-
-### 4.4 Operational Manifests & Ledgers (Static/Committed Assets)
-
-Formal assets defining execution context, required state, and committed history.
-
-| Manifest/Ledger | Acronym | Purpose | Related Stage(s) |
-|:---|:---|:---|:---|
-| **CISM** | Certified Intermediate State Manager | Secure persistence and integrity management of inter-stage data (State Handoffs). | S1 - S9 |
-| **GICM** | Inter-Agent Commitment Manifest | Final ledger capturing stage results and agent sign-offs. | S8, S9, S10 |
-| **GDECM** | Dependency & Execution Constraint Manifest | Formal definition of mandatory input dependencies per stage. | All Stages |
-| **IMCM** | Inter-Agent Mandate Compliance Manifest | Defines the immutable mandates and permissible interaction boundaries for SGS, GAX, and CRoT. | Pre-S1 |
-| **ECVM** | Environmental Context Validation Manifest | Defines required operational environment prerequisites. | S4.5 |
+| Stage | Phase | Agent | Failure Type | Focus / Veto Check |
+|:---|:---|:---|:---|:---|
+| **S0: ANCHOR INIT** | A: Initialization & Trust | CRoT/SGS | TERMINAL | Validate Host Integrity (HETM, GVDM, PCSIM) |
+| S1: INGRESS VALIDATION | A: Initialization & Trust | SGS | STANDARD | Check Input Schema Compliance (SDVM) |
+| **S2: POLICY VETO GATE** | B: Policy & Context Vetting | GAX | CRITICAL | Policy Prohibitions Check (PVLM: $\neg V_{Policy}$) |
+| **S3: STABILITY VETO GATE** | B: Policy & Context Vetting | GAX | CRITICAL | Model Drift/Integrity Bounds Check (MPAM: $\neg V_{Stability}$) |
+| S4: PROVENANCE TRUST | B: Policy & Context Vetting | CRoT | CRITICAL | Data Lineage Validation (DTEM) |
+| S4.5: CONTEXT ATTESTATION| B: Policy & Context Vetting | SGS | CRITICAL | Verify Environmental Prerequisites (ECVM: $S_{Context\ Pass}$) |
+| S5: CEEP MODELING | C: Planning & Metrics | SGS | STANDARD | Certified Execution Preparation (CEEP) using CMR |
+| S6: TELEMETRY VETTING | C: Planning & Metrics | SGS/TIVS | CRITICAL | Input Quality Check (TQM) against certified CDSM $|
+| **S6.5: BEHAVIOR VETO** | C: Planning & Metrics | GAX | CRITICAL | Runtime Anomaly Detection (ADTM: $\neg V_{Behavior}$) |
+| **S6.7: CPES SIMULATION**| C: Planning & Metrics | SGS/CRoT | CRITICAL | Certified Metric Generation ($S_{01}/S_{02}$) via CPES Sandbox |
+| S7: METRIC VALIDATION | C: Planning & Metrics | SGS | STANDARD | Utility/Risk calculation validation (MPAM, GRCS) |
+| **S8: FINALITY CERT** | D: Commitment & Lock | GAX | CRITICAL | P-01 PASS/FAIL Check against CFTM ($\epsilon$) |
+| S9: NRALS LOGGING | D: Commitment & Lock | SGS | STANDARD | Non-Repudiable Audit Log Persistence (CALS) |
+| **S10: CRoT ATTESTATION** | D: Commitment & Lock | CRoT | TERMINAL | Final state cryptographic signing of GICM/CDSM into CSTL |
+| **S11: ATOMIC EXECUTION** | D: Commitment & Lock | SGS | TERMINAL | Non-repudiable state transition commitment ($\Psi_{N} \to \Psi_{N+1}$) |
 
 ---
 
 ## 5.0 GSEP-C FAILURE TAXONOMY
 
-| Failure Type | Severity | Control Protocol | RRP Invocation | Outcome | Governing Agent |
-|:---|:---|:---|:---|:---|:---|
-| **TERMINAL** | Critical Integrity Loss | System Integrity Halt (SIH) | NO | Immediate system cessation. Recovery via CRoT mandate only. | CRoT/SGS |
-| **CRITICAL** | Axiomatic Non-Compliance | Resilience/Recovery Protocol (RRP) | YES | Controlled triage, failure state logging, and non-commit halt. Remediation mandated by VRRM. | GAX/CRoT |
-| **STANDARD** | Standard Runtime Error | Standard/SGS Halt | NO | Local stage rollback or retry, CISM invalidation. | SGS |
+| Failure Type | Severity | Control Protocol | RRP Invocation | Outcome |
+|:---|:---|:---|:---|:---|
+| **TERMINAL** | Critical Integrity Loss | System Integrity Halt (SIH) | NO | Immediate system cessation. Recovery via CRoT mandate only. |
+| **CRITICAL** | Axiomatic Non-Compliance | Resilience/Recovery Protocol (RRP) | YES | Controlled triage, failure state logging. Remediation mandated by VRRM. |
+| **STANDARD** | Standard Runtime Error | Standard/SGS Halt | NO | Local stage rollback or retry, CISM invalidation. |
 
 ---
 
-## 6.0 COMPREHENSIVE GLOSSARY
+## 6.0 GOVERNANCE ASSET REGISTRY & INFRASTRUCTURE
 
-(Excluding assets fully defined in Section 4.0)
+### 6.1 Core Integrity & Trust Assets (CRoT Boundary)
 
-| Acronym | Definition | Acronym | Definition |
+| Acronym | Role Summary | Primary Gate(s) | Agent |
 |:---|:---|:---|:---|
-| **CALS** | Certified Audit Log System | **GEDM** | Governance Execution Dependency Manager |
-| **CEEP** | Certified Execution Preparation | **GRCS** | Governance Runtime Context Schema |
-| **CSTL** | Certified State Transition Ledger | **SIH** | System Integrity Halt |
-| **DSE** | Deterministic State Evolution | **SoD** | Separation of Duties |
+| **HETM** | Host Environment Trust Anchor Proofs. | S0 | CRoT |
+| **CDSM** | **Certified Data Schema Manifest.** Formal integrity schema for critical payloads (GICM, CISM). | S6, S8, S10 | CRoT/SGS |
+| **GVDM** | Authorized Governance Version Manifest. | S0 | CRoT |
+| **PCSIM** | Canonical Hash of Policy Configuration Schema Integrity. | S0 | CRoT |
+
+### 6.2 Policy & Axiomatic Veto Assets (GAX Enforcement Boundary)
+
+| Acronym | Role Summary | Primary Veto/Stage | Agent |
+|:---|:---|:---|:---|
+| **PVLM** | Defines axiomatic prohibitions (GCM 2.1). | S2 ($\neg V_{Policy}$) | GAX |
+| **VRRM** | Veto Rationale & Remediation Manifest. Maps critical veto conditions to mandatory RRP mandates. | S2, S3, S6.5, S8 | GAX |
+| **CFTM** | Defines Core Failure Threshold ($\epsilon$) (GCM 2.0). | S8 | GAX |
