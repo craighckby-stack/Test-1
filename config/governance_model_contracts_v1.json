@@ -1,0 +1,24 @@
+{
+  "model_governance_version": "MGC-V1.0",
+  "description": "Defines cryptographic hashes and certification constraints for core metric generation models (MEE/VMO), ensuring mathematical stability and auditability.",
+  "contracts": [
+    {
+      "module": "MEE_L6_S01_Efficacy_Model",
+      "version": "EFFICACY_M2.1",
+      "certified_hash_sha256": "01e3b56c4d7f8a9e01b2c3d4e5f6a7b89c0d1e2f3a4b5c6d7e8f90a1b2c3d4e5",
+      "approval_timestamp": "2024-06-01T10:00:00Z",
+      "required_approval_level": "L7_CORE_COMMITTEE"
+    },
+    {
+      "module": "VMO_L7_Epsilon_Oracle",
+      "version": "EPSILON_O1.2",
+      "certified_hash_sha256": "f0e9d8c7b6a50493827160594837261504938271605948372615049382716059",
+      "approval_timestamp": "2024-06-01T10:00:00Z",
+      "required_approval_level": "L7_CORE_COMMITTEE"
+    }
+  ],
+  "validation_policy": {
+    "revalidation_interval_days": 90,
+    "critical_deviation_threshold": 0.001
+  }
+}
