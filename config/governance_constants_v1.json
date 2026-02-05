@@ -1,0 +1,23 @@
+{
+  "version": "v1.0",
+  "description": "Centralized, tunable governance constants for GAX and GSEP-C.",
+  "axioms": {
+    "P01_Normalization_Bias": {
+      "symbol": "tau_norm",
+      "value": 1.0,
+      "context": "Value added to the denominator of the COF to prevent division by zero (1.1)."
+    },
+    "Viability_Margin_Minimum": {
+      "symbol": "epsilon_min",
+      "value": 0.05,
+      "context": "Absolute minimum required for the dynamic viability margin (epsilon), protecting against low risk/low benefit transitions."
+    }
+  },
+  "pipeline_thresholds": {
+    "L1_Policy_Veto_Threshold": {
+      "symbol": "R_crit",
+      "value": 0.95,
+      "context": "The threshold value (relative or absolute, depending on implementation) that triggers S-03 (CRITICAL POLICY VIOLATION) in L1."
+    }
+  }
+}
