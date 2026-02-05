@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "axiom_id": {"type": "string", "description": "Unique, deterministic identifier for the axiom."},
+    "category": {"type": "string", "enum": ["POLICY", "STABILITY", "BEHAVIOR"], "description": "Relates to PVLM, MPAM, or ADTM custody."},
+    "enforcement_agent": {"type": "string", "const": "GAX"},
+    "trigger_stage": {"type": "array", "items": {"type": "string"}, "description": "GSEP-C stage(s) where this axiom is checked (e.g., [\"S2\"])."},
+    "veto_level": {"type": "string", "enum": ["CRITICAL", "STANDARD"]},
+    "definition": {
+      "type": "object",
+      "properties": {
+        "target_metric": {"type": "string", "description": "Metric or state variable targeted by the axiom."},
+        "comparator": {"type": "string", "enum": ["GT", "GTE", "EQ", "LTE", "LT", "NE"], "description": "The relational operator."},
+        "threshold_value": {"type": ["number", "string"], "description": "The required threshold value."},
+        "documentation_link": {"type": "string"}
+      },
+      "required": ["target_metric", "comparator", "threshold_value"]
+    }
+  },
+  "required": ["axiom_id", "category", "enforcement_agent", "trigger_stage", "veto_level", "definition"]
+}
