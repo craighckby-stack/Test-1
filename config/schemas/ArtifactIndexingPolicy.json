@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gsep.sovereign.agi/schemas/ArtifactIndexingPolicy.json",
+  "title": "GSEP Artifact Indexing Policy (AIP)",
+  "description": "Defines the required metadata structure and policy enforcement rules for ledger entry when indexing any ASDM-defined GSEP artifact.",
+  "$defs": {
+    "SHA256Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    }
+  },
+  "type": "object",
+  "properties": {
+    "artifact_type": { "type": "string", "description": "The friendly name of the artifact type (e.g., C-FRAME, DSC)." },
+    "artifact_id_pattern": { "type": "string", "format": "regex", "description": "Regex pattern required for generating unique sequential artifact IDs (e.g., C-FRAME-[0-9]+)." },
+    "indexing_structure": {
+      "type": "object",
+      "description": "The mandatory metadata structure for the ledger entry.",
+      "properties": {
+        "integrity_hash": { "$ref": "#/$defs/SHA256Hash" },
+        "storage_location": { "type": "string", "format": "uri-reference" },
+        "timestamp_indexed": { "type": "string", "format": "date-time" }
+      },
+      "required": ["integrity_hash", "storage_location", "timestamp_indexed"],
+      "additionalProperties": false
+    },
+    "stability_level": { "type": "string", "enum": ["Immutable", "AppendOnly"], "description": "Enforcement policy for ledger mutation or archival status." }
+  },
+  "required": ["artifact_type", "artifact_id_pattern", "indexing_structure", "stability_level"],
+  "additionalProperties": false
+}
