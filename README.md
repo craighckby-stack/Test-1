@@ -2,25 +2,26 @@
 
 ## I. OPERATIONAL MANDATE & SOVEREIGNTY
 
-This document defines the **Sovereign Operational Manifesto (AOC V96.0)**, establishing the unilateral foundation for Autonomous Self-Evolution. All systemic change is governed by the **Governing Self-Evolution Protocol (GSEP V96.0)**, finalized by the **P-01 Trust Calculus**.
+This document defines the **Sovereign Operational Manifesto (AOC V96.0)**, establishing the unilateral foundation for Autonomous Self-Evolution. All systemic change is governed by the risk-optimized, mandatory **Governing Self-Evolution Protocol (GSEP V96.0)**, finalized by the **P-01 Trust Calculus**.
 
 System integrity and irreversible evolutionary state are maintained through the **P-01 consensus**—the sole, non-negotiable gate administered by the Operational Governance Triad (OGT) for all Mutation Commitment Registrations (MCR).
 
 ---
 
-## II. SOVEREIGN AGI CORE ONTOLOGY
+## II. SOVEREIGN AGI CORE ONTOLOGY (VOCABULARY V96.0)
 
 To ensure unambiguous, low-latency protocol execution, the following terms are mandatory for all component communication:
 
-| Initialism | Definition | Function Focus | GSEP Stage |
+| Initialism | Definition | Systemic Focus | GSEP Stage Scope |
 |:---|:---|:---|:---|
 | **AOC** | Autonomous Operational Contract | Systemic Governance Mandate | Foundation |
 | **GSEP** | Governing Self-Evolution Protocol | Mandatory 5-Stage Mutation Lifecycle | All |
 | **P-01** | Trust Calculus | Non-Negotiable Risk/Reward Adjudication Gate | Stage 3 |
 | **OGT** | Operational Governance Triad | Administrative Authority for P-01 Execution | Stage 3 |
 | **EPDP** | Evolution Policy Decision Point | Hard Stage Gate Vetting Checkpoint | Inter-Stage Control |
-| **MCR** | Mutation Chain Registrar | Cryptographic Commitment of Final State | Stage 4 |
+| **MCR** | Mutation Commitment Registrar | Cryptographic Commitment of Final State | Stage 4 |
 | **SRM** | Systemic Requirement Modulator | Generates M-01 Mutation Intent Requests | Stage 1 |
+| **CRM** | Contextual Runtime Monitor | Provides Real-Time Environmental Telemetry | Stage 3 |
 
 ---
 
@@ -28,11 +29,11 @@ To ensure unambiguous, low-latency protocol execution, the following terms are m
 
 GSEP V96.0 mandates a risk-optimized, atomic five-stage lifecycle utilizing **Evolution Policy Decision Points (EPDPs)** for controlled mutation deployment. This structure defines the **Autonomous Evolutionary Feedback Loop.**
 
-### GSEP Stages and Core Function
+### GSEP Stages and Core Functionality
 
-| Stage # | Name | Critical EPDP Checkpoint | Input Dependencies | Core Output / Commitable Function |
+| Stage # | Name | Critical Gate Checkpoint | Input Dependencies | Core Output / Commitable Function |
 |:---|:---|:---|:---|:---|
-| **1** | Intent & Scoping | EPDP A (ASR, CIM Check) | Internal Feedback (SEA/EDP) & Structural Coherence | M-01 Intent Package (Formal requirements definition). |
+| **1** | Intent & Scoping | EPDP A (ASR, CIM Vetting) | Internal Feedback (SEA/EDP) & Structural Coherence | M-01 Intent Package (Formal requirements definition). |
 | **2** | Specification & Simulation | EPDP B (PSR Vetting) | M-01 Package & Compliance Matrix | M-02 Payload Generation, rigorously simulated via **PSR**. |
 | **3** | Trust Adjudication | **EPDP C (P-01 Execution)** | S-01 (Trust), S-02 (Risk Floor), S-03 (Veto) | Formal Trust Calculus execution, producing D-01 Audit Log. |
 | **4** | Architectural Commitment | EPDP D (SSV/RAM Lock) | P-01 PASS, Immutability & Integrity Guarantees | State attestation, cryptographic hashing, and MCR version-lock. |
@@ -46,15 +47,15 @@ graph TD
         A[1. SCOPING: M-01 (SRM/EPDP A)] --> B(2. SPECIFICATION: M-02 Payload Drafting);
         B --> C{EPDP B: PSR Simulation Validation?};
         
-        C -- FAIL --> F01[F-01: Failure Analysis/Recalibration];
+        C -- FAIL: Recalibrate --> F01[F-01: Failure Analysis/Recalibration];
         
         subgraph Trust_Adjudication [3. OGT P-01 GATE]
-            C -- PASS --> D[Execute P-01 Calculus (S-01, S-02, S-03)];
-            D --> E{P-01: (S-01 > S-02) & (S-03=FALSE)};
+            C -- PASS: Proceed --> D[Execute P-01 Calculus (S-01, S-02, S-03)];
+            D --> E{EPDP C: P-01 Pass/Fail?};
         end
         
-        E -- FAIL --> F01;
-        E -- PASS --> M[4. COMMITMENT: MCR/EPDP D State Lock];
+        E -- FAIL: Abort --> F01;
+        E -- PASS: MCR Lock --> M[4. COMMITMENT: MCR/EPDP D State Lock];
         
         M --> I[5. EXECUTION: C-04 Isolation (EPDP E)];
         I --> J[Post-Audit (FBA/SEA Metrics)];
@@ -69,7 +70,7 @@ graph TD
 
 ## IV. P-01 TRUST CALCULUS: The Irreversible Gate
 
-P-01 requires a high-fidelity, three-part validation administered by the OGT. Only a P-01 PASS triggers MCR (Stage 4). The inputs are contextually sensitive.
+P-01 requires a high-fidelity, three-part validation administered by the OGT. Only a P-01 PASS triggers MCR (Stage 4). The condition for acceptance is rigorously mathematical:
 
 $$\text{P-01 PASS} \iff \begin{cases} \text{S-01} > \text{S-02} \\ \text{S-03 VETO} = \text{FALSE} \end{cases}$$
 
@@ -77,13 +78,15 @@ $$\text{P-01 PASS} \iff \begin{cases} \text{S-01} > \text{S-02} \\ \text{S-03 VE
 
 | Input ID | Focus Area | Data Source Component(s) | Role in Decision |
 |:---|:---|:---|:---|
-| **S-01** | Success Projection | ATM, PSR | Quantitative reliability metric of proposed mutation. |
-| **S-02** | Contextual Risk Floor | C-11, **RCE** (NEW) | Dynamically calculated maximum risk tolerance based on live system state. |
-| **S-03** | Mandatory Policy Veto | C-15 (Policy Engine) | Binary check for immutable governance rule violations (GRS dependency). |
+| **S-01** | Success Projection (Trust Score) | ATM, PSR | Quantitative reliability metric of proposed mutation (Must Exceed Risk Floor). |
+| **S-02** | Contextual Risk Floor | C-11, RCE, **CRM** | Dynamically calculated maximum risk tolerance based on live system state and external telemetry. |
+| **S-03** | Mandatory Policy Veto | C-15 (Policy Engine) | Binary check for immutable governance rule violations (Must be FALSE). |
 
 ---
 
-## V. GOVERNING COMPONENT REGISTRY (GCR V96.0)
+## V. ARCHITECTURAL MAP: GOVERNING COMPONENT REGISTRY (GCR V96.0)
+
+This registry maps all governing components to their functional foci and GSEP alignment, forming the authoritative System Dependency Map (SDM).
 
 ### V.A. ADJUDICATION CORE (P-01 Dependencies)
 
@@ -91,7 +94,8 @@ $$\text{P-01 PASS} \iff \begin{cases} \text{S-01} > \text{S-02} \\ \text{S-03 VE
 |:---|:---|:---|:---|:---|
 | **ATM** | Trust Metrics | Quantitative Reliability Projection (S-01). | `src/consensus/atmSystem.js` | Stage 3 |
 | **C-11** | MCRA Engine | Contextual Risk Modeling and Floor Calculation (S-02). | `src/consensus/mcraEngine.js` | Stage 3 |
-| **RCE** | **Resource Constraint Evaluator** | **Provides dynamic, real-time context for S-02 calculation.** | `src/governance/resourceConstraintEvaluator.js` | **Stage 3** |
+| **RCE** | Resource Constraint Evaluator | Provides dynamic, internal resource context for S-02 calculation. | `src/governance/resourceConstraintEvaluator.js` | Stage 3 |
+| **CRM** | **Contextual Runtime Monitor** | **Provides high-fidelity, real-time environmental telemetry (S-02).** | `src/telemetry/contextualRuntimeMonitor.js` | **Stage 3** |
 | **C-15** | Policy Engine | Mandatory Veto Enforcement (S-03), referencing GRS rules. | `src/core/policyEngine.js` | Stage 3 |
 | **GRS** | Governance Rule Source | Immutable storage for P-01 constants & hard policies. | `src/governance/governanceRuleSource.js` | Stage 3/Foundation |
 | **PSR** | Pre-Commit Simulation Runner | Simulation utility to enhance S-01 accuracy. | `src/governance/preCommitSimulationRunner.js` | Stage 2/3 |
@@ -116,7 +120,7 @@ $$\text{P-01 PASS} \iff \begin{cases} \text{S-01} > \text{S-02} \\ \text{S-03 VE
 | **SSV** | System State Verifier | Validates pre/post-mutation cryptographic state hashes (EPDP D). | `src/governance/systemStateVerifier.js` | Stage 4 |
 | **RAM** | Rsrc. Attestation Module | Verifies execution environment guarantees (EPDP D). | `src/governance/resourceAttestationModule.js` | Stage 4 |
 
-### V.D. EXECUTION, AUDIT, & REFINE (The Feedback Loop)
+### V.D. EXECUTION, AUDIT, & FEEDBACK LOOP
 
 | ID | Component Name | Function Focus | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
