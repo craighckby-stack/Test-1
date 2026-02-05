@@ -1,8 +1,8 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V97.3 R2.1 (Refactored)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V98.0 R1.0 (Refactored)
 
 ## MISSION MANDATE: Deterministic State Evolution (DSE)
 
-SAG V97.3 R2.1 mandates the **Deterministic State Evolution (DSE)** protocol ($\\Psi_{N} \to \Psi_{N+1}$). Progression requires audited artifact accumulation and state transition finality verified by the **P-01 Finality Calculus (S11)**, leveraging strict Separation of Duties (SoD).
+SAG V98.0 R1.0 mandates the **Deterministic State Evolution (DSE)** protocol ($\Psi_{N} \to \Psi_{N+1}$). Progression requires audited artifact accumulation and state transition finality verified by the **P-01 Finality Calculus (S11)**, leveraging strict Separation of Duties (SoD).
 
 ---
 
@@ -22,15 +22,15 @@ Decentralized accountability is enforced by explicit, non-overlapping mandates a
 
 | Protocol | Primary Role | Trigger Mechanism | Dependencies |
 |:---:|:---|:---|:---:|
-| **DSE** | State progression mechanism ($\\Psi$). | S00 Initiation | CSR Verification |
+| **DSE** | State progression mechanism ($\Psi$). | S00 Initiation | CSR Verification |
 | **P-01** | Atomic State Finalization Gate (S11). | SGS Submission of ASM | UMA I, CA II, AI III Satisfied |
-| **RRP** | Rollback & Forensic Capture Protocol. | S02 - S11 Failure | TEDS Capture & PCSS |
+| **RRP** | Rollback & Forensic Capture Protocol. | S02 - S11 Failure | **TEDS Capture** & PCSS |
 
 ---
 
 ## 2.0 INTEGRATED ARTIFACT GLOSSARY (IAG)
 
-Artifacts are grouped by mutability and core function relative to the DSE cycle. Verification against the anchored **CSR** is mandatory prior to execution (P1).
+Artifacts are grouped by immutability and core function relative to the DSE cycle. Verification against the anchored **CSR** is mandatory prior to execution (P1).
 
 ### 2.1 Configuration Roots (Low Mutability)
 
@@ -39,13 +39,13 @@ Define the ruleset for the DSE cycle, hashed into the **CSR** prior to S00.
 | Acronym | Definition | Origin Agent (Write) | P-01 Role/Function |
 |:---:|:---|:---:|:---:|
 | **CSR** | Config State Root | Pre-S00 (CGR Utility) | Verifiable Hash Root for all non-mutable artifacts. |
-| **ACVD** | Axiomatic Constraint Vector Definition | GAX | Defines mathematical constraints/thresholds for P-01 (UMA I logic). |
+| **ACVD** | Axiomatic Constraint Vector Definition | GAX | Defines constraints/thresholds for P-01 (UMA I logic). |
 | **FASV** | Final Axiomatic State Validation | GAX | Schema defining mandated ASM structure. |
 | **EPB** | Execution Parameter Blueprint | SGS | Defines required workflow steps for SGS execution. |
 
-### 2.2 Execution Manifests (High Mutability)
+### 2.2 Core Execution Manifests (High Mutability)
 
-Accumulate state data during execution (P3/P4) for mandatory S11 evaluation by GAX.
+Accumulate final, aggregate state data (P3/P4) for mandatory S11 evaluation by GAX.
 
 | Acronym | Definition | Origin Agent (Write) | P-01 Role/Function |
 |:---:|:---|:---:|:---:|
@@ -53,6 +53,18 @@ Accumulate state data during execution (P3/P4) for mandatory S11 evaluation by G
 | **TEMM** | Total Evolved Metric Maximization | SGS | Core Utility outcome metric (UMA I component). |
 | **ECVM** | Execution Context Verification Metric | SGS | Attests to verifiable runtime context (CA II component). |
 | **FMR** | Finality Metric Registry | CRoT | Chronological index and logging of all P-01 results (S11 output). |
+
+### 2.3 P-01 Axiom Inputs (Ephemeral High Mutability)
+
+Critical scalar values calculated during execution (P2/P4) and consumed exclusively by the P-01 calculus (S11). (Previously only implicit in Section 3.0)
+
+| Acronym | Definition | Origin Agent (Write) | P-01 Axiom Reference |
+|:---:|:---|:---:|:---:|
+| **UFRM** | Utility Function Required Minimum | GAX | UMA I: Minimum required metric floor. |
+| **CFTM** | Constraint Failure Tolerance Modifier | GAX | UMA I: Adjustable penalty for sub-optimal outcomes. |
+| **PVLM** | Pre-Validation Logic Miss | GAX | AI III: Flag set if pre-execution checks fail. |
+| **MPAM** | Manifest Policy Adherence Misalignment | GAX | AI III: Flag set if ASM structure deviates from FASV schema. |
+| **ADTM** | Axiomatic Deviation Trigger Metric | GAX | AI III: Flag set if policy boundary constraints are violated during P4. |
 
 ---
 
@@ -80,7 +92,7 @@ The mandatory 17-stage protocol ensures verifiable DSE, focusing on auditable ar
 |:---:|:---:|:---:|:---|:---|:---:|
 | **P1: INIT** | S00-S01 | CRoT/SGS | Secure Environment Attestation & Config Loading. | GSM, SIPM initialized. Config verification against CSR. | IH/STD |
 | **P2: VALIDATE**| S02-S04 | GAX | Pre-Execution Integrity Check. Setting failure flags. | Sets PVLM, MPAM flags in ASM. | RRP |
-| **S05 (Handoff)** | SGS/GAX | Execution Preparation Lock Check. | $\\Lambda_{05}$ State Lock Checkpoint. | RRP |
+| **S05 (Handoff)** | SGS/GAX | Execution Preparation Lock Check. | $\Lambda_{05}$ State Lock Checkpoint. | RRP |
 | **P3: EXECUTION** | S06-S07 | SGS | Runtime Workflow Execution. | Sets ECVM Status. Aggregates raw data. | RRP |
 | **P4: METRIC** | S08-S10 | SGS/GAX | Utility Metric Calculation & Policy Review. | SGS writes TEMM. GAX writes ADTM Status. | RRP |
 | **P5: FINALITY** | **S11 (M-CKPT)** | **GAX** | **ATOMIC P-01 Evaluation.** State Finalization Gate. | Logs P-01 Result to FMR. Sets Finality Flag. | **RRP** |
@@ -97,4 +109,4 @@ The mandatory 17-stage protocol ensures verifiable DSE, focusing on auditable ar
 
 ## 6.0 CONFIGURATION INTEGRITY (CSR) MANAGEMENT
 
-Configuration immutability for a DSE cycle is anchored by the **CSR**. The Configuration Governance Registrar (CGR) is an isolated utility that generates this verifiable hash root by bundling all low mutability artifacts (ACVD, FASV, EPB) deterministically *prior to* S00, ensuring trusted execution parameters for the entire DSE process.
+Configuration immutability for a DSE cycle is anchored by the **CSR**. The Configuration Governance Registrar (**CGR**) is an isolated utility that generates this verifiable hash root by bundling all low mutability artifacts (ACVD, FASV, EPB) deterministically *prior to* S00, ensuring trusted execution parameters for the entire DSE process.
