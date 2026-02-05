@@ -1,0 +1,34 @@
+{
+  "schemaId": "SGS-STDM-V98.2",
+  "description": "Schema definition for the System Telemetry & Drift Manifest (STDM), used to validate computational and health status required for S6 resource check.",
+  "properties": {
+    "ComputationalBudget": {
+      "type": "object",
+      "required": ["allocated_flops", "consumed_flops_estimate"],
+      "properties": {
+        "allocated_flops": {"type": "integer", "description": "Max FLOPs sanctioned for S7/Modeling.", "unit": "PetaFLOPs"},
+        "consumed_flops_estimate": {"type": "integer", "description": "Real-time estimate of execution complexity based on input.", "unit": "PetaFLOPs"},
+        "time_limit_ms": {"type": "integer", "description": "Maximum clock time allowed for S7 completion.", "unit": "ms"}
+      }
+    },
+    "DriftHealthReport": {
+      "type": "object",
+      "required": ["MPAM_conformance", "baseline_deviation_epsilon"],
+      "properties": {
+        "MPAM_conformance": {"type": "number", "description": "Metric derived from MPAM assessment regarding model integrity status (0.0 to 1.0)."},
+        "baseline_deviation_epsilon": {"type": "number", "description": "The current calculated system noise or tolerance threshold based on GTB data."}
+      }
+    },
+    "AgentReadiness": {
+      "type": "object",
+      "required": ["SGS", "GAX", "CRoT"],
+      "description": "CRoT attested agent health status and versioning for active epoch.",
+      "properties": {
+        "SGS": {"type": "string"},
+        "GAX": {"type": "string"},
+        "CRoT": {"type": "string"}
+      }
+    }
+  },
+  "required": ["ComputationalBudget", "DriftHealthReport", "AgentReadiness"]
+}
