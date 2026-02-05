@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schema/governance/Traceability_Event_Definition_Schema.schema.json",
+  "title": "Traceability Event Definition Schema (TEDS)",
+  "description": "Defines the mandatory structure for forensic data capture (TEDS) required by the Rollback Protocol (RRP) and stored in the TVCR registry.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique monotonic identifier for the event."
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of failure or trace capture."
+    },
+    "gsep_stage": {
+      "type": "string",
+      "description": "The specific GSEP-C stage (S00-S14) where the event occurred."
+    },
+    "agent_custodian": {
+      "type": "string",
+      "enum": ["SGS", "GAX", "CRoT"],
+      "description": "The Triumvirate agent responsible during the stage."
+    },
+    "failure_level": {
+      "type": "string",
+      "enum": ["IH", "RRP", "STANDARD"],
+      "description": "Codified failure hierarchy level."
+    },
+    "p01_context_vector_capture": {
+      "type": "object",
+      "description": "State snapshot of PVLM, MPAM, ADTM, TEMM, UFRM, CFTM at the point of capture."
+    },
+    "log_reference_hash": {
+      "type": "string",
+      "description": "Cryptographic hash linking to detailed internal system logs."
+    }
+  },
+  "required": [
+    "event_id",
+    "timestamp_utc",
+    "gsep_stage",
+    "agent_custodian",
+    "failure_level",
+    "p01_context_vector_capture"
+  ]
+}
