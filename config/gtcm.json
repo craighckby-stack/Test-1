@@ -1,0 +1,12 @@
+{
+  "description": "Governance Threshold Configuration Manifest (GTCM). Used by GCO, SDR, and HMC for P-01 arbitration decisions. Thresholds must be updated via TAA proposal/approval process.",
+  "GTCM_VERSION": "1.0.0",
+  "thresholds": {
+    "Utility_Min": 0.65, 
+    "Exposure_Max": 0.20,
+    "P01_Tolerance_Delta": 0.05 
+  },
+  "mandates": {
+    "Minimum_SDR_Score_HMC_Ratio": 3.0 
+  }
+}
