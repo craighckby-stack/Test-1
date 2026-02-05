@@ -8,7 +8,7 @@ The **SGS V94.1** establishes the foundational axiom for deterministic Autonomou
 
 Deterministic non-repudiation is ensured through end-to-end cryptographic attestation (CRoT managed) and adherence to the Governance Calculus (Section 4.0), incorporating mandatory, non-overrideable Veto Gates.
 
-$$\Psi_{N+1} = f(\Psi_N, Input, Context, Policy)$$ 
+$$\Psi_{N+1} = f(\Psi_N, Input, Context, Policy)$$
 
 ---
 
@@ -38,10 +38,10 @@ These assets reflect the real-time attested state and host integrity, secured an
 | **GICM** | CRoT | S0, S10 | Commitment Handoff | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure agent handoffs.|
 | **DTEM** | CRoT | S4 | Data Lineage | Data Trust and Execution Manifest. Validation rules for input data provenance.|
 | **ECVM** | SGS/CRoT | S4.5 | Context Attestation | Environmental Context Validation Manifest. Attested operational prerequisites.|
-| **GRDM** | CRoT/GAX | RRP Protocol | Resilience Config | **[ARCHITECTURAL NEW]** Governance Resilience Definition Manifest. Defines required triage and state for CRITICAL failures (RRP).|
+| **GRDM** | CRoT/GAX | RRP Protocol | Resilience Config | Governance Resilience Definition Manifest. Defines required triage and state for CRITICAL failures (RRP).|
 
-### 3.2 Trust Segment B: GAX-Enforced Policy Configuration Assets (PCTM Managed)
-These configurations are static policies, thresholds, and schemas enforced by **GAX**. They require mandatory cryptographic signing and schema validation, executed by the **PCTM** prior to GSEP-C execution (Pre-S0 load).
+### 3.2 Trust Segment B: GAX-Enforced Policy Configuration Assets (PCTM Validation Required)
+These configurations are static policies, thresholds, and schemas enforced by **GAX**. They require mandatory cryptographic signing and schema validation, executed by the **Policy Configuration Trust Manager (PCTM)** prior to GSEP-C execution (Pre-S0 load).
 
 | Acronym | Policy Owner | Primary Gate(s) | Control Focus | Description |
 |:---|:---|:---|:---|:---|
@@ -129,7 +129,7 @@ This section defines the core services responsible for state integrity, configur
 | **Resilience/Recovery Protocol** | **RRP** | Triage requirements for **CRITICAL** failures, defined by **GRDM**. Enables controlled fault handling without triggering SIH. | Fault Management | CRITICAL Failures |
 | System Integrity Halt | **SIH** | Immediate fail-safe activation upon **TERMINAL** failure, ensuring system dormancy until manual CRoT intervention. | Fault Management | TERMINAL Failures |
 | Certified State Transition Ledger | **CSTL** | Immutable, verifiable ledger storing signed $\Psi_{N+1}$ commitment records. | Historical Provenance Layer | S10, S11 |
-| **Governance Resilience Definition Manifest** | **GRDM** | **[NEW]** Configuration file defining the deterministic recovery pathways and required rollback states for RRP activation. Requires CRoT attestation (Section 3.1). | Resilience Configuration Layer | RRP Protocol |
+| **Governance Resilience Definition Manifest** | **GRDM** | Configuration file defining the deterministic recovery pathways and required rollback states for RRP activation. Requires CRoT attestation (Section 3.1). | Resilience Configuration Layer | RRP Protocol |
 
 ---
 
@@ -156,8 +156,8 @@ All static governance configurations (Trust Segment B Assets) MUST be validated 
 | ECVM | Environmental Context Validation Manifest |
 | GAX | Governance Axiom Enforcer |
 | GICM | Governance Inter-Agent Commitment Manifest |
-| **GRDM** | **Governance Resilience Definition Manifest** |
 | GRCS | Governance Runtime Context Schema |
+| GRDM | Governance Resilience Definition Manifest |
 | GTB Feed | Global Telemetry Bus Feed |
 | GVDM | Governance Version Definition Manifest |
 | HETM | Host Environment Trust Manifest |
