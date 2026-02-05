@@ -1,0 +1,34 @@
+{
+  "protocol": "DSE_V94.1",
+  "matrix_version": "1.0.0",
+  "dependencies": [
+    {
+      "stage_id": "S01",
+      "actor": "CRoT Agent",
+      "output_artifact": "CSR",
+      "validates_axiom": "GAX III",
+      "required_inputs": ["S00_System_Genesis_Flag"]
+    },
+    {
+      "stage_id": "S07",
+      "actor": "EMS",
+      "output_artifact": "ECVM",
+      "validates_axiom": "GAX II",
+      "required_inputs": ["S01_Commitment_Signature"]
+    },
+    {
+      "stage_id": "S08",
+      "actor": "EMS",
+      "output_artifact": "TEMM",
+      "validates_axiom": "GAX I",
+      "required_inputs": ["S07_Execution_Telemetry"]
+    },
+    {
+      "stage_id": "S11",
+      "actor": "GAX Executor",
+      "output_artifact": "P-01 Finality Commitment",
+      "validates_axiom": null,
+      "required_inputs": ["S01_CSR", "S07_ECVM", "S08_TEMM"]
+    }
+  ]
+}
