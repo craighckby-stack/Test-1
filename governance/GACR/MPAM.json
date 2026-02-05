@@ -1,0 +1,28 @@
+{
+  "manifest_version": "V97.3-MPAM-01",
+  "owner": "SGS",
+  "certification_key_hash": "[CRoT_ATTESTATION_HASH]",
+  "model_attestations": [
+    {
+      "model_id": "U-Model-2024A",
+      "cmr_reference": "CMR-Entry-X04",
+      "initial_baseline": {
+        "utility_p99_score": 0.95,
+        "risk_fdr": 0.001,
+        "certified_timestamp": "2024-07-25T10:00:00Z"
+      },
+      "drift_monitoring_parameters": {
+        "drift_threshold_epsilon": 0.02,
+        "data_drift_metric": "PSI",
+        "psi_alert_limit": 0.15
+      },
+      "latest_certified_metrics": {
+        "current_utility_p99_score": 0.93,
+        "current_risk_fdr": 0.0012,
+        "drift_status": "Nominal",
+        "last_mdmp_run": "2024-07-30T14:30:00Z"
+      }
+    }
+  ],
+  "mdmp_protocol_reference": "MDMP-V97.3"
+}
