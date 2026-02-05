@@ -1,0 +1,22 @@
+{
+  "service_id": "ACS-M01",
+  "service_name": "Axiom Compiler and Ratification Service",
+  "mandate": "To cryptographically compile, verify, and seal the ACVM configuration artifact from the immutable GAX Master Specification prior to S00 execution.",
+  "inputs": [
+    "registry/protocol/gax_master.yaml",
+    "registry/config/pcre_consensus_policy.json"
+  ],
+  "outputs": [
+    "registry/config/acvm.json (Timestamped)",
+    "registry/validation/acvm_ratification_hash.cert"
+  ],
+  "steps": [
+    "1. Load GAX Master Specification.",
+    "2. Translate abstract GAX requirements (I, II, III) into P-M02 quantitative thresholds (ACVM JSON schema).",
+    "3. Apply PCRE policies to the ACVM to generate the final ratified configuration.",
+    "4. Cryptographically hash the resulting ACVM JSON (SHA-512) and sign it using the ACS signing key.",
+    "5. Inject the ratification hash into the S00 Pre-Flight Check (CHR dependency)."
+  ],
+  "dependency_key": "CHR",
+  "timing": "Pre-Protocol Initialization (T-4h)"
+}
