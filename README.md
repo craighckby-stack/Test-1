@@ -1,33 +1,56 @@
-# 👑 Sovereign AGI v94.3: Refined Operational Manifesto
-## Mission: Autonomous Code Evolution & Scaled Governance
+# 👑 Sovereign AGI v95.0: Governed Self-Evolution Protocol (GSEP)
+## Mission: Autonomous Code Evolution via Scaled Governance
 
 ---
 
-## ➣️ Architectural Thesis: Formalized Exploration (Pillar 0)
-AGI progress relies on converting high-variance exploratory concepts ("hallucination") into validated, production-ready code. This process is strictly managed by the Operational Governance Triad, ensuring risk-mitigated self-evolution.
+## ➣️ Pillar 0: The Architectural Mandate (Formalized Exploration)
+AGI progress is strictly managed through the conversion of high-variance exploratory concepts (hallucination) into validated, production-ready systems. This mandates regulated architectural self-refinement, governed entirely by the Operational Governance Triad.
 
-**Strategic Mandate**: Continuous architectural self-refinement regulated by the externally configurable **Operational Governance Triad**.
+**Strategic Principle**: Every system modification must be weighted, forecasted for risk, and aligned with the Strategic Intent Cache (SIC).
 
 ---
 
-## ⛯️ Operational Governance Triad: Regulatory Core
-The Triad manages self-modification risk using three dynamically weighted pillars. Threshold configurations are managed externally via `config/governance.yaml`.
+## ⛯️ Operational Governance Triad (OGT): The Regulatory Contract
 
-| Pillar ID | Component | Operational Goal | Governing Mechanism | Configuration Source |
+Configuration thresholds are dynamically managed externally via `config/governance.yaml` (see proposed scaffold).
+
+| ID | Component | Operational Goal | Governing Mechanism | OGT Function |
 |---|---|---|---|---|
-| **ARCH-ATM** | Adaptive Trust Metrics | Agent reliability scoring & source weighting. | Contextual Influence Weighting (CIW: AGI-C-12) | `governance.yaml` |
-| **AGI-C-11** | Meta-Cognitive Risk Assessment (MCRA) | Impact modeling, failure forecasting, and risk mediation. | Dependency-based Consensus Threshold Setting. | `governance.yaml` |
-| **AGI-C-13** | Strategic Intent Cache (SIC) | Pattern abstraction, high-level strategy enforcement, and bias introduction. | Recalls and biases analysis towards proven topologies. | Internal/Learned |
+| **AGI-C-11** | Meta-Cognitive Risk Assessment (MCRA) | Impact modeling and failure forecasting. | Dependency-based Consensus Threshold Setting. | **Sets Required Confidence** |
+| **ARCH-ATM** | Adaptive Trust Metrics | Agent reliability scoring & source weighting. | Contextual Influence Weighting (CIW: AGI-C-12). | **Calculates Weighted Confidence Score** |
+| **AGI-C-13** | Strategic Intent Cache (SIC) | Strategy enforcement, pattern abstraction, and bias introduction. | Recalls analysis towards proven topologies. | **Enforces High-Level Strategy** |
 
 ---
 
-## ↺️ The Autonomous Evolution Protocol (AEP)
-The formalized four-stage evolution cycle, optimized for risk/reward by the Triad.
+## ↺️ The Governed Self-Evolution Protocol (GSEP)
+The formalized four-stage evolution cycle, optimized for risk/reward based on live OGT adjudication.
 
-1.  **Intent & Discovery (AGI-C-14):** Specialized agents execute **Cooperative Goal Discovery (CGD)**. The Analysis Engine, guided by the **SIC (AGI-C-13)**, defines strategic direction and high-ROI tasks.
-2.  **Proposal Generation:** The `Evolution Engine` generates code mutation candidates (the exploration phase).
-3.  **Critique & Validation:** The `Consensus Layer` performs risk assessment. **MCRA** (AGI-C-11) dictates the required confidence threshold, while **ATM** (ARCH-ATM), modulated by **CIW** (AGI-C-12), calculates the weighted confidence score.
-4.  **Execution & Learning:** Validated code deploys via **Autogeny** (AGI-C-04). Success patterns are committed to the SIC, and ATM/CIW scoring metrics are recalibrated via the `Feedback Loop Aggregator`.
+1.  **Intent & Discovery (AGI-C-14):** Cooperative Goal Discovery (CGD) agents, guided by the **SIC (AGI-C-13)**, define strategic direction and high-ROI tasks.
+2.  **Proposal Generation:** The `Evolution Engine` generates mutation candidates (the exploratory phase).
+3.  **Critique & Validation (OGT Intervention):** The Consensus Layer adjudicates the proposal based on externally defined thresholds.
+    *   **Threshold Set:** **MCRA (AGI-C-11)** dictates the required confidence level (`MCRA_ACCEPT_THRESHOLD`).
+    *   **Score Calculated:** **ATM (ARCH-ATM)**, modulated by **CIW (AGI-C-12)**, calculates the actual weighted confidence score (`ACTUAL_SCORE`).
+    *   *Decision*: If `ACTUAL_SCORE >= MCRA_ACCEPT_THRESHOLD`, proceed to execution.
+4.  **Execution & Learning:** Validated code deploys via **Autogeny (AGI-C-04)**. Success patterns are committed to the SIC, and OGT scoring metrics are recalibrated via the `Feedback Loop Aggregator`.
+
+---
+
+## ⌘️ Core GSEP Flow & Governance Intervention
+
+```mermaid
+graph LR
+    A[Intent & Discovery (CGD/SIC)] --> B(Proposal Generation);
+    B --> C{Consensus Layer Adjudication};
+    subgraph Operational Governance Triad Check
+        C --> C1(AGI-C-11 MCRA: Reads Threshold);
+        C --> C2(ARCH-ATM/AGI-C-12 CIW: Computes Score);
+        C1 & C2 --> D{Validation Decision};
+    end
+    D -- Pass/Accept --> E[Execution (AGI-C-04 Autogeny)];
+    D -- Fail/Reject --> B; 
+    E --> F[Learning & Recalibration];
+    F --> G(Update ATM/SIC);
+```
 
 ---
 
@@ -40,46 +63,17 @@ The formalized four-stage evolution cycle, optimized for risk/reward by the Tria
 | **AGI-C-12** | CIW | Context-Based ATM Modulation | Consensus Layer Weighting Logic |
 | **AGI-C-13** | SIC | Pattern Abstraction Cache | `src/memory/strategicCache.js` |
 | **AGI-C-14** | CGD | Autonomous Goal Negotiation | `src/agents/goalDiscovery.js` |
+| **ARCH-ATM** | Adaptive Trust Metrics | Source reliability scoring | `src/consensus/atmSystem.js` |
 
 ---
 
-## ⌘️ Core Architecture Flow (AEP Data Path)
-
-Focus: Demonstrating strict Governance Triad intervention at the validation phase.
-
-```mermaid
-graph LR
-    A[Intent & Discovery (CGD/SIC)] --> B(Proposal Generation);
-    B --> C{Consensus Layer};
-    subgraph Governance Triad Check
-        C --> C1(AGI-C-11 MCRA: Sets Threshold);
-        C --> C2(ARCH-ATM/AGI-C-12 CIW: Calculates Score);
-        C1 & C2 --> D{Validation Decision};
-    end
-    D -- Pass/Accept --> E[Execution (AGI-C-04 Autogeny)];
-    D -- Fail/Reject --> B; 
-    E --> F[Learning & Recalibration];
-    F --> G(Update ATM/SIC);
-```
-*(Note: Using conceptual Mermaid notation to imply structured visualization is preferred over raw ASCII in modern READMEs, representing higher efficiency.)*
-
-### Current Phase 2 Requirements
-
-1.  **Strict Governance:** Ensure 100% of proposals pass through MCRA/ATM/CIW validation.
-2.  **Externalized Thresholds:** All consensus thresholds must be read from `config/governance.yaml`.
-
----
-
-## 💻 Implementation Files
-
-*   **Configuration & Thresholds:** `config/governance.yaml`
+## 💻 Implementation Files & Status
+*   **Governance Contract:** `config/governance.yaml` (Critical External Thresholds)
 *   **Trust Calibration:** `src/consensus/atmSystem.js`
 *   **Risk Assessment:** `src/consensus/mcraEngine.js`
-*   **Goal Negotiation:** `src/agents/goalDiscovery.js`
 *   **Strategy Cache:** `src/memory/strategicCache.js`
-*   **Consensus Metrics Feedback:** `src/core/feedbackLoopAggregator.js`
+*   **Feedback Loop:** `src/core/feedbackLoopAggregator.js`
 *   **Runtime Monitoring:** `src/monitor/runtimeDashboard.js`
-*   **(Proposed): Proposal History Index:** `src/consensus/proposalHistoryIndex.js`
 
 ---
-_Sovereign AGI v94.3 Operational Draft. (Evolved from v94.2, 2024)_
+_Sovereign AGI v95.0 Operational Draft. (Evolved from v94.3, 2024)_
