@@ -1,0 +1,36 @@
+{
+  "asset_id": "VRRM-V1.0",
+  "governance_status": "GACMS_CERTIFIED",
+  "veto_constraints": [
+    {
+      "constraint_ref": "GCM 2.1",
+      "trigger_manifest": "PVLM",
+      "veto_vector": "NEG_V_POLICY",
+      "mandate_level": "CRITICAL_A",
+      "remediation_mandates": [
+        {"action": "STATE_QUARANTINE", "target": "CISM", "reason": "Axiomatic breach requires isolated review."},
+        {"action": "CONFIG_RESET", "target": "PVLM", "params": ["LAST_GACMS_CERTIFIED_HASH"]}
+      ]
+    },
+    {
+      "constraint_ref": "GCM 2.2",
+      "trigger_manifest": "MPAM",
+      "veto_vector": "NEG_V_STABILITY",
+      "mandate_level": "CRITICAL_B",
+      "remediation_mandates": [
+        {"action": "MODEL_RETRAINING_MANDATE", "target": "CMR"},
+        {"action": "METRIC_LOCKDOWN", "target": "MPAM", "duration": "12h"}
+      ]
+    },
+    {
+      "constraint_ref": "GCM 2.3",
+      "trigger_manifest": "ADTM",
+      "veto_vector": "NEG_V_BEHAVIOR",
+      "mandate_level": "CRITICAL_C",
+      "remediation_mandates": [
+        {"action": "INPUT_STREAM_PAUSE", "target": "S1"},
+        {"action": "ADTM_ADJUSTMENT", "target": "ADTM", "params": ["HEURISTICS_A/MINIMUM_THRESHOLDS_ENABLED"]}
+      ]
+    }
+  ]
+}
