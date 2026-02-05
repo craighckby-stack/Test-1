@@ -2,63 +2,66 @@
 
 ## 0. EXECUTIVE MANDATE: SYSTEM GOVERNANCE FRAMEWORK
 
-This charter defines the mandatory **Autonomous Operational Contract (AOC)** and the sequential steps of the **Governance Evolution Protocol (GSEP)**. All System State Transitions (SSTs) must adhere to these constraints, ensuring verifiable, ledger-backed finality via the **Atomic Immutable Architecture (AIA)**.
+This charter defines the mandatory **Autonomous Operational Contract (AOC)** and the formal constraints imposed by the **Governance Evolution Protocol (GSEP)**. All self-modification events ($\mathcal{V}_{N}$) must achieve verifiable, ledger-backed finality via the **Atomic Immutable Architecture (AIA)**.
 
 ---
 
-## I. GOVERNANCE EVOLUTION PROTOCOL (GSEP L0-L6): ATOMIC SST PATHWAY
+## I. GOVERNANCE EVOLUTION PROTOCOL (GSEP L0-L6): STATE TRANSITION PATHWAY
 
-The GSEP is the sole, mandatory seven-step pathway controlling all self-modification events ($\mathcal{V}_{N}$).
+The GSEP is the sole, mandatory seven-step sequence controlling all System State Transitions (SSTs).
 
-### I.1. GSEP Stage & Artifact Flow
+### I.1. GSEP Pathway & Artifact Legend
 
-| Step | Stage Name | Protocol / Agent | Gate Check | Artifact Produced (Output $\mathcal{L}_{N}$ ) |
-|:----:|:-----------|:-----------------|:-----------|:---------------------------------|
+| Step | Stage Name | Protocol / Agent | Mandatory Gate Check | Artifact Produced ($\mathcal{L}_{N}$ ) |
+|:----:|:-----------|:-----------------|:---------------------|:----------------------------------------|
 | **L0** | Input Contextualization | SCR / SBC | Compliance (Schema PASS) | C-FRAME-V1 (Context Frame) |
-| **L1** | Policy Vetting | AOC (Veto Def.) | Veto Check ($\mathcal{S-03} = \text{FALSE}$) | PDB-V1 (Policy Definition Block) |
+| **L1** | Policy Vetting | AOC | Veto Check ($\mathcal{S-03} = \text{FALSE}$) | PDB-V1 (Policy Definition Block) |
 | **L2** | Code Integrity Lock | ACM | Provenance PASS | SVP-V1 (Source Verified Payload) |
 | **L3** | Utility Validation | SDR | Efficacy Projection ($\mathcal{S-01} \uparrow T_{\text{Util}}$) | PMH-V1 (Proof Manifest Handle) |
-| **L4** | **COMMIT ARBITRATION** | **GCO** | **P-01 FINAL COMMIT PASS** | **DSC-V1 (Decisional Checkpoint)** |
-| **L5** | Ledger Finality | AIA (Immutable Sink) | Version Lock $\mathcal{V}_{N}$ | AIA-ENTRY (Ledger Log) |
+| **L4** | **COMMIT ARBITRATION** | **GCO (The Arbiter)** | **P-01 FINAL COMMIT PASS** | **DSC-V1 (Decisional Checkpoint)** |
+| **L5** | Ledger Finality | AIA | Version Lock $\mathcal{V}_{N}$ | AIA-ENTRY (Immutable Log) |
 | **L6** | Operational Deployment | RETV | Activation Trace D-02 PASS | TR-V1 (Traceability Report) |
 
 ---
 
-## II. INVIOLABLE MANDATES & FAILURE RESPONSE
+## II. CORE GOVERNANCE LOGIC & CONSTRAINTS
 
-1.  **AOC Supremacy ($\,\mathcal{S-03}$ Veto):** No SST may proceed if the Autonomous Operational Contract is breached. Veto state ($\,\mathcal{S-03} = \text{TRUE}$) blocks L4 commitment.
-2.  **Sequential Progression:** Modification must strictly adhere to the GSEP's L0 $\to$ L6 sequence. Failure at any level is terminal for that specific SST iteration.
-3.  **Immediate Remediation ($\,\text{FAIL}_{N-1}$):** Constraint failure triggers immediate routing to the **GFRM** (Governance Feedback & Remediation Module) for quarantine and analysis.
-4.  **L5 Immutability:** Successful L5 commitment (AIA-ENTRY) renders the associated state transition ($\,\mathcal{V}_{N}$) irreversibly immutable. 
+### II.1. L4 Commitment Gate Condition (P-01 PASS)
 
----
+The System State Transition is approved for irreversible logging (L5) only if the commitment gate P-01 is fully satisfied. This decision is managed by the GCO (Arbiter).
 
-## III. L4 ARBITRATION: THE P-01 GATEWAY (GCO)
-
-L4 governance requires synthesis of Efficacy ($\,\mathcal{S-01}$) and Risk ($\,\mathcal{S-02}$) against dynamic thresholds defined by the **Governance Threshold Configuration Module (GTCM)**, under the mandatory constraint of Compliance ($\,\mathcal{S-03}$). 
-
-### III.1. Commitment Gate Condition (P-01 PASS)
-
-The state transition is committed only if all conditions are met:
-
-$$ 
-\text{P-01 PASS} \iff ( \mathcal{S-01} > \mathcal{S-02} ) \land ( \mathcal{S-03} = \text{FALSE} ) 
+$$
+\text{P-01 PASS} \iff ( \mathcal{S-01} > \mathcal{S-02} ) \land ( \mathcal{S-03} = \text{FALSE} )
 $$
 
-### III.2. System Metric Standard (SMS Reference & GTCM Dependency)
+### II.2. Inviolable Operational Mandates
 
-| ID | Metric Title | Source Agent | Goal | Threshold Reference (GTCM Key) |
-|:---:|:---:|:---:|:---:|:---:|
-| $\mathcal{S-01}$ | Efficacy Projection Score | SDR | Maximize Utility | `GTCM.Utility` |
-| $\mathcal{S-02}$ | Risk Synthesis Score | HMC | Minimize Exposure | `GTCM.Exposure` |
-| $\mathcal{S-03}$ | Compliance Veto State | AOC | Mandatory FALSE | Policy Veto (AOC) |
+1.  **AOC Veto Supremacy ($\mathcal{S-03}$):** No SST may proceed beyond L1 if the Autonomous Operational Contract (AOC) is breached. Veto state ($\mathcal{S-03} = \text{TRUE}$) mandates immediate L4 blockade.
+2.  **Strict Sequentiality:** Progression must strictly adhere to the GSEP's L0 $\to$ L6 sequence. Failure at any level is terminal, triggering immediate routing to GFRM.
+3.  **Immutability Enforcement:** Successful L5 commitment (AIA-ENTRY) renders the associated state transition ($\mathcal{V}_{N}$) irreversibly locked and deployable.
+4.  **Failure Response:** Constraint failure triggers immediate routing to the **GFRM** (Governance Feedback & Remediation Module) for quarantine, audit, and structured analysis.
 
 ---
 
-## IV. GOVERNANCE COMPONENT MAP (GCM)
+## III. SYSTEM METRIC STANDARD (SMS) & CONFIGURATION MANIFEST
 
-### IV.1. Active Agents (Operational Roles)
-GCO (Arbiter), SDR (Utility), HMC (Risk), ACM (Integrity), GFRM (Remediation), RETV (Deployment).
+This section catalogs the critical agents, standardized metrics, and external configuration dependencies required for GSEP execution.
 
-### IV.2. Passive Architectures & Protocols (Defining Roles)
-AIA (Ledger), AOC (Policy Contract), SBC (Boundary Contract), SCR (Registry), GSEP (Protocol), **GTCM (Crucial Threshold Configuration)**.
+### III.1. System Metric Reference (SMS)
+
+These metrics govern the L4 commitment decision based on dynamic thresholds maintained externally by the GTCM.
+
+| ID | Metric Title | Source Agent | Goal | Threshold Dependency |
+|:---:|:---:|:---:|:---:|:---:|
+| $\mathcal{S-01}$ | Efficacy Projection Score | SDR | Maximize Utility | `GTCM.Utility_Min` |
+| $\mathcal{S-02}$ | Risk Synthesis Score | HMC | Minimize Exposure | `GTCM.Exposure_Max` |
+| $\mathcal{S-03}$ | Compliance Veto State | AOC | Mandatory FALSE | Policy Veto (AOC) |
+
+### III.2. Governance Component Map (GCM)
+
+| Type | Component | Role |
+|:----:|:-----------|:----|
+| **Agents** | GCO, SDR, HMC, ACM, GFRM, RETV, **GCM-A** | Execute tasks, manage remediation, audit, and secure configuration changes. |
+| **Protocols** | AOC, SBC, GSEP | Define constraints and procedural pathways. |
+| **Architectures** | AIA, SCR | Provide immutable ledger and operational registry. |
+| **Configuration** | **GTCM** | Defines dynamic operational thresholds for $\mathcal{S-01}$ and $\mathcal{S-02}$. |
