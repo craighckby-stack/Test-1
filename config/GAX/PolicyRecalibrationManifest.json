@@ -1,0 +1,18 @@
+{
+  "manifest_version": "1.0.0",
+  "failure_context": "[ID of failed DSE run, corresponding TVCR ID]",
+  "pc_analysis_date": "YYYY-MM-DDT15:00:00Z",
+  "gss_version_in_effect": "[Governance State Snapshot version before failure]",
+  "pcss_outcome_summary": "High-level reason for axiomatic failure (e.g., MPAM exceeded bounds due to unscheduled dependency shift).",
+  "recalibration_required": true,
+  "approved_updates": [
+    {
+      "target_artifact": "ACVD",
+      "target_key_path": "/VetoThresholds/MPAM/max_variance",
+      "old_value": 0.005,
+      "new_value": 0.008,
+      "justification_hash": "SHA256 of GAX approval memo"
+    }
+  ],
+  "ga_agent_approval": "[Cryptographic Signature of GAX authorizing agent]"
+}
