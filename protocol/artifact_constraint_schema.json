@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://dse-protocol/artifact_constraint_schema.json",
+  "title": "DSE ACVD Verification Constraint Schema",
+  "description": "Defines the structure for entries within the Artifact Constraint Verification Database (ACVD) used by Finality Verification processes.",
+  "type": "object",
+  "properties": {
+    "constraint_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this specific verification constraint."
+    },
+    "artifact_type": {
+      "$ref": "./artifact_manifest_schema.json#/$defs/ArtifactID"
+    },
+    "target_gsep_stages": {
+      "type": "array",
+      "items": {
+        "$ref": "./artifact_manifest_schema.json#/$defs/GSEPStage"
+      },
+      "description": "List of GSEP stages where this constraint is active."
+    },
+    "verification_type": {
+      "type": "string",
+      "enum": ["IntegrityCheck", "FormatCompliance", "DataConsistency"],
+      "description": "Classification of the constraint logic."
+    },
+    "constraint_logic_hash": {
+      "$ref": "./artifact_manifest_schema.json#/$defs/SHA256Hash",
+      "description": "Hash of the deterministic logic or code defining this constraint."
+    }
+  },
+  "required": ["constraint_id", "artifact_type", "target_gsep_stages", "verification_type", "constraint_logic_hash"]
+}
