@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "description": "Policy defining acceptable methods and security constraints for retrieving mandatory GACR assets before L-PRE ingress.",
+  "retrieval_policies": [
+    {
+      "asset_type": "CRITICAL_MANIFESTS",
+      "whitelist_ids": ["CAC", "CFTM", "PVLM"],
+      "access_protocol": "ImmutableObjectStore",
+      "min_security_level": "AES-256-GCM",
+      "endpoint_pattern": "s3://governance-vault/v*/assets/",
+      "versioning_mandate": "SemanticVersioningRequired"
+    },
+    {
+      "asset_type": "STANDARD_SPECS",
+      "whitelist_ids": ["RRP", "NRALS"],
+      "access_protocol": "FileSystemInterface",
+      "min_security_level": "None",
+      "endpoint_pattern": "/local/system/specs/",
+      "versioning_mandate": "WeakCheck"
+    }
+  ],
+  "caching_policy": {
+    "enabled": true,
+    "max_age_seconds": 300, 
+    "revalidation_strategy": "EtagComparison"
+  }
+}
