@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "description": "Defines mandatory validation constraints for Manifest Configuration Controller (MCC) deployment checks.",
+  "manifest_rules": {
+    "PVLM": {
+      "type": "yaml",
+      "schema_id": "SGS-POLICY-VETO-SCHEMA-V1",
+      "required_signatures": ["CRoT-1A", "GOVERNANCE-OFFICER-B"],
+      "deployment_triggers": ["SYSTEM_HOT_PATCH", "SCHEDULED_UPGRADE"]
+    },
+    "CAC": {
+      "type": "json",
+      "schema_id": "SGS-ARCH-CONSTRAINTS-V3",
+      "required_signatures": ["CRoT-1A"],
+      "criticality_threshold": "P0"
+    }
+  },
+  "protocol_rules": {
+    "NRALS": {
+      "max_version_skew": 0
+    }
+  }
+}
