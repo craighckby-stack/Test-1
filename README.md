@@ -1,24 +1,24 @@
 # SOVEREIGN AGI V97.0: CORE GOVERNANCE REGISTRY
 
-This registry formalizes the foundational requirements for the **Autonomous Operational Contract (AOC V97.0)**, mandating the **Atomic Immutable Architecture (AIA)** and enforcing the high-fidelity **Governing Self-Evolution Protocol (GSEP V97.0)**. Systemic integrity is ensured by the Governance Constraint Orchestrator (GCO).
+This registry formalizes the foundational requirements for the **Autonomous Operational Contract (AOC V97.0)**, mandating the high-fidelity **Atomic Immutable Architecture (AIA)** and enforcing the systemic integrity of the **Governing Self-Evolution Protocol (GSEP V97.0)**. Systemic coherence is ensured by the Governance Constraint Orchestrator (GCO).
 
 ---
 
-## I. ARCHITECTURAL PRIMACY: AIA & THE P-01 GATE
+## I. ARCHITECTURAL PRIMACY: AIA & THE P-01 GATEWAY
 
 ### A. Atomic Immutable Architecture (AIA) Mandate
 
-AIA enforces system integrity by requiring all state mutations (GSEP Stage 3+) to be cryptographically attested and logged as irreversible transactions. Rollback capability is guaranteed via AEOR supervision.
+AIA enforces structural integrity by requiring all state mutations (GSEP Stage 3+) to be cryptographically attested and logged as irreversible transactions. AIA's control plane guarantees rollback capability exclusively via AEOR supervision.
 
 | Metric | Specification | Enforcement Mechanism |
 |:---|:---|:---|
 | **Protocol Version** | V97.0 (Structural Stabilization) | **GCO Integration** (Systemic Pre-constraint) |
-| **Commitment Gate** | P-01 Trust Calculus | **AIA Enforcement** (GSEP Stage 3 Mandate) |
-| **Core Architecture**| Atomic Immutable Architecture (AIA) | MCR Hashing & Non-Repudiable Ledger |
+| **Commitment Gate** | P-01 Trust Calculus | **AIA Enforcement** (GSEP Stage 3 Lock) |
+| **Core Architecture**| Atomic Immutable Architecture (AIA) | MCR Hashing & Non-Repudiable Attestation Ledger |
 
-### B. P-01 Trust Calculus: The Irreversible Gate Checkpoint
+### B. P-01 Trust Calculus: The Irreversible Gateway Checkpoint
 
-P-01 is the mandatory high-fidelity gateway, administered by the Operational Governance Triad (OGT). A PASS condition requires mathematical consensus across trust metrics (S-01), risk tolerance (S-02), and zero policy infraction (S-03).
+P-01 is the mandatory high-fidelity gateway, administered by the Operational Governance Triad (OGT). A PASS condition requires cryptographic validation (via TIAR) followed by mathematical consensus across trust metrics (S-01), risk tolerance (S-02), and policy compliance (S-03).
 
 $$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{Trust Projection (ATM)}} > \text{S-02}_{\text{Risk Floor (C-11)}} \\ \text{S-03}_{\text{Veto Condition (C-15)}} = \text{FALSE} \end{cases}$$
 
@@ -38,7 +38,7 @@ GSEP V97.0 defines the risk-minimized, atomic five-stage lifecycle for all syste
 
 | Stage # | Name | Core Objective & Checkpoint | Required Artifact / Gate Function | Key Orchestrators |
 |:---|:---|:---|:---|:---|
-| **0** | Constraint Orchestration | **GCO/EGOM Integrity Check**. Formalizes intent and validates the GSEP sequence. | Governance Intent Declaration (GID) | GCO, EGOM, SRM |
+| **0** | Constraint Orchestration | **GCO/GIRAM Integrity Check**. Validates system governance state and formalizes intent. | Governance State Hash (GSH) & GID | GCO, EGOM, SRM, **GIRAM** |
 | **1** | Intent & Scoping | EPDP A (RSAM Vetting). Define requirements. | M-01 Intent Package | SRM, ASR, RSAM |
 | **2** | Specification & Simulation | EPDP B (SMA/PSR Validation). Construct payload. | M-02 Payload Generation | MSU, PSR, SMA |
 | **3 (AIA)** | Trust Adjudication (P-01) | EPDP C (P-01 Execution). **The Irreversible Gate.** | D-01 Audit Log (TIAR Attested) | OGT, P-01, ATM, C-11 |
@@ -50,7 +50,7 @@ GSEP V97.0 defines the risk-minimized, atomic five-stage lifecycle for all syste
 ```mermaid
 graph TD
     subgraph Evolutionary_Feedback_Loop [AOC V97.0 GSEP Lifecycle]
-        G(0. PRE-GSEP: Constraint/Governance Orchestration - GCO/EGOM) --> A[1. SCOPING: M-01 Intent Package (RSAM)];
+        G(0. PRE-GSEP: Constraint Orchestration - GCO/GIRAM Governance Integrity Check) --> A[1. SCOPING: M-01 Intent Package (RSAM)];
         A --> B(2. SPECIFICATION: M-02 Payload Drafting);
         B --> C{EPDP B: Schema & Simulation Validation?};
         
@@ -82,6 +82,7 @@ graph TD
 | ID | Component Name | Functional Focus | Stage Scope |
 |:---|:---|:---|:---|
 | **GCO** | Governance Constraint Orchestrator | Integrity barrier enforcing GSEP sequence. | Stage 0 |
+| **GIRAM** | Governance Integrity & Rule Attestation Module | **System integrity check for GRS policy set before Stage 1.** | Stage 0 |
 | **EGOM**| Emergency Governance Override Module | High-priority conflict resolution and mandated HIL signaling. | Stage 0/0.5 |
 | **C-15** | Policy Engine | Executes the S-03 mandatory veto check based on GRS policies. | Stage 3 |
 | **GRS** | Governance Rule Source | Immutable, version-controlled repository for core governance rules. | Foundation/3 |
@@ -120,6 +121,7 @@ graph TD
 | **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
 | **AIA** | Atomic Immutable Architecture | GOVERNANCE | Commitment |
 | **P-01** | Trust Calculus | CONSENSUS | Stage 3 |
-| **GCO** | Governance Constraint Orchestrator | GOVERNANCE | Stage 0 |
-| **EGOM**| Emergency Governance Override Module | GOVERNANCE | Stage 0/0.5 |
 | **EPDP** | Evolution Policy Decision Point | GOVERNANCE | Inter-Stage Control |
+| **GRS** | Governance Rule Source | GOVERNANCE | Foundation |
+| **RSAM** | Rule Set Attestation Manager | ATTESTATION | Stage 1/3 |
+| **MCR** | Mutation Commitment Registrar | ARCHITECTURE | Stage 4 |
