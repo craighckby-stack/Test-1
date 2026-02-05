@@ -1,0 +1,16 @@
+{
+  "RFCI_V1": {
+    "description": "Configuration source for C-11 engine, defining the mandatory baseline and dynamic constraints for S-02 Risk Floor.",
+    "version_id": "V97.2-RFCI-001",
+    "integrity_lock": "GRS-ATTESTATION-REQUIRED",
+    "S02_baseline_minimum_threshold": 0.85,
+    "C11_dynamic_adjustment": {
+      "context_weights": {
+        "system_volatility_index": 0.4,
+        "pending_policy_violations": 0.6
+      },
+      "maximum_adjustment_factor": 0.15
+    },
+    "emergency_veto_override_id": "C-99_FAILSAFE"
+  }
+}
