@@ -2,97 +2,101 @@
 
 ---
 
-## 0. EXECUTIVE ABSTRACT: ATOMIC $\Psi$ GUARANTEE
+## 0. EXECUTIVE ABSTRACT: ATOMIC $\Psi$ GUARANTEE & ARCHITECTURAL OVERVIEW
 
-This specification defines the **Deterministic State Execution (DSE) Protocol**. DSE mandates and enforces verifiable, immutable state transitions ($\Psi$) throughout the system lifecycle. Integrity is solely guaranteed by the **Governance State Execution Pipeline - Core (GSEP-C)**, which commits all state via non-speculative, auditable mechanisms (GAX I, II, III).
+This specification defines the **Deterministic State Execution (DSE) Protocol**. DSE enforces verifiable, immutable state transitions ($\Psi$) via the **Governance State Execution Pipeline - Core (GSEP-C)**. State integrity is guaranteed solely by the concurrent satisfaction of the **GAX I, II, and III** constraints (P-M02).
+
+### Architectural Triad of Control
+| Component | Function | Core Purpose | Dependency Path |
+|:---:|:---|:---|:---|
+| **DSE Manager** | Execution & Orchestration | Strict enforcement of GSEP-C (P-M01 sequencing). | Reads `GSEP-F`, manages Actors |
+| **SMC** | Validation Gatekeeper | Verifies structural contract integrity ($\Psi$ structure). | Validates `GSEP-F` contracts against `SMC Schema` |
+| **DIAL Engine** | Forensic Integrity | Audited recovery authorization (P-R03) post-failure. | Reads `DARM`, Requires `FDLS` input |
 
 ---
 
-## 1. CORE ARCHITECTURE & GLOSSARY
+## 1. CORE ARCHITECTURE & GLOSSARY OF INTEGRITY
 
-This section defines key roles and components essential for the Governance State Execution Pipeline (GSEP-C), integrating architectural function and core terminology.
+Key components and definitions essential for the GSEP-C flow and failure response mechanisms.
 
-| Acronym | Definition | Core Role in GSEP-C Flow | Reference Configuration | Dependency/Output |
+| Acronym | Definition | Role/Responsibility | Output/Trigger | Configuration File |
 |:---:|:---|:---|:---|:---|
-| **DSE** | Deterministic State Execution Protocol | Foundational spec for state integrity ($\Psi$). | N/A | N/A |
-| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequencer (P-M01 compliance). | `config/gsep_c_flow.json` | Orchestrated by DSE Manager |
-| **IH** | Integrity Halt | Immediate system lockdown upon P-Set violation. | N/A | Triggers DIAL Analysis |
-| **DIAL** | DSE Integrity Analyzer Logic | IH forensic Root Cause Analysis (RCA) and RRP Authorization Gate. | `config/dial_analysis_map.json` (DARM) | Requires Telemetry Spec |
-| **RRP** | Rollback Protocol | Deterministic, audited state reversal procedure (P-R03 dependency). | `config/rrp_manifest.json` | AASS Certification Required |
-| **AASS** | Artifact Attestation/Signing Service | Manages cryptographic signing and sealing (DIAL Certs, S14 Receipts). | `services/aass.json` | Governed by Integrity Spec |
-| **SMC** | State Machine Controller | Enforces structural contract validation against GSEP flows. | `governance/smc_schema.json` | Validates GSEP-F |
+| **DSE** | Deterministic State Execution | Foundational protocol defining verifiable state transition ($\Psi$). | N/A | N/A |
+| **GSEP-C** | Governance State Execution Pipeline - Core | The required 15-Stage $\Psi$ sequencer (S00 $\to$ S14). | P-M02 Commitment, IH (on failure) | `config/gsep_c_flow.json` (GSEP-F) |
+| **IH** | Integrity Halt | Immediate system lockdown upon P-Set violation. | Triggers DIAL Analysis | N/A |
+| **DIAL** | DSE Integrity Analyzer Logic | Performs IH forensic Root Cause Analysis (RCA). | RRP Authorization Request | `config/dial_analysis_map.json` (DARM) |
+| **AASS** | Artifact Attestation/Signing Service | Manages cryptographic signing (DIAL Certs, S14 Receipts). | AASS Signature Artifact | `services/aass.json` |
+| **RRP** | Rollback Protocol | Deterministic, audited state reversal procedure. | State Reversion ($\Psi_{\text{prior}}$) | `config/rrp_manifest.json` |
+| **ACVM** | ACVD Constraint Matrix | Thresholds defining state finality requirements (GAX I/II/III). | N/A | `config/acvm.json` |
+| **FDLS** | Forensic Data Lockbox Service | Guarantees tamper-proof storage of telemetry inputs for DIAL RCA. | Sealed Forensic Log | *New Component (Proposed)* |
 
 ---
 
-## 2. GOVERNANCE PRINCIPLES (P-Set)
+## 2. GOVERNANCE PRINCIPLES (P-Set) & ENFORCEMENT
 
-These three principles form the non-negotiable requirements for DSE operational integrity. Failure to comply triggers an Integrity Halt (IH).
+These three principles form the non-negotiable requirements for DSE operational integrity. Violation triggers an Integrity Halt (IH).
 
-### P-M01: Atomic Execution
-| Core Requirement | Validation/Control Mechanism |
-|:---|:---|
-| Strict, non-branching 15-Stage GSEP-C sequence (S00 $\to$ S14). Failure mandates an immediate Integrity Halt (IH). | GSEP-C Flow Definition (Ref: `GSEP-F`) |
+### P-M01: Atomic Execution (Sequencing Integrity)
+| Requirement | Control Mechanism | Enforcement Role | Reference |
+|:---|:---|:---|:---|
+| Strict, non-branching 15-Stage GSEP-C sequence (S00 $\to$ S14) must be maintained. | GSEP-F Flow Definition Contract | DSE Execution Manager & SMC | `config/gsep_c_flow.json` |
 
-### P-M02: Immutable Commitment
-| Core Requirement | Validation/Control Mechanism |
-|:---|:---|
-| State finality requires simultaneous satisfaction of the **GAX I, II, and III** constraints against dynamic ACVD parameters. | ACVD Thresholds (Ref: `ACVM`) |
+### P-M02: Immutable Commitment (State Finality)
+| Requirement | Control Mechanism | Enforcement Role | Reference |
+|:---|:---|:---|:---|
+| State finality requires simultaneous satisfaction of **GAX I, II, and III** constraints against dynamic `ACVM` parameters (S11). | ACVD Threshold Verification | GAX Executor / DSE Manager | `config/acvm.json` |
 
-### P-R03: Recovery Integrity
-| Core Requirement | Validation/Control Mechanism |
-|:---|:---|
-| IH Resolution requires mandatory AASS-signed **DIAL** Certification prior to **RRP** initiation. Recovery must uphold DSE determinism. | DARM Logic / AASS Service (Ref: `DARM`) |
+### P-R03: Recovery Integrity (IH Resolution)
+| Requirement | Control Mechanism | Enforcement Role | Reference |
+|:---|:---|:---|:---|
+| IH Resolution requires mandatory AASS-signed DIAL Certification prior to RRP initiation. Telemetry must be sourced via FDLS. | DARM Logic / AASS Service Certification | DIAL Engine / RRP Initiator | `DARM` / `Integrity Spec` / `FDLS` |
 
 ---
 
 ## 3. DSE CONFIGURATION ARTIFACT MATRIX
 
-All governing configuration and schema files must pass the mandatory Configuration Integrity Check Requirement (C-ICR) against the Configuration Hash Registry (CHR) prior to runtime.
+Configuration files must pass the mandatory Configuration Integrity Check Requirement (C-ICR) against the Configuration Hash Registry (CHR) prior to runtime.
 
-### 3.1. Execution Configuration Artifacts
+### 3.1. Core Execution and Validation Artifacts
 
-These artifacts govern the constraints and operational flow of GSEP-C.
-
-| Tag | Type | Governing Path | Purpose | Key Dependency |
+| Tag | Governing Path | Purpose | Consumption Role | Integrity Check Dependency |
 |:---:|:---|:---|:---|:---|
-| ACVM | Constraint Definitions | `config/acvm.json` | Numerical/boolean thresholds for P-M02 finality constraints (GAX I, II, III). | DSE Execution Manager |
-| GSEP-F | Pipeline Flow Definition | `config/gsep_c_flow.json` | Defines M-01 sequencing and mandatory transition contracts. | SMC, DSE Execution Manager |
-| AAM | Actor Registry | `governance/aam_definition.json` | Defines capability mapping and authorization scope for all GSEP-C Actors. | CRoT Agent, EMS |
+| GSEP-F | `config/gsep_c_flow.json` | Defines M-01 sequencing and mandatory transition contracts. | DSE Manager / SMC | SMC Schema |
+| ACVM | `config/acvm.json` | Threshold definitions for P-M02 constraints (GAX I, II, III). | DSE Manager / GAX Executor | N/A (Dynamic Input) |
+| SMC Schema | `governance/smc_schema.json` | Enforces validity of GSEP-F pipeline stages and component contracts. | SMC Controller | CHR Schema |
+| AAM | `governance/aam_definition.json` | Defines capability mapping and authorization scope for all GSEP-C Actors. | CRoT Agent, EMS, DSE Manager | N/A |
 
-### 3.2. Protocol & Integrity Artifacts
+### 3.2. Forensic, Recovery, and Sealing Artifacts
 
-These artifacts define forensic, sealing, and recovery procedures required for integrity maintenance.
-
-| Tag | Type | Governing Path | Purpose | Key Dependency |
+| Tag | Governing Path | Purpose | Consumption Role | Integrity Check Dependency |
 |:---:|:---|:---|:---|:---|
-| DARM | DIAL Logic Map | `config/dial_analysis_map.json` | Definitive rules for IH RCA and cryptographic RRP authorization. | DIAL Engine |
-| RRP Manifest | Recovery Protocol | `config/rrp_manifest.json` | Auditable state reversal procedure map (P-R03 compliance). | RRP Initiator |
-| CHR Schema | Integrity Schema | `protocol/chr_schema.json` | Defines structure for C-ICR validation against Configuration Hashes. | System Bootloader/C-ICR Utility |
-| SMC Schema | Governance Schema | `governance/smc_schema.json` | Enforces validity of GSEP-F pipeline stages and component contracts. | SMC Controller |
-| Telemetry Spec | Sensor Schema | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL's RCA. | DIAL Engine, EMS |
-| Integrity Spec | Sealing Schema | `protocol/integrity_sealing_spec.json` | Defines required format/algorithms for AASS signing and artifact integrity sealing. | AASS Service |
+| Telemetry Spec | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL RCA. | EMS, CRoT, **FDLS** | N/A |
+| DARM | `config/dial_analysis_map.json` | Definitive rules for IH RCA and cryptographic RRP authorization logic. | DIAL Engine | CHR Schema |
+| RRP Manifest | `config/rrp_manifest.json` | Auditable state reversal procedure map (P-R03 compliance). | RRP Initiator | AASS Certification |
+| Integrity Spec | `protocol/integrity_sealing_spec.json` | Defines required format/algorithms for AASS signing and artifact integrity sealing. | AASS Service | N/A |
+| CHR Schema | `protocol/chr_schema.json` | Defines structure for C-ICR validation against configuration hashes. | System Bootloader / C-ICR Utility | N/A |
 
 ---
 
 ## 4. DSE EXECUTION AND COMMITMENT FLOW (P-M01 / P-M02)
 
-GSEP-C is orchestrated by the DSE Execution Manager (ref. New Component), strictly adhering to `GSEP-F` structure and sequencing contracts.
+The DSE Execution Manager orchestrates the GSEP-C flow, strictly adhering to `GSEP-F` contracts.
 
-### 4.1. Axiom Artifact Generation Matrix (S00 $\to$ S14)
+### 4.1. Axiom Artifact Generation Matrix
 
 Artifact generation drives constraint checking, culminating in the P-M02 commitment at S11.
 
-| Stage | Actor | Artifact Generated | Axiom Trigger | Constraint Check Role | ACVD Metric Target (Ref: ACVM) |
+| Stage | Actor | Artifact Generated | Axiom Trigger | ACVD Metric Target (Ref: ACVM) | Commitment Role |
 |:-----:|:---------|:---------------------:|:----------:|:---|:---|
-| **S01** | CRoT Agent | CSR Snapshot | GAX III | Baseline Structural Audit | Zero Policy/Structural Violation |
-| **S07** | EMS | ECVM Snapshot | GAX II | Environment State Check | Environment Boundary Integrity |
-| **S08** | EMS | TEMM Snapshot | GAX I | Performance Threshold Check | $\Omega_{\text{min}}$ Throughput Fulfillment |
-| **S11** | GAX Executor | P-M02 Commitment | N/A | Irreversible Resolution Lock | N/A |
-| **S14** | Sentinel/AASS | State Transition Receipt | N/A | Final Verification/Logging | N/A |
+| **S01** | CRoT Agent | CSR Snapshot | GAX III | Zero Policy/Structural Violation | Baseline Audit |
+| **S07** | EMS | ECVM Snapshot | GAX II | Environment Boundary Integrity | Environment State Check |
+| **S08** | EMS | TEMM Snapshot | GAX I | $\Omega_{\text{min}}$ Throughput Fulfillment | Performance Threshold Check |
+| **S11** | GAX Executor | P-M02 Commitment | N/A | N/A (Resolution Lock) | Final State Lock |
+| **S14** | Sentinel/AASS | State Transition Receipt | N/A | N/A | Verification/Logging |
 
 ### 4.2. P-M02 Tripartite Verification Logic (S11)
 
-Transition to the final state ($\Psi_{\text{final}}$) is contingent upon simultaneous positive resolution of all three Axiom constraints against `ACVM` parameters. Failure mandates an IH.
+Transition to the final state ($\Psi_{\text{final}}$) requires simultaneous positive resolution of all three Axiom constraints against dynamic `ACVM` parameters. Failure mandates an IH and immediate telemetry sealing by FDLS.
 
 $$ \Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III})_{\text{ACVD}} $$
 
@@ -100,12 +104,10 @@ $$ \Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX 
 
 ## 5. INTEGRITY HALT & DETERMINISTIC RECOVERY (P-R03)
 
-### 5.1. Configuration Integrity Check (C-ICR)
+### 5.1. Configuration and Execution Integrity Check
 
-C-ICR is mandatory prior to execution (S00) or recovery (RRP). Governing configurations must be verified against the Configuration Hash Registry (CHR) defined in `CHR Schema`. Failure results in a non-recoverable system lockdown (L-9 state).
+C-ICR is mandatory prior to execution (S00) or recovery (RRP). Governing configurations must be verified against CHR.
 
-### 5.2. DIAL Authority and AASS Certification
+### 5.2. DIAL Authority and AASS Certification via FDLS
 
-An IH immediately halts DSE. DIAL is the sole authority for Root Cause Analysis (RCA) using forensic inputs defined by the `Telemetry Spec`. RRP cannot commence until AASS generates a conforming, cryptographically sealed DIAL Certification artifact, based on `DARM` logic and conforming to `Integrity Spec`.
-
-> **MANDATORY P-R03:** RRP execution must not commence without an AASS-signed DIAL Certification artifact.
+An IH immediately triggers two parallel processes: 1) System lockdown and 2) Telemetry sealing via the **Forensic Data Lockbox Service (FDLS)**. DIAL then uses the sealed data for RCA. RRP cannot commence until AASS generates a conforming, cryptographically sealed DIAL Certification artifact, confirming compliance with P-R03 and derived from tamper-proof FDLS logs.
