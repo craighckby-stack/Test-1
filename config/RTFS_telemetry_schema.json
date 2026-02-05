@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "telemetry_source_id": "RTFS_V98.0",
+  "description": "Defines the mandatory input schema for the P-01 Calculus (S-01 Trust and S-02 Risk floor calculation).",
+  "required_metrics": [
+    {
+      "metric_id": "M_98.1.OperationalStabilityIndex",
+      "purpose": "S-01 Input - Real-time systemic health and latency data.",
+      "type": "float",
+      "criticality": "High"
+    },
+    {
+      "metric_id": "M_98.2.ResourceVolatitlityFactor",
+      "purpose": "S-02 Input - Measures dynamic risk exposure based on memory/compute pressure.",
+      "type": "float",
+      "criticality": "High"
+    },
+    {
+      "metric_id": "M_98.3.PolicyBreachDelta",
+      "purpose": "S-03 Input - Measures delta between deployed state and ideal GRS state compliance.",
+      "type": "integer",
+      "criticality": "Extreme"
+    },
+    {
+      "metric_id": "M_98.4.TestCoverageRatio",
+      "purpose": "S-01 Input - Static assessment of evolutionary M-02 test suite robustness.",
+      "type": "float",
+      "criticality": "Medium"
+    }
+  ],
+  "validation_requirements": {
+    "max_age_seconds": 5, 
+    "minimum_signal_integrity": 0.95 
+  }
+}
