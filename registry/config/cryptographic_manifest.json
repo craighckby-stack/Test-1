@@ -1,0 +1,12 @@
+{
+  "manifest_version": "1.0.0",
+  "seal_algorithm_id": "SHA3-512",
+  "state_hash_algorithm": "BLAKE3-256",
+  "sequence_authorization_hashing": "SHA-256",
+  "mandatory_signature_curve": "ED25519",
+  "artifact_checksums_required": [
+    "ISB",
+    "ECVM",
+    "Psi_Final_Ledger"
+  ]
+}
