@@ -1,0 +1,22 @@
+{
+  "schema_version": "v94.1",
+  "evolution_target_id": "TEMP-001",
+  "custodian": "SGS",
+  "mandate_date": "YYYY-MM-DD",
+  "target_objective": "Maximize computational efficiency across standard kernel operations by 1.5x.",
+  "utility_metric": {
+    "metric_name": "Kernel_Ops/Sec_Certified_MSR",
+    "unit": "MSR (Million System Runs)",
+    "function_reference": "lib/metrics/KernelEfficiencyV3.py::calculate_certified_msr",
+    "required_baseline_s02": 1000.0, 
+    "minimum_required_delta_epsilon": 10.0 
+  },
+  "applicable_constraints": [
+    {"artifact": "MPAM", "scope": "CPU_Utilization", "max_limit": "0.85"},
+    {"artifact": "PVLM", "scope": "Memory_Footprint", "prohibition": "exceeds_predecessor_state_by_10%"}
+  ],
+  "verification_metadata": {
+    "signed_by_root_of_trust": false,
+    "approved_by_gax": true
+  }
+}
