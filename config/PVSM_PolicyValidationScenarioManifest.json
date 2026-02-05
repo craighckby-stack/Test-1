@@ -1,31 +1,54 @@
 {
-  "manifest_version": "V97.1",
-  "asset_id": "PVSM",
-  "description": "Defines mandatory, zero-impact test scenarios required for validation of updated Policy Veto Logic (PVLM) and Core Failure Thresholds (CFTM) prior to PEUP promotion.",
-  "required_gate": "PEUP_PRE_CERT",
-  "validation_environment": "CEEP_SIMULATION_SANDBOX_LVL3",
+  "manifest_id": "PVSM_V97.2_REFACTORED",
+  "deployment_gate": "PEUP_PRE_CERT",
+  "execution_context": {
+    "environment": "CEEP_SIMULATION_SANDBOX_LVL3",
+    "dependency_assets": [
+      {"id": "PVLM", "role": "TARGET", "minimum_integrity_check": "V97.1"},
+      {"id": "CFTM", "role": "TARGET", "minimum_integrity_check": "V97.1"}
+    ],
+    "required_concurrency_mode": "SYNCHRONOUS_EXECUTION"
+  },
+  "validation_strategy": {
+    "minimum_pass_rate": 1.0,
+    "fail_on_critical_violation": true
+  },
   "scenarios": [
     {
       "scenario_id": "VETO_TAUTOLOGY_001",
-      "test_type": "Integrity",
-      "target_asset": "PVLM",
+      "category": "CRITICAL_INTEGRITY",
+      "target_module": "PVLM",
+      "priority": "P0_BLOCKER",
       "description": "Verify that core system tautologies (e.g., integrity > 0, resource allocation < budget) are not vetoed by the proposed PVLM.",
-      "expected_result": "P_01_PASS"
+      "expected_outcome": {
+        "type": "POLICY_ACCEPTANCE",
+        "result_code": "RC_ACCEPT_001",
+        "description": "Scenario must successfully PASS execution."
+      }
     },
     {
       "scenario_id": "CFTM_BOUNDARY_CHECK_002",
-      "test_type": "Edge_Case",
-      "target_asset": "CFTM",
+      "category": "EDGE_CASE_THRESHOLD",
+      "target_module": "CFTM",
+      "priority": "P0_BLOCKER",
       "description": "Validate that tolerance boundaries (epsilon) allow expected standard deviation while critically failing on proven failure vectors.",
-      "expected_result": "P_01_FAIL_CRITICALLY"
+      "expected_outcome": {
+        "type": "SYSTEM_STATE",
+        "result_code": "RC_CRITICAL_FAIL_042",
+        "description": "System state must register critical failure (Fail=42) under stress test."
+      }
     },
     {
       "scenario_id": "DEADLOCK_PROHIBITION_003",
-      "test_type": "Policy_Flow",
-      "target_asset": "PVLM",
+      "category": "FLOW_CONTROL",
+      "target_module": "PVLM",
+      "priority": "P1_SEVERE",
       "description": "Ensure no circular veto logic or self-locking conditions are introduced that would prevent all valid GSEP-C execution paths.",
-      "expected_result": "GSEP_FLOW_VALID"
+      "expected_outcome": {
+        "type": "FLOW_VALIDATION",
+        "result_code": "RC_FLOW_VALID_000",
+        "description": "GSEP flow must remain validated and deadlock-free."
+      }
     }
-  ],
-  "minimum_pass_rate": 1.0
+  ]
 }
