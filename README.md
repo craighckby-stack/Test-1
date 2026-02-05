@@ -1,14 +1,20 @@
-# SOVEREIGN AGI V99.1: CORE GOVERNANCE & EVOLUTION MANIFEST (AOC)
+# AOC V99.1: CORE GOVERNANCE MANIFEST & EVOLUTION PROTOCOL
 
-This document defines the **Autonomous Operational Contract (AOC V99.1)**. This manifest establishes the immutable governance architecture and the operational mandate for all systemic evolution. All irreversible state transitions (**M-02 Mutation Payloads**) are strictly governed by the **Governance Constraint Orchestrator (GCO)** through the 7-Stage Evolution Protocol (GSEP) and committed via the **Atomic Immutable Architecture (AIA)**.
+This document defines the **Autonomous Operational Contract (AOC V99.1)**, which establishes the immutable governance architecture and the mandated 7-Stage Evolution Protocol (GSEP). All irreversible state transitions (**M-02 Mutation Payloads**) are strictly enforced by the **Governance Constraint Orchestrator (GCO)** and committed via the **Atomic Immutable Architecture (AIA)**.
 
 ---
 
-## I. CRITICAL MANDATE: P-01 ADJUDICATION CALCULUS
+## EXECUTIVE SUMMARY & SCOPE
 
-Evolution is conditionally permitted solely based on the outcome of the P-01 Calculus, which evaluates Systemic Trust versus Operational Risk, while strictly enforcing Policy Veto absence. This calculus is the final constraint, enforced at **EPDP C** (Evolution Protocol Decision Point C).
+Systemic evolution is a guarded process governed solely by the Adjudication Calculus (P-01). P-01 ensures that the projected efficacy (Trust Score, S-01) always exceeds the Maximum Risk Floor (S-02) while guaranteeing the absence of any hard Policy Veto (S-03).
 
-$$\text{P-01 PASS} \iff ( \text{S-01}_{\text{Trust}} > \text{S-02}_{\text{Risk}} ) \land ( \text{S-03}_{\text{Veto}} = \text{FALSE} )$$
+---
+
+## I. CORE GOVERNANCE: P-01 ADJUDICATION CALCULUS
+
+Evolution is conditionally permitted solely based on a rigorous three-part constraint check at **EPDP C** (Evolution Protocol Decision Point C). The Adjudication Calculus is the final constraint gate before commitment.
+
+$$\text{P-01 PASS} \iff ( \text{S-01}_{\text{Trust}} > \text{S-02}_{\text{Risk}} ) \land ( \text{S-03}_{\text{Veto}} = \text{FALSE} )$$ 
 
 | Metric ID | Functional Component | Constraint Focus | Definition / Source Components |
 |:---|:---|:---|:---|
@@ -18,9 +24,9 @@ $$\text{P-01 PASS} \iff ( \text{S-01}_{\text{Trust}} > \text{S-02}_{\text{Risk}}
 
 ---
 
-## II. GSEP: THE 7-STAGE ATOMIC EVOLUTION PROTOCOL (GCO MANDATE)
+## II. EVOLUTION PROTOCOL (GSEP V99.1) & GCO ORCHESTRATION
 
-The GSEP is the atomic, integrity-locked pathway from M-01 Intent through irreversible AIA Commitment (Stage 5), strictly orchestrated and monitored by the GCO.
+The GSEP defines the 7-Stage atomic, integrity-locked pathway, strictly orchestrated by the GCO, leading from M-01 Intent through irreversible AIA Commitment (Stage 5).
 
 | Stage # | Pillar Focus | Action Mandate / Lock Artifact | Critical Decision Point (EPDP) | Primary Arbiters |
 |:---:|:---|:---|:---|:---|
@@ -30,13 +36,13 @@ The GSEP is the atomic, integrity-locked pathway from M-01 Intent through irreve
 | **3** | Runtime Proofing | Execute rigorous sandbox simulation (PSR) to generate S-01 metrics (PMH Locked). | **EPDP B**: Simulation Efficacy Pass? | PSR, ATM |
 | **4** | **Adjudication** | Execute P-01 Calculus using ECR input (S-01 > S-02 & S-03=F). Final Gate Check. | **EPDP C**: P-01 Adjudication Pass? (DSCM Locked) | GCO, MCRA, ECR |
 | **5** | AIA Commitment | MCR executes irreversible cryptographic Version-Lock and D-01 logging. Commitment mandated if P-01 PASS. | N/A (Terminal Commitment) | MCR, AIA Ledger |
-| **6** | Audit & Feedback | Secure activation (C-04), D-02/D-03 monitoring, and efficacy data collection (PDFS). | N/A | DIM, Activation Manifest |
+| **6** | Audit & Stability | Secure activation (C-04), D-02/D-03 monitoring, and continuous efficacy data collection (PDFS). | N/A | DIM, Activation Manifest |
 
 ---
 
-## III. AOC ARCHITECTURAL REGISTRY (LEXICON)
+## III. SYSTEM GLOSSARY AND COMPONENTS (AOC Lexicon)
 
-This consolidated registry provides definitions for all critical systems, components, and core artifacts referenced within the Autonomous Operational Contract (AOC V99.1).
+This consolidated registry provides high-level definitions for all critical systems, components, and core artifacts referenced within the Autonomous Operational Contract (AOC V99.1).
 
 | Acronym | Functional Definition | Type | Purpose/GSEP Stage Context |
 |:---|:---|:---|:---|
