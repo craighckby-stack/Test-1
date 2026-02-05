@@ -1,0 +1,48 @@
+{
+  "title": "TEDS Log Schema",
+  "description": "Schema for the Trusted Event Data Stream (TEDS) records. Mandatory log structure for all 15 stages (S00-S14).",
+  "type": "object",
+  "required": ["timestamp", "stage", "agent", "status", "artifact_hash"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of event finalization."
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["S00", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14"],
+      "description": "The GSEP-C pipeline stage number."
+    },
+    "agent": {
+      "type": "string",
+      "enum": ["CRoT", "GAX", "SGS", "SYSTEM"],
+      "description": "The responsible governing agent (or SYSTEM for initialization/cleanup)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "COMMIT", "ROLLBACK", "INIT"],
+      "description": "Final result of the stage operation."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable detail regarding the checkpoint outcome."
+    },
+    "artifact_hash": {
+      "type": "string",
+      "description": "Cryptographic hash of the primary output artifact generated during this stage (e.g., CSR hash, ASM hash, FSC hash)."
+    },
+    "failure_flags": {
+      "type": "object",
+      "description": "Specific failure states checked at this stage (required if status=FAIL).",
+      "properties": {
+        "PVLM": {"type": "boolean"},
+        "MPAM": {"type": "boolean"},
+        "ADTM": {"type": "boolean"},
+        "ECVM": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
