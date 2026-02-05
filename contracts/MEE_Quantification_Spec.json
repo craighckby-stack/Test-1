@@ -1,0 +1,24 @@
+{
+  "specification_version": "1.0.0",
+  "engine_identifier": "MEE_V1.0",
+  "data_inputs": [
+    "L4_Provenance_Log_Integrity_Score",
+    "Estimated_Resource_Consumption_Delta",
+    "Historical_Performance_Baseline"
+  ],
+  "contract_dependency": "MEC_V1.1",
+  "outputs": ["S-01", "S-02"],
+  "metric_definitions": {
+    "S-01_Efficacy_Score": {
+      "purpose": "Measures net predicted utility gain based on mandate alignment.",
+      "computation_method": "Referenced script: /lib/quant/script_efficacy_V1.py",
+      "threshold_impact": "Linear contribution to P-01 PASS criteria."
+    },
+    "S-02_Risk_Score": {
+      "purpose": "Measures system exposure, volatility, and probability of cascading failure.",
+      "computation_method": "Referenced script: /lib/quant/script_volatility_V3.py",
+      "threshold_impact": "Additive constraint in P-01 PASS criteria."
+    }
+  },
+  "compliance_audit": "Mandated execution environment audit required prior to L5 registration."
+}
