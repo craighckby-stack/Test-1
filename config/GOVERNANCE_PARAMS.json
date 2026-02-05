@@ -1,0 +1,15 @@
+{
+  "viability_margin": {
+    "epsilon_floor": 0.015, 
+    "epsilon_ceiling": 0.100,
+    "vmo_stream_source": "SPDM_VOL_HISTORY",
+    "adaptation_algorithm": "ADAPTIVE_SMOOTH_AVG_V3"
+  },
+  "metric_efficacy_contract": {
+    "$S-01_calculation_ref": "MEC_RULES_V4.3",
+    "$S-02_calculation_ref": "MEC_RULES_V4.3"
+  },
+  "deployment_monitoring": {
+    "initial_pmm_threshold_default": 0.98
+  }
+}
