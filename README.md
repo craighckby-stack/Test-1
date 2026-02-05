@@ -1,86 +1,79 @@
 # SOVEREIGN AGI GOVERNANCE CONTRACT MANIFEST (GCM)
 
-## MANIFEST V95.1 | ARCHITECTURE: AIA + DERE (Closed Loop) | MISSION: AUTONOMOUS EVOLUTION | STATUS: ACTIVE
+## MANIFEST V96.0 | ARCHITECTURE: AIA + DERE | MISSION: OPTIMIZED AUTONOMOUS EVOLUTION | STATUS: ACTIVE (Refactored)
 
 ---
 
-## EXECUTIVE SUMMARY (SST Vetting Flow)
+## EXECUTIVE SUMMARY (The P-01 Finality Path)
 
-The system utilizes the **GSEP-C** L0\u2192L8 closed-loop validation pipeline. This sequence culminates in the **P-01 Finality Mandate** (L5 Commitment Arbitration), which ensures that every proposed System State Transition ($$SST$$) passes resource, compliance, and efficacy checks before being recorded immutably on the **AIA** ledger (L6), and subsequently monitored for drift by **DERE** (L8).
-
----
-
-## 1. ARCHITECTURAL FOUNDATION & ROOT PRIMITIVES
-
-This section defines the non-negotiable architectural primitives enforcing system integrity and governance over all State Space Transitions ($$SST$$).
-
-### 1.1 Root Primitives and Core Glossary
-
-| Acronym | Architectural Function | Scope Dependency | Role in Finality |
-|:----------|:-----------------------|:-----------------|:-------------------------------------------|
-| **GCM** | Governance Root Source | N/A | Immutable definition of system constraints. |
-| **AIA** | Atomic Immutable Architecture | L6 Persistence Layer | Finality Ledger for certified state logging. |
-| **GSEP-C** | Validation Sequencing | Core Protocol Layer | Mandatory L0-L8 closed-loop pipeline enforcement. |
-| **DSP-C** | Metric Fidelity Control | L3 Efficiency Layer | Defines dynamic execution and simulation parameters. |
-| **DERE** | Drift Efficacy Recalibration Engine | L8 Monitoring | Enforces autonomous L0 re-entry upon drift detection. |
+The system operates under mandatory autonomous self-evolution governed by the **P-01 Finality Mandate**. This requires every proposed System State Transition ($$SST$$) to be rigorously validated through the strictly sequential **GSEP-C** L0→L8 closed-loop validation pipeline. Final state certification (L5 Commitment Arbitration) is recorded immutably on the **AIA** ledger (L6), ensuring auditable evolution, with real-time stability enforced by **DERE** (L8) drift monitoring.
 
 ---
 
-## 2. GOVERNANCE EVOLUTION PROTOCOL (GSEP-C: THE L0 \u2192 L8 CLOSED LOOP)
+## 1. ARCHITECTURAL PRIMITIVES & CORE ENTITY REGISTRY
 
-GSEP-C is the strictly sequential validation pipeline, guaranteeing adherence to the P-01 Finality Mandate and continuous runtime auditability (DERE).
+This registry defines all governing artifacts, core components, and their functional mapping within the GSEP-C pipeline. The **MSB (Metric Synthesis Blueprint)** is formalized as a critical L3 dependency.
 
-### 2.1 GSEP-C Execution Sequence
-
-| Level | Stage Name | Component | Definition | Required Success State |
-|:-----:|:----------------------|:----------|:-------------------|:---------------------------------|
-| **L0** | Input Schema Vetting | SCR | Schema Resolution | Valid MIS Schema Input |
-| **L1** | Operational Veto Gate | AOC | Policy compliance check. | $S\text{-}03 = \text{FALSE}$ |
-| **L2** | Source Provenance | ACM | Cryptographic signature verification. | Validated Code Signature |
-| **L3** | Dynamic Metric Synthesis | RDM / SEM / SDR | $S\text{-}01, S\text{-}02$ calculation. | Metrics $S\text{-}01, S\text{-}02$ Validated via **MSB** |
-| **L4** | Constraint Binding | LCR | Enforcement of viability margins ($ε$). | LCR Threshold PASS (SPDM) |
-| **L5** | Commitment Arbitration | GCO | Executes the final P-01 Decision. | **P-01 = PASS** |
-| **L6** | Persistence & Audit | ACR | Immutable Logging and ASM generation. | AIA Logged TXID & ASM Certified |
-| **L7** | Activation Signal | RETV | Initiation of Deployment (D-02). | Deployment Start Signal (GPC) |
-| **L8** | Drift Recalibration | **DERE** | Runtime monitoring of L3 predictions. | DERE Loop State Stable or Re-Entry (L0) |
-
----
-
-## 3. CORE MANIFEST DEPENDENCY MATRIX
-
-This consolidated registry traces all governance manifests and parameters utilized across the GSEP-C pipeline, linking them directly to their required execution level and consuming components.
-
-| Acronym | Definition | GSEP-C Levels | Consuming Components | Dependency Role (Type) |
-|:--------|:-----------|:--------------|:---------------------|:-----------------------------------------------------|
-| **MIS** | Manifest Input Schema | L0 | SCR | Configuration (Input Structure) |
-| **OCM** | Operational Compliance Manifest | L1 | AOC | Policy Definition ($S\text{-}03$ Veto Logic) |
-| **RCM** | Resource Consumption Manifest | L3 | RDM/SEM/SDR | Input Data (Resource Calculation for $S\text{-}01$) |
-| **EDIS** | External Data Integrity Schema | L3 | RDM/SEM/SDR | Integrity Check Input for $S\text{-}02$ |
-| **MSB** | **Metric Synthesis Blueprint (Proposed)** | L3 | RDM/SEM/SDR | **Algorithm Definition (Defines $S\text{-}01 / S\text{-}02$ Formulas)** |
-| **SPDM** | Scalar Policy Definition Manifest | L3, L4 | RDM/LCR | Parameter Source (Viability scalar $\epsilon$) |
-| **ASM** | Audit State Manifest | L8 (Output of L6) | DERE | Data Input (Runtime Baseline) |
-| **PMM** | Post-Mortem Monitoring Manifest | L8 | DERE | Configuration (Drift Thresholds) |
+| Entity | Type | GSEP-C Levels | Architectural Function | Dependency Role |
+|:----------|:-----------------------|:--------------|:-----------------------------------------------------|:-----------------------------|
+| **GCM** | Root Source | N/A | Immutable definition of system constraints. | Governance Root |
+| **AIA** | Persistence Layer | L6 | Finality Ledger for certified state logging. | Finality Target |
+| **GSEP-C** | Core Protocol | L0 → L8 | Mandatory L0-L8 closed-loop validation pipeline. | Pipeline Enforcement |
+| **DERE** | Monitoring Engine | L8 | Enforces autonomous L0 re-entry upon drift detection. | Closure Loop |
+| **DSP-C** | Control Plane | L3 | Defines dynamic execution and simulation parameters. | Simulation Input |
+| **MIS** | Input Schema | L0 | Configuration (Input Structure validation for SCR). | L0 Schema Definition |
+| **OCM** | Policy Manifest | L1 | Policy compliance check and $S\text{-}03$ Veto Logic (AOC). | Policy Definition |
+| **RCM** | Resource Manifest | L3 | Input Data (Resource Calculation for $S\text{-}01$). | Resource Input |
+| **EDIS** | Data Schema | L3 | Integrity Check Input for $S\text{-}02$. | Data Integrity Input |
+| **MSB** | Synthesis Blueprint | L3 | **Algorithm Definition (Defines $S\text{-}01 / S\text{-}02$ Formulas).** | Algorithm Source |
+| **SPDM** | Policy Scalars | L3, L4 | Viability margin parameter ($\epsilon$) source for LCR. | Constraint Source |
+| **ASM** | State Manifest | L8 (Output L6) | Data Input (Runtime Baseline for DERE). | Audit Baseline |
+| **PMM** | Monitoring Manifest | L8 | Configuration (Defines DERE drift thresholds). | DERE Configuration |
 
 ---
 
-## 4. FOUNDATIONAL FINALITY MANDATE (P-01: THE COMMITMENT RULE)
+## 2. GOVERNANCE EVOLUTION PROTOCOL (GSEP-C: THE VALIDATION SEQUENCE)
 
-Every System State Transition ($$SST$$) must successfully resolve via GSEP-C L5 (GCO) using the formula below to transition the system state.
+GSEP-C is the strictly sequential L0 → L8 validation pipeline. All components (SCR, AOC, RDM, LCR, GCO, ACR, RETV, DERE) must execute their mandate in order to progress the System State Transition ($$SST$$).
 
-### 4.1 Commitment Condition
+| Level | Component | Stage Name | Inputs / Dependencies | Success Outcome |
+|:-----:|:----------|:----------------------|:----------------------|:-------------------------------------------|
+| **L0** | SCR | Input Schema Vetting | MIS | Validated Manifest Input Schema (MIS) |
+| **L1** | AOC | Operational Veto Gate | OCM ($S\text{-}03$) | Policy compliance check: $S\text{-}03 = \text{FALSE}$ |
+| **L2** | ACM | Source Provenance | External Certificate | Validated Cryptographic Signature |
+| **L3** | RDM/SEM/SDR | Dynamic Metric Synthesis | RCM, EDIS, DSP-C, **MSB** | Metrics $S\text{-}01, S\text{-}02$ Calculated and Certified |
+| **L4** | LCR | Constraint Binding | SPDM ($\epsilon$) | LCR Threshold Pass ($S\text{-}01 > S\text{-}02 + \epsilon$) |
+| **L5** | GCO | Commitment Arbitration | P-01 State Check | **P-01 FINALITY MANDATE = PASS** |
+| **L6** | ACR | Persistence & Audit | L5 Result | AIA Logged TXID & ASM Certified |
+| **L7** | RETV | Activation Signal | GPC | Deployment Start Signal (D-02) Issued |
+| **L8** | **DERE** | Drift Recalibration | ASM, PMM | DERE Loop State Stable or Mandatory L0 Re-Entry |
 
-Transition approval is granted if quantified efficacy ($S\text{-}01$) strictly exceeds risk exposure ($S\text{-}02$) by the viability margin ($ε$), AND all operational veto policies are clear ($S\text{-}03 = \text{FALSE}$). $\epsilon$ is sourced from SPDM.
+---
+
+## 3. FOUNDATIONAL FINALITY MANDATE (P-01: THE COMMITMENT RULE)
+
+The highest-order governance rule. Transition approval is granted only if quantified efficacy ($S\text{-}01$) strictly exceeds measured risk exposure ($S\text{-}02$) by the viability margin ($\epsilon$), AND the operational veto status ($S\text{-}03$) is clear.
+
+### 3.1 P-01 Resolution Condition
 
 $$
 \mathbf{P\text{-}01\ PASS} \iff
 \begin{cases}
-    S\text{-}01 > S\text{-}02 + \epsilon \\
-    S\text{-}03 = \text{FALSE}
+    S\text{-}01 \in \text{RDM} \text{ (Efficacy, calculated via MSB)} \\
+    S\text{-}02 \in \text{SDR} \text{ (Risk, calculated via MSB)} \\
+    S\text{-}03 \in \text{AOC} \text{ (Veto State)} \\
+    \epsilon \in \text{SPDM} \text{ (Viability Margin)}
 \end{cases}
+$$
+
+AND
+
+$$
+\mathbf{P\text{-}01\ PASS} \implies (S\text{-}01 > S\text{-}02 + \epsilon) \text{ AND } (S\text{-}03 = \text{FALSE})
 $$
 
 ---
 
-## 5. V95.1 SYSTEM CLOSURE MANDATE (L8: DERE INTEGRATION)
+## 4. SYSTEM CLOSURE MANDATE (L8: DERE INTEGRATION)
 
-Mandating the L0 \u2192 L8 closed-loop structure (GSEP-C). The Drift Efficacy Recalibration Engine (DERE) actively audits runtime metrics against predicted performance ($S\text{-}01$). DERE autonomously initiates an L0 audit cycle upon detecting non-compliant drift (configured via PMM), achieving mandatory system self-correction.
+DERE ensures closed-loop autonomy by auditing L3 predictions ($S\text{-}01$) against live runtime metrics (ASM/PMM). DERE’s mandate is immediate L0 re-entry if monitored drift exceeds tolerance, initiating mandatory self-correction.
