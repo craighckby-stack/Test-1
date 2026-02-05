@@ -1,0 +1,30 @@
+{
+  "gsim_version": "v94.1",
+  "seal_time": "TBD_BY_EMSU_AT_G0",
+  "artifact_registry": [
+    {
+      "path": "config/acvm_bounds.json",
+      "purpose": "GAX II Enforcement",
+      "expected_hash_256": "[G0_HASH_ACVM]"
+    },
+    {
+      "path": "config/gsep_orchestrator.json",
+      "purpose": "GAX IV Enforcement",
+      "expected_hash_256": "[G0_HASH_GSEP]"
+    },
+    {
+      "path": "config/cmac_compliance_spec.json",
+      "purpose": "GAX I/II Compliance Check",
+      "expected_hash_256": "[G0_HASH_CMAC]"
+    },
+    {
+      "path": "protocol/attestation_policy_map.json",
+      "purpose": "GAX I Policy Anchor",
+      "expected_hash_256": "[G0_HASH_CAPR]"
+    }
+  ],
+  "integrity_gates_manifest": {
+    "minimum_gates_required": 3,
+    "verification_order": ["GAR", "CDA", "CMAC"]
+  }
+}
