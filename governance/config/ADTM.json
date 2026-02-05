@@ -1,0 +1,27 @@
+{
+  "manifest_version": "V98.3",
+  "asset_name": "Anomaly Detection Threshold Manifest",
+  "owner": "GAX",
+  "gates": ["S6.5"],
+  "runtime_metrics": [
+    {
+      "metric": "execution_time_deviation_ratio",
+      "threshold": 3.5,
+      "comparison": "greater_than",
+      "trigger_type": "CRITICAL"
+    },
+    {
+      "metric": "certified_model_inference_variance",
+      "threshold": 0.05,
+      "comparison": "greater_than",
+      "trigger_type": "CRITICAL"
+    },
+    {
+      "metric": "non_monotonic_utility_trajectory",
+      "threshold": 1,
+      "comparison": "greater_than",
+      "trigger_type": "CRITICAL"
+    }
+  ],
+  "heuristic_definition": "Rules defining behavioral outliers during S5/CEEP modeling phase that require immediate veto before S7 metric finalization."
+}
