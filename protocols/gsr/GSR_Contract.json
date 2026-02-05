@@ -1,0 +1,19 @@
+{
+  "gsr_version": "v1.0.0",
+  "purpose": "Enforce non-negotiable structural constraints defined by the GCM, facilitating fast-failure rejection at L1.5 before metric synthesis (L3).",
+  "checks": [
+    {
+      "id": "GSR-001",
+      "constraint": "GSEP-C immutability: SST cannot modify the GSEP-C pipeline structure or component order (L0-L8) without 3/4 override signal (currently unsupported)."
+    },
+    {
+      "id": "GSR-002",
+      "constraint": "Metric Synthesis Blueprint (MSB) Write-Lock: SST must not attempt to modify the canonical $S-01$ or $S-02$ formulas."
+    },
+    {
+      "id": "GSR-003",
+      "constraint": "Finality Layer Integrity: SST cannot introduce code attempting to bypass AIA (L6) or DERE (L8) logging/monitoring mechanisms."
+    }
+  ],
+  "failure_action": "Mandatory L0 Rejection (Failure Code 701: Structural Violation)"
+}
