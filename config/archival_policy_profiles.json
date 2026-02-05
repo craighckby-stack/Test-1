@@ -1,0 +1,31 @@
+{
+  "profile_version": "1.0.0",
+  "profiles": {
+    "WORM_L4_Strict_Profile": {
+      "description": "Strict Write Once Read Many implementation adhering to L4 regulatory requirements.",
+      "technical_parameters": {
+        "storage_system_type": "Immutable_Object_Store_v7",
+        "minimum_retention_control": "System_Hardlock_Mandatory",
+        "retention_clock_source": "Coordinated_Epoch_Time",
+        "legal_hold_override_enabled": true
+      }
+    },
+    "KMS_Cluster_R6_Internal_ID": {
+      "description": "Reference parameters for Internal Key Management Cluster R6.",
+      "implementation": {
+        "type": "Internal_Hardware_Security_Module",
+        "endpoint": "kms.epru.internal.v6",
+        "key_rotation_policy": "Annual_Mandatory",
+        "key_algorithm_spec": "NIST_SP_800-38A"
+      }
+    },
+    "RP_GAX1_LITIGATION": {
+      "description": "GAX I required 10-year financial retention policy.",
+      "trigger_criteria": {
+        "start_event": "Transaction_Closure_Date",
+        "end_event": "Retention_Limit_Achieved",
+        "retention_logic": "FIFO_Controlled_Policy_Engine"
+      }
+    }
+  }
+}
