@@ -1,0 +1,17 @@
+{
+  "baseline_id": "BASE_GSEP_C_S06_ACTIVE",
+  "timestamp": "2024-05-15T10:00:00Z",
+  "integrity_state": {
+    "VMM_KERNEL_SOURCE_HASH_SHA256": "[Dynamically_Set]",
+    "CRITICAL_CONTAINERS_HASHES": [
+      {"name": "core_execution_engine", "hash": "[Set_Hash_A]", "image_id": "img-987"},
+      {"name": "comm_interface_agent", "hash": "[Set_Hash_B]", "image_id": "img-654"}
+    ],
+    "RESOURCE_CEILING_PERCENT": {
+      "CPU_USAGE_AVG_2MIN": 0.55,
+      "MEMORY_LEAKAGE_THRESHOLD_MB": 128
+    },
+    "EXPECTED_ENTROPY_MIN": 4500
+  },
+  "audit_trail_signature": "SIG-ECVM-S06-VALID"
+}
