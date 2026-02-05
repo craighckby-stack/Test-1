@@ -1,0 +1,27 @@
+{
+  "C01_Threshold": 0.15,
+  "C01_Metrics": [
+    {
+      "id": "COMPUTATIONAL_COMPLEXITY_INDEX",
+      "weight": 0.4,
+      "limit_type": "RELATIVE_MAX_CHANGE",
+      "limit_value": 0.05,
+      "description": "Quantifies algorithmic cost increase (Turing complexity)."
+    },
+    {
+      "id": "DEPENDENCY_INERTIA_SCORE",
+      "weight": 0.35,
+      "limit_type": "ABSOLUTE_MAX",
+      "limit_value": 0.8,
+      "description": "Measures future maintenance debt and external dependency friction."
+    },
+    {
+      "id": "AUDITABILITY_DEGRADATION",
+      "weight": 0.25,
+      "limit_type": "ABSOLUTE_MAX",
+      "limit_value": 0.1,
+      "description": "Score decrease must not exceed threshold; ensures transparency."
+    }
+  ],
+  "C01_AggregationMethod": "WEIGHTED_SUM"
+}
