@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "MPAM_V97_5_Schema.json",
+  "title": "Model Performance Attestation Manifest (V97.5)",
+  "type": "object",
+  "required": ["document_id", "schema_version", "certified_models"],
+  "properties": {
+    "document_id": {"type": "string", "description": "Unique identifier for the specific manifest instance."},
+    "schema_version": {"type": "string", "const": "V97.5-MPAM-02"},
+    "creation_timestamp": {"type": "string", "format": "date-time"},
+    "owner_entity": {"type": "string"},
+    "attestation_root_hash": {"type": "string"},
+    "mdmp_protocol_reference": {"type": "string"},
+    "certified_models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["model_id", "performance_baseline", "monitoring_configuration", "latest_status_report"],
+        "properties": {
+          "model_id": {"type": "string"},
+          "model_status": {"type": "string", "enum": ["Active", "Monitored", "Deprecated"]},
+          "governance_report_ref": {"type": "string"},
+          "performance_baseline": {"$ref": "#/definitions/PerformanceMetrics"},
+          "monitoring_configuration": {
+            "type": "object",
+            "properties": {
+              "drift_detection_protocol": {"type": "string"},
+              "model_drift_parameters": {
+                "type": "object",
+                "properties": {"metric": {"type": "string"}, "threshold_epsilon": {"type": "number"}}
+              },
+              "data_drift_parameters": {
+                "type": "object",
+                "properties": {"metric": {"type": "string"}, "alert_limit": {"type": "number"}}
+              }
+            }
+          },
+          "latest_status_report": {"$ref": "#/definitions/StatusReport"}
+        }
+      }
+    }
+  },
+  "definitions": {
+    "MetricsBlock": {
+      "type": "object",
+      "properties": {
+        "utility_p99_score": {"type": "number"},
+        "risk_weighted_error_rate": {"type": "number"}
+      }
+    },
+    "ComplianceBlock": {
+      "type": "object",
+      "properties": {
+        "fdr_baseline": {"type": "number"},
+        "compliance_index_baseline": {"type": "number"}
+      }
+    },
+    "PerformanceMetrics": {
+      "type": "object",
+      "properties": {
+        "certified_timestamp": {"type": "string", "format": "date-time"},
+        "performance_metrics": {"$ref": "#/definitions/MetricsBlock"},
+        "compliance_metrics": {"$ref": "#/definitions/ComplianceBlock"}
+      }
+    },
+    "CurrentMetricsBlock": {
+      "type": "object",
+      "properties": {
+        "utility_p99_score": {"type": "number"},
+        "risk_weighted_error_rate": {"type": "number"}
+      }
+    },
+    "CurrentComplianceBlock": {
+      "type": "object",
+      "properties": {
+        "fdr_current": {"type": "number"},
+        "compliance_index_current": {"type": "number"}
+      }
+    },
+    "StatusReport": {
+      "type": "object",
+      "properties": {
+        "report_timestamp": {"type": "string", "format": "date-time"},
+        "drift_status": {"type": "string"},
+        "current_performance": {"$ref": "#/definitions/CurrentMetricsBlock"},
+        "current_compliance": {"$ref": "#/definitions/CurrentComplianceBlock"}
+      }
+    }
+  }
+}
