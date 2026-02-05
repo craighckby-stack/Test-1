@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/d-03_pdfs_v1.0.json",
+  "title": "D-03 Post-Deployment Feedback Schema (PDFS)",
+  "description": "Structured data schema for capturing real-world performance metrics and efficacy validation post-M-02 deployment (GSEP Stage 6). Essential for iterative refinement of S-01 Trust models.",
+  "type": "object",
+  "properties": {
+    "M02_ID": { "type": "string", "description": "ID of the deployed Mutation Payload." },
+    "PMH_Reference": { "type": "string", "description": "Hashed reference to the Payload Manifest used during Stage 3/4 decision." },
+    "Metrics_Timeframe_Hours": { "type": "integer", "description": "Duration of monitoring (e.g., 72 for 3 days)." },
+    "Efficacy_Validated": { "type": "boolean", "description": "Did the M-02 meet its targeted performance goals?" },
+    "S01_Simulation_Drift_Percentage": { "type": "number", "description": "Percentage deviation between simulated S-01 (Trust) expectation and observed real-world efficacy." },
+    "Resource_Delta": {
+      "type": "object",
+      "properties": {
+        "CPU_Utilization_Change": { "type": "number" },
+        "Memory_Footprint_Change": { "type": "number" }
+      },
+      "description": "Observed change in resource utilization relative to the baseline state (pre-M-02)."
+    },
+    "Policy_Compliance_Incidents": {
+      "type": "integer",
+      "description": "Count of minor non-fatal compliance breaches observed post-deployment."
+    }
+  },
+  "required": ["M02_ID", "PMH_Reference", "Efficacy_Validated", "S01_Simulation_Drift_Percentage"]
+}
