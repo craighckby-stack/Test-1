@@ -1,60 +1,104 @@
 {
   "type": "object",
   "title": "Axiom Constraint Validation Domain (ACVD) Schema",
-  "description": "Defines the externalized constraints governing P-01 calculus and DSE parameters, guaranteeing deterministic configuration baseline for GSEP-C (S01).",
+  "description": "Defines the externalized constraints governing P-01 calculus and DSE parameters, guaranteeing deterministic configuration baseline for GSEP-C (S01). Implements strict data structure enforcement.",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "required": [
     "ACVD_VERSION",
     "P01_CRITERIA",
-    "GSEP_BEHAVIOR"
+    "GSEP_BEHAVIOR",
+    "POLICY_METADATA"
   ],
   "properties": {
     "ACVD_VERSION": {
       "type": "string",
       "description": "Semantic versioning of the ACVD schema payload."
     },
+    "POLICY_METADATA": {
+      "type": "object",
+      "description": "Descriptive and administrative metadata for traceability and deployment control.",
+      "properties": {
+        "POLICY_ID": { 
+          "type": "string", 
+          "description": "Unique identifier for this specific ACVD configuration set (e.g., 'ACVD-PROD-V94')."
+        },
+        "CREATION_DATE": { 
+          "type": "string", 
+          "format": "date-time",
+          "description": "Timestamp indicating when the policy configuration was finalized."
+        },
+        "IS_MANDATORY_BASELINE": { 
+          "type": "boolean", 
+          "description": "If TRUE, this policy cannot be overridden by dynamic environment variables or local flags."
+        }
+      },
+      "required": [
+        "POLICY_ID",
+        "IS_MANDATORY_BASELINE"
+      ]
+    },
     "P01_CRITERIA": {
       "type": "object",
-      "description": "Constraints directly dictating the P-01 PASS resolution (Section 3.0).",
+      "description": "Constraints directly dictating the P-01 PASS resolution (Section 3.0). All nested parameters are mandatory for explicit state definition.",
       "properties": {
         "AXIOM_I_UTILITY": {
           "type": "object",
+          "description": "Defines constraints for system efficacy (TEMM) and utility debt.",
           "properties": {
             "MIN_EFFICACY_THRESHOLD_OMEGA": {
               "type": "number",
               "minimum": 0.0,
-              "description": "The configured minimum TEMM score (Ω_min) required for P-01 PASS."
+              "exclusiveMaximum": 1.0,
+              "description": "The configured minimum TEMM score (Ω_min) required for P-01 PASS (0.0 < x < 1.0)."
             },
             "MAX_ALLOWABLE_UTILITY_DEBT_LOGS": {
               "type": "integer",
-              "description": "Maximum number of ADTM logs permissible within a cycle before IH."
+              "minimum": 0,
+              "description": "Maximum number of ADTM logs permissible within a cycle before Integrity Halt (IH)."
             }
           },
-          "required": ["MIN_EFFICACY_THRESHOLD_OMEGA"]
+          "required": [
+            "MIN_EFFICACY_THRESHOLD_OMEGA",
+            "MAX_ALLOWABLE_UTILITY_DEBT_LOGS"
+          ]
         },
         "AXIOM_II_CONTEXT": {
           "type": "object",
+          "description": "Defines constraints related to temporal context resolution.",
           "properties": {
             "ECVM_VALIDATION_TIMEOUT_MS": {
               "type": "integer",
+              "minimum": 100,
               "description": "Maximum time allowed (in milliseconds) for ECVM state resolution before IH."
             }
-          }
+          },
+          "required": [
+            "ECVM_VALIDATION_TIMEOUT_MS"
+          ]
         },
         "AXIOM_III_INTEGRITY": {
           "type": "object",
+          "description": "Defines constraints focused on core operational integrity (MPAM).",
           "properties": {
             "ALLOW_ZERO_MPAM_VIOLATIONS": {
               "type": "boolean",
               "description": "If TRUE, any resulting MPAM entry triggers an automatic P-01 FAIL, enforcing zero-tolerance governance."
             }
-          }
+          },
+          "required": [
+            "ALLOW_ZERO_MPAM_VIOLATIONS"
+          ]
         }
       },
-      "required": ["AXIOM_I_UTILITY", "AXIOM_II_CONTEXT", "AXIOM_III_INTEGRITY"]
+      "required": [
+        "AXIOM_I_UTILITY",
+        "AXIOM_II_CONTEXT",
+        "AXIOM_III_INTEGRITY"
+      ]
     },
     "GSEP_BEHAVIOR": {
       "type": "object",
-      "description": "Operational constraints for the GSEP-C and failure protocols.",
+      "description": "Operational constraints for the GSEP-C execution and failure protocols.",
       "properties": {
         "IH_IMMEDIATE_ROLLBACK_REQUIRED": {
           "type": "boolean",
@@ -62,10 +106,14 @@
         },
         "IH_MAX_ATTEMPTS_BEFORE_FREEZE": {
           "type": "integer",
+          "minimum": 1,
           "description": "Maximum number of RRP attempts before the system enters a hard freeze/manual inspection state."
         }
       },
-      "required": ["IH_IMMEDIATE_ROLLBACK_REQUIRED"]
+      "required": [
+        "IH_IMMEDIATE_ROLLBACK_REQUIRED",
+        "IH_MAX_ATTEMPTS_BEFORE_FREEZE"
+      ]
     }
   }
 }
