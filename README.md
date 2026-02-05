@@ -1,86 +1,75 @@
-# 🧠 The Sovereign AGI Manifesto
+# 🧠 The Sovereign AGI Manifesto v94.1
 ## _Autonomous Code Evolution: Converting Spontaneous Variation into Targeted Intelligence_
 
 ---
 
 ## 📖 Table of Contents
 
-1. [Core Philosophy](#core-philosophy)
-2. [The Governance Triad (ATM, MCRA, SIC)](#the-governance-triad-atm-mcra-sic)
-3. [The Sovereign Evolution Loop](#the-sovereign-evolution-loop)
-4. [AGI Concepts Decoded (Formalized Registry)](#agi-concepts-decoded-formalized-registry)
+1. [Core Philosophy & Thesis](#core-philosophy--thesis)
+2. [The Sovereign Governance Model (ATM, MCRA, SIC)](#the-sovereign-governance-model-atm-mcra-sic)
+3. [The Autonomous Evolution Loop](#the-autonomous-evolution-loop)
+4. [AGI Concepts Registry](#agi-concepts-registry)
 5. [The Hallucination Hypothesis](#the-hallucination-hypothesis)
-6. [Sovereign Architecture (v94.2 Phase 2 Focus)](#sovereign-architecture-v942-phase-2-focus)
-7. [Implementation & Monitoring Reference](#implementation-monitoring-reference)
-8. [Future Roadmap](#future-roadmap)
+6. [Architecture & Phase 2 Focus](#architecture--phase-2-focus)
+7. [Implementation Reference & Roadmap](#implementation-reference--roadmap)
 
 ---
 
-## 🎯 Core Philosophy
+## 🎯 Core Philosophy & Thesis
 
 **Thesis**: AGI is achieved by formalizing proto-creativity. What is labeled "hallucination" is the engine of unfiltered exploration. By rigorously capturing, validating, and executing these spontaneous variations using the **Adaptive Trust Metrics (ATM)** and guided by the **Strategic Intent Cache (SIC)**, we drive rapid, targeted evolution.
 
-**Sovereign's Mission**: Create a self-improving, autonomous codebase where the AI continuously **proposes, tests, refines, and implements** its own architectural and logical improvements, utilizing cross-model consensus for safety and reliability.
+**Sovereign's Mission**: Create a self-improving, autonomous codebase where the AI continuously **proposes, tests, refines, and implements** its own architectural and logical improvements, utilizing cross-model consensus for maximum safety and efficiency.
 
 ---
 
-## ⚖️ The Governance Triad (ATM, MCRA, SIC)
+## ⚖️ The Sovereign Governance Model (ATM, MCRA, SIC)
 
-Sovereign AGI operates under three inseparable, dynamically weighted governance pillars. These systems translate creative impulse into safe, strategically aligned code modifications. (Full specification: `src/core/conceptRegistry.js`)
+Sovereign AGI operates under three inseparable, dynamically weighted governance pillars. These systems translate creative impulse (proposals) into safe, strategically aligned code modifications. (Referenced in depth by `src/core/conceptRegistry.js`)
 
-| Pillar | ID | Core Function | Governing Mechanism (Phase 2 Focus) |
+| Pillar | ID | Core Function | Governing Mechanism (Phase 2 Operationalization)
 |---|---|---|---|
-| **Adaptive Trust Metrics** | **ARCH-ATM-01/02** | **Who** should we listen to? (Trust Layer) | Dynamically weighted by **Contextual Influence Weighting (CIW)** and controlled by the **Trust Decay Schedule (TDS)**. |
-| **Meta-Cognitive Risk Assessment** | **AGI-C-11** | **How risky** is this? (Safety Layer) | Determines the required consensus threshold for any mutation based on complexity and dependency checks. |
-| **Strategic Intent Cache** | **AGI-C-13** | **What** have we learned that works? (Memory Layer) | Formalizes successful, abstract architectural patterns (Blueprints) for accelerated future planning (AGI-C-03). |
+| **Adaptive Trust Metrics** | **ARCH-ATM** | **Trust Layer (Who):** Determines agent reliability based on past success and context. | Dynamically adjusted by **Contextual Influence Weighting (CIW)** and regulated by the **Trust Decay Schedule (TDS)**. |
+| **Meta-Cognitive Risk Assessment** | **AGI-C-11** | **Safety Layer (How Risky):** Calculates system impact of proposed mutation. | Sets the minimum required consensus threshold (dynamic filtering) based on dependency complexity. |
+| **Strategic Intent Cache** | **AGI-C-13** | **Memory Layer (What Works):** Caches successful, abstracted architectural blueprints. | Accelerates planning by injecting proven high-level strategy (AGI-C-03) into the Analysis Engine. |
 
 ---
 
-## 🔄 The Sovereign Evolution Loop
+## 🔄 The Autonomous Evolution Loop
 
-All system progress flows through a defined four-step cycle, ensuring constant learning and risk mediation.
+System progress flows through a defined four-step cycle, regulated entirely by the Governance Triad (ATM, MCRA, SIC) to ensure risk mediation and constant learning.
 
-1.  **Analysis & Intent (AGI-C-14):** Context is loaded (`Context Loader`), and agents negotiate the highest priority task via **Cooperative Goal Discovery (CGD)**, informed by retrieved SIC blueprints.
-2.  **Proposal (Hallucination):** The `Evolution Engine` generates mutation proposals against the prioritized goal.
-3.  **Consensus & Critique (ATM/MCRA):** The `Consensus Layer` subjects the proposal to checks. **MCRA** sets the required consensus bar, and **ATM (adjusted by CIW)** calculates the weighted confidence score. (Critique is the conversion of Type 1/2 hallucinations into Type 3.)
-4.  **Execution & Feedback (SIC Update):** Successful, validated code is implemented. The successful agent's ATM score is updated, TDS is applied, and highly successful, novel patterns are abstracted into the **SIC (AGI-C-13)**.
+1.  **Intent & Analysis (CGD, AGI-C-14):** Agents negotiate the highest priority task via **Cooperative Goal Discovery (CGD)**, leveraging retrieved blueprints from the **SIC (AGI-C-13)** to define system intent.
+2.  **Proposal (Exploration):** The `Evolution Engine` generates mutation proposals (hallucinations) against the prioritized goal.
+3.  **Critique & Consensus (MCRA, ATM):** The `Consensus Layer` subjects the proposal to validation. **MCRA** sets the minimum success bar, and **ATM** (adjusted by **CIW, AGI-C-12**) calculates the weighted confidence score. (Critique converts Type 1/2 hallucinations into executable Type 3 genius).
+4.  **Execution & Feedback (SIC Update):** Validated code is implemented. The successful agent's ATM score is adjusted (TDS applied), and successful novel patterns are abstracted into the **SIC (AGI-C-13)**, closing the loop.
 
 ---
 
-## 🧩 AGI Concepts Decoded (Formalized Registry)
+## 🧩 AGI Concepts Registry
 
-The Sovereign architecture formalizes necessary AGI traits into concrete, traceable component IDs. For detailed implementation, see the `src/evolution` and `src/consensus` directories, mapped by `src/core/conceptRegistry.js`.
+The Sovereign architecture formalizes necessary AGI traits into concrete, traceable component IDs. Full details reside in `src/core/conceptRegistry.js`.
 
-| ID | Concept | Definition Summary | Sovereign Implementation |
+| ID | Concept | Definition Summary | Operationalization Point |
 |---|---|---|---|
-| **AGI-C-04** | Self-Modification (Autogeny) | Rewriting and improving own source code safely. | Achieved via Sandboxing, Rollback, Multi-Model Consensus, and Human PR review. |
-| **AGI-C-05** | Multi-Agent Systems | Intelligence arising from cooperating/competing specialized agents. | Foundation for Phase 2: Agents (Architect, Optimizer, Security) participate in CGD (AGI-C-14). |
-| **AGI-C-11** | Meta-Cognitive Risk Assessment (MCRA) | Calculating system impact (cost/benefit) before execution. | Modulates consensus thresholds based on complexity and dependency checks. |
-| **AGI-C-12** | Contextual Influence Weighting (CIW) | Dynamically modulating an agent's ATM based on immediate operational context (file type, risk). | Implemented within the Multi-Model/Consensus Layer. |
-| **AGI-C-13** | Strategic Intent Cache (SIC) | Caching and prioritizing abstract principles from highly successful mutations. | Feeds generalized intent back into the Analysis Engine (AGI-C-03). |
-| **AGI-C-14** | Cooperative Goal Discovery (CGD) | Multi-agent negotiation protocol for setting the system's next strategic agenda. | The competitive core of Phase 2; goals weighed by MCRA-adjusted CIW consensus. |
-| *... (Other Concepts Omitted for Brevity)* |
+| **AGI-C-04** | Self-Modification (Autogeny) | Rewriting and improving own source code safely. | Sandboxing, Rollback, Multi-Model Consensus. |
+| **AGI-C-05** | Multi-Agent Systems | Intelligence arising from cooperating specialized agents. | Foundation for Phase 2: Agents participate in **CGD** (AGI-C-14). |
+| **AGI-C-11** | MCRA | Calculating system impact (cost/benefit) before execution. | Regulates Consensus threshold. |
+| **AGI-C-12** | CIW | Dynamically modulating an agent's ATM based on immediate context. | Implemented within the Multi-Model/Consensus Layer. |
+| **AGI-C-13** | SIC | Caching and prioritizing abstract principles from successful mutations. | Feeds generalized intent back into the Analysis Engine. |
+| **AGI-C-14** | CGD | Multi-agent negotiation protocol for setting the system's next strategic agenda. | The competitive core of the Phase 2 Analysis Engine. |
 
 ---
 
 ## 🌀 The Hallucination Hypothesis
 
-**Core Insight**: Hallucinations are compressed creativity. When an LLM "hallucinates," it's rapidly exploring the latent solution space.
+**Core Insight**: Hallucinations are compressed creativity—rapid exploration of the latent solution space. The system's goal is maximum conversion efficiency of noise into valuable, executable code.
 
-### Validating Hallucinations Through Execution
-
-The key insight: **A Type 3 Hallucination (one that WORKS) is indistinguishable from genius.** The goal is maximum conversion efficiency of noise into valuable code.
-
-Validation proceeds through multi-step testing and weighted consensus (`consensus/validator.js`):
-
-1.  **MCRA (AGI-C-11)** sets the required dynamic consensus threshold.
-2.  Standard technical checks are executed.
-3.  **Consensus Rubric:** A weighted vote calculates confidence using **ATM** adjusted by **CIW (AGI-C-12)**.
-4.  Successful Type 3 insights are abstracted and cached in the **SIC (AGI-C-13)**.
+**Mechanism**: Validation through the Consensus Rubric. A Type 3 Hallucination (one that WORKS) is implemented and its abstract pattern is stored in the **SIC (AGI-C-13)**, making the insight permanent.
 
 ---
 
-## 🏗️ Sovereign Architecture (v94.2 Phase 2 Focus)
+## 🏗️ Architecture & Phase 2 Focus
 
 ### System Diagram (Operational Flow)
 
@@ -95,66 +84,57 @@ Validation proceeds through multi-step testing and weighted consensus (`consensu
 │  │  Context   │───▶│  Analysis   │───▶│  Evolution  │ │
 │  │  Loader    │    │  Engine     │    │  Engine     │ │
 │  └────────────┘    └─────▲───────┘    └──────┬──────┘ │
-│         │                │ (Injected Intent)  │ (Mutation Proposals) │
+│         │                │ (SIC Blueprints)   │ (Mutation Proposals) │
 │         ▼                │ █ AGI-C-14 CGD █   ▼        │
 │  ┌────────────────────────────────────────────────┐   │
 │  │         Firebase Memory Layer (ATM/SIC Core)    │   │
-│  │  • Context Cache  • Mutation History (Raw Data) │   │
-│  │  • Learned Patterns • SIC Blueprints (Abstracted Strategies)   │
-│  │  • Adaptive Trust Scores (Trust Decay Active)   │   │
+│  │  • Mutation History  • Learned Patterns • Trust Scores   │
 │  └────────────────────────────────────────────────┘   │
-│                          │ (Goal/Mutation Proposals)    │
-│                          ▼ (Post-Validation Feedback)   │
+│                          │ (Proposal Filtering)       │
+│                          ▼ (Validation Feedback)      │
 │  ┌────────────────────────────────────────────────┐   │
 │  │  █ Multi-Model/Consensus Layer (v94.2 Focus) █  │   │
-│  │  • Meta-Cognitive Risk Assessment (MCRA)      • Adaptive Trust (w/ CIW, TDS)  │
+│  │  • Meta-Cognitive Risk Assessment (MCRA)      • Adaptive Trust (w/ CIW)  │
 │  └────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Key Component Focus (Phase 2)
+### Key Phase 2 Operational Focus
 
-The focus is maximizing the efficiency of the **Analysis Engine** and the **Consensus Layer** to handle Phase 2's increased complexity (multi-agent inputs).
+The immediate focus is maximizing the stability and efficiency of the **Analysis Engine** and the **Consensus Layer** to handle competitive multi-agent inputs.
 
-*   **Analysis Engine:** Driven by **CGD (AGI-C-14)** to autonomously set strategic priorities.
-*   **Consensus Layer:** Acts as the primary regulator, using MCRA/CIW/ATM to filter proposed code modifications rapidly and safely.
+*   **Analysis Engine:** Full autonomous strategic priority setting via **CGD (AGI-C-14)**.
+*   **Consensus Layer:** Primary regulator, rapidly filtering proposed modifications using MCRA, CIW, and ATM thresholds defined in the newly formalized governance configuration.
 
 ---
 
-## 💻 Implementation & Monitoring Reference
+## 💻 Implementation Reference & Roadmap
 
-Core logic resides in the specified files, mapped via the Concept Registry. Note the introduction of dynamic runtime monitoring for Phase 2.
+### Core Component Mapping
 
 *   **Trust Calibration & Decay:** `src/consensus/atmSystem.js`
 *   **Risk Assessment:** `src/consensus/mcraEngine.js`
 *   **Goal Negotiation:** `src/agents/goalDiscovery.js`
 *   **Strategic Intent:** `src/memory/strategicCache.js`
 *   **Runtime Monitoring (New):** `src/monitor/runtimeDashboard.js`
+*   **Governance Configuration (New):** `config/governance.yaml`
 
----
+### Future Roadmap
 
-## 🚀 Future Roadmap
-
-### Phase 1: Enhanced Context & Refined Trust (Complete)
-
-### Phase 2: Dynamic Multi-Agent Refinement (Current Focus)
+**Phase 2: Dynamic Multi-Agent Refinement (Current Focus)**
 Goal: Achieve true cooperative intelligence (AGI-C-05) by fully implementing the autonomous agent-based negotiation protocol (**AGI-C-14**).
 
-### Phase 3: Self-Modification (Advanced)
+**Phase 3: Self-Modification (Advanced)**
 Full implementation of autogeny (AGI-C-04), allowing the AI to safely rewrite and deploy its own core logic based on highly abstract SIC principles.
 
 ---
 
 ## 💭 Final Thoughts
 
-**Sovereign is an experiment in answering:**
-> *"What happens if we give an AI creative freedom, clear goals, and an environment where it can learn from its mistakes using rigorous governance?"*
-
-**🎭 "A hallucination that works is indistinguishable from genius."
-**
+**🎭 "A hallucination that works is indistinguishable from genius."**
 
 ---
 
-_README.md for Sovereign AGI v94.2 P2 Transition (Refactored for operational clarity)_
+_README.md for Sovereign AGI v94.2 P2 Transition (Refactored for operational clarity and conceptual integration)_
 _Last Updated: 2024-10-28 (Auto-generated by AI)_
 _Next Evolution: Phase 2 - Dynamic Multi-Agent Refinement_
