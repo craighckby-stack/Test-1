@@ -1,23 +1,45 @@
 {
-  "version": "1.0.0",
-  "description": "Specification defining secure archival requirements for cryptographically signed Forensic Data & Log Snapshots (FDLS). Essential for GAX I compliance.",
-  "archive_policy": {
-    "storage_medium": "WORM_Compliance_L4",
-    "encryption_standard": "AES-256-GCM",
-    "retention_period_epochs": "INDEFINITE",
-    "geographic_replication_zones": 3
+  "version": "1.1.0",
+  "name": "EPDU_SecureArchival_Spec",
+  "description": "Formalized specification for secure, immutable archival requirements for cryptographically signed Forensic Data & Log Snapshots (FDLS). Mandatory for GAX I compliance verification.",
+  "regulatory_context": {
+    "primary_compliance_standard": "GAX_I_Financial",
+    "required_immutability_level": "WORM_L4_Strict",
+    "audit_log_version": "SA_44.3"
   },
-  "data_validation": {
-    "required_fields": [
-      "AASS_Signature",
+  "archive_policy": {
+    "storage": {
+      "medium_class": "WORM_L4_Strict",
+      "implementation_alias": "Vault_Shard_P7_Cold",
+      "access_tier": "Archive",
+      "min_storage_redundancy": "Triple_Zonal_Replication"
+    },
+    "security": {
+      "encryption_standard": "AES-256-GCM",
+      "key_management_system": "Internal_KMS_Cluster_R6",
+      "retention": {
+        "type": "Policy_Based",
+        "minimum_years": 10,
+        "maximum_duration_code": "REGULATORY_LITIGATION_HOLD"
+      }
+    }
+  },
+  "data_integrity": {
+    "hash_algorithm": "SHA-512",
+    "signature_check": {
+      "field": "AASS_Signature",
+      "utility_service": "AASS_PKI_Lookup_Service_v3"
+    },
+    "required_metadata_fields": [
       "P_Set_Trigger_ID",
       "IH_Timestamp_UTC",
-      "FDLS_Integrity_Hash"
-    ],
-    "signature_validation_utility": "AASS_Public_Key_Registry_v2"
+      "FDLS_Integrity_Hash",
+      "Originating_Node_ID"
+    ]
   },
-  "transmission_requirements": {
+  "transmission": {
     "protocol": "SECURE_ZERO_KNOWLEDGE_RPC",
-    "max_latency_ms": 500
+    "maximum_latency_ms": 500,
+    "bandwidth_policy": "Tier_1_Priority"
   }
 }
