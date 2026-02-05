@@ -1,0 +1,26 @@
+{
+  "contract_id": "PPC-V1.0",
+  "name": "Proposal Payload Contract",
+  "description": "Defines the required structural and semantic fields for a System State Transition (SST) proposal payload before ingestion by GSEP-C L0 (SCR). This ensures adherence to operational input requirements and provides fields necessary for downstream L3/L5 components.",
+  "validation_rules": [
+    {
+      "field": "proposal_metadata",
+      "type": "object",
+      "required_keys": ["proposal_id", "author_entity", "timestamp", "target_architecture_version"],
+      "purpose": "Establish fundamental provenance required by L3 (ACM)."
+    },
+    {
+      "field": "change_manifest",
+      "type": "object",
+      "required_keys": ["files_affected", "scope_description", "justification_summary"],
+      "purpose": "Provide context for L1 (OCM) and L2 (CBM) audits."
+    },
+    {
+      "field": "mee_simulation_parameters",
+      "type": "array",
+      "min_length": 1,
+      "requirements": ["Must include matrices or simulation runs used to predict S-01/S-02 outputs"],
+      "purpose": "Provide pre-calculated/simulated metrics input required by L5 (MSB) for validation."
+    }
+  ]
+}
