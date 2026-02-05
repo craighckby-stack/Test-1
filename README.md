@@ -1,72 +1,74 @@
-# SOVEREIGN GOVERNANCE SPECIFICATION | DSE PROTOCOL V94.7
+# DSE PROTOCOL V94.7 | SOVEREIGN GOVERNANCE SPECIFICATION
 
 ## EXECUTIVE ABSTRACT: Deterministic State Execution (DSE)
 
-The Deterministic State Execution (DSE) Protocol dictates all validated system state transitions (\$\Psi\$). Integrity is guaranteed through the **Governance State Execution Pipeline - Core (GSEP-C)**, a non-negotiable 15-stage sequence (S00 to S14).
+The Deterministic State Execution (DSE) Protocol ensures irreversible, validated system state transitions ($\Psi$). This integrity is enforced by the **Governance State Execution Pipeline - Core (GSEP-C)**, a non-negotiable, mandatory 15-stage sequence (S00 to S14).
 
-A state transition is only irrevocably committed upon achieving **P-01 Finality Resolution** at Stage S11. Failure at any stage (S00-S14) immediately triggers an Integrity Halt (IH) and executes the mandated Rollback Protocol (RRP).
+A state transition is irrevocably committed only upon achieving **P-01 Finality Resolution** at Stage S11. Immediate failure at any GSEP-C stage triggers an Integrity Halt (IH) and executes the mandated Rollback Protocol (RRP).
 
 ---
 
-## I. P-01 FINALITY AND THE TRUTH ENFORCEMENT LAYER
+## I. P-01 FINALITY RESOLUTION AND GOVERNANCE AXIOMS (GAX)
 
-P-01 Finality Resolution requires the simultaneous and successful validation of the three fundamental Governance Axioms (GAX I, GAX II, GAX III). This critical condition is resolved atomically by the dedicated **GAX Executor** at Stage S11.
+P-01 Finality is the terminal state commitment condition, requiring the simultaneous successful validation of the three fundamental Governance Axioms (GAX I, GAX II, GAX III). This critical condition is resolved atomically by the dedicated GAX Executor at Stage S11.
 
 $$ \text{P-01 Finality} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III}) $$
 
-### 1.1 GSEP-C P-01 Critical Stages Summary
+### 1.1 Axiom Constraint Validation Manifest (ACVM)
 
-While the full 15-stage flow is defined in `config/gsep_c_flow.json`, P-01 dependency generation centers on these critical artifact stages:
+All GAX requirements are sourced from the **Axiom Constraint Validation Domain (ACVD)** and defined in `config/acvm.json`. Verification utilizes pre-S11 generated artifacts.
 
-| Stage ID | Primary Action | Proposed Actor | P-01 Dependency (Artifact) |
-|:---:|:---|:---:|:---:|
-| **S01** | Configuration Locking & Snapshot | CRoT Agent | CSR (GAX III) |
-| **S07** | Execution Context Mapping | EMS (See II.1) | ECVM (GAX II) |
-| **S08** | Transition Efficacy Measurement | EMS (See II.1) | TEMM (GAX I) |
-| **S11** | Axiom Execution & Resolution | GAX Executor | P-01 Finality Result |
-
-### 1.2 Axiom Constraint Validation Manifest (ACVM)
-
-All constraint definitions originate from the **Axiom Constraint Validation Domain (ACVD)** and are configured via the `config/acvm.json`. Verification utilizes pre-S11 generated artifacts.
-
-#### Finality Verification Matrix
-
-| GAX ID | Constraint Name | Stage Lock | Artifact Required | Verification Metric | Log Target (Trace ID) |
+| GAX ID | Constraint | Artifact Origin (Stage) | Artifact Required | Verification Metric | Responsible Actor |
 |:---:|:---|:---:|:---:|:---:|:---:|
-| **I** | Utility Efficacy | S08 | TEMM | $\Omega_{\text{min}}$ (Minimum Value Threshold) | ADTM |
-| **II** | Contextual Validity | S07 | ECVM | Execution Environment State Check (`Permissible`) | SGS |
-| **III**| Constraint Integrity | S01 | CSR | Zero Policy/Structural Violations | MPAM |
+| **I** | Utility Efficacy | S08 | TEMM (Transition Efficacy Measure) | $\Omega_{\text{min}}$ Threshold Fulfillment | EMS |
+| **II** | Contextual Validity | S07 | ECVM (Execution Context Validation Map) | Execution Environment State (`Permissible`) | EMS |
+| **III**| Structural Integrity | S01 | CSR (Configuration Snapshot Receipt) | Zero Policy/Structural Violations | CRoT Agent |
 
 ---
 
-## II. GOVERNANCE ACTORS AND FAILURE MANAGEMENT
+## II. GSEP-C PIPELINE FLOW & ACTORS
 
-### 2.1 Core DSE Actors
+The full 15-stage GSEP-C flow, which includes pre-execution, validation, and post-commitment steps, is detailed in `config/gsep_c_flow.json`. The pipeline is orchestrated by specialized Governance Actors.
 
-*   **CRoT Agent:** Core Root of Trust. Generates and locks the Configuration Snapshot Receipt (CSR) at S01.
-*   **GAX Executor:** The atomic component ensuring P-01 finality resolution at S11.
+### 2.1 Critical Stage Dependencies (P-01 Artifact Generation)
+
+The generation of the three P-01 input artifacts relies on specific governance actors operating during critical pipeline stages:
+
+| Stage ID | Primary Action | Artifact Generated | GAX Dependency | P-01 Status |
+|:---:|:---|:---:|:---:|:---:|
+| **S01** | Configuration Locking & State Snapshot | CSR (GAX III Input) | GAX III Prep | Pre-Resolution |
+| **S07** | Execution Context Mapping | ECVM (GAX II Input) | GAX II Prep | Pre-Resolution |
+| **S08** | Transition Efficacy Measurement | TEMM (GAX I Input) | GAX I Prep | Pre-Resolution |
+| **S11** | Axiom Execution & Resolution | P-01 Finality Result | GAX I $\land$ GAX II $\land$ GAX III | Terminal Commitment |
+
+### 2.2 Core DSE Actors
+
+*   **CRoT Agent (Core Root of Trust):** Generates and locks CSR at S01.
+*   **Efficacy Measurement Subsystem (EMS):** Executes efficacy measurements (S08) and validates environmental context (S07). Critical dependency for GAX I and GAX II. (Configuration defined in `config/ems_spec.json`).
+*   **GAX Executor:** The dedicated atomic component resolving P-01 finality at S11.
 *   **RRP Handler:** Executes the comprehensive system state reversal and mitigation upon an IH event.
-*   **Efficacy Measurement Subsystem (EMS):** (PROPOSED, See Scaffold) Executes transition efficacy measurements (TEMM, S08) and validates environmental context (ECVM, S07).
-
-### 2.2 Integrity Halt (IH) and Mandated Root Cause Analysis (RCA)
-
-Any integrity failure across GSEP-C (S00-S14) triggers an IH. Required structured logs (MPAM, SGS, ADTM) are immediately finalized for RCA.
-
-**DIAL Mandate:** The **DSE Integrity Analyzer (DIAL)** utility must ingest all logs and artifacts to execute deterministic RCA. Generation of an immutable, signed fault report is mandatory for system recovery authorization. (DIAL spec defined in `spec/` domain).
 
 ---
 
-## REFERENCE GLOSSARY (Condensed)
+## III. INTEGRITY HALT (IH) & DETERMINISTIC RCA
+
+Failure at *any* stage of GSEP-C (S00-S14) triggers an immediate Integrity Halt (IH), executing the Rollback Protocol (RRP). Structured log data (MPAM, SGS, ADTM) must be immediately secured for subsequent Root Cause Analysis (RCA).
+
+**Mandate: DSE Integrity Analyzer (DIAL)**
+The **DIAL** utility must ingest all generated logs and artifacts to execute deterministic, non-speculative RCA. A failure report (immutable, cryptographically signed) is mandatory before system recovery authorization can be granted. (DIAL specification is located in the `spec/` domain).
+
+---
+
+## REFERENCE GLOSSARY
 
 | Acronym | Definition | Role/Reference |
 |:---:|:---|:---:|
-| **ACVD** | Axiom Constraint Validation Domain | Source definition for all GAX constraints. |
-| **CSR** | Configuration Snapshot Receipt | Artifact defining GAX III constraints (S01). |
-| **DIAL** | DSE Integrity Analyzer | Utility required for RCA post-IH. |
-| **DSE** | Deterministic State Execution | Core state transition protocol. |
-| **ECVM** | Execution Context Validation Map | Artifact defining GAX II constraints (S07). |
-| **GAX** | Governance Axiom (I, II, III) | Three verifiable constraints defining P-01. |
-| **GSEP-C**| Governance State Execution Pipeline - Core | Mandatory 15-stage flow (S00-S14). |
-| **IH** | Integrity Halt | Mandated system stop on integrity failure. |
-| **P-01** | Finality Resolution | Terminal commitment requirement (S11). |
-| **TEMM** | Transition Efficacy Measure | Artifact defining GAX I requirements (S08). |
+| ACVD | Axiom Constraint Validation Domain | Source definition for all GAX constraints. |
+| CSR | Configuration Snapshot Receipt | GAX III input artifact (S01). |
+| DIAL | DSE Integrity Analyzer | Utility required for mandatory post-IH RCA. |
+| DSE | Deterministic State Execution | Core state transition protocol. |
+| ECVM | Execution Context Validation Map | GAX II input artifact (S07). |
+| GAX | Governance Axiom (I, II, III) | Three verifiable constraints defining P-01. |
+| GSEP-C | Governance State Execution Pipeline - Core | Mandatory 15-stage flow (S00-S14). |
+| TEMM | Transition Efficacy Measure | GAX I input artifact (S08). |
+| RRP | Rollback Protocol | Mandated state reversal upon IH. |
