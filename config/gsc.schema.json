@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agiv94.1/schemas/gsc-v3.1.json",
+  "title": "Governance Schema Contract (GSC V3.1)",
+  "description": "Definitive schema for all Sovereign AGI System State Transition proposals. Must satisfy L0 integrity checks.",
+  "type": "object",
+  "required": [
+    "proposal_id",
+    "proposer_entity",
+    "transition_target",
+    "payload",
+    "preliminary_metrics"
+  ],
+  "properties": {
+    "proposal_id": {"type": "string", "format": "uuid", "description": "Unique UUID assigned at PRE stage."},
+    "proposer_entity": {"type": "string", "description": "Authenticated source entity hash/key (verified in L4)."},
+    "transition_target": {"type": "string", "enum": ["CONFIG", "LOGIC", "MODEL", "DATA"], "description": "Target subsystem for the SST."},
+    "payload": {
+      "type": "object",
+      "description": "The functional change payload.",
+      "required": ["artifact_hash", "change_manifest"]
+    },
+    "preliminary_metrics": {
+      "type": "object",
+      "description": "Initial estimates required by MEE/L2 simulation engines.",
+      "required": ["efficacy_estimate", "risk_projection"],
+      "properties": {
+        "efficacy_estimate": {"type": "number", "minimum": 0, "description": "Initial $S-01$ estimate provided by proposer."},
+        "risk_projection": {"type": "number", "minimum": 0, "description": "Initial $S-02$ estimate provided by proposer."},
+        "structural_cost_basis": {"type": "number", "minimum": 0, "description": "Initial $C-01$ estimate for L3 check."}
+      }
+    }
+  },
+  "additionalProperties": false
+}
