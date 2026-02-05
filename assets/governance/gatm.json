@@ -1,17 +1,50 @@
 {
-  "manifest_version": "V95.3-A",
-  "description": "Governance Agent Threshold Manifest (GATM) defining performance SLOs and failure tolerances for GSEP-C execution.",
-  "performance_slo_ms": {
-    "S2_VetoGate_MaxLatency": 50, 
-    "S7_FinalityGate_MaxLatency": 150,
-    "S9_Commit_Timeout": 100
-  },
-  "frequency_thresholds": {
-    "RRP_Max_Daily_Frequency": 5, 
-    "RRP_Window_Tolerance_Days": 7
-  },
-  "system_health_criteria": {
-    "transition_max_duration_s": 1.0, 
-    "transition_criticality_threshold": 0.95 
+  "schema_version": "1.0.0",
+  "data_version": "V95.3-A",
+  "description": "Normalized Governance Agent Threshold Manifest (GATM) defining strict operational SLOs and failure tolerances for GSEP-C execution pathways and system stability. Standardized structure requires 'value', 'unit', 'criticality', and 'failure_policy' for each metric.",
+  "threshold_domains": {
+    "execution_pathways_slo": {
+      "S2_VetoGate_MaxLatency": {
+        "value": 50,
+        "unit": "ms",
+        "criticality": "HIGH",
+        "failure_policy": "REPORT_AND_HALT_PROPAGATION"
+      },
+      "S7_FinalityGate_MaxLatency": {
+        "value": 150,
+        "unit": "ms",
+        "criticality": "MEDIUM",
+        "failure_policy": "REPORT_AND_DEGRADE"
+      },
+      "S9_Commit_Timeout": {
+        "value": 100,
+        "unit": "ms",
+        "criticality": "HIGH",
+        "failure_policy": "ROLLBACK_AND_ALERT"
+      }
+    },
+    "governance_cadence": {
+      "RRP_MaximumDailyFrequency": {
+        "value": 5,
+        "unit": "count",
+        "window_tolerance_days": 7,
+        "criticality": "LOW",
+        "failure_policy": "RATE_LIMIT_QUEUE"
+      }
+    },
+    "operational_health": {
+      "StateTransition_MaxDuration": {
+        "value": 1.0,
+        "unit": "seconds",
+        "criticality": "MEDIUM",
+        "failure_policy": "TIMEOUT_AND_REVERT"
+      },
+      "StateTransition_CriticalityThreshold": {
+        "value": 0.95,
+        "unit": "ratio",
+        "criticality": "CRITICAL",
+        "description": "Ratio (0.0-1.0) above which transition requires immediate governance review."
+      }
+    }
   }
 }
