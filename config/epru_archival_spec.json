@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "description": "Specification defining secure archival requirements for cryptographically signed Forensic Data & Log Snapshots (FDLS). Essential for GAX I compliance.",
+  "archive_policy": {
+    "storage_medium": "WORM_Compliance_L4",
+    "encryption_standard": "AES-256-GCM",
+    "retention_period_epochs": "INDEFINITE",
+    "geographic_replication_zones": 3
+  },
+  "data_validation": {
+    "required_fields": [
+      "AASS_Signature",
+      "P_Set_Trigger_ID",
+      "IH_Timestamp_UTC",
+      "FDLS_Integrity_Hash"
+    ],
+    "signature_validation_utility": "AASS_Public_Key_Registry_v2"
+  },
+  "transmission_requirements": {
+    "protocol": "SECURE_ZERO_KNOWLEDGE_RPC",
+    "max_latency_ms": 500
+  }
+}
