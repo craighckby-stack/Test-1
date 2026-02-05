@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/SOIS_v1",
+  "title": "System Operational Interface Standard (SOIS)",
+  "description": "Defines mandatory schemas and interfaces for external system dependencies, required by SGS at S1 (Ingress) and S6 (Resource Check).",
+  "type": "object",
+  "properties": {
+    "InputSchema": {
+      "description": "Reference to the mandatory data input schema defined in SDVM (S1). Must validate against current GVDM entry.",
+      "type": "object",
+      "properties": {
+        "version_id": {"type": "string"},
+        "validation_rules_uri": {"type": "string"},
+        "max_payload_size_kb": {"type": "integer"}
+      },
+      "required": ["version_id", "validation_rules_uri"]
+    },
+    "ResourceAllocation": {
+      "description": "Configuration for computational budget check (CAC) required at S6.",
+      "type": "object",
+      "properties": {
+        "max_cpu_cores": {"type": "integer"},
+        "max_gpu_memory_gb": {"type": "number"},
+        "budget_id": {"type": "string"},
+        "time_limit_seconds": {"type": "integer"}
+      },
+      "required": ["max_cpu_cores", "budget_id", "time_limit_seconds"]
+    },
+    "ExternalServices": {
+      "description": "Required external endpoints and their attested status for S4.5 context validation (ECVM dependencies).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "service_name": {"type": "string"},
+          "endpoint_uri": {"type": "string"},
+          "expected_latency_ms": {"type": "integer"}
+        },
+        "required": ["service_name", "endpoint_uri"]
+      }
+    }
+  },
+  "required": ["InputSchema", "ResourceAllocation"]
+}
