@@ -1,0 +1,24 @@
+{
+  "specification_name": "Certified_Audit_Log_Specification_CALS_V1.0",
+  "governance_version": "SGS_V95.3",
+  "audit_requirements": {
+    "non_repudiation": true,
+    "signing_authority": "CRoT_KEY_V2",
+    "required_storage_redundancy": 3,
+    "mandatory_fields": [
+      "transaction_hash",
+      "timestamp_utc",
+      "sgs_pipeline_stage_id",
+      "gac_manifest_hash_at_time",
+      "triggering_input_digest",
+      "ga_x_finality_result",
+      "sih_flag",
+      "rollback_flag"
+    ]
+  },
+  "endpoint_configuration": {
+    "primary": "log_service/immutable_ledger_01",
+    "secondary": "log_service/cold_storage_vault"
+  },
+  "schema_version": "CALS-SCHEMA-V1.0"
+}
