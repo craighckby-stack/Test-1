@@ -1,26 +1,33 @@
 {
-  "crcm_id": "V95.3-RUNTIME-CHECK-001",
-  "verification_protocol": "MRDP (Manifest Runtime Drift Protocol)",
-  "monitoring_frequency_ms": 100,
-  "manifest_checksums": {
+  "crcm_id": "V95.4-ROOT-INTEGRITY-CHECK",
+  "protocol": "MRDP (Manifest Runtime Drift Protocol)",
+  "metadata": {
+    "version": "95.4",
+    "status": "ACTIVE",
+    "hashing_standard": "SHA3-512"
+  },
+  "runtime_monitoring": {
+    "frequency_ms": 100,
+    "violation_action": "RRP_TRIGGER"
+  },
+  "tracked_manifests": {
     "PVLM": {
       "path": "assets/policies/veto.yaml",
-      "algorithm": "SHA3-512",
+      "description": "Policy Veto Lifecycle Manifest",
       "expected_hash": "[CRoT_SIGNED_HASH_OF_PVLM]",
-      "runtime_verification_points": ["PRE-S2", "POST-S2"]
+      "verification_stages": ["S2_PRE_LOAD", "S2_POST_LOAD"]
     },
     "CFTM": {
       "path": "assets/security/cftm.json",
-      "algorithm": "SHA3-512",
+      "description": "Core Function Trust Manifest",
       "expected_hash": "[CRoT_SIGNED_HASH_OF_CFTM]",
-      "runtime_verification_points": ["PRE-S7", "POST-S7"]
+      "verification_stages": ["S7_PRE_EXECUTION", "S7_POST_EXECUTION"]
     },
     "SBCM": {
       "path": "assets/policies/sbcm.json",
-      "algorithm": "SHA3-512",
+      "description": "Sandbox Configuration Bundle Manifest",
       "expected_hash": "[CRoT_SIGNED_HASH_OF_SBCM]",
-      "runtime_verification_points": ["PRE-S4", "POST-S4"]
+      "verification_stages": ["S4_PRE_INIT", "S4_POST_INIT"]
     }
-  },
-  "drift_violation_action": "RRP_TRIGGER"
+  }
 }
