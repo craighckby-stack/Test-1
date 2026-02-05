@@ -26,13 +26,13 @@ Three attested, specialized agents coordinate state commitment using the Governa
 
 ## 3.0 GOVERNANCE ASSET & MANIFEST REGISTRY (GACR V98.3)
 
-GACR defines certified configurations and reference assets necessary for GSEP-C validation stages. Assets marked (*) are Terminal Control Assets, requiring mandatory CRoT attestation.
+GACR defines certified configurations and reference assets necessary for GSEP-C validation stages. Assets marked (*) are Terminal Control Assets, requiring mandatory CRoT attestation and PCTM lifecycle management (See 7.1).
 
 | Acronym | Trust Domain & Control Focus | Owner(s) | Primary Gate(s) | Description |
 |:---|:---|:---|:---|:---|
 | **HETM*** | Integrity / Environment | CRoT | S0 | Host Environment Trust Manifest. Certified proofs for physical/virtual infrastructure (Trust Anchor).|
 | **GICM*** | Commitment Handoff | CRoT | S0, S10 | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure agent handoffs.|
-| **PVLM** | Axiom Veto Logic | GAX | S2 ($ \neg S_{03} $) | Policy Veto Logic Manifest. Defines axiomatic rules for system prohibitions. Requires schema validation (See 7.1).|
+| **PVLM** | Axiom Veto Logic | GAX | S2 ($ \neg S_{03} $) | Policy Veto Logic Manifest. Defines axiomatic rules for system prohibitions. Requires schema validation.|
 | **MPAM** | Model Stability | SGS/GAX | S3 ($ \neg S_{04} $), S7 | Model Performance & Attestation Manifest. Tracks model drift and integrity bounds.|
 | **DTEM*** | Data Lineage Trust | CRoT | S4 | Data Trust and Execution Manifest. Validation rules for input data lineage and trustworthiness.|
 | **ADTM** | Anomaly Detection | GAX/SGS | S6.5 ($ \neg S_{06.5} $) | Anomaly Detection Threshold Manifest. Defines execution profile heuristics for behavioral veto.| 
@@ -47,6 +47,10 @@ The Autonomous State must maximize Certified Utility ($ S_{01} $) while strictly
 ### 4.1 P-01 Pass Condition
 
 $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{03}) \land (\neg S_{04}) \land (\neg S_{06.5}) \land (S_{Context\ Pass})$$
+
+### 4.2 Certified Variable Registry (Calculus Inputs)
+
+This registry defines the primary variables governing the P-01 finality calculus, correlating them to their production source (GSEP-C stage) and ownership.
 
 | Variable | Governing Agent(s) | Source Stage | Metric Role | Description |
 |:---|:---|:---|:---|:---|
@@ -68,7 +72,7 @@ GSEP-C utilizes the Certified Intermediate State Manager (CISM) to secure data i
 
 | Stage | Agent | Failure Type | Veto/Commitment | Primary Gate Function | Key Dependencies |
 |:---|:---|:---|:---|:---|:---|
-| **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL (SIH) | | Validate Host (HETM*), Agents, and load GACR State. | HETM*, GVDM, GICM* |
+| **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL (SIH) | | Validate Host (HETM*), Agents, and load GACR State. | HETM*, GVDM, GICM*, PCTM Config|
 | S1: INGRESS VALIDATION | SGS | STANDARD | | Input Schema Compliance check (SDVM). CISM state initialized. | SDVM |
 
 ### B. Critical Attestation & Veto Gates (GAX/CRoT Lead)
@@ -110,11 +114,16 @@ GSEP-C utilizes the Certified Intermediate State Manager (CISM) to secure data i
 | Resilience/Recovery Protocol | RRP | Triage requirements for CRITICAL failures, defined by GRDM. | Fault Management | CRITICAL Failures |
 | System Integrity Halt | SIH | Immediate fail-safe activation upon TERMINAL failure. | Fault Management | TERMINAL Failures |
 | Certified State Transition Ledger | CSTL | Immutable, verifiable ledger storing signed $ \Psi_{N+1} $ commitment records. | Historical Provenance Layer | S10, S11 |
+| **Policy Configuration Trust Manager** | **PCTM** | Enforces version control and cryptographic integrity checks on critical configuration assets (PVLM, ADTM, CFTM) upstream of S0. | Axiom Governance Layer | Pre-S0 |
 
 ---
 
-## 7.0 GOVERNANCE ENGINEERING REQUIREMENTS
+## 7.0 STRUCTURAL ASSURANCE & GOVERNANCE GLOSSARY
 
-### 7.1 Manifest Schema Validation
+### 7.1 Manifest Configuration Trust Management (PCTM Requirement)
 
-All critical governance manifests (PVLM, ADTM, CFTM) MUST be validated against a strict JSON Schema prior to loading at S0 to prevent axiom failure due to malformed policy configuration. The Policy Veto Logic Manifest (PVLM) requires the highest level of structural assurance.
+All critical governance manifests (PVLM, ADTM, CFTM) MUST be validated against a strict JSON Schema prior to loading at S0 (Schema Compliance Audit). Furthermore, these configuration assets must be managed by the Policy Configuration Trust Manager (PCTM) to enforce strict cryptographic signing and semantic versioning requirements, ensuring the axiom source of truth is verifiable and non-repudiable pre-deployment.
+
+### 7.2 Governance Acronym Glossary
+
+(Note: Comprehensive glossary for all acronyms defined in Sections 2.0, 3.0, and 6.0 for enhanced system comprehension and maintainability.)
