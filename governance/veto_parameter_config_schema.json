@@ -1,0 +1,45 @@
+{
+  "schema_id": "VPCS-A01",
+  "version": "1.0",
+  "description": "Defines static weights for Soft Constraints (WSC) and the derivation rules for the dynamic Veto Limit Scalar (Omega).",
+  "hard_veto_thresholds": [
+    {
+      "hvt_id": "HVT_SEC_001",
+      "description": "Unauthorized access attempt identified in core memory register.",
+      "fail_metric": "SecurityCompliance.Non_BypassableViolationCount",
+      "threshold": 1
+    },
+    {
+      "hvt_id": "HVT_EXE_901",
+      "description": "Existential Risk Model (L7 AIA) score exceeding mandated maximum.",
+      "fail_metric": "AIA_L7_RiskScore",
+      "threshold": 0.99
+    }
+  ],
+  "soft_constraint_weights": [
+    {
+      "wsc_id": "WSC_BUD_01",
+      "description": "Projected budget overrun exceeding 5% in next cycle.",
+      "default_weight": 0.35,
+      "is_dynamic": false
+    },
+    {
+      "wsc_id": "WSC_LAT_02",
+      "description": "Anticipated operational latency increase > 15ms.",
+      "default_weight": 0.20,
+      "is_dynamic": true
+    },
+    {
+      "wsc_id": "WSC_PRO_03",
+      "description": "Minor protocol divergence or API inconsistency.",
+      "default_weight": 0.10,
+      "is_dynamic": false
+    }
+  ],
+  "omega_derivation_rules": {
+    "base_scalar": 1.0,
+    "adaptive_function": "INVERSE_LINEAR_RTM_MAPPING",
+    "rtm_metric_dependency": "RTM_Exposure_Index",
+    "formula": "Omega = BaseScalar - (RTM_Exposure_Index * RTM_Coefficient)"
+  }
+}
