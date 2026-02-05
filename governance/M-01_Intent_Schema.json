@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "id_prefix": "M-01-",
+  "description": "Schema for the codified Autonomous Mutation Intent (M-01), triggering the GSEP pipeline. This standard guarantees auditable input for Stage 1 Policy Vetting.",
+  "fields": [
+    {"name": "Intent_ID", "type": "string", "description": "Unique, immutable identifier for this specific evolution request (SHA-256 derived from payload and metadata)."},
+    {"name": "Proposing_Agent_ID", "type": "string", "description": "The Sovereign AGI subsystem responsible for initiating the intent (e.g., PerformanceMonitor/V4)."},
+    {"name": "Target_Component_Manifest", "type": "array", "items": {"type": "string"}, "description": "Specific list of files or modules targeted by the M-02 mutation payload."},
+    {"name": "Optimization_Goal_Vector", "type": "string", "description": "The measurable systemic goal this mutation attempts to optimize (e.g., LatencyReduction/12ms, SecurityPatch/CVE-404)."},
+    {"name": "Context_Trace_Link", "type": "string", "description": "Immutable reference link to the originating PDFS or DIM data trace that mandated this evolution request."},
+    {"name": "Risk_Priority_Claim", "type": "enum", "values": ["IRREVERSIBLE_CRITICAL", "CRITICAL", "HIGH", "MEDIUM", "LOW"], "description": "Agent's subjective assessment of urgency and criticality, used as a weighted input for S-02 calculation."},
+    {"name": "M-02_Hash_Reference", "type": "string", "description": "The cryptographic SHA-256 hash linking this M-01 intent record to the actual M-02 Mutation Payload (required prior to Stage 2 Payload Security)."}
+  ]
+}
