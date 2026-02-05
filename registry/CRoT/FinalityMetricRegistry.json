@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "FinalityMetricRegistry.json",
+  "title": "Finality Metric Registry (FMR)",
+  "description": "A chronological, immutable log indexing P-01 evaluation results for rapid efficacy analysis.",
+  "type": "object",
+  "properties": {
+    "history": {
+      "type": "array",
+      "description": "Indexed history of state transition finality results.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "epoch_id": {
+            "type": "string",
+            "description": "Unique identifier for the state transition epoch."
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time of S13 commitment/S11 failure."
+          },
+          "p01_status": {
+            "type": "string",
+            "enum": ["PASS", "FAIL"],
+            "description": "Final P-01 outcome."
+          },
+          "failure_mode": {
+            "type": ["string", "null"],
+            "description": "Codified RRP or IH failure if status is FAIL. Null if PASS."
+          },
+          "decisive_constraints": {
+            "type": "object",
+            "description": "Snapshot of ACV components determining the final result.",
+            "properties": {
+              "UMA_status": {
+                "type": "boolean"
+              },
+              "CA_status": {
+                "type": "boolean"
+              },
+              "AI_status": {
+                "type": "boolean"
+              }
+            },
+            "required": ["UMA_status", "CA_status", "AI_status"]
+          }
+        },
+        "required": ["epoch_id", "timestamp_utc", "p01_status", "failure_mode", "decisive_constraints"]
+      }
+    }
+  },
+  "required": ["history"]
+}
