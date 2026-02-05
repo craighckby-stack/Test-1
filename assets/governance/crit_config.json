@@ -1,0 +1,24 @@
+{
+  "crit_version": "1.0",
+  "trust_source_protocol": "TPM_JWS",
+  "hash_provisioning_endpoint": "https://secure-root-of-trust.corp/api/v1/integrity/hashes",
+  "verification_key_path": "certs/tpm_signing_key.pem",
+  "manifest_lookup_map": {
+    "PVLM": {
+      "query_param": "manifest_id=PVLM",
+      "hash_field": "PVLM_HASH"
+    },
+    "CFTM": {
+      "query_param": "manifest_id=CFTM",
+      "hash_field": "CFTM_HASH"
+    },
+    "SBCM": {
+      "query_param": "manifest_id=SBCM",
+      "hash_field": "SBCM_HASH"
+    }
+  },
+  "failover_mechanism": {
+    "type": "LOCAL_FALLBACK_ROM",
+    "path": "/dev/rom/crit_baseline.sig"
+  }
+}
