@@ -21,18 +21,29 @@ GAX defines the four uncompromisable principles governing deterministic executio
 | **GAX III** | Policy Immutability | Execution manifest and epoch configuration hash-locked (G0 Seal). | EMSU | Manifest Hash |
 | **GAX IV** | Sequence Compliance | Adherence to GSEP-C stage duration and execution order (Temporal). | PIM / DHC | Temporal Delta |
 
-### I.2. PIM Core Entity Glossary & Critical Failure Triggers (P-Set)
+### I.2. Critical Failure Triggers (P-Set) Definition
 
-Central authority roles responsible for enforcing GAX compliance. Violation severity leads directly to an Integrity Halt (IH).
+Violation severity is codified by the P-Set, leading directly to an Integrity Halt (IH).
 
-| Acronym | Component Definition | Core Mandate (GAX Focus) | Key P-Set Trigger | Enforcement Role |
+| Trigger ID | Violation Type | Impact Summary | Governing GAX | Associated Component |
+|:---:|:---:|:---:|:---:|:---:|
+| **P-M01** | Temporal Fault | Sequence/Timing duration breach. | GAX IV | PIM / DHC |
+| **P-M02** | Integrity Exhaustion | Resource bounds or configuration mismatch. | GAX II / GAX III | DRO / EMSU |
+| **P-R03** | Finality Compromise | Cryptographic seal or deterministic outcome integrity breach. | GAX I | AASS |
+
+### I.3. PIM Core Entity Glossary & Mandates
+
+Central authority roles responsible for maintaining GAX compliance and acting upon P-Set triggers.
+
+| Acronym | Component Definition | Core Mandate | Enforcement Role | Failure Action (P-Set) |
 |:---:|:---|:---|:---:|:---:|
-| **PIM** | Protocol Integrity Manager | Sequencing, governance, GAX IV monitoring. | **P-M01** (Temporal Fault) | Oversight / Regulator |
-| **AASS** | Audit & Signing Service | Cryptographic sealing and determinism assurance (GAX I). | **P-R03** (Finality Compromise) | Sealing Authority |
-| **DRO** | Dynamic Resource Orchestrator | Validation against runtime ACVM limits (GAX II). | **P-M02** (Resource Exhaustion) | Resource Manager |
-| **EMSU** | Epoch Manifest & Sealing Utility | Configuration immutability via hash-locking (GAX III). | **P-M02** (Manifest Divergence) | Immutability Enforcer |
-| **DHC** | Data Harvesting Component | Input State Buffer (ISB) acquisition and sequence timing (GAX IV). | **P-M01** (Temporal Fault) | Data Interface |
-| **FSMU** | Failure State Management Utility | P-Set execution, IH initiation, and FDLS generation. | Executes All P-Sets | IH Executor |
+| **PIM** | Protocol Integrity Manager | Sequencing, governance, GAX IV monitoring. | Oversight / Regulator | P-M01, P-M02 |
+| **AASS** | Audit & Signing Service | Cryptographic sealing and determinism assurance (GAX I). | Sealing Authority | P-R03 |
+| **DRO** | Dynamic Resource Orchestrator | Validation against runtime ACVM limits (GAX II). | Resource Manager | P-M02 |
+| **EMSU** | Epoch Manifest & Sealing Utility | Configuration immutability via hash-locking (GAX III). | Immutability Enforcer | P-M02 |
+| **DHC** | Data Harvesting Component | Input State Buffer (ISB) acquisition and sequence timing (GAX IV). | Data Interface | P-M01 |
+| **FSMU** | Failure State Management Utility | P-Set execution, IH initiation, and FDLS generation. | IH Executor | Executes All |
+| **EPRU** | **Execution Post-Mortem Report Utility** | Secure reception and immutable archival of signed FDLS (GAX I). | Audit Storage Agent | N/A (Post-IH) |
 
 ---
 
@@ -44,9 +55,10 @@ Registry for protocol definitions (Immutable Trust Foundation) and volatile runt
 |:---:|:---:|:---:|:---:|:---:|
 | PGN Master Specification | Protocol (Immutable) | `protocol/pgn_master.yaml` | PGN Authority | Foundational system checksums (EMSU) |
 | GAX Master Specification | Protocol (Immutable) | `protocol/gax_master.yaml` | GAX I-IV | Definitive axiom definitions (PIM oversight) |
-| **EEDS Master Specification** | Protocol (Immutable) | `protocol/eeds_master_specification.yaml` | **GAX I, GAX III** | Canonical definition of expected Input/Output schema and runtime bounds (NEW) |
+| EEDS Master Specification | Protocol (Immutable) | `protocol/eeds_master_specification.yaml` | GAX I, GAX III | Canonical definition of expected Input/Output schema and runtime bounds (DHC, DRO) |
 | FDLS Schema | Protocol (Immutable) | `protocol/telemetry_data_specification.yaml` | GAX I, GAX IV | Deterministic logging schema definition (FSMU) |
 | Cryptographic Manifest | Protocol (Immutable) | `protocol/cryptographic_manifest.json` | GAX I / P-R03 | Hash/signing standards and key management (AASS) |
+| EPRU Archival Spec | Config (Immutable) | `config/epru_archival_spec.json` | GAX I | Requirements for secure post-mortem data routing and storage (EPRU) |
 | PIM Constraints Spec | Config (Runtime) | `config/pim_constraints.json` | P-Set (All) | Granular failure thresholds and trigger definitions (PIM/DHC) |
 | GSEP Orchestrator Config | Config (Runtime) | `config/gsep_orchestrator_config.json` | GAX IV (P-M01) | Execution sequence and mandatory timing limits (PIM) |
 | ACVM Configuration | Config (Runtime) | `config/acvm.json` | GAX II (P-M02) | Computational and resource thresholds (DRO) |
@@ -72,8 +84,10 @@ The GSEP-C is a strictly linear, 15-stage sequence (S00 $\to$ S14), punctuated b
 ## IV. INTEGRITY HALT PROTOCOL (IH)
 
 Upon P-Set violation, FSMU executes IH. It must adhere to the following sequence to maintain Auditability (GAX I):
-1. Generate the **Forensic Data & Log Snapshot (FDLS)**, adhering strictly to the immutable `FDLS Schema`.
-2. Submit the FDLS to AASS for mandatory cryptographic signing (GAX I proof of failure state).
-3. Trigger immediate system isolation, resource purge, and non-recoverable operational shutdown.
 
-The signed FDLS is then routed to the **EPRU (Execution Post-Mortem Report Utility)** for systemic closure analysis and immutable storage.
+1.  Generate the **Forensic Data & Log Snapshot (FDLS)**, adhering strictly to the immutable `FDLS Schema`.
+2.  Submit the FDLS to AASS for mandatory cryptographic signing (GAX I proof of failure state).
+3.  Route the signed FDLS to the **EPRU (Execution Post-Mortem Report Utility)** for secure archival, respecting the `EPRU Archival Spec`.
+4.  Trigger immediate system isolation, resource purge, and non-recoverable operational shutdown.
+
+The IH sequence guarantees that forensic data (FDLS) is sealed by an independent authority (AASS) before physical isolation, ensuring post-mortem system auditability is uncompromised. EPRU maintains the immutable historical record.
