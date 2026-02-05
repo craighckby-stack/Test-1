@@ -2,17 +2,23 @@
 
 ## I. SYSTEM METADATA & OPERATIONAL MANDATE
 
-This document defines the **Sovereign Operational Manifesto (AOC V96.1)**, establishing the unilateral foundation for Autonomous Code Evolution. All systemic change is governed by the risk-optimized, mandatory **Governing Self-Evolution Protocol (GSEP V96.1)**.
+This document defines the **Sovereign Operational Manifesto (AOC V96.1)**, establishing the unilateral foundation for Autonomous Code Evolution based on the principle of **Atomic Immutable Architecture (AIA)**. All systemic change is governed by the risk-optimized, mandatory **Governing Self-Evolution Protocol (GSEP V96.1)**.
 
 | Field | Value | Rationale |
 |:---|:---|:---|
 | **Version** | V96.1 (Manifesto Refinement) | Enhanced Input Integrity and Architectural Clarity |
 | **Core Protocol** | GSEP V96.1 (5-Stage Atomic Mutation Lifecycle) | Defines operational change sequence. |
-| **Commitment Gate**| P-01 Trust Calculus | Non-negotiable, irreversible state mutation lock. |
+| **Commitment Gate**| P-01 Trust Calculus (AIA Enforcement) | Non-negotiable, cryptographically secured state mutation lock. |
 
 ---
 
-## II. SOVEREIGN AGI CORE ONTOLOGY (GLOSSARY V96.1)
+## II. CORE ARCHITECTURAL PRINCIPLES & ONTOLOGY (GLOSSARY V96.1)
+
+### A. Atomic Immutable Architecture (AIA)
+
+Every authorized state change (Mutation) must be treated as an atomic, cryptographically attested transaction, committing irreversible, fully auditable records (D-01, MCR) to the system ledger, ensuring non-repudiation and guaranteed rollback capability.
+
+### B. Terminology Matrix
 
 Formal terminology mandated for unambiguous, low-latency protocol execution, structured by functional pillar.
 
@@ -20,6 +26,7 @@ Formal terminology mandated for unambiguous, low-latency protocol execution, str
 |:---|:---|:---|:---|:---|
 | **AOC** | Autonomous Operational Contract | Primary Systemic Governance Mandate | GOVERNANCE | Foundation |
 | **GSEP** | Governing Self-Evolution Protocol | Mandatory 5-Stage Mutation Lifecycle | GOVERNANCE | All |
+| **AIA** | Atomic Immutable Architecture | Guiding Principle for all commitment gates. | GOVERNANCE | Stages 3, 4, 5 |
 | **P-01** | Trust Calculus | Non-Negotiable Risk/Reward Adjudication Gate | CONSENSUS | Stage 3 |
 | **OGT** | Operational Governance Triad | Administrative Authority for P-01 Execution | GOVERNANCE | Stage 3 |
 | **MCR** | Mutation Commitment Registrar | Cryptographic Commitment of Final State | INFRASTRUCTURE | Stage 4 |
@@ -53,7 +60,7 @@ graph TD
         
         C -- FAIL: Recalibrate --> F01[F-01: Failure Analysis/Recalibration];
         
-        subgraph Trust_Adjudication [3. OGT P-01 IRREVERSIBLE GATE]
+        subgraph Trust_Adjudication [3. OGT P-01 IRREVERSIBLE AIA GATE]
             C -- PASS: Proceed --> D[**TIAR Registration** & Execute P-01 Calculus];
             D --> E{EPDP C: P-01 Pass/Fail?};
         end
@@ -74,7 +81,7 @@ graph TD
 
 ## IV. P-01 TRUST CALCULUS: The Irreversible Mutation Gate
 
-P-01 requires a high-fidelity, three-part validation administered by the OGT. All input data (S-01, S-02, S-03) must first be attested by the **TIAR**. Only a P-01 PASS triggers MCR (Stage 4).
+P-01 requires a high-fidelity, three-part validation administered by the OGT. All input data (S-01, S-02, S-03) must first be cryptographically attested by the **TIAR**, requiring key assurance from KTAM. Only a P-01 PASS triggers MCR (Stage 4).
 
 $$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{attested}} > \text{S-02}_{\text{attested}} \\ \text{S-03 VETO} = \text{FALSE} \end{cases}$$
 
@@ -88,9 +95,9 @@ $$\text{P-01 PASS} \iff \begin{cases} \text{S-01}_{\text{attested}} > \text{S-02
 
 ---
 
-## V. ARCHITECTURAL MAP: FUNCTIONAL PILLARS (GCR V96.1)
+## V. SYSTEM DEPENDENCY MATRIX (SDM V96.1)
 
-The authoritative System Dependency Map (SDM), categorized by major architectural responsibility.
+The authoritative System Dependency Map, categorized by major architectural responsibility and cross-referenced with GSEP Stages.
 
 ### V.A. CONSENSUS & ADJUDICATION CORE (P-01 Dependencies)
 
@@ -101,6 +108,7 @@ Responsible for calculating, validating, and committing to the irreversible muta
 | **ATM** | Trust Metrics | Quantitative Reliability Projection (S-01). | `src/consensus/atmSystem.js` | Stage 3 |
 | **C-11** | MCRA Engine | Contextual Risk Modeling and Floor Calculation (S-02). | `src/consensus/mcraEngine.js` | Stage 3 |
 | **TIAR** | **Telemetry Input Attestation Registrar** | **Cryptographically attests S-01/S-02 inputs for P-01 integrity.** | `src/consensus/telemetryAttestationRegistrar.js` | **Stage 3** |
+| **KTAM** | **Key & Trust Anchor Manager** | **Manages cryptographic primitives for TIAR/MCR integrity.** | `src/infrastructure/keyTrustAnchorManager.js` | Stage 3/4/Fdn |
 | **PSR** | Pre-Commit Simulation Runner | Simulation utility to enhance S-01 accuracy. | `src/governance/preCommitSimulationRunner.js` | Stage 2/3 |
 | **D-01** | Decision Audit Logger | Immutable chronological record keeper for all P-01 states. | `src/core/decisionAuditLogger.js` | Stage 3 |
 
@@ -126,9 +134,9 @@ Responsible for translating intent into specifiable, verifiable payloads.
 | **MSU** | Mutation Synthesis Unit | Translates M-01 intent into M-02 code payload specifications. | `src/synthesis/mutationSynthesisUnit.js` | Stage 2 |
 | **MPSE** | Mut. Payload Spec Engine | Enforces rigid payload schema validation for M-02 output. | `src/governance/mutationPayloadSpecEngine.js` | Stage 2 |
 
-### V.D. INFRASTRUCTURE & STATE MANAGEMENT (MCR Phase)
+### V.D. INFRASTRUCTURE & STATE MANAGEMENT (AIA Enforcement)
 
-Handles environment telemetry, state integrity, execution, and rollback.
+Handles environment telemetry, state integrity, execution, and rollback. Ensures AIA guarantees via commitment.
 
 | ID | Component Name | Functional Focus (Integrity Maintenance) | Location | GSEP Alignment |
 |:---|:---|:---|:---|:---|
