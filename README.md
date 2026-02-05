@@ -23,11 +23,23 @@ System integrity begins at the mandatory **L-PRE (Integrity Vetting)** stage. Fa
 *   **RRP (Rollback Protocol):** Activated by recoverable failures (L0-L8). Guarantees atomic state rollback and non-persistence of intermediary invalid states.
 *   **SIH (Integrity Halt):** Triggered by L-PRE failure or terminal commitment failure (L9). Locks down the system state, records forensic evidence, and initiates mandatory external audit.
 
+### 1.3 Glossary of Core Acronyms
+
+| Acronym | Definition | Relevant Section |
+|:---|:---|:---|
+| **SGS** | Sovereign Governance Standard (The overall framework). | 1.0 |
+| **GSEP-C** | Governance State Evolution Pipeline (The 11-stage process). | 2.0 |
+| **GAX** | Governance Axioms (Core policy and calculus). | 3.0 |
+| **GACR** | Governance Asset and Contract Registry (Configuration source). | 4.0 |
+| **CRoT** | Crypto Root of Trust (Key management authority). | 1.1, L-PRE |
+| **SIH** | System Integrity Halt (Terminal failure state). | 1.2, L9 |
+| **NRALS** | Non-Repudiable Audit Log Specification (Mandatory logging format). | 1.2, L8 |
+
 ---
 
 ## 2.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.5)
 
-GSEP-C enforces 11 sequential, segregated stages. Progression requires strict adherence to the current stage's objective and governance class. Critical integrity gates are highlighted.
+GSEP-C enforces 11 sequential, segregated stages. Progression requires strict adherence to the current stage's objective and Governance Class. **CRITICAL** stages define the core integrity and policy gates.
 
 | Stage | ID Tag | Governance Class | Core Objective / Validation Action | Halt Protocol |
 |:-----|:---|:---|:-----------------------------------|:---|
@@ -48,7 +60,7 @@ GSEP-C enforces 11 sequential, segregated stages. Progression requires strict ad
 
 ## 3.0 GOVERNANCE DECISION CALCULUS (GAX Engine)
 
-GAX utilizes metrics synthesized in L6 against thresholds ($\, \tau_{norm}, \epsilon$) defined in the CFTM to drive deterministic outcomes.
+GAX utilizes metrics synthesized in L6 against thresholds ($\tau_{norm}, \epsilon$) defined in the CFTM to drive deterministic outcomes. Only P-01 certified transitions are permissible.
 
 ### 3.1 Decision Metrics (S-METRICS)
 
@@ -56,17 +68,17 @@ GAX utilizes metrics synthesized in L6 against thresholds ($\, \tau_{norm}, \eps
 |:---|:---|:---|:---|
 | S-01 | Efficacy Metric | Quantifies systemic benefit/value (Goal achievement). | Numeric |
 | S-02 | Risk Metric | Quantifies systemic risk/cost (Vulnerability/Expense). | Numeric |
-| S-03 | Veto Signal | Flag immediate critical policy violation (Triggered in L1). | Boolean |
+| S-03 | Veto Signal | Flag immediate critical policy violation (Triggered in L1 via PVLM). | Boolean |
 
 ### 3.2 Axiom Enforcement Functions
 
 **GAX-EVAL: Core Objective Function (COF) [L6]**
-Evaluates the state transition proposal benefit relative to weighted risk, stabilized by the normalization threshold ($\, \tau_{norm}$). If COF is maximized, the proposal proceeds to L7.
+Evaluates the state transition proposal benefit relative to weighted risk, stabilized by the normalization threshold ($\tau_{norm}$) from CFTM. If COF is maximized, the proposal proceeds to L7.
 
 $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right) $$
 
 **GAX-CERT: P-01 Finality Certification [L7]**
-State transition commitment (P-01) requires two concurrent conditions: the complete absence of any Veto Signal ($\neg S\text{-}03$) AND the Efficacy (S-01) must strictly exceed the Risk (S-02), adjusted by the necessary deviation factor ($\, \epsilon$).
+State transition commitment (P-01) requires two concurrent conditions: the complete absence of any Veto Signal ($\neg S\text{-}03$) AND the Efficacy (S-01) must strictly exceed the Risk (S-02), adjusted by the necessary deviation factor ($\epsilon$) from CFTM.
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
@@ -87,6 +99,7 @@ All assets are CRoT-certified (L-PRE checked) mandatory configurations essential
 | MDSM | Metric Definition and Semantic Manifest. | `manifests/governance/mdsm_v1.json` | L6 (MEE), GAX |
 | SIHM | System Integrity Halt Manifest (SIH trigger definitions). | `manifests/security/sihm_v1.json` | L9 (TEDC), SIH |
 | FSVM | Forensic State Verification Manifest (Log completeness schema). | `manifests/forensics/fsvm_v1.json` | RRP, SIH, Audit |
+| **SBCM** | **Systemic Behavioral Constraints Manifest** | **`manifests/governance/sbcm_v1.json`** | **L3 (CM), GAX** |
 
 ### 4.2 Protocol Contracts & Specifications
 
