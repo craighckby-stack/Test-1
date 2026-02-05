@@ -1,0 +1,24 @@
+{
+  "module_name": "ViabilityMarginOracle",
+  "version": "1.0.0",
+  "input_streams": [
+    "SystemicRiskVolatility (S-02_sigma)",
+    "RecentStateTransitionFailureRate (L0_ReEntry_Ratio)",
+    "ResourceSaturationLevel (RSL)"
+  ],
+  "calculation_model": {
+    "type": "AdaptivePolynomialModel",
+    "formula_reference": "VMO-CALC-R4.1",
+    "base_epsilon_static": 0.005,
+    "adjustment_weights": {
+      "S-02_sigma": 1.2,
+      "L0_ReEntry_Ratio": 3.5,
+      "RSL": 0.8
+    }
+  },
+  "enforcement": {
+    "min_epsilon": 0.001,
+    "max_epsilon": 0.150
+  },
+  "description": "Defines the input sources and weighting model for dynamically computing the P-01 viability margin (epsilon), ensuring safety margins adapt proactively to systemic volatility and constraint violations."
+}
