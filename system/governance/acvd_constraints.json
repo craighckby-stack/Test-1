@@ -1,12 +1,1 @@
-{
-  "schema_version": "v94.1",
-  "description": "Axiomatic Constraint Vetting Document (ACVD) thresholds required for P-01 finality calculation.",
-  "runtime_constraints": {
-    "minimum_temm_utility_score": 0.85, 
-    "policy_vetting_miss_limit": 0, 
-    "max_utility_debt_flag_persistence_hours": 24
-  },
-  "integrity_flags": {
-    "allow_minor_ecvm_warning": false
-  }
-}
+[object Object]
