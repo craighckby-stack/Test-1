@@ -1,0 +1,21 @@
+{
+  "description": "Definitive contract schema for the Trusted Event Data Stream (TEDS) used by the IH Sentinel (IH-S) to ensure sequential, complete logging across all GSEP-C stages (S00-S14).",
+  "schema_version": "v94.1",
+  "stages": [
+    {"stage": "S00", "phase": "P1", "agent": "SGS", "required_log_data": ["start_timestamp", "previous_hash"]},
+    {"stage": "S01", "phase": "P1", "agent": "CRoT", "required_log_data": ["csr_lock_hash", "environment_verification_status"]},
+    {"stage": "S02", "phase": "P2", "agent": "GAX", "required_log_data": ["acvd_template_load_status"]},
+    {"stage": "S03", "phase": "P2", "agent": "GAX", "required_log_data": ["acvd_validation_start"]},
+    {"stage": "S04", "phase": "P2", "agent": "GAX", "required_log_data": ["acvd_final_hash", "pvlm_flag_status"]},
+    {"stage": "S05", "phase": "P3", "agent": "SGS", "required_log_data": ["execution_start_state_read"]},
+    {"stage": "S06", "phase": "P3", "agent": "SGS", "required_log_data": ["core_evolution_completion_status"]},
+    {"stage": "S07", "phase": "P3", "agent": "SGS", "required_log_data": ["asm_generation_hash", "ecvm_result"]},
+    {"stage": "S08", "phase": "P4", "agent": "SGS", "required_log_data": ["metric_calculation_start"]},
+    {"stage": "S09", "phase": "P4", "agent": "GAX", "required_log_data": ["mpam_flag_status", "adtm_flag_status"]},
+    {"stage": "S10", "phase": "P4", "agent": "SGS", "required_log_data": ["temm_score", "threshold_delta"]},
+    {"stage": "S11", "phase": "P5", "agent": "GAX", "required_log_data": ["p01_axiom_i_result", "p01_axiom_ii_result", "p01_final_outcome"]},
+    {"stage": "S12", "phase": "P6", "agent": "CRoT", "required_log_data": ["persistence_initiation"]},
+    {"stage": "S13", "phase": "P6", "agent": "CRoT", "required_log_data": ["state_write_confirmation"]},
+    {"stage": "S14", "phase": "P6", "agent": "CRoT", "required_log_data": ["str_hash", "end_timestamp"]}
+  ]
+}
