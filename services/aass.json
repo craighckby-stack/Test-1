@@ -1,0 +1,25 @@
+{
+  "service_name": "Artifact Attestation and Signing Service",
+  "purpose": "Handles all cryptographic signing and timestamping operations for critical, non-mutable system artifacts (DIAL Certification, State Transition Receipt, CHR Manifests). Ensures immutable commitment integrity.",
+  "interfaces": [
+    {
+      "endpoint": "/sign/dial_certification",
+      "requires_input_schema": "DARM_RCA_Output",
+      "output_format": "JWS/Ed25519 (Signed Artifact)"
+    },
+    {
+      "endpoint": "/seal/state_transition_receipt",
+      "requires_input_schema": "S14_Verification_Data",
+      "output_format": "Immutable Signed Receipt"
+    },
+    {
+      "endpoint": "/attest/configuration_hash_registry",
+      "requires_input_schema": "CHR_Schema",
+      "output_format": "Timestamped Signed CHR Manifest"
+    }
+  ],
+  "security_spec": {
+    "key_management": "HSM-backed private keys",
+    "logging": "Mandatory write to L-9 immutable audit log on every signature event."
+  }
+}
