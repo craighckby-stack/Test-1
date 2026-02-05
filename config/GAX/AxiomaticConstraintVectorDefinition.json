@@ -1,0 +1,35 @@
+{
+  "schema_version": "v94.1",
+  "description": "Defines the baseline qualitative (Policy) and quantitative (Metric/Stability) constraints enforced by the GAX Axiomatics Agent during GSEP-C Stages S2, S3, and S6.5. This separates the static constraint ruleset from the dynamic Metric & Parameter Axiom Manifest (MPAM) and Policy Veto Logic Manifest (PVLM) state checks.",
+  "constraint_vector_id": "CVD-2024Q3-01",
+  "policy_prohibitions": [
+    {
+      "id": "P001",
+      "type": "SECURITY_MANDATE",
+      "rule": "Evolution must not introduce or increase dependency on external non-certified third-party registries."
+    },
+    {
+      "id": "P002",
+      "type": "RESOURCE_BOUNDARY",
+      "rule": "Evolution must not breach the hard-coded resource allocation ceiling (CPU/Memory/Disk I/O) defined in the system's runtime environment configuration."
+    }
+  ],
+  "stability_metrics": [
+    {
+      "metric_id": "M101",
+      "target_artifact": "LatencyService",
+      "check_type": "MAX_THRESHOLD",
+      "threshold_value": 150,
+      "threshold_units": "ms",
+      "comparison_margin": "STRICT_BOUND"
+    },
+    {
+      "metric_id": "M102",
+      "target_artifact": "ErrorRateComponent",
+      "check_type": "MAX_THRESHOLD",
+      "threshold_value": 0.005,
+      "threshold_units": "ratio",
+      "comparison_margin": "BASELINE_DELTA"
+    }
+  ]
+}
