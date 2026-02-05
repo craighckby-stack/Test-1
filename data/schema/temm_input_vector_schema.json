@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/temm_input_vector_schema.json",
+  "title": "TEMM Input Vector Schema (S08)",
+  "description": "Defines the mandatory structure and constraints for pre-normalized vector scores required by the TEMM Calculation Engine.",
+  "type": "object",
+  "properties": {
+    "GHS_score": {
+      "type": "number",
+      "description": "V1: Goal Alignment Score (SOR output).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "RES_score": {
+      "type": "number",
+      "description": "V2: Resource Efficiency Score (RRM output).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "SRS_score": {
+      "type": "number",
+      "description": "V3: System Resilience Score (SAE output, 1 - ECS).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    }
+  },
+  "required": ["GHS_score", "RES_score", "SRS_score"]
+}
