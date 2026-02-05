@@ -1,0 +1,28 @@
+{
+  "description": "Technical Evidence Data Set (TEDS) Schema for RRP (Rollback Protocol) forensic capture.",
+  "metadata": {
+    "TEDS_Version": "1.0.0",
+    "capture_timestamp": "Required (ISO 8601)",
+    "failure_stage": "Required (S02 through S11)",
+    "protocol_failure_code": "Required (Specific GAX violation/RRP trigger)"
+  },
+  "components": {
+    "1_Current_ASM_Snapshot": {
+      "artifact_id": "ASM",
+      "required_fields": ["TEMM", "ECVM", "PVLM", "MPAM", "ADTM"]
+    },
+    "2_Active_Configuration_Roots": {
+      "artifact_id": "CR_Bundle",
+      "required_hashes": ["CSR_Hash", "ACVD_Hash", "FASV_Hash", "EPB_Hash"]
+    },
+    "3_Execution_Environment_Context": {
+      "artifact_id": "EEC",
+      "fields": ["ResourceUtilizationMetrics", "ExecutionLogSlice"]
+    }
+  },
+  "attestation": {
+    "signing_agent": "CRoT",
+    "signing_mandate": "CRoT must cryptographically sign the entire TEDS artifact upon capture initiation (S02-S11 RRP trigger) to ensure non-repudiable forensic immutability.",
+    "signature_payload": "Required cryptographic signature block (S12 equivalent trust anchor for TEDS)"
+  }
+}
