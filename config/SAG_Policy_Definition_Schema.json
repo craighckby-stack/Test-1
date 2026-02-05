@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/SAG_Policy_Definition_Schema.json",
+  "title": "Sovereign Architectural Governance Policy Schema (CSR Definition)",
+  "description": "Defines the mandatory structural requirements for ACVD, FASV, and TIPS files, ensuring structural immutability before CSR hash locking (S01).",
+  "type": "object",
+  "properties": {
+    "ACVD": {
+      "description": "Axiomatic Constraint Vector Definition parameters.",
+      "type": "object",
+      "properties": {
+        "UFRM_base": {"type": "number", "description": "Utility Floor Requirement Minimum (Base)"},
+        "CFTM_coefficient": {"type": "number", "description": "Context Friction Tolerance Multiplier"},
+        "MAX_TRANSACTION_COUNT": {"type": "integer"}
+      },
+      "required": ["UFRM_base", "CFTM_coefficient"]
+    },
+    "FASV": {
+      "description": "Schema mapping for the Axiomatic State Manifest (ASM).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string"}, 
+          "required": {"type": "boolean"}
+        },
+        "required": ["type", "required"]
+      }
+    },
+    "TIPS": {
+      "description": "TEDS Integrity Policy Schema (Audit Log Structure).",
+      "type": "object",
+      "properties": {
+        "MandatoryFields": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["MandatoryFields"]
+    }
+  },
+  "required": ["ACVD", "FASV", "TIPS"]
+}
