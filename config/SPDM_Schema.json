@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Defines the structured data inputs required by VMO (L6) for calculating the adaptive viability margin (epsilon) based on historical performance volatility.",
+  "input_source": "DERE (L8) Post-Deployment Audits/PMM Feeds",
+  "metrics": [
+    {
+      "id": "VINDEX_STD_DEV",
+      "type": "float",
+      "description": "Rolling standard deviation of core system metrics over the last N SST cycles (High volatility -> high epsilon requirement)."
+    },
+    {
+      "id": "VINDEX_MEAN_ABS_DEVIATION",
+      "type": "float",
+      "description": "Mean absolute deviation from projected PMM thresholds post-SST deployment."
+    },
+    {
+      "id": "RECENT_FAILURE_COUNT",
+      "type": "integer",
+      "description": "Weighted count of critical L6/L8 audit failures in the last 72 operational hours."
+    }
+  ]
+}
