@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "GSC_SST_Proposal_V1.0",
+  "title": "Governance System State Transition (SST) Proposal Schema",
+  "description": "Defines the required input structure for the GSEP-C PRE (Ingress Validation) layer, enforced by the Governance Schema Contract (GSC). Standardizing this structure ensures proposal integrity prior to execution orchestration.",
+  "type": "object",
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "Unique cryptographic or sequential identifier for the proposal."
+    },
+    "origin_context": {
+      "type": "string",
+      "enum": ["AUTO_EVOLUTION", "MANUAL_INJECT", "REMEDIATION_HOOK"],
+      "description": "Source context of the proposal creation, critical for L4 Provenance checks."
+    },
+    "change_description": {
+      "type": "string",
+      "description": "High-level summary and rationale for the intended structural change (SST)."
+    },
+    "target_state_hash": {
+      "type": "string",
+      "description": "Cryptographic hash (SHA-384 or higher) of the proposed target system state configuration."
+    },
+    "expected_metrics": {
+      "type": "object",
+      "required": ["S01_claimed", "S02_estimated"],
+      "properties": {
+        "S01_claimed": {"type": "number", "description": "Initial quantified claim of expected Efficacy Metric (S-01).
+        "},
+        "S02_estimated": {"type": "number", "description": "Initial quantified estimation of systemic Risk Metric (S-02).
+        "},
+        "SCI_burden_estimate": {"type": "number", "description": "Estimated impact on Structural Cost Index (C-01 Constraint) for L3 verification."
+        }
+      }
+    },
+    "attestation_signature": {
+      "type": "string",
+      "description": "Digital signature proving proposal provenance and non-tampering (verified by CTAL L4)."
+    }
+  },
+  "required": [
+    "proposal_id",
+    "origin_context",
+    "change_description",
+    "target_state_hash",
+    "expected_metrics",
+    "attestation_signature"
+  ]
+}
