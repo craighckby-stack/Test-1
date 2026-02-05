@@ -1,0 +1,26 @@
+{
+  "msb_version": "1.0.0",
+  "metric_definitions": {
+    "S-01_Efficacy_Score": {
+      "inputs_required": ["RCM_Data", "DSP_C_Simulation_Output"],
+      "scoring_method": "weighted_utility_function",
+      "calculation_parameters": {
+        "resource_optimization_weight": 0.65,
+        "runtime_projection_weight": 0.35,
+        "max_score": 100.0
+      },
+      "formula_reference": "GCM/metrics/efficacy_v4.py"
+    },
+    "S-02_Risk_Exposure": {
+      "inputs_required": ["EDIS_Integrity_Check", "Threat_Model_Vector"],
+      "scoring_method": "probabilistic_risk_aggregation",
+      "calculation_parameters": {
+        "data_leakage_penalty": 25.0,
+        "compliance_violation_threshold": 0.05,
+        "min_risk": 0.0
+      },
+      "formula_reference": "GCM/metrics/risk_v2.py"
+    }
+  },
+  "L3_Certification_Protocol": "Dual_Signature_Verification"
+}
