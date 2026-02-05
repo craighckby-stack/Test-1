@@ -1,0 +1,28 @@
+{
+  "SIPM_Version": "v94.5.1",
+  "CRoT_Owner": "CRoT/Custodian-94.5",
+  "Description": "Defines the mandatory structure for immutable indexing of system state commits ($\Psi_{N}$) to facilitate RRP triage and forensic analysis (TVCR linkage).",
+  "Indexing_Protocol": "CRoT-I-SHA3-512",
+  "Index_Schema": {
+    "type": "object",
+    "properties": {
+      "EpochID": {
+        "type": "integer",
+        "description": "The sequential Deterministic State Evolution ID ($\\Psi_{N}$)"
+      },
+      "GSM_RootHash": {
+        "type": "string",
+        "description": "The cryptographic root hash of the Governance State Manifest (GSM) for this epoch."
+      },
+      "GSM_Pointer": {
+        "type": "string",
+        "description": "Immutable storage location pointer for the GSM artifact."
+      },
+      "TVCR_Link": {
+        "type": "string",
+        "description": "Reference pointer to the corresponding Trace and Veto Context Registry (TVCR) instance recorded by SGS, if applicable."
+      }
+    },
+    "required": ["EpochID", "GSM_RootHash", "GSM_Pointer"]
+  }
+}
