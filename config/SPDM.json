@@ -1,0 +1,18 @@
+{
+  "manifest_version": "1.0.0",
+  "artifact_id": "SPDM",
+  "description": "Defines critical, immutable scalar parameters for P-01 calculation.",
+  "governance_cycle": "V95.0",
+  "parameters": {
+    "viability_margin_epsilon": {
+      "value": 0.05,
+      "units": "scalar_ratio",
+      "attestation": "0x8a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d"
+    },
+    "safety_override_threshold_s02_max": {
+      "value": 0.95,
+      "units": "ratio_to_s01",
+      "note": "S-02 risk exposure must never exceed this fraction of S-01."
+    }
+  }
+}
