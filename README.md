@@ -1,125 +1,109 @@
 # SOVEREIGN GOVERNANCE SPECIFICATION (SGS) V94.1 CORE DOCUMENTATION
 
-## 0.0 ARCHITECTURAL INVARIANTS & GOVERNANCE SUMMARY
+## 0.0 EXECUTIVE SUMMARY & FOUNDATIONAL INVARIANTS
 
-The **SGS V94.1** defines the rigorous protocol for attested, autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$). System integrity rests on the three foundational invariants, enforced via the Governance Inter-Agent Commitment Manifest (GICM, Ref 0.2):
+The **SGS V94.1** defines the rigorous protocol for attested, autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$). System integrity is secured by three non-negotiable invariants, enforced via the Governance Inter-Agent Commitment Manifest (GICM, Ref 1.1):
 
-1.  **Deterministic State Evolution (DSE)**: All transitions must satisfy the Formal Governance Calculus (P-01, Ref 2.0).
-2.  **Separation of Duties (SoD)**: Mandate distribution across the Governance Triumvirate (Ref 1.1).
-3.  **Certified State Evolution Pipeline (GSEP-C)**: The mandatory 11-stage, multi-agent execution protocol (Ref 3.0).
+1.  **Deterministic State Evolution (DSE)**: All transitions must satisfy the Formal Governance Calculus (P-01, Ref 3.0).
+2.  **Separation of Duties (SoD)**: Mandate distribution across the Governance Triumvirate (Ref 1.0).
+3.  **Certified State Evolution Pipeline (GSEP-C)**: The mandatory 11-stage, multi-agent execution protocol (Ref 4.0).
 
-### 0.1 Key Governance Summary Matrix
+---
 
-| Section | Focus (Integrity Axis) | Responsible Agents | Key Constraint Artifact | Enforcement Scope |
-|:---:|:---|:---:|:---:|:---:|
-| 0.0 | Foundational Invariants | Triumvirate | GICM (Inter-Agent Commitment) | High |
-| 1.0 | System Architecture & Agents | SGS, GAX, CRoT | Artifact Catalogs (0.2) | High |
-| 2.0 | DSE & Formal Calculus | GAX Axiomatics | P-01 Finality Condition | Critical |
-| 3.0 | Certified State Pipeline | SGS (Orchestration) | 11-Stage Failure Hierarchy | Critical |
+## 1.0 SYSTEM ARCHITECTURE & GOVERNANCE TRIUMVIRATE (SoD Enforcement)
 
-### 0.2 Governance Artifact Catalog (FGCS Compliance)
+Resilience is secured by distributing critical responsibilities across three attested, independent agents, preventing monolithic failure pathways.
 
-Artifacts adhere strictly to the **FGCS** (Formal Governance Configuration Schema). This catalog serves as the definitive reference for integrity checks across the GSEP-C pipeline.
+### 1.1 The Governance Triumvirate
+
+| Agent | Core Mandate | Primary Function | Key Veto Gates (GSEP-C) |
+|:---:|:---|:---|:---:|
+| **SGS** (Execution Agent) | Workflow Orchestration | DSE/GSEP-C Flow Control | S1, S5, S7, S9, S11 |
+| **GAX** (Axiomatics Agent) | Policy, Constraint Finality & Calculus | Constraint Enforcement & Policy Logic | S2, S3, S6.5, S8 |
+| **CRoT** (Root of Trust) | Cryptographic Integrity & Provenance | System Attestation & History Anchor | S0, S4, S10 |
+
+---
+
+## 2.0 GOVERNANCE ARTIFACT & CONSTRAINT CATALOG (FGCS Compliant)
+
+Artifacts adhere strictly to the **FGCS** (Formal Governance Configuration Schema). This catalog serves as the definitive reference for integrity checks and custodial mandates across the pipeline.
 
 | Acronym | Definition | Custodial Agent | Purpose / Veto Type |
 |:---|:---|:---:|:---:|
+| **GICM** | Governance Inter-Agent Commitment Manifest | SGS | Protocol Compliance & Flow Control |
+| **ECVM** | Execution Context Verification Manifest | SGS | Verified Prerequisite Status ($S_{Context\ Pass}$) |
+| **VRRM** | Veto/Rollback/Recovery Manifest | SGS | Failure Tracking/Triage Protocol |
 | **PVLM** | Policy Veto Logic Manifest | GAX | Policy Prohibitions ($\neg V_{Policy}$) |
 | **MPAM** | Metric & Parameter Axiom Manifest | GAX | Stability Bounds ($\neg V_{Stability}$) |
-| **CFTM** | Certified Finality Threshold Manifest | GAX | Required Utility Margin ($\epsilon$) (Ref 4.2) |
+| **CFTM** | Certified Finality Threshold Manifest | GAX | Required Utility Margin ($\epsilon$) |
 | **ADTM** | Anomaly Detection Threshold Manifest | GAX | Runtime Behavior Check ($\neg V_{Behavior}$) |
 | **CSTL** | Certified State Transition Ledger | CRoT | Non-repudiable State History |
 | **HETM** | Host Environment Trust Measurement | CRoT | Hardware/OS Integrity Attestation |
 | **CDSM** | Certified Data Source Manifest | CRoT | Source Trust & Data Lineage |
 | **STES** | Signed Transaction Envelope Standard | CRoT | Cryptographic Finality Packaging |
-| **GICM** | Governance Inter-Agent Commitment Manifest | SGS | Protocol Compliance Checklist (Flow Control) |
-| **ECVM** | Execution Context Verification Manifest | SGS | Verified Prerequisite Status ($S_{Context\ Pass}$) |
-| **CPES** | Certified Pre-Execution Sandbox | SGS | Controlled Metric Generation ($S_{01}$) |
-| **VRRM** | Veto/Rollback/Recovery Manifest | SGS | Failure Tracking/Triage Protocol (Ref 3.2) |
 
 ---
 
-## 1.0 SYSTEM ARCHITECTURE COMPONENTS & AGENTS (SoD ENFORCEMENT)
+## 3.0 DETERMINISTIC STATE EVOLUTION (DSE)
 
-### 1.1 The Governance Triumvirate (SoD Agents)
+DSE mandates mathematical verification against the Formal Governance Calculus (P-01) prior to state commitment. Failure triggers the Critical Resilience/Recovery Protocol (RRP, Ref 4.2).
 
-Resilience is secured by distributing critical responsibilities across three attested, independent agents, preventing monolithic failure pathways.
-
-| Agent | Core Mandate | Principle | Primary Custodianship | Key Veto Gates (Ref 3.1) |
-|:---|:---|:---|:---|:---:|
-| **SGS** (Execution Agent) | Workflow Orchestration & Execution | DSE Enforcer | Execution Context (ECVM, GICM) | S1, S5, S7, S11 (Flow Control) |
-| **GAX** (Axiomatics Agent) | Policy, Constraint Finality & Calculus | SoD Architect | Policy Logic (PVLM, MPAM, CFTM) | S2, S3, S6.5, S8 (Constraint Enforcement) |
-| **CRoT** (Root of Trust) | Cryptographic Integrity & Provenance | GSEP-C Anchor | System Integrity (HETM, CSTL, STES) | S0, S4, S10 (System Anchors) |
-
----
-
-## 2.0 PRINCIPLE OF DETERMINISTIC STATE EVOLUTION (DSE)
-
-DSE mandates mathematical verification against the Formal Governance Calculus (P-01) prior to state commitment. Failure triggers the Critical Resilience/Recovery Protocol (RRP, Ref 3.2).
-
-### 2.1 Formal Governance Calculus (P-01 Finality Condition)
+### 3.1 Formal Governance Calculus (P-01 Finality Condition)
 
 State commitment achieves $\mathbf{P\text{-}01\ PASS}$ status (verified in GSEP-C Stage S8) if certified utility maximizes against baseline and all axiomatic constraints are strictly satisfied.
 
 $$\mathbf{P\text{-}01\ PASS} \iff \underbrace{(S_{01} \ge S_{02} + \epsilon)}_{\text{I. Utility Maximization Axiom (UMA)}} \land \underbrace{ (S_{Context\ Pass}) }_{\text{II. Context Attestation}} \land \underbrace{(\neg V_{Policy} \land \neg V_{Stability} \land \neg V_{Behavior})}_{\text{III. Axiomatic Integrity}}$$ 
 
-| Variable | Definition | Verification Stage (GSEP-C) | Constraint Source (Artifact) |
-|:---|:---|:---:|:---:|
-| $S_{01}$ | Certified target utility metric. | S6.7 (CPES Sandbox) | N/A |
-| $S_{02}$ | Required baseline utility. | S7 (Metric Validation) | N/A |
-| $\epsilon$ | Minimum required utility margin. | S8 (Finality Cert) | **CFTM (Ref 4.2)** |
-| $S_{Context\ Pass}$ | Verified environmental prerequisites. | S4.5 (Context Attestation) | ECVM (Ref 0.2) |
-| $\neg V_{i}$ Status | Composite Policy Veto Status | S2, S3, S6.5 | PVLM, MPAM, ADTM (Ref 0.2) |
+| Term | Definition | Constraint Source (Artifact) |
+|:---|:---|:---:|
+| $S_{01}$ | Certified target utility metric. | N/A (Generated in S6.7) |
+| $S_{02}$ | Required baseline utility. | N/A (Validated in S7) |
+| $\epsilon$ | Minimum required utility margin. | **CFTM (GAX)** |
+| $S_{Context\ Pass}$ | Verified environmental prerequisites. | **ECVM (SGS)** |
+| $\neg V_{i}$ Status | Composite Policy Veto Status | **PVLM, MPAM, ADTM (GAX)** |
 
 ---
 
-## 3.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
+## 4.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The mandatory 11-stage, multi-agent protocol defining atomic state transitions. Veto failure levels are defined in the Failure Hierarchy Protocol (Ref 3.2).
+The mandatory 11-stage, multi-agent protocol defining atomic state transitions. Veto failure levels are tracked by the VRRM (Ref 4.2).
 
-### 3.1 GSEP-C Stages and Mandatory Manifest Checks
+### 4.1 GSEP-C Stage Definition and Integrity Checkpoint
 
-| Stage Group | Stage | Agent | Veto Level (Ref 3.2) | Focus & Veto Check |
-|:---:|:---:|:---:|:---:|:---:|
-| **A. ANCHORING & INGRESS** | **S0** | CRoT/SGS | TERMINAL (SIH) | Validate Trust Anchors (HETM). System Readiness Check. |
-| | S1 | SGS | STANDARD | Input Compliance Check against GICM. |
-| **B. CORE CONSTRAINT GATING** | **S2** | GAX | CRITICAL (RRP) | Policy Prohibitions Gate ($\neg V_{Policy}$ via PVLM). |
-| | **S3** | GAX | CRITICAL (RRP) | Integrity Bounds Gate ($\neg V_{Stability}$ via MPAM). |
-| | **S4** | CRoT | CRITICAL (RRP) | Data Lineage & Source Attestation (CDSM). |
-| | **S4.5**| SGS | CRITICAL (RRP) | Environmental Context Attestation ($S_{Context\ Pass}$ via ECVM). |
-| **C. UTILITY MODELING & AUDIT** | S5 | SGS | STANDARD | Certified Execution Preparation (CPES Component Check). |
-| | **S6** | SGS/GAX | CRITICAL (RRP) | Telemetry Vetting (TIVS/CDSM). |
-| | **S6.5**| GAX | CRITICAL (RRP) | Runtime Anomaly Detection Gate ($\neg V_{Behavior}$ via ADTM). |
-| | **S6.7**| SGS/CRoT | CRITICAL (RRP) | Utility Certification ($S_{01}$) via CPES Sandbox. |
-| | S7 | SGS | STANDARD | Metric Validation (Utility/Risk Calculation, $S_{02}$ Baseline Check). |
-| **D. FINALITY & COMMITMENT** | **S8** | GAX | CRITICAL (RRP) | **P-01 PASS/FAIL Check (Finality Calculus $\ge \epsilon$)**. |
-| | S9 | SGS | STANDARD | Non-Repudiable Audit Log Persistence (CALS, STES packaging). |
-| | **S10** | CRoT | TERMINAL (SIH) | Final cryptographic signing into CSTL. |
-| | **S11** | SGS | TERMINAL (SIH) | Atomic State Transition commitment ($\Psi_{N} \to \Psi_{N+1}$). |
+| Stage Group | Stage | Agent | Veto Level | Required Artifact(s) for Check | Focus & Output |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **A. ANCHORING** | **S0** | CRoT | TERMINAL (SIH) | HETM | System/Hardware Integrity Attestation. |
+| | S1 | SGS | STANDARD | GICM | Input & Protocol Compliance Check. |
+| **B. CONSTRAINT GATING** | **S2** | GAX | CRITICAL (RRP) | PVLM | Policy Prohibitions Gate ($\neg V_{Policy}$). |
+| | **S3** | GAX | CRITICAL (RRP) | MPAM | Stability Bounds Gate ($\neg V_{Stability}$). |
+| | **S4** | CRoT | CRITICAL (RRP) | CDSM | Data Lineage & Source Trust Attestation. |
+| | **S4.5** | SGS | CRITICAL (RRP) | ECVM | Environmental Context Verification ($S_{Context\ Pass}$). |
+| **C. UTILITY AUDIT** | S5 | SGS | STANDARD | N/A | Certified Execution Sandbox Preparation (CPES). |
+| | **S6** | SGS/CRoT | CRITICAL (RRP) | CDSM | Telemetry Vetting (Data integrity validation). |
+| | **S6.5** | GAX | CRITICAL (RRP) | ADTM | Runtime Anomaly Detection Gate ($\neg V_{Behavior}$). |
+| | **S6.7** | SGS/CRoT | CRITICAL (RRP) | N/A | Utility Metric Certification ($S_{01}$ output) via CPES. |
+| | S7 | SGS | STANDARD | N/A | Baseline Metric Validation ($S_{02}$ check). |
+| **D. FINALITY** | **S8** | GAX | CRITICAL (RRP) | CFTM, All Policy Artifacts | **P-01 PASS/FAIL Finality Calculus Check.** |
+| | S9 | SGS | STANDARD | STES | Non-Repudiable Audit Log Persistence & Packaging. |
+| | **S10** | CRoT | TERMINAL (SIH) | CSTL, STES | Final cryptographic signing and commitment to CSTL. |
+| | **S11** | SGS | TERMINAL (SIH) | N/A | Atomic State Transition ($\Psi_{N} \to \Psi_{N+1}$) commitment. |
 
-### 3.2 Failure Hierarchy Protocol and Recovery (VRRM Management)
+### 4.2 Failure Hierarchy Protocol (VRRM Management)
 
-All failures are recorded in the VRRM (Veto/Rollback/Recovery Manifest).
+All failures are recorded and managed via the VRRM. Recovery mandates compliance with the Policy Correction Safety Schema (PCSS, Ref 5.1).
 
-1.  **TERMINAL (SIH - System Integrity Halt):** (S0, S10, S11). Non-recoverable structural state failure requires immediate system halt, preventing irreversible commitment.
-2.  **CRITICAL (RRP - Resilience/Recovery Protocol):** (S2, S3, S4, S4.5, S6, S6.5, S6.7, S8). Triggers coordinated triage, data logging, and GAX-managed policy correction analysis aimed at safely resolving the constraint violation or executing a controlled rollback. The derivation of policy correction suggestions during RRP must comply with the Policy Correction Safety Schema (PCSS, Ref 4.1) and utilize constraints defined in CFTM (Ref 4.2).
-3.  **STANDARD:** (S1, S5, S7, S9). Localized stage failure; leads to component reprocessing, minor logging issues, or a graceful, non-critical exit.
+1.  **TERMINAL (SIH - System Integrity Halt):** (S0, S10, S11). Non-recoverable structural failure requiring immediate, controlled halt.
+2.  **CRITICAL (RRP - Resilience/Recovery Protocol):** (S2, S3, S4, S4.5, S6, S6.5, S6.7, S8). Triggers coordinated triage and GAX-managed policy correction analysis.
+3.  **STANDARD:** (S1, S5, S7, S9). Localized failure allowing for component reprocessing or graceful exit without rollback mandate.
 
 ---
 
-## 4.0 GOVERNANCE AGENT EXTENSIONS
+## 5.0 GOVERNANCE EXTENSIONS & CONFIGURATION INTEGRITY
 
-### 4.1 Policy Correction Management (GAX Mandate)
+### 5.1 Policy Correction Safety Schema (PCSS)
+The GAX agent uses the PCSS to ensure deterministic, safe derivation of corrective measures during CRITICAL RRP events.
+*Reference:* `config/GAX/PolicyCorrectionSchema.yaml`
 
-To ensure deterministic recovery pathways during CRITICAL (RRP) events, the GAX agent is mandated to reference the structural constraints outlined in the Policy Correction Safety Schema (PCSS) artifact.
-
-| Extension Artifact | Custodial Agent | Purpose | Reference |
-|:---|:---:|:---|:---:|
-| **PCSS** | GAX | Policy Correction Safety Schema | Ensures deterministic corrective measures for RRP failures (Ref config/GAX/PolicyCorrectionSchema.yaml). |
-
-### 4.2 GAX Finality Configuration Integrity
-
-The Certified Finality Threshold Manifest (CFTM) provides the core numerical constant $\epsilon$ for the P-01 Finality Condition. This constant must be defined and version-controlled separately for rapid attestation and audibility.
-
-| Extension Artifact | Custodial Agent | Purpose | Reference |
-|:---|:---|:---|:---:|
-| **CFTM Config** | GAX | P-01 Axiom Constants ($\epsilon$) | Defines the critical bounds for deterministic state transition (Ref config/GAX/FinalityThresholdConfig.yaml). |
+### 5.2 Certified Finality Threshold Manifest (CFTM)
+Defines the critical constant $\epsilon$ required by the P-01 Finality Condition for audibility and rapid version control.
+*Reference:* `config/GAX/FinalityThresholdConfig.yaml`
