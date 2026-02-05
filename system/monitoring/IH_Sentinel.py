@@ -1,57 +1,67 @@
 # IH_Sentinel.py: Integrity Halt Sentinel Monitoring Layer
 
 import logging
+from typing import Dict, Any, List
+
+# Dependencies from Calculus Engine and Governance Framework
 from system.core.P01_calculus_engine import IntegrityHalt, RRPManager
+from config.governance_policies import SENTINEL_CRITICAL_FLAGS  # New Policy Config
 from config.governance_schema import TEDS_EVENT_CONTRACT
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING, format='[IHSentinel] %(levelname)s: %(message)s')
 
 class IHSentinel:
     """Actively monitors the TEDS stream for contract deviations and pre-emptively
     triggers an Integrity Halt (IH) if axiomatic failure conditions (IH Flags) are detected.
-    Optimizes failure detection latency.
+    Optimizes failure detection latency and enforces TEDS schema strictness.
     """
 
-    CRITICAL_FLAGS = ['PVLM', 'MPAM', 'ADTM']
+    # Axiomatic flags loaded dynamically from configuration
+    CRITICAL_FLAGS: List[str] = SENTINEL_CRITICAL_FLAGS
 
-    def __init__(self, teds_stream_ref):
-        self.teds_stream = teds_stream_ref  # Reference to the live TEDS pipeline
+    def __init__(self):
+        # Removed unused 'teds_stream_ref' to simplify interface.
+        logging.info("IHSentinel initialized. Monitoring axiomatic flags.")
 
-    def _check_teds_contract(self, event):
-        """Verify if the event adheres to the mandatory TEDS_EVENT_CONTRACT structure.
-        If contract is violated, raises an auditability failure.
+    def _check_teds_contract(self, event: Dict[str, Any]) -> bool:
+        """Verify if the event adheres strictly to the mandatory TEDS_EVENT_CONTRACT.
+        Uses fast-failure auditing.
         """
-        # Placeholder logic: actual implementation verifies JSON structure/type against contract
-        if not all(key in event for key in TEDS_EVENT_CONTRACT['mandatory_keys']):
-            logging.critical(f"AUDITABILITY FAILURE: TEDS contract violation for event: {event['stage']}")
-            IntegrityHalt.trigger("Auditability Tenet Violation")
-            return False
+        required_keys = TEDS_EVENT_CONTRACT.get('mandatory_keys', [])
+
+        for key in required_keys:
+            if key not in event:
+                error_msg = f"Schema Violation: Missing mandatory key '{key}'"
+                logging.error(f"TEDS Contract Violation: {error_msg} in event: {event.get('stage', 'Unknown Stage')}")
+                IntegrityHalt.trigger(error_msg)
+                return False
+        
+        # Assuming a basic requirement for required critical attributes like 'stage' or 'flag_active'
         return True
 
-    def monitor_stream(self, new_event):
-        """Ingest a new event and check for both TEDS contract integrity and critical IH flags.
-        This method should be triggered immediately upon any successful stage log (S00-S14).
+    def monitor_stream(self, new_event: Dict[str, Any]) -> bool:
         """
-        if not self._check_teds_contract(new_event):
-            return
+        Ingest a new TEDS event. Performs synchronous, non-negotiable checks.
+        Returns True if an IH was triggered, False otherwise.
+        """
+        if not new_event:
+            return False
 
-        # Check for immediate critical flag activation reported by upstream agents (GAX/SGS)
-        if new_event.get('flag_active') and new_event['flag_active'] in self.CRITICAL_FLAGS:
-            flag_name = new_event['flag_active']
-            stage = new_event['stage']
-            logging.critical(f"CRITICAL IH FLAG DETECTED: {flag_name} activated during {stage}.")
-            IntegrityHalt.trigger(f"Immediate Termination via {flag_name}")
-            RRPManager.initiate_rollback()
+        # Phase 1: Contract Integrity Check (Auditability Tenet)
+        if not self._check_teds_contract(new_event):
+            RRPManager.initiate_rollback()  # Rollback initiated immediately upon contract failure
             return True
 
+        # Phase 2: Critical Flag Axiomatic Check
+        if new_event.get('flag_active'):
+            flag_name = str(new_event['flag_active']).upper()
+            
+            if flag_name in self.CRITICAL_FLAGS:
+                stage = new_event.get('stage', 'UNKNOWN')
+                
+                logging.critical(f"AXIOMATIC IH FLAG DETECTED: {flag_name} activated during stage {stage}. Initiating Halt.")
+                IntegrityHalt.trigger(f"Immediate Termination via Axiomatic Flag {flag_name}")
+                RRPManager.initiate_rollback()
+                return True
+
         return False
-
-class IntegrityHalt:
-    @staticmethod
-    def trigger(reason):
-        # Simulation of system wide halt implementation
-        logging.error(f"INTEGRITY HALT ACTIVATED: {reason}")
-        # In production, this would stop execution and raise a terminal exception
-        pass
-
-# Note: RRPManager import is assumed to handle state restoration $\Psi_N$
