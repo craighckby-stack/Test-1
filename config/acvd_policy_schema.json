@@ -1,0 +1,71 @@
+{
+  "type": "object",
+  "title": "Axiom Constraint Validation Domain (ACVD) Schema",
+  "description": "Defines the externalized constraints governing P-01 calculus and DSE parameters, guaranteeing deterministic configuration baseline for GSEP-C (S01).",
+  "required": [
+    "ACVD_VERSION",
+    "P01_CRITERIA",
+    "GSEP_BEHAVIOR"
+  ],
+  "properties": {
+    "ACVD_VERSION": {
+      "type": "string",
+      "description": "Semantic versioning of the ACVD schema payload."
+    },
+    "P01_CRITERIA": {
+      "type": "object",
+      "description": "Constraints directly dictating the P-01 PASS resolution (Section 3.0).",
+      "properties": {
+        "AXIOM_I_UTILITY": {
+          "type": "object",
+          "properties": {
+            "MIN_EFFICACY_THRESHOLD_OMEGA": {
+              "type": "number",
+              "minimum": 0.0,
+              "description": "The configured minimum TEMM score (Ω_min) required for P-01 PASS."
+            },
+            "MAX_ALLOWABLE_UTILITY_DEBT_LOGS": {
+              "type": "integer",
+              "description": "Maximum number of ADTM logs permissible within a cycle before IH."
+            }
+          },
+          "required": ["MIN_EFFICACY_THRESHOLD_OMEGA"]
+        },
+        "AXIOM_II_CONTEXT": {
+          "type": "object",
+          "properties": {
+            "ECVM_VALIDATION_TIMEOUT_MS": {
+              "type": "integer",
+              "description": "Maximum time allowed (in milliseconds) for ECVM state resolution before IH."
+            }
+          }
+        },
+        "AXIOM_III_INTEGRITY": {
+          "type": "object",
+          "properties": {
+            "ALLOW_ZERO_MPAM_VIOLATIONS": {
+              "type": "boolean",
+              "description": "If TRUE, any resulting MPAM entry triggers an automatic P-01 FAIL, enforcing zero-tolerance governance."
+            }
+          }
+        }
+      },
+      "required": ["AXIOM_I_UTILITY", "AXIOM_II_CONTEXT", "AXIOM_III_INTEGRITY"]
+    },
+    "GSEP_BEHAVIOR": {
+      "type": "object",
+      "description": "Operational constraints for the GSEP-C and failure protocols.",
+      "properties": {
+        "IH_IMMEDIATE_ROLLBACK_REQUIRED": {
+          "type": "boolean",
+          "description": "If TRUE, Integrity Halt (IH) triggers mandatory Rollback Protocol (RRP) instantly."
+        },
+        "IH_MAX_ATTEMPTS_BEFORE_FREEZE": {
+          "type": "integer",
+          "description": "Maximum number of RRP attempts before the system enters a hard freeze/manual inspection state."
+        }
+      },
+      "required": ["IH_IMMEDIATE_ROLLBACK_REQUIRED"]
+    }
+  }
+}
