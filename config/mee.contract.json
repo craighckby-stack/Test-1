@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Metric/Equation Engine (MEE) Contract Definition",
+  "description": "Defines the mandatory inputs, internal computation pathways, and deterministic outputs for generating S-01 (Efficacy) and S-02 (Risk) metrics as required by GSEP-C Layer 6.",
+  "version": "1.0.0",
+  "required_outputs": [
+    "S-01",
+    "S-02"
+  ],
+  "input_sources": [
+    // References to data models required from VIC/L5
+  ],
+  "metric_definitions": {
+    "S-01": {
+      "type": "efficacy",
+      "algorithm_id": "ALGO-EFCY-V4",
+      "parameters": {
+        "weight_impact_factor": 0.65,
+        "weight_latency_delta": 0.35
+      }
+    },
+    "S-02": {
+      "type": "risk",
+      "algorithm_id": "ALGO-RISK-V2",
+      "parameters": {
+        "risk_tolerance_threshold": 0.15,
+        "complexity_penalty_factor": 0.40
+      }
+    }
+  },
+  "compliance_audit": {
+    "check": "MEE/MEC Compliance (L6)",
+    "hash_reference": "$MEE_CONTRACT_HASH"
+  }
+}
