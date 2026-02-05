@@ -1,0 +1,27 @@
+{
+  "manifest_version": "FSVM_v1",
+  "description": "Policy defining critical state variables and mandatory capture procedures during System Integrity Halt (SIH) events.",
+  "critical_variables": [
+    "System.CRoT.SealStatus",
+    "GSEP-C.CurrentStageInputHashes",
+    "GAX.EvaluationStackDump",
+    "CRITICAL.MemorySnapshotPath"
+  ],
+  "capture_directives": {
+    "SIH_terminal_violation": {
+      "action": "LOCKDOWN_STATE_CAPTURE",
+      "target_format": "NRALS_Certified_Archive_v3",
+      "reporting_priority": "IMMEDIATE",
+      "storage_redundancy": 3
+    },
+    "RRP_recoverable_failure": {
+      "action": "STAGE_BACKTRACE",
+      "target_format": "Ephemeral_Log_Snippet",
+      "data_retention_days": 7
+    }
+  },
+  "hax_interface": {
+    "human_triage_protocol": "HIL-T",
+    "data_endpoint": "/api/forensics/sih_upload"
+  }
+}
