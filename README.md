@@ -1,50 +1,50 @@
 # SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.2
 
-## 1.0 CORE GOVERNANCE INVARIANTS & ENFORCEMENT STRUCTURE
+## 1.0 CORE GOVERNANCE INVARIANTS & ENFORCEMENT
 
-The **SAG V94.2** mandates the deterministic, non-repudiable protocol for autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$) enforced across the 11-stage Certified Evolution Pipeline (GSEP-C).
+**SAG V94.2** mandates the deterministic, non-repudiable protocol for autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$) enforced across the 11-stage Certified Evolution Pipeline (GSEP-C).
 
 ### 1.1 Foundational Invariants
 
-System integrity is secured by three enforced foundational invariants:
+System integrity is secured by three enforced foundational invariants, foundational to Deterministic State Evolution (DSE):
 
-1.  **Deterministic State Evolution (DSE):** All transitions must rigorously satisfy the P-01 Finality Condition.
-2.  **Separation of Duties (SoD):** Responsibilities are distributed across the Governance Triumvirate (Ref 2.1).
-3.  **Certified Evolution Pipeline (GSEP-C):** The mandatory 11-stage, multi-agent execution protocol (Ref 3.0).
+1.  **Deterministic State Evolution (DSE):** All transitions must rigorously satisfy the P-01 Finality Condition (Ref 3.0).
+2.  **Separation of Duties (SoD):** Responsibilities are distributed across the Governance Triumvirate (Ref 2.0).
+3.  **Certified Evolution Pipeline (GSEP-C):** The mandatory 11-stage, multi-agent execution protocol (Ref 4.0).
 
 ---
 
 ## 2.0 GOVERNANCE TRIUMVIRATE & ARTIFACT CUSTODY (SoD)
 
-Resilience is ensured by assigning unique mandates and critical artifact custody to the Governance Triumvirate.
+Resilience is ensured by assigning unique mandates and critical artifact custody to the Governance Triumvirate: SGS (Orchestration), GAX (Axiomatics), and CRoT (Integrity).
 
 ### 2.1 Triumvirate Mandates
 
 | ID | Designation | Core Mandate (Focus) | Veto Scope (GSEP-C Stages) | Custody Focus |
 |:---:|:---|:---|:---:|:---:|
-| **SGS** | Execution Agent | Workflow Orchestration & Flow Control | Execution Context (S1, S5, S7, S9, S11) | System Flow & Configuration |
+| **SGS** | Execution Agent | Workflow Orchestration & Flow Control | Execution Context (S1, S5, S7, S9, S11) | System Flow & Configuration Manifests |
 | **GAX** | Axiomatics Agent | Policy Finality & Constraint Enforcement | Axiomatic Integrity (S2, S3, S6.5, S8) | Policy & Constraint Axioms |
-| **CRoT** | Root of Trust | Cryptographic Integrity & Trust Anchoring | Trust Anchoring & State Commitment (S0, S4, S10) | Integrity & Cryptography |
+| **CRoT** | Root of Trust | Cryptographic Integrity & Trust Anchoring | Trust Anchoring & State Commitment (S0, S4, S10) | Integrity & Cryptography Manifests |
 
-### 2.2 Formal Governance Configuration Schema (FGCS) Catalog
+### 2.2 Formal Governance Artifact Catalog
 
-Critical configuration manifests organized by custodial responsibility.
+Critical configuration manifests organized by custodial responsibility, essential for GSEP-C execution.
 
-| Acronym | Artifact | Custodian | Purpose / Relevance |
+| Acronym | Artifact Name | Custodian | Purpose / Relevance |
 |:---:|:---|:---:|:---:|
-| **TEMM** | Target Evolution Mandate Manifest | SGS | Defines $S_{01}$ function and objectives. (Ref 4.1) |
-| GICM | Governance Inter-Agent Commitment Manifest | SGS | Protocol Compliance & Workflow Orchestration. |
-| ECVM | Execution Context Verification Manifest | SGS | Verified Prerequisite Status ($S_{Context\ Pass}$). |
-| VRRM | Veto/Rollback/Recovery Manifest | SGS | Failure Tracking/Triage Protocol. |
-| CFTM | Certified Finality Threshold Manifest | GAX | Defines Required Utility Margin ($ε$). |
-| PVLM | Policy Veto Logic Manifest | GAX | Policy Prohibitions ($¬ V_{Policy}$). |
-| MPAM | Metric & Parameter Axiom Manifest | GAX | Stability Bounds Check ($¬ V_{Stability}$). |
-| ADTM | Anomaly Detection Threshold Manifest | GAX | Runtime Behavior Check ($¬ V_{Behavior}$). |
-| GSM | Governance State Manifest | CRoT | Cryptographic root for all governance artifact states. |
-| HETM | Host Environment Trust Measurement | CRoT | Hardware/OS Integrity Attestation Anchor. |
-| CDSM | Certified Data Source Manifest | CRoT | Source Trust & Data Lineage Verification. |
-| STES | Signed Transaction Envelope Standard | CRoT | Cryptographic Finality Packaging Schema. |
-| CSTL | Certified State Transition Ledger | CRoT | Non-repudiable Global State History. |
+| **TEMM** | Target Evolution Mandate Manifest | SGS | Defines required $S_{01}$ function and target objectives. |
+| **GICM** | Governance Inter-Agent Commitment Manifest | SGS | Defines inter-agent protocol compliance requirements. |
+| **ECVM** | Execution Context Verification Manifest | SGS | Defines Verified Prerequisite Status ($S_{Context\ Pass}$) parameters. |
+| **VRRM** | Veto/Rollback/Recovery Manifest | SGS | Centralized log for failure tracking and triage events. |
+| **CFTM** | Certified Finality Threshold Manifest | GAX | Defines Minimum Required Utility Margin ($ε$). |
+| **PVLM** | Policy Veto Logic Manifest | GAX | Defines policy prohibitions ($¬ V_{Policy}$). |
+| **MPAM** | Metric & Parameter Axiom Manifest | GAX | Defines stability bounds check ($¬ V_{Stability}$) criteria. |
+| **ADTM** | Anomaly Detection Threshold Manifest | GAX | Defines runtime behavior check ($¬ V_{Behavior}$) thresholds. |
+| **GSM** | Governance State Manifest | CRoT | Cryptographic root for all governance artifact states. |
+| **HETM** | Host Environment Trust Measurement | CRoT | Specifies hardware/OS integrity attestation requirements. |
+| **CDSM** | Certified Data Source Manifest | CRoT | Verifies data source trust and lineage for GSEP-C inputs. |
+| **STES** | Signed Transaction Envelope Standard | CRoT | Defines cryptographic finality packaging schema. |
+| **CSTL** | Certified State Transition Ledger | CRoT | Non-repudiable Global State History Ledger. |
 
 ---
 
@@ -58,29 +58,31 @@ $$\mathbf{P\text{-}01\ PASS} \iff \begin{cases}
 \underbrace{(\neg V_{Policy} \land \neg V_{Stability} \land \neg V_{Behavior})}_{\text{III. Axiomatic Integrity}}
 \end{cases}$$
 
-### 3.1 P-01 Enforcement Matrix (Variables, Custody, and Check Stage)
+### 3.1 P-01 Enforcement Variables (Custody and Check Stage)
 
 | Term | Definition | Artifact Custody | Check Stage (GSEP-C) |
 |:---:|:---|:---:|:---:|
 | $S_{01}$ | Certified Target Utility Metric (Post-Audit). | SGS/CRoT (TEMM) | S6.7 |
 | $S_{02}$ | Required Baseline Utility Metric. | SGS | S7 |
-| $ε$ | Minimum Required Utility Margin. | GAX (CFTM) | S8 |
-| $S_{Context\ Pass}$ | Verified Environmental Prerequisite Check. | SGS (ECVM) | S4.5 |
-| $¬ V_{Policy}$ | Policy Prohibition Veto Status. | GAX (PVLM) | S2 |
-| $¬ V_{Stability}$ | Stability Bounds Veto Status. | GAX (MPAM) | S3 |
-| $¬ V_{Behavior}$ | Runtime Anomaly Veto Status. | GAX (ADTM) | S6.5 |
+| $ε$ | Minimum Required Utility Margin (CFTM). | GAX | S8 |
+| $S_{Context\ Pass}$ | Verified Environmental Prerequisite Check (ECVM). | SGS | S4.5 |
+| $¬ V_{Policy}$ | Policy Prohibition Veto Status (PVLM). | GAX | S2 |
+| $¬ V_{Stability}$ | Stability Bounds Veto Status (MPAM). | GAX | S3 |
+| $¬ V_{Behavior}$ | Runtime Anomaly Veto Status (ADTM). | GAX | S6.5 |
 
 ---
 
 ## 4.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures trigger immediate logging to the VRRM.
+The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures are logged immediately to the VRRM and adhere to one of three codified Veto Levels (Veto Level definitions provided in 4.1).
 
-### 4.1 Failure Hierarchy Protocol Legend
+### 4.1 Failure Hierarchy & Triage Protocol Legend
 
-1.  **IH (INTEGRITY HALT):** Non-recoverable structural failure requiring controlled shutdown (S0, S10, S11).
-2.  **RRP (CRITICAL/ROLLBACK):** Mandatory forensic capture (TVCR) and GAX-managed policy correction analysis (PCSS).
-3.  **STANDARD:** Localized failure permitting graceful exit or component reprocessing.
+| Level | Veto Level (Codification) | Protocol Trigger | Required Remediation Action (GAX/SGS) |
+|:---:|:---|:---:|:---:|
+| **IH** | INTEGRITY HALT | Non-recoverable structural or trust anchoring failure (S0, S10, S11). | Immediate System Halt. Requires external human intervention for restart. |
+| **RRP** | CRITICAL/ROLLBACK | Axiomatic Violation or Critical Context failure ($¬V$ or $\neg S_{Context\ Pass}$). | Mandatory forensic capture (TVCR) and GAX-managed Policy Correction Analysis (PCSS). |
+| **STANDARD** | STANDARD FAILURE | Localized flow or orchestration failure (S1, S5, S7, S9). | Localized Rework/Reprocessing or graceful component exit. |
 
 ### 4.2 GSEP-C Stage Definition and Integrity Checkpoint
 
@@ -104,25 +106,18 @@ The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures t
 
 ---
 
-## 5.0 INTEGRITY AND CONFIGURATION REGISTRY
+## 5.0 CONFIGURATION AND SCHEMA REGISTRY
 
-### 5.1 Critical Triage Protocols
-
-| Level | Protocol Trigger | GAX Action Required |
-|:---:|:---|:---:|
-| IH | Structural/Attestation Failure | Immediate System Halt (No GAX action required post-HALT). |
-| RRP | Axiomatic Violation/Context Fail | Mandatory Forensic Capture (TVCR) and Policy Correction Analysis (PCSS). |
-| STANDARD | Flow/Orchestration Failure | Localized Rework/Reprocessing allowed. |
-
-### 5.2 Configuration and Schema Registry (Read-Only State)
+Registry of formal configuration and schema definitions, indexed by primary custodian (Read-Only State).
 
 | Artifact | Custodian | File Path |
-|:---|:---:|:---:|
+|:---:|:---:|:---:|
 | Policy Correction Safety Schema (PCSS) | GAX | `config/GAX/PolicyCorrectionSchema.yaml` |
 | Certified Finality Threshold Manifest (CFTM) | GAX | `config/GAX/FinalityThresholdConfig.yaml` |
 | Axiomatic Constraint Vector Definition (ACVD) | GAX | `config/GAX/AxiomaticConstraintVectorDefinition.json` |
-| **ACVT** | **Axiomatic Change Validation Template** | **GAX** | **`config/GAX/AxiomaticChangeValidationTemplate.json`** |
+| Axiomatic Change Validation Template (ACVT) | GAX | `config/GAX/AxiomaticChangeValidationTemplate.json` |
 | Trace and Veto Context Registry (TVCR) | SGS | `registry/TraceVetoContextRegistry.json` |
 | Atomic Deployment Manifest Schema (ADMS) | SGS | `config/SGS/AtomicDeploymentManifestSchema.json` |
 | Target Evolution Mandate Manifest (TEMM) | SGS | `config/SGS/TargetEvolutionMandateManifest.json` |
 | Governance State Manifest Schema (GSM Schema) | CRoT | `schema/governance/Governance_State_Manifest.schema.json` |
+| **Axiomatic Policy Remediation Engine (APRE) Executable** | **GAX/SGS** | **`src/policies/AxiomaticPolicyRemediationEngine.py`** |
