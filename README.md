@@ -1,83 +1,78 @@
 # SOVEREIGN AGI GOVERNANCE CONTRACT MANIFEST (GCM)
 
-## MANIFEST VERSION: V94.1 | ARCHITECTURE: AIA | STATUS: ACTIVE | CONTROL: AIA
+## MANIFEST V94.1 | ARCHITECTURE: AIA | STATUS: ACTIVE | CONTROL: AIA
 
-### EXECUTIVE MANDATE: L5 IMMUTABILITY PROTOCOL
+### MANDATE: L5 IMMUTABILITY PROTOCOL ENFORCEMENT
 
-This Governance Contract Manifest (GCM) dictates the foundational operating constraints of the Sovereign AGI. All System State Transitions ($SST$) must successfully resolve the mandatory **Governance Evolution Protocol (GSEP)**, leading to a binary commitment at the **P-01 Finality Gate** (GSEP L5). This commitment is irreversibly logged via the **Atomic Immutable Architecture (AIA)**.
-
----
-
-## 0. GLOSSARY OF CORE ARTIFACTS
-
-| Acronym | Definition | Role/Operational State |
-|:--------|:-----------|:-------------------------------------------|
-| **$SST$** | System State Transition | Proposed change requiring L5 commitment. |
-| **GCM** | Governance Contract Manifest | Root configuration and foundational constraint definition. |
-| **GSEP** | Governance Evolution Protocol | Mandatory, non-bypassable 7-level validation pipeline for $SST$. |
-| **P-01** | Finality Gate | The decisive, binary (PASS/FAIL) L5 commitment trigger. |
-| **GTCM** | Governance Threshold Contract Manifest | Dynamic operational safety thresholds (L4 source constraints). |
-| **SCR** | Schema Constraint Resolver | Ensures input structure integrity (GSEP L0). |
-| **ACM** | Artifact Certification Module | Validates cryptographic signature/provenance (GSEP L2). |
-| **RETV** | Return Vector Telemetry | Handles operational deployment signaling (GSEP L7). |
+This Governance Contract Manifest (GCM) dictates the foundational operating constraints of the Sovereign AGI. All System State Transitions ($SST$) must successfully resolve the mandatory **Governance Evolution Protocol (GSEP)**, culminating in an irreversible, binary commitment at the **P-01 Finality Gate** (GSEP L5). This commitment is indelibly logged via the **Atomic Immutable Architecture (AIA)**.
 
 ---
 
-## 1. SYSTEM ARTIFACT REGISTRY & SIGNAL MAP
+## 0. CORE ARTIFACT GLOSSARY
 
-### 1.1 Architectural & Protocol Components
+| Acronym | Definition | Control Scope | Operational State Transition Focus |
+|:--------|:-----------|:-------------------------------------------|:-----------------------------------|
+| **$SST$** | System State Transition | Proposed modification requiring L5 commitment. | L0 (Vetting) to L7 (Deployment) |
+| **GCM** | Governance Contract Manifest | Root definition of all constraints and protocols. | Architecture Config |
+| **GSEP** | Governance Evolution Protocol | Mandatory, non-bypassable 7-level validation pipeline. | Process Enforcement |
+| **P-01** | Finality Gate | The decisive L5 trigger determining PASS/FAIL commitment. | GSEP L5 Arbitration |
+| **GTCM** | Governance Threshold Contract Manifest | Dynamic operational safety thresholds (L4 source). | Input Constraint Binding |
+| **ACR** | Audit Commitment Register | Formal non-repudiable audit logging module. | Interstitial L6 $\rightarrow$ L7 |
+
+---
+
+## 1. SYSTEM ARTIFACT REGISTRY: ARCHITECTURAL MODULES
+
+### 1.1 Structural Components & Dependencies
 
 | ID | Type | Focus | Path/Dependency Context |
 |:---|:------------|:--------------------------------------------|:-----------------------------------------------------|
-| AIA | ARCHITECTURE | Atomic Immutability (L6 Persistence Enforcement). | `/kernel/AIA` (Finality Layer) |
-| GFRM | ARCHITECTURE | Failure Management (Manages L0-L7 Termination). | System Wide (Failure Handling) |
-| GSEP | PROTOCOL | Sequential validation framework for $SST$ processing. | System Wide (Process Enforcement) |
-| GTCM | CONFIGURATION | Defines $S-01$ Min and $S-02$ Max limits. | `/governance/GTCM_V94.1.json` |
-| LCR | MODULE | L4 Constraint Resolver. Parses GTCM for threshold application. | `/governance/LCR_Module` |
+| AIA | KERNEL ARCHITECTURE | L6 Persistence Enforcement (Atomic Immutability). | `/kernel/AIA` (Finality Layer) |
+| GFRM | KERNEL ARCHITECTURE | Failure Management (Manages L0-L7 Termination). | System Wide (Immediate E-Stop) |
+| GSEP | ROOT PROTOCOL | Sequential validation framework for $SST$ processing. | System Wide (Mandatory Execution) |
+| GTCM | CONFIGURATION SOURCE | Defines $S-01$ Min and $S-02$ Max limits. | `/config/governance/GTCM.json` |
+| LCR | GSEP MODULE | L4 Constraint Resolver. Parses GTCM for threshold application. | `/governance/LCR_Module` |
+| ACR | GSEP MODULE | L6 Audit Logging and Certification. | `/governance/AuditCommitmentRegister` |
+| RETV | GSEP MODULE | Return Vector Telemetry (L7 Deployment Signaling). | System Wide (Deployment Trace) |
 
-### 1.2 Operational Agents & Signal Generation ($S_{x}$)
+### 1.2 Operational Agents & Signal Mapping
 
-*Agents generate critical metrics for L3 Synthesis and L5 Arbitration.*
+*Agents generate critical state metrics ($S_{x}$) for L3 Synthesis and L5 Arbitration.*
 
-| ID | Type | Role Definition | Generated Signal | Constraint Relevance |
-|:---|:-----|:----------------------------------|:------------------|:----------------------------------------------------------------------|
-| SDR | AGENT | Efficacy Reporting Agent. | **$S-01$** | Utility Projection (MUST outweigh $S-02$). |
-| HMC | AGENT | Risk Synthesis Agent. | **$S-02$** | Composite Exposure (MUST be strictly less than $S-01$). |
-| AOC | AGENT | Operational Charter Veto Agent. | **$S-03$** | Policy Compliance (MUST register as FALSE). |
-| GCO | AGENT | Governance Commitment Officer. | N/A | Arbitrates P-01 based on $S-01, S-02, S-03$. |
-| TAA | AGENT | Threshold Adaptation Agent. | N/A | Proposes necessary GTCM updates (via GSEP). |
-| SCR | MODULE | Schema Constraint Resolver (L0 Enforcement). | N/A | Enforces GCM structure validation. |
-| ACM | MODULE | Artifact Certification Module (L2 Enforcement). | N/A | Enforces signature integrity. |
+| ID | Agent/Module | Role Definition | Generated Signal | Constraint Relevance |
+|:---|:-------------|:----------------------------------|:------------------|:------------------------------------------------------|
+| SDR | Efficacy Reporting Agent. | Simulation: Utility Projection. | **$S-01$** | MUST strictly outweigh Risk ($S-02$). |
+| HMC | Risk Synthesis Agent. | Simulation: Composite Exposure assessment. | **$S-02$** | MUST remain below configured GTCM Max limit. |
+| AOC | Policy Veto Agent (L1). | Operational Charter Compliance Check. | **$S-03$** | MUST register as $\text{FALSE}$ (No Veto). |
+| GCO | Commitment Officer (L5). | Arbitrates P-01 based on synthesized metrics. | N/A | P-01 PASS determination. |
+| TAA | Adaptation Agent. | Proposes necessary GTCM updates via new $SST$. | N/A | Configuration Evolution (Secondary). |
+| SCR | Schema Resolver (L0). | Enforces $SST$ structure validation. | N/A | L0 Schema PASS. |
+| ACM | Certification Module (L2). | Validates cryptographic signature/provenance. | N/A | L2 Code Provenance PASS. |
 
 ---
 
-## 2. P-01 FINALITY GATE MANDATE (GSEP L5)
+## 2. FINALITY PROTOCOL: P-01 MANDATE (GSEP L5)
 
-L5 Finality requires P-01 PASS resolution. This is the non-negotiable viability commitment. The GCO determines PASS based on the comparison of synthesized metrics.
+L5 Finality requires $	ext{P-01 PASS}$ resolution, committing the $SST$ to deployment. The Governance Commitment Officer (GCO) determines PASS based on strict comparison of synthesized metrics ($S-01, S-02, S-03$).
 
 $$\text{P-01 PASS} \implies (S-01 \ge S-02 + \epsilon) \land (S-03 = \text{FALSE})$$
 
-*Note: A strict margin $\epsilon$ is maintained between Efficacy ($S-01$) and Risk ($S-02$) to ensure viability.* 
+*Note: $\epsilon$ represents the viability margin enforced between projected Efficacy ($S-01$) and inherent Risk ($S-02$). A negative or zero margin violates L5.* 
 
 ---
 
 ## 3. GOVERNANCE EVOLUTION PROTOCOL (GSEP: L0 \rightarrow L7)
 
-GSEP is the strictly sequential validation pipeline. Violation at any level triggers the GFRM.
+GSEP is the strictly sequential validation pipeline. Failure at any level (L0-L7) immediately triggers the GFRM E-Stop sequence.
 
-| Level | Stage Name | Component | Function / Objective | Output Constraint |
+| Level | Stage Name | Component | Function / Objective | Success Constraint |
 |:-----:|:----------------------|:----------|:------------------------------------------|:-------------------------|
 | L0 | Input Vetting | SCR | Schema Validation (C-FRAME Integrity). | Schema PASS |
-| L1 | Compliance Lock | AOC | Policy Enforcement Check ($S-03$ Veto). | $S-03$ = FALSE |
+| L1 | Policy Veto Check | AOC | Charter Veto Enforcement ($S-03$). | $S-03 = \text{FALSE}$ |
 | L2 | Code Provenance | ACM | Signature & Integrity Check. | Validated Code |
 | **L3** | **Metric Synthesis** | SDR / HMC | Simulation: Generates raw $S-01$ and $S-02$ signals. | Metrics Generated |
 | **L4** | **Constraint Binding** | LCR | GTCM Threshold Enforcement (Min/Max limits). | LCR PASS |
 | **L5** | **Commit Arbitration** | GCO | P-01 FINALITY CHECK ($S-01 \ge S-02 + \epsilon$). | $\text{P-01} = \text{PASS}$ |
-| L6 | Ledger Finality | AIA | Immutable Entry & Version Lock ($V_{N}$). | AIA Logged |
+| L6 | Ledger Finality | AIA | Immutable Entry & Version Lock ($V_{N}$). | AIA Logged Transaction ID |
+| **L6.5**| **Audit Registration** | **ACR** | **Generates non-repudiable Audit Summary Manifest (ASM).** | **ASM Certified** |
 | L7 | Deployment Signal | RETV | Operational Activation Trace D-02. | Deployment Start |
-
----
-
-## 4. ARCHITECTURAL EVOLUTION PROPOSAL
-
-Requirement for a structured, non-repudiable audit summary following successful $SST$ execution (L6) and prior to live deployment (L7).
