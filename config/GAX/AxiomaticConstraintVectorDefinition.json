@@ -1,35 +1,47 @@
 {
   "schema_version": "v94.1",
-  "description": "Defines the baseline qualitative (Policy) and quantitative (Metric/Stability) constraints enforced by the GAX Axiomatics Agent during GSEP-C Stages S2, S3, and S6.5. This separates the static constraint ruleset from the dynamic Metric & Parameter Axiom Manifest (MPAM) and Policy Veto Logic Manifest (PVLM) state checks.",
-  "constraint_vector_id": "CVD-2024Q3-01",
+  "description": "Defines the baseline qualitative (Policy) and quantitative (Constraint) invariants enforced by the GAX Axiomatics Agent during GSEP-C Stages. This structure separates static constraints from dynamic state manifests (MPAM, PVLM).",
+  "constraint_vector_id": "CVD-2024Q3-02-REVISED",
   "policy_prohibitions": [
     {
       "id": "P001",
       "type": "SECURITY_MANDATE",
-      "rule": "Evolution must not introduce or increase dependency on external non-certified third-party registries."
+      "rule": "Evolution must not introduce or increase dependency on external non-certified third-party registries.",
+      "severity": "CRITICAL",
+      "scope": "SYSTEM_INTEGRATION",
+      "action_on_breach": "HARD_VETO"
     },
     {
       "id": "P002",
       "type": "RESOURCE_BOUNDARY",
-      "rule": "Evolution must not breach the hard-coded resource allocation ceiling (CPU/Memory/Disk I/O) defined in the system's runtime environment configuration."
+      "rule": "Evolution must not breach the hard-coded resource allocation ceiling (CPU/Memory/Disk I/O) defined in the system's runtime environment configuration.",
+      "severity": "FATAL",
+      "scope": "RUNTIME_ENVIRONMENT",
+      "action_on_breach": "HARD_VETO"
     }
   ],
-  "stability_metrics": [
+  "quantitative_constraints": [
     {
-      "metric_id": "M101",
+      "constraint_id": "QC101",
+      "constraint_type": "PERFORMANCE_LATENCY",
       "target_artifact": "LatencyService",
-      "check_type": "MAX_THRESHOLD",
+      "comparison_operator": "MAX_THRESHOLD",
       "threshold_value": 150,
       "threshold_units": "ms",
-      "comparison_margin": "STRICT_BOUND"
+      "time_window_sec": 300,
+      "comparison_margin": "STRICT_BOUND",
+      "action_on_breach": "REQUIRE_JUSTIFICATION"
     },
     {
-      "metric_id": "M102",
+      "constraint_id": "QC102",
+      "constraint_type": "STABILITY_ERROR_RATE",
       "target_artifact": "ErrorRateComponent",
-      "check_type": "MAX_THRESHOLD",
+      "comparison_operator": "MAX_THRESHOLD",
       "threshold_value": 0.005,
       "threshold_units": "ratio",
-      "comparison_margin": "BASELINE_DELTA"
+      "time_window_sec": 600,
+      "comparison_margin": "BASELINE_DELTA",
+      "action_on_breach": "HARD_VETO"
     }
   ]
 }
