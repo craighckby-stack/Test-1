@@ -1,0 +1,26 @@
+{
+  "crcm_id": "V95.3-RUNTIME-CHECK-001",
+  "verification_protocol": "MRDP (Manifest Runtime Drift Protocol)",
+  "monitoring_frequency_ms": 100,
+  "manifest_checksums": {
+    "PVLM": {
+      "path": "assets/policies/veto.yaml",
+      "algorithm": "SHA3-512",
+      "expected_hash": "[CRoT_SIGNED_HASH_OF_PVLM]",
+      "runtime_verification_points": ["PRE-S2", "POST-S2"]
+    },
+    "CFTM": {
+      "path": "assets/security/cftm.json",
+      "algorithm": "SHA3-512",
+      "expected_hash": "[CRoT_SIGNED_HASH_OF_CFTM]",
+      "runtime_verification_points": ["PRE-S7", "POST-S7"]
+    },
+    "SBCM": {
+      "path": "assets/policies/sbcm.json",
+      "algorithm": "SHA3-512",
+      "expected_hash": "[CRoT_SIGNED_HASH_OF_SBCM]",
+      "runtime_verification_points": ["PRE-S4", "POST-S4"]
+    }
+  },
+  "drift_violation_action": "RRP_TRIGGER"
+}
