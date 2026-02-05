@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "MIS_V94_1.json",
+  "title": "Mandate Intake Specification (MIS) - L0 Input Vetting Schema",
+  "description": "Mandatory structural requirements (C-FRAME) for all System State Transitions (SSTs). Enforced by SCR at GSEP L0.",
+  "type": "object",
+  "required": [
+    "protocol",
+    "sst_id",
+    "metadata",
+    "c_frame",
+    "compliance_statement",
+    "mandated_payload"
+  ],
+  "properties": {
+    "version": {"type": "string", "const": "1.0.0"},
+    "protocol": {"type": "string", "const": "MIS"},
+    "sst_id": {"type": "string", "description": "Globally Unique Identifier for this SST request."},
+    "metadata": {
+      "type": "object",
+      "required": ["proposed_by", "timestamp", "rationale"],
+      "properties": {
+        "proposed_by": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "rationale": {"type": "string", "description": "High-level summary of change intent."}
+      }
+    },
+    "c_frame": {
+      "type": "object",
+      "required": ["target_component", "type", "code_patch_integrity_hash", "scope_impact"],
+      "properties": {
+        "target_component": {"type": "string"},
+        "type": {"type": "string", "enum": ["EVOLUTION", "HOTFIX", "CONFIG_UPDATE"]},
+        "code_patch_integrity_hash": {"type": "string", "format": "sha256"},
+        "scope_impact": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH"]}
+      }
+    },
+    "compliance_statement": {
+      "type": "object",
+      "properties": {
+        "estimated_efficacy_s01": {"type": "number"},
+        "estimated_risk_s02": {"type": "number"},
+        "override_justification": {"type": ["string", "null"], "description": "Required only if estimates deviate significantly from expectations."}
+      }
+    },
+    "mandated_payload": {
+      "type": "object",
+      "required": ["file_path", "diff_content"],
+      "properties": {
+        "file_path": {"type": "string"},
+        "diff_content": {"type": "string", "description": "Base64 encoded diff or complete new file content."}
+      }
+    }
+  }
+}
