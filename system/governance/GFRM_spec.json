@@ -1,0 +1,27 @@
+{
+  "module": "Governance Feedback and Remediation Module (GFRM)",
+  "version": "1.0",
+  "trigger_events": [
+    "L1_VETO_FAIL",
+    "L4_P01_FAIL"
+  ],
+  "failure_vector_schema": {
+    "vector_id": "VEC-AOC-{timestamp}",
+    "origin_stage": "L1 | L4",
+    "critical_metric": "S-01 | S-02 | S-03",
+    "failure_mode": "P01_TRUST_INSUFFICIENT | P01_RISK_EXCEEDED | S03_POLICY_VETO",
+    "observed_value": "numeric | boolean",
+    "threshold_required": "numeric | boolean",
+    "relevant_artifacts": [
+      "PDB-V1",
+      "DSC-V1"
+    ],
+    "remediation_directives": {
+      "directive_id": "DIR-{timestamp}",
+      "target_component": "IDSM (for re-framing intent) | RSAM (for policy override request)",
+      "required_action_type": "Refactor Intent / Modify Constraint / Request Exception",
+      "traceback_reference": "Artifact SHA-256"
+    }
+  },
+  "routing_mechanism": "Routes structured failure vector (VEC-AOC) back to the IDSM input stream or designated governance channel for corrective iteration."
+}
