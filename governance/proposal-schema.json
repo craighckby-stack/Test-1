@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/governance/v98.4/proposal.schema.json",
+  "title": "SGM Proposal Schema Contract (GSC)",
+  "description": "Defines the mandatory structure for System State Transition (SST) proposals, required by GSEP-C L0/PRE for ingress control.",
+  "type": "object",
+  "required": [
+    "proposal_id",
+    "mandate_type",
+    "payload_definition",
+    "provenance",
+    "budget_request_l3"
+  ],
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "Unique identifier for the proposal (must be globally unique and timestamped)."
+    },
+    "mandate_type": {
+      "type": "string",
+      "enum": ["CODE_EVOLUTION", "CONFIG_UPDATE", "POLICY_AMENDMENT", "RESOURCE_ALLOCATION"],
+      "description": "Classification aligning with L1 Policy Veto Logic Module (PVLM) checks."
+    },
+    "payload_definition": {
+      "type": "object",
+      "description": "The core instructions/code/config targeted for the SST.",
+      "required": ["target_path", "source_content_hash", "transaction_log_entry"]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "L4 Configuration Trust Audit Log (CTAL) inputs.",
+      "required": ["origin_layer", "authentication_signature"]
+    },
+    "l2_simulation_input_parameters": {
+      "type": "object",
+      "description": "Optional input set for the Proposal Simulation Engine (PSE) at L2."
+    },
+    "budget_request_l3": {
+      "type": "number",
+      "description": "Monetary/Resource budget request required for CBM (L3) verification against CMO.",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false
+}
