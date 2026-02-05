@@ -1,0 +1,17 @@
+{
+  "protocol_name": "Model Remediation and Constraint Enforcer",
+  "acronym": "MRCE",
+  "version": "V97.5",
+  "owner": "SGS / GAX (Certification)",
+  "description": "Defines the certified procedure for addressing critical model instability identified by MPAM ($ S_{04} $) or MDMP audit failures. Ensures automated, immediate stabilization or quarantine measures are applied to the relevant models (CMR entries) before the next GSEP-C cycle commences.",
+  "trigger_criteria": [
+    "MPAM Veto (S3) exceeding CFTM thresholds for $ S_{04} $ failure rate over N cycles.",
+    "MDMP post-audit critical drift detection."
+  ],
+  "remediation_actions": {
+    "level_1": "Automatic constraint application (rate limiting or complexity capping) on the unstable model, logged to CALS.",
+    "level_2": "Temporary suspension of the model from S7 metric generation, forcing fallback to certified prior-generation model.",
+    "level_3": "Model quarantine, requiring mandatory human-supervised PEUP validation/retraining before re-entry into CMR."
+  },
+  "integration_point": "Pre-S3 Check (The result of MRCE analysis serves as an input constraint to S3: Model Stability Gate."
+}
