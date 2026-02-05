@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "GICM.schema.json",
   "title": "Governance Inter-Agent Commitment Manifest",
-  "description": "Defines the mandatory structure for the final ledger entry capturing pipeline execution results and agent attestations.",
+  "description": "Defines the mandatory structure for the final ledger entry capturing pipeline execution results and agent attestations for Sovereign AGI V94.1 state transition.",
   "type": "object",
   "required": [
     "version",
@@ -12,46 +12,66 @@
     "veto_status",
     "agent_signatures"
   ],
+  "definitions": {
+    "hex_hash": {
+      "type": "string",
+      "description": "Cryptographic Hash (e.g., SHA-256 hex string).",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Cryptographic signature/attestation.",
+      "minLength": 100
+    }
+  },
   "properties": {
     "version": { "type": "string", "const": "V94.1" },
-    "transition_id": { "type": "string", "description": "Unique hash identifying the state transition instance." },
-    "input_hash_s1": { "type": "string", "description": "Hash of the certified input state from S1." },
-    "final_state_hash_s11": { "type": "string", "description": "Hash of the committed $\Psi_{N+1}$ data artifact." },
+    "transition_id": { "$ref": "#/definitions/hex_hash", "description": "Unique hash identifying the state transition instance." },
+    "input_hash_s1": { "$ref": "#/definitions/hex_hash", "description": "Hash of the certified input state from S1 (Psi_N)." },
+    "final_state_hash_s11": { "$ref": "#/definitions/hex_hash", "description": "Hash of the committed next state artifact (Psi_N+1). Stage S11." },
     "p_01_result": {
       "type": "object",
+      "description": "Results of the P-01 Decision Axiom (S8) based on CFTM assessment.",
       "required": ["pass", "finality_timestamp"],
       "properties": {
-        "pass": { "type": "boolean", "description": "True if the P-01 Decision Axiom passed (S8)." },
-        "finality_timestamp": { "type": "string", "format": "date-time" },
-        "cftm_epsilon": { "type": "number", "description": "The threshold $\epsilon$ enforced by CFTM." }
+        "pass": { "type": "boolean", "description": "True if the P-01 Decision Axiom passed." },
+        "finality_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when P-01 finality was confirmed."
+        },
+        "cftm_epsilon": { "type": "number", "minimum": 0, "description": "The threshold epsilon enforced by CFTM, used in the delta calculation." }
       }
     },
     "metric_results": {
       "type": "object",
+      "description": "Certified quantitative assessments leading to P-01.",
       "required": ["s01_utility", "s02_cost"],
       "properties": {
-        "s01_utility": { "type": "number", "description": "Certified Utility Value ($S_{01}$)." },
-        "s02_cost": { "type": "number", "description": "Estimated Cost/Failure Profile ($S_{02}$)." },
-        "delta": { "type": "number", "description": "S01 - S02 - epsilon." }
+        "s01_utility": { "type": "number", "minimum": 0, "description": "Certified Utility Value (S01). Expected non-negative." },
+        "s02_cost": { "type": "number", "minimum": 0, "description": "Estimated Cost/Failure Profile (S02). Expected non-negative." },
+        "delta": { "type": "number", "description": "S01 - S02 - cftm_epsilon. Must be >= 0 if P-01 passes." }
       }
     },
     "veto_status": {
       "type": "object",
+      "description": "Boolean results of mandatory Veto Gates and Context validation.",
       "required": ["s03_policy", "s04_stability", "s06_5_behavioral", "s_context_pass"],
       "properties": {
-        "s03_policy": { "type": "boolean", "description": "Result of Policy Veto Gate (S2). True if NOT vetoed." },
-        "s04_stability": { "type": "boolean", "description": "Result of Stability Veto Gate (S3). True if NOT vetoed." },
-        "s06_5_behavioral": { "type": "boolean", "description": "Result of Behavioral Veto Gate (S6.5). True if NOT vetoed." },
-        "s_context_pass": { "type": "boolean", "description": "Result of Context Attestation (S4.5)." }
+        "s03_policy": { "type": "boolean", "description": "Result of Policy Compliance Veto (S3). True if NOT vetoed." },
+        "s04_stability": { "type": "boolean", "description": "Result of Stability Analysis Veto (S4). True if NOT vetoed." },
+        "s06_5_behavioral": { "type": "boolean", "description": "Result of Behavioral Divergence Veto (S6.5). True if NOT vetoed." },
+        "s_context_pass": { "type": "boolean", "description": "Result of Context Attestation Check (S4.5)." }
       }
     },
     "agent_signatures": {
       "type": "object",
+      "description": "Cryptographic attestations from governing subsystems.",
       "required": ["sgs_s9_signature", "gax_s8_signature", "crot_s10_signature"],
       "properties": {
-        "sgs_s9_signature": { "type": "string", "description": "SGS signature confirming NRALS logging and CISM finalization." },
-        "gax_s8_signature": { "type": "string", "description": "GAX signature certifying P-01 finality." },
-        "crot_s10_signature": { "type": "string", "description": "CRoT cryptographic lock and attestation signature over the entire GICM manifest." }
+        "sgs_s9_signature": { "$ref": "#/definitions/signature", "description": "SGS (System Governance Subsystem) signature confirming NRALS logging (S9) and CISM finalization." },
+        "gax_s8_signature": { "$ref": "#/definitions/signature", "description": "GAX (Governance Axiom Executor) signature certifying P-01 finality (S8)." },
+        "crot_s10_signature": { "$ref": "#/definitions/signature", "description": "CRoT (Commitment Root of Trust) cryptographic lock and attestation signature over the entire GICM manifest (S10)." }
       }
     }
   }
