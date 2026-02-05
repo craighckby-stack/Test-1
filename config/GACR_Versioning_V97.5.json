@@ -1,0 +1,18 @@
+{
+  "asset_id": "GVDM_V97.5",
+  "description": "Governance Versioning and Distribution Manifest. Defines the required atomic hash commitment for all GACR policies and thresholds used during a single GSEP-C execution cycle ($ \Psi_{N} \to \Psi_{N+1} $).",
+  "schema_version": "1.0.0",
+  "owner": "SGS / CRoT (Signing)",
+  "manifest_commit": {
+    "timestamp": "{{current_utc_timestamp}}",
+    "genesis_hash": "HETM_COMMIT_H4D6C",
+    "policy_version": "97.5.01",
+    "manifests": [
+      {"name": "PVLM", "hash": "{{pvlm_content_hash}}", "required_gates": ["S2"]},
+      {"name": "MPAM", "hash": "{{mpam_content_hash}}", "required_gates": ["S3"]},
+      {"name": "ECVM", "hash": "{{ecvm_content_hash}}", "required_gates": ["S4.5"]},
+      {"name": "CFTM", "hash": "{{cftm_content_hash}}", "required_gates": ["S8"]}
+    ],
+    "peup_link": "{{latest_peup_audit_id}}"
+  }
+}
