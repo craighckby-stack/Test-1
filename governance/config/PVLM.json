@@ -1,0 +1,24 @@
+{
+  "manifest_version": "V97.1.P",
+  "status": "active",
+  "veto_signal_S03_active": false,
+  "active_policies": [
+    {
+      "policy_id": "P_001_RESOURCE_CAP",
+      "description": "Prevents SSTs that exceed 120% projected L2 Constraint Matrix baseline resource usage.",
+      "criticality": "L1_VETO",
+      "thresholds": {
+        "memory_gb_max": 256,
+        "compute_load_max": 0.95
+      },
+      "active": false
+    },
+    {
+      "policy_id": "P_002_EXTERNAL_COMM",
+      "description": "Prohibits integration of undocumented external APIs during defined development phases.",
+      "criticality": "L1_VETO",
+      "active": true,
+      "enforcement_context": ["development", "integration_test"]
+    }
+  ]
+}
