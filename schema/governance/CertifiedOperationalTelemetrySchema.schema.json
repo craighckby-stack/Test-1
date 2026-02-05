@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:sovereign:schema:governance:CertifiedOperationalTelemetrySchema",
+  "title": "Certified Operational Telemetry Schema (COTS)",
+  "description": "Standardized schema for recording non-critical, high-frequency operational metrics and environment data during P3 Audit & Metric Calculation (S07-S10). Essential for performance analysis and optimization loops.",
+  "type": "object",
+  "properties": {
+    "execution_uuid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier linking this telemetry batch to the parent GSEP-C execution cycle."
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of telemetry generation."
+    },
+    "agent_source": {
+      "type": "string",
+      "enum": ["SGS", "GAX"],
+      "description": "Agent responsible for generating the specific metric batch."
+    },
+    "operational_metrics": {
+      "type": "object",
+      "description": "A collection of non-P-01 critical metrics.",
+      "properties": {
+        "latency_ms": {"type": "number", "description": "Total execution time in milliseconds for the current subprocess."},
+        "cpu_utilization_percent": {"type": "number"},
+        "memory_footprint_bytes": {"type": "integer"},
+        "rql_counts": {
+          "type": "object",
+          "description": "Runtime Query Layer interaction metrics."
+        }
+      },
+      "required": ["latency_ms", "cpu_utilization_percent"]
+    },
+    "intermediate_results_hash": {
+      "type": "string",
+      "description": "Cryptographic hash of complex intermediate results (optional for high-volume data validation)."
+    }
+  },
+  "required": ["execution_uuid", "timestamp_utc", "agent_source", "operational_metrics"]
+}
