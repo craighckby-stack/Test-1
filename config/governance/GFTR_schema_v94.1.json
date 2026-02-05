@@ -1,0 +1,48 @@
+{
+  "schema_version": "v94.1",
+  "title": "Governance Fault & Trace Report (GFTR) Schema",
+  "description": "Standardized cryptographic structure for documenting CRITICAL and TERMINAL GSEP-C failures.",
+  "properties": {
+    "report_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique, immutable ID for the failure event."
+    },
+    "trigger_stage": {
+      "type": "string",
+      "enum": ["S0", "S2", "S3", "S4", "S4.5", "S6", "S6.5", "S6.7", "S8", "S10", "S11"]
+    },
+    "failure_class": {
+      "type": "string",
+      "enum": ["CRITICAL (RRP)", "TERMINAL (SIH)"]
+    },
+    "responsible_agent": {
+      "type": "string",
+      "enum": ["GAX", "CRoT", "SGS"]
+    },
+    "attested_cism_hash": {
+      "type": "string",
+      "description": "Cryptographic hash of the Certified Intermediate State (CISM) prior to failure."
+    },
+    "veto_condition": {
+      "type": "string",
+      "description": "The specific mathematical condition or gate that triggered the failure (e.g., ¬S03, S01 <= S02 + ϵ)."
+    },
+    "veto_data": {
+      "type": "object",
+      "description": "Specific metrics or policy violations recorded (e.g., MPAM drift percentage, HETM discrepancy).
+    },
+    "agent_signature": {
+      "type": "string",
+      "description": "Attestation signature of the responsible agent (GAX/CRoT) certifying report integrity."
+    }
+  },
+  "required": [
+    "report_id",
+    "trigger_stage",
+    "failure_class",
+    "responsible_agent",
+    "attested_cism_hash",
+    "veto_condition"
+  ]
+}
