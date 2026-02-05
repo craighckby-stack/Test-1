@@ -1,14 +1,32 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://sovereign.ai/schemas/TEDS_Schema.json",
   "title": "TEDS_V1_0_0",
-  "description": "Technical Evidence Data Set (TEDS) Schema for RRP (Rollback Protocol) forensic capture.",
+  "description": "Technical Evidence Data Set (TEDS) Schema for RRP (Rollback Protocol) forensic capture. Refactored to use Draft 7 and modular definitions ($defs).",
   "type": "object",
   "required": [
     "metadata",
     "components",
     "attestation"
   ],
+  "$defs": {
+    "CryptographicHash": {
+      "type": "string",
+      "description": "A high-entropy cryptographic hash (e.g., SHA-256), enforced to be a 64-character hexadecimal string.",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "SignaturePayload": {
+      "type": "string",
+      "description": "Cryptographic signature of the canonicalized TEDS artifact (e.g., Base64 encoded ECDSA signature).",
+      "minLength": 128
+    },
+    "ArtifactIdentifier": {
+      "type": "string",
+      "description": "A unique, constant identifier for the TEDS component artifact."
+    }
+  },
   "properties": {
     "metadata": {
       "type": "object",
@@ -17,8 +35,8 @@
       "properties": {
         "TEDS_Version": {
           "type": "string",
-          "pattern": "^1\.0\.0$",
-          "description": "Schema version used."
+          "const": "1.0.0",
+          "description": "Schema version used (must be 1.0.0)."
         },
         "capture_timestamp": {
           "type": "string",
@@ -43,15 +61,15 @@
       "properties": {
         "Current_ASM_Snapshot": {
           "type": "object",
-          "description": "Snapshot of the Active System Memory (ASM).",
+          "description": "Snapshot of the Active System Memory (ASM) component states.",
           "required": ["artifact_id", "TEMM", "ECVM", "PVLM", "MPAM", "ADTM"],
           "properties": {
-            "artifact_id": {"type": "string", "enum": ["ASM"]},
-            "TEMM": {"type": "string", "description": "Trusted Execution Manager Model state hash.", "minLength": 64},
-            "ECVM": {"type": "string", "description": "Execution Control Vector Map hash.", "minLength": 64},
-            "PVLM": {"type": "string", "description": "Physical Virtual Link Map hash.", "minLength": 64},
-            "MPAM": {"type": "string", "description": "Micro-Program Access Map hash.", "minLength": 64},
-            "ADTM": {"type": "string", "description": "Autonomous Drift Tolerance Model hash.", "minLength": 64}
+            "artifact_id": {"$ref": "#/$defs/ArtifactIdentifier", "const": "ASM"},
+            "TEMM": {"$ref": "#/$defs/CryptographicHash", "description": "Trusted Execution Manager Model state hash."},
+            "ECVM": {"$ref": "#/$defs/CryptographicHash", "description": "Execution Control Vector Map hash."},
+            "PVLM": {"$ref": "#/$defs/CryptographicHash", "description": "Physical Virtual Link Map hash."},
+            "MPAM": {"$ref": "#/$defs/CryptographicHash", "description": "Micro-Program Access Map hash."},
+            "ADTM": {"$ref": "#/$defs/CryptographicHash", "description": "Autonomous Drift Tolerance Model hash."}
           }
         },
         "Active_Configuration_Roots": {
@@ -59,11 +77,11 @@
           "description": "Bundle of critical immutable configuration hashes.",
           "required": ["artifact_id", "CSR_Hash", "ACVD_Hash", "FASV_Hash", "EPB_Hash"],
           "properties": {
-            "artifact_id": {"type": "string", "enum": ["CR_Bundle"]},
-            "CSR_Hash": {"type": "string", "description": "Configuration Set Root Hash.", "minLength": 64},
-            "ACVD_Hash": {"type": "string", "description": "Active Core Version Delta Hash.", "minLength": 64},
-            "FASV_Hash": {"type": "string", "description": "Forensic Archive Security Vector Hash.", "minLength": 64},
-            "EPB_Hash": {"type": "string", "description": "Execution Policy Bundle Hash.", "minLength": 64}
+            "artifact_id": {"$ref": "#/$defs/ArtifactIdentifier", "const": "CR_Bundle"},
+            "CSR_Hash": {"$ref": "#/$defs/CryptographicHash", "description": "Configuration Set Root Hash."},
+            "ACVD_Hash": {"$ref": "#/$defs/CryptographicHash", "description": "Active Core Version Delta Hash."},
+            "FASV_Hash": {"$ref": "#/$defs/CryptographicHash", "description": "Forensic Archive Security Vector Hash."},
+            "EPB_Hash": {"$ref": "#/$defs/CryptographicHash", "description": "Execution Policy Bundle Hash."}
           }
         },
         "Execution_Environment_Context": {
@@ -71,9 +89,17 @@
           "description": "Runtime metrics and log snippets leading to failure.",
           "required": ["artifact_id", "ResourceUtilizationMetrics", "ExecutionLogSlice"],
           "properties": {
-            "artifact_id": {"type": "string", "enum": ["EEC"]},
-            "ResourceUtilizationMetrics": {"type": "object", "description": "Time series metrics of compute/memory/IO usage."},
-            "ExecutionLogSlice": {"type": "string", "description": "Base64 encoded or plaintext log excerpt.", "minLength": 10}
+            "artifact_id": {"$ref": "#/$defs/ArtifactIdentifier", "const": "EEC"},
+            "ResourceUtilizationMetrics": {
+              "type": "object",
+              "description": "Time series metrics of compute/memory/IO usage. Structure left flexible.",
+              "additionalProperties": true
+            },
+            "ExecutionLogSlice": {
+              "type": "string",
+              "description": "Log excerpt (Base64 encoded or validated plaintext).",
+              "minLength": 10
+            }
           }
         }
       }
@@ -85,17 +111,15 @@
       "properties": {
         "signing_agent": {
           "type": "string",
-          "enum": ["CRoT"],
+          "const": "CRoT",
           "description": "The designated signing authority (CRoT - Core Root of Trust)."
         },
         "signing_mandate": {
           "type": "string",
-          "description": "Mandate summary."
+          "description": "Mandate identifier or summary."
         },
         "signature_payload": {
-          "type": "string",
-          "description": "Cryptographic signature of the canonicalized TEDS artifact (e.g., Base64 encoded ECDSA signature).",
-          "minLength": 128
+          "$ref": "#/$defs/SignaturePayload"
         }
       }
     }
