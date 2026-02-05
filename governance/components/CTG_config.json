@@ -1,0 +1,18 @@
+{
+  "component_id": "CTG_V97.0",
+  "name": "Compliance Trace Generator",
+  "status": "PROPOSED_ACTIVE",
+  "description": "Generates a forensic, actionable trace report detailing the exact GRS constraint violation (S-03=TRUE condition) causing P-01 failure.",
+  "trigger_event": "EPDP_C_FAILURE_S03_VETO",
+  "input_sources": [
+    "/data/log/TIAR_attestation.json",
+    "/governance/GRS/active_ruleset.json",
+    "/governance/C15/veto_record.json"
+  ],
+  "output_target": "/audit/F01/failure_report_CTXID.json",
+  "execution_priority": "CRITICAL_PATH_DIAGNOSTIC",
+  "integration": {
+    "F01_analyzer": "Mandatory Pre-Analysis Input",
+    "D01_logger": "Attestation Log Annex"
+  }
+}
