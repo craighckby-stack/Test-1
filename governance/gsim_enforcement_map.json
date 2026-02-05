@@ -1,0 +1,27 @@
+{
+  "description": "Definitive, machine-readable map linking GSIM components, GAX violations, P-SET triggers, and required configuration files. Used by PIM and FSMU for dynamic resolution and immediate Halt assessment.",
+  "schema_version": "1.0",
+  "enforcements": [
+    {
+      "p_set_id": "P-M01",
+      "axiom_violations": ["GAX IV"],
+      "utility_enforcers": ["PIM", "RTOM"],
+      "primary_gate": ["G1", "G2", "G3"],
+      "dependency_configs": ["config/gsep_orchestrator.json", "config/rtom_metrics_config.json"]
+    },
+    {
+      "p_set_id": "P-M02",
+      "axiom_violations": ["GAX II", "GAX III", "GAX V"],
+      "utility_enforcers": ["DRO", "EMSU", "CSV", "CDA"],
+      "primary_gate": ["PRE-G0", "G0", "G1"],
+      "dependency_configs": ["config/acvm_bounds.json", "protocol/gax_master.yaml", "config/cda_audit_targets.json"]
+    },
+    {
+      "p_set_id": "P-R03",
+      "axiom_violations": ["GAX I"],
+      "utility_enforcers": ["AASS"],
+      "primary_gate": ["G2", "G3"],
+      "dependency_configs": ["protocol/cryptographic_manifest.json"]
+    }
+  ]
+}
