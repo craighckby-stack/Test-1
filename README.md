@@ -4,40 +4,41 @@ This manifest defines the immutable operational and structural requirements gove
 
 ---
 
-## 0.0 DOMAIN GLOSSARY (Quick Reference)
+## 0.0 SOVEREIGN COMPONENT & TERMINOLOGY REGISTRY (SCTR)
 
-| Acronym | Definition | Functional Group |
-|:---|:---|:---|
-| CAC | Core Architectural Constraints | Architecture |
-| COF | Core Objective Function | Governance |
-| CTAL | Configuration Trust Assurance Layer | Validation/L4 |
-| GCR | Governance Contracts Registry | Architecture |
-| GSC | Governance Schema Contract | Validation/PRE |
-| GSEP-C | Governance State Evolution Pipeline - Control | Enforcement |
-| MEE/MEC | Metric/Equation Engine & Contract | L6 Computation |
-| PVLM | Policy Veto Logic Module | L1 Enforcement |
-| RRP | Rollback and Recovery Protocol | Remediation |
-| SCI | Structural Cost Index | L3 Constraint |
-| SST | System State Transition | Process/Domain |
-| VMO | Viability Margin Oracle | L7 Computation |
-| GRLC | Governance Record Logging Contract | L8 Persistence |
+This registry consolidates all essential governance contracts and domain acronyms, organized by Layer (L#) or Functional Group.
+
+| Acronym | Functional Layer | Definition | Core Function / Group |
+|:---|:---|:---|:---|
+| CAC | Architecture | Core Architectural Constraints | Defines mandatory architectural principles. |
+| COF | Governance | Core Objective Function | The mathematical goal to be maximized. |
+| CTAL | L4 | Configuration Trust Assurance Layer | Verification of configuration origin/trust. |
+| GCR | Architecture | Governance Contracts Registry | Legacy registry list (See 0.0 SCTR). |
+| GRLC | L8 | Governance Record Logging Contract | Persists the certified transaction log. |
+| GSC | PRE | Governance Schema Contract | Schema integrity for ingress proposals. |
+| GSEP-C | Orchestration | Governance State Evolution Pipeline - Control | Executes the full verification pipeline (PRE, L0-L9). |
+| MEE/MEC | L6 | Metric/Equation Engine & Contract | Computes primary metrics ($S\text{-}01, S\text{-}02$). |
+| PVLM | L1 | Policy Veto Logic Module | Generates critical veto signals ($S\text{-}03$). |
+| RRP | L0-L9 | Rollback and Recovery Protocol | State-defined remediation guarantee. |
+| SCI | L3 | Structural Cost Index | Quantifies long-term structural burden (C-01). |
+| SST | Domain | System State Transition | The central process domain event. |
+| TEDC | L9 | Transition Execution & Decommitment | Executes final atomic state transition. |
+| VMO | L7 | Viability Margin Oracle | Computes dynamic safety buffer ($\epsilon$). |
 
 ---
 
-## 1.0 CORE ARCHITECTURAL CONSTRAINTS (CAC)
-
-### 1.1 CORE GOVERNANCE LOGIC & AXIOMS
+## 1.0 CORE GOVERNANCE AXIOM SET (GAX)
 
 These axioms establish the rigorous mathematical prerequisites for certified System State Transitions (SSTs), ensuring systemic benefit always supersedes quantified risk.
 
-#### I. Core Metric Definitions (Inputs to L7 Finality Gate)
+### 1.1 CORE METRIC DEFINITIONS (Inputs to L7 Finality Gate)
 
 *   **$S\text{-}01$ (Efficacy Metric):** Quantified Systemic Benefit/Value (MEE L6 Output).
 *   **$S\text{-}02$ (Risk Metric):** Quantified Systemic Risk/Cost (MEE L6 Output).
 *   **$S\text{-}03$ (Veto Signal):** Boolean state indicating critical policy violation (PVLM L1 Output).
 *   **$\epsilon$ (Viability Margin):** Dynamic safety buffer requirement (VMO L7 Output).
 
-#### II. Core Objective Function (COF Maximization Goal)
+### 1.2 CORE OBJECTIVE FUNCTION (COF Maximization Goal)
 
 Optimization seeks to maximize Efficacy ($S\text{-}01$) relative to systemic Risk ($S\text{-}02$), provided critical governance boundaries ($\neg S\text{-}03$) are universally maintained.
 
@@ -45,29 +46,13 @@ $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + 1} \right) \quad \te
 
 *Principle:* Systemic improvement must be maximized relative to adjusted risk, without breaching any critical veto policy.
 
-#### III. Finality Axiom (P-01 Certification Requirement - Layer L7)
+### 1.3 FINALITY AXIOM (P-01 Certification Requirement - Layer L7)
 
 Certification mandates that quantified systemic benefit strictly exceeds quantifiable risk adjusted by the dynamic viability margin ($\epsilon$), alongside the universal absence of any critical veto.
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
 *Principle:* A State Transition is certified only if net benefit reliably exceeds adjusted risk and all governance rules are satisfied.
-
-### 1.2 GOVERNANCE CONTRACTS REGISTRY (GCR)
-The GCR lists all essential contracts required for the execution and integrity assurance of the GSEP-C pipeline. Functional layering is detailed in Section 2.0.
-
-| Acronym | Functional Layer | Core Function | Description |
-|:---|:---|:---|:---|
-| **PVLM** | L1 | Critical Veto Signaling | Generates critical veto signals ($S\text{-}03$). |
-| **SCI** | L3 | Structural Cost Assessment | Quantifies long-term structural burden (C-01). |
-| **CTAL** | L4 | Source Provenance & Trust | Verification of configuration origin/trust. |
-| **MEE/MEC** | L6 | Metric Computation | Computes primary metrics ($S\text{-}01, S\text{-}02$). |
-| **VMO** | L7 | Dynamic Safety Buffer | Computes dynamic viability margin ($\epsilon$). |
-| **GRLC** | L8 | Immutable Record Logging | Persists the certified transaction log. |
-| **TEDC** | L9 | Execution Hook | Executes final atomic state transition. |
-| **GSC** | PRE | Schema Integrity Check | Schema integrity for ingress proposals. |
-| **RRP** | L0-L9 | Remediation Guarantee | State-defined rollback and recovery guarantee. |
-| **GSEP-C** | Orchestration | Sequential Verification | Executes the full ten-stage verification pipeline. |
 
 ---
 
