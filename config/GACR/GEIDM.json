@@ -1,0 +1,24 @@
+{
+  "manifestId": "GEIDM-V1.0",
+  "description": "Governance External Interface Definition Manifest. Defines security and schema requirements for authorized external access points (e.g., HIL-T access, Telemetry Sinks).",
+  "interfaceProtocols": [
+    {
+      "name": "HIL-T_Recovery_API",
+      "purpose": "Authorization interface for SIH restart/triage (HARM).",
+      "requiredAuth": "MFA_Hardware_Token / CRoT_Derived_Key",
+      "schemaUri": "/schemas/recovery_authorization_v1.json",
+      "rateLimit": {
+        "period": "1h",
+        "requests": 3
+      }
+    },
+    {
+      "name": "GRTS_Data_Sink",
+      "purpose": "Low-latency streaming target for S7/S8 telemetry and audit data.",
+      "requiredAuth": "TLS_MTLS_Certificate_Fixed",
+      "schemaUri": "/schemas/telemetry_sink_v2.json",
+      "maxLatency_ms": 50
+    }
+  ],
+  "enforcementPolicy": "API_Gateway_CRoT_Signed_Enforced"
+}
