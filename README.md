@@ -15,24 +15,32 @@
 | **GAX** | Governance Axioms Engine | Policy Certification, Decision Calculus, and Threshold Management | Decision Calculus | CRITICAL |
 | **CRoT** | Crypto Root of Trust | Core key management; Certifies asset integrity and cryptographic provenance. | Integrity | TERMINAL |
 | **CAIM** | Certified Asset Initialization Module | Bootstrapping validation of all GACR assets prior to GSEP-C Stage S0. | Bootstrapping | CRITICAL |
+| **CEEP** | Certified Execution Environment Protocol | Provides cryptographically secured execution boundaries for modeling and synthesis. | Execution | PRIMARY |
 | RRP | Rollback Protocol | Guarantees atomic state reversal upon recoverable pipeline failures (S1-S8). | Recovery | STANDARD |
 | SIH | System Integrity Halt | Terminal lock state triggered by unrecoverable violations (S0, S9). | Terminal Lock | TERMINAL |
 
 ### 1.2 Certified Governance Assets (GACR Manifests) - CRoT Required
 
-These assets are signed by CRoT and are mandatory for GSEP-C execution stages.
+Assets are categorized below for accelerated pipeline parsing (Pre-fetch S0). These assets are signed by CRoT and are mandatory for GSEP-C execution stages.
 
-| ID | Manifest Name | Type | Canonical Reference Path | Pipeline Usage | Affected Levels |
-|:---|:---|:---|:---|:---|:---|
-| CAC | Core Architectural Constraints | Policy | `assets/constraints/system_limits.json` | Resource Limits Check (S5) | L4 |
-| **CALS** | **Certified Audit Log Specification** | Configuration | `assets/config/audit_log_spec.json` | NRALS configuration and logging requirements. | S8, SIH |
-| CFTM | Core Failure Thresholds Manifest | Policy | `assets/security/cftm.json` | GAX Evaluation Metrics | L7, GAX |
-| DTEM | Data Trust Endpoint Manifest | Configuration | `assets/config/data_trust_endpoints.json` | Provenance and Lineage Check (S3) | L3 |
-| MDSM | Metric Definition & Semantic Manifest | Configuration | `assets/governance/metric_definitions.json` | Input Synthesis for GAX (S6) | L6 |
-| PVLM | Policy Veto Logic Manifest | Policy | `assets/policies/critical_veto.yaml` | Immediate Violation Gate (S2) | L2 |
-| SBCM | Systemic Behavioral Constraints Manifest | Policy | `assets/governance/behavioral_constraints.json` | Confidence Modeling Inputs (S4) | L4 |
-| SDVM | Schema Definition & Validation Manifest | Configuration | `assets/config/ingress_validation.json` | Input Schema Validation (S1) | L1 |
-| FSVM | Forensic State Verification Manifest | Policy | `assets/forensics/forensic_state_v1.json` | SIH State Capture Policy | SIH, RRP |
+#### 1.2.1 Policy & Axiom Constraints
+
+| ID | Manifest Name | Canonical Reference Path | Pipeline Usage | Affected Levels |
+|:---|:---|:---|:---|:---|
+| PVLM | Policy Veto Logic Manifest | `assets/policies/critical_veto.yaml` | Immediate Violation Gate (S2) | L2 |
+| SBCM | Systemic Behavioral Constraints Manifest | `assets/governance/behavioral_constraints.json` | Confidence Modeling Inputs (S4) | L4 |
+| CAC | Core Architectural Constraints | `assets/constraints/system_limits.json` | Resource Limits Check (S5) | L4 |
+| CFTM | Core Failure Thresholds Manifest | `assets/security/cftm.json` | GAX Evaluation Metrics (Defines $\tau_{\text{norm}}$ and $\epsilon$) | L7, GAX |
+| FSVM | Forensic State Verification Manifest | `assets/forensics/forensic_state_v1.json` | SIH State Capture Policy | SIH, RRP |
+
+#### 1.2.2 Configuration & Metadata Assets
+
+| ID | Manifest Name | Canonical Reference Path | Pipeline Usage | Affected Levels |
+|:---|:---|:---|:---|:---|
+| SDVM | Schema Definition & Validation Manifest | `assets/config/ingress_validation.json` | Input Schema Validation (S1) | L1 |
+| DTEM | Data Trust Endpoint Manifest | `assets/config/data_trust_endpoints.json` | Provenance and Lineage Check (S3) | L3 |
+| MDSM | Metric Definition & Semantic Manifest | `assets/governance/metric_definitions.json` | Input Synthesis for GAX (S6) | L6 |
+| CALS | Certified Audit Log Specification | `assets/config/audit_log_spec.json` | NRALS configuration and logging requirements. | S8, SIH |
 
 ---
 
@@ -67,7 +75,7 @@ Maximizes benefit ($S_{01}$) relative to weighted risk ($S_{02}$). $\tau_{\text{
 $$ \text{COF}: \max \left( \frac{S_{01}}{S_{02} + \tau_{\text{norm}}} \right) $$
 
 **GAX-CERT: P-01 Finality Certification [S7 Gate]**
-Requires the action to yield greater efficacy than risk, adjusted by the deviation factor ($\epsilon$), and mandates the absence of the Veto Signal ($\neg S_{03}$). 
+Requires the action to yield greater efficacy than risk, adjusted by the deviation factor ($\epsilon$), and mandates the absence of the Veto Signal ($\neg S_{03}$). Both $\tau_{\text{norm}}$ and $\epsilon$ are derived from the **CFTM** policy manifest.
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{03}) $$
 
@@ -83,8 +91,8 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 
 | Mechanism | Trigger Stages | Failure Class | Action | Requirement |
 |:---|:---|:---|:---|:---|
-| RRP (Rollback) | S1 through S8 | Recoverable | Guarantees atomic state rollback and non-persistence, guided by FSVM. | GAX failure or constraint violation identified.
-| SIH (Halt) | S0 and S9 | Terminal | Locks the system state, executing forensic logging (NRALS) based on CALS and FSVM. Requires mandatory Human-in-the-Loop (HIL) triage. | Unrecoverable integrity violation.
+| RRP (Rollback) | S1 through S8 | Recoverable | Guarantees atomic state rollback and non-persistence, guided by FSVM. | GAX failure or constraint violation identified. |
+| SIH (Halt) | S0 and S9 | Terminal | Locks the system state, executing forensic logging (NRALS) based on CALS and FSVM. Requires mandatory Human-in-the-Loop (HIL) triage. | Unrecoverable integrity violation. |
 
 ### 4.1 Supporting Protocols (Internal/Utility Definitions)
 
@@ -92,5 +100,4 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 |:---|:---|:---|
 | MCIS | Manifest/Contract Integrity Specification | S0 |
 | NRALS | Non-Repudiable Audit Log Specification | S8, SIH |
-| CEEP | Certified Execution Environment Protocol | Provides cryptographically secured execution boundaries. | S4, S6 |
 | HIL-T | Human-in-the-Loop Triage Protocol | SIH (Post-Failure) |
