@@ -13,13 +13,13 @@
 
 ## EXECUTIVE SUMMARY: DETERMINISTIC STATE CERTIFICATION
 
-SGM V95.1 defines the authoritative compliance pathway for all System State Transitions (SSTs). It enforces strict, multi-stage auditing via the GSEP-C V3.5 Pipeline, culminating in cryptographic certification via the Governance Axioms (GAX). The framework mandates the **Principle of Immutable Staging (Fail-Fast)**, triggering the Rollback and Recovery Protocol (RRP) upon any stage failure.
+SGM V95.1 defines the authoritative compliance pathway for all System State Transitions (SSTs). It enforces strict, multi-stage auditing via the GSEP-C V3.5 Pipeline, culminating in cryptographic certification via the Governance Axioms (GAX). The framework mandates the **Principle of Immutable Staging (Fail-Fast)**, triggering the Rollback and Recovery Protocol (RRP) upon any pre-commitment stage failure (L0-L8). Failures during the final atomic state transition (L9) initiate the dedicated **System Integrity Halt (SIH)** protocol, preventing state corruption.
 
 ---
 
 ## 1.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.5)
 
-This sequential enforcement mechanism guarantees deterministic, auditable governance adherence. The final column enforces the fail-fast principle via RRP.
+This sequential enforcement mechanism guarantees deterministic, auditable governance adherence. Failure in any stage L0 through L8 triggers the mandatory RRP sequence.
 
 | Stage | ID Tag | Title | Core Validation Objective | Dependency / Halt Trigger | **Failure Action** |
 |:-----|:---|:---|:-----------------------------------|:------------------------------|:---|
@@ -33,7 +33,7 @@ This sequential enforcement mechanism guarantees deterministic, auditable govern
 | L6 | MEE | Metric Synthesis | Quantify objective metrics (S-01: Efficacy, S-02: Risk). | Metric Synthesis Failure [Ref: MEC, MDSM] | **Trigger RRP** |
 | **L7** | **VMO** | **FINALITY GATE** | Enforce GAX-CERT (P-01 Certification Check). | **FINALITY RULE BREACH** [Ref: CFTM] | **Trigger RRP** |
 | L8 | GRLC | Certified Persistence | Record, notarize, and verify auditable transaction log. | Persistence Logging Failure | **Trigger RRP** |
-| L9 | TEDC | Execution & Decommitment | Final compliance sign-off and atomic state trigger. | Runtime Threshold Breach | Complete / N/A |
+| **L9** | **TEDC** | **Execution & Decommitment** | Atomic state trigger and final compliance sign-off. | Commitment Integrity Failure [Ref: SIHM] | **Trigger SIH** |
 
 ---
 
@@ -69,8 +69,8 @@ Metrics are defined by MDSM (Metric Definition and Semantic Manifest).
 
 | ID | Title | Description | Type |
 |:---|:---|:---|:---|
-| S-01 | Efficacy Metric | Quantified Systemic Benefit/Value (\ge 0). | Numeric |
-| S-02 | Risk Metric | Quantified Systemic Risk/Cost (\ge 0). | Numeric |
+| S-01 | Efficacy Metric | Quantified Systemic Benefit/Value ($\ge 0$). | Numeric |
+| S-02 | Risk Metric | Quantified Systemic Risk/Cost ($\ge 0$). | Numeric |
 | S-03 | Veto Signal | Boolean flag indicating critical policy violation (L1 halt trigger). | Boolean |
 
 ### 3.2 Key System Contracts and Dependencies
@@ -81,15 +81,17 @@ Dependencies grouped by function.
 | ID | Definition | Reference Path | Stages Affected |
 |:---|:---|:---|:---|
 | CAC | Core Architectural Constraints (Resource limits). | `config/system_limits_v3.json` | L4 (SCI) |
-| **CFTM** | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). | **`config/security/cftm_v3.json`** | L7 (VMO), GAX |
+| CFTM | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). | `config/security/cftm_v3.json` | L7 (VMO), GAX |
 | DTEM | Data Trust Endpoint Manifest. Defines validation standards. | `config/security/data_trust_endpoints_v1.json` | L2 (CTAL), L5 (DFV) |
-| **MDSM** | Metric Definition and Semantic Manifest. | **`config/governance/mdsm_v1.json`** | L6 (MEE), GAX (Crucial) |
+| MDSM | Metric Definition and Semantic Manifest. | `config/governance/mdsm_v1.json` | L6 (MEE), GAX |
+| **SIHM** | **System Integrity Halt Manifest (Critical Failure Configuration).** | **`config/security/SIHM_manifest_v1.json`** | **L9 (TEDC), Global** |
 
 #### Policy Contracts
 | ID | Definition | Reference Path | Stages Affected |
 |:---|:---|:---|:---|
 | PVLM | Policy Veto Logic Manifest. Defines criteria for generating S-03. | `policies/critical_veto_manifest_v1.yaml` | L1 (PVLM) |
-| RRP | Rollback and Recovery Protocol. | `spec/RRP_interface_v1.yaml` | All L0-L8 Stages |
+| RRP | Rollback and Recovery Protocol (Pre-commitment rollback). | `spec/RRP_interface_v1.yaml` | All L0-L8 Stages |
+| **SIH** | **System Integrity Halt (Post-commitment failure)**. | N/A (Defined in SIHM) | **L9 (TEDC)** |
 
 #### Service Contracts
 | ID | Definition | Reference Path | Stages Affected |
