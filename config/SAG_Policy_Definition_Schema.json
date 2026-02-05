@@ -1,43 +1,117 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign.agi/SAG_Policy_Definition_Schema.json",
-  "title": "Sovereign Architectural Governance Policy Schema (CSR Definition)",
-  "description": "Defines the mandatory structural requirements for ACVD, FASV, and TIPS files, ensuring structural immutability before CSR hash locking (S01).",
+  "$id": "http://sovereign.agi/SAG_Policy_Definition_Schema_v94.1.json",
+  "title": "Sovereign Architectural Governance Policy Schema (CSR Policy Layer)",
+  "description": "Defines mandatory structural and quantitative requirements for ACVD, FASV, and TIPS Policy Modules. Ensures structural coherence before CSR hash locking (S01).",
   "type": "object",
   "properties": {
+    "SAG_VERSION": {
+      "type": "string",
+      "format": "regex",
+      "pattern": "^v[0-9]+\\.[0-9]+$",
+      "description": "Semantic Versioning marker for the governing Sovereign AGI instance."
+    },
     "ACVD": {
-      "description": "Axiomatic Constraint Vector Definition parameters.",
+      "description": "Axiomatic Constraint Vector Definition parameters (System Health/Tolerances).",
       "type": "object",
       "properties": {
-        "UFRM_base": {"type": "number", "description": "Utility Floor Requirement Minimum (Base)"},
-        "CFTM_coefficient": {"type": "number", "description": "Context Friction Tolerance Multiplier"},
-        "MAX_TRANSACTION_COUNT": {"type": "integer"}
+        "UFRM_base": {
+          "type": "number",
+          "description": "Utility Floor Requirement Minimum (Base). Must be positive.",
+          "minimum": 0.001
+        },
+        "CFTM_coefficient": {
+          "type": "number",
+          "description": "Context Friction Tolerance Multiplier. Range [0.5, 5.0].",
+          "minimum": 0.5,
+          "maximum": 5.0
+        },
+        "MAX_TRANSACTION_COUNT": {
+          "type": "integer",
+          "minimum": 10,
+          "description": "Maximum atomic operations allowed per micro-cycle (for integrity bounding)."
+        }
       },
-      "required": ["UFRM_base", "CFTM_coefficient"]
+      "required": [
+        "UFRM_base",
+        "CFTM_coefficient",
+        "MAX_TRANSACTION_COUNT"
+      ],
+      "additionalProperties": false
     },
     "FASV": {
-      "description": "Schema mapping for the Axiomatic State Manifest (ASM).",
+      "description": "Policy Schema Definition for the Feature Axiomatic State Manifest (ASM structure).",
       "type": "object",
       "additionalProperties": {
+        "title": "State Field Definition",
         "type": "object",
         "properties": {
-          "type": {"type": "string"}, 
-          "required": {"type": "boolean"}
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "array",
+              "object",
+              "null"
+            ],
+            "description": "JSON schema type of the axiomatic state variable."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "If this state variable is mandatory for system initialization."
+          },
+          "format": {
+            "type": "string",
+            "description": "Optional format string (e.g., 'uuid', 'date-time')."
+          },
+          "description": {
+            "type": "string"
+          }
         },
-        "required": ["type", "required"]
+        "required": [
+          "type",
+          "required"
+        ],
+        "additionalProperties": false
       }
     },
     "TIPS": {
-      "description": "TEDS Integrity Policy Schema (Audit Log Structure).",
+      "description": "TEDS Integrity Policy Schema (Telemetry/Evidence Definition Structure).",
       "type": "object",
       "properties": {
         "MandatoryFields": {
           "type": "array",
-          "items": {"type": "string"}
+          "description": "List of string fields mandatory in every TEDS record.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 5,
+          "uniqueItems": true
+        },
+        "HashAlgorithm": {
+          "type": "string",
+          "enum": [
+            "SHA256_EVIDENCE",
+            "KECCAK_TRANSACTION"
+          ],
+          "description": "Algorithm used for TEDS data integrity hash."
         }
       },
-      "required": ["MandatoryFields"]
+      "required": [
+        "MandatoryFields",
+        "HashAlgorithm"
+      ],
+      "additionalProperties": false
     }
   },
-  "required": ["ACVD", "FASV", "TIPS"]
+  "required": [
+    "SAG_VERSION",
+    "ACVD",
+    "FASV",
+    "TIPS"
+  ],
+  "additionalProperties": false
 }
