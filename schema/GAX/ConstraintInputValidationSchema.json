@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schema/GAX/ConstraintInputValidationSchema.json",
+  "title": "Axiomatic Constraint Input Structure Validation Schema (CIVS)",
+  "description": "Defines the mandatory structural requirements for all GAX-owned configuration files (ACVD, UFRM, CFTM) to ensure they conform to expected YAML/JSON structure prior to ingestion by GSEP-C stages S03/S04.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration definition version identifier."
+    },
+    "mandatory_constraints": {
+      "type": "array",
+      "description": "List or structure containing mandatory policy fields (must be non-empty).",
+      "minItems": 1
+    },
+    "required_types": {
+      "type": "object",
+      "description": "Mapping of configuration variables to their required canonical data types (e.g., UFRM: number, PVLM_bound: boolean)."
+    }
+  },
+  "required": ["version", "mandatory_constraints", "required_types" ]
+}
