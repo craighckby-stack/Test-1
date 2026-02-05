@@ -1,6 +1,8 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V96.5 (PROTOCOL STANDARDIZATION LOCK)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V96.5
 
-*Refinement of V96.4. This revision maximizes data integrity and standardization efficiency by strictly enforcing the **Axiomatic Policy Constraint Schema (APCS)** during input provisioning and mandating the **Axiomatic Data Exchange Protocol (ADEP)** for deterministic data handoffs, ensuring full decoupling between execution (SGS) and constraint evaluation (GAX).*
+## Autonomous Deterministic State Evolution (DSE) Protocol Documentation
+
+*This specification mandates the governance structure for Sovereign AGI, ensuring non-repudiable state transition ($\Psi_{N} \to \Psi_{N+1}$) only upon validation of the P-01 Finality Calculus. Key protocols enforce strict separation between Execution (SGS) and Constraint Adherence (GAX), leveraging **APCS** for input provisioning and **ADEP** for deterministic data handoffs.*
 
 ---
 
@@ -25,7 +27,7 @@ Non-Repudiable State Finality requires the system transition ($\Psi_{N} \to \Psi
 Finality requires simultaneous satisfaction:
 $$ 
 \text{P-01 PASS} \iff (\text{UMA}) \land (\text{CA}) \land (\text{AI})
-$$ 
+$$
 
 | Axiom | Name | Governing Condition (ASM Keys) | P-01 Stage (M-CKPT) | Custodian |
 |:---:|:---|:---|:---:|:---:|
@@ -35,9 +37,9 @@ $$
 
 ### 2.2 Axiomatic State Manifest (ASM) Data Source Mapping
 
-The Canonical Constraint Input Map (C-PIM) populates the **ASM** incrementally, ensuring data is available for S11 evaluation. Updates are governed by the ADEP (See 4.0).
+The Canonical Constraint Input Map (C-PIM) populates the **ASM** incrementally. Updates are governed by ADEP, ensuring data availability for S11 evaluation.
 
-| Acronym | ACV Group | Agent Responsible for Update | Canonical Reference (A-CAT) | Dependency (Stage) |
+| Acronym | ACV Group | Updating Agent | Artifact Reference (A-CAT) | Population Stage (GSEP-C) |
 |:---:|:---:|:---:|:---:|:---:|
 | **TEMM** | I (Metric) | SGS | N/A (Runtime Calculated) | S08 |
 | **UFRM** | I (Threshold) | GAX (Input) | UFRM Config | S02.1 (APCS Check) |
@@ -55,7 +57,7 @@ The mandatory 15-stage protocol ensuring Deterministic State Evolution (DSE) com
 
 ### 3.1 GSEP-C Flow Protocol & Checkpoints
 
-| Phase | Stage | Agent | P-01 M-CKPT (ACV Linkage) | Fallback | Key Process / Focus |
+| Phase | Stage | Agent | P-01 M-CKPT (ACV Linkage) | Fallback | Stage Objective |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **P1: INITIATION** | S00 | CRoT | N/A | IH | Initialization (GSM, SIPM anchoring). |
 | | S01 | SGS | N/A | STANDARD | Protocol Consistency Engine (PCE) Check. |
@@ -70,7 +72,7 @@ The mandatory 15-stage protocol ensuring Deterministic State Evolution (DSE) com
 | | S09 | GAX | **AI III: ADTM Veto** (Updates ASM) | RRP | Runtime Anomaly Veto Check (ADEP data exchange). |
 | | S10 | GAX | **UMA I: Threshold Validation** (Updates ASM) | STANDARD | Verify UFRM/CFTM adherence against TEMM. |
 | **P4: FINALITY & STATE COMMITMENT (CRoT)** | **S11** | GAX | **FULL ACV P-01 PASS** (Validates ASM/Logs to FMR) | RRP | Mandatory Evaluation of (I) $\land$ (II) $\land$ (III). Requires FASV compliance. |
-| | S12 | SGS | N/A | STANDARD | STES Packaging: Serialization (DCSM/TVCR). |
+| | S12 | SGS | N/A | STANDARD | STES Packaging: Serialization (DCSM/TVCR). | 
 | | S13 | CRoT | TRUST COMMITMENT | IH | Final Cryptographic Signing (CSTL, GSM, **FMR** update). |
 | | S14 | SGS | TRUST EXECUTION | IH | Atomic State Transition (DSE Execution via ADMS). |
 
@@ -86,7 +88,7 @@ The mandatory 15-stage protocol ensuring Deterministic State Evolution (DSE) com
 
 ## 4.0 CANONICAL ARTIFACT AND CONFIGURATION INDEX (A-CAT)
 
-Consolidated mapping of all operational artifacts, categorized by governing agent and functional type (Schema, Config, Registry, or Protocol). FASV added to SGS listing for S11 pre-validation.
+Consolidated mapping of all operational artifacts, categorized by governing agent and functional type (Schema, Config, Registry, or Protocol).
 
 | Agent | Acronym | Type | P-01 Linkage | File Path | Description / Focus |
 |:---:|:---:|:---:|:---:|:---|:---:|
@@ -102,6 +104,7 @@ Consolidated mapping of all operational artifacts, categorized by governing agen
 | **SGS (Execution & Manifests)** | ADMS | Config | S14 Execution | `config/SGS/AtomicDeploymentManifestSchema.json` | S14 Execution Model configuration. |
 | | ADEP | Protocol | S02/S08 Data Exchange | `protocol/governance/AxiomaticDataExchangeProtocol.yaml` | Defines deterministic interfaces for populating ASM. |
 | | ASM | Schema | S02-S10 Accumulation | `schema/governance/AxiomaticStateManifest.schema.json` | Canonical input accumulator for ACV (Critical). |
+| | **COTS** | **Schema** | S12 Telemetry | `schema/governance/CertifiedOperationalTelemetrySchema.schema.json` | **Structured non-critical operational metrics (New).** |
 | | DCSM | Schema | S12 Packaging | `schema/governance/DSE_Commitment_Summary_Manifest.schema.json` | State summary schema prior to CRoT commit. |
 | | FASV | Schema | S11 Integrity Check | `schema/governance/FinalAxiomaticStateValidation.schema.json` | Structural validation schema for the finalized ASM prior to P-01 calculation. |
 | | GICM | Schema | CA Prereq (S02) | `schema/governance/GatingIntegrityCheckManifest.schema.json` | Environmental Prerequisite Validation standard. |
@@ -109,3 +112,4 @@ Consolidated mapping of all operational artifacts, categorized by governing agen
 | | RIMP | Config | N/A | `protocol/SGS/RuntimeIntegrityMonitorProtocol.json` | Runtime assurance during Audit phase (S07-S10). |
 | | TEDS | Schema | RRP Forensic | `schema/governance/Traceability_Event_Definition_Schema.schema.json` | Mandatory forensic capture format. |
 | **Shared** | TVCR | Registry | RRP Forensic | `registry/TraceVetoContextRegistry.json` | Permanent Forensic Record Storage. |
+| | **TSR** | **Registry** | N/A | `registry/OperationalTelemetryRegistry.json` | **High-volume storage for COTS data (New).** |
