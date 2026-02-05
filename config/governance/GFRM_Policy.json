@@ -1,0 +1,19 @@
+{
+  "description": "Configuration source for the Governance Failure Management (GFRM) module, defining error tolerance policies and the structure for certified Failure Trace Logs (FTL).",
+  "policy_id": "P-GFRM-941",
+  "error_handling_scope": "L0_TO_L7",
+  "failure_tolerance": {
+    "L0": "RETRY_ON_INTEGRITY_VIOLATION",
+    "L1_L2": "NO_RETRY_ON_VETO_OR_PROVENANCE_FAILURE",
+    "L3_L4": "ANALYSIS_REQUIRED_FOR_SIMULATION_DIVERGENCE"
+  },
+  "ftl_schema": {
+    "required": ["transaction_id", "failure_level", "component_id", "error_code", "metric_snapshot"],
+    "format": "JSON_CERTIFIED_B64",
+    "logging_mechanism": "SEPARATE_IMMUTABLE_L0_LOG"
+  },
+  "retention_policy": {
+    "duration": "INDEFINITE",
+    "storage_target": "/audit_logs/FTL_Archive"
+  }
+}
