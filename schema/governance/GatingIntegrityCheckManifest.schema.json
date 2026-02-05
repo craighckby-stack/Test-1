@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign-agi.com/governance/GICM.schema.json",
+  "title": "Gating Integrity Check Manifest (GICM)",
+  "description": "Defines mandatory environmental and data state prerequisites for entering the Axial Gating Phase (GSEP-C P2). Used at Stage S1.5.",
+  "type": "object",
+  "required": ["sag_version", "timestamp", "prerequisites"],
+  "properties": {
+    "sag_version": {
+      "type": "string",
+      "description": "Expected SAG specification version for execution compatibility (e.g., V94.4)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of GICM validation initiation."
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "A list of mandatory checks that must resolve to true for RRP clearance at S1.5.",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "target_component", "expected_state"],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "description": "Unique identifier for the integrity check."
+          },
+          "target_component": {
+            "type": "string",
+            "enum": ["CRoT", "GAX", "SGS", "Environment"],
+            "description": "Custodian or execution environment component being checked."
+          },
+          "check_type": {
+            "type": "string",
+            "enum": ["checksum", "version_parity", "availability_check", "resource_boundary"],
+            "default": "version_parity"
+          },
+          "expected_state": {
+            "type": ["string", "number", "boolean"],
+            "description": "The definitive required value or state (e.g., 'SHA256:...')"
+          },
+          "veto_if_fail": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    }
+  }
+}
