@@ -1,4 +1,4 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V99.0 (Unified Finality Kernel)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V99.1 (Unified Finality Kernel)
 
 ## 0.0 ARCHITECTURAL GLOSSARY & REFERENCE
 
@@ -19,38 +19,40 @@
 
 ## 1.0 EXECUTIVE MANDATE: DSE & GOVERNANCE PILLARS
 
+### 1.1 Deterministic State Evolution (DSE)
+
 The system operates strictly under the **Deterministic State Evolution (DSE)** paradigm ($\Psi_{N} \to \Psi_{N+1}$). State transitions must be anchored by the immutable **Config State Root (CSR)** and verified exclusively by the atomic **P-01 Finality Calculus (S11)**, enforcing stringent Separation of Duties (SoD).
 
-### 1.1 Separation of Duties (SoD) & Agent Responsibilities
+### 1.2 Separation of Duties (SoD) & Agent Responsibilities
 
 The three core agents provide non-overlapping function blocks necessary for achieving P-01 finality. 
 
 | Agent | Core Function Block | P-01 Critical Input / Output | Key Artifacts |
 |:---:|:---|:---:|:---:|
-| **CRoT** (Root of Trust) | Trust Anchoring, Cryptographic Finality, and Audit Immutability. | FMR, Final State Commit Signatures. | FMR, TEDS, CSR Verification. |
-| **GAX** (Axiomatic Governance) | Policy Enforcement, Pre-Execution Constraint Validation, and Atomic P-01 Calculation. | ACVD, FASV, AI III Failure Scalars. | ACVD, FASV, P-01 Calculus. |
-| **SGS** (State & Execution Gateway) | Execution Workflow Management, Metric Aggregation, and Manifest Compilation. | TEMM, ECVM, ASM. | ASM, TEMM, ECVM. |
+| **CRoT** (Root of Trust) | Trust Anchoring, Cryptographic Finality, and Audit Immutability. | **FMR**, Final State Commit Signatures. | FMR, **TEDS**, CSR Verification. |
+| **GAX** (Axiomatic Governance) | Policy Enforcement, Pre-Execution Constraint Validation, and Atomic P-01 Calculation. | **ACVD**, **FASV**, AI III Failure Scalars. | ACVD, FASV, P-01 Calculus. |
+| **SGS** (State & Execution Gateway) | Execution Workflow Management, Metric Aggregation, and Manifest Compilation. | **TEMM**, ECVM, **ASM**. | ASM, TEMM, ECVM. |
 
 ---
 
-## 2.0 FOUNDATIONAL GOVERNANCE PROTOCOLS
+## 2.0 FOUNDATIONAL GOVERNANCE & REMEDIATION PROTOCOLS
 
 ### 2.1 State Progression & Finality Gates
 
 | Protocol | Governing Agent | Primary Role & Lifecycle Hook | Finality Dependency |
 |:---:|:---|:---|:---:|
-| **DSE** | CRoT/SGS | Mandatory $\Psi_{N} \to \Psi_{N+1}$ transition framework. | Requires verified CSR baseline (Pre-S00). |
+| **DSE** | CRoT/SGS | Mandatory $\Psi_{N} \to \Psi_{N+1}$ transition framework. | Requires verified **CSR** baseline (Pre-S00). |
 | **P-01** | GAX (Atomic) | The Immutable State Finalization Gate (S11 Checkpoint). | Requires simultaneous UMA I $\land$ CA II $\land$ AI III satisfaction. |
-| **TEDS** | CRoT | Defines the non-mutable, time-series structure for all audit trails. | Critical dependency for RRP forensics and IH procedures. |
+| **TEDS** | CRoT | Defines the non-mutable, time-series structure for all audit trails. | Critical dependency for **RRP** forensics and **IH** procedures. |
 
-### 2.2 Integrity & Remediation Protocols
+### 2.2 Integrity & Remediation Protocols (IH/RRP)
 
-Violation of integrity constraints triggers immediate mandatory protocols defined by TEDS capture:
+Violation of integrity constraints triggers immediate mandatory protocols, requiring TEDS capture:
 
 | Protocol | P-01 Impact Window | Core Action & Requirement |
 |:---:|:---|:---:|
 | **RRP** (Rollback Protocol) | S02 - S11 (Violation Window) | Mandatory capture utilizing TEDS. Leads to Policy Correction State Snapshot (PCSS) analysis. |
-| **IH** (Integrity Halt) | S13/S14 (Post-P-01 Commitment Failure) | Immediate systemic shutdown. Requires root reset and complete forensic imaging based on TEDS data structure. |
+| **IH** (Integrity Halt) | S13/S14 (Post-P-01 Commitment Failure) | Immediate systemic shutdown. Requires root reset and complete forensic imaging based on **TEDS** data structure. |
 
 ---
 
@@ -65,8 +67,8 @@ Defined and hashed prior to S00 by the **CGR Utility** to generate the **CSR**. 
 | Acronym | Definition | Origin Agent | P-01 Function |
 |:---:|:---|:---:|:---:|
 | **CSR** | Config State Root | CGR Utility | Verifiable hash of the baseline state definition. |
-| **ACVD** | Constraint Vector Definition | GAX | Defines objective functions, thresholds (UFRM/CFTM), and P-01 validation logic. |
-| **FASV** | State Validation Schema | GAX | Mandated structural schema for the resultant ASM. |
+| **ACVD** | Axiomatic Constraint Vector Definition | GAX | Defines objective functions, thresholds (UFRM/CFTM), and P-01 validation logic. |
+| **FASV** | State Validation Schema | GAX | Mandated structural schema for the resultant **ASM**. |
 
 ### 3.2 Tier 2: Execution Manifests & Metrics (High Mutability)
 
@@ -112,16 +114,10 @@ The mandatory 17-stage process (S00-S14) ensuring auditable state progression to
 
 | Phase | Stage | Agent | Primary Objective / Artifact Output | Key Artifact Status |
 |:---:|:---|:---:|:---|:---:|
-| **P1: INIT** | S00-S01 | CRoT/SGS | Secure Environment Attestation & CSR Anchoring. | CSR Load Verified. |
-| **P2: VALIDATE**| S02-S04 | GAX | Pre-Execution Constraint Checks. Establishes PVLM and MPAM status. | PVLM, MPAM set (P-01 failure state risk). |
+| **P1: INIT** | S00-S01 | CRoT/SGS | Secure Environment Attestation & **CSR** Anchoring. | CSR Load Verified. |
+| **P2: VALIDATE**| S02-S04 | GAX | Pre-Execution Constraint Checks. Establishes **PVLM** and **MPAM** status. | PVLM, MPAM set (P-01 failure state risk). |
 | **Handoff** | S05 | SGS/GAX | Execution Preparation Lock. | $\Lambda_{05}$ State Lockpoint Verified. |
 | **P3: EXECUTION** | S06-S07 | SGS | Runtime Workflow Execution & Raw Data Capture. | ECVM status reported. |
-| **P4: METRIC** | S08-S10 | SGS/GAX | TEMM Calculation & Policy Compliance Review. Final ASM compilation. | TEMM/ASM finalization; ADTM status set. |
-| **P5: FINALITY** | **S11 (M-CKPT)** | **GAX** | **ATOMIC P-01 Evaluation. Immutable state verification.** | P-01 Result permanently written to FMR. |
-| | S13-S14 | CRoT/SGS | Final State Commitment & Cryptographic Signature. | CRoT Trust Commitment Verified. |
-
----
-
-## 6.0 SYSTEM GOVERNANCE & FAILURE PROTOCOLS (RRP/IH)
-
-(Moved from 6.0 to 2.2 for structural coherence.)
+| **P4: METRIC** | S08-S10 | SGS/GAX | **TEMM** Calculation & Policy Compliance Review. Final **ASM** compilation. | TEMM/ASM finalization; **ADTM** status set. |
+| **P5: FINALITY** | **S11 (M-CKPT)** | **GAX** | **ATOMIC P-01 Evaluation. Immutable state verification.** | P-01 Result permanently written to **FMR**. |
+| | S13-S14 | CRoT/SGS | **Final State Commitment & Cryptographic Signature (Irreversible Trust Anchor).** | CRoT Trust Commitment Verified. |
