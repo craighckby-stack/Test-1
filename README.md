@@ -2,35 +2,39 @@
 
 ---
 
-## 0. EXECUTIVE MANDATE: THE ATOMIC $\Psi$ GUARANTEE
+## 0. CORE MANDATE: THE ATOMIC $\Psi$ GUARANTEE
 
 The **Deterministic State Execution (DSE) Protocol** governs verifiable, immutable state transitions ($\Psi$). This specification is governed strictly by the **Governance State Execution Pipeline - Core (GSEP-C)**, enforcing integrity across all actors and components.
 
-### 0.1. GOVERNANCE PRINCIPLES (P-Set)
+---
+
+## 1. GOVERNANCE PRINCIPLES (P-Set)
+
+These principles are non-negotiable requirements for system operational integrity and must be satisfied via the mandated Validation/Control Mechanisms.
 
 | Identifier | Principle | Core Requirement | Validation/Control Mechanism |
 |:---:|:---:|:---|:---|
-| **P-M01** | **Atomic Execution** | Non-branching 15-Stage GSEP-C (S00 $\to$ S14). Failure mandates an Integrity Halt (IH). | GSEP-C Flow Definition (Ref: CSR $\rightarrow$ GSEP-F) |
-| **P-M02** | **Immutable Commitment** | State finality achieved only via simultaneous satisfaction of **GAX I, II, III**. | ACVD Thresholds (Ref: CSR $\rightarrow$ ACVM) |
-| **P-R03** | **Recovery Integrity** | IH Resolution requires mandatory **DIAL** Certification prior to **RRP** initiation. | DARM Logic (Ref: CSR $\rightarrow$ DARM) |
+| **P-M01** | **Atomic Execution** | Non-branching 15-Stage GSEP-C (S00 $\to$ S14). Failure mandates an Integrity Halt (IH). | GSEP-C Flow Definition (Ref: `GSEP-F`) |
+| **P-M02** | **Immutable Commitment** | State finality achieved only via simultaneous satisfaction of **GAX I, II, III**. | ACVD Thresholds (Ref: `ACVM`) |
+| **P-R03** | **Recovery Integrity** | IH Resolution requires mandatory **DIAL** Certification prior to **RRP** initiation. | DARM Logic (Ref: `DARM`) |
 
 ---
 
-## 1. DSE CORE ARCHITECTURE & JARGON REGISTRY
+## 2. CORE ARCHITECTURE & THE IMMUTABLE REGISTRY (CSR)
 
-### 1.1. Core Components & Governing Roles
+All governing contracts listed in the Configuration & Schema Registry (CSR) are immutable and must be verifiable via the Configuration Hash Registry (CHR) prior to runtime execution (Ref: C-ICR).
+
+### 2.1. Central Jargon & Governing Roles
 
 | Acronym | Definition | Core Role in GSEP-C Flow | Reference Config/Schema |
 |:---:|:---|:---|:---|
-| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequencer. | GSEP-F |
-| **SMC** | State Machine Controller | Enforces structural contract validation against the GSEP-F. | SMC Schema |
-| **DIAL** | DSE Integrity Analyzer | IH Forensic RCA & RRP Authorization Choke Point. | DARM |
-| **RRP** | Rollback Protocol | Deterministic State Reversal Procedure. | RRP Manifest |
-| **Actors** | CRoT Agent, EMS, GAX Ex | Artifact Generation (CSR, ECVM, TEMM) & Stage Execution. | AAM Definition |
+| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequencer. | `GSEP-F` |
+| **SMC** | State Machine Controller | Enforces structural contract validation against the `GSEP-F`. | `SMC Schema` |
+| **DIAL** | DSE Integrity Analyzer | IH Forensic RCA & RRP Authorization Choke Point. | `DARM` |
+| **RRP** | Rollback Protocol | Deterministic State Reversal Procedure. | `RRP Manifest` |
+| **Actors** | CRoT Agent, EMS, GAX Ex | Artifact Generation (CSR, ECVM, TEMM) & Stage Execution. | `AAM Definition` |
 
-### 1.2. Configuration & Schema Registry (CSR)
-
-All governing contracts are immutable and their integrity must be verifiable against the Configuration Hash Registry (CHR).
+### 2.2. Configuration & Schema Registry (CSR)
 
 | Tag | Type | Governing Path | Purpose |
 |:---:|:---|:---|:---|
@@ -41,15 +45,16 @@ All governing contracts are immutable and their integrity must be verifiable aga
 | **Artifact Contract** | Schema | `protocol/artifact_manifest_schema.json` | Defines structural contracts for all $\Psi$ transition artifacts. |
 | **Telemetry Spec** | Schema | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL's RCA. |
 | **SMC Schema** | Schema | `governance/smc_schema.json` | Enforces validity of pipeline stages and component contracts. |
-| **AAM Definition**| Actor Registry | `governance/aam_definition.in.json` | Definition and capabilities mapping for all authorized Actors. |
+| **AAM Definition**| Actor Registry | `governance/aam_definition.json` | Definition and capabilities mapping for all authorized Actors. |
+| **CHR Schema** | Integrity Schema | `protocol/chr_schema.json` | Defines the required structure for the Configuration Hash Registry, enabling C-ICR. |
 
 ---
 
-## 2. GSEP-C EXECUTION: THE ATOMIC TRANSITION SEQUENCE
+## 3. GSEP-C EXECUTION: THE ATOMIC TRANSITION SEQUENCE
 
-GSEP-C is the mandated pipeline for verified generation and acceptance of Axiom Artifacts, culminating in P-M02 Finality (S11).
+GSEP-C is the mandated pipeline for verified generation and acceptance of Axiom Artifacts. All stages must conform to the sequence defined in `GSEP-F` (Ref: P-M01).
 
-### 2.1. Axiom Artifact Generation Matrix
+### 3.1. Axiom Artifact Generation Matrix
 
 | Stage | Actor | Artifact Generated | Axiom Trigger | Constraint Check Role | ACVD Metric Target (Ref: ACVM) |
 |:-----:|:---------|:---------------------:|:----------:|:---|:---|
@@ -59,28 +64,26 @@ GSEP-C is the mandated pipeline for verified generation and acceptance of Axiom 
 | **S11** | GAX Executor | P-M02 Commitment | N/A | Irreversible Resolution Lock | N/A |
 | **S14** | Sentinel | State Transition Receipt | N/A | Final Verification/Logging | N/A |
 
-### 2.2. P-M02 Tripartite Verification Logic (S11)
+### 3.2. P-M02 Tripartite Verification Logic (S11)
 
-Transition to final state ($\Psi_{\text{final}}$) is only granted if all GAX constraints are positively resolved against the dynamically sourced ACVD parameters.
+Transition to final state ($\Psi_{\text{final}}$) is only granted if all GAX constraints are positively resolved against the dynamically sourced ACVD parameters. Failure immediately mandates an Integrity Halt (IH).
 
 $$ \Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III})_{\text{ACVD}} $$
 
-> Failure in any component immediately prevents $\Psi$ transition and mandates Integrity Halt (IH).
-
 ---
 
-## 3. INTEGRITY MANAGEMENT AND DETERMINISTIC RECOVERY
+## 4. INTEGRITY MANAGEMENT AND DETERMINISTIC RECOVERY
 
-### 3.1. The Integrity Halt (IH)
+### 4.1. Configuration Integrity Check Requirement (C-ICR)
 
-An IH immediately stops DSE execution, freezing the system state for forensic analysis. DIAL is the mandatory, non-speculative authority that must inspect the resultant MPAM, SGS, and ADTM inputs (Ref: Telemetry Spec).
+Mandatory prior to any execution (S00) or recovery (RRP). All governing configurations must be verified against the Configuration Hash Registry (CHR) defined by the `CHR Schema`. Failure of C-ICR mandates an immediate, non-recoverable system lockdown (L-9 state).
 
-### 3.2. DIAL Certification and RRP Authorization
+### 4.2. The Integrity Halt (IH) and DIAL Authority
 
-DIAL constitutes the single authorized choke point. State recovery via RRP is contingent upon conforming to the logical criteria defined strictly in the DARM (Ref: CSR $\rightarrow$ DARM).
+An IH immediately halts DSE execution. The **DSE Integrity Analyzer (DIAL)** is the sole mandatory, non-speculative authority that inspects the forensic inputs (MPAM, SGS, ADTM defined in `Telemetry Spec`).
 
-> **P-R03 Constraint:** RRP execution must not commence without a cryptographically signed DIAL Certification artifact.
+### 4.3. DIAL Certification and RRP Authorization (P-R03)
 
-### 3.3. Configuration Integrity Check Requirement (C-ICR)
+DIAL constitutes the single authorized choke point. State recovery via RRP is contingent upon conforming to the logical criteria defined strictly in the `DARM`.
 
-Before any execution (S00) or recovery (RRP) sequence, all governing configurations listed in the CSR must be verified against the Configuration Hash Registry (CHR). Failure of C-ICR mandates an immediate, non-recoverable system lockdown (L-9 state).
+> **Constraint P-R03:** RRP execution must not commence without a cryptographically signed DIAL Certification artifact.
