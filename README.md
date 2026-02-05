@@ -1,64 +1,58 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.6: DSE PROTOCOL DOCUMENTATION
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.6
 
-## 0. EXECUTIVE SUMMARY: DETERMINISTIC STATE EXECUTION (DSE)
+## 0. DETERMINISTIC STATE EXECUTION (DSE) PROTOCOL
 
-The Deterministic State Execution Protocol (DSE) is the core governance layer ensuring verifiable integrity for all system state transitions ($\Psi$). A state commitment is exclusively granted upon achieving **P-01 Finality Resolution** (Stage S11).
+The DSE Protocol governs all system state transitions ($\Psi$), ensuring verifiable integrity. State commitment is exclusively granted upon achieving **P-01 Finality Resolution** (Stage S11). Failure at any stage (S00-S14) triggers an Integrity Halt (IH) and immediate execution of the Rollback Protocol (RRP).
 
-Failure at any point (S00-S14) triggers an **Integrity Halt (IH)** and immediate execution of the Rollback Protocol (RRP).
-
-$$\text{P-01 Finality} \iff (\text{GAX I} \land \text{GAX II} \land \text{GAX III})$$
+**P-01 Finality Condition:**
+$$ \text{P-01} \iff (\text{GAX I} \land \text{GAX II} \land \text{GAX III}) $$
 
 ---
 
-## 0.5 CORE TERMINOLOGY REFERENCE
+### ACRONYM REFERENCE
 
-To ensure parsing efficiency, critical acronyms are defined below:
+The GSEP-C execution flow is defined externally in `config/gsep_c_flow.json`.
 
 | Acronym | Definition | Role/Reference |
-|:---:|:---|:---|
-| **DSE** | Deterministic State Execution | Protocol governing state transitions ($\Psi$). |
-| **P-01** | Finality Resolution | Terminal state required for state commitment (S11). |
+|:---:|:---|:---:|
+| **DSE** | Deterministic State Execution | Core state transition protocol. |
+| **P-01** | Finality Resolution | Terminal state requirement (S11). |
 | **IH** | Integrity Halt | Mandated system stop on integrity failure. |
 | **RRP** | Rollback Protocol | Handler for IH events. |
 | **GAX** | Governance Axiom (I, II, III) | Three verifiable constraints defining P-01. |
-| **GSEP-C** | Governance State Execution Pipeline - Core | Mandatory 15-stage execution flow (S00-S14). |
+| **GSEP-C** | Governance State Execution Pipeline - Core | Mandatory 15-stage flow (S00-S14). |
 | **ACVD** | Axiom Constraint Validation Domain | Source definition for all GAX constraints. |
+| **DIAL** | DSE Integrity Analyzer | Utility required for Root Cause Analysis (RCA) post-IH. |
 
 ---
 
-## I. GOVERNANCE FOUNDATION: THE THREE AXIOS (GAX)
+## I. GOVERNANCE AXIOMS & VALIDATION PIPELINE (GAX / GSEP-C)
 
-P-01 Finality requires the simultaneous verification (logical conjunction) of the Three Foundational Governance Axioms (GAX).
+P-01 Finality requires simultaneous verification of the Three Governance Axioms (GAX) across the GSEP-C pipeline. Verification failure at the designated stage initiates an Integrity Halt.
 
-### 1.1 GAX Definition Matrix (Source: ACVD)
+### 1.1 Finality Verification Matrix (Source: ACVD)
 
-| ID | Name | Constraint Definition | Proof Artifact | Domain | Failure Trace ID |
-|:---:|:---:|:---|:---:|:---:|:---:|
-| **I** | Utility Efficacy | Minimum Value Threshold ($\Omega_{\text{min}}$) achieved. | TEMM (S08) | Performance | ADTM |
-| **II** | Contextual Validity | Execution Environment is verified `Permissible`. | ECVM (S07) | Environment | SGS |
-| **III** | Constraint Integrity | Zero structural or operational policy violations detected. | CSR (S01) | Policy | MPAM |
-
-### 1.2 Key DSE Actors
-
-*   **CRoT Agent:** Core Root of Trust Agent. Generates and locks GAX III via CSR (S01).
-*   **GAX Executor:** Atomic component resolving P-01 (S11 decision calculus).
-*   **RRP:** Mandated protocol executing system state reversal following an IH.
+| GAX ID | Constraint Name | Stage Lock | Artifact / Requirement | Verification Focus | Failure Trace ID |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **I** | Utility Efficacy | S08 | TEMM (Transition Efficacy Measure) | Minimum Value Threshold ($\Omega_{\text{min}}$) Check | ADTM |
+| **II** | Contextual Validity | S07 | ECVM (Execution Context Validation Map) | Execution Environment is `Permissible` | SGS |
+| **III** | Constraint Integrity | S01 | CSR (Configuration Snapshot Receipt) | Zero structural/operational policy violations | MPAM |
+| **---** | P-01 Resolution | S11 | Finality Calculus | All Axioms Resolved TRUE | N/A |
 
 ---
 
-## II. GSEP-C PIPELINE: INTEGRITY LOCKS
+## II. KEY DSE ACTORS & ROLES
 
-The GSEP-C pipeline enforces integrity locks across its 15 stages, defined externally in `config/gsep_c_flow.json`.
+*   **CRoT Agent:** Core Root of Trust Agent. Responsible for generating and locking GAX III via CSR (S01).
+*   **GAX Executor:** Atomic component resolving P-01 state at S11, based on input artifacts (CSR, ECVM, TEMM).
+*   **RRP Handler:** Protocol mandated to execute comprehensive system state reversal following an IH.
 
-### 2.1 P-01 Enforcement Summary
+---
 
-| Stage Lock | Artifact Purpose | GAX Dependency | Verification Focus | Terminal Action |
-|:---:|:---:|:---:|:---:|:---:|
-| **S01** | Configuration Snapshot Receipt (CSR) | GAX III | Configuration Immutability Check | Integrity Halt (IH) / RRP |
-| **S07** | Execution Context Validation Map (ECVM) | GAX II | Context Permissibility Check | Integrity Halt (IH) / RRP |
-| **S08** | Transition Efficacy Measure (TEMM) | GAX I | Proof of $\Omega_{\text{min}}$ Utility | Integrity Halt (IH) / RRP |
-| **S11** | P-01 Resolution | I, II, III | All Axioms Resolved TRUE | **STATE COMMITMENT** |
+## III. INTEGRITY HALT (IH) RESPONSE & RCA REQUIREMENT
 
-### 2.2 Integrity Halt Response & RCA Utility Requirement
+Any integrity failure across S00-S14 initiates an IH and triggers the RRP. Structured logging (MPAM, SGS, ADTM) is finalized.
 
-Upon any Integrity Halt (IH), structured logging (MPAM, SGS, ADTM) is finalized. The mandated **DSE Integrity Analyzer (DIAL)** utility must ingest all resulting artifacts (CSR, ECVM, TEMM) and logs to execute deterministic Root Cause Analysis (RCA) and generate an immutable fault report. The specification for DIAL is a mandatory requirement for DSE operational finality.
+The mandated **DSE Integrity Analyzer (DIAL)** utility must immediately ingest all resulting artifacts (CSR, ECVM, TEMM) and structured logs to execute deterministic Root Cause Analysis (RCA).
+
+**The generation of an immutable, signed fault report by DIAL is a mandatory requirement for system recovery authorization.** The technical specification for DIAL is externally defined in the `spec/` domain.
