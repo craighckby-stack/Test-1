@@ -1,10 +1,10 @@
-# SOVEREIGN GOVERNANCE MANIFEST (SGM) V94.6
+# SOVEREIGN GOVERNANCE MANIFEST (SGM) V94.7
 
 ## METADATA
 | Field | Value |
 |:---|:---|
-| Version | V94.6 (Iteration on V94.5) |
-| Core Focus | Autonomous System State Transition (SST) Validation |
+| Version | V94.7 (Iteration on V94.6) |
+| Core Focus | Deterministic System State Transition (SST) Execution Guarantee |
 | Primary Mechanism | Governance State Evolution Pipeline (GSEP-C V3.4) |
 | Governing Principles | Objective Value Maximization ($S\text{-}01$) & Fail-Safe Security ($P\text{-}01$) |
 
@@ -12,16 +12,16 @@
 
 ## 1.0 THE GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.4)
 
-GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9) guaranteeing deterministic, auditable governance. This pipeline operates under the Principle of Immutable Staging (Fail-Fast), immediately triggering the Rollback and Recovery Protocol (RRP) upon failure. Stages L1, L2, L4, and L7 are mandatory high-security enforcement checkpoints.
+GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9) guaranteeing deterministic, auditable governance. This pipeline operates under the Principle of Immutable Staging (Fail-Fast), immediately triggering the Rollback and Recovery Protocol (RRP) upon failure. Stages **L1 (Veto)**, **L2 (Trust)**, **L4 (Resource)**, and **L7 (Finality)** are mandatory high-security enforcement checkpoints.
 
-| Layer | Module | Stage Title | Core Validation Objective | Predecessor Input | Critical Halt Condition | RRP Hook |
+| Layer | Module ID | Stage Title | Core Validation Objective | Predecessor Input | Critical Halt Condition | RRP Hook |
 |:-----|:---|:---|:-------------------------------------------|:------------------|:----------------------------|:---|
 | PRE | GSC | Schema Ingress | Assert structural integrity. | Raw SST Input | Ingress Structure Failure | `RRP:SCHEMA_FAIL` |
 | L0 | CTM | Context Typing | Formal format and schema compliance. | PRE Output | Format Integrity Fail | `RRP:FORMAT_FAIL` |
-| **L1** | PVLM | **CRITICAL VETO** | Policy Violation Assessment ($S\text{-}03$ generation). | L0 Output | CRITICAL POLICY VIOLATION | `RRP:POLICY_VETO` |
+| **L1** | PVLM | **CRITICAL VETO** | Policy Violation Assessment ($S\text{-}03$ generation). (Ref: `policies/critical_veto_manifest_v1.yaml`) | L0 Output | CRITICAL POLICY VIOLATION | `RRP:POLICY_VETO` |
 | L2 | CTAL | Provenance Trust | Source authenticity and trust validation. | L1 Output | Provenance Trust Failure | `RRP:TRUST_FAIL` |
 | L3 | CM | Confidence Modeling | Simulate impact bounds and margin confidence. | L2 Output | Simulation Divergence | `RRP:SIM_DIVERGE` |
-| L4 | SCI | Resource Constraint | Verification against architectural limits ($C\text{-}01$). | L3 Output | Resource Overrun | `RRP:BUDGET_EXCEED` |
+| L4 | SCI | Resource Constraint | Verification against Core Architectural Limits (CAC). | L3 Output | Resource Overrun | `RRP:BUDGET_EXCEED` |
 | L5 | DFV | Data Fidelity | Input data lineage and integrity check. | L4 Output | Data Corruption | `RRP:DATA_FIDELITY` |
 | L6 | MEE | Metric Synthesis | Quantify objective metrics ($S\text{-}01, S\text{-}02$). | L5 Output | Metric Synthesis Failure | `RRP:METRIC_FAIL` |
 | **L7** | VMO | **FINALITY GATE** | Enforce P-01 rule check (uses $S\text{-}01, S\text{-}02, \epsilon$). | L6 Metrics | FINALITY RULE BREACH | `RRP:FINALITY_BREACH` |
@@ -36,14 +36,9 @@ The immutable mathematical prerequisites enforced by L6 and L7 that dictate SST 
 
 ### 2.1 Core Objective Function (COF)
 
-The optimization target. The transition must maximize Efficacy ($S\text{-}01$) relative to Risk ($S\text{-}02$), contingent on $P\text{-}01$ certification.
+The optimization target. The transition must maximize Efficacy ($S\text{-}01$) relative to Risk ($S\text{-}02$), contingent on $P\text{-}01$ certification. The normalization constant $\tau_{norm}$ is defined in `config/governance_constants_v1.json`.
 
 $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right) $$
-
-**Variable Definitions:**
-*   $S\text{-}01$: Quantified Systemic Benefit (Efficacy).
-*   $S\text{-}02$: Quantified Systemic Risk (Adjusted Exposure).
-*   $\tau_{norm}$: Normalization constant (defined in `config/governance_constants_v1.json`).
 
 ### 2.2 P-01 Finality Certification Requirement (Layer L7)
 
@@ -53,19 +48,13 @@ Certification ($\mathbf{P\text{-}01\ PASS}$) is achieved only if:
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
-**Variable Definitions (L7 Context):**
-*   $\epsilon$: Dynamic safety buffer requirement (Viability Margin).
-*   $S\text{-}03$: Critical Policy Veto Signal (Boolean).
-
 ---
 
 ## 3.0 GOVERNANCE ASSET REGISTRY (GAR)
 
 Standardized identifiers, governance contracts, and critical objective metrics used universally by the GSEP-C pipeline.
 
-### 3.1 Core Metrics (Objective Quantification)
-
-Inputs for the L7 Finality Gate.
+### 3.1 Core Objective Metrics (L6/L7 Inputs)
 
 | Metric | Symbol | Definition | Requirements | Source Layer |
 |:---|:---|:---|:---|:---|
@@ -78,8 +67,9 @@ Inputs for the L7 Finality Gate.
 
 | ID | Group | Definition | Standard Reference/Source |
 |:---|:---|:---|:---|
-| CAC | ARCH | Core Architectural Constraints | Defines mandatory systemic principles. |
+| CAC | ARCH | Core Architectural Constraints | Defines mandatory systemic principles (Input for L4). |
 | COF | ARCH | Core Objective Function | The quantifiable goal maximization criteria (2.1). |
 | RRP | FAILSAFE | Rollback and Recovery Protocol | Standardized state-remediation guarantee. **(Ref: `spec/RRP_interface_v1.yaml`)** |
 | SST | DOMAIN | System State Transition | The central event requiring compliance certification. |
-| MEE/MEC | L6/L7 | Metric Engine & Contract | Mechanism for calculating official objective metrics. (Ref: `config/metrics_oracles_v1.json`) |
+| PVLM | L1 | Policy Veto Logic Manifest | Defines the structure and criteria for generating $S\text{-}03$. **(Ref: `policies/critical_veto_manifest_v1.yaml`)** |
+| MEC | L6/L7 | Metric Engine Contract | Mechanism for calculating official objective metrics. (Ref: `config/metrics_oracles_v1.json`) |
