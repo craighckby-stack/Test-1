@@ -1,41 +1,55 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V98.2 (Optimized)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V98.2 (Refined)
 
-## 0.0 EXECUTIVE MANDATE: DETERMINISTIC STATE EVOLUTION (DSE)
+## 0.0 GLOSSARY & ACRONYM REFERENCE
 
-**MISSION:** Enforce $\Psi_{N} \to \Psi_{N+1}$ State progression via the **DSE** protocol, anchored by the immutable **Config State Root (CSR)**. Final state transition is verified exclusively by the atomic **P-01 Finality Calculus (S11)**, strictly enforcing accountability and Separation of Duties (SoD).
+| Acronym | Definition | Section Reference |
+|:---:|:---|:---:|
+| **P-01** | Atomic State Finalization Calculus | 3.0, 4.0 |
+| **DSE** | Deterministic State Evolution | 1.0, 5.0 |
+| **CSR** | Config State Root | 1.0, 3.1 |
+| **TEMM** | Total Evolved Metric Maximization (Utility Score) | 3.2, 4.0 (UMA I) |
+| **ACVD** | Axiomatic Constraint Vector Definition | 3.1, 4.0 |
+| **FASV** | Final Axiomatic State Validation Schema | 3.1 |
+| **FMR** | Finality Metric Registry | 3.2 |
+| **TEDS** | Trusted Event Data Stream (Audit Non-Mutability) | 2.0 |
+| **IH / RRP** | Integrity Halt / Rollback Protocol | 6.0 |
 
 ---
 
-## 1.0 CORE AGENTS & GOVERNANCE STRUCTURE (SoD)
+## 1.0 EXECUTIVE MANDATE: DSE & GOVERNANCE STRUCTURE
 
-All operations are anchored to parameters defined by the pre-S00 **CSR**. Governance is distributed across non-overlapping agent mandates to ensure integrity.
+The system must enforce $\Psi_{N} \to \Psi_{N+1}$ State progression via the **Deterministic State Evolution (DSE)** protocol, anchored by the immutable **Config State Root (CSR)**. Final state transition is verified exclusively by the atomic **P-01 Finality Calculus (S11)**, strictly enforcing accountability and Separation of Duties (SoD).
 
-| Agent | SoD Mandate Focus | Key Lifecycle Stage | Critical Artifact Write (Input to S11/FMR) |
+### 1.1 Core Agents & Mandates (SoD)
+
+Operations are non-overlapping and anchored by the pre-S00 CSR baseline.
+
+| Agent | SoD Mandate Focus | Key Lifecycle Stage | Critical P-01 Input Generation |
 |:---:|:---|:---:|:---:|
-| **CRoT** | Integrity Anchoring, Final Cryptographic Signing (S13). | P1 / P5 (Trust Foundation) | FMR (Finality Metric Registry) |
-| **GAX** | Axiomatic Policy Enforcement & Constraint Validation. | P2 / P4 / P5 (Logic & Calculus) | ACVD, FASV, P-01 Inputs (Scalars) |
-| **SGS** | Execution Workflow, Metric Calculation, State Aggregation. | P3 / P4 (Execution & Attestation) | ASM, TEMM, ECVM (Core P-01 Inputs) |
+| **CRoT** | Trust Anchoring & Cryptographic Finality (S13). | P1 / P5 | FMR (Finality Metric Registry) |
+| **GAX** | Axiomatic Policy Enforcement & Constraint Validation. | P2 / P4 / P5 | ACVD, FASV, AI III Failure Scalars |
+| **SGS** | Execution Workflow, Metric Calculation, State Aggregation. | P3 / P4 | ASM, TEMM, ECVM (UMA I / CA II Inputs) |
 
 ---
 
 ## 2.0 FOUNDATIONAL GOVERNANCE PROTOCOLS
 
-| Protocol | Governing Agent | Primary Role & Mandate | Finality Gate Dependencies |
+| Protocol | Governing Agent | Primary Role & Mandate | Finality Gate Dependency |
 |:---:|:---:|:---|:---:|
-| **DSE** | CRoT/SGS | Mandatory state progression mechanism ($\\Psi_{N} \to \Psi_{N+1}$). | Requires Verified CSR Baseline (Pre-S00). |
+| **DSE** | CRoT/SGS | Mandatory state progression mechanism ($\Psi_{N} \to \Psi_{N+1}$). | Requires Verified CSR Baseline (Pre-S00). |
 | **P-01** | GAX (Atomic) | The Immutable State Finalization Gate (S11 Checkpoint). | Requires Simultaneous satisfaction of UMA I $\land$ CA II $\land$ AI III. |
-| **RRP** | GAX/SGS | Mandatory forensic rollback and policy correction capture. | Activates TEDS protocol capture. Leads to PCSS analysis. |
-| **TEDS** | CRoT (Utility Layer) | Defines the non-mutability structure for all audit trails. | Critical dependency for RRP & IH remediation procedures. |
+| **TEDS** | CRoT | Defines the non-mutability structure for all audit trails. | Critical dependency for RRP & IH remediation procedures. |
+| **RRP** | GAX/SGS | Mandatory forensic rollback capture based on TEDS. | Activates TEDS protocol capture. Leads to PCSS analysis. |
 
 ---
 
 ## 3.0 INTEGRATED ARTIFACT TAXONOMY (IAT)
 
-Artifacts are categorized by their mutability and direct function within the P-01 calculus.
+Artifacts are categorized by mutability and direct function within the P-01 calculus.
 
-### 3.1 Low Mutability Artifacts (Configuration Roots - CSR Baseline)
+### 3.1 Low Mutability Artifacts (CSR Baseline)
 
-These artifacts define the immutable ruleset and are deterministically hashed by CGR to establish the **CSR** prior to S00.
+Define immutable rulesets, hashed by CGR to establish the **CSR** prior to S00.
 
 | Acronym | Definition | Origin Agent (Write) | P-01 Function |
 |:---:|:---|:---:|:---:|
@@ -51,26 +65,26 @@ State data accumulated during execution (P2-P4) consumed by P-01 (S11).
 |:---:|:---|:---:|:---:|
 | **ASM** | Axiomatic State Manifest | SGS | Canonical full state data package for validation. |
 | **TEMM** | Total Evolved Metric Maximization | SGS | UMA I (Utility Metric) - Core outcome for comparison. |
-| **ECVM** | Execution Context Verification Metric | SGS | CA II (Context Boolean) - Verifiable runtime environment status. |
-| **FMR** | Finality Metric Registry | CRoT | S11 Output Log - Permanent record of all P-01 results. |
+| **ECVM** | Execution Context Verification Metric | SGS | CA II (Context Boolean) - Verifiable runtime status. |
+| **FMR** | Finality Metric Registry | CRoT | S11 Output Log - Permanent record of P-01 results. |
 
-### 3.3 Ephemeral P-01 Axiomatic Scalars
+### 3.3 Ephemeral P-01 Axiomatic Scalars (AI III Inputs)
 
-Critical scalar values calculated and consumed by GAX solely for S11 constraint evaluation (AI III / UMA I).
+Critical scalar values calculated and consumed by GAX solely for S11 constraint evaluation. If set (True), they immediately fail AI III.
 
-| Acronym | Definition | Origin Agent (Write) | Purpose (Trigger Flag if Set) |
-|:---:|:---|:---:|:---:|
-| **UFRM** | Utility Function Required Minimum | GAX (Derived from ACVD) | Minimum metric floor requirement. |
-| **CFTM** | Constraint Failure Tolerance Modifier | GAX (Derived from ACVD) | Dynamic adjustment to the required minimum. |
-| **PVLM** | Pre-Validation Logic Miss | GAX | Boolean: S02-S04 constraint check failure. |
-| **MPAM** | Manifest Policy Adherence Misalignment | GAX | Boolean: ASM structural deviation from FASV. |
-| **ADTM** | Axiomatic Deviation Trigger Metric | GAX | Boolean: Policy boundary violated during metric calculation (P4). |
+| Acronym | Definition | P-01 Role (Failure Flag) |
+|:---:|:---|:---:|
+| **UFRM** | Utility Function Required Minimum | Threshold derived from ACVD. |
+| **CFTM** | Constraint Failure Tolerance Modifier | Dynamic adjustment to UFRM. |
+| **PVLM** | Pre-Validation Logic Miss | S02-S04 constraint check failure. |
+| **MPAM** | Manifest Policy Adherence Misalignment | ASM structural deviation from FASV. |
+| **ADTM** | Axiomatic Deviation Trigger Metric | Policy boundary violated during metric calculation (P4). |
 
 ---
 
 ## 4.0 P-01 FINALITY KERNEL: ACV CALCULUS (S11)
 
-The State Finalization Gate is atomically executed by GAX. Validation is achieved only through simultaneous satisfaction of all three Axioms defined by the ACVD.
+The State Finalization Gate is atomically executed by GAX. Validation is achieved only through simultaneous satisfaction of all three Axioms defined by the ACVD:
 
 $$\text{P-01 PASS} \iff (\text{UMA I}) \land (\text{CA II}) \land (\text{AI III})$$
 
@@ -78,7 +92,7 @@ $$\text{P-01 PASS} \iff (\text{UMA I}) \land (\text{CA II}) \land (\text{AI III}
 |:---:|:---|:---:|:---:|
 | **I** | Utility Maximization (UMA) | $\text{TEMM} \ge \text{UFRM} + \text{CFTM}$ | Metric meets derived policy floor. |
 | **II** | Context Attestation (CA) | $\text{ECVM} = \text{True}$ | Verifiable context integrity achieved. |
-| **III** | Axiomatic Integrity (AI) | $\neg (\text{PVLM} \lor \text{MPAM} \lor \text{ADTM})$ | All pre-execution, structural, and runtime constraint flags must be OFF. |
+| **III** | Axiomatic Integrity (AI) | $\neg (\text{PVLM} \lor \text{MPAM} \lor \text{ADTM})$ | All integrity flags must be OFF (False). |
 
 ---
 
@@ -88,7 +102,7 @@ Mandatory 17-stage process ensuring auditable state progression to S11 finality.
 
 | Phase | Stage | Agent | Primary Objective | Key Artifact Status |
 |:---:|:---|:---:|:---|:---:|
-| **P1: INIT** | S00-S01 | CRoT/SGS | Secure Environment Attestation & CSR Anchoring. | Config/CSR Load Status. |
+| **P1: INIT** | S00-S01 | CRoT/SGS | Secure Environment Attestation & CSR Anchoring. | CSR Load Status. |
 | **P2: VALIDATE**| S02-S04 | GAX | Pre-Execution Constraint Checks. | PVLM, MPAM flags written. |
 | **Handoff** | S05 | SGS/GAX | Execution Preparation Lock. | $\Lambda_{05}$ State Lockpoint Check. |
 | **P3: EXECUTION** | S06-S07 | SGS | Runtime Workflow Execution. | ECVM Status update & Raw data aggregation. |
