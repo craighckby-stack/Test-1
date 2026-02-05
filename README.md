@@ -6,22 +6,22 @@ This manifest defines the immutable operational and structural requirements gove
 
 ## 0.0 SOVEREIGN COMPONENT & TERMINOLOGY REGISTRY (SCTR)
 
-This registry consolidates all essential governance contracts and domain acronyms, organized by Layer (L#) or Functional Group.
+This registry consolidates all essential governance contracts and domain acronyms, organized by Functional Group or dedicated Pipeline Layer (L#).
 
 | Acronym | Functional Layer | Definition | Core Function / Group |
 |:---|:---|:---|:---|
-| CAC | Architecture | Core Architectural Constraints | Defines mandatory architectural principles. |
-| COF | Governance | Core Objective Function | The mathematical goal to be maximized. |
+| CAC | ARCH | Core Architectural Constraints | Defines mandatory architectural principles. |
+| COF | ARCH | Core Objective Function | The mathematical goal to be maximized. |
 | CTAL | L4 | Configuration Trust Assurance Layer | Verification of configuration origin/trust. |
-| GCR | Architecture | Governance Contracts Registry | Legacy registry list (See 0.0 SCTR). |
+| GCR | ARCH (Legacy) | Governance Contracts Registry | Legacy registry list (See 0.0 SCTR). |
 | GRLC | L8 | Governance Record Logging Contract | Persists the certified transaction log. |
 | GSC | PRE | Governance Schema Contract | Schema integrity for ingress proposals. |
-| GSEP-C | Orchestration | Governance State Evolution Pipeline - Control | Executes the full verification pipeline (PRE, L0-L9). |
+| GSEP-C | ORCH | Governance State Evolution Pipeline - Control | Executes the full verification pipeline (PRE, L0-L9). |
 | MEE/MEC | L6 | Metric/Equation Engine & Contract | Computes primary metrics ($S\text{-}01, S\text{-}02$). |
 | PVLM | L1 | Policy Veto Logic Module | Generates critical veto signals ($S\text{-}03$). |
-| RRP | L0-L9 | Rollback and Recovery Protocol | State-defined remediation guarantee. |
+| RRP | FAILSAFE | Rollback and Recovery Protocol | State-defined remediation guarantee. |
 | SCI | L3 | Structural Cost Index | Quantifies long-term structural burden (C-01). |
-| SST | Domain | System State Transition | The central process domain event. |
+| SST | DOMAIN | System State Transition | The central process domain event. |
 | TEDC | L9 | Transition Execution & Decommitment | Executes final atomic state transition. |
 | VMO | L7 | Viability Margin Oracle | Computes dynamic safety buffer ($\epsilon$). |
 
@@ -33,8 +33,8 @@ These axioms establish the rigorous mathematical prerequisites for certified Sys
 
 ### 1.1 CORE METRIC DEFINITIONS (Inputs to L7 Finality Gate)
 
-*   **$S\text{-}01$ (Efficacy Metric):** Quantified Systemic Benefit/Value (MEE L6 Output).
-*   **$S\text{-}02$ (Risk Metric):** Quantified Systemic Risk/Cost (MEE L6 Output).
+*   **$S\text{-}01$ (Efficacy Metric):** Quantified Systemic Benefit/Value (MEE L6 Output). Requires $S\text{-}01 \ge 0$.
+*   **$S\text{-}02$ (Risk Metric):** Quantified Systemic Risk/Cost (MEE L6 Output). Requires $S\text{-}02 \ge 0$ (must be non-negative). 
 *   **$S\text{-}03$ (Veto Signal):** Boolean state indicating critical policy violation (PVLM L1 Output).
 *   **$\epsilon$ (Viability Margin):** Dynamic safety buffer requirement (VMO L7 Output).
 
