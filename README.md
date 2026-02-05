@@ -8,9 +8,9 @@
 
 This section defines the three primary layers of governance abstraction (GCM $\rightarrow$ AIA $\rightarrow$ GSEP) and the non-negotiable architectural invariants (Root Primitives) that establish system integrity and finality.
 
-#### 1.1 Architectural Root Primitives (Invariants)
+#### 1.1 Architectural Invariants & Root Primitives
 
-The fundamental, immutable contracts underpinning all system state transitions.
+The fundamental, immutable contracts underpinning all system state transitions, establishing integrity and finality boundaries.
 
 | Primitive | Scope Dependency | Architectural Function | Definition / Role in Finality |
 |:----------|:-----------------|:----------------------------------|:-------------------------------------------------------|
@@ -21,7 +21,7 @@ The fundamental, immutable contracts underpinning all system state transitions.
 
 ### 2. UNIFIED COMPONENT REGISTRY (GSEP L0-L7)
 
-Explicit listing of all mandatory components involved in the Governance Evolution Protocol (GSEP). Emphasis is placed on the integrated L3 Metric Synthesis components (SEM/SDR).
+Explicit listing of all mandatory components involved in the Governance Evolution Protocol (GSEP), focused on pre-commitment validation and execution vectors.
 
 | Acronym | Component Name | GSEP Layer | Key Operation/Metrics Controlled |
 |:--------|:--------------------------------|:----------|:--------------------------------------------------|
@@ -40,14 +40,14 @@ Explicit listing of all mandatory components involved in the Governance Evolutio
 
 ### 3. CONFIGURATION MANIFESTS & VIABILITY BOUNDARIES
 
-High-fidelity input contracts required for calibration, validation enforcement, and defining viability margins ($ε$).
+High-fidelity input contracts required for GSEP calibration, validation enforcement, and defining viability margins ($ε$).
 
 | Artifact | Constraint Type | Reference Path | GSEP Validation Stage/Component |
 |:----------|:----------------|:---------------------------------------------------|:---------------------------|
 | **MIS** | L0 Schema | Mandate Intake Specification (Standardized Input) | SCR Input Schema Enforcement |
 | **OCM** | L1 Policy | Operational Charter Manifest (Veto Status $S\text{-}03$) | AOC Policy Reference |
 | **RCM** | L3 Efficiency | Resource Config Manifest (Runtime Constraints) | RDM Allocation Parameters |
-| **MOS** | **L3 Metric Scope**| Metric Output Specification ($S\text{-}01, S\text{-}02$ Structure) | **SEM/SDR Output Fidelity** |
+| **MOS** | L3 Metric Scope| Metric Output Specification ($S\text{-}01, S\text{-}02$ Structure) | SEM/SDR Output Fidelity |
 | **GTCM** | L4 Limits ($ε$)| Governance Threshold Contract Manifest (Viability Margins) | LCR Margin Definition |
 | **GPC** | Protocol Scope | GSEP Protocol Configuration (L0-L7 Constraints) | GSEP Runtime Runner |
 
@@ -63,7 +63,8 @@ Transition approval is granted if the quantified efficacy ($S\text{-}01$) strict
 $$
 \mathbf{P\text{-}01\ PASS} \iff
 \begin{cases}
-    (\mathbf{S\text{-}01} > \mathbf{S\text{-}02} + \epsilon) & \text{[LCR Viability Check]}\n    (S\text{-}03 = \text{FALSE}) & \text{[AOC Policy Compliance]}
+    (\mathbf{S\text{-}01} > \mathbf{S\text{-}02} + \epsilon) & \text{[LCR Viability Check]}
+    (S\text{-}03 = \text{FALSE}) & \text{[AOC Policy Compliance]}
 \end{cases}
 $$
 
@@ -71,14 +72,14 @@ $$
 
 ### 5. GOVERNANCE EVOLUTION PROTOCOL (GSEP: L0 $\rightarrow$ L7 Pipeline)
 
-GSEP is the mandatory, strictly sequential validation pipeline. The L3 Dynamic Metric Synthesis stage is now rigorously enforced via MOS compliance before proceeding to L4 Constraint Binding.
+GSEP is the mandatory, strictly sequential validation pipeline, ensuring metrics are calculated, constraints are bound, and finality is guaranteed prior to deployment.
 
 | Level | Stage Name | Component Dependency | Compliance Target Metric | Required Success State |
 |:-----:|:----------------------|:---------------------|:------------------------------------------|:-------------------------|
 | L0 | Input Schema Vetting | SCR / MIS | Valid structural integrity. | Valid MIS Schema Input |
 | L1 | Operational Veto Gate | AOC / OCM | Absolute compliance against OCM policies. | $S\text{-}03 = \text{FALSE}$ |
 | L2 | Source Provenance | ACM | Cryptographic signature verification. | Validated Code Signature |
-| L3 | **Dynamic Metric Synthesis** | RDM / SEM / SDR / **MOS** | $S\text{-}01, S\text{-}02$ calculation. **MOS output fidelity enforced.** | Metrics $S\text{-}01, S\text{-}02$ Validated |
+| L3 | Dynamic Metric Synthesis | RDM / SEM / SDR / MOS | $S\text{-}01, S\text{-}02$ calculation. MOS output fidelity enforced. | Metrics $S\text{-}01, S\text{-}02$ Validated |
 | L4 | Constraint Binding | LCR / GTCM | Enforcement of viability margins ($ε$). | LCR Threshold PASS |
 | L5 | Commitment Arbitration | GCO / P-01 Rule | Executes the final P-01 Decision. | **P-01 = PASS** |
 | L6 | Persistence & Audit | ACR / AIA | Immutable Logging and ASM generation. | AIA Logged TXID & ASM Certified |
@@ -86,4 +87,8 @@ GSEP is the mandatory, strictly sequential validation pipeline. The L3 Dynamic M
 
 ---
 
-**Intelligence Directive:** The documentation structure has been optimized for immediate lookup and clarity by introducing the 'CORE GOVERNANCE ARCHITECTURE' section and refining table linkages. Architecturally, a critical gap was identified in the absence of a formal post-deployment feedback mechanism for long-term efficacy validation. The proposed DERE component (Scaffold: 6.0) closes the loop, enabling autonomic recalibration based on observed drift, moving the system toward true closed-loop autonomous evolution.
+### 6. V94.1 SYSTEM EVOLUTION SUMMARY
+
+This manifestation optimizes clarity by standardizing the definition of Architectural Invariants and formalizing configuration linkages. Architecturally, the most critical recognized gap is the lack of L8 Closed-Loop Feedback post-deployment to enforce long-term $S\text{-}01$ fidelity.
+
+**Next Mandate Focus (L8 Proposal):** Integration of the Drift Efficacy Recalibration Engine (DERE) to monitor runtime performance against predicted metrics, ensuring autonomous recalibration upon detected drift, thereby establishing full closed-loop control over the evolution cycle.
