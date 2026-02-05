@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sag.v94.1/TEDS_event_schema.json",
+  "title": "Trusted Event Data Stream (TEDS) Event Contract",
+  "type": "object",
+  "required": [
+    "timestamp_utc",
+    "sag_version",
+    "event_id",
+    "agent_id",
+    "pipeline_stage_id",
+    "status_code",
+    "event_metrics_hash"
+  ],
+  "properties": {
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of event generation."
+    },
+    "sag_version": {
+      "type": "string",
+      "description": "The specific SAG specification version governing the pipeline run (V94.1, etc.)."
+    },
+    "event_id": {
+      "type": "string",
+      "description": "A unique identifier for this specific event."
+    },
+    "agent_id": {
+      "type": "string",
+      "enum": ["CRoT", "GAX", "SGS"],
+      "description": "The GSEP-C Agent responsible for generating the event."
+    },
+    "pipeline_stage_id": {
+      "type": "string",
+      "pattern": "^S(0[0-9]|1[0-4])$",
+      "description": "The mandatory GSEP-C stage (S00-S14) in which the event occurred."
+    },
+    "status_code": {
+      "type": "integer",
+      "description": "Standardized event status code (e.g., 200 OK, 401 IH_PVLM, 500 EXEC_FAILURE)."
+    },
+    "payload_detail": {
+      "type": "object",
+      "description": "Detailed contextual information (e.g., TEMM score, CSR value, IH Flag status)."
+    },
+    "event_metrics_hash": {
+      "type": "string",
+      "description": "Cryptographic hash of the essential payload details for integrity checking."
+    }
+  }
+}
