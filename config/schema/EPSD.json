@@ -1,0 +1,19 @@
+{
+  "schema_id": "M-02-V94.1",
+  "description": "Evolution Payload Schema Definition: Mandates the required structure for any M-02 Mutation Payload prior to Stage 2 verification.",
+  "mandatory_fields": [
+    "payload_hash_sha256",
+    "target_module_identifier",
+    "source_intent_id",
+    "minimum_aoc_version",
+    "payload_version_tag"
+  ],
+  "cryptographic_header": {
+    "signature_algo": "ED25519_SOVEREIGN",
+    "integrity_lock_key_id": "AIA_ROOT_V94"
+  },
+  "resource_allocation_metrics": [
+    "estimated_cpu_cycles_stage3_max",
+    "estimated_memory_kb_max"
+  ]
+}
