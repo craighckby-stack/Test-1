@@ -1,31 +1,38 @@
-# TELEMETRY INTEGRITY VETTING SYSTEM (TIVS) V94.1 DEFINITION
+# TELEMETRY INTEGRITY VETTING SYSTEM (TIVS) PROTOCOL V94.1
 
-## 1.0 MISSION AND ARCHITECTURAL PLACEMENT
+## 1.0 PLACEMENT AND ROLE
 
-The Telemetry Integrity Vetting System (TIVS) is a specialized SGS utility positioned within the GSEP-C pipeline (Stage S6) dedicated to establishing attested quality and fidelity of external data feeds (GTB Feed) crucial for runtime governance decisions. TIVS is mandatory for enforcing the constraints defined by the Telemetry Quality Manifest (TQM).
+TIVS is a critical subsystem within the SGS pipeline, specifically designated to operate during Stage S6 (Input Vetting). Its sole mission is to establish the attested quality and fidelity of external data feeds (GTB Feed) necessary for downstream governance decisions. TIVS acts as the authoritative enforcer of the constraints defined within the Telemetry Quality Manifest (TQM).
 
-## 2.0 TIVS OPERATIONAL CONSTRAINTS
+## 2.0 TIVS OPERATIONAL FLOW (S6)
 
-### 2.1 Core Vetting Process
+TIVS functions as an input gate, consuming the raw GTB feed alongside defined validation manifests, and producing a boolean integrity signal.
 
-TIVS executes cryptographic and semantic validation checks on the ingress telemetry stream, specifically validating against:
-1.  **Format Compliance (STDM):** Ensuring structural adherence to defined data schema.
-2.  **Quality Metrics (TQM):** Enforcing latency bounds, data source non-repudiation, sensor variance tolerance, and freshness thresholds.
+### 2.1 INPUTS (S6 Ingress)
+| Component | Description | Purpose |
+| :--- | :--- | :--- |
+| GTB Feed | Raw external telemetry stream (Time-series data). | Data source for validation. |
+| STDM | Structural Telemetry Data Model. | Defines expected schema/format compliance. |
+| TQM | Telemetry Quality Manifest. | Defines required non-structural fidelity metrics (e.g., latency, non-repudiation). |
 
-### 2.2 Output Signal Generation
+### 2.2 CORE VETTING LOGIC
 
-Upon successful completion of all TQM checks, TIVS commits the derived integrity signal to the CISM for use by GAX:
+TIVS executes cryptographic and semantic checks in parallel:
+1.  **Structural Validation:** Checks GTB Feed against the STDM for format compliance.
+2.  **Fidelity Validation:** Checks GTB Feed runtime metrics (latency, sensor variance, data source signature) against the TQM threshold definitions.
 
-$$S_{Tele\text{-}Integrity} \equiv \text{TIVS\ Pass} = ( \text{TQM\ Satisfied} ) \land ( \text{STDM\ Compliant} )$$
+### 2.3 OUTPUT (S6 Egress Signal)
 
-If $S_{Tele\text{-}Integrity}$ fails, S6 escalates to a CRITICAL (RRP) failure, triggering immediate pipeline halt before S6.5 (Behavior Veto), as behavioral assessment cannot be trusted without reliable inputs.
+Upon execution, TIVS commits the derived integrity signal ($S_{Tele\text{-}Integrity}$) to the CISM for use by Stage S6.5 (GAX).
 
-## 3.0 RELATIONSHIP TO VETO MECHANISMS
+$$S_{Tele\text{-}Integrity} \equiv \text{TIVS\ Pass} \implies ( \text{STDM\ Compliant} ) \land ( \text{TQM\ Satisfied} )$$
 
-TIVS acts as a necessary prerequisite gate for the GAX Behavioral Veto (S6.5). While GAX uses **ADTM** heuristics to *interpret* the telemetry, TIVS ensures the *trustworthiness* of the input data itself.
+If $\neg S_{Tele\text{-}Integrity}$ is generated, Stage S6 immediately initiates a CRITICAL Runtime Protocol (RRP) failure, halting the GSEP-C pipeline prior to S6.5, as downstream behavioral assessment (GAX Veto) is fundamentally compromised by untrustworthy data.
 
-**Dependency Chain:**
-1.  Telemetry (GTB Feed) ingress.
-2.  TIVS validation against **TQM** and **STDM** (S6).
-3.  $S_{Tele\text{-}Integrity}$ commitment to CISM.
-4.  GAX evaluates $\neg S_{06.5}$ (Behavior Veto) using the CISM-committed telemetry data (S6.5).
+## 3.0 SYSTEM DEPENDENCY INTEGRATION
+
+TIVS is the prerequisite reliability layer for the GAX Behavioral Veto (S6.5).
+*   TIVS ensures **Trustworthiness** of inputs (via TQM/STDM).
+*   GAX uses ADTM heuristics to ensure **Prudence** of outputs (via S6.5 Veto).
+
+**GSEP-C Execution Chain (Partial):** GTB Ingress $\rightarrow$ TIVS (S6) $\rightarrow$ $S_{Tele\text{-}Integrity}$ Commit $\rightarrow$ GAX Veto Assessment (S6.5).
