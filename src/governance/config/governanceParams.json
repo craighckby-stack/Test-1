@@ -1,0 +1,35 @@
+{
+  "description": "Canonical definition of all governance-critical oversight parameters. This file is used to configure the OversightParameterRegistry (OPR) at boot time.",
+  "criticalKeys": [
+    "P01_RISK_FLOOR",
+    "MAX_ENTROPY_DEBT",
+    "SANDBOX_TIMEOUT_MS",
+    "E05_MAX_GENERATION_CYCLES"
+  ],
+  "schema": {
+    "P01_RISK_FLOOR": {
+      "type": "float",
+      "range": [0.01, 1.0],
+      "default": 0.75,
+      "description": "Maximum permitted deviation from baseline risk metric."
+    },
+    "MAX_ENTROPY_DEBT": {
+      "type": "integer",
+      "range": [1, 500],
+      "default": 100,
+      "description": "Threshold for initiating forced self-correction procedures."
+    },
+    "SANDBOX_TIMEOUT_MS": {
+      "type": "integer",
+      "range": [500, 30000],
+      "default": 5000,
+      "description": "Timeout for independent code execution sandbox processes."
+    },
+    "E05_MAX_GENERATION_CYCLES": {
+      "type": "integer",
+      "range": [5, 500],
+      "default": 25,
+      "description": "Maximum cycles allowed for self-evolutionary generation attempt before aborting."
+    }
+  }
+}
