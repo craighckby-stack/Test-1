@@ -1,0 +1,17 @@
+{
+  "utility_name": "Transient Atomic Checkpoint Utility (TACU)",
+  "purpose": "Define micro-checkpointing frequency during pre-G2 execution phase (S01-S10) to mitigate data loss from transient P-M01 or soft P-M02 exposure, minimizing required IH severity.",
+  "enable_tacu": true,
+  "stages_enabled": ["S01", "S04", "S07", "S10"],
+  "s07_mandatory_trigger": true, 
+  "checkpoint_format": "DeltaSnapshot (ACVM state differential)",
+  "retention_policy": {
+    "max_checkpoints_per_epoch": 5,
+    "purge_on_g2_success": true,
+    "purge_on_ih": false
+  },
+  "impact_thresholds": {
+    "cpu_overhead_limit_ms": 200, 
+    "p_m01_isolation_time_budget": "500ms" 
+  }
+}
