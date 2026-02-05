@@ -1,0 +1,33 @@
+{
+  "schema_version": "94.1",
+  "policy_id": "ACVD-DSE-P01-V94.1-1701",
+  "description": "Defines the mandatory constraints and thresholds for successful P-01 Atomic Finality Decision.",
+  "axioms": {
+    "axiom_I_utility": {
+      "artifact": "TEMM",
+      "status": "MANDATORY",
+      "threshold_type": "MINIMUM_ACCEPTANCE",
+      "utility_threshold_minimum": 0.75, 
+      "debt_tolerance_critical": 3, 
+      "reason": "Ensures state transition provides acceptable quantitative efficiency delta."
+    },
+    "axiom_II_context": {
+      "artifact": "ECVM",
+      "status": "MANDATORY",
+      "required_state": "TRUE",
+      "system_integrity_check_modules": ["memory_pressure", "resource_lock", "runtime_hash"],
+      "reason": "Verifies operational integrity of the execution context."
+    },
+    "axiom_III_integrity": {
+      "artifact": "MPAM/CSR",
+      "status": "MANDATORY",
+      "zero_violations_required": true,
+      "critical_policies": ["data_mutation_isolation", "dependency_graph_lock", "rollback_availability"],
+      "reason": "Ensures strict compliance with non-negotiable governance policies."
+    }
+  },
+  "finality_params": {
+    "failure_mode": "INTEGRITY_HALT",
+    "rollback_protocol_id": "RRP-v94.1"
+  }
+}
