@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schema/DCSM_v1.0.json",
+  "title": "Deterministic Commitment Summary Manifest (DCSM)",
+  "description": "Lightweight, finalized summary of the approved state transition (Psi_N -> Psi_N+1) following P-01 PASS, designed for rapid external audit and linkage.",
+  "type": "object",
+  "properties": {
+    "protocol_version": {
+      "type": "string",
+      "description": "SAG Specification version (e.g., V94.5)"
+    },
+    "dse_epoch_id": {
+      "type": "string",
+      "description": "Unique identifier for this DSE event."
+    },
+    "status_p01": {
+      "type": "boolean",
+      "description": "P-01 Finality Checkpoint result (must be true)."
+    },
+    "metrics_final": {
+      "type": "object",
+      "description": "Key metrics used in P-01 verification.",
+      "properties": {
+        "temm": {"type": "number", "description": "Target Utility Metric (S01)"},
+        "ufrm": {"type": "number", "description": "Required Baseline Utility Metric (S02)"},
+        "cftm": {"type": "number", "description": "Minimum Required Utility Margin (Epsilon)"}
+      },
+      "required": ["temm", "ufrm", "cftm"]
+    },
+    "veto_summary": {
+      "type": "object",
+      "description": "Final state of all axiomatic veto manifests (must all be false/negated status).",
+      "properties": {
+        "pvlm_status": {"type": "boolean", "description": "Policy Veto Status ($\\neg$PVLM)"},
+        "mpam_status": {"type": "boolean", "description": "Stability Veto Status ($\\neg$MPAM)"},
+        "adtm_status": {"type": "boolean", "description": "Anomaly Veto Status ($\\neg$ADTM)"}
+      },
+      "required": ["pvlm_status", "mpam_status", "adtm_status"]
+    },
+    "context_status": {
+      "type": "boolean",
+      "description": "Verified Environmental Context Status (ECVM status)."
+    },
+    "anchor_links": {
+      "type": "object",
+      "description": "Links to forensic and commitment anchors.",
+      "properties": {
+        "state_root_hash": {"type": "string", "description": "Cryptographic hash of the new state root (Post S10 commitment)."},
+        "tvcr_index": {"type": "string", "description": "Index linking to the corresponding Trace and Veto Context Registry entry."}
+      },
+      "required": ["state_root_hash", "tvcr_index"]
+    }
+  },
+  "required": ["protocol_version", "dse_epoch_id", "status_p01", "metrics_final", "veto_summary", "context_status", "anchor_links"]
+}
