@@ -1,6 +1,6 @@
 # SOVEREIGN GOVERNANCE STANDARD (SGS) V95.1
 
-## GOVERNANCE METADATA & CORE DIRECTIVES
+## GOVERNANCE METADATA & CORE DIRECTIVES (V95.1)
 
 | Parameter | Value | Directive | Status |
 |:---|:---|:---|:---|
@@ -13,44 +13,39 @@
 
 ## EXECUTIVE SUMMARY: DETERMINISTIC STATE CERTIFICATION
 
-SGS V95.1 establishes the authoritative, non-repudiable compliance pathway for all System State Transitions (SSTs). It strictly enforces multi-stage auditing via the GSEP-C V3.5 Pipeline, culminating in cryptographic certification enforced by the Governance Axioms (GAX).
+SGS V95.1 mandates an authoritative, non-repudiable compliance pathway for all System State Transitions (SSTs). It enforces strict, multi-stage auditing via the GSEP-C V3.5 Pipeline, culminating in cryptographic state certification enforced by the Governing Axioms (GAX).
 
-The core of this standard is the **Principle of Immutable Staging (Fail-Fast)**: failures occurring in any **pre-commitment** phase (L0-L8) automatically trigger the robust Rollback and Recovery Protocol (RRP). Failures during the **final atomic commitment** (L9) invoke the dedicated, forensic-capable **System Integrity Halt (SIH)** protocol, guaranteeing state freezing to prevent corruption and enable immediate post-mortem analysis.
+**Principle of Immutable Staging (Fail-Fast):**
+*   **Pre-Commitment Failure (L0-L8):** Triggers the robust **Rollback and Recovery Protocol (RRP)**, ensuring the preceding state remains untainted.
+*   **Terminal Commitment Failure (L9):** Invokes the forensic-capable **System Integrity Halt (SIH)** protocol, freezing the system state to prevent corruption and enable immediate post-mortem analysis of the commitment sequence.
 
 ---
 
 ## 1.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.5)
 
-This sequential enforcement mechanism mandates deterministic compliance through nine critical stages. The system adheres strictly to the **Principle of Immutable Staging**:
+This mechanism mandates deterministic compliance through nine critical stages (L0-L9), preceded by initial schema validation (PRE). Stages designated CRITICAL enforce the highest levels of safety and architectural compliance.
 
-*   **RRP:** The default protocol for all non-terminal stage failures (PRE-L8).
-*   **SIH:** The mandated protocol for terminal stage failures (L9).
-
-| Stage | ID Tag | Title | Core Validation Objective | Halt Trigger Condition | Failure Protocol |
-|:-----|:---|:---|:-----------------------------------|:--------------------------|:---|
-| PRE | GSC | Schema Ingress | Assert structural integrity against the data model. | Invalid Schema Structure | RRP |
-| L0 | CTM | Context Typing | Formal format and schema compliance verification. | Format Integrity Failure | RRP |
-| **L1** | **PVLM** | **CRITICAL VETO** | Policy Violation Assessment (Generates S-03 signal). | **CRITICAL POLICY VIOLATION** | RRP (Mandatory) |
-| **L2** | **CTAL** | **Provenance Trust** | Source authenticity, lineage, and cryptographic validation. | Provenance Trust Failure | RRP |
-| L3 | CM | Confidence Modeling | Simulate impact bounds and confidence margins. | Simulation Divergence | RRP |
-| **L4** | **SCI** | **Resource Constraint** | Verification against Core Architectural Limits (CAC). | **Budget Threshold Exceeded** | RRP (Mandatory) |
-| L5 | DFV | Data Fidelity | Input data lineage, source chain, and integrity check. | Data Corruption | RRP |
-| L6 | MEE | Metric Synthesis | Quantify objective metrics (S-01: Efficacy, S-02: Risk). | Metric Synthesis Failure | RRP |
-| **L7** | **VMO** | **FINALITY GATE** | Enforce GAX-CERT (P-01 Certification Check). | **FINALITY RULE BREACH** | RRP (Mandatory) |
-| L8 | GRLC | Certified Persistence | Record, notarize, and verify non-repudiable audit log (NRALS adherence). | Persistence Logging Failure | RRP |
-| **L9** | **TEDC** | **Execution & Decommitment** | Atomic state trigger and final compliance sign-off. | Commitment Integrity Failure | **SIH (TERMINAL)** |
+| Stage | ID Tag | Title | Core Validation Objective | Enforcement Class | Halt Condition | Failure Protocol |
+|:-----|:---|:---|:-----------------------------------|:------------------|:--------------------------|:---|
+| PRE | GSC | Schema Ingress | Assert structural integrity against **SDVM** model. | STANDARD | Invalid Schema Structure | RRP |
+| L0 | CTM | Context Typing | Formal format and schema compliance verification. | STANDARD | Format Integrity Failure | RRP |
+| **L1** | **PVLM** | **CRITICAL VETO** | Policy Violation Assessment (Generates S-03 signal). | **CRITICAL** | **CRITICAL POLICY VIOLATION** | RRP |
+| **L2** | **CTAL** | **Provenance Trust** | Source authenticity, lineage, and cryptographic validation. | **CRITICAL** | Provenance Trust Failure | RRP |
+| L3 | CM | Confidence Modeling | Simulate impact bounds and confidence margins. | STANDARD | Simulation Divergence | RRP |
+| **L4** | **SCI** | **Resource Constraint** | Verification against Core Architectural Limits (CAC). | **CRITICAL** | **Budget Threshold Exceeded** | RRP |
+| L5 | DFV | Data Fidelity | Input data lineage, source chain, and integrity check. | STANDARD | Data Corruption | RRP |
+| L6 | MEE | Metric Synthesis | Quantify objective metrics (S-01: Efficacy, S-02: Risk). | STANDARD | Metric Synthesis Failure | RRP |
+| **L7** | **VMO** | **FINALITY GATE** | Enforce GAX-CERT (P-01 Certification Check). | **CRITICAL** | **FINALITY RULE BREACH** | RRP |
+| L8 | GRLC | Certified Persistence | Record, notarize, and verify NRALS audit log. | STANDARD | Persistence Logging Failure | RRP |
+| **L9** | **TEDC** | **Execution & Decommitment** | Atomic state trigger and final compliance sign-off. | **CRITICAL** | Commitment Integrity Failure | **SIH (TERMINAL)** |
 
 ---
 
 ## 2.0 GOVERNANCE AXIOMS (GAX)
 
-(No change to formulas, as they are foundational physics.)
-
 The immutable prerequisites, enforced primarily by L6 and L7, dictating SST certification. All thresholds ($\tau_{norm}, \epsilon$) are sourced from the **Core Failure Thresholds Manifest (CFTM)**.
 
 ### 2.1 GAX-EVAL: Core Objective Function (COF)
-
-Defines the system's optimization target: maximizing normalized objective value. $S\text{-}02$ is stabilized using $\tau_{norm}$ (Normalization Factor from CFTM).
 
 $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right) $$
 
@@ -60,17 +55,15 @@ Certification ($\mathbf{P\text{-}01\ PASS}$) requires the benefit ($S\text{-}01$
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
-Where $\epsilon \ge \epsilon_{min}$ (Minimum Safety Margin) is sourced directly from CFTM.
-
 ---
 
 ## 3.0 GOVERNANCE ASSET AND CONTRACT REGISTRY (GACR)
 
-Standardized identifiers and system dependencies critical for deterministic pipeline execution.
+Standardized identifiers, dependencies, and configuration mandates critical for deterministic GSEP-C execution.
 
 ### 3.1 Governance Input Signals (S-Metrics)
 
-Metrics are defined by MDSM (Metric Definition and Semantic Manifest).
+Metrics are defined by MDSM.
 
 | ID | Title | Description | Type |
 |:---|:---|:---|:---|
@@ -78,28 +71,18 @@ Metrics are defined by MDSM (Metric Definition and Semantic Manifest).
 | S-02 | Risk Metric | Quantified Systemic Risk/Cost ($\ge 0$). | Numeric |
 | S-03 | Veto Signal | Boolean flag indicating critical policy violation (L1 halt trigger). | Boolean |
 
-### 3.2 Key System Contracts and Dependencies
+### 3.2 System Contracts and Dependencies
 
-Dependencies grouped by function.
-
-#### Configuration Contracts
-| ID | Definition | Reference Path | Stages Affected |
-|:---|:---|:---|:---|
-| CAC | Core Architectural Constraints (Resource limits). | `config/system_limits_v3.json` | L4 (SCI) |
-| CFTM | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). | `config/security/cftm_v3.json` | L7 (VMO), GAX |
-| DTEM | Data Trust Endpoint Manifest (Defines validation standards). | `config/security/data_trust_endpoints_v1.json` | L2 (CTAL), L5 (DFV) |
-| MDSM | Metric Definition and Semantic Manifest. | `config/governance/mdsm_v1.json` | L6 (MEE), GAX |
-| SIHM | System Integrity Halt Manifest (Halt Configuration Parameters). | `config/security/SIHM_manifest_v1.json` | L9 (TEDC), Global |
-
-#### Policy & Protocol Contracts
-| ID | Definition | Reference Path | Stages Affected |
-|:---|:---|:---|:---|
-| PVLM | Policy Veto Logic Manifest (Criteria for S-03 generation). | `policies/critical_veto_manifest_v1.yaml` | L1 (PVLM) |
-| RRP | Rollback and Recovery Protocol (Pre-commitment state restoration). | `spec/RRP_interface_v1.yaml` | All L0-L8 Stages |
-| **NRALS** | **Non-Repudiable Audit Log Specification** (Log structure/integrity mandate). | **`spec/NRALS_v1.json`** | **L8 (GRLC), SIH** |
-| SIH | System Integrity Halt Protocol Specification (Post-commitment state freezing). | `spec/SIH_protocol_v1.yaml` | L9 (TEDC) |
-
-#### Service Contracts
-| ID | Definition | Reference Path | Stages Affected |
-|:---|:---|:---|:---|
-| MEC | Metric Engine Contract. Calculates official objective metrics (S-01, S-02). | `config/metrics_oracles_v1.json` | L6 (MEE) |
+| Functional Group | ID | Definition | Reference Path | Stages Affected |
+|:---|:---|:---|:---|:---|
+| **Configuration** | CAC | Core Architectural Constraints (Resource limits). | `config/system_limits_v3.json` | L4 (SCI) |
+| **Configuration** | CFTM | Core Failure Thresholds Manifest ($\tau_{norm}, \epsilon_{min}$). | `config/security/cftm_v3.json` | L7 (VMO), GAX |
+| **Configuration** | DTEM | Data Trust Endpoint Manifest (Defines validation standards). | `config/security/data_trust_endpoints_v1.json` | L2 (CTAL), L5 (DFV) |
+| **Configuration** | MDSM | Metric Definition and Semantic Manifest. | `config/governance/mdsm_v1.json` | L6 (MEE), GAX |
+| **Configuration** | SIHM | System Integrity Halt Manifest (Halt Configuration Parameters). | `config/security/SIHM_manifest_v1.json` | L9 (TEDC), Global |
+| **Configuration (New)** | **SDVM** | **Schema Definition & Validation Manifest.** | **`config/schema/sdvm_v1.json`** | **PRE (GSC), L0 (CTM)** |
+| **Policy** | PVLM | Policy Veto Logic Manifest (Criteria for S-03 generation). | `policies/critical_veto_manifest_v1.yaml` | L1 (PVLM) |
+| **Protocol Spec** | NRALS | Non-Repudiable Audit Log Specification. | `spec/NRALS_v1.json` | L8 (GRLC), SIH |
+| **Protocol Spec** | RRP | Rollback and Recovery Protocol. | `spec/RRP_interface_v1.yaml` | All L0-L8 Stages |
+| **Protocol Spec** | SIH | System Integrity Halt Protocol Specification. | `spec/SIH_protocol_v1.yaml` | L9 (TEDC) |
+| **Service Contract** | MEC | Metric Engine Contract (Calculates S-01, S-02). | `config/metrics_oracles_v1.json` | L6 (MEE) |
