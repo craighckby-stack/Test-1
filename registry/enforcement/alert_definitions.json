@@ -1,0 +1,21 @@
+{
+  "definitions": {
+    "IH_ALERT": {
+      "level": "HIGH",
+      "type": "NOTIFICATION",
+      "target": "IncidentHandler",
+      "log_level": "ERROR"
+    },
+    "HALT_STAGE": {
+      "level": "CRITICAL",
+      "type": "SYSTEM_INTERRUPT",
+      "target": "DMW_Core_Scheduler",
+      "retry_policy": "NONE"
+    },
+    "LOG_WARNING": {
+      "level": "LOW",
+      "type": "LOGGING_ONLY",
+      "log_level": "WARNING"
+    }
+  }
+}
