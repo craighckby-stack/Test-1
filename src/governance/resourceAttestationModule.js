@@ -10,10 +10,39 @@
 
 const AttestationFailureRecord = require('./AttestationFailureRecord');
 
+/**
+ * Internal utility function to wrap and standardize asynchronous check execution.
+ * Ensures consistent result formatting and handles internal check failures gracefully.
+ * @param {string} name - The identifier for the check.
+ * @param {function(): Promise<{success: boolean, details: object}>} promiseFn - The asynchronous function executing the check logic.
+ * @returns {Promise<object>} Structured result object.
+ */
+const runCheck = async (name, promiseFn) => {
+    try {
+        const result = await promiseFn();
+        return {
+            check: name,
+            status: result.success ? 'PASS' : 'FAIL',
+            details: result.details || {},
+            success: result.success
+        };
+    } catch (error) {
+        // Catch errors originating from the environmentMonitor or dependency resolution
+        return {
+            check: name,
+            status: 'ERROR',
+            details: { message: `Critical error during check execution: ${error.message}`, stack: error.stack },
+            success: false
+        };
+    }
+};
+
 class ResourceAttestationModule {
     /**
      * @param {object} config - The baseline configuration and thresholds.
      * @param {object} environmentMonitor - The telemetry source for real-time resource data.
+     * 
+     * Future Improvement: Inject ResourceCheckRegistry here instead of hardcoding internal checks.
      */
     constructor(config, environmentMonitor) {
         if (!config || !environmentMonitor) {
@@ -34,37 +63,35 @@ class ResourceAttestationModule {
      * @returns {Promise<AttestationReport>} Structured report detailing check outcomes.
      */
     async executePreExecutionCheck(payloadMetadata) {
+        const requiredResources = payloadMetadata.requiredResources || {};
         console.log(`RAM-G01: Initiating resource attestation (Payload: ${payloadMetadata.id || 'N/A'}).`);
 
-        const requiredResources = payloadMetadata.requiredResources || {};
+        // 1. Define checks to run (in anticipation of using a Check Registry).
+        const checkPromises = [
+            runCheck('C04_ISOLATION_CHECK', () => this._verifySandboxIntegrity()),
+            runCheck('HW_AVAILABILITY_CHECK', () => this._checkHardwareAvailability(requiredResources)),
+            runCheck('OP_CONSTRAINTS_CHECK', () => this._checkOperationalConstraints(requiredResources))
+        ];
+
+        // 2. Execute all checks simultaneously for maximum efficiency.
+        const checkResults = await Promise.all(checkPromises);
+
+        // 3. Aggregate results and finalize report.
         const report = {
             success: true,
             results: []
         };
-        
-        try {
-            // Check 1: Sandbox Integrity (C-04)
-            const sandboxResult = await this._verifySandboxIntegrity();
-            this._logResult(report, 'C04_ISOLATION_CHECK', sandboxResult.success, sandboxResult.details);
 
-            // Check 2: Core Hardware Availability
-            const hardwareResult = await this._checkHardwareAvailability(requiredResources);
-            this._logResult(report, 'HW_AVAILABILITY_CHECK', hardwareResult.success, hardwareResult.details);
-
-            // Check 3: Operational Constraint Verification
-            const opCheckResult = await this._checkOperationalConstraints(requiredResources);
-            this._logResult(report, 'OP_CONSTRAINTS_CHECK', opCheckResult.success, opCheckResult.details);
-
-        } catch (e) {
-            report.success = false;
+        checkResults.forEach(result => {
             report.results.push({
-                check: 'GLOBAL_FAILURE',
-                status: 'ERROR',
-                details: { error: e.message, stack: e.stack }
+                check: result.check,
+                status: result.status,
+                details: result.details
             });
-            // Propagate critical monitoring failure immediately
-            throw new AttestationFailureRecord('RAM_EXEC_002', `Critical failure during attestation execution: ${e.message}`, report);
-        }
+            if (!result.success) {
+                report.success = false;
+            }
+        });
 
         if (!report.success) {
              // Throw standardized record containing the full failure report
@@ -72,24 +99,6 @@ class ResourceAttestationModule {
         }
 
         return report;
-    }
-
-    /**
-     * Helper to add a check result to the main report structure.
-     * @param {object} report - The mutable AttestationReport object.
-     * @param {string} checkName
-     * @param {boolean} status
-     * @param {object} details
-     */
-    _logResult(report, checkName, status, details) {
-        report.results.push({
-            check: checkName,
-            status: status ? 'PASS' : 'FAIL',
-            details: details
-        });
-        if (!status) {
-            report.success = false;
-        }
     }
 
     /**
@@ -103,7 +112,7 @@ class ResourceAttestationModule {
         let success = true;
 
         // Check Max CPU Threshold (Ambient System Stress)
-        if (currentResources.cpuLoad > this.baselineConfig.maxCpuThreshold) {
+        if (currentResources.cpuLoad > (this.baselineConfig.maxCpuThreshold || 80)) { // Added fallback default
             success = false;
             details.discrepancies.push(`CPU Load (${currentResources.cpuLoad.toFixed(2)}%) exceeds system max threshold (${this.baselineConfig.maxCpuThreshold}%).`);
         }
@@ -124,7 +133,8 @@ class ResourceAttestationModule {
     async _verifySandboxIntegrity() {
         // Logic to verify container health, resource limit enforcement, and kernel namespace isolation.
         
-        const isolationStatus = 'OK'; // Simulation
+        // Simulation of telemetry fetching
+        const isolationStatus = (await this.environmentMonitor.getSandboxHealth()).status || 'OK'; 
         const enforcementLevel = this.baselineConfig.requiredIsolationLevel || 'HIGH';
         
         if (isolationStatus !== 'OK') {
@@ -143,7 +153,7 @@ class ResourceAttestationModule {
         // Example check: Sentinel database (D-09) latency
         if (requirements.requiresSentinelAccess) {
             const latency = await this.environmentMonitor.ping('sentinel_db');
-            if (latency > this.baselineConfig.maxDbLatency) {
+            if (latency > (this.baselineConfig.maxDbLatency || 150)) { // Added fallback default
                 return { 
                     success: false, 
                     details: { constraint: 'SENTINEL_LATENCY', measured: latency, threshold: this.baselineConfig.maxDbLatency } 
