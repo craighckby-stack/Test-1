@@ -1,75 +1,66 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V95.1 (MODULAR RIGOR)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V95.2 (FINALITY INTEGRATION)
 
-*Formal refinement of V95.0. This revision improves information hierarchy, prioritizing the immediate comprehension of the P-01 Finality Calculus (PCC) and establishing clearer linkage between the Triumvirate Mandates (SoD) and the GSEP-C workflow.*
+*Formalization of V95.1. This revision merges Axiomatic Constraint Vector (ACV) definitions with Agent Custody for enhanced traceability and introduces explicit operational linkages between the Triumvirate Mandates and the Constraint Protocol Input Registry (C-PIR), optimizing developer time-to-compliance.*
 
 ---
 
-## 1.0 EXECUTIVE CODIFICATION & GLOSSARY (C-PIR)
+## 1.0 P-01 FINALITY CALCULUS & GOVERNANCE TRIUMVIRATE (FUSION)
 
-### 1.1 Non-Repudiable State Finality
+The system mandates Non-Repudiable State Finality: $\Psi_{N} \to \Psi_{N+1}$ occurs only upon full satisfaction of the Axiomatic Constraint Vector (ACV), known as the **P-01 PASS** condition, governed by the Separation of Duties (SoD).
 
-The system ensures state transition ($\Psi_{N} \to \Psi_{N+1}$) integrity via the Deterministic State Evolution (DSE). Finality is achieved only when the P-01 PASS condition is met, signifying full satisfaction of the Axiomatic Constraint Vector (ACV).
+### 1.1 Axiomatic Constraint Vector (ACV) Formula
 
-**P-01 FINALITY CONDITION (ACV Formula):**
+Finality requires the simultaneous satisfaction of the three axiomatic components (UMA, CA, AI):
+
 $$
-\text{Condition I} \land \text{Condition II} \land \text{Condition III}
+\text{P-01 PASS} \iff (\text{UMA}) \land (\text{CA}) \land (\text{AI})
 $$
+
 Where:
 $$
-\text{I}: (\text{TEMM} \ge \text{UFRM} + \text{CFTM})
+\text{UMA (I)}: (\text{TEMM} \ge \text{UFRM} + \text{CFTM})
 $$
 $$
-\text{II}: (\text{ECVM} = \text{True})
+\text{CA (II)}: (\text{ECVM} = \text{True})
 $$
 $$
-\text{III}: (\neg \text{PVLM} \land \neg \text{MPAM} \land \neg \text{ADTM})
+\text{AI (III)}: (\neg \text{PVLM} \land \neg \text{MPAM} \land \neg \text{ADTM})
 $$
 
-### 1.2 Constraint & Protocol Input Registry (C-PIR)
+### 1.2 Constraint Protocol Input Registry (C-PIR) & Custody
 
-A mandatory, highly accessible register of all state variables, linked directly to the P-01 Calculus components (PCC).
+Mandatory definitions and the designated Agent responsible for setting, validating, or maintaining the state of the P-01 components.
 
-| Acronym | P-01 Component | Definition | Variable Mapping | Custodian |
-|:---:|:---:|:---|:---:|:---:|
-| **TEMM** | Utility Metric ($S_{01}$) | Certified Target Utility Metric (Post-Audit Result). | I (UMA) | GAX/SGS |
-| **UFRM** | Utility Threshold ($S_{02}$) | Required Baseline Utility Metric. | I (UMA) | GAX |
-| **CFTM** | Utility Margin ($\epsilon$) | Minimum Required Utility Margin (Safety buffer). | I (UMA) | GAX |
-| **ECVM** | Context Status | Verified Environmental Prerequisite Status (Boolean). | II (CA) | SGS |
-| **PVLM** | Veto Status 1 | Policy Prohibition Veto Status (Boolean). | III (AI) | GAX |
-| **MPAM** | Veto Status 2 | Stability Bounds Veto Status (Boolean). | III (AI) | GAX |
-| **ADTM** | Veto Status 3 | Runtime Anomaly Veto Status (Boolean). | III (AI) | GAX |
-| **GSEP-C** | N/A | Certified State Evolution Pipeline (Mandatory S00-S14 flow). | N/A | SGS |
-| **TEDS** | N/A | Traceability Event Definition Schema (Forensic Capture Standard). | N/A | SGS |
+| Acronym | P-01 Component | Agent (Custodian) | Definition / Scope |
+|:---:|:---:|:---:|:---|
+| **TEMM** | Utility Metric ($S_{01}$) | GAX/SGS | Certified Target Utility Metric (Post-Audit Result). |
+| **UFRM** | Utility Threshold ($S_{02}$) | GAX | Required Baseline Utility Metric. |
+| **CFTM** | Utility Margin ($\epsilon$) | GAX | Minimum Required Utility Margin (Safety buffer). |
+| **ECVM** | Context Status | SGS | Verified Environmental Prerequisite Status (Boolean). |
+| **PVLM** | Veto Status 1 (Policy) | GAX | Policy Prohibition Veto Status (Boolean). |
+| **MPAM** | Veto Status 2 (Stability) | GAX | Stability Bounds Veto Status (Boolean). |
+| **ADTM** | Veto Status 3 (Anomaly) | GAX | Runtime Anomaly Veto Status (Boolean). |
+| **GSEP-C** | N/A | SGS | Certified State Evolution Pipeline (Mandatory S00-S14 flow). |
 
 ---
 
-## 2.0 GOVERNANCE TRIUMVIRATE & P-01 LOGIC (SoD)
+## 2.0 GOVERNANCE AGENTS & MANDATES (SoD)
 
-The SAG mandates strict Separation of Duties (SoD) via three core agents, defining accountability for P-01 fulfillment.
+Strict Separation of Duties (SoD) ensuring decentralized accountability for P-01 fulfillment and system integrity.
 
 ### 2.1 Governance Triumvirate Mandates
 
-| ID | Designation | Core Mandate | P-01 Veto Scope | Primary Artifact Focus |
+| ID | Designation | Core Mandate | P-01 Veto/Attestation Scope | Primary Artifact Focus |
 |:---:|:---|:---|:---:|:---:|
-| **SGS** | Execution Agent | Workflow Orchestration, Environment Attestation, Flow Control. | Context Attestation (II) | Context, Flow, Deployment |
-| **GAX** | Axiomatics Agent | Policy Finality, Constraint Enforcement, Utility Maximization. | UMA (I), Axiomatic Integrity (III) | Policy, Utility Definitions |
-| **CRoT** | Root of Trust | Cryptographic Integrity, State Commitment, Chronological Indexing. | Trust Anchoring & State Finality | Cryptography, State Indexing |
-
-### 2.2 P-01 Finality Calculus (PCC) Summary
-
-S11 Verification Checkpoint requiring strict, simultaneous fulfillment:
-
-| Criteria | Acronym | Validation Logic | Custodian | Description |
-|:---:|:---:|:---:|:---:|:---:|
-| **I** | **UMA** (Utility Axiom) | $\text{TEMM} \ge (\text{UFRM} + \text{CFTM})$ | GAX | Target utility exceeds required baseline plus safety margin. |
-| **II** | **CA** (Context Attestation) | $\text{ECVM}$ Must be `True` | SGS | Execution environment state verified and attested prior to commitment. |
-| **III** | **AI** (Axiomatic Integrity) | All Veto Variables Must Be `False` | GAX | No Policy, Stability, or Runtime Vetoes active. |
+| **SGS** | Execution Agent | Workflow Orchestration, Environment Attestation, Flow Control. | CA (Context II) & Execution Integrity. | Flow, Context, Runtime Security. |
+| **GAX** | Axiomatics Agent | Policy Finality, Constraint Enforcement, Utility Maximization. | UMA (I) & AI (Axiomatic Integrity III). | Policy, Utility Definitions, Constraint Logic. |
+| **CRoT** | Root of Trust | Cryptographic Integrity, State Commitment, Chronological Indexing. | Trust Anchoring & State Finality (S13). | Cryptography, Immutable State Indexing. |
 
 ---
 
 ## 3.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The mandatory 15-stage protocol (S00-S14) ensuring DSE compliance. Stages are indexed sequentially for explicit flow control, guaranteeing non-repudiable sequential integrity.
+The mandatory 15-stage protocol (S00-S14) ensuring Deterministic State Evolution (DSE) compliance. Sequential indexing guarantees explicit flow control and integrity.
 
 ### 3.1 GSEP-C Flow Protocol & Checkpoints
 
@@ -103,9 +94,9 @@ The mandatory 15-stage protocol (S00-S14) ensuring DSE compliance. Stages are in
 
 ## 4.0 CONFIGURATION AND SCHEMA REGISTRY
 
-This registry serves as the system dependency map, classifying artifacts by function.
+Artifact mapping by Agent Control Plane.
 
-### 4.1 GAX Axiomatic Control Plane (Policy & Veto Configuration)
+### 4.1 GAX Axiomatic Control Plane
 
 | Artifact | P-01 Var | File Path | Focus |
 |:---:|:---:|:---:|:---:|
@@ -117,9 +108,10 @@ This registry serves as the system dependency map, classifying artifacts by func
 
 ### 4.2 SGS Execution and Forensic Control Plane
 
-| Artifact | P-01 Focus | File Path | Focus |
+| Artifact | P-01 Focus | File Path | Focus / GSEP-C Stages |
 |:---:|:---:|:---:|:---:|
 | Gating Integrity Check Manifest Schema (GICM) | II Prereq | `schema/governance/GatingIntegrityCheckManifest.schema.json` | S02 Validation standard. |
+| **Runtime Integrity Monitor Protocol (RIMP)** | N/A | `protocol/SGS/RuntimeIntegrityMonitorProtocol.json` | **Runtime assurance during Audit phase (S07-S10).** |
 | Traceability Event Definition Schema (TEDS) | N/A | `schema/governance/Traceability_Event_Definition_Schema.schema.json` | Mandatory forensic capture format. |
 | DSE Commitment Summary Manifest (DCSM) | N/A | `schema/governance/DSE_Commitment_Summary_Manifest.schema.json` | S12 output schema. |
 | Trace and Veto Context Registry (TVCR) | N/A | `registry/TraceVetoContextRegistry.json` | Permanent Forensic Record Storage. |
