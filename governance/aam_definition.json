@@ -1,0 +1,34 @@
+{
+  "AAM_VERSION": "V94.1-GSEP-C",
+  "description": "Defines the mandatory input/output contract for all Governance Actors across the GSEP-C pipeline stages (S00-S14). Used for pre-execution dependency resolution.",
+  "stages": [
+    {
+      "stage_id": "S01",
+      "actor": "CRoT Agent",
+      "function": "Capture foundational state",
+      "artifact_produced": "CSR (Configuration Snapshot Receipt)",
+      "validation_target": "GAX III Integrity Check"
+    },
+    {
+      "stage_id": "S07",
+      "actor": "EMS",
+      "function": "Validate Execution Context",
+      "artifact_produced": "ECVM (Context Validation Map)",
+      "validation_target": "GAX II Compliance Check"
+    },
+    {
+      "stage_id": "S08",
+      "actor": "EMS",
+      "function": "Measure Transition Efficacy",
+      "artifact_produced": "TEMM (Transition Efficacy Measure)",
+      "validation_target": "GAX I Efficiency Check"
+    },
+    {
+      "stage_id": "S11",
+      "actor": "GAX Executor",
+      "function": "Execute Finality Resolution",
+      "artifact_consumed": ["CSR", "ECVM", "TEMM"],
+      "finality_status": "P-01 Finality Commitment"
+    }
+  ]
+}
