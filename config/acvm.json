@@ -1,25 +1,39 @@
 {
-  "description": "Axiom Constraint Validation Manifest (ACVM). Defines the concrete thresholds and permissible parameters required for P-01 Finality Resolution, implementing the ACVD source definition.",
-  "GAX_I_UTILITY_EFFICACY": {
-    "name": "Transition Efficacy Minimum Value Threshold",
-    "artifact": "TEMM",
-    "threshold_min": 0.985, 
-    "units": "Efficacy Index (0.0 - 1.0)"
+  "description": "Axiom Constraint Validation Manifest (ACVM). Defines concrete thresholds and permissible parameters for P-01 Finality Resolution, enforcing ACVD source definitions.",
+  "metadata": {
+    "manifest_version": "v94.1",
+    "finality_target": "P-01"
   },
-  "GAX_II_CONTEXTUAL_VALIDITY": {
-    "name": "Permissible Execution Environments",
-    "artifact": "ECVM",
-    "permitted_environments": [
-      "production_shielded",
-      "testing_integrated_v94",
-      "staging_v94_1"
-    ],
-    "default_environment": "production_shielded"
-  },
-  "GAX_III_CONSTRAINT_INTEGRITY": {
-    "name": "Structural Policy Integrity Check",
-    "artifact": "CSR",
-    "policy_version": "v94.6.1",
-    "active_policy_hash": "sha256:a6b8c9d0e1f2a3b4c5d6e7f809a1b2c3d4e5f60718293a4b5c6d7e8f90123456"
+  "constraints": {
+    "transition_efficacy": {
+      "artifact_id": "TEMM",
+      "name": "Transition Efficacy Minimum Index",
+      "parameters": {
+        "minimum_index": 0.985,
+        "units": "Efficacy Index (0.0 - 1.0)"
+      }
+    },
+    "execution_context": {
+      "artifact_id": "ECVM",
+      "name": "Permissible Execution Environments",
+      "parameters": {
+        "permitted_environments": [
+          "production_shielded",
+          "testing_integrated_v94",
+          "staging_v94_1"
+        ],
+        "default_environment": "production_shielded",
+        "strict_environment_check": true
+      }
+    },
+    "integrity_check": {
+      "artifact_id": "CSR",
+      "name": "Structural Policy Integrity Check",
+      "parameters": {
+        "policy_version": "v94.6.1",
+        "active_policy_hash": "sha256:a6b8c9d0e1f2a3b4c5d6e7f809a1b2c3d4e5f60718293a4b5c6d7e8f90123456",
+        "source_authority": "ACVD"
+      }
+    }
   }
 }
