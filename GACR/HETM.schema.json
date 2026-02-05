@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/v97.0/HETM.json",
+  "title": "Host Environment Trust Manifest (HETM) Schema",
+  "description": "Mandatory specifications for the underlying computational environment verified at GSEP-C S0 (INIT). Requires CRoT signature.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "HETM Specification version (e.g., 1.0.0)"
+    },
+    "required_platform_hash": {
+      "type": "string",
+      "description": "The cryptographically attested boot/attestation hash of the required Hypervisor or Secure Enclave kernel."
+    },
+    "minimal_os_integrity_level": {
+      "type": "integer",
+      "description": "Minimum required security certification level of the host environment (e.g., FIPS 140-3 level)."
+    },
+    "required_enclave_features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of mandatory security/isolation features (e.g., SGX, TrustZone)."
+    },
+    "triumvirate_segmentation_rules": {
+      "type": "object",
+      "description": "Defines mandatory memory/processor isolation constraints for the SGS, GAX, and CRoT agents."
+    },
+    "audit_log_endpoint": {
+      "type": "string",
+      "description": "Certified endpoint for immutable log relay prior to S8 persistence."
+    }
+  },
+  "required": ["version", "required_platform_hash", "minimal_os_integrity_level", "required_enclave_features", "triumvirate_segmentation_rules"]
+}
