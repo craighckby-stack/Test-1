@@ -1,0 +1,128 @@
+{
+  "contract_id": "TEDS-V94.1-C01",
+  "description": "Definitive schema for the Trusted Event Data Stream (TEDS) required to satisfy the Auditability Tenet (2.1.3). Validated sequentially by the IH Sentinel.",
+  "expected_sequence": [
+    {
+      "stage": "S00_PREP",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "timestamp",
+        "system_id",
+        "pipeline_version"
+      ]
+    },
+    {
+      "stage": "S01_ANCHOR",
+      "agent": "CRoT",
+      "mandatory_fields": [
+        "csr_lock_hash",
+        "environment_verified",
+        "sentinel_initialization"
+      ]
+    },
+    {
+      "stage": "S02_LOAD_ACVD",
+      "agent": "GAX",
+      "mandatory_fields": [
+        "acvd_hash",
+        "config_integrity_check"
+      ]
+    },
+    {
+      "stage": "S03_VET_POLICY",
+      "agent": "GAX",
+      "mandatory_fields": [
+        "pvlm_check",
+        "policy_hash_ok"
+      ]
+    },
+    {
+      "stage": "S04_CONSTRAINT_CHECK",
+      "agent": "GAX",
+      "mandatory_fields": [
+        "constraint_passes",
+        "metrics_ready_flag"
+      ]
+    },
+    {
+      "stage": "S05_EXECUTION_SETUP",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "runtime_environment_ID"
+      ]
+    },
+    {
+      "stage": "S06_EVOLUTION",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "evolution_process_complete",
+        "intermediate_metrics_hash"
+      ]
+    },
+    {
+      "stage": "S07_ASM_FINALIZED",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "asm_hash",
+        "ecvm_result"
+      ]
+    },
+    {
+      "stage": "S08_METRIC_AGGREGATION",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "temm_raw_score"
+      ]
+    },
+    {
+      "stage": "S09_CONSTRAINT_AUDIT",
+      "agent": "GAX",
+      "mandatory_fields": [
+        "adtm_flag",
+        "mpam_flag"
+      ]
+    },
+    {
+      "stage": "S10_FINAL_AUDIT_PREP",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "input_integrity_for_p01"
+      ]
+    },
+    {
+      "stage": "S11_P01_CALCULUS",
+      "agent": "GAX",
+      "mandatory_fields": [
+        "axiom_i_status",
+        "axiom_ii_status",
+        "axiom_iii_status",
+        "p01_result"
+      ]
+    },
+    {
+      "stage": "S12_COMMIT_PREP",
+      "agent": "CRoT",
+      "mandatory_fields": [
+        "state_write_started",
+        "p01_confirmation_hash"
+      ]
+    },
+    {
+      "stage": "S13_PERSIST",
+      "agent": "SGS",
+      "mandatory_fields": [
+        "persistence_success",
+        "final_state_hash"
+      ]
+    },
+    {
+      "stage": "S14_RECEIPT",
+      "agent": "CRoT",
+      "mandatory_fields": [
+        "str_hash",
+        "transition_duration_ms"
+      ]
+    }
+  ],
+  "validation_strategy": "Sequential, non-skippable event logging validation. Failure to find the next expected stage event (by 'stage' key) or any missing 'mandatory_fields' triggers the IH Sentinel."
+}
