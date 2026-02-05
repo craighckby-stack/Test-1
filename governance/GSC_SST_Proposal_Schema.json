@@ -1,1 +1,115 @@
-[object Object]
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign.ai/schemas/GSC_SST_Proposal_Schema.json",
+  "title": "GSC_SST_Proposal",
+  "description": "Schema defining the structure for Strategic System Transformation (SST) Proposals submitted to the Governance Steering Committee (GSC).",
+  "type": "object",
+  "properties": {
+    "proposalId": {
+      "description": "Unique identifier for the proposal (e.g., GSC-SST-0042).",
+      "type": "string",
+      "pattern": "^GSC-SST-\d{4}$"
+    },
+    "version": {
+      "description": "Version of the proposal content (e.g., 1.0, 1.1).",
+      "type": "string",
+      "default": "1.0.0"
+    },
+    "title": {
+      "description": "Concise, descriptive title for the proposal.",
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 120
+    },
+    "authorAddress": {
+      "description": "Cryptographic or system identity of the proposal author/submitter.",
+      "type": "string",
+      "format": "hex"
+    },
+    "type": {
+      "description": "Classification of the proposal's purpose.",
+      "type": "string",
+      "enum": ["CodeUpgrade", "ParameterAdjustment", "BudgetAllocation", "PolicyChange", "EmergencyFix", "Integration"]
+    },
+    "status": {
+      "description": "Current lifecycle status.",
+      "type": "string",
+      "enum": ["Draft", "Submitted", "ActiveVoting", "Passed", "Failed", "Executed", "Canceled"]
+    },
+    "submissionTimestamp": {
+      "description": "Unix timestamp (in seconds) of formal submission.",
+      "type": "integer"
+    },
+    "votePeriod": {
+      "description": "Defines the voting window parameters.",
+      "type": "object",
+      "properties": {
+        "startBlockOrTime": {"type": ["integer", "string"], "description": "Block number or timestamp when voting begins.", "minimum": 0},
+        "endBlockOrTime": {"type": ["integer", "string"], "description": "Block number or timestamp when voting ends.", "minimum": 0},
+        "durationHours": {"type": "number", "minimum": 1, "maximum": 720, "description": "Specified duration in hours (used if Block/Time not static)."}
+      },
+      "required": ["startBlockOrTime", "endBlockOrTime"],
+      "additionalProperties": false
+    },
+    "content": {
+      "description": "Detailed substance of the proposal.",
+      "type": "object",
+      "properties": {
+        "abstract": {
+          "type": "string",
+          "description": "A brief, high-level summary.",
+          "maxLength": 1000
+        },
+        "motivation": {
+          "type": "string",
+          "description": "Why this change is necessary."
+        },
+        "specification": {
+          "type": ["string", "object", "array"],
+          "description": "Detailed technical implementation steps, contract payloads, or required configuration changes."
+        },
+        "testCases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Links or hashes pointing to required simulation/test results."
+        }
+      },
+      "required": ["abstract", "motivation", "specification"],
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "description": "List of required proposals or contracts.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^GSC-SST-\d{4}$"
+      },
+      "default": []
+    },
+    "governanceRequirements": {
+      "description": "Minimum metrics required for successful passage and security.",
+      "type": "object",
+      "properties": {
+        "minQuorumPercent": {"type": "number", "minimum": 0.1, "maximum": 100, "description": "Minimum percentage of total supply/vote weight required to participate."},
+        "minApprovalPercent": {"type": "number", "minimum": 50.1, "maximum": 100, "description": "Minimum percentage of participating votes required for passage (Simple Majority).
+"},
+        "requiredSecurityDepositAmount": {"type": "string", "description": "Amount of collateral required, specified in native tokens (Wei/Base unit format)."}
+      },
+      "required": ["minQuorumPercent", "minApprovalPercent", "requiredSecurityDepositAmount"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "proposalId",
+    "title",
+    "authorAddress",
+    "type",
+    "content",
+    "submissionTimestamp",
+    "status",
+    "votePeriod"
+  ],
+  "additionalProperties": false
+}
