@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign-agi/governancePolicySchema.json",
+  "title": "Governance Policy Definition Schema (PDS)",
+  "description": "Canonical JSON schema for all rules stored in the GRS, ensuring machine-readable, unambiguous policy definitions (S-03 inputs).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "policyId",
+      "policyName",
+      "ruleType",
+      "vetoCondition",
+      "targetComponent"
+    ],
+    "properties": {
+      "policyId": { "type": "string", "description": "Unique cryptographic ID for the policy rule." },
+      "policyName": { "type": "string", "description": "Human-readable name for the rule." },
+      "ruleType": {
+        "type": "string",
+        "enum": ["SAFETY", "RESOURCE", "INTEGRITY", "LIVENESS"],
+        "description": "Category of the constraint (e.g., Safety Veto, Resource Limit Constraint)."
+      },
+      "vetoCondition": { "type": "string", "description": "The executable logical condition (e.g., 'risk_floor_delta > 0.1' or 'modifies_C15_without_GCO_flow')." },
+      "targetComponent": { "type": "string", "description": "The component ID the rule primarily targets or enforces integrity over (e.g., GRS, C-11, AIA)." },
+      "severity": { "type": "number", "minimum": 1, "maximum": 5, "default": 5, "description": "Severity level, 5 being an irreversible VETO." }
+    }
+  }
+}
