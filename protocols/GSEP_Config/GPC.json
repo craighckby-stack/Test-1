@@ -1,35 +1,50 @@
 {
-  "protocol_id": "GSEP_V94_1_Runtime",
-  "criticality_level": "Root",
-  "governance_enforcement_module": "GSEP.runner",
-  "max_execution_time_ms": 1500,
-  "default_fallback_target": "GFRM:INIT_ROLLBACK_SST_PREV",
-  "level_constraints": [
+  "protocol_metadata": {
+    "protocol_id": "GSEP_V94_1_Runtime",
+    "criticality_level": "Root",
+    "governance_module": "GSEP.runner"
+  },
+  "runtime_limits": {
+    "max_execution_time_ms": 1500,
+    "default_fallback_target": "GFRM:INIT_ROLLBACK_SST_PREV"
+  },
+  "execution_pipeline": [
     {
-      "level": "L0",
+      "stage_id": "S_01_INPUT_VET",
       "stage_name": "Input Schema Vetting",
       "timeout_ms": 50,
-      "failure_action": "GFRM:HALT_PROTOCOL"
+      "failure_action_ref": "GFRM:HALT_PROTOCOL"
     },
     {
-      "level": "L1",
+      "stage_id": "S_02_VETO_GATE",
       "stage_name": "Operational Veto Gate",
       "timeout_ms": 30,
-      "policy_source": "/config/governance/OCM.yaml"
+      "policy_source": "/config/governance/OCM.yaml",
+      "failure_action_ref": "GFRM:HALT_PROTOCOL"
     },
     {
-      "level": "L3",
+      "stage_id": "S_03_CONTEXT_SYNC",
+      "stage_name": "Runtime Context Synthesis",
+      "timeout_ms": 100,
+      "dependency_check_source": "/config/dependency/DSM.json",
+      "failure_action_ref": "GFRM:RECALCULATE_CONTEXT"
+    },
+    {
+      "stage_id": "S_04_METRIC_DYN",
       "stage_name": "Dynamic Metric Synthesis",
       "timeout_ms": 600,
-      "required_outputs": ["S-01", "S-02"],
+      "required_outputs": [
+        "S-01",
+        "S-02"
+      ],
       "resource_config_source": "/config/efficiency/RCM.json"
     },
     {
-      "level": "L4",
+      "stage_id": "S_05_CONSTRAINT_BIND",
       "stage_name": "Constraint Binding",
       "timeout_ms": 75,
       "viability_margin_source": "/config/governance/GTCM.json",
-      "failure_action": "GFRM:LOG_AND_RETRY_L3"
+      "failure_action_ref": "GFRM:LOG_AND_RETRY_S_04"
     }
   ]
 }
