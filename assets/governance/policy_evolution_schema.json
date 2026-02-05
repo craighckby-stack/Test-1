@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "PESM-V1.0",
+  "description": "Schema definition for validating updates to critical GACR Policy Manifests (e.g., PVLM, CFTM). Enforces staged deployment and dual CRoT certification requirements to maintain systemic integrity during governance updates.",
+  "requiredFields": [
+    "manifestId",
+    "targetPath",
+    "previousHash",
+    "stagingTimestamp",
+    "finalizationTimestamp",
+    "governanceApprovalSignature"
+  ],
+  "updateProcedure": {
+    "step1": "Policy Draft/Modeling (CEEP required)",
+    "step2": "CRoT-1 Signature (Policy Author Certification)",
+    "step3": "PESM Validation (Ensuring schema compliance)",
+    "step4": "Staged Deployment (Read-only, pre-S0 access)",
+    "step5": "Governance Veto Check (Mandatory HIL-T 72hr review period)",
+    "step6": "CRoT-2 Final Signature (System Integrity Certification)",
+    "step7": "SGS Integration via PEUP Agent"
+  },
+  "signatureRequirements": {
+    "minimumSignatures": 2,
+    "requiredRoles": ["CRoT-Policy", "CRoT-Integrity"],
+    "hashAlgorithm": "SHA3-512"
+  }
+}
