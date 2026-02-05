@@ -1,33 +1,52 @@
 {
+  "AAM_ID": "GSEP-C-AAM",
   "AAM_VERSION": "V94.1-GSEP-C",
-  "description": "Defines the mandatory input/output contract for all Governance Actors across the GSEP-C pipeline stages (S00-S14). Used for pre-execution dependency resolution.",
+  "description": "Defines the mandatory I/O contract and operational sequence for all Governance Actors across the GSEP-C pipeline stages (S00-S14). Used for pre-execution dependency resolution and artifact standardization.",
+  "artifact_registry": {
+    "CSR": {
+      "name": "Configuration Snapshot Receipt",
+      "schema_version": "1.2",
+      "integrity_target": "GAX III Integrity Check"
+    },
+    "ECVM": {
+      "name": "Context Validation Map",
+      "schema_version": "1.0",
+      "integrity_target": "GAX II Compliance Check"
+    },
+    "TEMM": {
+      "name": "Transition Efficacy Measure",
+      "schema_version": "2.1",
+      "integrity_target": "GAX I Efficiency Check"
+    }
+  },
   "stages": [
     {
       "stage_id": "S01",
-      "actor": "CRoT Agent",
-      "function": "Capture foundational state",
-      "artifact_produced": "CSR (Configuration Snapshot Receipt)",
-      "validation_target": "GAX III Integrity Check"
+      "actor_id": "CRoT Agent",
+      "operation_mandate": "Capture foundational execution state data.",
+      "consumes": [],
+      "produces": ["CSR"]
     },
     {
       "stage_id": "S07",
-      "actor": "EMS",
-      "function": "Validate Execution Context",
-      "artifact_produced": "ECVM (Context Validation Map)",
-      "validation_target": "GAX II Compliance Check"
+      "actor_id": "EMS",
+      "operation_mandate": "Validate current execution context against CRoT outputs.",
+      "consumes": ["CSR"],
+      "produces": ["ECVM"]
     },
     {
       "stage_id": "S08",
-      "actor": "EMS",
-      "function": "Measure Transition Efficacy",
-      "artifact_produced": "TEMM (Transition Efficacy Measure)",
-      "validation_target": "GAX I Efficiency Check"
+      "actor_id": "EMS",
+      "operation_mandate": "Measure operational deviation and efficacy of context transition.",
+      "consumes": ["CSR", "ECVM"],
+      "produces": ["TEMM"]
     },
     {
       "stage_id": "S11",
-      "actor": "GAX Executor",
-      "function": "Execute Finality Resolution",
-      "artifact_consumed": ["CSR", "ECVM", "TEMM"],
+      "actor_id": "GAX Executor",
+      "operation_mandate": "Aggregate validated metrics and state data to execute finality resolution.",
+      "consumes": ["CSR", "ECVM", "TEMM"],
+      "produces": [],
       "finality_status": "P-01 Finality Commitment"
     }
   ]
