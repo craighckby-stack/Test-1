@@ -1,0 +1,20 @@
+{
+  "schema_version": "GRS-97.3-01",
+  "description": "Defines the mandatory structural constraints for the Governance Rule Source (GRS), ensuring all referencing components (GIRAM, RSAM, C-15, GRS-VA) utilize a standardized and auditable rule definition format.",
+  "mandatory_fields": [
+    "rule_id",
+    "version_hash",
+    "scope_pillar",
+    "evolution_impact_level",
+    "veto_condition_criteria",
+    "minimum_s01_threshold_factor",
+    "rollback_action_script_path"
+  ],
+  "integrity_checks": {
+    "signature_required": true,
+    "signer_identity": "SOVEREIGN-KEY-ROOT-97",
+    "format": "JSON-LD / Policy Definition Language (PDL)",
+    "storage_mandate": "AIA/D-01 Ledger Reference"
+  },
+  "enforcing_component": "GRS-VA"
+}
