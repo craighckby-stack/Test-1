@@ -1,0 +1,28 @@
+{
+  "map_version": "v94.1-GSEP-C-MAP-01",
+  "description": "Defines the mandatory sequential transition paths and artifact prerequisites for the State Machine Controller (SMC).",
+  "stages": {
+    "S00": {
+      "description": "Initial Bootstrap State",
+      "next": "S01",
+      "prerequisites": []
+    },
+    "S01": {
+      "description": "Resource Allocation & Signature Check",
+      "next": "S02",
+      "prerequisites": ["CSR_LOADED", "INITIAL_AUTH_SIG_VERIFIED"]
+    },
+    "S10": {
+      "description": "Pre-Commit Validation (GAX/ACVD Preparation)",
+      "next": "S11",
+      "prerequisites": ["TEMM_READY", "ECVM_READY"]
+    },
+    "S11": {
+      "description": "P-01 Finality Commit Point",
+      "transition_method": "CommitP01Finality",
+      "next": "S20",
+      "required_artifacts": ["CSR_V1", "ECVM_V1"],
+      "criticality": "HIGH"
+    }
+  }
+}
