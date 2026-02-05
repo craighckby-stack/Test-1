@@ -1,0 +1,26 @@
+{
+  "description": "Baseline Configuration Hash Registry (CHR). Contains immutable SHA-256 hashes for all static governing configuration files required for C-ICR validation (S00/RRP initiation).",
+  "version": "v94.1.0-BASE",
+  "files": [
+    {
+      "tag": "GSEP-F",
+      "path": "config/gsep_c_flow.json",
+      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+    },
+    {
+      "tag": "DARM",
+      "path": "config/dial_analysis_map.json",
+      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+    },
+    {
+      "tag": "RRP Manifest",
+      "path": "config/rrp_manifest.json",
+      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+    },
+    {
+      "tag": "SMC Schema",
+      "path": "governance/smc_schema.json",
+      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+    }
+  ]
+}
