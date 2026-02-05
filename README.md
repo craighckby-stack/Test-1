@@ -1,78 +1,79 @@
 # GCM V98.1: Autonomous System Self-Evolution Governance Contract
 
-The Governance Contract Manifest (GCM) dictates all **System State Transitions (SST)**. Version V98.1 formalizes component interaction via explicit contract linkage (ACR) and mandates the Metric Evolution Engine (MEE) as the definitive source for quantification metrics. This version integrates the Proposal Payload Contract (PPC) upstream of L0 to ensure pre-validation.
+## PROTOCOL MANIFEST (GCM V98.1)
 
-### Core Metric Nomenclature
+The Governance Contract Manifest (GCM) dictates all **System State Transitions (SST)**. This V98.1 release formalizes component interaction via explicit contract linkage (ACR) and mandates the Metric Evolution Engine (MEE) as the definitive source for quantification metrics.
 
-| ID | Name | Source | Purpose |
-|:---|:---|:---|:---|
-| $S\text{-}01$ | Efficacy Score | MEE (L5) | Projected net beneficial impact of the SST. (Goal: High) |
-| $S\text{-}02$ | Risk Score | MEE (L5) | Quantified systemic volatility exposure. (Goal: Low) |
-| $S\text{-}03$ | Veto Signal | PVLM (L1) | Boolean: TRUE if policies are critically violated. (Goal: FALSE) |
-
----
-
-## 1. SYSTEM ROOT CONTEXT (V98.1)
-
-This manifest details the core parameters governing the self-evolution pipeline.
+Mandatory pre-validation of all SSTs requires successful assertion by the Proposal Payload Contract (PPC) before L0 ingestion.
 
 | Parameter | Value | Definition |
 |:---|:---|:---|
-| Architecture | AIA + DERE Hybrid | Core scope for enforcement jurisdiction. |
+| Architecture | AIA + DERE Hybrid | Enforcement Jurisdiction Scope. |
 | Manifest Version | V98.1 | Active Protocol Enforcement Layer. |
-| Config Hash | C4B9A23E | Integrity checksum for system configuration files. |
+| Config Hash | C4B9A23E | Integrity checksum for core system configuration. |
 | Governing Protocol | GSEP-C V2.1 | Sequential Mandate Pathway (Non-re-entrant). |
-| Core Mandate | Adaptive SST via Self-Evolution | Primary system directive: maximize $S\text{-}01$, minimize $S\text{-}02$. |
+| Core Mandate | Adaptive SST via Self-Evolution (Maximize $S\text{-}01$, Minimize $S\text{-}02$). |
 
 ---
 
-## 2. SEQUENTIAL EVOLUTION PIPELINE (GSEP-C V2.1)
+## 1. CORE METRICS & FINALITY RULE (P-01)
 
-GSEP-C enforces an eight-stage, sequential verification pipeline for every proposed SST, processed only after mandatory **PPC** pre-validation. Execution halts immediately upon failure at any layer.
+Systemic health and transition approval rely entirely on three quantified scalars sourced exclusively from L1 and L5.
 
-| Layer | Component | Description | ACR Dependency | Constraint Check Output |
-|:-----:|:------:|:----------------------------------|:------------------|:----------------------------|
-| **L0** | SCR | Schema & Ingress Integrity | N/A | SCR Schema V98.0 / Format Check Pass |
-| **L1** | OCM | Operational Constraint Validation | PVLM | $S\text{-}03$ Policy Veto Status (MUST be FALSE) |
-| **L2** | CBM | Resource Constraint Audit | L2 Constraint Matrix | Static Budget Compliance |
-| **L3** | ACM | Provenance & Trust Chain Audit | L3 Trust Anchor | Source Authentication Confirmed |
-| **L4** | DPIM | Data Integrity Check | L4 Provenance Log | Data Veracity & Lineage Confirmed |
-| **L5** | MSB | Metric Synthesis Bus | MEE, MEC | Registration of $S\text{-}01, S\text{-}02$ Scalars |
-| **L6** | GCO | Finality Arbitration (P-01) | VMO, SPDM | P-01 Commitment Rule Enforcement |
-| **L7** | AIA | Persistence Logging | TX Payload | Immutable Transaction Log Record |
-| **L8** | DERE | Deployment & Runtime Audit | PMM | Post-Deployment Compliance Thresholds Met |
+### Metric Nomenclature
 
----
+| ID | Name | Source | Purpose | Goal |
+|:---|:---|:---|:---|:---|
+| $S\text{-}01$ | Efficacy Score | MEE (L5) | Projected net beneficial impact of the SST. | High |
+| $S\text{-}02$ | Risk Score | MEE (L5) | Quantified systemic volatility exposure. | Low |
+| $S\text{-}03$ | Veto Signal | PVLM (L1) | Boolean: TRUE if policies are critically violated. | FALSE |
 
-## 3. FINALITY CONTRACT P-01: THE COMMITMENT RULE (L6)
+### P-01 Certification Formula (L6 Arbitration)
 
-P-01 mandates that systemic benefit ($S\text{-}01$) must demonstrably exceed quantifiable risk ($S\text{-}02$) by the adaptive viability margin ($\epsilon$), coupled with L1 OCM clearance ($\neg S\text{-}03$).
-
-### P-01 Certification Formula
+P-01 mandates that systemic benefit ($S\text{-}01$) must exceed quantifiable risk ($S\text{-}02$) by the adaptive viability margin ($\epsilon$), coupled with L1 OCM clearance ($\neg S\text{-}03$).
 
 $$ 
 \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) 
 $$
 
-| Metric/Variable | Source Layer | Dependency Contract | Calculation Detail |
+| Variable | Source Layer | Calculation Dependency | Role |
 |:---|:---|:---|:---|
-| $S\text{-}01$ (Efficacy Score) | L5 (MEE) | MEC | Projected net beneficial impact. |
-| $S\text{-}02$ (Risk Score) | L5 (MEE) | MEC | Quantified systemic volatility exposure. |
-| $S\text{-}03$ (Veto Signal) | L1 (OCM) | PVLM | Policy violation status (Boolean). |
-| $\epsilon$ (Viability Margin) | L6 (VMO) | VMO / SPDM | Adaptive confidence threshold, dynamically computed. |
+| $S\text{-}01, S\text{-}02$ | L5 (MSB) | MEE / MEC | Primary input scalars. |
+| $S\text{-}03$ | L1 (OCM) | PVLM | Critical policy compliance gate. |
+| $\epsilon$ | L6 (GCO) | VMO / SPDM | Adaptive confidence threshold. |
 
 ---
 
-## 4. INTERFACE CONTRACT REGISTRY (ACR)
+## 2. EVOLUTION PIPELINE: GSEP-C V2.1 (L0-L8)
 
-ACR defines computational, policy, and adaptive inputs critical to the GSEP-C pipeline. These components operate as external, verifiable interfaces.
+GSEP-C enforces an eight-stage, sequential verification pathway. Execution halts immediately upon failure at any layer. Pre-validation by PPC is mandatory.
+
+| Layer | Component | Dependency (ACR) | Validation Requirement | Halt Condition / Output |
+|:-----:|:------:|:------------------|:-------------------------|:----------------------------|
+| **PRE** | PPC | N/A | Structured Payload Assertion | Ingress Failure |
+| **L0** | SCR | N/A | Schema V98.0 Compliance | Format Integrity Fail |
+| **L1** | OCM | PVLM | Policy Veto Status ($S\text{-}03$ must be FALSE) | Critical Policy Violation |
+| **L2** | CBM | CMO | Static Budget Compliance | Resource Overrun |
+| **L3** | ACM | L3 Trust Anchor | Source Authentication Confirmed | Provenance Trust Failure |
+| **L4** | DPIM | L4 Provenance Log | Data Veracity & Lineage Confirmed | Data Corruption Detected |
+| **L5** | MSB | MEE, MEC | Registration of $S\text{-}01, S\text{-}02$ Scalars | Metric Synthesis Failure |
+| **L6** | GCO | VMO, SPDM | P-01 Commitment Rule Enforcement (Pass/Fail) | Finality Rule Breach |
+| **L7** | AIA | TX Payload | Immutable Transaction Log Record | Persistence Logging Failure |
+| **L8** | DERE | PMM | Post-Deployment Thresholds Met | Runtime Audit Compliance Fail |
+
+---
+
+## 3. CONTRACT REGISTRY (ACR)
+
+ACR defines computational, policy, and adaptive interfaces critical to the GSEP-C pipeline. The CMO is registered for core parameter sourcing (L2, L6).
 
 | Register | Consumers (GSEP Layers) | Function | Interface Output |
 |:---|:---|:---|:---|
-| **MEE** (Metric Evolution Engine) | MSB (L5) | Core computational engine for generating metrics $S\text{-}01$ and $S\text{-}02$. | $S\text{-}01, S\text{-}02$ Scalars |
-| **MEC** (Metric Efficacy Contract) | MEE (Pre-L5) | Defines mandated mathematical rules and procedures for $S\text{-}01$/$S\text{-}02$ calculation. | Quantification Ruleset Reference |
-| **VMO** (Viability Margin Oracle) | GCO (L6) | Computes the dynamic $\epsilon$ margin based on historical performance indices. | Adaptive Safety Margin ($\epsilon$) |
-| **PVLM** (Policy Veto List Manifest) | OCM (L1) | Stores policy definitions whose violation generates an $S\text{-}03$ veto signal. | Veto Policy Definitions |
-| **SPDM** (System Performance Monitor) | VMO (L6) | Provides raw systemic volatility indices derived from post-deployment audits. | Volatility History Index |
-| **PMM** (Post-Metric Manifest) | DERE (L8) | Specifies the runtime validation thresholds and monitoring bounds post-SST deployment. | Operational Bounds |
-| **PPC** (Proposal Payload Contract) | Pre-L0 Validation | Defines mandatory structural and semantic fields for incoming SST proposals. | Structured Payload Assertion |
+| **MEE** | MSB (L5) | Core engine generating $S\text{-}01$ and $S\text{-}02$ metrics. | $S\text{-}01, S\text{-}02$ Scalars |
+| **MEC** | MEE | Defines mandated mathematical procedures for metric calculation. | Quantification Ruleset Reference |
+| **VMO** | GCO (L6) | Computes the dynamic $\epsilon$ margin based on historical indices. | Adaptive Safety Margin ($\epsilon$) |
+| **PVLM** | OCM (L1) | Defines policy rules whose violation generates an $S\text{-}03$ veto. | Veto Policy Definitions |
+| **SPDM** | VMO (L6) | Provides systemic volatility indices from deployment audits. | Volatility History Index |
+| **PMM** | DERE (L8) | Specifies runtime validation thresholds post-SST deployment. | Operational Bounds |
+| **PPC** | Pre-L0 Validation | Defines structural/semantic fields for incoming SST proposals. | Structured Payload Assertion |
+| **CMO** | CBM (L2), VMO (L6) | Provides immutable, auditable system parameters matching the Config Hash. | Configuration Constants |
