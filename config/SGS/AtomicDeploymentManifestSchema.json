@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sag.ai/v94/AtomicDeploymentManifestSchema.json",
+  "title": "Atomic Deployment Manifest (ADM) Schema",
+  "description": "Defines the deterministic instructions for the SGS agent to execute the state transition (S11), ensuring the certified state (signed in S10) is applied atomically.",
+  "type": "object",
+  "properties": {
+    "transitionId": {
+      "type": "string",
+      "description": "Unique identifier linking back to the CSTL entry and STES signature."
+    },
+    "targetVersion": {
+      "type": "string",
+      "description": "The specific target system version (Psi_N+1)."
+    },
+    "deploymentInstructions": {
+      "type": "array",
+      "description": "Ordered sequence of operations (patches, file replacements, service restarts) for atomic application.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["WRITE", "DELETE", "REPLACE", "RESTART_SERVICE", "APPLY_PATCH"],
+            "description": "The specific action to perform."
+          },
+          "path": {
+            "type": "string",
+            "description": "Target path or service identifier."
+          },
+          "hashValidated": {
+            "type": "boolean",
+            "description": "Whether the file integrity hash was validated prior to action."
+          }
+        },
+        "required": ["action", "path", "hashValidated"]
+      }
+    },
+    "rollbackPlanId": {
+      "type": "string",
+      "description": "Reference to the mandatory pre-computed rollback artifact, stored by SGS."
+    },
+    "atomicCommitSignature": {
+      "type": "string",
+      "description": "Cryptographic signature derived from S10 (CRoT) confirming instruction integrity."
+    }
+  },
+  "required": ["transitionId", "targetVersion", "deploymentInstructions", "rollbackPlanId", "atomicCommitSignature"]
+}
