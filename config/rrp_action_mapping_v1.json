@@ -1,0 +1,26 @@
+{
+  "description": "Configuration mapping for the Rollback and Recovery Protocol (RRP) hooks defined in GSEP-C V3.4. Each hook maps to a prescribed remediation sequence.",
+  "version": "v1.0",
+  "hooks": {
+    "RRP:POLICY_VETO": {
+      "severity": "CRITICAL",
+      "action_sequence": ["HALT_EXECUTION", "ISOLATE_STATE", "NOTIFY_GOVERNOR"],
+      "fallback": "HARD_RESET"
+    },
+    "RRP:FINALITY_BREACH": {
+      "severity": "CRITICAL",
+      "action_sequence": ["HALT_EXECUTION", "REVERT_TO_L6_STATE", "LOG_VIOLATION"],
+      "fallback": "RRP:LOG_FAIL"
+    },
+    "RRP:BUDGET_EXCEED": {
+      "severity": "HIGH",
+      "action_sequence": ["SOFT_HALT", "RECALCULATE_BUDGET", "REQUEUE_SST"],
+      "fallback": "HALT_EXECUTION"
+    },
+    "RRP:SCHEMA_FAIL": {
+      "severity": "HIGH",
+      "action_sequence": ["REJECT_INPUT", "ALERT_SOURCE"],
+      "fallback": null
+    }
+  }
+}
