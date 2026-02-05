@@ -1,0 +1,35 @@
+{
+  "GXC-P901": {
+    "source_constraint": "GAX_I_PERFORMANCE",
+    "engine_module": "TEMM_Monitor",
+    "metric_path": "metrics.performance.omega_min",
+    "action_handler": "NDS_Preventer",
+    "parameters": {
+      "min_saturation": 0.95,
+      "sampling_rate_ms": 100
+    }
+  },
+  "GXC-S902": {
+    "source_constraint": "GAX_II_ISOLATION",
+    "engine_module": "ECVM_Supervisor",
+    "metric_path": "metrics.resource.quotas",
+    "action_handler": "Ejection_System",
+    "parameters": {
+      "isolation_mandate": "P-M02",
+      "tolerance_level": "zero"
+    }
+  },
+  "GXC-V903": {
+    "source_constraint": "GAX_III_INTEGRITY",
+    "engine_module": "GSEP-C_Validator",
+    "metric_path": "state.input.integrity_hash",
+    "action_handler": "Input_Refusal_Flow",
+    "parameters": {
+      "checksum_algorithm": "CHR-256",
+      "required_state_match": [
+        "S00",
+        "S01"
+      ]
+    }
+  }
+}
