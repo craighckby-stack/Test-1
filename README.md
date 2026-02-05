@@ -1,87 +1,83 @@
-# $\Psi$ PROTOCOL (v95.5): DETERMINISTIC STATE EXECUTION CORE
+# $\Psi$ PROTOCOL (v95.5): SOVEREIGN GOVERNANCE STATE EXECUTION
 
-## ABSTRACT: GOVERNANCE STATE AND ZERO-TOLERANCE INTEGRITY
+## ABSTRACT: ZERO-TOLERANCE INTEGRITY MODEL
 
-The $\Psi$ Protocol enforces absolute state finality ($\Psi_{\text{final}}$) through the highly constrained **Governance State Execution Pipeline (GSEP-C)**. Integrity operates under a zero-tolerance model, leveraging the **Foundational Axiom Set (GAX)** and monitored by the **Protocol Integrity Manager (PIM)**.
+The $\Psi$ Protocol establishes absolute state finality ($\Psi_{\text{final}}$) enforced by the highly constrained **Governance State Execution Pipeline (GSEP-C)**. Integrity operates under a zero-tolerance model, mandated by the **Foundational Axiom Set (GAX)** and monitored by the **Protocol Integrity Manager (PIM)**.
 
-Any detected violation of the **Critical Failure Mandates (P-Set)** triggers a mandatory, non-recoverable **Integrity Halt (IH)**, executed by the Failure State Management Utility (FSMU). IH requires immediate cryptographic sealing (AASS) of forensic data (FDLS) and physical system isolation to maintain post-mortem auditability.
+Any detected violation of the **Critical Failure Mandates (P-Set)** triggers a mandatory, non-recoverable **Integrity Halt (IH)**. IH execution is handled by the Failure State Management Utility (FSMU), requiring immediate cryptographic sealing (AASS) of forensic data (FDLS) and physical system isolation for immutable post-mortem auditability.
 
 ---
 
-## I. DETERMINISTIC CORE COMPONENTS AND GAX ENFORCEMENT
+## I. AXIOMATIC FOUNDATION (GAX I-IV)
 
-The hierarchy of utilities responsible for enforcing the four uncompromisable principles (GAX I-IV), defined within the Governance State Execution Pipeline (GSEP-C).
+The four uncompromisable principles governing all execution, linked directly to their enforcement utilities and associated failure triggers.
 
-| Acronym | Component Definition | Governing GAX | Core Mandate | Failure Trigger (P-Set) |
+| GAX ID | Principle | Enforcement Utility | Core Mandate | Related P-Set Triggers |
 |:---:|:---|:---:|:---|:---:|
-| **PIM** | Protocol Integrity Manager | GAX IV | Sequencing, governance, and temporal oversight. | P-M01, P-M02 |
-| **AASS** | Audit & Signing Service | GAX I | Cryptographic sealing and determinism assurance (Auditability). | P-R03 |
-| **DRO** | Dynamic Resource Orchestrator | GAX II | Validation against computational/memory thresholds (ACVM Limits). | P-M02 |
-| **EMSU** | Epoch Manifest & Sealing Utility | GAX III | Configuration immutability via hash-locking (G0 Seal). | P-M02 |
-| **DHC** | Data Harvesting Component | GAX IV | Input State Buffer (ISB) acquisition and sequence timing. | P-M01 |
-| **FSMU** | Failure State Management Utility | N/A | IH initiation, FDLS generation, and system isolation. | Executes All |
-| **EPRU** | Execution Post-Mortem Utility | GAX I | Secure reception and immutable archival of signed FDLS. | N/A (Post-IH) |
+| **I** | Output Determinism | **AASS** (Audit & Signing Service) | Cryptographic repeatability and state proof. | P-R03 |
+| **II** | Resource Boundedness | **DRO** (Dynamic Resource Orchestrator) | Conformance to ACVM computational/memory limits. | P-M02 |
+| **III** | Policy Immutability | **EMSU** (Epoch Manifest & Sealing Utility) | Configuration hash-locking (G0 Seal) prior to run. | P-M02 |
+| **IV** | Sequence Compliance | **PIM/DHC** (Protocol/Data Harvester) | Adherence to GSEP-C timing and execution order. | P-M01, P-M02 |
 
-### I.1. Foundational Axiom Set (GAX) Mapping
+### I.1. DETERMINISTIC CORE COMPONENTS
 
-The four pillars of integrity and their associated enforcement focus:
-
-1.  **GAX I (Output Determinism):** Requires cryptographic repeatability and provable final state. (Enforced by AASS).
-2.  **GAX II (Resource Boundedness):** Requires strict conformance to ACVM computational/memory limits. (Enforced by DRO).
-3.  **GAX III (Policy Immutability):** Requires execution manifest to be hash-locked (G0 Seal). (Enforced by EMSU).
-4.  **GAX IV (Sequence Compliance):** Requires adherence to GSEP-C stage duration and execution order. (Enforced by PIM/DHC).
+| Acronym | Component Definition | Primary Focus | Failure Utility Interaction |
+|:---:|:---|:---|:---:|
+| **PIM** | Protocol Integrity Manager | Stage sequencing and temporal governance. | Triggers FSMU on P-M01/P-M02 violations. |
+| **AASS** | Audit & Signing Service | Secure sealing and determinism assurance. | Signs FDLS during IH (GAX I). |
+| **DRO** | Dynamic Resource Orchestrator | Input validation against ACVM thresholds (GAX II). | Operates Boundary Check (G1). |
+| **FSMU** | Failure State Management Utility | Initiates and executes Integrity Halt (IH). | Executes mandatory isolation and shutdown. |
+| **EPRU** | Execution Post-Mortem Utility | Secure, immutable archival of signed FDLS. | Post-IH dependency. |
+| **DHC** | Data Harvesting Component | Input State Buffer (ISB) acquisition/timing. | Provides necessary inputs validated by DRO. |
 
 ---
 
 ## II. CRITICAL FAILURE DYNAMICS (P-SET $\to$ IH)
 
-Violation severity is codified by the P-Set, requiring FSMU execution of a non-recoverable Integrity Halt (IH).
+The severity taxonomy (P-Set) demanding FSMU execution of a non-recoverable Integrity Halt (IH).
 
-| Trigger ID | Violation Type | Impact Summary | Governing GAX |
-|:---:|:---|:---|:---:|
-| **P-M01** | Temporal Fault | GSEP-C Sequence/Timing duration breach. | GAX IV |
-| **P-M02** | Integrity Exhaustion | Resource bounds or configuration mismatch. | GAX II / GAX III |
-| **P-R03** | Finality Compromise | Cryptographic seal or deterministic outcome integrity breach. | GAX I |
+| Trigger ID | Violation Type | Impact Summary | Governing GAX | Associated Stage Gates |
+|:---:|:---|:---|:---:|:---:|
+| **P-M01** | Temporal Fault | GSEP-C Sequence or timing duration breach. | GAX IV | G1, G2, G3 (Pipeline Monitoring) |
+| **P-M02** | Integrity Exhaustion | Resource/configuration limits mismatch or pre-flight seal breach. | GAX II / GAX III | G0, G1, G2 |
+| **P-R03** | Finality Compromise | Cryptographic seal or output determinism failure. | GAX I | G2, G3 |
 
-### II.1. Integrity Halt (IH) Sequence Mandate
+### II.1. Integrity Halt (IH) Mandatory Sequence
 
-FSMU must execute IH adhering to GAX I auditability rules:
+FSMU is cryptographically mandated by GAX I (Auditability) to execute:
 
-1.  Generate **Forensic Data & Log Snapshot (FDLS)** (`FDLS Schema`).
-2.  Submit FDLS to **AASS** for mandatory cryptographic signing (Proof of failure state).
-3.  Route signed FDLS to **EPRU** for secure, immutable archival (`EPRU Archival Spec`).
-4.  Trigger immediate system isolation, resource purge, and non-recoverable operational shutdown.
+1.  Capture: Generate **Forensic Data & Log Snapshot (FDLS)** (`FDLS Schema`).
+2.  Seal: Submit FDLS to **AASS** for mandatory cryptographic signing (Proof of failure state).
+3.  Archive: Route signed FDLS to **EPRU** for secure, immutable archival (`EPRU Archival Spec`).
+4.  Isolate: Trigger immediate resource purge and non-recoverable system shutdown.
 
 ---
 
-## III. TRUST BOUNDARY REGISTRY: ARTIFACTS AND CONFIGURATION
+## III. GSEP-C EXECUTION PIPELINE (S00 $\to$ S14)
 
-Defines the Immutable Trust Foundation (Protocol) and volatile Operational Constraints (Runtime).
+A strictly linear process defined by synchronized Gates (G0-G3), where failure exposition is concentrated.
 
-| Artifact Name | Type | Path | Purpose (Entity Association) |
-|:---:|:---:|:---:|:---:|
-| **Immutable Protocol Specifications** |||| 
+| Gate | Stage Range | Trust Phase | Critical Action & GAX | Enforced By | Exposed P-Set |
+|:---:|:---:|:---|:---|:---:|:---:|
+| **G0** | S00 | **MANIFEST LOCK** | Policy Immutability Seal (GAX III). | EMSU | P-M02 |
+| G1 | S01-S07 | **RESOURCE VALIDATION** | Input Acquisition, Verification, and ACVM Limit Check (GAX II/IV). | DHC, DRO | P-M01, P-M02 |
+| G2 | S08-S11 | **CORE EXECUTION** | State Resolution and Internal Finality Hash Calculation (GAX I/IV). | PIM | P-M01, P-M02, P-R03 |
+| G3 | S12-S14 | **EXTERNAL SEALING** | Cryptographic signing of $\Psi_{\text{final}}$ state hash and telemetry archival (GAX I/IV). | AASS, PIM | P-M01, P-R03 |
+
+---
+
+## IV. TRUST BOUNDARY REGISTRY
+
+Mapping the Immutable Trust Foundation artifacts (Protocol) and volatile Operational Constraints (Config).
+
+| Artifact Name | Type | Path | Purpose (Governing Utility) |
+|:---:|:---|:---:|:---:|
+| **PROTOCOL SPECS (IMMUTABLE)** |||| 
 | GAX Master Specification | Protocol | `protocol/gax_master.yaml` | Definitive axiom definitions (PIM oversight) |
 | EEDS Master Specification | Protocol | `protocol/eeds_master_specification.yaml` | Input/Output schema and expected bounds (DHC, DRO) |
 | Cryptographic Manifest | Protocol | `protocol/cryptographic_manifest.json` | Hash/signing standards and key management (AASS) |
 | FDLS Schema | Protocol | `protocol/telemetry_data_specification.yaml` | Deterministic logging schema definition (FSMU) |
-| **Runtime Operational Constraints** |||| 
+| **RUNTIME CONFIGURATION (VOLATILE)** |||| 
 | ACVM Configuration | Config | `config/acvm.json` | Computational and resource thresholds (DRO) |
 | GSEP Orchestrator Config | Config | `config/gsep_orchestrator_config.json` | Execution sequence and mandatory timing limits (PIM) |
-| PIM Constraints Spec | Config | `config/pim_constraints.json` | Granular failure thresholds and trigger definitions (PIM/DHC) |
-
----
-
-## IV. EXECUTION PIPELINE: GSEP-C STAGE FLOW
-
-Strictly linear (15 stages, S00 $\to$ S14) sequence punctuated by Synchronization Gates (G0-G3), where all P-Set failures are exposed.
-
-| Gate | Stage Range | Block Name | Critical Action | Enforcement Entity | Exposed P-Set |
-|:---:|:---:|:---|:---|:---:|:---:|
-| **G0** | S00 | **PRE-FLIGHT LOCK** | Enforces Manifest Immutability Lock (GAX III). | EMSU | P-M02 |
-| (Pipeline) | S01-S06 | Input Harvesting & Verification | DHC acquires/validates ISB. | DHC | P-M01 |
-| **G1** | S07 | **BOUNDARY CHECK** | Constraint Validation against ACVM Limits (GAX II). | DRO | P-M02 |
-| (Pipeline) | S08-S10 | State Resolution & Execution | Core deterministic computation. | PIM | P-M02 / P-M01 |
-| **G2** | S11 | **ATOMIC FINALIZATION** | Internal integrity verification; $\Psi_{\text{final}}$ Hash calculation. | PIM | P-R03 |
-| (Pipeline) | S12-S13 | Telemetry & Logging | Metrics collection and timing validation. | PIM | P-M01 |
-| **G3** | S14 | **FINALITY SEAL** | Cryptographic signing of the $\Psi_{\text{final}}$ state hash (GAX I). | AASS | P-R03 |
+| PIM Constraints Spec | Config | `config/pim_constraints.json` | Granular failure thresholds and trigger definitions (PIM) |
