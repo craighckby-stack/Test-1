@@ -1,54 +1,47 @@
 # SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.4: DSE PROTOCOL
 
-## I. MANDATE: DETERMINISTIC STATE FLOW (DSE)
+## I. CORE PROTOCOL DEFINITION: DETERMINISTIC STATE FLOW (DSE)
 
-The Deterministic State Flow Protocol (DSE) enforces absolute integrity for all system state transitions ($\Psi$). Every transition must pass through the **Governance State Execution Pipeline (GSEP-C)** and achieve **P-01 Finality Resolution**. Final commitment is contingent upon simultaneous satisfaction of the three foundational Governance Axioms (GAX).
+The Deterministic State Flow Protocol (DSE) mandates absolute integrity for all system state transitions ($\Psi$). All transitions must strictly adhere to the **Governance State Execution Pipeline (GSEP-C)** and achieve **P-01 Finality Resolution**. Commitment is exclusively contingent upon the simultaneous satisfaction (logical conjunction) of the Three Foundational Governance Axioms (GAX).
+
+$$\text{P-01 PASS} \iff (\text{GAX I} \land \text{GAX II} \land \text{GAX III})$$
 
 ---
 
 ## II. GOVERNANCE FOUNDATION: THE THREE AXIOS (GAX)
 
-The GAX serve as the canonical validation rules defining permissible operations. The Axiom Constraint Validation Domain (ACVD) is the immutable policy source for these constraints.
+The GAX define the canonical, immutable validation constraints. The source for all constraints is the Axiom Constraint Validation Domain (ACVD).
 
-| ID | Name | Core Focus | Failure Mechanism | Proof Artifact Source | Validation Stage |
-|:---:|:---:|:---|:---:|:---|:---:|
-| **I** | Utility Efficacy | Minimum Value Threshold ($\Omega_{\text{min}}$) achieved. | ADTM (Utility Debt Log) | Transition Efficacy Measure (TEMM) | Vetting (S08) |
-| **II** | Contextual Validity | Required environmental and historical conditions permit execution. | SGS (Detailed Trace) | Execution Context Validation Map (ECVM) | Vetting (S07) |
-| **III** | Constraint Integrity | Operational policies are structurally valid and immutable, zero violations. | MPAM (Policy Violation Log) | Configuration Snapshot Receipt (CSR) | Policy Lock (S01) |
+| ID | Name | Core Focus | Validation Stage | Artifact Source | Failure Mechanism | Policy Dependency |
+|:---:|:---:|:---|:---:|:---|:---:|:---:|
+| **I** | Utility Efficacy | Minimum Value Threshold ($\Omega_{\text{min}}$) met. | Vetting (S08) | Transition Efficacy Measure (TEMM) | ADTM (Utility Debt Log) | CSR (S01) |
+| **II** | Contextual Validity | Permissible environmental state (`TRUE`). | Vetting (S07) | Execution Context Validation Map (ECVM) | SGS (Detailed Trace) | N/A |
+| **III** | Constraint Integrity | Zero structural and operational policy violations. | Policy Lock (S01) | Configuration Snapshot Receipt (CSR) | MPAM (Violation Log) | ACVD Schema (S00) |
 
-### 2.1 Key Governance Constructs
+### 2.1 Key Constructs
 
-*   **GSEP-C (Pipeline):** The mandatory 15-Stage lifecycle (S00-S14) orchestrating DSE flow. Defined externally via `config/gsep_c_flow.json`.
-*   **CRoT (Agent):** Core Root of Trust Agent. Responsible for generating and locking immutable policy artifacts (CSR).
-*   **GAX Executor (Module):** Final authority component executing the P-01 Atomic Decision calculus (S11).
-
----
-
-## III. EXECUTION FLOW: GSEP-C ARCHITECTURE
-
-The pipeline dictates chronological execution stages. Any stage failure triggers an **Integrity Halt (IH)** and mandates immediate Rollback Protocol (RRP) initiation.
-
-| Phase | Goal | Key Artifact Lock Stage | GAX Dependencies | Failure Definition |
-|:---:|:---:|:---:|:---:|:---:|
-| **1. Policy Definition** | Lock ACVD policy snapshot. | CSR (S01) | I, III | ACVL verification failure (S00). |
-| **2. Vetting & Measurement**| Measure efficacy (TEMM) and context (ECVM). | ECVM (S07), TEMM (S08) | I, II | Failure to meet policy derived criteria. |
-| **3. Finality & Persist**| Achieve P-01 Resolution and ledger trace generation. | P-01 Resolution (S11) | I, II, III | Logical conjunction failure of any GAX state. |
-
-### 3.1 ACVD Policy Integrity Requirements (S00)
-
-The ACVD Validator & Constraint Loader (ACVL) must verify the structural validity of the ACVD policy *prior* to CSR generation (S01). This structural check is defined by the canonical schema: `governance/ACVD_policy_schema.json`.
+*   **GSEP-C (Pipeline):** The mandatory 15-Stage lifecycle (S00-S14), detailed in `config/gsep_c_flow.json`. Any stage failure triggers an **Integrity Halt (IH)** and immediate Rollback Protocol (RRP).
+*   **CRoT (Agent):** Core Root of Trust Agent, responsible for generating and locking immutable policy artifacts (CSR).
+*   **GAX Executor (Module):** Final authority component executing the atomic P-01 decision calculus (S11).
 
 ---
 
-## IV. FINALITY CALCULUS: P-01 RESOLUTION (S11)
+## III. EXECUTION PIPELINE & FINALITY
 
-The P-01 decision is atomic and non-reversible. It resolves the DSE transition using locked artifacts from GSEP-C, enforced by the GAX Executor. Commitment requires the logical conjunction ($\land$) of all three GAX states.
+The GSEP-C pipeline dictates chronological execution stages, enforcing integrity locks required for finality. The commitment requires the logical conjunction of all GAX states at S11.
 
-**P-01 PASS Condition:**
-$$\text{P-01 PASS} \iff (\text{GAX I}) \land (\text{GAX II}) \land (\text{GAX III})$$
+| Phase | Goal | Key Artifact Lock Stage | GAX Dependencies | Failure Definition | Pre-Commit Stage (Lock) |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **1. Definition & Lock** | Policy verification and locking ACVD snapshot. | CSR (S01) | I, III | ACVL schema validation failure (S00). | Policy Lock (S01) |
+| **2. Vetting & Measure** | Determine efficacy (TEMM) and contextual state (ECVM). | ECVM (S07), TEMM (S08) | I, II | Criteria derived from locked policy are unmet. | Measurement Vetting (S08) |
+| **3. Finality & Persist** | P-01 Atomic Decision resolution and ledger commit. | P-01 Resolution (S11) | I, II, III | Logical conjunction failure of any governing GAX state. | Decision Execution (S11) |
 
-| Axiom | Condition Check | Artifact Source | Failure Action |
+### 3.1 P-01 Finality Enforcement (S11)
+
+The GAX Executor requires all underlying proofs to be met, utilizing locked stage artifacts for evaluation:
+
+| Axiom | Condition Check | Artifact Stage | Action on Failure |
 |:---:|:---:|:---:|:---:|
-| **GAX I** | TEMM Score meets or exceeds $\Omega_{\text{min}}$. | TEMM (S08) + CSR (S01) | Log Utility Debt (ADTM) |
-| **GAX II** | ECVM status confirms permissible system state (`TRUE`). | ECVM (S07) | Trigger Context Trace (SGS) |
-| **GAX III** | ACVD structure passed validation (`ZERO violations`). | MPAM Pre-Check (S00) | Log Policy Violation (MPAM) |
+| **GAX I** | TEMM $\ge \Omega_{\text{min}}$ (Utility Proof). | S08 (TEMM) | Log Utility Debt (ADTM) |
+| **GAX II** | ECVM status is confirmed permissible (`TRUE`). | S07 (ECVM) | Initiate Context Trace (SGS) |
+| **GAX III**| ACVD structure verified and policies immutable (`ZERO violations`). | S01 (CSR/MPAM Pre-Check) | Log Policy Violation (MPAM) |
