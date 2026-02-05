@@ -1,6 +1,6 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V96.2 (CANONICAL AXIS LOCK)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V96.3 (CANONICAL AXIS LOCK)
 
-*Refinement of V96.1. This revision strengthens canonical referencing by linking Section 2.2 inputs exclusively to the A-CAT Index (Section 4.0), eliminating redundant file path declarations. It introduces the **Finality Metric Registry (FMR)** artifact, fulfilling the mandate for efficient, chronological tracking of P-01 execution history, vital for GAX efficacy analysis.*
+*Refinement of V96.2. This revision enforces canonical data efficiency by removing the redundant 'Scope Reference' column from Section 2.2, fully adhering to the A-CAT (4.0) Canonical Reference mapping. Furthermore, it introduces the **Axiomatic Policy Constraint Schema (APCS)**, ensuring the structural integrity of the core constraint policy artifact (ACVD) used by GAX.*
 
 ---
 
@@ -18,12 +18,12 @@ Decentralized accountability ensuring system integrity and P-01 fulfillment.
 
 ## 2.0 P-01 FINALITY CALCULUS & ACV CONSTRAINTS
 
-Non-Repudiable State Finality requires the system transition ($\Psi_{N} \to \Psi_{N+1}$) only upon satisfaction of the Axiomatic Constraint Vector (ACV), defined as the **P-01 PASS** condition.
+Non-Repudiable State Finality requires the system transition ($\\\Psi_{N} \\to \\\Psi_{N+1}$) only upon satisfaction of the Axiomatic Constraint Vector (ACV), defined as the **P-01 PASS** condition.
 
 ### 2.1 Axiomatic Constraint Vector (ACV) Formula
 
 Finality requires simultaneous satisfaction:
-$$
+$$ 
 \text{P-01 PASS} \iff (\text{UMA}) \land (\text{CA}) \land (\text{AI})
 $$
 
@@ -35,17 +35,17 @@ $$
 
 ### 2.2 Canonical Constraint Input Map (C-PIM)
 
-Definitive listing of variables constituting the ACV. These inputs are aggregated into the **Axiomatic State Manifest (ASM)** (See 4.0) prior to S11 evaluation.
+Definitive listing of variables constituting the ACV. These inputs are aggregated into the **Axiomatic State Manifest (ASM)** (See 4.0) prior to S11 evaluation. All non-runtime inputs must reference the A-CAT index.
 
-| Acronym | ACV Group | Agent (Custodian) | Scope Reference | Canonical Reference (A-CAT) |
-|:---:|:---:|:---:|:---|:---:|
-| **TEMM** | I (Metric) | SGS | Certified Target Utility Metric ($S_{01}$). | N/A (Runtime Calculated) |
-| **UFRM** | I (Threshold) | GAX | Required Baseline Utility Metric ($S_{02}$). | UFRM Config |
-| **CFTM** | I (Margin) | GAX | Minimum Required Utility Margin ($\epsilon$). | CFTM Config |
-| **ECVM** | II (Status) | SGS | Verified Environmental Status (Boolean). | GICM |
-| **PVLM** | III (Veto) | GAX | Policy Prohibition Veto Status (Boolean). | ACVD |
-| **MPAM** | III (Veto) | GAX | Stability Bounds Veto Status (Boolean). | ACVD |
-| **ADTM** | III (Veto) | GAX | Runtime Anomaly Veto Status (Boolean). | N/A (Runtime Generated) |
+| Acronym | ACV Group | Agent (Custodian) | Canonical Reference (A-CAT) |
+|:---:|:---:|:---:|:---:|
+| **TEMM** | I (Metric) | SGS | N/A (Runtime Calculated) |
+| **UFRM** | I (Threshold) | GAX | UFRM Config |
+| **CFTM** | I (Margin) | GAX | CFTM Config |
+| **ECVM** | II (Status) | SGS | GICM |
+| **PVLM** | III (Veto) | GAX | ACVD |
+| **MPAM** | III (Veto) | GAX | ACVD |
+| **ADTM** | III (Veto) | GAX | N/A (Runtime Generated) |
 
 ---
 
@@ -60,7 +60,7 @@ The mandatory 15-stage protocol ensuring Deterministic State Evolution (DSE) com
 | **P1: INITIATION** | S00 | CRoT | N/A | IH | Initialization (GSM, SIPM anchoring). |
 | | S01 | SGS | N/A | STANDARD | Protocol Consistency Engine (PCE) Check. |
 | | S02 | SGS | Context II Prereqs (GICM) | RRP | GICM Gate: Verify Environmental Readiness. |
-| **P2: CONSTRAINT** | **S02.1** | GAX | Prereq Validation (CIVS) | RRP | Input structure validation (ACVD, UFRM, CFTM). |
+| **P2: CONSTRAINT** | **S02.1** | GAX | Prereq Validation (CIVS) | RRP | Input structure validation (ACVD, UFRM, CFTM) against **APCS**. |
 | | S03 | GAX | **AI III: PVLM Veto** (Updates ASM) | RRP | Policy Prohibition Check (Uses `ACVD`). |
 | | S04 | GAX | **AI III: MPAM Veto** (Updates ASM) | RRP | Stability Bounds Check (Uses `ACVD`). |
 | | S05 | CRoT | N/A | RRP | Data Lineage & Source Trust Gate (CDSM Attestation). |
@@ -91,11 +91,12 @@ Consolidated mapping of all operational artifacts, categorized by governing agen
 | Agent | Acronym | Type | P-01 Linkage | File Path | Description / Focus |
 |:---:|:---:|:---:|:---:|:---|:---:|
 | GAX | ACVD | Config | AI (III Veto Bounds) | `config/GAX/AxiomaticConstraintVectorDefinition.json` | Veto Bounds Logic Definition (S03, S04). |
-| GAX | CFTM Config | Config | UMA I Margin | `config/GAX/FinalityThresholdConfig.yaml` | Minimum Required Utility Margin ($\epsilon$). |
+| GAX | **APCS** | **Schema** | S02.1 Validation | `schema/GAX/AxiomaticPolicyConstraintSchema.json` | **NEW:** Defines the mandatory structure of the ACVD policy config. |
+| GAX | CFTM Config | Config | UMA I Margin | `config/GAX/FinalityThresholdConfig.yaml` | Minimum Required Utility Margin ($\\epsilon$). |
+| GAX | CIVS | Schema | S02.1 Validation | `schema/GAX/ConstraintInputValidationSchema.json` | Schema for validating GAX input configuration structures. |
 | GAX | PCSS | Schema | RRP Standard | `schema/GAX/PolicyCorrectionSchema.json` | GAX Remediation standard for RRP reporting. |
 | GAX | UFRM Config | Config | UMA I Threshold | `config/GAX/UtilityFunctionRegistry.yaml` | Required Baseline Utility Metric ($S_{02}$). |
-| GAX | CIVS | Schema | S02.1 Validation | `schema/GAX/ConstraintInputValidationSchema.json` | Schema for validating GAX input configuration structures. |
-| CRoT | **FMR** | **Registry** | S11/S13 Metrics | `registry/CRoT/FinalityMetricRegistry.json` | **NEW:** Chronological index of P-01 PASS/FAIL status. |
+| CRoT | **FMR** | **Registry** | S11/S13 Metrics | `registry/CRoT/FinalityMetricRegistry.json` | Chronological index of P-01 PASS/FAIL status. |
 | CRoT | GSM Schema | Schema | S00/S13 State Root | `schema/CRoT/Governance_State_Manifest.schema.json` | Core Governance State Root Structure definition. |
 | CRoT | SIPM | Config | S00/S13 Logic | `config/CRoT/StateIndexingProtocolManifest.json` | CRoT Epoch Indexing Logic. |
 | SGS | ADMS | Config | S14 Execution | `config/SGS/AtomicDeploymentManifestSchema.json` | S14 Execution Model configuration. |
