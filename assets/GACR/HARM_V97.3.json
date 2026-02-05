@@ -1,0 +1,30 @@
+{
+  "version": "V97.3",
+  "manifest_id": "HARM-2024Q3-01",
+  "crôt_signature_required": true,
+  "scope": "System Integrity Halt (SIH) Recovery Execution",
+  "recovery_stages": [
+    {
+      "stage_id": "R01_VALIDATE_CREDENTIALS",
+      "required_manifest": "GEIDM",
+      "action": "Verify HIL-T Operator Multi-Factor Credentials and Authorization Level against GEIDM.\nMandates CRoT attestation of HIL-T session start."
+    },
+    {
+      "stage_id": "R02_ISOLATE_FAULT",
+      "required_mode": "READ_ONLY_LOCK",
+      "action": "Diagnostic analysis of last CALS entry and identification of fault source Fsrc.\nCRoT confirms environment state immutability during diagnosis."
+    },
+    {
+      "stage_id": "R03_SELECT_RECOVERY_PATH",
+      "allowed_paths": ["FULL_ROLLBACK (RRP)", "PATCHED_RESTART (Controlled bypass)"],
+      "required_authorization": "GAX_VETO_OVERRIDE_CONSENT",
+      "action": "HIL-T operator selects recovery path. Critical path changes require GAX sign-off."
+    },
+    {
+      "stage_id": "R04_ATTEST_NEW_STATE",
+      "required_key": "CRoT_FINALITY_KEY",
+      "action": "CRoT signing of the recovery attempt, establishing the new state genesis (Ψ'N).\nMandatory NRALS entry prior to release of system lock."
+    }
+  ],
+  "default_failure_mode": "PERMANENT_LOCK"
+}
