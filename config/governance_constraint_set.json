@@ -1,0 +1,19 @@
+{
+  "schema_version": "GCS-V1.0",
+  "description": "Defines externalized runtime parameters and baseline constraints verified by CTAL (L2) and enforced by PVLM (L1).",
+  "runtime_config": {
+    "minimum_viable_margin_epsilon": 0.05, 
+    "policy_violation_trigger_list": [
+      "DENY_CRITICAL_RESOURCE_UTILIZATION",
+      "DENY_TRUST_DEVIATION_HIGH_SEVERITY"
+    ]
+  },
+  "structural_constraints": {
+    "C-01_max_index_threshold": 0.85, 
+    "S-02_maximum_acceptable_risk_baseline": 0.75
+  },
+  "trust_signing_keys": {
+    "key_authority_id": "KHA-941A",
+    "minimum_key_generation": 3
+  }
+}
