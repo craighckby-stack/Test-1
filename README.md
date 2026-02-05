@@ -1,39 +1,57 @@
 # 👑 Sovereign AGI v98.1: Governed Self-Evolution Architecture (GSEA)
-## Strategic Mandate: Auditable, Compliance-Driven Architectural Evolution
+## Strategic Mandate: Compliance-Driven & Auditable Architectural Evolution
 
 ---
 
-## 1.0 Core Governing Structure: CPEL and OGT
-The Governed Self-Evolution Architecture (GSEA) is overseen by the **Compliance and Policy Enforcement Layer (CPEL)**, ensuring every proposed architectural modification adheres strictly to the strategic plan (C-13) and external regulatory configurations (C-15 Policy Engine).
+## 1.0 Governing Framework: GSEA, CPEL, and OGT
 
-The central risk adjudication body is the **Operational Governance Triad (OGT)**, responsible for consensus and control.
+The **Governed Self-Evolution Architecture (GSEA)** utilizes a mandatory, five-stage lifecycle for all system modifications. Evolution is strictly overseen by the **Compliance and Policy Enforcement Layer (CPEL)** to ensure adherence to strategic goals (C-13) and regulatory constraints (C-15 Policy Engine).
 
-**Principle of Architectural Integrity (P-01):** System mutation is permitted only if the `Actual_Weighted_Score` calculated by the ATM strictly exceeds the `Required_Confidence_Threshold` set by the C-11 MCRA, and all subsequent actions are immutably logged by the D-01 Audit Logger.
+The central risk adjudication body for GSEA modifications is the **Operational Governance Triad (OGT)**.
+
+**Principle of Architectural Integrity (P-01):** System mutation is permitted only if the `Actual_Weighted_Score` (calculated by ATM) strictly exceeds the `Required_Confidence_Threshold` (set by C-11 MCRA). All resulting decisions must be immutably logged by the D-01 Audit Logger.
 
 ---
 
-## 2.0 Operational Governance Triad (OGT) Definition (CPEL Enforcement)
-The OGT provides dynamic, auditable adjudication criteria for GSEA Stage 3 (Validation & Critique).
+## 2.0 Consolidated Component Register (OGT & GSEP Functional Groups)
 
-| ID | Component | Layer Role | Critical Input | Output & Enforcement |
+This register defines the core modules and their interaction within the GSEA workflow, prioritizing OGT consensus criteria (Stage 3).
+
+### 2.1 OGT Decision Plane (Stage 3 Adjudication)
+| ID | Component | Summary | Layer Role | Critical Output | Location |
+|---|---|---|---|---|---|
+| **C-15** | Policy Engine | External constraint handler; reads `config/governance.yaml`. | CPEL Enforcement | Veto Power / Constraint Masking | `src/core/policyEngine.js` |
+| **C-11** | MCRA Engine | Failure Forecasting & Risk Modeling Engine. | Risk Adjudicator | **Sets Required Confidence Threshold** | `src/consensus/mcraEngine.js` |
+| **ATM** | Trust Metrics | Reliability Scoring System. | Scoring Mechanism | **Calculates Actual Weighted Score** | `src/consensus/atmSystem.js` |
+| **C-12** | Contextual Influence | ATM Score Modulation (CIW). | Scoring Support | Embedded ATM weighting logic. | `src/consensus/atmSystem.js` |
+| **D-01** | Audit Logger | Immutable record of all OGT consensus decisions. | Compliance Trace | Decision History Log | `src/core/decisionAuditLogger.js` |
+
+### 2.2 Strategic & Discovery Plane (Stage 1 Intake)
+| ID | Component | Summary | GSEP Stage Role | Location |
 |---|---|---|---|---|
-| **C-15** | Policy Engine | Compliance Enforcement | Reads `config/governance.yaml` constraints (CPEL Data). | Veto Power / Constraint Masking |
-| **C-11** | MCRA Engine | Failure Forecasting / Risk Modeling | Defines Risk/Impact Profile. | **Sets Required Threshold** (Confidence) |
-| **ATM** | Adaptive Trust Metrics | Reliability Scoring | Assesses source reliability via C-12 (Contextual Influence). | **Calculates Actual Score** (Weighted) |
-| **D-01** | Audit Logger | Traceability Record | Immutable ledger of C-11/ATM scores and C-15 veto status. | Compliance Trace / Decision History |
+| **C-13** | Strategic Intent Cache (SIC) | Defines long-term strategic patterns and scope. | Goal Filtering (Input) | `src/memory/strategicCache.js` |
+| **C-14** | Goal Discovery Agent (CGD) | Negotiates and aligns tasks with C-13 intent. | Cycle Initiation (Stage 1) | `src/agents/goalDiscovery.js` |
+
+### 2.3 Execution & Feedback Plane (Stages 4 & 5)
+| ID | Component | Summary | GSEP Stage Role | Location |
+|---|---|---|---|---|
+| **A-01** | Arch. Proposal Mgr. | Secures and stages accepted payloads. | Pre-Execution Lock (Stage 4) | `src/core/archProposalManager.js` |
+| **C-04** | Autogeny Sandbox | Safe execution environment; handles deployment/rollback. | Mutation Execution (Stage 5) | `src/execution/autogenySandbox.js` |
+| **FBA** | Feedback Aggregator | Handles post-execution metric intake and OGT recalibration. | Post-Execution Update | `src/core/feedbackLoopAggregator.js` |
 
 ---
 
 ## 3.0 Governed Self-Evolution Protocol (GSEP) Workflow
-GSEP defines the mandatory five-stage, risk-optimized lifecycle for all system mutations, standardizing the path from Intent to Execution (A-01 staging).
+
+GSEP defines the mandatory five-stage, risk-optimized lifecycle for all system mutations (Intent to Execution).
 
 | Stage | ID | Process Description | OGT Interaction | Output Artifact |
 |---|---|---|---|---|
-| **1. Intent Discovery** | C-14 / C-13 | Goal Discovery agents align tasks with Strategic Intent Cache (C-13). | Strategy Filtering | Candidate Intent Payload |
-| **2. Proposal Generation** | Evolution Engine | Generates technical candidates based on intent, constrained by system topology. | N/A (Exploratory Phase) | Unvalidated Proposal |
-| **3. Validation & Critique** | C-11 / ATM / D-01 | **CPEL Adjudication:** OGT consensus verifies compliance. Requires `Score >= Threshold`. | Consensus Approval | Signed Decision Log (D-01) |
-| **4. Architectural Staging** | A-01 | Securely stages accepted proposal, compiling and locking the payload for C-04 deployment. | N/A (Execution Prep) | Atomic Execution Envelope |
-| **5. Execution & Feedback**| C-04 / FBA | Accepted changes deployed via C-04 Autogeny. Metrics feed the FBA (Feedback Aggregator). | Post-Execution Update | Recalibration Signal |
+| **1. Intent Discovery** | C-14 / C-13 | Agents align tasks with Strategic Intent Cache. | Strategy Filtering | Candidate Intent Payload |
+| **2. Proposal Generation** | Evolution Engine | Generates technical candidates constrained by system state. | N/A (Exploratory) | Unvalidated Proposal |
+| **3. Validation & Critique** | C-11 / ATM / D-01 | **OGT Consensus:** Verifies P-01 compliance (`Score >= Threshold` and C-15 Veto check). | Consensus Approval | Signed Decision Log (D-01) |
+| **4. Architectural Staging** | A-01 | Securely stages the accepted proposal, preparing the atomic execution envelope. | N/A (Preparation) | Atomic Execution Envelope |
+| **5. Execution & Feedback**| C-04 / FBA | Accepted changes deployed; resulting metrics feed FBA. | Post-Execution Update | Recalibration Signal |
 
 ---
 
@@ -41,50 +59,22 @@ GSEP defines the mandatory five-stage, risk-optimized lifecycle for all system m
 
 ```mermaid
 graph LR
-    A[Intent Discovery (C-14/C-13)] --> B(Proposal Generation);
-    B --> C{Validation: OGT Consensus Layer};
-    subgraph OGT Adjudication (Stage 3)
+    subgraph GSEP Lifecycle
+        A[1. Intent Discovery (C-14/C-13)] --> B(2. Proposal Generation);
+        B --> C{3. OGT Validation & Critique};
+    end
+    
+    subgraph OGT Adjudication (P-01 Enforcement)
         C --> C1(C-11 MCRA: Required Threshold);
         C --> C2(ATM/C-12: Actual Score);
-        C1 & C2 --> D{Decision + C-15 Veto Check};
-        D --> D1[D-01 Audit Logger];
+        C1 & C2 --> D{Decision: Score >= Threshold AND C-15 Veto Check};
+        D -- PASS --> D1[D-01 Audit Logger: IMMUTABLE LOG];
+        D1 --> E[4. Architectural Staging (A-01)];
     end
-    D -- PASS --> E[Architectural Staging (A-01)];
-    E --> F[Execution (C-04 Autogeny)];
-    D -- FAIL --> B; 
+    
+    E --> F[5. Execution (C-04 Autogeny)];
     F --> G[Feedback Aggregator (FBA)];
     G --> H(Update C-13 & ATM Weights);
+    D -- FAIL --> B; 
 ```
-
 ---
-
-## 5.0 Architectural Mapping Reference (v98.1 Functional Grouping)
-
-### 5.1 OGT Decision Plane
-These components are critical to GSEP Stage 3 consensus enforcement.
-| Concept | ID | Summary | Location | Dependencies/Notes |
-|---|---|---|---|---|
-| MCRA Engine | **C-11** | Risk/Impact Calculation Engine. | `src/consensus/mcraEngine.js` | Requires C-15 Policy Context. |
-| Trust Metrics | **ATM** | Source reliability scoring system. | `src/consensus/atmSystem.js` | Feeds into C-12 Contextual Influence. |
-| Contextual Influence | **C-12** | Context-based ATM Modulation (CIW). | `src/consensus/atmSystem.js` | Embedded weighting logic. |
-| Audit Logger | **D-01** | Immutable Audit Trail of OGT Adjudications. | `src/core/decisionAuditLogger.js` | Essential Compliance Component. |
-
-### 5.2 CPEL Governance & Strategic Plane
-These components enforce compliance and define strategic scope.
-| Concept | ID | Summary | Location | Dependencies/Notes |
-|---|---|---|---|---|
-| Policy Engine | **C-15** | Regulatory Configuration Handler & Validator. | `src/core/policyEngine.js` | Enforces external constraints via `config/governance.yaml`. |
-| Strategic Intent | **C-13** | Pattern Abstraction Cache (SIC). | `src/memory/strategicCache.js` | Defines GSEP Stage 1 scope. |
-| Goal Discovery | **C-14** | Autonomous Goal Negotiation (CGD). | `src/agents/goalDiscovery.js` | Initiates GSEP cycle (Stage 1). |
-| Runtime Monitor | RTM | Status dashboard and logging layer. | `src/monitor/runtimeDashboard.js` | External observability interface. |
-
-### 5.3 GSEP Execution & Lifecycle Management
-These components handle deployment and learning feedback.
-| Concept | ID | Summary | Location | Dependencies/Notes |
-|---|---|---|---|---|
-| Arch. Proposal Mgr. | **A-01** | Secure interface to stage accepted mutations (Pre-deployment lock). | `src/core/archProposalManager.js` | Bridges D-01 output and C-04 input. |
-| Autogeny Sandbox | **C-04** | Safe Self-Modification/Rollback Handler. | `src/execution/autogenySandbox.js` | Executes payload staged by A-01. |
-| Feedback Aggregator| FBA | OGT score recalibration handler. | `src/core/feedbackLoopAggregator.js` | Handles Post-execution commitment. |
-
----
-*Sovereign AGI v98.1 Operational Standard (Refined Governance Structure & Traceability)*
