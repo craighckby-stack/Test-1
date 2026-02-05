@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "description": "GIRAM Integrity Root Manifest. Defines all files whose cryptographic integrity must be validated prior to GSEP Stage 1 activation.",
+  "integrity_target_set": [
+    {
+      "id": "GRS_Policy_Master",
+      "path": "/policies/ruleset_A/GRS_v14.dat",
+      "hash_algorithm": "SHA3-384",
+      "baseline_integrity_checksum": "{{D-01_LIR.GRS_Policy_Master}}",
+      "required_criticality": true
+    },
+    {
+      "id": "C15_Engine_Config",
+      "path": "/config/engine/C15_manifest.json",
+      "hash_algorithm": "SHA3-384",
+      "baseline_integrity_checksum": "{{D-01_LIR.C15_Engine_Config}}",
+      "required_criticality": true
+    },
+    {
+      "id": "Security_Cert_Bundle",
+      "path": "/keys/root_CA_bundle.pem",
+      "hash_algorithm": "SHA3-384",
+      "baseline_integrity_checksum": "{{D-01_LIR.Security_Cert_Bundle}}",
+      "required_criticality": true
+    }
+  ],
+  "verification_parameters": {
+    "mac_required": true,
+    "non_repudiation_envelope": "CNRE_v2.1"
+  }
+}
