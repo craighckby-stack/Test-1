@@ -1,0 +1,12 @@
+{
+  "description": "Manifest defining mandatory, immutable constants used in Core Decision Axioms (COF and P-01 Finality Certification). These constants are required by GSEP-C V3.5 Layer L7.",
+  "version": "v1.0",
+  "tau_norm": {
+    "value": 0.000001, 
+    "rationale": "Normalization constant used in COF to prevent division by zero and provide minimum risk weight."
+  },
+  "epsilon_min": {
+    "value": 0.005, 
+    "rationale": "The minimum required viable margin (safety buffer) for P-01 Certification (S-01 > S-02 + epsilon)."
+  }
+}
