@@ -1,0 +1,38 @@
+{
+  "schemaId": "PESM_V95.5",
+  "description": "Mandatory schema definition for all Governance Asset & Registry (GACR) Manifests.",
+  "rootStructure": {
+    "type": "object",
+    "properties": {
+      "ManifestID": {
+        "type": "string",
+        "pattern": "^[A-Z]{3,5}$",
+        "description": "Unique 3-5 letter acronym corresponding to manifest type (e.g., PVLM, CFTM)."
+      },
+      "Version": {
+        "type": "string",
+        "description": "SemVer compliant version of the specific manifest file."
+      },
+      "Integrity": {
+        "type": "object",
+        "properties": {
+          "CRoT_Signature": {
+            "type": "string",
+            "description": "Cryptographic signature verifying CRoT provenance."
+          },
+          "TimestampUTC": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time of CRoT signing."
+          }
+        },
+        "required": ["CRoT_Signature", "TimestampUTC"]
+      },
+      "Payload": {
+        "type": "object",
+        "description": "The domain-specific configuration content (must adhere to ManifestID rules)."
+      }
+    },
+    "required": ["ManifestID", "Version", "Integrity", "Payload"]
+  }
+}
