@@ -1,0 +1,15 @@
+{
+  "ih_protocol_version": "v1.1",
+  "isolation_mandate": {
+    "p_r03_scope": "High",
+    "environment_quarantine": true,
+    "network_sever": "Mandatory_L3_Purge",
+    "memory_purge_steps": ["Zeroize_Buffer_Input", "Cryptographic_Wipe_Commitment_Block"]
+  },
+  "forensics_package": {
+    "fdls_format": "AASS_Signed_TAR",
+    "log_retention_policy": "Last_3_Stages_Full_Trace",
+    "forensic_signatory": "AASS_RSA_P256"
+  },
+  "timeout_ms": 500
+}
