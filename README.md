@@ -7,7 +7,7 @@ The **SGS V97.3** defines the mandatory, non-bypassable architecture for guarant
 ### Core Integrity Commitments (Non-Negotiable):
 1.  **Deterministic Finality (S9):** State transition is non-repudiable, secured via the Cryptographic Root of Trust (CRoT) agent and attested logging (NRALS).
 2.  **Axiom Constraint (S2):** Policy integrity is guaranteed by the GAX Agent's immediate halt mechanism based on pre-computed policy calculus ($S_{03}$ Veto Signal).
-3.  **Model Integrity (S6):** Mathematical models used for Utility ($S_{01}$) and Risk ($S_{02}$) must be registered in the **Computational Model Registry (CMR)**, governed by the Model Governance Protocol (MGP).
+3.  **Model Integrity (S6):** Mathematical models used for Utility ($S_{01}$) and Risk ($S_{02}$) must be registered in the **Computational Model Registry (CMR)**, governed by the Model Governance Protocol (MGP) and continually monitored via MPAM.
 
 ---
 
@@ -19,7 +19,7 @@ Three autonomous agents execute restricted, simultaneous operation to ensure sta
 
 | Agent | Domain Focus | Primary GSEP-C Role | Enforcement Authority | Core Asset Ownership (GACR) |
 |:---|:---|:---|:---|:---|
-| **SGS** | Orchestration & Execution | Lifecycle Control, Resource Management, Logging, Metrics | Orchestration / System Commit | SDVM, CAC, MDSM, CALS, CMR, SBCM, GTEM |
+| **SGS** | Orchestration & Execution | Lifecycle Control, Resource Management, Logging, Metrics | Orchestration / System Commit | SDVM, CAC, MDSM, CALS, CMR, SBCM, GTEM, MPAM |
 | **GAX** | Policy Calculus & Certification | Axiom Enforcement, Policy Veto, Transition Finality | Policy Veto / Certifier | PVLM, CFTM, PESM, PVSM |
 | **CRoT** | Attestation & Binding | Root of Trust, Immutable Attestation, Environment Trust | Trust Anchor / Signing Authority | HETM, AIM, GATM, GICM, DTEM, GEIDM, HARM |
 
@@ -27,19 +27,19 @@ Three autonomous agents execute restricted, simultaneous operation to ensure sta
 
 ## 2.0 GSEP-C V97.3: THE MANDATORY STATE TRANSITION PIPELINE
 
-GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). It is the *sole* path for atomic state evolution. The `Type` defines the strictness of the required failure action (`SIH` = Terminal Lock, `CRITICAL` forces immediate rollback).
+GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). It is the *sole* path for atomic state evolution. The `Type` defines the strictness of the required failure action (`SIH` = Terminal Lock, `CRITICAL` forces immediate rollback, `RRP`).
 
 | Group | Stage | Agent | Type | Core Objective | Primary Control Manifest | Failure Action |
 |:---|:-----|:-----|:-----|:-----------------------------------|:---|:---|
 | **I. ANCHOR** | **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL | Integrity Anchor: Validate Host (HETM), Agents (AIM), Thresholds (GATM). | HETM, AIM, GATM, GICM | **SIH** (Terminal Lock) |
 | I. ANCHOR | S1: INGRESS VALIDATION | SGS | STANDARD | Input Validation: Check request compliance against Schema Definition (SDVM). | SDVM | RRP |
-| **II. POLICY** | **S2: VETO GATE** | GAX | CRITICAL | Policy Enforcement: Compliance assessment via Policy Veto Logic (PVLM). Sets $S_{03}$. | PVLM, GICM | RRP |
-| II. POLICY | S3: PROVENANCE TRUST | SGS | CRITICAL | Data Lineage Validation (Data Trust Endpoint Manifest - DTEM). Ensures data trustworthiness for CEEP modeling. | DTEM | RRP |
-| **III. EXECUTION**| S4: CEEP MODELING | SGS | STANDARD | Isolation: Confidence Modeling setup via System Baseline Configuration (SBCM) / CDVP distributed configuration. **Utilizes CMR models.** | SBCM, CMR | RRP |
-| III. EXECUTION | **S5: RESOURCE CHECK** | SGS | CRITICAL | Constraint Verification: Check architectural limits and computational budget (Core Architectural Constraints - CAC). | CAC | RRP |
-| **IV. SYNTHESIS**| S6: METRIC GENERATION | SGS | STANDARD | Synthesis: Calculate Utility ($S_{01}$) and Risk ($S_{02}$) using Metric Definition Manifest (MDSM) **and audited CMR execution.** | MDSM, CMR | RRP |
-| IV. SYNTHESIS | **S7: FINALITY CERT** | GAX | CRITICAL | FINALITY GATE: P-01 Certification against Core Failure Thresholds (CFTM). Reports CGV via GRTS. | CFTM, GICM | RRP |
-| **V. COMMIT** | S8: NRALS LOGGING | SGS | STANDARD | Logging: Non-Repudiable Audit Log (NRALS) Persistence using Certified Audit Log Specification (CALS). | CALS | RRP |
+| **II. POLICY** | **S2: VETO GATE** | GAX | CRITICAL | Policy Enforcement: Compliance assessment via PVLM. Generates $S_{03}$ (Veto Signal). | PVLM, GICM | RRP |
+| II. POLICY | S3: PROVENANCE TRUST | SGS | CRITICAL | Data Lineage Validation (DTEM). Ensures data trustworthiness for CEEP modeling. | DTEM | RRP |
+| **III. EXECUTION**| S4: CEEP MODELING | SGS | STANDARD | Isolation: Confidence Modeling setup via SBCM / CDVP. **Utilizes CMR models.** | SBCM, CMR | RRP |
+| III. EXECUTION | **S5: RESOURCE CHECK** | SGS | CRITICAL | Constraint Verification: Check architectural limits and computational budget (CAC). | CAC | RRP |
+| **IV. SYNTHESIS**| S6: METRIC GENERATION | SGS | STANDARD | Synthesis: Calculate Utility ($S_{01}$) and Risk ($S_{02}$) using MDSM **and audited CMR execution.** MPAM drift status is noted. | MDSM, CMR, MPAM | RRP |
+| IV. SYNTHESIS | **S7: FINALITY CERT** | GAX | CRITICAL | FINALITY GATE: P-01 Certification against Core Failure Thresholds (CFTM - defining $\epsilon$). Reports CGV via GRTS. | CFTM, GICM | RRP |
+| **V. COMMIT** | S8: NRALS LOGGING | SGS | STANDARD | Logging: Non-Repudiable Audit Log (NRALS) Persistence using CALS. | CALS | RRP |
 | V. COMMIT | **S9: ATOMIC COMMIT** | SGS | TERMINAL | ATOMIC EXECUTION: Non-repudiable state transition and system lock. Requires GATM final check. | CRoT Finality Key | **SIH** (Terminal Lock) |
 
 ---
@@ -59,6 +59,7 @@ These protocols define certified operational pathways and mandate CRoT-signed GA
 | Configuration Distribution Protocol | CDVP | Secure distribution and validation of operational GACR subsets | Configuration Integrity |
 | Policy Evolution Update Protocol | PEUP | Certified Gate for GACR Policy Modification (PVLM, CFTM, etc.) | Asset Mutability Control |
 | Model Governance Protocol | MGP | Mandatory Certified Gate for CMR/MDSM Update | Model Integrity & Audit |
+| **Model Drift Monitoring Protocol** | **MDMP** | **Continuous, certified validation of model performance against baselines (MPAM).** | **Post-Execution Audit** |
 | Resilience/Recovery Protocol | RRP / SIH | Fail-Safe Activation and Triage Requirements (Utilizes HARM/GEIDM) | Fault Management |
 
 ### 3.2 Mandated Control Asset Registry (GACR Manifests)
@@ -79,6 +80,7 @@ Asset ownership defined in Section 1.1. CRoT-owned manifests related to terminal
 | **SDVM** | SGS | S1 | Schema Definition Validation Manifest. Input validation rules for transition requests. |
 | **SBCM** | SGS | S4 | System Baseline Configuration Manifest. Immutable config for CEEP modeling isolation. |
 | **CMR** | SGS | S4, S6 | Computational Model Registry. Attested mathematical models for Utility ($S_{01}$) and Risk ($S_{02}$) derivation. |
+| **MPAM** | SGS/CRoT | N/A (MDMP Trigger) | **Model Performance Attestation Manifest. Stores certified baseline performance metrics and tracks degradation/drift for CMR models.** |
 | **MDSM** | SGS | S6 | Metric Definition Manifest. Specifications for calculating Certified Governance Variables ($S_{01}, S_{02}$) utilizing CMR. |
 | **AIM*** | CRoT | S0 | Agent Integrity Manifest. Defines constraints for agent runtime and state. |
 | **GATM*** | CRoT | S0, S9 | Governance Agent Threshold Manifest. Operational limits (e.g., latency SLOs). |
@@ -139,6 +141,8 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{0
 | HIL-T | Human-in-the-Loop Triage | 4.2 (Recovery Requirement) |
 | MDSM | Metric Definition Manifest | 3.2, S6 (Synthesis Specification) |
 | MGP | Model Governance Protocol | 3.1 (Model Evolution Gate) |
+| **MDMP** | **Model Drift Monitoring Protocol** | **3.1 (Continuous CMR Validation)** |
+| **MPAM** | **Model Performance Attestation Manifest** | **3.2, S6 (Model Integrity)** |
 | NRALS | Non-Repudiable Audit Log Specification | 4.2 (Immutable Record) |
 | PEUP | Policy Evolution Update Protocol | 3.1 (GACR Update Gate) |
 | PESM | Policy Evolution Schema Manifest | 3.2 (Schema Enforcement) |
