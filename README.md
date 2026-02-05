@@ -1,24 +1,24 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.1
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.2
 
-## 1.0 FOUNDATIONAL INVARIANTS: GOVERNANCE CORE
+## 1.0 CORE GOVERNANCE INVARIANTS & ENFORCEMENT STRUCTURE
 
-The **SAG V94.1** mandates the deterministic, non-repudiable protocol for autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$) enforced across the 11-stage Certified Evolution Pipeline (GSEP-C).
+The **SAG V94.2** mandates the deterministic, non-repudiable protocol for autonomous code evolution ($\Psi_{N} \to \Psi_{N+1}$) enforced across the 11-stage Certified Evolution Pipeline (GSEP-C).
 
-### 1.1 Core Foundational Invariants
+### 1.1 Foundational Invariants
 
 System integrity is secured by three enforced foundational invariants:
 
 1.  **Deterministic State Evolution (DSE):** All transitions must rigorously satisfy the P-01 Finality Condition.
 2.  **Separation of Duties (SoD):** Responsibilities are distributed across the Governance Triumvirate (Ref 2.1).
-3.  **Certified Evolution Pipeline (GSEP-C):** The mandatory 11-stage, multi-agent execution protocol (Ref 4.0).
+3.  **Certified Evolution Pipeline (GSEP-C):** The mandatory 11-stage, multi-agent execution protocol (Ref 3.0).
 
 ---
 
-## 2.0 GOVERNANCE STRUCTURE: AGENT ROLES & ARTIFACT CUSTODY (SoD)
+## 2.0 GOVERNANCE TRIUMVIRATE & ARTIFACT CUSTODY (SoD)
 
 Resilience is ensured by assigning unique mandates and critical artifact custody to the Governance Triumvirate.
 
-### 2.1 The Governance Triumvirate (Agent SoD Definition)
+### 2.1 Triumvirate Mandates
 
 | ID | Designation | Core Mandate (Focus) | Veto Scope (GSEP-C Stages) | Custody Focus |
 |:---:|:---|:---|:---:|:---:|
@@ -28,27 +28,27 @@ Resilience is ensured by assigning unique mandates and critical artifact custody
 
 ### 2.2 Formal Governance Configuration Schema (FGCS) Catalog
 
-Critical configuration manifests organized by custodial responsibility. (Artifact file paths located in Section 5.2).
+Critical configuration manifests organized by custodial responsibility.
 
-| Artifact | Acronym | Custodian | Purpose / Relevance |
-|:---|:---:|:---:|:---:|
-| **Target Evolution Mandate Manifest** | **TEMM** | SGS | Defines $S_{01}$ function and objectives. (Ref 3.1) |
-| Governance Inter-Agent Commitment Manifest | GICM | SGS | Protocol Compliance & Workflow Orchestration. |
-| Execution Context Verification Manifest | ECVM | SGS | Verified Prerequisite Status ($S_{Context\ Pass}$). |
-| Veto/Rollback/Recovery Manifest | VRRM | SGS | Failure Tracking/Triage Protocol. |
-| Certified Finality Threshold Manifest | CFTM | GAX | Defines Required Utility Margin ($\epsilon$). |
-| Policy Veto Logic Manifest | PVLM | GAX | Policy Prohibitions ($¬ V_{Policy}$). |
-| Metric & Parameter Axiom Manifest | MPAM | GAX | Stability Bounds Check ($¬ V_{Stability}$). |
-| Anomaly Detection Threshold Manifest | ADTM | GAX | Runtime Behavior Check ($¬ V_{Behavior}$). |
-| Governance State Manifest | GSM | CRoT | Cryptographic root for all governance artifact states. |
-| Host Environment Trust Measurement | HETM | CRoT | Hardware/OS Integrity Attestation Anchor. |
-| Certified Data Source Manifest | CDSM | CRoT | Source Trust & Data Lineage Verification. |
-| Signed Transaction Envelope Standard | STES | CRoT | Cryptographic Finality Packaging Schema. |
-| Certified State Transition Ledger | CSTL | CRoT | Non-repudiable Global State History. |
+| Acronym | Artifact | Custodian | Purpose / Relevance |
+|:---:|:---|:---:|:---:|
+| **TEMM** | Target Evolution Mandate Manifest | SGS | Defines $S_{01}$ function and objectives. (Ref 4.1) |
+| GICM | Governance Inter-Agent Commitment Manifest | SGS | Protocol Compliance & Workflow Orchestration. |
+| ECVM | Execution Context Verification Manifest | SGS | Verified Prerequisite Status ($S_{Context\ Pass}$). |
+| VRRM | Veto/Rollback/Recovery Manifest | SGS | Failure Tracking/Triage Protocol. |
+| CFTM | Certified Finality Threshold Manifest | GAX | Defines Required Utility Margin ($ε$). |
+| PVLM | Policy Veto Logic Manifest | GAX | Policy Prohibitions ($¬ V_{Policy}$). |
+| MPAM | Metric & Parameter Axiom Manifest | GAX | Stability Bounds Check ($¬ V_{Stability}$). |
+| ADTM | Anomaly Detection Threshold Manifest | GAX | Runtime Behavior Check ($¬ V_{Behavior}$). |
+| GSM | Governance State Manifest | CRoT | Cryptographic root for all governance artifact states. |
+| HETM | Host Environment Trust Measurement | CRoT | Hardware/OS Integrity Attestation Anchor. |
+| CDSM | Certified Data Source Manifest | CRoT | Source Trust & Data Lineage Verification. |
+| STES | Signed Transaction Envelope Standard | CRoT | Cryptographic Finality Packaging Schema. |
+| CSTL | Certified State Transition Ledger | CRoT | Non-repudiable Global State History. |
 
 ---
 
-## 3.0 DETERMINISTIC STATE EVOLUTION (DSE) & P-01 FINALITY
+## 3.0 DETERMINISTIC STATE EVOLUTION (DSE) & P-01 FINALITY CALCULUS
 
 DSE requires rigorous validation against the Formal Governance Calculus (P-01) before state commitment. A transition achieves **P-01 PASS** status (verified in GSEP-C Stage S8) if certified utility maximizes against the baseline and all axiomatic constraints are strictly satisfied.
 
@@ -58,17 +58,17 @@ $$\mathbf{P\text{-}01\ PASS} \iff \begin{cases}
 \underbrace{(\neg V_{Policy} \land \neg V_{Stability} \land \neg V_{Behavior})}_{\text{III. Axiomatic Integrity}}
 \end{cases}$$
 
-### 3.1 P-01 Calculus Variables
+### 3.1 P-01 Enforcement Matrix (Variables, Custody, and Check Stage)
 
 | Term | Definition | Artifact Custody | Check Stage (GSEP-C) |
-|:---|:---|:---:|:---:|
+|:---:|:---|:---:|:---:|
 | $S_{01}$ | Certified Target Utility Metric (Post-Audit). | SGS/CRoT (TEMM) | S6.7 |
 | $S_{02}$ | Required Baseline Utility Metric. | SGS | S7 |
-| $\epsilon$ | Minimum Required Utility Margin. | GAX (CFTM) | S8 |
+| $ε$ | Minimum Required Utility Margin. | GAX (CFTM) | S8 |
 | $S_{Context\ Pass}$ | Verified Environmental Prerequisite Check. | SGS (ECVM) | S4.5 |
-| $\neg V_{Policy}$ | Policy Prohibition Veto Status. | GAX (PVLM) | S2 |
-| $\neg V_{Stability}$ | Stability Bounds Veto Status. | GAX (MPAM) | S3 |
-| $\neg V_{Behavior}$ | Runtime Anomaly Veto Status. | GAX (ADTM) | S6.5 |
+| $¬ V_{Policy}$ | Policy Prohibition Veto Status. | GAX (PVLM) | S2 |
+| $¬ V_{Stability}$ | Stability Bounds Veto Status. | GAX (MPAM) | S3 |
+| $¬ V_{Behavior}$ | Runtime Anomaly Veto Status. | GAX (ADTM) | S6.5 |
 
 ---
 
@@ -79,8 +79,8 @@ The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures t
 ### 4.1 Failure Hierarchy Protocol Legend
 
 1.  **IH (INTEGRITY HALT):** Non-recoverable structural failure requiring controlled shutdown (S0, S10, S11).
-2.  **RRP (CRITICAL/ROLLBACK):** Mandatory forensic capture and GAX-managed policy correction analysis (S2, S3, S4, S4.5, S6, S6.5, S6.7, S8).
-3.  **STANDARD:** Localized failure permitting graceful exit or component reprocessing (S1, S5, S7, S9).
+2.  **RRP (CRITICAL/ROLLBACK):** Mandatory forensic capture (TVCR) and GAX-managed policy correction analysis (PCSS).
+3.  **STANDARD:** Localized failure permitting graceful exit or component reprocessing.
 
 ### 4.2 GSEP-C Stage Definition and Integrity Checkpoint
 
@@ -104,7 +104,7 @@ The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures t
 
 ---
 
-## 5.0 INTEGRITY, RECOVERY, AND SCHEMA REFERENCES
+## 5.0 INTEGRITY AND CONFIGURATION REGISTRY
 
 ### 5.1 Critical Triage Protocols
 
@@ -121,6 +121,7 @@ The mandatory 11-stage, multi-agent protocol ensuring DSE compliance. Failures t
 | Policy Correction Safety Schema (PCSS) | GAX | `config/GAX/PolicyCorrectionSchema.yaml` |
 | Certified Finality Threshold Manifest (CFTM) | GAX | `config/GAX/FinalityThresholdConfig.yaml` |
 | Axiomatic Constraint Vector Definition (ACVD) | GAX | `config/GAX/AxiomaticConstraintVectorDefinition.json` |
+| **ACVT** | **Axiomatic Change Validation Template** | **GAX** | **`config/GAX/AxiomaticChangeValidationTemplate.json`** |
 | Trace and Veto Context Registry (TVCR) | SGS | `registry/TraceVetoContextRegistry.json` |
 | Atomic Deployment Manifest Schema (ADMS) | SGS | `config/SGS/AtomicDeploymentManifestSchema.json` |
 | Target Evolution Mandate Manifest (TEMM) | SGS | `config/SGS/TargetEvolutionMandateManifest.json` |
