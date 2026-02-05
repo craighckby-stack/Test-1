@@ -1,0 +1,41 @@
+{
+  "description": "Configuration for the GSEP-C State Machine Controller (SMC), defining immutable I/O constraints for atomic stage transitions.",
+  "pipeline_id": "GSEP-C",
+  "stages": {
+    "S00": {
+      "input": "INITIAL_STATE_VECTOR",
+      "output": "S00_START_TOKEN"
+    },
+    "S01": {
+      "input": "S00_START_TOKEN",
+      "actor": "CRoT Agent",
+      "output": "CSR"
+    },
+    "S02": {
+      "input": "CSR",
+      "output": "S02_PASS"
+    },
+    "S07": {
+      "input": "S06_PASS",
+      "actor": "EMS",
+      "output": "ECVM"
+    },
+    "S08": {
+      "input": "ECVM",
+      "actor": "EMS",
+      "output": "TEMM"
+    },
+    "S11": {
+      "input_required": ["CSR", "ECVM", "TEMM"],
+      "actor": "GAX Executor",
+      "verification_trigger": "P-01 Finality (ACVD)",
+      "output": "P01_COMMITMENT_LOCK"
+    },
+    "S14": {
+      "input": "P01_COMMITMENT_LOCK",
+      "actor": "Sentinel",
+      "output": "STATE_TRANSITION_RECEIPT"
+    }
+    // ... (remaining 15 stages defined with strict sequential input/output contracts)
+  }
+}
