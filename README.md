@@ -1,6 +1,6 @@
 # SOVEREIGN GOVERNANCE MANIFEST (SGM) V94.1
 
-This manifest defines the immutable operational and structural requirements governing all System State Transitions (SSTs) within the Sovereign Architecture. All changes must pass the rigorous, cascading multi-stage verification imposed by the Governance State Evolution Pipeline (GSEP-C V3.1).
+This manifest defines the immutable operational and structural requirements governing all System State Transitions (SSTs) within the Sovereign Architecture. All changes must pass the rigorous, cascading multi-stage verification imposed by the **Governance State Evolution Pipeline (GSEP-C V3.1)**, prioritizing fail-fast security assessment and objective value generation.
 
 ---
 
@@ -12,15 +12,15 @@ This registry consolidates all essential governance contracts and domain acronym
 |:---|:---|:---|:---|
 | CAC | ARCH | Core Architectural Constraints | Defines mandatory architectural principles. |
 | COF | ARCH | Core Objective Function | The mathematical goal to be maximized. |
-| CTAL | L4 | Configuration Trust Assurance Layer | Verification of configuration origin/trust. |
-| GCR | ARCH (Legacy) | Governance Contracts Registry | Legacy registry list (See 0.0 SCTR). |
+| CTAL | L2 (Refactored) | Configuration Trust Assurance Layer | Verification of configuration origin/trust. |
+| GCR | ARCH (DEPRECATED) | Governance Contracts Registry | Superseded by 0.0 SCTR. |
 | GRLC | L8 | Governance Record Logging Contract | Persists the certified transaction log. |
 | GSC | PRE | Governance Schema Contract | Schema integrity for ingress proposals. |
 | GSEP-C | ORCH | Governance State Evolution Pipeline - Control | Executes the full verification pipeline (PRE, L0-L9). |
 | MEE/MEC | L6 | Metric/Equation Engine & Contract | Computes primary metrics ($S\text{-}01, S\text{-}02$). |
 | PVLM | L1 | Policy Veto Logic Module | Generates critical veto signals ($S\text{-}03$). |
 | RRP | FAILSAFE | Rollback and Recovery Protocol | State-defined remediation guarantee. |
-| SCI | L3 | Structural Cost Index | Quantifies long-term structural burden (C-01). |
+| SCI | L4 (Refactored) | Structural Cost Index | Quantifies long-term structural burden (C-01). |
 | SST | DOMAIN | System State Transition | The central process domain event. |
 | TEDC | L9 | Transition Execution & Decommitment | Executes final atomic state transition. |
 | VMO | L7 | Viability Margin Oracle | Computes dynamic safety buffer ($\epsilon$). |
@@ -44,7 +44,7 @@ Optimization seeks to maximize Efficacy ($S\text{-}01$) relative to systemic Ris
 
 $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + 1} \right) \quad \text{subject to} \quad \neg S\text{-}03 \equiv \mathbf{True} $$
 
-*Principle:* Systemic improvement must be maximized relative to adjusted risk, without breaching any critical veto policy.
+*Principle:* Systemic improvement must be maximized relative to adjusted risk. The denominator constant $(+1)$ ensures the function remains mathematically stable even if calculated systemic risk $S\text{-}02 = 0$.
 
 ### 1.3 FINALITY AXIOM (P-01 Certification Requirement - Layer L7)
 
@@ -58,16 +58,16 @@ $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land 
 
 ## 2.0 GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.1)
 
-GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9), adhering to the **Principle of Immutable Staging** (Fail-Fast Mandate). Risk scrutiny precedes metric computation (L6) and final determination (L7).
+GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9), adhering to the **Principle of Immutable Staging** (Fail-Fast Mandate). Layers L2-L4 have been reordered to prioritize security-centric checks immediately following foundational setup.
 
 | Layer | Stage Title | Core Action (Contract) | Validation Objective | Critical Halt Condition | RRP Hook |
 |:-----|:-----|:-----|:-------------------------------------------|:----------------------------|:---------|
 | PRE | Ingress Validation | Schema Check (GSC) | Assert proposal structural integrity. | Ingress Structure Failure | `RRP:SCHEMA_FAIL` |
 | L0 | Context Typing | Finalize Context Resolution. | Formal format and schema compliance check. | Format Integrity Fail | `RRP:FORMAT_FAIL` |
 | L1 | **Critical Veto** | Policy Enforcement (PVLM) | Check for all critical policy violations ($S\text{-}03$). | CRITICAL POLICY VIOLATION | `RRP:POLICY_VETO` |
-| L2 | Confidence Modeling | Simulate Impact Bounds. | Model metric bounds confidence margins. | Simulation Divergence | `RRP:SIM_DIVERGE` |
-| L3 | Resource Constraint | Budget Verification (SCI) | Verification against C-01 structural limits. | Resource Overrun | `RRP:BUDGET_EXCEED` |
-| L4 | Provenance & Trust | Source Authenticity (CTAL) | Proposal source authenticity and trust check. | Provenance Trust Failure | `RRP:TRUST_FAIL` |
+| L2 | Provenance & Trust | Source Authenticity (CTAL) | Proposal source authenticity and trust check. | Provenance Trust Failure | `RRP:TRUST_FAIL` |
+| L3 | Confidence Modeling | Simulate Impact Bounds. | Model metric bounds confidence margins. | Simulation Divergence | `RRP:SIM_DIVERGE` |
+| L4 | Resource Constraint | Budget Verification (SCI) | Verification against C-01 structural limits. | Resource Overrun | `RRP:BUDGET_EXCEED` |
 | L5 | Data Fidelity | Lineage Integrity Check. | Input data lineage and integrity verification. | Data Corruption | `RRP:DATA_FIDELITY` |
 | L6 | Metric Synthesis | Objective Score Computation (MEE) | Quantify required objective metrics ($S\text{-}01, S\text{-}02$). | Metric Synthesis Failure | `RRP:METRIC_FAIL` |
 | L7 | **Finality Gate** | Governing Axiom Enforcement (VMO) | Enforce P-01 rule check using VMO ($\epsilon$). | FINALITY RULE BREACH | `RRP:FINALITY_BREACH` |
