@@ -1,0 +1,34 @@
+{
+  "fsl_version": "v1.0.0",
+  "description": "Schema definition for the Flag State Log (FSL), optimized for immediate ingestion by the IH Sentinel (IH-S). The FSL provides a high-efficiency stream dedicated solely to governance deviation triggers, reducing dependency latency on the broader TEDS stream.",
+  "flag_schema": {
+    "timestamp": {
+      "type": "string",
+      "format": "ISO 8601 UTC (nanosecond precision)"
+    },
+    "stage_id": {
+      "type": "string",
+      "enum": ["S00", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14"]
+    },
+    "agent_id": {
+      "type": "string",
+      "enum": ["CRoT", "GAX", "SGS"]
+    },
+    "flag_type": {
+      "type": "string",
+      "enum": ["PVLM", "MPAM", "ADTM", "ECVM_FAIL", "CSR_BREACH"]
+    },
+    "trigger_axiom_id": {
+      "type": "string",
+      "enum": ["I", "II", "III", "TENET"]
+    },
+    "deviation_value": {
+      "type": ["number", "boolean"],
+      "description": "The specific value that caused the trigger (e.g., TEMM score, False ECVM result)"
+    },
+    "integrity_halt_signal": {
+      "type": "boolean",
+      "description": "True if IH must be immediately invoked."
+    }
+  }
+}
