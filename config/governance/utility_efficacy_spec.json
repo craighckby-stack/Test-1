@@ -1,0 +1,13 @@
+{
+  "spec_version": "1.0.0",
+  "protocol_dependency": "DSE v94.4",
+  "target_axiom": "GAX I: Utility Efficacy",
+  "metric_calculation_method": "TEMM_Algorithm_V2.1",
+  "min_value_threshold_omega": {
+    "definition": "The lowest acceptable measure of utility efficacy required for state transition finality.",
+    "calculation_base": "Relative system resource utilization optimization (RSRUO) vs. Cost-Benefit Profile (CBP) variance.",
+    "threshold_determination_logic": "Adaptive, dynamically tuned by the Stewardship Layer, subject to formal S05 review.",
+    "hard_minimum_default": 0.85
+  },
+  "allowed_variance_epsilon": 0.02
+}
