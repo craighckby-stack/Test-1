@@ -1,8 +1,8 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V98.3: GOVERNANCE CORE DEFINITION
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.1: GOVERNANCE CORE DEFINITION
 
 ## 1.0 EXECUTIVE OVERVIEW: DETERMINISTIC STATE EVOLUTION
 
-The **SGS V98.3** establishes the foundational axiom for deterministic Autonomous State Evolution (ASE). All certified state transitions ($ \Psi_{N} \to \Psi_{N+1} $) must be processed, attested, and committed exclusively by the specialized **Governance State Evolution Pipeline (GSEP-C) V98.3**.
+The **SGS V94.1** establishes the foundational axiom for deterministic Autonomous State Evolution (ASE). All certified state transitions ($ \Psi_{N} \to \Psi_{N+1} $) must be processed, attested, and committed exclusively by the specialized **Governance State Evolution Pipeline (GSEP-C) V94.1**.
 
 ### 1.1 Core Axiom (The Certified Transition Function)
 
@@ -24,23 +24,23 @@ Three attested, specialized agents coordinate state commitment using the Governa
 
 ---
 
-## 3.0 GOVERNANCE ASSET & MANIFEST REGISTRY (GACR V98.3)
+## 3.0 GOVERNANCE ASSET & MANIFEST REGISTRY (GACR V94.1)
 
-GACR defines certified configurations and reference assets necessary for GSEP-C validation stages. Assets marked (*) are Terminal Control Assets, requiring mandatory CRoT attestation and PCTM lifecycle management (See 7.1).
+GACR defines certified configurations and runtime assets necessary for GSEP-C validation. Assets are categorized into (1) Terminal Control Assets (*, high-integrity runtime proofs) and (2) PCTM Managed Configurations (static policy defined under Section 7.0).
 
-| Acronym | Trust Domain & Control Focus | Owner(s) | Primary Gate(s) | Description |
-|:---|:---|:---|:---|:---|
-| **HETM*** | Integrity / Environment | CRoT | S0 | Host Environment Trust Manifest. Certified proofs for physical/virtual infrastructure (Trust Anchor).|
-| **GICM*** | Commitment Handoff | CRoT | S0, S10 | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure agent handoffs.|
-| **PVLM** | Axiom Veto Logic | GAX | S2 ($ \neg S_{03} $) | Policy Veto Logic Manifest. Defines axiomatic rules for system prohibitions. Requires schema validation.|
-| **MPAM** | Model Stability | SGS/GAX | S3 ($ \neg S_{04} $), S7 | Model Performance & Attestation Manifest. Tracks model drift and integrity bounds.|
-| **DTEM*** | Data Lineage Trust | CRoT | S4 | Data Trust and Execution Manifest. Validation rules for input data lineage and trustworthiness.|
-| **ADTM** | Anomaly Detection | GAX/SGS | S6.5 ($ \neg S_{06.5} $) | Anomaly Detection Threshold Manifest. Defines execution profile heuristics for behavioral veto.| 
-| **CFTM** | Finality Threshold | GAX | S8 | Core Failure Threshold Manifest. Defines deviation tolerance ($ \epsilon $) for P-01 finality evaluation.|
+| Acronym | Control Focus | Owner(s) | PCTM Managed? | Primary Gate(s) | Description |
+|:---|:---|:---|:---|:---|:---|
+| **HETM*** | Host Integrity | CRoT | No | S0 | Host Environment Trust Manifest. Certified proofs for infrastructure (Trust Anchor).|
+| **GICM*** | Commitment Handoff | CRoT | No | S0, S10 | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure handoffs.|
+| **DTEM*** | Data Lineage | CRoT | No | S4 | Data Trust and Execution Manifest. Validation rules for input data lineage.|
+| **PVLM** | Axiom Veto Logic | GAX | Yes | S2 ($ \neg S_{03} $) | Policy Veto Logic Manifest. Defines axiomatic prohibitions (Requires schema).|
+| **MPAM** | Model Stability | SGS/GAX | Yes | S3 ($ \neg S_{04} $), S7 | Model Performance & Attestation Manifest. Tracks model drift and integrity bounds.|
+| **ADTM** | Anomaly Detection | GAX/SGS | Yes | S6.5 ($ \neg S_{06.5} $) | Anomaly Detection Threshold Manifest. Defines heuristics for behavioral veto. |
+| **CFTM** | Finality Threshold | GAX | Yes | S8 | Core Failure Threshold Manifest. Defines required utility margin ($ \epsilon $) for P-01 finality.|
 
 ---
 
-## 4.0 GOVERNANCE CALCULUS: RISK-ADJUSTED UTILITY (P-01 FINALITY)
+## 4.0 GOVERNANCE CALCULUS: THE P-01 DECISION MECHANISM
 
 The Autonomous State must maximize Certified Utility ($ S_{01} $) while strictly satisfying all critical Veto Gates and operating above the defined risk margin ($ \epsilon $).
 
@@ -49,8 +49,6 @@ The Autonomous State must maximize Certified Utility ($ S_{01} $) while strictly
 $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{03}) \land (\neg S_{04}) \land (\neg S_{06.5}) \land (S_{Context\ Pass})$$
 
 ### 4.2 Certified Variable Registry (Calculus Inputs)
-
-This registry defines the primary variables governing the P-01 finality calculus, correlating them to their production source (GSEP-C stage) and ownership.
 
 | Variable | Governing Agent(s) | Source Stage | Metric Role | Description |
 |:---|:---|:---|:---|:---|
@@ -64,15 +62,17 @@ This registry defines the primary variables governing the P-01 finality calculus
 
 ---
 
-## 5.0 GSEP-C V98.3: THE CERTIFIED STATE TRANSITION PIPELINE (13 STAGES)
+## 5.0 GSEP-C V94.1: THE CERTIFIED STATE TRANSITION PIPELINE (13 STAGES)
 
-GSEP-C utilizes the Certified Intermediate State Manager (CISM) to secure data integrity throughout four sequential phases (A-D). Failures are classified as STANDARD, CRITICAL (RRP), or TERMINAL (SIH).
+GSEP-C utilizes the Certified Intermediate State Manager (CISM) to secure data integrity throughout four sequential, non-reversible phases (A: Ingress, B: Veto Gates, C: Metrics & Planning, D: Finality & Commitment).
+
+Failures are classified as STANDARD, CRITICAL (RRP), or TERMINAL (SIH).
 
 ### A. Initialization & Ingress (CRoT/SGS Lead)
 
 | Stage | Agent | Failure Type | Veto/Commitment | Primary Gate Function | Key Dependencies |
 |:---|:---|:---|:---|:---|:---|
-| **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL (SIH) | | Validate Host (HETM*), Agents, and load GACR State. | HETM*, GVDM, GICM*, PCTM Config|
+| **S0: ANCHOR INIT** | CRoT/SGS | TERMINAL (SIH) | | Validate System Version (GVDM), Host (HETM*), and load GACR State. | HETM*, **GVDM**, GICM*, PCTM Config|
 | S1: INGRESS VALIDATION | SGS | STANDARD | | Input Schema Compliance check (SDVM). CISM state initialized. | SDVM |
 
 ### B. Critical Attestation & Veto Gates (GAX/CRoT Lead)
@@ -109,21 +109,45 @@ GSEP-C utilizes the Certified Intermediate State Manager (CISM) to secure data i
 
 | Protocol | Acronym | Purpose | Control Layer | Related Stage(s) |
 |:---|:---|:---|:---|:---|
-| **Certified Pre-Execution Sandbox** | **CPES** | Isolated, attested simulation environment to validate execution effects before final commitment ($S_{01}, S_{02}$ reliability). | Planning Assurance Layer | S6.7 |
+| Certified Pre-Execution Sandbox | **CPES** | Isolated, attested simulation environment to validate execution effects ($S_{01}, S_{02}$ reliability). | Planning Assurance Layer | S6.7 |
 | Certified Intermediate State Manager | CISM | Secure persistence and integrity management of inter-stage data (State Handoffs). | Data Continuity Layer | S1, S5, S7, S9 |
 | Resilience/Recovery Protocol | RRP | Triage requirements for CRITICAL failures, defined by GRDM. | Fault Management | CRITICAL Failures |
 | System Integrity Halt | SIH | Immediate fail-safe activation upon TERMINAL failure. | Fault Management | TERMINAL Failures |
 | Certified State Transition Ledger | CSTL | Immutable, verifiable ledger storing signed $ \Psi_{N+1} $ commitment records. | Historical Provenance Layer | S10, S11 |
-| **Policy Configuration Trust Manager** | **PCTM** | Enforces version control and cryptographic integrity checks on critical configuration assets (PVLM, ADTM, CFTM) upstream of S0. | Axiom Governance Layer | Pre-S0 |
+| Policy Configuration Trust Manager | **PCTM** | Enforces version control and cryptographic integrity checks on critical configuration assets. | Axiom Governance Layer | Pre-S0, S0 |
 
 ---
 
-## 7.0 STRUCTURAL ASSURANCE & GOVERNANCE GLOSSARY
+## 7.0 GOVERNANCE CONFIGURATION TRUST STANDARDS (GCTS)
 
-### 7.1 Manifest Configuration Trust Management (PCTM Requirement)
+All static governance configurations (PCTM Managed Assets: PVLM, MPAM, ADTM, CFTM) MUST be validated against strict versioning and integrity requirements. This process includes mandatory cryptographic signing, semantic versioning, and JSON schema validation executed by the PCTM prior to GSEP-C execution at S0.
 
-All critical governance manifests (PVLM, ADTM, CFTM) MUST be validated against a strict JSON Schema prior to loading at S0 (Schema Compliance Audit). Furthermore, these configuration assets must be managed by the Policy Configuration Trust Manager (PCTM) to enforce strict cryptographic signing and semantic versioning requirements, ensuring the axiom source of truth is verifiable and non-repudiable pre-deployment.
+## 8.0 GOVERNANCE ACRONYM GLOSSARY (Comprehensive Definitions)
 
-### 7.2 Governance Acronym Glossary
+Provides operational definitions for all governance variables and reference manifests used within the SGS V94.1 framework, ensuring uniform interpretation of control dependencies.
 
-(Note: Comprehensive glossary for all acronyms defined in Sections 2.0, 3.0, and 6.0 for enhanced system comprehension and maintainability.)
+| Acronym | Definition |
+|:---|:---|
+| ADTM | Anomaly Detection Threshold Manifest |
+| CALS | Certified Audit Log System (Referred to via NRALS Logging)|
+| CEEP | Certified Execution Preparation |
+| CFTM | Core Failure Threshold Manifest |
+| CISM | Certified Intermediate State Manager |
+| CMR | Certified Model Repository (Contains attested models used by CEEP/CPES)|
+| CPES | Certified Pre-Execution Sandbox |
+| CSTL | Certified State Transition Ledger |
+| DTEM | Data Trust and Execution Manifest |
+| **ECVM** | **Environmental Context Validation Manifest** (Operational prerequisites, S4.5)|
+| GAX | Governance Axiom Enforcer |
+| GICM | Governance Inter-Agent Commitment Manifest |
+| GTB Feed | Global Telemetry Bus Feed |
+| **GVDM** | **Governance Version Definition Manifest** (Required boot version manifest, S0)|
+| HETM | Host Environment Trust Manifest |
+| MPAM | Model Performance & Attestation Manifest |
+| PCTM | Policy Configuration Trust Manager |
+| PVLM | Policy Veto Logic Manifest |
+| RRP | Resilience/Recovery Protocol |
+| **SDVM** | **Schema Definition Validation Manifest** (Input validation standards, S1)|
+| SGS | Sovereign Governance System |
+| SIH | System Integrity Halt |
+| STDM | System Telemetry Definition Manifest |
