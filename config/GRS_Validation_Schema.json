@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "policy_source": "GRS_V97.3",
+  "invariants": [
+    {
+      "id": "INV-001",
+      "type": "NON_CONTRADICTION",
+      "description": "Ensure no rule in GRS context A violates necessary condition in GRS context B.",
+      "target_groups": ["Governance", "P-01/Commitment"],
+      "required_confidence": 0.999
+    },
+    {
+      "id": "INV-002",
+      "type": "SYNTACTIC_ADHERENCE",
+      "description": "Verify all GRS rules adhere strictly to the internal policy domain language (PDL) schema.",
+      "target_groups": ["RSAM", "C-15"],
+      "required_confidence": 1.0
+    },
+    {
+      "id": "INV-003",
+      "type": "ATOMICITY_ASSURANCE",
+      "description": "Verify no GRS rule compromises the GSEP's atomic commit properties.",
+      "target_groups": ["GSEP", "AIA"],
+      "required_confidence": 0.99
+    }
+  ],
+  "validation_gates": ["GIRAM_INIT"]
+}
