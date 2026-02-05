@@ -1,0 +1,25 @@
+{
+  "RVP_RT-LATENCY_900": {
+    "name": "Real-Time Latency Overrun Policy",
+    "description": "If Agent Heartbeat Latency exceeds 50ms, escalate severity to P1 and trigger local diagnostic dump based on Governance Policy GAX-401.",
+    "severity_level": "P1",
+    "action_sequence": [
+      {
+        "step": 1,
+        "protocol": "LOG",
+        "details": "RT_LATENCY_VIOLATION: CRITICAL"
+      },
+      {
+        "step": 2,
+        "protocol": "ALERT_SGS",
+        "details": "SEV_P1_IMMEDIATE"
+      },
+      {
+        "step": 3,
+        "protocol": "EXECUTE_LOCAL_SCRIPT",
+        "script_id": "DIAG_DUMP_001"
+      }
+    ],
+    "owner": "SGS/Monolith"
+  }
+}
