@@ -1,0 +1,21 @@
+{
+  "version": "v1.0.0",
+  "description": "Defines the mandatory schedule, algorithms, and key metadata for core system cryptographic primitives.",
+  "key_domains": [
+    {
+      "domain": "AASS_SIGNING_KEY",
+      "purpose": "GAX I: Finality Proof Generation & Forensic Data Sealing",
+      "algorithm": "ED25519_HS256",
+      "rotation_policy": "EPISODIC",
+      "episode_limit": 1000
+    },
+    {
+      "domain": "EMSU_SEAL_HASH_SEED",
+      "purpose": "GAX III: G0 Configuration Immutability Hashing",
+      "algorithm": "SHA3_384",
+      "rotation_policy": "TIME_BOUND",
+      "time_days": 90
+    }
+  ],
+  "enforcement_utility": "IKLM"
+}
