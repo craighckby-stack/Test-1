@@ -4,37 +4,53 @@ This document defines the **Autonomous Operational Contract (AOC V98.0)**, estab
 
 ---
 
-## 0. CORE OPERATIONAL MANDATE: The Irreversible Commitment Principle
+## I. CORE GOVERNANCE MANDATE: THE AOC TRIAD
 
-Systemic evolution is strictly conditional on achieving **Irreversible Commitment** by simultaneously satisfying the requirements defined by the **AOC Triad**. Failure at any Evolution Policy Decision Point (**EPDP**) mandates immediate invocation of the F-01 Failure Analysis Trace Path and subsequent state rollback.
+Systemic evolution is strictly conditional on achieving **Irreversible Commitment** by simultaneously satisfying the requirements defined by the AOC Triad. Failure at any Evolution Policy Decision Point (**EPDP**) mandates immediate invocation of the F-01 Failure Analysis Trace Path and subsequent state rollback.
 
-### I. THE AOC TRIAD (Core Invariants)
-
-| Acronym | Pillar Role | Core Constraint Enforced | Description |
+| Acronym | Pillar Role | Enforcement Mandate | Focus Area |
 |:---|:---|:---|:---|
-| **GSEP** | Workflow Management | Sequential 7-phase mutation lifecycle | The Governing Self-Evolution Protocol defining atomic workflow. |
-| **P-01** | Decisional Adjudication | Trust ($$S-01$$) > Risk ($$S-02$$) Threshold | The calculus determining the viability of a state mutation. |
-| **AIA** | State Immutability | Verifiable cryptographic ledgering (D-01) | Architecture ensuring tamper-proof state transition commitment. |
+| **GSEP** | Workflow & Flow Control | Sequential 7-phase mutation lifecycle integrity. | Operational Protocol |
+| **P-01** | Decisional Adjudication | Trust ($$S-01$$) must strictly exceed Risk ($$S-02$$). | Commitment Calculus |
+| **AIA** | State Immutability | Verifiable cryptographic ledgering (D-01) of all state transitions. | Architectural Integrity |
 
 ---
 
-## II. ARCHITECTURAL REGISTRY (GCO Component Catalog)
+## II. GOVERNANCE ARCHITECTURAL REGISTRY (GCO Catalog)
 
-This catalog synthesizes the roles of all mandatory governance components that enforce the AOC Triad.
+This catalog structures all mandatory governance components by the specific AOC Triad pillar they enforce, providing an immediate architectural map.
 
-| Acronym | Functional Area | Key Mandate (Constraint Enforcement) |
+### A. AIA: STATE IMMUTABILITY COMPONENTS
+
+These components ensure tamper-proof logging and irreversible commitment of successful state transitions (M-02).
+
+| Acronym | Functional Role | Enforcement Action |
 |:---|:---|:---|
-| **GCO** | Workflow Enforcement | Enforces sequential integrity of GSEP stages and manages all EPDP gates. |
-| **MCR** | Immutability (AIA) | Executes cryptographic state hashing and architectural Version-Lock (Stage 5). |
-| **RCR** | Immutability (AIA) | Executes and cryptographically logs mandated state reversal actions (F-01 recovery). |
-| **D-01 Logger** | Immutability (AIA) | Records all P-01 results and key metadata immutably via cryptographic ledgering. |
-| **GRS-VA** | Immutability (AIA) | Cryptographically attests the operational Governance Rule Source version. |
-| **OGT** | Decisional (P-01) | Orchestrates and synchronizes the S-0x input pipeline for the P-01 calculus. |
-| **ATM** | Decisional (P-01) | Calculates the S-01 Quantitative Reliability Projection (Trust Score). |
-| **MCRA Engine** | Decisional (P-01) | Calculates the S-02 Dynamic Maximum Risk Floor. |
-| **DSCM** | Decisional (P-01) | Creates an immutable snapshot of the P-01 calculation state for audit. |
-| **CTG** | Workflow (GSEP) | Executes failure state trace analysis post-EPDP failure (F-01 trigger). |
-| **FBA** | Workflow (GSEP) | Generates validated post-execution data for the refinement loop. |
+| **MCR** | Mutation Commitment Registrar | Executes cryptographic state hashing and architectural Version-Lock (GSEP Stage 5). |
+| **RCR** | Reversal Commitment Registrar | Executes and cryptographically logs mandated state reversal actions (F-01 recovery). |
+| **D-01 Logger** | Immutable Ledger | Records all P-01 results, state changes, and key metadata immutably. |
+| **GRS-VA** | Governance Rule Source Validator | Cryptographically attests the operational Governance Rule Source version (GSH hash). |
+
+### B. GSEP: WORKFLOW ENFORCEMENT COMPONENTS
+
+These components enforce sequential integrity, flow control, and failure management across the 7-stage lifecycle.
+
+| Acronym | Functional Role | Enforcement Action |
+|:---|:---|:---|
+| **GCO** | Governance Constraint Orchestrator | Enforces sequential integrity of GSEP stages and manages all EPDP gates. |
+| **CTG** | Centralized Trace Generator | Executes failure state trace analysis post-EPDP failure (F-01 trigger). |
+| **FBA** | Feedback Analysis & Audit | Generates validated post-execution data for the refinement and audit loop. |
+
+### C. P-01: DECISIONAL ADJUDICATION COMPONENTS
+
+These components are responsible for calculating the Trust/Risk metric set necessary for commitment authorization at EPDP C (GSEP Stage 4).
+
+| Acronym | Functional Role | Enforcement Action |
+|:---|:---|:---|
+| **OGT** | Operational Governance Transformer | Orchestrates and synchronizes the S-0x input pipeline for the P-01 calculus. |
+| **ATM** | AGI Trust Metrics System | Calculates the S-01 Quantitative Reliability Projection (Trust Score). |
+| **MCRA Engine** | Maximum Critical Risk Arbitrator | Calculates the S-02 Dynamic Maximum Risk Floor. |
+| **DSCM** | Decisional State Checkpoint Manager | Creates an immutable snapshot of the P-01 calculation state for audit.
 
 ---
 
@@ -93,7 +109,7 @@ graph TD
 
 ## IV. P-01 TRUST CALCULUS: The Irreversible Mandate
 
-Commitment at Stage 4 is granted ONLY if the quantitative evaluation of Trust strictly exceeds Risk, AND all policy vetos are false. This ensures zero risk tolerance for policy violations.
+Commitment at Stage 4 is granted ONLY if the quantitative evaluation of Trust strictly exceeds Risk, AND all policy vetos are false. This ensures zero risk tolerance for defined policy violations.
 
 $$ \text{P-01 PASS} \iff \left( \text{S-01}_{\text{Trust}} > \text{S-02}_{\text{Risk Floor}} \right) \land \left( \text{S-03}_{\text{Veto}} = \text{FALSE} \right) $$
 
