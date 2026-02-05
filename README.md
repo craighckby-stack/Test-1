@@ -1,57 +1,57 @@
-# $\text{DSE} \Psi$: Deterministic State Execution Manifest | Sovereign AGI v94.1
+# $\text{DSE} \Psi$: Deterministic State Execution Protocol | Sovereign AGI v94.1
 
-## 0. EXECUTIVE SUMMARY: DSE Protocol Integrity
-The **Deterministic State Execution (DSE)** Protocol dictates state transition ($\Psi$) integrity. It mandates continuous validation against the **Axiom Constraint Verification Matrix (ACVM)**, enforced by the Zero-Tolerance **GAX Constraint Set** (I, II, III). Any violation triggers an immediate, cryptographically attested **Integrity Halt (IH)** based on P-R03 standards.
+## 0. EXECUTIVE SUMMARY: Protocol Integrity & Halting (IH)
+The **Deterministic State Execution (DSE)** Protocol ($\Psi$) is the core mechanism guaranteeing state transition integrity. It operates via the **Governance State Execution Pipeline (GSEP-C)** and is continuously validated against the **Axiom Constraint Verification Matrix (ACVM)**. Strict adherence to the Zero-Tolerance **GAX Constraint Set** is mandated. Any violation triggers an immediate, cryptographically attested **Integrity Halt (IH)** (P-R03 standard).
 
-### 0.1. Core Control Plane & Artifacts
-| Tag | Definition | Governance Layer Focus | Enforcement Gate |
+## 1. DSE CORE ARTIFACTS AND GLOSSARY
+
+### 1.1. Core Control Plane Components
+| Tag | Definition | Role | Enforcement Trigger |
 |:---|:---|:---|:---|
-| **ACVM** | Axiom Constraint Verification Matrix | Constraint satisfaction baseline. | P-M02 Thresholds |
+| **ACVM** | Axiom Constraint Verification Matrix | Constraint satisfaction baseline and truth source. | P-M02 Thresholds |
 | **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage Flow (S00 $\to$ S14). | P-M01 Linearity |
-| **PCRE** | Policy Consensus & Ratification Engine | Critical Policy Immutability Layer. | ACVM/GSEP-C/F Hash Locking |
-| **DMW** | DSE Metric Watchdog | Real-time ACVM Input Monitoring. | GAX Live Trigger |
-| **IH** | Integrity Halt | Mandated system suspension upon GAX/P-Set violation. | P-R03 Standards |
+| **DMW** | DSE Metric Watchdog | Real-time monitoring against ACVM input limits and flow linearity. | GAX Live Trigger |
+| **PCRE** | Policy Consensus & Ratification Engine | Ensures critical policy immutability prior to commitment. | ACVM/GSEP-C Hash Locking |
+| **IH** | Integrity Halt | Mandated, immediate system suspension upon integrity violation. | P-R03 Forensics Trace Mandate |
 
-## 1. GSEP-C EXECUTION LIFECYCLE (S00 $\to$ S14)
-
-The mandatory atomic pipeline, focusing on GAX constraint injection points and integrity targets.
-
-| Stage | Phase Gate | Constraint Injection Focus | Artifact Target (Snapshot Type) | Primary Actor | Mandatory Mandate Trigger |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **S00** | PRE-FLIGHT LOCK | GAX III (Baseline Check) | Sequence Authorization (CHR Check) | C-ICR Utility | P-M01 Initiation |
-| S01 | INPUT STRUCTURING | Initial GAX III | **CSR Snapshot** | CRoT Agent | GAX III Policy Adherence |
-| S07 | BOUNDARY CHECK | Runtime GAX II | **ECVM Snapshot** | EMS Utility | GAX II Resource Isolation |
-| S08 | PERFORMANCE CHECK | Runtime GAX I | **TEMM Snapshot** | EMS Utility | GAX I $\Omega_{\text{min}}$ Saturation |
-| **S09** | PRE-COMMIT | ACVM Simulation/Modeling | ACVM Prediction Metrics | CPR Utility | Proactive Modeling Failure |
-| **S11** | **COMMITMENT GATE** | FINAL GAX (I, II, III) | $\Psi_{\text{final}}$ Resolution | $\Psi$ Resolver | P-M02 $\Psi$ Underflow |
-| **S14** | POST-SEAL AUDIT | P-R03 Enforcement | Audit Log / State Seal | AASS Service | IH Trace Compliance Failure |
-*(S02-S06, S10, S12-S13 are passive buffer stages monitored by DMW/P-M01 linearity.)*
-
-## 2. DSE MANDATE DEFINITIONS (P-SET)
-
-Strict requirements dictating execution integrity and forensic traceability.
-
+### 1.2. Protocol Mandates (P-Set Definitions)
 | ID | Focus | Requirement Definition | Critical Failure Condition (IH Trigger) |
 |:---:|:---|:---|:---|
-| **P-M01** | Atomic Flow Integrity | Strict, linear GSEP-C sequence (S00 $\to$ S14) enforced by DMW. | Execution Trace Linearity Violation (Non-Adherence) |
-| **P-M02** | Immutable Commitment | Comprehensive ACVM satisfaction across (GAX I $\land$ II $\land$ III). | $\Psi$ Resolution Failure or Constraint Underflow at S11 |
-| **P-R03** | Forensics/Recovery | IH requires sealed FDLS trace and AASS-signed DIAL certification. | Compromised Trace Integrity (Audit Procedure Failure) |
+| **P-M01** | Atomic Flow Integrity | Strict, linear GSEP-C sequence enforced by the DMW. | Execution Trace Linearity Violation. |
+| **P-M02** | Immutable Commitment | Comprehensive ACVM satisfaction across (GAX I $\land$ II $\land$ III). | $\Psi$ Resolution Failure or Constraint Underflow at S11. |
+| **P-R03** | Forensics/Recovery | IH requires sealed FDLS trace and AASS-signed DIAL certification. | Compromised Audit Trace Integrity (S14 Failure). |
 
-## 3. ARCHITECTURAL REGISTRY
+## 2. GSEP-C EXECUTION LIFECYCLE: Critical Checkpoints
+The mandatory atomic pipeline ensuring GAX constraint injection and integrity target attainment. Failure at any checkpoint triggers an IH based on the linked P-Set violation.
 
-### 3.1. Registry: Configuration and Artifact Sources
-| Tag | Definition | Standardized Path | Governing Mandate |
+| Stage | Phase Gate | Primary Mandate | Constraint Focus | Key Utility Actor | Artifact Generated |
+|:---:|:---|:---|:---|:---|:---|
+| **S00** | PRE-FLIGHT LOCK | P-M01 Initiation | GAX III (Baseline integrity check). | C-ICR Utility | Sequence Authorization (CHR Check) |
+| **S07** | BOUNDARY CHECK | P-M02 Isolation | Runtime GAX II (Resource isolation). | EMS Utility | ECVM Snapshot |
+| **S09** | PRE-COMMIT | Proactive Modeling | ACVM Simulation/Modeling Prediction. | CPR Utility | ACVM Prediction Metrics |
+| **S11** | **COMMITMENT GATE** | P-M02 Resolution | FINAL GAX (I, II, III) validation. | $\Psi$ Resolver | $\Psi_{\text{final}}$ Resolution |
+| **S14** | POST-SEAL AUDIT | P-R03 Enforcement | Final trace integrity validation. | AASS Service | Audit Log / State Seal |
+*(Stages S02-S06, S10, S12-S13 are passive buffer stages monitored by DMW.)*
+
+## 3. ARCHITECTURAL REGISTRY & UTILITIES
+
+### 3.1. Configuration Sources (Input & State Definition)
+Core components providing baseline metrics and governing structure definitions, subject to PCRE immutability.
+
+| Tag | Standardized Path | Governing Mandate | Purpose |
 |:---:|:---|:---|:---|
-| ACVM | Axiom Constraint Verification Matrix | `registry/config/acvm.json` | P-M02 Thresholds |
-| GSEP-C/F| GSEP Flow Definition | `registry/config/gsep_c_flow.json` | P-M01 Sequence |
-| PCRE Policy| Policy Ratification Spec | `registry/config/pcre_consensus_policy.json` | Governance Control |
-| FDLS Spec| Forensics Data Lockout Standard | `registry/protocol/fdls_spec.json` | P-R03 Sealing |
-| DARM | DIAL Analysis/RCA Map | `registry/config/dial_analysis_map.json` | IH RCA Input |
-| CHR | Configuration Hash Registry (Baseline Reference) | `registry/config/chr.dat` | S00 Checksum |
+| ACVM | `registry/config/acvm.json` | P-M02 | Constraint verification thresholds. |
+| GSEP-C/F| `registry/config/gsep_c_flow.json` | P-M01 | Pipeline definition and sequencing. |
+| CHR | `registry/config/chr.dat` | S00 | Configuration Hash Registry (Baseline Checksum). |
+| FDLS Spec| `registry/protocol/fdls_spec.json` | P-R03 | Forensics Data Lockout Standard for IH trace sealing. |
+| PCRE Policy| `registry/config/pcre_consensus_policy.json` | Governance Control | Policy Ratification Specification. |
+| DARM | `registry/config/dial_analysis_map.json` | IH RCA Input | DIAL Analysis/RCA Map. |
 
-### 3.2. Registry: Operational Utility Actors
-| Tag | Definition | Role Focus | Stage Dependency |
+### 3.2. Operational Utility Actors
+Utilities essential for execution, validation, and forensic processes.
+
+| Tag | Role Focus | Stage Dependency | Function Summary |
 |:---:|:---|:---|:---|
-| **AASS** | Autonomous Audit & Signing Service | Final cryptographic attestation (P-R03). | S14 |
-| **C-ICR** | Configuration Integrity Check Requirement | Mandatory pre-flight validation against CHR. | S00 |
-| **CPR** | Constraint Pre-Resolver Utility | S09 ACVM evaluation simulation. | S09 |
+| **AASS** | Autonomous Audit & Signing Service | S14 | Final cryptographic attestation (P-R03 compliance). |
+| **C-ICR** | Configuration Integrity Check | S00 | Mandatory pre-flight validation against CHR baseline. |
+| **CPR** | Constraint Pre-Resolver Utility | S09 | ACVM evaluation simulation and proactive modeling. |
