@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Governance Configuration Schema",
+  "type": "object",
+  "properties": {
+    "risk_thresholds": {
+      "type": "object",
+      "description": "Configuration for AGI-C-11 (MCRA) minimum required confidence.",
+      "properties": {
+        "critical_system_modification": {
+          "type": "number",
+          "minimum": 0.85,
+          "description": "Minimum ATM score required for core architectural changes (0.0 to 1.0)."
+        },
+        "low_impact_mutation": {
+          "type": "number",
+          "minimum": 0.50,
+          "description": "Minimum ATM score required for low-risk, non-core code changes."
+        }
+      },
+      "required": ["critical_system_modification", "low_impact_mutation"]
+    },
+    "atm_weights": {
+      "type": "object",
+      "description": "Configuration for ARCH-ATM source influence weighting.",
+      "properties": {
+        "historic_success_rate": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "peer_review_consensus": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "required": ["historic_success_rate", "peer_review_consensus"]
+    }
+  },
+  "required": ["risk_thresholds", "atm_weights"]
+}
