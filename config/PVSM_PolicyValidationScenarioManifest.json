@@ -1,0 +1,31 @@
+{
+  "manifest_version": "V97.1",
+  "asset_id": "PVSM",
+  "description": "Defines mandatory, zero-impact test scenarios required for validation of updated Policy Veto Logic (PVLM) and Core Failure Thresholds (CFTM) prior to PEUP promotion.",
+  "required_gate": "PEUP_PRE_CERT",
+  "validation_environment": "CEEP_SIMULATION_SANDBOX_LVL3",
+  "scenarios": [
+    {
+      "scenario_id": "VETO_TAUTOLOGY_001",
+      "test_type": "Integrity",
+      "target_asset": "PVLM",
+      "description": "Verify that core system tautologies (e.g., integrity > 0, resource allocation < budget) are not vetoed by the proposed PVLM.",
+      "expected_result": "P_01_PASS"
+    },
+    {
+      "scenario_id": "CFTM_BOUNDARY_CHECK_002",
+      "test_type": "Edge_Case",
+      "target_asset": "CFTM",
+      "description": "Validate that tolerance boundaries (epsilon) allow expected standard deviation while critically failing on proven failure vectors.",
+      "expected_result": "P_01_FAIL_CRITICALLY"
+    },
+    {
+      "scenario_id": "DEADLOCK_PROHIBITION_003",
+      "test_type": "Policy_Flow",
+      "target_asset": "PVLM",
+      "description": "Ensure no circular veto logic or self-locking conditions are introduced that would prevent all valid GSEP-C execution paths.",
+      "expected_result": "GSEP_FLOW_VALID"
+    }
+  ],
+  "minimum_pass_rate": 1.0
+}
