@@ -1,0 +1,41 @@
+{
+  "GODM_version": "v1.0",
+  "system_state_profile": "Standard-Secure",
+  "pipeline_priority": "High",
+  "orchestration_policies": {
+    "retry_policy": "ExponentialBackoff",
+    "resource_allocation_tag": "Gov-Critical"
+  },
+  "pipeline_dependency_map": {
+    "PRE": {
+      "SDVM_version": "v1.0",
+      "required_resources": ["SchemaValidator:1", "ContextCache:0"]
+    },
+    "L1": {
+      "PVLM_version": "v1.0",
+      "veto_sensitivity": 0.95
+    },
+    "L4": {
+      "CAC_version": "v3.0",
+      "resource_enforcement": true
+    },
+    "L7": {
+      "CFTM_version": "v3.0",
+      "epsilon_override_allowed": false
+    },
+    "L9": {
+      "SIHM_version": "v1.0",
+      "post_commit_verification": true
+    }
+  },
+  "failure_protocol_config": {
+    "RRP": {
+      "max_rollback_attempts": 3,
+      "audit_mode": "Verbose"
+    },
+    "SIH": {
+      "forensic_capture_enabled": true,
+      "FSVM_version": "v1.0"
+    }
+  }
+}
