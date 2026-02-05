@@ -1,25 +1,77 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "State Transition Proposal (STP) Schema Definition",
-  "description": "Defines the required structural integrity and context types for ingestion by the GSEP-C pipeline (GSC/CTM stages).",
+  "$id": "https://agi.sovereign/schemas/sdvm_v1.json",
+  "title": "SDVM State Transition Proposal (STP) Schema",
+  "description": "Defines the canonical structure for State Transition Proposals ingested by the Sovereign Distributed Virtual Machine (SDVM) core engine (GSEP-C pipeline).",
   "type": "object",
-  "required": [
-    "context",
-    "directives",
-    "provenance"
-  ],
+  "required": ["context", "directives", "provenance", "schema_version"],
   "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "sdvm_v1",
+      "description": "The specific version of this schema used."
+    },
     "context": {
       "type": "object",
-      "description": "Metadata defining the scope and environment of the STP."
+      "description": "Operational and environmental metadata.",
+      "required": ["timestamp_utc", "origin_node", "target_pipeline"],
+      "properties": {
+        "timestamp_utc": {"type": "string", "format": "date-time", "description": "UTC time of proposal generation."},
+        "origin_node": {"type": "string", "pattern": "^[A-Z0-9]{8}$", "description": "The identifier of the node generating the STP."}, 
+        "target_pipeline": {"type": "string", "enum": ["GSEP-C", "CTM", "GSC"], "description": "The primary intended recipient pipeline."}, 
+        "execution_priority": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5, "description": "Execution urgency (1=low, 10=critical)."}
+      },
+      "additionalProperties": false
     },
     "directives": {
       "type": "array",
-      "description": "Atomic instructions for state evolution."
+      "description": "An ordered list of atomic instructions for state modification.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/Directive"
+      }
     },
     "provenance": {
       "type": "object",
-      "description": "Cryptographic signature, source lineage, and timestamps."
+      "description": "Cryptographic proof of authorship and lineage.",
+      "required": ["agent_id", "signature", "previous_state_hash"],
+      "properties": {
+        "agent_id": {"type": "string", "description": "ID of the generating Autonomous Agent (e.g., AGI v94.1)."},
+        "signature": {"type": "string", "description": "Cryptographic signature over (context + directives)."},
+        "previous_state_hash": {"type": "string", "description": "Hash of the system state immediately prior to applying this STP."}
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "Directive": {
+      "type": "object",
+      "required": ["command", "target_path", "payload"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "enum": ["CREATE_FILE", "UPDATE_FILE", "DELETE_FILE", "MUTATE_CONFIG", "EXECUTE_TEST"],
+          "description": "The specific state manipulation operation to perform."
+        },
+        "target_path": {
+          "type": "string",
+          "description": "The target path relative to the SDVM root filesystem (must be canonical)."
+        },
+        "payload": {
+          "description": "Data relevant to the command (e.g., file content, patch instructions). Use null for DELETE_FILE.",
+          "oneOf": [
+            {"type": "object"},
+            {"type": "string"},
+            {"type": "null"}
+          ]
+        },
+        "sequence_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Order of execution within the directives array."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
