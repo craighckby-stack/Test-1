@@ -1,82 +1,73 @@
-# $\Psi$ PROTOCOL (DSE): Deterministic State Execution | Sovereign AGI v94.1 (Optimized)
+# $\Psi$ PROTOCOL (DSE v94.1): Deterministic State Execution
+## Guaranteeing Cryptographically-Verified State Finality
 
-## 0.0. EXECUTIVE SUMMARY: Guaranteed State Finality
-The **Deterministic State Execution Protocol ($\Psi$)** ensures absolute, cryptographically-verified state transitions. Its core function is managing the **Governance State Execution Pipeline (GSEP-C)** under the unyielding standards of the **Foundational Axiom Constraint Set (GAX)**. Integrity is enforced through continuous monitoring by the **Axiom Constraint Verification Matrix (ACVM)**.
-
-Key to DSE integrity is the Finality Seal (S14). Any deviation from P-Set rules, particularly regarding Output Determinism (GAX I), triggers an immediate **Integrity Halt (IH)** and mandatory isolated forensic tracing via the Failure State Management Utility (FSMU).
+The **Deterministic State Execution Protocol ($\Psi$)** establishes the foundational integrity layer for the Sovereign AGI stack. It mandates absolute, non-negotiable adherence to the **Foundational Axiom Constraint Set (GAX)** throughout the **Governance State Execution Pipeline (GSEP-C)**. Integrity is the critical path; any deviation from the P-Set rules triggers an immediate **Integrity Halt (IH)** and isolated forensic tracing via the Failure State Management Utility (FSMU).
 
 ---
 
-## 1.0. FOUNDATIONAL CONSTRAINTS (GAX & P-SET)
+## 1.0. FOUNDATIONAL CONSTRAINTS (GAX)
 
-GAX defines the immutable source axioms; P-Set defines the runtime behavioral handlers.
+GAX defines the immutable source axioms defining the trust boundary. Violation of any GAX mandates a P-M02 Critical Fault.
 
-### 1.1. Foundational Axiom Constraint Set (GAX)
-The three non-negotiable standards defining the DSE trust boundary. Violation of any GAX mandates P-M02 (Critical Fault) and triggers the IH.
+| ID | Axiom Definition | Core Trust Requirement | Enforcement Module | Critical Stage |
+|:---:|:---|:---|:---|:---:|
+| **GAX I** | Output Determinism ($\Psi_{\text{final}}$) | Cryptographic repeatability of the final state transition given the sealed Input State Buffer (ISB). | AASS | S11 (Commitment Gate) |
+| **GAX II** | Resource Boundedness | Execution consumption (CPU/Memory/Time) must conform strictly to predefined ACVM constraints. | DRO | S07 (Boundary Check) |
+| **GAX III** | Policy Immutability | Runtime policies (PCRE) must be hash-locked and sealed prior to execution start. | PCRE | S00 (Pre-Flight Lock) |
 
-| ID | Axiom Definition | Focus Area | Verification Gateway | Artifact Dependency |
-|:---:|:---|:---|:---|:---|
-| **GAX I** | Output Determinism | Cryptographic repeatability of final state ($\Psi_{\text{final}}$) given Input State Buffer (ISB). | S11 (Commitment Gate) | Cryptographic Manifest |
-| **GAX II** | Resource Boundedness | Execution resource consumption (CPU/Memory/Time) must conform strictly to ACVM limits. | S07 (Boundary Check) | ACVM Configuration |
-| **GAX III** | Policy Immutability | Runtime policies (PCRE) must be sealed prior to S00, preventing dynamic modification. | S00 (Pre-Flight Lock) | GAX Master Spec |
+### 1.1. Protocol Constraint Set (P-Set Reference)
+These rules map integrity failures to mandated system responses, enforced by the Governance Control Plane Actors (Section 3.1).
 
-### 1.2. Protocol Constraint Set (P-Set Reference)
-Runtime failure mapping and system governance logic.
-
-| ID | Protocol Definition | Actor/Enforcer | Failure Mode Classification | Action Trigger |
-|:---:|:---|:---|:---|:---|
-| **P-M01** | Linearity & Timeout | DMW (Metric Watchdog) | Sequential/Temporal Violation | Log & Proceed/IH (Soft/Hard) |
-| **P-M02** | Critical Fault | ACVM / GSEP-C Stages | GAX I/II/III Hard Failure | Immediate Integrity Halt (IH) |
-| **P-R03** | Audit Integrity | AASS / FSMU | Trace or Finality Seal Failure | IH & Mandatory FSMU Isolation |
+| ID | Failure Mode | Trigger / Classification | Action Mandate |
+|:---:|:---|:---|:---:|
+| **P-M01** | Linearity/Temporal Violation | Exceeding defined stage duration or sequence failure. | Log & Proceed (Soft) / Integrity Halt (Hard) |
+| **P-M02** | Critical Fault | Hard failure against GAX I, II, or III. | Immediate Integrity Halt (IH) |
+| **P-R03** | Audit Compromise | Failure of Trace Attestation or Finality Seal (AASS failure). | IH & Mandatory FSMU Isolation |
 
 ---
 
-## 2.0. GSEP-C EXECUTION PIPELINE (S00 $\to$ S14)
-The pipeline is strictly linear (P-M01 enforced). Synchronization Gates (G0-G3) require explicit, attested confirmation for state progression.
+## 2.0. GSEP-C EXECUTION PIPELINE: S00 $\to$ S14
+The execution flow is strictly linear (P-M01 enforced) and gated. State progression requires explicit, attested confirmation at each Synchronization Gate (G0-G3).
 
-| Stage | Gate/Transition | Core Mandate & Verification Focus | Constraint Trigger (P-Set) | Primary Output Artifact |
-|:---:|:---|:---|:---|:---|
-| **S00** | G0: PRE-FLIGHT LOCK | Baseline integrity (CHR Checksum) and GAX III cryptographic policy hash verification. | P-M01 / CHR Mismatch | Sequence Authorization Token (SAT) |
-| S01-S06 | Data Hydration | ISB generation and temporal state aggregation. Linearity check enforced. | P-M01 (Linearity/Timeout) | Intermediate State Buffer (ISB) |
-| **S07** | G1: BOUNDARY CHECK | GAX II Capture. DRO verifies runtime environment against ACVM constraints. | P-M02 (GAX II Violation) | Environmental Constraint Snapshot (ECVM) |
-| S08-S09 | Pre-Commit Model (CPR) | Proactive ACVM dry run and predictive analysis. Optimistic preparation buffer build. | Predictive Warning / P-M01 | ACVM Prediction Metrics |
-| S10 | Preparation Buffer | Finalizing ISB and Pre-Commit Snapshot for atomic write. | P-M01 (Timeout) | Pre-Commit Snapshot |
-| **S11** | G2: COMMITMENT GATE | **Atomic State Finalization. Full ACVM resolution confirms GAX I, II, and III compliance.** | P-M02 (Critical Fault) | State Resolution Ledger Entry ($\Psi_{\text{final}}$ Hash) |
-| S12-S13 | Post-Commit Metrics | Data collection following successful atomic write and internal system validation. | P-M01 (Linearity/Timeout) | Post-Commit Metrics |
-| **S14** | G3: FINALITY SEAL | Trace Attestation (DIAL/FDLS) and AASS cryptographic sealing of all logs. P-R03 enforced. | P-R03 (Audit Integrity Failure) | Audit Log / State Seal Certification |
-
----
-
-## 3.0. DSE ARCHITECTURE & INTEGRITY CONTROL
-
-### 3.1. Governance Control Plane Actors
-Critical actors enforcing GAX/P-Set mandates throughout the GSEP-C lifecycle.
-
-| Actor | Acronym | Primary Role | Core Enforcement Points |
-|:---|:---|:---|:---|
-| Axiom Constraint Verification Matrix | **ACVM** | Defines computational and resource thresholds for GAX II/III. | S07, S11 (P-M02) |
-| DSE Metric Watchdog | **DMW** | Real-time monitoring of GSEP-C linearity and timing requirements. | S00 $\to$ S14 (P-M01) |
-| Dynamic Resource Orchestrator | **DRO** | Translates ACVM demands into runtime enforcement (Container management). | GAX II Enforcement (S07) |
-| Autonomous Audit & Signing Service | **AASS** | Cryptographic sealing of final state and audit traces (Finality Seal). | P-R03 Enforcement (S14) |
-| Policy Ratification Engine | **PCRE** | Policy hash-locking and GAX III enforcement prior to execution. | GAX III Enforcement (S00) |
-| Failure State Management Utility | **FSMU** | Isolated environment manager for mandatory IH execution and secure forensic trace generation. | IH Protocol (P-R03 Isolation) |
-
-### 3.2. Integrity Halt (IH) Protocol
-**Trigger:** Any P-Set violation (P-M01, P-M02, P-R03).
-**Mandate:** Immediate zero-tolerance execution halt. The FSMU executes P-R03, generating and AASS-signing the Forensic Data & Log Snapshot (FDLS) *within isolation* prior to the full system environment purge. DIAL (RCA Map) is used for defining the Root Cause Analysis trace map during sealing.
+| Stage | Gate | Core Mandate | GAX Check | Output Artifact |
+|:---:|:---|:---|:---|:---:|
+| **S00** | G0: PRE-FLIGHT LOCK | Validate baseline integrity (CHR) and seal policies (GAX III). | GAX III | Sequence Authorization Token (SAT) |
+| S01-S06 | Context Hydration | Deterministic generation of the ISB (Input State Buffer) under CHS specification. | P-M01 (Linearity) | Input State Buffer (ISB) |
+| **S07** | G1: BOUNDARY CHECK | DRO verifies execution environment resources against ACVM constraints. | GAX II | Environmental Constraint Snapshot (ECVM) |
+| S08-S10 | Pre-Commit Snapshot | Proactive dry-run and finalizing the commit buffer for atomic transition. | Predictive Analysis | Pre-Commit Snapshot |
+| **S11** | G2: COMMITMENT GATE | **Atomic State Finalization.** Full ACVM resolution confirms compliance. | GAX I, II, III (P-M02) | State Resolution Ledger Entry ($\Psi_{\text{final}}$ Hash) |
+| S12-S13 | Post-Commit Metrics | Data collection and internal system validation following write. | P-M01 (Temporal) | Post-Commit Metrics |
+| **S14** | G3: FINALITY SEAL | Trace Attestation (DIAL/FDLS) and AASS cryptographic sealing of the state transaction logs. | P-R03 (Audit Integrity) | State Seal Certification (AASS Signature) |
 
 ---
 
-## 4.0. ARTIFACT REGISTRY & CONFIGURATION
+## 3.0. DSE GOVERNANCE CONTROL PLANE
 
-Centralized registry for immutable system configuration and protocol definitions.
+System modules responsible for enforcing GAX constraints and managing state transitions.
 
-| Artifact | Registry Path | Governing Mandate | Purpose/Verification Point |
-|:---:|:---|:---|:---|
-| ACVM Configuration | `registry/config/acvm.json` | P-M02 / GAX II | Constraint verification thresholds definition. |
-| GAX Master Spec | `registry/protocol/gax_master.yaml` | GAX Definition | Immutable source specification for Axioms I, II, and III. |
-| Cryptographic Manifest | `registry/config/cryptographic_manifest.json` | GAX I / P-R03 | Standardized hash algorithms for state finalization and sealing (Proposed). |
-| FDLS Specification | `registry/protocol/fdls_spec.json` | P-R03 | Forensic Trace sealing requirements and format definition. |
-| FSMU Configuration | `registry/protocol/fsmu_spec.json` | IH Protocol | Specification for IH transition and P-R03 execution isolation. |
-| CHR Checksum | `registry/config/chr.dat` | S00 Check | Configuration Hash Registry (Baseline system integrity). |
-| GSEP-C Flow Map | `registry/config/gsep_c_flow.json` | P-M01 | Pipeline definition and sequencing structure.
+| Actor | Acronym | Primary Enforcement Role | Key Functions / Enforcement Points |
+|:---|:---|:---|:---:|
+| **Axiom Constraint Verification Matrix** | ACVM | Resource/Trust Threshold Definition | S07 (Input), S11 (Final Resolution) |
+| **Dynamic Resource Orchestrator** | DRO | Container Management / Resource Bounding | Translates ACVM to runtime limits (GAX II) |
+| **Policy Ratification Engine** | PCRE | Policy Sealing & Verification | GAX III enforcement (S00) |
+| **DSE Metric Watchdog** | DMW | Temporal & Linear Monitoring | P-M01 enforcement across all stages |
+| **Autonomous Audit & Signing Service** | AASS | Cryptographic Finality Attestation | Seals $\Psi_{\text{final}}$ hash and FDLS traces (GAX I, P-R03) |
+| **Failure State Management Utility** | FSMU | Isolated Fault Handling | Executes Integrity Halt (IH) and secures forensic generation. |
+
+### 3.1. Integrity Halt (IH) Protocol
+**Mandate:** Zero-tolerance state purge upon any P-Set violation. FSMU isolates the failure context to execute P-R03, generating and AASS-signing the Forensic Data & Log Snapshot (FDLS) *before* the environment is released.
+
+---
+
+## 4.0. ARTIFACT & CONFIGURATION REGISTRY
+
+The source of truth for all governing parameters.
+
+| Artifact | Governing Mandate | Registry Path | Purpose/Verification Stage |
+|:---:|:---|:---|:---:|
+| GAX Master Specification | GAX I, II, III | `protocol/gax_master.yaml` | Immutable Axiom definition. |
+| ACVM Configuration | GAX II / P-M02 | `config/acvm.json` | Computational and resource thresholds. |
+| Context Harvester Spec (CHS) | GAX I (Input Integrity) | `protocol/chs_spec.json` | **[NEW]** Defines deterministic input sources and ISB generation schema (S01-S06). |
+| Cryptographic Manifest | GAX I / P-R03 | `config/cryptographic_manifest.json` | Hash/signing standards for sealing operations. |
+| FSMU Configuration | IH Protocol | `protocol/fsmu_spec.json` | Isolation requirements and P-R03 execution logic. |
+| CHR Checksum | S00 Check | `config/chr.dat` | Baseline system integrity hash. |
