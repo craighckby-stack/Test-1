@@ -1,82 +1,75 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V95.3 (RUNTIME EFFICIENCY OPTIMIZATION)
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V96.0 (CANONICAL AXIS LOCK)
 
-*Refinement of V95.2. This revision centralizes the Axiomatic Constraint Vector (ACV) definitions alongside its custodianship and optimizes the linkage between P-01 Finality checkpoints and the Certified State Evolution Pipeline (GSEP-C), facilitating streamlined runtime validation logic.*
+*Refinement of V95.3. This revision establishes the **Axiomatic State Manifest (ASM)** as the canonical accumulator for runtime constraint validation, reducing transient state complexity during the Certified State Evolution Pipeline (GSEP-C). Centralized definitions enhance referential integrity and tooling efficiency.*
 
 ---
 
-## 1.0 P-01 FINALITY CALCULUS & ACV CONSTRAINTS
+## 1.0 GOVERNANCE AGENTS & SEPARATION OF DUTIES (SoD)
 
-The system mandates Non-Repudiable State Finality: $\Psi_{N} \to \Psi_{N+1}$ occurs only upon full satisfaction of the Axiomatic Constraint Vector (ACV), known as the **P-01 PASS** condition, governed by the Separation of Duties (SoD).
+Decentralized accountability ensuring system integrity and P-01 fulfillment.
 
-### 1.1 Axiomatic Constraint Vector (ACV) Formula
+| ID | Designation | Core Mandate | P-01 Validation Focus | Artifact Control Plane |
+|:---:|:---|:---|:---:|:---:|
+| **GAX** | Axiomatics Agent | Policy Finality, Constraint Enforcement, Utility Maximization. | UMA (I) & AI (III). | Policy Definitions, Constraint Logic, Thresholds. |
+| **SGS** | Execution Agent | Workflow Orchestration, Environment Attestation, Flow Control. | CA (II) & Execution Integrity (TEMM calculation). | Execution, Flow, Auditing Schemas. |
+| **CRoT** | Root of Trust | Cryptographic Integrity, State Commitment, Chronological Indexing. | Trust Anchoring & State Finality (S13 Commit). | Cryptography, Immutable State Indexing, State Schema. |
 
-Finality requires the simultaneous satisfaction of the three axiomatic components (I, II, III):
+---
 
+## 2.0 P-01 FINALITY CALCULUS & ACV CONSTRAINTS
+
+Non-Repudiable State Finality requires the system transition ($\Psi_{N} \to \Psi_{N+1}$) only upon satisfaction of the Axiomatic Constraint Vector (ACV), defined as the **P-01 PASS** condition.
+
+### 2.1 Axiomatic Constraint Vector (ACV) Formula
+
+Finality requires simultaneous satisfaction:
 $$
 \text{P-01 PASS} \iff (\text{UMA}) \land (\text{CA}) \land (\text{AI})
 $$
 
-Where:
-$$
-\text{UMA (I, Utility Maximization)}: (\text{TEMM} \ge \text{UFRM} + \text{CFTM})
-$$
-$$
-\text{CA (II, Context Attestation)}: (\text{ECVM} = \text{True})
-$$
-$$
-\text{AI (III, Axiomatic Integrity)}: (\neg \text{PVLM} \land \neg \text{MPAM} \land \neg \text{ADTM})
-$$
+| Axiom | Name | Governing Formula / Condition | P-01 Stage (M-CKPT) |
+|:---:|:---|:---|:---:|
+| **I (UMA)** | Utility Maximization | $\text{TEMM} \ge \text{UFRM} + \text{CFTM}$ | S08, S10 |
+| **II (CA)** | Context Attestation | $\text{ECVM} = \text{True}$ | S06 |
+| **III (AI)** | Axiomatic Integrity | $\neg (\text{PVLM} \lor \text{MPAM} \lor \text{ADTM})$ | S03, S04, S09 |
 
-### 1.2 Constraint Protocol Input Registry (C-PIR) & Component Custody
+### 2.2 Canonical Constraint Input Map (C-PIM)
 
-Definitions for all variables comprising the ACV, specifying the responsible Agent for initialization and maintenance.
+Definitive listing of all variables constituting the ACV, specifying custodial agent, required type, and scope reference. These inputs aggregate into the **Axiomatic State Manifest (ASM)** (See 4.1) prior to S11 evaluation.
 
-| Acronym | Constraint Group | Agent (Custodian) | Definition / Scope |
-|:---:|:---:|:---:|:---|
-| **TEMM** | I (Utility Metric) | GAX/SGS | Certified Target Utility Metric ($S_{01}$). |
-| **UFRM** | I (Utility Threshold) | GAX | Required Baseline Utility Metric ($S_{02}$). |
-| **CFTM** | I (Utility Margin) | GAX | Minimum Required Utility Margin ($\epsilon$). |
-| **ECVM** | II (Context Status) | SGS | Verified Environmental Prerequisite Status (Boolean). |
-| **PVLM** | III (Policy Veto) | GAX | Policy Prohibition Veto Status (Boolean). |
-| **MPAM** | III (Stability Veto) | GAX | Stability Bounds Veto Status (Boolean). |
-| **ADTM** | III (Anomaly Veto) | GAX | Runtime Anomaly Veto Status (Boolean). |
-| **GSEP-C** | Flow Definition | SGS | Certified State Evolution Pipeline Definition. |
-
----
-
-## 2.0 GOVERNANCE AGENTS & SEPARATION OF DUTIES (SoD)
-
-Strict Separation of Duties (SoD) ensuring decentralized accountability for P-01 fulfillment and system integrity.
-
-| ID | Designation | Core Mandate | P-01 Validation Focus | Artifact Control Plane |
-|:---:|:---|:---|:---:|:---:|
-| **SGS** | Execution Agent | Workflow Orchestration, Environment Attestation, Flow Control. | CA (II) & Execution Integrity (TEMM calculation). | Execution, Flow, Auditing Schemas. |
-| **GAX** | Axiomatics Agent | Policy Finality, Constraint Enforcement, Utility Maximization. | UMA (I) & AI (III). | Policy Definitions, Constraint Logic, Thresholds. |
-| **CRoT** | Root of Trust | Cryptographic Integrity, State Commitment, Chronological Indexing. | Trust Anchoring & State Finality (S13 Commit). | Cryptography, Immutable State Indexing, State Schema. |
+| Acronym | ACV Group | Agent (Custodian) | Scope Reference | Configuration Source (File Link) |
+|:---:|:---:|:---:|:---|:---:|
+| **TEMM** | I (Metric) | SGS | Certified Target Utility Metric ($S_{01}$). | N/A (Runtime Calculated) |
+| **UFRM** | I (Threshold) | GAX | Required Baseline Utility Metric ($S_{02}$). | `config/GAX/UtilityFunctionRegistry.yaml` |
+| **CFTM** | I (Margin) | GAX | Minimum Required Utility Margin ($\epsilon$). | `config/GAX/FinalityThresholdConfig.yaml` |
+| **ECVM** | II (Status) | SGS | Verified Environmental Status (Boolean). | Uses `schema/governance/GatingIntegrityCheckManifest.schema.json` |
+| **PVLM** | III (Veto) | GAX | Policy Prohibition Veto Status (Boolean). | `config/GAX/AxiomaticConstraintVectorDefinition.json` |
+| **MPAM** | III (Veto) | GAX | Stability Bounds Veto Status (Boolean). | `config/GAX/AxiomaticConstraintVectorDefinition.json` |
+| **ADTM** | III (Veto) | GAX | Runtime Anomaly Veto Status (Boolean). | N/A (Runtime Generated) |
 
 ---
 
 ## 3.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The mandatory 15-stage protocol (S00-S14) ensuring Deterministic State Evolution (DSE) compliance. The `P-01 M-CKPT` column explicitly links the GSEP-C stage to the ACV component it satisfies or evaluates.
+The mandatory 15-stage protocol ensuring Deterministic State Evolution (DSE) compliance, utilizing the P-01 Mandatory Checkpoint (M-CKPT) linkage for real-time validation tracking.
 
 ### 3.1 GSEP-C Flow Protocol & Checkpoints
 
-| Phase | Stage | Agent | P-01 Mandatory Checkpoint (M-CKPT) | Fallback Protocol | Key Process / Focus |
+| Phase | Stage | Agent | P-01 M-CKPT (ACV Linkage) | Fallback | Key Process / Focus |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | **P1: INITIATION** | S00 | CRoT | N/A | IH | Initialization (GSM, SIPM anchoring). |
 | | S01 | SGS | N/A | STANDARD | Protocol Consistency Engine (PCE) Check. |
-| | S02 | SGS | **Context II Prereqs** (GICM) | RRP | GICM Gate: Verify Environmental Readiness. |
-| **P2: CONSTRAINT** | S03 | GAX | **AI III: PVLM Veto** | RRP | Policy Prohibition Veto Check. |
-| | S04 | GAX | **AI III: MPAM Veto** | RRP | Stability Bounds Veto Check. |
+| | S02 | SGS | Context II Prereqs (GICM) | RRP | GICM Gate: Verify Environmental Readiness. |
+| **P2: CONSTRAINT** | S03 | GAX | **AI III: PVLM Veto** (Updates ASM) | RRP | Policy Prohibition Check (Uses `ACVD`). |
+| | S04 | GAX | **AI III: MPAM Veto** (Updates ASM) | RRP | Stability Bounds Check (Uses `ACVD`). |
 | | S05 | CRoT | N/A | RRP | Data Lineage & Source Trust Gate (CDSM Attestation). |
-| | S06 | SGS | **CA II Fulfillment (ECVM)** | RRP | Context Verification Status Check. |
+| | S06 | SGS | **CA II Fulfillment (ECVM)** (Updates ASM) | RRP | Context Verification Status Check. |
 | **P3: AUDIT** | S07 | SGS | N/A | STANDARD | Certified Execution Sandbox Preparation (CPES). |
-| | S08 | GAX/SGS | **UMA I: TEMM Calculation** | RRP | Calculate Post-Execution Utility Metric ($S_{01}$). |
-| | S09 | GAX | **AI III: ADTM Veto** | RRP | Runtime Anomaly Veto Check. |
-| | S10 | SGS | **UMA I: Threshold Validation** | STANDARD | Verify UFRM ($S_{02}$) / CFTM ($\epsilon$) adherence. |
-| **P4: FINALITY** | **S11** | GAX | **FULL ACV P-01 PASS** | RRP | Mandatory Evaluation of (I) $\land$ (II) $\land$ (III). |
-| | S12 | SGS | N/A | STANDARD | STES Packaging: Serialization & Persistence (DCSM/TVCR). |
+| | S08 | GAX/SGS | **UMA I: TEMM Calculation** (Updates ASM) | RRP | Calculate Post-Execution Utility Metric ($S_{01}$). |
+| | S09 | GAX | **AI III: ADTM Veto** (Updates ASM) | RRP | Runtime Anomaly Veto Check. |
+| | S10 | SGS | **UMA I: Threshold Validation** (Updates ASM) | STANDARD | Verify UFRM/CFTM adherence against TEMM. |
+| **P4: FINALITY** | **S11** | GAX | **FULL ACV P-01 PASS** (Validates ASM) | RRP | Mandatory Evaluation of (I) $\land$ (II) $\land$ (III). |
+| | S12 | SGS | N/A | STANDARD | STES Packaging: Serialization (DCSM/TVCR). |
 | | S13 | CRoT | TRUST COMMITMENT | IH | Final Cryptographic Signing (CSTL, GSM update). |
 | | S14 | SGS | TRUST EXECUTION | IH | Atomic State Transition (DSE Execution via ADMS). |
 
@@ -90,22 +83,28 @@ The mandatory 15-stage protocol (S00-S14) ensuring Deterministic State Evolution
 
 ---
 
-## 4.0 CONFIGURATION AND ARTIFACT REGISTRY
+## 4.0 SYSTEM ARTIFACT AND CONFIGURATION CATALOG (A-CAT)
 
-Centralized mapping of operational artifacts and schemas defined by their governing agent and file path, categorized by function (Config or Schema).
+Comprehensive mapping of all operational artifacts, categorized by governing agent and functional type (Schema or Configuration).
+
+### 4.1 Governance and State Schemas (Shared/CRoT)
+
+| Agent | Artifact (Acronym) | P-01 Linkage | File Path | Focus |
+|:---:|:---:|:---:|:---:|:---:|
+| GAX/SGS | P01 Result | S11 FINALITY Output | `schema/governance/P01_Finality_Result.schema.json` | Final output structure. |
+| SGS | **ASM** | **S02-S10 Accumulation** | `schema/governance/AxiomaticStateManifest.schema.json` | **New Canonical Input structure for ACV (Critical).** |
+| SGS | GICM | CA Prereq (S02) | `schema/governance/GatingIntegrityCheckManifest.schema.json` | Environmental Prerequisite Validation standard. |
+| SGS | TEDS | RRP Forensic | `schema/governance/Traceability_Event_Definition_Schema.schema.json` | Mandatory forensic capture format. |
+| SGS | DCSM | S12 Packaging | `schema/governance/DSE_Commitment_Summary_Manifest.schema.json` | State summary schema prior to CRoT commit. |
+| CRoT | GSM Schema | S00 State Root | `schema/governance/Governance_State_Manifest.schema.json` | Governance State Root Structure definition. |
+
+### 4.2 Agent-Specific Configurations and Logic
 
 | Agent | Category | Artifact (Acronym) | P-01 Linkage | File Path | Focus |
-|:---:|:---:|:---:|:---:|:---:|:---|
-| GAX | Config | UFRM | UMA $S_{02}$ | `config/GAX/UtilityFunctionRegistry.yaml` | Baseline Utility Metric definition. |
-| GAX | Config | CFTM | UMA $\epsilon$ | `config/GAX/FinalityThresholdConfig.yaml` | Utility Margin Definition. |
+|:---:|:---:|:---:|:---:|:---:|:---:|
 | GAX | Config | ACVD | AI (III Veto Bounds) | `config/GAX/AxiomaticConstraintVectorDefinition.json` | Veto Bounds Logic Definition (S03, S04). |
 | GAX | Schema | PCSS | RRP Standard | `schema/GAX/PolicyCorrectionSchema.json` | GAX Remediation standard for RRP. |
-| GAX/SGS | Schema | P01 Result | P-01 FINALITY | `schema/governance/P01_Finality_Result.schema.json` | S11 output structure. |
 | SGS | Config | RIMP | N/A | `protocol/SGS/RuntimeIntegrityMonitorProtocol.json` | Runtime assurance during Audit phase (S07-S10). |
 | SGS | Config | ADMS | S14 Execution | `config/SGS/AtomicDeploymentManifestSchema.json` | S14 Execution Model configuration. |
-| SGS | Schema | GICM | CA Prereq (S02) | `schema/governance/GatingIntegrityCheckManifest.schema.json` | Environmental Prerequisite Validation standard. |
-| SGS | Schema | TEDS | RRP Forensic | `schema/governance/Traceability_Event_Definition_Schema.schema.json` | Mandatory forensic capture format. |
-| SGS | Schema | DCSM | S12 Packaging | `schema/governance/DSE_Commitment_Summary_Manifest.schema.json` | State summary schema prior to CRoT commit. |
-| SGS/CRoT | Registry | TVCR | RRP Forensic | `registry/TraceVetoContextRegistry.json` | Permanent Forensic Record Storage. |
 | CRoT | Config | SIPM | S00/S13 Logic | `config/CRoT/StateIndexingProtocolManifest.json` | CRoT Epoch Indexing Logic. |
-| CRoT | Schema | GSM Schema | S00 State Root | `schema/governance/Governance_State_Manifest.schema.json` | Governance State Root Structure definition. |
+| SGS/CRoT | Registry | TVCR | RRP Forensic | `registry/TraceVetoContextRegistry.json` | Permanent Forensic Record Storage. |
