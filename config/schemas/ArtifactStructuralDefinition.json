@@ -1,34 +1,49 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gsep.sovereign.agi/schemas/ArtifactStructuralDefinition.json",
   "title": "GSEP Artifact Structural Definition Model (ASDM)",
-  "description": "Defines the mandatory structural schemas for critical GSEP artifacts (L0-L5) for SCR and ACM validation.",
-  "definitions": {
+  "description": "Defines standardized structures for critical GSEP artifacts (L0-L5) for S-CR and A-CM validation.",
+  "$defs": {
+    "SHA256Hash": {
+      "type": "string",
+      "description": "A standardized SHA256 cryptographic hash (64 hex characters).",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "ArtifactVersion": {
+      "type": "string",
+      "description": "Artifact versioning scheme, typically V#.#",
+      "pattern": "^V\\d+\\.\\d+$"
+    },
     "ContextFrameManifest": {
       "type": "object",
+      "description": "L1 artifact: Context Framing and Scope Definition.",
       "properties": {
-        "version": { "type": "string", "pattern": "^V\\d+\.\\d+" },
+        "version": { "$ref": "#/$defs/ArtifactVersion" },
         "proposal_id": { "type": "string", "format": "uuid" },
-        "source_hash": { "type": "string", "format": "SHA256" },
-        "target_component": { "type": "string" },
-        "scope_verified": { "type": "boolean" }
+        "source_hash": { "$ref": "#/$defs/SHA256Hash" },
+        "target_component": { "type": "string", "description": "The specific target component identifier (e.g., 'CoreLogic/M3')" },
+        "scope_verified": { "type": "boolean", "description": "L2 verification flag indicating scope boundaries are respected." }
       },
-      "required": ["version", "proposal_id", "source_hash", "target_component", "scope_verified"]
+      "required": ["version", "proposal_id", "source_hash", "target_component", "scope_verified"],
+      "additionalProperties": false
     },
     "DecisionalStateCheckpoint": {
       "type": "object",
+      "description": "L4 artifact: Governance Compliance Officer commitment checkpoint.",
       "properties": {
         "commitment_ts": { "type": "string", "format": "date-time" },
-        "parent_manifest_hash": { "type": "string" },
-        "p01_result": { "type": "boolean" },
-        "s01_score": { "type": "number", "minimum": 0 },
-        "s02_score": { "type": "number", "minimum": 0 },
-        "final_signature": { "type": "string", "description": "Cryptographic signature of the L4 GCO decision." }
+        "parent_manifest_hash": { "$ref": "#/$defs/SHA256Hash", "description": "Hash linking back to the associated C-FRAME artifact." },
+        "p01_result": { "type": "boolean", "description": "Primary validation P01 outcome (Integrity Check)." },
+        "s01_score": { "type": "number", "minimum": 0, "description": "Complexity Score S01." },
+        "s02_score": { "type": "number", "minimum": 0, "description": "Security Review Score S02." },
+        "final_signature": { "type": "string", "minLength": 64, "description": "Cryptographic signature of the L4 GCO decision or commitment payload." }
       },
-      "required": ["commitment_ts", "parent_manifest_hash", "p01_result", "s01_score", "s02_score", "final_signature"]
+      "required": ["commitment_ts", "parent_manifest_hash", "p01_result", "s01_score", "s02_score", "final_signature"],
+      "additionalProperties": false
     }
   },
-  "components": {
-    "C-FRAME-V1": { "$ref": "#/definitions/ContextFrameManifest" },
-    "DSC-V1": { "$ref": "#/definitions/DecisionalStateCheckpoint" }
+  "artifacts": {
+    "C-FRAME-V1": { "$ref": "#/$defs/ContextFrameManifest" },
+    "DSC-V1": { "$ref": "#/$defs/DecisionalStateCheckpoint" }
   }
 }
