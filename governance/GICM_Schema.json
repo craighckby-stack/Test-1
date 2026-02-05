@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.agi/schemas/GICM_V94_4",
+  "title": "Governance Inter-Agent Commitment Manifest (GICM)",
+  "description": "The finalized data structure contract signed by SGS, GAX, and CRoT containing the results and context required for Atomic Execution (S11) and CRoT Attestation (S10).",
+  "type": "object",
+  "required": ["proposal_id", "version", "timestamp_utc", "p01_status", "certified_metrics", "decision_log", "asset_hashes", "agent_signatures"],
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "Unique identifier for the state transition proposal."
+    },
+    "version": {
+      "type": "string",
+      "description": "SGS Governance Version (GVDM check)."
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Completion timestamp (S8)."
+    },
+    "p01_status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL_CRITICAL", "FAIL_TERMINAL", "FAIL_STANDARD"],
+      "description": "The final P-01 outcome certified by GAX (S8)."
+    },
+    "certified_metrics": {
+      "type": "object",
+      "description": "Validated utility and risk data from CPES simulation (S6.7).",
+      "properties": {
+        "S01_utility_achieved": {"type": "number"},
+        "S02_utility_baseline": {"type": "number"},
+        "epsilon_margin": {"type": "number"}
+      }
+    },
+    "decision_log": {
+      "type": "array",
+      "description": "A sequential, ordered log of all stage results (S1-S8), detailing specific veto checks (PVLM, MPAM, ADTM) and context validation (ECVM).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": {"type": "string"},
+          "agent": {"type": "string"},
+          "status": {"type": "string"},
+          "rationale": {"type": "string", "nullable": true}
+        }
+      }
+    },
+    "asset_hashes": {
+      "type": "object",
+      "description": "Cryptographically attested hashes of the critical manifests used.",
+      "properties": {
+        "CISM_hash": {"type": "string"},
+        "CDSM_hash": {"type": "string"},
+        "CALS_hash": {"type": "string"}
+      }
+    },
+    "agent_signatures": {
+      "type": "object",
+      "description": "Cryptographic proofs from the Triumvirate agents, confirming non-repudiation (S10).",
+      "required": ["SGS_attestation", "GAX_certification", "CRoT_anchor"],
+      "properties": {
+        "SGS_attestation": {"type": "string"},
+        "GAX_certification": {"type": "string"},
+        "CRoT_anchor": {"type": "string"}
+      }
+    }
+  }
+}
