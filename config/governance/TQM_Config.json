@@ -1,0 +1,26 @@
+{
+  "manifest_id": "TQM-V94.1-001",
+  "version": "1.0.0",
+  "description": "Defines required structure and integrity requirements for telemetry inputs sourced from GTB Feed (used at GSEP-C Stage S6/S6.5).",
+  "integrity_requirements": {
+    "source_attestation_required": true,
+    "signing_authority": "CRoT_Sensing_Subsystem",
+    "timestamp_freshness_threshold_ms": 500,
+    "schema_reference": "config/schemas/telemetry_data_schema.json"
+  },
+  "metrics": [
+    {
+      "metric_name": "system_resource_utilization",
+      "gsep_c_link": "S6",
+      "required_fields": ["cpu_load_avg_1m", "memory_total", "disk_io_wait_ms"],
+      "data_type": "float"
+    },
+    {
+      "metric_name": "behavioral_heuristics",
+      "gsep_c_link": "S6.5",
+      "required_fields": ["model_inference_latency_avg", "exception_count_total", "api_call_deviation_sigma"],
+      "data_type": "float"
+    }
+  ],
+  "validation_protocol": "SHA3-512"
+}
