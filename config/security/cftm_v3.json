@@ -1,0 +1,11 @@
+{
+  "version": "v3.0",
+  "description": "Core Failure Thresholds Manifest defining mathematical constants for governance axioms (GAX).",
+  "constants": {
+    "tau_normalization": 0.0001, 
+    "notes_tau": "Used in COF denominator (Section 2.1) to ensure stability and prevent division by zero when Risk (S-02) is negligible.",
+    "epsilon_minimum": 0.05, 
+    "notes_epsilon": "The minimum required safety margin by which Efficacy (S-01) must exceed adjusted Risk (S-02) for P-01 Finality Certification (Section 2.2)."
+  },
+  "last_updated": "2024-05-30"
+}
