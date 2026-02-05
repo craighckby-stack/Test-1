@@ -1,0 +1,16 @@
+{
+  "gsep_version": "v95.1",
+  "pipeline_stages": [
+    {"stage_id": "S00", "actor": "EMSU", "gate": "G0", "mandates": ["GAX III"], "max_duration_ms": 50, "mandatory_output": "EMS"},
+    {"stage_id": "S01-S06", "actor": "DHC", "gate": null, "mandates": ["P-M01"], "max_duration_ms": 800, "mandatory_output": "ISB"},
+    {"stage_id": "S07", "actor": "DRO", "gate": "G1", "mandates": ["GAX II"], "max_duration_ms": 30, "mandatory_output": "ECVM"},
+    {"stage_id": "S08-S10", "actor": "ACVM Core", "gate": null, "mandates": ["P-M01"], "max_duration_ms": 1500, "mandatory_output": "Pre-Commit Snapshot"},
+    {"stage_id": "S11", "actor": "AASS/PIM", "gate": "G2", "mandates": ["GAX I/II/III", "P-M02"], "max_duration_ms": 20, "mandatory_output": "Psi_Final Hash"},
+    {"stage_id": "S12-S13", "actor": "Telemetry", "gate": null, "mandates": ["P-M01"], "max_duration_ms": 100, "mandatory_output": "Post-Commit Metrics"},
+    {"stage_id": "S14", "actor": "AASS", "gate": "G3", "mandates": ["P-R03"], "max_duration_ms": 40, "mandatory_output": "State Seal Certification"}
+  ],
+  "temporal_policy": {
+    "p_m01_hard_threshold_multiplier": 2.5,
+    "hard_violation_actor": "FSMU"
+  }
+}
