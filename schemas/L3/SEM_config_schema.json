@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://gsep.ai/schemas/L3/SEM_config_schema.json",
+  "title": "Simulation Environment Manager (SEM) Configuration Schema",
+  "description": "Defines the mandatory subset of the SFM required for SEM setup and execution sealing.",
+  "type": "object",
+  "properties": {
+    "SEM_ProtocolVersion": {
+      "type": "string",
+      "const": "V94.1",
+      "description": "Required GSEP Protocol Version adherence."
+    },
+    "ResourceIsolationMatrix": {
+      "type": "object",
+      "required": ["cpu_limit_cores", "memory_limit_gb"],
+      "properties": {
+        "cpu_limit_cores": {"type": "integer", "minimum": 1},
+        "memory_limit_gb": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "ExecutionTimeConstraint": {
+      "type": "integer",
+      "description": "Maximum execution time allowed (seconds).",
+      "minimum": 10
+    },
+    "InputDataAttestation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["data_name", "checksum_sha256", "provenance_id"],
+        "properties": {
+          "data_name": {"type": "string"},
+          "checksum_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "provenance_id": {"type": "string"}
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "SEM_ProtocolVersion",
+    "ResourceIsolationMatrix",
+    "ExecutionTimeConstraint",
+    "InputDataAttestation"
+  ],
+  "additionalProperties": false
+}
