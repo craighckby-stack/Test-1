@@ -1,51 +1,49 @@
-# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.1 [HI-EFFICIENCY FLOW]
+# SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V94.1
+## High-Efficiency Deterministic State Flow Protocol
 
-## 0.1 EXECUTIVE SUMMARY: ABSOLUTE DETERMINISTIC STATE EVOLUTION (DSE)
+## 1.0 CORE MANDATE: ABSOLUTE DETERMINISTIC STATE EVOLUTION (DSE)
 
-The core mandate is **Absolute Deterministic State Evolution (DSE)**. All state transitions ($\Psi$) must successfully complete the 15-Stage Governance State Execution Pipeline (GSEP-C) (S00-S14). This strictly audited, non-reversible flow culminates in the **P-01 Atomic Finality Decision (S11)**. 
-Any failure instantly triggers an Integrity Halt (IH) and mandatory Rollback Protocol (RRP).
+The core mandate is **Absolute Deterministic State Evolution (DSE)**. This requires all state transitions ($\Psi$) to achieve non-reversible completion by successfully navigating the 15-Stage Governance State Execution Pipeline (GSEP-C). The flow is strictly audited and culminates in the **P-01 Atomic Finality Decision (S11)**. Failure at any stage initiates an Integrity Halt (IH) and triggers the mandatory Rollback Protocol (RRP).
 
----
+### 1.1 KEY GOVERNANCE ARTIFACTS (KGA) TRACEABILITY
 
-## 1.0 UNIFIED GOVERNANCE COMPONENT MAP (GCM)
+These artifacts define the state journey, created and verified within the GSEP-C:
 
-This registry maps governance principles to responsible Agents and their core operational artifacts, ensuring high-efficiency traceability.
-
-| Acronym | Component/Agent | Functional Role | Enforcement Domain | Key Artifact (Output) | Principle Enforced |
-|:---:|:---|:---|:---:|:---:|:---:|
-| **GSEP Orchestrator** | Pipeline Manager | Mandates 15-Stage Sequential Flow (GSEP-C). | FLOW ENFORCEMENT | CSR (S01) | DSE |
-| **CRoT** | Config Root of Trust Agent | Config Locking & Persistence Commit. | Persistence/Commit | STR (S13) | DSE |
-| **SGS** | State Gen & Metric Agent | $\Delta\Psi$ Generation, TEMM & ECVM Calculation. | State Evolution | TEMM Value (S08) | TEMM |
-| **GAX** | Axiomatic Vetting Agent | Policy Vetting & P-01 Decision Authority. | Policy Vetting | P-01 Decision (S11) | ACVD Vetting |
-| **PCS** | Policy & Constraint Server | Serves SCoT & ACVD Policies to GAX. | Governance Serving | ACVD File | ACVD Input |
-| **FSL Manager** | Forensic State Ledger Mgr | Manages Audit Trails (ADTM/MPAM tracking). | DSE AUDIT | ADTM / MPAM Flags | Integrity Audit |
-| **RRP** | Rollback Protocol Mgr | Immediate Halt (IH) and Recovery Procedure. | Recovery/Utility | N/A | IH Trigger |
+| Artifact | Stage Created | Description | Governing Agent | Role (Check) |
+|:---:|:---:|:---|:---:|:---:|
+| **CSR** | S01 | Configuration Snapshot Receipt. Immutable config lock for the execution phase. | CRoT | Constraint Baseline |
+| **ECVM** | S07 | Execution Context Validity Matrix. Boolean flag confirming runtime state integrity. | SGS | Operability Status (Axiom II) |
+| **TEMM** | S08 | Transition Efficacy & Metric Measure. Quantifiable efficiency delta ($\Delta\Psi$). | SGS | Utility Benchmark (Axiom I) |
+| **P-01** | S11 | Finality Decision Point. Must resolve to PASS (True) based on three axioms. | GAX | Atomic Commit Authority |
+| **STR** | S13 | State Transition Receipt. Cryptographic proof of state change persistence. | CRoT | Finality Proof |
+| **ADTM** | S14 | Audit Data Trace Map. Ledger tracking Utility Debt (TEMM failure). | FSL Manager | Utility Audit Flag |
+| **MPAM** | S14 | Mandatory Policy Audit Map. Ledger tracking Governance violations. | FSL Manager | Integrity Audit Flag |
 
 ---
 
 ## 2.0 GOVERNANCE STATE EXECUTION PIPELINE (GSEP-C: 15 STAGES)
 
-The GSEP-C is segmented into three sequential blocks, enforcing the DSE mandate. The state transition is non-reversible after S11.
+The GSEP-C is rigidly enforced by the GSEP Orchestrator, structured into three high-level sequential phases.
 
-| Block | Phase ID | Stages (S##) | Core Action / Artifact | Governing Agent | Halt Condition / Trigger |
-|:---:|:---:|:---:|:---|:---:|:---:|
-| **I. Initialization** | P1 | S00-S01 | Context Initialization & Config Locking (CSR). | CRoT | IH on Immutability Breach (CSR fail). |
-| | P2 | S02-S04 | State Transformation ($\Delta\Psi$) Generation. | SGS | IH on State Model Invalidity. |
-| **II. Vetting** | P3 | S05-S07 | Runtime Context Vetting (ECVM Output). | SGS | IH if ECVM == FALSE (Context Halt). |
-| | P4 | S08-S10 | Metric Generation, Policy Comparison, Debt Flagging. | SGS / GAX | IH if ADTM or MPAM flags are set. |
-| **III. Finality** | P5 | **S11** | **P-01 ATOMIC FINALITY DECISION POINT.** | **GAX** | **IMMEDIATE IH IF P-01 == FAIL (Absolute State Lock).** |
-| | P6 | S12-S14 | Persistence Commit (STR), Receipt, & FSL Audit Finalization. | CRoT / FSL Mgr | IH on Audit Failure (STR mismatch). |
+| Phase | Stages (S##) | Core Action | Governing Agent | Halt Condition / Artifact Trigger |
+|:---:|:---:|:---|:---:|:---:|
+| **P I: BASELINE LOCK** | S00-S01 | Initialization & generation of **CSR** (Config Lock). | CRoT | IH on Immutability Breach. |
+| | S02-S04 | State Transformation ($\Delta\Psi$) definition. | SGS | IH on State Model Invalidity. |
+| **P II: VETTING & SCORING** | S05-S07 | Context Vetting; generation of **ECVM**. | SGS | IH if ECVM == FALSE (Context Halt). |
+| | S08-S10 | Generation of **TEMM**. Policy comparison against ACVD thresholds (ADTM/MPAM pre-flagging). | SGS / GAX | IH if critical governance policies are violated. |
+| **P III: ATOMIC FINALITY** | **S11** | **P-01 ATOMIC FINALITY DECISION POINT.** Vetting Axioms I, II, and III. | **GAX** | **IMMEDIATE IH IF P-01 == FAIL.** |
+| | S12-S14 | Persistence Commitment (**STR**). FSL Audit Finalization (ADTM/MPAM logging). | CRoT / FSL Mgr | IH on Audit Mismatch or STR Failure. |
 
 ---
 
 ## 3.0 P-01 FINALITY CALCULUS (S11)
 
-Authorization for DSE completion requires simultaneous satisfaction of all three governance axioms (Axiom I $\land$ Axiom II $\land$ Axiom III).
+Authorization for DSE completion requires simultaneous satisfaction of all three fundamental governance axioms (ACVD Vetting Check).
 
-$$\text{P-01 PASS} \iff (\text{Axiom I}) \land (\text{Axiom II}) \land (\text{Axiom III})$$
+$$\text{P-01 PASS} \iff (\text{Axiom I: Utility}) \land (\text{Axiom II: Context}) \land (\text{Axiom III: Integrity})$$
 
-| Axiom | Domain | Requirement | Policy/Flag Check | Failure Flag (FSL) |
+| Axiom | Domain | Requirement (PASS Condition) | Policy Source Check | FSL Failure Flag |
 |:---:|:---|:---|:---:|:---:|
-| **I: Utility** | Efficiency | TEMM $\ge$ ACVD Threshold | TEMM vs. ACVD Constraint | ADTM (Utility Debt Miss) |
-| **II: Context** | Operability | ECVM Status is Valid (S07) | ECVM Status Check | ECVM Failure Flag |
-| **III: Integrity**| Governance | Zero Policy/Structural Misses | MPAM Status Check | MPAM (Policy Miss) |
+| **I: Utility** | Efficiency Score | TEMM $\ge$ ACVD Threshold. | ACVD Constraint Input | ADTM (Debt Miss) |
+| **II: Context** | Operability State | ECVM Status is Valid (TRUE from S07). | Internal Status Check | ECVM Failure Flag |
+| **III: Integrity**| Governance Compliance | Zero Mandatory Policy/Structural Misses (MPAM Pre-check clean). | SCoT/ACVD Policies | MPAM (Policy Miss) |
