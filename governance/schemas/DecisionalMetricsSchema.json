@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/DSC-V1-Metrics.json",
+  "title": "Decisional State Checkpoint (DSC) Input Metrics Schema",
+  "description": "Defines the mandatory structure and type constraints for S-01 (Trust) and S-02 (Risk) metrics supplied to the L4 Decisional Calculus for P-01 evaluation.",
+  "type": "object",
+  "required": [
+    "S01_Trust_Efficacy",
+    "S02_Risk_Synthesis",
+    "S03_Compliance_Veto_Status",
+    "Timestamp_UTC"
+  ],
+  "properties": {
+    "S01_Trust_Efficacy": {
+      "type": "number",
+      "format": "float",
+      "description": "Calculated Efficacy Projection value (S-01). Must meet or exceed the dynamic SCR threshold."
+    },
+    "S02_Risk_Synthesis": {
+      "type": "number",
+      "format": "float",
+      "description": "Synthesized Exposure Risk value (S-02)."
+    },
+    "S03_Compliance_Veto_Status": {
+      "type": "boolean",
+      "description": "Mandatory FALSE status for policy compliance. Sourced from RSAM/CIL."
+    },
+    "Origin_Source_Artifact": {
+      "type": "string",
+      "description": "Reference hash or ID of the L3 Proof Manifest (PMH-V1) artifact."
+    },
+    "Timestamp_UTC": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Cryptographically verifiable timestamp of metric generation."
+    }
+  }
+}
