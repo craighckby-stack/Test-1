@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign-agi.com/governance/M01_Intent_Schema.json",
+  "title": "M-01 Mandated Intent Schema",
+  "description": "Defines the mandatory schema for all M-01 Intent submissions before ingestion by IDSM (Stage 1). Ensures structural integrity, cryptographic signature provenance, and required metadata are present.",
+  "type": "object",
+  "required": [
+    "intent_id",
+    "target_architecture_scope",
+    "payload_hash_signature",
+    "change_rationale",
+    "resource_cap_proposal",
+    "governance_stakeholder_signature"
+  ],
+  "properties": {
+    "intent_id": {
+      "type": "string",
+      "description": "Unique cryptographic identifier for this intent mandate (M-01)."
+    },
+    "target_architecture_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of architectural components or files targeted for evolution."
+    },
+    "payload_hash_signature": {
+      "type": "string",
+      "description": "Cryptographic signature proving the provenance and integrity of the associated change payload (M-02)."
+    },
+    "change_rationale": {
+      "type": "string",
+      "description": "Detailed, auditable reasoning justifying the evolutionary step."
+    },
+    "resource_cap_proposal": {
+      "type": "object",
+      "description": "Initial proposal for resource ceilings required for Stage 3 execution (RACM input).",
+      "properties": {
+        "compute_budget_usd": {
+          "type": "number"
+        },
+        "time_limit_seconds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "compute_budget_usd",
+        "time_limit_seconds"
+      ]
+    },
+    "governance_stakeholder_signature": {
+      "type": "string",
+      "description": "Authentication signature from the authorizing subsystem or component."
+    }
+  }
+}
