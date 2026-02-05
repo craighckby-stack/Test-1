@@ -1,0 +1,18 @@
+{
+  "manifest_version": "RCM_V94.1",
+  "resource_demand_manager": {
+    "max_compute_budget_usd": 5.00, 
+    "default_latency_cap_ms": 3000,
+    "adaptive_fidelity_constraints": [
+      {"proposal_type": "Hotfix", "fidelity_level": 0.3, "latency_limit_ms": 500},
+      {"proposal_type": "FeatureExpansion", "fidelity_level": 0.8, "latency_limit_ms": 5000},
+      {"proposal_type": "CoreProtocolUpdate", "fidelity_level": 1.0, "latency_limit_ms": 10000}
+    ],
+    "load_balancing_algorithm": "dynamic_least_cost_first",
+    "cost_estimation_model": "Transformer_SimCost_V2.1"
+  },
+  "failure_handling": {
+    "max_reruns": 2,
+    "retry_policy": "exponential_backoff_3s"
+  }
+}
