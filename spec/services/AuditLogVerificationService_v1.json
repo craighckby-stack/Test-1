@@ -1,0 +1,17 @@
+{
+  "service_id": "ALV-S V1.0",
+  "purpose": "Validate and certify the integrity of forensic logs (NRALS) post-system failure (SIH/RRP).",
+  "interface_type": "REST/Asynchronous Queue Consumer",
+  "dependency_manifests": [
+    "FSVM V1.0" (Forensic State Verification Manifest),
+    "CRoT V1.0" (For signature validation)
+  ],
+  "validation_flow": [
+    "Receive NRALS Data Stream/Record.",
+    "Cryptographic signature verification using CRoT infrastructure.",
+    "Schema validation against FSVM.",
+    "Sequence and time-series immutability check.",
+    "Emit ALV-CERT (Audit Log Verified Certificate) upon success."
+  ],
+  "failure_protocol": "Immediate external notification if signature or schema validation fails, resulting in a TIER-1 Audit requirement."
+}
