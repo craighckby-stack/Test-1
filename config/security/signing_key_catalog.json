@@ -1,0 +1,12 @@
+{
+  "key_id": "KMS-ACS-RATIF-P384",
+  "purpose": "Axiom Configuration Ratification Signature (ACS-M01)",
+  "algorithm": "ECDSA-P384",
+  "storage_backend": "HardwareSecurityModule/SentinelHSM-M04",
+  "access_policy": {
+    "read": ["ACS-M01"],
+    "sign": ["ACS-M01"],
+    "rotate_interval": "1 Year"
+  },
+  "revocation_list_id": "CRL-A-001"
+}
