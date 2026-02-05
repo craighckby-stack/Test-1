@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Certified Data Schema Manifest (CDSM): Defines the mandatory JSON schema structure for high-criticality assets (GICM, CISM, Telemetry) to ensure deterministic parsing and integrity across the GSEP-C pipeline stages.",
+  "manifests": [
+    {
+      "name": "GICM_Commitment",
+      "purpose": "S8/S10 commitment payload validation",
+      "required_fields": [
+        "transaction_id",
+        "finality_status",
+        "s01_certified_utility",
+        "s02_required_baseline",
+        "gax_veto_proofs": ["v2", "v3", "v6_5"],
+        "crot_attestation_signature"
+      ]
+    },
+    {
+      "name": "CISM_IntermediateState",
+      "purpose": "S1-S7 data handoff validation",
+      "immutable_keys": ["input_hash", "provenance_dtm"]
+    }
+  ],
+  "validation_service": "SGS_SchemaValidator"
+}
