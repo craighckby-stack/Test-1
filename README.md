@@ -1,54 +1,54 @@
 # DSE PROTOCOL V94.1 | GOVERNANCE SPECIFICATION
 
-## EXECUTIVE ABSTRACT: Deterministic State Execution (DSE)
+## I. EXECUTIVE ABSTRACT: Deterministic State Execution (DSE)
 
-The DSE Protocol guarantees immutable, validated system state transitions ($\Psi$) by enforcing the **Governance State Execution Pipeline - Core (GSEP-C)**. This is a non-negotiable, mandatory 15-stage sequence (S00 to S14).
+The DSE Protocol guarantees immutable, validated system state transitions ($\\Psi$) by enforcing the **Governance State Execution Pipeline - Core (GSEP-C)**. This non-negotiable process adheres to a mandatory 15-stage sequence (S00 to S14).
 
 A state transition commits irrevocably only upon achieving **P-01 Finality Resolution** at Stage S11. Immediate failure at any stage triggers an Integrity Halt (IH) and executes the mandated Rollback Protocol (RRP).
 
 ---
 
-## I. GSEP-C LIFECYCLE & CORE ACTORS
+## II. THE GSEP-C PIPELINE (S00 $\to$ S14)
 
-The full 15-stage GSEP-C flow, including pre-execution initialization, validation loops, and post-commitment steps, is detailed comprehensively in `config/gsep_c_flow.json`. The pipeline is orchestrated by specialized Governance Actors.
+The complete GSEP-C flow, encompassing pre-execution initialization, validation loops, and post-commitment steps, is defined comprehensively in `config/gsep_c_flow.json`. 
 
-### 1.1 Core DSE Actors
+### 2.1 Core DSE Actors
 
-| Actor | Primary Function | GAX Responsibility |
-|:---:|:---|:---|
-| **CRoT Agent** | Generates Configuration Snapshot Receipt (CSR) at S01. | GAX III Prep |
-| **EMS** | Executes Transition Efficacy Measurement (TEMM, S08) & Contextual Mapping (ECVM, S07). | GAX I & GAX II Prep |
-| **GAX Executor** | Atomic resolution of P-01 Finality (S11). | P-01 Terminal Commitment |
-| **RRP Handler** | Executes comprehensive system state reversal upon IH. | Integrity Halt Response |
+The pipeline is orchestrated by specialized Governance Actors, primarily responsible for generating the necessary artifacts for P-01 commitment.
+
+| Actor | Primary Function | GAX Responsibility | Artifact Stage | 
+|:---:|:---|:---|:---:|
+| **CRoT Agent** | Secures initial system configuration state. | GAX III Prep | S01 (CSR)|
+| **EMS** | Measures Transition Efficacy (TEMM) and validates context (ECVM). | GAX I & GAX II Prep | S07 (ECVM), S08 (TEMM)|
+| **GAX Executor** | Atomic resolution and commitment of P-01 Finality. | P-01 Terminal Commitment | S11 |
+| **RRP Handler** | Executes full, deterministic system state reversal upon IH. | Integrity Halt Response | RRP Execution |
 
 ---
 
-## II. P-01 FINALITY RESOLUTION & GOVERNANCE AXIOMS (GAX)
+## III. P-01 FINALITY RESOLUTION & GOVERNANCE AXIOMS (GAX)
 
-P-01 Finality is the terminal state commitment condition. It requires the simultaneous successful validation of the three fundamental Governance Axioms (GAX I, GAX II, GAX III).
+P-01 Finality is the mandatory terminal state commitment condition. It requires the simultaneous successful validation of the three fundamental Governance Axioms (GAX I, GAX II, GAX III).
 
 $$ \text{P-01 Finality} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III}) $$
 
-### 2.1 P-01 Artifact Traceability & Commitment Criteria
+All GAX constraints are sourced from the **Axiom Constraint Validation Domain (ACVD)**, defined externally in `config/acvm.json`.
 
-All GAX constraints are sourced from the **Axiom Constraint Validation Domain (ACVD)**, defined in `config/acvm.json`. The resolution utilizes artifacts generated across the GSEP-C.
+### 3.1 Commitment Criteria & Artifact Traceability
 
-| GAX ID | Required Artifact | Artifact Origin (Stage) | Verification Metric | Responsible Actor | Finality Status |
-|:---:|:---|:---:|:---:|:---:|:---:|
-| **I** | TEMM (Transition Efficacy Measure) | S08 | $\Omega_{\text{min}}$ Threshold Fulfillment | EMS | Pre-Resolution |
-| **II** | ECVM (Execution Context Validation Map) | S07 | Execution Environment State (`Permissible`) | EMS | Pre-Resolution |
-| **III**| CSR (Configuration Snapshot Receipt) | S01 | Zero Policy/Structural Violations | CRoT Agent | Pre-Resolution |
-
-Stage S11 is dedicated to the atomic execution of P-01 resolution by the GAX Executor, resulting in the Terminal Commitment state or IH.
+| GAX ID | Verification Metric | Required Artifact | Artifact Origin (Stage) | Responsible Actor |
+|:---:|:---:|:---:|:---:|:---:|
+| **I** | $\Omega_{\text{min}}$ Threshold Fulfillment | TEMM (Efficacy Measure) | S08 | EMS |
+| **II** | Execution Environment State (`Permissible`) | ECVM (Context Validation Map) | S07 | EMS |
+| **III**| Zero Policy/Structural Violations | CSR (Config Snapshot Receipt) | S01 | CRoT Agent |
 
 ---
 
-## III. INTEGRITY HALT (IH) & DETERMINISTIC RCA
+## IV. INTEGRITY HALT (IH) & DETERMINISTIC RCA MANDATE
 
-Failure at *any* stage (S00-S14) triggers an immediate Integrity Halt (IH), executing the Rollback Protocol (RRP). Structured log data (MPAM, SGS, ADTM) must be immediately secured.
+Failure at *any* stage (S00-S14) triggers an immediate Integrity Halt (IH), executing the Rollback Protocol (RRP) defined in `config/rrp_manifest.json`. Critical log data must be immediately secured.
 
-**Mandate: DSE Integrity Analyzer (DIAL)**
-The **DIAL** utility must ingest all generated logs and artifacts to execute deterministic, non-speculative Root Cause Analysis (RCA). An immutable, cryptographically signed failure report is mandatory before system recovery authorization.
+> **Mandate: DSE Integrity Analyzer (DIAL)**
+> The DIAL utility must ingest all generated logs and artifacts (MPAM, SGS, ADTM) to execute deterministic, non-speculative Root Cause Analysis (RCA). An immutable, cryptographically signed failure report is mandatory before system recovery authorization.
 
 ---
 
