@@ -1,24 +1,46 @@
 {
-  "manifestId": "GEIDM-V1.0",
-  "description": "Governance External Interface Definition Manifest. Defines security and schema requirements for authorized external access points (e.g., HIL-T access, Telemetry Sinks).",
-  "interfaceProtocols": [
+  "manifestId": "GEIDM-V1.1",
+  "governanceOwner": "GACR_Core",
+  "description": "Governance External Interface Definition Manifest. Defines required security profiles, operational constraints, and schema validation paths for authorized external access points.",
+  "enforcementLayer": "CRoT_Signed_API_Gateway",
+  "interfaces": [
     {
-      "name": "HIL-T_Recovery_API",
-      "purpose": "Authorization interface for SIH restart/triage (HARM).",
-      "requiredAuth": "MFA_Hardware_Token / CRoT_Derived_Key",
-      "schemaUri": "/schemas/recovery_authorization_v1.json",
-      "rateLimit": {
-        "period": "1h",
-        "requests": 3
+      "interfaceName": "HIL-T_Recovery_API",
+      "interfaceType": "Synchronous_API",
+      "purpose": "Authorization interface for Sovereign Triage/Halt (HARM). High-assurance requirement.",
+      "schemaValidation": {
+        "required": true,
+        "schemaUri": "/schemas/recovery_authorization_v1.json"
+      },
+      "securityProfile": {
+        "assuranceLevel": "High",
+        "primaryMechanism": "MFA_Hardware_Token",
+        "secondaryMechanism": "CRoT_Derived_Key"
+      },
+      "constraints": {
+        "rateLimit": {
+          "period": "1h",
+          "requests": 3,
+          "burst": 1
+        }
       }
     },
     {
-      "name": "GRTS_Data_Sink",
-      "purpose": "Low-latency streaming target for S7/S8 telemetry and audit data.",
-      "requiredAuth": "TLS_MTLS_Certificate_Fixed",
-      "schemaUri": "/schemas/telemetry_sink_v2.json",
-      "maxLatency_ms": 50
+      "interfaceName": "GRTS_Telemetry_Data_Sink",
+      "interfaceType": "Asynchronous_Stream_Sink",
+      "purpose": "Low-latency streaming target for S7/S8 telemetry and critical audit data.",
+      "schemaValidation": {
+        "required": true,
+        "schemaUri": "/schemas/telemetry_sink_v2.json"
+      },
+      "securityProfile": {
+        "assuranceLevel": "Medium",
+        "primaryMechanism": "TLS_MTLS_Certificate_Fixed"
+      },
+      "constraints": {
+        "maxLatency_ms": 50,
+        "maxPayload_kB": 1024
+      }
     }
-  ],
-  "enforcementPolicy": "API_Gateway_CRoT_Signed_Enforced"
+  ]
 }
