@@ -1,34 +1,38 @@
-# SOVEREIGN AGI V97.0: CORE GOVERNANCE REGISTRY
+# SOVEREIGN AGI V97.0: CORE GOVERNANCE REGISTRY (README)
 
-This registry mandates the **Autonomous Operational Contract (AOC V97.0)** foundation, ensuring the high-fidelity **Atomic Immutable Architecture (AIA)** and systemic integrity via the **Governing Self-Evolution Protocol (GSEP V97.0)**. Systemic coherence is enforced by the Governance Constraint Orchestrator (GCO).
+This registry defines the core architecture and mandates of the **Autonomous Operational Contract (AOC V97.0)**. Systemic integrity is enforced through three pillars: the **Governing Self-Evolution Protocol (GSEP V97.0)**, the **Atomic Immutable Architecture (AIA)**, and supervision by the Governance Constraint Orchestrator (GCO).
 
 ---
 
 ## I. GOVERNING SELF-EVOLUTION PROTOCOL (GSEP V97.0)
 
-GSEP V97.0 defines the risk-minimized, atomic five-stage lifecycle for all system mutation. The process is strictly regulated by Evolution Policy Decision Points (EPDPs) and culminates in the irreversible **P-01 Trust Calculus** gate.
+GSEP V97.0 establishes the atomic, five-stage lifecycle for all system mutation, rigorously defining the risk-minimized path from intent to commitment. All mutations are subject to strict adherence to Evolution Policy Decision Points (EPDPs) and culminate in the irreversible **P-01 Trust Calculus** gate.
 
-### A. GSEP Stages: Atomic Workflow
+### A. GSEP Stages: Atomic Workflow Definition
 
-| Stage # | Name | Core Objective & Gate Function | Required Artifact | Key Orchestrators |
-|:---|:---|:---|:---|:---|
-| **0** | Constraint Orchestration | **GCO/GIRAM Integrity Check**. Formalize intent and validate existing governance state. | Governance State Hash (GSH) | GCO, EGOM, **GIRAM** |
-| **1** | Intent & Scoping | EPDP A (RSAM Vetting). Translate requirements into evolution scope. | M-01 Intent Package | SRM, ASR, RSAM |
-| **2** | Specification & Simulation | EPDP B (SMA/PSR Validation). Construct and pre-verify the structural change payload. | M-02 Payload Generation | MSU, PSR, SMA |
-| **3 (AIA Lock)** | Trust Adjudication (P-01) | **EPDP C: The Irreversible Commitment Gate.** Executes P-01 calculus based on attested metrics. | D-01 Audit Log (TIAR Attested) | OGT, P-01, ATM, C-11 |
-| **4** | Architectural Commitment | EPDP D (MCR Lock). Cryptographically attests and locks the new architectural state. | MCR Version-Lock & State Hashing | MCR, AEOR, RAM |
-| **5** | Execution & Audit | EPDP E (C-04 Isolation). Secure deployment, post-audit validation, and feedback ingest. | Post-Audit Metrics (FBA/SEA) | C-04, AEOR, FBA |
+| Stage # | Stage Name | Core Objective & Gate Function | Governance Control (EPDP) | Key Artifact | Key Orchestrators |
+|:---|:---|:---|:---|:---|:---|
+| **0** | Constraint & Initialization | **GCO/GIRAM Integrity Check**. Formalize intent; validate prerequisite governance state. | N/A (Pre-GSEP Gate) | Governance State Hash (GSH) | GCO, GIRAM |
+| **1** | Intent & Scoping | Translate requirements into scope definition and initial structural validation. | EPDP A (RSAM Vetting) | M-01 Intent Package | SRM, ASR, RSAM |
+| **2** | Specification & Pre-Validation | Construct, structurally validate (**PSIM**), and pre-verify the mutation payload. | EPDP B (SMA/PSR Validation) | M-02 Payload Generation | MSU, **PSIM**, PSR, SMA |
+| **3 (AIA Lock)** | Trust Adjudication (P-01) | **EPDP C: The Irreversible Commitment Gate.** Execute P-01 calculus based on attested metrics. | EPDP C (P-01 Pass/Fail) | D-01 Audit Log (TIAR Attested) | OGT, P-01, ATM, C-11 |
+| **4** | Architectural Commitment | Cryptographically attest and lock the new immutable architectural state. | EPDP D (MCR Lock) | MCR Version-Lock & State Hashing | MCR, AEOR, RAM |
+| **5** | Execution & Audit | Secure, isolated deployment (C-04), post-audit validation, and feedback ingestion. | EPDP E (C-04 Isolation) | Post-Audit Metrics (FBA/SEA) | C-04, AEOR, FBA |
 
 ### B. GSEP Operational Flow Diagram & Error Handling
 
 ```mermaid
 graph TD
     subgraph Evolutionary_Feedback_Loop [AOC V97.0 GSEP Lifecycle]
-        G(0. PRE-GSEP: GIRAM Governance Integrity Check) --> A[1. SCOPING: M-01 Intent (RSAM Vetting)];
-        A --> B(2. SPECIFICATION: M-02 Payload Drafting);
+        G(0. INIT: GIRAM Governance Integrity Check) --> A[1. SCOPING: M-01 Intent];
+        A --> V[1.5 VALIDATION: PSIM Structural Check];
+        V --> B(2. SPECIFICATION: M-02 Payload Drafting);
+        
+        V -- FAIL: Structure Error --> F01[F-01: Failure Analysis/Recalibration];
+
         B --> C{EPDP B: Simulation Validation?};
         
-        C -- FAIL: Trace --> F01[F-01: Failure Analysis/Recalibration];
+        C -- FAIL: Trace --> F01;
         
         subgraph Commitment_Gate [3. P-01 IRREVERSIBLE TRUST ADJUDICATION]
             C -- PASS: Proceed --> D[D-01: Execute P-01 Calculus];
@@ -49,20 +53,20 @@ graph TD
 
 ---
 
-## II. ARCHITECTURAL PRIMACY: AIA & P-01 TRUST CALCULUS
+## II. ARCHITECTURAL PRIMACY: AIA & P-01 CALCULUS
 
 ### A. Atomic Immutable Architecture (AIA) Mandate
 
-AIA enforces structural integrity. All Stage 3+ state mutations must be cryptographically attested and logged as irreversible transactions, controllable exclusively by the AEOR supervision framework.
+AIA enforces mandatory structural integrity. All Stage 3+ state mutations must be cryptographically attested (D-01 log) and function as irreversible transactions, controllable exclusively by the AEOR supervision framework.
 
-| Metric | Specification | Constraint | Required Gate |
+| Metric | Specification | Constraint Enforced By | Required Gate |
 |:---|:---|:---|:---|
-| **State Mutability** | Locked (Irreversible Transaction) | **MCR Hashing** | P-01 Commitment Gate |
-| **Rollback Capability**| Exclusively via AEOR Supervision | **GSEP V97.0 Enforcement** | P-01 Trust Calculus |
+| **State Mutability** | Locked (Irreversible Transaction) | **MCR Version-Lock Hashing** | P-01 Commitment Gate |
+| **Rollback Capability**| Exclusively via AEOR Supervision API | GSEP V97.0 Enforcement Policy | P-01 Trust Calculus |
 
 ### B. P-01 Trust Calculus: Inputs and Success Condition
 
-P-01 is the mandatory checkpoint. A successful commitment requires the resulting Trust Score (S-01) to dynamically surpass the calculated Risk Floor (S-02), and crucially, requires the Policy Veto Flag (S-03) to be definitively FALSE.
+P-01 is the mandatory checkpoint (Stage 3). Success requires the calculated Trust Score (S-01) to dynamically surpass the defined Risk Floor (S-02), and the Policy Veto Flag (S-03) must be definitively FALSE.
 
 **The Irreversible Pass Condition:**
 $$\text{P-01 PASS} \iff \begin{cases}
@@ -80,34 +84,45 @@ $$\text{P-01 PASS} \iff \begin{cases}
 
 ## III. DEFINITIVE COMPONENT REGISTRY (V97.0 Ontology)
 
-### A. GOVERNANCE, POLICY & COMPLIANCE
+Components are grouped by their primary function within the GSEP lifecycle.
 
-| ID | Component Name | Functional Focus | Stage Scope |
-|:---|:---|:---|:---|
-| **GCO** | Governance Constraint Orchestrator | Integrity barrier enforcing GSEP sequence. | Stage 0 |
-| **GIRAM** | Governance Integrity & Rule Attestation Module | **Mandatory integrity check for GRS policy set before Stage 1.** | Stage 0 |
-| **C-15** | Policy Engine | Executes the S-03 mandatory veto check using GRS policies. | Stage 3 |
-| **GRS** | Governance Rule Source | Immutable, version-controlled repository for core governance rules. | Foundation/3 |
-| **RSAM** | Rule Set Attestation Manager | Attests validity of proposed rule set changes (PDS compliance). | Stage 1/3 |
-| **CTG** | Compliance Trace Generator | **(NEW) Executes post-S-03 failure trace to expedite F-01 analysis.** | Failure Path (F-01) |
+### A. GOVERNANCE, POLICY & INTEGRITY (Stage 0, 1, Failure)
 
-### B. CONSENSUS, METRICS & ATTESTATION CORE
+| ID | Component Name | Functional Focus | Stage Scope | Key Mandate |
+|:---|:---|:---|:---|:---|
+| **GCO** | Governance Constraint Orchestrator | Integrity barrier enforcing GSEP sequential flow. | Stage 0 | Process Control |
+| **GIRAM** | Governance Integrity & Rule Attestation Module | Mandatory integrity check for GRS policy set before Stage 1 initialization. | Stage 0 | Policy Integrity |
+| **RSAM** | Rule Set Attestation Manager | Attests validity and compliance of proposed rule set changes. | Stage 1/3 | Rule Validation |
+| **CTG** | Compliance Trace Generator | Executes post-S-03 failure trace to expedite F-01 analysis. | Failure Path (F-01) | Error Analysis |
+| **GRS** | Governance Rule Source | Immutable, version-controlled repository for core governance rules. | Foundation/3 | Source of Truth |
 
-| ID | Component Name | Functional Focus | Stage Scope |
-|:---|:---|:---|:---|
-| **TIAR** | Telemetry Input Attestation Registrar | Cryptographically attests all P-01 input data integrity prior to calculation. | Stage 3 |
-| **ATM** | Trust Metrics System | Calculates Quantitative Reliability Projection (S-01 Trust Score). | Stage 3 |
-| **C-11** | MCRA Engine | Contextual Risk Modeling and Floor Calculation (S-02 Risk Floor). | Stage 3 |
-| **D-01** | Decision Audit Logger | Immutable record keeper for P-01 Calculus and state transition logs. | Stage 3/4 |
+### B. SPECIFICATION & PRE-COMMITMENT VALIDATION (Stage 2)
 
-### C. EVOLUTION ORCHESTRATION & EXECUTION
+| ID | Component Name | Functional Focus | Stage Scope | Key Mandate |
+|:---|:---|:---|:---|:---|
+| **PSIM** | Payload Structural Integrity Manager | Verifies M-02 Payload adherence to AIA schema before simulation. | Stage 2 (New 1.5/2 Check) | Schema Enforcement |
+| **PSR** | Pre-Commit Simulation Runner | Rigorously tests M-02 payload operational integrity. | Stage 2 | Runtime Vetting |
+| **MSU** | Mutation Specification Utility | Generates the M-02 payload based on M-01 intent. | Stage 2 | Payload Drafting |
 
-| ID | Component Name | Functional Focus (Code Evolution Lifecycle) | Stage Scope |
-|:---|:---|:---|:---|
-| **AEOR** | Atomic Execution & Orchestration Registrar | Controls P-01 PASS transition and mandates AIA rollback capability. | Stage 4/5 |
-| **MCR** | Mutation Commitment Registrar | Executes the MCR Version-Lock cryptographic attestation of the new state. | Stage 4 |
-| **PSR** | Pre-Commit Simulation Runner | Rigorously tests M-02 payload integrity. | Stage 2 |
-| **C-04** | Autogeny Sandbox | Isolated, monitored deployment environment. | Stage 5 |
+### C. TRUST ADJUDICATION & ATTESTATION CORE (Stage 3, 4)
+
+| ID | Component Name | Functional Focus | Stage Scope | Key Mandate |
+|:---|:---|:---|:---|:---|
+| **TIAR** | Telemetry Input Attestation Registrar | Cryptographically attests P-01 input data integrity prior to calculation. | Stage 3 | Input Integrity (S-01/S-02) |
+| **C-11** | MCRA Engine | Contextual Risk Modeling and Floor Calculation (S-02 Risk Floor). | Stage 3 | Risk Quantification |
+| **ATM** | Trust Metrics System | Calculates Quantitative Reliability Projection (S-01 Trust Score). | Stage 3 | Efficacy Projection |
+| **C-15** | Policy Engine | Executes the S-03 mandatory veto check using GRS policies. | Stage 3 | Policy Veto Check |
+| **D-01** | Decision Audit Logger | Immutable record keeper for P-01 Calculus and state transition logs. | Stage 3/4 | Transaction Logging |
+| **OGT** | Operational Governance Triad | Coordination layer for core Stage 3 inputs (ATM, C-11, C-15). | Stage 3 | Triad Coordination |
+
+### D. EXECUTION & ARCHITECTURAL COMMITMENT (Stage 4, 5)
+
+| ID | Component Name | Functional Focus | Stage Scope | Key Mandate |
+|:---|:---|:---|:---|:---|
+| **MCR** | Mutation Commitment Registrar | Executes the MCR Version-Lock cryptographic attestation of the new state. | Stage 4 | State Hashing/Lock |
+| **AEOR** | Atomic Execution & Orchestration Registrar | Controls P-01 PASS transition and mandates AIA rollback capability. | Stage 4/5 | Execution Supervision |
+| **C-04** | Autogeny Sandbox | Isolated, monitored deployment environment. | Stage 5 | Secure Deployment |
+| **FBA** | Feedback Analysis Module | Post-execution validation and performance metrics ingest. | Stage 5 | Post-Audit Metrics |
 
 ---
 
@@ -116,10 +131,9 @@ $$\text{P-01 PASS} \iff \begin{cases}
 | Initialism | Definition | Functional Pillar | GSEP Stage Scope |
 |:---|:---|:---|:---|
 | **AOC** | Autonomous Operational Contract | GOVERNANCE | Foundation |
-| **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
 | **AIA** | Atomic Immutable Architecture | ARCHITECTURE | Commitment |
+| **GSEP** | Governing Self-Evolution Protocol | GOVERNANCE | All |
 | **P-01** | Trust Calculus | CONSENSUS | Stage 3 |
 | **EPDP** | Evolution Policy Decision Point | GOVERNANCE | Inter-Stage Control |
-| **CTG** | Compliance Trace Generator | GOVERNANCE | Failure Path |
+| **PSIM** | Payload Structural Integrity Manager | ARCHITECTURE | Stage 2 |
 | **MCR** | Mutation Commitment Registrar | ARCHITECTURE | Stage 4 |
-| **OGT** | Operational Governance Triad | GOVERNANCE | Stage 3 |
