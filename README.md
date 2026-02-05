@@ -1,4 +1,4 @@
-# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.1: GOVERNANCE CORE DEFINITION
+# SOVEREIGN GOVERNANCE STANDARD (SGS) V94.1: GOVERNANCE CORE DEFINITION (Refactored: Optimized Asset Management)
 
 ## 1.0 EXECUTIVE OVERVIEW: DETERMINISTIC STATE EVOLUTION
 
@@ -24,19 +24,23 @@ Three attested, specialized agents coordinate state commitment using the Governa
 
 ---
 
-## 3.0 GOVERNANCE ASSET & MANIFEST REGISTRY (GACR V94.1)
+## 3.0 GOVERNANCE ASSET & MANIFEST REGISTRY (GACR V94.1: Comprehensive Definition)
 
-GACR defines certified configurations and runtime assets necessary for GSEP-C validation. Assets are categorized into (1) Terminal Control Assets (*, high-integrity runtime proofs) and (2) PCTM Managed Configurations (static policy defined under Section 7.0).
+GACR defines ALL certified configurations and runtime assets necessary for GSEP-C validation and state evolution. Assets are strictly partitioned into (1) High-Integrity Runtime Proofs (* - CRoT/Runtime Verified) and (2) PCTM Managed Configurations (PCTM - Static, Policy Driven).
 
-| Acronym | Control Focus | Owner(s) | PCTM Managed? | Primary Gate(s) | Description |
+| Acronym | Type | Owner(s) | Primary Gate(s) | Control Focus | Description |
 |:---|:---|:---|:---|:---|:---|
-| **HETM*** | Host Integrity | CRoT | No | S0 | Host Environment Trust Manifest. Certified proofs for infrastructure (Trust Anchor).|
-| **GICM*** | Commitment Handoff | CRoT | No | S0, S10 | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure handoffs.|
-| **DTEM*** | Data Lineage | CRoT | No | S4 | Data Trust and Execution Manifest. Validation rules for input data lineage.|
-| **PVLM** | Axiom Veto Logic | GAX | Yes | S2 ($ \neg S_{03} $) | Policy Veto Logic Manifest. Defines axiomatic prohibitions (Requires schema).|
-| **MPAM** | Model Stability | SGS/GAX | Yes | S3 ($ \neg S_{04} $), S7 | Model Performance & Attestation Manifest. Tracks model drift and integrity bounds.|
-| **ADTM** | Anomaly Detection | GAX/SGS | Yes | S6.5 ($ \neg S_{06.5} $) | Anomaly Detection Threshold Manifest. Defines heuristics for behavioral veto. |
-| **CFTM** | Finality Threshold | GAX | Yes | S8 | Core Failure Threshold Manifest. Defines required utility margin ($ \epsilon $) for P-01 finality.|
+| **HETM*** | Runtime Proof | CRoT | S0 | Host Integrity | Host Environment Trust Manifest. Certified proofs for infrastructure (Trust Anchor).|
+| **GVDM** | Runtime Proof | CRoT | S0 | Version Integrity | Governance Version Definition Manifest. Ensures certified boot environment version.|
+| **GICM*** | Runtime Proof | CRoT | S0, S10 | Commitment Handoff | Governance Inter-Agent Commitment Manifest. Sequential guarantees for secure handoffs.|
+| **SDVM** | Configuration | SGS | S1 | Input Schema | Schema Definition Validation Manifest. Compliance standards for ingress input.|
+| **PVLM** | Configuration | GAX | S2 ($ \neg S_{03} $) | Axiom Veto Logic | Policy Veto Logic Manifest. Defines axiomatic prohibitions (Requires JSON schema).|
+| **MPAM** | Configuration | GAX/SGS | S3 ($ \neg S_{04} $), S7 | Model Stability | Model Performance & Attestation Manifest. Tracks model drift and integrity bounds.|
+| **DTEM*** | Runtime Proof | CRoT | S4 | Data Lineage | Data Trust and Execution Manifest. Validation rules for input data provenance.|
+| **ECVM** | Runtime Proof | SGS | S4.5 ($ S_{Context\ Pass} $) | Context Attestation | Environmental Context Validation Manifest. Attested operational prerequisites.|
+| **ADTM** | Configuration | GAX/SGS | S6.5 ($ \neg S_{06.5} $) | Anomaly Detection | Anomaly Detection Threshold Manifest. Defines heuristics for behavioral veto. |
+| **CFTM** | Configuration | GAX | S8 | Finality Threshold | Core Failure Threshold Manifest. Defines required utility margin ($ \epsilon $).|
+| **CMR** | Runtime Proof | SGS/CRoT | S5, S6.7 | Model Repository | Certified Model Repository. Attested source models for CEEP/CPES. |
 
 ---
 
@@ -50,15 +54,15 @@ $$\mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{03
 
 ### 4.2 Certified Variable Registry (Calculus Inputs)
 
-| Variable | Governing Agent(s) | Source Stage | Metric Role | Description |
-|:---|:---|:---|:---|:---|
-| $ S_{01} $ | SGS | S7 | Utility Metric | Efficacy Metric (Computed Utility Value). Generated via CPES simulation. |
-| $ S_{02} $ | SGS | S7 | Risk Metric | Estimated Cost/Failure Profile. Derived from CEEP/CPES results. |
-| $ \neg S_{03} $ | GAX | S2 | **Policy Veto Absence** | Axiomatic rule satisfaction (PVLM validated). |
-| $ \neg S_{04} $ | GAX | S3 | **Stability Veto Absence** | Model drift within tolerance (MPAM validated). |
-| $ \neg S_{06.5} $ | GAX | S6.5 | **Behavioral Veto Absence** | Execution heuristics passed (ADTM evaluated). |
-| $ S_{Context\ Pass} $ | SGS | S4.5 | Context Commitment | Operational prerequisites met (ECVM attested). |
-| $ \epsilon $ | GAX | S8 | Tolerance Limit | Core Failure Threshold (Minimum required utility margin, CFTM). |
+| Variable | Governing Agent(s) | Source Stage | Metric Role | Veto Source Manifest | Description |
+|:---|:---|:---|:---|:---|:---|
+| $ S_{01} $ | SGS | S7 | Utility Metric | N/A | Efficacy Metric (Computed Utility Value). Generated via CPES simulation. |
+| $ S_{02} $ | SGS | S7 | Risk Metric | N/A | Estimated Cost/Failure Profile. Derived from CEEP/CPES results. |
+| $ \neg S_{03} $ | GAX | S2 | Policy Veto Absence | PVLM | Axiomatic rule satisfaction (PVLM validated). |
+| $ \neg S_{04} $ | GAX | S3 | Stability Veto Absence | MPAM | Model drift within tolerance (MPAM validated). |
+| $ \neg S_{06.5} $ | GAX | S6.5 | Behavioral Veto Absence | ADTM | Execution heuristics passed (ADTM evaluated). |
+| $ S_{Context\ Pass} $ | SGS | S4.5 | Context Commitment | ECVM | Operational prerequisites met (ECVM attested). |
+| $ \epsilon $ | GAX | S8 | Tolerance Limit | CFTM | Core Failure Threshold (Minimum required utility margin). |
 
 ---
 
@@ -120,34 +124,33 @@ Failures are classified as STANDARD, CRITICAL (RRP), or TERMINAL (SIH).
 
 ## 7.0 GOVERNANCE CONFIGURATION TRUST STANDARDS (GCTS)
 
-All static governance configurations (PCTM Managed Assets: PVLM, MPAM, ADTM, CFTM) MUST be validated against strict versioning and integrity requirements. This process includes mandatory cryptographic signing, semantic versioning, and JSON schema validation executed by the PCTM prior to GSEP-C execution at S0.
+All static governance configurations (PCTM Managed Assets: PVLM, MPAM, ADTM, CFTM, SDVM) MUST be validated against strict versioning and integrity requirements. This process includes mandatory cryptographic signing, semantic versioning, and JSON schema validation executed by the PCTM prior to GSEP-C execution at S0.
 
-## 8.0 GOVERNANCE ACRONYM GLOSSARY (Comprehensive Definitions)
-
-Provides operational definitions for all governance variables and reference manifests used within the SGS V94.1 framework, ensuring uniform interpretation of control dependencies.
+## 8.0 GOVERNANCE ACRONYM GLOSSARY (Quick Reference)
 
 | Acronym | Definition |
 |:---|:---|
 | ADTM | Anomaly Detection Threshold Manifest |
-| CALS | Certified Audit Log System (Referred to via NRALS Logging)|
+| CALS | Certified Audit Log System |
 | CEEP | Certified Execution Preparation |
 | CFTM | Core Failure Threshold Manifest |
 | CISM | Certified Intermediate State Manager |
-| CMR | Certified Model Repository (Contains attested models used by CEEP/CPES)|
+| CMR | Certified Model Repository |
 | CPES | Certified Pre-Execution Sandbox |
+| CRoT | Certified Root of Trust |
 | CSTL | Certified State Transition Ledger |
 | DTEM | Data Trust and Execution Manifest |
-| **ECVM** | **Environmental Context Validation Manifest** (Operational prerequisites, S4.5)|
+| ECVM | Environmental Context Validation Manifest |
 | GAX | Governance Axiom Enforcer |
 | GICM | Governance Inter-Agent Commitment Manifest |
 | GTB Feed | Global Telemetry Bus Feed |
-| **GVDM** | **Governance Version Definition Manifest** (Required boot version manifest, S0)|
+| GVDM | Governance Version Definition Manifest |
 | HETM | Host Environment Trust Manifest |
 | MPAM | Model Performance & Attestation Manifest |
 | PCTM | Policy Configuration Trust Manager |
 | PVLM | Policy Veto Logic Manifest |
 | RRP | Resilience/Recovery Protocol |
-| **SDVM** | **Schema Definition Validation Manifest** (Input validation standards, S1)|
+| SDVM | Schema Definition Validation Manifest |
 | SGS | Sovereign Governance System |
 | SIH | System Integrity Halt |
 | STDM | System Telemetry Definition Manifest |
