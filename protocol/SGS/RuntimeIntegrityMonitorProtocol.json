@@ -1,0 +1,15 @@
+{
+  "protocol_id": "RIMP_P_001",
+  "description": "Defines the mandatory concurrent attestation checks required during the GSEP-C Audit Phase (P3: S07-S10) to monitor for non-critical environmental drift or resource anomalies post-ECVM fulfillment (S06).",
+  "monitoring_scope": [
+    "resource_utilization_baseline_drift",
+    "hypervisor_entropy_check",
+    "container_image_hash_verification"
+  ],
+  "trigger_conditions": {
+    "deviation_threshold": 0.05, 
+    "check_frequency_ms": 500
+  },
+  "reporting_level": "ELEVATED_LOGGING",
+  "escalation_trigger": "ADTM_PULL_REQUEST" 
+}
