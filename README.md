@@ -2,7 +2,7 @@
 
 ## 0.0 MISSION & ARCHITECTURAL ANCHOR
 
-The SGS V95.3 mandates deterministic state evolution ($\\Psi_{N} \\to \\Psi_{N+1}$) through autonomous, self-governance. All Compliance-Certified State Transitions (CCST) must be processed exclusively via the **Governance State Evolution Pipeline (GSEP-C)**. Systemic integrity is ensured by mandated Governance Axioms (GAX) and cryptographically anchored manifests (GACR/CRoT).
+The **SGS V95.3** mandates deterministic state evolution ($\Psi_{N} \to \Psi_{N+1}$) through autonomous, self-governance. All Compliance-Certified State Transitions (CCST) must be processed exclusively via the **Governance State Evolution Pipeline (GSEP-C)**. Systemic integrity is ensured by mandated Governance Axioms (GAX) and cryptographically anchored manifests (GACR / CRoT).
 
 ---
 
@@ -29,7 +29,38 @@ These protocols ensure predictable transition and resilience, governed by timing
 
 ---
 
-## 2.0 GSEP-C V95.3: MANDATORY STATE TRANSITION PIPELINE
+## 2.0 GOVERNANCE ASSET & REGISTRY (GACR Manifests)
+
+GACR manifests define the control logic and constraints of the SGS architecture. All manifests must be CRoT-signed and validated against the PESM schema during Policy Evolution Updates (PEUP).
+
+### 2.1 Policy & Calculus Manifests (GAX Domain)
+
+| ID | Name | GSEP-C Gate | Function |
+|:---|:---|:---|:---|
+| **PVLM** | Policy Veto Logic Manifest | S2 | Defines rules yielding the critical $S_{03}$ Veto signal. |
+| **CFTM** | Core Failure Thresholds Manifest | S7 | Defines the deviation tolerance $\epsilon$ for P-01 finality calculation. |
+| **PESM** | Policy Evolution Schema Manifest | PEUP | Defines mandatory schemas for GACR updates and integrity checks. |
+
+### 2.2 Constraints & Resource Manifests (SGS Domain)
+
+| ID | Name | GSEP-C Gate | Function |
+|:---|:---|:---|:---|
+| **CAC** | Core Architectural Constraints | S5 | Defines resource limits (e.g., computational load, memory). |
+| **SBCM** | System Baseline Configuration Manifest | S4 | Core configuration for CEEP modeling environment isolation. |
+| **SDVM** | Schema Definition Validation Manifest | S1 | Input validation rules for ensuring data structure compliance. |
+
+### 2.3 Integrity & Timekeeping Manifests (CRoT Domain)
+
+| ID | Name | GSEP-C Gate | Function |
+|:---|:---|:---|:---|
+| **GATM** | Governance Agent Threshold Manifest | S0, S9 | Latency monitoring and time constraints for agent response (SLOs). |
+| **DTEM** | Data Trust Endpoint Manifest | S3 | Defines trusted data sources for lineage verification. |
+| **CALS** | Certified Audit Log Specification | S8 | Defines structure and persistence requirements for the Non-Repudiable Audit Log (NRALS). |
+| **MDSM** | Metric Definition Manifest | S6 | Specifications required for generating Certified Governance Variables ($S_{01}, S_{02}$). |
+
+---
+
+## 3.0 GSEP-C V95.3: MANDATORY STATE TRANSITION PIPELINE
 
 GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). Failure at CRITICAL or TERMINAL stages triggers immediate System Halt (SIH) or Rollback (RRP).
 
@@ -48,34 +79,6 @@ GSEP-C enforces 10 sequential, non-bypassable stages (S0 to S9). Failure at CRIT
 
 ---
 
-## 3.0 GOVERNANCE ASSET & REGISTRY (GACR Manifests)
-
-GACR manifests define the control logic and constraints of the SGS architecture. All manifests must be CRoT-signed and validated by PESM schema during Policy Evolution Updates (PEUP).
-
-### 3.1 Policy & Calculus (GAX Domain)
-| ID | Name | GSEP-C Gate | Function |
-|:---|:---|:---|:---|
-| **PVLM** | Policy Veto Logic Manifest | S2 | Defines rules yielding the critical $S_{03}$ Veto signal. |
-| **CFTM** | Core Failure Thresholds Manifest | S7 | Defines the deviation tolerance $\epsilon$ for P-01 finality calculation. |
-| **PESM** | Policy Evolution Schema Manifest | PEUP | Defines mandatory schemas for GACR updates and integrity checks. |
-
-### 3.2 Constraints & Resources (SGS Domain)
-| ID | Name | GSEP-C Gate | Function |
-|:---|:---|:---|:---|
-| **CAC** | Core Architectural Constraints | S5 | Defines resource limits (e.g., computational load, memory). |
-| **SBCM** | System Baseline Configuration Manifest | S4 | Core configuration for CEEP modeling environment isolation. |
-| **SDVM** | Schema Definition Validation Manifest | S1 | Input validation rules for ensuring data structure compliance. |
-
-### 3.3 Integrity & Timekeeping (CRoT Domain)
-| ID | Name | GSEP-C Gate | Function |
-|:---|:---|:---|:---|
-| **GATM** | Governance Agent Threshold Manifest | S0, S9 | Latency monitoring and time constraints for agent response (SLOs). |
-| **DTEM** | Data Trust Endpoint Manifest | S3 | Defines trusted data sources for lineage verification. |
-| **CALS** | Certified Audit Log Specification | S8 | Defines structure and persistence requirements for the Non-Repudiable Audit Log (NRALS). |
-| **MDSM** | Metric Definition Manifest | S6 | Specifications required for generating Certified Governance Variables ($S_{01}, S_{02}$). |
-
----
-
 ## 4.0 GOVERNANCE DECISION CALCULUS (GAX V3.5)
 
 The atomic state evolution is contingent upon three Certified Governance Variables (CGV), calculated or sourced from the GSEP-C stages.
@@ -84,7 +87,7 @@ The atomic state evolution is contingent upon three Certified Governance Variabl
 
 State evolution is certified only if computed efficacy outweighs adjusted risk, and no prior critical veto ($S_{03}$) was enforced.
 
-$$ \\mathbf{P\text{-}01\ PASS} \\iff (S_{01} > S_{02} + \\epsilon) \\land (\\neg S_{03}) $$
+$$ \mathbf{P\text{-}01\ PASS} \iff (S_{01} > S_{02} + \epsilon) \land (\neg S_{03}) $$
 
 | Variable | Description | Source Stage | Certification Role |
 |:---|:---|:---|:---|
