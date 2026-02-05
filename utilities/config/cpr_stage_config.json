@@ -1,0 +1,27 @@
+{
+  "stage_id": "S09_CPR",
+  "artifact_inputs": [
+    {
+      "identifier": "GAX_I",
+      "path": "artifact_cache/temm_s08.json",
+      "description": "Temporal Entropy Mapping Metrics"
+    },
+    {
+      "identifier": "GAX_II",
+      "path": "artifact_cache/ecvm_s07.json",
+      "description": "Error Correcting VM Metrics"
+    },
+    {
+      "identifier": "GAX_III",
+      "path": "artifact_cache/csr_s01.json",
+      "description": "Constraint Stage Report (Baseline)"
+    }
+  ],
+  "system_configs": {
+    "acvm_core_path": "config/acvm_core_constraints.json"
+  },
+  "output": {
+    "path": "output/s09_cpr_metrics.json",
+    "report_format": "json"
+  }
+}
