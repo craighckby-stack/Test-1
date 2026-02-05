@@ -1,35 +1,78 @@
 {
-  "description": "Configuration governing the Protocol Integrity Manager (PIM) failure triggers and expected artifact properties at GSEP-C Synchronization Gates.",
-  "version": "v1.0.0",
+  "description": "Standardized configuration governing the Protocol Integrity Manager (PIM) synchronization gates, centralizing failure definitions.",
+  "version": "v2.0.0",
+  "meta": {
+    "standard": "GSEP-C/PIM-Constraint-Standard/v2",
+    "gates_total": 4
+  },
+  "failure_modes": {
+    "P_M01": {
+      "description": "Operational Budget Violation",
+      "severity": "WARNING",
+      "action": "Soft Fail, Logging"
+    },
+    "P_M02": {
+      "description": "Integrity State Mismatch (Tampering/Non-Determinism)",
+      "severity": "CRITICAL",
+      "action": "Hard Block, Rollback"
+    },
+    "P_R03": {
+      "description": "Audit and Immutability Chain Failure",
+      "severity": "BLOCKING",
+      "action": "System Halt, Diagnostics"
+    }
+  },
   "gates": {
     "G0_PRE_FLIGHT_LOCK": {
-      "validation_type": "GAX_III_HASH_CHECK",
-      "required_artifact_hash": "$EMSU.EMS_HASH$",
+      "stage": "INITIATION",
+      "validation_protocol": "GAX_III",
+      "required_artifact_ref": "EMSU.EMS_HASH",
       "constraints": [
-        {"check": "IsManifestSealed", "failure_mode": "P-M02"}
+        {
+          "check_name": "IsManifestSealed",
+          "fail_mode_id": "P_M02"
+        }
       ]
     },
     "G1_BOUNDARY_CHECK": {
-      "validation_type": "GAX_II_RESOURCE_BOUNDING",
-      "required_artifact_hash": "$DRO.ECVM_SIGNATURE$",
+      "stage": "EXECUTION",
+      "validation_protocol": "GAX_II",
+      "required_artifact_ref": "DRO.ECVM_SIGNATURE",
       "constraints": [
-        {"check": "ExecutionTimeUnderBudget", "failure_mode": "P-M01"},
-        {"check": "ACVMThresholdsMet", "failure_mode": "P-M02"}
+        {
+          "check_name": "ExecutionTimeUnderBudget",
+          "fail_mode_id": "P_M01"
+        },
+        {
+          "check_name": "ACVMThresholdsMet",
+          "fail_mode_id": "P_M02"
+        }
       ]
     },
     "G2_COMMITMENT_GATE": {
-      "validation_type": "GAX_I_FINALITY",
-      "required_artifact_hash": "$AASS.PSI_FINAL_HASH$",
+      "stage": "FINALIZATION",
+      "validation_protocol": "GAX_I",
+      "required_artifact_ref": "AASS.PSI_FINAL_HASH",
       "constraints": [
-        {"check": "ISBImmutabilityVerified", "failure_mode": "P-M02"},
-        {"check": "PsiFinalDeterminismCheck", "failure_mode": "P-M02"}
+        {
+          "check_name": "ISBImmutabilityVerified",
+          "fail_mode_id": "P_M02"
+        },
+        {
+          "check_name": "PsiFinalDeterminismCheck",
+          "fail_mode_id": "P_M02"
+        }
       ]
     },
     "G3_FINALITY_SEAL": {
-      "validation_type": "P_R03_AUDITABILITY",
-      "required_artifact_hash": "$AASS.STATE_SEAL_CERTIFICATE$",
+      "stage": "AUDIT",
+      "validation_protocol": "P_R03_AUDITABILITY",
+      "required_artifact_ref": "AASS.STATE_SEAL_CERTIFICATE",
       "constraints": [
-        {"check": "AASS_SignatureValidity", "failure_mode": "P-R03"}
+        {
+          "check_name": "AASS_SignatureValidity",
+          "fail_mode_id": "P_R03"
+        }
       ]
     }
   }
