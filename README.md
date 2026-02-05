@@ -1,6 +1,6 @@
 # SOVEREIGN GOVERNANCE MANIFEST (SGM) V94.7
 
-## METADATA
+## METADATA & CORE DIRECTIVES
 | Field | Value |
 |:---|:---|
 | Version | V94.7 (Iteration on V94.6) |
@@ -12,21 +12,23 @@
 
 ## 1.0 THE GOVERNANCE STATE EVOLUTION PIPELINE (GSEP-C V3.4)
 
-GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9) guaranteeing deterministic, auditable governance. This pipeline operates under the Principle of Immutable Staging (Fail-Fast), immediately triggering the Rollback and Recovery Protocol (RRP) upon failure. Stages **L1 (Veto)**, **L2 (Trust)**, **L4 (Resource)**, and **L7 (Finality)** are mandatory high-security enforcement checkpoints.
+The GSEP-C enforces a strict, ten-stage sequential pathway (PRE, L0-L9) guaranteeing deterministic, auditable governance. This pipeline operates under the **Principle of Immutable Staging (Fail-Fast)**, immediately triggering the Rollback and Recovery Protocol (RRP) upon failure. Stages [L1 (Veto)](#l1---critical-veto), [L2 (Trust)](#l2---provenance-trust), [L4 (Resource)](#l4---resource-constraint), and [L7 (Finality)](#l7---finality-gate) are mandatory high-security enforcement checkpoints.
 
-| Layer | Module ID | Stage Title | Core Validation Objective | Predecessor Input | Critical Halt Condition | RRP Hook |
-|:-----|:---|:---|:-------------------------------------------|:------------------|:----------------------------|:---|
-| PRE | GSC | Schema Ingress | Assert structural integrity. | Raw SST Input | Ingress Structure Failure | `RRP:SCHEMA_FAIL` |
-| L0 | CTM | Context Typing | Formal format and schema compliance. | PRE Output | Format Integrity Fail | `RRP:FORMAT_FAIL` |
-| **L1** | PVLM | **CRITICAL VETO** | Policy Violation Assessment ($S\text{-}03$ generation). (Ref: `policies/critical_veto_manifest_v1.yaml`) | L0 Output | CRITICAL POLICY VIOLATION | `RRP:POLICY_VETO` |
-| L2 | CTAL | Provenance Trust | Source authenticity and trust validation. | L1 Output | Provenance Trust Failure | `RRP:TRUST_FAIL` |
-| L3 | CM | Confidence Modeling | Simulate impact bounds and margin confidence. | L2 Output | Simulation Divergence | `RRP:SIM_DIVERGE` |
-| L4 | SCI | Resource Constraint | Verification against Core Architectural Limits (CAC). | L3 Output | Resource Overrun | `RRP:BUDGET_EXCEED` |
-| L5 | DFV | Data Fidelity | Input data lineage and integrity check. | L4 Output | Data Corruption | `RRP:DATA_FIDELITY` |
-| L6 | MEE | Metric Synthesis | Quantify objective metrics ($S\text{-}01, S\text{-}02$). | L5 Output | Metric Synthesis Failure | `RRP:METRIC_FAIL` |
-| **L7** | VMO | **FINALITY GATE** | Enforce P-01 rule check (uses $S\text{-}01, S\text{-}02, \epsilon$). | L6 Metrics | FINALITY RULE BREACH | `RRP:FINALITY_BREACH` |
-| L8 | GRLC | CERTIFIED PERSISTENCE | Record and verify auditable transaction log. | L7 Pass Signal | Persistence Logging Failure | `RRP:LOG_FAIL` |
-| L9 | TEDC | Execution & Decommitment | Final compliance check and atomic state trigger. | L8 Log Reference | Runtime Threshold Breach | `RRP:AUDIT_BREACH` |
+### 1.1 GSEP-C Stage Definition and Enforcement
+
+| Layer | Module ID | Stage Title | Core Validation Objective | Critical Halt Condition | RRP Hook |
+|:-----|:---|:---|:-------------------------------------------|:----------------------------|:---|
+| PRE | GSC | Schema Ingress | Assert structural integrity. | Ingress Structure Failure | `RRP:SCHEMA_FAIL` |
+| L0 | CTM | Context Typing | Formal format and schema compliance. | Format Integrity Fail | `RRP:FORMAT_FAIL` |
+| **L1** | PVLM | **CRITICAL VETO** | Policy Violation Assessment ($S\text{-}03$). (Ref: `policies/critical_veto_manifest_v1.yaml`) | **CRITICAL POLICY VIOLATION** | `RRP:POLICY_VETO` |
+| **L2** | CTAL | **Provenance Trust** | Source authenticity and trust validation. | Provenance Trust Failure | `RRP:TRUST_FAIL` |
+| L3 | CM | Confidence Modeling | Simulate impact bounds and margin confidence. | Simulation Divergence | `RRP:SIM_DIVERGE` |
+| **L4** | SCI | **Resource Constraint** | Verification against Core Architectural Limits (CAC). | **Resource Overrun** | `RRP:BUDGET_EXCEED` |
+| L5 | DFV | Data Fidelity | Input data lineage and integrity check. | Data Corruption | `RRP:DATA_FIDELITY` |
+| L6 | MEE | Metric Synthesis | Quantify objective metrics ($S\text{-}01, S\text{-}02$). | Metric Synthesis Failure | `RRP:METRIC_FAIL` |
+| **L7** | VMO | **FINALITY GATE** | Enforce P-01 rule check (uses $S\text{-}01, S\text{-}02, \epsilon$). | **FINALITY RULE BREACH** | `RRP:FINALITY_BREACH` |
+| L8 | GRLC | CERTIFIED PERSISTENCE | Record and verify auditable transaction log. | Persistence Logging Failure | `RRP:LOG_FAIL` |
+| L9 | TEDC | Execution & Decommitment | Final compliance check and atomic state trigger. | Runtime Threshold Breach | `RRP:AUDIT_BREACH` |
 
 ---
 
@@ -44,7 +46,7 @@ $$ \text{COF}: \max \left( \frac{S\text{-}01}{S\text{-}02 + \tau_{norm}} \right)
 
 Certification ($\mathbf{P\text{-}01\ PASS}$) is achieved only if:
 1. Systemic benefit ($S\text{-}01$) strictly outweighs the adjusted risk ($S\text{-}02 + \epsilon$).
-2. No critical policy violation ($S\text{-}03$) was signaled by the Veto Layer (L1).
+2. No critical policy violation ($S\text{-}03$) was signaled by the Veto Layer ([L1](#l1---critical-veto)).
 
 $$ \mathbf{P\text{-}01\ PASS} \iff (S\text{-}01 > S\text{-}02 + \epsilon) \land (\neg S\text{-}03) $$
 
