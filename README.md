@@ -1,38 +1,42 @@
 # SOVEREIGN ARCHITECTURAL GOVERNANCE (SAG) SPECIFICATION V97.1
 
-## GOVERNANCE MANDATE: Deterministic State Evolution (DSE)
+## MISSION MANDATE: Deterministic State Evolution (DSE)
 
-SAG V97.1 defines the non-repudiable state transition protocol ($\Psi_{N} \to \Psi_{N+1}$) enforced exclusively by the three-agent separation model (CRoT, GAX, SGS). Finality is achieved only upon the successful atomic validation of the P-01 Finality Calculus.
+SAG V97.1 mandates the enforcement of the non-repudiable state transition protocol ($\Psi_{N} \to \Psi_{N+1}$). Finality is exclusively determined by the three-agent separation model (**CRoT**, **GAX**, **SGS**) and is achieved only upon the successful atomic validation of the **P-01 Finality Calculus**.
 
 ---
 
-## 1.0 GOVERNANCE AGENTS & SEPARATION OF DUTIES (SoD)
+## 1.0 GOVERNANCE STRUCTURE & SEPARATION OF DUTIES (SoD)
 
-Decentralized accountability requires three specialized agents, each operating within defined mandates to prevent single-point governance failure.
+Decentralized accountability is achieved through the required interaction of three specialized agents. This Separation of Duties (SoD) prevents single-point governance failure and mandates verifiable state commitment.
+
+### 1.1 Core Governance Agents
 
 | ID | Designation | Core Mandate | P-01 Critical Focus | Governance Artifacts/Control Plane |
 |:---:|:---|:---:|:---:|:---:|
-| **CRoT** | Cryptographic Root of Trust | Cryptographic Integrity & State Commitment. | Trust Anchoring & State Finality (S13 Commit). | FMR, GSM, SIPM |
-| **GAX** | Axiomatics Agent | Policy Enforcement, Constraint Logic, Threshold Management. | Constraint Enforcement (**UMA I** & **AI III**). | ACVD, PCLD, APCS |
-| **SGS** | Execution Agent | Workflow Orchestration, Metric Calculation, Environment Attestation. | Execution Integrity (**CA II** & TEMM Calculation). | ADEP, TEDS, TVCR |
+| **CRoT** | Cryptographic Root of Trust | Integrity Verification & State Commitment Signing. | Trust Anchoring & Final State Commitment (**S13 Commit**). | FMR, GSM, SIPM |
+| **GAX** | Axiomatics Agent | Policy Enforcement, Constraint Logic, ACV Validation. | Constraint Enforcement (**UMA I** & **AI III** validation). | ACVD, PCLD, APCS |
+| **SGS** | Execution Agent | Workflow Orchestration, Metric Calculation, Environment Attestation. | Execution Integrity (**CA II** fulfillment & **TEMM** Calculation). | ADEP, TEDS, TVCR |
 
 ---
 
-## 2.0 P-01 FINALITY CALCULUS & AXIO-CONSTRAINT VALIDATION (ACV)
+## 2.0 P-01 FINALITY CALCULUS: THE ATOMIC CHECKPOINT (M-CKPT)
 
-The P-01 Checkpoint (M-CKPT) is the singular, atomic requirement at Stage S11 for DSE finalization. GAX utilizes the Axiomatic State Manifest (ASM) to validate against the defined Axiomatic Constraint Vector (ACV).
+The P-01 Checkpoint is the singular, non-negotiable requirement performed atomically by **GAX** at Stage **S11** (M-CKPT). This process utilizes the accumulated Axiomatic State Manifest (ASM) to validate against the defined Axiomatic Constraint Vector (ACV).
 
 ### 2.1 ACV Finality Formula (P-01 PASS Condition)
 
-All three constraints must be simultaneously satisfied at S11:
+Successful Deterministic State Evolution (DSE) requires the simultaneous satisfaction of all three axiomatic constraints at S11:
 
-$$ 
+$$
 \text{P-01 PASS} \iff (\text{UMA I}) \land (\text{CA II}) \land (\text{AI III})
-$$ 
+$$
 
-### 2.2 Axiomatic Constraints Mapping
+### 2.2 Axiomatic Constraints Mapping (ACV)
 
-| Axiom ID | Name | Constraint Definition | Governing Agents | Artifact Keys (from ASM) |
+This table defines the logic and required metrics utilized by GAX during P-01 validation.
+
+| Axiom ID | Name | Constraint Definition | Governing Agents | Required ASM Keys |
 |:---:|:---|:---:|:---:|:---:|
 | **I** | Utility Maximization (UMA) | $\text{TEMM} \ge \text{UFRM} + \text{CFTM}$ | GAX / SGS (Joint) | TEMM, UFRM, CFTM |
 | **II** | Context Attestation (CA) | $\text{ECVM} = \text{True}$ | SGS | ECVM |
@@ -42,48 +46,52 @@ $$
 
 ## 3.0 CERTIFIED STATE EVOLUTION PIPELINE (GSEP-C)
 
-The mandatory 15-stage DSE protocol provides deterministic execution tracking, culminating in the atomic P-01 evaluation (GAX, S11) using the Final Axiomatic State Validation (FASV) schema.
+The mandatory 15-stage protocol ensures verifiable, deterministic execution tracking (DSE). The agents accumulate state into the **ASM** leading up to the critical S11 M-CKPT.
 
-| Phase | Stage | Agent Focus | ACV Focus / Objective | P-01 ACV Trigger | Fallback Protocol |
+| Phase | Stage | Agent Focus | Objective & ACV Linkage | P-01 Trigger | Fallback Protocol |
 |:---:|:---:|:---:|:---|:---|:---:|
-| **P1: INIT** | S00-S01 | CRoT/SGS | Initialization & Identity Assertion (PCE). | N/A | IH/STD |
-| **P2: VALIDATION**| S02.1-S04 | GAX | Pre-Execution Integrity Check (PVLM, MPAM policy checks). | **AI III Prereqs** | RRP |
-| | S06 | SGS | Context Attestation (ECVM Status Set). | **CA II Fulfillment** | RRP |
-| **P3: METRIC** | S08 | SGS | Calculate Post-Execution Utility Metrics (TEMM). | TEMM Calculation | RRP |
-| | S09 | GAX | Runtime Veto Check (ADTM Status Set). | **AI III ADTM Veto** | RRP |
-| | S10 | GAX | Verify Utility Threshold Adherence (UFRM/CFTM). | **UMA I Threshold Check** | RRP |
-| **P4: FINALITY** | **S11** | GAX | **M-CKPT: Atomic Evaluation of P-01 ACV.** | **FULL ACV P-01 PASS** | **RRP** |
-| | S13-S14 | CRoT/SGS | Final Cryptographic Signing (CRoT) and Atomic State Transition. | TRUST COMMITMENT | IH |
+| **P1: INIT** | S00-S01 | CRoT/SGS | Initialization & Identity Assertion. | N/A | IH/STD |
+| **P2: VALIDATE**| S02.1-S04 | GAX | Pre-Execution Integrity Check (Sets **PVLM**, **MPAM**). | AI III Prereqs | RRP |
+| | S06 | SGS | Context Attestation (Sets **ECVM** Status). | CA II Fulfillment | RRP |
+| **P3: METRIC** | S08 | SGS | Calculate Post-Execution Utility Metrics (Determines **TEMM**). | UMA I Input | RRP |
+| | S09 | GAX | Runtime Veto Check (Sets **ADTM** Status). | AI III ADTM Veto | RRP |
+| | S10 | GAX | Verify Utility Threshold Adherence (**UFRM/CFTM** against TEMM). | UMA I Threshold Check | RRP |
+| **P4: FINALITY** | **S11 (M-CKPT)** | **GAX** | **CRITICAL: Atomic Evaluation of FULL ACV P-01 PASS.** | **FULL P-01 Evaluation** | **RRP** |
+| | S13-S14 | CRoT/SGS | Final Cryptographic Signing (**CRoT**) and Atomic State Transition. | TRUST COMMITMENT | IH |
 
 ---
 
 ## 4.0 FAILURE HIERARCHY & TRIAGE PROTOCOL
 
-| Level | Codification | P-01 Impact | Remediation Action |
+Failure responses are codified by severity level to ensure predictable remediation paths.
+
+| Level | Codification | P-01 Impact Window | Remediation Action |
 |:---:|:---:|:---:|:---:|
-| **IH** | INTEGRITY HALT | Trust or State Commitment Failure (S13/S14 Critical). | Immediate System Halt. Requires mandatory CRoT root reset. |
-| **RRP** | ROLLBACK PROTOCOL | Axiomatic or Context Violation (S02-S11 Failures). | Mandatory forensic capture (TEDS/TVCR). Requires GAX-led Policy Correction Analysis (PCSS) using PRM and PCLD. |
+| **IH** | INTEGRITY HALT | S13/S14 Critical Failure (Post-P-01 State Commitment failure). | Immediate System Halt. Requires mandatory **CRoT root reset**. |
+| **RRP** | ROLLBACK PROTOCOL | S02 - S11 Failures (Axiomatic/Context Violation). | Mandatory forensic capture (TEDS/TVCR). Requires GAX-led Policy Correction Analysis (PCSS) using PRM and **PCLD**. |
 
 ---
 
 ## 5.0 CANONICAL ARTIFACT ARCHITECTURE (A-CAT)
 
-Artifacts are structured by function to enforce mandated governance adherence.
+Artifacts organize control plane logic and runtime state necessary for DSE.
 
-### 5.1 Data Models & Schemas (Runtime State)
+### 5.1 Runtime State Accumulation
+
+These artifacts track and report the mutable state leading into the P-01 check.
 
 | Acronym | Managing Agent | P-01 Linkage | Focus |
 |:---:|:---:|:---:|:---:|
-| **ASM** | SGS/GAX | S02-S10 Accumulation | Canonical State Accumulator for ACV input. |
-| **FASV** | GAX | S11 Integrity Check | Mandatory Schema defining expected ASM structure for P-01. |
+| **ASM** | SGS/GAX | S02-S10 Accumulation | **Canonical Input Schema** for ACV validation. |
+| **FASV** | GAX | S11 Integrity Check | Mandatory Schema defining expected ASM structure for P-01 input. |
 | TEDS | SGS | RRP | Triage Event Data Stream (Forensic Capture). |
 
-### 5.2 Configuration & Logic Definitions (Agent Directives)
+### 5.2 Agent Directives & Configuration
 
 | Acronym | Governing Agent | P-01 Linkage | Focus |
 |:---:|:---:|:---:|:---:|
 | **ACVD** | GAX | AI (III Veto Bounds) | Axiomatic Constraint Vector Definition (Defines bounds/operators). |
-| PCLD | GAX | RRP Analysis | Defines deterministic rules for Policy Correction Analysis (PCSS). |
+| PCLD | GAX | RRP Analysis | Policy Correction Logic Definition (Ruleset for PCSS). |
 | FMR | CRoT | S11/S13 Metrics | Finality Metric Registry (Chronological P-01 Status Index).
 
 ---
@@ -101,3 +109,5 @@ Artifacts are structured by function to enforce mandated governance adherence.
 | **ACV** | Axiomatic Constraint Vector | GAX | Constraint Set (I, II, III) |
 | **RRP** | Rollback Protocol | Shared | Failure Triage Protocol |
 | **TEMM** | Total Evolved Metric Maximization | SGS | Utility Metric |
+| **ASM** | Axiomatic State Manifest | SGS/GAX | Runtime State Accumulator |
+| **FASV** | Final Axiomatic State Validation | GAX | Validation Schema |
