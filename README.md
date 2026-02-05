@@ -1,53 +1,53 @@
 # SOVEREIGN AGI V94.1 | DSE GOVERNANCE SPECIFICATION (GSEP-C)
 
 ---
+
 ## 0. EXECUTIVE MANDATE: THE ATOMIC $\Psi$ GUARANTEE
 
-The **Deterministic State Execution (DSE) Protocol** enforces verifiable, immutable state transitions ($\Psi$). This mandate is non-speculative and strictly governed by the **Governance State Execution Pipeline - Core (GSEP-C)**.
+The **Deterministic State Execution (DSE) Protocol** governs verifiable, immutable state transitions ($\Psi$). This specification is governed strictly by the **Governance State Execution Pipeline - Core (GSEP-C)**.
 
-### M-01: ATOMIC EXECUTION PRINCIPLE
-All state transitions must pass through the atomic, non-branching GSEP-C (15 Stages, S00 $\to$ S14). Failure at any stage mandates an immediate **Integrity Halt (IH)**.
+### P01. CORE PRINCIPLES
 
-### M-02: IMMUTABLE COMMITMENT STATE (P-01 FINALITY)
-P-01 Finality defines the irrevocable state commitment, achieved only through the simultaneous, verifiable satisfaction of the three **Governance Axioms (GAX I, II, III)**. Verification thresholds are sourced *exclusively* from the **Axiom Constraint and Validation Definitions (ACVD)** located at `config/acvm.json`.
-
-### OPERATIONAL RECOVERY
-Upon IH, state restoration proceeds deterministically via the **Rollback Protocol (RRP)**, secured by the P-01 commitment history. RRP is only authorized following strict adherence to **DIAL** (DSE Integrity Analyzer) certification.
+| Principle | Identifier | Requirement | Authority/Validation Source |
+|:---:|:---:|:---|:---|
+| **Atomic Execution** | M-01 | Non-branching 15-Stage GSEP-C (S00 $\to$ S14). Failure mandates an **Integrity Halt (IH)**. | GSEP-C Flow Definition (`config/gsep_c_flow.json`)
+| **Immutable Commitment** | M-02 | State finality achieved only via simultaneous satisfaction of **GAX I, II, III**. | **ACVD** (`config/acvm.json`) Thresholds |
+| **Recovery Integrity** | N/A | IH Resolution requires mandatory **DIAL** Certification prior to **RRP** initiation. | DIAL Logic (`config/dial_analysis_map.json`) |
 
 ---
 
 ## 1. DSE ARCHITECTURE MAP (DAM)
 
-This map unifies core components, their roles, and definitive configuration paths governing the entire DSE lifecycle (Execution and Recovery).
+This map defines the core actors, components, and definitive paths governing the DSE Execution and Recovery lifecycles.
 
 ### 1.1. Core Actors & Components
 
-| Acronym | Definition | Core Role in GSEP-C Flow | Dependency (Artifact Source) |
+| Acronym | Definition | Core Role in GSEP-C Flow | Dependency (Control Mechanism) |
 |:---:|:---|:---|:---|
-| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequence. | Controlled by SMC (See Scaffold: SMC Specification) |
+| **GSEP-C** | Governance State Execution Pipeline - Core | Atomic 15-Stage $\Psi$ transition sequence. | State Machine Controller (SMC) via `config/gsep_c_flow.json` |
 | **DIAL** | DSE Integrity Analyzer | IH Forensic Root Cause Analysis (RCA) & RRP Authorization. | Requires MPAM, SGS, ADTM Telemetry |
 | **RRP** | Rollback Protocol | Deterministic State Reversal Procedure. | Governed by `config/rrp_manifest.json` |
-| **Actors** | CRoT Agent, EMS, GAX Ex | Artifact Generation (CSR, ECVM, TEMM) & State Execution. | Defined in `governance/aam_definition.json` |
+| **Actors** | CRoT Agent, EMS, GAX Ex | Artifact Generation (CSR, ECVM, TEMM) & Stage Execution. | Defined in `governance/aam_definition.in.json` |
 
-### 1.2. Configuration & Validation Paths
+### 1.2. Governing Configuration & Schemas
 
-| Data Class | Acronym/Name | Governing Path | Purpose |
+| Type | Tag | Governing Path | Purpose |
 |:---|:---|:---|:---|
-| P-01 Constraints | **ACVD** | `config/acvm.json` | Defines numerical/boolean thresholds for P-01 Finality. |
-| GSEP-C Flow Definition | N/A | `config/gsep_c_flow.json` | Defines the specific I/O and steps for all 15 GSEP-C stages. |
-| DIAL Logic (DARM) | N/A | `config/dial_analysis_map.json` | Specifies logic for DIAL authorization of RRP. |
-| Structural Contracts | N/A | `protocol/artifact_manifest_schema.json` | Defines schemas for all input artifacts (CSR, ECVM, TEMM). |
-| Forensic Telemetry | N/A | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for RCA. |
+| **Validation Constraints** | ACVD | `config/acvm.json` | Numerical/boolean thresholds required for P-01 Finality (GAX satisfaction). |
+| **Flow Definition** | GSEP-C Flow | `config/gsep_c_flow.json` | Defines the specific I/O, stages, and execution mandates for the 15-stage sequence. (Must validate against `governance/smc_schema.json`) |
+| **Recovery Logic** | DARM | `config/dial_analysis_map.json` | Specifies logical criteria for DIAL authorization and IH resolution. |
+| **Artifact Schema** | Structural Contracts | `protocol/artifact_manifest_schema.json` | Defines JSON/data schemas for all input/output artifacts (CSR, ECVM, TEMM). |
+| **Telemetry Schema** | Forensic Telemetry | `protocol/telemetry_spec.json` | Defines mandatory forensic inputs (MPAM, SGS, ADTM) for DIAL's RCA. |
 
 ---
 
 ## 2. GSEP-C EXECUTION: THE ATOMIC TRANSITION SEQUENCE
 
-GSEP-C is designed for maximum security through minimal branching. The core objective is the verified generation and acceptance of Axiom Artifacts, culminating in P-01 Finality at S11.
+GSEP-C is the pipeline for the verified generation and acceptance of Axiom Artifacts, culminating in P-01 Finality (S11).
 
 ### 2.1. Axiom Artifact Generation Matrix
 
-| Stage | Actor | Artifact Generated | Axiom Trigger | Commitment Role | ACVD Constraint (Target Metric) |
+| Stage | Actor | Artifact Generated | Axiom Trigger | Constraint Check Role | ACVD Metric Target |
 |:-----:|:---------|:---------------------:|:----------:|:---|:---|
 | **S01** | CRoT Agent | CSR (Foundational Integrity) | GAX III | Baseline Structural Audit | Zero Policy/Structural Violation |
 | **S07** | EMS | ECVM (Runtime Compliance) | GAX II | Environment State Check | Environment Boundary Integrity |
@@ -55,22 +55,24 @@ GSEP-C is designed for maximum security through minimal branching. The core obje
 | **S11** | GAX Executor | P-01 Commitment | N/A | Irreversible Resolution Lock | N/A |
 | **S14** | Sentinel | State Transition Receipt | N/A | Final Verification/Logging | N/A |
 
-### 2.2. P-01 Tripartite Verification Logic
+### 2.2. P-01 Tripartite Verification Logic (S11)
 
-Transition (S11) is only granted if all GAX constraints are positively resolved against the dynamically sourced ACVD parameters. Failure in any component immediately prevents $\Psi$ transition and mandates IH.
+Transition to final state ($\Psi_{\text{final}}$) is only granted if all GAX constraints are positively resolved against the dynamically sourced ACVD parameters.
 
 $$ \Psi_{\text{final}} \equiv (\text{GAX I} \land \text{GAX II} \land \text{GAX III})_{\text{ACVD}} $$
 
+Failure in any component immediately prevents $\Psi$ transition and mandates IH.
+
 ---
 
-## 3. INTEGRITY HALT (IH) & DETERMINISTIC RECOVERY FLOW
+## 3. INTEGRITY MANAGEMENT & DETERMINISTIC RECOVERY FLOW
 
-### 3.1. DIAL Authorization Choke Point
+### 3.1. Integrity Halt (IH) and DIAL Choke Point
 
-Upon IH, **DIAL** performs non-speculative RCA using forensic inputs defined by `protocol/telemetry_spec.json`. DIAL certification is the *sole* authorization vector for RRP initiation.
+Upon IH, **DIAL** performs non-speculative Root Cause Analysis (RCA) using forensic inputs defined by `protocol/telemetry_spec.json` and governed by the DARM.
 
-> **Constraint:** RRP authorization requires DIAL analysis logic to conform strictly to the thresholds defined in the DARM (`config/dial_analysis_map.json`).
+> **RRP Authorization Constraint:** RRP initiation requires successful DIAL certification. This certification must strictly conform to the thresholds defined in the DARM (`config/dial_analysis_map.json`).
 
 ### 3.2. Rollback Protocol (RRP) Execution
 
-State reversal is achieved only after successful DIAL certification. The execution path for recovery is strictly defined and audited via the manifest located at `config/rrp_manifest.json`.
+State reversal is achieved only after successful DIAL certification, following the auditable, pre-defined execution path outlined in `config/rrp_manifest.json`.
