@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/GICM_V94.4.json",
+  "title": "Governance Inter-Agent Commitment Manifest (GICM)",
+  "description": "Definitive schema for the critical state transition manifest signed by SGS, GAX, and CRoT.",
+  "type": "object",
+  "required": [
+    "execution_id",
+    "state_hashes",
+    "p01_certification",
+    "certified_metrics",
+    "manifest_attestations",
+    "agent_signatures"
+  ],
+  "properties": {
+    "execution_id": { "type": "string", "description": "Unique identifier for this GSEP-C run." },
+    "state_hashes": {
+      "type": "object",
+      "properties": {
+        "state_pre": { "type": "string", "description": "Cryptographic hash of input state Psi_N." },
+        "state_post": { "type": "string", "description": "Cryptographic hash of proposed committed state Psi_N+1." }
+      },
+      "required": ["state_pre", "state_post"]
+    },
+    "p01_certification": {
+      "type": "object",
+      "description": "GAX's certified decision and veto summary.",
+      "properties": {
+        "pass": { "type": "boolean" },
+        "failed_constraints": { "type": "array", "items": { "type": "string" } },
+        "finality_stage": { "type": "string", "pattern": "S8" }
+      },
+      "required": ["pass", "finality_stage"]
+    },
+    "certified_metrics": {
+      "type": "object",
+      "properties": {
+        "S01_certified_utility": { "type": "number" },
+        "S02_baseline_utility": { "type": "number" },
+        "margin_epsilon": { "type": "number" }
+      },
+      "required": ["S01_certified_utility", "S02_baseline_utility", "margin_epsilon"]
+    },
+    "manifest_attestations": {
+      "type": "object",
+      "description": "Hashes of governing manifests used for this run.",
+      "properties": {
+        "PVLM_hash": { "type": "string" },
+        "CFTM_hash": { "type": "string" },
+        "CDSM_version": { "type": "string" }
+      }
+    },
+    "agent_signatures": {
+      "type": "object",
+      "properties": {
+        "SGS_attest": { "type": "string" },
+        "GAX_attest": { "type": "string" },
+        "CRoT_final_sig": { "type": "string" }
+      },
+      "required": ["SGS_attest", "GAX_attest", "CRoT_final_sig"]
+    }
+  }
+}
