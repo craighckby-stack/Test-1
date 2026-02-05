@@ -1,0 +1,22 @@
+{
+  "spec_id": "MCIS_V1.0",
+  "title": "Manifest/Contract Integrity Service Specification",
+  "version": "1.0",
+  "description": "Defines the mandatory contract for pre-ingress cryptographic verification of all Governance Asset and Contract Registry (GACR) manifests before execution of the GSEP-C pipeline (L-PRE stage).",
+  "requirements": {
+    "asset_manifests": ["CAC", "CFTM", "PVLM", "SIHM", "FSVM"],
+    "validation_mechanism": "Cryptographic Hashing (SHA-512) and Ledger Verification",
+    "hash_source_of_truth": "NRALS Ledger/Immutable Configuration Chain",
+    "failure_mode": "Trigger RRP (Rollback & Recovery Protocol) immediately if validation fails.",
+    "input_contract": {
+      "manifest_id": "string",
+      "expected_hash": "string (SHA-512)",
+      "reference_version": "string"
+    },
+    "output_state": {
+      "validation_status": "boolean",
+      "verified_timestamp": "datetime"
+    }
+  },
+  "enforced_by_stage": "L-PRE (VMI)"
+}
