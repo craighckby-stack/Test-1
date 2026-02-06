@@ -1,0 +1,36 @@
+{
+  "module_name": "SystemPhaseController",
+  "version": "1.1.0",
+  "description": "Defines rules and hysteresis settings for determining the current system operational phase (e.g., NORMAL, DEGRADED, CRITICAL) used by adaptive modules like VMO.",
+  "inputs_monitored": [
+    "AverageLatency_ms",
+    "ErrorRate_P99",
+    "ResourceSaturationLevel (RSL)"
+  ],
+  "phase_transition_matrix": {
+    "OPERATIONAL_NORMAL": {
+      "thresholds": {
+        "AverageLatency_ms": 50,
+        "ErrorRate_P99": 0.001
+      },
+      "hysteresis_duration_s": 60,
+      "transition_on_exceedance": "DEGRADED_PERFORMANCE"
+    },
+    "DEGRADED_PERFORMANCE": {
+      "thresholds": {
+        "AverageLatency_ms": 150,
+        "ErrorRate_P99": 0.01
+      },
+      "hysteresis_duration_s": 300,
+      "transition_on_exceedance": "CRITICAL_FAILURE_IMMINENT",
+      "transition_on_recovery": "OPERATIONAL_NORMAL"
+    },
+    "CRITICAL_FAILURE_IMMINENT": {
+      "thresholds": {
+        "ErrorRate_P99": 0.05
+      },
+      "hysteresis_duration_s": 0,
+      "transition_on_recovery": "DEGRADED_PERFORMANCE"
+    }
+  }
+}
