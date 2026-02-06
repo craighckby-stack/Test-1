@@ -1,41 +1,78 @@
-// SAG V95.1 - GAX Policy Formal Verification Unit
+// SAG V94.1 - GAX Policy Formal Verification Unit (Orchestration Layer)
 // Purpose: Proactively verify policy compliance before GSEP-C entry.
-// This utility accepts proposed policy changes (delta_UFRM, delta_CFTM, delta_ACVD)
-// and mathematically certifies their consistency against a certified history anchor (HETM/GSM).
 
 const { GAX_PolicyConfig } = require('../../config/GAX/PolicyDefinitions.js');
 const { CRoT_HistoryAnchor } = require('../../core/CRoT/HistoryAnchor.js');
+// Refactored to rely on a dedicated, abstracted verification engine
+const { FormalVerificationEngine } = require('./FormalVerificationEngine.js');
 
 /**
+ * Executes the Formal Verification Process for proposed policy updates.
+ * This is the orchestration layer that fetches history and passes inputs to the solver engine.
+ *
  * @async
  * @function executeFormalVerification
- * @param {object} proposedPolicyUpdate - New UFRM, CFTM, ACVD parameters.
- * @returns {{isVerified: boolean, detailedReport: string}}
+ * @param {object} proposedPolicyUpdate - Policy delta: { delta_UFRM, delta_CFTM, delta_ACVD }
+ * @returns {Promise<{isVerified: boolean, verificationId: string, timestamp: number, detailedReport: string|null, failureConstraints: string[]|null}>}
  */
 async function executeFormalVerification(proposedPolicyUpdate) {
-    console.log("GAX: Executing PFVU against historical constraints.");
+    const timestamp = Date.now();
+    const verificationId = `PVF-${timestamp}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    // 1. Fetch current certified policies and historical constraints
-    const currentConfig = await GAX_PolicyConfig.loadCurrent();
-    const historicalConstraints = await CRoT_HistoryAnchor.getRecentSuccessfulACVs();
+    try {
+        console.log(`[PFVU:${verificationId}] Starting formal verification against CRoT history.`);
 
-    // 2. Simulate P-01 evaluation using the proposed policy against historical data
-    // (Placeholder for complex Z3/SAT solving logic or constraint programming)
-    const simulationResult = simulateConstraintSatisfaction(proposedPolicyUpdate, historicalConstraints);
+        // 1. Fetch current certified policies
+        const currentConfig = await GAX_PolicyConfig.loadCurrent();
+        if (!currentConfig) {
+            throw new Error("Failed to load current GAX Policy Configuration.");
+        }
 
-    if (simulationResult.isConsistent) {
-        console.log("Policy formally verified: Consistent with historical axiomatic integrity.");
-        return { isVerified: true, detailedReport: "Formal consistency check passed." };
-    } else {
-        console.warn("PFVU Failure: Proposed policy change would have triggered an RRP historically.");
-        return { isVerified: false, detailedReport: simulationResult.failureReason };
+        // 2. Fetch certified historical constraints (HETM/GSM)
+        // Use a configuration defined depth if available, defaulting to 100
+        const historyLookbackDepth = currentConfig.historicalLookbackDepth || 100;
+        const historicalConstraints = await CRoT_HistoryAnchor.getRecentSuccessfulACVs(historyLookbackDepth);
+        if (!historicalConstraints || historicalConstraints.length === 0) {
+            console.warn("CRoT History Anchor is shallow or empty. Verification integrity reduced.");
+        }
+
+        // 3. Delegate complex SAT solving logic to the dedicated engine
+        const simulationResult = await FormalVerificationEngine.checkConsistency(
+            proposedPolicyUpdate,
+            currentConfig,
+            historicalConstraints
+        );
+
+        if (simulationResult.isConsistent) {
+            console.log(`[PFVU:${verificationId}] Policy verified successfully.`);
+            return {
+                isVerified: true,
+                verificationId: verificationId,
+                timestamp: timestamp,
+                detailedReport: "Formal axiomatic consistency proven.",
+                failureConstraints: null
+            };
+        } else {
+            console.warn(`[PFVU:${verificationId}] Verification failed: Consistency violation detected.`);
+            return {
+                isVerified: false,
+                verificationId: verificationId,
+                timestamp: timestamp,
+                detailedReport: simulationResult.failureReason,
+                failureConstraints: simulationResult.violatingAxioms || []
+            };
+        }
+
+    } catch (error) {
+        console.error(`[PFVU:${verificationId}] Fatal error during execution:`, error.message);
+        return {
+            isVerified: false,
+            verificationId: verificationId,
+            timestamp: timestamp,
+            detailedReport: `Execution failed due to internal error: ${error.message}`,
+            failureConstraints: ["INTERNAL_EXECUTION_ERROR", error.message.substring(0, 50)]
+        };
     }
-}
-
-function simulateConstraintSatisfaction(proposedUpdate, constraints) {
-    // Implementation logic for formal proof generation/testing
-    // ... (omitted complexity for scaffold)
-    return { isConsistent: true, failureReason: "N/A" };
 }
 
 module.exports = { executeFormalVerification };
