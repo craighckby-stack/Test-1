@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "id_prefix": "P-01-",
+  "description": "Canonical Schema for Autonomous Mutation Policies (P-01). Defines structured constraints used by the Policy Vetting engine (GSEP Stage 1).",
+  "fields": [
+    {
+      "name": "Policy_ID",
+      "type": "string",
+      "description": "Unique identifier for the policy."
+    },
+    {
+      "name": "Policy_Version",
+      "type": "string",
+      "description": "Specific version tag for auditable reproduction."
+    },
+    {
+      "name": "Target_Component_Pattern",
+      "type": "string",
+      "description": "Regex or glob pattern defining which code components this policy applies to."
+    },
+    {
+      "name": "Constraints",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "fields": [
+          {"name": "Type", "type": "enum", "values": ["RISK_CEILING", "METRIC_FLOOR", "STYLE_GUIDE"], "description": "The category of the constraint."},
+          {"name": "Condition", "type": "string", "description": "Conditional expression (e.g., 'Goal_Declaration.Target_Delta > -5ms')."},
+          {"name": "Enforcement_Level", "type": "enum", "values": ["REJECT", "WARN_OVERRIDE", "ADVISORY"], "description": "Action upon violation."}
+        ]
+      },
+      "description": "Specific constraints and rules to be applied to the M-01 Intent payload."
+    }
+  ]
+}
