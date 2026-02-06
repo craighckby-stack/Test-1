@@ -1,16 +1,1 @@
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agi.sovereign/v94/efficiency_config.json",
-  "title": "Sovereign AGI Efficiency Scoring Weights",
-  "description": "Configuration weights for calculating the final efficiency_score (0.0 to 1.0) reported in the Artifact Manifest.",
-  "scoring_weights": {
-    "objective_fulfillment": 0.45, 
-    "resource_conservation_token_penalty": 0.25,
-    "validation_pass_rate": 0.20,
-    "code_quality_delta": 0.10
-  },
-  "target_metrics": {
-    "max_allowed_token_ratio_input_output": 1.5,
-    "min_validation_score_threshold": 0.8
-  }
-}
+[object Object]
