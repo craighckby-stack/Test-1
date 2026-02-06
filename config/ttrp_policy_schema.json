@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://gsep.ai/schemas/ttrp_policy_v1.0.json",
+  "type": "object",
+  "title": "Telemetry Transport and Retention Policy (TTRP) Schema",
+  "description": "Defines policies for handling, routing, and retaining diagnostic and forensic telemetry generated during critical events (P-01 FAIL, IH), complementing ACVD constraints.",
+  "required": [
+    "TRANSPORT_CONFIGURATION",
+    "RETENTION_POLICY"
+  ],
+  "properties": {
+    "TRANSPORT_CONFIGURATION": {
+      "type": "object",
+      "description": "Settings for secure transmission and routing of telemetry data.",
+      "properties": {
+        "CRITICAL_ENDPOINT_URI": {
+          "type": "string",
+          "format": "uri",
+          "description": "Secure URI for high-priority (FORENSIC/IH) log transport."
+        },
+        "RATE_LIMIT_NON_CRITICAL_TPS": {
+          "type": "integer",
+          "minimum": 10,
+          "description": "Maximum transactions per second allowed for BASIC/VERBOSE logs to prevent resource exhaustion."
+        },
+        "ENFORCE_ENCRYPTION": {
+          "type": "boolean",
+          "description": "If TRUE, all telemetry payloads must use mandatory end-to-end encryption."
+        }
+      },
+      "required": [
+        "CRITICAL_ENDPOINT_URI",
+        "RATE_LIMIT_NON_CRITICAL_TPS",
+        "ENFORCE_ENCRYPTION"
+      ]
+    },
+    "RETENTION_POLICY": {
+      "type": "object",
+      "description": "Defines mandatory storage durations for different telemetry classes.",
+      "properties": {
+        "FORENSIC_RETENTION_DAYS": {
+          "type": "integer",
+          "minimum": 90,
+          "description": "Minimum retention period (days) for FORENSIC-level telemetry."
+        },
+        "DIAGNOSTIC_RETENTION_DAYS": {
+          "type": "integer",
+          "minimum": 30,
+          "description": "Minimum retention period (days) for DIAGNOSTIC-level telemetry."
+        },
+        "BASIC_RETENTION_DAYS": {
+          "type": "integer",
+          "minimum": 7,
+          "description": "Minimum retention period (days) for routine/BASIC telemetry."
+        }
+      },
+      "required": [
+        "FORENSIC_RETENTION_DAYS",
+        "DIAGNOSTIC_RETENTION_DAYS"
+      ]
+    }
+  }
+}
