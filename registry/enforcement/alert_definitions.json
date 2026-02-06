@@ -1,21 +1,54 @@
 {
+  "schema_version": "1.1.0",
   "definitions": {
-    "IH_ALERT": {
-      "level": "HIGH",
-      "type": "NOTIFICATION",
-      "target": "IncidentHandler",
-      "log_level": "ERROR"
+    "INCIDENT_HIGH_SEVERITY": {
+      "metadata": {
+        "level": "HIGH",
+        "description": "Generic high severity alert forwarded to incident management.",
+        "log_level": "ERROR",
+        "retention_days": 90
+      },
+      "action_config": {
+        "handler": "IncidentHandler",
+        "type": "NOTIFICATION",
+        "policy": {
+          "retry": "STANDARD_BACKOFF",
+          "max_attempts": 3,
+          "timeout_ms": 5000
+        }
+      }
     },
-    "HALT_STAGE": {
-      "level": "CRITICAL",
-      "type": "SYSTEM_INTERRUPT",
-      "target": "DMW_Core_Scheduler",
-      "retry_policy": "NONE"
+    "SYSTEM_CRITICAL_HALT": {
+      "metadata": {
+        "level": "CRITICAL",
+        "description": "Unrecoverable error state requiring immediate system interruption.",
+        "log_level": "CRITICAL",
+        "retention_days": 365
+      },
+      "action_config": {
+        "handler": "DMW_Core_Scheduler",
+        "type": "SYSTEM_INTERRUPT",
+        "policy": {
+          "retry": "NONE",
+          "max_attempts": 1,
+          "timeout_ms": 10000
+        }
+      }
     },
-    "LOG_WARNING": {
-      "level": "LOW",
-      "type": "LOGGING_ONLY",
-      "log_level": "WARNING"
+    "PERFORMANCE_WARNING": {
+      "metadata": {
+        "level": "LOW",
+        "description": "Low severity log indicating potential future performance degradation.",
+        "log_level": "WARNING",
+        "retention_days": 30
+      },
+      "action_config": {
+        "handler": "SystemLogger",
+        "type": "LOGGING_ONLY",
+        "policy": {
+          "retry": "NONE"
+        }
+      }
     }
   }
 }
