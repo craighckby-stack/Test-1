@@ -3,58 +3,78 @@
  * Function: Translates high-level evolution intent (raw proposal data from Stage 1)
  * into a rigorously structured and language-compliant M-02 code payload specification.
  * Ensures adherence to Abstract Syntax Tree (AST) constraints and verifies syntactical integrity
- * before submission to the MPSE and PSR.
+ * before submission to the Mutation Payload Spec Engine (MPSE) and Architectural Schema Registrar (ASR).
  *
  * Inputs:
  * - Raw Intent/Diff (from Stage 1 output)
  * - Current Architecture Schema (via ASR)
  *
  * Outputs:
- * - M-02 Payload Specification (Ready for EPDP B validation)
+ * - M-02 Payload Specification (Ready for Execution Phase Deployment Protocol (EPDP) B validation)
  */
 
 class MutationSynthesisUnit {
-    constructor(asr, mpse) {
+    // Injecting CTE (Code Transformation Engine) to handle complex AST/Diff generation.
+    constructor(asr, mpse, cte) {
         this.asr = asr; // Architectural Schema Registrar dependency
         this.mpse = mpse; // Mutation Payload Spec Engine dependency
+        this.cte = cte; // Code Transformation Engine dependency (NEW)
     }
 
     /**
      * Core function to transform raw intent into a structured M-02 payload.
-     * @param {object} rawIntent - The conceptual proposal.
-     * @returns {object} The finalized M-02 compliant payload.
+     * This function orchestrates parsing, architectural verification, and payload structuring.
+     * @param {object} rawIntent - The conceptual proposal describing the desired evolution.
+     * @returns {object} The finalized M-02 compliant payload specification.
+     * @throws {Error} If AST generation or architectural constraints fail.
      */
     async synthesizePayload(rawIntent) {
-        // 1. Initial structural parsing based on target language(s).
-        const preliminaryAST = this._parseIntentToAST(rawIntent);
+        if (!rawIntent || !rawIntent.id || !rawIntent.evolutionTarget) {
+            throw new Error("MSU requires a well-formed rawIntent object with ID and target specified.");
+        }
+
+        // 1. Intent interpretation & preliminary AST construction (CTE handles complex parsing/linguistic analysis)
+        // The preliminary AST represents the desired future state.
+        const preliminaryAST = await this.cte.intentToAST(rawIntent);
+
+        // 2. Schema integrity check against the current architecture (ASR).
+        // Validate if the proposed structural changes adhere to established system constraints (naming conventions, API stability).
+        const validationResult = this.asr.validateProposedStructure(preliminaryAST);
         
-        // 2. Schema check against the current architectural rules (ASR).
-        this.asr.validateProposedStructure(preliminaryAST);
+        if (!validationResult.isValid) {
+             throw new Error(`Architectural violation detected during synthesis: ${validationResult.reason}`);
+        }
         
-        // 3. Transformation and generation of file diffs/patches/new content.
-        const m02Data = this._generateM02Structure(preliminaryAST);
+        // 3. Transformation: Generate the granular code mutations (diffs, patches, new files) 
+        // CTE ensures syntactical correctness (L-01 validation) at this stage.
+        const codeMutations = await this.cte.astToCodeMutations(preliminaryAST);
+
+        // 4. Structure the output into the rigid M-02 payload format.
+        const m02Data = this._formatM02Structure(rawIntent, codeMutations);
         
-        // 4. Final validation against MPSE rigid specification (schema/type).
+        // 5. Final validation against MPSE rigid specification (schema/type integrity).
         this.mpse.validateM02Schema(m02Data);
         
         return m02Data;
     }
 
-    _parseIntentToAST(rawIntent) {
-        // Placeholder: Implement advanced linguistic/structural parsing logic here.
-        // If intent is 'refactor X to Y', this module handles the 'how' and produces the structured code data.
-        console.log("MSU: Generating Preliminary AST from raw intent.");
-        return { /* ... structured AST representation ... */ };
-    }
-
-    _generateM02Structure(ast) {
-        // Placeholder: Creates the payload schema that defines files, operations, and rationale.
-        console.log("MSU: Formatting payload into M-02 structure.");
+    /**
+     * Generates the structured M-02 payload wrapper.
+     * @param {object} rawIntent - Original intent for rationale.
+     * @param {Array<object>} codeMutations - Array of detailed file operation objects.
+     * @returns {object} M-02 structure.
+     */
+    _formatM02Structure(rawIntent, codeMutations) {
+        // Generates a robust ID and packages the synthesized operations.
+        const mutationId = `M-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
         return { 
-            mutationId: `M-${Date.now()}`,
-            targetFiles: [],
-            operations: [],
-            rationale: "Automated synthesis."
+            specificationVersion: "M-02.1",
+            mutationId: mutationId,
+            originIntentId: rawIntent.id,
+            targetArchitecture: this.asr.getCurrentVersion(),
+            operations: codeMutations, // Contains granular changes generated by CTE
+            rationale: rawIntent.rationale || "Automated synthesis via MSU."
         };
     }
 }
