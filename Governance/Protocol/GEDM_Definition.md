@@ -1,30 +1,33 @@
 # GOVERNANCE EXECUTION DEPENDENCY MANAGER (GEDM) V94.1
 
-## 1.0 MANDATE: GSEP-C Stage Prerequisite Assurance
+## 1.0 FUNCTIONAL MANDATE: Pre-Execution Gate Assurance (GSEP-C)
 
-The GEDM serves as the runtime validator that ensures all inputs required for an upcoming GSEP-C stage ($S_N$) are present, attested, and compliant with mandatory constraints defined in the **GDECM** entry for $S_N$.
+The GEDM operates as the authoritative, non-bypassable pre-execution gate for the Governance Stage Execution Protocol (GSEP-C). Its core mission is to guarantee the verifiable presence, integrity, and compliance of all inputs required for an upcoming stage ($S_N$), as certified by the **Governance Dependency & Execution Constraint Manifest (GDECM)**.
 
-## 2.0 OPERATIONAL MECHANISM
+## 2.0 OPERATIONAL MECHANISM & SIGNALING
 
-The GEDM operates as an upstream gatekeeper to SGS execution logic.
+The GEDM consumes required stage artifacts and the Certified Intermediate State (CISM) pointer structure against the ruleset derived from GDECM($S_N$).
 
-**Input:** Stage ID ($N$), Governance Dependency & Execution Constraint Manifest (GDECM), Certified Intermediate State (CISM).
-**Output:** EXECUTE Signal (Commit), or DEPENDENCY_FAIL Signal (STANDARD Failure Type).
+**Input Triad:** Stage ID ($N$), GDECM($S_N$) Configuration, Certified Intermediate State Map (CISM).
+**Output Signals:**
+1.  **EXECUTE (Signal $1$):** Full prerequisite compliance verified. Authorizes SGS initiation.
+2.  **DEPENDENCY_FAIL (Signal $0$):** Mandatory constraint violation identified.
 
-### 2.1 Dependency Check Axiom
-For a stage $S_{N}$ to receive an EXECUTE signal:
+### 2.1 Verification Axiom (The Dependency Criterion)
 
-$$\text{EXECUTE}(S_N) \iff \forall I \in \text{GDECM}(S_N) : \text{Presence}(I, \text{CISM}) \land \text{AttestationValid}(I, \text{CISM})$$
+A stage $S_{N}$ may proceed only if every defined constraint in the GDECM is met by the CISM state.
 
-Where $I$ represents a required input data object or dependency context defined in the GDECM for stage $S_N$.
+$$\text{GEDM}(S_N) \equiv \forall D_i \in \text{GDECM}(S_N) : \text{Exists}(D_i, \text{CISM}) \land \text{IsAttested}(D_i)$$
 
-## 3.0 INTEGRATION POINTS
+Where $D_i$ represents a mandatory Dependency Object required for stage $S_N$. The function $\text{IsAttested}$ confirms compliance with GDECM-specified integrity checks (e.g., cryptographic signature validation, checksum verification, or time-locking).
 
-The GEDM is queried by the SGS pipeline orchestration layer immediately before initiating processing for stages S1 through S11. It centralizes dependency verification, currently implicit in the SGS stage logic.
+## 3.0 ARCHITECTURAL PLACEMENT
 
-*   **Relationship to CISM:** The GEDM validates metadata and presence pointers within CISM; it does not manage the state persistence itself.
-*   **Relationship to GDECM:** GDECM provides the certified ruleset enforced by the GEDM.
+The GEDM is an integrated service module queried by the SGS orchestration layer (`SGS.Coordinator`) immediately prior to stage commencement ($S_1$ through $S_{11}$). Its operation isolates dependency verification from core execution logic, enhancing modularity and auditability.
 
-## 4.0 FAILURE MODE
+*   **Reliance:** Purely reliant on GDECM for constraint definitions and CISM for state access pointers.
+*   **Decoupling:** State persistence (CISM management) and constraint definition (GDECM management) are external functions; GEDM provides only runtime enforcement.
 
-A DEPENDENCY_FAIL triggered by the GEDM results in an immediate GSEP-C stage halt (STANDARD Failure Type), efficiently isolating prerequisite failure and preventing unnecessary resource allocation for execution errors that stem from missing state integrity.
+## 4.0 FAILURE & HALT PROTOCOL
+
+A DEPENDENCY_FAIL output results in an immediate, standardized system halt (STANDARD Failure Type), preventing the activation of execution resources and efficiently isolating errors originating from upstream state gaps or integrity compromises. This prioritizes resource efficiency by failing fast on input guarantees.
