@@ -1,0 +1,35 @@
+{
+  "manifest_id": "IVM_GLOBAL_CONFIG",
+  "version": "1.0.0",
+  "description": "Defines structured data inputs and initial system state prerequisites for all PVSM validation scenarios.",
+  "input_vectors": [
+    {
+      "vector_id": "IV_Tautology_A",
+      "prerequisites": {
+        "system_state": "READY_ARES_CERTIFIED",
+        "resource_level": "NORMAL"
+      },
+      "payload": {
+        "policy_data": {
+          "integrity_metric": 100,
+          "resource_request": 5
+        },
+        "trigger_event": "POLICY_EVAL_REQUEST"
+      }
+    },
+    {
+      "vector_id": "IV_Boundary_Critical_B",
+      "prerequisites": {
+        "system_state": "READY_ARES_CERTIFIED",
+        "resource_level": "NEAR_MAX"
+      },
+      "payload": {
+        "policy_data": {
+          "integrity_metric": -1,
+          "resource_request": 1000000
+        },
+        "trigger_event": "CONSTRAINT_CHECK_REQUEST"
+      }
+    }
+  ]
+}
