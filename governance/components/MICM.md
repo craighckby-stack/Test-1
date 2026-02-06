@@ -1,22 +1,22 @@
 ### Mutation Input Configuration Manager (MICM)
 
-**ID:** MICM | **Version:** 1.2 (Standardized Serialization Mandate)
-**GSEP Scope:** Critical Boundary (Stage 3 Conclusion / Stage 4 Entry)
-**Mandate:** Immutable Configuration Input Attestation via Structured Hashing.
+**ID:** MICM | **Version:** 2.0 (Cryptographic Commitment Enforcer)
+**GSEP Scope:** Integrity Gateway (Pre-Commitment Stage 3.5)
+**Mandate:** Establish and Attest the Immutable Configuration State Delta (CSD) via Canonical Cryptographic Hashing (CCH-384).
 
-#### I. Purpose and Strict Contract
+#### I. Purpose and Absolute Commitment Protocol
 
-The MICM fulfills the governance requirement for zero-drift execution context. It enforces deterministic input guarantees for the subsequent P-01 Trust Calculus (Stage 4, Commitment Phase). This is achieved by establishing an absolute, cryptographically attested lock on all contextual parameters and utilized sub-models required by the S-0x synthesis components (ATM, C-11, C-15).
+The MICM governs the transition to Stage 4 by mandating a Zero-Drift Execution Context. It generates and attests a definitive, frozen snapshot of all critical operational inputs—the Configuration State Delta (CSD)—required by the P-01 Trust Calculus and dependent S-0x Synthesis Components. This mechanism isolates S-0x execution from transient state mutations.
 
-#### II. Commitment Process Flow (Atomic Locking)
+#### II. Commitment Process Flow (Atomic Lock Sequence)
 
-1.  **Trigger and Input Manifestation:** Following the GCO signal (PSR PASS, EPDP B), MICM executes. It dynamically references the authoritative manifests (GRS state registry snapshot, RFCI parameter ledger, and the active ATM model definition path).
-2.  **M-02 Structure Definition:** MICM uses the standardized `M-02/Config-Lock` schema (V1+) to aggregate all input parameters. Serialization MUST be deterministic (e.g., canonical JSON or specialized binary format) to eliminate potential hash non-determinism based on processing order or system architecture.
-3.  **Hash Generation & Commitment:** The serialized `M-02/Config-Lock` payload is cryptographically hashed (SHA3-256 recommended equivalent), yielding the **CH-01 (Configuration Hash)**.
-4.  **Attestation Feed:** CH-01 is immediately submitted to the Trust Integrity Attestation Register (TIAR), making the input configuration immutable and provable for the duration of Stage 4 execution.
+1.  **State Consolidation & Trigger:** Executed post-GCO verification (PSR PASS). MICM ingests the designated authoritative inputs: the Global Registry Snapshot (GRS), the Refined Functional Configuration Input (RFCI), and the validated Active Model Definition Path (ADMP).
+2.  **Canonical Serialization (CSM Dependency):** All consolidated inputs are packaged into the standardized `M-02/Config-Lock` schema. Serialization MUST employ the dedicated Canonical Serialization Module (CSM) to generate a byte-stream guarantee (Canonical JSON/CBOR Standard) that ensures architectural and temporal hash determinism.
+3.  **Cryptographic Hash Generation (CCH-384):** The resulting canonical byte stream is hashed using **SHAKE-256 (384-bit output)**, yielding the **CCH-384 (Canonical Configuration Hash)**. This replaces the generic CH-01 with a specific, hardened primitive.
+4.  **Immutability Attestation:** CCH-384 is immediately submitted to the Trust Integrity Attestation Register (TIAR). This entry is flagged as `MICM/CRITICAL-LOCK`, establishing the single source of truth for the upcoming Stage 4.
 
-#### III. Integrity Validation & Failure Mode
+#### III. Integrity Validation & Failure Guarantee
 
-The Stage 4 Operational Guarantee Thread (OGT) uses CH-01 as the sole source of truth for configuration integrity. Before initiating any S-0x computation, OGT validates its active configuration against the TIAR-held CH-01.
+The Stage 4 Operational Integrity Validator (OIV, formerly OGT) uses CCH-384 to perform pre-execution and periodic checks. No S-0x component is permitted execution until its operational context hash matches the TIAR-attested CCH-384.
 
-**Failure Condition:** Any mismatch between the active OGT configuration hash and the CH-01 attested by TIAR triggers an immediate and unrecoverable F-01 state reroute (Critical Trace Guard Triggered, halting mutation commitment).
+**Failure Condition:** Any non-match triggers an **F-01 State Reroute** (Critical Trace Guard Activation), leading to an immediate halt of mutation commitment and required root-cause analysis reporting before GCO restart authorization. The commitment attempt is cryptographically nullified.
