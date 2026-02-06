@@ -1,29 +1,40 @@
 {
   "gsim_version": "v94.1",
-  "gates_definitions": [
-    {
-      "gate_id": "GAR",
+  "config_schema_version": "1.1.0",
+  "gates_definitions": {
+    "GAR": {
       "name": "Global Artifact Resolver Gate",
+      "is_active": true,
+      "priority": 100,
       "validation_context": "PRE_EXECUTION_LOAD",
-      "dependencies": ["ACVM-BNDS", "GSEP-ORCH"],
+      "dependencies": [
+        "ACVM-BNDS",
+        "GSEP-ORCH"
+      ],
       "verification_module": "sys/integrity_modules/gar_v2.so",
-      "priority": 100
+      "failure_mode": "HARD_FAIL"
     },
-    {
-      "gate_id": "CDA",
+    "CDA": {
       "name": "Constraint Divergence Assertion Gate",
+      "is_active": true,
+      "priority": 200,
       "validation_context": "RUN_TIME_MONITORING",
-      "dependencies": ["CMAC-SPEC"],
+      "dependencies": [
+        "CMAC-SPEC"
+      ],
       "verification_module": "sys/integrity_modules/cda_v1.so",
-      "priority": 200
+      "failure_mode": "SOFT_WARNING"
     },
-    {
-      "gate_id": "CMAC",
+    "CMAC": {
       "name": "Canonical Manifest Assertion Check Gate",
+      "is_active": true,
+      "priority": 300,
       "validation_context": "MANIFEST_PRE_LOAD",
-      "dependencies": ["CAPR-MAP"],
+      "dependencies": [
+        "CAPR-MAP"
+      ],
       "verification_module": "sys/integrity_modules/cmac_v3.so",
-      "priority": 300
+      "failure_mode": "HARD_FAIL"
     }
-  ]
+  }
 }
