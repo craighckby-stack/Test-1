@@ -1,47 +1,48 @@
 # Configuration Trust Handler (CTH)
 
-## PROTOCOL DEFINITION: CTH ($T_{0}$ Integrity Gate) V3.0
+## CTH PROTOCOL (A-V3.1): $T_{0}$ Initialization Gate
 
-### Preamble and System Mandate
+### Preamble and Mandate Definition
 
-The Configuration Trust Handler (CTH) functions as the non-bypassable $T_{0}$ integrity checkpoint. It is mandatorily executed prior to the activation of the Governance State Execution Pipeline (GSEP-C). CTH's mandate is to deliver cryptographic and structural attestation for all required system configuration artifacts, thereby guaranteeing $T_{0}$ immutability compliant with the GAX III Policy Protocol.
+The Configuration Trust Handler (CTH) is the fundamental, non-bypassable initialization mechanism executing the $T_{0}$ integrity checkpoint. CTH execution is mandatory and atomic, preceding the activation of the Governance State Execution Pipeline (GSEP-C). CTH's core mandate is to deliver deterministic cryptographic and structural attestation for all required system configuration artifacts, thereby guaranteeing $T_{0}$ immutability strictly compliant with the GAX III Policy Protocol.
 
-CTH must complete successfully before the Emergency Management Synchronization Unit (EMSU) is authorized to calculate and apply the G0 Policy Seal ($T_{0}$ Lock).
+CTH must successfully signal completion before the Emergency Management Synchronization Unit (EMSU) is permitted to calculate and finalize the G0 Policy Seal ($T_{0}$ Lock).
 
-### DEPENDENCIES AND ARTIFACT INPUTS
+### DEPENDENCIES AND INPUT ATTESTATION CONTEXT
 
-The CTH initialization requires immutable access to the following certified governance artifacts:
+CTH initialization requires provable, immutable access to the following certified governance artifacts. Failure to resolve or access any listed artifact initiates an immediate integrity halt.
 
-| Artifact | Source Type | Purpose |
-| :--- | :--- | :--- |
-| **TBR** (Trust Boundary Registry) | Runtime Index | Specifies paths of all necessary configuration files for verification. |
-| **PDS** (Protocol Definition Schemas) | Schema Set | Defines structural integrity requirements for all relevant configurations. |
-| **G0-Policy_Manifest.sig** | Immutable Ledger | The attested aggregate cryptographic baseline (expected M-Hash: SHA-512) for all artifacts. |
+| Artifact | Source Type | Integrity Requirement | Purpose |
+| :--- | :--- | :--- | :--- |
+| **TBR** (Trust Boundary Registry) | System Index (Immutable) | Cryptographically signed metadata. | Defines and resolves all requisite configuration paths. |
+| **PDS** (Protocol Definition Schemas) | Schema Repository | Strict JSON/YML schema definitions. | Enforces structural rigidity and parameter constraints (L2). |
+| **G0-Policy_Manifest.sig** | Immutable Ledger Entry | Expected Aggregate M-Hash (SHA-512/256). | The ground-truth cryptographic baseline for all staged data. |
 
 ### EXECUTION FLOW: ATTESTATION LAYERS (LAC)
 
-CTH executes a rigid, sequential 3-Layer Attestation Cycle (LAC). Failure in any layer results in immediate catastrophic system halt (C-IH).
+CTH executes a rigid, tri-phase, sequential 3-Layer Attestation Cycle (LAC). Any detected anomaly or failure state results in an atomic, non-recoverable system halt (C-IH).
 
-#### Layer 1 (L1): Boundary Discovery & Staging
-1. Consult the TBR to securely resolve and retrieve all required configuration artifacts.
-2. Calculate the aggregated total artifact byte-size and perform heuristic checks (e.g., bounds exceeding typical configuration parameters) to detect zero-day padding discrepancies.
-3. **Exit Criteria:** All artifacts successfully located and staged within the secure memory buffer.
+#### Layer 1 (L1): Resolution, Secure Staging, and Metadata Pre-Check
+1. Consult the TBR to securely resolve, authenticate metadata signatures, and initiate retrieval of all required configuration artifacts.
+2. Stage artifacts within the **Secure Configuration Staging Area (SCSA)**, guaranteeing memory isolation and immutability during verification.
+3. Calculate the aggregated total artifact byte-size, comparing it against the metadata manifest to detect zero-day padding or truncation discrepancies.
+4. **Exit Criteria:** All artifacts are successfully located, staged within SCSA, and their preliminary metadata integrity is confirmed.
 
-#### Layer 2 (L2): Structural Assurance (PDS Validation)
-1. For every staged artifact, execute strict structural compliance checks against its corresponding PDS schema.
-2. Verify all intrinsic runtime parameters (type matching, range constraints, EEDS bounds compliance).
-3. **Exit Criteria:** All configurations are structurally sound, meeting V3 schema rigidity requirements.
+#### Layer 2 (L2): Structural Compliance Assurance (PDS Validation)
+1. Invoke the **Schema Validation Utility (SVU)** for every staged artifact. Execute strict structural compliance checks against its corresponding PDS schema definitions.
+2. Verify all intrinsic runtime parameters for type matching, boundary conditions (range constraints), and EEDS (Explicit Entry Dependency Schema) compliance.
+3. **Exit Criteria:** All configurations are structurally sound, meeting A-V3.1 schema rigidity requirements enforced by the SVU.
 
-#### Layer 3 (L3): Cryptographic Attestation ($T_{0}$ Proof)
-1. Calculate a deterministic, aggregated consensus checksum (M-Hash, currently SHA-512) for the complete staged artifact set.
-2. Compare the calculated M-Hash against the authorized signature recorded in the `G0-Policy_Manifest.sig` ledger.
+#### Layer 3 (L3): Cryptographic Integrity ($T_{0}$ Proof)
+1. Calculate a deterministic, aggregated consensus checksum (M-Hash) for the complete byte sequence of the staged SCSA artifact set. The mandatory cryptographic primitive is **SHA-512/256**.
+2. Compare the calculated M-Hash against the authorized G0 cryptographic reference recorded in the `G0-Policy_Manifest.sig` ledger.
 3. **Exit Criteria:** Calculated M-Hash identically matches the immutable G0 reference manifest.
 
-### STATE EXIT CRITERIA
+### STATE EXIT CRITERIA AND FAILURE MODES
 
 | Condition | Output Signal | Action | Description |
 | :--- | :--- | :--- | :--- |
-| **SUCCESS** | `CTH: $T_{0}$ Verified` | Authorize EMSU Proceed | Allows the transition to GSEP-C $T_{0}$ Lock calculation. System integrity is guaranteed. |
-| **FAILURE** | `T0-VIOLATION: FSMU-Halt` | Immediate System Integrity Halt (C-IH) | Aborts initialization. Requires Level 4 manual override. Integrity compromise detected. |
+| **SUCCESS** | `CTH: $T_{0}$ Attested (A-V3.1)` | Authorize EMSU Lock Procedure | System state is certified compliant. Enables $T_{0}$ Lock calculation and transition to GSEP-C. |
+| **FAILURE** | `INTEGRITY_HALT: FSMU-Violation` | Atomic System Integrity Halt (C-IH) | Immediate, irreversible system abort. Requires administrative Level 4 intervention and re-attestation of $T_{0}$ artifacts. |
 
-CTH failure constitutes an irreparable integrity violation at system bootstrap ($T_{-1}$).
+CTH failure signifies an irreparable integrity breach at the system bootstrap stage ($T_{-1}$).
