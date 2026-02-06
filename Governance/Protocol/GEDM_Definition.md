@@ -1,33 +1,39 @@
-# GOVERNANCE EXECUTION DEPENDENCY MANAGER (GEDM) V94.1
+# GEDM PROTOCOL SPECIFICATION V94.1
 
-## 1.0 FUNCTIONAL MANDATE: Pre-Execution Gate Assurance (GSEP-C)
+## 1.0 ROLE: Constraint Enforcement Boundary (GSEP Interface)
 
-The GEDM operates as the authoritative, non-bypassable pre-execution gate for the Governance Stage Execution Protocol (GSEP-C). Its core mission is to guarantee the verifiable presence, integrity, and compliance of all inputs required for an upcoming stage ($S_N$), as certified by the **Governance Dependency & Execution Constraint Manifest (GDECM)**.
+The Governance Execution Dependency Manager (GEDM) serves as the definitive, non-negotiable input assessor for the Governance Stage Execution Protocol (GSEP). Its singular purpose is the synchronous validation of all prerequisites defined by the **Governance Dependency & Execution Constraint Manifest (GDECM)** against the current Certified Intermediate State Map (CISM).
 
-## 2.0 OPERATIONAL MECHANISM & SIGNALING
+**Core Mandate:** Guarantee State-Artifact Coherence ($S_N$ readiness).
 
-The GEDM consumes required stage artifacts and the Certified Intermediate State (CISM) pointer structure against the ruleset derived from GDECM($S_N$).
+## 2.0 INTERFACE & I/O STRUCTURE
 
-**Input Triad:** Stage ID ($N$), GDECM($S_N$) Configuration, Certified Intermediate State Map (CISM).
-**Output Signals:**
-1.  **EXECUTE (Signal $1$):** Full prerequisite compliance verified. Authorizes SGS initiation.
-2.  **DEPENDENCY_FAIL (Signal $0$):** Mandatory constraint violation identified.
+GEDM is a functional module queried by the Stage Coordinator, requiring three essential, attested inputs:
 
-### 2.1 Verification Axiom (The Dependency Criterion)
+### 2.1 Input Structure
+| Component | Type | Description | Required Integrity |
+|---|---|---|---|
+| Stage Identifier ($N$) | Integer | Target stage index. | Attested | 
+| GDECM Payload ($C$) | Manifest Object | Rule set defining required dependencies ($D_i$). | Attested, Schema-Validated |
+| CISM Pointer ($M$) | State Reference | Immutable reference to the current execution state snapshot. | Immutable (Chain Hashed)|
 
-A stage $S_{N}$ may proceed only if every defined constraint in the GDECM is met by the CISM state.
+### 2.2 Output Signals
+1.  **EXECUTE ($S=1$):** Full adherence to $\text{GDECM}(C)$ verified against $\text{CISM}(M)$. Authorizes resource allocation and Stage $S_N$ initiation.
+2.  **DEPENDENCY_FAIL ($S=0$):** At least one mandatory constraint $D_i$ failed verification. Triggers halt sequence.
 
-$$\text{GEDM}(S_N) \equiv \forall D_i \in \text{GDECM}(S_N) : \text{Exists}(D_i, \text{CISM}) \land \text{IsAttested}(D_i)$$
+## 3.0 VERIFICATION CORE: The Constraint Axiom
 
-Where $D_i$ represents a mandatory Dependency Object required for stage $S_N$. The function $\text{IsAttested}$ confirms compliance with GDECM-specified integrity checks (e.g., cryptographic signature validation, checksum verification, or time-locking).
+A stage $S_{N}$ is cleared for execution if and only if every constraint object $D_i$ within the GDECM payload $C$ resolves to a Certified, Intact, and Available artifact within the state $M$.
 
-## 3.0 ARCHITECTURAL PLACEMENT
+$$\text{EXECUTE}(S_N) \iff \forall D_i \in C : \text{CISM.Query}(D_i.Path, M) \land \text{Attest}(D_i.IntegrityHash)$$ 
 
-The GEDM is an integrated service module queried by the SGS orchestration layer (`SGS.Coordinator`) immediately prior to stage commencement ($S_1$ through $S_{11}$). Its operation isolates dependency verification from core execution logic, enhancing modularity and auditability.
+Where:
+*   $D_i$: Represents a specific required Dependency Artifact, identified by its Type, Path, and expected Integrity Hash/Signature.
+*   $\text{CISM.Query}$: Verifies presence and retrieves the state artifact pointer.
+*   $\text{Attest}$: Validates the retrieved artifact's compliance with the $D_i$-specified cryptographic or structural integrity requirement (e.g., SHA-256 matching $D_i$'s defined IntegrityHash).
 
-*   **Reliance:** Purely reliant on GDECM for constraint definitions and CISM for state access pointers.
-*   **Decoupling:** State persistence (CISM management) and constraint definition (GDECM management) are external functions; GEDM provides only runtime enforcement.
+## 4.0 ARCHITECTURAL INTEGRATION & HALT PROTOCOL
 
-## 4.0 FAILURE & HALT PROTOCOL
+GEDM operates exclusively between state determination and stage activation. It is stateless (runtime enforcement only) and relies solely on external inputs for its configuration ($C$) and data source ($M$).
 
-A DEPENDENCY_FAIL output results in an immediate, standardized system halt (STANDARD Failure Type), preventing the activation of execution resources and efficiently isolating errors originating from upstream state gaps or integrity compromises. This prioritizes resource efficiency by failing fast on input guarantees.
+**Halt Protocol:** A $\text{DEPENDENCY_FAIL}$ output mandates an immediate, standardized system failure (GEDM_FAIL_TYPE: F_STATE_INCOHERENCE). The system generates a timestamped **Protocol Halt Manifest (PHM)** detailing the violating constraint $D_i$ and the execution context, preventing resource expenditure on a guaranteed-to-fail stage.
