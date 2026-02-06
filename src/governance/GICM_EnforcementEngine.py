@@ -1,11 +1,12 @@
 import json
 import logging
-from typing import Dict, Any, Tuple, List, Callable, Type
+from typing import Dict, Any, List, Type, Union, Optional
 from datetime import datetime
+import re # Added for future format validation potential
 
 # --- Configuration & Setup ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(name)s - %(message)s')
-logger = logging.getLogger('GICM_Engine')
+# Using __name__ ensures context is maintained if this module is imported
+logger = logging.getLogger(__name__)
 
 # Custom Exceptions for clarity
 class GICMSchemaError(Exception):
@@ -16,8 +17,11 @@ class GICMSetupError(GICMSchemaError):
     """Raised when the GICM schema cannot be loaded or is invalid."""
     pass
 
+# Internal Type Definition
+Violation = Dict[str, Union[str, Any, None]] # Standardizing violation record structure
+
 class GICMEnforcementEngine:
-    
+
     # Map GICM/JSON Schema types to Python types
     TYPE_MAP: Dict[str, Type] = {
         'string': str,
@@ -27,18 +31,18 @@ class GICMEnforcementEngine:
         'array': list,
         'object': dict
     }
-    
-    # Internal Type for a structured violation record
-    Violation = Dict[str, Any] 
 
-    def __init__(self, schema_path: str = "config/governance/GICM_Schema.json", logger_instance: Any = None):
+    def __init__(self, schema_path: str = "config/governance/GICM_Schema.json", violation_logger: Optional[Any] = None):
+        """Initializes the enforcement engine by loading the GICM schema."""
         self.schema_path = schema_path
         self.schema: Dict[str, Any] = self._load_schema()
+        
         self.entities: Dict[str, Any] = self.schema.get('entities', {})
-        
-        # Integration point for the proposed ViolationLogger
-        self.violation_logger = logger_instance
-        
+        self.global_policies: Dict[str, Any] = self.schema.get('global_policies', {})
+
+        # Violation logger (Dependency Injection)
+        self.violation_logger = violation_logger
+
         if not self.entities:
             logger.warning(f"GICM Schema loaded but contains no entities: {schema_path}")
 
@@ -47,11 +51,14 @@ class GICMEnforcementEngine:
         try:
             with open(self.schema_path, 'r') as f:
                 schema = json.load(f)
-            
-            if not isinstance(schema, dict) or 'entities' not in schema or 'global_policies' not in schema:
-                logger.error(f"Schema file is structurally incomplete: {self.schema_path}")
-                raise GICMSetupError("Schema missing core keys ('entities', 'global_policies').")
-            
+
+            # Strict structural validation
+            missing_keys = [k for k in ['entities', 'global_policies'] if k not in schema]
+            if missing_keys:
+                key_str = ', '.join(missing_keys)
+                logger.error(f"Schema file is structurally incomplete. Missing core keys: {key_str}.")
+                raise GICMSetupError(f"Schema missing core keys ({key_str}).")
+
             return schema
         except FileNotFoundError:
             logger.critical(f"GICM Schema file not found: {self.schema_path}")
@@ -59,96 +66,129 @@ class GICMEnforcementEngine:
         except json.JSONDecodeError as e:
             logger.critical(f"GICM Schema file is invalid JSON: {self.schema_path}. Error: {e}")
             raise GICMSetupError(f"Invalid JSON schema: {self.schema_path}")
+        except Exception as e:
+            logger.critical(f"Unexpected error loading schema: {e}")
+            raise GICMSetupError(f"Unexpected load error: {e}")
 
-    def _validate_field_constraints(self, field_name: str, value: Any, props: Dict[str, Any]) -> List[Violation]:
-        """Checks data type and specific constraints (e.g., enum, format, min/max)."""
+    def _check_type_compatibility(self, field_name: str, value: Any, expected_type_str: str) -> Optional[Violation]:
+        """Internal helper to validate the data type based on TYPE_MAP."""
+        expected_type_py = self.TYPE_MAP.get(expected_type_str)
+
+        if expected_type_py is None:
+             return {
+                "code": "CONFIG_TYPE_UNKNOWN",
+                "message": f"Unsupported GICM type '{expected_type_str}' defined for field '{field_name}'.",
+                "field": field_name
+            }
+
+        if not isinstance(value, expected_type_py):
+            return {
+                "code": "DATA_TYPE_MISMATCH",
+                "message": (f"Type mismatch: Field '{field_name}' expected {expected_type_str} "
+                            f"(found {type(value).__name__})."),
+                "field": field_name
+            }
+        return None
+
+    def _check_field_constraints(self, field_name: str, value: Any, props: Dict[str, Any]) -> List[Violation]:
+        """Checks specific constraints like enum, format, min/max length/value. (Optimized for ConstraintEvaluator integration later)."""
         violations: List[Violation] = []
-        expected_type_str = props.get('type')
-        
-        # --- Type Check ---
-        if expected_type_str and value is not None:
-            expected_type_py = self.TYPE_MAP.get(expected_type_str)
-            
-            if expected_type_py is None:
-                 violations.append({
-                    "code": "UNKNOWN_TYPE",
-                    "message": f"Unsupported type '{expected_type_str}' defined for field '{field_name}'.",
-                    "field": field_name
-                })
-            elif not isinstance(value, expected_type_py):
-                violations.append({
-                    "code": "TYPE_MISMATCH",
-                    "message": f"Type mismatch: Field '{field_name}' must be a {expected_type_str} (found {type(value).__name__}).",
-                    "field": field_name
-                })
 
         # --- Enumeration Check ---
         allowed_values = props.get('enum')
         if allowed_values and value is not None and value not in allowed_values:
             violations.append({
-                "code": "ENUM_VIOLATION", 
-                "message": f"Value violation: Field '{field_name}' value '{value}' is not permitted. Must be one of {allowed_values}.",
-                "field": field_name
+                "code": "CONSTRAINT_ENUM_VIOLATION", 
+                "message": f"Value violation: Field '{field_name}' must be one of {allowed_values}.",
+                "field": field_name,
+                "current_value": value
             })
-            
+
+        # --- Range Check (Numbers) ---
+        if isinstance(value, (int, float)):
+            if props.get('minimum') is not None and value < props['minimum']:
+                 violations.append({"code": "CONSTRAINT_MIN_VALUE", "message": f"Value of {field_name} ({value}) is below minimum requirement ({props['minimum']}).", "field": field_name})
+            if props.get('maximum') is not None and value > props['maximum']:
+                 violations.append({"code": "CONSTRAINT_MAX_VALUE", "message": f"Value of {field_name} ({value}) is above maximum requirement ({props['maximum']}).", "field": field_name})
+
+        # Future: Call dedicated ConstraintEvaluator utility here for length, format, and pattern checks.
+        
         return violations
 
-    def _validate_entity_rules(self, entity_def: Dict[str, Any], record: Dict[str, Any]) -> List[Violation]:
+    def _validate_entity_rules(self, entity_name: str, entity_def: Dict[str, Any], record: Dict[str, Any]) -> List[Violation]:
         """
-        Executes entity-level integrity rules and cross-field policy checks.
+        Executes entity-level integrity rules and cross-field policy checks, 
+        now designed to look up custom rules for future dynamic execution.
         """
         violations: List[Violation] = []
         
-        # Example: Rule ID: GICM_AUDIT_L5_REQ
-        if record.get('governance_level') == 'L5_Critical' and not record.get('audit_required_policy'):
-            violations.append({
-                "code": "GICM_AUDIT_L5_REQ", 
-                "message": "L5_Critical entities require 'audit_required_policy' linkage for full audit trail integrity.",
-                "field": "audit_required_policy"
-            })
+        custom_rules = entity_def.get('custom_integrity_rules', [])
+        
+        # Example: GICM_AUDIT_L5_REQ rule enforcement
+        for rule in custom_rules:
+            rule_id = rule.get('rule_id')
+            
+            if rule_id == 'GICM_AUDIT_L5_REQ':
+                if record.get('governance_level') == 'L5_Critical' and not record.get('audit_required_policy'):
+                    violations.append({
+                        "code": rule_id,
+                        "message": "L5_Critical entities require 'audit_required_policy' linkage for audit trail integrity.",
+                        "field": "audit_required_policy",
+                        "entity": entity_name
+                    })
                      
         return violations
 
 
-    def validate_entity(self, entity_name: str, record: Dict[str, Any]) -> Tuple[bool, List[Violation]]:
+    def validate_entity(self, entity_name: str, record: Dict[str, Any]) -> tuple[bool, List[Violation]]:
         """Validates a data record against its defined GICM entity schema."""
-        
-        if entity_name not in self.entities:
+
+        entity_def = self.entities.get(entity_name)
+
+        if not entity_def:
             return False, [{
                 "code": "ENTITY_UNKNOWN", 
-                "message": f"Unknown entity: {entity_name}", 
+                "message": f"Unknown governance entity configuration: {entity_name}", 
                 "field": None
             }]
-        
-        entity_def = self.entities[entity_name]
+
         all_violations: List[Violation] = []
-
-        # 1. Check Required Fields & Field Constraints
         defined_fields = entity_def.get('fields', {})
+        # Use a configurable identifier key, defaulting to 'id'
+        record_id = record.get(entity_def.get('identifier_key', 'id'), 'N/A')
 
+        # 1. Field Integrity Checks (Required, Type, Constraints)
         for field, props in defined_fields.items():
             value = record.get(field)
-            is_present = field in record and value is not None
-            
-            # A. Required Check
-            if props.get('required') and not is_present:
-                all_violations.append({"code": "MISSING_REQUIRED", "message": f"Missing required field: {field}", "field": field})
-                continue
 
-            # B. Constraint Check
-            if is_present:
-                field_violations = self._validate_field_constraints(field, value, props)
-                all_violations.extend(field_violations)
-        
-        # 2. Check Entity-Level Integrity Rules (Cross-field dependencies)
-        all_violations.extend(self._validate_entity_rules(entity_def, record))
+            # A. Required Check (Stricter: Checks for key presence and non-None value)
+            if props.get('required'):
+                if field not in record or value is None:
+                    all_violations.append({"code": "FIELD_MISSING_REQUIRED", "message": f"Missing required field: {field}", "field": field})
+                    continue 
+
+            # B. Type Check
+            if value is not None and props.get('type'):
+                type_violation = self._check_type_compatibility(field, value, props['type'])
+                if type_violation:
+                    all_violations.append(type_violation)
+                    # Note: We still proceed to constraint checks if applicable, but often best practice is to skip.
+            
+            # C. Constraint Check (Only run if value is present)
+            if value is not None:
+                all_violations.extend(self._check_field_constraints(field, value, props))
+
+
+        # 2. Entity-Level Integrity Rules (Cross-field dependencies)
+        all_violations.extend(self._validate_entity_rules(entity_name, entity_def, record))
                      
-        # 3. Overall Integrity Model Assessment (Metadata violation)
+        # 3. Overall Integrity Model Assessment (Post-Check Metadata)
         if all_violations and entity_def.get('integrity_model'):
             all_violations.insert(0, {
                 "code": "INTEGRITY_COMPROMISED", 
-                "message": f"Integrity model '{entity_def['integrity_model']}' requirements compromised.",
+                "message": f"Integrity model '{entity_def['integrity_model']}' requirements compromised (Total issues: {len(all_violations)}).",
                 "field": None,
+                "record_id": record_id,
                 "timestamp": datetime.now().isoformat()
             })
 
@@ -161,25 +201,28 @@ class GICMEnforcementEngine:
         if not violation_data:
             return
 
-        logger.warning(f"GICM Enforcement triggered for entity '{entity_name}'. Violations: {len(violation_data)}")
+        logger.warning(f"GICM Enforcement triggered for entity '{entity_name}'. Total Violations: {len(violation_data)}")
         
         # 1. Structured Logging
-        if self.violation_logger:
+        if self.violation_logger and hasattr(self.violation_logger, 'log_violations'):
             try:
-                # Requires the logger instance to implement log_violations
                 self.violation_logger.log_violations(entity_name, record_identifier, violation_data)
-                logger.info(f"Violations logged successfully by external logger.")
+                logger.debug(f"Violations logged successfully by external logger.")
             except Exception as e:
-                logger.error(f"Failed to log violations using provided logger: {e}")
+                logger.error(f"Failed to log violations using provided logger: {e}", exc_info=True)
                 
-        # 2. Hook Integration
+        # 2. Critical Enforcement Hook Integration
+        critical_codes = self.global_policies.get('critical_violation_codes', ["INTEGRITY_COMPROMISED", "GICM_AUDIT_L5_REQ"])
+        is_critical = any(v.get('code') in critical_codes for v in violation_data)
         
-        critical_codes = ["GICM_AUDIT_L5_REQ", "INTEGRITY_COMPROMISED"] # Example list
-        is_critical = any(v['code'] in critical_codes for v in violation_data)
-        
-        if is_critical and self.schema.get('global_policies', {}).get('critical_alert_hook'):
-            hook_name = self.schema['global_policies']['critical_alert_hook']
-            # Placeholder for actual hook execution logic (e.g., import and call dynamic hook)
-            logger.critical(f"[CRITICAL ALERT HOOK]: Triggering handler '{hook_name}'. Record: {record_identifier}.")
+        if is_critical:
+            hook_config = self.global_policies.get('critical_alert_hook', {})
+            hook_name = hook_config.get('handler')
+            
+            if hook_name:
+                logger.critical(f"[GICM ALERT: {hook_name}] CRITICAL integrity breach detected. Entity: {entity_name}, Record: {record_identifier}.")
+                # Placeholder: Hook execution logic would be triggered here.
+            else:
+                logger.critical(f"Critical violation detected but no 'critical_alert_hook' handler configured.")
         else:
              logger.info(f"Standard GICM violation recorded for {entity_name}.")
