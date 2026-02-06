@@ -1,5 +1,8 @@
 const IntegrityUtils = require('./IntegrityUtils');
 
+// Define specific error context constants
+const ERROR_PREFIX = "[SecurePolicyLedgerInterface]";
+
 /**
  * Interface Component: SecurePolicyLedgerInterface (D-01 Connector) v94.1
  * Role: Provides secured read/write access to the cryptographic integrity ledger (D-01).
@@ -9,17 +12,31 @@ const IntegrityUtils = require('./IntegrityUtils');
  */
 class SecurePolicyLedgerInterface {
     
-    // Private field for securing the RPC client reference.
+    // RPC Method Constants defined as static properties for easy access and configuration
+    static RPC_METHODS = {
+        FETCH_HASHES: 'D01.fetch_hashes',
+        STORE_HASH_RECORD: 'D01.store_hash_record'
+    };
+
     #rpcClient;
+    #logger;
 
     /**
      * @param {object} rpcClient - The secure client used for Ledger (D-01) interaction.
+     * @param {object} logger - The system logging utility (must support .error, .debug).
      */
-    constructor(rpcClient) {
+    constructor(rpcClient, logger) {
         if (!rpcClient || typeof rpcClient.call !== 'function') {
-            throw new Error("[SecurePolicyLedgerInterface]: Requires a secured RPC client with a callable method.");
+            throw new Error(`${ERROR_PREFIX}: Requires a secured RPC client with a callable method.`);
         }
+        // Enforce logger dependency for critical system components
+        if (!logger || typeof logger.error !== 'function') {
+             throw new Error(`${ERROR_PREFIX}: Requires a valid logging utility.`);
+        }
+
         this.#rpcClient = rpcClient; 
+        this.#logger = logger;
+        this.#logger.debug(`${ERROR_PREFIX}: Initialized successfully.`);
     }
 
     /**
@@ -30,22 +47,25 @@ class SecurePolicyLedgerInterface {
      */
     async getPolicyHashes(paths) {
         if (!Array.isArray(paths) || paths.some(p => typeof p !== 'string')) {
-            throw new TypeError("Input paths must be an array of strings.");
+            throw new TypeError(`${ERROR_PREFIX}: Input paths must be an array of strings.`);
         }
         
         try {
-            // console.debug(`[SPLI] Requesting hashes for ${paths.length} paths.`); // Use logging if available
-            const result = await this.#rpcClient.call('D01.fetch_hashes', { paths });
+            this.#logger.debug(`[D-01] Requesting hashes for ${paths.length} paths.`, { paths });
             
-            // Critical Integrity Check: Validate the structure of the returned hashes using the new utility.
+            const result = await this.#rpcClient.call(SecurePolicyLedgerInterface.RPC_METHODS.FETCH_HASHES, { paths });
+            
+            // Critical Integrity Check: Validate the structure of the returned hashes.
             if (!IntegrityUtils.isValidPolicyHashMap(result)) {
-                 throw new Error("Ledger returned a response that failed policy hash map integrity validation.");
+                 const validationError = "Ledger response failed policy hash map integrity validation.";
+                 this.#logger.error(`${ERROR_PREFIX}: ${validationError}`, { response: result });
+                 throw new Error(validationError);
             }
             
             return result;
         } catch (error) {
-            // console.error(`[SPLI] Failed access D-01 for hash retrieval: ${error.message}`); // Use logging if available
-            // Re-throw standardized error format
+            // Log failure with context before re-throwing
+            this.#logger.error(`${ERROR_PREFIX}: Integrity Ledger access failure during retrieval.`, { error: error.message, method: SecurePolicyLedgerInterface.RPC_METHODS.FETCH_HASHES });
             throw new Error(`Integrity Ledger access failure during retrieval: ${error.message}`);
         }
     }
@@ -59,28 +79,35 @@ class SecurePolicyLedgerInterface {
      */
     async storeNewIntegrityHash(filePath, newHash) {
         if (typeof filePath !== 'string' || filePath.length === 0) {
-            throw new TypeError("File path must be a non-empty string.");
+            throw new TypeError(`${ERROR_PREFIX}: File path must be a non-empty string.`);
         }
         
         // Use dedicated utility for cryptographic standard enforcement
         if (!IntegrityUtils.isValidPolicyHash(newHash)) {
-            throw new TypeError("Provided hash does not meet expected system integrity standard (e.g., SHA-512 format).");
+            throw new TypeError(`${ERROR_PREFIX}: Provided hash does not meet expected system integrity standard.`);
         }
 
         try {
-            const result = await this.#rpcClient.call('D01.store_hash_record', { filePath, newHash });
+            this.#logger.debug(`[D-01] Attempting to store new hash for path: ${filePath}`);
+
+            const result = await this.#rpcClient.call(
+                SecurePolicyLedgerInterface.RPC_METHODS.STORE_HASH_RECORD, 
+                { filePath, newHash }
+            );
             
             // Normalize D-01 response (assuming 'true' or { success: true } means success)
             if (result === true || (typeof result === 'object' && result?.success === true)) {
+                this.#logger.debug(`[D-01] Successfully stored hash for: ${filePath}`);
                 return true;
             }
             
             // Explicit failure notification from D-01
             const errorMessage = (typeof result === 'object' && result?.message) || 'Ledger indicated non-specific operational failure.';
+            this.#logger.error(`${ERROR_PREFIX}: D-01 storage failed.`, { filePath, response: result });
             throw new Error(errorMessage);
 
         } catch (error) {
-            // console.error(`[SPLI] Failed access D-01 for hash persistence: ${error.message}`); // Use logging if available
+            this.#logger.error(`${ERROR_PREFIX}: Integrity Ledger access failure during storage.`, { error: error.message, method: SecurePolicyLedgerInterface.RPC_METHODS.STORE_HASH_RECORD });
             throw new Error(`Integrity Ledger access failure during storage: ${error.message}`);
         }
     }
