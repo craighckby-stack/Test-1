@@ -1,41 +1,80 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "3.0.0",
+  "definitions": {
+    "security_levels": ["L1_PUBLIC", "L2", "L3", "L4_ENCRYPTED", "L5_RESTRICTED"],
+    "encoding_formats": ["JSON_OBJECT", "PLAINTEXT", "BINARY_GZIP", "STREAM_PROTOBUF", "CUSTOM_COMPRESSED"],
+    "primitive_types": ["STRUCTURED_MAP", "FLOAT", "BOOLEAN", "TIME_SERIES"],
+    "retrieval_methods": ["API_PULL_SYNC", "MESSAGE_BUS_ASYNC", "DATABASE_QUERY", "SUBSCRIPTION_STREAM", "STATIC"]
+  },
   "data_source_primitives": {
     "RCM": {
-      "description": "Resource Constraint Model data snapshot (Structured Map).",
-      "security_level": "L3",
-      "encoding_format": "JSON_OBJECT",
-      "primitive_type": "STRUCTURED_MAP",
-      "retrieval_method": "API_PULL_SYNC",
-      "caching_policy": "STALE_WHILE_REVALIDATE",
-      "latency_tolerance_ms": 500
+      "description": "Resource Constraint Model data snapshot.",
+      "type": "STRUCTURED_MAP",
+      "criticality_score": 0.85,
+      "access": {
+        "security_level": "L3",
+        "method": "API_PULL_SYNC",
+        "format": "JSON_OBJECT"
+      },
+      "performance": {
+        "tolerance_ms": 500,
+        "cache": {
+          "strategy": "STALE_WHILE_REVALIDATE",
+          "max_age_ms": 30000
+        }
+      }
     },
     "EDIS": {
-      "description": "External Dependency Index Score (Scalar value).",
-      "security_level": "L2",
-      "encoding_format": "PLAINTEXT",
-      "primitive_type": "FLOAT",
-      "retrieval_method": "MESSAGE_BUS_ASYNC",
-      "caching_policy": "TTL_100ms",
-      "latency_tolerance_ms": 100
+      "description": "External Dependency Index Score.",
+      "type": "FLOAT",
+      "criticality_score": 0.60,
+      "access": {
+        "security_level": "L2",
+        "method": "MESSAGE_BUS_ASYNC",
+        "format": "PLAINTEXT"
+      },
+      "performance": {
+        "tolerance_ms": 100,
+        "cache": {
+          "strategy": "TTL",
+          "max_age_ms": 100
+        }
+      }
     },
     "DSP-C": {
-      "description": "Designated System Protocol Confirmation (Status Flag).",
-      "security_level": "L4_ENCRYPTED",
-      "encoding_format": "BINARY_GZIP",
-      "primitive_type": "BOOLEAN",
-      "retrieval_method": "DATABASE_QUERY",
-      "caching_policy": "IMMUTABLE",
-      "latency_tolerance_ms": 2000
+      "description": "Designated System Protocol Confirmation.",
+      "type": "BOOLEAN",
+      "criticality_score": 0.95,
+      "access": {
+        "security_level": "L4_ENCRYPTED",
+        "method": "DATABASE_QUERY",
+        "format": "BINARY_GZIP"
+      },
+      "performance": {
+        "tolerance_ms": 2000,
+        "cache": {
+          "strategy": "IMMUTABLE",
+          "max_age_ms": null
+        }
+      }
     },
     "OCM": {
-      "description": "Operational Compliance Monitor (Live Stream Status).",
-      "security_level": "L3",
-      "encoding_format": "STREAM_PROTOBUF",
-      "primitive_type": "BOOLEAN",
-      "retrieval_method": "SUBSCRIPTION_STREAM",
-      "caching_policy": "NO_CACHE",
-      "latency_tolerance_ms": 50
+      "description": "Operational Compliance Monitor (Live Status).
+        ",
+      "type": "BOOLEAN",
+      "criticality_score": 0.70,
+      "access": {
+        "security_level": "L3",
+        "method": "SUBSCRIPTION_STREAM",
+        "format": "STREAM_PROTOBUF"
+      },
+      "performance": {
+        "tolerance_ms": 50,
+        "cache": {
+          "strategy": "NO_CACHE",
+          "max_age_ms": 0
+        }
+      }
     }
   }
 }
