@@ -8,18 +8,44 @@
  * from the main Resource Attestation Module (RAM) governance flow.
  */
 
+// --- JSDoc Definitions ---
+
+/**
+ * @typedef {Object} CheckResult
+ * @property {boolean} success - True if the check passed.
+ * @property {Object} [details] - Optional details regarding the measurement or threshold violation.
+ */
+
+/**
+ * @callback ResourceCheckFunction
+ * @param {Object} monitor - The system monitoring dependency (e.g., EnvironmentMonitor).
+ * @param {Object} governanceConfig - Global governance configuration baselines.
+ * @param {Object} metadata - Requirements specific to the current mutation or operation payload (includes requiredResources).
+ * @returns {Promise<CheckResult>}
+ */
+
+const CHECK_STATUS = {
+    PASS: 'PASS',
+    FAIL: 'FAIL',
+    ERROR: 'ERROR', // Indicates an internal execution failure of the check function itself.
+};
+
 class ResourceCheckRegistry {
     constructor() {
+        /** @type {Map<string, ResourceCheckFunction>} */
         this.checks = new Map();
+        this.STATUS = CHECK_STATUS;
     }
 
     /**
      * Registers a new check function under a unique identifier.
      * @param {string} id - Unique identifier for the check (e.g., 'CORE_CPU_BASELINE').
-     * @param {function(environmentMonitor, config, payloadMetadata): Promise<{success: boolean, details: object}>} checkFn 
-     *        The function defining the resource verification logic.
+     * @param {ResourceCheckFunction} checkFn - The function defining the resource verification logic.
      */
     registerCheck(id, checkFn) {
+        if (typeof checkFn !== 'function') {
+            throw new TypeError(`RCR Error: Check function for ID ${id} must be a function.`);
+        }
         if (this.checks.has(id)) {
             console.warn(`RCR Warning: Check ID ${id} already registered. Overwriting.`);
         }
@@ -29,7 +55,7 @@ class ResourceCheckRegistry {
     /**
      * Retrieves a specific check function.
      * @param {string} id - The check identifier.
-     * @returns {function | undefined}
+     * @returns {ResourceCheckFunction | undefined}
      */
     getCheck(id) {
         return this.checks.get(id);
@@ -38,31 +64,38 @@ class ResourceCheckRegistry {
     /**
      * Executes all registered checks concurrently, providing necessary context.
      * This method is intended to be called by ResourceAttestationModule.
-     * @param {object} environmentMonitor - The monitoring dependency.
-     * @param {object} config - Baseline governance configuration.
-     * @param {object} payloadMetadata - Requirements specific to the mutation payload.
-     * @returns {Array<Promise<object>>} An array of promises, each representing a standardized check execution.
+     *
+     * @param {Object} monitor - The monitoring dependency providing current system metrics.
+     * @param {Object} governanceConfig - Baseline governance configuration.
+     * @param {Object} metadata - Requirements specific to the mutation payload.
+     * @returns {Promise<Array<{check: string, status: string, success: boolean, details: Object}>>}
+     *          A promise resolving to an array of standardized check results.
      */
-    runAllChecks(environmentMonitor, config, payloadMetadata) {
+    runAllChecks(monitor, governanceConfig, metadata) {
         const checkPromises = [];
-        const requiredResources = payloadMetadata.requiredResources || {};
 
         for (const [id, checkFn] of this.checks.entries()) {
-            // The runner function ensures standardization of results and error handling.
+            // The runner function ensures standardization of results and robust error handling.
             const runner = async () => {
                 try {
-                    const result = await checkFn(environmentMonitor, config, requiredResources);
+                    // Pass the full context (monitor, governanceConfig, metadata) to the check function.
+                    const result = await checkFn(monitor, governanceConfig, metadata);
+                    
                     return { 
                         check: id, 
-                        status: result.success ? 'PASS' : 'FAIL', 
+                        status: result.success ? this.STATUS.PASS : this.STATUS.FAIL, 
                         details: result.details || {},
                         success: result.success
                     };
                 } catch (error) {
+                    // Handle critical errors during check execution (e.g., monitor unavailable)
                     return {
                         check: id,
-                        status: 'ERROR',
-                        details: { message: `Critical RCR execution error: ${error.message}`, stack: error.stack },
+                        status: this.STATUS.ERROR,
+                        details: { 
+                            message: `Critical RCR execution error in ${id}: ${error.message}`, 
+                            stack: error.stack 
+                        },
                         success: false
                     };
                 }
@@ -70,6 +103,7 @@ class ResourceCheckRegistry {
             checkPromises.push(runner());
         }
         
+        // Execute all checks concurrently and wait for all results
         return Promise.all(checkPromises);
     }
 }
