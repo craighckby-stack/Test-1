@@ -4,6 +4,8 @@
  * @fileoverview A centralized, unified, and type-safe registry for all formalized AGI and Architectural Concepts.
  * This registry serves as the single source of truth for concept IDs used throughout the Sovereign codebase,
  * facilitating documentation, cross-referencing, and runtime concept validation.
+ *
+ * Refactored to use a single-pass initialization for improved efficiency and better API organization.
  */
 
 // --- Internal Data Structure ---
@@ -36,46 +38,56 @@ const CONCEPT_DEFINITIONS = [
 ];
 
 /**
- * Creates a fast lookup map { [id]: conceptData } from the array definition.
- * @returns {Object<string, Object>}
+ * Performs a single pass over the definitions array to construct all required lookup structures (by ID and by Category).
+ * This initializes the entire registry efficiently.
+ * @returns {{all: Array<Object>, byId: Object, byCategory: Object, getConceptById: Function, getConceptsByCategory: Function}}
  */
-const conceptMap = CONCEPT_DEFINITIONS.reduce((acc, concept) => {
-    acc[concept.id] = concept;
-    return acc;
-}, {});
+function initializeRegistry() {
+    const registryById = {};
+    const registryByCategory = {};
 
+    CONCEPT_DEFINITIONS.forEach(concept => {
+        // 1. By ID (O(1) access)
+        registryById[concept.id] = concept;
+
+        // 2. By Category (Optimized grouping)
+        const categoryKey = concept.category;
+        if (!registryByCategory[categoryKey]) {
+            registryByCategory[categoryKey] = [];
+        }
+        registryByCategory[categoryKey].push(concept);
+    });
+
+    // Ensure structures are read-only to enforce Conceptual Integrity
+    Object.freeze(registryById);
+    Object.freeze(registryByCategory);
+
+    return {
+        // The raw list, useful for iteration/documentation
+        all: CONCEPT_DEFINITIONS,
+
+        // O(1) Lookup map
+        byId: registryById,
+
+        // Categorized list map
+        byCategory: registryByCategory,
+
+        /** Retrieves a concept definition by its unique ID. */
+        getConceptById: (id) => registryById[id] || null,
+
+        /** Retrieves all concepts within a specific category. */
+        getConceptsByCategory: (category) => registryByCategory[category] || [],
+    };
+}
 
 // --- Public Exports ---
 
 /**
- * Retrieves a concept definition by its unique ID.
- * @param {string} conceptId - The ID of the concept (e.g., 'AGI-C-04').
- * @returns {Object|null} The concept data or null if not found.
+ * The unified, immutable Concept Registry instance, containing all data and lookup methods.
  */
-export function getConceptById(conceptId) {
-    return conceptMap[conceptId] || null;
-}
+export const ConceptRegistry = initializeRegistry();
 
-/**
- * Retrieves all concepts within a specific category.
- * @param {string} category - The category ('AGI', 'ARCH', 'HALLUCINATION').
- * @returns {Array<Object>} List of concepts.
- */
-export function getConceptsByCategory(category) {
-    return CONCEPT_DEFINITIONS.filter(c => c.category === category);
-}
-
-/**
- * The consolidated, immutable map of all formal definitions.
- * Provides O(1) lookup speed.
- */
-export const CONCEPT_REGISTRY = conceptMap;
-
-/**
- * Provides quick access to the categorized lists for documentation or debugging.
- */
-export const CONCEPT_CATEGORIES = {
-    AGI: getConceptsByCategory('AGI'),
-    ARCHITECTURE: getConceptsByCategory('ARCH'),
-    HALLUCINATION: getConceptsByCategory('HALLUCINATION'),
-};
+// Backward compatibility / convenience exports
+export const getConceptById = ConceptRegistry.getConceptById;
+export const CONCEPT_REGISTRY = ConceptRegistry.byId;
+export const CONCEPT_CATEGORIES = ConceptRegistry.byCategory;
