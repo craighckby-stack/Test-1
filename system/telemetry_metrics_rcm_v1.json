@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/telemetry/RCM_V1",
+  "title": "Resource Consumption Metrics (RCM) Sub-Schema",
+  "type": "object",
+  "description": "Standard structure for reporting resource consumption, designed to be used as the value for the 'context_data' field in GGS_V2 logs when resource usage tracking is required.",
+  "properties": {
+    "model_name": {"type": "string", "description": "The specific LLM or specialized model utilized (e.g., GP-94.1/CAC-V2).
+    "tokens_input": {"type": "integer", "minimum": 0, "description": "Number of input tokens processed."
+    },
+    "tokens_output": {"type": "integer", "minimum": 0, "description": "Number of output tokens generated."
+    },
+    "cpu_cycles_ms": {"type": "integer", "minimum": 0, "description": "CPU utilization/processing time measured in milliseconds (per instance)."
+    },
+    "gpu_cycles_ms": {"type": "integer", "minimum": 0, "description": "GPU acceleration usage time in milliseconds, if applicable."
+    },
+    "latency_ms": {"type": "integer", "minimum": 0, "description": "Total end-to-end processing latency for the span being measured."
+    },
+    "estimated_cost_usd": {"type": "number", "minimum": 0, "description": "Estimated monetary cost attributed to this specific action, critical for CAC tracking."}
+  },
+  "required": ["model_name", "tokens_input", "tokens_output", "latency_ms", "estimated_cost_usd"]
+}
