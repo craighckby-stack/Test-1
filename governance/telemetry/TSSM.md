@@ -1,30 +1,37 @@
-# Telemetry Stream Synchronization Module (TSSM) V2.0: Chronometric Fidelity Layer
+# Telemetry Stream Synchronization Module (TSSM) V3.0: High-Fidelity Chronometric Assurance Layer
 
 **ID:** TSSM
+**Version:** V3.0 (Chronos-Optimized)
 **Scope:** Stage P-01 Pre-Attestation Input Integrity (Supporting TIAR and the OGT Trust Calculus)
-**Target Latency Skew Budget:** < 50 nanoseconds across all aggregated streams.
+**Target Latency Skew Budget:** System maximum of < 50 nanoseconds (stream-specific minimum defined by TSMS).
 
-### Mandate
+### Mandate and Refinement
 
-TSSM V2.0 establishes the definitive Chronometric Fidelity Layer for Sovereign inputs. Its primary mandate is to enforce temporal uniformity, eliminating data drift and minimizing latency skew across all heterogeneous S-0x telemetry sources prior to ingestion by the Telemetry Input Attestation Registrar (TIAR). This ensures that the P-01 Trust Calculus operates on a cryptographically synchronized observation window, rendering metric anomalies chronologically immutable.
+TSSM V3.0 elevates the chronometric integrity protocol, serving as the immutable temporal gatekeeper for Sovereign inputs. Its primary objective is to enforce microsecond (and sub-microsecond) temporal uniformity, strictly eliminating data provenance drift and minimizing latency skew across all heterogeneous S-0x telemetry sources. This enforcement utilizes a dedicated **Chronometric Oracle Interface (COI)**, guaranteeing that the P-01 Trust Calculus operates on a cryptographically synchronized observation frame.
 
 ### Core Functions
 
-1.  **High-Precision Temporal Alignment (HPTA):**
-    *   Leverages the internal Precision Time Protocol (PTP)/Network Time Protocol (NTP) Hierarchy (Tier-0 Atomic Source reference) to synchronize disparate S-0x telemetry feeds (e.g., ATM vectors, environmental monitors) into a unified stream buffer.
-    *   **Drift Management:** Continuously monitors the internal synchronization clock against the external Tier-0 reference, initiating corrective synchronization pulses if deviation exceeds the configurable stream-specific latency budget (defined by TSMS).
+1.  **High-Precision Temporal Alignment (HPTA) via COI:**
+    *   **Mechanism:** Interfaces exclusively with the Sovereign's hardware-backed Chronometric Oracle Interface (COI, replacing legacy PTP/NTP reliance) for absolute Tier-0 synchronization reference.
+    *   **Drift Management Protocol:** Monitors all aggregated S-0x streams against their configuration defined in the Telemetry Stream Metadata Schema (`TSMS`). Initiates immediate, deterministic corrective synchronization pulses (or throttling) if deviation exceeds the stream-specific `TSMS.latency_tolerance_ns` budget.
+    *   **Fidelity Metric:** Maintains a real-time 'Chronometric Fidelity Score' (CFS) for every stream, passed to VMP.
 
 2.  **Verifiable Measurement Packaging (VMP):**
-    *   Assembles buffered, aligned metrics into **Synchronized Attestable Measurement Blocks (SAMB)**.
-    *   Applies a Merkle Root Hash to the SAMB batch contents and attaches an irreversible, cryptographically signed time-stamp (Proof-of-Event signature) derived from the Tier-0 reference, binding the data content and its time of observation irrevocably.
+    *   **Assembly:** Buffers and aligns aligned metrics into **Synchronized Attestable Measurement Blocks (SAMB)**.
+    *   **Integrity Binding:** Applies a hierarchical Merkle Tree Root Hash to the SAMB contents (including the CFS) and attaches a secure, irreversible, cryptographically signed time-stamp. This **Time-Proof Signature** must be generated within the Trusted Execution Environment (TEE) utilizing keys linked directly to the COI/TSU, binding the data content, observation time, and integrity score irrevocably.
 
-3.  **Resilience Conduit (RC):**
-    *   Acts as the loss-minimized, high-throughput channel, transmitting SAMBs to the TIAR queue. Implements rapid back-pressure signals and automatic buffering overflow protocols to ensure zero data loss under intermittent upstream congestion.
+3.  **Resilience Conduit (RC) - Zero-Loss Channel:**
+    *   **Throughput and Guarantee:** Functions as the guaranteed delivery conduit, streaming finalized SAMBs to the TIAR ingestion queue via a persistent, commit-log-backed messaging fabric (e.g., Sovereign Reliability Bus, SRB).
+    *   **Back-Pressure Strategy:** If TIAR throughput limits are reached, RC implements non-destructive, persistent queue buffering protocols, ensuring absolute zero data loss under all upstream congestion scenarios. Critical alert signals are simultaneously raised to the Governance Monitoring System (GMS).
 
-### Architectural Integration and Failover
+### Architectural Integration and Failover Protocol
 
-TSSM operates within a dedicated, isolated execution enclave (Chronos Enclave) directly preceding TIAR.
+TSSM V3.0 operates within an isolated, hardware-attested Chronos Enclave.
 
-*   **Input:** Raw S-0x streams and the required Telemetry Stream Metadata Schema (`TSMS`) configuration data.
-*   **Output:** Digitally signed, temporally rigid SAMBs streamed directly to TIAR ingestion pipes.
-*   **Failover Mode (Temporal Degradation):** If synchronization with the Tier-0 source fails, TSSM shifts to internal clock extrapolation and flags the SAMBs with a "LACK_OF_EXTERNAL_SYNC" warning, allowing TIAR/OGT to dynamically adjust the input data's trust score instead of causing immediate operational halt.
+*   **Inputs:** Raw S-0x streams and the mandatory `TSMS` configuration data.
+*   **Output:** TEE-signed, temporally rigid SAMBs (streaming to TIAR).
+*   **Critical Failover Mode (COI Loss):** If connection or synchronization with the Chronometric Oracle Interface (COI) fails:
+    1.  TSSM shifts immediately to internal clock extrapolation (maintaining relative sequencing).
+    2.  All produced SAMBs are forcefully tagged with a `CFS_CRITICAL: COI_LOSS` flag.
+    3.  Data flow continues, but the trust score for all subsequent data ingested by OGT is automatically downgraded to P-04 (Maximum Distrust Tolerance), forcing higher scrutiny until COI synchronization is restored.
+    4.  An immediate, critical system alert is issued requiring autonomous operator intervention.
