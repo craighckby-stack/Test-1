@@ -1,7 +1,7 @@
 /**
  * Sovereign AGI v94.1 Failure Trace Logger Service (FTLS)
  * Handles cryptographic certification and immutable storage connection for FTLs.
- * Requires initialized Signer and Storage providers for reliable operation.
+ * Requires initialized Signer, Storage, and Telemetry providers for reliable operation.
  */
 class FailureTraceLogger_Service {
   /**
@@ -10,45 +10,47 @@ class FailureTraceLogger_Service {
    * @param {Object} dependencies.config - FTL configuration settings.
    * @param {Object} dependencies.signer - Cryptographic signing implementation (must have .sign(data)).
    * @param {Object} dependencies.storage - Immutable append-only storage implementation (must have async .append(record)).
-   * @param {Object} [dependencies.validator] - Optional SchemaValidator utility.
+   * @param {Object} dependencies.telemetryService - Centralized operational logging and auditing service.
+   * @param {Object} [dependencies.validator] - Optional SchemaValidator utility (preferred for validation).
    */
-  constructor({ config, signer, storage, validator }) {
-    if (!config || !signer || !storage) {
-      throw new Error("FTL Service Initialization Failed: Missing required dependencies (config, signer, storage).");
+  constructor({ config, signer, storage, telemetryService, validator }) {
+    if (!config || !signer || !storage || !telemetryService) {
+      throw new Error("FTL Service Initialization Failed: Missing required core dependencies (config, signer, storage, telemetryService).");
     }
     this.config = config.failure_trace_log_config || {};
     this.signer = signer;
     this.storage = storage;
-    this.validator = validator; // Use injected utility if available
+    this.telemetryService = telemetryService;
+    this.validator = validator; // Schema validation utility
   }
 
   /**
-   * Ensures the failure trace data adheres to the minimum required schema.
-   * Prefers the dedicated SchemaValidator_Util if provided.
+   * Ensures the failure trace data adheres to the required schema.
+   * Prioritizes the dedicated SchemaValidator_Util if provided.
    * @param {Object} data - The FTL payload.
    * @throws {Error} if validation fails.
    */
   validateSchema(data) {
     if (typeof data !== 'object' || data === null) {
-        throw new Error("FTL Schema Validation Failed: Input data must be a non-null object.");
+        throw new Error("FTL Schema Validation Error (Type Check): Input data must be a non-null object.");
     }
 
     if (this.validator) {
+        // High-Intelligence Path: Utilize centralized schema definition
         const validationResult = this.validator.validate('FailureTraceLog', data);
         if (!validationResult.isValid) {
-             throw new Error(`FTL Schema Validation Failed via Utility: ${validationResult.errors.join('; ')}`);
+             throw new Error(`FTL Schema Validation Failed (Utility): ${validationResult.errors.join('; ')}`);
         }
-        return true;
+        return;
     }
 
-    // Fallback: Legacy config array validation
+    // Fallback/Legacy Path: Simple check for critical fields
     const required = this.config.schema_required_fields || ['timestamp', 'component', 'trace_id'];
-    const missing = required.filter(field => typeof data[field] === 'undefined' || data[field] === null);
+    const missing = required.filter(field => data[field] === undefined || data[field] === null);
 
     if (missing.length > 0) {
-        throw new Error(`FTL Schema Validation Failed: Missing required fields: [${missing.join(', ')}]`);
+        throw new Error(`FTL Schema Validation Failed (Fallback): Missing required fields: [${missing.join(', ')}]`);
     }
-    return true;
   }
 
   /**
@@ -57,29 +59,39 @@ class FailureTraceLogger_Service {
    * @returns {Promise<string>} The storage confirmation ID or reference.
    */
   async certifyAndLog(ftl_data) {
-    this.validateSchema(ftl_data); // Synchronous validation
-    
     try {
+        this.validateSchema(ftl_data); // Synchronous pre-flight validation
+
         const data_string = JSON.stringify(ftl_data);
-        // The Signer performs cryptographic assertion based on initialized key material.
+        
+        // Step 1: Cryptographic Assertion (Signing)
         const signed_record = this.signer.sign(data_string);
         
-        // The Storage Provider handles secure, immutable append operation.
+        // Step 2: Immutable Append Operation
         const storage_reference = await this.storage.append(signed_record);
 
-        // Standardized AGI operational logging for audit trail
-        console.log(JSON.stringify({
+        // Step 3: Audit Trail Logging (Asynchronously via Telemetry Service)
+        this.telemetryService.logAudit({
             level: 'INFO',
             service: 'FTLS',
-            message: 'FTL Certified and Committed',
-            trace_id: ftl_data.trace_id || 'N/A',
-            record_ref: storage_reference || 'N/A'
-        }));
+            operation: 'FTL_CERTIFIED',
+            message: 'Failure Trace Log Certified and Committed.',
+            trace_id: ftl_data.trace_id,
+            record_ref: storage_reference
+        });
 
         return storage_reference;
 
     } catch (error) {
-        // Wrap infrastructure errors to maintain FTLS context integrity.
+        // Log the failure via Telemetry, then rethrow contextually.
+        this.telemetryService.logError({
+            service: 'FTLS',
+            error_type: 'Critical_Logging_Path_Failure',
+            details: error.message,
+            input_context: ftl_data ? ftl_data.trace_id : 'N/A'
+        });
+        
+        // Re-wrap and rethrow to maintain caller context integrity
         throw new Error(`FTL Certification or Storage Critical Failure: ${error.message}`);
     }
   }
