@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sovereign AGI Artifact Index Configuration",
+  "description": "Configuration for how the Artifact Index Service (AIS) should index and query manifest data.",
+  "type": "object",
+  "properties": {
+    "storage_target": {
+      "type": "string",
+      "enum": ["DYNAMODB_GLOBAL", "POSTGRES_HYPERTABLE", "S3_ARCHIVE"],
+      "description": "The primary data store for manifests."
+    },
+    "primary_keys": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["artifact_uuid"]}
+    },
+    "index_fields": {
+      "type": "array",
+      "description": "List of fields to create database indexes on for rapid query performance.",
+      "items": {
+        "type": "string",
+        "enum": ["objective_id", "timestamp_utc", "evolution_report.efficiency_score", "generated_artifacts.artifact_type"]
+      },
+      "minItems": 1
+    },
+    "ttl_policy": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "archive_after_days": {"type": "integer", "minimum": 90}
+      }
+    }
+  },
+  "required": ["storage_target", "primary_keys", "index_fields"]
+}
