@@ -1,1 +1,75 @@
-[object Object]
+{
+  "schema_id": "mcis_integrity_v1.2",
+  "description": "Defines structural and functional integrity constraints for Multi-Cloud Infrastructure Services (MCIS) resources.",
+  "metadata": {
+    "version": "1.2",
+    "status": "stable",
+    "target_component": "MCIS Core Engine"
+  },
+  "rulesets": {
+    "creation_validation": {
+      "severity": "CRITICAL",
+      "rules": [
+        {
+          "id": "R001_MCIS_NAME_FORMAT",
+          "target": "$.mcis_id",
+          "constraint": "regex:^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "message": "MCIS ID must be kebab-case, start and end with a letter/number."
+        },
+        {
+          "id": "R002_MIN_VM_COUNT",
+          "target": "$.vm_list",
+          "constraint": "min_length:1",
+          "message": "An MCIS must contain at least one VM definition."
+        },
+        {
+          "id": "R003_REQUIRED_CLOUD_CONN",
+          "target": "$.vm_list[*].connection_name",
+          "constraint": "is_defined",
+          "message": "Every VM must specify a valid cloud connection profile."
+        }
+      ]
+    },
+    "update_validation": {
+      "severity": "HIGH",
+      "rules": [
+        {
+          "id": "R101_IMMUTABLE_ID",
+          "target": "$.mcis_id",
+          "constraint": "is_immutable",
+          "message": "MCIS ID cannot be modified after creation."
+        },
+        {
+          "id": "R102_VM_STATE_TRANSITION",
+          "target": "$.vm_list[*].status",
+          "constraint": "allowed_transitions:[RUNNING->SUSPENDED, SUSPENDED->RUNNING]",
+          "message": "Invalid state transition requested for a VM."
+        }
+      ]
+    }
+  },
+  "component_schemas": {
+    "vm_definition": {
+      "required": [
+        "name",
+        "image_id",
+        "vnet_id"
+      ],
+      "properties": {
+        "cpu_count": {
+          "type": "integer",
+          "min": 1,
+          "max": 64
+        },
+        "disk_size_gb": {
+          "type": "integer",
+          "min": 10
+        },
+        "gpu_type": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    }
+  }
+}
