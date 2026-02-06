@@ -1,29 +1,29 @@
-// Schema Migration Adjudicator (SMA) V97.0 - Refactored for State Freshness & Utility Integration
+// Schema Migration Adjudicator (SMA) V98.0 - Decoupled Simulation & Enhanced Scoring
 // GSEP Stage 2/3 Interlock: Ensures state schema integrity during architectural mutation.
 
 import { ASR } from './architectureSchemaRegistrar.js';
 import { MCR } from './mutationChainRegistrar.js';
-import { MPSE } from './mutationPayloadSpecEngine.js'; // Now utilized for structural validation
+import { MPSE } from './mutationPayloadSpecEngine.js'; 
 import { D_01 } from '../core/decisionAuditLogger.js';
-// SMA assumes delegated execution of heavy lifting, eventually to SMSE (SchemaMigrationSimulationEngine)
+// Dependency Injection: SMA delegates heavy computation to SMSE.
+import { SMSE } from './schemaMigrationSimulationEngine.js'; 
 
 const SCORE_WEIGHTS = {
     CONTRACT_COMPLIANCE: 0.4,
-    MIGRATION_INTEGRITY: 0.6,
+    MIGRATION_INTEGRITY: 0.6, // Derived from SMSE simulation outcome
 };
 const MINIMUM_ACCEPTANCE_SCORE = 0.75;
 const VALIDATION_THRESHOLD_SCORE = 0.9;
 
 /**
  * The SMA validates proposed schema changes within the M-02 payload against the
- * current system state ledger (MCR) and mandated architectural contracts (ASR).
- * It produces a compatibility score, feeding into the S-01 Trust Projection.
+ * system state (MCR) and mandated contracts (ASR). It delegates heavy simulation
+ * to SMSE, integrates results, and determines final acceptance.
  */
 export class SchemaMigrationAdjudicator {
 
-    // Constructor simplified; state dependency fetching moved to runtime execution for freshness.
     constructor() {
-        // No heavy state initialization required here.
+        // Stateless, dependency injection occurs via import/runtime context.
     }
 
     /**
@@ -32,59 +32,79 @@ export class SchemaMigrationAdjudicator {
      * @returns {Promise<{compatibilityScore: number, migrationPlanValidated: boolean, requiredRollbackProcedure: string}>}
      */
     async adjudicate(m02Payload) {
-        // 0. Payload Structural Validation using MPSE
-        if (typeof MPSE.validateM02Structure !== 'function' || !MPSE.validateM02Structure(m02Payload)) {
+        // --- 0. Payload Pre-Validation ---
+        if (!MPSE.validateM02Structure || !MPSE.validateM02Structure(m02Payload)) {
             await D_01.logFailure('SMA', 'M-02 payload failed structural validation against specs or MPSE utility unavailable.');
-            return { compatibilityScore: 0.0, migrationPlanValidated: false, requiredRollbackProcedure: 'Immediate State Veto' };
+            return this._vetoResult('Immediate State Veto: Structural Failure');
         }
 
         const proposedSchema = m02Payload.architecturalSchema;
-        // Fetch fresh context at runtime
-        const currentSchemaVersion = MCR.getCurrentSchemaHash(); 
-
         if (!proposedSchema) {
-            await D_01.logFailure('SMA', 'M-02 payload missing required schema definition.');
-            return { compatibilityScore: 0.0, migrationPlanValidated: false, requiredRollbackProcedure: 'Immediate State Veto' };
+            return this._vetoResult('Immediate State Veto: Missing Schema Definition');
         }
 
-        // 1. Validation against current contracts enforced by ASR
+        // Fetch fresh context at runtime
+        const currentSchemaHash = MCR.getCurrentSchemaHash(); 
+
+        // --- 1. Contract Compliance Check (ASR) ---
         const contractCompliance = await ASR.validateSchemaCompliance(proposedSchema);
+        if (contractCompliance.score === 0.0) {
+            await D_01.logFailure('SMA', 'Proposed schema failed all architectural contract compliance checks (ASR).');
+            return this._vetoResult('Immediate State Veto: Contract Breach');
+        }
 
-        // 2. Deep differential analysis (Scheduled for SMSE)
-        const diffAnalysis = await this._runDeepSchemaDiff(currentSchemaVersion, proposedSchema);
+        // --- 2. Deep Simulation (SMSE Delegation) ---
+        // 2a. Differential Analysis (Requires SMSE to fetch historical schema based on hash)
+        const diffAnalysis = await SMSE.runDeepSchemaDiff(currentSchemaHash, proposedSchema);
 
-        // 3. Migration path simulation (Scheduled for SMSE)
-        const migrationIntegrity = await this._simulateMigrationPath(diffAnalysis, proposedSchema);
+        // 2b. Migration Simulation
+        const migrationIntegrityResult = await SMSE.simulateMigrationPath(diffAnalysis, proposedSchema);
 
-        const compatibilityScore = (contractCompliance.score * SCORE_WEIGHTS.CONTRACT_COMPLIANCE) +
-                                   (migrationIntegrity.integrity * SCORE_WEIGHTS.MIGRATION_INTEGRITY);
+        // --- 3. Final Adjudication Score Calculation ---
+        const compatibilityScore = this._calculateCompatibilityScore(
+            contractCompliance.score,
+            migrationIntegrityResult.integrity
+        );
+
+        // --- 4. Decision Logging and Output ---
+        const migrationValidated = compatibilityScore >= VALIDATION_THRESHOLD_SCORE;
 
         if (compatibilityScore < MINIMUM_ACCEPTANCE_SCORE) {
             await D_01.logWarning('SMA', `Low Schema Compatibility Score: ${compatibilityScore.toFixed(4)} (Threshold: ${MINIMUM_ACCEPTANCE_SCORE}).`);
         } else {
-             await D_01.logSuccess('SMA', `Schema Accepted. Score: ${compatibilityScore.toFixed(4)}.`);
+             await D_01.logSuccess('SMA', `Schema Accepted. Score: ${compatibilityScore.toFixed(4)}. Validation: ${migrationValidated}`);
         }
 
         return {
             compatibilityScore: compatibilityScore,
-            migrationPlanValidated: compatibilityScore >= VALIDATION_THRESHOLD_SCORE,
-            requiredRollbackProcedure: migrationIntegrity.rollbackPlanHash
+            migrationPlanValidated: migrationValidated,
+            requiredRollbackProcedure: migrationIntegrityResult.rollbackPlanHash
         };
     }
-
+    
     /**
-     * @private Handles the complex differential analysis (Scheduled for SMSE extraction).
+     * Utility method to standardize score aggregation based on defined weights.
+     * @private
+     * @param {number} contractScore
+     * @param {number} integrityScore
+     * @returns {number}
      */
-    async _runDeepSchemaDiff(currentHash, proposedSchema) {
-        // Logic Placeholder: Access MCR, pull historical schemas, run semantic diff.
-        return { deltaSize: 10, complexityMetric: 0.85 };
+    _calculateCompatibilityScore(contractScore, integrityScore) {
+        return (contractScore * SCORE_WEIGHTS.CONTRACT_COMPLIANCE) +
+               (integrityScore * SCORE_WEIGHTS.MIGRATION_INTEGRITY);
     }
 
     /**
-     * @private Handles the computationally expensive simulation (Scheduled for SMSE extraction).
+     * Standardizes the immediate veto response structure.
+     * @private
+     * @param {string} reason 
+     * @returns {{compatibilityScore: number, migrationPlanValidated: boolean, requiredRollbackProcedure: string}}
      */
-    async _simulateMigrationPath(diffAnalysis, proposedSchema) {
-        // Logic Placeholder: Attempt a stateless, transactional simulation of the schema transition.
-        return { integrity: 0.95, rollbackPlanHash: 'RBH-7890C' };
+    _vetoResult(reason) {
+        return { 
+            compatibilityScore: 0.0, 
+            migrationPlanValidated: false, 
+            requiredRollbackProcedure: reason 
+        };
     }
 }
