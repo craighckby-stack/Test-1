@@ -1,34 +1,49 @@
 {
   "profile_id": "Standard",
   "description": "Standard risk tolerance optimized for stable, efficient system evolution.",
-  "evolution_defaults": {
-    "rollback_window_s": 900,
-    "max_cumulative_cost": 500,
-    "max_deployment_risk": 0.15,
+  "defaults": {
+    "temporal_limits": {
+      "rollback_window_s": 900,
+      "post_deployment_monitoring_s": 3600
+    },
+    "quantitative_limits": {
+      "max_cumulative_cost": 500,
+      "max_deployment_risk": 0.15
+    },
     "fallback_policy": "Suspend_Evolution_Queue",
+    "risk_assessment_weights": {
+      "test_rigor_score": 0.40,
+      "static_analysis_severity": 0.35,
+      "deployment_complexity": 0.25
+    },
     "gating_thresholds": {
-      "quality_gates": {
-        "mutation_coverage_min": 0.90,
-        "test_rigor_score_min": 0.75,
-        "static_analysis_pass_min": 1
-      }
+      "mutation_coverage_min": 0.90,
+      "test_rigor_score_min": 0.75,
+      "static_analysis_pass_min": 1
     }
   },
   "evolution_types": {
     "minor_refactor": {
       "description": "Small, localized non-breaking changes.",
       "overrides": {
-        "quality_gates": {
+        "gating_thresholds": {
           "mutation_coverage_min": 0.95
+        },
+        "risk_assessment_weights": {
+          "deployment_complexity": 0.10
         }
       }
     },
     "architectural_shift": {
       "description": "Major structural changes requiring maximal verification.",
       "overrides": {
-        "max_deployment_risk": 0.05,
-        "rollback_window_s": 1800,
-        "quality_gates": {
+        "quantitative_limits": {
+          "max_deployment_risk": 0.05
+        },
+        "temporal_limits": {
+          "rollback_window_s": 1800
+        },
+        "gating_thresholds": {
           "mutation_coverage_min": 1.0,
           "static_analysis_pass_min": 3,
           "test_rigor_score_min": 0.90
@@ -38,9 +53,13 @@
     "security_patch": {
       "description": "Urgent fixes for vulnerabilities.",
       "overrides": {
-        "max_deployment_risk": 0.25,
-        "rollback_window_s": 120,
-        "quality_gates": {
+        "quantitative_limits": {
+          "max_deployment_risk": 0.25
+        },
+        "temporal_limits": {
+          "rollback_window_s": 120
+        },
+        "gating_thresholds": {
           "mutation_coverage_min": 0.80,
           "test_rigor_score_min": 0.60
         }
