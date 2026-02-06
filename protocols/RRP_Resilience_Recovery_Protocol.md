@@ -1,40 +1,51 @@
-# RESILIENCE & RECOVERY PROTOCOL (RRP) V2.0 - Adaptive Failover Matrix
+# RESILIENCE & RECOVERY PROTOCOL (RRP) V3.0 - Attested State Integrity Mandate
 
-## 0.0 Mandate, Scope, and Tiers
+## 0.0 Mandate, State Definitions, and Prerequisites
 
-The RRP V2.0 is mandated by SGS V94.4 (Section 3.2). It is exclusively triggered upon detecting an irreversible systemic fault, classified as `CRITICAL` GSEP-C failure (S2, S3, S4, S4.5, S6, S6.5, S6.7, S8).
+**Mandate:** RRP V3.0 is a core compliance layer mandated by **SGS V94.4 (Section 3.2)**. It is exclusively initiated upon $V_{CRITICAL\ TRIGGER}$ (irreversible systemic fault, GSEP-C classification S2, S4.5, S6.7, S8).
 
-The RRP's function is to achieve rapid, cryptographically attested state rollback and define the appropriate Recovery Tier (RT-0 to RT-2). Efficiency is prioritized through the immediate, atomic creation of the RSCM (Recovery Snapshot & Chain-of-Custody Manifest).
+**Core Definitions:**
+*   $\\Omega_{Failure}$: The immutable state captured *at the nanosecond* of detection, forming the basis for the **RSCM**.
+*   $\\Psi_{Safe}$: The predetermined, verified safe state targeted for restoration (derived from the rollback matrix).
 
-## 1.0 Critical Incident Response Chain (CIRC)
+**Efficiency Goal:** Achieve cryptographically attested state rollback within $\tau < 1.5s$, prioritizing the atomic capture and sealing of the **RSCM** via the dedicated **Atomic Snapshot Generator (ASG)** utility.
 
-Upon $V_{Critical\ Trigger}$, the sequence must be atomic and asynchronous to minimize data corruption scope:
+## 1.0 Critical Incident Response Chain (CIRC) - Atomic Sequence
 
-1. **State Fencing & Isolation (GICM/PVLM):** Immediate resource fencing of the failing component, preventing further state pollution and prioritizing kernel stabilization.
-2. **Snapshot Generation (RSCM):** The specialized Snapshot Utility captures a complete, immutable environment state ($\Omega_{Failure}$) including runtime metrics, execution stack trace, and specific volatile memory regions. This package forms the RSCM.
-3. **VRRM & CRoT Registration:** The primary error payload and context (ECVM/GICM) are persisted. CRoT immediately validates and certifies the integrity signature of the generated RSCM, persisting the resulting hash (`rscm_integrity_hash`) into the VRRM.
-4. **Recovery Triage & Execution (GAX):** GAX analyzes the VRRM, the veto agent, and the certified RSCM integrity to select and initiate the required Recovery Tier.
+The CIRC defines the mandatory, prioritized steps executed concurrently or atomically upon $V_{Critical\ Trigger}$.
 
-## 2.0 Recovery Tier Matrix (RT)
+### 1.1 RRP-C1: State Fencing & Isolation (GICM/PVLM)
+Immediate, kernel-level halting and resource fencing of the fault domain to prevent memory or persistence pollution. Prioritize stability over data acquisition efficiency.
 
-GAX maps the failure source and severity to a predictable recovery pathway, ensuring maximum speed based on risk profile.
+### 1.2 RRP-C2: Atomic Snapshot Generation (ASG $\rightarrow$ RSCM)
+The **Atomic Snapshot Generator (ASG)** immediately captures $\Omega_{Failure}$ (including volatile memory regions and the complete execution context trace) and packages it into the **Recovery Snapshot & Chain-of-Custody Manifest (RSCM)**. This process must complete within $\tau_{RSCM} < 500ms$.
 
-| Tier | Action | Target State | Failure Context Examples | Priority |
+### 1.3 RRP-C3: Attestation & Registration (CRoT/VRRM)
+CRoT validates the cryptographic integrity of the newly generated RSCM package. The resulting hash (`rscm_integrity_hash`) and the primary failure context (ECVM/GICM) are registered, immutably, within the **Veto/Rollback/Recovery Manifest (VRRM)**.
+
+### 1.4 RRP-C4: Recovery Triage & Execution (GAX)
+The Global Arbitration eXecutive (GAX) analyzes the VRRM, utilizing the certified `rscm_integrity_hash` (if present and valid) to select and initiate the highest-priority appropriate **Recovery Tier (RT)**.
+
+## 2.0 Recovery Tier Matrix (RT) V3.0
+
+GAX maps the failure source and severity to a predictable recovery pathway using validated VRRM data. RT-2 requires a fully certified RSCM.
+
+| Tier | Action Mechanism | Target State ($\Psi$) | Rationale & Failure Context Examples | Priority (P-Scale) |
 |:---|:---|:---|:---|:---|
-| **RT-0** (Soft-Halt) | Clean shutdown of current job; minimal persistence required. | $\Psi_{N+1}$ (Await manual restart) | Low-memory assertion, non-critical I/O suspension. | P3 |
-| **RT-1** (Pipeline Re-entry) | Reprocessing using attested ingress data. | $\Psi_{Stage-1}$ | Input validation error, transient external API timeout recoverable within a time threshold. | P2 |
-| **RT-2** (Attested Rollback) | Systemic rollback utilizing the RSCM state restore image. | $\Psi_{Stage-N}$ (Deepest verified safe state) | Integrity violation (MPAM/PVLM trigger), logic error leading to persistent uncontrolled state. | P1 (Highest) |
+| **RT-0** (Soft Halt & Wait) | Clean process termination and graceful kernel handover. | $\Psi_{Passive}$ (Safe dormancy) | Non-essential process exhaustion, routine manual intervention flag. Minimal data loss acceptable. | P3 (Lowest) |
+| **RT-1** (I/O & Pipeline Replay) | Atomic discard of internal state; re-ingestion of the last attested external input data set. | $\Psi_{Stage-1}$ (Verified Ingress) | Transient external API failure, reversible synchronization deadlock, minor input validation errors. | P2 |
+| **RT-2** (Attested Deep Rollback) | Systemic, full-state restoration using the attested and verified **RSCM** image ($\Omega_{Failure}$ pre-rollback state). | $\Psi_{Deep\ Safe}$ (Deepest verified secure checkpoint) | System integrity violation (MPAM/PVLM), uncontrolled state leakage, catastrophic logic errors. **Requires CRoT-certified RSCM.** | P1 (Highest) |
 
-## 3.0 Veto/Rollback/Recovery Manifest (VRRM) Structure V2.0
+## 3.0 Veto/Rollback/Recovery Manifest (VRRM) Structure V3.0
 
-The VRRM structure now mandates reference to the cryptographically attested RSCM integrity hash.
+The VRRM structure now requires verification dependency confirmation on the `rscm_integrity_hash` for any RT-2 activation.
 
-| Field | Type | Mandate | V2.0 Update Notes |
+| Field | Type | Mandate | V3.0 Update Notes |
 |:---|:---|:---|:---|
-| `timestamp` | UTC | Time of Failure/Veto. | No Change. |
-| `gsep_stage` | S[0-11] | Failing pipeline stage. | No Change. |
-| `veto_agent` | GAX/CRoT/System | Agent asserting the veto. | Expanded scope. |
-| `veto_artifact` | Acronym | Artifact triggering the veto. | No Change. |
-| **`rscm_integrity_hash`**| SHA512 | *Immutable CRoT signature of the RSCM package.* | **New Mandatory Field (RT-2 Reliance).** |
-| `rollback_target` | $\Psi_{ID}$/RT-N | The targeted safe state / Recovery Tier selected. | Uses RT classification for clarity. |
-| `is_resolved` | Boolean | Final flag set upon successful action. | No Change. |
+| `timestamp` | UTC | Time of Veto assertion. | No Change. |
+| `gsep_stage` | S[0-11] | Failing execution pipeline stage. | No Change. |
+| `veto_agent` | GAX/CRoT/ASG | Agent asserting the veto. | Scope refined: must include the initiating ASG process ID. |
+| `veto_artifact` | Acronym | Artifact triggering the veto (e.g., MPAM, PVLM). | No Change. |
+| **`rscm_integrity_hash`**| SHA512 (Hex) | *Immutable CRoT signature of the RSCM.* | **MANDATORY for RT-2 activation approval.** |
+| `rollback_target` | $\Psi_{ID}$ / RT-N | The specifically targeted safe state / Recovery Tier selected by GAX. | Now directly maps to the RT Matrix V3.0 states. |
+| `resolution_status` | Enum | {PENDING, SUCCESS, FAILURE, ABORTED} | Replaced Boolean (`is_resolved`) for higher resolution state tracking. |
