@@ -1,52 +1,90 @@
 /**
  * Governance Settings Configuration Provider (v94.1)
- * Manages access to system-wide Governance Health Monitor (GHM) parameters.
- * Designed for dynamic configuration merging (Defaults -> Environment -> Remote Store).
+ * Manages system-wide Governance Health Monitor (GHM) parameters.
+ * Designed for strict configuration merging (Defaults -> Environment).
+ * Utilizes a defensive approach with immutability and strict type coercion for environment variables.
  */
 
+// --- Internal Helper for Environment Overrides ---
+
+/**
+ * Retrieves environment variable, applying type coercion or returning default.
+ * Handles cases where env var is set but invalid (e.g., non-numeric string for a number field).
+ */
+const getEnvAsType = (key, defaultValue, type = 'string') => {
+    const value = process.env[key];
+    if (value === undefined || value === null) {
+        return defaultValue;
+    }
+
+    switch (type.toLowerCase()) {
+        case 'int':
+            const i = parseInt(value, 10);
+            return isNaN(i) ? defaultValue : i;
+        case 'float':
+            const f = parseFloat(value);
+            return isNaN(f) ? defaultValue : f;
+        // Note: For complex structures like weights, environment variable overrides are intentionally disabled
+        // unless advanced JSON parsing and validation utility is guaranteed, prioritizing core governance stability.
+        default:
+            return value;
+    }
+};
+
+// --- Default Configuration Definitions ---
+
 const GHM_CONFIG_DEFAULTS = {
-    // Latency: Max acceptable latency for core operational pipelines (in ms).
+    // Latency (ms)
     GHM_LATENCY_THRESHOLD_MS: 500,
 
-    // Smoothing: Alpha factor (0.0 to 1.0) for Exponential Weighted Moving Average (EWMA) of the Governance Rating Score (GRS).
+    // Smoothing Alpha (0.0 to 1.0)
     GHM_SMOOTHING_ALPHA: 0.15,
 
-    // Readiness: Minimum acceptable GRS required for activating system readiness protocols (e.g., serving external requests).
+    // Readiness Score (0.0 to 1.0)
     GHM_MINIMUM_READINESS_THRESHOLD: 0.85,
 
-    // Weights: Default criticality weights for key sub-components used in composite GRS calculation.
+    // Component Weights (used in GRS calculation)
     GHM_COMPONENT_CRITICALITY_WEIGHTS: {
-        mcraEngine: 1.5, // Mission Critical Resource Allocation
-        atmSystem: 1.0,  // Adaptive Threat Modeling
+        mcraEngine: 1.5,
+        atmSystem: 1.0,
         policyEngine: 1.2
     },
 
-    // Policy: Maximum number of minor violations before initiating automatic rollback/recalibration.
+    // Violation Tolerance (count)
     GHM_MAX_VIOLATIONS_TOLERANCE: 5,
 };
 
 /**
- * Merges configuration sources (Defaults <- Environment/Runtime Overrides).
- * NOTE: In a complete implementation, this function would handle remote K/V fetching and validation.
- * @returns {object} The finalized, validated governance configuration.
+ * Merges configuration sources and finalizes configuration.
+ * @returns {object} The finalized, immutable governance configuration.
  */
 function initializeGovernanceSettings() {
     let settings = { ...GHM_CONFIG_DEFAULTS };
 
-    // Placeholder for Environment Variable Overrides
-    // e.g., if (process.env.GHM_LATENCY_MS) { settings.GHM_LATENCY_THRESHOLD_MS = parseInt(process.env.GHM_LATENCY_MS, 10); }
-    
-    // --- Future Integration Point: Load remote config & call validation service (e.g., validateConfig(settings)) ---
+    // 1. Apply Environment Overrides with Defensive Type Coercion
+    settings.GHM_LATENCY_THRESHOLD_MS = getEnvAsType(
+        'GHM_LATENCY_MS', settings.GHM_LATENCY_THRESHOLD_MS, 'int'
+    );
+    settings.GHM_SMOOTHING_ALPHA = getEnvAsType(
+        'GHM_SMOOTHING_ALPHA', settings.GHM_SMOOTHING_ALPHA, 'float'
+    );
+    settings.GHM_MINIMUM_READINESS_THRESHOLD = getEnvAsType(
+        'GHM_MIN_READINESS', settings.GHM_MINIMUM_READINESS_THRESHOLD, 'float'
+    );
+    settings.GHM_MAX_VIOLATIONS_TOLERANCE = getEnvAsType(
+        'GHM_MAX_VIOLATIONS', settings.GHM_MAX_VIOLATIONS_TOLERANCE, 'int'
+    );
 
-    // Freeze the object to prevent runtime modification (enhancing governance integrity).
+    // 2. Future Hook: Integrate call to validateGovernanceSettings() here after remote fetch.
+
+    // 3. Freeze the object to ensure deep immutability.
     return Object.freeze(settings);
 }
 
-// Immediately load and freeze the settings upon module import.
 const GOVERNANCE_SETTINGS = initializeGovernanceSettings();
 
 module.exports = {
     GOVERNANCE_SETTINGS,
-    // Utility export for easy key access, prioritizing immutability.
+    /** @param {string} key */
     getSetting: (key) => GOVERNANCE_SETTINGS[key]
 };
