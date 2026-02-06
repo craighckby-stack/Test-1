@@ -1,9 +1,11 @@
 # system/metrics/MetricAggregator.py
 import math
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
+from collections import defaultdict
 
-# Configuration constraints based on Axiom I (UMA) 
-# and implied structure (0.0 to 1.0 scoring).
+# Constants for improved readability and type checking
+METRIC_RANGE = 'range'
+METRIC_WEIGHT = 'weight'
 
 class MetricAggregator:
     """
@@ -13,46 +15,61 @@ class MetricAggregator:
     """
 
     # NOTE: In production, this schema should be dynamically loaded via a Configuration Manager
-    # (See architectural proposal)
-    DEFAULT_SCHEMA = {
-        "EfficiencyScore": {"range": (0.0, 100.0), "weight": 0.45}, 
-        "ResourceUtilization": {"range": (0.0, 1.0), "weight": 0.30}, 
-        "MandateFulfillmentRatio": {"range": (0.5, 1.0), "weight": 0.25}
+    DEFAULT_SCHEMA: Dict[str, Dict[str, Any]] = {
+        "EfficiencyScore": {METRIC_RANGE: (0.0, 100.0), METRIC_WEIGHT: 0.45}, 
+        "ResourceUtilization": {METRIC_RANGE: (0.0, 1.0), METRIC_WEIGHT: 0.30}, 
+        "MandateFulfillmentRatio": {METRIC_RANGE: (0.5, 1.0), METRIC_WEIGHT: 0.25}
     }
 
     def __init__(self, logger: Any, schema: Dict[str, Dict[str, Any]] = None):
-        self.raw_metrics: Dict[str, List[Dict[str, float]]] = {}
+        # Use defaultdict for simpler ingestion logic initialization
+        self.raw_metrics: Dict[str, List[Dict[str, float]]] = defaultdict(list)
         self.logger = logger
         
-        # Load schema and validate weights
-        self.schema = self._validate_and_merge_schema(schema or self.DEFAULT_SCHEMA)
-        
-        total_weight = sum(item["weight"] for item in self.schema.values())
-        if not math.isclose(total_weight, 1.0, abs_tol=1e-6):
-             self.logger.log_error(f"TEMM Schema weights must sum to 1.0. Current sum: {total_weight}")
-             self._normalize_weights(total_weight)
+        # Load schema, perform validation, and normalize weights
+        self.schema = self._load_and_validate_schema(schema or {})
 
-
-    def _normalize_weights(self, total_weight: float):
-        """Ensures weights strictly sum to 1.0 if an error is detected."""
-        if total_weight > 0:
-            for metric in self.schema:
-                self.schema[metric]["weight"] /= total_weight
-            self.logger.log_warning(f"TEMM weights renormalized to 1.0.")
-
-    def _validate_and_merge_schema(self, new_schema: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-        """Ensures schema integrity and merges defaults."""
+    def _load_and_validate_schema(self, custom_schema: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        Ensures schema integrity, merges defaults, validates total weight, and performs normalization.
+        Strictly enforces metrics defined in DEFAULT_SCHEMA.
+        """
         final_schema = {}
-        # Start with defaults and allow overriding
-        for metric, definition in self.DEFAULT_SCHEMA.items():
-            final_schema[metric] = definition.copy() 
-            
-            if metric in new_schema:
-                if 'range' in new_schema[metric] and len(new_schema[metric]['range']) == 2:
-                    final_schema[metric]['range'] = new_schema[metric]['range']
-                if 'weight' in new_schema[metric]:
-                    final_schema[metric]['weight'] = new_schema[metric]['weight']
         
+        # Use only metrics defined in the default schema for strict TEMM adherence
+        for metric_name, definition in self.DEFAULT_SCHEMA.items():
+            
+            def_copy = definition.copy()
+            
+            if metric_name in custom_schema:
+                custom_def = custom_schema[metric_name]
+                
+                # Conditional overriding based on input integrity checks
+                if METRIC_RANGE in custom_def and isinstance(custom_def[METRIC_RANGE], tuple) and len(custom_def[METRIC_RANGE]) == 2:
+                    def_copy[METRIC_RANGE] = custom_def[METRIC_RANGE]
+                
+                if METRIC_WEIGHT in custom_def and isinstance(custom_def[METRIC_WEIGHT], (int, float)):
+                    def_copy[METRIC_WEIGHT] = custom_def[METRIC_WEIGHT]
+
+            # Final check before assignment: ensure range is sensible (min <= max)
+            min_val, max_val = def_copy[METRIC_RANGE]
+            if min_val > max_val:
+                self.logger.log_error(f"Schema violation for '{metric_name}': Min ({min_val}) > Max ({max_val}). Reverting to default bounds.")
+                def_copy[METRIC_RANGE] = definition[METRIC_RANGE]
+
+            final_schema[metric_name] = def_copy
+
+        # Validate and normalize total weight across the final schema
+        total_weight = sum(item[METRIC_WEIGHT] for item in final_schema.values())
+        
+        if not math.isclose(total_weight, 1.0, abs_tol=1e-6):
+             self.logger.log_error(f"TEMM Schema weights must sum to 1.0. Current sum: {total_weight}. Normalizing...")
+             
+             if total_weight > 0:
+                for metric in final_schema:
+                    final_schema[metric][METRIC_WEIGHT] /= total_weight
+                self.logger.log_warning(f"TEMM weights strictly renormalized to 1.0.")
+
         return final_schema
 
     def ingest_runtime_data(self, stage: str, data: Dict[str, float]):
@@ -60,14 +77,16 @@ class MetricAggregator:
         Ingests data points generated by SGS during execution stages (S05-S07).
         Only stores data relevant to the TEMM calculation defined in the schema.
         """
-        if stage not in self.raw_metrics:
-            self.raw_metrics[stage] = []
+        # Using self.raw_metrics = defaultdict(list) handles stage initialization implicitly
         
         filtered_data = {k: v for k, v in data.items() if k in self.schema}
         
         if filtered_data:
             self.raw_metrics[stage].append(filtered_data)
-            self.logger.log_debug(f"Metrics ingested for {stage} ({len(filtered_data)} relevant points)."_standardize_metric)
+            # FIX: Corrected internal string interpolation error from original code
+            self.logger.log_debug(
+                f"Metrics ingested for {stage}. Relevant points: {len(filtered_data)}."
+            )
         else:
             self.logger.log_debug(f"Ingestion for {stage} ignored. No relevant TEMM metrics found.")
 
@@ -77,19 +96,20 @@ class MetricAggregator:
         Standardizes a raw metric value (Min-Max normalization) to the [0.0, 1.0] range.
         Scores outside the defined range are capped at 0.0 or 1.0.
         """
-        if metric_name not in self.schema:
+        definition = self.schema.get(metric_name)
+        if definition is None:
             return 0.0
 
-        min_val, max_val = self.schema[metric_name]["range"]
+        min_val, max_val = definition[METRIC_RANGE]
         
-        if max_val <= min_val:
-            # Handle edge case where bounds are invalid
+        # Robustness check: Handle invalid or identical bounds using math.isclose
+        if math.isclose(max_val, min_val):
             return 1.0 if value >= max_val else 0.0
 
         # Min-Max Normalization: (x - min) / (max - min)
         standardized = (value - min_val) / (max_val - min_val)
         
-        # Cap the score to ensure it remains within the defined bounds [0.0, 1.0]
+        # Cap the score
         return max(0.0, min(1.0, standardized))
 
 
@@ -97,36 +117,51 @@ class MetricAggregator:
         """
         Aggregates and standardizes raw metrics against the schema, applying 
         defined weights to produce the final TEMM score (0.0 - 1.0).
+        
+        Uses efficient intermediate aggregation (sum/count) across all raw data points.
         """
-        if not any(self.raw_metrics.values()):
+        if not self.raw_metrics:
             self.logger.log_warning("No raw metrics available. TEMM set to 0.0.")
             return 0.0
 
-        standardized_scores_by_metric = {m: [] for m in self.schema}
+        # {metric_name: (total_standardized_score_sum, count)}
+        # Use dict instead of tuple for modification during iteration, but initialize with count=0
+        aggregate_data: Dict[str, Dict[str, float | int]] = defaultdict(lambda: {"sum": 0.0, "count": 0})
 
-        # 1. Aggregate and Standardize all points
-        for stage_data in self.raw_metrics.values():
-            for data_point in stage_data:
+        # 1. Standardize and Sum all points across all stages
+        for stage_data_list in self.raw_metrics.values():
+            for data_point in stage_data_list:
                 for metric_name, value in data_point.items():
                     if metric_name in self.schema:
                         standardized_score = self._standardize_metric(metric_name, value)
-                        standardized_scores_by_metric[metric_name].append(standardized_score)
+                        
+                        aggregate_data[metric_name]["sum"] += standardized_score
+                        aggregate_data[metric_name]["count"] += 1
 
         # 2. Calculate average score per metric and apply weights
         temm_score = 0.0
         
         for metric_name, definition in self.schema.items():
-            scores = standardized_scores_by_metric[metric_name]
-            weight = definition["weight"]
+            weight = definition[METRIC_WEIGHT]
             
-            if scores:
-                avg_score = sum(scores) / len(scores)
-                weighted_score = avg_score * weight
-                temm_score += weighted_score
-            else:
-                self.logger.log_debug(f"Metric '{metric_name}' missing data points. Weight {weight} unapplied.")
+            if metric_name in aggregate_data:
+                metric_totals = aggregate_data[metric_name]
+                count = metric_totals["count"]
+                total_sum = metric_totals["sum"]
+                
+                if count > 0:
+                    avg_score = total_sum / count
+                    weighted_score = avg_score * weight
+                    temm_score += weighted_score
+                else:
+                    self.logger.log_debug(f"Metric '{metric_name}' received data points but failed aggregation. Weight {weight} unapplied.")
 
-        final_temm = min(1.0, temm_score)
+            else:
+                self.logger.log_debug(
+                    f"Metric '{metric_name}' required by TEMM schema but received no data. Weight {weight} unapplied."
+                )
+
+        final_temm = min(1.0, max(0.0, temm_score)) # Ensure 0.0 <= TEMM <= 1.0
         
         self.logger.log_info(f"TEMM Calculated: {final_temm:.6f}")
         return final_temm
@@ -137,6 +172,6 @@ class MetricAggregator:
         """
         return {
             "TEMM": self.calculate_temm(),
-            "RawDataSnapshot": self.raw_metrics,
+            "RawDataSnapshot": dict(self.raw_metrics), # Convert defaultdict back to dict for serializability
             "StandardizationSchema": self.schema,
         }
