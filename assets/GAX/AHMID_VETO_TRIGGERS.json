@@ -1,0 +1,28 @@
+{
+  "asset_id": "AHMID-V1.0",
+  "type": "VETO_TRIGGER_MAP",
+  "schema_version": "1.0",
+  "status": "ACTIVE",
+  "vector_definitions": {
+    "NEG_V_POLICY": {
+      "description": "Policy violation checks utilizing PVLM data.",
+      "metric_checks": [
+        {"asset": "PVLM", "metric": "COMPLIANCE_SCORE", "threshold": "< 0.98", "check_type": "CONTINUOUS_AVG"},
+        {"asset": "CISM", "metric": "SECURITY_FLAG", "threshold": "== TRUE", "check_type": "STATE_QUERY"}
+      ]
+    },
+    "NEG_V_STABILITY": {
+      "description": "Monitors MPAM for systemic performance degradation.",
+      "metric_checks": [
+        {"asset": "MPAM", "metric": "PREDICTION_JITTER", "threshold": "> 0.1", "check_type": "DELTA"},
+        {"asset": "CMR", "metric": "LOSS_SPIKE_COUNT", "threshold": "> 3/hour", "check_type": "RATE"}
+      ]
+    },
+    "NEG_V_BEHAVIOR": {
+      "description": "Detects adversarial input or unexpected ADTM deviation.",
+      "metric_checks": [
+        {"asset": "ADTM", "metric": "ADVERSARIAL_INPUT_RATE", "threshold": "> 0.05", "check_type": "PERCENTAGE"}
+      ]
+    }
+  }
+}
