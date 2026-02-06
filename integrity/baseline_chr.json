@@ -1,26 +1,31 @@
 {
-  "description": "Baseline Configuration Hash Registry (CHR). Contains immutable SHA-256 hashes for all static governing configuration files required for C-ICR validation (S00/RRP initiation).",
+  "description": "Validated Baseline Configuration Hash Registry (CHR). Keys serve as standardized Component Identifiers (CID) for efficient indexing during C-ICR validation.",
   "version": "v94.1.0-BASE",
-  "files": [
-    {
-      "tag": "GSEP-F",
+  "integrity_algorithm": "SHA256",
+  "metadata": {
+    "generated_timestamp": "[RUNTIME_TIMESTAMP]",
+    "commit_id": "[SOURCE_CONTROL_COMMIT_ID]"
+  },
+  "registry": {
+    "CID_GSEP_FLOW": {
       "path": "config/gsep_c_flow.json",
-      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+      "description": "Governing System Execution Protocol - Flow Configuration",
+      "hash": "[GENERATE_RUNTIME_HASH]"
     },
-    {
-      "tag": "DARM",
+    "CID_DARM": {
       "path": "config/dial_analysis_map.json",
-      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+      "description": "Dialect Analysis Resource Map",
+      "hash": "[GENERATE_RUNTIME_HASH]"
     },
-    {
-      "tag": "RRP Manifest",
+    "CID_RRP_MANIFEST": {
       "path": "config/rrp_manifest.json",
-      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+      "description": "Role Restriction Protocol Manifest",
+      "hash": "[GENERATE_RUNTIME_HASH]"
     },
-    {
-      "tag": "SMC Schema",
+    "CID_SMC_SCHEMA": {
       "path": "governance/smc_schema.json",
-      "hash_sha256": "[GENERATE_RUNTIME_HASH]"
+      "description": "System Monitoring & Control Data Schema",
+      "hash": "[GENERATE_RUNTIME_HASH]"
     }
-  ]
+  }
 }
