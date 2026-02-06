@@ -1,0 +1,19 @@
+{
+  "agent_id": "KMO-v94.1",
+  "enabled": true,
+  "scan_interval_seconds": 3600,
+  "key_catalog_path": "config/security/signing_key_catalog.json",
+  "rotation_strategy": "ConcurrentAndGracefulDeprecation",
+  "audit_logging": {
+    "minimum_level": "INFO",
+    "log_target": "SIEM-KMS-Events"
+  },
+  "lifecycle_hooks": {
+    "pre_rotation_alert_days": 30,
+    "revocation_publisher": "CRL_Service_Endpoint_M02"
+  },
+  "archival_policy": {
+    "retention_period_days": 1825,
+    "storage_target_vault": "ArchivalVault/KMS-LongTerm-01"
+  }
+}
