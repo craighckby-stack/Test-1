@@ -1,0 +1,15 @@
+{
+  "source_id": "ES-Vortex/QNG",
+  "implementation_class": "QuantumEntropyGeneratorV4",
+  "endpoint": "tcp://entropy-vortex.local:8848",
+  "security_mode": "TLSv1.3_Mutual_Auth",
+  "parameters": {
+    "min_entropy_bits_per_request": 256,
+    "max_generation_latency_ms": 50,
+    "failover_mechanism": "Hashed_State_Fallback"
+  },
+  "health_check": {
+    "path": "/healthz/entropy_status",
+    "interval_ms": 5000
+  }
+}
