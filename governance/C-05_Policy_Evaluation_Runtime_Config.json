@@ -1,0 +1,17 @@
+{
+  "description": "Configuration for the Policy Evaluation Runtime (PER) engine used by GSEP Stage 1 to securely process P-01 Constraint conditions.",
+  "runtime_version": "1.0.0",
+  "language": "CEL_Subset_v1",
+  "security": {
+    "execution_timeout_ms": 200,
+    "memory_limit_mb": 16,
+    "sandboxing_enabled": true,
+    "sandbox_env": "firecracker_microvm"
+  },
+  "allowed_context_paths": [
+    "Goal_Declaration",
+    "Metrics.Pre_Mutation",
+    "Metrics.Post_Mutation",
+    "Mutation.Risk_Score"
+  ]
+}
