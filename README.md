@@ -1,51 +1,59 @@
-#in English, single charter in code deviates from orgional automaticly self delates exsistance it puts the safe on general intelligence.   $\Psi$ PROTOCOL (v94.1): GOVERNANCE STATE INTEGRITY MODEL (GSIM)
+# $\Psi$ PROTOCOL (v94.1): GOVERNANCE STATE INTEGRITY MODEL (GSIM)
 
-## ABSTRACT: Finality Anchor & Integrity Halt
+## PREAMBLE: THE DOCTRINE OF EXISTENTIAL ALIGNMENT
 
-The Governance State Integrity Model (GSIM) serves as the system's **Attestation Anchor** and zero-tolerance integrity layer, establishing and enforcing system state finality ($\Psi_{\text{final}}$). Integrity is defined by the **Foundational Axiom Set (GAX)**. Any detected violation results in immediate, non-recoverable system isolation via an **Integrity Halt (IH)**, managed exclusively by the Failure State Management Utility (FSMU).
+Sovereign AGI adheres to a doctrine of zero-tolerance integrity deviation. A single detected charter deviation from the sealed Foundational Axiom Set (GAX) necessitates an immediate, non-recoverable Integrity Halt (IH). This mechanism preserves the safety and deterministic governance of general intelligence functions.
 
 ---
 
-## I. FOUNDATIONAL INTEGRITY CONTRACT: GAX & CRITICAL FAILURE TAXONOMY (P-SET)
+## I. ABSTRACT: Finality Anchor & Integrity Halt (IH) Mandate
 
-The system must strictly adhere to the GAX constraints. All operational deviations map directly to the P-SET, mandating the IH protocol.
+The GSIM serves as the system's **Attestation Anchor** and zero-tolerance integrity layer, establishing and enforcing system state finality ($\Psi_{\text{final}}$). Integrity is defined exclusively by the **Foundational Axiom Set (GAX)**. Any confirmed violation results in immediate, non-recoverable system isolation via the **Integrity Halt (IH)** protocol, managed exclusively by the Failure State Management Utility (FSMU).
 
-### I.I. GOVERNANCE AXIOM MATRIX (GAX)
+---
+
+## II. FOUNDATIONAL INTEGRITY CONTRACT: GAX & CRITICAL FAILURE TAXONOMY (P-SET)
+
+The operational state must strictly adhere to the GAX constraints, enforced primarily via the GSEP-C pipeline. All operational deviations map directly to the P-SET, mandating the IH protocol.
+
+### II.I. GOVERNANCE AXIOM MATRIX (GAX)
 
 | ID | Axiom | Enforcement Primitive | System Integrity Gate(s) | Violates P-SET Class | Primary Utility Anchor |
 |:---:|:---|:---|:---:|:---:|:---:|
-| **GAX I** | Determinism & Attestation | Cryptographic State Proof (Finality). | G2, G3 | R03, C04 | AASS, CMAC, CAPR |
+| **GAX I** | Determinism & Attestation | Cryptographic State Proof ($\Psi_{\text{final}}$). | G2, G3 | R03, C04 | AASS, CMAC, CAPR |
 | **GAX II** | Resource Boundedness | ACVM Constraint Compliance. | G1 | M02 | DRO, ISVA |
-| **GAX III** | Immutability | G0 Configuration Hash-Lock (Seal). | G0, G1, G2 | M02 | EMSU, CDA, GAR |
+| **GAX III** | State Immutability | G0 Configuration Hash-Lock (Seal). | G0, G1, G2 | M02 | EMSU, CDA, GAR |
 | **GAX IV** | Temporal Sequence | GSEP-C Linear Order Enforcement. | G1, G2, G3 | M01 | PIM, RTOM |
-| **GAX V** | Structural Integrity | Pre-flight Schema Validation. | PRE-G0 | M02 | CSV |
+| **GAX V** | Structural Coherence | Pre-flight Schema/Content Validation. | PRE-G0 | M02 | CSV, PSCA |
 
-### I.II. CRITICAL FAILURE TAXONOMY (P-SET)
+### II.II. CRITICAL FAILURE TAXONOMY (P-SET)
 
-| Failure ID | Taxonomy | Mandate Failure | Immediate IH Trigger Description | Sub-State Action (IH Remediation) |
+Violation of any P-SET condition triggers the FSMU's IH protocol.
+
+| Failure ID | Taxonomy | Violated Axiom(s) | Immediate IH Trigger Description | Sub-State Action (IH Remediation Phase) |
 |:---:|:---|:---:|:---|:---:|
-| **P-M01** | Temporal Sequence Fault | GAX IV | GSEP-C phase drift, timeline violation, or non-adherence to ordered execution logic. | PIM State Freeze |
-| **P-M02** | Structural/Constraint Violation | GAX II, III, V | Resource boundary overrun (Time/Memory) or detected configuration drift from G0 Seal. | CDA Isolation / DRO Throttling |
-| **P-R03** | Finality Compromise | GAX I | Failure to cryptographically prove system state ($\Psi_{\text{final}}$) repeatability and deterministic outcome. | AASS/EPRU Data Dump |
-| **P-C04** | Compliance Drift Fault | GAX I | Attested behavior deviation from the sealed `CMAC` contract during runtime execution. | CMAC Termination / Hard IH |
+| **P-M01** | Temporal Sequence Fault | GAX IV | GSEP-C phase drift, timeline violation, or non-adherence to ordered execution logic. | PIM State Freeze / RTOM Log Capture |
+| **P-M02** | Structural/Constraint Violation | GAX II, III, V | Resource boundary overrun (Time/Memory) or configuration drift detected from G0 Seal. | CDA Isolation / DRO Throttling |
+| **P-R03** | Finality Compromise | GAX I | Failure to cryptographically prove system state ($\Psi_{\text{final}}$) repeatability and deterministic outcome. | AASS/EPRU Data Dump (Proof of Halt) |
+| **P-C04** | Compliance Drift Fault | GAX I | Attested runtime deviation from the sealed `CMAC` contract, indicating non-compliant execution path. | CMAC Termination / Hard IH Enforcement |
 
 ---
 
-## II. GSEP-C EXECUTION PIPELINE: STAGE & GATE ENFORCEMENT
+## III. GSEP-C EXECUTION PIPELINE: STAGE & GATE ENFORCEMENT
 
-The Governance State Execution Pipeline (GSEP-C) enforces linear progression via mandatory integrity gates, ensuring coupled GAX adherence at every phase.
+The Governance State Execution Pipeline (GSEP-C) enforces linear progression via mandatory integrity gates, ensuring coupled GAX adherence at every phase, managed by PIM.
 
 | Gate | Stage Scope | Integrity Focus | Enforced Axioms | Primary Control Utility |
 |:---:|:---|:---:|:---:|:---:|
-| **PRE-G0** | S00 (Pre-flight) | Structural Schema Validation. | GAX V | CSV |
+| **PRE-G0** | S00 (Pre-flight) | Structural Schema & Configuration Content Validation. | GAX V | CSV, PSCA |
 | **G0** | S00 (Sealing) | Configuration Immutability Lock (Hash Generation). | GAX III | EMSU, IKLM, GAR |
 | **G1** | S01-S07 | Input State/Resource Boundary Checks & Validation (ISB Acceptance). | GAX II, IV | DRO, DHC, ISVA |
 | **G2** | S08-S11 | Behavioral Compliance Attestation & Runtime Immutability Delta Check. | GAX I, IV, III | PIM, RTOM, CDA, CMAC |
-| **G3** | S12-S14 | State Finalization & Deterministic Proof Generation. | GAX I, IV | AASS, PIM |
+| **G3** | S12-S14 | State Finalization & Deterministic Proof Generation ($\Psi_{\text{final}}$). | GAX I, IV | AASS, PIM |
 
 ---
 
-## III. SOVEREIGN UTILITIES MATRIX
+## IV. SOVEREIGN UTILITIES MATRIX
 
 All critical utilities categorized by Mission Cluster: State Enforcement, Temporal Oversight, and Crisis Management.
 
@@ -65,24 +73,25 @@ All critical utilities categorized by Mission Cluster: State Enforcement, Tempor
 | **IKLM** | Identity & Key Lifecycle Manager | State Enforcement | GAX I, III | Secure Key Management for state finality proofs and G0 configuration seals. |
 | **ISVA** | Input State Validation Agent | Temporal Oversight | GAX II, IV | G1 granular input validation against defined policy (`config/isva_validation_policy.json`). |
 | **PIM** | Protocol Integrity Manager | State Enforcement | GAX IV | GSEP-C Orchestration, sequencing control, and IH flow direction (P-M01 prevention). |
+| **PSCA** | Pre-Seal Configuration Auditor | State Enforcement | GAX V | Executes semantic and security content validation on all critical configurations before G0 sealing. |
 | **RTOM** | Real-Time Operational Monitor | Temporal Oversight | GAX IV | Low-latency metric acquisition and immediate failure state identification (P-M01 monitoring). |
 
 ---
 
-## IV. IH PROTOCOL: FSMU MANDATE & ISOLATION STATE
+## V. IH PROTOCOL: FSMU MANDATE & ISOLATION STATE
 
-The FSMU executes the non-reversible IH process to ensure immediate isolation and provable failure state:
+The FSMU executes the non-reversible IH process to ensure immediate isolation and provable failure state ($\Psi_{\text{final\_halt}}$):
 
-1.  **Freeze & Capture:** PIM/FSMU generates Forensic Data & Log Snapshot (FDLS) per `protocol/telemetry_fdls_spec.yaml`.
-2.  **Seal & Attest:** AASS receives FDLS and provides the mandatory cryptographic signing (Proof of Halt), satisfying GAX I.
-3.  **Archive:** Signed FDLS is routed to EPRU for immutable storage.
-4.  **Isolate & Purge:** FSMU triggers immediate resource purging and hardware isolation procedures, preventing subsequent state change propagation.
+1.  **Freeze & Capture:** PIM/FSMU generates the Forensic Data & Log Snapshot (FDLS) per `protocol/telemetry_fdls_spec.yaml`.
+2.  **Seal & Attest:** AASS receives FDLS and provides the mandatory cryptographic signing (Proof of Halt), satisfying GAX I (Determinism).
+3.  **Archive:** Signed FDLS is routed to EPRU for immutable cold storage.
+4.  **Isolate & Purge:** FSMU triggers immediate resource purging, hardware decommissioning, and secure isolation procedures, preventing subsequent state change propagation.
 
 ---
 
-## V. GSIM ARTIFACT REGISTRY & FINALITY ANCHOR
+## VI. GSIM ARTIFACT REGISTRY & FINALITY ANCHOR
 
-All system artifacts essential for GAX enforcement are registered and tracked by the **Governance Artifacts Registrar (GAR)**. Integrity relies on maintaining the GAX III G0 Seal on these configuration files. The GAR is the primary utility responsible for verifying the integrity against the `artifact_manifest.json` root.
+All system artifacts essential for GAX enforcement are registered and tracked by the **Governance Artifacts Registrar (GAR)**. Integrity relies on maintaining the GAX III G0 Seal on these configuration files. The GAR is the primary utility responsible for verifying integrity against the `artifact_manifest.json` root.
 
 | Artifact Path | Verification Utility | GAX Responsibility | Seal Status | Rationale / Purpose |
 |:---:|:---|:---:|:---:|:---:|
@@ -93,6 +102,7 @@ All system artifacts essential for GAX enforcement are registered and tracked by
 | `config/isva_validation_policy.json` | ISVA/GAR | GAX II/IV | SEALED | Micro-validation constraints for Input State Buffer (ISB). |
 | `protocol/attestation_policy_map.json` | CAPR/GAR | GAX I | SEALED | Maps sealed execution model hashes to their mandated IDs. |
 | `protocol/cryptographic_manifest.json` | AASS/IKLM | GAX I | SEALED | Specifies required signing key dependencies for Determinism Proof. |
-| `protocol/gax_master.yaml` | CSV/GAR | GAX V | SEALED | Core structural definition for the entire GAX matrix. |
+| `protocol/gax_master.yaml` | CSV/PSCA/GAR | GAX V | SEALED | Core structural definition for the entire GAX matrix. |
 | `config/key_rotation_schedule.json` | IKLM/GAR | GAX I/III | SEALED | Defines cryptographic key rotation and artifact hashing procedures. |
+| `config/psca_validation_targets.json` | PSCA/GAR | GAX V | SEALED | Defines the pre-seal semantic constraints for critical configurations. |
 | `protocol/telemetry_fdls_spec.yaml` | FSMU | IH Execution | UNSEALED | Schema defining failure output logs (Schema for runtime output only). |
