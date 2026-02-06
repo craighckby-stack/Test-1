@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agi.sovereign/schemas/v94/ActionRegistrySchema.json",
+  "title": "Sovereign AGI Action Registry Definition (M-02)",
+  "description": "Schema defining the structure of the internal Action Registry, listing all available Intents, their targets, and the required parameter schemas for unambiguous validation against M-01 Intents.",
+  "type": "object",
+  "patternProperties": {
+    "^[A-Z][a-zA-Z0-9]+$": { 
+      "type": "object",
+      "description": "Definitions for all actions available within a specific target component.",
+      "patternProperties": {
+        "^[A-Z_]+$": { 
+          "type": "object",
+          "description": "Definition of a specific action verb.",
+          "required": ["description", "parameter_schema"],
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "side_effects": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of observed or guaranteed system state changes (e.g., 'FILE_MUTATION', 'MEMORY_UPDATE')."
+            },
+            "parameter_schema": {
+              "type": "object",
+              "description": "The JSON schema required for the 'parameters' object within the M-01 Intent."
+            },
+            "is_query_only": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates if the action changes system state or is read-only."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
