@@ -1,34 +1,73 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Sovereign AGI Artifact Index Configuration",
-  "description": "Configuration for how the Artifact Index Service (AIS) should index and query manifest data.",
+  "title": "Sovereign AGI Artifact Index Schema Definition",
+  "description": "Defines the required schema structure, storage targets, and indexing strategies for the Artifact Manifests.",
   "type": "object",
   "properties": {
-    "storage_target": {
-      "type": "string",
-      "enum": ["DYNAMODB_GLOBAL", "POSTGRES_HYPERTABLE", "S3_ARCHIVE"],
-      "description": "The primary data store for manifests."
+    "engine_configuration": {
+      "type": "object",
+      "description": "Configuration dictating the storage engine type and parameters.",
+      "properties": {
+        "engine_type": {
+          "type": "string",
+          "enum": ["DYNAMODB_GLOBAL", "POSTGRES_HYPERTABLE", "S3_ARCHIVE_ONLY"],
+          "description": "The primary persistence engine used for indexing."
+        },
+        "default_region": {"type": "string", "description": "Cloud region for the primary storage target (if applicable)."},
+        "table_name": {"type": "string", "description": "The specific table/bucket name in the storage engine."}
+      },
+      "required": ["engine_type", "table_name"]
     },
-    "primary_keys": {
+    "key_schema": {
       "type": "array",
-      "items": {"type": "string", "enum": ["artifact_uuid"]}
-    },
-    "index_fields": {
-      "type": "array",
-      "description": "List of fields to create database indexes on for rapid query performance.",
+      "description": "Defines the primary key structure (HASH/RANGE attributes). Order matters.",
       "items": {
-        "type": "string",
-        "enum": ["objective_id", "timestamp_utc", "evolution_report.efficiency_score", "generated_artifacts.artifact_type"]
+        "type": "object",
+        "properties": {
+          "field_name": {"type": "string", "description": "The path to the attribute in the artifact manifest (e.g., 'artifact_uuid')."},
+          "key_type": {"type": "string", "enum": ["HASH", "RANGE"]},
+          "data_type": {"type": "string", "enum": ["STRING", "NUMBER", "BINARY"], "description": "DynamoDB or Postgres data type hint."}
+        },
+        "required": ["field_name", "key_type"]
       },
       "minItems": 1
     },
-    "ttl_policy": {
+    "secondary_indexes": {
+      "type": "array",
+      "description": "Definitions for Global/Local Secondary Indexes (GSI/LSI) or PostgreSQL indices.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index_name": {"type": "string"},
+          "index_fields": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of fields to index (e.g., 'objective_id', 'evolution_report.efficiency_score'). Supports dot notation for nested fields."
+          },
+          "is_unique": {"type": "boolean", "default": false},
+          "projection_type": {
+            "type": "string",
+            "enum": ["KEYS_ONLY", "INCLUDE", "ALL"],
+            "default": "KEYS_ONLY",
+            "description": "Indexing projection type, relevant for DynamoDB/document stores."
+          }
+        },
+        "required": ["index_name", "index_fields"]
+      }
+    },
+    "data_lifecycle": {
       "type": "object",
+      "description": "Policies governing Time-to-Live (TTL) and data partitioning.",
       "properties": {
-        "enabled": {"type": "boolean"},
-        "archive_after_days": {"type": "integer", "minimum": 90}
+        "ttl_enabled": {"type": "boolean"},
+        "archive_after_days": {"type": "integer", "minimum": 30},
+        "partition_field": {
+          "type": "string",
+          "description": "The field used for sharding or partitioning data (e.g., 'timestamp_utc' for time-series optimization).",
+          "enum": ["timestamp_utc", "objective_id", "agent_version"]
+        }
       }
     }
   },
-  "required": ["storage_target", "primary_keys", "index_fields"]
+  "required": ["engine_configuration", "key_schema", "secondary_indexes"]
 }
