@@ -4,7 +4,7 @@
  * Purpose: Processes P-01 (Trust Calculus) failures and M-02 (R-INDEX) rejections
  * to generate specific, measurable, and machine-readable refinement mandates. 
  * Prevents inefficient cycling of low-integrity proposals by strictly adhering
- * to defined governance action types.
+ * to defined, declarative governance action policies.
  */
 
 const {
@@ -15,9 +15,13 @@ const {
 
 class FailureStateAnalysisEngine {
     constructor(policyEngine, metricsSystem) {
-        this.C15 = policyEngine; // Policy Engine (Governance rules access)
-        this.ATM = metricsSystem; // Telemetry and Metrics System (Trust weightings/diagnostics)
-        this.RemediationMap = this.C15.getFailureRemediationMap();
+        // Renamed internally for clarity and context, mapping to standard acronyms
+        this.policyEngine = policyEngine; // C15 Policy Engine
+        this.metricsSystem = metricsSystem; // ATM Telemetry and Metrics System
+        
+        // The engine now depends entirely on this declarative map for action derivation
+        // enforcing external governance over hardcoded logic.
+        this.RemediationMap = this.policyEngine.getFailureRemediationMap();
         
         // Cache targets locally for quick access
         this.defaultTarget = GOV_TARGETS.DEFAULT_R_INDEX_TARGET;
@@ -29,11 +33,51 @@ class FailureStateAnalysisEngine {
      */
     _createMandateAction(type, data = {}) {
         if (!Object.values(MANDATE_ACTION_TYPES).includes(type)) {
-            // Failsafe: Log error and assign unknown type if input is malicious or outdated
-            this.ATM.logWarning('FSAE_INVALID_ACTION_TYPE', { attemptedType: type });
+            this.metricsSystem.logWarning('FSAE_INVALID_ACTION_TYPE', { attemptedType: type });
             type = MANDATE_ACTION_TYPES.UNKNOWN_ACTION;
         }
         return { type, ...data };
+    }
+
+    /**
+     * Uses the declarative RemediationMap to determine mandated actions and injects
+     * dynamic runtime data (e.g., score deficits, failed components) into policy actions.
+     */
+    _getMandateFromPolicy(stage, reasonKey, runtimeData = {}) {
+        const policy = this.RemediationMap.getRemediation(stage, reasonKey);
+        
+        if (!policy || !policy.actions) {
+            // Fallback for uncategorized or missing policy entries
+            return [{
+                type: MANDATE_ACTION_TYPES.MANUAL_REVIEW,
+                reason: `Policy mapping missing for [${stage}]:[${reasonKey}]`
+            }];
+        }
+
+        return policy.actions.map(action => {
+            const mandatedData = { ...action.data };
+            
+            // --- Runtime Data Injection & Dynamic Parameter Calculation ---
+            if (action.type === MANDATE_ACTION_TYPES.INCREASE_COVERAGE) {
+                // Use policy defined multipliers and minimums to calculate the required delta
+                const baseIncrease = mandatedData.baseIncrease || 10;
+                const gapMultiplier = mandatedData.gapMultiplier || 1.0;
+                
+                if (runtimeData.scoreGap !== undefined) {
+                    mandatedData.requiredCoverageDelta = Math.max(
+                        baseIncrease, 
+                        Math.ceil(runtimeData.scoreGap * 100 * gapMultiplier)
+                    );
+                }
+                mandatedData.component = runtimeData.component || mandatedData.component || 'GLOBAL';
+            }
+            
+            if (action.type === MANDATE_ACTION_TYPES.STABILITY_FOCUS && runtimeData.failedComponents) {
+                mandatedData.components = runtimeData.failedComponents;
+            }
+
+            return this._createMandateAction(action.type, mandatedData);
+        });
     }
 
     analyze(failureReport) {
@@ -54,7 +98,8 @@ class FailureStateAnalysisEngine {
                 this._analyzeRIndexFailure(reason, mandate);
                 break;
             default:
-                mandate.refinementMandates.push('UNCATEGORIZED FAILURE: Input stage unknown. Manual review required.');
+                mandate.refinementMandates.push('UNCATEGORIZED FAILURE: Input stage unknown. Policy review required.');
+                mandate.requiredActions = this._getMandateFromPolicy(stage, 'UNCATEGORIZED');
         }
 
         this.logMandate(mandate);
@@ -63,18 +108,19 @@ class FailureStateAnalysisEngine {
 
     /**
      * Handles failures stemming from insufficient Trust Calculus (P-01) scores.
+     * Now maps runtime state to declarative policy keys.
      */
     _analyzeTrustCalculusFailure(reason, mandate) {
-        const { vetoState, vetoSource, requiredConfidence, actualScore, trustWeightings } = reason;
+        const { vetoState, requiredConfidence, actualScore, trustWeightings } = reason;
 
-        // 1. Veto Handling (BLOCKING CRITICALITY)
+        // 1. Veto Handling (CRITICAL BLOCK)
         if (vetoState === true) {
-            mandate.refinementMandates.push(`POLICY VIOLATION: Vetoed by source '${vetoSource}'. Resolve C-15 policy conflict.`);
-            
-            mandate.requiredActions.push(this._createMandateAction(
-                MANDATE_ACTION_TYPES.POLICY_RESOLUTION,
-                { source: vetoSource, criticality: 'BLOCKING' }
-            ));
+            mandate.refinementMandates.push(`POLICY VIOLATION: Vetoed.`);
+            mandate.requiredActions = this._getMandateFromPolicy(
+                FAILURE_STAGES.P01_TRUST_CALCULUS, 
+                'VETOED', 
+                { source: reason.vetoSource }
+            );
             mandate.newRIndexTarget = this.vetoTarget;
             return;
         } 
@@ -83,63 +129,62 @@ class FailureStateAnalysisEngine {
         const scoreGap = requiredConfidence - actualScore;
         
         if (scoreGap > 0) {
-            const analysis = this.ATM.diagnoseScoreDeficiency(trustWeightings);
+            const analysis = this.metricsSystem.diagnoseScoreDeficiency(trustWeightings);
             const component = analysis.majorDeficiencyComponent;
 
-            if (component) {
-                // Calculate required test boost based on gap severity and component sensitivity
-                const sensitivity = analysis.sensitivityMultiplier || 1.2;
-                // Ensure a reasonable minimum required delta (e.g., 10%) 
-                const requiredIncrease = Math.max(10, Math.ceil(scoreGap * 100 * sensitivity));
-                
-                mandate.refinementMandates.push(`TRUST DEFICIT (${scoreGap.toFixed(4)}): Primary source: '${component}'. Targeted integrity boost required (+${requiredIncrease}% coverage focus).`);
-                
-                mandate.requiredActions.push(this._createMandateAction(
-                    MANDATE_ACTION_TYPES.INCREASE_COVERAGE,
-                    { component, requiredCoverageDelta: requiredIncrease }
-                ));
+            let reasonKey;
+            
+            // Define policy lookup keys based on severity and source targeting
+            if (scoreGap >= 0.10) { 
+                 reasonKey = 'MAJOR_TRUST_DEFICIT';
+            } else if (component) {
+                 reasonKey = 'TARGETED_TRUST_DEFICIT';
             } else {
-                 mandate.refinementMandates.push(`LOW TRUST SCORE: Generalized deficiency detected. Increase overall unit test coverage by 15%.`);
-                 mandate.requiredActions.push(this._createMandateAction(
-                     MANDATE_ACTION_TYPES.INCREASE_COVERAGE,
-                     { component: 'GLOBAL', requiredCoverageDelta: 15 }
-                 ));
+                 reasonKey = 'GENERAL_DEFICIT';
             }
 
-            // Set R-Index Target higher than required confidence based on gap penalty
-            mandate.newRIndexTarget = Math.min(1.0, requiredConfidence + scoreGap * 0.15);
+            mandate.refinementMandates.push(`TRUST DEFICIT (${scoreGap.toFixed(4)}). Failure Type: ${reasonKey}.`);
+
+            // Fetch dynamic actions and targets based on calculated reasonKey
+            mandate.requiredActions = this._getMandateFromPolicy(
+                FAILURE_STAGES.P01_TRUST_CALCULUS,
+                reasonKey,
+                { scoreGap, component, requiredConfidence }
+            );
+            
+            const deficitPolicy = this.RemediationMap.getRemediation(FAILURE_STAGES.P01_TRUST_CALCULUS, reasonKey);
+            // Use policy target or calculate fallback target
+            mandate.newRIndexTarget = deficitPolicy.newTarget || Math.min(1.0, requiredConfidence + scoreGap * 0.15);
         }
     }
 
     /**
      * Handles failures stemming from low Readiness Index (M-02) checks.
+     * Now maps runtime state to declarative policy keys.
      */
     _analyzeRIndexFailure(reason, mandate) {
         const { failedComponents } = reason;
 
-        if (failedComponents && failedComponents.length > 0) {
-            const componentList = failedComponents.join(', ');
-            
-            mandate.refinementMandates.push(`LOW READINESS INDEX: Failed invariant checks in M-02 for components: [${componentList}]. Focus on component stability validation.`);
-            
-            mandate.requiredActions.push(this._createMandateAction(
-                MANDATE_ACTION_TYPES.STABILITY_FOCUS,
-                { components: failedComponents, depth: 'INTERFACE_INTEGRITY' }
-            ));
-            
-            mandate.newRIndexTarget = this.defaultTarget + 0.10; // Boost R-Index target slightly to force robust solution
-        } else {
-             mandate.refinementMandates.push(`R-INDEX FAILURE: General component stability failure detected. Review low-level dependency graph.`);
-             mandate.requiredActions.push(this._createMandateAction(
-                 MANDATE_ACTION_TYPES.RESOURCE_AUDIT, 
-                 { scope: 'DEPENDENCIES', reason: 'Unspecified M-02 Invariant Failure' }
-             ));
-        }
+        const reasonKey = failedComponents && failedComponents.length > 0 
+            ? 'COMPONENT_INSTABILITY' 
+            : 'GENERAL_INSTABILITY';
+
+        mandate.refinementMandates.push(`LOW READINESS INDEX: Failure type: ${reasonKey}.`);
+        
+        mandate.requiredActions = this._getMandateFromPolicy(
+            FAILURE_STAGES.M02_R_INDEX_READINESS,
+            reasonKey,
+            { failedComponents }
+        );
+
+        const stabilityPolicy = this.RemediationMap.getRemediation(FAILURE_STAGES.M02_R_INDEX_READINESS, reasonKey);
+        // Use policy target or fallback target
+        mandate.newRIndexTarget = stabilityPolicy.newTarget || (this.defaultTarget + 0.10);
     }
 
     logMandate(mandate) {
         // D-01 Audit Logger integration utilizing ATM
-        this.ATM.logEvent('FSAE_MANDATE_ISSUED', {
+        this.metricsSystem.logEvent('FSAE_MANDATE_ISSUED', {
             target: mandate.targetProposal,
             actionsCount: mandate.requiredActions.length,
             newTarget: mandate.newRIndexTarget
