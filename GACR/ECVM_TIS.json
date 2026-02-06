@@ -1,0 +1,30 @@
+{
+  "gate_id": "S4.5",
+  "manifest_version": "1.0.0",
+  "metadata": {
+    "description": "Defines the mandatory telemetry input sources for ECVM execution."
+  },
+  "telemetry_inputs": [
+    {
+      "source_name": "API_Performance_Monitor",
+      "required_for_constraints": ["CVA-201"],
+      "data_path": "metrics.latency.ms",
+      "fetch_protocol": "HTTP/2_PULL",
+      "retrieval_interval_ms": 500
+    },
+    {
+      "source_name": "DTEM_Cache_Status",
+      "required_for_constraints": ["CVA-305"],
+      "data_path": "cache_status.last_update_ts",
+      "fetch_protocol": "IPC_MOCK",
+      "sampling_rate_seconds": 30
+    },
+    {
+      "source_name": "Resource_Allocator_Feed",
+      "required_for_constraints": ["CVA-412"],
+      "data_path": "resource_pool.utilization_summary",
+      "fetch_protocol": "GRPC_BI_STREAM",
+      "validation_schema_ref": "GACR/Schemas/ResourceTelemetry.json"
+    }
+  ]
+}
