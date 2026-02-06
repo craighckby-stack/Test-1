@@ -1,0 +1,17 @@
+{
+  "predictor_version": "1.0.0",
+  "algorithm": "ExponentiallySmoothedMovingAverage",
+  "lookahead_horizon_ms": 300000,
+  "forecasting_interval_ms": 5000,
+  "cost_threshold_alarm_percent": 0.95,
+  "smoothing_factors": {
+    "short_term_cost_alpha": 0.1,
+    "long_term_cost_beta": 0.01,
+    "utilization_gamma": 0.05
+  },
+  "inputs_tracked": [
+    "tokens_consumed_rate",
+    "gpu_seconds_rate",
+    "read_write_latency"
+  ]
+}
