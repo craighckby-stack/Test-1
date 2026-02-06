@@ -1,43 +1,54 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign.agi/schema/governance/DCSM_v94.1.json",
+  "$id": "http://sovereign.agi/schema/governance/DSE_Commitment_Summary_Manifest_v94.1.json",
   "title": "Deterministic Commitment Summary Manifest (DCSM)",
-  "description": "Finalized, immutable summary confirming a successful, deterministic state transition (Psi_N -> Psi_N+1) following P-01 PASS, optimized for rapid verification.",
+  "description": "Finalized, immutable summary confirming a successful, deterministic state transition (Psi_N -> Psi_N+1) following P-01 PASS, optimized for rapid verification and cryptographic anchoring.",
   "type": "object",
   "definitions": {
     "AxiomaticVetoStatus": {
       "type": "object",
-      "description": "Validation checks confirming negation of all mandatory vetoes. A value of 'true' indicates the veto condition was successfully negated.\n(i.e., The system state is safe to commit).",
+      "description": "Validation checks confirming negation of all mandatory vetoes. 'true' indicates veto condition was successfully negated, certifying system state safety.",
       "properties": {
         "pvlm_status": {
           "type": "boolean",
-          "description": "Policy Veto Lockout Negation status ($\neg$PVLM). Must be true.",
+          "description": "Policy Veto Lockout Negation (¬PVLM). Must be true.",
           "const": true
         },
         "mpam_status": {
           "type": "boolean",
-          "description": "Minimum Performance Assurance Negation status ($\neg$MPAM). Must be true.",
+          "description": "Minimum Performance Assurance Negation (¬MPAM). Must be true.",
           "const": true
         },
         "adtm_status": {
           "type": "boolean",
-          "description": "Anomaly Detection Threshold Negation status ($\neg$ADTM). Must be true.",
+          "description": "Anomaly Detection Threshold Negation (¬ADTM). Must be true.",
           "const": true
         }
       },
-      "required": ["pvlm_status", "mpam_status", "adtm_status"],
+      "required": [
+        "pvlm_status",
+        "mpam_status",
+        "adtm_status"
+      ],
       "additionalProperties": false
     },
     "AnchorLinkage": {
       "type": "object",
-      "description": "Crucial forensic and commitment identifiers.",
+      "description": "Crucial forensic and cryptographic identifiers linking the new state to the prior state.",
       "properties": {
-        "state_root_hash": {
+        "previous_state_root_hash": {
           "type": "string",
-          "description": "Cryptographic hash (e.g., SHA3-256) of the resulting system state root.",
+          "description": "Cryptographic hash of the predecessor system state root (Psi_N).",
           "minLength": 64,
           "maxLength": 64,
-          "pattern": "^[0-9a-fA-F]+$"
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "state_root_hash": {
+          "type": "string",
+          "description": "Cryptographic hash of the resulting system state root (Psi_N+1).",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-fA-F]{64}$"
         },
         "tvcr_index": {
           "type": "string",
@@ -45,14 +56,44 @@
           "format": "uuid"
         }
       },
-      "required": ["state_root_hash", "tvcr_index"],
+      "required": [
+        "previous_state_root_hash",
+        "state_root_hash",
+        "tvcr_index"
+      ],
+      "additionalProperties": false
+    },
+    "SignatureContext": {
+      "type": "object",
+      "description": "Cryptographic signature verifying the manifest's integrity and source authority.",
+      "properties": {
+        "signing_algorithm": {
+          "type": "string",
+          "description": "The cryptographic algorithm used for signing (e.g., Ed25519, ECDSA-P256)."
+        },
+        "commitment_signature": {
+          "type": "string",
+          "description": "The digital signature of the canonical manifest payload.",
+          "pattern": "^[0-9a-fA-F]+$"
+        },
+        "key_identifier": {
+          "type": "string",
+          "description": "Identifier (e.g., public key hash or key ID) of the commitment authority."
+        }
+      },
+      "required": [
+        "signing_algorithm",
+        "commitment_signature",
+        "key_identifier"
+      ],
       "additionalProperties": false
     }
   },
   "properties": {
     "protocol_version": {
       "type": "string",
-      "description": "SAG Specification version confirming compliance (e.g., V94.1)"
+      "description": "SAG Specification version confirming compliance (e.g., V94.1)",
+      "pattern": "^V[0-9]+\\.[0-9]+$"
     },
     "dse_epoch_id": {
       "type": "string",
@@ -84,7 +125,11 @@
           "exclusiveMinimum": 0
         }
       },
-      "required": ["temm", "ufrm", "cftm"],
+      "required": [
+        "temm",
+        "ufrm",
+        "cftm"
+      ],
       "additionalProperties": false
     },
     "veto_summary": {
@@ -97,6 +142,9 @@
     },
     "anchor_links": {
       "$ref": "#/definitions/AnchorLinkage"
+    },
+    "signature": {
+      "$ref": "#/definitions/SignatureContext"
     }
   },
   "required": [
@@ -106,7 +154,8 @@
     "metrics_final",
     "veto_summary",
     "context_status",
-    "anchor_links"
+    "anchor_links",
+    "signature"
   ],
   "additionalProperties": false
 }
