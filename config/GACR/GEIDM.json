@@ -1,45 +1,63 @@
 {
-  "manifestId": "GEIDM-V1.1",
+  "manifestId": "GEIDM-V2.0",
   "governanceOwner": "GACR_Core",
-  "description": "Governance External Interface Definition Manifest. Defines required security profiles, operational constraints, and schema validation paths for authorized external access points.",
+  "description": "Governance External Interface Definition Manifest (V2.0). Defines required security profiles, operational constraints, and schema validation paths for authorized external access points, integrated with policy tracing.",
   "enforcementLayer": "CRoT_Signed_API_Gateway",
   "interfaces": [
     {
+      "interfaceId": "I-HIL-T-001",
       "interfaceName": "HIL-T_Recovery_API",
       "interfaceType": "Synchronous_API",
+      "policyRef": "GACR-POL-HARM-003",
       "purpose": "Authorization interface for Sovereign Triage/Halt (HARM). High-assurance requirement.",
       "schemaValidation": {
         "required": true,
         "schemaUri": "/schemas/recovery_authorization_v1.json"
       },
       "securityProfile": {
+        "profileId": "SEC-P-HA-MFA-001",
         "assuranceLevel": "High",
         "primaryMechanism": "MFA_Hardware_Token",
         "secondaryMechanism": "CRoT_Derived_Key"
       },
       "constraints": {
-        "rateLimit": {
-          "period": "1h",
-          "requests": 3,
-          "burst": 1
+        "accessConstraints": {
+          "rateLimit": {
+            "period": "1h",
+            "requests": 3,
+            "burst": 1
+          },
+          "allowedIPRanges": []
+        },
+        "operationalConstraints": {
+          "availabilityTarget": "99.999%"
         }
       }
     },
     {
+      "interfaceId": "I-GRTS-002",
       "interfaceName": "GRTS_Telemetry_Data_Sink",
       "interfaceType": "Asynchronous_Stream_Sink",
+      "policyRef": "GACR-POL-TELE-012",
       "purpose": "Low-latency streaming target for S7/S8 telemetry and critical audit data.",
       "schemaValidation": {
         "required": true,
         "schemaUri": "/schemas/telemetry_sink_v2.json"
       },
       "securityProfile": {
+        "profileId": "SEC-P-MA-MTLS-002",
         "assuranceLevel": "Medium",
         "primaryMechanism": "TLS_MTLS_Certificate_Fixed"
       },
       "constraints": {
-        "maxLatency_ms": 50,
-        "maxPayload_kB": 1024
+        "accessConstraints": {
+          "rateLimit": null
+        },
+        "operationalConstraints": {
+          "maxLatency_ms": 50,
+          "maxPayload_kB": 1024,
+          "expectedThroughput_MBps": 50
+        }
       }
     }
   ]
