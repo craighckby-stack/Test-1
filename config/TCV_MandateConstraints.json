@@ -1,20 +1,43 @@
 {
   "system_id": "AOC_V94.1",
   "component": "Threshold Constraint Validator (TCV)",
-  "description": "Hard operational boundaries for critical P-01 metrics. These constraints MUST NOT be violated by SCR configurations, even during governance evolution. TCV checks are mandatory Pre-L1.",
-  "mandates": {
-    "S01_EfficacyProjection": {
-      "metric_name": "S-01 (Trust)",
-      "minimum_operational_threshold": 0.50,
-      "recommended_floor": 0.75,
-      "unit": "Score (0.0 to 1.0)"
+  "priority_level": "P-01",
+  "description": "Normalized hard operational constraints for critical metrics. TCV checks are mandatory Pre-L1, preventing SCR deployment if HARD constraints are breached.",
+  "validation_protocol": "Pre-L1_SCR_Check",
+  "metrics": [
+    {
+      "metric_id": "S01",
+      "metric_name": "Trust/Efficacy Score",
+      "unit": "Score (0.0 to 1.0)",
+      "constraints": [
+        {
+          "type": "HARD_MIN",
+          "description": "Absolute minimum operational effectiveness.",
+          "value": 0.50
+        },
+        {
+          "type": "SOFT_MIN",
+          "description": "Recommended floor for stable performance.",
+          "value": 0.75
+        }
+      ]
     },
-    "S02_RiskSynthesis": {
-      "metric_name": "S-02 (Risk)",
-      "maximum_tolerance_threshold": 0.20,
-      "minimum_operational_floor": 0.05,
-      "unit": "Score (0.0 to 1.0)"
+    {
+      "metric_id": "S02",
+      "metric_name": "Systemic Risk Synthesis",
+      "unit": "Score (0.0 to 1.0)",
+      "constraints": [
+        {
+          "type": "HARD_MAX",
+          "description": "Absolute maximum tolerance for systemic risk.",
+          "value": 0.20
+        },
+        {
+          "type": "SOFT_MAX",
+          "description": "Recommended ceiling for minimizing risk exposure.",
+          "value": 0.05
+        }
+      ]
     }
-  },
-  "validation_protocol": "Pre-L1_SCR_Check"
+  ]
 }
