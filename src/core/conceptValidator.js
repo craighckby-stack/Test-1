@@ -1,49 +1,71 @@
 // src/core/conceptValidator.js
 
 import { CONCEPT_REGISTRY } from './conceptRegistry.js';
-import * as fs from 'fs'; // Mocking filesystem access for validation
+import { CodebaseAccessor } from '../system/codebaseAccessor.js';
 
 /**
- * @fileoverview Utility class for validating references to core AGI and Architectural Concepts
- * and ensuring their associated implementation files exist as defined in the registry.
- * This prevents brittle self-modification (AGI-C-04) by verifying foundational references.
+ * @typedef {Object} ValidationResult
+ * @property {boolean} valid - True if the validation succeeded.
+ * @property {string | null} path - The associated implementation path, if any.
+ * @property {string} reason - Detailed justification for the result.
+ */
+
+/**
+ * @fileoverview Utility class for validating references to core AGI and Architectural Concepts.
+ * It ensures concept integrity and verifies the existence of required associated
+ * implementation files using the abstracted CodebaseAccessor interface (AGI-C-06).
+ * This prevents brittle self-modification by verifying foundational references.
  */
 
 export class ConceptValidator {
+
     /**
      * Checks if a given concept ID exists in the registry.
-     * @param {string} conceptId - The ID to validate.
+     * Utilizes safer property lookup for robustness.
+     * @param {string} conceptId - The ID to validate (e.g., 'AGI-C-04').
      * @returns {boolean}
      */
     static isValidConceptId(conceptId) {
-        return !!CONCEPT_REGISTRY[conceptId];
+        if (!conceptId || typeof conceptId !== 'string') {
+             return false;
+        }
+        // Safer check against potential prototype pollution
+        return Object.prototype.hasOwnProperty.call(CONCEPT_REGISTRY, conceptId);
     }
 
     /**
-     * Checks if the concept is expected to have a dedicated implementation file,
-     * and if that file currently exists in the codebase (simulated).
+     * Executes deep validation for a concept: registry existence, path definition,
+     * and file existence check via the CodebaseAccessor.
      * @param {string} conceptId - The ID of the concept.
-     * @returns {{ valid: boolean, path: string|null, reason: string }}
+     * @returns {ValidationResult}
      */
     static validateImplementation(conceptId) {
-        const concept = CONCEPT_REGISTRY[conceptId];
-
-        if (!concept) {
-            return { valid: false, path: null, reason: `Concept ID ${conceptId} not found in registry.` };
+        if (!ConceptValidator.isValidConceptId(conceptId)) {
+            return { valid: false, path: null, reason: `Concept ID '${conceptId}' is invalid or not found in registry.` };
         }
 
+        const concept = CONCEPT_REGISTRY[conceptId];
         const path = concept.implementationPath;
 
+        // Case 1: Concept is philosophical/declarative
         if (!path) {
-            return { valid: true, path: null, reason: `Concept ${conceptId} (${concept.name}) is fundamental/philosophical and requires no single dedicated implementation file.` };
+            return {
+                valid: true,
+                path: null,
+                reason: `Concept ${conceptId} (${concept.name}) is declarative and requires no dedicated implementation file.`
+            };
         }
 
-        // NOTE: In a production Sovereign AGI, fs.existsSync should be replaced
-        // with a call to the Codebase Interface (AGI-C-06) for file verification.
-        if (typeof fs.existsSync === 'function' && !fs.existsSync(path)) {
-            return { valid: false, path, reason: `Concept implementation defined at ${path} is missing from the codebase.` };
+        // Case 2: Concrete Implementation Path Defined but missing or inaccessible
+        if (!CodebaseAccessor.fileExists(path)) {
+            return {
+                valid: false,
+                path,
+                reason: `Concept implementation defined at '${path}' is missing or inaccessible via CodebaseAccessor. HIGH PRIORITY INTEGRITY VIOLATION.`
+            };
         }
 
-        return { valid: true, path, reason: `Implementation path verified at ${path}.` };
+        // Case 3: Implementation verified
+        return { valid: true, path, reason: `Implementation path verified successfully at '${path}'.` };
     }
 }
