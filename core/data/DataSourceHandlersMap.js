@@ -3,16 +3,31 @@ import MessageBusAsyncHandler from './handlers/MessageBusAsyncHandler.js';
 import DBPersistenceHandler from './handlers/DBPersistenceHandler.js';
 
 /**
- * Strategy Map: Maps retrieval_method strings (from DataSourcePrimitives) 
- * to concrete Handler classes. This acts as the Service Locator for Strategies,
- * allowing the DataSourceRouter to remain decoupled from individual strategy implementations.
+ * @typedef {import('./handlers/IDataSourceHandler.js').IDataSourceHandler} IDataSourceHandler
  */
-const DataSourceHandlersMap = {
+
+/**
+ * @type {Readonly<Record<string, IDataSourceHandler>>}
+ * 
+ * Data Source Handler Strategy Map (Service Locator Pattern).
+ * Maps standardized retrieval methods (e.g., defined in Primitives) 
+ * to concrete implementation classes for data interaction.
+ * 
+ * This map is frozen for runtime safety and configuration integrity.
+ * Handler classes MUST implement the IDataSourceHandler interface.
+ */
+const DataSourceHandlersMap = Object.freeze({
+    // Synchronous data retrieval methods
     'API_PULL_SYNC': APIPullSyncHandler,
+
+    // Asynchronous/Event-driven data retrieval methods
     'MESSAGE_BUS_ASYNC': MessageBusAsyncHandler,
+
+    // Persistence/storage layer access methods
     'DATABASE_QUERY': DBPersistenceHandler,
-    // Add new handlers here:
+
+    // --- Template for future extension ---
     // 'SUBSCRIPTION_STREAM': NewStreamingHandler,
-};
+});
 
 export default DataSourceHandlersMap;
