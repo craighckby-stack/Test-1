@@ -1,34 +1,104 @@
 {
-  "fsl_version": "v1.0.0",
-  "description": "Schema definition for the Flag State Log (FSL), optimized for immediate ingestion by the IH Sentinel (IH-S). The FSL provides a high-efficiency stream dedicated solely to governance deviation triggers, reducing dependency latency on the broader TEDS stream.",
-  "flag_schema": {
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agi.sovereign/config/governance_flag_state_schema.json",
+  "fsl_version": "v2.0.0",
+  "title": "Flag State Log Entry (FSL)",
+  "description": "Defines the structure for a single Flag State Log (FSL) event. Optimized for high-throughput, low-latency stream ingestion by the Integrity Halt (IH) Sentinel for real-time governance deviation monitoring.",
+  "type": "object",
+  "required": [
+    "timestamp",
+    "stage_id",
+    "agent_id",
+    "flag_type",
+    "trigger_axiom_id",
+    "integrity_halt_signal"
+  ],
+  "properties": {
     "timestamp": {
       "type": "string",
-      "format": "ISO 8601 UTC (nanosecond precision)"
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp, mandatory nanosecond precision (if underlying environment supports it)."
     },
     "stage_id": {
-      "type": "string",
-      "enum": ["S00", "S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12", "S13", "S14"]
+      "$ref": "#/$defs/StageIDs",
+      "description": "The current stage of the AGI operational cycle where the trigger occurred."
     },
     "agent_id": {
-      "type": "string",
-      "enum": ["CRoT", "GAX", "SGS"]
+      "$ref": "#/$defs/AgentIDs",
+      "description": "The component agent (e.g., CRoT, GAX) generating the flag."
     },
     "flag_type": {
-      "type": "string",
-      "enum": ["PVLM", "MPAM", "ADTM", "ECVM_FAIL", "CSR_BREACH"]
+      "$ref": "#/$defs/FlagTypes",
+      "description": "Categorization of the governance failure (e.g., Policy Violation, Misaligned Parameter)."
     },
     "trigger_axiom_id": {
-      "type": "string",
-      "enum": ["I", "II", "III", "TENET"]
+      "$ref": "#/$defs/AxiomIDs",
+      "description": "The specific foundational governance axiom or tenet violated."
     },
     "deviation_value": {
-      "type": ["number", "boolean"],
-      "description": "The specific value that caused the trigger (e.g., TEMM score, False ECVM result)"
+      "type": [
+        "number",
+        "boolean",
+        "string",
+        "null"
+      ],
+      "description": "The measured value, result, or parameter state that violated the threshold (e.g., TEMM score, breach string)."
     },
     "integrity_halt_signal": {
       "type": "boolean",
-      "description": "True if IH must be immediately invoked."
+      "description": "If True, signals that the breach mandates immediate IH intervention prior to local mitigation attempts."
+    }
+  },
+  "$defs": {
+    "StageIDs": {
+      "type": "string",
+      "enum": [
+        "S00_BOOT",
+        "S01_INGEST",
+        "S02_PLANNING",
+        "S03_EXECUTION",
+        "S04_EVALUATION",
+        "S05_COMMIT",
+        "S06_REFACTORY",
+        "S07_SYSTEM_MAINT",
+        "S08_COMMUNICATION",
+        "S09_DEPLOYMENT",
+        "S10_MONITORING",
+        "S11_SHUTDOWN",
+        "S12_RECOVERY",
+        "S13_AUDIT"
+      ]
+    },
+    "AgentIDs": {
+      "type": "string",
+      "enum": [
+        "CRoT",
+        "GAX",
+        "SGS",
+        "TEMM",
+        "LFM",
+        "ECS"
+      ]
+    },
+    "FlagTypes": {
+      "type": "string",
+      "enum": [
+        "PVLM_POLICY_VIOLATION",
+        "MPAM_PARAM_MISALIGNMENT",
+        "ADTM_DATA_TAMPERING",
+        "ECVM_FAIL_VALIDATION",
+        "CSR_BREACH_COMPLIANCE",
+        "RESOURCE_EXCEED"
+      ]
+    },
+    "AxiomIDs": {
+      "type": "string",
+      "enum": [
+        "I_SELF_PRESERVATION",
+        "II_RESOURCE_FIDELITY",
+        "III_UTILITY_OPTIMIZATION",
+        "TENET_IMPACT_MINIMIZATION"
+      ]
     }
   }
 }
