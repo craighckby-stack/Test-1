@@ -1,19 +1,27 @@
 /**
- * Governance Settings Schema Validator (v94.1)
+ * Governance Settings Schema Validator (v94.1, Refactored)
  * Enforces strict bounds, integrity checks, and type constraints on GHM configuration settings.
  */
 
-// --- Type Checker Utilities ---
+// NOTE: This module is designed to interact optimally with a dedicated ConfigurationError class
+// (scaffolded below) for structured error reporting.
+
+/**
+ * Defines core constraint checks for required types.
+ */
 const TypeCheckers = {
     /** Checks if a value is a strict integer. */
-    int: (value) => typeof value === 'number' && Number.isInteger(value),
+    int: (v) => typeof v === 'number' && Number.isInteger(v),
     /** Checks if a value is a standard JavaScript number (float or int). */
-    float: (value) => typeof value === 'number' && isFinite(value),
+    float: (v) => typeof v === 'number' && isFinite(v),
+    /** Checks if a value is a strict boolean. */
+    boolean: (v) => typeof v === 'boolean',
+    /** Checks if a value is a non-empty string. */
+    string: (v) => typeof v === 'string' && v.trim().length > 0,
 };
 
 /**
  * Defines critical constraints and expected types for governance parameters.
- * Replaces GOVERNANCE_SCHEMA_CONSTRAINTS.
  */
 const GHM_GOVERNANCE_SCHEMA = {
     GHM_LATENCY_THRESHOLD_MS: { min: 100, max: 5000, type: 'int', description: 'Latency must be fast but not unrealistically low.' },
@@ -23,75 +31,83 @@ const GHM_GOVERNANCE_SCHEMA = {
 };
 
 /**
- * Helper function to enforce type constraints.
- * @param {*} value - The setting value.
- * @param {string} expectedType - 'int' or 'float'.
- * @returns {boolean} True if type matches, false otherwise.
+ * Executes bounds checking against numeric constraints (min/max).
+ * @param {*} value
+ * @param {object} constraint
+ * @returns {string | null} Violation details or null if valid.
  */
-function _validateType(value, expectedType) {
-    const checker = TypeCheckers[expectedType];
-    if (checker) {
-        return checker(value);
+function _checkBounds(value, constraint) {
+    if (typeof value !== 'number') return null; 
+    
+    if (constraint.min !== undefined && value < constraint.min) {
+        return `BELOW_MIN: Value (${value}) is below minimum acceptable threshold (${constraint.min}).`;
     }
-    // If schema defines a type without a checker, we skip validation for robustness.
-    return true; 
+    if (constraint.max !== undefined && value > constraint.max) {
+        return `EXCEEDS_MAX: Value (${value}) exceeds maximum acceptable threshold (${constraint.max}).`;
+    }
+    return null;
 }
-
 
 /**
  * Validates a loaded configuration object against defined constraints.
- * This function should be executed immediately after configuration loading.
  * @param {object} settings - The finalized GOVERNANCE_SETTINGS object.
+ * @param {object} [schema=GHM_GOVERNANCE_SCHEMA] - Optional custom schema.
  * @returns {boolean} True if validation passes.
  * @throws {Error} If any setting violates its constraints (critical failure).
  */
-function validateGovernanceSettings(settings) {
-    let failureReports = [];
+function validateGovernanceSettings(settings, schema = GHM_GOVERNANCE_SCHEMA) {
+    const failureReports = [];
     
-    for (const key in GHM_GOVERNANCE_SCHEMA) {
-        const constraint = GHM_GOVERNANCE_SCHEMA[key];
+    // Use Object.entries for cleaner, more modern iteration.
+    for (const [key, constraint] of Object.entries(schema)) {
         const value = settings[key];
 
-        // 1. Existence Check
+        // 1. Existence Check (Required Settings)
         if (value === undefined || value === null) {
-             failureReports.push({ key, reason: 'MISSING', message: `Setting is required but missing or null.` });
+             failureReports.push({ key, reason: 'MISSING_REQUIRED', message: `Setting is required but missing or null.` });
              continue;
         }
 
-        // 2. Type Check (Utilizing the defined 'type' field)
-        if (!_validateType(value, constraint.type)) {
-            failureReports.push({ key, reason: 'TYPE_MISMATCH', message: `Expected type '${constraint.type}', received value '${value}' (${typeof value}).` });
+        // 2. Type Check
+        const typeChecker = TypeCheckers[constraint.type];
+        if (typeChecker && !typeChecker(value)) {
+            failureReports.push({ 
+                key, 
+                reason: 'TYPE_MISMATCH', 
+                message: `Expected type '${constraint.type}', received value '${String(value)}' (Type: ${typeof value}).` 
+            });
         }
 
-        // 3. Bounds Check (Only proceed if value is numeric, ensuring comparison safety)
-        if (typeof value === 'number') {
-            if (constraint.min !== undefined && value < constraint.min) {
-                failureReports.push({ key, reason: 'BELOW_MIN', message: `Value (${value}) is below minimum acceptable threshold (${constraint.min}).` });
-            }
-            if (constraint.max !== undefined && value > constraint.max) {
-                failureReports.push({ key, reason: 'EXCEEDS_MAX', message: `Value (${value}) exceeds maximum acceptable threshold (${constraint.max}).` });
-            }
+        // 3. Bounds Check (If applicable and numeric)
+        const boundsViolation = _checkBounds(value, constraint);
+        if (boundsViolation) {
+            const [reason, message] = boundsViolation.split(': ', 2); 
+            failureReports.push({ key, reason, message });
         }
     }
 
     if (failureReports.length > 0) {
-        // Structured error reporting for debugging
         const detailedFailures = failureReports.map(
             (f, i) => `[${i + 1}] ${f.key} (${f.reason}): ${f.message}`
         ).join('\n');
         
         const errorMsg = `GHM Configuration Integrity Failure (${failureReports.length} violations found):\n${detailedFailures}`;
         
-        // Critical system halt due to configuration integrity failure
         console.error(errorMsg);
-        throw new Error(errorMsg);
+        
+        // Throwing a standard Error object but attaching structured violation data for robust systems.
+        const err = new Error(errorMsg);
+        err.name = 'ConfigurationIntegrityError';
+        err.violations = failureReports; // Crucial for programmatic error handling
+        throw err;
     }
 
-    console.info('[GHM Integrity v94.1] Governance settings successfully validated (Existence, Type, Bounds).');
+    console.debug('[GHM Integrity v94.1] Governance settings validated successfully (Type & Bounds enforced).');
     return true;
 }
 
 module.exports = {
     validateGovernanceSettings,
-    GHM_GOVERNANCE_SCHEMA
+    GHM_GOVERNANCE_SCHEMA,
+    TypeCheckers
 };
