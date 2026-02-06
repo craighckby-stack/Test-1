@@ -1,35 +1,17 @@
+# governance/CRoTPersistenceLayer.py
 import logging
 import hashlib
 import json
-from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypeAlias
 
-# --- Architectural Dependency Imports (Scaffolded) ---
-# These types and interfaces are now centralized for dependency injection (DIP).
-# from governance.interfaces.core import PolicyProposalState, StagingArtifact, SecureVaultInterface
-
-# Temporarily redefine Protocol/TypedDict dependencies locally until scaffold import paths are finalized
-from typing import TypedDict, Protocol
-
-class PolicyProposalState(TypedDict):
-    version: str
-    ACVD: Dict[str, Any]
-    FASV: Dict[str, Any]
-
-class StagingArtifact(TypedDict):
-    CSR_HASH_N_PLUS_1: str
-    POLICY_PAYLOAD: PolicyProposalState
-    QUORUM_ATTESTATION: Dict[str, str]
-    STATUS: str
-    HASH_ALGORITHM: str
-
-class SecureVaultInterface(Protocol):
-    """Protocol defining the secure storage API for Dependency Inversion."""
-    def put(self, vault_id: str, key: str, data: str) -> bool: ...
-    def get(self, vault_id: str, key: str) -> Optional[str]: ...
-    def get_current_pointer(self, vault_id: str) -> Optional[str]: ...
-
-# --------------------------------------------------
+# --- Architectural Dependency Imports (Refactored) ---
+# Standardizing imports from the centralized interface layer.
+# The local definitions are replaced by imports from governance.interfaces.core.
+from governance.interfaces.core import (
+    PolicyProposalState, 
+    StagingArtifact, 
+    SecureVaultInterface
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,100 +21,128 @@ class IntegrityError(Exception):
 
 class CRoTPersistenceLayer:
     """
-    CRoT (Configuration Root of Trust) Persistence Layer - V2.0
+    CRoT (Configuration Root of Trust) Persistence Layer - V3.0
     Role: Handles authenticated, integrity-checked storage and retrieval of finalized
     Policy Hot-Patch artifacts, providing the secure anchor for policy evolution.
-    Uses Dependency Injection for vault storage mechanisms (DIP adherence).
+    Strictly adheres to DIP using SecureVaultInterface.
     """
+    
+    # Constants for Persistence
+    ARTIFACT_ID_PREFIX = "csr_stage_"
+    ARTIFACT_ID_SUFFIX = ".json"
+    DEFAULT_HASH_ALGORITHM = 'SHA256'
 
     def __init__(self, secure_vault: SecureVaultInterface, vault_id: str):
         """
         :param secure_vault: Implementation of the SecureVaultInterface.
         :param vault_id: Identifier for the specific high-security storage path.
         """
+        if not vault_id or not isinstance(vault_id, str):
+            raise ValueError("Vault ID must be a non-empty string.")
+
         self._vault = secure_vault
         self._vault_id = vault_id
-        logging.basicConfig(level=logging.INFO) # Ensure logger is configured
+        # Removed internal logging.basicConfig call, configuration handled by application root.
+
         logger.info(f"CRoT Layer initialized for Vault ID: {vault_id}")
 
     @staticmethod
-    def _calculate_payload_hash(payload: PolicyProposalState, algorithm: str) -> str:
-        """Calculates the canonical hash of the policy payload (ensures deterministic JSON serialization)."""
-        # Sort keys and minimize separators for guaranteed canonical JSON form
+    def _get_artifact_key(csr_hash: str) -> str:
+        """Generates the canonical artifact key for vault storage."""
+        return f"{CRoTPersistenceLayer.ARTIFACT_ID_PREFIX}{csr_hash.upper()}{CRoTPersistenceLayer.ARTIFACT_ID_SUFFIX}"
+
+    @staticmethod
+    def calculate_payload_hash(payload: PolicyProposalState, algorithm: str = DEFAULT_HASH_ALGORITHM) -> str:
+        """
+        Calculates the canonical hash of the policy payload (ensures deterministic JSON serialization).
+        This utility is now exposed statically as it's a pure function.
+        """
+        # Ensure deterministic JSON: sorted keys, no whitespace separators
         payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
         
+        algorithm_norm = algorithm.lower()
+        
         try:
-            hasher = hashlib.new(algorithm.lower())
+            # Use `hashlib.new` for dynamic algorithm selection
+            hasher = hashlib.new(algorithm_norm)
             hasher.update(payload_str)
             return hasher.hexdigest().upper()
         except ValueError as e:
+            # Handle unrecognized algorithms robustly
             raise IntegrityError(f"Unsupported hash algorithm '{algorithm}' specified: {e}")
 
     def anchor_staging_artifact(self, artifact: StagingArtifact) -> bool:
         """
         Anchors the finalized artifact (CSR_N+1) after quorum ratification.
-        This operation includes critical integrity re-verification.
+        This operation includes critical integrity re-verification (Defense in Depth).
         """
         expected_hash = artifact['CSR_HASH_N_PLUS_1'].upper()
-        # Defaulting to SHA256 if HASH_ALGORITHM is missing is acceptable behavior for secure systems.
-        algorithm = artifact.get('HASH_ALGORITHM', 'SHA256')
+        algorithm = artifact.get('HASH_ALGORITHM', self.DEFAULT_HASH_ALGORITHM)
         
-        # 1. Critical Re-verification (Defense in Depth)
+        # 1. Critical Re-verification
         try:
-            calculated_hash = self._calculate_payload_hash(artifact['POLICY_PAYLOAD'], algorithm)
+            calculated_hash = self.calculate_payload_hash(artifact['POLICY_PAYLOAD'], algorithm)
         except IntegrityError as e:
-            logger.error(f"Integrity check failed during anchoring: {e}")
+            logger.error(f"Policy hash calculation failed during anchoring: {e}")
             return False
 
         if calculated_hash != expected_hash:
+            # Raise explicit error and use critical logging for integrity breaches
             logger.critical(
-                f"INTEGRITY FAILURE: Calculated hash mismatch during anchoring. "
+                "INTEGRITY FAILURE: Hash mismatch during anchoring. "
                 f"Expected: {expected_hash}, Calculated: {calculated_hash}"
             )
             raise IntegrityError("Artifact content integrity verification failed.")
             
         # 2. Anchoring to Vault
         try:
-            artifact_id = f"csr_stage_{expected_hash}.json"
+            artifact_key = self._get_artifact_key(expected_hash)
+            artifact_data = json.dumps(artifact)
             
             success = self._vault.put(
                 self._vault_id,
-                artifact_id,
-                json.dumps(artifact)
+                artifact_key,
+                artifact_data
             )
             
             if success:
-                logger.info(f"SUCCESS: Securely anchored {artifact_id}")
+                logger.info(f"Anchor SUCCESS: Stored artifact {artifact_key}")
             else:
-                logger.error(f"Failed to execute put operation for {artifact_id} in vault {self._vault_id}")
+                logger.error(f"Failed to execute vault put operation for {artifact_key}")
 
             return success
             
-        except Exception as e:
-            logger.error(f"FATAL ERROR during anchoring to {self._vault_id}: {type(e).__name__}: {e}")
+        except Exception:
+            # Use logger.exception for full stack traces on unexpected vault failures
+            logger.exception(f"FATAL ERROR during vault anchoring to {self._vault_id}.")
             return False
 
     def retrieve_active_csr_hash(self) -> Optional[str]:
         """Retrieves the hash of the currently ACTIVE Configuration State Root (CSR_N)."""
         try:
-            # Assumes the vault interface manages the 'active' pointer.
-            return self._vault.get_current_pointer(self._vault_id)
-        except Exception as e:
-            logger.error(f"Error retrieving active CSR pointer from vault {self._vault_id}: {e}")
+            active_hash = self._vault.get_current_pointer(self._vault_id)
+            if active_hash:
+                return active_hash.upper() # Ensure hash is consistently uppercase
+            return None
+        except Exception:
+            logger.exception(f"Operational error retrieving active CSR pointer from vault {self._vault_id}.")
             return None
 
     def retrieve_artifact_by_hash(self, csr_hash: str) -> Optional[StagingArtifact]:
         """Retrieves a specific stored governance artifact by its hash and parses it."""
-        artifact_id = f"csr_stage_{csr_hash.upper()}.json"
+        artifact_key = self._get_artifact_key(csr_hash)
         
         try:
-            raw_data = self._vault.get(self._vault_id, artifact_id)
+            raw_data = self._vault.get(self._vault_id, artifact_key)
             if raw_data:
-                return json.loads(raw_data) # Returns StagingArtifact TypedDict
+                return json.loads(raw_data)
+            
+            logger.debug(f"Artifact not found for key: {artifact_key}")
             return None
+
         except json.JSONDecodeError:
-            logger.warning(f"Vault returned invalid JSON data for hash: {csr_hash}")
+            logger.warning(f"Vault returned malformed JSON data for key: {artifact_key}")
             return None
-        except Exception as e:
-            logger.error(f"Error retrieving artifact {artifact_id}: {e}")
+        except Exception:
+            logger.exception(f"Operational error retrieving artifact {artifact_key}.")
             return None
