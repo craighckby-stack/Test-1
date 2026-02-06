@@ -1,0 +1,14 @@
+{
+  "policy_id": "RSP-2024.1",
+  "description": "Cryptographic and temporal rules for RCR input validation.",
+  "input_validation": {
+    "required_signatures": ["CTG_Root_Key_v2", "AEOR_Commit_Key_v3"],
+    "payload_integrity_algorithm": "SHA3-512",
+    "max_signature_age_ms": 500,
+    "critical_key_revocation_list_check": true
+  },
+  "transaction_limits": {
+    "max_rollback_depth": 500000, 
+    "min_velocity_level": 9
+  }
+}
