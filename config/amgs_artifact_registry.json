@@ -1,15 +1,70 @@
 {
-  "system_id": "AMGS_Integrity_Check",
+  "system_id": "AMGS_Integrity_Check_V2",
   "version_minimum": "v94.1",
-  "description": "Defines the canonical list of files critical for Sovereign Integrity Hashing (CHR Manifest Generation). Loaded by utilities/amgs_manifest_generator.py.",
-  "governing_artifacts": [
-    "config/gsep_c_flow.json",
-    "config/acvm.json",
-    "governance/smc_schema.json",
-    "config/dial_analysis_map.json",
-    "protocol/fdls_spec.json",
-    "protocol/chr_schema.json",
-    "config/rrp_manifest.json",
-    "protocol/telemetry_spec.json"
+  "description": "Defines categorized artifacts critical for Sovereign Integrity Hashing (CHR Manifest Generation), incorporating hash strategy directives. Loaded by utilities/amgs_manifest_generator.py.",
+  "metadata": {
+    "manifest_generator": "utilities/amgs_manifest_generator.py",
+    "hash_strategy_default": "SHA256_STANDARD"
+  },
+  "artifact_registry": [
+    {
+      "id": "GSEP_C_FLOW",
+      "path": "config/gsep_c_flow.json",
+      "type": "CONFIGURATION",
+      "criticality": "HIGH",
+      "hash_method": "SHA256_STRIPPED_COMMENTS",
+      "notes": "Core runtime sequencing flow definition. Ignores comments in hash generation."
+    },
+    {
+      "id": "ACVM_CONFIG",
+      "path": "config/acvm.json",
+      "type": "CONFIGURATION",
+      "criticality": "HIGH",
+      "hash_method": "SHA256_STRIPPED_COMMENTS"
+    },
+    {
+      "id": "SMC_SCHEMA",
+      "path": "governance/smc_schema.json",
+      "type": "GOVERNANCE",
+      "criticality": "HIGH",
+      "hash_method": "SHA256_STANDARD"
+    },
+    {
+      "id": "DIAL_ANALYSIS",
+      "path": "config/dial_analysis_map.json",
+      "type": "CONFIGURATION",
+      "criticality": "MEDIUM",
+      "hash_method": "SHA256_STRIPPED_COMMENTS"
+    },
+    {
+      "id": "FDLS_SPEC",
+      "path": "protocol/fdls_spec.json",
+      "type": "PROTOCOL",
+      "criticality": "HIGH",
+      "hash_method": "SHA256_STANDARD"
+    },
+    {
+      "id": "CHR_SCHEMA",
+      "path": "protocol/chr_schema.json",
+      "type": "PROTOCOL",
+      "criticality": "HIGH",
+      "hash_method": "SHA256_STANDARD",
+      "notes": "Canonical Hash Record schema definition."
+    },
+    {
+      "id": "RRP_MANIFEST",
+      "path": "config/rrp_manifest.json",
+      "type": "RUNTIME",
+      "criticality": "MEDIUM",
+      "hash_method": "SHA256_STANDARD"
+    },
+    {
+      "id": "TELEMETRY_SPEC",
+      "path": "protocol/telemetry_spec.json",
+      "type": "PROTOCOL",
+      "criticality": "LOW",
+      "hash_method": "SHA256_STANDARD",
+      "notes": "Telemetry specifications are non-integrity critical, hash inclusion ensures version locking."
+    }
   ]
 }
