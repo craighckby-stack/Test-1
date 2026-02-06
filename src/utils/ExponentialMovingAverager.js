@@ -1,51 +1,70 @@
 /**
  * Utility for maintaining a stable Exponential Moving Average (EMA).
- * O(1) complexity for updates and retrieval, ideal for high-frequency telemetry/statistics.
+ * O(1) complexity for updates and retrieval, optimized for high-frequency telemetry/statistics.
  */
 class ExponentialMovingAverager {
+    #currentAverage = null;
+    #alpha;
+    #complementaryAlpha; // Stores (1 - alpha)
+    #isInitialized = false;
+
     /**
-     * @param {number} alpha - The smoothing factor (0.0 < alpha < 1.0). Lower is smoother.
+     * @param {number} alpha - The smoothing factor (0.0 < alpha < 1.0). Lower is smoother, meaning older data has more weight.
      */
     constructor(alpha = 0.1) {
-        if (alpha <= 0 || alpha >= 1) {
-            throw new Error("Alpha (smoothing factor) must be strictly between 0 and 1.");
+        if (typeof alpha !== 'number' || alpha <= 0 || alpha >= 1) {
+            throw new Error("Alpha (smoothing factor) must be a number strictly between 0 and 1.");
         }
-        this.alpha = alpha;
-        this.currentAverage = null;
-        this.isInitialized = false;
+        
+        this.#alpha = alpha;
+        // Optimization: Pre-calculate the complementary factor.
+        this.#complementaryAlpha = 1 - alpha;
     }
 
     /**
      * Updates the average with a new value.
      * @param {number} newValue 
-     * @returns {number} The new calculated average.
+     * @returns {number | null} The new calculated average.
      */
     update(newValue) {
-        if (!this.isInitialized) {
-            // First reading sets the initial average
-            this.currentAverage = newValue;
-            this.isInitialized = true;
-        } else {
-            // EMA calculation: Avg_t = (alpha * Value_t) + ((1 - alpha) * Avg_{t-1})
-            this.currentAverage = (this.alpha * newValue) + ((1 - this.alpha) * this.currentAverage);
+        if (typeof newValue !== 'number' || isNaN(newValue)) {
+            throw new TypeError("New value must be a valid number.");
         }
-        return this.currentAverage;
+
+        if (!this.#isInitialized) {
+            // First reading sets the initial average
+            this.#currentAverage = newValue;
+            this.#isInitialized = true;
+        } else {
+            // Optimized EMA calculation: 
+            // Avg_t = (alpha * Value_t) + (complementaryAlpha * Avg_{t-1})
+            this.#currentAverage = (this.#alpha * newValue) + (this.#complementaryAlpha * this.#currentAverage);
+        }
+        return this.#currentAverage;
     }
 
     /**
-     * Retrieves the current average.
-     * @returns {number}
+     * Retrieves the current average using a modern property getter.
+     * @returns {number | null} The current average, or null if no values have been processed.
      */
-    getAverage() {
-        return this.currentAverage;
+    get average() {
+        return this.#currentAverage;
     }
 
     /**
-     * Resets the averager state.
+     * Checks if the averager has received any data points yet.
+     * @returns {boolean}
+     */
+    get isInitialized() {
+        return this.#isInitialized;
+    }
+
+    /**
+     * Resets the averager state, allowing it to begin calculation fresh upon the next update.
      */
     reset() {
-        this.currentAverage = null;
-        this.isInitialized = false;
+        this.#currentAverage = null;
+        this.#isInitialized = false;
     }
 }
 
