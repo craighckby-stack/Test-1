@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign/schemas/C-05_CanonicalSerializationSpec_v1.json",
+  "title": "C-05 Canonical Serialization Specification (v1)",
+  "description": "Defines the mandatory parameters for canonical JSON serialization required by all governance modules (M-02, M-10, etc.) to ensure cryptographic repeatability.",
+  "type": "object",
+  "properties": {
+    "serialization_standard": {
+      "type": "string",
+      "enum": ["Canonical-JSON-RFC8785-Subset"],
+      "description": "The specific formal standard being followed."
+    },
+    "key_ordering": {
+      "type": "string",
+      "enum": ["Lexicographical (UTF-8)"],
+      "description": "Mandatory key ordering for all objects."
+    },
+    "whitespace_policy": {
+      "type": "string",
+      "enum": ["None"],
+      "description": "Policy for non-significant whitespace (must be omitted).
+    },
+    "number_representation": {
+      "type": "string",
+      "enum": ["Decimal (No scientific notation)"],
+      "description": "Mandatory format for numeric types to prevent encoding variance."
+    },
+    "hash_algorithm": {
+      "type": "string",
+      "enum": ["SHA3-256"],
+      "description": "The cryptographic digest algorithm applied to the resulting payload string."
+    }
+  },
+  "required": [
+    "serialization_standard",
+    "key_ordering",
+    "whitespace_policy",
+    "number_representation",
+    "hash_algorithm"
+  ],
+  "additionalProperties": false
+}
