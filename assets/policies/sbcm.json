@@ -1,24 +1,34 @@
 {
-  "schema_version": "v3.6.0",
-  "certified_ceep_hash": {
+  "policy_id": "SBCM-941A",
+  "schema_version": "v4.0.0",
+  "policy_name": "Sovereign AGI Baseline Modeling Policy",
+  "baseline_integrity": {
+    "artifact_name": "Certified Evolution Execution Protocol (CEEP)",
     "algorithm": "SHA-256",
-    "value": "d8c4e0b5f6a9c2b1d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6"
+    "hash_value": "d8c4e0b5f6a9c2b1d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6",
+    "attestation_status": "CERTIFIED"
   },
   "trusted_dependencies": [
     {
       "module": "ModelSynthesizer_v2.1",
       "version_lock": "~2.1.0",
+      "scope": "runtime",
+      "mandatory": true,
       "integrity_check": {
         "algorithm": "SHA-384",
         "value": "678e90f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5"
       }
     }
   ],
-  "minimum_confidence_threshold": 0.9999,
-  "modeling_constraints": {
+  "operational_assurance": {
+    "metric": "model_confidence",
+    "target_threshold": 0.9999,
+    "enforcement_action": "HALT_EXECUTION_AND_REPORT"
+  },
+  "modeling_governance": {
     "data_source_policy_id": "DTEM-74A",
-    "resource_limits": {
-      "ephemeral_mode": true,
+    "runtime_governance": {
+      "mode": "ephemeral",
       "max_cpu_ms": 1500,
       "max_memory_mb": 512,
       "execution_timeout_s": 30
