@@ -1,13 +1,15 @@
 /**
  * GHM: Governance Health Monitor
  * Responsible for continuously assessing the operational integrity of the OGT Core components
- * using weighted scoring and configurable thresholds, and smoothing the resultant signal (EWMA).
+ * using weighted scoring, configurable thresholds, and signal smoothing (EWMA).
  */
+const { pTimeout } = require('../utilities/asyncTimeout');
 
 // --- Constants & Enums ---
 const DEFAULT_LATENCY_THRESHOLD_MS = 500;
 const MINIMUM_GRS_THRESHOLD = 0.85;
 
+// Shared Configuration Defaults
 const HEALTH_DEFAULTS = Object.freeze({
     latencyThresholdMs: DEFAULT_LATENCY_THRESHOLD_MS,
     // Alpha (α) factor for Exponential Smoothing (0.0 to 1.0). Lower is smoother/more lag.
@@ -18,10 +20,10 @@ const ComponentStatus = Object.freeze({
     OK: 'OK',
     FAILED: 'FAILED',
     UNCONFIGURED: 'UNCONFIGURED',
-    TIMEOUT: 'TIMEOUT' // Indicates operation exceeded acceptable latency bounds
+    TIMEOUT: 'TIMEOUT' // Operation exceeded acceptable latency bounds (explicitly enforced via Promise timeout)
 });
 
-// Use high-resolution timing, standardizing access
+// High-resolution timing, standardizing access (using Date fallback for robustness)
 const performanceMonitor = global.performance || Date;
 const now = () => performanceMonitor.now();
 
@@ -84,6 +86,8 @@ class GovernanceHealthMonitor {
 
     /**
      * Polls an individual OGT component for its status and latency.
+     * Uses pTimeout utility to ensure operations do not hang indefinitely.
+     * 
      * @param {string} componentId - The ID of the component (e.g., 'mcraEngine').
      * @returns {Promise<{id: string, status: ComponentStatus, latencyMs: number, healthScore: number, weight: number, detail: string}>}
      */
@@ -96,61 +100,81 @@ class GovernanceHealthMonitor {
             id: componentId,
             weight,
             latencyMs: -1,
-            healthScore: 0,
+            healthScore: 0.0, // Default to lowest score on failure/unconfigured
             detail: 'N/A'
         };
 
         // 1. Check for valid component/diagnosability
-        if (!component) {
-             return { ...baseResult, status: ComponentStatus.UNCONFIGURED, detail: `Component ID unknown or null.` };
-        }
-        if (typeof component.runDiagnostics !== 'function') {
+        if (!component || typeof component.runDiagnostics !== 'function') {
             this.auditLogger.logWarning({
                 event: 'GHM_MISSING_DIAGNOSTIC',
-                message: `Component ${componentId} registered but does not expose runDiagnostics().`,
+                message: `Component ${componentId} is unconfigured or missing runDiagnostics().`,
                 componentId
             });
             return { ...baseResult, status: ComponentStatus.UNCONFIGURED, detail: `runDiagnostics() missing or invalid.` };
         }
 
         try {
-            // 2. Run Diagnostic Timing
+            // 2. Run Diagnostic Timing with explicit timeout enforcement
             const start = now();
-            // TODO: Future optimization: Integrate global timeout functionality here to explicitly set TIMEOUT status.
-            await component.runDiagnostics();
+            
+            await pTimeout(
+                component.runDiagnostics(), 
+                latencyThreshold, 
+                `Component diagnostic exceeded configured threshold of ${latencyThreshold}ms`
+            );
+
             const latencyMs = now() - start;
-
+            
+            // 3. Success evaluation (Latency score calculation)
             const healthScore = calculateHealthScore(latencyMs, latencyThreshold);
-
-            // 3. Evaluate latency vs threshold for detailed status
-            const status = (healthScore < 0.05 && latencyMs >= latencyThreshold)
-                           ? ComponentStatus.TIMEOUT
-                           : ComponentStatus.OK;
-
+            
             return {
                 id: componentId,
-                status,
+                status: ComponentStatus.OK,
                 latencyMs: parseFloat(latencyMs.toFixed(2)),
-                healthScore,
+                healthScore: healthScore,
                 weight,
-                detail: status === ComponentStatus.OK ? `Latency OK (${latencyMs.toFixed(2)}ms)` : `Latency high/failed.`
+                detail: `Latency OK (${latencyMs.toFixed(2)}ms)`
             };
 
         } catch (error) {
-            // 4. Handle execution failure
-            this.auditLogger.logError({
-                event: 'GHM_COMPONENT_FAILURE',
-                message: `Diagnostic execution failed for ${componentId}`,
-                details: error.message || 'Unknown Execution Error',
-                componentId
-            });
-            return { ...baseResult, status: ComponentStatus.FAILED, detail: error.message || 'Unknown Execution Error' };
+            // 4. Handle execution failure (Timeout or Runtime Error)
+            let status;
+            let detail;
+            let latencyMs = -1; 
+
+            if (error.code === 'ETIMEOUT') {
+                status = ComponentStatus.TIMEOUT;
+                detail = error.message;
+                // If it timed out, record the latency as the threshold for scoring consistency
+                latencyMs = latencyThreshold; 
+                this.auditLogger.logWarning({
+                    event: 'GHM_COMPONENT_TIMEOUT',
+                    message: detail,
+                    threshold: latencyThreshold,
+                    componentId
+                });
+            } else {
+                status = ComponentStatus.FAILED;
+                detail = error.message || 'Unknown Execution Error';
+                this.auditLogger.logError({
+                    event: 'GHM_COMPONENT_FAILURE',
+                    message: `Diagnostic execution failed for ${componentId}`,
+                    details: detail,
+                    componentId,
+                    stack: error.stack
+                });
+            }
+
+            // TIMEOUT and FAILED result in 0.0 health score.
+            return { ...baseResult, status, detail, latencyMs, healthScore: 0.0 };
         }
     }
 
     /**
      * Aggregates the weighted health scores of all OGT components into a single GRS.
-     * @returns {Promise<{rawGrs: number, smoothedGrs: number, detailedStatuses: Array<object>}>}
+     * @returns {Promise<{rawGrs: number, smoothedGrs: number, detailedStatuses: Array<object>}>
      * Governance Readiness Signal (GRS: 0.0 to 1.0) and status details.
      */
     async getGovernanceReadinessSignal() {
@@ -174,7 +198,7 @@ class GovernanceHealthMonitor {
         // Apply Exponential Smoothing (EWMA) to maintain signal stability
         this._updateSmoothedGrs(rawGrs);
 
-        // Rounding results for clean output
+        // Ensure clean output rounding only happens here
         return {
             rawGrs: parseFloat(rawGrs.toFixed(4)),
             smoothedGrs: parseFloat(this.smoothedGrs.toFixed(4)),
@@ -195,9 +219,9 @@ class GovernanceHealthMonitor {
              this.auditLogger.logWarning({
                 event: 'GHM_GRS_BELOW_THRESHOLD',
                 metric: 'SMOOTHED_GRS',
-                currentValue: smoothedGrs.toFixed(4),
-                requiredValue: requiredThreshold.toFixed(4),
-                rawScore: rawGrs.toFixed(4),
+                currentValue: smoothedGrs,
+                requiredValue: requiredThreshold,
+                rawScore: rawGrs,
                 // Provide failed components for immediate triage
                 failedComponents: detailedStatuses.filter(d => d.status !== ComponentStatus.OK).map(d => ({id: d.id, status: d.status, score: d.healthScore}))
              });
