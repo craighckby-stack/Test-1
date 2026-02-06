@@ -1,0 +1,21 @@
+{
+  "ValidatorServiceName": "ArtifactIntegrityGuard",
+  "Strategy": "StrictEnforcement",
+  "SchemaRegistryPath": "config/ASDM_ArtifactSchemas.json",
+  "CacheTTLSeconds": 300,
+  "EnabledArtifacts": [
+    "TaskDefinition",
+    "CodeArtifact",
+    "ObservationReport"
+  ],
+  "ErrorHandling": {
+    "ReportingEndpoint": "http://integrity-monitor/api/violation",
+    "Threshold": 50,
+    "ActionOnViolation": "RejectArtifact"
+  },
+  "VersioningPolicy": {
+    "AllowMinorVersionMismatch": true,
+    "ForceLatestPatch": true,
+    "StrictModeCheckOnMajorBump": true
+  }
+}
