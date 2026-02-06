@@ -1,37 +1,75 @@
 /**
- * Dynamic Policy Cache (DPC) Utility V1
- * Loads ACVD constraints for optimized, low-latency axiomatic checks.
+ * Dynamic Policy Cache (DPC) Utility V2
+ * Loads and encapsulates ACVD constraints for optimized, low-latency axiomatic checks.
  */
 
 class DynamicPolicyCache {
-    constructor(config) {
-        if (!config || !config.policy_thresholds || !config.attestation_requirements) {
-            throw new Error("DPC initialization requires full ACVD config.");
+    // Private fields ensure policy stability (immutability post-init)
+    #VetoBounds;
+    #UtilityBounds;
+    #ContextRequired;
+
+    /**
+     * Initializes the DPC with pre-validated ACVD configuration.
+     * @param {Object} config - ACVD constraints structure.
+     * @param {Object} config.policy_thresholds - Contains governance bounds.
+     * @param {Object} config.attestation_requirements - Contains EVCM requirements.
+     */
+    constructor({ policy_thresholds, attestation_requirements }) {
+        // Input validation is streamlined, expecting schema validation to happen upstream (see scaffold).
+        if (!policy_thresholds || !attestation_requirements) {
+            throw new Error("[DPC] Initialization requires valid policy and attestation configurations.");
         }
-        this.VetoBounds = config.policy_thresholds.integrity_veto_bounds;
-        this.UtilityBounds = config.policy_thresholds.utility_maximization;
-        this.ContextRequired = config.attestation_requirements.ecvm_required;
+
+        const { integrity_veto_bounds, utility_maximization } = policy_thresholds;
+        const { ecvm_required } = attestation_requirements;
+
+        // Direct assignment to private fields
+        this.#VetoBounds = integrity_veto_bounds;
+        this.#UtilityBounds = utility_maximization;
+        this.#ContextRequired = ecvm_required;
+
+        // Policy cache must be immutable to prevent runtime governance policy drift.
+        Object.freeze(this);
     }
 
     /**
-     * Executes a low-latency check against critical veto bounds (PVLM/MPAM).
-     * @param {Object} metrics - Runtime metrics to validate.
+     * Executes a low-latency check against critical integrity veto bounds (PVLM/MPAM).
+     * Provides strict early exit optimization for governance breaches.
+     * 
+     * @param {Object} metrics - Runtime metrics { pvlm_failure_count, mpam_failure_count }.
      * @returns {boolean} True if the system state is valid and non-vetoable.
      */
-    checkIntegrityVeto(metrics) {
-        // Given zero tolerance defined in ACVD_V97_3
-        if (metrics.pvlm_failure_count > this.VetoBounds.max_pvlm_failures) {
-            return false; // PVLM breach
+    checkIntegrityVeto({ pvlm_failure_count, mpam_failure_count }) {
+        // Optimization: Use destructured metrics parameter for clean access.
+
+        // PVLM Breach Check (Veto)
+        if (pvlm_failure_count > this.#VetoBounds.max_pvlm_failures) {
+            return false;
         }
-        if (metrics.mpam_failure_count > this.VetoBounds.max_mpam_failures) {
-            return false; // MPAM breach
+        
+        // MPAM Breach Check (Veto)
+        if (mpam_failure_count > this.#VetoBounds.max_mpam_failures) {
+            return false;
         }
-        // (Adherence Timeout Check would be handled separately by the timer loop)
+
         return true;
     }
 
-    getUFRM() {
-        return this.UtilityBounds.UFRM;
+    /**
+     * Retrieves the Utility Function Runtime Metric (UFRM) bound.
+     * @returns {number} The current UFRM bound.
+     */
+    getUFRMBound() {
+        return this.#UtilityBounds.UFRM;
+    }
+
+    /**
+     * Checks if Extended Context Validation Module (ECVM) is required.
+     * @returns {boolean}
+     */
+    isContextValidationRequired() {
+        return this.#ContextRequired;
     }
 }
 
