@@ -1,46 +1,55 @@
-# POLICY VETO LOGIC MODULE (PVLM) SPECIFICATION V2.1
+# POLICY VETO LOGIC MODULE (PVLM) CONTROL LAW SPECIFICATION V3.0
 
-## PURPOSE & MISSION
-PVLM formalizes the $S\text{-}03$ Policy Veto Signal generation mechanism. Its mission is to transform validated state indices and operational parameters into a deterministic boolean veto status, ensuring adherence to the Operational Constraint Matrix (OCM) requirements at GSEP-C Stage L1.
+## A. PURPOSE & MISSION
+PVLM V3.0 establishes the deterministic Control Law for generating the $S\text{-}03$ Policy Veto Signal. Its mission is to rigorously transform the real-time Constraint Data Plane (CDP) into an L1 Veto status, strictly ensuring adherence to the Operational Constraint Matrix (OCM) mandates. The logic mandates high-priority short-circuit evaluation to meet stringent L1 operational latency budgets.
 
-## OPERATIONAL SPECIFICATIONS
+## B. INPUT/OUTPUT SPECIFICATION
 
-### Inputs (L0/L1 Data Plane)
-*   **Structured System State Index (SSI V3):** The current, indexed state vector of the operational environment.
-*   **Adaptive RTM Matrix (RTM V2):** Current derived Risk Tolerance Metrics, determining $\Omega$.
-*   **Governance Signal Interface (GSI):** Direct channel for Human/Supervisory Override signals (GMO).
+### B.1 Inputs (Constraint Data Plane - CDP)
+Inputs are aggregated into a single operational data structure, $D_{CDP}$, ensuring atomic access:
+*   **SSI V3.1 Signature:** Current indexed system state vector hash.
+*   **RTM V2.2 Matrix & $\Omega$:** Derived Risk Tolerance Metrics and the Dynamic Veto Limit Scalar ($\Omega$).
+*   **GSI (Governance Signal Interface):** Explicit Human/Supervisory Override status (boolean GMO).
+*   **HVT Index Status (Set $\mathcal{H}$):** Binary status of all indexed Hard Veto Thresholds.
+*   **WSC Index Status (Set $\mathcal{W}$):** Current values of all Weighted Soft Constraints.
+*   **VPCS V1.1 (Weights $w_{i}$):** The active Veto Parameter Configuration Schema defining weights for each $WSC_{i}$.
 
-### Output (L1 Constraint Plane)
+### B.2 Output (L1 Constraint Plane)
 *   **$S\text{-}03$ Boolean Signal:** VETO Status (TRUE = Constraint Violation/VETO ACTIVE).
-*   **Veto Trace Record (VTR V1):** Immutable, hash-linked manifest detailing the specific trigger(s) for $S\text{-}03$ = TRUE.
+*   **Veto Trace Record (VTR V2):** Immutable, hash-linked manifest detailing the full $D_{CDP}$ snapshot and the specific domain (D1, D2, or D3) that forced $S\text{-}03$ to TRUE. Requires cryptographic sealing.
 
-### Timing Requirement
-PVLM operation must resolve $S\text{-}03$ status within a Veto Latency Budget ($t_{max}$) defined by the current RTM Matrix, typically sub-5ms for L1 operations.
+### B.3 Timing Requirement
+PVLM implementation must leverage hierarchical evaluation and explicit short-circuiting. Total PVLM operation must resolve $S\text{-}03$ status within the critical path Latency Budget ($t_{max}$) defined by RTM, typically sub-5ms for L1 operations.
 
-## CORE LOGIC DOMAINS (PVLM\_D)
+## C. CORE LOGIC DOMAINS (PVLM_D)
 
-PVLM processes constraint violations across three prioritized, hierarchical domains:
+The PVLM evaluates constraint violations across three prioritized, hierarchical domains. Evaluation halts upon the first TRUE result.
 
 1.  **Domain D1: Governance Manual Override (GMO)**
-    *   **Description:** Explicit, non-bypassable supervisory signal.
-    *   **Effect:** GMO forces $S\text{-}03$ to TRUE immediately.
+    *   **Priority:** Highest (L0 Fail-Safe).
+    *   **Evaluation:** Immediate check of $GSI$.
+    *   **Condition:** If $GMO = TRUE$, set $S\text{-}03 = TRUE$. Short-Circuit ACTIVATED.
 
 2.  **Domain D2: Hard Veto Thresholds (HVT)**
-    *   **Description:** Violation of mandated, security-critical, or existential red-line constraints. HVT state is determined by structured analysis of specific metrics (e.g., L7 AIA risk model score exceeding 0.99 threshold).
-    *   **Condition:** If any indexed HVT flag is TRUE, $S\text{-}03$ is TRUE.
+    *   **Priority:** High (Existential/Security Critical).
+    *   **Evaluation:** Check of all members in Set $\mathcal{H}$.
+    *   **Condition:** If $\exists h \in \mathcal{H}$ such that $h = TRUE$, set $S\text{-}03 = TRUE$. Short-Circuit ACTIVATED.
 
 3.  **Domain D3: Weighted Soft Constraints (WSC)**
-    *   **Description:** Aggregate assessment of weighted low-to-mid priority violations (e.g., predicted resource depletion, sustained KPI degradation).
-    *   **Assessment:** Each $WSC_{i}$ is assigned a weight ($w_i$) defined by the Veto Parameter Configuration Schema (VPCS).
-    *   **Condition:** $\sum_{i=1}^{n} (WSC_{i} \cdot w_{i}) > \Omega$ (Dynamic Veto Limit Scalar). If TRUE, $S\text{-}03$ is TRUE.
+    *   **Priority:** Medium (Operational Degradation).
+    *   **Evaluation:** Aggregate assessment using weights $w_{i}$ defined by $VPCS$.
+    *   **Condition:** Calculate the aggregated score $A = \sum_{i} (WSC_{i} \cdot w_{i})$. If $A > \Omega$, set $S\text{-}03 = TRUE$.
 
-## PVLM CORE EQUATION (V2.1)
+## D. PVLM CONTROL LAW EQUATION (V3.0)
 
-$$
-S\text{-}03 = \text{GMO} \lor \text{HVT} \lor \left( \sum_{i=1}^{n} (WSC_{i} \cdot w_{i}) > \Omega \right)
-$$
+Given the mandated short-circuit evaluation priority, the mathematical representation of the Control Law is:
 
-Where $\Omega$ is dynamically derived from the RTM V2 Matrix, scaling inversely with current risk exposure.
+$$S\text{-}03 = D1 \text{ (GMO)} \lor [ D2 \text{ (HVT)} \lor D3 \text{ (WSC)} ]$$
 
-## TRACEABILITY AND AUDIT REQUIREMENT (VTR)
-The VTR output must include the derived $\Omega$ value, the active RTM V2 signature used for derivation, the specific HVT ID(s) if applicable, and the total WSC aggregate score, ensuring L7 AIA auditability.
+Where:
+$$D1 = GMO$$ 
+$$D2 = \bigvee \mathcal{H}$$ 
+$$D3 = \left( \sum_{i \in \mathcal{W}} (WSC_{i} \cdot w_{i}) > \Omega \right)$$
+
+## E. TRACEABILITY REQUIREMENT (VTR V2)
+If $S\text{-}03$ is TRUE, the VTR V2 must log the complete $D_{CDP}$ used, the activation domain (D1/D2/D3), the total WSC score $A$, and the $\Omega$ scalar, ensuring verifiable compliance with OCM/AIA audit protocols.
