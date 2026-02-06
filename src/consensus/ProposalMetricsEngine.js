@@ -1,34 +1,51 @@
 /**
- * Proposal Metrics Engine (PME) v94.2 - Enhanced Calibration Core
- * Responsible for consuming aggregated data from PSHI and outputting actionable metrics
- * for ARCH-ATM trust score calibration and AGI-C-12 CIW refinement.
- * Implements a configurable, segmented scoring pipeline using explicit normalization and
- * context-specific modulation layers.
+ * Proposal Metrics Engine (PME) v94.3 - Enhanced Bayesian-Temporal Core
+ * Responsible for consuming aggregated data from PSHI (Proposal History Index) and outputting
+ * actionable metrics for ARCH-ATM trust score calibration and AGI-C-12 CIW refinement.
+ * Implements a strict three-stage calculation pipeline, leveraging segmented scoring and
+ * configurable contextual Bayesian regression toward the mean (BTA).
  */
 class ProposalMetricsEngine {
-    constructor(historyIndexInstance, config = {}) {
-        if (!historyIndexInstance || typeof historyIndexInstance.calculateAgentSuccessRate !== 'function') {
-            throw new Error("PME requires a valid ProposalHistoryIndex (PSHI) instance.");
-        }
-        this.index = historyIndexInstance;
 
-        // Default Scoring Weights and Configuration
-        this.config = {
+    static get DEFAULT_CONFIG() {
+        return {
             // Weights for blending raw rate and recent performance (must sum close to 1.0)
-            performanceWeights: config.performanceWeights || { rawRate: 0.65, recentDecayWeight: 0.35 },
-            // Factors for Volume Normalization
-            volumeNormalization: config.volumeNormalization || { minConfidenceThreshold: 10, maxConfidenceProportion: 0.5 },
-            // Context Multipliers
-            contextWeights: config.contextWeights || {
+            performanceWeights: { rawRate: 0.70, recentDecayWeight: 0.30 },
+            // Factors for Bayesian Temporal Adjustment (BTA) Volume Normalization
+            volumeNormalization: {
+                minProposals: 15, // Minimum data required before applying full normalization
+                maxConfidenceProportion: 0.6, // The proportion of MaxHistorySize needed for 1.0 confidence
+                confidenceNeutralPoint: 0.5 // Default prior belief
+            },
+            // Context Multipliers and Risk Weights
+            contextWeights: {
                 "CRITICAL_SYSTEM": 1.75, // Increased penalty/reward weight
                 "UTILITY_ADAPTER": 1.0,
                 "UI_RENDER": 0.8
             },
-            // Penalty application threshold
-            lowScoreThreshold: config.lowScoreThreshold || 0.6
+            // Criticality penalty refinement for low scores in high-risk contexts
+            criticalityPenalty: {
+                threshold: 0.6,
+                exponentFactor: 3.0 // Increased exponential dampening factor
+            }
         };
+    }
 
-        // Validate weights for transparency
+    constructor(historyIndexInstance, config = {}) {
+        if (!historyIndexInstance || typeof historyIndexInstance.calculateAgentSuccessRate !== 'function') {
+            throw new Error("PME requires a valid ProposalHistoryIndex (PSHI) instance.");
+        }
+
+        this.index = historyIndexInstance;
+        this.config = Object.assign({}, ProposalMetricsEngine.DEFAULT_CONFIG, config);
+        
+        // Merge nested objects specifically
+        this.config.performanceWeights = Object.assign({}, ProposalMetricsEngine.DEFAULT_CONFIG.performanceWeights, config.performanceWeights);
+        this.config.volumeNormalization = Object.assign({}, ProposalMetricsEngine.DEFAULT_CONFIG.volumeNormalization, config.volumeNormalization);
+        this.config.contextWeights = Object.assign({}, ProposalMetricsEngine.DEFAULT_CONFIG.contextWeights, config.contextWeights);
+        this.config.criticalityPenalty = Object.assign({}, ProposalMetricsEngine.DEFAULT_CONFIG.criticalityPenalty, config.criticalityPenalty);
+
+        // Validate weights post-merge
         const sum = this.config.performanceWeights.rawRate + this.config.performanceWeights.recentDecayWeight;
         if (Math.abs(sum - 1.0) > 0.01) {
             console.warn(`PME Performance weights sum to ${sum}, not 1.0. Results may be skewed.`);
@@ -37,61 +54,94 @@ class ProposalMetricsEngine {
 
     /**
      * Calculates the time-decayed and context-weighted trust score for an agent (ARCH-ATM output).
-     * Follows a three-stage pipeline: 1. Performance Blend, 2. Volume Confidence Nudge, 3. Context Modulation.
+     * Follows the BTA Pipeline: 1. Temporal Blend, 2. Volume Confidence (Bayesian Regression), 3. Context Modulation.
      * @param {string} agentId - The agent identifier.
      * @param {string} currentContext - The context of the proposal being evaluated.
-     * @returns {number} Calibrated Trust Score (0.0 to 1.0).
+     * @returns {number} Calibrated Trust Score (0.01 to 1.0).
      */
     getCalibratedAgentTrustScore(agentId, currentContext) {
         const snapshot = this.index.calculateAgentSuccessRate(agentId);
         const cfg = this.config;
 
-        if (snapshot.totalProposals < cfg.volumeNormalization.minConfidenceThreshold) {
-            // Insufficient data, return neutral or confidence-adjusted score based on raw rate
-            return snapshot.rawRate > 0.5 ? 0.5 + (snapshot.rawRate - 0.5) * 0.5 : 0.5; 
+        if (snapshot.totalProposals < cfg.volumeNormalization.minProposals) {
+            // Insufficient data: Apply mild confidence nudge based on initial raw rate
+            const rawConfidenceAdjustment = (snapshot.rawRate - cfg.volumeNormalization.confidenceNeutralPoint) * 0.5;
+            return Math.min(1.0, Math.max(0.01, cfg.volumeNormalization.confidenceNeutralPoint + rawConfidenceAdjustment));
         }
 
-        // --- Stage 1: Performance Blend (Temporal Prioritization) ---
-        // Blend raw success rate with the highly time-decayed recent quality score.
-        let trustScore = 
-            (cfg.performanceWeights.rawRate * snapshot.rawRate) +
-            (cfg.performanceWeights.recentDecayWeight * snapshot.recentWeight);
+        // Stage 1: Temporal Blend
+        let trustScore = this._calculateTemporalBlend(snapshot);
 
-        // --- Stage 2: Volume Confidence Normalization ---
-        // Prevents over-reaction to high scores based on insufficient history.
-        const maxProposals = this.index.maxHistorySize;
-        const normalizedVolume = snapshot.totalProposals / maxProposals;
-        
-        // Confidence factor smoothly scales from 0 (min volume) to 1 (max volume proportion)
-        const confidenceFactor = Math.min(1.0, normalizedVolume / cfg.volumeNormalization.maxConfidenceProportion);
-        
-        // Nudge: Pulls the score towards the neutral point (0.5) if confidence is low.
-        trustScore = 0.5 + (trustScore - 0.5) * confidenceFactor;
+        // Stage 2: Volume Confidence Normalization (BTA)
+        trustScore = this._applyVolumeNormalization(trustScore, snapshot);
 
-        // --- Stage 3: Contextual Modulation ---
-        const contextMultiplier = cfg.contextWeights[currentContext] || 1.0;
-        
-        if (contextMultiplier !== 1.0) {
-            // Dynamic adjustment: Apply amplified penalty/reward based on criticality.
-            const deviationFromNeutral = trustScore - 0.5;
-            // Amplify the deviation based on context criticality
-            trustScore = 0.5 + (deviationFromNeutral * contextMultiplier);
-            
-            // Criticality Dampening: Apply an exponential penalty for low scores in high-risk contexts
-            if (contextMultiplier > 1.0 && trustScore < cfg.lowScoreThreshold) {
-                const criticalityPenalty = (contextMultiplier - 1.0) * Math.pow(cfg.lowScoreThreshold - trustScore, 2);
-                trustScore -= criticalityPenalty;
-            }
-        }
-        
-        // Clamp and return
+        // Stage 3: Contextual Modulation and Risk Penalty
+        trustScore = this._applyContextModulation(trustScore, currentContext);
+
+        // Final Clamp (Ensures 0.01 floor to prevent immediate blacklisting)
         return Math.min(1.0, Math.max(0.01, trustScore));
     }
 
     /**
+     * Stage 1: Blends raw historical success rate with the recent, time-decayed performance.
+     * @private
+     */
+    _calculateTemporalBlend(snapshot) {
+        const { performanceWeights } = this.config;
+        return (
+            (performanceWeights.rawRate * snapshot.rawRate) +
+            (performanceWeights.recentDecayWeight * snapshot.recentWeight)
+        );
+    }
+
+    /**
+     * Stage 2: Pulls the score towards the confidence neutral point (0.5) if history is insufficient.
+     * Implements Bayesian Temporal Adjustment (BTA).
+     * @private
+     */
+    _applyVolumeNormalization(score, snapshot) {
+        const { volumeNormalization } = this.config;
+        const maxProposals = this.index.maxHistorySize;
+        
+        // Normalized volume ratio relative to max storage capacity
+        const normalizedVolume = snapshot.totalProposals / maxProposals;
+        
+        // Confidence factor scales from 0 to 1 based on volume vs target proportion
+        const confidenceFactor = Math.min(1.0, normalizedVolume / volumeNormalization.maxConfidenceProportion);
+        
+        // Bayesian Regression: Moves score toward the neutral prior based on confidence
+        const deviationFromNeutral = score - volumeNormalization.confidenceNeutralPoint;
+        return volumeNormalization.confidenceNeutralPoint + (deviationFromNeutral * confidenceFactor);
+    }
+
+    /**
+     * Stage 3: Applies contextual risk weights and enhanced criticality penalties.
+     * @private
+     */
+    _applyContextModulation(score, currentContext) {
+        const cfg = this.config;
+        const contextMultiplier = cfg.contextWeights[currentContext] || 1.0;
+        let trustScore = score;
+
+        if (contextMultiplier !== 1.0) {
+            const deviationFromNeutral = trustScore - 0.5;
+            // Amplify the deviation
+            trustScore = 0.5 + (deviationFromNeutral * contextMultiplier);
+            
+            // Criticality Dampening (Non-linear Penalty Application)
+            if (contextMultiplier > 1.0 && trustScore < cfg.criticalityPenalty.threshold) {
+                const penaltyFactor = contextMultiplier - 1.0; // Severity based on criticality weight
+                // Apply exponential penalty: higher penalty for scores further below the threshold
+                const deltaBelowThreshold = cfg.criticalityPenalty.threshold - trustScore;
+                const criticalityPenalty = penaltyFactor * Math.pow(deltaBelowThreshold, cfg.criticalityPenalty.exponentFactor);
+                trustScore -= criticalityPenalty;
+            }
+        }
+        return trustScore;
+    }
+
+    /**
      * Retrieves dynamic weighting adjustments for CIW inputs based on global failure patterns.
-     * This calibrates AGI-C-12 based on observed risks (e.g., if topology X fails often, increase
-     * the weight given to CIW inputs related to topology X).
      * @param {string} topologyType - The structural failure signature.
      * @returns {number} Dynamic Weight Multiplier (>= 1.0).
      */
@@ -99,8 +149,8 @@ class ProposalMetricsEngine {
         // PSHI provides the normalized historical frequency of failures for this topology type [0, 1].
         const bias = this.index.getFailurePatternBias(topologyType);
         
-        // Exponentially scales the bias ratio [0, 1] to a multiplier [1.0, 4.0] for dynamic weighting.
-        return 1.0 + (bias * bias * 3.0); 
+        // Enhanced Scaling: Quadratic function [1.0, 5.0] range for significant emphasis on high-risk topologies.
+        return 1.0 + (bias * bias * 4.0); 
     }
 }
 
