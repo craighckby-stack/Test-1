@@ -1,56 +1,121 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "GAX Constraint Strictness Profiles (Risk-Tiered)",
-  "description": "Defines abstract, risk-based validation threshold overrides for ACVT metrics. Profiles inherit from BASE_PROFILE, only requiring overrides for specific metrics.",
+  "title": "GAX ACVT Strictness Profiles (Risk-Tiered)",
+  "description": "Defines abstract, risk-based validation threshold overrides for Autonomous Code Validation Threshold (ACVT) metrics. Profiles inherit missing metrics from BASE_PROFILE.",
+  "$defs": {
+    "ConstraintProfileSchema": {
+      "type": "object",
+      "description": "A partial or complete set of validation thresholds for ACVT metrics.",
+      "properties": {
+        "max_compute_delta_percent": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max allowed relative (percentage) change in CPU/compute usage."
+        },
+        "max_memory_delta_mb": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max allowed absolute increase in resident memory usage (MB)."
+        },
+        "max_io_latency_shift_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max allowed absolute shift (increase or decrease) in critical I/O path latency (ms)."
+        },
+        "max_maintainability_index_shift": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max allowed absolute negative shift (drop) in the overall composite Maintainability Index (MI) score."
+        },
+        "security_severity_rejection_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Minimum security severity score (CVSSv3 base score) that triggers automatic rejection."
+        },
+        "max_tco_factor_change": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max allowed relative change (e.g., 0.05 for 5% increase) in Total Cost of Ownership factor."
+        }
+      },
+      "additionalProperties": false
+    },
+    "RequiredBaseProfile": {
+      "description": "The constraint set required to fully specify BASE_PROFILE.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/ConstraintProfileSchema"
+        },
+        {
+          "required": [
+            "max_compute_delta_percent",
+            "max_memory_delta_mb",
+            "max_io_latency_shift_ms",
+            "max_maintainability_index_shift",
+            "security_severity_rejection_threshold",
+            "max_tco_factor_change"
+          ]
+        }
+      ]
+    }
+  },
   "type": "object",
   "properties": {
     "BASE_PROFILE": {
-      "type": "object",
-      "description": "The mandatory baseline constraints applied if no specific profile is matched.",
-      "properties": {
-        "max_compute_delta_percent": {"type": "number", "description": "Max allowed relative change in compute usage (e.g., CPU cycles)."},
-        "max_memory_delta_mb": {"type": "number", "description": "Max allowed absolute increase in resident memory usage."},
-        "max_io_latency_shift_ms": {"type": "number", "description": "Max allowed absolute shift in critical I/O path latency."},
-        "security_severity_rejection_threshold": {"type": "number", "description": "Minimum security severity score (e.g., CVSSv3) that triggers automatic rejection of the evolution."},
-        "max_tco_factor_change": {"type": "number", "description": "Max allowed relative change in Total Cost of Ownership factor."}
-      },
-      "required": ["max_compute_delta_percent", "max_memory_delta_mb", "max_io_latency_shift_ms", "security_severity_rejection_threshold", "max_tco_factor_change"]
+      "description": "The mandatory, fully specified baseline constraints used for default validation.",
+      "$ref": "#/$defs/RequiredBaseProfile",
+      "examples": [
+        {
+          "max_compute_delta_percent": 0.2,
+          "max_memory_delta_mb": 512,
+          "max_io_latency_shift_ms": 1.0,
+          "max_maintainability_index_shift": 0.5,
+          "security_severity_rejection_threshold": 7.0,
+          "max_tco_factor_change": 0.1
+        }
+      ]
     },
     "PROFILES": {
       "type": "object",
-      "description": "Named, abstract strictness profiles (e.g., CRITICAL, HIGH_TCO). These override BASE_PROFILE metrics.",
+      "description": "Named strictness profiles for scenario-specific override application.",
       "properties": {
         "CRITICAL_PERFORMANCE": {
-          "type": "object",
-          "description": "Extremely tight constraints for core scheduling and execution paths.",
-          "properties": {
-            "max_compute_delta_percent": {"type": "number", "default": 0.1},
-            "max_io_latency_shift_ms": {"type": "number", "default": 0.05}
-          },
-          "additionalProperties": false
+          "description": "Extremely tight constraints for core scheduling paths.",
+          "allOf": [
+            {
+              "$ref": "#/$defs/ConstraintProfileSchema"
+            }
+          ],
+          "examples": [
+            {
+              "max_compute_delta_percent": 0.05,
+              "max_io_latency_shift_ms": 0.01
+            }
+          ]
         },
-        "HIGH_CAPACITY_TCO": {
-          "type": "object",
-          "description": "Relaxed memory constraints, rigorous TCO and long-term stability scrutiny.",
-          "properties": {
-            "max_memory_delta_mb": {"type": "number", "default": 4096.0},
-            "max_tco_factor_change": {"type": "number", "default": 0.05}
-          },
-          "additionalProperties": false
+        "MAINTAINABILITY_FOCUS": {
+          "description": "Strict emphasis on code quality and complexity reduction.",
+          "allOf": [
+            {
+              "$ref": "#/$defs/ConstraintProfileSchema"
+            }
+          ],
+          "examples": [
+            {
+              "max_maintainability_index_shift": 0.1,
+              "max_tco_factor_change": 0.2
+            }
+          ]
         }
       },
       "additionalProperties": {
-        "type": "object",
-        "description": "Schema for arbitrary profile overrides.",
-        "properties": {
-          "max_compute_delta_percent": {"type": "number"},
-          "max_memory_delta_mb": {"type": "number"},
-          "max_io_latency_shift_ms": {"type": "number"},
-          "security_severity_rejection_threshold": {"type": "number"},
-          "max_tco_factor_change": {"type": "number"}
-        }
+        "$ref": "#/$defs/ConstraintProfileSchema"
       }
     }
   },
-  "required": ["BASE_PROFILE", "PROFILES"]
+  "required": [
+    "BASE_PROFILE",
+    "PROFILES"
+  ]
 }
