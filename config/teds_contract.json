@@ -1,41 +1,62 @@
 {
-  "contract_id": "TEDS_AGI_V94_PRIMARY",
-  "schema_version": "2.1.0",
+  "contract_id": "TEDS_AGI_V94_PRIMARY_REFIT",
+  "schema_version": "3.0.0",
   "status": "active",
-  "temporal_gates": {
-    "active_hours_utc": "00:00-23:59",
-    "emergency_override_active": false,
-    "critical_window_active": false
-  },
-  "governance_model": {
-    "evolution_safety_index_threshold": 0.85,
+  "governance": {
     "default_mode": "adaptive_autonomy",
-    "audit_level": "high_fidelity",
+    "evolution_safety_index_threshold": 0.85,
+    "audit_level": "L3_high_fidelity",
     "feedback_loop_enabled": true
   },
-  "runtime_constraints": {
-    "system_calls": {
-      "max_per_minute": 500,
-      "concurrency_limit": 16
+  "operational_windows": {
+    "standard_utc": "00:00-23:59",
+    "critical_maintenance_active": false,
+    "emergency_override_active": false
+  },
+  "constraint_profiles": {
+    "adaptive_autonomy": {
+      "resource_limits": {
+        "memory_gb": 16,
+        "max_system_calls_per_sec": 8,
+        "concurrency_limit": 16
+      },
+      "security_profile": {
+        "required_safety_index_min": 0.75,
+        "leak_detection_sensitivity": "medium"
+      }
     },
-    "memory_limits": {
-      "critical_tasks_gb": 48,
-      "standard_tasks_gb": 16,
-      "leak_detection_sensitivity": "medium"
+    "critical_task": {
+      "resource_limits": {
+        "memory_gb": 48,
+        "max_system_calls_per_sec": 25,
+        "concurrency_limit": 32
+      },
+      "security_profile": {
+        "required_safety_index_min": 0.90,
+        "leak_detection_sensitivity": "high"
+      }
     }
   },
   "module_contracts": {
     "code_evolution_engine": {
-      "enforcement": "strict",
-      "permissions": ["fs:write:internal", "net:low_latency"],
-      "escalation_policy": "P1_manual_review",
-      "required_safety_index": 0.90
+      "enforcement_level": "strict",
+      "required_profile": "critical_task",
+      "permissions_matrix": {
+        "filesystem": ["write:internal", "read:config"],
+        "network": ["low_latency:external"],
+        "telemetry": ["high_volume"]
+      },
+      "escalation_policy": "P1_manual_review"
     },
     "scaffolding_agent": {
-      "enforcement": "lenient",
-      "permissions": ["fs:read:config", "logging:high"],
-      "escalation_policy": "P3_automated_rollback",
-      "required_safety_index": 0.70
+      "enforcement_level": "lenient",
+      "required_profile": "adaptive_autonomy",
+      "permissions_matrix": {
+        "filesystem": ["read:config", "read:project"],
+        "logging": ["high_fidelity"],
+        "network": ["telemetry_only"]
+      },
+      "escalation_policy": "P3_automated_rollback"
     }
   }
 }
