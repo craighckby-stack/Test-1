@@ -14,25 +14,56 @@ import { MCR } from '../governance/mutationChainRegistrar';
 import { ConfigurationService } from '../config/configurationService';
 import { CodebaseHasher } from '../utility/codebaseHasher';
 import { ActiveStateContextManager } from './activeStateContextManager';
+import { StateSnapshotRepository } from './stateSnapshotRepository'; // New dependency
 
 export class SystemStateVerifier {
 
     /**
-     * Internal utility to calculate the System State Hash (SSH).
-     * @private
+     * Calculates the definitive System State Hash (SSH) based on structured context.
+     * @param {{configHash: string, codeHash: string, proposalID: string}} context
+     * @returns {string}
      */
-    _calculateSystemStateHash(configHash, codeHash, proposalID) {
+    static calculateSystemStateHash({ configHash, codeHash, proposalID }) {
         if (!configHash || !codeHash || !proposalID) {
-            throw new Error("[SSV] Cannot calculate SSH: Missing required context elements.");
+            throw new Error("[SSV:HashGen] Incomplete context provided for System State Hash calculation.");
         }
         // Hash structure: SHA256(ConfigHash:CodebaseHash:ProposalID)
         const combinedInput = `${configHash}:${codeHash}:${proposalID}`;
         return crypto.createHash('sha256').update(combinedInput).digest('hex');
     }
+    
+    /**
+     * Gathers the necessary hashes and the Proposal ID required to define a system state context.
+     * @private
+     * @param {string | null} [proposalIDForLocking=null] - Explicit ID used for locking a *new* state.
+     * @returns {Promise<{configHash: string, codeHash: string, proposalID: string}>}
+     */
+    async _gatherCurrentSystemContext(proposalIDForLocking = null) {
+        
+        const configHash = ConfigurationService.fetchCriticalConfigHash();
+        const codeHash = CodebaseHasher.calculateActiveCodebaseHash(); // Assuming synchronous or pre-computed, per original API
+        
+        let proposalID;
+        
+        if (proposalIDForLocking) {
+            proposalID = proposalIDForLocking;
+        } else {
+            // Used for dynamic validation where the active context must be determined by the system.
+            proposalID = ActiveStateContextManager.getActiveProposalID();
+        }
+
+        if (!proposalID) {
+            throw new Error("[SSV:Context] Unable to determine operational context (Proposal ID is missing).");
+        }
+
+        return { configHash, codeHash, proposalID };
+    }
+
 
     /**
      * 1. Calculates a deep cryptographic hash of the current active code and configuration.
-     * 2. Registers this state hash with the Mutation Chain Registrar (MCR).
+     * 2. Persists the detailed snapshot (C, H, P, SSH) to the State Snapshot Repository (SSR).
+     * 3. Registers this state hash with the Mutation Chain Registrar (MCR).
      * @param {string} proposalID - The identifier for the mutation proposal being verified.
      * @returns {Promise<string>} The verified system state hash.
      */
@@ -41,33 +72,31 @@ export class SystemStateVerifier {
              throw new Error("Proposal ID is required to lock system state.");
         }
         try {
-            // Step 1: Gather configuration and codebase elements for hashing
-            const activeConfig = ConfigurationService.fetchCriticalConfigHash();
-            const codebaseHash = CodebaseHasher.calculateActiveCodebaseHash();
+            // Step 1: Gather and contextualize
+            const context = await this._gatherCurrentSystemContext(proposalID);
     
-            // Step 2: Combine and hash to create the definitive System State Hash (SSH)
-            const ssh = this._calculateSystemStateHash(activeConfig, codebaseHash, proposalID);
+            // Step 2: Calculate definitive System State Hash (SSH)
+            const ssh = SystemStateVerifier.calculateSystemStateHash(context);
+
+            // Step 3: Snapshot Persistence (Auditability Improvement)
+            StateSnapshotRepository.saveSnapshot({ ...context, ssh });
     
-            // Step 3: Register SSH on the ledger via MCR (mandatory traceability)
+            // Step 4: Register SSH on the ledger via MCR
             await MCR.registerSystemStateHash(proposalID, ssh);
-            console.log(`[SSV] State Locked successfully for ${proposalID}. SSH: ${ssh}`);
+            
+            console.log(`[SSV:LOCK] State locked for ${proposalID}. SSH=${ssh.substring(0, 10)}...`);
     
             return ssh;
         } catch (error) {
-            console.error(`[SSV] CRITICAL ERROR during state verification for ${proposalID}:`, error.message);
+            // Ensure failure handling is highly explicit for critical governance functions
+            console.error(`[SSV:LOCK] CRITICAL FAILURE during state verification for ${proposalID}:`, error.message);
             throw new Error(`State verification failed: ${error.message}`);
         }
     }
 
     /**
      * Verifies if the current deployed state matches an expected state hash.
-     * Used primarily during post-execution audit or pre-rollback decision making.
-     * 
-     * This method now robustly retrieves the active context ID using the new 
-     * ActiveStateContextManager, ensuring that the hash recalculation is based 
-     * on the actual operational context.
-     * 
-     * @param {string} expectedHash - The hash registered during EPDP D.
+     * @param {string} expectedHash - The hash registered during the lock phase (EPDP D).
      * @returns {Promise<boolean>}
      */
     async validateCurrentStateAgainstHash(expectedHash) {
@@ -76,33 +105,24 @@ export class SystemStateVerifier {
         }
         
         try {
-            const currentConfigHash = ConfigurationService.fetchCriticalConfigHash();
-            const currentCodeHash = CodebaseHasher.calculateActiveCodebaseHash();
-            
-            // Step 1: Determine the operational context (Crucial fix from prior version)
-            const activeProposalID = ActiveStateContextManager.getActiveProposalID();
-            
-            if (!activeProposalID) {
-                console.error("[SSV] Cannot validate state: Active Proposal ID context is undefined. System integrity check requires defined context.");
-                return false;
-            }
+            // Step 1: Gather context based on live operational environment
+            const context = await this._gatherCurrentSystemContext();
+            const activeProposalID = context.proposalID;
 
             // Step 2: Recalculate hash based on current live state and defined context
-            const liveRecalculatedHash = this._calculateSystemStateHash(
-                currentConfigHash,
-                currentCodeHash,
-                activeProposalID
-            );
+            const liveRecalculatedHash = SystemStateVerifier.calculateSystemStateHash(context);
 
             if (liveRecalculatedHash === expectedHash) {
-                console.log(`[SSV] State Integrity verified successfully against context ${activeProposalID}.`);
+                console.log(`[SSV:VERIFY] State Integrity verified successfully. Context ID: ${activeProposalID}`);
                 return true;
-            } else {
-                console.error(`[SSV] State Integrity Failure (Context ${activeProposalID}): Expected ${expectedHash}, Found discrepancy ${liveRecalculatedHash}.`);
-                return false;
-            }
+            } 
+            
+            // State Integrity Failure: Log details clearly
+            console.error(`[SSV:VERIFY] State Integrity Failure (ID: ${activeProposalID}). Expected: ${expectedHash.substring(0, 10)}..., Found: ${liveRecalculatedHash.substring(0, 10)}...`);
+            return false;
+
         } catch (error) {
-             console.error(`[SSV] CRITICAL ERROR during state validation:`, error.message);
+             console.error(`[SSV:VERIFY] CRITICAL ERROR during state validation:`, error.message);
              return false;
         }
     }
