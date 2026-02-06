@@ -1,1 +1,63 @@
-[object Object]
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign.v94.1/protocol/chr_schema.json",
+  "title": "Chronology Record Schema (CHR)",
+  "description": "Defines the structure for state changes, events, or agent actions within the Sovereign AGI runtime history, ensuring type safety and index optimization.",
+  "type": "object",
+  "required": [
+    "chr_id",
+    "timestamp",
+    "entity_type",
+    "data_payload"
+  ],
+  "properties": {
+    "chr_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique immutable identifier (UUID v4) for the chronology record."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 formatted timestamp of the event (UTC).
+"
+    },
+    "entity_type": {
+      "type": "string",
+      "enum": [
+        "AGENT",
+        "TOOL",
+        "SYSTEM",
+        "USER_INPUT",
+        "MODEL_OUTPUT"
+      ],
+      "description": "The type of entity that generated the record."
+    },
+    "source_hash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "description": "SHA-256 hash of the triggering code context, antecedent state, or associated execution snapshot."
+    },
+    "data_payload": {
+      "type": "object",
+      "description": "The specific data content detailing the event or state change.",
+      "minProperties": 1,
+      "properties": {
+        "event_name": { "type": "string", "description": "High-level action name (e.g., 'PlanningCycle', 'ToolExecution')." },
+        "status": { "type": "string" },
+        "metrics": { "type": "object" }
+      },
+      "required": ["event_name"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "System-level metadata for lineage and debugging.",
+      "properties": {
+        "agi_version": { "type": "string" },
+        "process_id": { "type": "integer" }
+      }
+    }
+  },
+  "additionalProperties": false
+}
