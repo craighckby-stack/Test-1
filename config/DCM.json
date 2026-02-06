@@ -1,30 +1,46 @@
 {
-  "config_version": "1.1.0",
+  "config_version": "1.2.0",
   "artifact_id": "DCM",
-  "description": "Structured Drift Control Manifest for L8 DERE operations and automated anomaly resolution.",
+  "description": "Structured Drift Control Manifest for L8 DERE operations, emphasizing decoupled trigger definitions and reusable remediation actions.",
   "status": "ACTIVE",
+  "evaluation_schedule": {
+    "frequency_type": "INTERVAL",
+    "interval_seconds": 3600
+  },
   "monitored_targets": [
     {
-      "metric_id": "S-01",
+      "target_id": "S-01",
       "metric_name": "System Efficacy Score",
       "metric_type": "PERFORMANCE",
+      "data_sources": ["PREDICTIVE", "ACTUAL"],
+      "remediation_profile": "R01_CoreDrift",
       "thresholds": {
-        "drift_threshold_percent": 0.05,
-        "absolute_risk_limit": 0.01,
+        "critical_drift_limit": 0.05,
+        "warning_drift_limit": 0.02,
         "comparison_method": "PREDICTIVE_VS_ACTUAL"
       }
     }
   ],
-  "drift_policy": {
-    "evaluation_schedule": {
-      "frequency_type": "INTERVAL",
-      "interval_seconds": 3600
-    },
-    "trigger_condition": {
-      "target_delta_formula": "S-01_PREDICTED - S-01_ACTUAL",
-      "action_trigger": "IF_ANY_THRESHOLD_EXCEEDED"
-    },
-    "action_sequence": [
+  "drift_triggers": [
+    {
+      "profile_id": "R01_CoreDrift",
+      "description": "Trigger set for S-01 core performance degradation.",
+      "conditions": [
+        {
+          "severity": "CRITICAL",
+          "formula": "ABS(S-01.PREDICTIVE - S-01.ACTUAL) > thresholds.critical_drift_limit",
+          "action_ref": "A001_Recalibrate_Core"
+        },
+        {
+          "severity": "WARNING",
+          "formula": "ABS(S-01.PREDICTIVE - S-01.ACTUAL) > thresholds.warning_drift_limit",
+          "action_ref": "A002_Report_Warning"
+        }
+      ]
+    }
+  ],
+  "action_catalogue": {
+    "A001_Recalibrate_Core": [
       {
         "sequence_id": "P01",
         "action_type": "RECALIBRATE",
@@ -37,6 +53,14 @@
         "action_type": "FALLBACK",
         "action_code": "R-01_soft_rollback",
         "priority": 10
+      }
+    ],
+    "A002_Report_Warning": [
+      {
+        "sequence_id": "R02",
+        "action_type": "NOTIFY",
+        "channel": "SLACK_ALERT_DCM",
+        "priority": 50
       }
     ]
   },
