@@ -2,8 +2,53 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "urn:sovereign:schema:governance:CertifiedOperationalTelemetrySchema",
   "title": "Certified Operational Telemetry Schema (COTS)",
-  "description": "Standardized schema for recording non-critical, high-frequency operational metrics and environment data during P3 Audit & Metric Calculation (S07-S10). Essential for performance analysis and optimization loops.",
+  "description": "Standardized schema for recording non-critical, high-frequency operational metrics and environment data during P3 Audit & Metric Calculation (S07-S10). Essential for performance analysis, optimization loops, and compliance tracking.",
   "type": "object",
+  "$defs": {
+    "ResourceMetrics": {
+      "type": "object",
+      "description": "Core resource consumption metrics.",
+      "properties": {
+        "latency_ms": {
+          "type": "number",
+          "format": "float",
+          "description": "Total execution time (wall clock) in milliseconds for the tracked scope."
+        },
+        "cpu_utilization_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "memory_footprint_bytes": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "io_read_bytes": {
+          "type": "integer",
+          "format": "int64",
+          "description": "I/O bytes read during the operational window."
+        },
+        "io_write_bytes": {
+          "type": "integer",
+          "format": "int64",
+          "description": "I/O bytes written during the operational window."
+        }
+      },
+      "required": ["latency_ms", "cpu_utilization_percent", "memory_footprint_bytes"]
+    },
+    "RQLInteractionMetrics": {
+      "type": "object",
+      "description": "Runtime Query Layer (RQL) specific interaction metrics.",
+      "properties": {
+        "read_count": {"type": "integer", "description": "Number of RQL read operations."},
+        "write_count": {"type": "integer", "description": "Number of RQL write operations."},
+        "cache_hits": {"type": "integer"},
+        "cache_misses": {"type": "integer"},
+        "peak_queue_depth": {"type": "integer", "description": "Maximum concurrent pending RQL requests observed."}
+      },
+      "required": ["read_count", "write_count"]
+    }
+  },
   "properties": {
     "execution_uuid": {
       "type": "string",
@@ -17,27 +62,38 @@
     },
     "agent_source": {
       "type": "string",
-      "enum": ["SGS", "GAX"],
-      "description": "Agent responsible for generating the specific metric batch."
+      "description": "The specific internal component or agent generating the telemetry.",
+      "pattern": "^(SGS|GAX|ARC|PVM|RQL)-[A-Z0-9]+$"
+    },
+    "context_hash": {
+      "type": "string",
+      "format": "sha256",
+      "description": "Cryptographic hash identifying the exact input state/context that produced these metrics. Essential for performance correlation."
     },
     "operational_metrics": {
       "type": "object",
-      "description": "A collection of non-P-01 critical metrics.",
+      "description": "A comprehensive collection of non-P-01 critical metrics.",
       "properties": {
-        "latency_ms": {"type": "number", "description": "Total execution time in milliseconds for the current subprocess."},
-        "cpu_utilization_percent": {"type": "number"},
-        "memory_footprint_bytes": {"type": "integer"},
-        "rql_counts": {
-          "type": "object",
-          "description": "Runtime Query Layer interaction metrics."
+        "resources": {
+          "$ref": "#/$defs/ResourceMetrics",
+          "description": "Detailed physical resource utilization."
+        },
+        "rql_metrics": {
+          "$ref": "#/$defs/RQLInteractionMetrics",
+          "description": "Runtime Query Layer interaction statistics."
+        },
+        "optimization_loops_executed": {
+            "type": "integer",
+            "description": "Count of local optimization or adjustment loops executed during the measurement window."
         }
       },
-      "required": ["latency_ms", "cpu_utilization_percent"]
+      "required": ["resources", "rql_metrics"]
     },
     "intermediate_results_hash": {
       "type": "string",
+      "format": "sha256",
       "description": "Cryptographic hash of complex intermediate results (optional for high-volume data validation)."
     }
   },
-  "required": ["execution_uuid", "timestamp_utc", "agent_source", "operational_metrics"]
+  "required": ["execution_uuid", "timestamp_utc", "agent_source", "context_hash", "operational_metrics"]
 }
