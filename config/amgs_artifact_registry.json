@@ -1,0 +1,15 @@
+{
+  "system_id": "AMGS_Integrity_Check",
+  "version_minimum": "v94.1",
+  "description": "Defines the canonical list of files critical for Sovereign Integrity Hashing (CHR Manifest Generation). Loaded by utilities/amgs_manifest_generator.py.",
+  "governing_artifacts": [
+    "config/gsep_c_flow.json",
+    "config/acvm.json",
+    "governance/smc_schema.json",
+    "config/dial_analysis_map.json",
+    "protocol/fdls_spec.json",
+    "protocol/chr_schema.json",
+    "config/rrp_manifest.json",
+    "protocol/telemetry_spec.json"
+  ]
+}
