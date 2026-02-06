@@ -2,19 +2,22 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-// --- Configuration Constants ---
-const ALGORITHM = 'sha256';
-const ENCODING = 'hex';
-const DIGEST_LENGTH = 64; // Length of SHA-256 hash in hex characters.
-
 /**
  * IntegrityHashUtility
  * Provides standardized, consistent cryptographic hashing functions for
  * Governance Artifact attestation (GAX III requirement).
  * Ensures that all subsystems calculating hashes for GAR attestation use the same protocol.
+ * Uses streams internally for efficient asynchronous file processing.
  */
 class IntegrityHashUtility {
-    
+
+    // --- Configuration Constants ---
+    // These should ideally be driven by a centralized SecurityPolicy configuration.
+    static ALGORITHM = 'sha256';
+    static ENCODING = 'hex';
+    // Length of SHA-256 hash in hex characters (32 bytes * 2).
+    static HASH_LENGTH_HEX = 64; 
+
     /**
      * Calculates the cryptographic hash of raw data (Buffer or string).
      * @param {Buffer | string} data The content to hash.
@@ -23,14 +26,16 @@ class IntegrityHashUtility {
      */
     static hashData(data) {
         if (data === null || data === undefined) {
-            throw new Error("Cannot hash null or undefined data.");
+            throw new Error("IntegrityHashUtility: Cannot hash null or undefined data.");
         }
-        return crypto.createHash(ALGORITHM).update(data).digest(ENCODING);
+        return crypto.createHash(IntegrityHashUtility.ALGORITHM)
+            .update(data)
+            .digest(IntegrityHashUtility.ENCODING);
     }
 
     /**
      * Calculates the hash of a file synchronously.
-     * WARNING: Reads the entire file into memory. Use sparingly.
+     * WARNING: Reads the entire file into memory. Only use for small config files or startup checks.
      * @param {string} filePath Absolute or relative path to the file.
      * @returns {string} The SHA-256 hash.
      * @throws {Error} If file access fails.
@@ -41,12 +46,13 @@ class IntegrityHashUtility {
             const data = fs.readFileSync(fullPath);
             return IntegrityHashUtility.hashData(data);
         } catch (error) {
-            throw new Error(`Integrity hashing failed for file ${filePath} (${fullPath}): ${error.message}`);
+            throw new Error(`Integrity hashing failed for file ${filePath}: ${error.message}`);
         }
     }
 
     /**
-     * Calculates the hash of a file asynchronously (preferred for large files/runtime checks).
+     * Calculates the hash of a file asynchronously (preferred for all file checks).
+     * This method uses stream piping for optimal memory management.
      * @param {string} filePath Absolute or relative path to the file.
      * @returns {Promise<string>} Promise resolving to the SHA-256 hash.
      */
@@ -54,35 +60,37 @@ class IntegrityHashUtility {
         const fullPath = path.resolve(filePath);
         
         return new Promise((resolve, reject) => {
-            const hash = crypto.createHash(ALGORITHM);
+            const hash = crypto.createHash(IntegrityHashUtility.ALGORITHM);
             const stream = fs.createReadStream(fullPath);
 
-            // Handle stream errors (e.g., file not found, permission issues)
+            // Catch stream read errors (e.g., file not found)
             stream.on('error', (err) => {
-                reject(new Error(`Stream error during async hash calculation for ${fullPath}: ${err.message}`));
+                reject(new Error(`Hash stream read error for ${fullPath}: ${err.message}`));
             });
 
-            // Pipe stream data to the hash object
-            stream.on('data', (chunk) => {
-                hash.update(chunk);
-            });
-
-            // Finalize calculation upon stream end
-            stream.on('end', () => {
-                try {
-                    const result = hash.digest(ENCODING);
-                    resolve(result);
-                } catch (e) {
-                    // Safety net for digest error
-                    reject(new Error(`Hash digest calculation failed: ${e.message}`));
-                }
-            });
+            // Pipe data through the hash object.
+            stream.pipe(hash)
+                .on('error', (err) => {
+                    // Catch potential errors during piping/hashing phase
+                    reject(new Error(`Hash digest calculation error during pipe: ${err.message}`));
+                })
+                .on('finish', () => {
+                    // The hash object has received all input data.
+                    try {
+                        const result = hash.digest(IntegrityHashUtility.ENCODING);
+                        resolve(result);
+                    } catch (e) {
+                        // Catch final digest calculation failure
+                        reject(new Error(`Internal error finalizing hash digest: ${e.message}`));
+                    }
+                });
         });
     }
     
     /**
      * Validates if a calculated hash matches an expected hash.
-     * Enforces consistency in integrity checks.
+     * Enforces consistency in integrity checks and hash length.
+     * NOTE: Uses standard string comparison, suitable for integrity verification (non-secret data).
      * @param {string} calculatedHash The newly calculated hash.
      * @param {string} expectedHash The required hash.
      * @returns {boolean} True if the hashes match and are valid lengths.
@@ -93,12 +101,20 @@ class IntegrityHashUtility {
         }
 
         // Standardize validation against the defined digest length.
-        if (calculatedHash.length !== DIGEST_LENGTH || expectedHash.length !== DIGEST_LENGTH) {
+        const length = IntegrityHashUtility.HASH_LENGTH_HEX;
+        if (calculatedHash.length !== length || expectedHash.length !== length) {
             return false;
         }
         
-        // Standard string comparison is sufficient for file integrity verification.
         return calculatedHash === expectedHash;
+    }
+    
+    /**
+     * Retrieves the currently mandated hashing algorithm for external reporting/attestation.
+     * @returns {string} The algorithm name.
+     */
+    static getAlgorithm() {
+        return IntegrityHashUtility.ALGORITHM;
     }
 }
 
