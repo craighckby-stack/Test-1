@@ -1,36 +1,67 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://sovereign.agi/schemas/CAC_v1.json",
-  "title": "Certified Access Credential (CAC) Schema v1",
-  "description": "Defines the canonical structure for cryptographically verifiable access credentials used within the Sovereign AGI governance layer.",
+  "title": "Certified Access Credential (CAC) Schema v1.1 - Refined",
+  "description": "Defines the canonical structure for cryptographically verifiable access credentials. Includes standard lifecycle properties (iat, exp) and an extensible integrity check mechanism.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "asset_version": {
+    "version": {
       "type": "string",
-      "description": "The specific semantic version identifier for this credential structure (vX.Y).",
-      "pattern": "^v(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\z"
+      "description": "The specific semantic version identifier for this credential structure (vX.Y.Z).",
+      "pattern": "^v(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\z"
     },
-    "signing_key_id": {
+    "key_id": {
       "type": "string",
-      "description": "UUID reference identifying the public key used for signing the external wrapper or validating the internal payload.",
+      "description": "UUID reference identifying the public key used for validating the credential signature/integrity.",
       "format": "uuid"
     },
-    "checksum_sha512": {
-      "type": "string",
-      "description": "Cryptographic SHA-512 hash (128 hex characters) of the complete canonicalized asset contents, excluding external signatures.",
-      "pattern": "^[a-fA-F0-9]{128}$"
+    "issued_at": {
+      "type": "integer",
+      "description": "Timestamp (Unix epoch seconds) when the credential was issued (iat).",
+      "minimum": 0
+    },
+    "expires_at": {
+      "type": "integer",
+      "description": "Optional. Timestamp (Unix epoch seconds) when the credential validity expires (exp).",
+      "minimum": 0
+    },
+    "integrity_check": {
+      "type": "object",
+      "description": "Metadata concerning the payload integrity hash calculation.",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "description": "The hashing algorithm used (e.g., SHA512, Blake3).",
+          "enum": [
+            "SHA512",
+            "SHA384",
+            "SHA256",
+            "BLAKE3"
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "description": "The hash digest of the canonicalized 'credential_payload' bytes.",
+          "pattern": "^[a-fA-F0-9]{64,128}$"
+        }
+      },
+      "required": [
+        "algorithm",
+        "digest"
+      ]
     },
     "credential_payload": {
       "type": "object",
-      "description": "Encrypted or protected core credential data, expected to conform to the CAC_Payload schema upon decryption/parsing.",
+      "description": "The core credential data. Must conform to the expected CAC_Payload schema upon deserialization.",
       "minProperties": 1
     }
   },
   "required": [
-    "asset_version",
-    "signing_key_id",
-    "checksum_sha512",
+    "version",
+    "key_id",
+    "issued_at",
+    "integrity_check",
     "credential_payload"
   ]
 }
