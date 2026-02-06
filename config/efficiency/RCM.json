@@ -1,35 +1,41 @@
 {
-  "version": "2.0.0",
-  "policy_name": "SovereignAGI_RCMA_v2",
-  "description": "Resource Consumption Management Architecture (RCMA). Shifts from reactive limits to predictive cost allocation utilizing structured prioritization and dynamic cost models.",
+  "version": "3.0.0",
+  "policy_name": "SovereignAGI_RCMA_v3",
+  "description": "Adaptive Resource Cost Management Architecture. Utilizes structured prioritization tiers, centralized cost registry, and predictive capacity modeling.",
   "global_policy": {
     "cost_unit": "USD",
     "budget_cycle_ms": 60000,
-    "max_cycle_budget": 50000,
+    "cycle_budget_limit": 50000,
     "target_utilization_percent": 85,
-    "default_priority_scale": {
-      "Critical": 900,
-      "High": 700,
-      "Medium": 500,
-      "Low": 300,
-      "Background": 100
-    },
     "max_concurrent_tasks": 100
   },
-  "modules": {
+  "priority_tiers": {
+    "P1_CRITICAL": { "value": 900, "description": "Guaranteed minimal resource allocation (e.g., 15% budget share). System stability tasks." },
+    "P2_HIGH": { "value": 700, "description": "High QoS objectives. Target preferential allocation (10%)." },
+    "P3_MEDIUM": { "value": 500, "description": "Standard operational tasks. Default setting." },
+    "P4_LOW": { "value": 300, "description": "Background analysis, maintenance, and opportunistic processing." }
+  },
+  "cost_registry": {
+    "INFERENCE_TOKEN_PRICE": 0.00002,
+    "GPU_SEC_PRICE": 0.0001,
+    "MEMORY_READ_IOPS_PRICE": 0.000001,
+    "MEMORY_WRITE_IOPS_PRICE": 0.00001,
+    "TOOL_EXEC_MS_PRICE": 0.00005,
+    "EXTERNAL_TOOL_WEIGHT": 1.5
+  },
+  "components": {
     "InferenceEngine": {
-      "priority": 800,
-      "vram_reservation_mb": 4096,
-      "rate_limiting": {
+      "priority_tier": "P2_HIGH",
+      "resource_reservation": {
+        "vram_mb": 4096,
+        "cpu_cores": 2
+      },
+      "rate_control": {
         "token_limit_per_second": 10000,
         "throttling_delay_ms": 50
       },
       "cost_model": {
-        "formula": "C = (T * P_t) + (G * P_g)",
-        "unit_costs": {
-          "P_t": 0.00002,
-          "P_g": 0.0001
-        },
+        "formula": "C = (T * ${INFERENCE_TOKEN_PRICE}) + (G * ${GPU_SEC_PRICE})",
         "input_map": {
           "T": "tokens_consumed",
           "G": "gpu_seconds"
@@ -37,15 +43,11 @@
       }
     },
     "MemoryAccess": {
-      "priority": 500,
+      "priority_tier": "P3_MEDIUM",
       "iops_limit": 5000,
       "max_read_latency_ms": 25,
       "cost_model": {
-        "formula": "C = (R * P_r) + (W * P_w)",
-        "unit_costs": {
-          "P_r": 0.000001,
-          "P_w": 0.00001
-        },
+        "formula": "C = (R * ${MEMORY_READ_IOPS_PRICE}) + (W * ${MEMORY_WRITE_IOPS_PRICE})",
         "input_map": {
           "R": "read_count",
           "W": "write_count"
@@ -53,19 +55,14 @@
       }
     },
     "ToolExecution": {
-      "priority": 300,
+      "priority_tier": "P4_LOW",
       "timeout_ms": 5000,
-      "rate_limiting": {
+      "rate_control": {
         "max_concurrent_calls": 5,
         "rate_limit_ms": 100
       },
-      "external_cost_weight": 1.5,
       "cost_model": {
-        "formula": "C = (E * W) + (M * P_m)",
-        "unit_costs": {
-          "W": 1.5,
-          "P_m": 0.00005
-        },
+        "formula": "C = (E * ${EXTERNAL_TOOL_WEIGHT}) + (M * ${TOOL_EXEC_MS_PRICE})",
         "input_map": {
           "E": "external_cost",
           "M": "execution_time_ms"
@@ -82,9 +79,9 @@
         "threshold": 0.8
       },
       "action": {
-        "type": "AdjustModulePriority",
-        "module": "ToolExecution",
-        "new_priority": 100
+        "type": "AdjustPriority",
+        "component": "ToolExecution",
+        "preset": "DEGRADE_MINOR"
       },
       "revert_after_ms": 300000
     },
@@ -97,10 +94,10 @@
         "offset": 10
       },
       "action": {
-        "type": "IncreaseModuleRateLimit",
-        "module": "InferenceEngine",
+        "type": "AdjustRateControl",
+        "component": "InferenceEngine",
         "property": "throttling_delay_ms",
-        "value": 150
+        "preset": "MULTIPLIER_3X"
       },
       "revert_after_ms": null
     }
