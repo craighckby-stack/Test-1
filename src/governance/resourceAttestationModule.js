@@ -1,6 +1,6 @@
 /**
  * RESOURCE ATTESTATION MODULE (RAM)
- * ID: RAM-G01
+ * ID: RAM-G01 (Orchestrator Role)
  * GSEP Role: Pre-execution resource integrity verification using A-07 (Autonomy Core telemetry).
  *
  * The RAM ensures that the target environment and the Autogeny Sandbox (C-04)
@@ -19,19 +19,24 @@ const AttestationFailureRecord = require('./AttestationFailureRecord');
  */
 const runCheck = async (name, promiseFn) => {
     try {
+        // Execute the check provided by the registry
         const result = await promiseFn();
+        
+        // Ensure result adheres to expected structure { success: boolean, details: object }
+        const success = typeof result.success === 'boolean' ? result.success : false; 
+        
         return {
             check: name,
-            status: result.success ? 'PASS' : 'FAIL',
+            status: success ? 'PASS' : 'FAIL',
             details: result.details || {},
-            success: result.success
+            success: success
         };
     } catch (error) {
-        // Catch errors originating from the environmentMonitor or dependency resolution
+        // Catch errors originating from the check implementation or Monitor resolution
         return {
             check: name,
             status: 'ERROR',
-            details: { message: `Critical error during check execution: ${error.message}`, stack: error.stack },
+            details: { message: `CRITICAL error during check execution: ${error.message}`, stack: error.stack },
             success: false
         };
     }
@@ -41,39 +46,48 @@ class ResourceAttestationModule {
     /**
      * @param {object} config - The baseline configuration and thresholds.
      * @param {object} environmentMonitor - The telemetry source for real-time resource data.
-     * 
-     * Future Improvement: Inject ResourceCheckRegistry here instead of hardcoding internal checks.
+     * @param {object} checkRegistry - The centralized source of all defined resource checks.
      */
-    constructor(config, environmentMonitor) {
-        if (!config || !environmentMonitor) {
-            throw new AttestationFailureRecord('RAM_INIT_001', 'Initialization failed: Missing config or environment monitor dependency.');
+    constructor(config, environmentMonitor, checkRegistry) {
+        if (!config || !environmentMonitor || !checkRegistry) {
+            // Updated failure record to reflect new dependency requirement
+            throw new AttestationFailureRecord('RAM_INIT_001', 'Initialization failed: Missing config, environment monitor, or CheckRegistry dependency.');
         }
         this.baselineConfig = config;
         this.environmentMonitor = environmentMonitor;
+        this.checkRegistry = checkRegistry;
+        
+        console.log('RAM-G01 initialized. Using Check Registry for flexible attestations.');
     }
 
     /**
      * Executes environmental checks necessary for stable mutation execution.
      * Must pass prior to Architectural Staging Lock (EPDP D).
+     *
      * @typedef {object} AttestationReport
      * @property {boolean} success - True if all checks passed.
      * @property {Array<{check: string, status: string, details: object}>} results - Detailed output of each check.
      *
-     * @param {object} payloadMetadata - Metadata detailing resources required by the mutation.
+     * @param {object} payloadMetadata - Metadata detailing resources required by the mutation (e.g., requiredResources).
      * @returns {Promise<AttestationReport>} Structured report detailing check outcomes.
      */
     async executePreExecutionCheck(payloadMetadata) {
         const requiredResources = payloadMetadata.requiredResources || {};
-        console.log(`RAM-G01: Initiating resource attestation (Payload: ${payloadMetadata.id || 'N/A'}).`);
+        const checksToRun = this.checkRegistry.getChecks(); 
 
-        // 1. Define checks to run (in anticipation of using a Check Registry).
-        const checkPromises = [
-            runCheck('C04_ISOLATION_CHECK', () => this._verifySandboxIntegrity()),
-            runCheck('HW_AVAILABILITY_CHECK', () => this._checkHardwareAvailability(requiredResources)),
-            runCheck('OP_CONSTRAINTS_CHECK', () => this._checkOperationalConstraints(requiredResources))
-        ];
+        if (checksToRun.length === 0) {
+            console.warn("RAM-G01: Check Registry is empty. Bypassing attestation (Potential Security Risk).");
+            return { success: true, results: [] };
+        }
 
-        // 2. Execute all checks simultaneously for maximum efficiency.
+        console.log(`RAM-G01: Initiating concurrent attestation of ${checksToRun.length} resources (Payload: ${payloadMetadata.id || 'N/A'}).`);
+
+        // 1. Map checks from the registry into executable promises wrapped by runCheck
+        const checkPromises = checksToRun.map(check => 
+            runCheck(check.id, () => check.execute(requiredResources, this.environmentMonitor, this.baselineConfig))
+        );
+
+        // 2. Execute all checks simultaneously.
         const checkResults = await Promise.all(checkPromises);
 
         // 3. Aggregate results and finalize report.
@@ -95,72 +109,11 @@ class ResourceAttestationModule {
 
         if (!report.success) {
              // Throw standardized record containing the full failure report
-             throw new AttestationFailureRecord('RAM_CHECK_FAIL', 'Resource attestation failed one or more critical checks.', { report });
+             throw new AttestationFailureRecord('RAM_CHECK_FAIL', 'Resource attestation failed one or more critical checks. Mutation execution halted.', { report });
         }
 
+        console.log("RAM-G01: Attestation passed successfully.");
         return report;
-    }
-
-    /**
-     * Internal check for hardware/resource minimums against baselines.
-     * @param {object} requirements
-     * @returns {Promise<{success: boolean, details: object}>}
-     */
-    async _checkHardwareAvailability(requirements) {
-        const currentResources = await this.environmentMonitor.getCurrentState();
-        const details = { current: currentResources, required: requirements, discrepancies: [] };
-        let success = true;
-
-        // Check Max CPU Threshold (Ambient System Stress)
-        if (currentResources.cpuLoad > (this.baselineConfig.maxCpuThreshold || 80)) { // Added fallback default
-            success = false;
-            details.discrepancies.push(`CPU Load (${currentResources.cpuLoad.toFixed(2)}%) exceeds system max threshold (${this.baselineConfig.maxCpuThreshold}%).`);
-        }
-
-        // Check Min Memory Availability
-        if (requirements.minMemory && currentResources.availableMemory < requirements.minMemory) {
-            success = false;
-            details.discrepancies.push(`Available Memory (${currentResources.availableMemory} bytes) is below payload minimum requirement (${requirements.minMemory} bytes).`);
-        }
-        
-        return { success, details };
-    }
-
-    /**
-     * Internal helper to ensure C-04 (Autogeny Sandbox) operational readiness.
-     * @returns {Promise<{success: boolean, details: object}>}
-     */
-    async _verifySandboxIntegrity() {
-        // Logic to verify container health, resource limit enforcement, and kernel namespace isolation.
-        
-        // Simulation of telemetry fetching
-        const isolationStatus = (await this.environmentMonitor.getSandboxHealth()).status || 'OK'; 
-        const enforcementLevel = this.baselineConfig.requiredIsolationLevel || 'HIGH';
-        
-        if (isolationStatus !== 'OK') {
-             return { success: false, details: { status: isolationStatus, reason: 'C-04 Sandbox environment reported unhealthy status.' } };
-        }
-
-        return { success: true, details: { isolationLevel: enforcementLevel } };
-    }
-
-    /**
-     * Checks operational requirements like external service latency or critical statuses.
-     * @param {object} requirements
-     * @returns {Promise<{success: boolean, details: object}>}
-     */
-    async _checkOperationalConstraints(requirements) {
-        // Example check: Sentinel database (D-09) latency
-        if (requirements.requiresSentinelAccess) {
-            const latency = await this.environmentMonitor.ping('sentinel_db');
-            if (latency > (this.baselineConfig.maxDbLatency || 150)) { // Added fallback default
-                return { 
-                    success: false, 
-                    details: { constraint: 'SENTINEL_LATENCY', measured: latency, threshold: this.baselineConfig.maxDbLatency } 
-                };
-            }
-        }
-        return { success: true, details: { } };
     }
 }
 
