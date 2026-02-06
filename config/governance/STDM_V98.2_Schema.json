@@ -1,1 +1,40 @@
-[object Object]
+{
+  "SchemaID": "APM-99.0",
+  "PolicyLayer": 5,
+  "Description": "Adaptive Policy Matrix defining core operational thresholds and constraint enforcement mechanisms.",
+  "TrustDefinitions": {
+    "T_DecayRate": 0.005,
+    "T_Minimum_Sovereignty": 0.9999,
+    "T_Adaptive_Thresholds": {
+      "HighLatency": {"Metric": "P99_CommitTime_ms", "Scale": 1.5, "Trigger": "POLICY_REDUCTION"},
+      "LowResource": {"Metric": "CPU_Usage_pct", "Scale": 0.8, "Trigger": "STRICT_GOVERNANCE"}
+    }
+  },
+  "MandateConstraints": {
+    "C_MaxParallelProcesses": 128,
+    "C_ExecutionLimits": {
+      "L_Audit_Trail_Duration_s": 86400,
+      "L_SelfModify_AuthLevel": 4
+    }
+  },
+  "AdaptiveDeviationHandling": {
+    "ADH_Enabled": true,
+    "ADH_Policy_Weights": [
+      {"Code": 1, "Weight": 0.6, "Description": "Security Deviation"},
+      {"Code": 2, "Weight": 0.3, "Description": "Efficiency Deviation"},
+      {"Code": 3, "Weight": 0.1, "Description": "Contextual Drift"}
+    ],
+    "ADH_ReactionMatrix": {
+      "MatrixKey": 1,
+      "Thresholds": [
+        {"Max_Sigma": 3.0, "Action": "ALERT_HUMAN"},
+        {"Max_Sigma": 5.0, "Action": "ISOLATE_SUBSYSTEM"},
+        {"Max_Sigma": 7.0, "Action": "SELF_TERMINATE_MISSION"}
+      ]
+    }
+  },
+  "ProtocolHandlers": [
+    {"ID": 401, "Protocol": "Inter-Service Mesh Communication (ISMC)", "HashingAlgo": "SHA3_512", "SignatureRequired": true},
+    {"ID": 502, "Protocol": "External Data Ingestion (EDI)", "HashingAlgo": "None", "SignatureRequired": false, "MaxBandwidth_Mbps": 1024}
+  ]
+}
