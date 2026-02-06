@@ -1,35 +1,109 @@
 {
-  "executor_id": "GAE-V1.0",
-  "description": "Instruction set mapping VRRM abstract remediation actions to concrete execution modules and methods.",
-  "action_mappings": {
+  "version": "V94.1",
+  "executor_id": "GAE",
+  "description": "Hierarchical, schema-validated instruction set mapping for the Generic Autonomous Executor (GAE). Separates governance policies from execution mandates.",
+  "global_enforcement_protocols": [
+    "TRANSACTION_LOGGING_MANDATE"
+  ],
+  "remediation_actions": {
     "STATE_QUARANTINE": {
-      "module": "CISM_Integrator",
-      "method": "isolateAsset",
-      "security_level_required": "L5_ADMIN"
+      "domain": "SECURITY_INCIDENT_RESPONSE",
+      "priority": "CRITICAL",
+      "description": "Isolates a compromised asset or endpoint.",
+      "execution": {
+        "module": "CISM_Integrator",
+        "method": "isolateAsset",
+        "parameters_schema_ref": "config/GAX/schema/security/isolateAsset.json"
+      },
+      "policy": {
+        "security_level_required": "L5_ADMIN",
+        "local_protocols": [
+          "ASSET_LOCKING_CHECK",
+          "TRANSACTION_IDEMPOTENCE"
+        ],
+        "timeout_ms": 5000
+      }
     },
     "CONFIG_ROLLBACK": {
-      "module": "PVLM_Custodian",
-      "method": "applyCertifiedHash"
+      "domain": "CONFIGURATION_MANAGEMENT",
+      "priority": "HIGH",
+      "description": "Restores configuration to a previously certified hash.",
+      "execution": {
+        "module": "PVLM_Custodian",
+        "method": "applyCertifiedHash",
+        "parameters_schema_ref": "config/GAX/schema/config/rollbackHash.json"
+      },
+      "policy": {
+        "security_level_required": "L3_OPERATOR",
+        "local_protocols": [
+          "TRANSACTION_IDEMPOTENCE"
+        ],
+        "timeout_ms": 10000
+      }
     },
     "MODEL_RETRAINING_MANDATE": {
-      "module": "CMR_Orchestrator",
-      "method": "queueUrgentRetrain"
+      "domain": "AI_GOVERNANCE",
+      "priority": "HIGH",
+      "description": "Forces an urgent retraining queue request for a specified model identifier.",
+      "execution": {
+        "module": "CMR_Orchestrator",
+        "method": "queueUrgentRetrain",
+        "parameters_schema_ref": "config/GAX/schema/ai/retrainMandate.json"
+      },
+      "policy": {
+        "security_level_required": "L4_ENGINEER",
+        "local_protocols": [],
+        "timeout_ms": 60000
+      }
     },
     "METRIC_LOCKDOWN": {
-      "module": "MPAM_Monitor",
-      "method": "activateFreeze"
+      "domain": "OBSERVABILITY_CONTROL",
+      "priority": "MEDIUM",
+      "description": "Freezes monitoring metrics stream state.",
+      "execution": {
+        "module": "MPAM_Monitor",
+        "method": "activateFreeze",
+        "parameters_schema_ref": "config/GAX/schema/monitor/metricLockdown.json"
+      },
+      "policy": {
+        "security_level_required": "L2_OBSERVER",
+        "local_protocols": [],
+        "timeout_ms": 2000
+      }
     },
     "INPUT_STREAM_PAUSE": {
-      "module": "S1_Input_Handler",
-      "method": "pauseIngestStream"
+      "domain": "DATA_INGESTION_CONTROL",
+      "priority": "MEDIUM",
+      "description": "Halts data ingestion from a specified source stream.",
+      "execution": {
+        "module": "S1_Input_Handler",
+        "method": "pauseIngestStream",
+        "parameters_schema_ref": "config/GAX/schema/data/pauseStream.json"
+      },
+      "policy": {
+        "security_level_required": "L3_OPERATOR",
+        "local_protocols": [
+          "ASSET_LOCKING_CHECK"
+        ],
+        "timeout_ms": 4000
+      }
     },
     "ADTM_ADJUSTMENT": {
-      "module": "ADTM_Controller",
-      "method": "patchHeuristics"
+      "domain": "AI_TRUST_ENGINE",
+      "priority": "HIGH",
+      "description": "Applies a real-time heuristic patch to the Adversarial Trust Model (ADTM).",
+      "execution": {
+        "module": "ADTM_Controller",
+        "method": "patchHeuristics",
+        "parameters_schema_ref": "config/GAX/schema/ai/adtmPatch.json"
+      },
+      "policy": {
+        "security_level_required": "L5_ADMIN",
+        "local_protocols": [
+          "TRANSACTION_IDEMPOTENCE"
+        ],
+        "timeout_ms": 3000
+      }
     }
-  },
-  "enforcement_protocols": [
-    "TRANSACTION_IDEMPOTENCE",
-    "ASSET_LOCKING_CHECK"
-  ]
+  }
 }
