@@ -7,20 +7,24 @@ from systems.models.M02_Payload import MutationPayload
 from policy.RuleSource import GovernanceRuleSource
 from metrics.AttestationRegistrar import TIAR
 from governance.ConstraintKeys import ConstraintKey
-# Import the newly proposed audit stream for critical failure logging
 from governance.GovernanceAuditStream import GovernanceAuditStream
-from typing import Dict, Any, List, Tuple, Callable
+from governance.scor.SCORCalculationError import SCORCalculationError
+from typing import Any, Callable, TypeAlias
 
+# Type Alias for SCOR's internal state vector (Constraint Key -> Calculated Penalty)
+ConstraintVector: TypeAlias = dict[str, float]
 
 class SCOR:
     """
-    The Systemic Constraint Optimization Registrar calculates S-04, the quantitative metric 
-    quantifying projected architectural degradation (Technical Debt) and resource debt 
-    incurred by the Mutation Payload (M-02). Calculation methods are decoupled from state updates.
+    The Systemic Constraint Optimization Registrar (SCOR) calculates S-04, the metric 
+    quantifying projected architectural degradation (Technical Debt) incurred by the 
+    Mutation Payload (M-02). 
+    
+    Calculation methods utilize dynamic dispatch validated during initialization.
     """
 
-    # Map ConstraintKey to the internal method name for dynamic lookup
-    _CONSTRAINT_MAPPING: Dict[ConstraintKey, str] = {
+    # Maps ConstraintKey to the internal method name
+    _CONSTRAINT_MAPPING: dict[ConstraintKey, str] = {
         ConstraintKey.COUPLING_PENALTY: '_calculate_coupling_penalty',
         ConstraintKey.RESOURCE_DEBT: '_calculate_resource_debt',
         ConstraintKey.POLICY_DEVIATION: '_calculate_policy_deviation',
@@ -28,79 +32,102 @@ class SCOR:
 
     def __init__(self, grs: GovernanceRuleSource):
         if not isinstance(grs, GovernanceRuleSource):
-            raise TypeError("SCOR initialization requires a valid GovernanceRuleSource instance.")
+            raise ValueError("SCOR requires a valid GovernanceRuleSource for initialization.")
+            
         self.grs = grs
-        # Internal state to hold calculated constraint components for detailed attestation
-        self._constraint_vector: Dict[str, float] = {}
+        # Internal state to hold calculated constraint components
+        self._constraint_vector: ConstraintVector = {}
+        # Pre-fetch and validate penalty methods for faster runtime access
+        self._method_cache: dict[ConstraintKey, Callable[[MutationPayload], float]] = self._build_method_cache()
+
+    def _build_method_cache(self) -> dict[ConstraintKey, Callable[[MutationPayload], float]]:
+        """Maps ConstraintKeys directly to their bound calculation methods and validates implementation presence."""
+        cache = {}
+        for key, method_name in self._CONSTRAINT_MAPPING.items():
+            method = getattr(self, method_name, None)
+            if method is None:
+                 # Fail early if configuration is incorrect
+                 raise NotImplementedError(f"SCOR configuration missing implementation for method: {method_name}")
+            cache[key] = method
+        return cache
+
+    # --- Constraint Calculation Implementations ---
 
     def _calculate_coupling_penalty(self, payload: MutationPayload) -> float:
-        """Constraint 1: Calculates penalty based on cross-module coupling coefficient.
-        Returns the calculated penalty only, without updating internal state.
-        """
-        risk_weight = self.grs.get_weight('COUPLING_RISK')
-        return payload.analyze_coupling_change() * risk_weight
+        """S-04.C1: Penalty based on cross-module coupling coefficient and risk weight."""
+        try:
+            risk_weight = self.grs.get_weight('COUPLING_RISK')
+            return payload.analyze_coupling_change() * risk_weight
+        except Exception as e:
+            raise SCORCalculationError(
+                key=ConstraintKey.COUPLING_PENALTY, detail="Coupling analysis failed in payload." 
+            ) from e
 
     def _calculate_resource_debt(self, payload: MutationPayload) -> float:
-        """Constraint 2: Projects the long-term resource elasticity debt projection.
-        Returns the calculated cost only, without updating internal state.
-        """
-        return payload.project_long_term_resource_cost()
+        """S-04.C2: Projects the long-term resource elasticity debt projection."""
+        try:
+            return payload.project_long_term_resource_cost()
+        except Exception as e:
+            raise SCORCalculationError(
+                key=ConstraintKey.RESOURCE_DEBT, detail="Resource projection failed in payload."
+            ) from e
 
     def _calculate_policy_deviation(self, payload: MutationPayload) -> float:
-        """Constraint 3: Assesses penalty for complexity near mandated policy ceilings.
-        Returns the calculated deviation penalty only, without updating internal state.
-        """
-        return self.grs.check_complexity_ceiling(payload)
+        """S-04.C3: Assesses penalty for complexity near mandated policy ceilings."""
+        try:
+            return self.grs.check_complexity_ceiling(payload)
+        except Exception as e:
+            raise SCORCalculationError(
+                key=ConstraintKey.POLICY_DEVIATION, detail="Policy check against ceiling failed."
+            ) from e
+
+    # --- Core Execution Logic ---
 
     def _execute_constraint(self, key: ConstraintKey, payload: MutationPayload) -> float:
         """
-        Executes a single constraint calculation, handles method lookup, error logging, 
-        and updates the constraint vector upon successful completion.
+        Executes a single constraint calculation using the method cache.
+        Handles specific SCOR calculation errors and audits failure via GovernanceAuditStream.
         """
-        method_name = self._CONSTRAINT_MAPPING.get(key)
-        if not method_name:
-            raise ValueError(f"ConstraintKey {key.value} is defined but missing mapping in SCOR.")
-            
-        method: Callable[[MutationPayload], float] = getattr(self, method_name, None)
-        
-        if method is None:
-            raise AttributeError(f"Missing constraint calculation implementation: {method_name}")
+        method = self._method_cache.get(key)
 
         try:
             penalty = method(payload)
+            
+            if not isinstance(penalty, (int, float)):
+                raise TypeError(f"Constraint {key.value} returned non-numeric result: {type(penalty)}")
+            
             # Update state immediately upon successful calculation
-            self._constraint_vector[key.value] = penalty
-            return penalty
-        except Exception as e:
-            # Use dedicated audit stream for critical calculation failures
+            self._constraint_vector[key.value] = float(penalty)
+            return float(penalty)
+            
+        except SCORCalculationError as e:
+            # Log structured calculation failures
             GovernanceAuditStream.log_critical_failure(
                 component='SCOR', 
-                context=f"Constraint {key.value} calculation failed", 
-                error=str(e)
+                context=f"Constraint {key.value} failed: {e.detail}", 
+                error=str(e.__cause__) if e.__cause__ else str(e)
             )
-            # Default to 0.0 penalty if calculation fails unexpectedly, ensuring system stability
+            # Default to 0.0 penalty for stability
             self._constraint_vector[key.value] = 0.0
             return 0.0
 
-    def calculate_S04_metric(self, payload: MutationPayload) -> Dict[str, Any]:
+    def calculate_S04_metric(self, payload: MutationPayload) -> dict[str, Any]:
         """
-        Primary interface: Calculates the aggregated S-04 score by iterating through 
-        all defined systemic constraint penalties.
+        Primary interface: Calculates the aggregated S-04 score.
 
         Returns: Dictionary containing the total S04_score and the detailed constraint_vector.
         """
-        
         if not isinstance(payload, MutationPayload):
             raise TypeError("S-04 calculation requires a valid MutationPayload object.")
             
         self._constraint_vector = {} 
         S04_score_total = 0.0
         
-        # Dynamic Constraint Execution Loop using the centralized mapping
-        for key in self._CONSTRAINT_MAPPING.keys():
+        # Iterate over the efficient pre-built method cache keys
+        for key in self._method_cache.keys():
             S04_score_total += self._execute_constraint(key, payload)
         
-        # Register detailed results for C-11 ingestion and historical attestation
+        # Register detailed results for historical attestation
         TIAR.register_metric(
             metric_key=ConstraintKey.S04_TOTAL.value, 
             value=S04_score_total, 
