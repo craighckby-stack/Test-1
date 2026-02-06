@@ -1,36 +1,42 @@
-const Ajv = require('ajv');
-const schema = require('../GSC_SST_Proposal_Schema.json');
+const { getProposalValidator } = require('../config/proposalSchemaFactory');
 
-// Configure AJV with settings necessary for production system validation
-const ajv = new Ajv({
-    allErrors: true, 
-    coerceTypes: true,
-    useDefaults: true // Applies defaults specified in the schema
-});
-
-const validate = ajv.compile(schema);
+// Pre-compile the validator using the factory pattern for centralized configuration
+const validate = getProposalValidator();
 
 /**
  * Validates a proposed governance object against the GSC_SST schema.
- * @param {object} proposalData - The data object submitted as a proposal.
- * @returns {{isValid: boolean, errors: array}}
+ * 
+ * Note: Since the underlying Ajv instance uses `useDefaults: true`, 
+ * the input proposalData object is mutated (coerced, defaults applied) 
+ * if validation is successful. The returned `canonicalData` reflects this mutation.
+ * 
+ * @param {object} proposalData - The data object submitted as a proposal (will be mutated).
+ * @returns {{isValid: boolean, errors: array, canonicalData: object | null}}
  */
 function validateProposal(proposalData) {
     const isValid = validate(proposalData);
     
+    // proposalData is now the canonical (defaulted/coerced) version if isValid is true.
+    const canonicalData = isValid ? proposalData : null;
+
     if (!isValid) {
-        // Enhance error reporting for cleaner system logs
-        const errors = validate.errors.map(err => ({
+        // Map Ajv errors to a cleaner, standardized internal structure.
+        const errors = (validate.errors || []).map(err => ({
             dataPath: err.instancePath,
             message: err.message,
             keyword: err.keyword,
-            params: err.params
+            params: err.params,
+            schema: err.schemaPath // Added for better debugging
         }));
 
-        return { isValid: false, errors };
+        return { isValid: false, errors, canonicalData: null };
     }
 
-    return { isValid: true, errors: [] };
+    return { 
+        isValid: true, 
+        errors: [], 
+        canonicalData 
+    };
 }
 
 module.exports = { validateProposal };
