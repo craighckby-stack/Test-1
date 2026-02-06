@@ -1,35 +1,52 @@
 {
-  "description": "Canonical definition of all governance-critical oversight parameters. This file is used to configure the OversightParameterRegistry (OPR) at boot time.",
-  "criticalKeys": [
-    "P01_RISK_FLOOR",
-    "MAX_ENTROPY_DEBT",
-    "SANDBOX_TIMEOUT_MS",
-    "E05_MAX_GENERATION_CYCLES"
-  ],
-  "schema": {
+  "fileId": "GOV_P_001",
+  "version": "1.1.0",
+  "description": "Canonical definition of all governance-critical oversight parameters. Parameters are grouped for automated system auditing and modular loading by the Oversight Parameter Registry (OPR).",
+  "parameters": {
     "P01_RISK_FLOOR": {
+      "group": "Safety_Control",
       "type": "float",
+      "unit": "ratio",
       "range": [0.01, 1.0],
       "default": 0.75,
-      "description": "Maximum permitted deviation from baseline risk metric."
+      "critical": true,
+      "description": "Maximum permitted deviation ratio from the measured baseline risk index (RBI)."
     },
     "MAX_ENTROPY_DEBT": {
+      "group": "Internal_State",
       "type": "integer",
+      "unit": "debt_points",
       "range": [1, 500],
       "default": 100,
-      "description": "Threshold for initiating forced self-correction procedures."
+      "critical": true,
+      "description": "Threshold for initiating forced self-correction and internal stabilization procedures."
     },
     "SANDBOX_TIMEOUT_MS": {
+      "group": "Execution_Safety",
       "type": "integer",
+      "unit": "ms",
       "range": [500, 30000],
       "default": 5000,
-      "description": "Timeout for independent code execution sandbox processes."
+      "critical": true,
+      "description": "Timeout (in milliseconds) for independent, unverified code execution sandbox processes."
     },
     "E05_MAX_GENERATION_CYCLES": {
+      "group": "Evolution_Resource",
       "type": "integer",
+      "unit": "cycles",
       "range": [5, 500],
       "default": 25,
-      "description": "Maximum cycles allowed for self-evolutionary generation attempt before aborting."
+      "critical": true,
+      "description": "Maximum self-evolutionary generation attempts (cycles) allowed for a single objective before aborting or reverting."
+    },
+    "G10_GOVERNANCE_AUDIT_INTERVAL_HRS": {
+      "group": "Audit_Frequency",
+      "type": "integer",
+      "unit": "hours",
+      "range": [1, 720],
+      "default": 24,
+      "critical": false,
+      "description": "Interval for mandatory full governance ledger audits."
     }
   }
 }
