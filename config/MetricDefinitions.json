@@ -1,1 +1,38 @@
-[object Object]
+{
+  "EVOLUTION_CYCLES_COMPLETED": {
+    "key": "EVOLUTION_CYCLES_COMPLETED",
+    "description": "Total number of successful self-modification cycles committed.",
+    "type": "COUNTER",
+    "unit": "COUNT",
+    "aggregation_strategy": "SUM",
+    "criticality": "P1",
+    "tags": ["evolution", "progress"]
+  },
+  "LATENCY_INFERENCE_MS": {
+    "key": "LATENCY_INFERENCE_MS",
+    "description": "P95 latency of the core decision/inference loop.",
+    "type": "GAUGE",
+    "unit": "MS",
+    "aggregation_strategy": "MAX",
+    "criticality": "P0",
+    "tags": ["performance", "latency"]
+  },
+  "FILE_PARSING_FAILURES": {
+    "key": "FILE_PARSING_FAILURES",
+    "description": "Count of parsing errors encountered during code context scanning.",
+    "type": "COUNTER",
+    "unit": "COUNT",
+    "aggregation_strategy": "SUM",
+    "criticality": "P2",
+    "tags": ["stability", "i/o"]
+  },
+  "RESOURCE_MEMORY_USED_PCT": {
+    "key": "RESOURCE_MEMORY_USED_PCT",
+    "description": "Percentage of allocated memory currently utilized.",
+    "type": "GAUGE",
+    "unit": "PERCENT",
+    "aggregation_strategy": "LAST",
+    "criticality": "P1",
+    "tags": ["resource", "system"]
+  }
+}
