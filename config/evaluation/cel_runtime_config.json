@@ -1,0 +1,22 @@
+{
+  "runtime_id": "DMW_Policy_V3_CEL_Runtime",
+  "engine_type": "CEL",
+  "description": "Configuration for the Common Expression Language (CEL) environment used to evaluate DMW policy conditions.",
+  "context_mapping": {
+    "request.ip": "string",
+    "user.id": "string",
+    "user.roles": "list<string>",
+    "resource.tags": "map<string, string>",
+    "time.current": "timestamp"
+  },
+  "available_functions": [
+    {"name": "is_internal_ip", "signature": "bool(string)"},
+    {"name": "has_role", "signature": "bool(list<string>, string)"},
+    {"name": "time_between", "signature": "bool(timestamp, timestamp, timestamp)"}
+  ],
+  "cache_settings": {
+    "enabled": true,
+    "max_age_seconds": 300,
+    "max_entry_count": 1000
+  }
+}
