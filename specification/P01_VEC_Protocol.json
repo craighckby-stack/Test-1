@@ -1,18 +1,1 @@
-{
-  "protocol_name": "Validation_Error_Code_Protocol",
-  "protocol_version": "V1.0",
-  "error_codes": {
-    "VETO_STATE_TRANSITION": {
-      "severity": "High",
-      "action": "Halt state transition, return to previous stable state."
-    },
-    "HARD_VETO_ESCALATE": {
-      "severity": "Critical",
-      "action": "Halt execution, log core dump, escalate to human oversight (Level 4).
-    },
-    "CRITICAL_SYSTEM_LOCK": {
-      "severity": "Extreme",
-      "action": "Halt all processing, activate core lockdown procedures, zero-tolerance policy."
-    }
-  }
-}
+[object Object]
