@@ -1,19 +1,30 @@
-## Artifact Provenance & Security Module (APSM)
+## Artifact Provenance & Security Module (APSM) - GSEP Trust Anchor
 
-**Component ID:** APSM
-**GSEP Scope:** Stage 2 (Validation, prior to Specification/Testing)
+**Component ID:** APSM.V2
+**GSEP Scope:** Stage 2 - Trust & Integrity Validation
 
-### Mandate
-The APSM's primary mandate is to ensure the complete supply chain integrity and security of the M-02 Mutation Payload *before* committing computational resources to the rigorous Pre-Commit Simulation Run (PSR) in Stage 3.
+### Strategic Mandate
+The APSM operates as the computational economy's defense mechanism, ensuring the absolute cryptographic integrity and traceable supply chain security of the M-02 Mutation Payload. Its primary function is to establish *Proof of Origin* and *Proof of Non-Malice* prior to committing resources to the highly parallelized Pre-Commit Simulation Run (PSR) in Stage 3. APSM's failure state prevents the commencement of Stage 3, conserving system entropy and computational cycles.
 
-This security checkpoint addresses vulnerabilities inherent in self-modifying systems by validating not just the structural adherence (PSIM's role), but the inherent trustworthiness of the source artifacts.
+### Functional Protocols (Attestation Pipeline)
 
-### Core Functions
+1.  **Artifact Attestation & Cryptographic Chain Validation (AACE):**
+    *   Establishes an immutable Chain of Custody (CoC) for the M-02 payload and its generated environment state.
+    *   Verifies all cryptographic signatures against the authorized root key register (AOC stream).
+    *   Records the verified metadata payload into the **Immutable Artifact Ledger (IAL)**, ensuring non-repudiation.
 
-1.  **Provenance Vetting:** Verifies cryptographic signing and source control metadata for the M-02 package, ensuring it originates from an authorized AOC generation stream.
-2.  **Dependency Scanning (DS):** Executes a deep scan of all recursive dependencies within the M-02 payload against known vulnerability registries (C-22, Central Vulnerability Nexus), flagging critical exposures.
-3.  **License and Policy Compliance:** Checks dependency licenses against the GRS (Governance Rule Source) to ensure legal and policy compliance pre-commit.
+2.  **Risk Profile Generation (RPG) & Dependency Analysis:**
+    *   Executes comprehensive static and dynamic scanning of all recursive dependencies, including behavioral analysis of internal artifacts.
+    *   Queries the Central Vulnerability Nexus (CVN) and internal risk registries (C-22, IAL historical data) for known exploits, behavioral flags, or conflict vectors.
+    *   Generates a normalized `Trust Score (T-score)` based on the derived risk profile.
 
-### Integration Constraints
+3.  **Policy Enforcement Gate (PEG):**
+    *   Automated verification of dependency licenses and architectural structure against the strict schema defined by the Governance Rule Source (GRS).
+    *   Vetoes execution if regulatory, licensing, or defined GRS governance policies are violated.
 
-The APSM output must be fully validated (FAIL/PASS) before GSEP transition from Stage 2 to Stage 3. A failure state triggers the Compliance Trace Generator (CTG) to execute F-01 failure analysis, labeling the failure state as 'Supply Chain Breach' or 'Dependency Veto'.
+### Integration Constraints & Output Schema
+
+The APSM is the definitive gating component of Stage 2. Its successful output is a digitally signed **Artifact Trust Record (ATR)** containing the T-score (must meet defined minimum threshold) and the IAL commitment hash.
+
+**Validation Success (Stage 2 -> Stage 3):** ATR is generated, T-score > Threshold.
+**Validation Failure:** Triggers immediate system quarantine (SQ-01 protocol). The Compliance Trace Generator (CTG) logs the failure, labeling the state as either 'Attestation Conflict' or 'Dependency Veto', initiating F-01 forensic analysis.
