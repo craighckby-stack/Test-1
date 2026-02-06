@@ -1,4 +1,4 @@
-const IntegrityUtils = require('./IntegrityUtils');
+const IntegrityUtils = require('../utils/IntegrityUtils');
 
 // Define specific error context constants
 const ERROR_PREFIX = "[SecurePolicyLedgerInterface]";
@@ -29,7 +29,6 @@ class SecurePolicyLedgerInterface {
         if (!rpcClient || typeof rpcClient.call !== 'function') {
             throw new Error(`${ERROR_PREFIX}: Requires a secured RPC client with a callable method.`);
         }
-        // Enforce logger dependency for critical system components
         if (!logger || typeof logger.error !== 'function') {
              throw new Error(`${ERROR_PREFIX}: Requires a valid logging utility.`);
         }
@@ -37,6 +36,30 @@ class SecurePolicyLedgerInterface {
         this.#rpcClient = rpcClient; 
         this.#logger = logger;
         this.#logger.debug(`${ERROR_PREFIX}: Initialized successfully.`);
+    }
+
+    /**
+     * Centralized RPC execution handler with unified logging and error wrapping.
+     * @param {string} method - The RPC method name.
+     * @param {object} params - The parameters to pass to the RPC call.
+     * @param {string} context - Descriptive context for logging.
+     * @returns {Promise<any>} The result of the RPC call.
+     * @private
+     */
+    async #executeRpcCall(method, params, context) {
+        try {
+            this.#logger.debug(`${ERROR_PREFIX} [${context}] Attempting RPC call: ${method}`);
+            const result = await this.#rpcClient.call(method, params);
+            this.#logger.debug(`${ERROR_PREFIX} [${context}] RPC call successful.`);
+            return result;
+        } catch (error) {
+            this.#logger.error(
+                `${ERROR_PREFIX} [${context}] RPC failure. Method: ${method}`,
+                { error: error.message, params }
+            );
+            // Throw a standardized error for external handling
+            throw new Error(`D-01 Ledger access failure (${context}): ${error.message}`);
+        }
     }
 
     /**
@@ -50,24 +73,22 @@ class SecurePolicyLedgerInterface {
             throw new TypeError(`${ERROR_PREFIX}: Input paths must be an array of strings.`);
         }
         
-        try {
-            this.#logger.debug(`[D-01] Requesting hashes for ${paths.length} paths.`, { paths });
+        const method = SecurePolicyLedgerInterface.RPC_METHODS.FETCH_HASHES;
+
+        const result = await this.#executeRpcCall(
+            method,
+            { paths },
+            'HASH_RETRIEVAL'
+        );
             
-            const result = await this.#rpcClient.call(SecurePolicyLedgerInterface.RPC_METHODS.FETCH_HASHES, { paths });
-            
-            // Critical Integrity Check: Validate the structure of the returned hashes.
-            if (!IntegrityUtils.isValidPolicyHashMap(result)) {
-                 const validationError = "Ledger response failed policy hash map integrity validation.";
-                 this.#logger.error(`${ERROR_PREFIX}: ${validationError}`, { response: result });
-                 throw new Error(validationError);
-            }
-            
-            return result;
-        } catch (error) {
-            // Log failure with context before re-throwing
-            this.#logger.error(`${ERROR_PREFIX}: Integrity Ledger access failure during retrieval.`, { error: error.message, method: SecurePolicyLedgerInterface.RPC_METHODS.FETCH_HASHES });
-            throw new Error(`Integrity Ledger access failure during retrieval: ${error.message}`);
+        // Critical Integrity Check: Validate the structure of the returned hashes.
+        if (!IntegrityUtils.isValidPolicyHashMap(result)) {
+            const validationError = "Ledger response failed policy hash map integrity validation.";
+            this.#logger.error(`${ERROR_PREFIX}: ${validationError}`, { response: result });
+            throw new Error(validationError); // Thrown after logging context
         }
+            
+        return result;
     }
 
     /**
@@ -87,29 +108,23 @@ class SecurePolicyLedgerInterface {
             throw new TypeError(`${ERROR_PREFIX}: Provided hash does not meet expected system integrity standard.`);
         }
 
-        try {
-            this.#logger.debug(`[D-01] Attempting to store new hash for path: ${filePath}`);
+        const method = SecurePolicyLedgerInterface.RPC_METHODS.STORE_HASH_RECORD;
 
-            const result = await this.#rpcClient.call(
-                SecurePolicyLedgerInterface.RPC_METHODS.STORE_HASH_RECORD, 
-                { filePath, newHash }
-            );
+        const result = await this.#executeRpcCall(
+            method,
+            { filePath, newHash },
+            'HASH_STORAGE'
+        );
             
-            // Normalize D-01 response (assuming 'true' or { success: true } means success)
-            if (result === true || (typeof result === 'object' && result?.success === true)) {
-                this.#logger.debug(`[D-01] Successfully stored hash for: ${filePath}`);
-                return true;
-            }
-            
-            // Explicit failure notification from D-01
-            const errorMessage = (typeof result === 'object' && result?.message) || 'Ledger indicated non-specific operational failure.';
-            this.#logger.error(`${ERROR_PREFIX}: D-01 storage failed.`, { filePath, response: result });
-            throw new Error(errorMessage);
-
-        } catch (error) {
-            this.#logger.error(`${ERROR_PREFIX}: Integrity Ledger access failure during storage.`, { error: error.message, method: SecurePolicyLedgerInterface.RPC_METHODS.STORE_HASH_RECORD });
-            throw new Error(`Integrity Ledger access failure during storage: ${error.message}`);
+        // Normalize D-01 response (check for explicit success indicators)
+        if (result === true || (typeof result === 'object' && result?.success === true)) {
+            return true;
         }
+            
+        // Explicit failure notification from D-01 (if the RPC succeeded but the transaction failed)
+        const errorMessage = (typeof result === 'object' && result?.message) || 'Ledger indicated non-specific operational failure during storage.';
+        this.#logger.error(`${ERROR_PREFIX}: D-01 transaction failed after successful RPC transport.`, { filePath, response: result });
+        throw new Error(errorMessage);
     }
 }
 
