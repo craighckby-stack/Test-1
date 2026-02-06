@@ -1,54 +1,76 @@
 /**
  * Static Analysis Engine (SAE) - src/analysis/staticAnalysisEngine.js
- * ID: SAE_V94
- * Role: Deep Structural Analysis / Code Metric Provisioning
+ * ID: SAE_V94.1
+ * Role: Deep Structural Analysis & Reporting
  *
- * Provides quantitative analysis of component structure (complexity, dependency count, maintainability index)
- * to support governance processes like CORE and the Retirement Metrics Service (RMS).
+ * Provides aggregated quantitative analysis of component structure (complexity, coupling, maintainability)
+ * utilizing pluggable CodeMetricProviders to support automated governance processes (CORE, RMS).
  */
 
 import { Logger } from '../utils/logger.js';
 
 const logger = new Logger('SAE');
 
-export const StaticAnalysisEngine = {
+export class StaticAnalysisEngine {
+    /**
+     * @param {Object} providers - Configuration object for pluggable analysis services.
+     * @param {Function} [providers.metricProvider] - A class/instance that calculates raw code metrics (e.g., CodeMetricProvider).
+     */
+    constructor(providers = {}) {
+        this.metricProvider = providers.metricProvider || this._getDefaultMetricProvider();
+        logger.debug('StaticAnalysisEngine initialized with analysis providers.');
+    }
+    
+    /**
+     * Internal default provider used for simulation when no actual provider is injected.
+     * @returns {Object} A mock metric provider.
+     */
+    _getDefaultMetricProvider() {
+        return {
+            analyzeCodeStructure: (componentPath) => {
+                logger.warn(`Using simulated metric analysis for ${componentPath}. Inject a real provider for production.`);
+                // Highly complex calculation placeholder
+                const complexityScore = 0.8 * (1 - (Math.random() * 0.4)); // 0.48 to 0.8
+                const maintainabilityScore = 0.2 + (Math.sin(componentPath.length) * 0.15); 
+                
+                return Promise.resolve({
+                    cyclomaticComplexity: 15,
+                    maintainabilityIndex: maintainabilityScore,
+                    couplingDegree: 5,
+                    linesOfCode: 500
+                });
+            }
+        };
+    }
 
     /**
-     * Simulates performing deep static analysis to estimate the structural benefit
-     * (complexity reduction) gained by removing a component.
-     * NOTE: This implementation should be replaced by actual code parsing logic.
-     * @param {string} componentId - The component identifier.
-     * @returns {Promise<{complexityScore: number, complexityReductionEstimate: number}>} 
-     *          complexityReductionEstimate is a normalized score (0.0 to 1.0).
+     * Performs a comprehensive static analysis for a component based on its path/ID.
+     * This method orchestrates the raw metric gathering and translates them into normalized governance scores.
+     * 
+     * @param {string} componentPath - Path or ID pointing to the code location.
+     * @returns {Promise<{
+     *     maintainabilityScore: number,
+     *     complexityReductionEstimate: number,
+     *     rawMetrics: object 
+     * }>} A detailed analysis report.
      */
-    async analyzeComplexityBenefit(componentId) {
-        logger.info(`Executing deep structural analysis for potential retirement benefit of ${componentId}.`);
-        
-        // Placeholder: In a real system, this involves scanning LOC, Cyclomatic Complexity, and coupling.
-        // For simulation purposes, we provide a structured output.
-        
-        // Simulates retrieving complexity markers (e.g., Maintainability Index)
-        const maintainabilityScore = await this._fetchMaintainabilityScore(componentId);
-        
-        // Heuristic mapping: Lower maintainability means higher removal benefit (more complexity).
-        const complexityReductionEstimate = 1.0 - maintainabilityScore; 
+    async generateAnalysisReport(componentPath) {
+        logger.info(`Generating structural analysis report for: ${componentPath}`);
+
+        const rawMetrics = await this.metricProvider.analyzeCodeStructure(componentPath);
+
+        // SAE's core role: translating raw metrics (like CI, Coupling) into normalized governance scores (0.0 to 1.0)
+        const maintainabilityScore = rawMetrics.maintainabilityIndex;
+
+        // The benefit of removal is typically inversely proportional to maintainability score.
+        const complexityReductionEstimate = 1.0 - maintainabilityScore;
         
         return {
-            complexityScore: maintainabilityScore, // 0.0 (low) to 1.0 (high maintainability)
-            complexityReductionEstimate: Math.min(1.0, Math.max(0.0, complexityReductionEstimate))
+            maintainabilityScore: maintainabilityScore,
+            complexityReductionEstimate: Math.min(1.0, Math.max(0.0, complexityReductionEstimate)),
+            rawMetrics: rawMetrics
         };
-    },
-
-    /**
-     * Internal simulation of fetching a structural metric.
-     * @param {string} componentId
-     * @returns {Promise<number>} Normalized maintainability score (0.0 to 1.0).
-     */
-    async _fetchMaintainabilityScore(componentId) {
-        // Default low score for non-critical/highly complex components for testing retirement potential.
-        // Simulate an API lookup based on previous analysis runs.
-        return 0.2 + (Math.sin(componentId.length) * 0.15);
-    },
+    }
     
-    // Future methods: getDependencyStructureReport, getTestingCoverageImpact
-};
+    // Future methods: getDependencyStructureReport, calculateRetirementImpact
+}
