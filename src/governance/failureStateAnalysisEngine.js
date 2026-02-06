@@ -3,36 +3,47 @@
  * 
  * Purpose: Processes P-01 (Trust Calculus) failures and M-02 (R-INDEX) rejections
  * to generate specific, measurable, and machine-readable refinement mandates. 
- * Prevents inefficient cycling of low-integrity proposals.
- *
- * Note: v94.1 focuses on structured mandates using constants defined in governanceConstants.
+ * Prevents inefficient cycling of low-integrity proposals by strictly adhering
+ * to defined governance action types.
  */
 
-const FAILURE_STAGES = {
-    P01_TRUST_CALCULUS: 'EPDP C: P-01',
-    M02_R_INDEX_READINESS: 'EPDP B: R-INDEX'
-};
-
-const DEFAULT_R_INDEX_TARGET = 0.75;
-const VETO_RETRY_TARGET = 0.98;
+const {
+    FAILURE_STAGES,
+    MANDATE_ACTION_TYPES,
+    GOV_TARGETS
+} = require('./governanceConstants'); // G-C01 Integration
 
 class FailureStateAnalysisEngine {
     constructor(policyEngine, metricsSystem) {
         this.C15 = policyEngine; // Policy Engine (Governance rules access)
         this.ATM = metricsSystem; // Telemetry and Metrics System (Trust weightings/diagnostics)
-        // Assumes C15 provides access to structured remediation maps
-        this.RemediationMap = this.C15.getFailureRemediationMap(); 
+        this.RemediationMap = this.C15.getFailureRemediationMap();
+        
+        // Cache targets locally for quick access
+        this.defaultTarget = GOV_TARGETS.DEFAULT_R_INDEX_TARGET;
+        this.vetoTarget = GOV_TARGETS.VETO_RETRY_TARGET;
+    }
+
+    /**
+     * Helper to create structured, validated mandate actions.
+     */
+    _createMandateAction(type, data = {}) {
+        if (!Object.values(MANDATE_ACTION_TYPES).includes(type)) {
+            // Failsafe: Log error and assign unknown type if input is malicious or outdated
+            this.ATM.logWarning('FSAE_INVALID_ACTION_TYPE', { attemptedType: type });
+            type = MANDATE_ACTION_TYPES.UNKNOWN_ACTION;
+        }
+        return { type, ...data };
     }
 
     analyze(failureReport) {
         const { stage, reason, payloadHash } = failureReport;
-        
-        // Mandate structure designed for machine consumption by Stage 2 (Proposal Generator)
+
         let mandate = {
             targetProposal: payloadHash,
-            requiredActions: [], // Detailed machine-readable directives (objects)
-            refinementMandates: [], // Human/Legacy string output
-            newRIndexTarget: DEFAULT_R_INDEX_TARGET
+            requiredActions: [], 
+            refinementMandates: [], 
+            newRIndexTarget: this.defaultTarget
         };
 
         switch (stage) {
@@ -54,42 +65,49 @@ class FailureStateAnalysisEngine {
      * Handles failures stemming from insufficient Trust Calculus (P-01) scores.
      */
     _analyzeTrustCalculusFailure(reason, mandate) {
-        if (reason.vetoState === true) {
-            mandate.refinementMandates.push(`POLICY VIOLATION: Vetoed by source '${reason.vetoSource}'. Resolve C-15 policy conflict.`);
+        const { vetoState, vetoSource, requiredConfidence, actualScore, trustWeightings } = reason;
+
+        // 1. Veto Handling (BLOCKING CRITICALITY)
+        if (vetoState === true) {
+            mandate.refinementMandates.push(`POLICY VIOLATION: Vetoed by source '${vetoSource}'. Resolve C-15 policy conflict.`);
             
-            mandate.requiredActions.push({
-                type: 'POLICY_RESOLUTION', // Requires standard constants import
-                source: reason.vetoSource,
-                criticality: 'BLOCKING'
-            });
-            mandate.newRIndexTarget = VETO_RETRY_TARGET;
+            mandate.requiredActions.push(this._createMandateAction(
+                MANDATE_ACTION_TYPES.POLICY_RESOLUTION,
+                { source: vetoSource, criticality: 'BLOCKING' }
+            ));
+            mandate.newRIndexTarget = this.vetoTarget;
             return;
         } 
         
-        const scoreGap = reason.requiredConfidence - reason.actualScore;
+        // 2. Trust Deficit Analysis
+        const scoreGap = requiredConfidence - actualScore;
         
         if (scoreGap > 0) {
-            // Use ATM to diagnose which Trust Calculus weighting contributed most to the deficit
-            const analysis = this.ATM.diagnoseScoreDeficiency(reason.trustWeightings);
+            const analysis = this.ATM.diagnoseScoreDeficiency(trustWeightings);
+            const component = analysis.majorDeficiencyComponent;
 
-            if (analysis.majorDeficiencyComponent) {
+            if (component) {
                 // Calculate required test boost based on gap severity and component sensitivity
-                const requiredIncrease = Math.max(10, Math.ceil(scoreGap * 100 * analysis.sensitivityMultiplier || 1.2));
+                const sensitivity = analysis.sensitivityMultiplier || 1.2;
+                // Ensure a reasonable minimum required delta (e.g., 10%) 
+                const requiredIncrease = Math.max(10, Math.ceil(scoreGap * 100 * sensitivity));
                 
-                mandate.refinementMandates.push(`TRUST DEFICIT (${scoreGap.toFixed(4)}): Primary source: '${analysis.majorDeficiencyComponent}'. Targeted integrity boost required.`);
+                mandate.refinementMandates.push(`TRUST DEFICIT (${scoreGap.toFixed(4)}): Primary source: '${component}'. Targeted integrity boost required (+${requiredIncrease}% coverage focus).`);
                 
-                mandate.requiredActions.push({
-                    type: 'INCREASE_COVERAGE', 
-                    component: analysis.majorDeficiencyComponent,
-                    requiredCoverageDelta: requiredIncrease 
-                });
+                mandate.requiredActions.push(this._createMandateAction(
+                    MANDATE_ACTION_TYPES.INCREASE_COVERAGE,
+                    { component, requiredCoverageDelta: requiredIncrease }
+                ));
             } else {
                  mandate.refinementMandates.push(`LOW TRUST SCORE: Generalized deficiency detected. Increase overall unit test coverage by 15%.`);
-                 mandate.requiredActions.push({ type: 'INCREASE_COVERAGE', component: 'GLOBAL', requiredCoverageDelta: 15 });
+                 mandate.requiredActions.push(this._createMandateAction(
+                     MANDATE_ACTION_TYPES.INCREASE_COVERAGE,
+                     { component: 'GLOBAL', requiredCoverageDelta: 15 }
+                 ));
             }
 
             // Set R-Index Target higher than required confidence based on gap penalty
-            mandate.newRIndexTarget = Math.min(1.0, reason.requiredConfidence + scoreGap * 0.15);
+            mandate.newRIndexTarget = Math.min(1.0, requiredConfidence + scoreGap * 0.15);
         }
     }
 
@@ -97,21 +115,25 @@ class FailureStateAnalysisEngine {
      * Handles failures stemming from low Readiness Index (M-02) checks.
      */
     _analyzeRIndexFailure(reason, mandate) {
-        if (reason.failedComponents && reason.failedComponents.length > 0) {
-            const componentList = reason.failedComponents.join(', ');
+        const { failedComponents } = reason;
+
+        if (failedComponents && failedComponents.length > 0) {
+            const componentList = failedComponents.join(', ');
             
             mandate.refinementMandates.push(`LOW READINESS INDEX: Failed invariant checks in M-02 for components: [${componentList}]. Focus on component stability validation.`);
             
-            mandate.requiredActions.push({
-                type: 'STABILITY_FOCUS',
-                components: reason.failedComponents,
-                depth: 'INTERFACE_INTEGRITY'
-            });
+            mandate.requiredActions.push(this._createMandateAction(
+                MANDATE_ACTION_TYPES.STABILITY_FOCUS,
+                { components: failedComponents, depth: 'INTERFACE_INTEGRITY' }
+            ));
             
-            mandate.newRIndexTarget = DEFAULT_R_INDEX_TARGET + 0.10; // Boost R-Index target slightly
+            mandate.newRIndexTarget = this.defaultTarget + 0.10; // Boost R-Index target slightly to force robust solution
         } else {
              mandate.refinementMandates.push(`R-INDEX FAILURE: General component stability failure detected. Review low-level dependency graph.`);
-             mandate.requiredActions.push({ type: 'RESOURCE_AUDIT', scope: 'DEPENDENCIES' });
+             mandate.requiredActions.push(this._createMandateAction(
+                 MANDATE_ACTION_TYPES.RESOURCE_AUDIT, 
+                 { scope: 'DEPENDENCIES', reason: 'Unspecified M-02 Invariant Failure' }
+             ));
         }
     }
 
