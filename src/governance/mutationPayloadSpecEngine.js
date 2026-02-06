@@ -5,10 +5,15 @@
 
 const { validateSchema } = require('@governance/payloadSchemaValidator');
 const { MPSE_SCHEMA_V1 } = require('@config/schemas/mutationPayload.json');
+const { PayloadSchemaError } = require('./errors/PayloadSchemaError'); // Refactored import
+const Logger = require('@utils/Logger'); // Assume standard utility logger
+
+const SUBSYSTEM_ID = 'MPSE';
 
 class MutationPayloadSpecEngine {
     constructor() {
         this.schema = MPSE_SCHEMA_V1;
+        Logger.info(`[${SUBSYSTEM_ID}] Initialized. Awaiting mutation proposals.`);
     }
 
     /**
@@ -17,21 +22,25 @@ class MutationPayloadSpecEngine {
      * @throws {PayloadSchemaError} if validation fails.
      */
     enforceSpecification(payload) {
-        console.log("MPSE: Enforcing structural specification on mutation payload...");
+        Logger.debug(`[${SUBSYSTEM_ID}] Attempting specification enforcement on incoming payload...`);
         
         const validationResult = validateSchema(payload, this.schema);
 
         if (!validationResult.isValid) {
-            const error = `MPSE Validation Failed: Structural breach identified in mutation payload. Details: ${validationResult.errors.join(', ')}`;
-            throw new Error(error);
+            // Extract cleaner error messages for structured handling
+            const errorDetails = validationResult.errors.map(e => e.path ? `${e.path}: ${e.message}` : e.message).join(' | ');
+            
+            Logger.warn(`[${SUBSYSTEM_ID}] Validation failed. Structural breach identified: ${errorDetails}`);
+            
+            // Throw custom, catchable error type as specified in JSDoc
+            throw new PayloadSchemaError(
+                "Structural breach identified in mutation payload. Governance contract violation.", 
+                payload, 
+                errorDetails
+            );
         }
 
-        // Additional checks ensuring required fields are non-null and correctly typed
-        if (!payload.target_path || typeof payload.operation_type !== 'string') {
-            throw new Error("MPSE: Critical field validation failure (target/type).");
-        }
-
-        console.log("MPSE: Payload is structurally compliant.");
+        Logger.verbose(`[${SUBSYSTEM_ID}] Payload structurally compliant. Forwarding to P-01.`);
         return payload;
     }
 }
