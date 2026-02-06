@@ -1,0 +1,15 @@
+{
+  "ManifestVersion": "1.0",
+  "KeyAlgorithm": "ECC_P521_PKCS8",
+  "ActiveKeyID": "SGS-KEY-94-11A-T2",
+  "SignaturePolicy": {
+    "TargetedArtifacts": [
+      "CRoT/StateIndexingProtocolManifest",
+      "CRoT/TraceVetoContextRegistry"
+    ],
+    "MinimumSigners": 1,
+    "VerificationEndpoints": [
+      "https://verifier.agi-gov.net/keylookup"
+    ]
+  }
+}
