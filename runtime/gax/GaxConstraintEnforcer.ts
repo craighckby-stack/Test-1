@@ -1,34 +1,91 @@
-export interface ConstraintDefinition {
-  type: string;
-  value: number | string;
-  unit?: string;
+export class ConstraintViolationError extends Error {
+  public constraintType: string;
+  
+  constructor(message: string, constraintType: string) {
+    super(`Constraint violation detected: ${message}`);
+    this.name = 'ConstraintViolationError';
+    this.constraintType = constraintType;
+  }
 }
 
+export interface ConstraintDefinition {
+  type: 'rate_limit' | 'payload_size' | 'timeout' | string; // Use known constraint types for better DX
+  value: number | string;
+  unit?: string;
+  appliesTo: 'service' | 'method' | 'field';
+}
+
+// Defines the optimized lookup structure: Map<"serviceName/methodName", ConstraintDefinition[]>
+export type IndexedConstraintMap = Map<string, ConstraintDefinition[]>; 
+
 export class GaxConstraintEnforcer {
-  private constraintMap: Map<string, any>;
+  // The enforcer relies on a pre-indexed, strongly typed constraint map.
+  private indexedConstraints: IndexedConstraintMap;
 
-  constructor(constraintConfig: any) {
-    // Load and index the full constraint set for O(1) service/method lookup
-    this.constraintMap = new Map(); 
-    this.indexConstraints(constraintConfig);
+  /**
+   * Initializes the enforcer with a pre-indexed map of constraints.
+   * Indexing logic (inheritance, merging) must occur externally.
+   */
+  constructor(indexedConstraints: IndexedConstraintMap) {
+    this.indexedConstraints = indexedConstraints;
   }
 
-  private indexConstraints(config: any): void {
-    // ... (logic to flatten service_definitions and apply inheritance)
-  }
-
-  public enforce(serviceName: string, methodName: string, request: any): void {
-    // Retrieve effective constraints for the requested method
+  /**
+   * Retrieves and enforces all relevant constraints for a specific API call.
+   */
+  public enforce(serviceName: string, methodName: string, request: unknown): void {
     const constraints = this.getEffectiveConstraints(serviceName, methodName);
 
-    // Check limits (rate limiting, payload size)
-    // Validate input fields based on defined patterns
-    // ... implementation details for validation checks ...
-    // throw new ConstraintViolationError('Limit exceeded');
+    if (constraints.length === 0) {
+      return; 
+    }
+
+    for (const constraint of constraints) {
+      switch (constraint.type) {
+        case 'rate_limit':
+          // Implementation requires integrating a stateful rate limiter utility.
+          if (!this.checkRateLimit(serviceName, methodName)) {
+            throw new ConstraintViolationError('Rate limit exceeded for method call', constraint.type);
+          }
+          break;
+        case 'payload_size':
+          const limit = constraint.value as number;
+          if (this.checkPayloadSize(request, limit, constraint.unit)) {
+             throw new ConstraintViolationError(`Payload size (${limit} ${constraint.unit || 'bytes'}) exceeded limit`, constraint.type);
+          }
+          break;
+        // Further validation cases (e.g., 'timeout', 'field_pattern') can be added here.
+        default:
+          console.warn(`[GaxConstraintEnforcer] Skipping unknown constraint type: ${constraint.type}`);
+      }
+    }
   }
 
+  /**
+   * Calculates the effective constraints. O(1) lookup since constraints are pre-indexed by method.
+   */
   private getEffectiveConstraints(serviceName: string, methodName: string): ConstraintDefinition[] {
-    // Implementation to calculate the union of inherited and method-specific constraints
-    return []; 
+    const key = `${serviceName}/${methodName}`;
+    return this.indexedConstraints.get(key) || [];
+  }
+
+  // --- Stub Implementations for Runtime Checks ---
+
+  private checkRateLimit(serviceName: string, methodName: string): boolean {
+    // TRUE if the call is allowed.
+    // Requires external RateLimiter instance injection.
+    return true; 
+  }
+  
+  private checkPayloadSize(request: unknown, limit: number, unit?: string): boolean {
+    // TRUE if the request violates the size limit.
+    try {
+      const bytes = Buffer.byteLength(JSON.stringify(request), 'utf8');
+      // TODO: Add unit conversion logic (KB, MB, GB)
+      return bytes > limit; 
+    } catch (e) {
+      // Handle serialization errors gracefully
+      return true; // Assume violation if size cannot be determined safely
+    }
   }
 }
