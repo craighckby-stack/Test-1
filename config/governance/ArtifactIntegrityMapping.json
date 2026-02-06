@@ -1,16 +1,1 @@
-{
-  "description": "Mapping for governance verifiers to locate and certify source data integrity against GICM state hashes (S1 and S11).",
-  "state_mapping": [
-    {
-      "gicm_hash_field": "input_hash_s1",
-      "artifact_path": "$AGI_STATE_DIR/psi_n.json",
-      "verification_module": "S1_StateVerifier"
-    },
-    {
-      "gicm_hash_field": "final_state_hash_s11",
-      "artifact_path": "$AGI_STATE_DIR/psi_n_plus_1.json",
-      "verification_module": "S11_CommitVerifier"
-    }
-  ],
-  "integrity_protocol_version": "1.0.0"
-}
+[object Object]
