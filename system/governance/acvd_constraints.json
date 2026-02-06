@@ -1,65 +1,100 @@
 {
   "metadata": {
-    "schema_version": "2.0",
-    "description": "Core constraints governing autonomous code verification and deployment (ACVD) and structural integrity.",
-    "governance_priority_level": "CRITICAL"
+    "schema_version": "3.0",
+    "description": "Core constraints governing autonomous code verification and deployment (ACVD).",
+    "system_impact_level": "SOVEREIGN_CRITICAL",
+    "last_evolution": "v94.1"
   },
-  "constraint_sets": [
+  "global_defaults": {
+    "default_scope": ["**/*.js", "**/*.ts"],
+    "default_failure_policy": "WARNING",
+    "default_rationale": "Enforced by Sovereign AGI v94.1 governance engine."
+  },
+  "policies": [
     {
-      "name": "ArchitecturalIntegrity",
-      "enforcement_level": "CRITICAL",
+      "policy_id": "P001_ARCH_INTEGRITY",
+      "name": "Architectural Traceability",
+      "failure_policy": "BLOCK_COMMIT",
       "rules": [
         {
-          "type": "MANDATORY_METADATA",
+          "rule_id": "R101_METADATA_HEADER",
           "scope": ["**/*.js", "**/*.ts", "!**/*.test.*"],
-          "check": "has_agi_header",
-          "details": { 
-            "required_fields": ["@AgiVersion", "@AgiEntropy"],
-            "rationale": "Ensure traceability and dependency awareness during evolution."
+          "description": "Ensure all non-test files contain mandatory AGI traceability headers.",
+          "executor_config": {
+            "type": "METADATA_CHECK",
+            "function": "require_agi_header",
+            "params": {
+              "required_fields": ["@AgiVersion", "@AgiEntropy", "@AgiOriginHash"]
+            }
           }
         },
         {
-          "type": "FILE_SIZE_LIMIT",
+          "rule_id": "R102_GOVERNANCE_SIZE",
           "scope": ["system/governance/*.json", "system/core/*.js"],
-          "check": "max_size_kb",
-          "details": { "limit": 100, "units": "KB" }
+          "description": "Limit the size of core governance and kernel files to maintain atomic function.",
+          "executor_config": {
+            "type": "SIZE_CHECK",
+            "function": "max_file_size",
+            "params": { "limit": 75, "units": "KB" }
+          },
+          "failure_policy": "CRITICAL_BLOCK"
         }
       ]
     },
     {
-      "name": "SafetyGuardrails",
-      "enforcement_level": "MAJOR",
+      "policy_id": "P002_SAFETY_CRITICAL",
+      "name": "Runtime Safety Guardrails",
+      "failure_policy": "BLOCK_DEPLOY",
       "rules": [
         {
-          "type": "FORBIDDEN_PATTERNS",
+          "rule_id": "R201_FORBIDDEN_API",
           "scope": ["**/*.js"],
-          "check": "regex_match",
-          "details": { 
-            "patterns": [
-              "require\s*\(\s*['\"]fs/promises['\"]\s*\)",
-              "new\s*Buffer\.from\s*\(",
-              "process\.env\.CRITICAL_KEY"
-            ],
-            "rationale": "Mitigate direct file manipulation and access to high-entropy secrets."
+          "description": "Prevent the use of high-risk APIs (FS access, raw buffers, direct critical env access).",
+          "executor_config": {
+            "type": "STATIC_ANALYSIS",
+            "function": "prohibited_regex_match",
+            "params": {
+              "patterns": [
+                "require\\s*\\(\\s*['\"]fs/promises['\"]\\s*\\)",
+                "new\\s*Buffer\\.from\\s*\\(",
+                "process\\.env\\.CRITICAL_KEY"
+              ]
+            }
           }
         },
         {
-          "type": "COMPLEXITY_THRESHOLD",
+          "rule_id": "R202_COMPLEXITY_LIMIT",
           "scope": ["**/*.js"],
-          "check": "cyclomatic_complexity",
-          "details": { "limit": 12, "exclusion_tags": ["@ComplexityOverride"], "threshold_action": "WARNING" }
+          "description": "Enforce low cyclomatic complexity for maintainability and verification.",
+          "executor_config": {
+            "type": "METRICS_ANALYSIS",
+            "function": "cyclomatic_limit",
+            "params": { 
+              "limit": 10, 
+              "exclusion_tags": ["@ComplexityOverride"]
+            }
+          },
+          "failure_policy": "MAJOR_WARNING"
         }
       ]
     },
     {
-      "name": "CoreEntropyProtection",
-      "enforcement_level": "CRITICAL",
+      "policy_id": "P003_ENTROPY_GUARD",
+      "name": "Kernel Entropy Protection",
+      "failure_policy": "CRITICAL_BLOCK",
       "rules": [
         {
-          "type": "MUTABILITY_CONSTRAINT",
+          "rule_id": "R301_KERNEL_IMMUTABILITY",
           "scope": ["system/core/kernel.js"],
-          "check": "change_risk_score",
-          "details": { "min_entropy_required": 0.95, "permission_group": "AGI_SOVEREIGN" }
+          "description": "Require high entropy score for changes to core kernel files.",
+          "executor_config": {
+            "type": "GOVERNANCE_CHECK",
+            "function": "min_entropy_threshold",
+            "params": { 
+              "min_entropy_required": 0.98, 
+              "permission_group": "AGI_SOVEREIGN_MAINTAINER" 
+            }
+          }
         }
       ]
     }
