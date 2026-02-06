@@ -1,47 +1,70 @@
 {
-  "ems_version": "V1.0.0-GAX_L1",
+  "ems_version": "V2.0.0-PRO_FUSION",
   "actor_name": "Efficacy Measurement Subsystem (EMS)",
-  "description": "Configuration specifications for the deterministic generation of ECVM (S07) and TEMM (S08) artifacts, necessary for GAX I and GAX II resolution.",
+  "description": "Normalized configuration for deterministic generation and validation across all governance artifact stages (S07, S08). Centralizes thresholds and defines stages sequentially for improved extensibility.",
 
-  "context_validation": {
-    "stage_id": "S07",
-    "artifact_output": "ECVM",
-    "target_governance_axiom": "GAX II",
-    "validation_rules": [
-      {
-        "id": "ENV_001",
-        "metric": "Operating Environment Hash Check",
-        "expected_hash": "H_SEC_94A3",
-        "action_on_mismatch": "Fail (Contextual Integrity Violation)"
-      },
-      {
-        "id": "ENV_002",
-        "metric": "Dependency Manifest State (Permissible Check)",
-        "allowed_states": ["Stable", "Quiescent"],
-        "min_state_threshold": 2
-      }
-    ]
+  "global_thresholds": {
+    "OMEGA_MIN_COMPUTE": {
+      "value": 0.985,
+      "provenance_id": "GAX-I-BASELINE-T2"
+    },
+    "OMEGA_MAX_LATENCY_MS": {
+      "value": 50,
+      "provenance_id": "GAX-I-BASELINE-T2"
+    },
+    "H_SEC_94A3_ENV": {
+      "value": "H_SEC_94A3",
+      "provenance_id": "SECURITY-POLICY-V9.4"
+    }
   },
 
-  "efficacy_measurement": {
-    "stage_id": "S08",
-    "artifact_output": "TEMM",
-    "target_governance_axiom": "GAX I",
-    "efficacy_metrics": [
-      {
-        "metric_id": "UTIL_001_COMP",
-        "metric_name": "Computational Efficiency Delta ($\\Delta$)",
-        "threshold_key": "Omega_Min_Compute",
-        "minimum_value": 0.985,
-        "operator": ">="
-      },
-      {
-        "metric_id": "UTIL_002_LAT",
-        "metric_name": "Latency Profile Tolerance ($\\Lambda$)",
-        "threshold_key": "Omega_Max_Latency",
-        "maximum_value": 50,
-        "operator": "<="
-      }
-    ]
-  }
+  "process_stages": [
+    {
+      "stage_id": "S07",
+      "artifact_output": "ECVM",
+      "governance_axiom": "GAX II",
+      "type": "ContextualValidation",
+      "description": "Ensuring system integrity prior to artifact generation.",
+      "rules": [
+        {
+          "rule_id": "ENV_001",
+          "name": "Operating Environment Hash Check",
+          "target_resource": "OperatingEnvironment",
+          "threshold_key": "H_SEC_94A3_ENV",
+          "operator": "==",
+          "action_on_mismatch": "Fail (Contextual Integrity Violation)"
+        },
+        {
+          "rule_id": "ENV_002",
+          "name": "Dependency Manifest State Compliance",
+          "target_resource": "DependencyManifest",
+          "allowed_states": ["Stable", "Quiescent"],
+          "min_required_passing": 2
+        }
+      ]
+    },
+    {
+      "stage_id": "S08",
+      "artifact_output": "TEMM",
+      "governance_axiom": "GAX I",
+      "type": "EfficacyMeasurement",
+      "description": "Quantitative assessment of system utility metrics.",
+      "metrics": [
+        {
+          "metric_id": "UTIL_001_COMP",
+          "name": "Computational Efficiency Delta",
+          "unit": "ratio",
+          "operator": ">=",
+          "threshold_key": "OMEGA_MIN_COMPUTE"
+        },
+        {
+          "metric_id": "UTIL_002_LAT",
+          "name": "Latency Profile Tolerance",
+          "unit": "ms",
+          "operator": "<=",
+          "threshold_key": "OMEGA_MAX_LATENCY_MS"
+        }
+      ]
+    }
+  ]
 }
