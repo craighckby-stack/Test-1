@@ -1,38 +1,52 @@
 /**
- * Governance Settings Configuration Management
- * Centralizes tunable parameters for the Governance Health Monitor (GHM) and related components.
- * In a production AGI deployment, this utility would interface with a dynamic config service (e.g., Consul, K/V store).
+ * Governance Settings Configuration Provider (v94.1)
+ * Manages access to system-wide Governance Health Monitor (GHM) parameters.
+ * Designed for dynamic configuration merging (Defaults -> Environment -> Remote Store).
  */
 
-const GovernanceDefaults = {
-    // GHM: Maximum acceptable latency for core operations (in ms).
+const GHM_CONFIG_DEFAULTS = {
+    // Latency: Max acceptable latency for core operational pipelines (in ms).
     GHM_LATENCY_THRESHOLD_MS: 500,
 
-    // GHM: Alpha factor (0.0 to 1.0) for EWMA smoothing of the GRS.
+    // Smoothing: Alpha factor (0.0 to 1.0) for Exponential Weighted Moving Average (EWMA) of the Governance Rating Score (GRS).
     GHM_SMOOTHING_ALPHA: 0.15,
 
-    // GSEP: Minimum acceptable GRS for system readiness protocols.
+    // Readiness: Minimum acceptable GRS required for activating system readiness protocols (e.g., serving external requests).
     GHM_MINIMUM_READINESS_THRESHOLD: 0.85,
 
-    // GHM: Default weights for calculating the composite GRS (based on component criticality).
-    GHM_COMPONENT_WEIGHTS: {
-        mcraEngine: 1.5, 
-        atmSystem: 1.0,
+    // Weights: Default criticality weights for key sub-components used in composite GRS calculation.
+    GHM_COMPONENT_CRITICALITY_WEIGHTS: {
+        mcraEngine: 1.5, // Mission Critical Resource Allocation
+        atmSystem: 1.0,  // Adaptive Threat Modeling
         policyEngine: 1.2
     },
+
+    // Policy: Maximum number of minor violations before initiating automatic rollback/recalibration.
+    GHM_MAX_VIOLATIONS_TOLERANCE: 5,
 };
 
 /**
- * Utility function to load current settings. Allows the Governance system
- * to abstract configuration loading, paving the way for dynamic reconfiguration.
- * @returns {object} Current Governance Settings.
+ * Merges configuration sources (Defaults <- Environment/Runtime Overrides).
+ * NOTE: In a complete implementation, this function would handle remote K/V fetching and validation.
+ * @returns {object} The finalized, validated governance configuration.
  */
-function loadGovernanceSettings() {
-    // --- Configuration Fetch Logic Placeholder ---
-    // Placeholder: Return defaults. Future version will load overrides from external source.
-    return GovernanceDefaults;
+function initializeGovernanceSettings() {
+    let settings = { ...GHM_CONFIG_DEFAULTS };
+
+    // Placeholder for Environment Variable Overrides
+    // e.g., if (process.env.GHM_LATENCY_MS) { settings.GHM_LATENCY_THRESHOLD_MS = parseInt(process.env.GHM_LATENCY_MS, 10); }
+    
+    // --- Future Integration Point: Load remote config & call validation service (e.g., validateConfig(settings)) ---
+
+    // Freeze the object to prevent runtime modification (enhancing governance integrity).
+    return Object.freeze(settings);
 }
 
+// Immediately load and freeze the settings upon module import.
+const GOVERNANCE_SETTINGS = initializeGovernanceSettings();
+
 module.exports = {
-    loadGovernanceSettings
+    GOVERNANCE_SETTINGS,
+    // Utility export for easy key access, prioritizing immutability.
+    getSetting: (key) => GOVERNANCE_SETTINGS[key]
 };
