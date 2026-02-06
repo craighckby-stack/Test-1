@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/CAC_v1.json",
+  "title": "Certified Access Credential (CAC) Schema v1",
+  "type": "object",
+  "properties": {
+    "asset_version": {
+      "type": "string",
+      "description": "Semantic version of the asset structure.",
+      "pattern": "^v\\d+\\.\\d+\z"
+    },
+    "signing_key_id": {
+      "type": "string",
+      "description": "UUID reference to the public key used for asset signing.",
+      "format": "uuid"
+    },
+    "checksum_sha512": {
+      "type": "string",
+      "description": "Cryptographic hash of the complete asset contents.",
+      "pattern": "^[a-fA-F0-9]{128}$
+    },
+    "credential_payload": {
+      "type": "object",
+      "description": "Encrypted or protected core credential data."
+    }
+  },
+  "required": ["asset_version", "signing_key_id", "checksum_sha512", "credential_payload"]
+}
