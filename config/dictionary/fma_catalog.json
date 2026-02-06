@@ -1,0 +1,26 @@
+[
+  {
+    "code": "FMA-01A",
+    "severity": "HIGH",
+    "name": "S01 Trust Divergence (Operational)",
+    "description": "Real-world operational variance exceeded predicted S-01 tolerances, suggesting environmental instability or unmodeled external interaction."
+  },
+  {
+    "code": "FMA-01B",
+    "severity": "MEDIUM",
+    "name": "S01 Trust Divergence (Resource Spike)",
+    "description": "Observed resource usage exceeded S-01 predicted budget significantly, necessitating resource allocation review."
+  },
+  {
+    "code": "FMA-02",
+    "severity": "HIGH",
+    "name": "Policy Breach (Critical Security)",
+    "description": "M-02 led directly to a critical security violation or failure to enforce a critical P-04 safety mechanism."
+  },
+  {
+    "code": "FMA-03",
+    "severity": "LOW",
+    "name": "Performance Drift (Acceptable Degradation)",
+    "description": "Target metric was missed by a minor margin, but performance remains above the absolute minimum threshold (non-critical).
+  }
+]
