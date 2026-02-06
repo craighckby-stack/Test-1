@@ -1,8 +1,10 @@
 import json
 import time
+import hashlib
 from typing import Dict, Any, List, Optional
 
 # NOTE: Architectural imports restored based on system requirements
+# It is highly recommended that TEC_CONTRACT loading is externalized via a Contract Manager utility.
 from config.TEDS_event_contract import TEC_CONTRACT
 from system.monitoring.IH_Sentinel import IntegritySentinel
 
@@ -37,6 +39,12 @@ class TEDSEventSink:
         # Resumes logging sequence if existing persistence handler is provided
         self.expected_sequence_id: int = len(self.log_stream)
 
+    def _calculate_contract_hash(self, contract_entry: Dict[str, Any]) -> str:
+        """Calculates a consistent SHA256 hash of the contract definition for immutable logging."""
+        # Must ensure consistent serialization (sorted keys) before hashing
+        serialized = json.dumps(contract_entry, sort_keys=True).encode('utf-8')
+        return hashlib.sha256(serialized).hexdigest()
+
     def _get_expected_contract_entry(self, stage: str) -> Dict[str, Any]:
         """Internal check for strict sequential stage adherence and returns the contract definition."""
         try:
@@ -50,13 +58,12 @@ class TEDSEventSink:
             return contract_entry
         except IndexError:
             raise TEDSSequenceBreach(
-                f"TEDS sequence overflow. Attempted ID {self.expected_sequence_id}, contract length {len(TEC_CONTRACT['sequence'])}."
+                f"TEDS sequence overflow. Attempted ID {self.expected_sequence_id}, contract length {len(TEC_CONTRACT['sequence'])}$."
             )
 
     def _check_payload(self, event: Dict[str, Any], contract_entry: Dict[str, Any]) -> None:
         """
         Internal check for required key presence, combining global and stage-specific requirements.
-        Assumes contract supports 'stage_specific_keys' in the sequence definition.
         """
         
         global_keys = TEC_CONTRACT.get("required_keys", [])
@@ -87,11 +94,12 @@ class TEDSEventSink:
             contract_entry = self.validate_event(event_data, stage_id)
             
             # Step 2: Successful Commitment Preparation
-            # Using hash of contract entry ensures the exact contract definition used is immutable and auditable.
+            contract_hash = self._calculate_contract_hash(contract_entry)
+
             event_record = {
                 "sequence_id": self.expected_sequence_id,
                 "stage": stage_id,
-                "contract_hash": hash(json.dumps(contract_entry, sort_keys=True)),
+                "contract_hash": contract_hash, # Now using cryptographic hashing (SHA256)
                 "commit_timestamp": time.time(), 
                 "data": event_data
             }
@@ -108,7 +116,7 @@ class TEDSEventSink:
                 "error_message": e.args[0], 
                 "sequence_id_attempted": self.expected_sequence_id,
                 "stage_attempted": stage_id,
-                "event_data_attempted": event_data, # Include full data for critical audit
+                "event_data_attempted": event_data, 
                 "contract_definition_length": len(TEC_CONTRACT['sequence'])
             }
             
