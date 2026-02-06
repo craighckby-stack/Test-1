@@ -1,0 +1,32 @@
+{
+  "protocol_version": "1.0",
+  "target_baseline_prefix": "BASE_GSEP",
+  "verification_policies": [
+    {
+      "scope": "kernel_integrity",
+      "field": "measurement_hash",
+      "verification_method": "TPM_PCR_CHECK",
+      "pcr_register": "PCR[0-7]",
+      "comparison": "STRICT_EQUALITY",
+      "fail_action": "REBOOT_REQUIRED"
+    },
+    {
+      "scope": "critical_containers.manifest",
+      "field": "hash",
+      "verification_method": "CONTAINER_IMAGE_MANIFEST_HASH",
+      "comparison": "STRICT_EQUALITY",
+      "fail_action": "PROCESS_KILL"
+    },
+    {
+      "scope": "resource_limits.thresholds",
+      "field": "limit",
+      "verification_method": "RUNTIME_MONITORING_PULL",
+      "comparison": "LESS_THAN_OR_EQUAL",
+      "fail_action": "RATE_LIMIT_ACTIVATION"
+    }
+  ],
+  "default_behavior": {
+    "unverified_fields": "IGNORE",
+    "critical_failure_limit": 3
+  }
+}
