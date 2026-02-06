@@ -1,0 +1,12 @@
+{
+  "description": "Immutable manifest containing trusted environmental signatures (DSE Checkpoint 0).",
+  "metadata": {
+    "version": "1.0",
+    "generated_timestamp": "2024-05-20T10:00:00Z"
+  },
+  "core_environment_v1": "8b1d9c1e0a2f4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c",
+  "dependency_hashes": {
+    "numpy_v1": "d34f...",
+    "pycrypto_v1": "e45g..."
+  }
+}
