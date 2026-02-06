@@ -1,0 +1,25 @@
+{
+  "description": "Configuration map linking abstract Policy Engine IDs from SBCM (v2) to concrete service endpoints/configuration contexts for runtime Policy Enforcement Microservices (PEMs).",
+  "engines": {
+    "PKI_Service": {
+      "type": "external_api",
+      "endpoint": "https://pki.core.v94.1/validate",
+      "auth_method": "TLS_MTLS"
+    },
+    "Logging_Ingestion_Engine": {
+      "type": "internal_sdk",
+      "handler": "ImmutableLogSDK",
+      "min_version": "3.0.0"
+    },
+    "Sovereign_Kernel_Policy_Module": {
+      "type": "internal_module",
+      "context": "KERNEL_INIT",
+      "enforcement_hooks": ["commit_pre_sign", "evolution_approval"]
+    },
+    "Runtime_Scheduler_API": {
+      "type": "external_api",
+      "endpoint": "http://scheduler.local/limits/enforce",
+      "throttle_window_s": 5
+    }
+  }
+}
