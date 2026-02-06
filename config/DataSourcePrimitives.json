@@ -1,28 +1,40 @@
 {
-  "schema_version": "1.0.0",
-  "data_sources": {
+  "schema_version": "2.0.0",
+  "data_source_primitives": {
     "RCM": {
-      "description": "Resource Constraint Model data snapshot.",
+      "description": "Resource Constraint Model data snapshot (Structured Map).",
       "security_level": "L3",
-      "data_format": "JSON_MAP",
+      "encoding_format": "JSON_OBJECT",
+      "primitive_type": "STRUCTURED_MAP",
+      "retrieval_method": "API_PULL_SYNC",
+      "caching_policy": "STALE_WHILE_REVALIDATE",
       "latency_tolerance_ms": 500
     },
     "EDIS": {
-      "description": "External Dependency Index Score.",
+      "description": "External Dependency Index Score (Scalar value).",
       "security_level": "L2",
-      "data_format": "FLOAT",
+      "encoding_format": "PLAINTEXT",
+      "primitive_type": "FLOAT",
+      "retrieval_method": "MESSAGE_BUS_ASYNC",
+      "caching_policy": "TTL_100ms",
       "latency_tolerance_ms": 100
     },
     "DSP-C": {
-      "description": "Designated System Protocol Confirmation.",
-      "security_level": "L4",
-      "data_format": "BOOLEAN",
+      "description": "Designated System Protocol Confirmation (Status Flag).",
+      "security_level": "L4_ENCRYPTED",
+      "encoding_format": "BINARY_GZIP",
+      "primitive_type": "BOOLEAN",
+      "retrieval_method": "DATABASE_QUERY",
+      "caching_policy": "IMMUTABLE",
       "latency_tolerance_ms": 2000
     },
     "OCM": {
-      "description": "Operational Compliance Monitor.",
+      "description": "Operational Compliance Monitor (Live Stream Status).",
       "security_level": "L3",
-      "data_format": "BOOLEAN",
+      "encoding_format": "STREAM_PROTOBUF",
+      "primitive_type": "BOOLEAN",
+      "retrieval_method": "SUBSCRIPTION_STREAM",
+      "caching_policy": "NO_CACHE",
       "latency_tolerance_ms": 50
     }
   }
