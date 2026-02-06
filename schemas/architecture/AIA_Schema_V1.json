@@ -1,14 +1,1 @@
-{
-  "schema_id": "AIA_Schema_V1",
-  "architecture_standard": "Atomic Immutable Architecture",
-  "version": "1.0.0",
-  "fields": [
-    { "name": "timestamp", "type": "datetime", "required": true, "immutable": true },
-    { "name": "payload_hash", "type": "hash(SHA3-512)", "required": true },
-    { "name": "author_signature", "type": "signature(Ed25519)", "required": true }
-  ],
-  "constraints": {
-    "atomicity": true,
-    "immutability": true
-  }
-}
+[object Object]
