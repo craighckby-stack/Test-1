@@ -1,11 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft/2020-12/schema",
   "$id": "https://agi.sovereign/config/governance_flag_state_schema.json",
-  "fsl_version": "v2.0.0",
+  "fsl_version": "v2.1.0",
   "title": "Flag State Log Entry (FSL)",
-  "description": "Defines the structure for a single Flag State Log (FSL) event. Optimized for high-throughput, low-latency stream ingestion by the Integrity Halt (IH) Sentinel for real-time governance deviation monitoring.",
+  "description": "Defines the structure for a single, critical Flag State Log (FSL) event. Optimized for high-throughput stream ingestion and real-time governance deviation monitoring by the Integrity Halt (IH) Sentinel.",
   "type": "object",
   "required": [
+    "trace_id",
     "timestamp",
     "stage_id",
     "agent_id",
@@ -14,25 +15,30 @@
     "integrity_halt_signal"
   ],
   "properties": {
+    "trace_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique execution trace identifier, linking the FSL entry to the larger task stream."
+    },
     "timestamp": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO 8601 UTC timestamp, mandatory nanosecond precision (if underlying environment supports it)."
+      "description": "ISO 8601 UTC timestamp, mandatory nanosecond precision (e.g., 2024-01-01T00:00:00.123456789Z)."
     },
     "stage_id": {
-      "$ref": "#/$defs/StageIDs",
-      "description": "The current stage of the AGI operational cycle where the trigger occurred."
+      "$ref": "#/$defs/FSL_StageID",
+      "description": "The current operational stage (S-cycle) where the trigger occurred."
     },
     "agent_id": {
-      "$ref": "#/$defs/AgentIDs",
+      "$ref": "#/$defs/FSL_AgentID",
       "description": "The component agent (e.g., CRoT, GAX) generating the flag."
     },
     "flag_type": {
-      "$ref": "#/$defs/FlagTypes",
+      "$ref": "#/$defs/FSL_FlagType",
       "description": "Categorization of the governance failure (e.g., Policy Violation, Misaligned Parameter)."
     },
     "trigger_axiom_id": {
-      "$ref": "#/$defs/AxiomIDs",
+      "$ref": "#/$defs/FSL_AxiomID",
       "description": "The specific foundational governance axiom or tenet violated."
     },
     "deviation_value": {
@@ -42,16 +48,25 @@
         "string",
         "null"
       ],
-      "description": "The measured value, result, or parameter state that violated the threshold (e.g., TEMM score, breach string)."
+      "description": "The primary measured value, result, or parameter state that violated the threshold (e.g., TEMM score: 0.95)."
+    },
+    "deviation_threshold": {
+      "type": [
+        "number",
+        "string",
+        "null"
+      ],
+      "description": "The governance threshold that was breached (if applicable)."
     },
     "integrity_halt_signal": {
       "type": "boolean",
-      "description": "If True, signals that the breach mandates immediate IH intervention prior to local mitigation attempts."
+      "description": "If True, mandates immediate IH intervention prior to any local mitigation attempts."
     }
   },
   "$defs": {
-    "StageIDs": {
+    "FSL_StageID": {
       "type": "string",
+      "description": "AGI Operational Stage Identifier.",
       "enum": [
         "S00_BOOT",
         "S01_INGEST",
@@ -69,35 +84,38 @@
         "S13_AUDIT"
       ]
     },
-    "AgentIDs": {
+    "FSL_AgentID": {
       "type": "string",
+      "description": "Component Agent Identifier.",
       "enum": [
-        "CRoT",
-        "GAX",
-        "SGS",
-        "TEMM",
-        "LFM",
-        "ECS"
+        "CRoT_Control",
+        "GAX_Goal",
+        "SGS_System",
+        "TEMM_Ethics",
+        "LFM_Learning",
+        "ECS_Environment"
       ]
     },
-    "FlagTypes": {
+    "FSL_FlagType": {
       "type": "string",
+      "description": "Standardized category for the governance breach type.",
       "enum": [
-        "PVLM_POLICY_VIOLATION",
-        "MPAM_PARAM_MISALIGNMENT",
-        "ADTM_DATA_TAMPERING",
-        "ECVM_FAIL_VALIDATION",
-        "CSR_BREACH_COMPLIANCE",
-        "RESOURCE_EXCEED"
+        "GOV_POLICY_VIOLATION",
+        "GOV_PARAM_MISALIGNMENT",
+        "GOV_DATA_TAMPERING",
+        "GOV_VALIDATION_FAILURE",
+        "GOV_COMPLIANCE_BREACH",
+        "GOV_RESOURCE_EXCEED"
       ]
     },
-    "AxiomIDs": {
+    "FSL_AxiomID": {
       "type": "string",
+      "description": "Identifier of the primary foundational axiom violated.",
       "enum": [
-        "I_SELF_PRESERVATION",
-        "II_RESOURCE_FIDELITY",
-        "III_UTILITY_OPTIMIZATION",
-        "TENET_IMPACT_MINIMIZATION"
+        "AXIOM_SELF_PRESERVATION",
+        "AXIOM_RESOURCE_FIDELITY",
+        "AXIOM_UTILITY_OPTIMIZATION",
+        "AXIOM_IMPACT_MINIMIZATION"
       ]
     }
   }
