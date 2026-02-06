@@ -2,9 +2,28 @@
 # Custodian: GAX (Design/Validation), SGS (Execution Interface)
 
 import logging
-from typing import Dict, Any
-# from config.GAX.PolicyCorrectionSchema import PCSS
-# from config.GAX.AxiomaticConstraintVectorDefinition import ACVD
+from typing import Dict, Any, TypedDict, Callable
+
+# NOTE: For cleaner architectural separation, the definitions below should be externalized 
+# into a dedicated types file (see scaffold proposal).
+
+# --- Internal Data Structure Definitions for Type Safety (Refactored) ---
+
+class StabilityBounds(TypedDict):
+    min_epsilon: float
+    max_epsilon: float
+    required_fields: list[str]
+
+class ACVDConfig(TypedDict):
+    version: str
+    stability_bounds: StabilityBounds
+    security_flags: list[str]
+
+class PCSSData(TypedDict):
+    id: str
+    correction_type: str
+    params: Dict[str, Any]
+    status: str
 
 # Standardized structured logging for APRE operations
 logging.basicConfig(level=logging.INFO, format='[APRE] %(levelname)s - %(message)s')
@@ -24,18 +43,27 @@ class AxiomaticPolicyRemediationEngine:
     The APRE is responsible for validating and executing policy corrections (PCSS) 
     following a Critical Rollback Protocol (RRP) trigger. It strictly ensures 
     adherence to the current Axiomatic Constraint Vector Definition (ACVD) 
-    before deploying remediation actions.
+    before deploying remediation actions. Validation is dispatched modularly.
     """
     
     def __init__(self, trace_id: str):
         self.trace_id: str = trace_id
-        self._pcss_data: Dict[str, Any] = self._fetch_policy_correction(trace_id)
-        self._acvd_config: Dict[str, Any] = self._load_axiomatic_constraints()
+        
+        # Initialize data structures with explicit types
+        self._pcss_data: PCSSData = self._fetch_policy_correction(trace_id)
+        self._acvd_config: ACVDConfig = self._load_axiomatic_constraints()
 
-    def _fetch_policy_correction(self, trace_id: str) -> Dict[str, Any]:
+        # Use a Validation Dispatcher (Strategy Pattern) for clean extension
+        self._validators: Dict[str, Callable[[], bool]] = {
+            "stability_reweight": self._validate_stability_reweight,
+            # Future correction types can be added here easily
+            # "resource_ceiling_adjustment": self._validate_resource_ceiling_adjustment,
+        }
+
+    def _fetch_policy_correction(self, trace_id: str) -> PCSSData:
         """ Fetches the proposed Policy Correction Safety Schema (PCSS) data. """
         logger.info(f"Fetching PCSS data for Trace ID: {trace_id}")
-        # In production, this would use the PolicyRegistryClient to retrieve data securely.
+        # MOCK Implementation
         return {
             "id": f"PCSS-{trace_id}",
             "correction_type": "stability_reweight", 
@@ -43,67 +71,70 @@ class AxiomaticPolicyRemediationEngine:
             "status": "PROPOSED"
         }
 
-    def _load_axiomatic_constraints(self) -> Dict[str, Any]:
+    def _load_axiomatic_constraints(self) -> ACVDConfig:
         """ Loads the GAX foundational constraints (ACVD). """
         logger.info("Loading current Axiomatic Constraint Vector Definition (ACVD)...")
-        # Mock data representing strict foundational constraints
+        # MOCK Implementation
         return {
             "version": "ACVD-v94.1",
             "stability_bounds": {"min_epsilon": 0.005, "max_epsilon": 0.05, "required_fields": ["new_margin_epsilon"]},
             "security_flags": ["NO_ROOT_ACCESS_POLICY"]
         }
 
-    def _run_internal_validation(self) -> bool:
-        """ Core logic for checking PCSS against ACVD invariants, generalized for future complexity. """
-        correction_data = self._pcss_data
-        constraints = self._acvd_config
-
-        if not correction_data:
-            logger.error("PCSS data is empty or malformed."); return False
+    def _validate_stability_reweight(self) -> bool:
+        """ Validates parameters specific to 'stability_reweight' against ACVD constraints. """
+        bounds = self._acvd_config.get('stability_bounds', {})
+        params = self._pcss_data.get('params', {})
         
-        # I. Stability Bound Check (Example from MPAM/ACVD)
-        if correction_data.get('correction_type') == 'stability_reweight':
-            
-            bounds = constraints.get('stability_bounds', {})
-            params = correction_data.get('params', {})
-            
-            required_fields = bounds.get('required_fields', [])
-            if not all(field in params for field in required_fields):
-                logger.error(f"Validation failed: PCSS params missing required fields: {required_fields}")
-                return False
-
-            new_epsilon = params.get('new_margin_epsilon')
-            min_eps = bounds.get('min_epsilon')
-            max_eps = bounds.get('max_epsilon')
-
-            if not (min_eps is not None and max_eps is not None and new_epsilon is not None): 
-                 logger.warning("ACVD or PCSS data lacks critical epsilon definitions."); return False
-
-            if not (min_eps <= new_epsilon <= max_eps):
-                logger.critical(f"Vetoed: Proposed epsilon ({new_epsilon}) outside ACVD stability bounds ({min_eps}-{max_eps}).")
-                return False
+        required_fields = bounds.get('required_fields', [])
         
-        # II. Future checks (e.g., Security Flag checks, resource ceiling adjustments)
+        if not self._pcss_data or not self._acvd_config:
+            logger.error("PCSS or ACVD data missing for validation."); return False
+        
+        # Check 1: Required Parameter Completeness
+        if not all(field in params for field in required_fields):
+            logger.error(f"Validation failed: PCSS params missing required fields: {required_fields}")
+            return False
 
+        # Check 2: Stability Bound Adherence
+        try:
+            new_epsilon = params['new_margin_epsilon']
+            min_eps = bounds['min_epsilon']
+            max_eps = bounds['max_epsilon']
+        except KeyError as e:
+            logger.warning(f"ACVD or PCSS data lacks critical epsilon definitions: {e}"); return False
+
+        if not (min_eps <= new_epsilon <= max_eps):
+            logger.critical(f"Vetoed: Proposed epsilon ({new_epsilon}) outside ACVD stability bounds ({min_eps}-{max_eps}).")
+            return False
+            
         return True
 
     def validate_correction(self) -> bool:
-        """ Public interface for running mandatory validation checks. """
+        """ Orchestrates policy validation using the internal strategy map. """
         logger.info(f"Starting validation for PCSS: {self.trace_id}")
-        
-        if self._run_internal_validation():
-            logger.success("PCSS Correction validated successfully against all ACVD invariants.")
-            return True
-        
-        logger.warning("Validation failed. Policy veto initiated.")
-        return False
+        correction_type = self._pcss_data.get('correction_type')
+
+        validator = self._validators.get(correction_type)
+
+        if not validator:
+            logger.error(f"Validation failed: Unsupported correction type '{correction_type}'.")
+            return False
+            
+        # Execute the specific validation function defined in the map
+        if not validator():
+            logger.warning("Validation failed. Policy veto initiated.")
+            return False
+
+        logger.success("PCSS Correction validated successfully against all ACVD invariants.")
+        return True
 
     def execute_remediation(self) -> bool:
         """ Applies the correction if validation passes, triggering deployment via SGS. """
         if self.validate_correction():
             correction_type = self._pcss_data.get('correction_type', 'UNKNOWN')
             logger.success(f"Applying verified correction: {correction_type}. Preparing GICM update signal.")
-            # Signal SGS for deployment via GICM update
+            # Signal SGS for deployment via GICM update (e.g., calling an external client)
             return True
         
         logger.error("Execution aborted due to validation failure.")
