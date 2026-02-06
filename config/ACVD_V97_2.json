@@ -1,1 +1,27 @@
-[object Object]
+{
+  "version": "97.2_R1",
+  "project_name": "ACVD_Evolutionary_Kernel",
+  "operational_mode": "Active",
+  "core_limits": {
+    "max_parallelism": 32,
+    "memory_reserved_gb": 4.0,
+    "efficiency_threshold_min": 0.05
+  },
+  "evolution_policies": {
+    "target_metric": "Cycles_Per_Commit",
+    "acceptance_criteria": {
+      "metric_gain_min": 0.035,
+      "risk_profile_ref": "evolutionary/RiskProfile_Standard"
+    },
+    "refactoring_gating": {
+      "queue_priority_default": 50,
+      "timeout_ms": 3600000,
+      "resource_gating_enabled": true
+    }
+  },
+  "persistence_layer": {
+    "db_connection_id": "VDB_Main_97",
+    "telemetry_endpoint": "https://api.sovereign/v94/telemetry",
+    "vector_dimension": 1024
+  }
+}
