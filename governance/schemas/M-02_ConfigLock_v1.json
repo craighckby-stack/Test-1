@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign/schemas/M-02_ConfigLock_v1.json",
+  "title": "M-02 Configuration Lock Structure (v1)",
+  "description": "Defines the deterministic payload structure used by MICM to generate CH-01 (Configuration Hash). All serialization must adhere strictly to canonical JSON standards (sorted keys, no whitespace) to guarantee hash repeatability across environments.",
+  "type": "object",
+  "properties": {
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of locking event."
+    },
+    "trigger_id": {
+      "type": "string",
+      "description": "Identifier linking to the GCO signal (e.g., PSR-XYZ).
+    },
+    "GRS_manifest_hash": {
+      "type": "string",
+      "description": "Cryptographic digest (e.g., SHA3-256) of the finalized Global Registry State snapshot."
+    },
+    "RFCI_parameters": {
+      "type": "object",
+      "description": "All required Runtime Fidelity Control Interface parameters (key/value map)."
+    },
+    "ATM_model_id": {
+      "type": "string",
+      "description": "The specific version ID of the ATM model utilized for Stage 4 calculus."
+    },
+    "S0X_component_versions": {
+      "type": "object",
+      "description": "Immutable version hashes for dependent S-0x component executables (C-11, C-15, etc.)."
+    }
+  },
+  "required": [
+    "timestamp_utc",
+    "trigger_id",
+    "GRS_manifest_hash",
+    "RFCI_parameters",
+    "ATM_model_id",
+    "S0X_component_versions"
+  ],
+  "additionalProperties": false
+}
