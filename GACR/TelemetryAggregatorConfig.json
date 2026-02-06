@@ -1,0 +1,24 @@
+{
+  "monitor_id": "ECVM_Monitor_S4.5",
+  "target_manifest": "GACR/ECVM.json",
+  "telemetry_sources": [
+    {
+      "constraint_id": "CVA-201",
+      "source_type": "PrometheusQuery",
+      "query_template": "slo_latency_p95{gate=\"S4.5\", endpoint=\"${endpoint_pattern}\"}",
+      "metric_endpoint": "http://telemetry.svc/prometheus"
+    },
+    {
+      "constraint_id": "CVA-305",
+      "source_type": "InternalAPI",
+      "endpoint": "/v1/data-freshness/DTEM/CoreCache",
+      "refresh_rate_seconds": 60
+    },
+    {
+      "constraint_id": "CVA-412",
+      "source_type": "ResourceAllocator",
+      "endpoint": "/v2/resources/availability/S4.5",
+      "required_tags": ["hardware:T4", "region:primary"]
+    }
+  ]
+}
