@@ -1,33 +1,95 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agiv94.1/schemas/gsc-v3.1.json",
-  "title": "Governance Schema Contract (GSC V3.1)",
-  "description": "Definitive schema for all Sovereign AGI System State Transition proposals. Must satisfy L0 integrity checks.",
+  "$id": "https://agiv94.1/schemas/gsc-v4.0.json",
+  "title": "Governance Schema Contract (GSC V4.0)",
+  "description": "Definitive, high-integrity schema for all Sovereign AGI System State Transition proposals (SST). Requires L0/L1 verification.",
   "type": "object",
   "required": [
     "proposal_id",
     "proposer_entity",
     "transition_target",
     "payload",
-    "preliminary_metrics"
+    "preliminary_metrics",
+    "signature_timestamp"
   ],
   "properties": {
-    "proposal_id": {"type": "string", "format": "uuid", "description": "Unique UUID assigned at PRE stage."},
-    "proposer_entity": {"type": "string", "description": "Authenticated source entity hash/key (verified in L4)."},
-    "transition_target": {"type": "string", "enum": ["CONFIG", "LOGIC", "MODEL", "DATA"], "description": "Target subsystem for the SST."},
+    "proposal_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique UUID assigned by the L0 Proposal Initialization Engine (PIE)."
+    },
+    "proposer_entity": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "Authenticated source entity Key Hash (Verified L4/Cryptographic Nonce Protected)."
+    },
+    "signature_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of proposal signing."
+    },
+    "transition_target": {
+      "type": "string",
+      "enum": ["CONFIG", "LOGIC_CORE", "MODEL_WEIGHTS", "DATA_SET", "INFRA_STRUCT"],
+      "description": "Target subsystem for the SST. Differentiates core logic, models, and infrastructure layers."
+    },
     "payload": {
       "type": "object",
-      "description": "The functional change payload.",
-      "required": ["artifact_hash", "change_manifest"]
+      "description": "The functional change payload and structural metadata.",
+      "required": ["artifact_hash", "change_manifest", "size_bytes"],
+      "properties": {
+        "artifact_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "SHA-256 hash of the complete transition artifact for L1 verification."
+        },
+        "change_manifest": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Detailed log of intended file/data operations.",
+          "items": {
+            "type": "object",
+            "required": ["path", "operation"],
+            "properties": {
+              "path": {"type": "string", "description": "Relative path specification within the target."}, 
+              "operation": {"type": "string", "enum": ["ADD", "REPLACE", "DELETE"], "description": "SST Operation type."}
+            }
+          }
+        },
+        "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The size of the artifact file in bytes."
+        }
+      }
     },
     "preliminary_metrics": {
       "type": "object",
-      "description": "Initial estimates required by MEE/L2 simulation engines.",
-      "required": ["efficacy_estimate", "risk_projection"],
+      "description": "Mandatory initial metrics required for MEE/L2 simulation and validation.",
+      "required": ["efficacy_estimate", "risk_projection", "structural_cost_basis", "rollback_complexity_index"],
       "properties": {
-        "efficacy_estimate": {"type": "number", "minimum": 0, "description": "Initial $S-01$ estimate provided by proposer."},
-        "risk_projection": {"type": "number", "minimum": 0, "description": "Initial $S-02$ estimate provided by proposer."},
-        "structural_cost_basis": {"type": "number", "minimum": 0, "description": "Initial $C-01$ estimate for L3 check."}
+        "efficacy_estimate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Initial S-01 (Effectiveness) estimate [0-1]."
+        },
+        "risk_projection": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Initial S-02 (Hazard/Risk) estimate [0-1]."
+        },
+        "structural_cost_basis": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Initial C-01 (Computational/Memory) estimate (scaled units)."
+        },
+        "rollback_complexity_index": {
+          "type": "number",
+          "minimum": 0,
+          "description": "R-01 index indicating difficulty/time cost of automated rollback procedure (RFSE input)."
+        }
       }
     }
   },
