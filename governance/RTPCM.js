@@ -5,7 +5,7 @@
 
 /**
  * RTPCM: Manages verified, versioned policy configurations for the Trust Calculus (P-01).
- * Dependencies are explicitly injected to enforce architectural rigor, testability, and clarity.
+ * Implements strict versioning, internal history tracking, and atomic configuration updates.
  */
 class RTPCM {
     /**
@@ -20,15 +20,29 @@ class RTPCM {
             throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher) must be provided.");
         }
         
-        this._policyConfig = initialConfig;
+        // Internal State Management for Version Control and History
+        this._configHistory = new Map(); // Stores { versionId: frozenConfig }
+        this._currentVersionId = null;
+
+        // Dependencies
         this._ledger = ledger;
         this._validator = validator;
         this._hasher = hasher;
+
+        // Bootstrap: Register initial configuration if provided.
+        if (Object.keys(initialConfig).length > 0) {
+            try {
+                // Use 'BOOTSTRAP' source tag for audit trail clarity.
+                this.registerNewVersion(initialConfig, 'BOOTSTRAP');
+            } catch (e) {
+                // Critical failure if initial config cannot be loaded or validated.
+                throw new Error(`RTPCM Initialization Failed: Initial configuration rejected. Details: ${e.message}`);
+            }
+        }
     }
 
     /**
      * Internal validation against established GRS stability policies and schema.
-     * Delegates validation to the injected service (formerly relying on global RGCM).
      * @param {Object} config 
      * @returns {boolean}
      */
@@ -38,47 +52,71 @@ class RTPCM {
 
     /**
      * Generates a deterministic hash of the configuration object.
-     * Ensures integrity and serves as the official version identifier.
+     * Serves as the official version identifier.
      * @param {Object} config 
      * @returns {string} The configuration hash (version ID).
      */
     calculateHash(config) {
-        // Utilize the injected cryptographic hash utility
         return this._hasher.digest(JSON.stringify(config));
     }
 
     /**
-     * Registers a new configuration version, locking it and logging the transaction to the AIA ledger.
+     * Registers a new configuration version, locking it, storing it historically, and logging to the AIA ledger.
+     * If the configuration is identical to the currently active one, the update is skipped to maintain ledger fidelity.
      * @param {Object} newConfig - The proposed policy configuration.
-     * @returns {string} The cryptographic hash (version ID) of the new configuration.
+     * @param {string} [source='API_CALL'] - Context/source of the update (e.g., BOOTSTRAP, UI_ADMIN).
+     * @returns {{versionId: string, config: Object}} The cryptographic hash and the registered config.
      * @throws {Error} If configuration validation fails.
      */
-    registerNewVersion(newConfig) {
-        // Pre-flight check: Enforce governance stability policies.
+    registerNewVersion(newConfig, source = 'API_CALL') {
         if (!this.validateNewConfig(newConfig)) {
             throw new Error("RTPCM_GOV_ERROR: Configuration validation failed against Governance Rules.");
         }
         
-        // Atomically update and lock the configuration (Immutability is critical for audit trails)
-        this._policyConfig = Object.freeze(newConfig); 
         const configHash = this.calculateHash(newConfig);
+
+        if (configHash === this._currentVersionId) {
+            return { versionId: configHash, config: this.getHistoricalConfig(configHash) };
+        }
+
+        // 1. Atomically store and lock (Immutability is critical for audit trails)
+        const frozenConfig = Object.freeze(newConfig); // NOTE: Consumers must ensure structural immutability (deep freezing is external responsibility)
+        this._configHistory.set(configHash, frozenConfig);
         
-        // Log the definitive, locked policy version.
+        // 2. Activation
+        this._currentVersionId = configHash;
+        
+        // 3. Auditing
         this._ledger.logTransaction('RTPCM_CONFIG_UPDATE', {
             version: configHash,
             timestamp: Date.now(),
-            details: 'P-01 Trust Calculus parameters updated.',
+            source: source,
+            details: 'P-01 Trust Calculus parameters activated.',
         });
         
-        return configHash;
+        return { versionId: configHash, config: frozenConfig };
     }
 
     /**
-     * Retrieves the currently active configuration, used by downstream modules (C-11, ATM).
-     * @returns {Object} The active, immutable configuration object.
+     * Retrieves the currently active configuration, packaged with its version identifier.
+     * @returns {{versionId: string|null, config: Object}} The active configuration and its ID. Returns safe defaults if not configured.
      */
     getActiveConfig() {
-        return this._policyConfig;
+        if (!this._currentVersionId) {
+            return { versionId: null, config: {} }; 
+        }
+        const config = this._configHistory.get(this._currentVersionId);
+        return { versionId: this._currentVersionId, config: config };
+    }
+
+    /**
+     * Retrieves a specific historical configuration version by its hash ID.
+     * Useful for simulations, comparisons, or rollbacks.
+     * @param {string} versionId - The hash of the desired configuration.
+     * @returns {Object|null} The immutable configuration object, or null if not found locally.
+     */
+    getHistoricalConfig(versionId) {
+        return this._configHistory.get(versionId) || null;
     }
 }
 
