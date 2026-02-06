@@ -1,45 +1,95 @@
-// The Policy Correction Engine (PCE) is a non-runtime, offline utility activated only following an Integrity Halt (IH) or a complex Rollback Protocol (RRP) event.
-// Its mission is to analyze TEDS data and the resultant Policy Correction State Snapshot (PCSS).
-
+/**
+ * Policy Correction Engine (PCE)
+ * Mission: Autonomous analysis of system failures (Integrity Halt/Rollback Protocol)
+ * to propose corrective evolution to the Axiomatic Constraint Vector Definition (ACVD).
+ */
 class PolicyCorrectionEngine {
-    constructor(tedsData, pcssSnapshot) {
-        this.teds = tedsData;
-        this.pcss = pcssSnapshot;
-        this.violations = this.analyzeViolations();
+    /**
+     * @param {Object} analysisData - Contains temporal data (TEDS) and state snapshot (PCSS).
+     */
+    constructor(analysisData) {
+        if (!analysisData || !analysisData.teds || !analysisData.pcss) {
+            throw new Error("PCE initialization requires valid TEDS data and PCSS snapshot.");
+        }
+        this.teds = analysisData.teds;
+        this.pcss = analysisData.pcss;
     }
 
-    analyzeViolations() {
-        // Step 1: Correlate TEDS audit trail (temporal data) with P-01 Failure Scalars (PVLM, MPAM, ADTM).
-        // Identify root causes and constraint vector boundaries violated (UFRM/CFTM logic).
-        // ... detailed analysis logic ...
+    /**
+     * Analyzes violation data asynchronously, correlating audit trails with failure scalars.
+     * @returns {Promise<Object>} Detailed violation report.
+     */
+    async analyzeViolations() {
+        console.log("PCE: Initiating deep correlation analysis...");
+
+        // Simulate complex, CPU-intensive analysis involving multiple metrics (PVLM, MPAM, ADTM).
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const analysisResults = this._correlateFailureScalars();
+
         return {
-            failedAxioms: [],
-            requiredThresholdIncrease: 0,
-            logicErrors: []
+            failedAxioms: analysisResults.failedAxioms || ['P-01/C4'],
+            requiredThresholdIncrease: analysisResults.thresholdIncrease || 0.05,
+            logicErrorsDetected: analysisResults.logicErrors
         };
     }
 
-    generateCandidateACVD(currentACVD) {
-        // Step 2: Based on failure analysis, propose adjustments to the Axiomatic Constraint Vector Definition (ACVD).
-        // Focus primarily on calibrating UFRM (Utility Floor Required Minimum) and refining ACVD internal logic.
-        const newACVD = { ...currentACVD };
+    /**
+     * Internal method simulating the correlation process against UFRM/CFTM logic.
+     */
+    _correlateFailureScalars() {
+        // Placeholder for advanced AI correlation logic
+        // This is where UFRM/CFTM violation detection would happen.
+        return {
+            failedAxioms: ['P-01/C4', 'UFRM/TemporalSkew'],
+            thresholdIncrease: 0.1, // Example: PCE mandates a 10% increase in utility floor
+            logicErrors: [{ code: 701, description: "PVLM deviation detected during CFTM saturation." }]
+        };
+    }
 
-        if (this.violations.requiredThresholdIncrease > 0) {
-            newACVD.UFRM += this.violations.requiredThresholdIncrease; // Enforce stricter minimum utility.
+    /**
+     * Based on violation analysis, proposes adjustments (evolution) to the ACVD.
+     * @param {Object} currentACVD - The baseline Axiomatic Constraint Vector Definition.
+     * @param {Object} violationReport - The results from analyzeViolations.
+     * @returns {Object} Candidate ACVD Delta for governance review.
+     */
+    proposeACVDEvolution(currentACVD, violationReport) {
+        // Use structured cloning for immutability enforcement
+        const candidateACVD = JSON.parse(JSON.stringify(currentACVD));
+        
+        // Policy application logic: Stricter enforcement based on analysis
+        if (violationReport.requiredThresholdIncrease > 0) {
+            // Apply mandated threshold increase to the Utility Floor Required Minimum (UFRM)
+            candidateACVD.parameters.UFRM = (candidateACVD.parameters.UFRM || 0) + violationReport.requiredThresholdIncrease;
         }
 
-        // Step 3: Output a verified, version-controlled ACVD delta for review and eventual CGR inclusion.
+        // Increment versioning metadata
+        const newVersion = currentACVD.metadata.version + 1;
+
         return {
-            ACVD_Version: currentACVD.Version + 1,
-            ACVD_Delta: newACVD,
-            AnalysisReport: this.violations
+            metadata: {
+                version: newVersion,
+                timestamp: new Date().toISOString(),
+                origin: 'PCE-v94.1'
+            },
+            ACVD_Delta: candidateACVD,
+            ViolationSummary: violationReport
         };
     }
 
-    execute() {
-        // Placeholder for triggering the generation workflow.
-        const currentACVD = require('../config/ACVD_latest.json');
-        return this.generateCandidateACVD(currentACVD);
+    /**
+     * Executes the full correction workflow.
+     * @param {Object} currentACVD - The latest certified ACVD configuration.
+     * @returns {Promise<Object>} Candidate ACVD evolution package.
+     */
+    async execute(currentACVD) {
+        if (!currentACVD || !currentACVD.metadata || typeof currentACVD.metadata.version === 'undefined') {
+             throw new Error("PCE execution failed: Current ACVD configuration required.");
+        }
+        
+        const violationReport = await this.analyzeViolations();
+        
+        return this.proposeACVDEvolution(currentACVD, violationReport);
     }
 }
 
