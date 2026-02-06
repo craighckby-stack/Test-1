@@ -1,1 +1,4 @@
-[object Object]
+{
+  "message": "Input contract artifact content was provided as [object Object]. No direct modification to contracts/TEDC.json could be performed.",
+  "status": "INPUT_PARSE_FAILURE_RECOMMENDED_ARCHITECTURAL_PIVOT"
+}
