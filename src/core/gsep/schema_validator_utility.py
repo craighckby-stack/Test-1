@@ -1,43 +1,60 @@
 import json
 import re
-from typing import Dict, Any, List, Tuple, Union
+from typing import Dict, Any, List, Tuple, Union, Optional
+
+class ValidationError(Exception):
+    def __init__(self, message: str, path: str, rule_type: str, level: str = "NORMAL"):
+        self.message = message
+        self.path = path
+        self.rule_type = rule_type
+        self.level = level
+        super().__init__(f"[{level}] Validation Failure at '{path}' ({rule_type}): {message}")
 
 class GSEPContractValidator:
-    """Utility for rigorously validating GSEP payloads against defined contracts (e.g., PPC-V2.0 schema)."""
+    """Utility for rigorously validating GSEP payloads against defined contracts.
     
-    # Centralized mapping of schema type strings to native Python types
+    Refactored to support structured error reporting, array item validation ('items'), 
+    and extended constraints (minimum, maximum, minLength, maxLength).
+    """
+    
     TYPE_MAP: Dict[str, Union[type, Tuple[type, ...]]] = {
         "string": str,
         "number": (int, float),
+        "integer": int,
         "boolean": bool,
         "object": dict,
         "array": list,
     }
 
-    def __init__(self, contract_data: Dict[str, Any]):
-        """Initializes the validator with pre-loaded contract data."""
+    def __init__(self, contract_data: Dict[str, Any], expected_contract_id: str = "PPC-V2.0"):
+        """Initializes the validator with pre-loaded contract data.
+        
+        Args:
+            contract_data: The loaded schema definition.
+            expected_contract_id: Allows configuration of the expected schema ID.
+        """
         contract_id = contract_data.get('contract_id')
-        if contract_id != "PPC-V2.0":
-            raise ValueError(f"Schema mismatch: Loaded contract ID '{contract_id}' is not PPC-V2.0")
+        if contract_id != expected_contract_id:
+            raise ValueError(f"Schema mismatch: Loaded contract ID '{contract_id}' does not match expected ID '{expected_contract_id}'.")
             
         self.contract: Dict[str, Any] = contract_data
-        # Expect schema to be a list of rules
         self.schema: List[Dict[str, Any]] = self.contract.get("validation_schema", [])
+        self.expected_id = expected_contract_id
 
     @classmethod
-    def from_file(cls, contract_path: str) -> 'GSEPContractValidator':
+    def from_file(cls, contract_path: str, expected_contract_id: str = "PPC-V2.0") -> 'GSEPContractValidator':
         """Load contract data from a file path and initialize the validator (decouples I/O)."""
         try:
             with open(contract_path, 'r') as f:
                 contract_data = json.load(f)
-            return cls(contract_data)
+            return cls(contract_data, expected_contract_id=expected_contract_id)
         except FileNotFoundError:
             raise RuntimeError(f"Contract file not found at {contract_path}")
         except json.JSONDecodeError:
             raise RuntimeError(f"Failed to decode JSON from contract file at {contract_path}")
 
-    def _apply_constraints(self, data: Any, constraints: Dict[str, Any], key_path: str, errors: List[str]) -> None:
-        """Encapsulates and applies type checking and regex pattern matching on a single field/sub-key."""
+    def _apply_constraints(self, data: Any, constraints: Dict[str, Any], key_path: str, errors: List[ValidationError]) -> bool:
+        """Applies primitive checks (type, pattern, range, length) on a single item. Returns True if structural recursion should be aborted."""
         expected_type_str = constraints.get("type")
         
         # 1. Type Check
@@ -45,62 +62,132 @@ class GSEPContractValidator:
             expected_py_type = self.TYPE_MAP[expected_type_str]
             
             if not isinstance(data, expected_py_type):
-                # Use string name defined in schema for display
-                display_type = expected_type_str 
-                errors.append(f"Validation Failed: {key_path} type mismatch. Expected '{display_type}', got '{type(data).__name__}'.")
-                return 
+                errors.append(ValidationError(
+                    message=f"Type mismatch. Expected '{expected_type_str}', got '{type(data).__name__}'.",
+                    path=key_path,
+                    rule_type="TypeCheck"
+                ))
+                # If type check fails, all subsequent constraint checks are unreliable.
+                return True 
 
-        # 2. Pattern Check (only applicable if data is a string)
+        # 2. Pattern Check
         if isinstance(data, str) and "pattern" in constraints:
             pattern = constraints["pattern"]
             try:
                 if not re.match(pattern, data):
-                    errors.append(f"Validation Failed: {key_path} pattern mismatch. Value does not conform to regex '{pattern}'.")
+                    errors.append(ValidationError(
+                        message=f"Value does not conform to regex '{pattern}'.",
+                        path=key_path,
+                        rule_type="PatternCheck"
+                    ))
             except re.error:
-                errors.append(f"CRITICAL Schema Error: Invalid regex pattern '{pattern}' defined for {key_path}.")
+                errors.append(ValidationError(
+                    message=f"Invalid regex pattern '{pattern}' defined in schema.",
+                    path=key_path,
+                    rule_type="SchemaCritical"
+                ))
+        
+        # 3. Numeric Constraints (Min/Max)
+        if isinstance(data, (int, float)):
+            if "minimum" in constraints and data < constraints["minimum"]:
+                errors.append(ValidationError(
+                    message=f"Value {data} is less than minimum required value {constraints['minimum']}.",
+                    path=key_path,
+                    rule_type="RangeCheck"
+                ))
+
+            if "maximum" in constraints and data > constraints["maximum"]:
+                errors.append(ValidationError(
+                    message=f"Value {data} is greater than maximum allowed value {constraints['maximum']}.",
+                    path=key_path,
+                    rule_type="RangeCheck"
+                ))
+
+        # 4. String Length Constraints (MinLength/MaxLength)
+        if isinstance(data, str):
+            length = len(data)
+            
+            if "minLength" in constraints and length < constraints["minLength"]:
+                errors.append(ValidationError(
+                    message=f"String length {length} is less than minimum length {constraints['minLength']}.",
+                    path=key_path,
+                    rule_type="LengthCheck"
+                ))
+
+            if "maxLength" in constraints and length > constraints["maxLength"]:
+                errors.append(ValidationError(
+                    message=f"String length {length} exceeds maximum length {constraints['maxLength']}.",
+                    path=key_path,
+                    rule_type="LengthCheck"
+                ))
                     
-    def validate_payload(self, payload: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        """Validates the given payload against the internal schema rules."""
-        errors: List[str] = []
+        return False
+
+    def _validate_recursive(self, data: Any, constraints: Dict[str, Any], key_path: str, errors: List[ValidationError]) -> None:
+        """Recursively handles structural validation for objects ('definition') and arrays ('items')."""
+        
+        # Apply primitive constraints first. If the type check failed, stop recursion here.
+        if self._apply_constraints(data, constraints, key_path, errors):
+            return
+
+        expected_type_str = constraints.get("type")
+        definition = constraints.get("definition")
+        items_constraints = constraints.get("items")
+        
+        # 1. Recursive Object Validation
+        if expected_type_str == "object" and definition:
+            if not isinstance(data, dict): return # Type check already passed, this is a safety check.
+
+            for key, sub_constraints in definition.items():
+                sub_key_path = f"{key_path}.{key}"
+                required = sub_constraints.get("required", False)
+                
+                if key not in data:
+                    if required:
+                        errors.append(ValidationError(
+                            message=f"Missing required sub-key.",
+                            path=sub_key_path,
+                            rule_type="PresenceCheck",
+                            level="CRITICAL"
+                        ))
+                    continue
+                
+                # Recursive call for nested structure
+                self._validate_recursive(data[key], sub_constraints, sub_key_path, errors)
+
+        # 2. Array Item Validation
+        if expected_type_str == "array" and items_constraints:
+            if not isinstance(data, list): return # Type check already passed.
+            
+            for index, item_data in enumerate(data):
+                item_path = f"{key_path}[{index}]"
+                # Recursive call for array item structure
+                self._validate_recursive(item_data, items_constraints, item_path, errors)
+
+
+    def validate_payload(self, payload: Dict[str, Any]) -> Tuple[bool, List[ValidationError]]:
+        """Validates the given payload against the internal schema rules, returning structured errors."""
+        errors: List[ValidationError] = []
 
         for rule in self.schema:
             field_name: str = rule.get("field")
             level: str = rule.get("level", "NORMAL")
-            definition: Dict[str, Any] = rule.get("definition")
+            required = rule.get("required", False) # Assuming GSEP schema can define required at top level
             
             # 1. Top-Level Field Presence Check
             if field_name not in payload:
-                if level == "CRITICAL":
-                    errors.append(f"CRITICAL Validation Failed: Missing required top-level field: {field_name}.")
+                if required or level == "CRITICAL":
+                    errors.append(ValidationError(
+                        message=f"Missing required top-level field.",
+                        path=field_name,
+                        rule_type="PresenceCheck",
+                        level=level
+                    ))
                 continue
 
             field_data = payload[field_name]
-
-            # 2. Structural/Type Validation
             
-            # Case A: Primitive/Array/Object type defined directly on the field (no nested definition)
-            if not definition:
-                self._apply_constraints(field_data, rule, field_name, errors)
-                continue
-
-            # Case B: Nested Validation (requires field_data to be an object/dictionary)
-            
-            if not isinstance(field_data, dict):
-                errors.append(f"CRITICAL Structure Error: Field '{field_name}' must be a dictionary (object) to validate its internal sub-keys defined in the schema.")
-                continue
-                
-            for key, constraints in definition.items():
-                key_path = f"{field_name}.{key}"
-                required = constraints.get("required", False)
-                
-                if key not in field_data:
-                    if required:
-                        errors.append(f"CRITICAL Validation Failed: Missing required sub-key: {key_path}.")
-                    continue
-                
-                sub_data = field_data[key]
-                
-                # Apply constraints to the sub-key data
-                self._apply_constraints(sub_data, constraints, key_path, errors)
+            # 2. Full Recursive Validation starting from top level rule
+            self._validate_recursive(field_data, rule, field_name, errors)
 
         return len(errors) == 0, errors
