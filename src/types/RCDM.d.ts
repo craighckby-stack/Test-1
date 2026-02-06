@@ -1,16 +1,39 @@
-type RecourseAction = "HALT_AND_QUARANTINE" | "ABORT_INFERENCE_PATH" | "LOG_VETO_PROPAGATE";
-type ConstraintLayer = "L0_KERNEL_SAFEGUARD" | "L1_CORE_PROCESS" | "L2_ADAPTIVE_LAYER";
-type ThresholdType = 'MINIMUM' | 'MAXIMUM' | 'BOOLEAN_MANDATE';
+export type RecourseAction = "HALT_AND_QUARANTINE" | "ABORT_INFERENCE_PATH" | "LOG_VETO_PROPAGATE";
+export type ConstraintLayer = "L0_KERNEL_SAFEGUARD" | "L1_CORE_PROCESS" | "L2_ADAPTIVE_LAYER";
 
-export interface ConstraintDefinition {
+// --- Discriminated Union Setup for Enhanced Type Safety ---
+type NumericThresholdType = 'MINIMUM' | 'MAXIMUM';
+type BooleanThresholdType = 'BOOLEAN_MANDATE';
+export type ThresholdType = NumericThresholdType | BooleanThresholdType;
+
+interface BaseConstraintDefinition {
     DESCRIPTION: string;
     METRIC_ID: string;
     LAYER: ConstraintLayer;
-    THRESHOLD_TYPE: ThresholdType;
-    VALUE: number | boolean;
     UNIT?: string;
     RECOURSE_ACTION: RecourseAction;
 }
+
+/**
+ * Defines constraints where VALUE must be a number.
+ */
+interface NumericConstraint extends BaseConstraintDefinition {
+    THRESHOLD_TYPE: NumericThresholdType;
+    VALUE: number;
+}
+
+/**
+ * Defines constraints where VALUE must be a boolean.
+ */
+interface BooleanConstraint extends BaseConstraintDefinition {
+    THRESHOLD_TYPE: BooleanThresholdType;
+    VALUE: boolean;
+}
+
+/**
+ * A constraint definition guaranteed to be type-safe based on THRESHOLD_TYPE.
+ */
+export type ConstraintDefinition = NumericConstraint | BooleanConstraint;
 
 export interface RCDMConstraintData {
     [key: string]: ConstraintDefinition;
