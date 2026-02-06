@@ -1,26 +1,38 @@
 {
-  "environment": "PROD_L5",
-  "policy_enforcement_date": "2024-10-27T10:00:00Z",
-  "control_parameters": {
-    "veto_policy_refs": ["pvlm:9a3f2b4e", "pvlm:c8d1e2f3"],
-    "finality_margin": 0.05
+  "policy_version": "v1.1.0",
+  "policy_name": "AutonomousRuntimeGovernance",
+  "operational_context": {
+    "environment": "PROD_L5_AUTONOMOUS",
+    "activation_timestamp": "2024-10-27T10:00:00Z"
   },
-  "stability_metrics": {
-    "resource_limits": {
-      "utility_min_threshold": 0.75,
-      "risk_max_tolerance": 0.08,
-      "cpu_cycle_max_delta": 10
+  "core_governance": {
+    "veto_mechanisms": {
+      "mandatory_references": [
+        "PVLM:9A3F2B4E",
+        "PVLM:C8D1E2F3"
+      ],
+      "conflict_resolution_mode": "PREEMPTIVE_MAJORITY"
     },
-    "behavioral_guardrails": [
+    "decision_convergence_threshold": 0.95
+  },
+  "system_integrity_constraints": {
+    "resource_constraints": {
+      "utility_min_threshold_perc": 75,
+      "risk_max_tolerance_score": 0.08,
+      "max_runtime_delta_ms": 50
+    },
+    "behavioral_validation_rules": [
       {
+        "rule_id": "CRC_INTEGRITY_CHECK",
         "anomaly_type": "checksum_mismatch",
-        "trigger_value": "REQUIRED_CRC:98F0",
-        "rejection_level": "VETO_S8"
+        "validation_target": "CORE_STATE_CRC:98F0",
+        "action_level": "BLOCK_AND_ROLLBACK"
       },
       {
+        "rule_id": "TELEMETRY_DROP_RATE",
         "anomaly_type": "telemetry_gap_rate",
-        "trigger_value": 0.02, 
-        "rejection_level": "VETO_S2"
+        "threshold": 0.02,
+        "action_level": "WARNING_AND_REDUCED_SCOPE"
       }
     ]
   }
