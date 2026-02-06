@@ -1,1 +1,143 @@
-[object Object]
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign/schemas/v94/ArtifactStructuralDefinition.json",
+  "title": "ArtifactStructuralDefinition",
+  "description": "Defines the required structure, metadata, dependencies, and processing instructions for an output artifact managed by the AGI system.",
+  "type": "object",
+  "properties": {
+    "artifactName": {
+      "type": "string",
+      "description": "A human-readable name for the artifact."
+    },
+    "artifactId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The unique, immutable identifier for this artifact definition."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "CodeComponent",
+        "Configuration",
+        "TestDefinition",
+        "Documentation",
+        "PipelineStep",
+        "Resource"
+      ],
+      "description": "The fundamental category of the artifact."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic versioning of the artifact definition itself. (e.g., 1.0.0)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "General metadata for identification and classification.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "ownerModule": {
+          "type": "string",
+          "description": "The AGI module responsible for generating/maintaining this definition."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "List of required artifacts (inputs or prerequisites) needed for generation.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dependencyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requiredVersionRange": {
+            "type": "string",
+            "description": "Semantic version range compatible with the dependency (e.g., ^1.2.0)"
+          }
+        },
+        "required": [
+          "dependencyId"
+        ]
+      }
+    },
+    "structure": {
+      "type": "array",
+      "description": "Defines the mandatory files and directory hierarchy.",
+      "items": {
+        "$ref": "#/definitions/StructureNode"
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Instructions for generation, validation, or compilation.",
+      "properties": {
+        "generatorRef": {
+          "type": "string",
+          "description": "Reference to the engine/template used for initial artifact generation."
+        },
+        "hooks": {
+          "type": "object",
+          "properties": {
+            "preGen": {
+              "type": "string",
+              "description": "Reference to a function/script executed before generation."
+            },
+            "postValidation": {
+              "type": "string",
+              "description": "Reference to a function/script executed after structural validation."
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "artifactId",
+    "type",
+    "structure",
+    "version"
+  ],
+  "definitions": {
+    "StructureNode": {
+      "type": "object",
+      "description": "A recursive definition for files and directories.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "File or directory name."
+        },
+        "isDir": {
+          "type": "boolean",
+          "default": false
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Must exist in the generated artifact."
+        },
+        "templatePath": {
+          "type": "string",
+          "description": "Optional path to the source template file if this node is a file."
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/StructureNode"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  }
+}
