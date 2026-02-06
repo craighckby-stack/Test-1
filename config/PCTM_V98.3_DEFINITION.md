@@ -1,42 +1,37 @@
-# Policy Configuration Trust Management (PCTM) V99.0 Standard Definition
+# Policy Configuration Trust Management (PCTM) V99.1 Specification
 
-## 1.0 Executive Mandate
+## 1.0 Scope and Mandate
 
-The PCTM is the foundational protocol securing the integrity, provenance, and lifecycle of all Axiom Governance Configuration Assets (AGCA), specifically PVLM, ADTM, and CFTM. It guarantees that governance policy rules are attested and traceable, preventing governance supply chain risks.
+The PCTM V99.1 protocol defines the minimum cryptographic and structural requirements for all Axiom Governance Configuration Assets (AGCA). This specification guarantees the integrity, provenance, and traceable lifecycle of AGCA, mitigating governance supply chain risks. AGCA includes, but is not limited to, PVLM, ADTM, and CFTM configurations.
 
-## 2.0 Core Trust Requirements
+## 2.0 AGCA Trust Structure (PCTM-STR)
 
-### 2.1 Semantic Attestation Layer (SAL) Definition
+All AGCA files MUST strictly conform to the structural definition provided in `schema/AGCA_PCTM_V1.json`. Non-conforming assets SHALL result in immediate validation failure (TERMINAL SIH halt).
 
-All AGCA policy content must adhere to the SAL V1.1 standard.
-1.  **Version Field:** The configuration asset MUST include the field `"policy_axiom_version"`, tracked via MAJOR.MINOR.PATCH semantic versioning.
-2.  **Version Policy:** Any update affecting a policy rule payload (e.g., rule changes, veto condition modifications) requires a MINOR version bump. Structural or architectural changes to the asset format require a MAJOR bump.
+### 2.1 Certified Metadata Block (Mandatory)
 
-### 2.2 Configuration Integrity & Provenance (CIP)
+The root level of the AGCA object SHALL contain the following fields. Validation of these fields constitutes the Configuration Integrity Validation (CIV) module's Stage S0 check during GSEP-C ANCHOR INIT.
 
-Before execution at GSEP-C Stage S0, every AGCA must satisfy the following cryptographic requirements:
-1.  **Cryptographic Signing:** The asset must be cryptographically signed by an authorized Governance Key Manifest (GKM).
-2.  **Metadata Inclusion:** The configuration metadata MUST include the verified signature and the reference ID of the signing GKM.
-3.  **Hash Verification:** A mandatory SHA-256 hash of the configuration payload (`configuration_data` block) MUST be present for immediate integrity checks.
+| Field Name | Requirement ID | Type | Constraint | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `pctm_standard_id` | PCTM-REQ-001 | String | Static: "V99.1" | Protocol version identification. |
+| `owner_agent` | PCTM-REQ-002 | String | Required | Originating governance agent (e.g., GAX, SVT). |
+| `last_modified_utc` | PCTM-REQ-003 | String | ISO 8601 | Timestamp of last authorized modification. |
+| `configuration_data` | PCTM-REQ-004 | Object | Required | The actual policy definition payload. |
 
-## 3.0 Mandatory AGCA Structure (AGCA-SCHEMA V1)
+## 3.0 Integrity and Provenance Requirements (PCTM-CIP)
 
-All AGCA files MUST strictly conform to the `schema/AGCA_PCTM_V1.json` definition. Non-conforming assets will fail validation immediately.
+### 3.1 Semantic Attestation Layer (SAL) Requirements
 
-### 3.1 Certified Metadata Block Requirements
+PCTM-REQ-005: The AGCA MUST include the field `"policy_axiom_version"`, adhering to MAJOR.MINOR.PATCH semantic versioning.
+PCTM-REQ-006: Any update affecting the policy rule payload (e.g., rule changes, veto condition modifications) SHALL require a MINOR version bump. Structural changes to the asset format SHALL require a MAJOR bump.
 
-The mandatory metadata block for all AGCA assets is validated against the following structure fields:
+### 3.2 Cryptographic Integrity
 
-| Field Name | Type | Constraint | Purpose |
-| :--- | :--- | :--- | :--- |
-| `pctm_standard_id` | String | Static: "V99.0" | Protocol version identification. |
-| `policy_axiom_version` | String | Required (X.Y.Z) | Semantic Attestation Layer version of the policy payload. |
-| `owner_agent` | String | Required | Originating governance agent (e.g., GAX, SVT). |
-| `last_modified_utc` | String | ISO 8601 | Timestamp of last authorized modification. |
-| `hash_sha256` | String | 64-char Hex | Integrity hash of the `configuration_data` payload. |
-| `gkm_signature` | String | Required | Cryptographic signature applied by the GKM. |
-| `configuration_data` | Object | Required | The actual policy definition payload. |
+PCTM-REQ-007: The AGCA MUST contain a mandatory SHA-256 hash of the `configuration_data` block, stored in the `hash_sha256` field (64-character Hex string). This hash SHALL be verified prior to signature processing.
+PCTM-REQ-008: The asset MUST be cryptographically signed by an authorized Governance Key Manifest (GKM). The verified signature SHALL be included in the `gkm_signature` field.
+PCTM-REQ-009: The metadata SHALL include the reference ID of the signing GKM to facilitate lookup against the CRoT approved list.
 
 ## 4.0 GSEP-C Integration
 
-During GSEP-C Stage S0 (ANCHOR INIT), the Configuration Integrity Validation (CIV) module utilizes the defined `AGCA-SCHEMA V1` to perform rapid schema adherence checks, hash verification, and signature authentication against the CRoT approved GKM list. Trust failures in Stage S0 trigger a TERMINAL (SIH) halt.
+The CIV module SHALL utilize PCTM-CIP requirements during GSEP-C Stage S0 (ANCHOR INIT) to perform rapid schema adherence checks, hash verification, and signature authentication against the CRoT approved GKM list. Failure of any PCTM-REQ SHALL trigger a TERMINAL (SIH) halt state, preventing configuration execution.
