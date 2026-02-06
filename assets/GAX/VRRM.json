@@ -1,53 +1,64 @@
 {
-  "asset_id": "VRRM-V1.1",
-  "version": "1.1",
+  "asset_id": "VRRM-V2.0",
+  "asset_type": "VRRM_CONFIGURATION",
+  "schema_version": "2.0",
   "status": "GACMS_CERTIFIED",
   "veto_constraints": [
     {
-      "id": "GCM_2_1",
+      "constraint_id": "GCM_2_1",
+      "risk_level": "CRITICAL",
       "severity": 100,
       "trigger": {
-        "asset_ref": "PVLM",
-        "vector": "NEG_V_POLICY"
+        "source_asset": "PVLM",
+        "trigger_vector": "NEG_V_POLICY"
       },
       "remediation_mandates": [
         {
           "action": "STATE_QUARANTINE",
           "target_ref": "CISM",
-          "context": {"reason_code": "AXIOMATIC_BREACH"}
+          "params": {"reason_code": "AXIOMATIC_BREACH"}
         },
         {
           "action": "CONFIG_ROLLBACK",
           "target_ref": "PVLM",
-          "config_params": {"version_hash": "LAST_GACMS_CERTIFIED"}
+          "params": {"version_hash": "LAST_GACMS_CERTIFIED"}
         }
       ]
     },
     {
-      "id": "GCM_2_2",
+      "constraint_id": "GCM_2_2",
+      "risk_level": "HIGH",
       "severity": 90,
       "trigger": {
-        "asset_ref": "MPAM",
-        "vector": "NEG_V_STABILITY"
+        "source_asset": "MPAM",
+        "trigger_vector": "NEG_V_STABILITY"
       },
       "remediation_mandates": [
-        {"action": "MODEL_RETRAINING_MANDATE", "target_ref": "CMR"},
-        {"action": "METRIC_LOCKDOWN", "target_ref": "MPAM", "duration_minutes": 720}
+        {"action": "MODEL_RETRAINING_MANDATE", "target_ref": "CMR", "params": {}},
+        {
+          "action": "METRIC_LOCKDOWN",
+          "target_ref": "MPAM",
+          "params": {"duration_minutes": 720}
+        }
       ]
     },
     {
-      "id": "GCM_2_3",
+      "constraint_id": "GCM_2_3",
+      "risk_level": "MODERATE",
       "severity": 80,
       "trigger": {
-        "asset_ref": "ADTM",
-        "vector": "NEG_V_BEHAVIOR"
+        "source_asset": "ADTM",
+        "trigger_vector": "NEG_V_BEHAVIOR"
       },
       "remediation_mandates": [
-        {"action": "INPUT_STREAM_PAUSE", "target_ref": "S1"},
+        {"action": "INPUT_STREAM_PAUSE", "target_ref": "S1", "params": {}},
         {
           "action": "ADTM_ADJUSTMENT",
           "target_ref": "ADTM",
-          "config_params": {"override_path": "HEURISTICS_A/MINIMUM_THRESHOLDS_ENABLED", "value": true}
+          "params": {
+            "override_path": "HEURISTICS_A/MINIMUM_THRESHOLDS_ENABLED",
+            "value": true
+          }
         }
       ]
     }
