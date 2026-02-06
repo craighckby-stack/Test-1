@@ -1,0 +1,21 @@
+{
+  "policy_id": "GIRM_Management_S02",
+  "policy_version": "1.0.0",
+  "description": "Defines governance policies for managing the GIRAM (Integrity Root Manifest) structure and updating its baselines.",
+  "update_constraints": {
+    "baseline_update_required_threshold": 2,
+    "required_approver_roles": ["CORE_GOV", "SECURITY_AUDIT"],
+    "allowed_update_mechanisms": ["GSEP_Stage0_Patch", "Secure_Self_Mutation_Event"]
+  },
+  "failure_handling": {
+    "integrity_violation_action": "Halt_GSEP_S1_Pre_Boot",
+    "notification_target": "Sentinel_Watchdog_Service",
+    "grace_period_ms": 0
+  },
+  "manifest_security_standards": {
+    "minimum_signature_strength": "RSA-4096",
+    "algorithm_deprecation_schedule": {
+      "SHA3-384": "2025-10-01"
+    }
+  }
+}
