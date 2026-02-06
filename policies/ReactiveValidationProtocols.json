@@ -1,25 +1,46 @@
 {
   "RVP_RT-LATENCY_900": {
-    "name": "Real-Time Latency Overrun Policy",
-    "description": "If Agent Heartbeat Latency exceeds 50ms, escalate severity to P1 and trigger local diagnostic dump based on Governance Policy GAX-401.",
-    "severity_level": "P1",
+    "name": "Core Agent Latency Breach Protocol",
+    "description": "Validates system health by enforcing maximum permissible heartbeat delay thresholds for critical Agent infrastructure. Triggered if metric measurement breaches defined threshold.",
+    "status": "ACTIVE",
+    "trigger": {
+      "metric_id": "AGENT_HEARTBEAT_LATENCY_MS",
+      "operator": "GREATER_THAN",
+      "threshold": 50,
+      "unit": "ms",
+      "persistence_check_count": 3
+    },
+    "severity": "P1_CRITICAL",
+    "governance_ref": "GAX-401: Immediate Diagnostic Execution Policy",
     "action_sequence": [
       {
         "step": 1,
-        "protocol": "LOG",
-        "details": "RT_LATENCY_VIOLATION: CRITICAL"
+        "protocol": "DIAGNOSTIC_LOG",
+        "arguments": {
+          "level": "CRITICAL",
+          "context_key": "RT_LATENCY_VIOLATION",
+          "details_template": "Latency breached {{threshold}}{{unit}} for {{metric_id}}."
+        }
       },
       {
         "step": 2,
-        "protocol": "ALERT_SGS",
-        "details": "SEV_P1_IMMEDIATE"
+        "protocol": "ALERT_NOTIFICATION",
+        "arguments": {
+          "system": "SGS_CORE",
+          "priority": "P1",
+          "target_group": "CORE_MONITORING_AGENTS"
+        }
       },
       {
         "step": 3,
-        "protocol": "EXECUTE_LOCAL_SCRIPT",
-        "script_id": "DIAG_DUMP_001"
+        "protocol": "EXECUTE_SCRIPT",
+        "arguments": {
+          "script_id": "DIAG_DUMP_001",
+          "execution_mode": "LOCAL_ASYNCHRONOUS",
+          "required_context_keys": ["current_latency", "trigger_timestamp"]
+        }
       }
     ],
-    "owner": "SGS/Monolith"
+    "owner_module": "SGS_CORE_MONITORING"
   }
 }
