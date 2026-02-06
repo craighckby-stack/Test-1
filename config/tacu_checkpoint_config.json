@@ -1,17 +1,37 @@
 {
-  "utility_name": "Transient Atomic Checkpoint Utility (TACU)",
-  "purpose": "Define micro-checkpointing frequency during pre-G2 execution phase (S01-S10) to mitigate data loss from transient P-M01 or soft P-M02 exposure, minimizing required IH severity.",
-  "enable_tacu": true,
-  "stages_enabled": ["S01", "S04", "S07", "S10"],
-  "s07_mandatory_trigger": true, 
-  "checkpoint_format": "DeltaSnapshot (ACVM state differential)",
-  "retention_policy": {
-    "max_checkpoints_per_epoch": 5,
-    "purge_on_g2_success": true,
-    "purge_on_ih": false
+  "metadata": {
+    "name": "Transient Atomic Checkpoint Utility (TACU)",
+    "description": "Defines micro-checkpointing parameters during pre-G2 execution (S01-S10) to minimize data loss exposure to P-M01/P-M02 events.",
+    "version": "1.1.0"
   },
-  "impact_thresholds": {
-    "cpu_overhead_limit_ms": 200, 
-    "p_m01_isolation_time_budget": "500ms" 
+  "status": {
+    "enabled": true,
+    "checkpoint_type": "DeltaSnapshot (ACVM state differential)"
+  },
+  "frequency_settings": {
+    "interval_ms": 50,
+    "max_impact_cpu_ms": 150,
+    "p_m01_isolation_budget_ms": 450
+  },
+  "stage_control": {
+    "default_trigger_interval_ms": 50,
+    "stages_activated": [
+      "S01",
+      "S04",
+      "S07",
+      "S10"
+    ],
+    "stage_overrides": {
+      "S07": {
+        "mandatory": true,
+        "trigger_interval_ms": 10
+      }
+    }
+  },
+  "retention_policy": {
+    "max_per_epoch": 5,
+    "purge_on_success": true,
+    "purge_on_recovery_attempt": false,
+    "min_retain_count": 1
   }
 }
