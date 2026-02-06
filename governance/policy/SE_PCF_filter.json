@@ -1,12 +1,1 @@
-{
-  "component_name": "Self-Evolution Pre-Compliance Filter (SE-PCF)",
-  "layer": "L0 (Pre-GSEP Intake)",
-  "mandate": "Proactive filtering of M-01 precursors based on standing policy and bias vectors.",
-  "function": [
-    "Asynchronously monitor input streams for nascent M-01 generation.",
-    "Validate proposed intents against the Policy Rule Source (RSAM).",
-    "Calculate Non-Compliance Probability (NCP) and Bias Trace Vector (BTV).",
-    "Abort intents that exceed defined NCP thresholds before they initiate GSEP Stage 1."
-  ],
-  "integration": "Invoked prior to GSEP Stage 1 (Policy Vetting & Scoping), feeding only pre-vetted intents to the GCO."
-}
+[object Object]
