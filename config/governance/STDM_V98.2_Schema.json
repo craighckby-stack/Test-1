@@ -1,40 +1,70 @@
 {
-  "SchemaID": "APM-99.0",
-  "PolicyLayer": 5,
-  "Description": "Adaptive Policy Matrix defining core operational thresholds and constraint enforcement mechanisms.",
-  "TrustDefinitions": {
-    "T_DecayRate": 0.005,
-    "T_Minimum_Sovereignty": 0.9999,
-    "T_Adaptive_Thresholds": {
-      "HighLatency": {"Metric": "P99_CommitTime_ms", "Scale": 1.5, "Trigger": "POLICY_REDUCTION"},
-      "LowResource": {"Metric": "CPU_Usage_pct", "Scale": 0.8, "Trigger": "STRICT_GOVERNANCE"}
+  "SchemaID": "APM-V99.1",
+  "Metadata": {
+    "PolicyLayer": 5,
+    "Description": "High-Density Policy Matrix for Adaptive Governance and Constraint Enforcement."
+  },
+  "SovereigntyMetrics": {
+    "DecayRate_AU": 0.005,
+    "MinimumSovereignty_AU": 0.9999
+  },
+  "ConstraintSet": {
+    "SystemLimits": {
+      "MaxParallelProcesses": 128
+    },
+    "OperationalLimits": {
+      "AuditTrailDuration_s": 86400,
+      "SelfModifyAuthLevel": 4
     }
   },
-  "MandateConstraints": {
-    "C_MaxParallelProcesses": 128,
-    "C_ExecutionLimits": {
-      "L_Audit_Trail_Duration_s": 86400,
-      "L_SelfModify_AuthLevel": 4
-    }
+  "DynamicThresholds": {
+    "Enabled": true,
+    "DeviationProfiles": [
+      {
+        "ProfileName": "LatencySpike",
+        "TargetMetric": "P99_CommitTime_ms",
+        "TriggerCriteria": {"Type": "ScaleFactor", "Value": 1.5},
+        "ReactionPolicy": "POLICY_DECENTRALIZATION"
+      },
+      {
+        "ProfileName": "ResourceStarvation",
+        "TargetMetric": "CPU_Usage_pct",
+        "TriggerCriteria": {"Type": "AbsoluteFactor", "Value": 0.8},
+        "ReactionPolicy": "RIGID_GOVERNANCE_LOCKDOWN"
+      }
+    ]
   },
-  "AdaptiveDeviationHandling": {
-    "ADH_Enabled": true,
-    "ADH_Policy_Weights": [
-      {"Code": 1, "Weight": 0.6, "Description": "Security Deviation"},
-      {"Code": 2, "Weight": 0.3, "Description": "Efficiency Deviation"},
-      {"Code": 3, "Weight": 0.1, "Description": "Contextual Drift"}
-    ],
-    "ADH_ReactionMatrix": {
-      "MatrixKey": 1,
-      "Thresholds": [
-        {"Max_Sigma": 3.0, "Action": "ALERT_HUMAN"},
-        {"Max_Sigma": 5.0, "Action": "ISOLATE_SUBSYSTEM"},
-        {"Max_Sigma": 7.0, "Action": "SELF_TERMINATE_MISSION"}
-      ]
-    }
+  "DeviationHandlingMatrix": {
+    "MatrixKey": "STD-DEV-M-1",
+    "DeviationWeights": {
+      "SECURITY_VIOLATION": 0.6,
+      "EFFICIENCY_DEGRADATION": 0.3,
+      "CONTEXTUAL_DRIFT": 0.1
+    },
+    "ReactionThresholds_Sigma": [
+      {"Sigma": 3.0, "Action": "NOTIFICATION_L5_ALERT"},
+      {"Sigma": 5.0, "Action": "AUTONOMOUS_ISOLATION"},
+      {"Sigma": 7.0, "Action": "MANDATORY_SELF_TERMINATION"}
+    ]
   },
-  "ProtocolHandlers": [
-    {"ID": 401, "Protocol": "Inter-Service Mesh Communication (ISMC)", "HashingAlgo": "SHA3_512", "SignatureRequired": true},
-    {"ID": 502, "Protocol": "External Data Ingestion (EDI)", "HashingAlgo": "None", "SignatureRequired": false, "MaxBandwidth_Mbps": 1024}
+  "ProtocolConfigurations": [
+    {
+      "ProtocolName": "Inter-Service Mesh Communication (ISMC)",
+      "ID": 401,
+      "SecurityPolicy": {
+        "HashingAlgo": "SHA3_512",
+        "SignatureRequired": true,
+        "Bandwidth_Mbps": null
+      }
+    },
+    {
+      "ProtocolName": "External Data Ingestion (EDI)",
+      "ID": 502,
+      "SecurityPolicy": {
+        "HashingAlgo": "NONE",
+        "SignatureRequired": false,
+        "Bandwidth_Mbps": 1024
+      }
+    }
   ]
 }
