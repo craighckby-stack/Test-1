@@ -1,59 +1,96 @@
+import { SecureExpressionEvaluator } from '../utils/SecureExpressionEvaluator';
+
+/**
+ * @class ConflictResolutionEngine
+ * Manages the evaluation of competing operational requests against the CRCM (Conflict Resolution Constraint Model).
+ * Utilizes a SecureExpressionEvaluator to safely execute complex weighting formulas.
+ */
 class ConflictResolutionEngine {
-  constructor(crcm) {
+  /**
+   * @param {Object} crcm - The Conflict Resolution Constraint Model structure.
+   * @param {SecureExpressionEvaluator} evaluator - Secure utility for running dynamic CRCM formulas.
+   */
+  constructor(crcm, evaluator) {
+    if (!evaluator || typeof evaluator.evaluate !== 'function') {
+        throw new Error("ConflictResolutionEngine requires a SecureExpressionEvaluator instance.");
+    }
     this.crcm = crcm;
+    this.evaluator = evaluator;
+    // Pre-process CRCM for O(1) domain lookup
+    this.domainControlMap = this._buildDomainControlMap(crcm.domains);
+  }
+
+  /**
+   * Pre-processes the CRCM structure for fast lookup by domain_id.
+   * @param {Array<Object>} domains
+   * @returns {Map<string, Array<Object>>}
+   */
+  _buildDomainControlMap(domains) {
+    const map = new Map();
+    if (domains) {
+        for (const domain of domains) {
+            map.set(domain.domain_id, domain.controls);
+        }
+    }
+    return map;
   }
 
   /**
    * Evaluates competing requests against CRCM constraints and calculates resolution weight.
-   * @param {Array<Object>} competingRequests - List of operational requests.
+   * Finds the single request with the highest calculated priority weight that meets all constraints.
+   * 
+   * @param {Array<Object>} competingRequests - List of operational requests, each having `appliesTo` (domain ID).
    * @param {Object} currentContext - Runtime context variables (TCS, Urgency, EthicalSeverity).
-   * @returns {Object} The authorized winning request and its resulting weight.
+   * @returns {{winningRequest: Object|null, resolutionWeight: number, resolutionMetadata: Object}}
    */
   resolveConflict(competingRequests, currentContext) {
     let winningRequest = null;
     let highestWeight = -Infinity;
+    let resolutionMetadata = {};
 
-    const formulaEvaluator = (formula) => {
-      // NOTE: This must execute the dynamic formula securely (e.g., using a sandbox environment like VM2).
-      // For scaffolding simplicity, we mock execution against the Context.
-      try {
-        // Example: If formula is 'Context.TCS * 1.5', replace Context keys.
-        let evaluatedFormula = formula.replace(/Context\.(\w+)/g, (match, p1) => {
-          return currentContext[p1] !== undefined ? currentContext[p1] : 0;
-        });
+    for (const request of competingRequests) {
+      const domainId = request.appliesTo;
+      const applicableControls = this.domainControlMap.get(domainId);
 
-        // Handle basic built-in functions (e.g., MAX)
-        if (evaluatedFormula.includes('MAX')) {
-            // Basic regex simplification for MAX(A, B) structure
-            return Math.max(...evaluatedFormula.match(/MAX\(([^)]*)\)/)[1].split(',').map(n => parseFloat(n.trim())));
+      if (!applicableControls) continue;
+
+      let currentRequestWeight = 0;
+      let violatedConstraint = false;
+      let appliedControls = [];
+
+      for (const control of applicableControls) {
+        // Use the injected secure evaluator instead of unsafe eval()
+        const calculatedValue = this.evaluator.evaluate(control.weight_formula, currentContext);
+        
+        appliedControls.push({ controlId: control.id, type: control.control_type, value: calculatedValue });
+
+        // 1. Check for VETO constraints first
+        // Assuming CONSTRAINT_POLICY returns 0 if violated, 1 or more if met.
+        if (control.control_type === 'CONSTRAINT_POLICY' && calculatedValue === 0) {
+          violatedConstraint = true;
+          currentRequestWeight = -Infinity; // Immediate veto
+          break; 
         }
 
-        return eval(evaluatedFormula);
-      } catch (e) {
-        console.error(`CRCM formula error: ${e.message}`);
-        return 0;
+        // 2. Determine Priority Weight (take the max applicable priority weight)
+        if (control.control_type === 'PRIORITY_WEIGHT') {
+            currentRequestWeight = Math.max(currentRequestWeight, calculatedValue);
+        }
       }
+
+      // If the request survived constraints and has a higher weight, it wins
+      if (!violatedConstraint && currentRequestWeight > highestWeight) {
+        highestWeight = currentRequestWeight;
+        winningRequest = request;
+        resolutionMetadata = { appliedControls };
+      }
+    }
+
+    return {
+      winningRequest: winningRequest,
+      resolutionWeight: highestWeight,
+      resolutionMetadata: resolutionMetadata
     };
-
-    for (const domain of this.crcm.domains) {
-      for (const control of domain.controls) {
-        if (competingRequests.some(req => req.appliesTo === domain.domain_id)) {
-          const calculatedWeight = formulaEvaluator(control.weight_formula);
-          
-          if (calculatedWeight > highestWeight) {
-            highestWeight = calculatedWeight;
-            winningRequest = { control: control, domain: domain, weight: highestWeight };
-          }
-        }
-      }
-    }
-
-    if (winningRequest && winningRequest.control.control_type === 'CONSTRAINT_POLICY' && highestWeight < 1000) {
-        // Safety check: ensure constraints are always highly prioritized, even if Context screws up the weight calculation.
-        // Needs external monitoring/logging.
-    }
-
-    return winningRequest;
   }
 }
 module.exports = ConflictResolutionEngine;
