@@ -1,23 +1,29 @@
 const crypto = require('crypto');
+const DeepNormalizer = require('../../utils/object/DeepNormalizer'); 
 const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
 
 /**
- * Utility for calculating unique, stable policy fingerprints
- * and interfacing with the CRoT index for heuristic history lookup.
- * This component ensures efficient retrieval of historically relevant 
- * Axiomatic Consistency Validation (ACV) anchors, reducing dependency 
- * on brute-force depth-based queries.
+ * PolicyHeuristicIndex
+ * Manages the generation of stable, structure-based policy fingerprints (SHA-256)
+ * and interfaces with the CRoT KV index for efficient retrieval of historical 
+ * Axiomatic Consistency Validation (ACV) anchors.
+ * 
+ * This ensures deterministic lookup regardless of memory serialization order,
+ * improving efficiency and reducing reliance on exhaustive search mechanisms.
  */
 class PolicyHeuristicIndex {
 
     /**
      * Generates a stable cryptographic fingerprint for a proposed PolicyDelta.
-     * @param {object} policyDelta - The PolicyDelta input object.
+     * Uses DeepNormalizer to ensure consistent serialization regardless of 
+     * key insertion order, including nested objects, which is critical for CRoT stability.
+     * 
+     * @param {object} policyDelta - The PolicyDelta input object (must be serializable).
      * @returns {string} SHA-256 hash of the normalized JSON string.
      */
     static generateFingerprint(policyDelta) {
-        // Normalize the object structure (keys sorted) for consistent hash generation
-        const normalizedData = JSON.stringify(policyDelta, Object.keys(policyDelta).sort());
+        // Uses the new utility to handle deep sorting and ensure stability.
+        const normalizedData = DeepNormalizer.stableStringify(policyDelta);
         
         return crypto.createHash('sha256')
                      .update(normalizedData)
@@ -25,18 +31,19 @@ class PolicyHeuristicIndex {
     }
 
     /**
-     * Uses the calculated fingerprint to retrieve a set of historical ACV IDs 
-     * that are most relevant to the proposed policy change structure.
+     * Queries the CRoT index using the policy fingerprint to retrieve relevant 
+     * historical ACV IDs (Anchors).
      * 
      * @param {string} fingerprint - Policy hash derived from generateFingerprint.
-     * @returns {Promise<string[]>} List of high-relevance ACV transaction IDs.
+     * @returns {Promise<string[]>} List of high-relevance ACV transaction IDs (e.g., ["ACV-xxxx"]).
      */
     static async getRelevantAnchorIDs(fingerprint) {
         // NOTE: In a mature V94 system, this queries the specialized CRoT KV Index.
-        GAXTelemetry.debug('INDEX_QUERY_INITIATED', { fingerprint: fingerprint.substring(0, 8) });
+        const shortFingerprint = fingerprint.substring(0, 8);
+        GAXTelemetry.debug('CRoT_INDEX_QUERY', { fingerprint: shortFingerprint, operation: 'lookup' });
 
         // Mock heuristic lookup based on structural change indicators
-        if (fingerprint.startsWith('a4') || fingerprint.endsWith('f')) {
+        if (shortFingerprint.startsWith('a4') || shortFingerprint.endsWith('f')) {
              return ["ACV-7921", "ACV-7889", "ACV-7810"];
         }
 
@@ -44,15 +51,24 @@ class PolicyHeuristicIndex {
     }
 
     /**
-     * [FUTURE EXECUTION] Indexes a new successful ACV transaction after it is committed.
-     * This keeps the heuristic index fresh for future verification runs.
+     * Indexes a new successful ACV transaction after it is committed, updating 
+     * the heuristic index with the new anchor point.
+     * 
      * @param {string} txId - The successful transaction ID.
      * @param {object} policyDelta - The PolicyDelta that was committed.
+     * @returns {Promise<void>}
      */
     static async indexPolicyChange(txId, policyDelta) {
         const fingerprint = PolicyHeuristicIndex.generateFingerprint(policyDelta);
-        GAXTelemetry.publish('CRoT_INDEX_UPDATE', { txId, fingerprint: fingerprint.substring(0, 8) });
-        // Actual implementation logic writes {fingerprint: metadata} to CRoT.
+        const shortFingerprint = fingerprint.substring(0, 8);
+        
+        GAXTelemetry.publish('CRoT_INDEX_UPDATE', { 
+            txId, 
+            fingerprint: shortFingerprint,
+            operation: 'index_commit'
+        });
+        
+        // FUTURE: Actual implementation logic calls the CRoT Index Client write method.
     }
 }
 
