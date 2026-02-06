@@ -1,3 +1,4 @@
+import { DataSourcePrimitives } from './DataSourcePrimitives.js';
 import APIPullSyncHandler from './handlers/APIPullSyncHandler.js';
 import MessageBusAsyncHandler from './handlers/MessageBusAsyncHandler.js';
 import DBPersistenceHandler from './handlers/DBPersistenceHandler.js';
@@ -10,7 +11,7 @@ import DBPersistenceHandler from './handlers/DBPersistenceHandler.js';
  * @type {Readonly<Record<string, IDataSourceHandler>>}
  * 
  * Data Source Handler Strategy Map (Service Locator Pattern).
- * Maps standardized retrieval methods (e.g., defined in Primitives) 
+ * Maps standardized retrieval methods (defined in DataSourcePrimitives) 
  * to concrete implementation classes for data interaction.
  * 
  * This map is frozen for runtime safety and configuration integrity.
@@ -18,16 +19,13 @@ import DBPersistenceHandler from './handlers/DBPersistenceHandler.js';
  */
 const DataSourceHandlersMap = Object.freeze({
     // Synchronous data retrieval methods
-    'API_PULL_SYNC': APIPullSyncHandler,
+    [DataSourcePrimitives.API_PULL_SYNC]: APIPullSyncHandler,
 
     // Asynchronous/Event-driven data retrieval methods
-    'MESSAGE_BUS_ASYNC': MessageBusAsyncHandler,
+    [DataSourcePrimitives.MESSAGE_BUS_ASYNC]: MessageBusAsyncHandler,
 
     // Persistence/storage layer access methods
-    'DATABASE_QUERY': DBPersistenceHandler,
-
-    // --- Template for future extension ---
-    // 'SUBSCRIPTION_STREAM': NewStreamingHandler,
+    [DataSourcePrimitives.DATABASE_QUERY]: DBPersistenceHandler,
 });
 
 export default DataSourceHandlersMap;
