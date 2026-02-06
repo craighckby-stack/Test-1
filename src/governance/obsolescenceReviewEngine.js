@@ -1,32 +1,74 @@
 /**
  * Component Obsolescence Review Engine (CORE) - src/governance/obsolescenceReviewEngine.js
- * ID: CORE v94.1
+ * ID: CORE v94.2 (Refactored)
  * Role: Integrity Maintenance / Governance
  *
- * CORE is responsible for initiating and governing the deprecation, retirement, and archival
- * of components deemed redundant, obsolete, or inefficient. Retirement actions are treated
- * as critical mutations and must pass a modified P-01 Trust Calculus focusing on dependency
- * breakage analysis and long-term complexity reduction metrics.
+ * CORE initiates and governs component lifecycle actions (deprecation/retirement).
+ * It leverages the specialized Trust Calculus Engine (TCE) for high-stakes decision
+ * scoring based on dependency stability and long-term complexity reduction metrics.
  */
 
 import { policyEngine } from '../core/policyEngine.js';
 import { auditLogger } from '../core/decisionAuditLogger.js';
-// Import specialized service for complex metric calculation, decoupling it from the ATM system dependency for granular metrics.
 import { retirementMetricsService } from './retirementMetricsService.js';
+// NEW Dependency: Externalized Trust Calculus Logic for dynamic/weighted scoring.
+import { trustCalculusEngine } from './trustCalculusEngine.js';
 
-// --- Constants and Configuration ---
+// --- Constants ---
 const POLICY_ID_DEPRECATION = 'C-15';
 const RETIREMENT_ACTION_TYPE = 'RETIREMENT';
 const GOVERNANCE_THRESHOLD_KEY = 'obs_risk_tolerance';
 
-export const CORE = {
-    metrics: {},
+export class ObsolescenceReviewEngine {
+    constructor() {
+        /** @type {number} The required trust score (0.0 to 1.0) to authorize retirement. */
+        this.retirementThreshold = 0.85; 
+        this.metrics = {};
+        this.trustCalculusEngine = trustCalculusEngine;
+    }
 
+    /**
+     * Initializes the engine, loading governance configurations.
+     */
     init() {
-        // Extended initialization: Load governance threshold from Policy Engine defaults or persistent config.
-        this.retirementThreshold = policyEngine.getSystemConfiguration(GOVERNANCE_THRESHOLD_KEY) || 0.85; 
-        console.log(`[CORE] Initializing Component Obsolescence Review Engine. Required Threshold: ${this.retirementThreshold}`);
-    },
+        // Fetch threshold, defaulting to instance value if not configured.
+        this.retirementThreshold = policyEngine.getSystemConfiguration(GOVERNANCE_THRESHOLD_KEY) || this.retirementThreshold;
+        // Initialize the TCE, setting context for the specific calculus model used here.
+        this.trustCalculusEngine.init('RETIREMENT_CALCULUS');
+        
+        console.log(`[CORE] Initialized (v94.2). Required Retirement Trust Threshold: ${this.retirementThreshold}`);
+    }
+
+    /**
+     * Executes the synchronous pre-flight check based on immediate policy constraints.
+     * @param {string} componentId
+     * @returns {{pass: boolean, reason: string}}
+     */
+    _runPreflightCheck(componentId) {
+        if (!componentId) {
+            auditLogger.logError('CORE_REVIEW_INPUT_FAIL', { message: 'Component ID required.' });
+            return { pass: false, reason: 'Invalid input.' };
+        }
+
+        if (!policyEngine.checkPolicy(componentId, POLICY_ID_DEPRECATION)) {
+            const reason = `Policy constraint violation (${POLICY_ID_DEPRECATION}). Deprecation not permitted.`;
+            auditLogger.logDecision('CORE_RETIREMENT_PREFLIGHT_FAIL', { componentId, reason });
+            return { pass: false, reason };
+        }
+        return { pass: true };
+    }
+
+    /**
+     * Calculates the Trust Calculus Score using the external engine.
+     * This delegates complex, weighted scoring (P-01 modified) to the TCE.
+     * @param {string} componentId
+     * @param {object} metricData
+     * @returns {Promise<number>}
+     */
+    async _calculateRetirementScore(componentId, metricData) {
+        return this.trustCalculusEngine.calculateScore('RETIREMENT_CALCULUS', metricData);
+    }
+
 
     /**
      * Triggers a review of a component based on gathered operational and redundancy metrics.
@@ -34,29 +76,22 @@ export const CORE = {
      * @returns {Promise<object>} P-01 outcome result (Trust Calculus Report).
      */
     async reviewComponentForRetirement(componentId) {
-        if (!componentId) {
-            auditLogger.logError('CORE_REVIEW_INPUT_FAIL', { message: 'Component ID required.' });
-            return { pass: false, reason: 'Invalid input.' };
+        // 1. Synchronous Pre-flight Check
+        const preflight = this._runPreflightCheck(componentId);
+        if (!preflight.pass) {
+            return preflight;
         }
 
-        // 1. Initial Policy Check (synchronous pre-flight)
-        if (!policyEngine.checkPolicy(componentId, POLICY_ID_DEPRECATION)) {
-            const reason = `Policy constraint violation (${POLICY_ID_DEPRECATION}). Deprecation not permitted.`;
-            auditLogger.logDecision('CORE_RETIREMENT_PREFLIGHT_FAIL', { componentId, reason });
-            return { pass: false, reason };
-        }
-
-        // 2. Calculate Complex Metrics
+        // 2. Data Acquisition
         const metricData = await retirementMetricsService.getComponentMetrics(componentId);
         
-        // 3. Calculate Trust Calculus Score (P-01 modified)
-        // This score integrates redundancy, dependency risk, and historical performance.
-        const retirementScore = this._calculateTrustCalculusScore(componentId, metricData);
+        // 3. Score Calculation (Delegated)
+        const retirementScore = await this._calculateRetirementScore(componentId, metricData);
         
+        // 4. Adjudication & Governance Veto
         const requiredThreshold = this.retirementThreshold;
-        const globalVeto = policyEngine.getGlobalVetoSignal();
+        const globalVeto = policyEngine.getGlobalVetoSignal(); // High-level, immediate veto check
 
-        // 4. Adjudication
         const decision = (retirementScore >= requiredThreshold) && (!globalVeto);
         
         const report = {
@@ -64,50 +99,29 @@ export const CORE = {
             componentId: componentId,
             score: retirementScore,
             requiredThreshold: requiredThreshold,
-            metricsUsed: metricData, // Includes details on redundancy/dependency
+            metricsUsed: metricData,
             veto: globalVeto,
             action: RETIREMENT_ACTION_TYPE
         };
 
+        // 5. Logging and Execution Trigger
         if (decision) {
             auditLogger.logDecision('CORE_RETIREMENT_PASS', report);
-            // Do not block the review thread waiting for the execution. Execute asynchronously.
-            this.executeRetirementProcedure(componentId, report);
+            this.executeRetirementProcedure(componentId, report); // Non-blocking trigger
         } else {
             auditLogger.logDecision('CORE_RETIREMENT_FAIL', report);
         }
 
         return report;
-    },
-
-    /**
-     * Calculates the P-01 weighted score for safe retirement.
-     * This internal method leverages detailed metrics provided by the metrics service.
-     * @param {string} componentId
-     * @param {object} metricData - Output from retirementMetricsService.
-     * @returns {number}
-     */
-    _calculateTrustCalculusScore(componentId, metricData) {
-        // In v94.1, the score calculation prioritizes dependency safety over redundancy volume.
-        // Score = (Redundancy_Factor * 0.4) + (Complexity_Reduction_Factor * 0.3) + (Dependency_Risk_Factor * 0.3)
-        
-        const redundancyFactor = metricData.redundancyScore || 0; // 0.0 to 1.0
-        const complexityReduction = metricData.complexityReductionEstimate || 0;
-        const dependencyRisk = 1.0 - metricData.criticalDependencyExposure; // Higher is safer to remove
-        
-        let score = (redundancyFactor * 0.4) + (complexityReduction * 0.3) + (dependencyRisk * 0.3);
-
-        // Ensure score is clamped between 0 and 1.
-        return Math.min(1.0, Math.max(0.0, score));
-    },
+    }
     
     async executeRetirementProcedure(componentId, report) {
         console.log(`[CORE] Initiating governed retirement staging for: ${componentId}`);
-        // CRITICAL PATH: Ensure execution logging is comprehensive.
+        // Log the START immediately for accountability.
         auditLogger.logExecution('CORE_RETIREMENT_START', { componentId, details: report });
-        
-        // In a real system, this triggers A-01 (Actuator System) staging and commitment via C-04 (Consensus).
-        // Implementation omitted, but execution is now decoupled and tracked via report object.
-        // await actuator.stageRetirement(componentId, report);
+        // NOTE: Actual actuator invocation remains abstract for CORE.
     }
-};
+}
+
+// Export a singleton instance consistent with v94 pattern initialization.
+export const CORE = new ObsolescenceReviewEngine();
