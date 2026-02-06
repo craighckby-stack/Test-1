@@ -2,19 +2,21 @@ import os
 import threading
 from pathlib import Path
 import yaml
-from typing import Dict, Any, Optional
-from collections import defaultdict
+from typing import Dict, Any, Optional, List
 from yaml import YAMLError
 
-# NOTE: This dependency relies on the proposed 'utilities/semver_utility.py' scaffold.
-# If the utility is not yet present, a simple fallback version sorter is defined.
+# Dependency Check: Fallback for version sorting
 try:
     from utilities.semver_utility import get_latest_version
 except ImportError:
-    # Fallback function for non-SemVer-aware version sorting
-    def get_latest_version(versions):
-        versions.sort(reverse=True)
-        return versions[0] if versions else None
+    # IMPORTANT: Simple string sort fallback is error-prone for SemVer (e.g., 1.10 vs 1.2).
+    # Using a slightly improved lexical sort as an emergency measure.
+    def get_latest_version(versions: List[str]) -> Optional[str]:
+        """Fall-back function using simple lexical sorting."""
+        if not versions:
+            return None
+        versions.sort(key=lambda x: [int(c) if c.isdigit() else c for c in x.split('.')], reverse=True)
+        return versions[0]
 
 class SchemaRegistryError(Exception):
     """Base error for schema registry operations."""
@@ -23,8 +25,8 @@ class SchemaRegistryError(Exception):
 class SchemaRegistry:
     """
     Centralized component for managing and retrieving versioned governance schemas.
-    Uses pathlib for robust path handling, implements in-memory caching with 
-    thread-safe access, and intelligently resolves the latest version.
+    Implements in-memory caching with thread-safe access and intelligent resolution
+    of the 'latest' version, ensuring robust SemVer handling if the utility is present.
     """
     
     # Internal cache structure: {artifact_name: {version: schema_dict}}
@@ -38,14 +40,14 @@ class SchemaRegistry:
         if not self.registry_root.is_dir():
             raise SchemaRegistryError(f"Registry root directory not found: {registry_root_path}")
             
-        # Use defaultdict for cleaner cache insertion logic
-        self._cache = defaultdict(dict)
+        # Use standard dicts for internal cache management
+        self._cache = {}
         # Introduce a lock for thread-safe access to the cache
         self._cache_lock = threading.Lock()
         
     def _get_schema_path(self, artifact_name: str, version: str) -> Path:
         """Helper to construct the canonical path."""
-        # Standardize artifact name to lowercase for file system paths
+        # Enforce consistency: paths are lowercase
         standardized_name = artifact_name.lower()
         
         # Structure: <registry_root>/<artifact_name>/<version>/schema.yaml
@@ -54,39 +56,62 @@ class SchemaRegistry:
     def get_schema(self, artifact_name: str, version: str = 'latest') -> dict:
         """
         Retrieves a specific schema by artifact name and version.
-        Caches the schema on successful load, handling concurrency safely.
+        Handles cache lookup, disk load, and intelligent 'latest' resolution.
         """
         
-        # 1. Check Cache (Thread-Safe Read)
+        requested_version = version.lower()
+        canonical_version = requested_version
+
+        # 1. Resolve 'latest' if requested
+        if canonical_version == 'latest':
+            
+            # Thread-safe read attempt for cached 'latest' mapping
+            with self._cache_lock:
+                artifact_cache = self._cache.get(artifact_name)
+                # Check if we have previously resolved and cached the 'latest' schema
+                if artifact_cache and (cached_latest := artifact_cache.get('latest')):
+                    return cached_latest
+
+            # If not cached, resolve the latest actual version from disk
+            resolved_version = self._find_latest_version(artifact_name)
+            if not resolved_version:
+                raise SchemaRegistryError(
+                    f"Schema '{artifact_name}' v'latest' not found. "
+                    "No valid version directories detected."
+                )
+            
+            # Update the target version to the resolved canonical version (e.g., '1.2.0')
+            canonical_version = resolved_version 
+
+        # 2. Check Cache using the resolved canonical version (or the explicitly requested version)
         with self._cache_lock:
             artifact_cache = self._cache.get(artifact_name)
-            # Python 3.8+ walrus operator used for cleaner cache lookup
-            if artifact_cache and (schema := artifact_cache.get(version)):
+            if artifact_cache and (schema := artifact_cache.get(canonical_version)):
                 return schema
 
-        # 2. Resolve Path & Load
+        # 3. Load from Disk
+        schema_path = self._get_schema_path(artifact_name, canonical_version)
         try:
-            schema_path = self._get_schema_path(artifact_name, version)
             schema_data = self._load_schema_file(schema_path)
-        
         except FileNotFoundError:
-            # If the literal path fails, try robust 'latest' resolution
-            if version == 'latest':
-                resolved_version = self._find_latest_version(artifact_name)
-                
-                if resolved_version:
-                    # Recursive call to load and cache the canonical latest version
-                    return self.get_schema(artifact_name, resolved_version)
-            
-            # Final failure point
             raise SchemaRegistryError(
-                f"Schema '{artifact_name}' v'{version}' not found. "
+                f"Schema '{artifact_name}' v'{canonical_version}' not found. "
                 f"Attempted path: {schema_path}"
             )
 
-        # 3. Store Cache (Thread-Safe Write)
+        # 4. Store Cache (Thread-Safe Write)
         with self._cache_lock:
-            self._cache[artifact_name][version] = schema_data
+            # Initialize artifact cache if missing
+            if artifact_name not in self._cache:
+                self._cache[artifact_name] = {}
+                
+            # Cache under the canonical version (e.g., '1.2.0')
+            self._cache[artifact_name][canonical_version] = schema_data
+            
+            # If the original request was 'latest', also cache under the 'latest' key
+            # to serve subsequent 'latest' requests immediately from memory.
+            if requested_version == 'latest':
+                 self._cache[artifact_name]['latest'] = schema_data
         
         return schema_data
 
@@ -96,7 +121,7 @@ class SchemaRegistry:
             content = path.read_text(encoding='utf-8')
             return yaml.safe_load(content)
         except FileNotFoundError:
-            # Let the caller (get_schema) handle the missing file, especially for 'latest' resolution
+            # Let the caller handle the missing file
             raise
         except YAMLError as e:
             # Specific YAML parsing failure
@@ -110,8 +135,8 @@ class SchemaRegistry:
             
     def _find_latest_version(self, artifact_name: str) -> Optional[str]:
         """
-        Intelligently determines the highest valid version for an artifact by 
-        scanning directories and utilizing robust version sorting (via get_latest_version).
+        Scans directories to intelligently determine the highest valid version using
+        the configured version utility.
         """
         artifact_root = self.registry_root / artifact_name.lower()
         
