@@ -1,1 +1,40 @@
-[object Object]
+{
+  "$schema": "https://agi.sovereign/schemas/rcdm-v94.1.json",
+  "version": "2.0.0",
+  "description": "Optimized Risk, Compliance, Decision, and Metric Configuration (RCDM) enforcing strict runtime validation and modular policy definition.",
+
+  "governance_profile": {
+    "enabled": true,
+    "enforcement_mode": "Adaptive",
+    "max_autonomy_score": 0.75
+  },
+
+  "risk_matrix": {
+    "calculation_interval_ms": 5000,
+    "risk_tiers": {
+      "CRITICAL": {"threshold": 0.90, "action": "SHUTDOWN_PROTOCOL_L1"},
+      "HIGH": {"threshold": 0.70, "action": "ISOLATE_SUBSYSTEM"},
+      "MEDIUM": {"threshold": 0.40, "action": "TRIGGER_HUMAN_OVERRIDE_FLAG"},
+      "LOW": {"threshold": 0.15, "action": "INCREASE_TELEMETRY_RATE"}
+    },
+    "weighted_factors": [
+      {"metric": "compliance_violation_rate", "weight": 0.4},
+      {"metric": "system_anomaly_score", "weight": 0.3},
+      {"metric": "resource_starvation_index", "weight": 0.2}
+    ]
+  },
+
+  "compliance_registry": {
+    "active_policies": ["GDPR_Equivalent", "InternalSafety_v3"],
+    "monitoring_targets": {
+      "io_requests": {"schema_id": "RequestSchema_v1", "fail_action": "REJECT"},
+      "model_updates": {"schema_id": "ModelSafetySchema_v1", "fail_action": "ROLLBACK"}
+    }
+  },
+
+  "decision_paths": {
+    "default_path": "SafetyOptimized",
+    "fallback_path": "MinimalInference",
+    "path_selection_criteria": "risk_score < MEDIUM.threshold"
+  }
+}
