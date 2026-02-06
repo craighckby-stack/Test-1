@@ -1,1 +1,43 @@
-[object Object]
+{
+  "version": "2.0",
+  "policy_id": "DMW_Core_Policy_V2",
+  "description": "Distributed Management Workflow Policy definition, supporting complex targeting and prioritized evaluation.",
+  "status": "Active",
+  "global_settings": {
+    "enabled": true,
+    "default_action": "DenyIfNoMatch",
+    "evaluation_mode": "HighestPriorityWins"
+  },
+  "policies": [
+    {
+      "rule_id": "P001_SystemResourceLock",
+      "priority": 900,
+      "effective_from": "2024-05-01T00:00:00Z",
+      "target_definition": {
+        "context_type": "ResourcePath",
+        "match_regex": "^/system/config/.*",
+        "match_operation": "WRITE"
+      },
+      "condition": "user.role != 'SuperAdmin' || environment.type == 'Production'",
+      "action": {
+        "type": "Deny",
+        "reason_code": "403-SYSTEM-WRITE-LOCK"
+      },
+      "metrics_enabled": true
+    },
+    {
+      "rule_id": "P002_DefaultMetadataRead",
+      "priority": 100,
+      "effective_from": "2023-01-01T00:00:00Z",
+      "target_definition": {
+        "context_type": "Operation",
+        "match_operation": "READ"
+      },
+      "condition": "metadata.public == true",
+      "action": {
+        "type": "Allow"
+      },
+      "metrics_enabled": false
+    }
+  ]
+}
