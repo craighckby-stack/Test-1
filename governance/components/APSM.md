@@ -1,30 +1,39 @@
-## Artifact Provenance & Security Module (APSM) - GSEP Trust Anchor
+## Artifact Provenance & Security Module (APSM) - Governance Enforcement Point (GEP)
 
-**Component ID:** APSM.V2
-**GSEP Scope:** Stage 2 - Trust & Integrity Validation
+**Component ID:** APSM.V3 (Refactored)
+**GSEP Scope:** Stage 2 - Pre-Commit Trust & Integrity Validation
 
-### Strategic Mandate
-The APSM operates as the computational economy's defense mechanism, ensuring the absolute cryptographic integrity and traceable supply chain security of the M-02 Mutation Payload. Its primary function is to establish *Proof of Origin* and *Proof of Non-Malice* prior to committing resources to the highly parallelized Pre-Commit Simulation Run (PSR) in Stage 3. APSM's failure state prevents the commencement of Stage 3, conserving system entropy and computational cycles.
+### I. Strategic Mandate & Gating Function
+The APSM serves as the definitive security gate between Stage 2 and Stage 3 (Pre-Commit Simulation Run - PSR). Its core mandate is to establish undeniable **Proof of Origin** and enforce the **Policy of Non-Malice** for the M-02 Mutation Payload and its execution environment. Failure to clear APSM criteria triggers an immediate fail-safe (SQ-01), preventing computational resource expenditure and preserving system entropy.
 
-### Functional Protocols (Attestation Pipeline)
+### II. Operational Pipeline: Security & Provenance Validation
 
-1.  **Artifact Attestation & Cryptographic Chain Validation (AACE):**
-    *   Establishes an immutable Chain of Custody (CoC) for the M-02 payload and its generated environment state.
-    *   Verifies all cryptographic signatures against the authorized root key register (AOC stream).
-    *   Records the verified metadata payload into the **Immutable Artifact Ledger (IAL)**, ensuring non-repudiation.
+#### 1. Artifact Integrity & Provenance Ledgering (AIPL)
+*   **Action:** Executes Chain of Custody (CoC) validation against the M-02 payload.
+*   **Verification:** Cryptographically validates all signatures against the Authorized Origin Cluster (AOC) root register.
+*   **Output:** Generates and commits the immutable metadata payload hash to the **Immutable Artifact Ledger (IAL)**, ensuring non-repudiation across the system state.
 
-2.  **Risk Profile Generation (RPG) & Dependency Analysis:**
-    *   Executes comprehensive static and dynamic scanning of all recursive dependencies, including behavioral analysis of internal artifacts.
-    *   Queries the Central Vulnerability Nexus (CVN) and internal risk registries (C-22, IAL historical data) for known exploits, behavioral flags, or conflict vectors.
-    *   Generates a normalized `Trust Score (T-score)` based on the derived risk profile.
+#### 2. Risk Scoring & Nexus Integration (RSNI)
+*   **Action:** Conducts recursive dependency graph analysis (static/dynamic behavior) on the artifact set.
+*   **Query:** Interfaces with the Central Vulnerability Nexus (CVN) and the Internal Risk Registry (IRR) to detect known vectors, behavioral anomalies, and conflict flags. (IRR supersedes C-22 nomenclature).
+*   **Output:** Derives the preliminary **Trust Score (T-score)** based on weighted risk parameters (configured externally by the RSWE).
 
-3.  **Policy Enforcement Gate (PEG):**
-    *   Automated verification of dependency licenses and architectural structure against the strict schema defined by the Governance Rule Source (GRS).
-    *   Vetoes execution if regulatory, licensing, or defined GRS governance policies are violated.
+#### 3. Governance Policy Enforcement Gate (PEG)
+*   **Action:** Automated schema and regulatory compliance check.
+*   **Verification:** Vetoes artifact acceptance if dependency licensing, architectural structure, or structural constraints defined by the **Governance Rule Source (GRS)** are violated. This check enforces a hard fail, regardless of the RSNI T-score.
+*   **Output:** Policy Compliance Flag (Boolean).
 
-### Integration Constraints & Output Schema
+### III. Exit Criteria & Artifact Trust Record (ATR)
 
-The APSM is the definitive gating component of Stage 2. Its successful output is a digitally signed **Artifact Trust Record (ATR)** containing the T-score (must meet defined minimum threshold) and the IAL commitment hash.
+APSM successful execution culminates in the issuance of a digitally signed **Artifact Trust Record (ATR)**, transitioning control to Stage 3. The ATR utilizes a formalized structure:
 
-**Validation Success (Stage 2 -> Stage 3):** ATR is generated, T-score > Threshold.
-**Validation Failure:** Triggers immediate system quarantine (SQ-01 protocol). The Compliance Trace Generator (CTG) logs the failure, labeling the state as either 'Attestation Conflict' or 'Dependency Veto', initiating F-01 forensic analysis.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `artifact_hash` | String (SHA256) | Hash committed to IAL. |
+| `t_score` | Float | Final weighted Trust Score (must be ≥ `T_MIN`). |
+| `policy_compliant`| Boolean | Must be TRUE (PEG success). |
+| `signer_key_id` | String | Key ID of the APSM attestor instance. |
+| `timestamp` | UTC Timestamp | Time of attestation. |
+
+**Validation Success:** ATR issued. `T-score` meets minimum threshold (`T_MIN`) AND `policy_compliant` is TRUE.
+**Validation Failure:** Triggers immediate system quarantine (SQ-01 protocol). The Compliance Trace Generator (CTG) logs the failure, categorized as 'Integrity Conflict' (AIPL/RSNI failure) or 'Policy Veto' (PEG failure), initiating F-01 forensic analysis.
