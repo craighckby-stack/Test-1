@@ -1,0 +1,18 @@
+{
+  "version": "v94.1.0",
+  "immutable_constants": {
+    "MAX_RISK_TOLERANCE_L4": 0.05,
+    "MIN_TRUST_SCORE_L1": 0.85,
+    "GSEP_PROTOCOL_VERSION": "v2.3",
+    "ACM_ENTRY_SCHEMA": "SHA256_STRICT"
+  },
+  "mutable_variables": {
+    "current_execution_mode": "EVALUATION_HIGH_FIDELITY",
+    "synthesis_efficacy_threshold": 0.985,
+    "rollback_timeout_ms": 30000
+  },
+  "data_sources": {
+    "trust_module_endpoint": "http://atm.core/api/v1",
+    "sdr_telemetry_rate_hz": 10
+  }
+}
