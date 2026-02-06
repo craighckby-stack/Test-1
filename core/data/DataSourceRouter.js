@@ -1,32 +1,37 @@
 /**
  * @module DataSourceRouter
- * @description Centralized data access utility employing the Strategy pattern for retrieval.
- * Interprets definitions from primitives config and routes requests to registered Handlers,
- * enforcing structured caching and security constraints.
- * Uses lazy loading for handler strategies for efficiency and modularity.
+ * @description Centralized data access utility employing the Strategy pattern (Service Locator + Strategy).
+ * It routes requests using definitions from configured primitives, enforcing caching,
+ * transformation, and security constraints. Employs lazy loading for handler strategies.
  */
 
-// Configurations and Infrastructure
+// Infrastructure and Utilities
 import { DataSourcePrimitives } from '../../config/DataSourcePrimitives.json';
 import CacheManager from './CacheManager.js';
 import Logger from '../utility/Logger.js'; 
 import DataTransformer from './DataTransformer.js';
+import { RetrievalError, HandlerInstantiationError } from '../utility/DataError.js'; // Proposed Utility
 
-// Strategy Configuration Map (Decouples Router from concrete Handler imports)
+// Strategy Configuration Map
 import DataSourceHandlersMap from './DataSourceHandlersMap.js'; 
 
 class DataSourceRouter {
-    constructor() {
+    /**
+     * Initializes the router with core dependencies, allowing for dependency injection (DI).
+     * @param {object} dependencies - External utilities for routing operations.
+     */
+    constructor(dependencies = {}) {
         this.primitives = DataSourcePrimitives;
-        this.logger = Logger.module('DataSourceRouter');
+        this.logger = dependencies.Logger || Logger.module('DataSourceRouter');
+        this.cacheManager = dependencies.CacheManager || CacheManager;
+        this.dataTransformer = dependencies.DataTransformer || DataTransformer;
         
-        // Strategy Cache: Stores instantiated handler objects for reuse.
+        // Strategy Cache: Stores instantiated handler objects (Singleton strategy per type).
         this.handlerInstances = {};
     }
 
     /**
-     * Internal method to retrieve or lazily instantiate a Handler based on its key.
-     * Ensures handlers are only instantiated once and retrieves the instance from cache thereafter.
+     * Retrieves or lazily instantiates a Handler based on its key, ensuring singleton behavior per type.
      * @param {string} handlerKey - The key defined in DataSourceHandlersMap.
      * @returns {object} The instantiated Handler object.
      * @private
@@ -39,18 +44,21 @@ class DataSourceRouter {
         const HandlerClass = DataSourceHandlersMap[handlerKey];
 
         if (!HandlerClass) {
-            this.logger.error(`Attempted to retrieve unsupported strategy: ${handlerKey}`);
-            throw new Error(`Unsupported retrieval method: ${handlerKey}. Check DataSourceHandlersMap.`);
+            this.logger.error(`Unsupported strategy specified: ${handlerKey}`);
+            throw new RetrievalError(
+                `Unsupported retrieval method: ${handlerKey}. Check DataSourceHandlersMap.`,
+                'CONFIGURATION_MISSING'
+            );
         }
         
         try {
-            // Lazy instantiation: Create the handler instance and cache it.
+            // Lazy instantiation
             const handlerInstance = new HandlerClass();
             this.handlerInstances[handlerKey] = handlerInstance;
             return handlerInstance;
         } catch (e) {
             this.logger.error(`Failed to instantiate handler ${handlerKey}:`, e);
-            throw new Error(`Configuration Error: Handler instantiation failed for ${handlerKey}.`);
+            throw new HandlerInstantiationError(`Handler configuration error for ${handlerKey}. Details: ${e.message}`);
         }
     }
 
@@ -60,46 +68,48 @@ class DataSourceRouter {
      * @returns {Promise<any>} The retrieved and decoded data.
      */
     async retrieve(key) {
-        const source = this.primitives[key];
-        if (!source) {
-            this.logger.error(`Unknown data source primitive: ${key}`);
-            throw new Error(`Unknown data source primitive: ${key}`);
+        const sourceConfig = this.primitives[key];
+        
+        if (!sourceConfig) {
+            this.logger.warn(`Attempted retrieval for unknown data primitive: ${key}`);
+            throw new RetrievalError(`Unknown data source primitive: ${key}`, 'PRIMITIVE_NOT_FOUND');
         }
 
+        // Destructure necessary parameters for clarity
+        const { caching_policy, retrieval_method } = sourceConfig;
+
         // 1. Check Cache Policy
-        const cachedData = CacheManager.get(key, source.caching_policy);
+        const cachedData = this.cacheManager.get(key, caching_policy);
         if (cachedData) {
-            this.logger.debug(`Hit cache for ${key}. Policy: ${source.caching_policy}`);
+            this.logger.silly(`Cache HIT for ${key}. Policy: ${caching_policy}`);
             return cachedData;
         }
 
         // 2. Determine and Instantiate Retrieval Strategy (Handler)
-        const handlerKey = source.retrieval_method;
-        // Lazy load the handler using the internal method
-        const handler = this._getHandler(handlerKey);
+        const handler = this._getHandler(retrieval_method);
 
-        this.logger.info(`Retrieving data for ${key} using strategy: ${handlerKey}`);
+        this.logger.info(`Fetching data for ${key} using strategy: ${retrieval_method}`);
 
         // 3. Execute Handler Retrieval
         let rawData;
         try {
             // Handlers must implement a consistent interface: handle(key, source_config)
-            rawData = await handler.handle(key, source); 
+            rawData = await handler.handle(key, sourceConfig); 
         } catch (error) {
-            this.logger.error(`Handler execution failed for ${key} (${handlerKey}):`, error);
-            // Re-throw standardized error format
-            throw new Error(`Data retrieval failed for ${key}. Source Handler Error: ${error.message}`);
+            this.logger.error(`Handler execution failed for ${key} (${retrieval_method}):`, error);
+            throw new RetrievalError(`Data retrieval failed for ${key}. Source Handler Error: ${error.message}`, 'HANDLER_EXECUTION_FAILED');
         }
 
         // 4. Apply Security and Transformation Logic
-        const transformedData = DataTransformer.transform(rawData, source);
+        const transformedData = this.dataTransformer.transform(rawData, sourceConfig);
 
         // 5. Update Cache
-        CacheManager.set(key, transformedData, source.caching_policy);
-        this.logger.debug(`Cached result for ${key}.`);
+        this.cacheManager.set(key, transformedData, caching_policy);
+        this.logger.silly(`Result for ${key} written to cache.`);
 
         return transformedData;
     }
 }
 
-export default new DataSourceRouter();
+// Instantiate using default infrastructure, providing a clean singleton.
+export default new DataSourceRouter({});
