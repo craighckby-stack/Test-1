@@ -1,30 +1,32 @@
-# Constraint Immutability Log (CIL) V94.1 [REFAC - V94.2]
+# Constraint Immutability Ledger (CIL) Protocol Specification V1.0 [REFAC - V95.0]
 
-## 1. Governance Mandate and Provenance Ledger
-The CIL functions as the foundationally immutable, distributed ledger tracking all governance-critical configurations, operational thresholds, and structural schemas derived from the Schema and Configuration Registry (SCR). Its primary mandate is to provide cryptographic auditability, guaranteeing the non-repudiation and provenance of historical rulesets used for L5 systemic decisional calculus.
+## 1. Governance Mandate: The L5 Regulatory Anchor
+The Constraint Immutability Ledger (CIL) is the foundational, distributed, and functionally immutable ledger for tracking all governance-critical data: systemic configurations, operational thresholds, and derived structural schemas sourced from the Schema and Configuration Registry (SCR). The CIL guarantees cryptographic auditability and provides non-repudiation for all historical rulesets utilized in L5 Systemic Decisional Calculus.
 
-## 2. Integrity Architecture: The Immutability Chain
-The CIL utilizes a cryptographically chained structure (Hash-Chain linkage enforced by the CIL Commit Protocol) to ensure chronological integrity and verifiable immutability across the entire log history, requiring AICV verification before block finalization.
+## 2. The CIL Consensus Commit Protocol (C3P)
+Integrity relies on the CIL Consensus Commit Protocol (C3P), a cryptographically chained structure enforced by high-entropy hashing (SHA3-512) and mandatory Autonomous Integrity Consensus Verification (AICV). C3P ensures chronological integrity and verifiable immutability before any block finalization.
 
-### 2.1. Trigger Criteria (Commitment Protocol)
-Logging (Commitment) to the CIL is an atomic, consensus-mandated event triggered exclusively by the GCO (Governance Compliance Observer) upon detection of:
-1.  **SCHEMA_MUTATION**: Any structural modification to the Core Adaptive Structural Data Model (ASDM).
-2.  **THRESHOLD_ADJUSTMENT**: Modification of any GSEP protocol gateway or efficacy metric thresholds (e.g., L3 Efficacy Threshold ($\mathcal{E}_{th}$), $\mathcal{S-01}$ Target Convergence).
-3.  **DECISION_FORMULA_UPDATE**: Revision of the P-01 Decisional Calculus coefficients, structure, or dependency definition.
-4.  **VERSION_LOCK_INITIATION**: Formal System State Transition that generates and commits a new major version $\mathcal{V}_{N}$ lock (L5).
+### 2.1. Commitment Trigger Criteria (GCO Mandate)
+A Commit to the CIL is an atomic, system-critical event triggered *exclusively* by the Governance Compliance Observer (GCO) subsystem upon state change detection in the following core areas:
+1.  **SCHEMA_MUTATION**: Any structural modification to the Core Adaptive Structural Data Model (ASDM) requiring SCR root update.
+2.  **THRESHOLD_ADJUSTMENT**: Revision of any GSEP protocol gateway or efficacy metric thresholds (e.g., $\mathcal{E}_{th}$ or Convergence Targets).
+3.  **DECISION_FORMULA_UPDATE**: Amendment of the P-01 Decisional Calculus structure, coefficients, or underlying dependency definitions.
+4.  **VERSION_LOCK_INITIATION**: Formal, audited System State Transition that generates and commits a new major system version ($\mathcal{V}_{N}$) lock (L5).
 
-### 2.2. Data Structure (`GOV-ENTRY:CIL`)
-Each entry is a chained block, finalized by cryptographic consensus signing and verification (AICV).
+### 2.2. Finalized Data Structure (`CIL_BLOCK:V1.0`)
+Each entry is a block submitted by the GCO, validated by AICV, and chained.
 
 | Field | Description | Type/Format |
-|:---:|:---:|
-| `Entry_Hash` | SHA-384 root hash of the entire entry content (Self-Reference). |
-| `Previous_Entry_Hash` | Reference to the preceding entry in the CIL chain, ensuring linkage. |
-| `Constraint_UUID` | Unique identifier (v4) of the governance rule/set being committed. |
-| `SCR_Source_Root` | SHA-512 Merkle Root Hash of the relevant SCR subset snapshot. |
-| `Timestamp_T$_{UTC}$` | High-precision, atomic-synchronized timestamp of commitment (UTC-NANO). |
-| `GCO_Integrity_Signature` | Digital signature from the committing Governance Compliance Observer (GCO). |
-| `AIA_Epoch_Reference` | Reference ID to the corresponding Audited Intelligence Artifact (AIA-ENTRY) utilizing this constraints set (L5-ID). |
+|:---:|:---:|:---:|
+| `Block_ID` | Sequential ledger identifier. | INT (L5 Unique Index) |
+| `Commit_Hash_Root` | SHA3-512 hash of the entire finalized CIL block content. | HASH (SHA3-512) |
+| `Previous_Block_Hash` | Reference link to the immediately preceding CIL entry. | HASH (SHA3-512) |
+| `Commitment_UUID` | Unique identifier (v4) of the governance event being logged. | UUID v4 |
+| `SCR_Source_Merkle` | SHA3-512 Merkle Root Hash of the relevant SCR subset snapshot linked to the event. | HASH (SHA3-512) |
+| `Timestamp_UTC_NANO` | High-precision, atomic-synchronized timestamp of block finalization. | ISO 8601 UTC-NANO |
+| `GCO_Payload_Signature` | Digital signature confirming the authenticity of the GCO-submitted data payload. | Sig (ECDSA or equivalent) |
+| `AICV_Consensus_Cert` | Cryptographic certificate proving successful consensus verification by AICV sub-systems. | Cert/Sig Chain |
+| `AIA_Epoch_Reference` | Reference ID to the corresponding Audited Intelligence Artifact (AIA-ENTRY) relying on this specific constraint set (L5-ID). | AIA Index |
 
-## 3. System Integration
-The CIL is the single source of truth for historical governance verification. During GSEP L3 (Proving) and L4 (Adjudication), constraints utilized by the active model ($\mathcal{M}_{A}$) must be successfully mapped and validated against their corresponding `GOV-ENTRY:CIL` to ensure adherence to mandated, traceable rulesets.
+## 3. GSEP System Integration and Verification Endpoint
+The CIL serves as the sole source of truth for governance validation. Constraint lookup utilizes the high-speed `CIL/BlockQuery` endpoint. During GSEP L3 (Proving) and L4 (Adjudication), the constraints utilized by the active inference model ($\mathcal{M}_{A}$) must successfully map and validate their `Commit_Hash_Root` against the corresponding `CIL_BLOCK:V1.0` entry to ensure adherence to mandated, traceable, and historically verified rulesets.
