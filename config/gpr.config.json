@@ -1,0 +1,14 @@
+{
+  "GPR_Service_Configuration": {
+    "endpoint": "https://governance.svc/v1/parameters",
+    "authentication_mode": "IAM_Token",
+    "cache_ttl_seconds": 3600,
+    "version_resolution_strategy": "LATEST_GOVERNED",
+    "schema_validation_enabled": true
+  },
+  "required_parameter_sets": [
+    {"set_name": "2024Q3_Efficacy_Weights", "gpr_prefix": "GPR:EFCY"},
+    {"set_name": "2024Q3_Risk_Controls", "gpr_prefix": "GPR:RISK"}
+  ],
+  "reason": "Configuration for connecting MEE to the external Governance Parameter Registry (GPR) system, necessary to retrieve versioned parameters referenced in the updated mee.contract.json."
+}
