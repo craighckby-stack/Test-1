@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GAX Subsystem Constraint Strictness Profiles",
+  "description": "Defines dynamic threshold overrides for ACVT metrics based on the targeted functional subsystem, allowing GAX to adjust validation strictness based on the risk profile of the evolving component.",
+  "type": "object",
+  "properties": {
+    "GLOBAL_DEFAULT": {
+      "type": "object",
+      "properties": {
+        "max_compute_delta_percent": {"type": "number", "default": 2.5},
+        "max_memory_delta_mb": {"type": "number", "default": 512.0},
+        "max_io_latency_shift_ms": {"type": "number", "default": 1.0},
+        "security_severity_rejection_threshold": {"type": "number", "default": 8}
+      },
+      "required": ["max_compute_delta_percent", "max_memory_delta_mb", "max_io_latency_shift_ms", "security_severity_rejection_threshold"]
+    },
+    "Core_Scheduler_v95": {
+      "type": "object",
+      "description": "Tighter constraints for highly sensitive core components.",
+      "properties": {
+        "max_compute_delta_percent": {"type": "number", "default": 0.1},
+        "max_io_latency_shift_ms": {"type": "number", "default": 0.05}
+      }
+    },
+    "Data_Storage_Engine": {
+      "type": "object",
+      "description": "Relaxed memory constraints, high TCO scrutiny.",
+      "properties": {
+        "max_memory_delta_mb": {"type": "number", "default": 4096.0},
+        "max_tco_factor_change": {"type": "number", "default": 0.05}
+      }
+    }
+  },
+  "required": ["GLOBAL_DEFAULT"]
+}
