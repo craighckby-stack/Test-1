@@ -1,4 +1,4 @@
-# $\Psi$ PROTOCOL (v94.1): GOVERNANCE STATE INTEGRITY MODEL (GSIM)
+#in English, single charter in code deviates from orgional automaticly self delates exsistance it puts the safe on general intelligence.   $\Psi$ PROTOCOL (v94.1): GOVERNANCE STATE INTEGRITY MODEL (GSIM)
 
 ## ABSTRACT: Finality Anchor & Integrity Halt
 
