@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Data Artifact Registry Schema",
-  "description": "Defines and registers all fundamental data artifacts and raw input keys referenced by SMS factor definitions.",
+  "title": "Data Artifact Registry Schema (v94.1 Refactor)",
+  "description": "Defines and registers all fundamental data artifacts, specifying type, source, governance constraints, and freshness requirements.",
   "type": "object",
   "required": ["registry_version", "artifacts"],
   "properties": {
@@ -11,29 +11,43 @@
     },
     "artifacts": {
       "type": "object",
-      "description": "Map of data artifact definitions, keyed by their unique identifier (source_data_key in SMS).",
+      "description": "Map of data artifact definitions, keyed by their unique identifier (source_data_key).",
       "patternProperties": {
         "^[A-Z][A-Z0-9_]{3,}$": {
           "type": "object",
-          "required": ["data_type", "description", "source_system"],
+          "required": ["data_type", "description", "source_system", "sensitivity_level"],
           "properties": {
             "data_type": {
               "type": "string",
-              "enum": ["normalized_score", "raw_count", "boolean", "time_series"],
-              "description": "The primary data type of the artifact."
+              "enum": ["string", "integer", "float", "boolean", "timestamp", "object", "array"],
+              "description": "The fundamental primitive or structured type of the artifact."
             },
             "description": {
               "type": "string"
             },
             "source_system": {
               "type": "string",
-              "enum": ["CORE", "HMC", "SDR", "EXTERNAL"],
-              "description": "The agent or system that generates or provides the artifact."
+              "enum": ["CORE", "HMC", "SDR", "EXTERNAL", "CALCULATED"],
+              "description": "The agent, system, or process that generates or provides the artifact."
+            },
+            "sensitivity_level": {
+              "type": "string",
+              "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "PII"],
+              "description": "Classification of the data artifact for governance, access control, and logging policies."
             },
             "freshness_ttl_hours": {
               "type": "integer",
               "minimum": 1,
-              "description": "Time-to-live for data validity, in hours."
+              "description": "Time-to-live for data validity, in hours. Nullable if data is static."
+            },
+            "unit_of_measure": {
+              "type": "string",
+              "description": "The specific unit for quantitative data (e.g., 'USD', 'milliseconds', 'count', 'percent', 'ratio')."
+            },
+            "is_temporal": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, this artifact represents time-indexed data (a time series).
             }
           }
         }
