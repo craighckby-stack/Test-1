@@ -1,0 +1,18 @@
+{
+  "catalog_version": "94.1",
+  "module_checks": {
+    "SYS_MEM_P": {"name": "Memory Pressure Monitor", "description": "Checks system memory pressure limits.", "criticality": "P1"},
+    "SYS_RES_L": {"name": "Resource Lock Status", "description": "Verifies essential resource locks are maintained.", "criticality": "P1"},
+    "SYS_RTH": {"name": "Runtime Hash Verification", "description": "Ensures runtime environment consistency via hashing.", "criticality": "P2"}
+  },
+  "critical_policies": {
+    "POL_DMI": {"name": "Data Mutation Isolation", "level": "CRITICAL_S0", "status": "ACTIVE"},
+    "POL_DGL": {"name": "Dependency Graph Lock", "level": "CRITICAL_S0", "status": "ACTIVE"},
+    "POL_RBA": {"name": "Rollback Availability Guarantee", "level": "CRITICAL_S0", "status": "ACTIVE"}
+  },
+  "metrics": {
+    "TEMM_Analysis": {"type": "Quantitative Utility Metric", "unit": "Delta Efficiency Score"},
+    "ECVM_Monitor": {"type": "Execution Context Status Check"},
+    "MPAM_CSR_Register": {"type": "Mandatory Policy Audit Metric"}
+  }
+}
