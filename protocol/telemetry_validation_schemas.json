@@ -1,0 +1,19 @@
+{
+  "description": "Concrete JSON Schema definitions for telemetry compliance protocols (MPAM, SGS, ADTM). Essential for strict ingress data validation before DIAL buffering.",
+  "schemas": {
+    "MPAM_Schema": {
+      "type": "object",
+      "properties": {
+        "MPAM_01_Pressure_Reading": {"type": "number", "minimum": 0.0}
+      },
+      "required": ["MPAM_01_Pressure_Reading"]
+    },
+    "SGS_Schema": {
+      "type": "object",
+      "properties": {
+        "SGS_05_Transition_History": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "spec_version": "94.1.A"
+}
