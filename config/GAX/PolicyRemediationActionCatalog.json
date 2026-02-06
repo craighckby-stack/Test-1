@@ -1,0 +1,26 @@
+{
+  "schema_version": "v1.0",
+  "purpose": "Maps standardized remediation references (remediation_ref) to concrete, executable action sequences defined within the GAX kernel.",
+  "metadata": {
+    "custodian": "GAX/PCEU"
+  },
+  "actions": {
+    "PCSS.LinkageRequired": {
+      "description": "Consult Policy Context Stream Service (PCSS) and inject policy header linkage to execution frame.",
+      "execution_target": "GAX.Modules.PolicyKernel.Linker",
+      "parameters": {
+        "mode": "ATOMIC_INJECTION",
+        "fallback": "REVERT_OP"
+      }
+    },
+    "VRRM.TriageSnapshotRollback": {
+      "description": "Perform immediate Virtual Resource Remediation Module triage, capture full state snapshot, and initiate mandated rollback sequence.",
+      "execution_target": "GAX.Modules.ResourceManagement.VRRM",
+      "parameters": {
+        "action": "TRIAGE_SNAPSHOT_AND_ROLLBACK",
+        "snapshot_type": "K-STATE",
+        "severity_check": "MAX_RRP_COMPLIANCE"
+      }
+    }
+  }
+}
