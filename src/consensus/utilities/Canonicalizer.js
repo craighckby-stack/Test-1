@@ -8,36 +8,61 @@ const crypto = require('crypto');
 class Canonicalizer {
 
     /**
+     * Helper function to recursively traverse an object and sort its keys.
+     * This ensures deterministic ordering before JSON serialization, 
+     * which is significantly more performant than using the JSON.stringify replacer 
+     * for deep objects.
+     * @param {*} value
+     * @returns {*} Sorted object or original value.
+     */
+    static #sortKeys(value) {
+        if (!value || typeof value !== 'object') {
+            return value;
+        }
+
+        if (Array.isArray(value)) {
+            // Recurse into array elements, arrays themselves maintain insertion order.
+            return value.map(Canonicalizer.#sortKeys);
+        }
+
+        // Handle standard objects: sort keys alphabetically and recurse
+        const sortedKeys = Object.keys(value).sort();
+        const sortedObject = {};
+
+        for (const key of sortedKeys) {
+            sortedObject[key] = Canonicalizer.#sortKeys(value[key]);
+        }
+        return sortedObject;
+    }
+
+    /**
      * Converts a complex object into a deterministically ordered JSON string 
      * suitable for hashing/signing.
      * @param {object} data 
      * @returns {string} Canonical JSON string.
      */
     static canonicalize(data) {
-        // Uses a replacer function to guarantee that object keys are always sorted, 
-        // ensuring deterministic JSON serialization regardless of original insertion order.
-        return JSON.stringify(data, (key, value) => {
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-                // Create a new object with sorted keys
-                return Object.keys(value).sort().reduce((sorted, k) => {
-                    sorted[k] = value[k];
-                    return sorted;
-                }, {});
-            }
-            return value;
-        });
+        // 1. Recursively sort the keys of the input data structure.
+        const sortedData = Canonicalizer.#sortKeys(data);
+        
+        // 2. Stringify the pre-sorted structure. No replacer needed.
+        return JSON.stringify(sortedData);
     }
 
     /**
      * Calculates a secure cryptographic hash of the canonical data.
+     * NOTE: Algorithm choice should be standardized via ConsensusConfig.
      * @param {string} canonicalData - Data obtained from canonicalize().
-     * @param {string} algorithm - Hashing algorithm (e.g., 'sha256', 'blake3').
+     * @param {string} algorithm - Hashing algorithm (Default: SHA-256).
      * @returns {string} Hexadecimal hash digest.
      */
     static hash(canonicalData, algorithm = 'sha256') {
+        if (typeof canonicalData !== 'string') {
+             throw new Error("Input to hash must be a canonical string.");
+        }
         return crypto
             .createHash(algorithm.toLowerCase())
-            .update(canonicalData)
+            .update(canonicalData, 'utf8')
             .digest('hex');
     }
 }
