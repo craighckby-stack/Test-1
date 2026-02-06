@@ -1,9 +1,45 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://sovereign.agi/schemas/APM_v1.json",
-  "title": "Attested Policy Mandate v1",
-  "description": "Defines the structure for a finalized, verifiable policy update instruction.",
+  "title": "Attested Policy Mandate v1 (Enhanced Integrity)",
+  "description": "Defines the canonical, verifiable structure for finalized policy updates, ensuring cryptographic integrity and multi-agent consensus.",
   "type": "object",
+  "$defs": {
+    "SHA512": {
+      "type": "string",
+      "description": "Standard SHA-512 cryptographic hash, expected to be 128 hexadecimal characters.",
+      "pattern": "^[0-9a-fA-F]{128}$"
+    },
+    "CoSignature": {
+      "type": "object",
+      "description": "A cryptographic co-signature structure from a Triumvirate agent.",
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "enum": [
+            "GAX",
+            "CRoT",
+            "SGS"
+          ],
+          "description": "Identifier of the signing agent."
+        },
+        "signature": {
+          "type": "string",
+          "description": "The detached cryptographic signature corresponding to the key."
+        },
+        "key_id": {
+          "type": "string",
+          "description": "Reference identifier for the public key used for signing (e.g., Fingerprint or URI reference)."
+        }
+      },
+      "required": [
+        "agent_id",
+        "signature",
+        "key_id"
+      ],
+      "additionalProperties": false
+    }
+  },
   "required": [
     "mandate_id",
     "version",
@@ -15,44 +51,55 @@
   "properties": {
     "mandate_id": {
       "type": "string",
-      "description": "Sequential, monotonic ID for change tracking."
+      "description": "Unique, immutable identifier for this specific mandate (Pattern: AGI-APM-YYYYMMDD-SEQ).",
+      "pattern": "^AGI-APM-\d{4}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])-\d{3}$"
     },
     "version": {
       "type": "string",
-      "description": "Semantic version of the affected policies (e.g., PVLM v3.1.2)."
+      "description": "Semantic version (SemVer 2.0) of the affected Policy Vertex Logic Manifest (PVLM).",
+      "pattern": "^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
     },
     "timestamp": {
       "type": "string",
       "format": "date-time",
-      "description": "UTC time of mandate finalization."
+      "description": "ISO 8601 UTC time of mandate finalization."
     },
     "payload_hashes": {
       "type": "object",
-      "description": "Cryptographic hashes (SHA-512) of the manifests being ratified.",
+      "description": "Cryptographic hashes (SHA-512) of the core manifests being ratified.",
       "properties": {
-        "PVLM_hash": {"type": "string"},
-        "CFTM_hash": {"type": "string"},
-        "ACP_hash": {"type": "string"}
+        "PVLM_hash": {
+          "$ref": "#/$defs/SHA512",
+          "description": "Policy Vertex Logic Manifest hash."
+        },
+        "CFTM_hash": {
+          "$ref": "#/$defs/SHA512",
+          "description": "Computational Flow Trace Manifest hash."
+        },
+        "ACP_hash": {
+          "$ref": "#/$defs/SHA512",
+          "description": "Agent Configuration Profile hash."
+        }
       },
-      "required": ["PVLM_hash", "CFTM_hash", "ACP_hash"]
+      "required": [
+        "PVLM_hash",
+        "CFTM_hash",
+        "ACP_hash"
+      ],
+      "additionalProperties": false
     },
     "co_signatures": {
       "type": "array",
-      "description": "Required signatures from Triumvirate agents (minimum two).",
+      "description": "Required signatures from key Triumvirate agents (minimum two unique items).",
       "minItems": 2,
+      "maxItems": 3,
       "items": {
-        "type": "object",
-        "properties": {
-          "agent": {"type": "string", "enum": ["GAX", "CRoT", "SGS"]},
-          "signature": {"type": "string"},
-          "key_id": {"type": "string"}
-        },
-        "required": ["agent", "signature", "key_id"]
+        "$ref": "#/$defs/CoSignature"
       }
     },
     "final_signature": {
       "type": "string",
-      "description": "Cryptographic signature of the entire APM payload, affixed by CRoT."
+      "description": "Cryptographic signature of the entire APM payload (canonicalized JSON), typically affixed by CRoT or the Designated Proponent."
     }
   },
   "additionalProperties": false
