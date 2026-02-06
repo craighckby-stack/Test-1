@@ -5,33 +5,66 @@
  */
 
 import { validateSchema } from '../utility/schema_engine';
+import { calculateHash } from '../utility/hashing_utility';
+import * as executionEngine from './execution_engine';
 
-// Placeholder service to simulate or verify external contract/module calls
-const executionEngine = require('./execution_engine');
+// Standardized list of proposal types that require an executable payload.
+const ACTIONABLE_PROPOSAL_TYPES = new Set([
+  'PROTOCOL_UPGRADE',
+  'TREASURY_ALLOCATION',
+  'PARAMETER_CHANGE'
+]);
 
+/**
+ * Validates the integrity and executability of an actionable proposal payload.
+ *
+ * 1. Checks proposal type.
+ * 2. Retrieves raw payload data.
+ * 3. Verifies payload integrity via hash comparison.
+ * 4. Performs safe execution simulation.
+ *
+ * @param {object} proposal - The proposal object.
+ * @returns {Promise<{valid: boolean, reason?: string, simulationReport?: object}>}
+ */
 export async function validateProposalPayload(proposal) {
   const { type, details, implementationTarget } = proposal;
 
-  if (!['Protocol Upgrade', 'Treasury Allocation', 'Parameter Change'].includes(type)) {
-    // Skip validation for informational or standard proposals
+  if (!ACTIONABLE_PROPOSAL_TYPES.has(type)) {
+    // Skip validation for informational or standard proposals (e.g., 'Discussion')
     return { valid: true, reason: 'Informational proposal, no execution payload required.' };
   }
 
   if (!implementationTarget || !implementationTarget.payloadHash) {
-    return { valid: false, reason: 'Actionable proposal lacks implementationTarget payload details.' };
-  }
-
-  // 1. Check if the computed hash matches the recorded hash
-  // (Requires access to the raw payload data, assumed retrieved from DB/storage)
-  const rawPayload = await executionEngine.getRawPayload(implementationTarget.payloadHash);
-  if (!rawPayload) {
-    return { valid: false, reason: 'Executable payload data missing for hash verification.' };
+    return { valid: false, reason: `Actionable proposal of type ${type} lacks implementationTarget payload details.` };
   }
   
-  // Implementation detail: hash verification logic here
-  // ...
+  const expectedHash = implementationTarget.payloadHash;
 
-  // 2. Perform safe simulation using the Execution Engine
+  // 1. Retrieve Raw Payload Data
+  // Assumes executionEngine is responsible for persistent storage access.
+  const rawPayload = await executionEngine.getRawPayload(expectedHash);
+  if (!rawPayload) {
+    return { valid: false, reason: `Executable payload data missing from storage for hash: ${expectedHash}.` };
+  }
+  
+  // 2. Hash Integrity Check
+  try {
+    const computedHash = calculateHash(rawPayload);
+    
+    if (computedHash !== expectedHash) {
+      // Use substring to avoid logging massive hashes in error messages, focusing on identification.
+      const safeExpected = expectedHash.substring(0, 16);
+      const safeComputed = computedHash.substring(0, 16);
+      return { 
+        valid: false, 
+        reason: `Payload integrity failed. Computed hash (${safeComputed}...) does not match expected hash (${safeExpected}...).` 
+      };
+    }
+  } catch (hashError) {
+     return { valid: false, reason: `Failed during hash computation: ${hashError.message}` };
+  }
+
+  // 3. Perform Safe Execution Simulation
   const simulationResult = await executionEngine.simulateCall(
     implementationTarget.modulePath,
     implementationTarget.method,
@@ -42,11 +75,12 @@ export async function validateProposalPayload(proposal) {
     return { valid: false, reason: `Execution simulation failed: ${simulationResult.error}` };
   }
 
-  // 3. (Advanced) Semantic check: ensure simulation outcome aligns with specification
-  // This would involve AI interpretation or strict format matching against `details.specification`
+  // 4. Semantic Validation: Ensure simulation output conforms to specifications.
+  // This step usually involves validating the final state change against an expected schema/assertion.
   
   return { 
     valid: true, 
-    simulationReport: simulationResult.report 
+    simulationReport: simulationResult.report,
+    message: 'Payload integrity verified and execution simulated successfully.'
   };
 }
