@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "description": "Defines the mandatory structural and integrity requirements for GACR assets before system usage (post L-PRE sync).",
+  "asset_definitions": {
+    "CAC": {
+      "description": "Certified Access Credentials configuration.",
+      "mandatory_fields": ["asset_version", "signing_key_id", "checksum_sha512"],
+      "format": "JSON_Schema_V7"
+    },
+    "CFTM": {
+      "description": "Configuration Flow Trace Map.",
+      "mandatory_fields": ["generation_timestamp", "policy_id_reference", "cryptographic_signature"],
+      "format": "YAML_Document"
+    }
+  },
+  "validation_pipeline": {
+    "pre_ingress_check": ["SchemaValidation", "ChecksumVerification"],
+    "post_ingress_check": ["SignatureTrustChainVerification"]
+  }
+}
