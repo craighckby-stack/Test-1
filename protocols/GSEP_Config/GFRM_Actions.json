@@ -1,33 +1,43 @@
 {
-  "version": "1.0",
-  "description": "Definitions for Governance Fallback Mechanisms (GFRM) used across GSEP protocols.",
-  "mechanisms": {
+  "version": "2.0",
+  "description": "Standardized Definitions for Governance Fallback Mechanisms (GFRM) utilized by GSEP agents for resilience, state synchronization, and deterministic error handling.",
+  "actions": {
     "GFRM:HALT_PROTOCOL": {
-      "type": "ImmediateTermination",
-      "log_level": "CRITICAL",
-      "error_code": 50001,
-      "description": "Protocol failed early validation; stop execution immediately."
+      "actionType": "HALT",
+      "logSeverity": "CRITICAL",
+      "errorCode": 50001,
+      "description": "Protocol failed early validation or critical integrity check; immediately halt and terminate execution.",
+      "executionParams": {}
     },
     "GFRM:INIT_ROLLBACK_SST_PREV": {
-      "type": "StateRollback",
-      "target_state": "SST_PREV",
-      "log_level": "WARNING",
-      "rollback_version": "stable_0.94.0",
-      "description": "Fallback to previously stable system state, utilizing known checkpoints."
+      "actionType": "ROLLBACK",
+      "logSeverity": "WARNING",
+      "description": "Initiate rollback to the previously stable system state (SST_PREV), utilizing known security checkpoints.",
+      "executionParams": {
+        "targetState": "SST_PREV",
+        "rollbackVersion": "stable_0.94.0"
+      }
     },
     "GFRM:RECALCULATE_CONTEXT": {
-      "type": "RetryStage",
-      "retry_limit": 2,
-      "target_stage_id": "S_03_CONTEXT_SYNC",
-      "log_level": "INFO",
-      "description": "Context synthesis failed; attempt recalculation up to two times."
+      "actionType": "RETRY",
+      "logSeverity": "INFO",
+      "description": "Context synthesis or synchronization failed; attempt recalculation of the specified stage up to the configured limit.",
+      "executionParams": {
+        "targetStageId": "S_03_CONTEXT_SYNC",
+        "retryLimit": 2
+      }
     },
-    "GFRM:LOG_AND_RETRY_S_04": {
-      "type": "Transition",
-      "transition_target_id": "S_04_METRIC_DYN",
-      "log_level": "ERROR",
-      "inject_context": {"error_type": "ConstraintBind_Vio"},
-      "description": "Constraint failure detected; log event and restart metric generation phase (S_04) to derive new viability metrics."
+    "GFRM:LOG_AND_TRANSITION_S_04": {
+      "actionType": "TRANSITION",
+      "logSeverity": "ERROR",
+      "description": "Constraint failure detected; log the event and transition control flow to the target stage (S_04) to derive new viability metrics or recovery path.",
+      "executionParams": {
+        "targetStageId": "S_04_METRIC_DYN",
+        "contextInjection": {
+          "errorType": "ConstraintBind_Vio",
+          "originGFRM": "GFRM:LOG_AND_RETRY_S_04"
+        }
+      }
     }
   }
 }
