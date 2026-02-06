@@ -1,17 +1,50 @@
 {
-  "artifact_map_version": "1.0",
+  "metadata": {
+    "version": "2.0",
+    "description": "Preflight map defining critical system artifacts for validation and retrieval."
+  },
   "artifacts": [
     {
-      "id": "TVCR",
-      "expected_source": "ArtifactCache/V_Registry",
-      "schema_id": "VCS-44A",
-      "freshness_ttl_seconds": 3600
+      "short_code": "TVCR",
+      "name": "Trusted Validator Configuration Register",
+      "source": {
+        "type": "CACHE",
+        "key": "V_Registry",
+        "namespace": "ArtifactCache"
+      },
+      "validation": {
+        "schema_id": "VCS-44A",
+        "freshness_ttl_seconds": 3600
+      },
+      "criticality": "CRITICAL"
     },
     {
-      "id": "ADEP",
-      "expected_source": "SystemDB/AD_Planner",
-      "schema_id": "ADS-22B",
-      "freshness_ttl_seconds": 600
+      "short_code": "ADEP",
+      "name": "Autonomous Deployment Plan",
+      "source": {
+        "type": "DATABASE",
+        "key": "AD_Planner",
+        "namespace": "SystemDB"
+      },
+      "validation": {
+        "schema_id": "ADS-22B",
+        "freshness_ttl_seconds": 600
+      },
+      "criticality": "CRITICAL"
+    },
+    {
+      "short_code": "SHEP",
+      "name": "System Health Endpoint Pointers",
+      "source": {
+        "type": "SERVICE_CALL",
+        "key": "/v1/health/endpoints",
+        "namespace": "DiscoveryService"
+      },
+      "validation": {
+        "schema_id": "HES-10C",
+        "freshness_ttl_seconds": 120
+      },
+      "criticality": "WARNING"
     }
   ]
 }
