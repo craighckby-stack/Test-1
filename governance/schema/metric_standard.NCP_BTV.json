@@ -1,0 +1,19 @@
+{
+  "metric_name": "NCP_BTV_Standard",
+  "version": "1.0.0",
+  "metrics": [
+    {
+      "id": "NCP",
+      "description": "Non-Compliance Probability (0.0 to 1.0). High values indicate strong misalignment with standing policies.",
+      "range": [0.0, 1.0],
+      "default_threshold_l0": 0.05
+    },
+    {
+      "id": "BTV",
+      "description": "Bias Trace Vector Criticality Score (0.0 to 1.0). Measures the operational projection against forbidden systemic bias vectors.",
+      "range": [0.0, 1.0],
+      "default_threshold_l0": 0.85
+    }
+  ],
+  "enforcement_scope": "L0 Policy Filters"
+}
