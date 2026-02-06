@@ -1,17 +1,1 @@
-{
-  "description": "Execution Ledger (XEL) Specification: Defines the schema required for logging immutable, chronological entries documenting all critical agent actions and state transitions within the GSEP-C pipeline. This log is essential for non-repudiable DSE auditing.",
-  "ledger_schema": {
-    "version": "1.0.0",
-    "entry_fields": [
-      {"field": "stage_id", "type": "string", "constraint": "Matches S00-S14 nomenclature"},
-      {"field": "timestamp_utc", "type": "string", "format": "ISO8601"},
-      {"field": "agent_responsible", "type": "enum", "options": ["CRoT", "GAX", "SGS"]},
-      {"field": "action_type", "type": "string", "constraint": "E.g., COMMIT_STATE, VETO_CHECK, METRIC_CALC, P-01_EVAL"},
-      {"field": "artifact_mutation_key", "type": "string", "optional": true, "description": "Key of artifact (e.g., ASM, TEDS) that was updated/created."},
-      {"field": "pre_state_hash", "type": "string", "description": "Cryptographic hash of the primary state (e.g., ASM) prior to this action."},
-      {"field": "post_state_hash", "type": "string", "description": "Cryptographic hash of the primary state (e.g., ASM) following this action."},
-      {"field": "status", "type": "enum", "options": ["SUCCESS", "FAIL", "HALT", "RRP_TRIGGERED"]}
-    ],
-    "management_agent": "CRoT (Commitment), SGS (Logging)"
-  }
-}
+[object Object]
