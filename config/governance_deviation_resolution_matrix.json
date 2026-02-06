@@ -1,0 +1,41 @@
+{
+  "matrix_version": "v1.0.0",
+  "description": "Defines codified operational responses linked to specific Flag State Log (FSL) triggers, used by the IH Sentinel to determine immediate system posture upon breach detection and dictate mandatory forensic collection.",
+  "schema_reference": "./governance_flag_state_schema.json",
+  "resolution_profiles": [
+    {
+      "id": "DRP_PVLM_I_001",
+      "trigger_match": {
+        "flag_type": "PVLM_POLICY_VIOLATION",
+        "trigger_axiom_id": "I_SELF_PRESERVATION"
+      },
+      "stages_affected": ["*"],
+      "response": {
+        "level": "CRITICAL_HALT",
+        "required_telemetry_dump": [
+          "MemorySnapshot",
+          "GovernanceContextStack"
+        ],
+        "notification_target": "IH_CORE_TEAM",
+        "immutable_log_path": "/governance/critical_breach/"
+      }
+    },
+    {
+      "id": "DRP_RESOURCE_III_002",
+      "trigger_match": {
+        "flag_type": "RESOURCE_EXCEED",
+        "trigger_axiom_id": "III_UTILITY_OPTIMIZATION"
+      },
+      "stages_affected": ["S03_EXECUTION", "S04_EVALUATION"],
+      "response": {
+        "level": "SOFT_PAUSE",
+        "required_telemetry_dump": [
+          "ResourceProfile",
+          "PendingInstructionQueue"
+        ],
+        "notification_target": "GAX_ENGINE",
+        "immutable_log_path": "/governance/resource_warning/"
+      }
+    }
+  ]
+}
