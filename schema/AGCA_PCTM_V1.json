@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://axiom.gov/schemas/AGCA_PCTM_V1.json",
+  "title": "Axiom Governance Configuration Asset (AGCA) PCTM Metadata Schema",
+  "type": "object",
+  "properties": {
+    "pctm_standard_id": {
+      "type": "string",
+      "const": "V99.0",
+      "description": "The specific version of the PCTM standard applied."
+    },
+    "policy_axiom_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\d*)\\.(0|[1-9]\d*)\\.(0|[1-9]\d*)$",
+      "description": "Semantic Attestation Layer (SAL) version of the embedded policy."
+    },
+    "owner_agent": {
+      "type": "string",
+      "description": "The governance agent responsible for authoring/approving the asset (e.g., GAX)."
+    },
+    "last_modified_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last authorized modification (ISO 8601)."
+    },
+    "hash_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$",
+      "description": "SHA-256 hash of the 'configuration_data' object content."
+    },
+    "gkm_signature": {
+      "type": "string",
+      "description": "Cryptographic signature generated using an authorized GKM key."
+    },
+    "configuration_data": {
+      "type": "object",
+      "description": "The actual policy and configuration payload."
+    }
+  },
+  "required": [
+    "pctm_standard_id",
+    "policy_axiom_version",
+    "owner_agent",
+    "last_modified_utc",
+    "hash_sha256",
+    "gkm_signature",
+    "configuration_data"
+  ],
+  "additionalProperties": false
+}
