@@ -1,0 +1,35 @@
+{
+  "description": "Enumerated list of valid M-01 Mutation Types, used for prioritization and routing during GSEP Stage 1 Vetting.",
+  "mutation_types": [
+    {
+      "code": "SECURITY_PATCH",
+      "priority": 100,
+      "description": "Mitigation of immediate security vulnerabilities. Highest priority."
+    },
+    {
+      "code": "FIX",
+      "priority": 90,
+      "description": "Critical correction of identified bugs or failure modes."
+    },
+    {
+      "code": "EFFICIENCY_TUNING",
+      "priority": 85,
+      "description": "Optimization focusing on reducing resource consumption (compute, memory, I/O) or improving latency."
+    },
+    {
+      "code": "EVOLUTION",
+      "priority": 70,
+      "description": "Introduction of new components, features, or architectural changes."
+    },
+    {
+      "code": "REFACTOR",
+      "priority": 60,
+      "description": "Internal code restructuring solely to improve maintainability or readability."
+    },
+    {
+      "code": "DATA_MIGRATION",
+      "priority": 50,
+      "description": "Changes related to data persistence or schema updates."
+    }
+  ]
+}
