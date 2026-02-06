@@ -1,29 +1,36 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "HESE_CalibrationFactor_v94_1",
-  "title": "HESE Calibration Telemetry Contract",
-  "description": "Defines the required payload structure for Trust and Risk Calibration Factors (TCF/RCF) broadcast by HESE to upstream arbiters.",
+  "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v1.0.0",
+  "title": "HESE Calibration Telemetry Contract (TCF/RCF)",
+  "description": "Defines the required payload structure for Trust (TCF) and Risk (RCF) Calibration Factors broadcast by the High-Efficacy Stability Engine (HESE) to upstream arbiters.",
   "type": "object",
   "properties": {
     "evolution_id": {
       "type": "string",
-      "description": "Unique identifier for the evolution batch contributing to the calculation."
+      "pattern": "^EVO-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
+      "description": "UUID identifier for the autonomous code evolution batch contributing to the factor calculation."
     },
-    "epoch_timestamp": {
+    "origin_system_id": {
       "type": "string",
-      "format": "date-time",
-      "description": "Timestamp of factor generation."
+      "description": "Identifier of the HESE instance generating this factor.",
+      "readOnly": true
+    },
+    "epoch_timestamp_ms": {
+      "type": "integer",
+      "minimum": 1000000000000,
+      "description": "High-precision UTC timestamp (milliseconds since epoch) of factor generation."
     },
     "TCF": {
       "type": "number",
       "minimum": 0.0,
       "maximum": 1.0,
-      "description": "Trust Calibration Factor (0.0=Low Trust, 1.0=Perfect Alignment)."
+      "exclusiveMaximum": true,
+      "description": "Trust Calibration Factor (0.0=Low Trust, approaching 1.0=Perfect Alignment)."
     },
     "RCF": {
       "type": "number",
-      "minimum": 0.0,
-      "description": "Risk Calibration Factor (Multiplier affecting MCRA's Operational Risk Buffer)."
+      "minimum": 0.5,
+      "description": "Risk Calibration Factor (Multiplier affecting MCRA's Operational Risk Buffer). Minimum set to 0.5 to maintain a risk floor."
     },
     "delta_average": {
       "type": "number",
@@ -31,8 +38,18 @@
     },
     "delta_variance": {
       "type": "number",
-      "description": "The statistical variance of prediction errors in the recent window, critical for RCF calculation."
+      "minimum": 0.0,
+      "description": "The statistical variance ($\\sigma^2$) of prediction errors in the recent window. Must be non-negative and is crucial for RCF calculation."
     }
   },
-  "required": ["evolution_id", "epoch_timestamp", "TCF", "RCF", "delta_average"]
+  "required": [
+    "evolution_id",
+    "origin_system_id",
+    "epoch_timestamp_ms",
+    "TCF",
+    "RCF",
+    "delta_average",
+    "delta_variance"
+  ],
+  "additionalProperties": false
 }
