@@ -1,18 +1,24 @@
 # Configuration Trust Handler (CTH)
 
-## ABSTRACT: PRE-FLIGHT POLICY VALIDATION
+## CTH SPECIFICATION V2.1: $T_{0}$ INTEGRITY GATE
 
-The Configuration Trust Handler (CTH) is a mandatory utility executed prior to the activation of the Governance State Execution Pipeline (GSEP-C, S00). Its mission is to guarantee the intrinsic validity and adherence of all runtime configuration artifacts against their immutable protocol specifications.
+### PURPOSE AND ROLE
 
-CTH preempts potential GAX III (Policy Immutability) failures by performing schema validation and checksum verification *before* the EMSU initiates the G0 manifest lock.
+The Configuration Trust Handler (CTH) serves as the mandated $T_{0}$ integrity gate, executing prior to any transition into the Governance State Execution Pipeline (GSEP-C). Its sole mission is to establish and verify the intrinsic reliability, structural validity, and cryptographic integrity of all operational configuration artifacts required for system initialization.
 
-## CORE FUNCTIONALITY
+CTH proactively ensures adherence to the GAX III Policy Immutability Protocol, safeguarding against configuration drift or tampering *before* the Emergency Management Synchronization Unit (EMSU) is authorized to calculate and apply the G0 Policy Seal ($T_{0}$ Lock).
 
-1.  **Artifact Retrieval:** Securely fetch all specified Protocol and Runtime artifacts listed in the Trust Boundary Registry (Section IV of README).
-2.  **Schema Validation:** Validate Runtime Configuration files (`config/*.json`) against their corresponding structural requirements derived from internal Protocol Specifications (e.g., ensuring `config/acvm.json` conforms to EEDS bounds structure).
-3.  **Integrity Checksum:** Calculate cryptographic checksums for all retrieved artifacts. Compare against a predefined, trusted manifest checksum list. A mismatch indicates configuration tampering or incorrect provisioning.
-4.  **Halt Policy:** If validation or integrity checks fail, CTH must trigger an immediate, localized Integrity Halt (C-IH), bypassing the full GSEP-C initialization and requiring immediate FSMU notification if the failure mode meets a pre-defined threshold.
+### CORE FUNCTIONALITY: THE 3-PHASE VETTING CYCLE
 
-## INTEGRATION POINT
+1.  **P1: Artifact Discovery & Retrieval:** Utilizing the defined Trust Boundary Registry (TBR), securely locate and stage all required Protocol, Runtime, and State configuration artifacts.
+2.  **P2: Structural Compliance & Validation:** Execute strict schema validation against the artifacts listed in the TBR. Runtime configurations (`config/*.json`) must conform precisely to their respective Protocol Definition Schemas (PDS), verifying type, range constraints (e.g., EEDS bounds), and key presence.
+3.  **P3: Integrity Verification (Cryptographic Hashing):** Calculate a consensus cryptographic checksum (e.g., SHA-512) for all staged artifacts. This resulting aggregate hash is compared directly against the immutable `G0-Policy_Manifest.sig`. Failure in comparison indicates unauthorized artifact modification or provisioning error.
 
-CTH must complete successfully, issuing a "Configuration Trust Verified" signal, before EMSU is authorized to calculate and apply the G0 Seal (S00). CTH failure constitutes a systemic integrity violation and prevents runtime execution entirely.
+### STATE TRANSITION RULES
+
+*   **SUCCESS ($T_{0}$ Verified):** If all 3 Phases complete successfully, CTH issues the "Configuration Trust Verified" signal, authorizing EMSU to proceed with the $T_{0}$ Lock calculation.
+*   **FAILURE (T0-VIOLATION):** Upon any failure in P2 or P3, CTH must trigger an immediate, localized System Integrity Halt (C-IH). This aborts GSEP-C initialization and generates a `T0-VIOLATION: FSMU-Halt` notification, necessitating immediate inspection and manual override clearance (Level 4 clearance or higher).
+
+### INTEGRATION POINT
+
+CTH execution is the single prerequisite blocking the EMSU's transition from Pre-Operational State to $T_{0}$. CTH failure constitutes an irreparable integrity violation at startup and must prevent runtime execution entirely.
