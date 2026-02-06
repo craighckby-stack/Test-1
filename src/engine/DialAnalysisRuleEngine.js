@@ -5,17 +5,35 @@
  */
 
 class DialAnalysisRuleEngine {
+
+    /**
+     * Static map of supported comparison operators.
+     * Ensures derivePreconditions remains clean and extensible.
+     */
+    static COMPARATORS = {
+        'GT': (value, threshold) => value > threshold,
+        'LT': (value, threshold) => value < threshold,
+        'EQ': (value, threshold) => value === threshold,
+        'GTE': (value, threshold) => value >= threshold,
+        'LTE': (value, threshold) => value <= threshold,
+        'DEFAULT': (value, threshold) => value === threshold, // Fallback
+    };
+
     constructor(config) {
-        this.config = config;
-        this.metricsConfig = config.metrics_config;
+        if (!config || !config.metrics_config || !config.precondition_definitions || !config.response_rules) {
+            throw new Error("DialAnalysisRuleEngine requires a complete configuration structure.");
+        }
+
+        // Ensure rules are sorted only once, high priority first.
+        this.rules = config.response_rules.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0)); 
         this.preconditions = config.precondition_definitions;
-        this.rules = config.response_rules.sort((a, b) => b.priority - a.priority); // Sort high priority first
+        this.metricsConfig = config.metrics_config;
     }
 
     /**
      * Evaluates raw telemetry against defined metrics_config to derive boolean preconditions.
-     * @param {Object<string, number>} telemetry - Runtime sensor readings (e.g., { 'MPAM_deviation': 0.06 }).
-     * @returns {Object<string, boolean>} Derived boolean preconditions (e.g., { 'SEV_DEVIATION_MPAM': true }).
+     * @param {Object<string, number>} telemetry - Runtime sensor readings.
+     * @returns {Object<string, boolean>} Derived boolean preconditions.
      */
     derivePreconditions(telemetry) {
         const derived = {};
@@ -25,18 +43,49 @@ class DialAnalysisRuleEngine {
             const metricConf = this.metricsConfig[metricKey];
             const value = telemetry[metricKey];
 
-            if (metricConf && value !== undefined) {
+            // Check if configuration exists and telemetry data is present and valid (not null/undefined)
+            if (metricConf && typeof value === 'number') {
                 const { threshold, operator } = metricConf;
-                let isViolated = false;
+                
+                // Use the static comparator map, falling back to default if operator is unknown
+                const comparator = DialAnalysisRuleEngine.COMPARATORS[operator] || DialAnalysisRuleEngine.COMPARATORS.DEFAULT;
 
-                if (operator === 'GT') { isViolated = value > threshold; }
-                if (operator === 'LT') { isViolated = value < threshold; }
-                // Add EQ/GTE/LTE handlers here as needed
-
-                derived[key] = isViolated;
+                derived[key] = comparator(value, threshold);
+            } else if (metricConf) {
+                // If configuration exists but telemetry is missing, precondition is defaulted to false/safe
+                derived[key] = false;
             }
         }
         return derived;
+    }
+
+    /**
+     * Internal helper to execute a single logical clause (AND/OR/NOT_ANY).
+     * @param {Object} logic - { operator: string, references: string[] }
+     * @param {Object<string, boolean>} derivedPreconditions
+     * @returns {boolean}
+     */
+    _evaluateLogic(logic, derivedPreconditions) {
+        const { operator, references } = logic;
+
+        switch (operator) {
+            case "AND":
+                // Must check against `true` explicitly to handle potential undefined references gracefully
+                return references.every(ref => derivedPreconditions[ref] === true);
+            case "OR":
+                return references.some(ref => derivedPreconditions[ref] === true);
+            case "NOT_ANY": 
+                // True if NONE of the referenced preconditions are true.
+                return !references.some(ref => derivedPreconditions[ref] === true);
+            case "NOT_ALL": 
+                // True if at least one referenced precondition is NOT true.
+                return references.some(ref => derivedPreconditions[ref] === false || derivedPreconditions[ref] === undefined);
+            case "DEFAULT":
+                return true;
+            default:
+                console.warn(`[DialAnalysisRuleEngine] Unknown logic operator in rule: ${operator}`);
+                return false;
+        }
     }
 
     /**
@@ -46,25 +95,12 @@ class DialAnalysisRuleEngine {
      */
     executeRules(derivedPreconditions) {
         for (const rule of this.rules) {
-            const { logic, output } = rule;
-            let result = false;
-            
-            if (logic.operator === "OR") {
-                result = logic.references.some(ref => derivedPreconditions[ref] === true);
-            } else if (logic.operator === "AND") {
-                result = logic.references.every(ref => derivedPreconditions[ref] === true);
-            } else if (logic.operator === "NOT_ANY") {
-                result = !logic.references.some(ref => derivedPreconditions[ref] === true);
-            } else if (logic.operator === "DEFAULT") {
-                result = true;
-            }
-
-            if (result) {
-                return output; 
+            if (this._evaluateLogic(rule.logic, derivedPreconditions)) {
+                return rule.output; 
             }
         }
         return null; // No rule matched
     }
 }
 
-// export default DialAnalysisRuleEngine;
+export default DialAnalysisRuleEngine;
