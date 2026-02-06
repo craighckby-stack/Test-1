@@ -1,0 +1,20 @@
+{
+  "SUT_Version": "L3_V1.2.0",
+  "OperationalDomain": "CoreFlightSystems",
+  "InputConstraints": [
+    {
+      "parameter": "Kinetic_Energy_Range",
+      "min": 100,
+      "max": 5000,
+      "unit": "J"
+    },
+    {
+      "parameter": "System_Latency_Threshold_ms",
+      "target": 50
+    }
+  ],
+  "ExpectedInitialState": {
+    "StateVector_P0": [1.0, 0.0, 0.0],
+    "Checksum": "SHA256:abc123def456"
+  }
+}
