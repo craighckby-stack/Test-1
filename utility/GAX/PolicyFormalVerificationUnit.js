@@ -1,12 +1,19 @@
 // SAG V94.1 - GAX Policy Formal Verification Unit (Orchestration Layer)
-// Refactored for modular context retrieval, precise error handling, and enhanced auditing efficiency.
+// Refactored for higher intelligence, prioritizing robust configuration defaults, 
+// explicit sequential execution (Schema -> History -> Engine), and detailed logging.
 
 const { GAX_PolicyConfig } = require('../../config/GAX/PolicyDefinitions.js');
 const { CRoT_HistoryAnchor } = require('../../core/CRoT/HistoryAnchor.js');
 const { PolicyHeuristicIndex } = require('../../core/CRoT/PolicyHeuristicIndex.js');
 const { FormalVerificationEngine } = require('./FormalVerificationEngine.js');
-const { PolicySchemaValidator } = require('./PolicySchemaValidator.js'); // Proposed dependency
+const { PolicySchemaValidator } = require('./PolicySchemaValidator.js'); 
 const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
+
+// --- Configuration Defaults for Robustness ---
+const VerificationUnitDefaults = Object.freeze({
+    MIN_REQUIRED_ANCHORS: 5,
+    HISTORY_LOOKBACK_DEPTH: 100
+});
 
 /**
  * Standard input structure for Policy Formal Verification.
@@ -49,7 +56,9 @@ function _buildResult(verificationId, timestampStart, details) {
 }
 
 /**
- * V94.1 Optimized History Retrieval, combining heuristic indexing and depth fallback.
+ * V94.1 Optimized History Retrieval: combining heuristic indexing and depth fallback for optimal efficiency.
+ * It retrieves contextual history (prior approved constraints) necessary for axiomatic anchoring.
+ * 
  * @param {PolicyDelta} proposedPolicyUpdate
  * @param {object} currentConfig
  * @param {string} verificationId
@@ -57,10 +66,12 @@ function _buildResult(verificationId, timestampStart, details) {
  */
 async function _fetchHistoricalContext(proposedPolicyUpdate, currentConfig, verificationId) {
     let historicalConstraints = [];
-    const minRequiredAnchors = currentConfig.minRequiredAnchors || 5; 
-    const historyLookbackDepth = currentConfig.historicalLookbackDepth || 100;
 
-    // 1. Heuristic History Retrieval
+    // Safely extract configuration or use robust defaults
+    const minRequiredAnchors = currentConfig.minRequiredAnchors || VerificationUnitDefaults.MIN_REQUIRED_ANCHORS; 
+    const historyLookbackDepth = currentConfig.historicalLookbackDepth || VerificationUnitDefaults.HISTORY_LOOKBACK_DEPTH;
+
+    // 1. Heuristic History Retrieval (Fast Path)
     const fingerprint = PolicyHeuristicIndex.generateFingerprint(proposedPolicyUpdate);
     const relevantTxIds = await PolicyHeuristicIndex.getRelevantAnchorIDs(fingerprint);
 
@@ -69,13 +80,18 @@ async function _fetchHistoricalContext(proposedPolicyUpdate, currentConfig, veri
         historicalConstraints = await CRoT_HistoryAnchor.getConstraintsByTxIds(relevantTxIds);
     }
 
-    // 2. Fallback: If heuristic retrieval fails or is insufficient
+    // 2. Depth Fallback (Safety Path)
     if (historicalConstraints.length < minRequiredAnchors) {
-        GAXTelemetry.debug('HISTORY_QUERY', { verificationId, type: 'DEPTH_FALLBACK', depth: historyLookbackDepth });
+        GAXTelemetry.debug('HISTORY_QUERY', { 
+            verificationId, 
+            type: 'DEPTH_FALLBACK', 
+            required: minRequiredAnchors,
+            currentCount: historicalConstraints.length 
+        });
         
         const depthConstraints = await CRoT_HistoryAnchor.getRecentSuccessfulACVs(historyLookbackDepth);
         
-        // Combine results, ensuring uniqueness
+        // Combine results, ensuring uniqueness (important to prevent duplicate constraints in FVE)
         const combinedConstraints = new Set([...historicalConstraints, ...depthConstraints]);
         historicalConstraints = Array.from(combinedConstraints);
     }
@@ -89,7 +105,6 @@ async function _fetchHistoricalContext(proposedPolicyUpdate, currentConfig, veri
 
 /**
  * Executes the Formal Verification Process for proposed policy updates.
- * This orchestration layer intelligently fetches history and validates consistency.
  *
  * @async
  * @function executeFormalVerification
@@ -106,41 +121,45 @@ async function executeFormalVerification(proposedPolicyUpdate) {
     });
 
     let currentConfig;
-    let historicalConstraints;
     let result;
 
     try {
-        // 1. Load Configuration
+        // Step 1: Load Configuration
         currentConfig = await GAX_PolicyConfig.loadCurrent();
         if (!currentConfig) {
             throw new Error("CONFIG_LOAD_FAILURE: Policy Configuration missing or inaccessible.");
         }
-
-        // 2. Pre-Verification (Schema Validation) - Using proposed utility
-        PolicySchemaValidator.validatePolicyUpdate(proposedPolicyUpdate);
-
-        // 3. Intelligent History Retrieval
-        historicalConstraints = await _fetchHistoricalContext(
+        
+        // Step 2: Pre-Verification (Schema Validation) - Ensure structural integrity before expensive I/O
+        try {
+             PolicySchemaValidator.validatePolicyUpdate(proposedPolicyUpdate);
+        } catch (validationError) {
+            // Re-throw with SCHEMA_VIOLATION prefix for specific failure categorization in the outer catch block
+            throw new Error(`SCHEMA_VIOLATION: ${validationError.message}`);
+        }
+       
+        // Step 3: Intelligent History Retrieval
+        const historicalConstraints = await _fetchHistoricalContext(
             proposedPolicyUpdate,
             currentConfig,
             verificationId
         );
-
-        // 4. Delegation to the Formal Verification Engine
+        
+        // Step 4: Delegation to the Formal Verification Engine
         const simulationResult = await FormalVerificationEngine.checkConsistency(
             proposedPolicyUpdate,
             currentConfig,
             historicalConstraints
         );
 
-        // 5. Process Engine Output
+        // Step 5: Process Engine Output
         if (simulationResult.isConsistent) {
             result = _buildResult(verificationId, timestampStart, {
                 isVerified: true,
                 category: 'SUCCESS',
                 report: "Formal axiomatic consistency proven."
             });
-            GAXTelemetry.success('PVF_SUCCESS', { verificationId, durationMs: result.durationMs });
+            GAXTelemetry.success('PVF_SUCCESS', { verificationId, constraintsChecked: historicalConstraints.length, durationMs: result.durationMs });
         } else {
             result = _buildResult(verificationId, timestampStart, {
                 isVerified: false,
@@ -148,27 +167,31 @@ async function executeFormalVerification(proposedPolicyUpdate) {
                 report: simulationResult.failureReason || "Axiomatic consistency violation detected.",
                 constraints: simulationResult.violatingAxioms
             });
-            GAXTelemetry.failure('PVF_FAILED_AXIOMATIC', { verificationId, violations: simulationResult.violatingAxioms });
+            GAXTelemetry.failure('PVF_FAILED_AXIOMATIC', { verificationId, violations: simulationResult.violatingAxioms.length });
         }
 
     } catch (error) {
-        // 6. Handle Failures
+        // Step 6: Robust Failure Handling
         const errorMessage = error.message || "Unknown PVF internal error.";
         let category = 'FAILURE_INTERNAL';
+        let logFunction = GAXTelemetry.fatal;
 
         if (errorMessage.startsWith('SCHEMA_VIOLATION')) {
             category = 'FAILURE_SCHEMA';
-            GAXTelemetry.warn('PVF_FAILED_SCHEMA', { verificationId, error: errorMessage });
+            logFunction = GAXTelemetry.warn; 
         } else if (errorMessage.startsWith('CONFIG_LOAD_FAILURE')) {
-             GAXTelemetry.fatal('PVF_CONFIG_FATAL', { verificationId, error: errorMessage });
+            category = 'FAILURE_INTERNAL'; 
         } else {
-            GAXTelemetry.fatal('PVF_EXECUTION_FATAL', { verificationId, errorName: error.name });
+            // Default to fatal logging for unexpected runtime errors
+             logFunction = GAXTelemetry.fatal; 
         }
+        
+        logFunction('PVF_FAILED', { verificationId, category, error: errorMessage });
 
         result = _buildResult(verificationId, timestampStart, {
             isVerified: false,
             category: category,
-            report: `Execution failed: ${errorMessage.substring(0, 80)}...`,
+            report: `Execution failed: ${errorMessage.substring(0, 100)}${(errorMessage.length > 100 ? '...' : '')}`,
             constraints: [error.name || category, errorMessage.substring(0, 50)]
         });
     }
