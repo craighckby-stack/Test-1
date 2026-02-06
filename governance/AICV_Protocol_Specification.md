@@ -1,45 +1,53 @@
 # Artifact Integrity Chain Validator (AICV) V94.1
 
-## I. MANDATE AND CORE PRINCIPLES
+## I. CORE MANDATE: NON-REPUDIATION TRACEABILITY (NRT)
 
-The Artifact Integrity Chain Validator (AICV) serves as the mandated cryptographic proofing layer within the Governance State Evolution Protocol (GSEP 0-5). Its core mission is the maintenance of absolute **Non-Repudiation Traceability** by ensuring every prospective state transition artifact ($A_{N}$) is irreversibly chained and cryptographically validated against its predecessor ($A_{N-1}$).
+The Artifact Integrity Chain Validator (AICV) acts as the critical trust anchor within the Governance State Evolution Protocol (GSEP). Its exclusive mandate is the computational maintenance of **Non-Repudiation Traceability (NRT)**.
 
-This validation must successfully complete and yield a definitive Chain Proof Hash (CPH) before any high-stakes operation, such as P-01 Commitment Calculus or D-01 Ledger Finalization, can commence.
+AICV guarantees that every proposed state transition artifact ($A_N$) is cryptographically proven, irreversible, and verifiably chained against its authoritative predecessor ($A_{N-1}$) via the Integrity Lock Linking (ILL) Protocol. Successful generation of the Chain Proof Hash (CPH) is an absolute precondition for high-stakes GSEP operations (e.g., P-01 Commitment Calculus, D-01 Ledger Finalization).
 
-## II. ARCHITECTURAL COMPONENTS AND SEPARATION OF CONCERNS
+## II. MODULAR ARCHITECTURE AND POLICY INGRESS
 
-The AICV middleware is architecturally segmented into two specialized, tightly coupled components. Security settings are dynamically enforced via configuration loaded from `AICV_Security_Policy.yaml`.
+AICV functions as decoupled middleware governed by a policy-driven security substrate defined in `AICV_Security_Policy.yaml`.
 
-### A. AICV Daemon (AICVD)
+### A. Integrity Chain Daemon (AICVD)
 
-**Role:** High-speed cryptographic execution and validation engine.
-**Responsibilities:** Ingestion of stage artifacts, execution of the Integrity Lock Linking (ILL) Protocol, enforcement of defined security policies, and initiation of the Veto Egress Interface (VEI) upon cryptographic failure (F-01).
+**Role:** High-throughput cryptographic verification and execution engine.
+**Functionality:** Ingestion of policy standards, execution of the ILL Protocol, enforcement of dynamic cryptographic primitives, and mandatory Veto Egress Interface (VEI) signaling upon cryptographic integrity failure (F-01).
 
-### B. Immutable Verification Register (IVR)
+### B. Commitment Hardening Interface (CHI)
 
-**Role:** Dedicated, segregated append-only ledger segment for temporal immutability assurance.
-**Responsibilities:** Immediate logging and hardening of the computed CPH, generation of the definitive, cryptographically attested release signature ($L_{N}$, the Integrity Lock).
+(Refactored from IVR: Immutable Verification Register)
 
-## III. INTEGRITY LOCK LINKING (ILL) PROTOCOL SPECIFICATION
+**Role:** Dedicated, synchronized service for temporal immutability and signature generation.
+**Functionality:** Immediate hardening of the calculated CPH and associated verification metadata, and generation of the definitive, cryptographically attested Integrity Lock ($L_N$). The CHI ensures append-only storage semantics for the chain history.
 
-The ILL Protocol ensures the computational integrity of the artifact lineage using defined primitives.
+### C. Security Policy Engine (SPE) Layer
+
+The SPE enforces dynamic algorithmic rigor. It loads configuration (including active HASH primitives and key rotation standards) from the policy store, delivering mandatory operational context to the AICVD before every execution cycle.
+
+## III. INTEGRITY LOCK LINKING (ILL) PROTOCOL
+
+The ILL Protocol specifies the deterministic computational flow required to validate lineage and produce the next Integrity Lock ($L_N$).
 
 ### A. Input Primitives
-1.  $L_{N-1}$: The finalized Integrity Lock signature from the preceding stage.
-2.  $A_{N}$: The current Stage N transitional artifact, which must embed a verifiable cryptographic reference to $L_{N-1}$.
 
-### B. Validation Flow (AICVD Execution Path)
+1.  $L_{N-1}$: Finalized Integrity Lock signature of the preceding stage.
+2.  $A_{N}$: The current Stage N artifact. This artifact *must* encapsulate $L_{N-1}$ within its secure metadata block (SignatureBlock($A_N$)).
 
-1.  **Policy & Context Initialization:** Load algorithm and key standards from the operational policy store.
-2.  **Parent Lock Verification:** AICVD must cryptographically prove that $L_{N-1}$ is provably contained and correctly referenced within the secure signature block of $A_{N}$.
-    *   *Failure Condition (F-01):* If verification fails (Lineage Discontinuity), AICVD immediately halts GSEP progression and signals the VEI for emergency veto routing.
-3.  **Chain Proof Hash (CPH) Generation:** If lineage integrity is confirmed, AICVD computes the CPH:
-    $$CPH = HASH(L_{N-1} \vert SignatureBlock(A_{N}) \vert GovernanceTimestamp)$$ 
-4.  **Synchronous IVR Commitment:** The CPH and associated verification metadata are synchronously written to the IVR.
-5.  **Lock Generation ($L_{N}$):** The IVR generates an internal, cryptographically unique commitment signature over the CPH record. This resulting signature constitutes the official Integrity Lock ($L_{N}$), which is released to the subsequent GSEP stage.
+### B. Validation Flow (AICVD Execution)
 
-## IV. SYSTEM INTEROPERABILITY AND CRITICAL EXIT POINTS
+1.  **Policy Manifest Initialization:** AICVD retrieves the dynamic HASH primitive ($H_{POL}$) and key configuration from the SPE.
+2.  **Parent Lock Proof of Inclusion (Lineage Check):** AICVD verifies that $L_{N-1}$ is provably contained and correctly referenced within $A_N$'s signature block.
+    *   **Failure Condition (F-01 Lineage Discontinuity):** Immediate halt, VETO routing via VEI.
+3.  **Chain Proof Hash (CPH) Computation:** Using the dynamically enforced $H_{POL}$, AICVD computes the CPH:
+    $$CPH = H_{POL}(L_{N-1} \vert \text{SignatureBlock}(A_{N}) \vert \text{GovernanceTimestamp} \vert \text{SPE\_Nonce})$$
+    *Note: The inclusion of a Policy Engine Nonce (SPE_Nonce) enhances defense against collision attacks tied to policy updates.*
+4.  **Synchronous CHI Commitment:** The CPH and verification proof are committed synchronously to the CHI.
+5.  **Integrity Lock Generation ($L_{N}$):** The CHI signs the committed CPH record using its internal HSM, producing the stage's official $L_N$. This lock is released for subsequent GSEP progression.
 
-*   **GSEP Veto Enforcement (F-01):** Any failure in Section III.B.2 triggers an irreversible VETO via the VEI, prohibiting any artifact promotion to Stage 3 (P-01).
-*   **P-01 Calculus Prerequisite (Stage 3):** The IVR-signed $L_{N}$ is a mandatory, non-negotiable input required for the activation of Governance Cognitive Object (GCO) decisional calculus.
-*   **D-01 Ledger Commitment (Stage 4 -> 5):** The MCR integration demands that the consolidated, time-stamped CPH chain, guaranteed by the IVR logs corresponding to the entire GSEP cycle, be bundled with the P-01 PASS assertion for final D-01 AIA Ledger registration.
+## IV. SYSTEM CRITICAL INTERFACES
+
+*   **VETO Interface (VEI):** Triggered exclusively by F-01 (Lineage Discontinuity). An irreversible hard stop preventing Stage 3 advancement.
+*   **GCO Input Requirement (P-01):** The CHI-signed $L_N$ is a mandatory cryptographic input for the activation of Governance Cognitive Object (GCO) decisional calculus.
+*   **Ledger Finalization Requirement (D-01):** The consolidated, time-stamped CPH chain history, guaranteed by CHI logs across the GSEP cycle, must be bundled with the P-01 PASS assertion for final MCR/AIA Ledger registration.
