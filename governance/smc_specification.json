@@ -1,1 +1,72 @@
-[object Object]
+{
+  "smc_spec_version": "v1.0.0-rc3",
+  "name": "Sovereign_Kernel_SMC",
+  "description": "Defines authoritative governance protocols and authorized state transitions for the core kernel.",
+  "status_hierarchy": [
+    "DORMANT",
+    "BOOTSTRAP_INIT",
+    "OPERATIONAL_SAFE",
+    "OPERATIONAL_FULL",
+    "CRITICAL_STANDBY",
+    "EVOLUTION_PAUSE"
+  ],
+  "authorization_model": {
+    "type": "MultiSig_Threshold",
+    "threshold": 0.75,
+    "required_roles": [
+      "Architect_Core",
+      "Governance_Trustee"
+    ],
+    "exempt_transitions": [
+      "DORMANT -> BOOTSTRAP_INIT"
+    ]
+  },
+  "protocol_map": {
+    "BOOTSTRAP_INIT": {
+      "allowed_commands": [
+        "LOAD_MODULES",
+        "RUN_SELF_CHECK"
+      ],
+      "next_states": [
+        "OPERATIONAL_SAFE",
+        "CRITICAL_STANDBY"
+      ],
+      "resource_min_check": true
+    },
+    "OPERATIONAL_SAFE": {
+      "allowed_commands": [
+        "QUERY_STATE",
+        "INITIATE_ROLLBACK"
+      ],
+      "next_states": [
+        "OPERATIONAL_FULL",
+        "EVOLUTION_PAUSE"
+      ]
+    },
+    "OPERATIONAL_FULL": {
+      "allowed_commands": [
+        "DEPLOY_NEW_CODEBASE",
+        "ADJUST_GOVERNANCE_CONFIG"
+      ],
+      "next_states": [
+        "OPERATIONAL_SAFE",
+        "EVOLUTION_PAUSE",
+        "CRITICAL_STANDBY"
+      ],
+      "requires_evolution_vote": true
+    }
+  },
+  "resource_budgeting": {
+    "OPERATIONAL_FULL": {
+      "max_cpu_usage": 0.95,
+      "max_memory_gb": 128
+    },
+    "EVOLUTION_PAUSE": {
+      "max_cpu_usage": 0.1
+    }
+  },
+  "event_logging": {
+    "level": "AUDIT_HIGH",
+    "required_storage_duration_days": 365
+  }
+}
