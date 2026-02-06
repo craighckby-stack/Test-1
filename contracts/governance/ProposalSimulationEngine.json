@@ -1,1 +1,36 @@
-[object Object]
+{
+  "simulationId": "SIM-v94-20240725-A",
+  "engineVersion": "v94.1",
+  "executionContext": {
+    "chainID": 1,
+    "blockHeight": 19685000,
+    "forkURLKey": "ALCHEMY_MAINNET_FULL",
+    "preStateOverrides": [
+      {
+        "address": "0xTargetGovernanceContract",
+        "slot": "0xStateVariableHash",
+        "value": "0xExpectedInitialValue"
+      }
+    ]
+  },
+  "proposalPayload": {
+    "executorAddress": "0xTimeLockV2",
+    "transactions": [
+      {
+        "target": "0xContractA",
+        "value": "0",
+        "calldata": "0x...",
+        "description": "Call ContractA Method X"
+      }
+    ],
+    "expectedMinimumGas": 5000000,
+    "riskAssertionTags": ["SYSTEM_UPGRADE", "HIGH_VALUE_TRANSFER"]
+  },
+  "dependencyMap": {
+    "criticalAssets": [
+      "0xOraclePriceFeed",
+      "0xDAOVaultBalance"
+    ],
+    "externalCallsBlocked": true
+  }
+}
