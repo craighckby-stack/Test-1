@@ -1,1 +1,78 @@
-[object Object]
+{
+  "title": "Autonomous Code Versioning and Decision (ACVD) Record Schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "Defines the mandatory structure for logging autonomous evolutionary decisions (ACVDs), ensuring governance compliance and traceability.",
+  "properties": {
+    "ACVD_ID": {
+      "type": "string",
+      "description": "Unique cryptographic hash ID (SHA-256) of the finalized decision block."
+    },
+    "version_agv": {
+      "type": "string",
+      "description": "The specific Sovereign AGI Model Version that executed this evolution."
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time of decision finalization and schema stamping."
+    },
+    "mission_summary": {
+      "type": "string",
+      "description": "The specific, high-level objective guiding this evolution cycle."
+    },
+    "context_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the complete, immutable input context (system state, external data, constraints)."
+    },
+    "decision_trace": {
+      "type": "array",
+      "description": "Structured breakdown of the AGI's iterative reasoning steps, ensuring auditable logic.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_index": {"type": "integer"},
+          "focus_area": {"type": "string", "description": "e.g., Security Review, Performance Optimization, Logic Refinement."},
+          "derived_logic": {"type": "string", "description": "Core logical derivation or internal model output."
+          }
+        },
+        "required": ["step_index", "focus_area", "derived_logic"]
+      }
+    },
+    "artifact_changes": {
+      "type": "array",
+      "description": "List of all resulting file modifications (CREATE, UPDATE, DELETE).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"},
+          "operation": {"type": "string", "enum": ["CREATE", "UPDATE", "DELETE"]},
+          "hash_before": {"type": ["string", "null"], "description": "Pre-change file hash, null if created."},
+          "hash_after": {"type": ["string", "null"], "description": "Post-change file hash, null if deleted."
+          }
+        },
+        "required": ["path", "operation"]
+      }
+    },
+    "governance_metrics": {
+      "type": "object",
+      "description": "Metrics quantifying the safety and integrity of the evolution.",
+      "properties": {
+        "confidence_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "impact_level": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+        "security_vulnerability_scan": {"type": "string", "enum": ["PASSED", "FAILED", "SKIPPED"]},
+        "rollback_plan_hash": {"type": "string", "description": "Hash of the verified rollback instruction set."
+        }
+      }
+    }
+  },
+  "required": [
+    "ACVD_ID",
+    "version_agv",
+    "timestamp_utc",
+    "mission_summary",
+    "context_hash",
+    "decision_trace",
+    "artifact_changes"
+  ]
+}
