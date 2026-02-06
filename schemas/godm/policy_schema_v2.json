@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://agi.sovereign.v94/schemas/godm_policy_v2.json",
+  "title": "GODM Decision Weights Schema V2",
+  "description": "Defines the required structure for the HybridWeighted decision matrix and validation schema for dynamically loaded policies.",
+  "type": "object",
+  "properties": {
+    "WeightingFactors": {
+      "type": "array",
+      "description": "List of core factors influencing decisions.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "weight": {"type": "number", "minimum": 0, "maximum": 1.0},
+          "influence_bias": {"type": "string", "enum": ["Positive", "Negative", "Neutral"]}
+        },
+        "required": ["name", "weight"]
+      }
+    },
+    "ContextualAdjustments": {
+      "type": "object",
+      "description": "Dynamic weight multipliers based on operational context.",
+      "patternProperties": {
+        "^[A-Z_]+$": {
+          "type": "number",
+          "description": "Multiplier for a specific context (e.g., LOW_RESOURCE_MODE)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "DefaultAction": {
+      "type": "string",
+      "description": "Action taken if no policy matches (e.g., 'Queue_For_Manual_Review')."
+    }
+  },
+  "required": ["WeightingFactors", "DefaultAction"]
+}
