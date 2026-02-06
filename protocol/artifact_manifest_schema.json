@@ -1,1 +1,111 @@
-[object Object]
+{
+  "$id": "https://agi.sovereign.v94.1/protocol/artifact_manifest_schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sovereign AGI Artifact Manifest Schema",
+  "description": "Defines the structure for listing and validating artifacts produced during a code evolution or scaffolding cycle, ensuring traceability and integrity.",
+  "type": "object",
+  "required": [
+    "manifest_id",
+    "timestamp",
+    "agent_version",
+    "artifacts"
+  ],
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "description": "A unique identifier for this specific manifest generation."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of manifest generation."
+    },
+    "agent_version": {
+      "type": "string",
+      "description": "The version identifier of the Sovereign AGI instance that produced the artifacts (e.g., v94.1)."
+    },
+    "task_context": {
+      "type": "object",
+      "description": "Contextual metadata about the originating task.",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "objective": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "objective"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "A list of structured definitions for all produced, modified, or deleted files/components.",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "type",
+          "status",
+          "checksum_hash"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "The relative file path or system identifier of the artifact."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "code",
+              "schema",
+              "config",
+              "test",
+              "documentation",
+              "report",
+              "binary",
+              "protocol"
+            ],
+            "description": "Categorization of the artifact content."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "modified",
+              "deleted",
+              "validated",
+              "conflict",
+              "unchanged"
+            ],
+            "description": "The action taken or state of the file relative to the input context."
+          },
+          "checksum_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 hash of the artifact content. Required unless status is 'deleted' and content is zero-size."
+          },
+          "checksum_algorithm": {
+            "type": "string",
+            "enum": [
+              "SHA256"
+            ],
+            "description": "The cryptographic hashing algorithm used for integrity verification."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Size of the artifact file in bytes."
+          },
+          "diff_context": {
+            "type": "string",
+            "description": "Reference identifier or path to the unified diff patch against the original file, if status is 'modified'."
+          }
+        }
+      }
+    }
+  }
+}
