@@ -1,121 +1,127 @@
 /**
  * Retirement Metrics Service (RMS) - src/governance/retirementMetricsService.js
- * ID: RMS
- * Role: Data Provisioning / Metric Calculation
+ * ID: RMS_V94
+ * Role: Data Provisioning / Metric Calculation & Weighting
  *
- * RMS calculates and aggregates highly specific, weighted metrics required by CORE 
- * (Component Obsolescence Review Engine) to perform P-01 Trust Calculus adjudication,
- * focusing primarily on system safety (redundancy), risk (dependency integrity), and overhead (complexity).
+ * RMS calculates and aggregates highly specific, weighted metrics required by CORE
+ * (Component Obsolescence Review Engine) to perform P-01 Trust Calculus adjudication.
+ * It focuses on system Safety (Redundancy), Risk (Dependency Exposure), and Overhead (Complexity).
  */
 
 import { systemStateMonitor } from '../core/systemStateMonitor.js';
 import { dependencyGraph } from '../analysis/dependencyGraph.js';
 import { usageTelemetry } from '../analysis/usageTelemetry.js';
+import { StaticAnalysisEngine } from '../analysis/staticAnalysisEngine.js'; // New dedicated dependency for structural metrics
 import { Logger } from '../utils/logger.js';
-import { METRIC_WEIGHTS } from './retirementMetricWeights.js'; // New Configuration Dependency
+import { METRIC_WEIGHTS } from './retirementMetricWeights.js';
 
 const logger = new Logger('RMS');
 
 export const retirementMetricsService = {
 
     /**
+     * Helper function to robustly fetch all raw, unweighted metric scores in parallel.
+     * Integrates the StaticAnalysisEngine for complexity metrics.
+     * @param {string} componentId - The component to analyze.
+     * @returns {Promise<object>} Raw metric scores.
+     */
+    async _fetchRawMetrics(componentId) {
+        logger.debug(`Fetching raw metrics concurrently for ${componentId}.`);
+
+        // Execute independent asynchronous metrics calculations in parallel using Promise.all.
+        const [
+            redundancyScore,
+            criticalDependencyExposure,
+            usageRate,
+            complexityMetrics
+        ] = await Promise.all([
+            // 1. Safety Metric (Redundancy): Higher score means safer removal.
+            systemStateMonitor.calculateRedundancy(componentId),
+
+            // 2. Risk Metric (Exposure): Higher score means higher downstream risk.
+            dependencyGraph.analyzeCriticalDownstreamRisk(componentId),
+
+            // 3. Operational Metric (Usage Rate): Should be normalized 0.0 to 1.0
+            usageTelemetry.getHistoricalAverage(componentId),
+
+            // 4. Overhead Metric (Complexity): Replaced heuristic with dedicated engine.
+            StaticAnalysisEngine.analyzeComplexityBenefit(componentId)
+        ]);
+
+        // Note: StaticAnalysisEngine.analyzeComplexityBenefit must return an object containing 'complexityReductionEstimate'
+
+        return {
+            redundancyScore,
+            criticalDependencyExposure,
+            usageRate: Math.max(0, Math.min(1, usageRate)), // Ensure strict normalization
+            complexityReductionEstimate: complexityMetrics.complexityReductionEstimate
+        };
+    },
+
+    /**
      * Processes raw metric scores into normalized, weighted inputs for the CORE Trust Calculus.
-     * This ensures standardized input regardless of the underlying measurement scale.
-     * @param {object} rawMetrics - Raw scores from underlying analysis engines.
-     * @returns {object} Weighted and normalized scores ready for CORE consumption.
+     * This ensures standardized, governed input based on current policy (METRIC_WEIGHTS).
+     * @param {object} rawMetrics - Raw scores (assumed 0.0 to 1.0).
+     * @returns {object} Weighted scores encapsulated as Trust Calculus Input factors.
      */
     _processAndWeighMetrics(rawMetrics) {
-        // Use explicit weighting from the governance configuration
 
-        // Safety Score (High Score encourages retirement, usually related to Redundancy / Low Usage)
-        const weightedRedundancy = rawMetrics.redundancyScore * METRIC_WEIGHTS.REDUNDANCY;
-        
-        // Risk Score (High Score discourages retirement, based on Critical Exposure)
-        const weightedExposure = rawMetrics.criticalDependencyExposure * METRIC_WEIGHTS.DEPENDENCY_EXPOSURE;
-        
-        // Overhead Score (High Score encourages retirement, based on removal benefits)
-        const weightedOverhead = rawMetrics.complexityReductionEstimate * METRIC_WEIGHTS.COMPLEXITY_REDUCTION;
+        // --- Trust Calculus Input Factors (Scores aggregated here):
 
-        // Usage Rate is an auxiliary factor, typically acting as a penalty for low use
-        const usagePenalty = (1 - rawMetrics.usageRate) * METRIC_WEIGHTS.USAGE_RATE_PENALTY; // If usage is 0, penalty is high.
+        // Safety Factor: Pushes towards retirement (higher redundancy => higher score)
+        const safetyFactor = rawMetrics.redundancyScore * METRIC_WEIGHTS.REDUNDANCY;
+
+        // Overhead Factor: Pushes towards retirement (higher complexity reduction => higher score)
+        const overheadFactor = rawMetrics.complexityReductionEstimate * METRIC_WEIGHTS.COMPLEXITY_REDUCTION;
+
+        // Risk Factor: Pulls away from retirement (higher exposure => lower score).
+        // Applied with a negative factor to represent drag/detraction from the overall retirement score.
+        const riskFactorDetraction = rawMetrics.criticalDependencyExposure * METRIC_WEIGHTS.DEPENDENCY_EXPOSURE * -1;
+
+        // Usage Penalty: Pushes towards retirement if usage is low.
+        const usagePenalty = (1 - rawMetrics.usageRate) * METRIC_WEIGHTS.USAGE_RATE_PENALTY;
+
+        // Composite Trust Calculus Input (CTC): Sum of weighted factors
+        const trustCalculusInput = safetyFactor + overheadFactor + riskFactorDetraction + usagePenalty;
 
         return {
             raw: rawMetrics,
             adjudicationInput: {
-                // The composite trust score fed directly into the P-01 Trust Calculus
-                trustCalculusInput: weightedRedundancy - weightedExposure + weightedOverhead + usagePenalty,
-                
-                // Individual Weighted Factors for auditing
-                safetyFactor: weightedRedundancy,
-                riskFactor: weightedExposure,
-                overheadFactor: weightedOverhead,
-                usagePenalty
+                // Main normalized input for CORE's P-01 function
+                trustCalculusInput: trustCalculusInput,
+
+                // Detailed Weighted Factors for auditing and traceability
+                safetyFactor: safetyFactor,
+                riskFactor: riskFactorDetraction,
+                overheadFactor: overheadFactor,
+                usagePenalty: usagePenalty
             }
         };
     },
 
     /**
-     * Estimates the quantitative reduction in system complexity achieved by removing the component.
-     * Currently uses an enhanced heuristic until the dedicated Static Analysis Engine (SAE) is integrated.
+     * Gathers all necessary weighted data points for a retirement review.
      * @param {string} componentId - The component to analyze.
-     * @param {object} metadata - Optional component metadata to inform the heuristic.
-     * @returns {number} Complexity reduction score (0.0 to 1.0).
-     */
-    _estimateComplexityReduction(componentId, metadata = {}) {
-        // Enhanced heuristic placeholder: Tries to normalize based on assumed intrinsic complexity markers.
-        const baseComplexity = (metadata.estimatedLoc || 500) / 10000;
-        return Math.min(1.0, baseComplexity * 0.7 + (Math.random() * 0.3));
-    },
-
-    /**
-     * Gathers all necessary weighted data points for a retirement review concurrently.
-     * Includes robust error handling and input validation.
-     * @param {string} componentId - The component to analyze.
-     * @returns {Promise<object>} Contains calculated and weighted metrics required for CORE Trust Calculus input.
+     * @returns {Promise<object>} Calculated and weighted metrics ready for CORE consumption.
      */
     async getComponentMetrics(componentId) {
         if (!componentId || typeof componentId !== 'string') {
             logger.error('Invalid componentId provided to RMS.', { componentId });
             throw new Error('RMS requires a valid component identifier.');
         }
-        
-        logger.info(`Calculating detailed retirement metrics for ${componentId}. Executing concurrent fetches.`);
 
-        let rawMetrics;
-        
+        logger.info(`Orchestrating detailed retirement metrics calculation for ${componentId}.`);
+
         try {
-            // Execute independent asynchronous metrics calculations in parallel using Promise.all.
-            const [ 
-                redundancyScore, 
-                criticalDependencyExposure,
-                usageRate 
-            ] = await Promise.all([
-                // 1. Redundancy Score (Safety Metric: Higher is better)
-                systemStateMonitor.calculateRedundancy(componentId),
-                
-                // 2. Dependency Exposure (Risk Metric: Higher is worse)
-                dependencyGraph.analyzeCriticalDownstreamRisk(componentId),
-                
-                // 3. Usage Rate (Should be normalized 0.0 to 1.0)
-                usageTelemetry.getHistoricalAverage(componentId)
-            ]);
+            // Step 1: Fetch raw data (decoupled)
+            const rawMetrics = await this._fetchRawMetrics(componentId);
 
-            // 4. Complexity Reduction Estimate (synchronous placeholder)
-            const complexityReductionEstimate = this._estimateComplexityReduction(componentId);
-            
-            rawMetrics = {
-                redundancyScore,
-                criticalDependencyExposure,
-                usageRate: Math.max(0, Math.min(1, usageRate)), // Ensure normalization
-                complexityReductionEstimate
-            };
+            // Step 2: Apply normalization, weights, and calculate final composite score
+            return this._processAndWeighMetrics(rawMetrics);
 
         } catch (error) {
-            logger.error(`Critical failure retrieving raw metrics for ${componentId}. System integrity compromise detected.`, error);
-            throw new Error(`RMS Calculation Failure: Cannot proceed with Trust Calculus input: ${error.message}`);
+            logger.error(`Critical failure in RMS orchestration for ${componentId}.`, error);
+            throw new Error(`RMS Calculation Orchestration Failure: ${error.message}`);
         }
-
-        // Apply normalization and governance weights
-        return this._processAndWeighMetrics(rawMetrics);
     }
 };
