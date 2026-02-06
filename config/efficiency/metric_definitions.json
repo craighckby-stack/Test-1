@@ -1,0 +1,52 @@
+{
+  "metric_version": "1.0",
+  "description": "Defines standard metrics tracked for cost modeling and dynamic policy triggers.",
+  "metrics": {
+    "tokens_consumed": {
+      "source_system": "InferenceCore/Telemetry",
+      "unit": "Token",
+      "aggregation_method": "SUM_PER_CYCLE",
+      "storage_policy": "Rolling30d"
+    },
+    "gpu_seconds": {
+      "source_system": "HardwareMonitor/GPU",
+      "unit": "Second",
+      "aggregation_method": "SUM_PER_CYCLE",
+      "storage_policy": "Rolling30d"
+    },
+    "read_count": {
+      "source_system": "DataService/Storage",
+      "unit": "IOPS_Event",
+      "aggregation_method": "COUNT",
+      "storage_policy": "Rolling30d"
+    },
+    "write_count": {
+      "source_system": "DataService/Storage",
+      "unit": "IOPS_Event",
+      "aggregation_method": "COUNT",
+      "storage_policy": "Rolling30d"
+    },
+    "execution_time_ms": {
+      "source_system": "ToolOrchestrator",
+      "unit": "Millisecond",
+      "aggregation_method": "SUM_PER_CYCLE",
+      "storage_policy": "Rolling30d"
+    },
+    "external_cost": {
+      "source_system": "ToolOrchestrator/ExternalAPI",
+      "unit": "USD",
+      "aggregation_method": "SUM_PER_CYCLE",
+      "storage_policy": "Permanent"
+    },
+    "CumulativeCostPercentage": {
+      "source_system": "RCM_PolicyEngine",
+      "unit": "Percentage",
+      "aggregation_method": "PEAK_PER_CYCLE"
+    },
+    "SystemUtilization": {
+      "source_system": "Kernel",
+      "unit": "Percentage",
+      "aggregation_method": "AVERAGE_PER_CYCLE"
+    }
+  }
+}
