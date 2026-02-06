@@ -1,33 +1,34 @@
-# SSP-01 PROTOCOL: SYSTEM STATE PUBLISHER MANDATE (v2.0)
+# SSC-01 PROTOCOL: SOVEREIGN STATE COMMITMENT MANDATE (v3.0)
 
-## GOVERNANCE OBJECTIVE (MANDATE)
-The SSP-01 component SHALL enforce the Systemic Truth Anchor (STA) role by performing cryptographically secure, irreversible state commitment. It is mandated to deterministically ingest audited pipeline artifacts and output a single, signed System Configuration Manifest (SCM) as the active operational truth source.
+## MANDATE 01: STATE COMMITMENT OBJECTIVE
+The Sovereign State Commitment (SSC-01) module is designated as the terminal stage (Stage 7) of the System Evolution Cycle. Its primary mission is the enforcement of the Systemic Truth Anchor (STA) via cryptographically verifiable, irreversible state finalization. SSC-01 SHALL ingest, validate, and atomically commit all pre-approved pipeline artifacts, culminating in the release of a globally coherent, signed System Configuration Manifest (SCM).
 
-## ROLE: IMMUTABLE STATE COMMITTER
-SSP-01 executes exclusively post-Genesis State Evolution Protocol (GSEP) commitment. It guarantees the active system configuration is verifiable and derived solely from the bounded, upstream GSEP artifacts, establishing an atomic anchor point for system initialization and subsequent module calibration.
+## ROLE DEFINITION: ATOMIC FINALIZER
+SSC-01 operates exclusively following the completion of the Genesis State Evolution Protocol (GSEP) verification. It serves as the system's single point of operational truth derivation, guaranteeing that the active system configuration is traceable, auditable, and derived exclusively from the bounded set of upstream, GSEP-certified data structures.
 
-## STATE COMMITMENT SEQUENCE (STAGE 7: SCM Generation & Broadcast)
+## STATE FINALIZATION PROCEDURE (STAGE 7: SCM Generation & Dissemination)
 
-The SSP-01 execution sequence MUST be atomic, auditable, and logged (P7.0):
+The SSC-01 execution sequence MUST be atomic, forensic-ready, and fully logged (P7.0*):
 
-1.  **Artifact Ingestion & Validation (P7.1):** SSP-01 MUST retrieve and validate required Integrity Proof Artifacts (IPA):
-    *   Genesis System Hash Lock (GSH, Stage 0)
-    *   Deterministic State Checkpoint Manifest (DSCM, Stage 4)
-    *   Immutable State Ledger Reference (D-01 Log, Stage 5)
-    *   Operational Activation Confirmation (Manifest, Stage 6)
+1.  **Proof Ingestion & Cross-Validation (P7.1):** SSC-01 MUST synchronously retrieve and validate the required Integrity Proof Artifacts (IPA) against the system's current trust boundary:
+    *   Genesis System Lock Hash (GSH, Stage 0 Anchor)
+    *   Deterministic State Checkpoint Registry (DSCR, Stage 4 Canonical State)
+    *   Immutable State Ledger Reference (LDR-01, Stage 5 Proof-of-Sequence)
+    *   Operational Readiness Confirmation (ORC Manifest, Stage 6 Post-Audit)
 
-2.  **Canonical SCM Synthesis (P7.2):** SSP-01 SHALL compile all validated artifacts (P7.1) into the standardized System Configuration Manifest (SCM) structure (defined in schemas/SCM_v1.json) and calculate the definitive SCM Root Hash (SHA3-512^2).
+2.  **Canonical Manifest Synthesis (P7.2):** SSC-01 SHALL assemble all validated inputs into the definitive System Configuration Manifest (SCM) structure (as defined in `schemas/SCM_v2.json`) and calculate the definitive SCM Root Hash using the mandatory double-hashing algorithm (SHA3-512^2).
 
-3.  **Authentication & Binding (P7.3):** The resulting SCM MUST be digitally signed using the Sovereign Core Signing Key (SCSK), binding the configuration version to the authorized sovereign identity.
+3.  **Identity Binding & Irrevocable Seal (P7.3):** The resulting SCM MUST be cryptographically signed via the validated Sovereign Core Signing Key (SCSK), incorporating the Key Validation Metadata (KVM-01 reference) to securely bind the configuration version to the authorized sovereign identity.
 
-4.  **Publication & Activation Trigger (P7.4):** The signed SCM SHALL be published to the internal System Configuration Plane (SCP). This action constitutes the authoritative, atomic configuration activation trigger, initiating synchronization across all subordinate architectural modules.
+4.  **Activation Publication & Dissemination (P7.4):** The signed SCM SHALL be published to the authoritative System Configuration Plane (SCP) and propagated via the System Broadcast Channel (SBC). This singular action functions as the immutable, atomic configuration activation trigger, commanding immediate synchronization across all architectural modules.
 
-## INTEGRITY CONSTRAINT & EXCEPTION PROTOCOL
-The SSP-01 execution operates under a strict integrity constraint. Failure mandates immediate RBM-01 activation.
+## IMMUTABILITY & EXCEPTION ENFORCEMENT
+The SSC-01 module enforces strict immutability criteria. Any failure necessitates an immediate Hard Halt and RBM-01 activation.
 
-SSP-01 MUST halt publication (P7.5) and issue a Hard Halt Signal if:
+SSC-01 MUST persist all input artifacts and halt publication (P7.5) if:
 
-*   **State Hash Mismatch (E7.1):** The calculated SCM Root Hash fails verification against the expected hash value committed within the D-01 Log structure (Internal Self-Verification Loop).
-*   **Activation Dereliction (E7.2):** The Stage 6 Activation Manifest reports a compromised or non-optimal state flag indicating a D-02 monitoring anomaly during the post-evolution audit.
+*   **Hash Commitment Violation (E7.1):** The calculated SCM Root Hash fails verification against the expected commitment recorded in the LDR-01 structure (Internal Self-Verification Loop).
+*   **Post-Audit Malignancy (E7.2):** The ORC Manifest reports any non-optimal flag or deviation identified during the post-evolution monitoring phase (D-02 anomaly detection).
+*   **SCSK Integrity Breach (E7.3):** Key Validation Module (KVM-01) reports an unavailability or revocation event for the mandated SCSK required by P7.3.
 
-**FAILURE PROTOCOL (E7.3):** Any integrity failure (E7.1 or E7.2) necessitates the immediate and pre-emptive issuance of a specialized *Rollback Mandate (RBM-01)* signal directly to the Governing Core Orchestrator (GCO), overriding standard feedback loops and enforcing immediate system reversion.
+**FAILURE PROTOCOL & FORENSIC READINESS (E7.4):** Upon detection of any exception (E7.1, E7.2, or E7.3), SSC-01 MUST archive the state (P7.5) and issue an elevated *Rollback Mandate (RBM-01)* signal directly to the Governing Core Orchestrator (GCO), enforcing pre-emptive system reversion independent of standard operational feedback loops.
