@@ -1,0 +1,15 @@
+{
+  "$id": "http://sovereign.agi/c-01_correction_codes_v1.0.json",
+  "title": "C-01 Calibration/Correction Action Codes",
+  "description": "Standardized codes for immediate Sovereign AGI GSEP Stage 7 actions (Calibration/Correction) based on D-03 feedback analysis. This minimizes latency between feedback ingestion and required system response.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "code": { "type": "string", "pattern": "^C01-[A-Z]{3}$", "description": "Unique three-letter code indicating the specific action (e.g., RET for Retrain S-01, ROLL for Rollback M-02)." },
+      "action_description": { "type": "string", "description": "Human-readable description of the required correction action." },
+      "priority_default": { "type": "string", "enum": ["URGENT", "HIGH", "NORMAL", "LOW"] }
+    },
+    "required": ["code", "action_description", "priority_default"]
+  }
+}
