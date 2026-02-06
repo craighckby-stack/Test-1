@@ -1,38 +1,64 @@
 {
-  "description": "Axiom Constraint Validation Manifest (ACVM). Defines concrete thresholds and permissible parameters for P-01 Finality Resolution, enforcing ACVD source definitions.",
+  "description": "Axiom Constraint Validation Manifest (ACVM). Defines concrete thresholds and permissible parameters for P-01 Finality Resolution, enforcing ACVD source definitions. Standardized V94.1 schema enforces policy structure and runtime safety.",
   "metadata": {
-    "manifest_version": "v94.1",
-    "finality_target": "P-01"
+    "manifest_version": "v94.1.1",
+    "finality_target": "P-01",
+    "deployment_date": "2024-05-30T10:00:00Z"
   },
   "constraints": {
-    "transition_efficacy": {
+    "efficacy_threshold": {
       "artifact_id": "TEMM",
       "name": "Transition Efficacy Minimum Index",
-      "parameters": {
-        "minimum_index": 0.985,
-        "units": "Efficacy Index (0.0 - 1.0)"
+      "definition": {
+        "severity": "CRITICAL",
+        "action_policy": "P-01_HALT_RESOLUTION",
+        "validation_schema": {
+          "minimum_index": { "type": "float", "min": 0.950, "max": 1.0, "required": true }
+        },
+        "parameters": {
+          "minimum_index": 0.990,
+          "units": "Efficacy Index (0.0 - 1.0)"
+        }
       }
     },
-    "execution_context": {
+    "runtime_environment": {
       "artifact_id": "ECVM",
       "name": "Permissible Execution Environments",
-      "parameters": {
-        "permitted_environments": [
-          "production_shielded",
-          "testing_integrated_v94",
-          "staging_v94_1"
-        ],
-        "default_environment": "production_shielded",
-        "strict_environment_check": true
+      "definition": {
+        "severity": "HIGH",
+        "action_policy": "LOG_AND_FLAG",
+        "validation_schema": {
+          "permitted_environments": { "type": "array", "items": "string", "min_length": 1 },
+          "default_environment": { "type": "string" },
+          "strict_environment_check": { "type": "boolean" }
+        },
+        "parameters": {
+          "permitted_environments": [
+            "production_shielded",
+            "testing_integrated_v94",
+            "staging_v94_1"
+          ],
+          "default_environment": "production_shielded",
+          "strict_environment_check": true
+        }
       }
     },
-    "integrity_check": {
+    "policy_integrity": {
       "artifact_id": "CSR",
       "name": "Structural Policy Integrity Check",
-      "parameters": {
-        "policy_version": "v94.6.1",
-        "active_policy_hash": "sha256:a6b8c9d0e1f2a3b4c5d6e7f809a1b2c3d4e5f60718293a4b5c6d7e8f90123456",
-        "source_authority": "ACVD"
+      "definition": {
+        "severity": "CRITICAL",
+        "action_policy": "P-01_ROLLBACK_SELF",
+        "validation_schema": {
+          "policy_version": { "type": "string" },
+          "active_policy_hash": { "type": "string", "pattern": "^sha256:" },
+          "source_authority": { "type": "string", "const": "ACVD" }
+        },
+        "parameters": {
+          "policy_version": "v94.6.1",
+          "active_policy_hash": "sha256:d9e2f3c4b5a617e8f9d0c1b2a3948576d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6",
+          "source_authority": "ACVD"
+        }
       }
     }
   }
