@@ -1,26 +1,27 @@
 # GFRM PROTOCOL SPECIFICATION: GOVERNANCE FAILURE RESPONSE MODULE
 
-## MODULE ID: GFRM | VERSION: V95.0 (Refactored from V94.1)
+## MODULE ID: GFRM | VERSION: V95.1 (Refactored from V95.0)
 
-### 1. MANDATE & SCOPE
+### 1. MANDATE & ROOT CONTEXT
 
-The Governance Failure Response Module (GFRM) is mandated to ensure system integrity during catastrophic loss of state finality. GFRM manages terminal failure states encountered within the Governance Evolution Protocol (GSEP: L0-L7) execution space.
-Upon activation, the GFRM establishes the highest priority execution context, superseding all local governance agents (SDR, HMC, TAA) and non-critical process control flows.
+The Governance Failure Response Module (GFRM) is the mandatory L0-Defense mechanism, tasked with critical fault containment and state integrity preservation. GFRM manages terminal failure vectors stemming from the Governance State Evolution Protocol (GSEP: L0-L7) execution boundary.
 
-### 2. ACTIVATION CONDITIONS (Trigger State $S_T$)
+Upon activation, the GFRM establishes the Defensive Root Execution Context ($C_{DRC}$), which unconditionally supersedes all local governance agents (e.g., SDR, HMC, TAA) and non-critical process control flows, ensuring prioritized resource allocation.
 
-GFRM activation is immediate, irreversible (until clearance), and mandatory upon detection of any $S_T$ corresponding to:
+### 2. ACTIVATION CRITERIA (Trigger Set $\mathcal{T}_{SET}$)
 
-a) **GSEP Terminal Halt:** Detection of an unrecoverable exception ($E_{CRIT}$) during GSEP execution (L0 through L7) leading to an indefinite halt of the $SST$ (Synchronous State Transition) pipeline.
-b) **AIA Violation:** Validation failure signaling a catastrophic integrity breach within the Atomic Immutable Architecture (AIA) checksum registry.
-c) **Consensus Timeout:** Failure to achieve L5 (P-01) atomic finality confirmation within the predefined operational timeout threshold ($T_{OP}$, default $3.00$ seconds).
+GFRM activation is atomic, irreversible (until GCO clearance), and mandatory upon detection of any condition within the designated $\mathcal{T}_{SET}$:
 
-### 3. RESPONSE PROTOCOL (SEQUENTIAL EXECUTION)
+a) **GSEP Terminal Exception ($E_{TRM}$):** Detection of an unhandled, unrecoverable exception ($E_{CRIT}$) during GSEP execution, causing an indefinite suspension of the Synchronous State Transition ($SST$) pipeline.
+b) **AIA Catastrophic Breach:** Validation failure signaling a critical integrity breach within the Atomic Immutable Architecture (AIA) checksum registry or state merkle tree.
+c) **L5 Finality Timeout:** Failure to achieve L5 (P-01) atomic consensus finality confirmation within the parameterized operational timeout threshold ($T_{OP}$, default $3000$ milliseconds).
 
-Upon $S_T$ activation, GFRM executes the $R_{99}$ sequence:
+### 3. RESPONSE PROTOCOL ($R_{99}$ SEQUENCE)
 
-1.  **Critical Isolation ($R_{99}.1$):** Immediate suspension of all $SST$ ingress operations. The compromised execution thread is placed into a fully isolated, read-only memory enclosure ($M_{Iso}$).
-2.  **Audit Lock & Snapshot ($R_{99}.2$):** Capture and commit a cryptographically sealed snapshot ($V_{Fail}$) of the $M_{Iso}$ state. Inputs $S-01, S-02, S-03$ are frozen and linked to $V_{Fail}$.
-3.  **Automated Root Cause Triage ($R_{99}.3$):** Engage the mandated Automated Root Cause Analyst (ARCA) service layer. ARCA performs immediate internal diagnostics within $M_{Iso}$ to classify failure type (Systemic, Environmental, or Agentic) before human GCO review.
-4.  **Canonical Rollback Directive ($R_{99}.4$):** Initiate an atomic reversion to the last verified, preceding canonical checkpoint ($C_{N-1}$). The system state is initialized using $C_{N-1}$ metadata.
-5.  **Critical Propagation ($R_{99}.5$):** Broadcast the 'CRITICAL FAILURE: GFRM-99' state flag across the entire architectural telemetry grid, mandating the suspension of all proactive inputs until RCA clearance is confirmed by the Governance Compliance Officer (GCO).
+Upon $\mathcal{T}_{SET}$ activation, GFRM executes the mandated $R_{99}$ fault isolation and resolution sequence:
+
+1.  **Context Sequestration ($R_{99}.1$):** Immediate suspension of all $SST$ ingress operations. The compromised execution thread and associated transient state data ($D_{TS}$) are placed into a fully isolated, read-only memory enclosure ($M_{Iso}$). Non-interruptible.
+2.  **Audit Commitment ($R_{99}.2$):** Capture and commit a cryptographically sealed, time-stamped snapshot ($V_{Fail}$) of the $M_{Iso}$ state. All relevant execution logs and input registers are immutably linked to $V_{Fail}$.
+3.  **ARCA Triage Injection ($R_{99}.3$):** Engage the Automated Root Cause Analyst (ARCA) service layer. ARCA performs immediate internal diagnostics within $M_{Iso}$, generating the formal failure report object, adhering strictly to the mandated `GFRM_Failure_Report_Schema_V1.0`.
+4.  **State Reversion Directive ($R_{99}.4$):** Initiate an atomic, forced reversion to the last verified, preceding canonical checkpoint ($C_{N-1}$). The system state register is reset using $C_{N-1}$ metadata.
+5.  **Propagated Lock ($R_{99}.5$):** Broadcast the 'CRITICAL FAILURE: GFRM-99' flag, along with the ARCA report reference ID, across the System Status Register (SSR) and architectural telemetry backbone, mandating suspension of all proactive write operations until official clearance is granted by the Governance Compliance Officer (GCO).
