@@ -1,27 +1,38 @@
 {
-  "version": "97.2_R1",
+  "version": "97.3_R2_Optimized",
   "project_name": "ACVD_Evolutionary_Kernel",
-  "operational_mode": "Active",
-  "core_limits": {
-    "max_parallelism": 32,
-    "memory_reserved_gb": 4.0,
-    "efficiency_threshold_min": 0.05
+  "system_status": {
+    "operational_mode": "Active",
+    "health_check_interval_s": 60
+  },
+  "resource_allocation": {
+    "max_compute_units": 32,
+    "memory_reservation_ratio": 0.35,
+    "latency_tolerance_ms": 250,
+    "efficiency_target_min": 0.05
   },
   "evolution_policies": {
     "target_metric": "Cycles_Per_Commit",
     "acceptance_criteria": {
       "metric_gain_min": 0.035,
-      "risk_profile_ref": "evolutionary/RiskProfile_Standard"
+      "risk_profile_ref": "evolutionary/RiskProfile_Standard",
+      "test_coverage_min_pct": 0.95
     },
-    "refactoring_gating": {
+    "reversion_policy": {
+      "rollback_enabled": true,
+      "max_reversions_per_cycle": 5,
+      "metric_regression_limit": -0.01
+    },
+    "mutation_gating": {
       "queue_priority_default": 50,
-      "timeout_ms": 3600000,
-      "resource_gating_enabled": true
+      "max_runtime_ms": 3600000,
+      "gating_logic_enabled": true
     }
   },
   "persistence_layer": {
     "db_connection_id": "VDB_Main_97",
     "telemetry_endpoint": "https://api.sovereign/v94/telemetry",
-    "vector_dimension": 1024
+    "vector_dimension": 1024,
+    "data_retention_days": 365
   }
 }
