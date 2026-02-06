@@ -1,15 +1,37 @@
-// src/governance/architectureSchemaRegistrar.js
-
 /**
  * Component ID: ASR (Architecture Schema Registrar)
  * Responsibility: EPDP A/B Gate - Architectural Coherence Enforcement.
  * Function: Manages and validates mandatory structural contracts (schemas, API specifications,
  * critical manifest entries) across the architecture. ASR ensures proposed mutations (M-02 draft)
  * do not introduce divergence or break existing core architectural contracts.
+ *
+ * Refactor Rationale: Dependencies are now explicitly injected (Manifest, CoherenceEngine, VetoLogger)
+ * to enhance testability and enforce clean component architecture. The core validation logic
+ * is delegated to the specialized CoherenceEngine.
  */
+
 class ArchitectureSchemaRegistrar {
-    constructor(manifestReference) {
+    /**
+     * @param {Object} manifestReference - Reference to the core system manifest manager.
+     * @param {Object} coherenceEngine - A dedicated utility for deep structural comparison (SchemaDiffEngine).
+     * @param {Object} vetoLogger - The official logging sink for architectural failures (D_01/VetoLog equivalent).
+     */
+    constructor(manifestReference, coherenceEngine, vetoLogger) {
+        if (!manifestReference || !coherenceEngine || !vetoLogger) {
+            throw new Error("ASR requires Manifest, CoherenceEngine, and VetoLogger dependencies to initialize.");
+        }
         this.manifest = manifestReference;
+        this.coherenceEngine = coherenceEngine;
+        this.vetoLogger = vetoLogger;
+        this.COMPONENT_ID = 'ASR';
+    }
+
+    /**
+     * Retrieves the mandatory architectural contracts for validation.
+     * @returns {Promise<Object>} Mandatory schemas and contracts.
+     */
+    async getMandatoryContracts() {
+        return this.manifest.getValidatedSchemas();
     }
 
     /**
@@ -18,23 +40,38 @@ class ArchitectureSchemaRegistrar {
      * @returns {Promise<boolean>} True if structural contracts are upheld; False signals mandatory failure.
      */
     async validateSchemaCoherence(proposedMutationPayload) {
-        // Fetch current mandatory architectural contracts and schemas.
-        const coreSchemas = this.manifest.getValidatedSchemas();
-        
-        // Perform deep comparison and compatibility analysis.
-        const structuralIntegrityResult = await this.performDeepStructuralCheck(coreSchemas, proposedMutationPayload);
+        try {
+            const coreContracts = await this.getMandatoryContracts();
+            
+            // Delegate deep comparison to the specialized engine.
+            const structuralIntegrityResult = await this.coherenceEngine.performDeepStructuralCheck(
+                coreContracts, 
+                proposedMutationPayload
+            );
 
-        if (!structuralIntegrityResult.isCoherent) {
-            // Mandatory failure logged to D-01 and triggers F-01 protocol.
-            D_01.logVeto('ASR: Structural Coherence Veto', structuralIntegrityResult.details);
+            if (!structuralIntegrityResult.isCoherent) {
+                // Mandatory failure logged to VetoLog and triggers F-01 protocol indication.
+                const vetoDetails = {
+                    source: this.COMPONENT_ID,
+                    violationType: 'StructuralCoherenceVeto',
+                    details: structuralIntegrityResult.details,
+                    mutation: proposedMutationPayload.id || 'N/A'
+                };
+                
+                // Using the injected VetoLogger (replacing implicit D_01 access)
+                this.vetoLogger.logVeto(vetoDetails);
+                return false;
+            }
+            return true;
+
+        } catch (error) {
+            // Log fatal processing error
+            this.vetoLogger.logError({
+                source: this.COMPONENT_ID,
+                error: `Fatal ASR validation processing error: ${error.message}`
+            });
             return false;
         }
-        return true;
-    }
-    
-    async performDeepStructuralCheck(coreSchemas, proposedPayload) {
-        // [Placeholder for rigorous AST/schema diffing logic]
-        return { isCoherent: true, details: "Validated against V94.1 manifest." };
     }
 }
 
