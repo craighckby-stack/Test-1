@@ -1,28 +1,50 @@
 {
-  "manifest_id": "WCIM_V1.0_20240715",
+  "manifest_id": "WCIM_V1.1_20240723",
   "schema_version_reference": "SSVR_V3.1",
   "workflow_name": "GSEP-C",
+  "target_environment": "Production-L1",
   "certified_executables": [
     {
       "module": "SGS_Orchestrator_Core",
       "version": "V94.4-LTS",
-      "canonical_hash": "SHA3-512:a2c94d1f7e0b5c3e8a4d7b2c0f9e1d8b3a5f2e6d9c8a7b6c5d4e3f2a1b0c9d8e",
-      "attested_by_crot": true
+      "canonical_hash": {
+        "algorithm": "SHA3-512",
+        "value": "a2c94d1f7e0b5c3e8a4d7b2c0f9e1d8b3a5f2e6d9c8a7b6c5d4e3f2a1b0c9d8e"
+      },
+      "integrity_attestation": {
+        "valid": true,
+        "authority_id": "CROTS_GSEP_CORE_V94",
+        "attestation_timestamp": "2024-07-22T10:00:00Z"
+      }
     },
     {
       "module": "CPES_Sandbox_Engine",
       "version": "V1.2.9",
-      "canonical_hash": "SHA3-512:1b0c9d8e7f6d5c4e3a2b1f0d9c8a7b6a5d4c3e2f1b0a9d8c7e6f5d4c3a2b1f0d",
-      "attested_by_crot": true
+      "canonical_hash": {
+        "algorithm": "SHA3-512",
+        "value": "1b0c9d8e7f6d5c4e3a2b1f0d9c8a7b6a5d4c3e2f1b0a9d8c7e6f5d4c3a2b1f0d"
+      },
+      "integrity_attestation": {
+        "valid": true,
+        "authority_id": "CROTS_CPES_SANDBOX_V12",
+        "attestation_timestamp": "2024-07-22T10:00:00Z"
+      }
     }
   ],
   "certified_workflow_configs": [
     {
       "config_name": "GSEP_State_Transition_Model",
       "config_version": "WFM_94.4.1",
-      "canonical_hash": "SHA3-512:e8d7c6b5a4d3f2c1b0a9d8e7f6d5c4e3a2b1f0d9c8a7b6c5d4e3f2a1b0c9d8e7",
+      "canonical_hash": {
+        "algorithm": "SHA3-512",
+        "value": "e8d7c6b5a4d3f2c1b0a9d8e7f6d5c4e3a2b1f0d9c8a7b6c5d4e3f2a1b0c9d8e7"
+      },
       "custodian": "SGS",
-      "validation_gates": ["S0", "S5", "S6.7"]
+      "validation_gates": [
+        "S0",
+        "S5",
+        "S6.7"
+      ]
     }
   ]
 }
