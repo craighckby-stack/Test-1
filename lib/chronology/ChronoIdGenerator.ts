@@ -1,24 +1,36 @@
 /**
- * Utility module responsible for generating time-sortable, globally unique identifiers
- * optimized for use as primary keys (chr_id) in Chronology indices.
- * Using time-sortable IDs (like ULID, KSUID, or Timeflake) ensures optimal performance
- * for time-series databases and chronological retrieval.
+ * Type safety for Chronology IDs. This branded type enforces that they are 
+ * treated distinctly from general strings when interacting with domain objects
+ * and database layers.
+ */
+export type ChronoId = string & { readonly __chronoIdBrand: unique symbol };
+
+/**
+ * Contract for generating time-sortable, globally unique identifiers (ChronoIds).
+ * Using algorithms like ULID or KSUID ensures IDs are chronologically ordered, 
+ * optimizing time-series database indexing and retrieval performance.
  */
 export interface ChronoIdGenerator {
   /**
    * Generates a new, chronologically-ordered unique ID.
-   * @returns A unique identifier string.
+   * @returns A new ChronoId string.
    */
-  generateId(): string;
+  generateId(): ChronoId;
 
   /**
    * Extracts the creation timestamp from a generated ID.
-   * @param chr_id The Chronology ID.
+   * Note: The precision (milliseconds or seconds) depends on the underlying algorithm.
+   * ULID, for example, typically uses millisecond precision.
+   * @param chronoId The Chronology ID.
    * @returns The associated Unix epoch timestamp (milliseconds).
    */
-  extractTimestamp(chr_id: string): number;
-}
+  extractTimestamp(chronoId: ChronoId): number;
 
-// Placeholder implementation recommendation:
-// import { UlidGenerator } from './implementations/UlidGenerator';
-// export const ChronoIdGenerator: ChronoIdGenerator = new UlidGenerator();
+  /**
+   * Validates if the given string adheres to the expected ChronoId format and encoding.
+   * This ensures runtime integrity before database lookups or serialization.
+   * @param value The string to validate.
+   * @returns True if valid, false otherwise.
+   */
+  isValid(value: string): value is ChronoId;
+}
