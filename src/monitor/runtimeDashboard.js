@@ -3,47 +3,52 @@
  * @module RuntimeDashboard
  * @description Utility for real-time aggregation and visualization of core AGI system metrics.
  * Essential for debugging Phase 2 Multi-Agent interaction (AGI-C-05) and validating trust dynamics.
+ * This component focuses purely on data aggregation, separating concerns from presentation logic.
  */
 
 import { fetchAtmScores } from '../consensus/atmSystem';
-import { getSicBlueprintCount } from '../memory/strategicCache';
 import { getMcraThresholds } from '../consensus/mcraEngine';
-
-// Placeholder data structure for collected metrics
-const realtimeMetrics = {
-    trustDecayRate: 0,        // Current velocity of TDS application
-    currentConsensusThreshold: 0, // Current global MCRA target threshold
-    agentSuccessRates: {},    // ATM success rates per agent
-    sicHitRate: 0,            // How often SIC input informs a successful mutation
-    validatedCreativity: 0,   // Count of successful Type 3 Hallucinations this cycle
-};
+import { fetchSystemMetrics } from '../core/metricsAggregator';
 
 /**
  * Aggregates all relevant real-time system performance metrics.
- * This function serves the data API for a front-end visualization tool.
+ * This function optimizes fetching using concurrent processing and returns a stable metrics object.
+ * It relies on the new `metricsAggregator` to provide real, calculated KPIs rather than simulated data.
+ *
+ * @returns {Promise<{
+ *   trustDecayRate: number,
+ *   currentConsensusThreshold: number,
+ *   agentSuccessRates: Object<string, number>,
+ *   sicHitRate: number,
+ *   validatedCreativity: number
+ * }>}
  */
 export async function generateRuntimeReport() {
-    // 1. Fetch live ATM and success data
-    const atmData = await fetchAtmScores(); 
-    realtimeMetrics.agentSuccessRates = atmData.scores; 
-    realtimeMetrics.trustDecayRate = atmData.decayRate; 
+    // Concurrent data fetching optimization via Promise.all
+    const [
+        atmData, 
+        mcraThreshold,
+        systemMetrics
+    ] = await Promise.all([
+        fetchAtmScores(),
+        getMcraThresholds(),
+        fetchSystemMetrics() 
+    ]);
 
-    // 2. Fetch MCRA thresholds
-    realtimeMetrics.currentConsensusThreshold = await getMcraThresholds();
+    const report = {
+        // Consensus Metrics (ATM)
+        trustDecayRate: atmData.decayRate,
+        agentSuccessRates: atmData.scores,
 
-    // 3. Fetch SIC health and utilization
-    const sicCount = await getSicBlueprintCount();
-    // Assume a global tracking method for calculating sicHitRate and validatedCreativity exists in core/metrics.js
-    // For scaffolding, we mock a response:
-    realtimeMetrics.sicHitRate = Math.min(1.0, 0.45 + (Math.random() * 0.1)); // Simulated effectiveness
-    realtimeMetrics.validatedCreativity = Math.floor(Math.random() * 10); // Simulated successful mutations
+        // Consensus Metrics (MCRA)
+        currentConsensusThreshold: mcraThreshold,
 
-    console.log("--- Sovereign Runtime Metrics ---");
-    console.log(`Global Consensus Threshold (MCRA): ${realtimeMetrics.currentConsensusThreshold}`.toFixed(2));
-    console.log(`Trust Decay Schedule Rate: ${realtimeMetrics.trustDecayRate} units/cycle`);
-    console.log(`SIC Utilization Rate: ${(realtimeMetrics.sicHitRate * 100).toFixed(1)}%`);
-    
-    return realtimeMetrics;
+        // System Performance Metrics (from Aggregator)
+        sicHitRate: systemMetrics.sicHitRate,
+        validatedCreativity: systemMetrics.validatedCreativity,
+    };
+
+    return report;
 }
 
 // export function renderDashboard() { ... (For actual rendering logic, omitted for CLI focused scaffold) }
