@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/RTPCSchema.json",
+  "title": "Risk/Trust Policy Configuration Schema (P-01)",
+  "description": "Defines the mandatory structure and constraints for all validated P-01 Trust Calculus configurations, used by ConfigValidator (GRCM).",
+  "type": "object",
+  "required": ["trustDecayFactor", "riskMitigationWeight", "trustThresholds"],
+  "properties": {
+    "trustDecayFactor": {
+      "type": "number",
+      "description": "The rate at which accrued trust decays over time (0 < x < 1).",
+      "minimum": 0.01,
+      "maximum": 0.99
+    },
+    "riskMitigationWeight": {
+      "type": "number",
+      "description": "Weight applied to external risk mitigation factors (0 <= x <= 1).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "trustThresholds": {
+      "type": "object",
+      "description": "Defines boundary values for operational states.",
+      "required": ["highRisk", "lowTrust", "operationalMinimum"],
+      "properties": {
+        "highRisk": {"type": "number"},
+        "lowTrust": {"type": "number"},
+        "operationalMinimum": {"type": "number"}
+      }
+    },
+    "serviceWeights": {
+      "type": "array",
+      "description": "Weights assigned to different contributory service scores.",
+      "items": {
+        "type": "object",
+        "required": ["serviceId", "weight"],
+        "properties": {
+          "serviceId": {"type": "string"},
+          "weight": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
