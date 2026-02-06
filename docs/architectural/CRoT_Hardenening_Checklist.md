@@ -1,21 +1,21 @@
-# CRoT Hardware and Cryptographic Hardening Checklist V94.3
+# Certified Root of Trust (CRoT) Enforcement Manifest V94.1
 
-This checklist serves as the operational baseline for establishing the Root of Trust (CRoT) components, essential for enforcing Integrity Halts (IH) and successful execution of GSEP-C Stages S0 and S10. Failure to meet these criteria constitutes an IH state and prevents system initialization (S0).
+This manifest defines the minimum constitutional requirements for establishing the Certified Root of Trust (CRoT), essential for enforcing Integrity Halts (IH) and successfully transitioning GSEP-C Stages S0 (Initialization) and S10 (Commitment). Non-compliance results in an immediate Integrity Halt (S0 state prevention).
 
-## 1.0 Trust Anchoring and Key Management
+## 1.0 Trust Boundary Establishment & Key Lifecycle
 
-- [ ] 1.1 **Physical Security Module (PSM) Setup:** Mandating use of certified Hardware Security Module (HSM) for all master signing keys.
-- [ ] 1.2 **CRoT Master Key Generation:** Generation and secure storage of the asymmetric CRoT Signing Key (CSK) within the PSM, ensuring non-exportable status.
-- [ ] 1.3 **Key Rotation Policy Enforcement:** Automated policy configuration for mandated CSK rotation intervals.
-- [ ] 1.4 **Anti-Tamper Provisioning:** Configuration and testing of PSM self-destruct/reset triggers upon physical tamper detection (HETM compliance).
+- [ ] 1.1 **PSM/HSM Certification and Deployment:** Mandate the deployment of a certified Physical Security Module (PSM) serving as the impenetrable hardware root of trust.
+- [ ] 1.2 **CRoT Master Key (CSK) Generation:** Execute FIPS 140-3 compliant generation and secure, non-exportable storage of the CRoT Signing Key (CSK) exclusively within the PSM cryptographic boundary.
+- [ ] 1.3 **Tamper-Responsive Provisioning (HETM):** Verification and stress-testing of PSM/HSM configuration to ensure active self-destruct or zeroization triggers upon detectable physical or environmental intrusion (HETM compliance).
+- [ ] 1.4 **Automated CSK Rotation Policy:** Deployment and active monitoring of the automated policy defining rotation intervals and enforcement mechanisms for the CRoT Signing Key (CSK).
 
-## 2.0 Integrity Monitoring and Attestation
+## 2.0 Attestation and System Integrity Enforcement
 
-- [ ] 2.1 **System Baseline Capture (S0):** Verification that the system image hash aligns with the last known good configuration (LGC) stored externally.
-- [ ] 2.2 **Trusted Boot Chain:** Implementation and verification of hardware-level secure boot protocols, ensuring BIOS/UEFI integrity check on startup.
-- [ ] 2.3 **State Commitment Integrity (S10):** Verification of sufficient PSM entropy resources for cryptographic commitment signing of the Certified State Transition Ledger (CSTL) and Governance State Manifest (GSM).
+- [ ] 2.1 **S0 Pre-Initialization Baseline Verification:** Verification that the hardware configuration hash matches the attested Last Known Good Configuration (LGC) signature, preceding BIOS/UEFI execution.
+- [ ] 2.2 **Hardware Secure Boot Chain (TBC):** Implementation and continuous verification of the complete Trusted Boot Chain (TBC), ensuring every link (firmware, bootloader, kernel) is cryptographically validated by the preceding trusted component.
+- [ ] 2.3 **S10 State Commitment Signature:** Confirmation of sufficient PSM entropy resources and processing capability to execute cryptographic commitment signing of the Certified State Transition Ledger (CSTL) and the Governance State Manifest (GSM) upon stage completion.
 
-## 3.0 Operational Security
+## 3.0 Operational Isolation and Audit Accountability
 
-- [ ] 3.1 **Role Separation (CRoT Operator):** Strict network and logical segmentation of CRoT components from SGS and GAX processing environments.
-- [ ] 3.2 **Audit Logging System (IH Log):** Secure, write-once, read-only external persistence mechanism established for IH log storage, segregated from standard RRP/STANDARD logs (TVCR).
+- [ ] 3.1 **Zero-Trust CRoT Segregation:** Implementation of mandatory, network-enforced microsegmentation to isolate all CRoT operational components from SGS (Sentinel Gateway Services) and GAX (General Processing Array) execution environments.
+- [ ] 3.2 **Trust Verifiable Configuration Logging (TVCR):** Establishment of the secure, write-once, append-only external persistence mechanism for all Integrity Halt (IH) log data, structurally compliant with the defined IH Log Schema (required for TVCR).
