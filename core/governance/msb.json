@@ -1,26 +1,53 @@
 {
-  "msb_version": "1.0.0",
+  "schema_version": "2.0.0",
+  "baseline_id": "MSB-Sovereign-v94.1",
   "metric_definitions": {
     "S-01_Efficacy_Score": {
-      "inputs_required": ["RCM_Data", "DSP_C_Simulation_Output"],
-      "scoring_method": "weighted_utility_function",
-      "calculation_parameters": {
-        "resource_optimization_weight": 0.65,
-        "runtime_projection_weight": 0.35,
-        "max_score": 100.0
+      "name": "System Efficacy Baseline Score",
+      "description": "Measures system performance against resource constraints and projected runtime optimization targets.",
+      "metric_version": "4.1",
+      "inputs": [
+        {"name": "RCM_Data", "source_alias": "Resource_Constraint_Model"},
+        {"name": "DSP_C_Simulation_Output", "source_alias": "Deep_Simulation_Projection_Core"}
+      ],
+      "logic": {
+        "method": "weighted_utility_function",
+        "reference_path": "GCM/metrics/efficacy_v4_1.py"
       },
-      "formula_reference": "GCM/metrics/efficacy_v4.py"
+      "configuration": {
+        "weights": {
+          "resource_optimization": 0.65,
+          "runtime_projection": 0.35
+        },
+        "score_range": [0.0, 100.0]
+      }
     },
     "S-02_Risk_Exposure": {
-      "inputs_required": ["EDIS_Integrity_Check", "Threat_Model_Vector"],
-      "scoring_method": "probabilistic_risk_aggregation",
-      "calculation_parameters": {
-        "data_leakage_penalty": 25.0,
-        "compliance_violation_threshold": 0.05,
-        "min_risk": 0.0
+      "name": "Aggregated System Risk Exposure",
+      "description": "Calculates the total probabilistic risk based on integrity checks and threat modeling.",
+      "metric_version": "2.3",
+      "inputs": [
+        {"name": "EDIS_Integrity_Check", "source_alias": "Event_Driven_Integrity_Subsystem"},
+        {"name": "Threat_Model_Vector", "source_alias": "Current_Adaptive_Threat_Vector"}
+      ],
+      "logic": {
+        "method": "probabilistic_risk_aggregation",
+        "reference_path": "GCM/metrics/risk_v2_3.py"
       },
-      "formula_reference": "GCM/metrics/risk_v2.py"
+      "configuration": {
+        "penalties": {
+          "data_leakage_base": 25.0
+        },
+        "thresholds": {
+          "compliance_violation": 0.05
+        },
+        "score_range": [0.0, null]
+      }
     }
   },
-  "L3_Certification_Protocol": "Dual_Signature_Verification"
+  "governance_profile": {
+    "certification_protocol": "Dual_Signature_Verification",
+    "audit_frequency": "QRT",
+    "required_pass_score_min": 75.0
+  }
 }
