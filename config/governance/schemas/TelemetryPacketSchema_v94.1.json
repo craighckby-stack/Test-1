@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/TelemetryPacketSchema_v94.1.json",
+  "title": "Sovereign AGI Telemetry Packet Schema",
+  "type": "object",
+  "required": ["timestamp", "sourceId", "eventId", "criticality", "data"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the event."
+    },
+    "sourceId": {
+      "type": "string",
+      "description": "Identifier of the module or component generating the telemetry (must match config dataSources)."
+    },
+    "eventId": {
+      "type": "string",
+      "description": "Unique identifier for the type of event (e.g., 'CORE_EXECUTION_FAILURE', 'LATENCY_SPIKE')."
+    },
+    "criticality": {
+      "type": "string",
+      "enum": ["Routine", "Operational", "High", "Critical"],
+      "description": "The designated severity level, directly referenced by the DifferentialCriticality sampler."
+    },
+    "data": {
+      "type": "object",
+      "description": "The structured payload of the telemetry event.",
+      "minProperties": 1
+    }
+  },
+  "additionalProperties": false
+}
