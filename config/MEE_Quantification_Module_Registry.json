@@ -1,0 +1,31 @@
+{
+  "registry_version": "1.0.0",
+  "modules": [
+    {
+      "module_id": "QUANT_EFFICACY",
+      "version": "1.0.1",
+      "runtime": {
+        "type": "PythonScriptRunner",
+        "entrypoint": "/runtime/scripts/efficacy/script_efficacy_V1.py",
+        "checksum_sha256": "a3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z8a9b0c1d2e3f4"
+      },
+      "resource_requirements": {
+        "cpu_cores": 0.5,
+        "memory_mb": 128
+      }
+    },
+    {
+      "module_id": "QUANT_VOLATILITY",
+      "version": "3.2.0",
+      "runtime": {
+        "type": "RustService",
+        "container_ref": "registry.corp.net/quant/volatility:3.2.0",
+        "checksum_sha256": "f4e3d2c1b0a9z8y7x6w5v4u3t2s1r0q9p8o7n6m5l4k3j2i1h0g9f8e7d6c5b4a3"
+      },
+      "resource_requirements": {
+        "cpu_cores": 1.0,
+        "memory_mb": 512
+      }
+    }
+  ]
+}
