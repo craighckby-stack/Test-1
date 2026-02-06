@@ -1,16 +1,48 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Policy Veto Logic Manifest (PVLM) V98.3 Schema",
+  "title": "Policy Veto Logic Manifest (PVLM) V98.4 Schema (Refactored)",
   "type": "object",
-  "description": "Defines the mandatory structure for the Policy Veto Logic Manifest, ensuring valid, axiomatically-enforceable policy input for GAX (Stage S2).",
+  "description": "Defines the mandatory structure for the Policy Veto Logic Manifest, ensuring valid, axiomatically-enforceable policy input for the Governance Axiom Engine (GAX/Stage S2).",
+  "$defs": {
+    "Severity": {
+      "type": "string",
+      "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "description": "Standardized severity levels, including 'INFO' for monitoring/audit rules."
+    },
+    "ActivationState": {
+      "type": "string",
+      "enum": ["ACTIVE", "PAUSED", "AUDIT_ONLY", "DEPRECATED"],
+      "default": "ACTIVE"
+    },
+    "EvaluationTrigger": {
+      "type": "string",
+      "enum": ["PRE_EXECUTION", "CONTEXT_CHECK", "DATA_INTEGRITY", "POST_VALIDATION", "RESOURCE_ALLOCATION"],
+      "description": "When the axiomatic rule is evaluated during the governance pipeline."
+    },
+    "RiskScore": {
+      "type": "number",
+      "minimum": 0,
+      "description": "A non-negative numerical risk assessment value."
+    }
+  },
   "properties": {
-    "version": {"type": "string", "description": "SGS version applied to this manifest (e.g., V98.3)"},
-    "activation_state": {"type": "string", "enum": ["ACTIVE", "PAUSED", "AUDIT_ONLY"], "default": "ACTIVE"},
+    "version": {
+      "type": "string",
+      "description": "SGS version applied to this manifest (e.g., V98.4)",
+      "pattern": "^V[0-9]+\\.[0-9]+$"
+    },
+    "manifest_id": {
+        "type": "string",
+        "description": "Unique identifier for this specific PVLM file instance (e.g., PVLM-CORE-001)."
+    },
+    "activation_state": {"$ref": "#/$defs/ActivationState"},
     "critical_thresholds": {
       "type": "object",
+      "description": "System-wide limits governing automatic veto behavior.",
       "properties": {
-        "max_risk_score": {"type": "number", "description": "Maximum tolerated S02 risk score upon initial proposal."},
-        "veto_trigger_severity": {"type": "string", "enum": ["HIGH", "CRITICAL"], "description": "Minimum severity required to trigger a hard Veto (¬S03)."}
+        "max_risk_score": {"$ref": "#/$defs/RiskScore", "description": "Maximum tolerated S02 risk score upon initial proposal."},
+        "veto_trigger_severity": {"$ref": "#/$defs/Severity", "description": "Minimum severity required to trigger a hard Veto (¬S03)."},
+        "audit_fail_limit": {"type": "integer", "minimum": 1, "description": "Maximum number of non-critical rule failures allowed before audit mode initiates review."}
       },
       "required": ["max_risk_score", "veto_trigger_severity"]
     },
@@ -20,15 +52,21 @@
       "items": {
         "type": "object",
         "properties": {
-          "rule_id": {"type": "string", "pattern": "^P[0-9]{3}$", "description": "Unique policy identifier (P001, P002, etc.)"},
+          "rule_id": {"type": "string", "pattern": "^P[0-9]{3,5}$", "description": "Unique policy identifier (P001, P1000, etc.)"},
           "description": {"type": "string"},
-          "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
-          "evaluation_trigger": {"type": "string", "enum": ["PRE_EXECUTION", "CONTEXT_CHECK", "DATA_INTEGRITY"]},
-          "logic_expression": {"type": "string", "description": "The formalized constraint evaluated by the GAX engine (e.g., 'TargetScope == External AND Budget > MaxLimit')."}
+          "severity": {"$ref": "#/$defs/Severity"},
+          "rule_type": {"type": "string", "enum": ["VETO", "WARNING", "AUDIT"], "description": "Defines the outcome if the rule fails."},
+          "evaluation_trigger": {"$ref": "#/$defs/EvaluationTrigger"},
+          "logic_expression": {
+            "type": "string",
+            "description": "The formalized constraint in GAX Query Language (GQL). (e.g., 'TargetScope == External AND Budget < MaxLimit')."
+          },
+          "is_active": {"type": "boolean", "default": true}
         },
-        "required": ["rule_id", "severity", "logic_expression"]
-      }
+        "required": ["rule_id", "severity", "logic_expression", "rule_type"]
+      },
+      "minItems": 1
     }
   },
-  "required": ["version", "axiomatic_rules"]
+  "required": ["version", "manifest_id", "critical_thresholds", "axiomatic_rules"]
 }
