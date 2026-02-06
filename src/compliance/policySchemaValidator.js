@@ -4,8 +4,13 @@ import Ajv from 'ajv';
 import * as fs from 'fs';
 import path from 'path';
 
-// Assuming this path for specialized error handling utilities
 import { PolicyIntegrityError } from '../errors/policyErrors.js';
+// Import definitions/constants, proposed for higher organization (see scaffold proposal)
+import { 
+    MINIMAL_FALLBACK_SCHEMA, 
+    DEFAULT_GOVERNANCE_SCHEMA_PATH,
+    AJV_CONFIGURATION
+} from './schema/PolicySchemaDefinitions.js';
 
 class PolicySchemaValidator {
     /**
@@ -17,64 +22,72 @@ class PolicySchemaValidator {
      */
     #validateFunction;
 
-    constructor(schemaPath = path.resolve('config/governanceSchema.json')) {
-        this.#ajv = new Ajv({
-            allErrors: true, // Report all errors, not just the first one
-            strict: true,
-            // Enable stricter validation standards for high-stakes governance files
-            keywords: ['typeof'], 
-        });
+    /**
+     * Initializes the validator by compiling the policy governance schema.
+     * @param {string} schemaPath - Optional path to the external JSON schema file.
+     */
+    constructor(schemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH) {
+        // Use externalized configuration for maintenance ease
+        this.#ajv = new Ajv(AJV_CONFIGURATION);
         
-        const schema = this.#loadSchema(schemaPath);
+        const schema = this.#loadAndParseSchema(schemaPath);
         
         try {
-            // Compile schema immediately for maximum performance during validation execution
+            // Pre-compile schema to ensure validation performance is maximal at runtime.
             this.#validateFunction = this.#ajv.compile(schema);
         } catch (e) {
-            console.error("AJV Compilation Error: Schema appears invalid or corrupt.", e.message);
+            // Indicate structural invalidity of the JSON schema itself
+            console.error(`[CSV-01] AJV Compilation Failure: Schema in ${schemaPath || 'Fallback'} is invalid.`, e.message);
             throw new Error(`Failed to compile governance schema: ${e.message}`);
         }
     }
 
-    #loadSchema(schemaPath) {
-        // Load required JSON schema synchronously (standard for bootstrap configuration)
+    /**
+     * Loads the required JSON schema synchronously from the filesystem or uses a fallback.
+     * @param {string} schemaPath 
+     * @returns {object} The parsed JSON schema object.
+     */
+    #loadAndParseSchema(schemaPath) {
         try {
             const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+            // console.info(`[CSV-01] Loaded schema from ${schemaPath}.`); // Reduced unnecessary success logging
             return JSON.parse(schemaContent);
         } catch (e) {
             if (e.code === 'ENOENT') {
-                console.warn(`Governance schema file not found at ${schemaPath}. Using internal minimal compliance structure.`);
-                // Fallback internal schema definition
-                return { 
-                    type: "object", 
-                    properties: {
-                        compliance_level: { type: "string", pattern: "^L[0-9]+$" },
-                        veto_triggers: { type: "array", items: { type: "string" } }
-                    },
-                    required: ["compliance_level", "veto_triggers"],
-                    additionalProperties: false // Enforce strict structure adherence
-                }; 
+                console.warn(`[CSV-01] Governance schema file not found at ${schemaPath}. Utilizing defined minimal compliance fallback schema.`);
+                return MINIMAL_FALLBACK_SCHEMA; 
             }
+            // Catch parsing errors, permission errors, etc.
             throw new Error(`Failed to load and parse governance schema from ${schemaPath}: ${e.message}`);
         }
     }
 
     /**
      * Validates the provided policy configuration data against the governance schema.
-     * @param {object} policyConfigData - The configuration object from the Policy Engine (C-15).
+     * @param {object} policyConfigData - The configuration object (e.g., from the Policy Engine, C-15).
      * @returns {true} If validation passes.
      * @throws {PolicyIntegrityError} If validation fails.
      */
     validate(policyConfigData) {
+        // Sanity check for immediate input integrity
+        if (!policyConfigData || typeof policyConfigData !== 'object' || Array.isArray(policyConfigData)) {
+             throw new PolicyIntegrityError("Input policy configuration is not a valid object.", [{keyword: "type", message: "Input data must be a valid JSON object."}] as any);
+        }
+
         if (!this.#validateFunction(policyConfigData)) {
             const errors = this.#validateFunction.errors || [];
             
-            // Log detailed errors for immediate diagnostic assessment
-            const errorDetails = errors.map(e => `[${e.dataPath || 'root'}] -> ${e.message} (Keyword: ${e.keyword})`).join('\n');
-            console.error(`[CSV-01] Policy Schema Validation Failed (C-15 Input). Total Errors: ${errors.length}.\nDetails:\n${errorDetails}`);
+            // Generate robust error details utilizing modern AJV fields (instancePath)
+            const errorDetails = errors.map(e => {
+                const dataPath = e.instancePath || e.dataPath || 'root';
+                const schemaPath = e.schemaPath || 'unknown';
+                return `[Path: ${dataPath}] ${e.message}. Schema Ref: ${schemaPath} (Keyword: ${e.keyword})`;
+            }).join('\n');
+            
+            console.error(`[CSV-01] Policy Validation Failed. Errors: ${errors.length}. Details:\n${errorDetails}`);
 
             throw new PolicyIntegrityError(
-                `Policy input failed compliance schema validation (CSV-01). Found ${errors.length} structural issues.`,
+                `Policy configuration failed strict compliance schema validation. Found ${errors.length} structural issues.`,
                 errors 
             );
         }
