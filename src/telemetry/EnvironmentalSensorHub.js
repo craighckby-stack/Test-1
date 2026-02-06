@@ -1,74 +1,123 @@
 /**
- * EnvironmentalSensorHub v1.0
+ * EnvironmentalSensorHub v94.1
  * MISSION: Decouples high-frequency synchronous monitoring (CRM) from potentially slow, 
  * asynchronous sensor data collection (OS metrics, network probes, distributed services).
+ * Utilizes self-correcting timers (recursive setTimeout) for stable, non-overlapping collection cycles (Bounded Execution Model).
  */
 class EnvironmentalSensorHub {
     constructor(collectionInterval_ms = 1000) {
-        this.cache = {
-            criticalLatency: 0, // Current low-level critical latency (ms)
-            normalizedStressIndex: 0 // Current normalized system/external stress (0.0 - 1.0)
-        };
+        // Cache holds the latest atomically updated sensor data (Map for dynamic key management)
+        this.cache = new Map();
+        
         this.collectionInterval_ms = collectionInterval_ms;
         this.isRunning = false;
-        this.intervalHandle = null;
-        // sensors will contain { run: async () => {}, keys: [] }
+        this.timeoutHandle = null;
+        this.isCollecting = false; // Concurrency guard
+
+        // sensors will contain { name: string, run: async () => Object<key, value>, keys: string[] }
         this.sensors = []; 
     }
 
     /**
      * Adds a data source/sensor implementation.
-     * @param {Object} sensor - An object with an async 'run' method.
+     * Sensor objects must define a 'name' (string) and an async 'run' method (returns an Object or Map).
+     * @param {Object} sensor - The sensor implementation object.
+     * @param {string[]} requiredKeys - Keys this sensor promises to return.
      */
-    addSensor(sensor) {
-        // Future implementation: Add validation and integrate sensor data into the cache based on defined keys.
-        this.sensors.push(sensor);
+    addSensor(sensor, requiredKeys = []) {
+        if (typeof sensor.run !== 'function' || !sensor.name) {
+            console.error("[SensorHub] Invalid sensor definition. Must define 'name' and async 'run'.");
+            return;
+        }
+        
+        this.sensors.push({ ...sensor, keys: requiredKeys });
+        // Initialize cache entries for expected keys, potentially setting default values like null/0.
+        requiredKeys.forEach(key => {
+            if (!this.cache.has(key)) this.cache.set(key, 0);
+        });
     }
 
     startCollection() {
         if (this.isRunning) return;
         this.isRunning = true;
-        
-        const runLoop = async () => {
-            // Execute all asynchronous collection tasks
-            await this.collectAllSensors();
-        };
-
-        this.intervalHandle = setInterval(runLoop, this.collectionInterval_ms);
-        runLoop(); // Immediate execution upon start
+        console.log(`[SensorHub] Starting collection loop every ${this.collectionInterval_ms}ms.`);
+        this._collectionLoop();
     }
 
     stopCollection() {
         if (!this.isRunning) return;
-        clearInterval(this.intervalHandle);
+        clearTimeout(this.timeoutHandle);
         this.isRunning = false;
+        console.log("[SensorHub] Collection stopped.");
     }
 
     /**
-     * Executes all registered sensors and atomically updates the cache.
+     * Recursive, self-correcting collection loop using setTimeout.
+     * Ensures the next run only starts after the current run completes, preventing overflow.
      */
-    async collectAllSensors() {
-        try {
-            // --- Placeholder Implementation for testing/initial structure ---
-            const latency = Math.floor(Math.random() * 50) + 5;
-            const stress = parseFloat(Math.random().toFixed(2));
+    _collectionLoop() {
+        if (!this.isRunning) return;
 
-            this.cache.criticalLatency = latency;
-            this.cache.normalizedStressIndex = stress;
-
-            // In future versions, run this.sensors and aggregate results here
-        } catch (error) {
-            // Handle global collection failure if necessary
-        }
+        this.collectAllSensors()
+            .finally(() => {
+                // Schedule the next run after the current cycle finishes.
+                const delay = this.collectionInterval_ms; 
+                this.timeoutHandle = setTimeout(() => this._collectionLoop(), delay);
+            });
     }
 
-    // Synchronous read APIs used by ContextualRuntimeMonitor (CRM)
+    /**
+     * Executes all registered sensors concurrently and performs an atomic cache update.
+     */
+    async collectAllSensors() {
+        if (this.isCollecting) return; 
+        this.isCollecting = true;
+        
+        const sensorPromises = this.sensors.map(async (sensor) => {
+            try {
+                // Sensor run execution (must return an object or map)
+                const results = await sensor.run(); 
+                return { name: sensor.name, results: results };
+            } catch (error) {
+                console.warn(`[SensorHub] Sensor failure detected: ${sensor.name}. Error: ${error.message}`);
+                return { name: sensor.name, results: null }; // Fail gracefully
+            }
+        });
+
+        const collectedData = await Promise.all(sensorPromises);
+        let aggregatedCache = new Map(this.cache); // Prepare mutable cache snapshot
+
+        for (const data of collectedData) {
+            if (data.results) {
+                // Merge new data
+                Object.entries(data.results).forEach(([key, value]) => {
+                    aggregatedCache.set(key, value);
+                });
+            }
+        }
+        
+        // Atomically replace the public cache after successful aggregation
+        this.cache = aggregatedCache;
+        this.isCollecting = false;
+    }
+
+    // -- Synchronous Read APIs --
+    
+    /**
+     * Generic synchronous reader function used by the ContextualRuntimeMonitor (CRM).
+     * @param {string} key
+     */
+    get(key) {
+        return this.cache.get(key);
+    }
+    
+    // Legacy compatibility wrappers (using hardcoded keys for example)
     getSystemLatency() {
-        return this.cache.criticalLatency;
+        return this.get('criticalLatency') || 0;
     }
 
     getNormalizedStressIndex() {
-        return this.cache.normalizedStressIndex;
+        return this.get('normalizedStressIndex') || 0;
     }
 }
 
