@@ -1,1 +1,91 @@
-[object Object]
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agi.system/GRCS/v1",
+  "title": "Governance, Risk, Compliance, and Security Configuration",
+  "description": "Defines global policies, standards, risks, and audit configuration for the autonomous system.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version identifier (e.g., 1.0.0)"
+    },
+    "controls": {
+      "type": "array",
+      "description": "Master registry of system security and operational controls.",
+      "items": { "$ref": "#/$defs/Control" }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Identified organizational risks and mitigation strategies.",
+      "items": { "$ref": "#/$defs/RiskAssessment" }
+    },
+    "complianceStandards": {
+      "type": "array",
+      "description": "Configuration mapping controls against required regulatory frameworks.",
+      "items": { "$ref": "#/$defs/ComplianceStandard" }
+    }
+  },
+  "required": ["version", "controls", "risks"],
+  "$defs": {
+    "ControlStatus": {
+      "type": "string",
+      "enum": ["Implemented", "In Review", "Mitigated", "Planned", "Exempted"]
+    },
+    "Control": {
+      "type": "object",
+      "properties": {
+        "controlId": { "type": "string", "format": "ulid", "description": "Unique identifier for the control." },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "owner": { "type": "string" },
+        "status": { "$ref": "#/$defs/ControlStatus" },
+        "verificationPolicyId": { "type": "string", "format": "ulid", "description": "Reference to external audit schedule (GRCS_AuditPolicy)." },
+        "mitigates": {
+          "type": "array",
+          "items": { "type": "string", "description": "References to RiskAssessment IDs mitigated by this control." }
+        }
+      },
+      "required": ["controlId", "name", "status"]
+    },
+    "RiskAssessment": {
+      "type": "object",
+      "properties": {
+        "riskId": { "type": "string", "format": "ulid" },
+        "name": { "type": "string" },
+        "likelihood": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "impact": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "residualRiskScore": { "type": "integer" },
+        "isCritical": { "type": "boolean", "default": false },
+        "associatedControls": {
+          "type": "array",
+          "items": { "type": "string", "description": "References to Control IDs applied for mitigation." }
+        }
+      },
+      "required": ["riskId", "name", "likelihood", "impact"]
+    },
+    "ComplianceStandard": {
+      "type": "object",
+      "properties": {
+        "standardName": {
+          "type": "string",
+          "enum": ["ISO_27001", "SOC_2", "GDPR", "CCPA", "NIST_SP_800-53"]
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "requirementRef": { "type": "string", "description": "Specific regulatory requirement ID (e.g., A.12.1.2)." },
+              "controlMapping": {
+                "type": "array",
+                "items": { "type": "string", "description": "Mapped Control IDs addressing this requirement." }
+              }
+            },
+            "required": ["requirementRef", "controlMapping"]
+          }
+        }
+      },
+      "required": ["standardName"]
+    }
+  }
+}
