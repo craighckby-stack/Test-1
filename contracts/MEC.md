@@ -1,18 +1,31 @@
 # METRIC EVOLUTION CONTRACT (MEC)
 
-## GOVERNANCE TIER: CRITICAL ARCHITECTURAL LAYER (CAL-01)
+## SPECIFICATION V2.0 // GOVERNANCE TIER: CAL-01 (CRITICAL ARCHITECTURAL LAYER)
 
-### MANDATE: MSB Integrity Protection
+### 0. CONTRACT SCOPE & MANDATE
 
-The MEC defines the elevated, non-standard governance requirements necessary for modifying the calculation methods for $S\text{-}01$ (Efficacy) and $S\text{-}02$ (Risk Exposure) held within the Canonical Algorithm Source (MSB). This contract mitigates the highest-order systemic risk: the intentional or unintentional manipulation of the system's definition of success and failure.
+**Scope:** The MEC governs all System State Transitions (SSTs) that involve the alteration or re-specification of algorithms housed within the Canonical Algorithm Source (MSB), specifically those defining $S\text{-}01$ (Efficacy Metric) and $S\text{-}02$ (Risk Exposure Metric).
 
-### 1. MECHANISM: SUPERMAJORITY OVERSIGHT (L5 Arbitration Overload)
+**Mandate:** Protect MSB integrity and systemic self-definition against intentional or unintentional manipulation by imposing maximally stringent evolution requirements.
 
-Any System State Transition ($SST$) that involves alteration of the MSB content must satisfy standard P-01 Finality (GSEP-C L0-L8) AND trigger the following additional mandatory requirements within the L5 GCO Arbitration stage:
+### 1. ACTIVATION PROTOCOL: ARBITRATION OVERLOAD (L5 GCO)
 
-1.  **HBT Certification (Historical Backtesting):** Mandatory simulation proving that the new MSB calculation (M-NEW) maintains a 99.99% correlation factor with historical system performance data (ASM) when retrospectively applied to the last 100 successful $SST$ commitments (M-OLD).\n    *Requirement: R(M-NEW, M-OLD) > 0.9999.*\n
-2.  **Robustness Analysis Proof (RAP):** Proof must be submitted demonstrating that M-NEW cannot be trivially gamed or minimized by internal actors seeking to optimize $S\text{-}01$ without corresponding real-world value increase. (Dependency: EDIS Integrity Audit).\n
-3.  **Future Viability Simulation:** M-NEW must pass a minimum 5,000-cycle randomized stochastic simulation, validating that it does not introduce runaway positive feedback loops or resource exhaustion dependencies.
+An SST proposing an MSB metric update (M-NEW) must satisfy P-01 Finality (GSEP-C L0-L8) AND trigger a mandatory elevated governance workflow within the L5 GCO Arbitration stage.
 
-### 2. FAILURE MODE\n
-Failure to meet the HBT Certification threshold (R < 0.9999) results in immediate L5 Arbitration failure, triggering a mandatory GCM Freeze State and requiring human review/override signal (GPC H-1) before any further SST proposals can be vetted.
+#### 1.1 PREREQUISITES FOR M-NEW ADOPTION:
+
+Any M-NEW proposal must concurrently pass the following three validation criteria (L5 Arbitration Overload Checks):
+
+| ID | REQUIREMENT | VALIDATION THRESHOLD | DEPENDENCY |
+|----|-------------|----------------------|------------|
+| 1.1.1 | **Historical Backtesting Certification (HBT)** | Correlation R(M-NEW, M-OLD) > 0.9999 | Retrospective application across the preceding 100 final $SST$ commitments (Archival State Mapping - ASM). |
+| 1.1.2 | **Robustness Analysis Proof (RAP)** | Formal cryptographic proof of non-trivial min-max resistance against optimization/gaming vectors. | EDIS Integrity Audit (External Dependency Integration Standard). |
+| 1.1.3 | **Future Viability Simulation (FVS)** | M-NEW must pass a minimum of 5,000 independent stochastic cycles. | Independent Simulation Engine (ISE). |
+
+### 2. FAILURE AND EMERGENCY ABORT
+
+Failure to meet the HBT Certification threshold (R < 0.9999) automatically triggers an immediate arbitration failure cascade:
+
+1.  **L5 Arbitration Abort:** Proposal (SST) is rejected immediately.
+2.  **GCM Freeze State Activation:** Mandatory temporary halting of further GCM (Governance Coordination Module) vetting processes.
+3.  **Human Override Signal:** Requiring mandatory GPC H-1 signal authorization (Human Proxy Console High-Priority Override) before any new MSB-related SST proposals can be processed or submitted.
