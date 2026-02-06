@@ -1,0 +1,32 @@
+{
+  "catalog_id": "IVC_98.0",
+  "description": "Standardized input vectors for PVSM consumption.",
+  "vectors": [
+    {
+      "ref_id": "INPUT/IV_Tautology_A",
+      "payload": {
+        "system_integrity": 1.0,
+        "resource_allocation": 100,
+        "resource_budget": 101
+      },
+      "notes": "Minimal valid state input, expected to pass tautology checks."
+    },
+    {
+      "ref_id": "INPUT/IV_Boundary_Critical_B",
+      "payload": {
+        "tolerance_delta": 0.00000001,
+        "state_divergence": 0.001,
+        "failure_threshold_epsilon": 0.0001
+      },
+      "notes": "Input designed to cross the failure epsilon boundary, invoking critical fail (42)."
+    },
+    {
+      "ref_id": "INPUT/IV_Deadlock_Test_C",
+      "payload": {
+        "policy_chain": ["P_LOCK_A", "P_REQUIRES_A", "P_REQUIRES_B"],
+        "lock_configuration": ["A_REQUIRES_B", "B_REQUIRES_A"]
+      },
+      "notes": "Simulated circular dependency payload for flow control testing."
+    }
+  ]
+}
