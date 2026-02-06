@@ -1,0 +1,34 @@
+{
+  "description": "Registry defining intrinsic properties and operational parameters for all RRP action primitives. This prevents relying on undefined magic strings.",
+  "version": "v1.0",
+  "actions": {
+    "HALT_EXECUTION": {
+      "level": "SYSTEM_WIDE",
+      "idempotent": true,
+      "logging_priority": "URGENT",
+      "timeout_s": 5,
+      "purpose": "Immediately stops all active computational threads and persists memory state."
+    },
+    "ISOLATE_STATE": {
+      "level": "MEMORY",
+      "idempotent": true,
+      "logging_priority": "HIGH",
+      "timeout_s": 10,
+      "purpose": "Forks current execution state for non-interruptive forensic analysis."
+    },
+    "NOTIFY_GOVERNOR": {
+      "level": "COMMUNICATION",
+      "idempotent": false,
+      "logging_priority": "URGENT",
+      "timeout_s": 30,
+      "purpose": "Sends critical alert to external governance layer, requiring explicit acknowledgement."
+    },
+    "HARD_RESET": {
+      "level": "HARDWARE",
+      "idempotent": true,
+      "logging_priority": "CRITICAL",
+      "timeout_s": 60,
+      "purpose": "Initiates a full, cold restart of the system."
+    }
+  }
+}
