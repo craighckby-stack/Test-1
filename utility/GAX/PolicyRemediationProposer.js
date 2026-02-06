@@ -1,56 +1,95 @@
 /**
- * SAG V94.1 - GAX Policy Remediation Proposer
+ * SAG V94.2 - GAX Policy Remediation Proposer
  * Utilizes failure reports from the Formal Verification Unit to suggest minimal, consistent policy changes.
- * This component closes the feedback loop, enabling autonomous repair recommendations.
+ * Focuses on robust failure categorization and intelligent delegation to the Policy Structure Model solver.
  */
 
 const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
-
-// Placeholder service that abstracts interaction with the Policy structure model (ACVD, UFRM, CFTM)
 const PolicyStructureModel = require('../../core/Policy/PolicyStructureModel.js');
+
+/**
+ * Standardizes the failure result object for robust structural analysis.
+ * @param {VerificationResult} verificationResult
+ * @returns {{ violations: Array<Constraint>, resultCategory: string, isVerified: boolean }}
+ */
+function extractViolationContext(verificationResult) {
+    // Ensure essential properties exist, even if null/empty arrays
+    const violations = Array.isArray(verificationResult.failureConstraints) ? verificationResult.failureConstraints : [];
+    const resultCategory = verificationResult.resultCategory || 'UNKNOWN_CATEGORY';
+    const isVerified = verificationResult.isVerified === true;
+
+    return { violations, resultCategory, isVerified };
+}
+
 
 /**
  * Analyzes verification failure constraints to propose a minimal policy delta that resolves the conflict.
  *
  * @param {VerificationResult} verificationResult - The full failure report from PolicyFormalVerificationUnit.
  * @param {PolicyDelta} originalProposedDelta - The delta that caused the failure.
- * @returns {Promise<{ isRepairable: boolean, repairDelta: PolicyDelta|null, reason: string }>}
+ * @returns {Promise<{ success: boolean, delta: PolicyDelta|null, message: string, detail?: object }>}
  */
 async function proposeRemediation(verificationResult, originalProposedDelta) {
-    if (verificationResult.isVerified || verificationResult.resultCategory !== 'AXIOMATIC_VIOLATION') {
-        return { isRepairable: false, repairDelta: null, reason: `Verification was successful or failure type (${verificationResult.resultCategory}) is non-axiomatic.` };
+    if (!verificationResult || !originalProposedDelta) {
+        GAXTelemetry.error('PRP_INVALID_INPUT', { reason: 'Missing verification result or original delta.' });
+        return { success: false, delta: null, message: 'Invalid input parameters provided.' };
     }
 
-    const violatingAxioms = verificationResult.failureConstraints;
+    const { violations, resultCategory, isVerified } = extractViolationContext(verificationResult);
     const proposalId = GAXTelemetry.generateRunId('PRP');
-    GAXTelemetry.publish('PRP_START', { proposalId, violations: violatingAxioms.length });
 
-    if (!violatingAxioms || violatingAxioms.length === 0) {
-        GAXTelemetry.warn('PRP_NO_AXIOMS', { proposalId, info: 'Axiomatic failure detected but no specific constraints provided.' });
-        return { isRepairable: false, repairDelta: null, reason: 'Axiomatic violation report was incomplete.' };
+    if (isVerified || resultCategory !== 'AXIOMATIC_VIOLATION') {
+        GAXTelemetry.publish('PRP_SKIP', { proposalId, category: resultCategory });
+        return { 
+            success: false, 
+            delta: null, 
+            message: `Verification was successful or failure type (${resultCategory}) is not actionable for automatic remediation.` 
+        };s
     }
+
+    if (violations.length === 0) {
+        GAXTelemetry.warn('PRP_INCOMPLETE_REPORT', { proposalId, category: resultCategory });
+        return { success: false, delta: null, message: 'Axiomatic failure detected but no specific constraints provided for analysis.' };
+    }
+
+    GAXTelemetry.publish('PRP_START', { proposalId, violationCount: violations.length, category: resultCategory });
 
     try {
-        // Core Intelligence Step: Call a structural solver (assumed to exist in PolicyStructureModel)
+        // High-Intelligence Delegation: Pass violations and context to the structural solver.
+        // Providing context allows the model to select specialized solving algorithms.
         const repairSolution = await PolicyStructureModel.findMinimalConsistencyDelta(
             originalProposedDelta,
-            violatingAxioms
+            violations,
+            { context: resultCategory }
         );
 
         if (repairSolution && Object.keys(repairSolution).length > 0) {
-            GAXTelemetry.success('PRP_SUCCESS', { proposalId });
+            GAXTelemetry.success('PRP_COMMIT', {
+                proposalId,
+                deltaKeys: Object.keys(repairSolution).length
+            });
+            
             return {
-                isRepairable: true,
-                repairDelta: repairSolution,
-                reason: `Successfully generated minimal delta to resolve ${violatingAxioms.length} conflicting axioms.`
+                success: true,
+                delta: repairSolution,
+                message: `Remediation successful: Generated minimal delta resolving ${violations.length} conflicts.`
             };
         } else {
-            GAXTelemetry.warn('PRP_FAIL_SOLVER', { proposalId, info: 'Solver could not find a minimal non-contradictory modification.' });
-            return { isRepairable: false, repairDelta: null, reason: 'Remediation solver failed to find a valid repair.' };
+            GAXTelemetry.warn('PRP_SOLVER_FAILURE', { proposalId, detail: 'Solver reported an empty or null solution set.' });
+            return { 
+                success: false, 
+                delta: null, 
+                message: 'Remediation solver failed to find a valid non-contradictory repair delta.' 
+            };
         }
     } catch (error) {
-        GAXTelemetry.error('PRP_INTERNAL_ERROR', { proposalId, error: error.message });
-        return { isRepairable: false, repairDelta: null, reason: `Internal error during remediation proposal: ${error.message}` };
+        // Catch exceptions from the PolicyStructureModel
+        GAXTelemetry.error('PRP_SOLVER_EXCEPTION', { proposalId, message: error.message, stack: error.stack });
+        return { 
+            success: false, 
+            delta: null, 
+            message: `Critical error encountered during structural solving: ${error.message}` 
+        };
     }
 }
 
