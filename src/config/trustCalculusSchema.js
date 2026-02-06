@@ -5,23 +5,31 @@
  *       applied by CORE (Component Obsolescence Review Engine).
  * Ensures standardized input interpretation and explicitly defines metric polarity.
  * 
- * Refactored to enforce immutability (Object.freeze) and implement strict initialization
- * validation via an internal function that throws an Error on configuration failure.
+ * Refactored for explicit type definitions (JSDoc) and enforcement of strict configuration.
+ */
+
+/** @typedef {1 | -1} TrustPolarityValue - 1: Positive Correlation, -1: Negative Correlation */
+/**
+ * @typedef {Object} TrustMetricSchemaItem
+ * @property {number} weight - Weight factor (0.0 to 1.0). Total weights must sum to 1.0.
+ * @property {TrustPolarityValue} polarity - Defines correlation with Trust Score.
+ * @property {string} description - Semantic explanation of the metric.
  */
 
 // --- Constants ---
 
-export const TRUST_POLARITY = {
+export const TRUST_POLARITY = /** @type {{POSITIVE: TrustPolarityValue, NEGATIVE: TrustPolarityValue}} */ ({
     /** Higher metric value -> Higher derived Trust Score (Direct Correlation) */
     POSITIVE: 1,
     /** Higher metric value -> Lower derived Trust Score (Inverse Correlation, requires 1-X normalization) */
     NEGATIVE: -1,
-};
+});
 
 const { POSITIVE, NEGATIVE } = TRUST_POLARITY;
 
 // --- Schema Definition ---
 
+/** @type {{[metricName: string]: TrustMetricSchemaItem}} */
 const SCHEMA_DEFINITION = {
     redundancyScore: {
         weight: 0.40,
@@ -48,8 +56,8 @@ const SCHEMA_DEFINITION = {
 // --- Validation and Export ---
 
 /**
- * Validates the schema integrity, primarily ensuring weights sum correctly,
- * and extracts the metric names. Throws an error on configuration failure.
+ * Validates the schema integrity, primarily ensuring weights sum correctly and polarities are valid.
+ * Throws an error on configuration failure.
  * @param {Object} schema 
  * @returns {string[]} Metric names
  */
