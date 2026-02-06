@@ -1,35 +1,58 @@
 {
-  "IMVE_VERSION": "V1.0",
-  "metric_schema_requirements": [
+  "metadata": {
+    "version": "V2.0",
+    "description": "Integrated Metric Validation Engine (IMVE) Schema Configuration defining requirements and standardized processing pipelines for core operational metrics."
+  },
+  "metric_definitions": [
     {
-      "id": "S-01_Efficacy_Trust",
-      "required_sources": ["ATM", "PSR", "ADA"],
-      "schema": "EfficacyProjection.json",
+      "metric_id": "S-01_Efficacy_Trust",
+      "schema_ref": "EfficacyProjection.json",
+      "required_input_sources": ["ATM", "PSR", "ADA"],
       "constraints": {
         "data_type": "float",
-        "range": [0.0, 1.0],
-        "normalization_routine": "Z-score_v2"
+        "value_logic": {
+          "range": [0.0, 1.0],
+          "exclusive_max": false
+        },
+        "processing_pipeline": {
+          "type": "Normalization",
+          "routine": "Z_SCORE_V2"
+        }
       }
     },
     {
-      "id": "S-02_Risk_Synthesis",
-      "required_sources": ["MCRA", "RACM"],
-      "schema": "RiskSynthesis.json",
+      "metric_id": "S-02_Risk_Synthesis",
+      "schema_ref": "RiskSynthesis.json",
+      "required_input_sources": ["MCRA", "RACM"],
       "constraints": {
         "data_type": "float",
-        "range": [0.0, 1.0],
-        "aggregation_method": "WeightedAverage_v1"
+        "value_logic": {
+          "range": [0.0, 1.0],
+          "exclusive_max": false
+        },
+        "processing_pipeline": {
+          "type": "Aggregation",
+          "routine": "WEIGHTED_AVERAGE_V1"
+        }
       }
     },
     {
-      "id": "S-03_Compliance_Veto",
-      "required_sources": ["RSAM", "CIL", "SBC"],
-      "schema": "ComplianceState.json",
+      "metric_id": "S-03_Compliance_Veto",
+      "schema_ref": "ComplianceState.json",
+      "required_input_sources": ["RSAM", "CIL", "SBC"],
       "constraints": {
         "data_type": "boolean",
-        "value_check": ["TRUE", "FALSE"]
+        "value_logic": {
+          "allowed_values": [true, false],
+          "strict_check": true
+        },
+        "processing_pipeline": null
       }
     }
   ],
-  "pre_l4_validation_check": true
+  "engine_configuration": {
+    "pre_l4_validation_check": true,
+    "source_availability_check_level": "CRITICAL",
+    "fail_mode_default": "VETO"
+  }
 }
