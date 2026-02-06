@@ -1,28 +1,66 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "policy_source": "GRS_V97.3",
   "invariants": [
     {
       "id": "INV-001",
-      "type": "NON_CONTRADICTION",
-      "description": "Ensure no rule in GRS context A violates necessary condition in GRS context B.",
-      "target_groups": ["Governance", "P-01/Commitment"],
+      "type": "LOGICAL_CONSISTENCY",
+      "severity": "CRITICAL",
+      "priority": 100,
+      "description": "Ensure no rule set A violates necessary condition in rule set B (Non-Contradiction Principle).",
+      "target_scope": {
+        "domain": "Governance",
+        "subdomains": [
+          "P-01/Commitment",
+          "Policy_Structure"
+        ]
+      },
+      "execution_engine": "ConflictResolutionMatrix_V2",
       "required_confidence": 0.999
     },
     {
       "id": "INV-002",
-      "type": "SYNTACTIC_ADHERENCE",
-      "description": "Verify all GRS rules adhere strictly to the internal policy domain language (PDL) schema.",
-      "target_groups": ["RSAM", "C-15"],
+      "type": "STRUCTURAL_ADHERENCE",
+      "severity": "ERROR",
+      "priority": 90,
+      "description": "Verify all GRS rules adhere strictly to the internal Policy Domain Language (PDL) syntax and grammar.",
+      "target_scope": {
+        "domain": "RSAM",
+        "policy_identifiers": [
+          "C-15_*"
+        ]
+      },
+      "execution_engine": "PDL_Validator_Engine",
       "required_confidence": 1.0
     },
     {
       "id": "INV-003",
-      "type": "ATOMICITY_ASSURANCE",
-      "description": "Verify no GRS rule compromises the GSEP's atomic commit properties.",
-      "target_groups": ["GSEP", "AIA"],
+      "type": "TRANSACTIONAL_INTEGRITY",
+      "severity": "WARNING",
+      "priority": 70,
+      "description": "Verify no GRS rule compromises the Global System Execution Pipeline (GSEP)'s atomic commit properties.",
+      "target_scope": {
+        "domain": "GSEP",
+        "subdomains": [
+          "AIA_Commits"
+        ]
+      },
+      "execution_engine": "GRS_Integrity_Monitor",
       "required_confidence": 0.99
     }
   ],
-  "validation_gates": ["GIRAM_INIT"]
+  "validation_gates": [
+    {
+      "gate_id": "GIRAM_INIT",
+      "description": "Initial Governance and Integrity Rule Assessment Matrix check.",
+      "execution_mode": "SYNCHRONOUS",
+      "failure_action": "REJECT_PULL"
+    },
+    {
+      "gate_id": "PRE_DEPLOYMENT_AUDIT",
+      "description": "Final audit before deployment into production GSEP.",
+      "execution_mode": "ASYNCHRONOUS",
+      "failure_action": "TRIGGER_REVIEW_FLAG"
+    }
+  ]
 }
