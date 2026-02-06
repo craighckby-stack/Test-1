@@ -2,28 +2,10 @@
 # Custodian: GAX (Design/Validation), SGS (Execution Interface)
 
 import logging
-from typing import Dict, Any, TypedDict, Callable
+from typing import Dict, Any, Callable
 
-# NOTE: For cleaner architectural separation, the definitions below should be externalized 
-# into a dedicated types file (see scaffold proposal).
-
-# --- Internal Data Structure Definitions for Type Safety (Refactored) ---
-
-class StabilityBounds(TypedDict):
-    min_epsilon: float
-    max_epsilon: float
-    required_fields: list[str]
-
-class ACVDConfig(TypedDict):
-    version: str
-    stability_bounds: StabilityBounds
-    security_flags: list[str]
-
-class PCSSData(TypedDict):
-    id: str
-    correction_type: str
-    params: Dict[str, Any]
-    status: str
+# Import external types for cleaner architectural separation and reusability
+from types.APRETypes import ACVDConfig, PCSSData 
 
 # Standardized structured logging for APRE operations
 logging.basicConfig(level=logging.INFO, format='[APRE] %(levelname)s - %(message)s')
@@ -40,30 +22,38 @@ if not hasattr(logging, 'success'):
 
 class AxiomaticPolicyRemediationEngine:
     """ 
-    The APRE is responsible for validating and executing policy corrections (PCSS) 
-    following a Critical Rollback Protocol (RRP) trigger. It strictly ensures 
-    adherence to the current Axiomatic Constraint Vector Definition (ACVD) 
-    before deploying remediation actions. Validation is dispatched modularly.
+    The APRE validates and executes policy corrections (PCSS) following a 
+    Critical Rollback Protocol (RRP) trigger. It strictly ensures adherence 
+    to the Axiomatic Constraint Vector Definition (ACVD) before deployment.
     """
     
-    def __init__(self, trace_id: str):
+    def __init__(self, 
+                 trace_id: str,
+                 pcss_data: PCSSData = None, 
+                 acvd_config: ACVDConfig = None):
+        """
+        Initializes the engine. Accepts pre-loaded PCSS and ACVD data for injection 
+        (facilitating testing/flexibility), otherwise loads internal mock data.
+        """
         self.trace_id: str = trace_id
         
-        # Initialize data structures with explicit types
-        self._pcss_data: PCSSData = self._fetch_policy_correction(trace_id)
-        self._acvd_config: ACVDConfig = self._load_axiomatic_constraints()
+        # Dependency Initialization: Inject data or fall back to internal loaders (Mocks)
+        self._acvd_config: ACVDConfig = acvd_config or self._load_axiomatic_constraints()
+        self._pcss_data: PCSSData = pcss_data or self._fetch_policy_correction(trace_id)
 
-        # Use a Validation Dispatcher (Strategy Pattern) for clean extension
+        # Validation Dispatcher (Strategy Pattern)
         self._validators: Dict[str, Callable[[], bool]] = {
             "stability_reweight": self._validate_stability_reweight,
             # Future correction types can be added here easily
-            # "resource_ceiling_adjustment": self._validate_resource_ceiling_adjustment,
         }
+        
+        logger.info(f"APRE initialized for Trace ID: {trace_id}. ACVD Version: {self._acvd_config.get('version', 'N/A')}")
 
+    # --- Data Loading (MOCK Interfaces - Replaceable via Dependency Injection) ---
+    
     def _fetch_policy_correction(self, trace_id: str) -> PCSSData:
-        """ Fetches the proposed Policy Correction Safety Schema (PCSS) data. """
-        logger.info(f"Fetching PCSS data for Trace ID: {trace_id}")
-        # MOCK Implementation
+        """ MOCK: Fetches the proposed Policy Correction Safety Schema (PCSS) data. """
+        logger.debug(f"MOCK: Fetching PCSS data for Trace ID: {trace_id}")
         return {
             "id": f"PCSS-{trace_id}",
             "correction_type": "stability_reweight", 
@@ -72,24 +62,37 @@ class AxiomaticPolicyRemediationEngine:
         }
 
     def _load_axiomatic_constraints(self) -> ACVDConfig:
-        """ Loads the GAX foundational constraints (ACVD). """
-        logger.info("Loading current Axiomatic Constraint Vector Definition (ACVD)...")
-        # MOCK Implementation
+        """ MOCK: Loads the GAX foundational constraints (ACVD). """
+        logger.debug("MOCK: Loading current Axiomatic Constraint Vector Definition (ACVD)...")
         return {
             "version": "ACVD-v94.1",
             "stability_bounds": {"min_epsilon": 0.005, "max_epsilon": 0.05, "required_fields": ["new_margin_epsilon"]},
             "security_flags": ["NO_ROOT_ACCESS_POLICY"]
         }
 
+    # --- Validation Utilities ---
+
+    def _validate_data_presence(self) -> bool:
+        """ Ensures critical data structures were loaded successfully. """
+        if not self._pcss_data:
+            logger.error("Data integrity failure: PCSS data is missing.")
+            return False
+        if not self._acvd_config:
+            logger.error("Data integrity failure: ACVD configuration is missing.")
+            return False
+        return True
+    
     def _validate_stability_reweight(self) -> bool:
         """ Validates parameters specific to 'stability_reweight' against ACVD constraints. """
+        
         bounds = self._acvd_config.get('stability_bounds', {})
         params = self._pcss_data.get('params', {})
         
+        if not bounds or not params:
+            logger.error("ACVD stability bounds or PCSS parameters are ill-defined.")
+            return False
+            
         required_fields = bounds.get('required_fields', [])
-        
-        if not self._pcss_data or not self._acvd_config:
-            logger.error("PCSS or ACVD data missing for validation."); return False
         
         # Check 1: Required Parameter Completeness
         if not all(field in params for field in required_fields):
@@ -102,48 +105,77 @@ class AxiomaticPolicyRemediationEngine:
             min_eps = bounds['min_epsilon']
             max_eps = bounds['max_epsilon']
         except KeyError as e:
-            logger.warning(f"ACVD or PCSS data lacks critical epsilon definitions: {e}"); return False
+            logger.warning(f"ACVD or PCSS data lacks critical definitions: {e}"); 
+            return False
 
         if not (min_eps <= new_epsilon <= max_eps):
-            logger.critical(f"Vetoed: Proposed epsilon ({new_epsilon}) outside ACVD stability bounds ({min_eps}-{max_eps}).")
+            logger.critical(
+                f"Vetoed: Proposed epsilon ({new_epsilon:.4f}) outside ACVD stability bounds "
+                f"({min_eps:.4f}-{max_eps:.4f}). Policy violation detected."
+            )
             return False
             
+        logger.info(f"Stability reweight parameters ({new_epsilon:.4f}) verified against ACVD constraints.")
         return True
 
     def validate_correction(self) -> bool:
         """ Orchestrates policy validation using the internal strategy map. """
-        logger.info(f"Starting validation for PCSS: {self.trace_id}")
+        logger.info(f"Starting validation pipeline for PCSS: {self.trace_id}")
+        
+        if not self._validate_data_presence():
+            return False
+            
         correction_type = self._pcss_data.get('correction_type')
 
         validator = self._validators.get(correction_type)
 
         if not validator:
-            logger.error(f"Validation failed: Unsupported correction type '{correction_type}'.")
+            logger.error(f"Validation failed: Unsupported or undefined correction type '{correction_type}'.")
             return False
             
         # Execute the specific validation function defined in the map
         if not validator():
-            logger.warning("Validation failed. Policy veto initiated.")
+            logger.warning(f"Validation failed for type '{correction_type}'. Policy veto initiated.")
             return False
 
         logger.success("PCSS Correction validated successfully against all ACVD invariants.")
         return True
 
     def execute_remediation(self) -> bool:
-        """ Applies the correction if validation passes, triggering deployment via SGS. """
+        """ Applies the correction if validation passes, signaling deployment via SGS. """
         if self.validate_correction():
             correction_type = self._pcss_data.get('correction_type', 'UNKNOWN')
-            logger.success(f"Applying verified correction: {correction_type}. Preparing GICM update signal.")
-            # Signal SGS for deployment via GICM update (e.g., calling an external client)
+            logger.success(f"Applying verified correction: {correction_type}. Triggering SGS GICM update signal.")
+            
+            # Update PCSS Status upon theoretical execution success
+            self._pcss_data['status'] = 'EXECUTED'
             return True
         
-        logger.error("Execution aborted due to validation failure.")
+        logger.error("Execution aborted due to prerequisite validation failure.")
         return False
 
 if __name__ == '__main__':
-    # Simulate RRP trigger leading to policy correction analysis (PCSS)
+    # Adjust logging level for simulation context
+    logger.setLevel(logging.DEBUG)
+    
+    # 1. Simulate SUCCESSFUL RRP trigger
     remediation_instance = AxiomaticPolicyRemediationEngine(trace_id="RRP-2024-05-30-77C")
     if remediation_instance.execute_remediation():
-        logger.success("Remediation successful. System ready for GSEP-C restart.")
+        logger.success("\n--- Remediation successful. System ready for GSEP-C restart. ---\n")
     else:
-        logger.critical("Remediation failed. Manual GAX review required.")
+        logger.critical("\n--- Remediation failed. Manual GAX review required. ---\n")
+
+    # 2. Simulate Vetoed RRP trigger (for demonstration of constraint adherence)
+    bad_pcss = {
+        "id": "PCSS-VETOED-999",
+        "correction_type": "stability_reweight", 
+        "params": {"new_margin_epsilon": 0.09, "priority": 10},
+        "status": "PROPOSED"
+    }
+    
+    veto_instance = AxiomaticPolicyRemediationEngine(trace_id="RRP-2024-05-30-VETO", 
+                                                      pcss_data=bad_pcss)
+    if veto_instance.execute_remediation():
+        pass # Should not succeed
+    else:
+        logger.critical("\n--- VETO Test: Remediation failed as expected (Policy Violation). ---\n")
