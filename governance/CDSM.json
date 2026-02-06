@@ -1,24 +1,58 @@
 {
-  "schema_version": "1.0.0",
-  "description": "Certified Data Schema Manifest (CDSM): Defines the mandatory JSON schema structure for high-criticality assets (GICM, CISM, Telemetry) to ensure deterministic parsing and integrity across the GSEP-C pipeline stages.",
+  "schema_version": "2.1.0",
+  "schema_standard": "JSONSchema-Draft-2020-12",
+  "description": "Certified Data Schema Manifest (CDSM): Authoritative definitions ensuring structural integrity and deterministic parsing for high-criticality assets (GICM, CISM) across the GSEP-C pipeline stages.",
   "manifests": [
     {
       "name": "GICM_Commitment",
-      "purpose": "S8/S10 commitment payload validation",
-      "required_fields": [
-        "transaction_id",
-        "finality_status",
-        "s01_certified_utility",
-        "s02_required_baseline",
-        "gax_veto_proofs": ["v2", "v3", "v6_5"],
-        "crot_attestation_signature"
-      ]
+      "purpose": "Final State Commitment (S8/S10) payload validation.",
+      "governance_constraints": {
+        "finality_status": "REQUIRED_IMMUTABLE",
+        "minimum_assurance_level": "L4_CERTIFIED"
+      },
+      "schema": {
+        "$id": "https://agi.sovereign/schemas/GICM_Commitment",
+        "type": "object",
+        "properties": {
+          "transaction_id": { "type": "string", "description": "Unique transaction identifier." },
+          "finality_status": { "type": "string", "enum": ["COMMITTED", "REVERTED", "PENDING_FINAL"] },
+          "s01_certified_utility": { "type": "string" },
+          "s02_required_baseline": { "type": "integer", "minimum": 1 },
+          "gax_veto_proofs": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^v[0-9]+.*" },
+            "minItems": 1
+          },
+          "crot_attestation_signature": { "type": "string" }
+        },
+        "required": [
+          "transaction_id",
+          "finality_status",
+          "s01_certified_utility",
+          "crot_attestation_signature"
+        ],
+        "additionalProperties": false
+      }
     },
     {
       "name": "CISM_IntermediateState",
-      "purpose": "S1-S7 data handoff validation",
-      "immutable_keys": ["input_hash", "provenance_dtm"]
+      "purpose": "Secure data handoff validation (S1-S7 pipeline stages).",
+      "governance_constraints": {
+        "immutability_keys": ["input_hash", "provenance_dtm"],
+        "retention_policy": "7_YEARS"
+      },
+      "schema": {
+        "$id": "https://agi.sovereign/schemas/CISM_IntermediateState",
+        "type": "object",
+        "properties": {
+          "input_hash": { "type": "string", "format": "uuid" },
+          "provenance_dtm": { "type": "string", "format": "date-time" },
+          "intermediate_payload": { "type": "object" }
+        },
+        "required": ["input_hash", "provenance_dtm", "intermediate_payload"]
+      }
     }
   ],
-  "validation_service": "SGS_SchemaValidator"
+  "validation_runtime_env": "SGS_SchemaValidator_v4",
+  "audit_path": "system/compliance/CDSM_Auditor_Log.json"
 }
