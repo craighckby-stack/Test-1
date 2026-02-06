@@ -1,0 +1,34 @@
+{
+  "description": "Policy definitions for all referenced Sovereign Isolation Levels (L-Levels) used across GSEP configurations. These policies enforce the runtime parameters specified by policy references (e.g., L4_Hardened_VM) in CPES configurations.",
+  "metadata": {
+    "version": "V1.0-ISOPOL-2024",
+    "owner": "CRoT"
+  },
+  "isolation_policies": [
+    {
+      "policy_id": "L4_Hardened_VM",
+      "security_level": 4,
+      "tcb_requirement": "VMM-2024-Q3",
+      "crypto_requirements": {
+        "memory_encryption": true,
+        "disk_encryption": true
+      },
+      "network_restrictions": [
+        "No egress to external network",
+        "Internal IPC only via trusted channel"
+      ]
+    },
+    {
+      "policy_id": "L5_Hardware_Enclave",
+      "security_level": 5,
+      "tcb_requirement": "SGX/TDX v1.1",
+      "crypto_requirements": {
+        "memory_encryption": true,
+        "disk_encryption": false
+      },
+      "network_restrictions": [
+        "No network access permitted."
+      ]
+    }
+  ]
+}
