@@ -5,22 +5,32 @@
   "global_enforcement_protocols": [
     "TRANSACTION_LOGGING_MANDATE"
   ],
+  "protocol_library": {
+    "CRITICAL_SAFEGUARD": [
+      "ASSET_LOCKING_CHECK",
+      "TRANSACTION_IDEMPOTENCE"
+    ],
+    "IDEMPOTENT_ONLY": [
+      "TRANSACTION_IDEMPOTENCE"
+    ],
+    "ASSET_CHECK_ONLY": [
+      "ASSET_LOCKING_CHECK"
+    ],
+    "NONE": []
+  },
   "remediation_actions": {
     "STATE_QUARANTINE": {
       "domain": "SECURITY_INCIDENT_RESPONSE",
       "priority": "CRITICAL",
       "description": "Isolates a compromised asset or endpoint.",
-      "execution": {
+      "schema_ref": "config/GAX/schema/security/isolateAsset.json",
+      "invocation": {
         "module": "CISM_Integrator",
-        "method": "isolateAsset",
-        "parameters_schema_ref": "config/GAX/schema/security/isolateAsset.json"
+        "method": "isolateAsset"
       },
       "policy": {
         "security_level_required": "L5_ADMIN",
-        "local_protocols": [
-          "ASSET_LOCKING_CHECK",
-          "TRANSACTION_IDEMPOTENCE"
-        ],
+        "protocol_set_ref": "CRITICAL_SAFEGUARD",
         "timeout_ms": 5000
       }
     },
@@ -28,16 +38,14 @@
       "domain": "CONFIGURATION_MANAGEMENT",
       "priority": "HIGH",
       "description": "Restores configuration to a previously certified hash.",
-      "execution": {
+      "schema_ref": "config/GAX/schema/config/rollbackHash.json",
+      "invocation": {
         "module": "PVLM_Custodian",
-        "method": "applyCertifiedHash",
-        "parameters_schema_ref": "config/GAX/schema/config/rollbackHash.json"
+        "method": "applyCertifiedHash"
       },
       "policy": {
         "security_level_required": "L3_OPERATOR",
-        "local_protocols": [
-          "TRANSACTION_IDEMPOTENCE"
-        ],
+        "protocol_set_ref": "IDEMPOTENT_ONLY",
         "timeout_ms": 10000
       }
     },
@@ -45,14 +53,14 @@
       "domain": "AI_GOVERNANCE",
       "priority": "HIGH",
       "description": "Forces an urgent retraining queue request for a specified model identifier.",
-      "execution": {
+      "schema_ref": "config/GAX/schema/ai/retrainMandate.json",
+      "invocation": {
         "module": "CMR_Orchestrator",
-        "method": "queueUrgentRetrain",
-        "parameters_schema_ref": "config/GAX/schema/ai/retrainMandate.json"
+        "method": "queueUrgentRetrain"
       },
       "policy": {
         "security_level_required": "L4_ENGINEER",
-        "local_protocols": [],
+        "protocol_set_ref": "NONE",
         "timeout_ms": 60000
       }
     },
@@ -60,14 +68,14 @@
       "domain": "OBSERVABILITY_CONTROL",
       "priority": "MEDIUM",
       "description": "Freezes monitoring metrics stream state.",
-      "execution": {
+      "schema_ref": "config/GAX/schema/monitor/metricLockdown.json",
+      "invocation": {
         "module": "MPAM_Monitor",
-        "method": "activateFreeze",
-        "parameters_schema_ref": "config/GAX/schema/monitor/metricLockdown.json"
+        "method": "activateFreeze"
       },
       "policy": {
         "security_level_required": "L2_OBSERVER",
-        "local_protocols": [],
+        "protocol_set_ref": "NONE",
         "timeout_ms": 2000
       }
     },
@@ -75,16 +83,14 @@
       "domain": "DATA_INGESTION_CONTROL",
       "priority": "MEDIUM",
       "description": "Halts data ingestion from a specified source stream.",
-      "execution": {
+      "schema_ref": "config/GAX/schema/data/pauseStream.json",
+      "invocation": {
         "module": "S1_Input_Handler",
-        "method": "pauseIngestStream",
-        "parameters_schema_ref": "config/GAX/schema/data/pauseStream.json"
+        "method": "pauseIngestStream"
       },
       "policy": {
         "security_level_required": "L3_OPERATOR",
-        "local_protocols": [
-          "ASSET_LOCKING_CHECK"
-        ],
+        "protocol_set_ref": "ASSET_CHECK_ONLY",
         "timeout_ms": 4000
       }
     },
@@ -92,16 +98,14 @@
       "domain": "AI_TRUST_ENGINE",
       "priority": "HIGH",
       "description": "Applies a real-time heuristic patch to the Adversarial Trust Model (ADTM).",
-      "execution": {
+      "schema_ref": "config/GAX/schema/ai/adtmPatch.json",
+      "invocation": {
         "module": "ADTM_Controller",
-        "method": "patchHeuristics",
-        "parameters_schema_ref": "config/GAX/schema/ai/adtmPatch.json"
+        "method": "patchHeuristics"
       },
       "policy": {
         "security_level_required": "L5_ADMIN",
-        "local_protocols": [
-          "TRANSACTION_IDEMPOTENCE"
-        ],
+        "protocol_set_ref": "IDEMPOTENT_ONLY",
         "timeout_ms": 3000
       }
     }
