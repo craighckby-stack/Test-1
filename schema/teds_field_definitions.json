@@ -1,1 +1,1 @@
-[object Object]
+The field definition schema must be refactored from a linear array (or basic dictionary) structure into a hierarchical, indexed map (`Definitions`) that utilizes schema composition via `FieldTemplates` and supports layered metadata, enabling faster lookups and structural inheritance across the autonomous system.
