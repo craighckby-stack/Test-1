@@ -1,0 +1,23 @@
+{
+  "description": "Mapping configuration for the EMS Policy Execution Engine (PEE) to route assertion types and associated resources to responsible execution handlers.",
+  "handler_version": "1.0.0",
+  "routing_maps": {
+    "IntegrityCheck": {
+      "default_handler": "IntegrityService.validate_hash",
+      "resource_overrides": {
+        "OperatingEnvironment": "EnvironmentAPI.check_checksum",
+        "DependencyManifest": "StateEngine.verify_manifest"
+      }
+    },
+    "StateCompliance": {
+      "default_handler": "ComplianceEngine.verify_state_list"
+    },
+    "PerformanceMetric": {
+      "default_handler": "TelemetryAgent.compare_metric_to_threshold",
+      "target_mapping": {
+        "system.compute.efficiency_ratio": "TSDB.query_compute",
+        "system.io.max_latency": "TSDB.query_latency"
+      }
+    }
+  }
+}
