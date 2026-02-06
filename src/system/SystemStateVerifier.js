@@ -1,70 +1,104 @@
 /**
- * SSV: SYSTEM STATE VERIFIER (V95.2)
+ * SSV: SYSTEM STATE VERIFIER (V95.3) - Intelligence Refactor
  * Scope: Stage 1/Security Core. Provides critical cryptographic integrity services.
  * Function: Manages external communication to the immutable manifest store (MCR)
  * and provides hashing and verification utilities for core system artifacts (code,
  * configuration, governance rules). Ensures all critical state changes are attested.
+ * DEPENDENCIES: ImmutableLedgerConnector, CryptoService (must implement SHA256/ECDSA or similar)
  */
 class SystemStateVerifier {
     /**
      * @param {Object} immutableLedgerConnector - The service connecting to the immutable ledger/manifest store.
+     * @param {Object} cryptoService - The dedicated cryptographic utility service.
      */
-    constructor(immutableLedgerConnector) {
+    constructor(immutableLedgerConnector, cryptoService) {
         if (!immutableLedgerConnector) {
-            throw new Error("SSV requires connection to the immutable manifest store (Ledger Connector).");
+            throw new Error("[SSV Init] Requires connection to the immutable manifest store (Ledger Connector).");
         }
+        if (!cryptoService || typeof cryptoService.hash !== 'function' || typeof cryptoService.verifySignature !== 'function') {
+            throw new Error("[SSV Init] Requires a robust CryptoService implementing hash and verifySignature.");
+        }
+
         this.ledger = immutableLedgerConnector;
-        this.cache = new Map(); // Cache validated manifest hashes
+        this.crypto = cryptoService;
+        this.cache = new Map(); // Cache validated manifest data (key: manifestId, value: {data, hash})
     }
 
     /**
-     * Fetches a governance manifest (like the GRS rule set) and verifies its integrity.
-     * This is the mechanism GRS will use to load production rulesets securely.
-     * @param {string} manifestId - Identifier for the required manifest (e.g., 'GRS_V95.2').
-     * @returns {Promise<Object>} The verified and parsed manifest data.
-     * @throws {Error} If verification fails or the manifest is not found/signed.
+     * Calculates the cryptographic hash (SHA-256) of the structured data string.
+     * @param {string} dataString - JSON stringified data payload.
+     * @returns {string} The cryptographic hash.
      */
-    async getVerifiedManifest(manifestId) {
+    _calculateDataHash(dataString) {
+        // Utilizing the injected CryptoService for genuine hashing
+        return this.crypto.hash(dataString, 'sha256');
+    }
+
+    /**
+     * Fetches a governance manifest (like the GRS rule set) and verifies its integrity and authenticity.
+     * @param {string} manifestId - Identifier for the required manifest (e.g., 'GRS_V95.3').
+     * @param {string} attestationKeyId - Key ID used to verify the external signature.
+     * @returns {Promise<Object>} The verified and parsed manifest data.
+     * @throws {Error} If verification fails (hash mismatch, invalid signature, or not found).
+     */
+    async getVerifiedManifest(manifestId, attestationKeyId) {
         if (this.cache.has(manifestId)) {
-            return this.cache.get(manifestId);
+            return this.cache.get(manifestId).data;
         }
 
         // 1. Fetch signed manifest bundle from the ledger connector
         const bundle = await this.ledger.fetchSignedArtifact(manifestId);
 
-        // 2. Perform signature and hash validation
+        if (!bundle || !bundle.data || !bundle.attestedHash || !bundle.signature) {
+             throw new Error(`SSV Integrity Failure: Bundle for ${manifestId} is malformed or missing required fields.`);
+        }
+
+        // 2. Perform internal hash validation (Data integrity check)
         const calculatedHash = this._calculateDataHash(bundle.data);
+
         if (calculatedHash !== bundle.attestedHash) {
-            throw new Error(`SSV Integrity Failure: Manifest ${manifestId} hash mismatch.`);
+            throw new Error(`SSV Integrity Failure [Hash]: Manifest ${manifestId} internal data mismatch. Expected: ${bundle.attestedHash}, Got: ${calculatedHash}`);
         }
         
-        // 3. (Requires crypto service) Verify external signature using public key
+        // 3. Verify external signature (Authenticity check using cryptographic key store)
+        const isValidSignature = this.crypto.verifySignature(bundle.data, bundle.signature, attestationKeyId);
+        
+        if (!isValidSignature) {
+            // Log this severe failure attempt or raise a more specific authentication error
+            console.error(`SSV AUTHENTICITY ERROR: Signature verification failed for manifest ${manifestId}. Key: ${attestationKeyId}`);
+            throw new Error(`SSV Authenticity Failure: Manifest ${manifestId} signature verification failed.`);
+        }
 
         const data = JSON.parse(bundle.data);
-        this.cache.set(manifestId, data);
+        
+        // Store the validated data and hash together
+        this.cache.set(manifestId, { data, hash: calculatedHash });
         return data;
     }
 
     /**
-     * Utility method to calculate the hash (e.g., SHA-256) of structured data.
-     * @param {string} dataString - JSON stringified data.
-     * @returns {string} The cryptographic hash.
-     */
-    _calculateDataHash(dataString) {
-        // Placeholder for real crypto hashing utility
-        const dataLength = dataString.length;
-        return `HASH-${dataLength}-ATTESTED`; 
-    }
-    
-    /**
-     * Retrieves the last attested hash for a specific artifact version from the ledger.
-     * Used by GRS for runtime comparison.
+     * Retrieves the last attested hash for a specific artifact version from the internal cache or ledger.
+     * Used by GRS for runtime comparison or system monitoring.
      * @param {string} artifactId 
-     * @returns {string}
+     * @returns {Promise<string>} The verified hash string.
      */
-    getRuleSourceHash(artifactId) {
-        // Mock implementation
-        return `VERIFIED-HASH-${artifactId}-GRS`;
+    async getArtifactHash(artifactId) {
+        if (this.cache.has(artifactId)) {
+            return this.cache.get(artifactId).hash;
+        }
+        
+        // Fallback: Try fetching the full manifest to ensure verification before returning hash.
+        try {
+            await this.getVerifiedManifest(artifactId);
+            return this.cache.get(artifactId).hash;
+        } catch (error) {
+            // If manifest loading fails, attempt a direct metadata lookup on the ledger.
+            if (this.ledger.getAttestedHash) {
+                 return this.ledger.getAttestedHash(artifactId);
+            } else {
+                throw new Error(`SSV Error: Artifact ${artifactId} not verified and ledger does not support direct hash lookup.`);
+            }
+        }
     }
 }
 
