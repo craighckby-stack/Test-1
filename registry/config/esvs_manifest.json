@@ -1,12 +1,37 @@
 {
-  "description": "Immutable manifest containing trusted environmental signatures (DSE Checkpoint 0).",
+  "description": "Immutable Environment and Signature Validation Service (ESVS) Manifest. V2 structure enforces explicit hashing algorithms and version constraints for security validation.",
   "metadata": {
-    "version": "1.0",
-    "generated_timestamp": "2024-05-20T10:00:00Z"
+    "version": "2.0",
+    "generated_timestamp": "2024-07-29T10:00:00Z",
+    "checksum_standard": "BLAKE3"
   },
-  "core_environment_v1": "8b1d9c1e0a2f4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c",
-  "dependency_hashes": {
-    "numpy_v1": "d34f...",
-    "pycrypto_v1": "e45g..."
+  "signatures": {
+    "system": {
+      "runtime_identifier": "Core_DSE_CPT_001",
+      "signature": {
+        "algorithm": "BLAKE3",
+        "value": "8b1d9c1e0a2f4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c"
+      }
+    },
+    "dependencies": [
+      {
+        "name": "numpy",
+        "version": "1.26.4",
+        "source": "pypi",
+        "signature": {
+          "algorithm": "BLAKE3",
+          "value": "d34f..."
+        }
+      },
+      {
+        "name": "pycrypto",
+        "version": "2.6.1",
+        "source": "local_mirror",
+        "signature": {
+          "algorithm": "SHA256",
+          "value": "e45g..."
+        }
+      }
+    ]
   }
 }
