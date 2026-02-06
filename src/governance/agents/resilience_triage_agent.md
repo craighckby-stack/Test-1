@@ -1,26 +1,33 @@
-# Resilience Triage Agent (RTA)
+# Resilience Triage Agent (RTA) Specification
 
-## 1.0 RTA CORE MANDATE
-The RTA is a specialized, attested subsystem responsible for executing the decision logic prescribed by the Resilience/Recovery Protocol (RRP) upon encountering a CRITICAL failure within the GSEP-C pipeline (S2, S3, S6.5, etc.).
+## 1.0 SYSTEM ROLE & ASSURANCE
+The RTA is an immutable, attested decision-making subsystem operating within the Integrity Preservation Layer. Its exclusive mandate is to interpret and enforce the Governance Resilience Definition Manifest (GRDM) policy constraints following a CRITICAL failure state within the primary Sovereign Execution Pipeline (GSEP).
 
-The RTA does not perform execution ($\Psi_{N} \to \Psi_{N+1}$) but manages the integrity-preserving failure containment sequence.
+The RTA's primary function is non-execution ($\Psi_{N} \nRightarrow \Psi_{N+1}$), focusing strictly on issuing digitally signed directives for failure containment and systemic state restoration.
 
-## 2.0 CONTROL FLOW & INPUTS
+## 2.0 INPUTS, OUTPUTS, & ACTIVATION
 
-### 2.1 Trigger
-Activation is immediate and mandatory upon a stage reporting a CRITICAL failure type to SGS.
+### 2.1 Activation Trigger
+Mandatory and synchronous activation occurs upon the Sovereign Governance System (SGS) receiving a verified `STATUS: CRITICAL_FAILURE` signal from any core pipeline stage (S2-S9).
 
-### 2.2 Input State
-The RTA requires an immutable snapshot of the **Certified Intermediate State Manager (CISM)** captured immediately prior to the failure, along with the **Governance Resilience Definition Manifest (GRDM)**.
+### 2.2 Input Artifacts
+1.  **Certified Intermediate State Manager (CISM) Snapshot (Immutable):** The atomic state $S_{CISM}$ captured immediately preceding the failure event.
+2.  **Governance Resilience Definition Manifest (GRDM):** The actively certified version of policy constraints detailing recovery strategies mapped against failure vectors.
+3.  **Failure Vector Report (FVR):** Detailed diagnostics specifying the failed stage, failure type taxonomy, and severity classification.
 
-## 3.0 TRIAGE EXECUTION SEQUENCE
+### 2.3 Output Artifact
+**Signed Recovery Directive (SRD):** A cryptographically signed instruction artifact containing the attested Recovery State Target (RST) and necessary state transition metadata for SGS rollback execution.
 
-1.  **Context Lock:** The SGS halts all pending stages and locks the CISM state, preventing mutation.
-2.  **GRDM Consultation:** RTA queries the GRDM, cross-referencing the failed stage, the failure vector, and policy bounds defined by GAX.
-3.  **Rollback Decisioning:** RTA determines the attested **Recovery State Target (RST)** (e.g., S4 commitment point or S0 reset) based on GRDM policy constraints (e.g., policy mandate dictates rollback past S3 on Model Drift failure).
-4.  **GAX Attestation:** The decision (RST) is submitted to GAX for policy certification/non-repudiation of the triage plan.
-5.  **CISM Rollback Directive:** RTA issues a digitally signed directive to SGS to reset CISM to the attested RST.
-6.  **Failure Logging:** The entire RRP sequence and RTA decision path are logged via NRALS before system state is released for retry or halt.
+## 3.0 TRANSACTIONAL TRIAGE SEQUENCE
 
-## 4.0 INTEGRITY REQUIREMENTS
-Due to its role in managing CRITICAL failure states, the RTA must be subject to full CRoT attestation. Any RTA operation that contradicts the GRDM or CISM integrity rules must trigger a TERMINAL failure (SIH).
+The RTA must execute the following steps as a fast, isolated transaction to maintain integrity invariants:
+
+1.  **State Isolation & Lock:** SGS isolates and globally locks the CISM write access. RTA retrieves the immutable $S_{CISM}$ snapshot.
+2.  **Policy Query Resolution:** RTA queries the GRDM using the FVR (Stage ID, Failure Type) to determine the pre-mandated recovery policy path.
+3.  **RST Calculation:** RTA calculates the exact Attested Recovery State Target ($RST_{T}$), ensuring compliance with the GRDM, often targeting the most recent safe commitment boundary.
+4.  **Non-Repudiation Attestation (GAX):** RTA submits the calculated $RST_{T}$ to the Governance Attestation X-unit (GAX) to certify policy compliance, resulting in a cryptographically certified signature ($\Sigma_{RST}$).
+5.  **SRD Generation & Issue:** The RTA packages the $RST_{T}$ and $\Sigma_{RST}$ into the Signed Recovery Directive (SRD) and issues it to the SGS Recovery Module.
+6.  **Immutable Logging:** Before releasing the system lock, the RTA ensures that the entire recovery transaction (Inputs, $RST_{T}$, SRD contents) is logged permanently via the Non-Repudiable Attested Log System (NRALS).
+
+## 4.0 INTEGRITY AND SELF-GOVERNANCE
+The RTA component, its dependency chain, and policy execution environment must be subject to continuous CRoT validation. Any attempt by the RTA to generate an SRD that violates the GRDM, fails GAX attestation, or attempts to modify the locked CISM state, shall immediately trigger an Integrity Hard Halt (SIH).
