@@ -2,29 +2,24 @@ from typing import Dict, Any, Protocol
 
 class SystemTelemetryProxy(Protocol):
     """
-    Interface and implementation placeholder for fetching real-time and projected 
-    system operational context. Essential for grounding CEM decisions in tangible 
-    system constraints (SCR inputs).
+    Contract interface for fetching real-time and projected system operational 
+    context (SCR inputs), essential for grounding CEM decisions in tangible system 
+    constraints. Implementations must adhere to this contract.
+
+    A concrete implementation (e.g., using actual system monitoring APIs) 
+    or a mock must be provided where this proxy is utilized.
     """
 
     def get_resource_forecast(self) -> Dict[str, float]:
         """
         Provides projected resource utilization metrics for the next evolution cycle.
-        Keys should include 'cpu_load_baseline', 'memory_headroom', etc.
-        (Actual implementation calls monitoring systems/APIs.)
+        Expected keys: 'cpu_load_baseline', 'memory_headroom', 'i/o_latency_p95'.
         """
-        return {
-            "cpu_load_baseline": 0.45,
-            "memory_headroom": 2.5, 
-            "i/o_latency_p95": 15.0 
-        }
-    
+        ...
+
     def get_constraint_status(self) -> Dict[str, Any]:
         """
         Fetches current explicit operational constraints active in the system.
+        Expected keys: 'MAX_CONCURRENCY', 'ACTIVE_VERSION_ID', 'SECURITY_MODE'.
         """
-        return {
-            "MAX_CONCURRENCY": 1024,
-            "ACTIVE_VERSION_ID": "v94.0-stable",
-            "SECURITY_MODE": "Hardened"
-        }
+        ...
