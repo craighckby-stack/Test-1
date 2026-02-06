@@ -1,22 +1,50 @@
 {
-  "risk_profile_id": "RiskProfile_Standard",
-  "description": "Standard risk tolerance optimized for stable system evolution.",
-  "gating_matrix": {
-    "minor_refactor": {
-      "mutation_coverage_min": 0.95,
-      "rollback_window_s": 600,
-      "max_deployment_risk": 0.15
-    },
-    "architectural_shift": {
-      "mutation_coverage_min": 1.0,
-      "static_analysis_pass_min": 3,
-      "max_deployment_risk": 0.05
-    },
-    "security_patch": {
-      "mutation_coverage_min": 0.80,
-      "rollback_window_s": 120,
-      "max_deployment_risk": 0.25
+  "profile_id": "Standard",
+  "description": "Standard risk tolerance optimized for stable, efficient system evolution.",
+  "evolution_defaults": {
+    "rollback_window_s": 900,
+    "max_cumulative_cost": 500,
+    "max_deployment_risk": 0.15,
+    "fallback_policy": "Suspend_Evolution_Queue",
+    "gating_thresholds": {
+      "quality_gates": {
+        "mutation_coverage_min": 0.90,
+        "test_rigor_score_min": 0.75,
+        "static_analysis_pass_min": 1
+      }
     }
   },
-  "fallback_policy": "Suspend_Evolution_Queue"
+  "evolution_types": {
+    "minor_refactor": {
+      "description": "Small, localized non-breaking changes.",
+      "overrides": {
+        "quality_gates": {
+          "mutation_coverage_min": 0.95
+        }
+      }
+    },
+    "architectural_shift": {
+      "description": "Major structural changes requiring maximal verification.",
+      "overrides": {
+        "max_deployment_risk": 0.05,
+        "rollback_window_s": 1800,
+        "quality_gates": {
+          "mutation_coverage_min": 1.0,
+          "static_analysis_pass_min": 3,
+          "test_rigor_score_min": 0.90
+        }
+      }
+    },
+    "security_patch": {
+      "description": "Urgent fixes for vulnerabilities.",
+      "overrides": {
+        "max_deployment_risk": 0.25,
+        "rollback_window_s": 120,
+        "quality_gates": {
+          "mutation_coverage_min": 0.80,
+          "test_rigor_score_min": 0.60
+        }
+      }
+    }
+  }
 }
