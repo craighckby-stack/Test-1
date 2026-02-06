@@ -1,19 +1,44 @@
 {
   "registry_name": "CoreTrustAnchorDefinitionMap",
-  "version": "V1.0.0",
-  "description": "Defines the root cryptographic public key material and revocation policy sources for specified Trust Anchor IDs used in Attestation Policies.",
+  "version": "V2.0.0_Structured",
+  "description": "Defines the root cryptographic public key material, governance policies, and verification endpoints for specified Trust Anchor IDs.",
   "trust_anchors": {
     "TRUST_ROOT_AGENT_L1": {
-      "type": "PKI_Root_Certificate",
-      "public_key_pem": "-----BEGIN PUBLIC KEY...",
-      "revocation_list_uri": "https://crl.sovereign.ai/L1.crl",
-      "effective_from": "2023-01-01T00:00:00Z"
+      "status": "Active",
+      "governance": {
+        "security_level": "L5_CRITICAL",
+        "renewal_policy": "Annual_Rotation",
+        "effective_from": "2023-01-01T00:00:00Z",
+        "expires_on": "2024-01-01T00:00:00Z"
+      },
+      "material": {
+        "material_type": "X509_Root_Cert",
+        "key_identifier": "sha256:L1_A1B2C3D4...",
+        "storage_reference": "kms://sovereign/pkgs/L1_Root_2023",
+        "public_key_pem_excerpt": "-----BEGIN PUBLIC KEY...[truncated]..."
+      },
+      "verification_endpoints": [
+        { "mechanism": "CRL", "uri": "https://crl.sovereign.ai/L1.crl", "ttl_seconds": 86400 },
+        { "mechanism": "OCSP", "uri": "https://ocsp.sovereign.ai/L1", "ttl_seconds": 3600 }
+      ]
     },
     "TRUST_ROOT_MASTER_COMMIT": {
-      "type": "Hardware_Root_Key",
-      "public_key_hash": "a5f1b2c4e7d8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4",
-      "hsm_identifier": "HSM_9000_GLOBAL",
-      "key_derivation_policy": "HKDF-SHA512"
+      "status": "Active",
+      "governance": {
+        "security_level": "L6_HARDENED",
+        "renewal_policy": "Emergency_Only",
+        "effective_from": "2022-10-01T00:00:00Z",
+        "expires_on": "Never"
+      },
+      "material": {
+        "material_type": "Hardware_Root_Key",
+        "key_identifier": "a5f1b2c4e7d8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4",
+        "hsm_identifier": "HSM_9000_GLOBAL",
+        "key_derivation_policy": "HKDF-SHA512"
+      },
+      "verification_endpoints": [
+        { "mechanism": "Attestation_Log", "uri": "https://transparency.sovereign.ai/log/master_commit", "ttl_seconds": 600 }
+      ]
     }
   }
 }
