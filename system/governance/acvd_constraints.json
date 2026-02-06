@@ -1,1 +1,67 @@
-[object Object]
+{
+  "metadata": {
+    "schema_version": "2.0",
+    "description": "Core constraints governing autonomous code verification and deployment (ACVD) and structural integrity.",
+    "governance_priority_level": "CRITICAL"
+  },
+  "constraint_sets": [
+    {
+      "name": "ArchitecturalIntegrity",
+      "enforcement_level": "CRITICAL",
+      "rules": [
+        {
+          "type": "MANDATORY_METADATA",
+          "scope": ["**/*.js", "**/*.ts", "!**/*.test.*"],
+          "check": "has_agi_header",
+          "details": { 
+            "required_fields": ["@AgiVersion", "@AgiEntropy"],
+            "rationale": "Ensure traceability and dependency awareness during evolution."
+          }
+        },
+        {
+          "type": "FILE_SIZE_LIMIT",
+          "scope": ["system/governance/*.json", "system/core/*.js"],
+          "check": "max_size_kb",
+          "details": { "limit": 100, "units": "KB" }
+        }
+      ]
+    },
+    {
+      "name": "SafetyGuardrails",
+      "enforcement_level": "MAJOR",
+      "rules": [
+        {
+          "type": "FORBIDDEN_PATTERNS",
+          "scope": ["**/*.js"],
+          "check": "regex_match",
+          "details": { 
+            "patterns": [
+              "require\s*\(\s*['\"]fs/promises['\"]\s*\)",
+              "new\s*Buffer\.from\s*\(",
+              "process\.env\.CRITICAL_KEY"
+            ],
+            "rationale": "Mitigate direct file manipulation and access to high-entropy secrets."
+          }
+        },
+        {
+          "type": "COMPLEXITY_THRESHOLD",
+          "scope": ["**/*.js"],
+          "check": "cyclomatic_complexity",
+          "details": { "limit": 12, "exclusion_tags": ["@ComplexityOverride"], "threshold_action": "WARNING" }
+        }
+      ]
+    },
+    {
+      "name": "CoreEntropyProtection",
+      "enforcement_level": "CRITICAL",
+      "rules": [
+        {
+          "type": "MUTABILITY_CONSTRAINT",
+          "scope": ["system/core/kernel.js"],
+          "check": "change_risk_score",
+          "details": { "min_entropy_required": 0.95, "permission_group": "AGI_SOVEREIGN" }
+        }
+      ]
+    }
+  ]
+}
