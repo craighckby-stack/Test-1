@@ -1,48 +1,104 @@
 {
-  "schema_version": "v1.1",
-  "purpose": "Catalogs standardized remediation actions, mapping references to executable kernel interfaces, enriched with operational metadata for intelligent scheduling and risk assessment.",
+  "schema_version": "v1.2",
+  "purpose": "Standardized catalog of executable policy remediation actions, mapping symbolic references to kernel interfaces, enriched with multi-dimensional operational and risk metrics for optimized scheduling.",
   "metadata": {
     "custodian": "GAX/PCEU",
-    "last_updated": "2024-05-29T12:00:00Z"
+    "last_updated": "2024-06-15T09:30:00Z",
+    "schema_definition_uri": "gax://schemas/remediation_catalog/v1.2"
   },
   "actions": {
-    "PCSS.LinkageRequired": {
+    "PCEU.LINK.001": {
+      "policy_id": "PCSS.LinkageRequired",
       "description": "Consult Policy Context Stream Service (PCSS) and inject policy header linkage to execution frame.",
       "handler_interface": "GAX.Interface.PolicyLinkerV2",
-      "action_type": "KERNEL_OP",
-      "risk_level": "LOW",
-      "estimated_latency_ms": 15,
+      "action_type": "INTERNAL_KERNEL_OP",
+      "operational_profile": {
+        "risk_level": "LEVEL_1",
+        "risk_score": 2,
+        "concurrency_limit": 50,
+        "performance_metrics": {
+          "p50_latency_ms": 15,
+          "p95_latency_ms": 25,
+          "reliability_index": 0.999
+        }
+      },
       "status": "ACTIVE",
       "parameters": {
-        "mode": "ATOMIC_INJECTION",
-        "fallback": "REVERT_OP",
-        "policy_type_filter": "STANDARD_COMPLIANCE"
+        "mode": {
+          "value": "ATOMIC_INJECTION",
+          "required": true
+        },
+        "fallback": {
+          "value": "REVERT_OP",
+          "required": true
+        },
+        "policy_type_filter": {
+          "value": "STANDARD_COMPLIANCE",
+          "required": false
+        }
       }
     },
-    "VRRM.TriageSnapshotRollback": {
-      "description": "Perform immediate Virtual Resource Remediation Module triage, capture full state snapshot, and initiate mandated rollback sequence.",
+    "VRRM.TRIAGE.001": {
+      "policy_id": "VRRM.TriageSnapshotRollback",
+      "description": "Immediate Virtual Resource Remediation Module triage, capture full state snapshot, and initiate mandated rollback sequence.",
       "handler_interface": "GAX.Interface.ResourceManagement.VRRM",
       "action_type": "DATA_MUTATION",
-      "risk_level": "CRITICAL",
-      "estimated_latency_ms": 350,
+      "operational_profile": {
+        "risk_level": "LEVEL_5",
+        "risk_score": 9,
+        "concurrency_limit": 2,
+        "performance_metrics": {
+          "p50_latency_ms": 350,
+          "p95_latency_ms": 600,
+          "reliability_index": 0.95
+        }
+      },
       "status": "ACTIVE",
       "parameters": {
-        "action": "TRIAGE_SNAPSHOT_AND_ROLLBACK",
-        "snapshot_type": "K-STATE",
-        "severity_check": "MAX_RRP_COMPLIANCE",
-        "state_lock_timeout_s": 5
+        "action": {
+          "value": "TRIAGE_SNAPSHOT_AND_ROLLBACK",
+          "required": true
+        },
+        "snapshot_type": {
+          "value": "K-STATE",
+          "required": true
+        },
+        "severity_check": {
+          "value": "MAX_RRP_COMPLIANCE",
+          "required": false
+        },
+        "state_lock_timeout_s": {
+          "value": 5,
+          "required": true,
+          "type": "int"
+        }
       }
     },
-    "AUDIT.GenerateComplianceReport": {
+    "AUDIT.REPORT.003": {
+      "policy_id": "AUDIT.GenerateComplianceReport",
       "description": "Asynchronously generate a detailed compliance report for historical archiving and external reporting.",
       "handler_interface": "GAX.Interface.Reporting.Audit",
-      "action_type": "EXTERNAL_API_CALL",
-      "risk_level": "VERY_LOW",
-      "estimated_latency_ms": 1200,
+      "action_type": "EXTERNAL_ASYNC_IO",
+      "operational_profile": {
+        "risk_level": "LEVEL_0",
+        "risk_score": 1,
+        "concurrency_limit": 10,
+        "performance_metrics": {
+          "p50_latency_ms": 1200,
+          "p95_latency_ms": 2500,
+          "reliability_index": 0.99
+        }
+      },
       "status": "EXPERIMENTAL",
       "parameters": {
-        "report_format": "JSON_LITE",
-        "scope": "LAST_24H"
+        "report_format": {
+          "value": "JSON_LITE",
+          "required": true
+        },
+        "scope": {
+          "value": "LAST_24H",
+          "required": true
+        }
       }
     }
   }
