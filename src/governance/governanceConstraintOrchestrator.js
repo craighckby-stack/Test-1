@@ -1,13 +1,13 @@
+const GovConstants = require('./governanceConstants');
+
 /**
  * Component: Governance Constraint Orchestrator (GCO)
- * ID: GCO-v94
+ * ID: GCO-v94.1
  * Alignment: GSEP Stage 0/1 Intermediary.
  * Focus: Integrity barrier ensuring all policy-level modifications adhere strictly to the GSEP lifecycle and require
  *        immediate RSAM pre-attestation using the M-01 intent standard.
  */
 class GovernanceConstraintOrchestrator {
-    // Defines component IDs considered high-risk targets for core governance modification.
-    static CRITICAL_GOV_TARGETS = Object.freeze(['GRS', 'C-15']);
     
     /**
      * @param {RSAMService} rsam - Risk & Security Attestation Manager
@@ -15,12 +15,16 @@ class GovernanceConstraintOrchestrator {
      * @param {PolicyIntentFactory} intentFactory - Specialized factory for M-01 package creation
      */
     constructor(rsam, router, intentFactory) {
-        if (!rsam || !router || !intentFactory) {
-            throw new Error("GCO requires RSAM, Router, and IntentFactory instances.");
+        // Robustness improvement: Ensure necessary objects are present
+        if (!(rsam && router && intentFactory)) {
+            throw new Error("GCO requires valid RSAM, Router, and IntentFactory instances.");
         }
         this.rsam = rsam; 
         this.router = router; 
         this.intentFactory = intentFactory; 
+        // Load constants for centralized governance definition
+        this.CRITICAL_GOV_TARGETS = GovConstants.CRITICAL_GOV_TARGETS;
+        this.GSEP_STAGES = GovConstants.GSEP_STAGES;
     }
 
     /**
@@ -29,8 +33,12 @@ class GovernanceConstraintOrchestrator {
      * @returns {boolean} True if critical targets are affected.
      */
     _detectCriticalPolicyTarget(rawRequest) {
+        if (!rawRequest || !rawRequest.targets || rawRequest.targets.length === 0) {
+            return false;
+        }
+        
         return rawRequest.targets.some(target => 
-            GovernanceConstraintOrchestrator.CRITICAL_GOV_TARGETS.includes(target.componentID)
+            this.CRITICAL_GOV_TARGETS.includes(target.componentID)
         );
     }
     
@@ -40,36 +48,43 @@ class GovernanceConstraintOrchestrator {
      * upon detection of high-risk policy changes.
      * 
      * @param {MutationIntentPayload} rawRequest - The input request containing targets and proposed changes.
-     * @returns {Object} Routing decision { success: boolean, route: string, intentId: string|null }
+     * @returns {Object} Standardized routing decision: { route: string, intentId: string|null, status: 'CRITICAL_ROUTE'|'STANDARD_ROUTE' }
      */
     evaluateAndRoute(rawRequest) {
+        if (!rawRequest) {
+             throw new Error("Evaluation failed: rawRequest payload is null or undefined.");
+        }
+
         if (this._detectCriticalPolicyTarget(rawRequest)) {
             
             // 1. Create specialized high-risk intent package (M-01: Policy Modification Intent)
             const m01IntentPackage = this.intentFactory.createM01Intent(rawRequest);
 
-            // 2. Register intent with RSAM immediately for pre-attestation tracking.
-            // This ensures P-01 risk calculation begins based on the proposed change parameters.
-            const attestationRegistration = this.rsam.registerPolicyIntent(m01IntentPackage);
+            // 2. Register intent with RSAM immediately for mandatory pre-attestation.
+            this.rsam.registerPolicyIntent(m01IntentPackage);
             
-            // 3. Force route directly to GSEP Stage 1 (Scope) with max priority.
-            const routeDestination = this.router.prioritizeRoute('GSEP_STAGE_1_SCOPE', m01IntentPackage.id);
+            // 3. Force route directly to GSEP Stage 1 (Scope) with max priority, using stage constants.
+            const destinationStage = this.GSEP_STAGES.STAGE_1_SCOPE;
+            const routeResult = this.router.prioritizeRoute(destinationStage, m01IntentPackage.id);
 
+            // Refactoring return structure for machine readability (status code instead of message string)
             return {
-                success: true,
-                route: routeDestination.path,
+                route: routeResult.path,
                 intentId: m01IntentPackage.id,
-                message: `CRITICAL POLICY TARGET detected. Forced M-01 packaging (${m01IntentPackage.id}) and direct priority route to Stage 1. Attestation initiated.`
+                status: 'CRITICAL_ROUTE',
+                targetType: 'HIGH_GOVERNANCE_POLICY'
             };
         }
 
-        // Standard request handling
-        const standardRoute = this.router.route('GSEP_STAGE_0_VETTING', rawRequest);
+        // Standard request handling: Route to Stage 0 Vetting
+        const destinationStage = this.GSEP_STAGES.STAGE_0_VETTING;
+        const standardRoute = this.router.route(destinationStage, rawRequest);
+        
         return {
-            success: true,
             route: standardRoute.path,
-            intentId: null,
-            message: "Standard mutation request detected. Proceeding to standard GSEP Stage 0 vetting."
+            intentId: null, // No mandatory intent ID created for Stage 0 entry
+            status: 'STANDARD_ROUTE',
+            targetType: 'GENERAL_SYSTEM_CHANGE'
         };
     }
 }
