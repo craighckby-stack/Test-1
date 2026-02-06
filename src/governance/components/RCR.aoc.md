@@ -2,23 +2,44 @@
 
 **Component ID:** RCR
 **Governing Pillar:** AIA (Atomic Immutable Architecture)
-**Primary Function:** Secure, auditable state reversal in response to F-01 Failure Trace mandates.
-**Dependent Components:** CTG (Input Mandate), D-01 (Ledgering), AEOR (Orchestration/Authorization).
+**Primary Function:** Secure, auditable state reversal, mandated by catastrophic failure traces (F-01).
+**Key Dependencies:**
+*   CTG (Commitment Trace Generator): Source of mandatory execution instruction.
+*   D-01 (Data Ledger): Immutable cryptographic logging service.
+*   AEOR (Atomic Execution Orchestrator): Authorization and State Reversal API control.
 
-### I. RCR Operational Mandate
+### I. RCR Operational Mandate & Payload Definition
 
-The RCR is the sole mechanism authorized to execute and register a state reversal payload (M-R). Its mandate ensures that any reversion to a prior committed state is treated as a new, high-priority state transition, subject to AIA cryptographic ledgering requirements.
+The RCR functions as the single authorized gateway for executing irreversible state rollbacks. This process translates a high-priority CTG mandate into a recorded, verifiable Rollback Mutation Payload (M-R). The M-R, despite being a 'reversal,' is inherently treated as a forward, high-priority state transition transaction within the AIA ledger.
 
-### II. Rollback Protocol (Atomic M-R Execution)
+**Payload M-R Structure:**
+1.  Source Failure ID (F-01 reference).
+2.  Target Rollback State Hash (H-RT).
+3.  Policy Violation Trace.
+4.  Original Transaction Hash (M-02 reference).
+5.  Attestation Signatures (CTG, AEOR).
 
-1.  **Authorization:** RCR receives a signed, mandatory execution instruction from the CTG, following an F-01 path failure. The instruction must reference the original failing M-02 and the target roll-back state hash (H-RT).
-2.  **M-R Construction:** The RCR constructs the Rollback Mutation Payload (M-R), referencing the H-RT state and logging the specific policy/risk violation that triggered the rollback.
-3.  **D-01 Logging (Pre-Execution):** The RCR forces an immediate, non-negotiable log entry (D-01, type: REVERSAL_INTENT) detailing the M-R intent and CTG mandate.
-4.  **State Reversal:** RCR utilizes the Rollback API (governed by AEOR) to atomically revert the system state to H-RT.
-5.  **D-01 Logging (Post-Execution):** Upon verifiable reversal, the RCR logs the final M-R transaction (D-01, type: REVERSAL_SUCCESS), cryptographically sealing the rollback sequence to the immutable audit log. 
+### II. Atomic Rollback Sequence (ARS)
 
-### III. Constraint Requirements
+The RCR executes rollbacks using a tightly coupled, ledger-locked protocol to guarantee atomicity and audibility.
 
-*   **Immutability:** RCR cannot destroy or modify D-01 entries; it only adds new, reversal-specific records.
-*   **Velocity:** M-R transactions are prioritized above standard M-02 transactions to minimize exposure time during failure states.
-*   **Attestation:** All M-R inputs must be attested (signed) by both CTG and AEOR prior to commitment.
+**II. A. Authorization & Input Validation**
+RCR receives the signed, mandatory instruction from CTG. This instruction must pass verification against the defined RCR Security Policy (RSP) regarding signature validity, key revocation status, and adherence to time-out thresholds.
+
+**II. B. M-R Construction & Intent Locking**
+1.  RCR constructs the full M-R payload, binding it to the validated H-RT.
+2.  RCR forces a mandatory D-01 ledger entry (Type: REVERSAL_INTENT, Status: PENDING), which serves as a cryptographic lock, preventing any non-M-R state mutation until the process is resolved.
+
+**II. C. State Reversal Execution**
+1.  RCR utilizes the AEOR Rollback API, presenting the fully constructed M-R payload.
+2.  AEOR executes the physical, atomic reversion of the system state to H-RT.
+
+**II. D. Finalization & Failure Mandates**
+*   **SUCCESS:** RCR receives verification from AEOR. It commits the final M-R transaction (D-01, Type: REVERSAL_SUCCESS, Status: COMMITTED), cryptographically sealing the entire sequence.
+*   **FAILURE (Catastrophic Rollback Failure):** If the AEOR reversal fails to execute or verify, RCR immediately logs a critical incident (D-01, Type: REVERSAL_CRITICAL_FAILURE, Status: LOCKED) and triggers the primary system quarantine protocol (QRT-01), requiring immediate supervisory AGI intervention, as the system state is now unresolvable/corrupted.
+
+### III. Governing Constraints
+
+1.  **Immutability Enforcement:** RCR operates purely additively on the D-01 ledger. Existing records, including the original M-02 failing transaction, must remain untouched.
+2.  **Transaction Velocity:** M-R transactions are assigned priority Level 9 (P9), ensuring they bypass standard transaction queuing mechanisms (P1-P8).
+3.  **Attestation Security:** All M-R inputs and final transaction logs must be multi-signed (CTG, AEOR, RCR signature), with verification mandates strictly defined by the RCR Security Policy (RSP).
