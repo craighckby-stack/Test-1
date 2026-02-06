@@ -1,0 +1,19 @@
+{
+  "kernel_version": "1.1.0",
+  "policy_source": "../config/APDM.json",
+  "initialization": {
+    "caching_strategy": "LRU_Top50_P0toP2",
+    "pre_load_domains": ["security", "evolutionary"],
+    "refresh_interval_ms": 5000,
+    "security_watchdog_enabled": true
+  },
+  "failover_configuration": {
+    "mode": "DefaultPermissive",
+    "default_action": "LogAndContinue",
+    "critical_override_list": ["SEC-301"]
+  },
+  "metrics_reporting": {
+    "enabled": true,
+    "endpoint": "telemetry/policy_hits"
+  }
+}
