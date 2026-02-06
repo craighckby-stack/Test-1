@@ -1,0 +1,37 @@
+{
+  "service_name": "ArtifactLinkageValidator",
+  "description": "Defines mandatory hash and type checks for artifact promotion.",
+  "validation_steps": [
+    {
+      "source_artifact_type": "L0_Proposal",
+      "target_artifact_type": "L1_C-FRAME",
+      "hash_field": "parent_hash",
+      "integrity_check_enabled": true
+    },
+    {
+      "source_artifact_type": "L1_C-FRAME",
+      "target_artifact_type": "L2_CodeEvolution",
+      "hash_field": "parent_hash",
+      "integrity_check_enabled": true
+    },
+    {
+      "source_artifact_type": "L2_CodeEvolution",
+      "target_artifact_type": "L3_EvaluationReport",
+      "hash_field": "parent_hash",
+      "integrity_check_enabled": true
+    },
+    {
+      "source_artifact_type": "L3_EvaluationReport",
+      "target_artifact_type": "L4_DSC",
+      "hash_field": "parent_hash",
+      "integrity_check_enabled": true
+    },
+    {
+      "source_artifact_type": "L4_DSC",
+      "target_artifact_type": "L5_Commitment",
+      "hash_field": "parent_hash",
+      "integrity_check_enabled": true,
+      "additional_checks": ["signature_verification"]
+    }
+  ]
+}
