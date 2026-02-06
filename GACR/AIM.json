@@ -1,35 +1,62 @@
 {
-  "schema_version": "AIM_V1.0",
-  "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints for Triumvirate Agents (SGS, GAX, CRoT), enforced by SGS at GSEP-C S0 (INIT).",
+  "schema_version": "AIM_V2.0",
+  "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
   "integrity_profiles": {
     "SGS_AGENT": {
-      "runtime_constraints": {
-        "max_cpu_usage": "75%",
-        "max_memory_kb": 4096000,
-        "allowed_syscalls": ["read", "write", "mmap", "exit"],
-        "disallowed_network_ports": [22, 23],
-        "critical_paths_immutable": ["/opt/sgs/gacr/"],
-        "authorized_configuration_hash": "SHA256:d5f2a1b9e0c4...
-      },
-      "gatm_link": "GATM_P_SGS_SLO"
+      "monitoring_slo_id": "GATM_P_SGS_SLO",
+      "constraints": {
+        "resource_limits": {
+          "cpu_limit_percentage": 75,
+          "memory_limit_bytes": 4194304000
+        },
+        "security_policy": {
+          "syscalls_allowed": [
+            "read",
+            "write",
+            "mmap",
+            "exit"
+          ],
+          "network_ports_disallowed": [
+            22,
+            23
+          ],
+          "paths_immutable": [
+            "/opt/sgs/gacr/"
+          ],
+          "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4..."
+        }
+      }
     },
     "GAX_AGENT": {
-      "runtime_constraints": {
-        "max_cpu_usage": "10%",
-        "max_memory_kb": 512000,
-        "allowed_syscalls": ["read", "exit"], 
-        "file_access_restricted_to": ["/opt/gax/policy_data/"],
-        "network_access_mode": "POLICY_FETCH_ONLY"
-      },
-      "gatm_link": "GATM_P_GAX_SLO"
+      "monitoring_slo_id": "GATM_P_GAX_SLO",
+      "constraints": {
+        "resource_limits": {
+          "cpu_limit_percentage": 10,
+          "memory_limit_bytes": 524288000
+        },
+        "security_policy": {
+          "syscalls_allowed": [
+            "read",
+            "exit"
+          ],
+          "file_access_root_paths": [
+            "/opt/gax/policy_data/"
+          ],
+          "network_mode": "POLICY_FETCH_ONLY"
+        }
+      }
     },
     "CRoT_AGENT": {
-      "runtime_constraints": {
-        "max_memory_kb": 128000,
-        "network_access_mode": "NONE",
-        "time_synchronization_source": "CRITICAL_NTP_A"
-      },
-      "gatm_link": "GATM_P_CRoT_SLO"
+      "monitoring_slo_id": "GATM_P_CRoT_SLO",
+      "constraints": {
+        "resource_limits": {
+          "memory_limit_bytes": 131072000
+        },
+        "security_policy": {
+          "network_mode": "NONE",
+          "time_sync_source_critical": "CRITICAL_NTP_A"
+        }
+      }
     }
   }
 }
