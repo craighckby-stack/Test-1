@@ -1,22 +1,39 @@
 {
   "schema_version": "v94.1",
-  "evolution_target_id": "TEMP-001",
+  "mandate_id": "SGS-EFF-KRNL-202409-001",
   "custodian": "SGS",
-  "mandate_date": "YYYY-MM-DD",
-  "target_objective": "Maximize computational efficiency across standard kernel operations by 1.5x.",
-  "utility_metric": {
+  "priority_level": 90,
+  "status": "ACTIVE_MANDATE",
+  "issuance_timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+  "target_summary": "Maximize computational efficiency across standard kernel operations by 1.5x (Target: 1500 MSR).",
+  "success_criteria": {
     "metric_name": "Kernel_Ops/Sec_Certified_MSR",
     "unit": "MSR (Million System Runs)",
     "function_reference": "lib/metrics/KernelEfficiencyV3.py::calculate_certified_msr",
-    "required_baseline_s02": 1000.0, 
-    "minimum_required_delta_epsilon": 10.0 
+    "required_baseline_s02": 1000.0,
+    "required_target_value": 1500.0,
+    "required_improvement_delta": 10.0,
+    "delta_type": "MINIMUM_CERTIFIABLE_CHANGE"
   },
-  "applicable_constraints": [
-    {"artifact": "MPAM", "scope": "CPU_Utilization", "max_limit": "0.85"},
-    {"artifact": "PVLM", "scope": "Memory_Footprint", "prohibition": "exceeds_predecessor_state_by_10%"}
+  "operational_constraints": [
+    {
+      "scope": "CPU_Utilization",
+      "artifact_key": "MPAM",
+      "operator": "LTE",
+      "limit_value": 0.85
+    },
+    {
+      "scope": "Memory_Footprint",
+      "artifact_key": "PVLM",
+      "operator": "PROHIBIT_DELTA",
+      "limit_value": 0.10,
+      "reference_state": "PREDECESSOR_STATE",
+      "delta_description": "Maximum allowed increase relative to baseline"
+    }
   ],
-  "verification_metadata": {
-    "signed_by_root_of_trust": false,
-    "approved_by_gax": true
+  "governance_audit": {
+    "root_of_trust_signed": false,
+    "gax_approved": true,
+    "review_cycle": "Q3-2024"
   }
 }
