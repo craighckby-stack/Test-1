@@ -1,0 +1,18 @@
+{
+  "languageName": "GAX_Expr_L1",
+  "version": "1.0.0",
+  "supportedOperators": [
+    "+", "-", "*", "/", "%",
+    "==", "!=", "<", ">", "<=", ">=",
+    "AND", "OR", "NOT"
+  ],
+  "supportedFunctions": [
+    "SUM", "MIN", "MAX", "ABS", "SQRT", "ROUND", "IF"
+  ],
+  "syntaxRules": {
+    "variableNaming": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+    "comparisonFormat": "LHS Operator RHS",
+    "maxComplexityScore": 50
+  },
+  "typeCoercionPolicy": "STRICT"
+}
