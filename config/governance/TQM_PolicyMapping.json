@@ -1,0 +1,35 @@
+{
+  "description": "Maps abstract TQM remedial strategies and actions defined in TQM_Thresholds to concrete, callable service endpoints and parameters.",
+  "strategies": {
+    "EXECUTE_RESOURCE_DOWNGRADE": {
+      "target_service": "SystemOrchestrator",
+      "method": "mitigation.downscale_resources",
+      "params": {
+        "target": "CPU_LOAD",
+        "scaling_factor": 0.10
+      },
+      "sync_required": true
+    },
+    "TRIGGER_MODEL_ROLLBACK": {
+      "target_service": "BehavioralEngineController",
+      "method": "deployment.rollback_to_last_stable",
+      "params": {
+        "reason_code": "TQM_BH_LATENCY"
+      },
+      "sync_required": false
+    }
+  },
+  "immediate_actions": {
+    "ALERT_CRITICAL": {
+      "queue": "priority_alerts_q",
+      "logging_level": "ERROR_TQM"
+    },
+    "HALT_S6_ADVANCEMENT": {
+      "target_service": "GSEP_Governor",
+      "method": "stage_control.pause",
+      "params": {
+        "lock_stage": "S6.5"
+      }
+    }
+  }
+}
