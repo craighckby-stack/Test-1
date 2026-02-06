@@ -1,45 +1,71 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sag.gov/ACVT_v94.2.json",
+  "$id": "http://sag.gov/ACVT_v95.0.json",
   "title": "Axiomatic Change Validation Template (ACVT)",
-  "description": "Standardized schema for SGS-proposed changes used by GAX to validate against the Axiomatic Constraint Vector Definition (ACVD) during GSEP-C Stages S2, S3, and S6.5.",
+  "description": "Standardized, high-fidelity schema for SGS-proposed changes used by GAX to enforce validation against the Axiomatic Constraint Vector Definition (ACVD), critical during GSEP-C Stages S2, S3, and S6.5.",
   "type": "object",
   "properties": {
     "evolution_id": {
       "type": "string",
-      "description": "Unique ID corresponding to the TEMM/Evolution run."
+      "pattern": "^E-[A-Z0-9]{8,16}$",
+      "description": "Unique, TEMM-generated identifier for the Evolution run."
+    },
+    "acvd_signature": {
+      "type": "string",
+      "description": "SHA-256 hash of the ACVD used for validation, ensuring temporal integrity.",
+      "format": "checksum"
     },
     "resource_impact": {
       "type": "object",
-      "description": "Projected resource footprint changes for stability check (MPAM).",
+      "description": "Detailed resource projection changes validated by the MPAM (Multi-Plane Allocation Manager). All numeric values represent projected delta (+ increase, - decrease).",
       "properties": {
-        "compute_load_baseline": {"type": "number"},
-        "compute_load_projected": {"type": "number"},
-        "memory_delta": {"type": "number"},
-        "iops_projected": {"type": "number"}
+        "compute_load_delta_percent": {
+          "type": "number",
+          "description": "Percentage change in CPU/Accelerator utilization (e.g., 5.0 for 5% increase)."
+        },
+        "memory_footprint_delta_mb": {
+          "type": "number",
+          "description": "Change in memory allocation in MB."
+        },
+        "io_latency_shift_ms": {
+          "type": "number",
+          "description": "Change in critical path I/O latency (milliseconds)."
+        },
+        "tco_factor_change": {
+          "type": "number",
+          "description": "Normalized change in Total Cost of Ownership factor (0.0 to 1.0 scale)."
+        }
       },
-      "required": ["compute_load_projected", "memory_delta"]
+      "required": ["compute_load_delta_percent", "memory_footprint_delta_mb", "io_latency_shift_ms"]
     },
     "dependency_map_updates": {
       "type": "array",
-      "description": "List of external/internal dependencies that are modified or introduced for policy check (PVLM).",
+      "description": "List of structural dependency changes validated by the PVLM (Policy Vector Licensing Manager).",
       "items": {
         "type": "object",
         "properties": {
           "module_path": {"type": "string"},
-          "version_hash": {"type": "string"},
-          "data_access_level": {"type": "string", "enum": ["READ_ONLY", "WRITE_APPEND", "FULL_ACCESS"]}
+          "change_type": {"type": "string", "enum": ["ADD", "REMOVE", "UPDATE"]},
+          "version_hash": {"type": ["string", "null"]},
+          "data_access_level": {"type": "string", "enum": ["READ_NONE", "READ_LIMITED", "WRITE_APPEND", "FULL_CONTROL"]},
+          "justification": {"type": "string", "minLength": 20, "description": "Mandatory explanation for dependency modification/introduction."}
         },
-        "required": ["module_path", "version_hash"]
+        "required": ["module_path", "change_type", "data_access_level", "justification"]
       }
     },
-    "security_impact_flags": {
+    "security_vulnerability_assessment": {
       "type": "array",
-      "description": "High-level behavioral flags for anomaly detection (ADTM).",
+      "description": "Structured assessment of security impact validated by the ADTM (Anomaly Detection Threshold Matrix).",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "threat_vector": {"type": "string", "enum": ["DATA_LEAKAGE", "PRIVILEGE_ESCALATION", "DENIAL_OF_SERVICE", "CONTROL_FLOW_ALTERATION"]},
+          "severity_rating": {"type": "number", "minimum": 0, "maximum": 10},
+          "mitigation_strategy": {"type": "string", "minLength": 10}
+        },
+        "required": ["threat_vector", "severity_rating", "mitigation_strategy"]
       }
     }
   },
-  "required": ["evolution_id", "resource_impact", "dependency_map_updates"]
+  "required": ["evolution_id", "acvd_signature", "resource_impact", "dependency_map_updates", "security_vulnerability_assessment"]
 }
