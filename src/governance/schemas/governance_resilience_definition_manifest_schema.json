@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign/governance/GRDM_v1.0.json",
+  "title": "Governance Resilience Definition Manifest Schema",
+  "description": "Defines mandated policy boundaries and recovery targets for specific failure vectors.",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string", "description": "Schema version." },
+    "default_policy": {
+      "type": "object",
+      "properties": {
+        "rollback_level": { "type": "string", "enum": ["S0_RESET", "LAST_COMMIT_POINT", "PREVIOUS_MAJOR_ITERATION"], "description": "Fallback target if no specific policy applies." },
+        "retry_max_attempts": { "type": "integer" }
+      },
+      "required": ["rollback_level", "retry_max_attempts"]
+    },
+    "failure_policies": {
+      "type": "array",
+      "description": "List of specific recovery policies indexed by failure characteristics.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage_id": { "type": "string", "description": "Pipeline stage targeted (e.g., S3_PLANNING)." },
+          "failure_vector_taxonomy": { "type": "string", "description": "Specific error classification (e.g., MODEL_DRIFT, RESOURCE_EXHAUSTION, CISM_INTEGRITY_VIOLATION)." },
+          "mandated_rollback_target": { "type": "string", "description": "The target State ID (e.g., S4) for recovery commitment." },
+          "policy_attestation_threshold": { "type": "number", "description": "Minimum required GAX consensus score (0.0 to 1.0) to authorize the rollback.", "default": 0.99 },
+          "on_failure_action": { "type": "string", "enum": ["IMMEDIATE_ROLLBACK", "ALERT_HUMAN_GOVERNANCE", "RETRY_SAFE_MODE", "SIH"], "description": "Action executed after RST calculation." }
+        },
+        "required": ["stage_id", "failure_vector_taxonomy", "mandated_rollback_target", "on_failure_action"]
+      }
+    }
+  },
+  "required": ["version", "default_policy", "failure_policies"]
+}
