@@ -1,17 +1,57 @@
 {
-  "protocol_version": "CRITICAL_STATE_FALLBACK_V1.0",
-  "trigger_manager": "DIM (Deployment Integrity Monitor)",
-  "rollback_component": "CSRL (Critical State Rollback Ledger)",
-  "integrity_failure_metrics": [
-    {"id": "TF-01", "metric": "Systemic Trust Floor Breach", "threshold": 0.05, "duration_s": 60, "action": "IMMEDIATE_ROLLBACK"},
-    {"id": "RF-02", "metric": "Critical Resource Exhaustion Rate", "threshold_pct": 95, "duration_s": 30, "action": "IMMEDIATE_ROLLBACK"},
-    {"id": "GF-03", "metric": "Governance Policy Constraint Violation Count", "threshold": 3, "duration_s": 1, "action": "HALT_AUDIT_ROLLBACK"}
-  ],
-  "fallback_payload_requirements": {
-    "manifest_hash": "H_AIA_PREV_STABLE",
-    "required_signature_level": "Level_4_MCR_PreSigned",
-    "log_destination": "D-01_Audit_Commitment_Log"
+  "protocol_version": "CRITICAL_STATE_FALLBACK_V2.0",
+  "justification": "Enhanced resilience via segmented component definition, standardized triggering policies, and layered response matrix.",
+  "system_components": {
+    "integrity_monitor": "DIM (Deployment Integrity Monitor)",
+    "rollback_manager": "CSRL (Critical State Rollback Ledger)",
+    "policy_enforcer": "GPE (Governance Policy Engine)"
   },
-  "gsep_bypass_authorization": true,
-  "justification": "Mitigate catastrophic post-activation state corruption."
+  "critical_trigger_policies": [
+    {
+      "id": "TRUST_BREACH",
+      "metric": "Systemic Trust Floor Breach Rate",
+      "metric_unit": "TRUST_INDEX",
+      "threshold": 0.05,
+      "operator": "LT",
+      "duration_s": 60,
+      "action_tier": "LEVEL_CATASTROPHIC"
+    },
+    {
+      "id": "RESOURCE_EXHAUST",
+      "metric": "Critical Resource Ceiling Proximity",
+      "metric_unit": "PERCENT",
+      "threshold": 95,
+      "operator": "GT",
+      "duration_s": 30,
+      "action_tier": "LEVEL_CRITICAL"
+    },
+    {
+      "id": "POLICY_VIOLATION",
+      "metric": "Mandatory Constraint Violation Count",
+      "metric_unit": "COUNT",
+      "threshold": 3,
+      "operator": "GT",
+      "duration_s": 1,
+      "action_tier": "LEVEL_GOVERNANCE_HALT"
+    }
+  ],
+  "action_matrix": {
+    "LEVEL_CATASTROPHIC": "IMMEDIATE_HARD_ROLLBACK",
+    "LEVEL_CRITICAL": "PREEMPTIVE_ROLLBACK_AUDIT",
+    "LEVEL_GOVERNANCE_HALT": "HALT_ISOLATE_AUDIT_COMMENCE_ROLLBACK_PREP"
+  },
+  "state_snapshot_config": {
+    "snapshot_frequency_s": 300,
+    "retention_policy": "LAST_3_VERIFIED_STABLE_STATES",
+    "integrity_check_method": "MerkleRootVerification"
+  },
+  "fallback_requirements": {
+    "manifest_hash_source": "H_AIA_PREV_STABLE",
+    "signature_level": "Level_4_MCR_PreSigned",
+    "log_destination": "D-01_Audit_Commitment_Log",
+    "bypass_authorization": {
+      "gsep_bypass_enabled": true,
+      "justification_code": "447-EMERGENCY-ACCESS"
+    }
+  }
 }
