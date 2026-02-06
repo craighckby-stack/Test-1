@@ -1,1 +1,1 @@
-The provided artifact file is empty boilerplate. To achieve higher intelligence and efficiency, the underlying contract source file must be instantiated using industry standards (ERC-20 via OpenZeppelin). The generated artifact (this JSON) will then populate automatically upon compilation.
+The content of this artifact file (ABI, Bytecode) is dependent on the compilation of the newly proposed source code. This output will be automatically populated by the build pipeline upon successful compilation of `contracts/TEDC.sol`.
