@@ -5,6 +5,10 @@
  * integrity validation, manifest generation, and index registration 
  * according to the Sovereign Manifest Protocol.
  */
+
+// Assuming ProtocolError is located in a standard exceptions path
+const ProtocolError = require('../exceptions/ProtocolError');
+
 class ArtifactIndexer {
     /**
      * @param {object} dependencies 
@@ -14,16 +18,27 @@ class ArtifactIndexer {
      * @param {object} dependencies.idGenerator - Utility for generating canonical IDs (e.g., UUIDv7).
      * @param {object} dependencies.configProvider - Configuration service for accessing AGI version and protocol constants.
      * @param {object} dependencies.validator - Schema validator utility (e.g., Ajv).
+     * @param {object} dependencies.logger - Structured logging service.
      */
-    constructor({ contentStorage, manifestStore, hasher, idGenerator, configProvider, validator }) {
+    constructor({
+        contentStorage,
+        manifestStore,
+        hasher,
+        idGenerator,
+        configProvider,
+        validator,
+        logger
+    }) {
         this.contentStorage = contentStorage;
         this.manifestStore = manifestStore;
         this.hasher = hasher;
         this.idGenerator = idGenerator;
-        this.agiVersion = configProvider.getAGIVersion(); 
-
-        // NOTE: Validator ensures adherence to the protocol schema before indexing.
         this.validator = validator;
+        this.logger = logger; // Proper logger injection
+
+        // Retrieve critical protocol constants from config, ensuring single source of truth.
+        this.agiVersion = configProvider.getAGIVersion();
+        this.protocolVersion = configProvider.getProtocolVersion();
     }
 
     /**
@@ -33,32 +48,38 @@ class ArtifactIndexer {
      * @returns {Promise<object>} The fully populated and validated manifest.
      */
     async indexArtifact(content, baseMetadata) {
-        if (content.length === 0) {
-            // Prevent indexing of zero-byte artifacts without explicit protocol allowance.
-            throw new Error("Cannot index empty artifact content.");
+        if (!content || content.length === 0) {
+            this.logger.warn('Attempted to index empty or null artifact content.', { metadata: baseMetadata });
+            throw new ProtocolError("Cannot index empty artifact content.");
         }
 
         // 1. Calculate size and integrity hash (critical step for verifiability).
         const integrity = this._calculateHash(content);
         const artifactSize = content.length;
         
-        // 2. Persist content to the dedicated Content Storage and receive location data.
-        // Passing the hash helps ensure integrity check on the storage layer itself.
+        // 2. Persist content to the dedicated Content Storage. Verifiability is enforced via hash.
         const location = await this.contentStorage.store(content, integrity.hash);
 
-        // 3. Construct and validate the manifest against the Sovereign Protocol Schema.
+        // 3. Construct the manifest using standardized protocol and AGI versions.
         const manifest = this._constructManifest(baseMetadata, integrity, location, artifactSize);
         
-        /* 
+        // 3b. Enforce adherence to the Sovereign Protocol Schema (INTELLIGENCE STEP).
         if (!this.validator.validate(manifest)) { 
-             throw new ProtocolError('Generated manifest failed schema validation against the Sovereign Protocol.');
+             const errors = this.validator.getErrors ? this.validator.getErrors() : "Validation details unavailable.";
+             this.logger.error('Generated manifest failed schema validation against the Sovereign Protocol.', { errors: errors });
+             // Must throw a ProtocolError to signal a compliance failure upstream.
+             throw new ProtocolError(`Manifest failed protocol validation. Errors: ${JSON.stringify(errors)}`);
         }
-        */
 
-        // 4. Record the manifest in the Index for retrieval/cataloging.
+        // 4. Record the compliant manifest in the Index.
         await this.manifestStore.recordManifest(manifest);
         
-        console.log(`Artifact indexed: ${manifest.id} (Size: ${artifactSize} bytes, Hash: ${integrity.hash.slice(0, 8)}...)`);
+        this.logger.info(`Artifact indexed successfully.`, {
+            artifactId: manifest.id,
+            type: baseMetadata.type,
+            size: artifactSize,
+            hashPrefix: integrity.hash.slice(0, 12)
+        });
         return manifest;
     }
 
@@ -68,8 +89,8 @@ class ArtifactIndexer {
      * @returns {{ algorithm: string, hash: string }} 
      */
     _calculateHash(content) {
-        const hashResult = this.hasher.calculate(content);
-        return { algorithm: this.hasher.getAlgorithmName(), hash: hashResult };
+        const hash = this.hasher.calculate(content);
+        return { algorithm: this.hasher.getAlgorithmName(), hash };
     }
 
     /**
@@ -82,7 +103,7 @@ class ArtifactIndexer {
 
         return { 
             id: id, 
-            protocol_version: 'v94.1', // Standardized reference
+            protocol_version: this.protocolVersion, 
             agi_version: this.agiVersion,
             timestamp: timestamp, 
             metadata: baseMetadata,
