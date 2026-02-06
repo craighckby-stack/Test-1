@@ -3,30 +3,49 @@ import hashlib
 import json
 import os
 import sys
-from typing import Dict, Optional, List
+import datetime
+import time
+from typing import Dict, Optional, List, Any
 
-# Target system version, usually injected during build/deployment, hardcoded for utility isolation.
+# Target system version, usually injected during build/deployment.
 SYSTEM_VERSION = "v94.1_CHR_Lock"
-
-# NOTE: This list currently mirrors the 'System Artifact Registry' in the DSE Specification.
-# Architectural debt exists here; subsequent versions should load this list dynamically.
-GOVERNING_ARTIFACTS: List[str] = [
-    'config/gsep_c_flow.json',
-    'config/acvm.json',
-    'governance/smc_schema.json',
-    'config/dial_analysis_map.json',
-    'protocol/fdls_spec.json',
-    'protocol/chr_schema.json',
-    'config/rrp_manifest.json',
-    'protocol/telemetry_spec.json'
-]
-
+ARTIFACT_REGISTRY_PATH = 'config/amgs_artifact_registry.json'
 TARGET_MANIFEST_PATH = 'registry/chr_manifest.json'
+
+
+def load_config(path: str) -> Optional[Any]:
+    """Loads a JSON configuration file robustly, handling standard file and parsing errors."""
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"[FATAL] Required configuration file not found: {path}", file=sys.stderr)
+        return None
+    except json.JSONDecodeError as e:
+        print(f"[FATAL] Configuration file {path} is invalid JSON: {e}", file=sys.stderr)
+        return None
+    except IOError as e:
+        print(f"[FATAL] Error reading {path}: {e}", file=sys.stderr)
+        return None
+
+
+def get_governing_artifacts() -> Optional[List[str]]:
+    """Loads the list of governing artifacts from the dedicated registry configuration."""
+    registry = load_config(ARTIFACT_REGISTRY_PATH)
+    if not registry:
+        return None
+
+    if 'governing_artifacts' not in registry or not isinstance(registry['governing_artifacts'], list):
+        print(f"[FATAL] Artifact registry {ARTIFACT_REGISTRY_PATH} is improperly structured or missing the list.", file=sys.stderr)
+        return None
+
+    return registry['governing_artifacts']
+
 
 def calculate_sha256(file_path: str) -> Optional[str]:
     """Calculates SHA256 hash for a given file path using buffered reading."""
     hasher = hashlib.sha256()
-    buffer_size = 65536 # 64KB buffer for efficient I/O
+    buffer_size = 65536 # 64KB buffer maintained for I/O efficiency
     
     try:
         with open(file_path, 'rb') as f:
@@ -36,21 +55,30 @@ def calculate_sha256(file_path: str) -> Optional[str]:
                     break
                 hasher.update(chunk)
         return hasher.hexdigest()
-    except FileNotFoundError:
+    except (FileNotFoundError, IOError):
+        # Consolidated error handling; specific error reporting is handled by the caller (generate_chr_manifest)
         return None
-    except IOError as e:
-        print(f"Error reading {file_path}: {e}", file=sys.stderr)
-        return None
+
 
 def generate_chr_manifest() -> bool:
     """
     Generates the Configuration Hash Registry (CHR) manifest.
     Returns True if successful, False otherwise.
     """
+    
+    governing_artifacts = get_governing_artifacts()
+    if governing_artifacts is None:
+        # Failure to load configuration handled by get_governing_artifacts
+        return False
+
+    # Use ISO 8601 standard for reliable, UTC timestamping
+    generation_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    
     manifest: Dict = {
         "metadata": {
-            "version": SYSTEM_VERSION,
-            "timestamp_utc": os.path.getctime(__file__),
+            "generation_time_utc": generation_time, 
+            "system_version": SYSTEM_VERSION,
+            "artifact_source": ARTIFACT_REGISTRY_PATH, 
             "lock_type": "AMGS_Sovereign_Integrity_Lock"
         },
         "artifacts": {}
@@ -58,23 +86,20 @@ def generate_chr_manifest() -> bool:
     
     missing_artifacts: List[str] = []
     
-    print(f"--- AMGS Manifest Generator ({SYSTEM_VERSION}): Hashing Critical Artifacts ---")
+    print(f"--- AMGS Manifest Generator ({SYSTEM_VERSION}): Hashing Critical Artifacts ({len(governing_artifacts)} items) ---")
     
-    for path in GOVERNING_ARTIFACTS:
+    for path in governing_artifacts:
         file_hash = calculate_sha256(path)
         
         if file_hash:
             manifest['artifacts'][path] = file_hash
         else:
-            # File was either not found or could not be read
             missing_artifacts.append(path)
             print(f"  [CRITICAL FAILURE] Missing/Unreadable artifact: {path}", file=sys.stderr)
             
     
     if missing_artifacts:
         print("\n[INTEGRITY FAILURE] CHR Generation Halted. System artifacts missing.")
-        for artifact in missing_artifacts:
-            print(f"  -> {artifact}")
         return False
     
     # Ensure the registry directory exists
@@ -94,3 +119,4 @@ def generate_chr_manifest() -> bool:
 if __name__ == '__main__':
     if not generate_chr_manifest():
         sys.exit(1)
+    sys.exit(0)
