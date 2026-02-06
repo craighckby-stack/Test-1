@@ -1,1 +1,50 @@
-[object Object]
+{
+  "policyName": "SovereignAGI_GFRM_V94.1",
+  "policyVersion": "2.0.0-Adaptive",
+  "description": "Core governance, risk, and financial management policies defining operational boundaries and efficiency mandates.",
+  "scope": [
+    "AutonomousEvolutionModule",
+    "ResourceAllocationKernel",
+    "SecurityEnforcementGateway"
+  ],
+  "governanceMechanism": {
+    "auditLevel": "L4_FullContext",
+    "complianceMetric": "Compliance_Delta_Index",
+    "maxDeltaTolerance": 0.015,
+    "enforcementAction": "Initiate_Policy_Rollback_L3",
+    "policyEvaluationFrequencySeconds": 60
+  },
+  "riskManagement": {
+    "operationalRisk": {
+      "metric": "System_Deviation_Score",
+      "thresholds": {
+        "warning": 0.45,
+        "critical": 0.80
+      },
+      "criticalMitigationStrategy": "Invoke_Containment_Protocol",
+      "containmentProtocolRef": "config/governance/security/Containment_V1.json"
+    },
+    "ethicalRisk": {
+      "constraintModelRef": "model/ethical_constraints_v7.h5",
+      "failureTolerance": 0,
+      "loggingLevelOnViolation": "Immediate_L5_Halt"
+    }
+  },
+  "financialManagement": {
+    "costOptimizationMandate": "Maximize_Output_Per_Resource_Unit",
+    "budgetLimits": {
+      "dailyComputeUSD": 550.00,
+      "monthlyComputeUSD": 15000.00,
+      "externalAPICostUSD": 60.00
+    },
+    "resourceAllocationPriorities": {
+      "AutonomousEvolution": 0.65,
+      "OperationalMaintenance": 0.25,
+      "ExplorationAndResearch": 0.10
+    }
+  },
+  "monitoringHooks": {
+    "costTrackingEngineRef": "FME_V1",
+    "anomalyDetectorRef": "ADE_V2"
+  }
+}
