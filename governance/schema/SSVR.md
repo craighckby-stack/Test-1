@@ -1,21 +1,35 @@
 # SGS SCHEMA VERSION REGISTRY (SSVR)
 
-## Core Mandate
+## 1. Governance Mandate and Role (L0 Enforcer)
 
-The SSVR serves as the cryptographically enforced Source of Truth for all foundational Governance Infrastructure Components, Standards (GICM, CDSM, HETM), and their current valid structural specifications. It mandates integrity checking, actively prevents unauthorized schema drift, and ensures all dependent agents (operational, archival, execution) utilize proven, immutable definitions.
+The SSVR is the exclusive, cryptographically enforced Source of Truth for all core SGS standards, configurations, and governance components (GICM, CDSM, HETM). Its primary function is the runtime delivery and validation of immutable structural specifications, actively preventing unauthorized schema drift across all dependent operational, archival, and execution agents.
 
-## Management and Security Protocol (SSVR Lifecycle)
+## 2. Integrity and Cryptographic Protocol
 
-1.  **Custody Agent:** Exclusive management by the **CRoT** (Central Registry of Trust).
-2.  **Bootstrap Integrity (S0):** The primary integrity hash of the SSVR must pass cryptographic validation against the immutable S0 ANCHOR reference during system initialization (ROM-equivalent check).
-3.  **Update Requirement (Consensus Attestation):** Any successful mutation requires explicit verification via a system-defined consensus quorum. Currently defined as **2/3 majority** consensus from the recognized Global Anchor Signers (GAS), logged immutably in the CSTL (Consensus State Transaction Log) prior to operational activation.
+A. **Root of Trust Custody (CRoT):**
+Exclusive management and structural validation custody is held by the Central Registry of Trust (CRoT).
 
-## Canonical Structure Definition
+B. **Integrity Hashing Standard:**
+All primary integrity fields utilize **SHA3-384** for verification unless otherwise overridden by a specific schema definition.
 
-The SSVR utilizes a strict, integrity-hashed JSON format defined formally by the canonical JSON Schema found at `governance/schema/SSVR.schema.json`. This format ensures high programmatic validity and enforcement of structural constraints.
+C. **Bootstrap Validation (S0 Check):**
+During initialization (ROM-equivalent), the current SSVR integrity hash must be cryptographically validated against the immutable S0 ANCHOR reference. Failure mandates immediate system halt.
 
-**Key Structural Fields:**
-*   `integrity_hash`: SHA-384 hash covering the entire content payload, verified by the S0 agent.
-*   `sgs_system_version`: The overall SGS software iteration this schema set targets.
-*   `schema_definitions`: An array detailing the purpose, version, and content hash for every mandated SGS schema.
-*   `attestation_log`: Cryptographic proofs signed by the Quorum members confirming the veracity and consensus approval of this specific schema version.
+## 3. Critical Governance Mutation (CGM) Protocol
+
+Any successful mutation or update to the SSVR requires verified consensus to ensure decentralized governance.
+
+1.  **Quorum Threshold:** A 2/3 majority of signatures from the recognized Global Anchor Signers (GAS) is mandatory.
+2.  **Attestation Log Commitment:** The explicit cryptographic proofs of this Quorum consensus must be immutably recorded in the Consensus State Transaction Log (CSTL) *before* the new SSVR version is activated operationally.
+
+## 4. Canonical Structure Definition
+
+The SSVR adheres strictly to the JSON Schema found at `governance/schema/SSVR.schema.json`. 
+
+| Field Name | Type | Description | Enforcement Requirement |
+| :--- | :--- | :--- | :--- |
+| `integrity_hash` | String | SHA3-384 hash of the canonical payload (excluding itself). | Mandatory runtime verification. |
+| `sgs_system_version` | String | Target overall SGS software iteration this schema set serves. | Client compatibility check. |
+| `version_id` | Integer | Monotonically increasing, globally unique SSVR version identifier. | Used for synchronization and update ordering. |
+| `schema_definitions` | Array | Detailed listing (name, version, content hash) for every mandated SGS schema. | Primary source of truth for component structures. |
+| `attestation_log` | Object | Cryptographic proof object confirming Quorum consensus (See: `governance/interface/SSVR_Attestation_Schema.json`). | Enforces Section 3 CGM protocol requirement. |
