@@ -8,17 +8,22 @@ State = Dict[str, Any]
 JsonPatchOperation = Dict[str, Any] 
 Differential = List[JsonPatchOperation] # Standardizing output to JSON Patch list format
 
-def _get_op_details(op: str, path: str, value: Any = None, old_value: Any = None) -> JsonPatchOperation:
+def _get_op_details(op: str, path: str, value: JsonValue = None, old_value: JsonValue = None) -> JsonPatchOperation:
     """Helper to structure a JSON Patch operation dictionary.
 
-    We optionally include 'from' data for easier state rollback and auditability, 
-    even though it is not strictly required by RFC 6902 for all operations.
+    Strictly adheres to RFC 6902 fields ('op', 'path', 'value'). 
+    Includes 'from' (old_value) for state rollback auditability.
     """
     details: JsonPatchOperation = {"op": op, "path": path}
-    if value is not None and op in ["add", "replace", "test"]:
+    
+    # Required 'value' fields for specific operations (RFC 6902)
+    if op in ["add", "replace", "test"] and value is not None:
         details["value"] = value
+        
+    # Optional audit/rollback 'from' field
     if old_value is not None and op in ["replace", "remove"]:
         details["from"] = old_value
+        
     return details
 
 def _deep_compare(old: JsonValue, new: JsonValue, path: str = "") -> Iterator[JsonPatchOperation]:
@@ -27,7 +32,7 @@ def _deep_compare(old: JsonValue, new: JsonValue, path: str = "") -> Iterator[Js
     Yields standardized JSON Patch operations (RFC 6902).
     """
 
-    # 1. Base case: Identity or scalar differences
+    # 1. Base case: Identity comparison
     if old == new:
         return
 
@@ -68,13 +73,15 @@ def _deep_compare(old: JsonValue, new: JsonValue, path: str = "") -> Iterator[Js
 
         # Handle size change
         if len_new > len_old:
-            # Additions
+            # Additions. Patches use the numerical index for specific insertion, 
+            # or '-' for appending, but index is cleaner for specific state changes.
             for i in range(len_old, len_new):
                 current_path = f"{path}/{i}"
                 yield _get_op_details("add", current_path, new[i])
         
         elif len_old > len_new:
-            # Removals must iterate backward (high index to low index) for stable patching
+            # Removals must iterate backward (high index to low index) 
+            # to prevent index shift during patching.
             for i in range(len_old - 1, len_new - 1, -1):
                 current_path = f"{path}/{i}"
                 yield _get_op_details("remove", current_path, old_value=old[i])
@@ -96,4 +103,5 @@ def calculate_deep_diff(old_state: State, new_state: State) -> Differential:
     if old_state == new_state:
         return []
         
+    # Note: Assumes input states are dicts, list(_deep_compare) handles iteration.
     return list(_deep_compare(old_state, new_state, path=""))
