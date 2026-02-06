@@ -10,41 +10,57 @@
 import { systemStateMonitor } from '../core/systemStateMonitor.js';
 import { dependencyGraph } from '../analysis/dependencyGraph.js';
 import { usageTelemetry } from '../analysis/usageTelemetry.js';
+import { Logger } from '../utils/logger.js'; // Assumed utility for structured logging
+
+const logger = new Logger('RMS');
 
 export const retirementMetricsService = {
 
     /**
-     * Gathers all necessary weighted data points for a retirement review.
+     * Estimates the quantitative reduction in system complexity achieved by removing the component.
+     * Needs integration with a Static Analysis Engine (SAE) for actual calculation.
      * @param {string} componentId - The component to analyze.
-     * @returns {Promise<object>} Contains calculated metrics.
+     * @returns {number} Complexity reduction score (0.0 to 1.0).
      */
-    async getComponentMetrics(componentId) {
-        console.log(`[RMS] Calculating detailed metrics for ${componentId}`);
-
-        // 1. Redundancy Score: How many equivalent paths exist if this component is removed?
-        const redundancyScore = await systemStateMonitor.calculateRedundancy(componentId);
-
-        // 2. Dependency Exposure: Criticality of downstream dependencies broken by removal (0.0=safe removal, 1.0=catastrophic breakdown).
-        const criticalDependencyExposure = await dependencyGraph.analyzeCriticalDownstreamRisk(componentId);
-
-        // 3. Usage Rate Impact: Low usage usually correlates with higher safety removal score.
-        const usageRate = usageTelemetry.getHistoricalAverage(componentId);
-
-        // 4. Complexity Reduction Estimate: Static analysis of overall complexity removal impact (TBD calculation).
-        const complexityReductionEstimate = this._estimateComplexityReduction(componentId);
-
-        // NOTE: In the CORE calculus, low exposure (safe to remove) means a high Dependency_Risk_Factor score.
-        return {
-            redundancyScore: redundancyScore,         // Higher score implies safer removal (better for CORE)
-            criticalDependencyExposure: criticalDependencyExposure, // Higher score implies higher risk (worse for CORE)
-            usageRate: usageRate,
-            complexityReductionEstimate: complexityReductionEstimate
-        };
+    _estimateComplexityReduction(componentId) {
+        // TODO: Replace this heuristic with data retrieved from a dedicated Static Analysis Engine or specialized component metadata service.
+        // Current heuristic placeholder: Weight based on relative size/complexity meta tags.
+        return Math.random() * 0.6 + 0.4; 
     },
 
-    _estimateComplexityReduction(componentId) {
-        // Placeholder implementation for v94.1 based on lines of code and state variables removed.
-        // Range 0.0 to 1.0
-        return Math.random() * 0.6 + 0.4; 
+    /**
+     * Gathers all necessary weighted data points for a retirement review concurrently.
+     * @param {string} componentId - The component to analyze.
+     * @returns {Promise<object>} Contains calculated metrics required for CORE Trust Calculus input.
+     */
+    async getComponentMetrics(componentId) {
+        logger.info(`Calculating detailed retirement metrics for ${componentId}. Preparing concurrent fetches.`);
+
+        // Execute independent asynchronous metrics calculations in parallel using Promise.all.
+        const [ 
+            redundancyScore, 
+            criticalDependencyExposure,
+            // Note: Usage telemetry is typically quick or cached, wrapped in Promise.resolve for structure.
+            usageRate 
+        ] = await Promise.all([
+            // 1. Redundancy Score (Safety Metric: Higher is better)
+            systemStateMonitor.calculateRedundancy(componentId),
+            
+            // 2. Dependency Exposure (Risk Metric: Higher is worse)
+            dependencyGraph.analyzeCriticalDownstreamRisk(componentId),
+            
+            // 3. Usage Rate Impact
+            Promise.resolve(usageTelemetry.getHistoricalAverage(componentId))
+        ]);
+
+        // 4. Complexity Reduction Estimate (currently heuristic)
+        const complexityReductionEstimate = this._estimateComplexityReduction(componentId);
+
+        return {
+            redundancyScore,
+            criticalDependencyExposure,
+            usageRate,
+            complexityReductionEstimate
+        };
     }
 };
