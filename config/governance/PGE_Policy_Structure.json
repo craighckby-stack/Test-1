@@ -1,0 +1,22 @@
+{
+  "description": "Template structure for governance policies loaded by the Policy Governance Engine (PGE), referenced by STDM validation keys.",
+  "schema_version": "1.1",
+  "policy_template": {
+    "policy_id": "string: Must match RRP/RVP defined in STDM",
+    "policy_category": "enum: RESOURCE_MGMT, SECURITY, REALTIME, GENERAL_OPS",
+    "criticality_level": "integer: 1 (Audit) - 5 (Immediate Hard Halt)",
+    "execution_directives": [
+      {
+        "directive_id": "string: Unique ID for action set",
+        "action_type": "enum: THROTTLE, RESTART, ISOLATE, NOTIFY, ESCALATE",
+        "target_component": "string: Target service/component name",
+        "parameters": "object: Contextual execution parameters (e.g., ThrottleRatio: 0.5)"
+      }
+    ],
+    "fallback_mechanism": {
+      "enabled": "boolean",
+      "protocol_reference": "string: Policy ID to execute if primary directives fail",
+      "delay_ms": "integer"
+    }
+  }
+}
