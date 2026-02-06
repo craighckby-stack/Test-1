@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schema/security/isolateAsset.json",
+  "title": "Asset Isolation Parameters",
+  "description": "Schema for inputs required to safely isolate a target system.",
+  "type": "object",
+  "properties": {
+    "target_asset_id": {
+      "type": "string",
+      "description": "The unique identifier of the asset to be quarantined.",
+      "pattern": "^[A-Z0-9]{8,32}$"
+    },
+    "quarantine_level": {
+      "type": "string",
+      "description": "Severity of isolation (NETWORK, OS_PROCESS, LOGIC_FREEZE).",
+      "enum": [
+        "NETWORK",
+        "OS_PROCESS",
+        "LOGIC_FREEZE"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "description": "VRRM standardized reason code for quarantine action."
+    }
+  },
+  "required": [
+    "target_asset_id",
+    "quarantine_level",
+    "reason_code"
+  ],
+  "additionalProperties": false
+}
