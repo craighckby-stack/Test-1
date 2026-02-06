@@ -1,28 +1,77 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ACVM Configuration Schema",
-  "description": "Schema for validating the Axiom Constraint Verification Matrix (ACVM) against P-M02 requirements.",
+  "title": "Axiom Constraint Verification Matrix (ACVM) Configuration",
+  "description": "Validated configuration settings for the ACVM governance system, ensuring comprehensive P-M02 compliance.",
   "type": "object",
   "required": [
-    "GAX_I_THROUGHPUT_MIN",
-    "GAX_II_BOUNDARY_POLICY",
-    "GAX_III_STRUCTURAL_VIOLATIONS"
+    "metadata",
+    "performance",
+    "security",
+    "compliance"
   ],
   "properties": {
-    "GAX_I_THROUGHPUT_MIN": {
-      "description": "Minimum required operational throughput (Performance/Throughput Constraint).",
-      "type": "number",
-      "minimum": 0
+    "metadata": {
+      "type": "object",
+      "description": "Governance metadata for schema tracking and profiling.",
+      "required": ["schema_version", "acvm_profile"],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+$",
+          "default": "v1.1",
+          "description": "Version identifier for the ACVM schema structure."
+        },
+        "acvm_profile": {
+          "type": "string",
+          "enum": ["P-M02", "P-M03", "S-L01"],
+          "default": "P-M02",
+          "description": "The specific compliance profile mandated (e.g., Performance, Security).
+        }
+      },
+      "additionalProperties": false
     },
-    "GAX_II_BOUNDARY_POLICY": {
-      "description": "Policy hash/version enforcing environmental boundary integrity checks.",
-      "type": "string",
-      "minLength": 10
+    "performance": {
+      "type": "object",
+      "description": "GAX I Constraints: Operational throughput and efficiency thresholds.",
+      "required": ["min_throughput_ops_sec"],
+      "properties": {
+        "min_throughput_ops_sec": {
+          "description": "Minimum required operational throughput, measured in operations per second.",
+          "type": "number",
+          "minimum": 1.0,
+          "default": 500.0
+        }
+      },
+      "additionalProperties": false
     },
-    "GAX_III_STRUCTURAL_VIOLATIONS": {
-      "description": "Maximum tolerable threshold for structural compliance policy violations (Integer).",
-      "type": "integer",
-      "minimum": 0
+    "security": {
+      "type": "object",
+      "description": "GAX II Constraints: Integrity and environmental boundary checks.",
+      "required": ["boundary_policy_hash"],
+      "properties": {
+        "boundary_policy_hash": {
+          "description": "Cryptographic hash (e.g., SHA-256) identifying the current enforced environmental boundary policy version.",
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{40,64}$",
+          "minLength": 40
+        }
+      },
+      "additionalProperties": false
+    },
+    "compliance": {
+      "type": "object",
+      "description": "GAX III Constraints: Structural compliance and violation tolerance limits.",
+      "required": ["max_structural_violations"],
+      "properties": {
+        "max_structural_violations": {
+          "description": "Maximum tolerable integer threshold for structural policy violations.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
