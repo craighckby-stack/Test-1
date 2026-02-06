@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sovereign Transition Instruction V1",
+  "description": "Defines the granular structure of a single instruction within a State Transition Request (STR) execution payload.",
+  "type": "object",
+  "required": [
+    "instruction_index",
+    "instruction_scope",
+    "operation",
+    "target_ref"
+  ],
+  "properties": {
+    "instruction_index": {
+      "type": "integer",
+      "description": "The sequence index, dictating execution order."
+    },
+    "instruction_scope": {
+      "type": "string",
+      "enum": ["CORE", "FILE", "DB", "API", "CONFIG"],
+      "description": "The subsystem scope the instruction modifies."
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["CREATE", "UPDATE", "DELETE", "REPLACE", "PATCH"],
+      "description": "The declarative action verb."
+    },
+    "target_ref": {
+      "type": "string",
+      "description": "The URI or path identifier for the resource targeted by the operation."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Specific data or configuration parameters required for the operation (e.g., file content, config diffs)."
+    }
+  },
+  "additionalProperties": false
+}
