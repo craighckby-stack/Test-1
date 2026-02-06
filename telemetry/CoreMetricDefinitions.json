@@ -1,0 +1,12 @@
+{
+  "AGENT_HEARTBEAT_LATENCY_MS": {
+    "name": "Core Agent Heartbeat Latency",
+    "description": "Time taken for a critical agent heart signal to register with the monitor service.",
+    "type": "PERFORMANCE_INDICATOR",
+    "unit": "ms",
+    "data_type": "FLOAT",
+    "validation_range": [0, 500],
+    "owner_source": "AgentTelemetryModule"
+  },
+  "// Add other core metrics here": {}
+}
