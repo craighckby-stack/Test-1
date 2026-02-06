@@ -1,0 +1,23 @@
+{
+  "config_id": "FCPR V1.0",
+  "purpose": "Centralized registry defining the active, required, and deprecated cryptographic standards for all audit logging and verification services.",
+  "policy_enforcement_targets": ["ALV-S", "NRALS-Emitter"],
+  "active_policies": [
+    {
+      "policy_name": "AuditLog_V1",
+      "effective_date": "2024-06-01T00:00:00Z",
+      "signature_algorithm": "ECC-P384/SHA3-256",
+      "key_length_bits": 384,
+      "signing_entity_role": "HSM_Forensic_Root"
+    }
+  ],
+  "key_rotation_schedule": {
+    "interval": "90 days",
+    "pre_rotation_alert": "7 days"
+  },
+  "deprecation_policy": {
+    "policy_name": "AuditLog_V0",
+    "transition_end": "2024-12-31T23:59:59Z",
+    "status_post_transition": "REJECT"
+  }
+}
