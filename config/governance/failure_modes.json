@@ -1,0 +1,19 @@
+{
+  "mandatory_limits": {
+    "S-01_Threshold": {
+      "min": 0.85,
+      "description": "Minimum required Trust score (AOC Mandate S-01). Must maintain above this floor."
+    },
+    "S-02_RiskCeiling": {
+      "max": 0.15,
+      "description": "Maximum allowed systemic risk exposure (AOC Mandate S-02). Must stay below this ceiling."
+    },
+    "A-05_ComputationalCap": {
+      "max": 1000000.0,
+      "description": "Hard limit on per-epoch resource allocation."
+    }
+  },
+  "max_tolerable_risk_increase": 0.05,
+  "default_risk_weight": 0.1,
+  "description": "Defines absolute security thresholds and tolerable risk increases for governance updates."
+}
