@@ -1,14 +1,1 @@
-{
-  "maximum_risk_parameters": {
-    "max_compute_cost_usd_delta": 5.00, 
-    "max_memory_increase_gb": 0.1, 
-    "max_api_call_rate_increase_percent": 5
-  },
-  "staging_limits": {
-    "max_simulation_runtime_seconds": 300, 
-    "min_test_coverage_required": 0.95
-  },
-  "policy_hooks": [
-    "resource_optimization_policy_v2"
-  ]
-}
+[object Object]
