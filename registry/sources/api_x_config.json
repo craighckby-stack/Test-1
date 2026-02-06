@@ -1,0 +1,13 @@
+{
+  "config_id": "API_X_V1",
+  "endpoint_uri": "https://api.external.com/data/v94",
+  "security_context": {
+    "key_id": "KEY_X_941",
+    "signature_check_method": "RSA_PSS",
+    "validation_cert_hash": "sha256:abcd1234..." 
+  },
+  "rate_limits": {
+    "requests_per_second": 5
+  },
+  "description": "Configuration details for the EXTERNAL_API_X source, separated from protocol specification for stability."
+}
