@@ -1,45 +1,56 @@
-# 1.0 CONFIGURATION GENERATION AND DEPLOYMENT UTILITY (CGDU) SPECIFICATION (v98.1)
+# 1.0 CGDU SPECIFICATION: HIGH-ASSURANCE CONFIGURATION STATE ROOT (CSR) GENERATION (v99.0)
 
-## 1.1 Mandate & Role
-CGDU's primary function is to provide deterministic, cryptographic aggregation and bundling of Immutable Configuration Artifacts (ICAs) to generate the verifiable Config State Root (CSR) hash. This ensures integrity across the deployment lifecycle.
+## 1.1 Mandate, Determinism, & Scope
+CGDU is an execution-critical, single-pass micro-service. CGDU MUST provide deterministic, cryptographic aggregation of Immutable Configuration Artifacts (ICAs) to generate the Verifiable Config State Root (CSR) hash. The successful generation of the CSR signifies configuration consensus and enables integrity chaining for the subsequent deployment lifecycle.
 
-## 1.2 Governing Agents & Integration
-*   **Governing Agent(s):** CRoT (Signing Authority), GAX (Input Provisioning Layer).
-*   **Integration Point:** Must execute atomically and conclude immediately prior to the commencement of the GSEP-C Stage S00 (Trust Anchoring Phase).
+## 1.2 Governing Agents & Operational Integration
+*   **A. Governing Agents:** CRoT (Signing Authority), GAX (Input Provisioning Layer), TCB (Audit Destination).
+*   **B. Trust Point Execution:** CGDU MUST execute atomically. Its completion, verified by TCB log commit, MUST precede GSEP-C Stage S00 (Trust Anchoring Phase) commencement.
+*   **C. Dependency Validation:** Prior to Section 3.1 execution, CGDU SHALL query the Canonical Utility Manifest Registry (CUMR) to confirm the integrity and version compliance of the mandated CCDEU runtime.
 
-## 2.0 INPUT ARTIFACTS (ICAs)
-CGDU requires strictly read-only access to the final, integrity-checked versions of the following three artifacts. Input ordering is fixed for deterministic CSR generation:
+## 2.0 INPUT ARTIFACTS (Immutable Configuration Artifacts - ICAs)
+CGDU SHALL only possess strictly read-only access. All ICAs MUST be integrity-checked prior to CGDU execution commencement. Input ordering is invariant and non-negotiable for deterministic processing:
 
-| Order | Alias | Description | Required Format |
-|-------|-------|-------------|-----------------|
-| 1     | `ACVD` | Axiomatic Constraint Vector Definition | JSON/YAML (Source) |
-| 2     | `FASV` | Final Axiomatic State Validation Schema | JSON/YAML (Source) |
-| 3     | `EPB`  | Execution Parameter Blueprint | JSON/YAML (Source) |
+| Order | Alias | Artifact Type | Constraint | Description |
+|-------|-------|---------------|------------|-------------|
+| 1     | `ACVD` | Constraint Vector | JSON/YAML | Axiomatic Constraint Vector Definition |
+| 2     | `FASV` | Validation Schema | JSON/YAML | Final Axiomatic State Validation Schema |
+| 3     | `EPB`  | Execution Blueprint | JSON/YAML | Runtime Execution Parameter Blueprint |
 
-## 3.0 EXECUTION & CSR GENERATION PROCESS
+## 3.0 EXECUTION PIPELINE: CSR GENERATION (T+0 Enforcement)
 
-The CGDU pipeline adheres to the following sequence (T+0 required execution time):
-
-### 3.1 Standardization (Canonical Serialization)
-Each input artifact (ACVD, FASV, EPB) must be converted into a canonical byte stream using the mandated Canonical Configuration Definition Enforcement Utility (CCDEU). This enforces:
+### 3.1 Standardization (Canonicalization & CBS Generation)
+Each ICA MUST be processed independently by the Canonical Configuration Definition Enforcement Utility (CCDEU) to generate its unique Canonical Byte Stream (CBS). CCDEU MUST enforce:
 *   Standard UTF-8 encoding.
-*   Lexicographical sorting of all keys within objects.
-*   Zero indentation and omission of trailing whitespace.
-*   Specific Type Coercion (e.g., integer normalization).
+*   Lexicographical sorting, recursively applied to all dictionary keys.
+*   Zero indentation, omission of trailing/leading whitespace, and rigorous scalar normalization.
 
 ### 3.2 Aggregation & Concatenation
-The three canonical byte streams are aggregated and concatenated linearly in the specified fixed order: `Stream(1) + Stream(2) + Stream(3)`.
+The resulting CBS streams are concatenated linearly and without separators in the fixed order defined in Section 2.0:
+$$
+\text{TotalStream} = \text{CBS}(\text{ACVD}) \| \text{CBS}(\text{FASV}) \| \text{CBS}(\text{EPB})
+$$
 
-### 3.3 Hashing (CSR Generation)
-The resulting total concatenated byte stream is fed into the mandated cryptographic primitive: SHA3-512. The output is the single, immutable `CSR` hash.
+### 3.3 Config State Root (CSR) Generation
+The $\text{TotalStream}$ is cryptographically digested using the sole mandated primitive.
+*   **Algorithm:** SHA3-512.
+*   **Output:** CSR (Config State Root) hash.
 
-## 4.0 OUTPUT AND POST-EXECUTION
+## 4.0 OUTPUT, AUDIT, & PURGE MANDATES
 
-### 4.1 Output Artifact
-*   **Name:** `CSR (Config State Root)`
+### 4.1 Output Artifact: CSR
 *   **Format:** 128-character Hexadecimal string.
-*   **Destination:** Delivered directly to CRoT for official cryptographic signing and Trust Anchoring during GSEP-C Stage S00.
+*   **Disposition:** Immediate secure delivery to CRoT for official cryptographic signing.
 
-### 4.2 Security & Purge Mandate
-1.  **Verification Log:** A single, non-mutable audit log entry detailing input path hashes and the final CSR is recorded to the TCB (Trusted Compute Base).
-2.  **Purge:** The active CGDU execution container and all associated temporary memory buffers are immediately purged from the environment following successful delivery of the CSR and verification log completion.
+### 4.2 TCB Verification Log (Audit Mandate)
+A single, immutable audit entry MUST be committed to the TCB. This log entry SHALL follow the structure defined in the `AUDIT-S01` standard and MUST contain:
+1.  CGDU Execution Hash (e.g., self-hash of the running container/binary).
+2.  Input Hashes (SHA256) for ACVD, FASV, and EPB (prior to canonicalization).
+3.  The final 128-character CSR.
+4.  CCDEU version identifier and integrity check hash (validated against CUMR).
+
+### 4.3 Operational Resilience & Failure Handling
+In the event of *any* pipeline failure (e.g., I/O error, dependency validation failure, TCB log commitment failure), CGDU MUST terminate execution immediately and return a predefined non-zero exit code (`STATUS: E-CSR-780`) to the GAX provisioning layer. No intermediate data or partial hashes SHALL persist.
+
+### 4.4 Purge Mandate
+Upon successful execution (CSR delivery and TCB log commitment), the active CGDU container and all associated temporary buffers MUST be immediately and non-recoverably purged from the environment.
