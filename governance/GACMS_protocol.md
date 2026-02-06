@@ -1,25 +1,42 @@
-# GACMS V94.3: Governance Asset Change Management Service Protocol
+# GACMS V95.0: Governance Asset Change Management Service Protocol (IATP)
 
-## 1.0 MISSION STATEMENT
+## 1.0 CORE MISSION STATEMENT
 
-To ensure that modifications to critical Governance Assets (specifically those governing GAX policy enforcement, Section 4.2 of SGS V94.3) are treated as attested state transitions, requiring multi-agent consensus, cryptographic provenance, and formal impact assessment before integration into the GSEP-C pipeline.
+To mandate that all modifications ($\Delta A$) to Sovereign Governance Assets (specifically PVLM, CFTM, ADTM, and MPAM, governing GAX policy enforcement, Section 4.2 of SGS V95.0) must be managed as formally attested, cryptographically proven, and consensus-validated state transitions. This process ensures zero-trust integration into the GSEP-C pipeline.
 
-## 2.0 PROTOCOL FLOW: ATTESTED ASSET DEPLOYMENT CYCLE (AADC)
+## 2.0 PROTOCOL FLOW: IMMUTABLE ASSET TRANSITION PROTOCOL (IATP)
 
-The AADC is a secure, off-GSEP-C cycle required for changes to PVLM, CFTM, ADTM, and MPAM.
+The IATP is the secured, required off-cycle mechanism governing critical asset transitions. All stages must be verifiably logged by the System Governance Shell (SGS) into CALS, culminating in a final signature commitment to ACAL.
 
-### AADC Stages:
+### IATP Stages and Artifacts:
 
-1. **PROPOSAL INIT (SGS):** A proposed change ($\Delta A$) to a critical asset is submitted. The SGS logs the initial proposal hash (PH) into CALS.
-2. **IMPACT ASSESSMENT (GAX/ACPE):** GAX leverages the Axiomatic Consistency Proof Engine (ACPE) to generate an Attested Impact Report (AIR). The AIR must certify:
-    *   **Axiomatic Coherence:** The resulting asset ($A + \Delta A$) does not violate ACPE constraints or introduce policy contradictions (e.g., conflicting PVLM rules).
-    *   **P-01 Sensitivity Analysis:** Simulation showing the predicted change in the P-01 PASS rate ($\Delta\epsilon$) over historical execution data.
-3. **ATTESTATION REVIEW (CRoT):** CRoT cryptographically signs the AIR, verifying the integrity of the input and the ACPE execution environment.
-4. **CONSENSUS LOCK (GAX/SGS):** GAX grants policy approval based on the AIR, followed by SGS sign-off. The final proposed asset change, the AIR, and all agent signatures are compiled into the Asset Change Manifest (ACM).
-5. **IMMUTABLE COMMIT (CRoT):** CRoT signs the ACM using its non-repudiable key, persisting it to a segregated, immutable ledger (Asset Change Audit Log, ACAL).
-6. **PRE-S0 ACTIVATION:** The SGS loads the attested ACM upon the next GSEP-C cycle, making the change effective only after successful S0 validation (HETM/GVDM integrity check). Failure to load the attested change triggers a CRITICAL exception and reverts to the previously attested asset hash.
+1.  **STATE INITIATION (SGS \rightarrow CALS):**
+    *   SGS generates the Proposal Hash (PH) for the candidate asset ($A_{next}$), validating basic structural schema conformance.
+    *   The PH and metadata are time-stamped and logged to the Change Audit Logging Service (CALS).
+2.  **AXIOMATIC IMPACT ASSESSMENT (GAX \leftrightarrow ACPE):**
+    *   GAX utilizes the Axiomatic Consistency Proof Engine (ACPE) to execute the required formal proofs and simulations against $A_{next}$.
+    *   **Mandatory Output:** Attested Impact Report (AIR). AIR must certify:
+        a.  *Axiomatic Coherence*: $A_{next}$ satisfies all established ACPE constraints (e.g., non-contradictory PVLM/MPAM directives).
+        b.  *Temporal Sensitivity*: Prediction showing the change in the P-01 PASS rate ($\Delta\epsilon$) across the defined historical execution window (HEW).
+3.  **INTEGRITY ATTESTATION (CRoT):**
+    *   The Cryptographic Root of Trust (CRoT) receives the AIR.
+    *   CRoT verifies the integrity hash of the ACPE simulation environment and signs the resulting AIR ($\Sigma_{AIR}$) using its non-repudiable key. This certifies the computational trustworthiness of the impact assessment itself.
+4.  **CONSENSUS LOCK AND MANIFESTATION (GAX/SGS):**
+    *   GAX grants policy approval based solely on the $\Sigma_{AIR}$ and its adherence to specified $\Delta\epsilon$ bounds.
+    *   SGS provides final system-level sign-off.
+    *   The resulting Asset Change Manifest (ACM) is compiled, bundling $A_{next}$, $\Sigma_{AIR}$, and all agent signatures ($\Sigma_{GAX}, \Sigma_{SGS}$). 
+5.  **IMMUTABLE COMMITMENT (CRoT \rightarrow ACAL):**
+    *   CRoT signs the finalized ACM ($\Sigma_{ACM}$) and persists it to the Asset Change Audit Log (ACAL). ACAL serves as the singular source of truth for all critical attested asset hashes.
+6.  **ZERO-TRUST ACTIVATION (SGS/GSEP-C):**
+    *   The SGS loads the attested ACM upon the next GSEP-C cycle (Pre-S0).
+    *   The Temporal Policy Versioning Service (TPVS, see 4.0) is updated to designate the ACM's $A_{next}$ hash as active.
+    *   Activation is conditional upon successful GVDM integrity checks (Post-S0). Failure during runtime triggers a CRITICAL exception and mandatory instantaneous rollback to the TPVS-specified prior active hash ($A_{prev}$).
 
-## 3.0 REQUIRED ASSETS
+## 3.0 REQUIRED ARTIFACTS
 
-*   **ACAL:** Asset Change Audit Log. Immutable ledger for finalized ACMs.
-*   **ACM:** Asset Change Manifest. Contains the proposed change, the Attested Impact Report (AIR), and multi-agent cryptographic signatures (SGS, GAX, CRoT).
+*   **ACAL:** Asset Change Audit Log. Segregated, immutable ledger for finalized, signed ACMs.
+*   **ACM:** Asset Change Manifest. Contains $A_{next}$, the signed Attested Impact Report ($\Sigma_{AIR}$), and multi-agent cryptographic signatures ($\Sigma_{SGS}, \Sigma_{GAX}, \Sigma_{CRoT}$).
+
+## 4.0 ARCHITECTURAL REQUIREMENT: TEMPORAL POLICY VERSIONING SERVICE (TPVS)
+
+For enhanced safety and immediate failover capabilities, the GACMS flow necessitates the integration of the TPVS. TPVS manages the real-time mapping of attested Asset Hashes to their GSEP-C activation schedules, guaranteeing that only the currently designated version is exposed to the runtime environment, irrespective of how many attested versions reside in ACAL.
