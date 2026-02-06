@@ -1,10 +1,27 @@
 {
-  "protocol_version": "DTEM V1.0",
-  "description": "Manifest defining cryptographic trust and endpoint standards for data sources required by GSEP-C stages L2 (Provenance Trust) and L5 (Data Fidelity).",
-  "default_settings": {
-    "required_trust_score": 0.95,
-    "hash_algorithm": "SHA3-512",
-    "required_signature_algorithm": "ECDSA-P384"
+  "$schema_id": "urn:agi:config:data-trust-endpoints:v2",
+  "protocol_version": "DTEM V2.0",
+  "description": "Standardized definition for cryptographic trust, endpoint binding, and verification policies across core GSEP-C stages (L2 Provenance Trust & L5 Data Fidelity).",
+  "global_policy_defaults": {
+    "trust_score_threshold": 0.95,
+    "integrity_algorithm": "SHA3-512",
+    "signature_algorithm": "ECDSA-P384",
+    "revocation_check_mandatory": false,
+    "proof_expiry_tolerance_ms": 120000
+  },
+  "trust_policies": {
+    "HIGH_TRUST_L5": {
+      "trust_score_threshold": 0.98,
+      "integrity_algorithm": "SHA3-512",
+      "revocation_check_mandatory": true,
+      "provenance_required": true,
+      "trusted_ca_chain_id": "CA-AGI-001"
+    },
+    "BASIC_INGEST_L0": {
+      "trust_score_threshold": 0.95,
+      "integrity_algorithm": "SHA3-256",
+      "revocation_check_mandatory": false
+    }
   },
   "data_streams": [
     {
@@ -12,15 +29,15 @@
       "purpose": "Initial context typing data integrity (L0/L5)",
       "endpoint_pattern": "sentry://core_ingest/*",
       "checksum_location": "header.x-sovereign-checksum",
-      "required_trust_score": 0.98
+      "policy_id": "HIGH_TRUST_L5"
     },
     {
       "stream_id": "METRIC-FEED-001",
       "purpose": "Source data for S-01 and S-02 calculation (L6)",
       "endpoint_pattern": "https://data-oracles.sys/v1/metrics/*",
-      "trust_verification": {
-        "proof_of_provenance_required": true,
-        "trusted_ca_certificate_id": "CA-AGI-001"
+      "policy_id": "HIGH_TRUST_L5",
+      "overrides": {
+        "proof_expiry_tolerance_ms": 60000
       }
     }
   ]
