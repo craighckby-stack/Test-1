@@ -1,18 +1,34 @@
-# Manifest Versioning and Audit Protocol (MVAP) V1.0
+# Governance Manifest Integrity Protocol (GMIP) V2.0
+# Successor to MVAP V1.0
 
-## 1.0 MANDATE: GACR IMMUTABILITY AND AUDIT TRAIL
+## 1.0 MANDATE: ATTESTED STATE SYNCHRONIZATION AND AUDIT INTEGRITY
 
-The MVAP enforces strict versioning, cryptographic signing, and audit logging for all mutations to critical Governance Asset Control Registry (GACR) manifests (e.g., PVLM, MPAM, ECVM, CFTM). This protocol ensures that the definitions underpinning GSEP-C Veto Gates are themselves subject to non-repudiable integrity control, guaranteeing compliance integrity across state transitions.
+The GMIP mandates the creation of an auditable, non-repudiable state machine for all mutations to Governance Asset Control Registry (GACR) critical manifests (PVLM, MPAM, ECVM, CFTM). This protocol ensures that foundational governance definitions utilized by the GSEP-C Veto Gates are cryptographically sealed, guaranteeing integrity and preventing repudiation of policy state transitions.
 
-## 2.0 PROTOCOL FLOW (GACR Asset Update Cycle)
+## 2.0 CORE ASSET: MANIFEST ROOT HASH ($ M_H $)
 
-1.  **PROPOSAL:** An authorized agent (typically GAX for PVLM, SGS/CRoT for MPAM) initiates a manifest change proposal $ M'$.
-2.  **AUDIT & REVIEW (GAX):** The proposal $ M'$ must pass structural and policy validity checks against current GICM standards.
-3.  **VERSION BUMP:** $ M'$ is assigned the next monotonically increasing, non-reusable hash-chain version $ V_{N+1} $.
-4.  **CRoT CERTIFICATION (S10):** CRoT must cryptographically sign $ M'(V_{N+1}) $ using the designated Asset Signing Key (ASK) chain. This signing constitutes the **Manifest Attestation Commit (MAC)**.
-5.  **ACTIVATION COMMIT:** Only manifests possessing a valid MAC are loadable into the GSEP-C pipeline. The active GACR snapshot must be logged in the NRALS system prior to the first use in S0.
+Instead of a simple integer version $ V_N $, the definitive identifier for a manifest state $ M $ must be its Content Root Hash, $ M_H $. This $ M_H $ is the deterministic Merkle root generated from the canonical serialization of the manifest content, defined by the Manifest Canonicalization Standard (MCS).
 
-## 3.0 CONTROL ASSET REQUIREMENTS
+*   **Immutability:** Any change, no matter how minor, results in a new, unique $ M_H $.
+*   **Tracing:** The hash of the previous active manifest, $ M_{H, N-1} $, must be included in the metadata of the new manifest $ M_{H, N} $, forming a verifiable Manifest Hash Chain (MHC).
 
-*   **Versioning:** All active manifests must expose their $ V_{N} $ at GSEP-C S0 (ANCHOR INIT) via GICM.
-*   **Rollback:** The previous $ V_{N-1} $ must remain CRoT-signed and readily accessible to support RRP/SIH procedures and audit reconciliation.
+## 3.0 GMIP MANIFEST LIFECYCLE FLOW
+
+All manifest updates must transition through three formalized states before achieving activation:
+
+### 3.1 State 1: PROPOSAL ($ M'_H $, Pending)
+1.  **Initiation:** An authorized governance entity (e.g., GAX, SGS) generates the proposed manifest $ M'$.
+2.  **Pre-Validation:** $ M'$ undergoes structural and policy validity checks against GICM standards. $ M'$ is assigned its provisional $ M'_H $ based on MCS.
+
+### 3.2 State 2: CERTIFICATION ($ M_{H} $, Attested)
+3.  **CRoT Attestation:** CRoT certifies the content $ M'$ by cryptographically signing its hash $ M'_H $ using the designated Asset Signing Key (ASK) chain. This produces the **Manifest Attestation Signature (MAS)**.
+4.  **Immutability Commit:** The fully attested manifest $ \{M', MAS\} $ is immediately logged to the Non-Repudiable Audit Log System (NRALS) and linked via the MHC. This guarantees immediate external auditability.
+
+### 3.3 State 3: ACTIVATION ($ M_{H} $, Active)
+5.  **Deployment Eligibility:** Only manifests possessing a valid, NRALS-committed MAS are eligible for loading.
+6.  **GSEP-C Load:** The newly active $ M_{H} $ must be exposed at GSEP-C S0 (ANCHOR INIT) as the current governance standard for policy enforcement.
+
+## 4.0 INTEGRITY REQUIREMENTS
+
+*   **MCS Requirement:** The algorithm and serialization standards used to generate $ M_H $ must be universally defined and immutable (see `config/ManifestCanonicalizationStandard.json`).
+*   **Rollback Mechanism:** Previous attested states $ M_{H, N-1} $ and corresponding MAS must remain instantly accessible to support mandated Rollback and Recovery Procedures (RRP/SIH).
