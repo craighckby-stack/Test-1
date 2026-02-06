@@ -1,10 +1,1 @@
-{
-  "id": "PSIM",
-  "name": "Payload Structural Integrity Manager",
-  "version": "V97.0",
-  "mandate": "Verify that the M-02 Payload strictly adheres to the Atomic Immutable Architecture (AIA) schema, including required cryptographic anchors and transaction format specifications.",
-  "role": "Validation Gate (Pre-PSR)",
-  "input": "M-02 Payload Generation",
-  "output": "Structural Compliance Status (Boolean)",
-  "gsep_stage": "2"
-}
+[object Object]
