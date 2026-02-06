@@ -1,1 +1,42 @@
-[object Object]
+{
+  "matrix_version": "2.0.0",
+  "description": "Code Decision Support Matrix (CDSM) for Sovereign AGI v94.1 autonomous evolution.",
+  "autonomy_level_score": 0.85,
+  "decision_weights": {
+    "Weighted_Test_Confidence": 0.40,
+    "Risk_Severity_Multiplier": 0.35,
+    "Architectural_Alignment_Score": 0.25
+  },
+  "decision_thresholds": {
+    "Accept_Autonomous": 0.75,
+    "Quorum_Required": 0.60,
+    "Human_Review_Mandatory": 0.50
+  },
+  "risk_profiles": {
+    "Critical": {
+      "severity_score": 0.95,
+      "required_confidence_min": 0.85,
+      "required_validation": ["E2E_Simulation", "Security_Audit"],
+      "fallback_action": "Automatic_Rollback"
+    },
+    "High": {
+      "severity_score": 0.70,
+      "required_confidence_min": 0.70,
+      "required_validation": ["Integration_Tests", "Load_Testing"]
+    },
+    "Medium": {
+      "severity_score": 0.40,
+      "required_confidence_min": 0.65,
+      "required_validation": ["Unit_Tests", "Linter_Pass"]
+    },
+    "Low": {
+      "severity_score": 0.10,
+      "required_confidence_min": 0.55,
+      "required_validation": ["Linter_Pass"]
+    }
+  },
+  "fallback_strategies": {
+    "default_low_score_action": "Queue_for_Optimization_Refactor",
+    "default_high_risk_rejection": "Halt_And_Report"
+  }
+}
