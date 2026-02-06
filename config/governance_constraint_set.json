@@ -1,19 +1,44 @@
 {
-  "schema_version": "GCS-V1.0",
-  "description": "Defines externalized runtime parameters and baseline constraints verified by CTAL (L2) and enforced by PVLM (L1).",
-  "runtime_config": {
-    "minimum_viable_margin_epsilon": 0.05, 
-    "policy_violation_trigger_list": [
-      "DENY_CRITICAL_RESOURCE_UTILIZATION",
-      "DENY_TRUST_DEVIATION_HIGH_SEVERITY"
+  "schema_version": "GCS-V1.1",
+  "metadata": {
+    "description": "Defines externalized governance parameters and baseline constraints enforced across L1 (PVLM) and L2 (CTAL) layers.",
+    "enforcement_layers": ["PVLM_L1", "CTAL_L2"]
+  },
+  "runtime_parameters": {
+    "system_tolerance": {
+      "minimum_viable_margin_epsilon": 0.05
+    }
+  },
+  "governance_policies": {
+    "policy_violations": [
+      {
+        "id": "PVL-001",
+        "description": "Critical resource utilization exceeding predefined saturation threshold.",
+        "trigger": "RESOURCE_OVERLOAD",
+        "action": "DENY_EXECUTION",
+        "severity": "CRITICAL",
+        "enforcement_level": "PVLM_L1"
+      },
+      {
+        "id": "PVL-002",
+        "description": "High deviation detected in derived trust metric score.",
+        "trigger": "TRUST_DEVIATION",
+        "action": "HALT_AND_AUDIT",
+        "severity": "HIGH",
+        "enforcement_level": "CTAL_L2"
+      }
     ]
   },
-  "structural_constraints": {
-    "C-01_max_index_threshold": 0.85, 
-    "S-02_maximum_acceptable_risk_baseline": 0.75
+  "structural_limits": {
+    "complexity_metrics": {
+      "max_complexity_index_ratio": 0.85
+    },
+    "risk_metrics": {
+      "maximum_acceptable_risk_baseline": 0.75
+    }
   },
-  "trust_signing_keys": {
+  "trust_key_management": {
     "key_authority_id": "KHA-941A",
-    "minimum_key_generation": 3
+    "required_key_generation_version": 4
   }
 }
