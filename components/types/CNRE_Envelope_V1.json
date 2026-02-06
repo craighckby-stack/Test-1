@@ -1,1 +1,65 @@
-[object Object]
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign/schemas/CNRE_Envelope_V1.json",
+  "title": "Cognitive Network Response Envelope V1 Schema",
+  "description": "A standardized, self-describing wrapper for autonomous system data exchange and command routing, enforced via JSON Schema.",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "System-level processing, telemetry, and routing metadata.",
+      "properties": {
+        "envelope_version": {
+          "type": "string",
+          "enum": [
+            "V1"
+          ],
+          "description": "The specific CNRE schema version used (V1)."
+        },
+        "trace_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique request/transaction trace identifier for auditing."
+        },
+        "origin_agent_id": {
+          "type": "string",
+          "description": "Identifier of the autonomous component/agent initiating the data/command."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 creation timestamp of the envelope."
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Time-to-live counter (hops/seconds) for message expiration, improving network efficiency."
+        }
+      },
+      "required": [
+        "envelope_version",
+        "trace_id",
+        "origin_agent_id",
+        "timestamp"
+      ]
+    },
+    "data_type": {
+      "type": "string",
+      "format": "uri",
+      "description": "A URI reference defining the exact schema or nature of the encapsulated content (the 'payload')."
+    },
+    "payload": {
+      "type": [
+        "object",
+        "array",
+        "string"
+      ],
+      "description": "The actual encapsulated content (e.g., Code snippet, Action plan, Configuration object)."
+    }
+  },
+  "required": [
+    "metadata",
+    "data_type",
+    "payload"
+  ],
+  "additionalProperties": false
+}
