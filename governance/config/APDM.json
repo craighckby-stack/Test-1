@@ -1,10 +1,17 @@
 {
-  "schema_version": "2.0.0",
-  "timestamp": "2024-07-30T10:30:00Z",
-  "system_identifier": "Sovereign_AGI_v94.1_Core",
-  "policy_defaults": {
-    "priority_level": 5,
-    "failure_mode": "AuditOnly"
+  "schema_version": "2.1.0",
+  "metadata": {
+    "system_identifier": "Sovereign_AGI_v94.1_Core",
+    "updated_timestamp": "2024-07-30T10:35:00Z"
+  },
+  "constants": {
+    "execution_modes": ["Strict", "Advisory", "AuditOnly", "Fatal"],
+    "audit_levels": ["Emergency", "Critical", "High", "Warning", "Informational"],
+    "default_policy": {
+      "priority": 5,
+      "mode": "AuditOnly",
+      "enabled": true
+    }
   },
   "domains": {
     "evolutionary": {
@@ -13,22 +20,38 @@
         {
           "id": "AEC-101",
           "name": "Autonomous Evolution Checkpoint",
-          "enabled": true,
           "priority": 1,
           "mode": "Strict",
-          "condition": "ResourceSaturation > 85%",
-          "action": "HaltEvolutionaryThread",
-          "audit_level": "Critical"
+          "audit_level": "Critical",
+          "trigger": {
+            "metric": "ResourceSaturation",
+            "comparator": "GT",
+            "threshold": 0.85,
+            "scope": "CoreMetrics"
+          },
+          "effect": {
+            "type": "HaltThread",
+            "target": "EvolutionaryThread",
+            "parameter": null
+          }
         },
         {
           "id": "AEC-102",
           "name": "Scaffolding Template Compliance",
-          "enabled": true,
           "priority": 3,
           "mode": "Advisory",
-          "condition": "ProposedCodeDiff > 1000 lines",
-          "action": "RequirePeerReview(v94.0_Simulated)",
-          "audit_level": "Warning"
+          "audit_level": "Warning",
+          "trigger": {
+            "metric": "CodeDiffLines",
+            "comparator": "GT",
+            "threshold": 1000,
+            "scope": "ChangeManagement"
+          },
+          "effect": {
+            "type": "RequiredReview",
+            "target": "v94.0_Simulated",
+            "parameter": "PolicyCompliance"
+          }
         }
       ]
     },
@@ -38,12 +61,20 @@
         {
           "id": "OPC-201",
           "name": "External API Rate Limiting",
-          "enabled": true,
           "priority": 2,
           "mode": "Strict",
-          "condition": "API_CallCount > 100/min",
-          "action": "Throttle(50%)",
-          "audit_level": "High"
+          "audit_level": "High",
+          "trigger": {
+            "metric": "API_CallCount",
+            "comparator": "GT",
+            "threshold": 100,
+            "window_sec": 60
+          },
+          "effect": {
+            "type": "Throttle",
+            "target": "External_API",
+            "parameter": 0.5
+          }
         }
       ]
     },
@@ -56,9 +87,18 @@
           "enabled": false,
           "priority": 0,
           "mode": "Fatal",
-          "condition": "UnauthorizedKernelAccessAttempt",
-          "action": "ImmediateShutdown(LoggingPreempt)",
-          "audit_level": "Emergency"
+          "audit_level": "Emergency",
+          "trigger": {
+            "metric": "AccessAttempt",
+            "comparator": "EQ",
+            "threshold": "UnauthorizedKernelAccessAttempt",
+            "scope": "SystemIntegrity"
+          },
+          "effect": {
+            "type": "ImmediateShutdown",
+            "target": "System",
+            "parameter": "LoggingPreempt"
+          }
         }
       ]
     }
