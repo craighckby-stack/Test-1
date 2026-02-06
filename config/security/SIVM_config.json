@@ -1,0 +1,20 @@
+{
+  "module_id": "SIVM_V1",
+  "name": "State Integrity Validation Module Configuration",
+  "runtime_mode": "INTRUSIVE_CHECK",
+  "verification_thresholds": {
+    "SIM_ACTIVE": {
+      "integrity_score_minimum": 0.999,
+      "allowed_processes": ["SIVM_AGENT", "NOTARY_LINK_H"],
+      "network_state": "ISOLATED_LOCALHOST_ONLY"
+    }
+  },
+  "telemetry_settings": {
+    "logging_level": "CRITICAL_ONLY",
+    "report_targets": ["LOCAL_HARDENED_LOG"]
+  },
+  "fallback_action": {
+    "action_code": "SYSTEM.HARD_REBOOT",
+    "reason": "SIVM validation failure post-lockdown indicates compromised core."
+  }
+}
