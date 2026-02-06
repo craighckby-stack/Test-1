@@ -1,0 +1,20 @@
+[
+  {
+    "id": "QUEUE_FOR_REVIEW",
+    "description": "Routes the current decision context to a human or supervisory audit queue.",
+    "risk_level": "LOW",
+    "required_parameters": []
+  },
+  {
+    "id": "RESOURCE_SCALE_UP",
+    "description": "Increases compute resources for the current cluster.",
+    "risk_level": "HIGH",
+    "required_parameters": ["cluster_id", "scale_factor"]
+  },
+  {
+    "id": "IMPOSE_RATE_LIMIT",
+    "description": "Applies aggressive throttling to a source ID.",
+    "risk_level": "MEDIUM",
+    "required_parameters": ["source_id", "duration_seconds"]
+  }
+]
