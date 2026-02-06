@@ -1,17 +1,1 @@
-{
-  "policyId": "PLATFORM_CRYPTO_V1",
-  "hashStandards": {
-    "currentMandated": ["SHA-384"],
-    "allowed": ["SHA-384", "SHA-512"],
-    "deprecated": ["SHA-256", "SHA-1"],
-    "minDigestLengthBits": 384
-  },
-  "signingAlgorithms": {
-    "currentMandated": ["Ed25519"],
-    "allowed": ["Ed25519", "ECDSA-P384"],
-    "deprecationTimeline": {
-      "RSA-PSS-4096": "2024-12-31"
-    }
-  },
-  "rotationPolicy": "6-months"
-}
+[object Object]
