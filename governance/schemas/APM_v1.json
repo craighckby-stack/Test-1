@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/schemas/APM_v1.json",
+  "title": "Attested Policy Mandate v1",
+  "description": "Defines the structure for a finalized, verifiable policy update instruction.",
+  "type": "object",
+  "required": [
+    "mandate_id",
+    "version",
+    "timestamp",
+    "payload_hashes",
+    "co_signatures",
+    "final_signature"
+  ],
+  "properties": {
+    "mandate_id": {
+      "type": "string",
+      "description": "Sequential, monotonic ID for change tracking."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the affected policies (e.g., PVLM v3.1.2)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC time of mandate finalization."
+    },
+    "payload_hashes": {
+      "type": "object",
+      "description": "Cryptographic hashes (SHA-512) of the manifests being ratified.",
+      "properties": {
+        "PVLM_hash": {"type": "string"},
+        "CFTM_hash": {"type": "string"},
+        "ACP_hash": {"type": "string"}
+      },
+      "required": ["PVLM_hash", "CFTM_hash", "ACP_hash"]
+    },
+    "co_signatures": {
+      "type": "array",
+      "description": "Required signatures from Triumvirate agents (minimum two).",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "agent": {"type": "string", "enum": ["GAX", "CRoT", "SGS"]},
+          "signature": {"type": "string"},
+          "key_id": {"type": "string"}
+        },
+        "required": ["agent", "signature", "key_id"]
+      }
+    },
+    "final_signature": {
+      "type": "string",
+      "description": "Cryptographic signature of the entire APM payload, affixed by CRoT."
+    }
+  },
+  "additionalProperties": false
+}
