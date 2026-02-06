@@ -1,25 +1,48 @@
 {
-  "schema_version": "v1.0",
-  "purpose": "Maps standardized remediation references (remediation_ref) to concrete, executable action sequences defined within the GAX kernel.",
+  "schema_version": "v1.1",
+  "purpose": "Catalogs standardized remediation actions, mapping references to executable kernel interfaces, enriched with operational metadata for intelligent scheduling and risk assessment.",
   "metadata": {
-    "custodian": "GAX/PCEU"
+    "custodian": "GAX/PCEU",
+    "last_updated": "2024-05-29T12:00:00Z"
   },
   "actions": {
     "PCSS.LinkageRequired": {
       "description": "Consult Policy Context Stream Service (PCSS) and inject policy header linkage to execution frame.",
-      "execution_target": "GAX.Modules.PolicyKernel.Linker",
+      "handler_interface": "GAX.Interface.PolicyLinkerV2",
+      "action_type": "KERNEL_OP",
+      "risk_level": "LOW",
+      "estimated_latency_ms": 15,
+      "status": "ACTIVE",
       "parameters": {
         "mode": "ATOMIC_INJECTION",
-        "fallback": "REVERT_OP"
+        "fallback": "REVERT_OP",
+        "policy_type_filter": "STANDARD_COMPLIANCE"
       }
     },
     "VRRM.TriageSnapshotRollback": {
       "description": "Perform immediate Virtual Resource Remediation Module triage, capture full state snapshot, and initiate mandated rollback sequence.",
-      "execution_target": "GAX.Modules.ResourceManagement.VRRM",
+      "handler_interface": "GAX.Interface.ResourceManagement.VRRM",
+      "action_type": "DATA_MUTATION",
+      "risk_level": "CRITICAL",
+      "estimated_latency_ms": 350,
+      "status": "ACTIVE",
       "parameters": {
         "action": "TRIAGE_SNAPSHOT_AND_ROLLBACK",
         "snapshot_type": "K-STATE",
-        "severity_check": "MAX_RRP_COMPLIANCE"
+        "severity_check": "MAX_RRP_COMPLIANCE",
+        "state_lock_timeout_s": 5
+      }
+    },
+    "AUDIT.GenerateComplianceReport": {
+      "description": "Asynchronously generate a detailed compliance report for historical archiving and external reporting.",
+      "handler_interface": "GAX.Interface.Reporting.Audit",
+      "action_type": "EXTERNAL_API_CALL",
+      "risk_level": "VERY_LOW",
+      "estimated_latency_ms": 1200,
+      "status": "EXPERIMENTAL",
+      "parameters": {
+        "report_format": "JSON_LITE",
+        "scope": "LAST_24H"
       }
     }
   }
