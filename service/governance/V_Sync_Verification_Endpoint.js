@@ -1,42 +1,83 @@
 // service/governance/V_Sync_Verification_Endpoint.js
 import { StateCommitmentLedger } from '../persistence/StateCommitmentLedger';
 import { TraceVetoContextRegistry } from '../persistence/TraceVetoContextRegistry';
-import { Crypto } from '@core/utils/Crypto';
 
 /**
  * V_Sync_Verification_Endpoint (Verification Sync)
  * MISSION: Cryptographically verify the linkage and integrity of the DCSM
  * anchors (State Root Hash, TVCR Index) against core system registries.
  */
+
+// Define standardized error codes for machine readability
+const V_SYNC_CODES = {
+    INVALID_MANIFEST: 'E_VSC001',
+    SCL_MISMATCH: 'E_VSC002',
+    TVCR_NOT_FOUND: 'E_VSC003',
+    SUCCESS: 'VSC_OK'
+};
+
+/**
+ * Executes concurrent lookup of the relevant commitment and context entries.
+ * @param {string} epochId
+ * @param {string} tvcrIndex
+ * @returns {Promise<Object>} { ledgerEntry, tvcrEntry }
+ */
+async function retrieveAnchors(epochId, tvcrIndex) {
+    const [ledgerEntry, tvcrEntry] = await Promise.all([
+        StateCommitmentLedger.getCommitment(epochId),
+        TraceVetoContextRegistry.retrieveContext(tvcrIndex)
+    ]);
+    return { ledgerEntry, tvcrEntry };
+}
+
+/**
+ * Verifies the Decentralized System Commitment Manifest (DCSM).
+ * Refactored to utilize concurrency and return standardized result objects.
+ * @param {object} manifest - The DCSM payload.
+ * @returns {Promise<{verified: boolean, code: string, reason: string, data: object}>}
+ */
 export async function verifyDCSM(manifest) {
     if (!manifest || !manifest.dse_epoch_id || !manifest.anchor_links) {
-        throw new Error("DCSM Verification Error: Invalid manifest payload.");
+        return {
+            verified: false,
+            code: V_SYNC_CODES.INVALID_MANIFEST,
+            reason: "DCSM Verification Error: Invalid or incomplete manifest payload.",
+            data: {}
+        };
     }
 
     const { anchor_links, dse_epoch_id } = manifest;
+    const { state_root_hash, tvcr_index } = anchor_links;
+
+    // Concurrently fetch required ledger entries
+    const { ledgerEntry, tvcrEntry } = await retrieveAnchors(dse_epoch_id, tvcr_index);
 
     // 1. Check State Root Hash Integrity against Ledger
-    const ledgerEntry = await StateCommitmentLedger.getCommitment(dse_epoch_id);
-    if (!ledgerEntry || ledgerEntry.rootHash !== anchor_links.state_root_hash) {
+    if (!ledgerEntry || ledgerEntry.rootHash !== state_root_hash) {
+        const storedHash = ledgerEntry ? ledgerEntry.rootHash : 'N/A';
         return {
             verified: false,
-            reason: `SCL Failure: State Root Hash mismatch or missing entry for epoch ${dse_epoch_id}.`
+            code: V_SYNC_CODES.SCL_MISMATCH,
+            reason: `SCL Failure for epoch ${dse_epoch_id}. Manifest Hash: ${state_root_hash}, Stored Hash: ${storedHash}.`,
+            data: { storedHash, manifestHash: state_root_hash }
         };
     }
 
     // 2. Check TVCR Index Availability
-    const tvcrEntry = await TraceVetoContextRegistry.retrieveContext(anchor_links.tvcr_index);
     if (!tvcrEntry) {
         return {
             verified: false,
-            reason: `TVCR Failure: Trace/Veto context index ${anchor_links.tvcr_index} not found.`
+            code: V_SYNC_CODES.TVCR_NOT_FOUND,
+            reason: `TVCR Failure: Trace/Veto context index ${tvcr_index} not found.`,
+            data: { tvcr_index }
         };
     }
-    
-    // 3. Optional: Re-validate internal P-01 logic checks here if external audit demands it.
 
+    // 3. Success confirmation
     return {
         verified: true,
-        status: `DCSM successfully verified against SCL and TVCR for epoch ${dse_epoch_id}.`
+        code: V_SYNC_CODES.SUCCESS,
+        reason: `DCSM successfully verified against SCL and TVCR for epoch ${dse_epoch_id}.`,
+        data: { dse_epoch_id, state_root_hash, tvcr_index }
     };
 }
