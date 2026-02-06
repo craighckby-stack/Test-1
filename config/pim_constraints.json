@@ -1,1 +1,46 @@
-[object Object]
+{
+  "version": "2.0.0",
+  "meta": {
+    "description": "Defines core constraints, entity schemas, and reusable validation policies for PIM data.",
+    "last_updated": "2024-05-15T12:00:00Z"
+  },
+  "entities": {
+    "Product": {
+      "schema_id": "pim.Product.v1",
+      "fields": {
+        "sku": { 
+          "dataType": "String", 
+          "maxLength": 64,
+          "constraints": ["Required", "Unique", "Format:AlphanumericDash"]
+        },
+        "price_usd": { 
+          "dataType": "Number", 
+          "precision": 2,
+          "constraints": ["Required", "Range:PositiveOrZero"]
+        },
+        "category_uuid": { 
+          "dataType": "UUID", 
+          "reference": "Category", 
+          "on_delete": "Restrict",
+          "constraints": ["Required"]
+        }
+      },
+      "policies_applied": ["ECommerce_Standard", "Localization_EN_US"]
+    }
+  },
+  "policies": {
+    "ECommerce_Standard": {
+      "severity": "Error",
+      "rules": [
+        {"field": "Product.price_usd", "condition": "$$.state == 'published'", "constraint": "Required"},
+        {"field": "Product.description_long", "constraint": "Dependency: description_short OR description_bullet_points"}
+      ]
+    },
+    "Localization_EN_US": {
+      "severity": "Warning",
+      "rules": [
+        {"field": "Product.title_en_us", "constraint": "MaxLength:255"}
+      ]
+    }
+  }
+}
