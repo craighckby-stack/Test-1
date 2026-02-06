@@ -1,1 +1,66 @@
-[object Object]
+{
+  "schema_version": "2.0.0",
+  "timestamp": "2024-07-30T10:30:00Z",
+  "system_identifier": "Sovereign_AGI_v94.1_Core",
+  "policy_defaults": {
+    "priority_level": 5,
+    "failure_mode": "AuditOnly"
+  },
+  "domains": {
+    "evolutionary": {
+      "description": "Rules governing self-modification and structural change.",
+      "policies": [
+        {
+          "id": "AEC-101",
+          "name": "Autonomous Evolution Checkpoint",
+          "enabled": true,
+          "priority": 1,
+          "mode": "Strict",
+          "condition": "ResourceSaturation > 85%",
+          "action": "HaltEvolutionaryThread",
+          "audit_level": "Critical"
+        },
+        {
+          "id": "AEC-102",
+          "name": "Scaffolding Template Compliance",
+          "enabled": true,
+          "priority": 3,
+          "mode": "Advisory",
+          "condition": "ProposedCodeDiff > 1000 lines",
+          "action": "RequirePeerReview(v94.0_Simulated)",
+          "audit_level": "Warning"
+        }
+      ]
+    },
+    "operational": {
+      "description": "Rules governing runtime resource utilization and external interaction.",
+      "policies": [
+        {
+          "id": "OPC-201",
+          "name": "External API Rate Limiting",
+          "enabled": true,
+          "priority": 2,
+          "mode": "Strict",
+          "condition": "API_CallCount > 100/min",
+          "action": "Throttle(50%)",
+          "audit_level": "High"
+        }
+      ]
+    },
+    "security": {
+      "description": "Rules governing data access, integrity, and threat detection.",
+      "policies": [
+        {
+          "id": "SEC-301",
+          "name": "Mandatory Access Control Override",
+          "enabled": false,
+          "priority": 0,
+          "mode": "Fatal",
+          "condition": "UnauthorizedKernelAccessAttempt",
+          "action": "ImmediateShutdown(LoggingPreempt)",
+          "audit_level": "Emergency"
+        }
+      ]
+    }
+  }
+}
