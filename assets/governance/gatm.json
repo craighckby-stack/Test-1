@@ -1,50 +1,61 @@
 {
-  "schema_version": "1.0.0",
-  "data_version": "V95.3-A",
-  "description": "Normalized Governance Agent Threshold Manifest (GATM) defining strict operational SLOs and failure tolerances for GSEP-C execution pathways and system stability. Standardized structure requires 'value', 'unit', 'criticality', and 'failure_policy' for each metric.",
-  "threshold_domains": {
-    "execution_pathways_slo": {
-      "S2_VetoGate_MaxLatency": {
+  "schema_version": "2.0.0",
+  "data_version": "V95.3-B",
+  "description": "Normalized Governance Agent Threshold Manifest (GATM) v2.0. Defines strict operational SLOs and mandatory enforcement policies, separating time-bound operational limits from core governance constants, utilizing standardized policy IDs (P_*) for linkage to the Governance Policy Definition Registry (GPDR).",
+  "governance_constants": {
+    "StateTransition_MandatoryReviewRatio": {
+      "value": 0.95,
+      "description": "Ratio (0.0-1.0) above which transition requires mandatory immediate governance review and audit logging.",
+      "policy_id": "P_AUDIT_REVIEW_BLOCK"
+    }
+  },
+  "enforceable_thresholds": {
+    "latency_slos": [
+      {
+        "metric_id": "S2_VetoGate_MaxLatency",
+        "domain": "execution_pathways",
         "value": 50,
         "unit": "ms",
         "criticality": "HIGH",
-        "failure_policy": "REPORT_AND_HALT_PROPAGATION"
+        "failure_policy": "P_HALT_AND_REPORT"
       },
-      "S7_FinalityGate_MaxLatency": {
+      {
+        "metric_id": "S7_FinalityGate_MaxLatency",
+        "domain": "execution_pathways",
         "value": 150,
         "unit": "ms",
         "criticality": "MEDIUM",
-        "failure_policy": "REPORT_AND_DEGRADE"
+        "failure_policy": "P_REPORT_AND_DEGRADE"
       },
-      "S9_Commit_Timeout": {
+      {
+        "metric_id": "S9_Commit_Timeout",
+        "domain": "execution_pathways",
         "value": 100,
         "unit": "ms",
         "criticality": "HIGH",
-        "failure_policy": "ROLLBACK_AND_ALERT"
+        "failure_policy": "P_ROLLBACK_AND_ALERT"
+      },
+      {
+        "metric_id": "StateTransition_MaxDuration",
+        "domain": "operational_health",
+        "value": 1000,
+        "unit": "ms",
+        "criticality": "MEDIUM",
+        "failure_policy": "P_TIMEOUT_AND_REVERT",
+        "note": "Converted from 1.0 seconds for internal standardization"
       }
-    },
-    "governance_cadence": {
-      "RRP_MaximumDailyFrequency": {
+    ],
+    "frequency_limits": [
+      {
+        "metric_id": "RRP_MaximumFrequency",
+        "domain": "governance_cadence",
         "value": 5,
         "unit": "count",
-        "window_tolerance_days": 7,
         "criticality": "LOW",
-        "failure_policy": "RATE_LIMIT_QUEUE"
+        "enforcement_window_days": 7,
+        "failure_policy": "P_RATE_LIMIT_QUEUE",
+        "note": "Limits Requests for Resource Provisioning (RRP) over a 7-day period."
       }
-    },
-    "operational_health": {
-      "StateTransition_MaxDuration": {
-        "value": 1.0,
-        "unit": "seconds",
-        "criticality": "MEDIUM",
-        "failure_policy": "TIMEOUT_AND_REVERT"
-      },
-      "StateTransition_CriticalityThreshold": {
-        "value": 0.95,
-        "unit": "ratio",
-        "criticality": "CRITICAL",
-        "description": "Ratio (0.0-1.0) above which transition requires immediate governance review."
-      }
-    }
+    ]
   }
 }
