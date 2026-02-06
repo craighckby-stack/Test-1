@@ -1,12 +1,23 @@
 {
-  "manifest_version": "1.0.0",
-  "seal_algorithm_id": "SHA3-512",
-  "state_hash_algorithm": "BLAKE3-256",
-  "sequence_authorization_hashing": "SHA-256",
-  "mandatory_signature_curve": "ED25519",
-  "artifact_checksums_required": [
-    "ISB",
-    "ECVM",
-    "Psi_Final_Ledger"
-  ]
+  "manifest_version": "1.1.0",
+  "hashing_standards": {
+    "default_sealing_hash": "SHA3-512",
+    "state_integrity_hash": "BLAKE3-256",
+    "transactional_sequence_hash": "BLAKE3-256",
+    "recommended_checksum_hash": "BLAKE3-128"
+  },
+  "signature_standards": {
+    "mandatory_curve_id": "ED25519",
+    "recommended_fallback_algo": "P521",
+    "key_rotation_policy": "90D_PST"
+  },
+  "integrity_targets": {
+    "core_components": [
+      "ISB",
+      "ECVM"
+    ],
+    "ledger_data": [
+      "Psi_Final_Ledger"
+    ]
+  }
 }
