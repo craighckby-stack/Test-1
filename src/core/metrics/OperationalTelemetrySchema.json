@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Operational Telemetry Report Schema",
+  "description": "Defines the structured metrics required to calculate the Efficiency Score.",
+  "type": "object",
+  "properties": {
+    "cycle_id": {"type": "string", "description": "Unique identifier for the current evolution cycle."}, 
+    "timestamp": {"type": "string", "format": "date-time"},
+    "resource_usage": {
+      "type": "object",
+      "properties": {
+        "input_tokens": {"type": "integer"},
+        "output_tokens": {"type": "integer"},
+        "total_latency_ms": {"type": "integer"},
+        "peak_memory_mb": {"type": "number"}
+      },
+      "required": ["input_tokens", "output_tokens", "total_latency_ms"]
+    },
+    "evolution_stability": {
+      "type": "object",
+      "properties": {
+        "files_modified_count": {"type": "integer"},
+        "successful_hunks": {"type": "integer", "description": "Hunks applied successfully without immediate revision."}, 
+        "reverted_hunks": {"type": "integer", "description": "Hunks that required rollback within the cycle."}, 
+        "test_coverage_before": {"type": "number"},
+        "test_coverage_after": {"type": "number"}
+      },
+      "required": ["files_modified_count", "successful_hunks"]
+    }
+  },
+  "required": ["cycle_id", "resource_usage", "evolution_stability"]
+}
