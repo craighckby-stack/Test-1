@@ -1,0 +1,21 @@
+{
+  "description": "Configuration map defining downstream routing, indexing targets, and necessary transformation pipelines for valid telemetry protocols.",
+  "telemetry_routes": {
+    "MPAM": {
+      "topic": "kafka_mpam_high_priority",
+      "storage_target": "elasticsearch_mpam_index_001",
+      "transformation_pipeline": ["unit_conversion_hpa_to_pa", "anonymize_drift"]
+    },
+    "SGS": {
+      "topic": "kafka_sgs_control_plane",
+      "storage_target": "postgres_state_table",
+      "transformation_pipeline": ["denormalize_transition_history"]
+    },
+    "ADTM": {
+      "topic": "kafka_adtm_streaming",
+      "storage_target": "s3_raw_archive",
+      "transformation_pipeline": []
+    }
+  },
+  "default_failover_topic": "kafka_dlq_schema_valid"
+}
