@@ -1,14 +1,1 @@
-{
-  "contract_name": "Configuration Transition Audit Log (CTAL)",
-  "version": "V1.0",
-  "purpose": "Provide immutable, chain-of-custody verification for all changes to the system configuration hash defined in the GCM (C4B9A23E). Integrated for L3 validation.",
-  "schema": {
-    "transition_id": "UUID",
-    "previous_config_hash": "string",
-    "new_config_hash": "string",
-    "s_01_at_transition": "float",
-    "s_02_at_transition": "float",
-    "authorizing_proposal_id": "UUID",
-    "timestamp": "ISO8601"
-  }
-}
+[object Object]
