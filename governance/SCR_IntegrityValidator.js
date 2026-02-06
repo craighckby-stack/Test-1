@@ -1,67 +1,161 @@
 /**
- * SCR_IntegrityValidator v94.1
+ * SCR_IntegrityValidator v94.1 (Refactored)
  * Autonomous system component for enforcing structural integrity policies.
  *
- * Reads SCR_IntegrityManifest.json, computes real-time file hashes,
- * and enforces declared failure modes upon divergence.
+ * Reads SCR_IntegrityManifest.json, computes real-time file hashes
+ * concurrently, and delegates enforcement to the Failure Mode Executor.
  */
 
-const fs = require('fs');
+const { promises: fs } = require('fs');
+const path = require('path');
 const crypto = require('crypto');
-const manifestPath = './governance/SCR_IntegrityManifest.json';
+// Integration point for handling breach policy execution
+const FailureModeExecutor = require('./SCR_FailureModeExecutor'); 
 
-async function calculateFileHash(filePath) {
+const MANIFEST_PATH = path.join(__dirname, 'SCR_IntegrityManifest.json');
+const HASH_ALGORITHM = 'sha512';
+
+/**
+ * Calculates the SHA-512 hash for a given file path using streams for efficiency.
+ * @param {string} filePath 
+ * @returns {Promise<string>} Hex encoded hash.
+ */
+function calculateFileHash(filePath) {
     return new Promise((resolve, reject) => {
-        const hash = crypto.createHash('sha512');
-        const stream = fs.createReadStream(filePath);
+        // Must use the standard require('fs') for createReadStream
+        const readStream = require('fs').createReadStream(filePath); 
+        const hash = crypto.createHash(HASH_ALGORITHM);
         
-        stream.on('data', chunk => hash.update(chunk));
-        stream.on('end', () => resolve(hash.digest('hex')));
-        stream.on('error', err => reject(err));
+        readStream.on('data', chunk => hash.update(chunk));
+        readStream.on('end', () => resolve(hash.digest('hex')));
+        readStream.on('error', err => {
+            // Include file path in error for better debugging
+            reject(new Error(`Failed to hash ${filePath}: ${err.message}`));
+        });
     });
 }
 
-async function validateIntegrity() {
-    if (!fs.existsSync(manifestPath)) {
-        console.error('CRITICAL: Integrity Manifest not found.');
-        return false;
-    }
-
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    console.log(`[Integrity Check] Starting validation using Manifest ID: ${manifest.manifest_id}`);
-    let failureCount = 0;
-
-    for (const groupName in manifest.integrity_groups) {
-        const group = manifest.integrity_groups[groupName];
-        console.log(`  -> Validating Group: ${groupName} (Priority: ${group.priority})`);
-
-        for (const fileEntry of group.files) {
-            try {
-                const currentHash = await calculateFileHash(fileEntry.path);
-                if (currentHash !== fileEntry.hash_sha512) {
-                    console.warn(`  [FAIL] File: ${fileEntry.path}. Hash mismatch.`);
-                    console.warn(`    -> Expected: ${fileEntry.hash_sha512}`);
-                    console.warn(`    -> Actual:   ${currentHash}`);
-                    console.error(`    -> ENFORCING Failure Mode: ${fileEntry.failure_mode}`);
-                    failureCount++;
-                    // Placeholder for Failure Mode Execution Logic (e.g., self-heal, halt)
-                } else {
-                    // console.log(`  [PASS] File: ${fileEntry.path}`);
-                }
-            } catch (error) {
-                console.error(`  [ERROR] Cannot access file ${fileEntry.path}: ${error.message}`);
-                failureCount++;
-            }
+/**
+ * Loads and parses the Integrity Manifest.
+ * @returns {Promise<Object>} The manifest data.
+ */
+async function loadManifest() {
+    try {
+        const data = await fs.readFile(MANIFEST_PATH, 'utf8');
+        return JSON.parse(data);
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            throw new Error('CRITICAL: Integrity Manifest not found.');
         }
-    }
-
-    if (failureCount > 0) {
-        console.error(`VALIDATION FAILED: ${failureCount} critical files compromised.`);
-        return false;
-    } else {
-        console.log('VALIDATION SUCCESS: System integrity confirmed.');
-        return true;
+        // Handle parsing errors or read errors gracefully
+        throw new Error(`CRITICAL: Failed to load or parse manifest: ${e.message}`);
     }
 }
 
-module.exports = { validateIntegrity };
+/**
+ * Processes integrity breaches identified during validation and executes policies.
+ * @param {Array<Object>} breaches - List of detected integrity compromises.
+ */
+async function handleBreaches(breaches) {
+    if (breaches.length === 0) {
+        console.log('VALIDATION SUCCESS: System integrity confirmed.');
+        return true;
+    }
+
+    console.error(`VALIDATION FAILED: ${breaches.length} critical files compromised.`);
+
+    for (const breach of breaches) {
+        console.warn(`[BREACH] File: ${breach.path}. Mode: ${breach.failure_mode}`);
+        console.warn(` -> Expected: ${breach.expectedHash.substring(0, 16)}...`);
+        console.warn(` -> Actual:   ${breach.actualHash.substring(0, 16)}...`);
+        
+        // Delegate enforcement logic to the Executor
+        await FailureModeExecutor.execute(breach.failure_mode, breach.path, breach.details);
+    }
+    
+    // Validation status is false if any breaches occurred.
+    return false;
+}
+
+/**
+ * Executes concurrent integrity validation against the manifest.
+ * @returns {Promise<boolean>} True if validation succeeded, false otherwise.
+ */
+async function validateIntegrity() {
+    let manifest;
+    try {
+        manifest = await loadManifest();
+    } catch (e) {
+        console.error(e.message);
+        return false;
+    }
+
+    console.log(`[Integrity Check] Starting validation using Manifest ID: ${manifest.manifest_id}`);
+
+    const hashPromises = [];
+    const filesMap = new Map(); // Store file metadata keyed by index for later correlation
+
+    // 1. Queue all file hash calculations concurrently
+    Object.entries(manifest.integrity_groups).forEach(([groupName, group]) => {
+        group.files.forEach((fileEntry, index) => {
+            const fileKey = `${groupName}:${index}`;
+            filesMap.set(fileKey, { ...fileEntry, groupName, priority: group.priority });
+            
+            // Push the async task to the promises array
+            hashPromises.push(
+                calculateFileHash(fileEntry.path)
+                    .then(currentHash => ({ 
+                        fileKey, 
+                        status: 'success', 
+                        hash: currentHash 
+                    }))
+                    .catch(error => ({ 
+                        fileKey, 
+                        status: 'error', 
+                        message: error.message 
+                    }))
+            );
+        });
+    });
+
+    // 2. Wait for all hash calculations to complete in parallel
+    const results = await Promise.all(hashPromises);
+
+    // 3. Analyze results and identify breaches
+    const breaches = [];
+
+    results.forEach(result => {
+        const fileMetadata = filesMap.get(result.fileKey);
+
+        if (result.status === 'error') {
+            // File inaccessible or hashing failed
+            breaches.push({
+                path: fileMetadata.path,
+                failure_mode: fileMetadata.failure_mode,
+                expectedHash: fileMetadata.hash_sha512,
+                actualHash: 'N/A (Read Error)',
+                details: { error: result.message, type: 'FILE_ACCESS' }
+            });
+            return;
+        }
+
+        if (result.hash !== fileMetadata.hash_sha512) {
+            // Hash Mismatch detected
+            breaches.push({
+                path: fileMetadata.path,
+                failure_mode: fileMetadata.failure_mode,
+                expectedHash: fileMetadata.hash_sha512,
+                actualHash: result.hash,
+                details: { 
+                    priority: fileMetadata.priority, 
+                    type: 'HASH_MISMATCH' 
+                }
+            });
+        }
+    });
+
+    // 4. Handle all collected breaches
+    return await handleBreaches(breaches);
+}
+
+module.exports = { validateIntegrity, calculateFileHash };
