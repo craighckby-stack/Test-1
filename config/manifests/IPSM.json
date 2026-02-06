@@ -1,18 +1,1 @@
-{
-  "manifestId": "IPSM_V98.0",
-  "sourcePvlmId": "PVLM_V98.0",
-  "compiledAxioms": [
-    {
-      "axiomId": "A_001_RESOURCE",
-      "checkType": "HardVeto",
-      "logic": "if (Resource_Consumption_Projected > MAX_CAC_THRESHOLD) then VETO_TRUE"
-    },
-    {
-      "axiomId": "A_002_TRUST",
-      "checkType": "HardVeto",
-      "logic": "if (DTEM_Attestation_Status != 'CRoT_SIGNED') then VETO_TRUE"
-    }
-  ],
-  "compilationTimestamp": "[CRoT-SIGNED TIMESTAMP]",
-  "checksum": "[CRoT HASH]"
-}
+[object Object]
