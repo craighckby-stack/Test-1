@@ -4,123 +4,120 @@
  * Role: A centralized registry responsible for storing, managing, and executing all specific
  * GSEP compliance and invariant checks. It decouples the M-02 Mutation Pre-Processor
  * from the implementation details of any single check, ensuring high scalability and maintainability.
- * It now supports both synchronous and asynchronous rule execution and enforces a structured result format.
+ * It now enforces strict structured results and supports both synchronous and asynchronous rule execution.
  */
+
+/**
+ * @typedef {object} RuleResult
+ * @property {boolean} compliant - True if the rule passed.
+ * @property {string} message - A human-readable description of the outcome.
+ * @property {string} code - The unique identifier of the rule that was executed.
+ * @property {('NORMAL'|'FATAL_INTERNAL')} [severity='NORMAL'] - Indication of operational status (used primarily for internal errors).
+ * @property {object} [details] - Optional context or debug information.
+ */
+
 class RuleExecutorRegistry {
-    constructor() {
-        /** @type {Map<string, function(payload: object, config: object, context: object): (Promise<object>|object)>} */
-        this.executors = new Map();
-        this._loadDefaultExecutors(); // Temporary until external rule loading is implemented
+    
+    /** @type {Map<string, function(payload: object, config: object, context: object): (Promise<RuleResult>|RuleResult)>} */
+    #executors;
+
+    /**
+     * Initializes the registry. Designed to accept an optional array of rule definitions
+     * for cleaner dependency injection.
+     * @param {Array<{code: string, handler: function}>} [initialRules=[]] - Rules to pre-load.
+     */
+    constructor(initialRules = []) {
+        this.#executors = new Map();
+        this._loadInitialRules(initialRules);
+    }
+
+    /**
+     * Loads rules from a definition array.
+     * @param {Array<{code: string, handler: function}>} rules 
+     */
+    _loadInitialRules(rules) {
+        for (const rule of rules) {
+            this.register(rule.code, rule.handler);
+        }
     }
 
     /**
      * Registers a specific check handler function.
      * @param {string} checkCode - Unique identifier for the rule (e.g., 'DEPENDENCY_INTEGRITY').
-     * @param {function(payload: object, config: object, context: object): (Promise<object>|object)} handler - The function that returns a structured compliance result.
+     * @param {function(payload: object, config: object, context: object): (Promise<RuleResult>|RuleResult)} handler - The function that returns a structured RuleResult.
      */
     register(checkCode, handler) {
         if (typeof handler !== 'function') {
             throw new Error(`Rule handler for ${checkCode} must be a function.`);
         }
-        this.executors.set(checkCode, handler);
+        this.#executors.set(checkCode, handler);
     }
 
     /**
      * Executes the specific check identified by checkCode.
-     * Rules should ideally return: { compliant: boolean, message: string, code: string, details?: object }
      *
      * @param {string} checkCode
      * @param {object} payload - Mutation payload.
      * @param {object} config - Rule-specific configuration (from invariants).
      * @param {object} context - Current operational context.
-     * @returns {Promise<{compliant: boolean, message: string, code: string, details?: object}>} Structured Rule Result.
+     * @returns {Promise<RuleResult>} Structured Rule Result.
      */
     async execute(checkCode, payload, config = {}, context = {}) {
-        const handler = this.executors.get(checkCode);
-        const logContext = { payload, config, context };
+        const handler = this.#executors.get(checkCode);
+        const logContext = { checkCode, payload, config, context }; 
 
         if (!handler) {
-            console.warn(`[G-03] Registry missing mandatory handler for check code: ${checkCode}. Assuming compliant for resilience.`);
-            return { 
-                compliant: true, 
-                message: `No registered handler found for ${checkCode}. System assumed compliance.`, 
-                code: checkCode,
-                details: logContext
-            };
+            console.warn(`[G-03] Operational Fault: Registry missing mandatory handler for check code: ${checkCode}.`);
+            return this._createFaultResult(
+                checkCode,
+                `Operational fault: No registered handler found for ${checkCode}. Evaluation aborted.`,
+                logContext
+            );
         }
 
         try {
             // Use Promise.resolve() to wrap both synchronous and asynchronous handlers seamlessly.
+            /** @type {RuleResult} */
             let result = await Promise.resolve(handler(payload, config, context));
 
-            // Standardization: If handler returns a simple boolean (legacy/minimal), wrap it.
-            if (typeof result === 'boolean') {
-                return {
-                    compliant: result,
-                    message: result ? `Check ${checkCode} passed (Legacy Boolean).` : `Check ${checkCode} failed (Legacy Boolean).`, 
-                    code: checkCode
-                };
-            }
-
-            // Validation: Ensure the result conforms to the structured requirement.
-            if (typeof result === 'object' && result !== null && typeof result.compliant === 'boolean') {
+            // Strict Validation: Enforce the required RuleResult structure.
+            if (
+                typeof result === 'object' && result !== null &&
+                typeof result.compliant === 'boolean' && typeof result.message === 'string'
+            ) {
+                // Ensure the 'code' is attached/overwritten for strict consistency.
                 return { ...result, code: checkCode };
             }
             
-            // Throw if the handler returns an unrecognizable object structure.
-            throw new Error(`Handler returned an invalid structure or value type: ${typeof result}`);
+            // Fault if the handler returns an unrecognizable object structure.
+            throw new Error(`Handler returned an invalid structure. Must contain { compliant: boolean, message: string }. Received type: ${typeof result}`);
             
         } catch (error) {
-            console.error(`[G-03] Rule Execution Exception (${checkCode}):`, error.message);
-            return {
-                compliant: false,
-                message: `Rule execution failed due to internal error: ${error.message}`,
-                code: checkCode,
-                details: { error: error.stack, context: logContext }
-            };
+            console.error(`[G-03] Rule Execution Exception (${checkCode}) - Handler Failed:`, error.message);
+            return this._createFaultResult(
+                checkCode,
+                `Internal handler error: ${error.message}`,
+                { error: error.stack, context: logContext }
+            );
         }
     }
 
     /**
-     * Initializes default, placeholder rules for initial system function.
-     * These should eventually be loaded externally via Dependency Injection (DI) or Configuration.
+     * Helper to create a consistent failure result template for internal errors or missing handlers.
+     * @private
+     * @param {string} code 
+     * @param {string} message 
+     * @param {object} details 
+     * @returns {RuleResult}
      */
-    _loadDefaultExecutors() {
-        
-        // Rule 1: Dependency Integrity Check (Simulated Async Check)
-        this.register('DEPENDENCY_INTEGRITY', async (payload, config) => {
-            // Simulated network or filesystem check
-            await new Promise(resolve => setTimeout(resolve, 1)); 
-            return { 
-                compliant: true, 
-                message: "Dependencies checked against manifest (Simulated OK).",
-                code: 'DEPENDENCY_INTEGRITY'
-            };
-        });
-
-        // Rule 2: Resource Limit Check (Synchronous Check)
-        this.register('RESOURCE_LIMITS', (payload, config) => {
-            const maxSize = config.maxCodeSize || 5000; // default 5KB limit
-            const currentSize = payload.content?.length || 0;
-            const compliant = currentSize <= maxSize;
-
-            return {
-                compliant,
-                message: compliant ? "Resource limits check passed." : `Code size (${currentSize} bytes) exceeds limit (${maxSize} bytes).`,
-                details: { currentSize, maxSize },
-                code: 'RESOURCE_LIMITS'
-            };
-        });
-
-        // Rule 3: Governance History Marker Signal Check (Traceability requirement)
-        this.register('GHM_SIGNAL', (payload) => {
-            const compliant = !!payload.metadata?.ghm_signal;
-            return {
-                compliant,
-                message: compliant ? "GHM signal detected." : "Missing mandatory GHM traceability signal in metadata.",
-                code: 'GHM_SIGNAL'
-            };
-        });
+    _createFaultResult(code, message, details) {
+        return {
+            compliant: false,
+            message: message,
+            code: code,
+            severity: 'FATAL_INTERNAL',
+            details: details
+        };
     }
 }
 
