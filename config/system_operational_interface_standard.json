@@ -1,44 +1,66 @@
 {
-  "systemId": "SOV-AGI-v94.1",
-  "interfaceVersion": "2.1.0",
-  "standardDefinition": "OperationalInterfaceStandard",
-  "communicationLayer": {
-    "protocol": "ZMQ_HYBRID/M_PULL",
-    "encoding": "MsgPack_Compressed",
-    "primaryServicePort": 9000,
-    "telemetryPort": 9001,
-    "heartbeatIntervalMs": 500,
-    "connectionTimeoutMs": 1500
+  "metadata": {
+    "systemId": "SOV-AGI-v94.1",
+    "interfaceStandard": "OperationalBus",
+    "schemaVersion": "3.0.0"
+  },
+  "operationalBus": {
+    "protocolStack": "ZMQ_PULL_PUSH_HEARTBEAT",
+    "encoding": "MsgPack",
+    "compressionAlgorithm": "ZSTD_Level3",
+    "connection": {
+      "primaryPort": 9000,
+      "telemetryPort": 9001,
+      "heartbeat": {
+        "intervalMs": 250,
+        "timeoutMs": 1000,
+        "reconnectionPolicy": "EXPONENTIAL_BACKOFF"
+      }
+    }
   },
   "securityContext": {
-    "authMechanism": "ECDSA_v5",
-    "integrityCheck": "SHA512_HMAC",
-    "accessLevelDefault": "RESTRICTED",
-    "enforcedACLPath": "security/acl/operational.json"
+    "authMechanism": "ECDSA_P521_v5",
+    "channelEncryptionStandard": "DTLS_1_3_Profile_A",
+    "integrityCheck": "SHA512_HMAC_GCM",
+    "accessControl": {
+      "defaultLevel": "RESTRICTED",
+      "policyPath": "security/acl/operational.json"
+    }
   },
-  "telemetry": {
-    "schemaRef": "schemas/telemetry_operational_v1.json",
-    "adaptiveThrottling": true,
-    "maxQueueDepth": 512,
-    "defaultReportingLevel": "WARNING",
-    "requiredMetrics": [
-      "cycleTime_p99",
-      "memoryUsage_resident",
-      "taskQueueLength"
+  "diagnostics": {
+    "schemaRef": "schemas/telemetry_operational_v2.json",
+    "reporting": {
+      "defaultLevel": "INFO",
+      "dynamicAdaptivePolicy": true,
+      "metricsQueueDepth": 1024
+    },
+    "criticalMetrics": [
+      "cycleTime_P95_ms",
+      "memoryUsage_resident_GiB",
+      "taskQueueLength_critical",
+      "networkLatency_p50_us"
     ]
   },
-  "endpointContracts": [
+  "contractDefinitions": [
     {
-      "name": "StatusQuery",
-      "method": "PULL",
-      "rateLimitHz": 10,
-      "responseSchema": "schemas/status_response_v1.json"
+      "contractName": "StatusQuery",
+      "interactionType": "REQ_REP",
+      "transportMethod": "PULL",
+      "constraints": {
+        "rateLimitHz": 20,
+        "requiresAuthentication": false
+      },
+      "schemaOutput": "schemas/status_response_v2.json"
     },
     {
-      "name": "ConfigUpdate",
-      "method": "PUSH",
-      "rateLimitHz": 0.1,
-      "authRequired": true
+      "contractName": "ConfigUpdate",
+      "interactionType": "PUSH_ASYNC",
+      "transportMethod": "PUSH",
+      "constraints": {
+        "rateLimitHz": 0.05,
+        "requiresAuthentication": true,
+        "requiresHighPrivilege": true
+      }
     }
   ]
 }
