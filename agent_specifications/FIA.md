@@ -1,22 +1,39 @@
-# FORENSIC INTEGRITY AGENT (FIA) SPECIFICATION
+# AGENT SPECIFICATION: FORENSIC INTEGRITY AGENT (FIA)
 
-## FIA Mandate: TEDS Capture and Integrity Management
+| Key Parameter | Value |
+|:---:|:---:|
+| Agent ID | A-FIA-001 |
+| Version | 1.0.1 (Refactored) |
+| Status | Critical Core |
+| Domain | Integrity & Recovery |
 
-The FIA operates with a singular, non-overlapping mandate: to ensure the integrity, immutability, and isolation of all forensic capture data necessary for the **Rollback Protocol (RRP)**. The FIA must be architecturally isolated from Agents involved in standard P1-P4 execution (SGS, GAX) to prevent contamination or manipulation of forensic evidence.
+## 1. Core Mandate: Forensic Integrity and Deterministic Snapshotting
 
-## Integration Points
+The Forensic Integrity Agent (FIA) maintains a singular, high-priority mandate: **Total Execution Deterministic Snapshot (TEDS) Capture and Integrity Management.** The FIA ensures the absolute immutability and verifiable isolation of all forensic capture data essential for the **Rollback Protocol (RRP)** initiation and analysis.
 
-### 1. RRP Triggered State (S02 - S11 Failure)
+## 2. Isolation Principle (Segregation of Duties - SoD)
 
-Upon activation of the RRP (detected by GAX failure flags PVLM, MPAM, ADTM, or P-01 denial), the FIA immediately initiates the Total Execution Deterministic Snapshot (TEDS) sequence. The FIA temporarily locks the execution state to ensure a verifiable snapshot.
+The FIA must operate in an isolated trust domain (P-05) enforced by architectural boundaries. This is non-negotiable.
 
-### 2. Critical Output Artifacts
+1.  **Architectural Segregation:** The FIA execution environment and its target storage layer (Forensic Vault, see FVM specification) must be physically and logically isolated from standard Execution Agents (SGS, GAX) to prevent contamination or retrospective modification of evidence.
+2.  **Functional Restriction:** FIA is strictly prohibited from executing P1-P4 standard workflow logic (e.g., Decision Space Evolution - DSE). Its functions are limited exclusively to real-time integrity assurance, cryptographic signing, and data archiving.
 
-| Artifact | Role | Consumption Agent | Integrity Requirement |
-|:---:|:---|:---:|:---:|
-| **TEDS** | Total Execution Deterministic Snapshot. Immutable, cryptographically signed record of system state prior to failure. | GAX (During RRP Analysis) | Immutability (Requirement 5.0) |
-| **PCSS** | Policy Correction Statistical Source. Analytical output derived from TEDS for policy adjustment by GAX. | GAX | Auditable Linkage to TEDS |
+## 3. Operational Trigger: Rollback Protocol (RRP) Activation
 
-## SoD Enforcement
+The FIA monitors system telemetry for indicators of structural failure (RRP Activation Signal).
 
-FIA is prohibited from executing P1-P4 workflow logic (DSE) and is restricted to forensic capture and immutability management only. CRoT serves as the final trust anchor for the FIA's cryptographic signing of the TEDS archive.
+1.  **Trigger Sources:** Detected failure flags originating primarily from the GAX layer: PVLM (Policy Violation Logic Mask), MPAM (Mission Parameter Anomaly Mask), ADTM (Adversarial Threat Model), or direct P-01 Denial/Failure state.
+2.  **Action Sequence:** Upon receiving an RRP trigger, the FIA executes a mandatory, immediate State Lock. The TEDS sequence is then initiated to capture and sign the exact system state at the moment of failure.
+
+## 4. Data Contracts and Artifact Management
+
+The FIA is responsible for producing two critical, integrity-verified artifacts, archived in the Forensic Vault Module (FVM):
+
+| Artifact ID | Name | Description | Output Consumer | Integrity Requirement |
+|:---:|:---|:---|:---:|:---:|
+| **TEDS** | Total Execution Deterministic Snapshot | A complete, cryptographically signed, immutable record of the system state prior to the failure lock. | GAX (RRP Analysis Module) | Immutability (Requirement 5.0). Signed by CRoT. |
+| **PCSS** | Policy Correction Statistical Source | Filtered statistical data derived exclusively from the verified TEDS for policy adjustment. | GAX (Policy Adaptation Module) | Verified traceability; Auditable Linkage to source TEDS hash. |
+
+## 5. Trust Anchor
+
+The **Chain of Root Trust (CRoT)** serves as the final, external trust anchor responsible for cryptographically signing the TEDS archive, guaranteeing compliance with all isolation and immutability standards set forth in this specification.
