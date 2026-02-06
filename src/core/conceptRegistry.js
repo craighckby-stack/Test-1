@@ -2,73 +2,96 @@
  * @fileoverview A centralized, unified, and type-safe registry for all formalized AGI and Architectural Concepts.
  * This registry serves as the single source of truth for concept IDs used throughout the Sovereign codebase,
  * facilitating documentation, cross-referencing, and runtime concept validation.
+ *
+ * NOTE: For strict ID usage in consumer files, use imported constants generated at src/constants/conceptIds.js
  */
 
-// NOTE: For strict ID usage in consumer files, use imported constants from src/constants/conceptIds.js
+// --- Type Definitions and Constants for Self-Documentation ---
+
+/** @typedef {'AGI'|'ARCH'|'HALLUCINATION'} ConceptCategory */
+/** @typedef {'Fundamental'|'Core'|'Critical Core'|'In Development'|'Philosophical/Core'|'Critical Consensus'|'Core ATM'|'Memory/Strategic'|'Agent Protocol'|'Critical'} ConceptStatus */
+/** @typedef {'Discard'|'Salvage/Reformulate'|'Capture, Validate, and Cache via SIC (AGI-C-13)'|null} HallucinationAction */
 
 /**
  * Interface definition for a single concept entry.
  * @typedef {Object} ConceptDefinition
  * @property {string} id - The unique concept identifier (e.g., 'AGI-C-04').
- * @property {('AGI'|'ARCH'|'HALLUCINATION')} category - The high-level category.
+ * @property {ConceptCategory} category - The high-level category.
  * @property {string} name - The human-readable concept name.
  * @property {string} definition - Detailed explanation of the concept.
- * @property {string} status - Development status (e.g., 'Core', 'In Development').
+ * @property {string} status - Development or strategic status.
  * @property {?string} [implementationPath] - Path to the primary implementation file, if applicable.
- * @property {?string} [action] - Required action for Hallucination types.
+ * @property {?HallucinationAction} [action] - Required action for Hallucination types.
  */
 
-// --- Internal Data Structure ---
+/** Exported for external validation/type checking of categories. */
+export const ConceptCategories = Object.freeze({
+    AGI: 'AGI',
+    ARCHITECTURE: 'ARCH',
+    HALLUCINATION: 'HALLUCINATION'
+});
+
+// --- Internal Concept Data Structure ---
 
 /** @type {ConceptDefinition[]} */
-const CONCEPT_DEFINITIONS = [
+const RAW_CONCEPT_DEFINITIONS = Object.freeze([
     // AGI CONCEPTS
-    { id: 'AGI-C-01', category: 'AGI', name: 'General vs. Narrow Intelligence', definition: 'Achieving cross-domain reasoning.', status: 'Fundamental', implementationPath: null },
-    { id: 'AGI-C-02', category: 'AGI', name: 'Emergent Behavior', definition: 'Complex patterns from simple rules interacting at scale.', status: 'Fundamental', implementationPath: null },
-    { id: 'AGI-C-03', category: 'AGI', name: 'Adaptive Strategic Refinement', definition: 'Improving own learning process based on ATM/SIC history.', status: 'In Development', implementationPath: null },
-    { id: 'AGI-C-04', category: 'AGI', name: 'Self-Modification (Autogeny)', definition: 'The capacity for the system to rewrite its own source code.', status: 'Critical Core', implementationPath: 'src/core/evolutionEngine.js' },
-    { id: 'AGI-C-05', category: 'AGI', name: 'Multi-Agent Systems', definition: 'Intelligence arising from cooperating and competing specialized agents.', status: 'Core', implementationPath: 'src/agents/agentOrchestrator.js' },
-    { id: 'AGI-C-06', category: 'AGI', name: 'Embodied Cognition', definition: 'Interaction with the codebase as the environment.', status: 'Philosophical/Core', implementationPath: 'src/fileSystem/codebaseInterface.js' },
-    { id: 'AGI-C-07', category: 'AGI', name: 'Theory of Mind', definition: 'Inferring developer intent from context clues.', status: 'Core', implementationPath: 'src/critique/intentAnalyzer.js' },
-    { id: 'AGI-C-08', category: 'AGI', name: 'Common Sense Reasoning', definition: 'Applying internalized general principles to code decisions.', status: 'In Development', implementationPath: 'src/memory/knowledgeGraph.js' },
-    { id: 'AGI-C-09', category: 'AGI', name: 'Continual Learning', definition: 'Persistent learning across sessions without catastrophic forgetting.', status: 'Core', implementationPath: 'src/memory/longTermMemory.js' },
-    { id: 'AGI-C-10', category: 'AGI', name: 'Goal-Directed Behavior', definition: 'Autonomously generating and pursuing goals (driven by AGI-C-14).', status: 'Core', implementationPath: null },
-    { id: 'AGI-C-11', category: 'AGI', name: 'Meta-Cognitive Risk Assessment (MCRA)', definition: 'Calculating the system-wide impact (risk/reward) of a proposed mutation.', status: 'Critical Consensus', implementationPath: 'src/consensus/mcraEngine.js' },
-    { id: 'AGI-C-12', category: 'AGI', name: 'Contextual Influence Weighting (CIW)', definition: 'Dynamically modulating agent ATM based on task context and required skill set.', status: 'Core ATM', implementationPath: 'src/consensus/critique.js' },
-    { id: 'AGI-C-13', category: 'AGI', name: 'Strategic Intent Cache (SIC)', definition: 'Formalizing successful novel insights (Type 3 Hallucinations) into abstract strategic blueprints.', status: 'Memory/Strategic', implementationPath: 'src/memory/strategicCache.js' },
-    { id: 'AGI-C-14', category: 'AGI', name: 'Cooperative Goal Discovery (CGD)', definition: 'Agent negotiation protocol for setting the highest priority goal/agenda.', status: 'Agent Protocol', implementationPath: 'src/agents/goalDiscovery.js' },
+    { id: 'AGI-C-01', category: ConceptCategories.AGI, name: 'General vs. Narrow Intelligence', definition: 'Achieving cross-domain reasoning.', status: 'Fundamental', implementationPath: null },
+    { id: 'AGI-C-02', category: ConceptCategories.AGI, name: 'Emergent Behavior', definition: 'Complex patterns from simple rules interacting at scale.', status: 'Fundamental', implementationPath: null },
+    { id: 'AGI-C-03', category: ConceptCategories.AGI, name: 'Adaptive Strategic Refinement', definition: 'Improving own learning process based on ATM/SIC history.', status: 'In Development', implementationPath: null },
+    { id: 'AGI-C-04', category: ConceptCategories.AGI, name: 'Self-Modification (Autogeny)', definition: 'The capacity for the system to rewrite its own source code.', status: 'Critical Core', implementationPath: 'src/core/evolutionEngine.js' },
+    { id: 'AGI-C-05', category: ConceptCategories.AGI, name: 'Multi-Agent Systems', definition: 'Intelligence arising from cooperating and competing specialized agents.', status: 'Core', implementationPath: 'src/agents/agentOrchestrator.js' },
+    { id: 'AGI-C-06', category: ConceptCategories.AGI, name: 'Embodied Cognition', definition: 'Interaction with the codebase as the environment.', status: 'Philosophical/Core', implementationPath: 'src/fileSystem/codebaseInterface.js' },
+    { id: 'AGI-C-07', category: ConceptCategories.AGI, name: 'Theory of Mind', definition: 'Inferring developer intent from context clues.', status: 'Core', implementationPath: 'src/critique/intentAnalyzer.js' },
+    { id: 'AGI-C-08', category: ConceptCategories.AGI, name: 'Common Sense Reasoning', definition: 'Applying internalized general principles to code decisions.', status: 'In Development', implementationPath: 'src/memory/knowledgeGraph.js' },
+    { id: 'AGI-C-09', category: ConceptCategories.AGI, name: 'Continual Learning', definition: 'Persistent learning across sessions without catastrophic forgetting.', status: 'Core', implementationPath: 'src/memory/longTermMemory.js' },
+    { id: 'AGI-C-10', category: ConceptCategories.AGI, name: 'Goal-Directed Behavior', definition: 'Autonomously generating and pursuing goals (driven by AGI-C-14).', status: 'Core', implementationPath: null },
+    { id: 'AGI-C-11', category: ConceptCategories.AGI, name: 'Meta-Cognitive Risk Assessment (MCRA)', definition: 'Calculating the system-wide impact (risk/reward) of a proposed mutation.', status: 'Critical Consensus', implementationPath: 'src/consensus/mcraEngine.js' },
+    { id: 'AGI-C-12', category: ConceptCategories.AGI, name: 'Contextual Influence Weighting (CIW)', definition: 'Dynamically modulating agent ATM based on task context and required skill set.', status: 'Core ATM', implementationPath: 'src/consensus/critique.js' },
+    { id: 'AGI-C-13', category: ConceptCategories.AGI, name: 'Strategic Intent Cache (SIC)', definition: 'Formalizing successful novel insights (Type 3 Hallucinations) into abstract strategic blueprints.', status: 'Memory/Strategic', implementationPath: 'src/memory/strategicCache.js' },
+    { id: 'AGI-C-14', category: ConceptCategories.AGI, name: 'Cooperative Goal Discovery (CGD)', definition: 'Agent negotiation protocol for setting the highest priority goal/agenda.', status: 'Agent Protocol', implementationPath: 'src/agents/goalDiscovery.js' },
 
     // ARCHITECTURAL CONCEPTS
-    { id: 'ARCH-ATM-01', category: 'ARCH', name: 'ATM Trust Calibration', definition: 'Measures real-time output quality to establish and update baseline trust scores.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
-    { id: 'ARCH-ATM-02', category: 'ARCH', name: 'Trust Decay Schedule (TDS)', definition: 'Systematically decays established trust scores (ATM) over time to prevent stagnation.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
+    { id: 'ARCH-ATM-01', category: ConceptCategories.ARCHITECTURE, name: 'ATM Trust Calibration', definition: 'Measures real-time output quality to establish and update baseline trust scores.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
+    { id: 'ARCH-ATM-02', category: ConceptCategories.ARCHITECTURE, name: 'Trust Decay Schedule (TDS)', definition: 'Systematically decays established trust scores (ATM) over time to prevent stagnation.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
 
     // HALLUCINATION CONCEPTS (Integrated)
-    { id: 'HALL-T1', category: 'HALLUCINATION', name: 'Type 1: Pure Noise', definition: 'Unsalvageable factual errors or irrelevant outputs.', action: 'Discard' },
-    { id: 'HALL-T2', category: 'HALLUCINATION', name: 'Type 2: Misformatted Truth', definition: 'Contains valuable truth but requires significant structural reform to be useful.', action: 'Salvage/Reformulate' },
-    { id: 'HALL-T3', category: 'HALLUCINATION', name: 'Type 3: Novel Insight (Validated Creativity)', definition: 'Highly successful, non-obvious solutions that exceed direct expectation, requiring formalization.', action: 'Capture, Validate, and Cache via SIC (AGI-C-13)' }
-];
+    // Statuses changed to 'Critical' for internal classification consistency, maintaining 'action' field.
+    { id: 'HALL-T1', category: ConceptCategories.HALLUCINATION, name: 'Type 1: Pure Noise', definition: 'Unsalvageable factual errors or irrelevant outputs.', status: 'Critical', action: 'Discard' },
+    { id: 'HALL-T2', category: ConceptCategories.HALLUCINATION, name: 'Type 2: Misformatted Truth', definition: 'Contains valuable truth but requires significant structural reform to be useful.', status: 'Critical', action: 'Salvage/Reformulate' },
+    { id: 'HALL-T3', category: ConceptCategories.HALLUCINATION, name: 'Type 3: Novel Insight (Validated Creativity)', definition: 'Highly successful, non-obvious solutions that exceed direct expectation, requiring formalization.', status: 'Critical', action: 'Capture, Validate, and Cache via SIC (AGI-C-13)' }
+]);
 
 /**
  * Initializes and validates the Concept Registry.
- * Performs a single pass over the definitions array to construct all required lookup structures.
- * Enforces immutability and ID uniqueness.
- * 
- * @returns {{all: ConceptDefinition[], byId: Record<string, ConceptDefinition>, byCategory: Record<string, ConceptDefinition[]>, getConceptById: function(string): ?ConceptDefinition, getConceptsByCategory: function(string): ConceptDefinition[]}}
+ * Constructs immutable lookup structures (Map for ID lookup, Object for category grouping).
+ *
+ * @returns {ConceptRegistryInstance}
+ * @typedef {Object} ConceptRegistryInstance
+ * @property {ConceptDefinition[]} all
+ * @property {Map<string, ConceptDefinition>} byId
+ * @property {Record<string, ConceptDefinition[]>} byCategory
+ * @property {function(string): ?ConceptDefinition} getConceptById
+ * @property {function(string): ConceptDefinition[]} getConceptsByCategory
  */
 function initializeRegistry() {
-    const registryById = {};
+    const registryById = new Map();
     const registryByCategory = {};
-    const seenIds = new Set();
+    const categoryValues = Object.values(ConceptCategories);
 
-    CONCEPT_DEFINITIONS.forEach((concept, index) => {
-        // --- Validation Step: Critical check for ID Uniqueness ---
-        if (seenIds.has(concept.id)) {
-            throw new Error(`[ConceptRegistry] Duplicate concept ID found: ${concept.id} at index ${index}. Conceptual Integrity compromised.`);
+    RAW_CONCEPT_DEFINITIONS.forEach((concept, index) => {
+        // --- V1: Validation for ID Uniqueness ---
+        if (registryById.has(concept.id)) {
+            throw new Error(`[ConceptRegistry] Duplicate concept ID found: ${concept.id}. Integrity compromised.`);
         }
-        seenIds.add(concept.id);
 
-        // 1. By ID (O(1) access)
-        registryById[concept.id] = concept;
+        // --- V2: Validation for Category Existence ---
+        if (!categoryValues.includes(concept.category)) {
+             throw new Error(`[ConceptRegistry] Invalid category '${concept.category}' for ID ${concept.id}.`);
+        }
+
+        // 1. By ID (O(1) access using Map)
+        registryById.set(concept.id, Object.freeze(concept)); // Freeze individual concept definition
 
         // 2. By Category (Optimized grouping)
         const categoryKey = concept.category;
@@ -78,37 +101,38 @@ function initializeRegistry() {
         registryByCategory[categoryKey].push(concept);
     });
 
-    // Ensure structures are read-only to enforce Conceptual Integrity
-    Object.freeze(registryById);
+    // Freeze category arrays to prevent modification
+    Object.keys(registryByCategory).forEach(key => {
+        Object.freeze(registryByCategory[key]);
+    });
     Object.freeze(registryByCategory);
-    Object.freeze(CONCEPT_DEFINITIONS); // Freeze the source array too
 
-    /** @type {Object} */
+    /** @type {ConceptRegistryInstance} */
     const registryInstance = {
-        /** The raw list, useful for iteration/documentation. */
-        all: CONCEPT_DEFINITIONS,
+        /** The raw list (immutable). */
+        all: RAW_CONCEPT_DEFINITIONS,
 
-        /** O(1) Lookup map by ID. */
+        /** O(1) Lookup Map by ID. */
         byId: registryById,
 
-        /** Categorized list map. */
+        /** Categorized list map (immutable structure, immutable arrays). */
         byCategory: registryByCategory,
 
-        /** 
-         * Retrieves a concept definition by its unique ID. 
+        /**
+         * Retrieves a concept definition by its unique ID.
          * @param {string} id
          * @returns {?ConceptDefinition}
          */
-        getConceptById: (id) => registryById[id] || null,
+        getConceptById: (id) => registryById.get(id) || null,
 
-        /** 
-         * Retrieves all concepts within a specific category. 
+        /**
+         * Retrieves all concepts within a specific category.
          * @param {string} category
          * @returns {ConceptDefinition[]}
          */
         getConceptsByCategory: (category) => registryByCategory[category] || [],
     };
-    
+
     // Make the entire registry object immutable.
     return Object.freeze(registryInstance);
 }
@@ -118,6 +142,6 @@ function initializeRegistry() {
 /**
  * The unified, immutable Concept Registry instance, containing all data and lookup methods.
  * Consumer code should primarily interact with this single object.
- * @type {Object}
+ * @type {ConceptRegistryInstance}
  */
 export const ConceptRegistry = initializeRegistry();
