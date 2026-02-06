@@ -1,0 +1,21 @@
+{
+  "manifest_version": "1.0",
+  "description": "Defines mandated operational stability floors and efficacy targets for APTE's optimization loop.",
+  "stability_mandate": {
+    "S_03_rate_target": 0.005,
+    "S_03_max_volatility_window_s": 3600,
+    "max_rrp_density_threshold": 0.015,
+    "critical_si_causes_to_minimize": ["IntegrityViolation", "ResourceStarvation"]
+  },
+  "efficacy_goals": {
+    "S_01_target_delta": 0.025,
+    "minimum_acceptable_resource_overhead": 0.15
+  },
+  "optimization_constraints": {
+    "max_gax_delta_per_cycle": {
+      "tau_norm": 0.05,
+      "epsilon": 0.002
+    },
+    "cac_limit_tuning_granularity": 100
+  }
+}
