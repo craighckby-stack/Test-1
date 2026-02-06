@@ -1,0 +1,28 @@
+{
+  "manifest_id": "APDM_V1.0",
+  "version": "1.0",
+  "asset_name": "Adaptive Policy Definition Manifest",
+  "policies": [
+    {
+      "policy_ref": "AP_ZSCORE_3SIGMA",
+      "description": "Calculates the dynamic threshold based on a rolling Z-score model, 3 standard deviations above the mean.",
+      "type": "STATISTICAL",
+      "parameters": {
+        "lookback_cycles": 50,
+        "sigma_multiplier": 3.0,
+        "required_confidence": 0.99
+      },
+      "calculation_engine": "MATH_LIB_V4.0"
+    },
+    {
+      "policy_ref": "AP_Q95_PERCENTILE",
+      "description": "Uses the 95th percentile observed over the last 20 operational cycles as the threshold.",
+      "type": "PERCENTILE_BASED",
+      "parameters": {
+        "lookback_cycles": 20,
+        "percentile": 0.95
+      },
+      "calculation_engine": "DATAGOV_SERVICE_V2.1"
+    }
+  ]
+}
