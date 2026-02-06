@@ -1,20 +1,51 @@
 import crypto from 'crypto';
 
 // Constants for AES-256-GCM operations
-const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16;
-const TAG_LENGTH = 16;
-const KEY_LENGTH = 32; // 256 bits
+export const ALGORITHM = 'aes-256-gcm';
+export const IV_LENGTH = 16;
+export const TAG_LENGTH = 16;
+export const KEY_LENGTH = 32; // 256 bits
+const KEY_HEX_LENGTH = KEY_LENGTH * 2;
 
 /**
- * Utility for providing standardized cryptographic operations across the AGI architecture.
- * Ensures consistent hashing for integrity checks, immutability validation, and secure handling of secrets.
+ * Standardized cryptographic utility for the AGI system.
+ * Provides secure hashing, symmetric encryption (AES-256-GCM), and secure token/key generation.
+ * This class ensures consistency and security across integrity checks, immutability validation,
+ * and confidential data storage.
  */
 export class CryptographicUtil {
 
+    // --- Key and Token Generation ---
+
+    /**
+     * Generates a strong, cryptographically secure random key suitable for AES-256-GCM or general use.
+     * @param {number} [length=KEY_LENGTH] - Length of the key in bytes (defaults to 32 bytes/256 bits).
+     * @returns {string} The key encoded in hex format.
+     * @throws {Error} If key length is invalid.
+     */
+    static generateKey(length = KEY_LENGTH) {
+        if (!Number.isInteger(length) || length <= 0) {
+             throw new Error("Key length must be a positive integer.");
+        }
+        return crypto.randomBytes(length).toString('hex');
+    }
+
+    /**
+     * Generates a strong random token suitable for session IDs, nonces, or salt.
+     * This is an alias for generateKey.
+     * @param {number} [length=32] - Length of the token in bytes.
+     * @returns {string} Hex encoded random bytes.
+     */
+    static generateToken(length = 32) {
+        return CryptographicUtil.generateKey(length);
+    }
+
+    // --- Hashing and Integrity ---
+
     /**
      * Helper function to standardize data serialization by recursively sorting object keys.
-     * This guarantees deterministic output required for consistent hashing.
+     * This guarantees deterministic output required for consistent hashing, vital for immutability validation.
+     * @private
      * @param {Object} data - The object to serialize.
      * @returns {string} The deterministically serialized JSON string.
      */
@@ -23,7 +54,7 @@ export class CryptographicUtil {
             return '';
         }
         
-        // Use the replacer function to recursively sort object keys to ensure deterministic output
+        // Use the replacer function to recursively sort object keys
         return JSON.stringify(data, (key, value) => {
             if (value && typeof value === 'object' && !Array.isArray(value) && value !== null) {
                 // Return a new object with sorted keys
@@ -38,42 +69,34 @@ export class CryptographicUtil {
 
     /**
      * Generates a deterministic SHA-256 hash of a JavaScript object/payload.
-     * Vital for integrity checks and immutability validation.
-     * 
-     * @param {Object} data - The data object to hash (e.g., proposal payload or config file).
+     * @param {Object} data - The data object to hash (e.g., proposal payload or config state).
      * @returns {string} The SHA-256 hash in hex format.
      */
     static hashObject(data) {
         const sortedJsonString = CryptographicUtil.#deterministicSerialize(data);
-        return crypto.createHash('sha256').update(sortedJsonString, 'utf8').digest('hex');
+        const hash = crypto.createHash('sha256').update(sortedJsonString, 'utf8').digest('hex');
+        return hash;
     }
-
-    /**
-     * Generates a strong random token suitable for session IDs, nonces, or salt.
-     * @param {number} length - Length of the token in bytes (defaults to 32).
-     * @returns {string} Hex encoded random bytes (e.g., 64 hex characters for default 32 bytes).
-     */
-    static generateToken(length = 32) {
-        return crypto.randomBytes(length).toString('hex');
-    }
+    
+    // --- Symmetric Encryption (AES-256-GCM) ---
 
     /**
      * Encrypts a payload (string or object) using AES-256-GCM (Authenticated Encryption).
-     * Outputs a colon-separated string: IV:EncryptedText:AuthTag.
+     * The output is a robust, colon-separated string: IV:EncryptedText:AuthTag.
      * 
-     * @param {string|Object} payload - Data to encrypt. If an object, it is serialized.
-     * @param {string} encryptionKey - 32-byte (64 hex characters) key in hex format.
-     * @returns {string} The encrypted data string.
-     * @throws {Error} If key length is invalid.
+     * @param {string|Object} payload - Data to encrypt. If an object, it is stringified.
+     * @param {string} encryptionKeyHex - 32-byte (64 hex characters) key in hex format.
+     * @returns {string} The encrypted data string (IV:Ciphertext:Tag).
+     * @throws {Error} If key validation fails.
      */
-    static encryptData(payload, encryptionKey) {
+    static encryptData(payload, encryptionKeyHex) {
         const dataToEncrypt = typeof payload === 'object' ? JSON.stringify(payload) : String(payload);
         
-        if (encryptionKey.length !== KEY_LENGTH * 2) {
-             throw new Error(`Invalid key length. Expected ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} hex characters).`);
+        if (encryptionKeyHex.length !== KEY_HEX_LENGTH) {
+             throw new Error(`Invalid key length. Expected ${KEY_LENGTH} bytes (${KEY_HEX_LENGTH} hex characters) for AES-256-GCM.`);
         }
 
-        const keyBuffer = Buffer.from(encryptionKey, 'hex');
+        const keyBuffer = Buffer.from(encryptionKeyHex, 'hex');
         const iv = crypto.randomBytes(IV_LENGTH);
         const cipher = crypto.createCipheriv(ALGORITHM, keyBuffer, iv);
 
@@ -87,29 +110,32 @@ export class CryptographicUtil {
     /**
      * Decrypts a payload previously encrypted with AES-256-GCM.
      * @param {string} encryptedData - The colon-separated encrypted string (IV:Ciphertext:Tag).
-     * @param {string} encryptionKey - 32-byte (64 hex characters) key in hex format.
+     * @param {string} encryptionKeyHex - 32-byte (64 hex characters) key in hex format.
      * @returns {string} Decrypted data string.
-     * @throws {Error} If decryption fails (e.g., corrupted data, tampering detected, or incorrect key).
+     * @throws {Error} If decryption fails (e.g., tampering detected, format error, or incorrect key).
      */
-    static decryptData(encryptedData, encryptionKey) {
+    static decryptData(encryptedData, encryptionKeyHex) {
         const parts = encryptedData.split(':');
         
         if (parts.length !== 3) {
-            throw new Error('Invalid encrypted data format. Expected IV:Ciphertext:Tag.');
+            throw new Error('Invalid encrypted data format. Expected IV:Ciphertext:Tag (3 parts separated by colon).');
         }
 
-        if (encryptionKey.length !== KEY_LENGTH * 2) {
-             throw new Error(`Invalid key length. Expected ${KEY_LENGTH} bytes (${KEY_LENGTH * 2} hex characters).`);
+        if (encryptionKeyHex.length !== KEY_HEX_LENGTH) {
+             throw new Error(`Invalid key length. Expected ${KEY_LENGTH} bytes (${KEY_HEX_LENGTH} hex characters).`);
         }
 
         const [ivHex, encryptedHex, tagHex] = parts;
 
-        const keyBuffer = Buffer.from(encryptionKey, 'hex');
+        const keyBuffer = Buffer.from(encryptionKeyHex, 'hex');
         const iv = Buffer.from(ivHex, 'hex');
         const tag = Buffer.from(tagHex, 'hex');
 
-        if (iv.length !== IV_LENGTH || tag.length !== TAG_LENGTH) {
-            throw new Error('Invalid IV or Authentication Tag length.');
+        if (iv.length !== IV_LENGTH) {
+            throw new Error('Invalid IV length detected.');
+        }
+        if (tag.length !== TAG_LENGTH) {
+            throw new Error('Invalid Authentication Tag length detected.');
         }
 
         const decipher = crypto.createDecipheriv(ALGORITHM, keyBuffer, iv);
@@ -119,7 +145,8 @@ export class CryptographicUtil {
         try {
             decrypted += decipher.final('utf8');
         } catch (e) {
-            throw new Error('Authentication failed during decryption. Data may be compromised or key is incorrect.');
+            // Authentication failure due to MAC mismatch, tamper detection, or incorrect key.
+            throw new Error('Authentication Check Failed (MAC mismatch). Data integrity compromised or key is incorrect.');
         }
 
         return decrypted;
