@@ -1,0 +1,19 @@
+{
+  "SSVR": {
+    "description": "Configuration governing the expected state and validation parameters for the Schema Version Registry (SSVR).",
+    "hash_algorithm": "SHA-256",
+    "canonicalization_standard": "Platform_Standard_Canonical_JSON",
+    "required_attestations": [
+      {
+        "signer_id": "CRoT",
+        "description": "Core Root of Trust signing key validation.",
+        "minimum_version": "1.0"
+      },
+      {
+        "signer_id": "GAX",
+        "description": "Global Attestation Index/External auditor signature.",
+        "minimum_version": "1.0"
+      }
+    ]
+  }
+}
