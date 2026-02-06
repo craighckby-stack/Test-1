@@ -1,0 +1,21 @@
+{
+  "policy_name": "StandardTrustResolutionPolicy",
+  "version": "1.0",
+  "description": "Configuration for how the Sovereign AGI runtime resolves, caches, and validates trust anchors defined in the TrustAnchorRegistry.",
+  "caching_policy": {
+    "default_ttl_seconds": 3600,
+    "max_cache_size_mb": 100,
+    "strict_ttl_enforcement": true
+  },
+  "validation_rules": {
+    "crl_fetch_timeout_ms": 5000,
+    "min_security_level_required": "L4_HIGH",
+    "fallback_on_network_failure": true,
+    "fallback_cache_ttl_seconds": 604800
+  },
+  "anchor_overrides": {
+    "TRUST_ROOT_MASTER_COMMIT": {
+      "caching_policy": { "default_ttl_seconds": 600 }
+    }
+  }
+}
