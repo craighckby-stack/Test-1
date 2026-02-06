@@ -1,55 +1,72 @@
-from typing import Protocol, TypedDict, Any
+from typing import Protocol, TypedDict, Literal
+
+# --- System Context Enum-like Definitions (Improving Security/Clarity) ---
+
+SecurityMode = Literal['PERMISSIVE', 'LOCKED', 'AUDIT_ONLY']
 
 # --- Strict Definitions for Telemetry Payloads ---
 
 class ResourceForecast(TypedDict):
     """Predicted resource utilization for the upcoming evolution cycle."""
-    cpu_load_baseline: float      # Projected CPU usage (0.0 to 1.0)
-    memory_headroom_gb: float     # Available RAM headroom in GB
-    io_latency_p95_ms: float      # Projected 95th percentile I/O latency in milliseconds
-    disk_utilization_ratio: float # Projected storage saturation
+    cpu_load_baseline: float      # Projected CPU usage (0.0 to 1.0, weighted avg)
+    memory_headroom_gb: float     # Available RAM headroom in GB (remaining)
+    io_latency_p95_ms: float      # Projected 95th percentile I/O latency (ms)
+    disk_utilization_ratio: float # Projected storage saturation (0.0 to 1.0)
+    network_egress_bps: int       # Projected network egress (bits per second)
 
 class OperationalConstraints(TypedDict):
     """Current explicit operational and environmental constraints."""
-    max_concurrency: int          # Maximum parallel operations allowed
+    max_concurrency: int          # Maximum parallel operations allowed (system ceiling)
     active_version_id: str        # The ID of the currently executing AGI version
-    security_mode: str            # Current security posture (e.g., 'PERMISSIVE', 'LOCKED')
-    storage_read_only: bool       # Indicates if persistent storage modification is currently disallowed
+    security_mode: SecurityMode   # Current security posture
+    storage_read_only: bool       # True if persistent storage modification is disallowed
+    execution_timeout_s: float    # Max time allotted for complex evolutionary tasks
 
 class SystemPerformanceIndicators(TypedDict):
     """Real-time performance metrics and health status."""
-    error_rate_p1m: float         # Percentage of operational errors in the past minute
-    thermal_status_celsius: float # Current key component thermal reading
-    queue_depth_max: int          # Maximum length across all pending task queues
-    uptime_seconds: int
+    error_rate_p1m: float         # Percentage of operational errors in the past minute (0.0 to 1.0)
+    thermal_status_celsius: float # Current key component thermal reading (C)
+    queue_depth_max: int          # Maximum length across all pending task queues observed
+    uptime_seconds: int           # Total system uptime
+    self_correction_attempts_p1h: int # Number of self-correction loops executed recently
+
+# --- Cohesive Snapshot Definition ---
+
+class SystemTelemetrySnapshot(TypedDict):
+    """
+    A full, instantaneous snapshot of all critical system telemetry required for 
+    Autonomous Code Evolution (ACE) decision making, combining forecast, constraints, 
+    and performance data.
+    """
+    forecast: ResourceForecast
+    constraints: OperationalConstraints
+    performance: SystemPerformanceIndicators
 
 # --- The Telemetry Proxy Protocol ---
 
 class SystemTelemetryProxy(Protocol):
     """
     Contract interface for fetching real-time and projected system operational 
-    context (SCR inputs), essential for grounding CEM decisions in tangible system 
-    constraints. Implementations must adhere to this contract and ensure all data 
-    structures conform to the defined TypedDicts.
+    context (SCR inputs). Implementations must adhere to this contract.
+
+    The recommended access pattern is via get_full_snapshot().
     """
 
+    def get_full_snapshot(self) -> SystemTelemetrySnapshot:
+        """
+        Retrieves a complete, structured snapshot of all telemetry data points in a 
+        single atomic operation. This minimizes underlying communication overhead.
+        """
+        ...
+        
     def get_resource_forecast(self) -> ResourceForecast:
-        """
-        Provides strictly typed projected resource utilization metrics necessary 
-        for preemptive capacity planning and risk assessment.
-        """
+        """Provides strictly typed projected resource utilization metrics (legacy access)."""
         ...
 
     def get_operational_constraints(self) -> OperationalConstraints:
-        """
-        Fetches current explicit, mandatory operational constraints and environmental 
-        settings that must govern execution planning.
-        """
+        """Fetches current explicit, mandatory operational constraints (legacy access)."""
         ...
     
     def get_performance_indicators(self) -> SystemPerformanceIndicators:
-        """
-        Retrieves current real-time system performance health metrics crucial for 
-        assessing operational stability and identifying immediate failure risks.
-        """
+        """Retrieves current real-time system performance health metrics (legacy access)."""
         ...
