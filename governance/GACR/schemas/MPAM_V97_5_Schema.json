@@ -2,88 +2,105 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "MPAM_V97_5_Schema.json",
   "title": "Model Performance Attestation Manifest (V97.5)",
+  "description": "Schema for documenting and certifying model performance and continuous monitoring configurations.",
   "type": "object",
   "required": ["document_id", "schema_version", "certified_models"],
   "properties": {
     "document_id": {"type": "string", "description": "Unique identifier for the specific manifest instance."},
     "schema_version": {"type": "string", "const": "V97.5-MPAM-02"},
-    "creation_timestamp": {"type": "string", "format": "date-time"},
-    "owner_entity": {"type": "string"},
-    "attestation_root_hash": {"type": "string"},
-    "mdmp_protocol_reference": {"type": "string"},
+    "creation_timestamp": {"type": "string", "format": "date-time", "description": "Time of manifest creation."},
+    "owner_entity": {"type": "string", "description": "The entity or service responsible for model governance."},
+    "attestation_root_hash": {"type": "string", "description": "Cryptographic hash securing the entire manifest content."},
+    "mdmp_protocol_reference": {"type": "string", "description": "Reference to the governing Model Data Monitoring Protocol."},
     "certified_models": {
       "type": "array",
+      "description": "List of models certified under this manifest.",
       "items": {
         "type": "object",
         "required": ["model_id", "performance_baseline", "monitoring_configuration", "latest_status_report"],
         "properties": {
-          "model_id": {"type": "string"},
-          "model_status": {"type": "string", "enum": ["Active", "Monitored", "Deprecated"]},
-          "governance_report_ref": {"type": "string"},
-          "performance_baseline": {"$ref": "#/definitions/PerformanceMetrics"},
-          "monitoring_configuration": {
-            "type": "object",
-            "properties": {
-              "drift_detection_protocol": {"type": "string"},
-              "model_drift_parameters": {
-                "type": "object",
-                "properties": {"metric": {"type": "string"}, "threshold_epsilon": {"type": "number"}}
-              },
-              "data_drift_parameters": {
-                "type": "object",
-                "properties": {"metric": {"type": "string"}, "alert_limit": {"type": "number"}}
-              }
-            }
-          },
-          "latest_status_report": {"$ref": "#/definitions/StatusReport"}
+          "model_id": {"type": "string", "description": "Unique identifier for the specific certified model."},
+          "model_status": {"type": "string", "enum": ["Active", "Monitored", "Deprecated"], "description": "Current deployment lifecycle status of the model."},
+          "governance_report_ref": {"type": "string", "description": "External reference to the detailed governance report."},
+          "performance_baseline": {"$ref": "#/definitions/PerformanceMetrics", "description": "Initial certified performance metrics."},
+          "monitoring_configuration": {"$ref": "#/definitions/MonitoringConfig"},
+          "latest_status_report": {"$ref": "#/definitions/StatusReport", "description": "The most recent continuous performance report."}
         }
       }
     }
   },
   "definitions": {
-    "MetricsBlock": {
+    "DriftParameterSet": {
       "type": "object",
+      "required": ["metric", "threshold"],
+      "description": "A reusable definition for parameters governing model or data drift detection.",
       "properties": {
-        "utility_p99_score": {"type": "number"},
-        "risk_weighted_error_rate": {"type": "number"}
+        "metric": {"type": "string", "description": "The statistical or ML metric used for detection (e.g., KS-stat, PSI, Jensen-Shannon Divergence)."},
+        "threshold": {"type": "number", "description": "The threshold value (epsilon or limit) that triggers an alert or intervention.", "exclusiveMinimum": 0.0}
       }
     },
-    "ComplianceBlock": {
+    "MonitoringConfig": {
+        "type": "object",
+        "description": "Configuration details for continuous monitoring and drift detection.",
+        "required": ["drift_detection_protocol"],
+        "properties": {
+            "drift_detection_protocol": {"type": "string", "description": "Name of the established detection algorithm or service (e.g., Kolmogorov-Smirnov, Ad-Hoc)."},
+            "model_drift_parameters": {
+                "$ref": "#/definitions/DriftParameterSet",
+                "description": "Specific parameters for detecting predictive performance drift."
+            },
+            "data_drift_parameters": {
+                "$ref": "#/definitions/DriftParameterSet",
+                "description": "Specific parameters for detecting input data distribution drift."
+            }
+        }
+    },
+    "PerformanceBlock": {
       "type": "object",
+      "description": "A standardized block for measuring utility and risk.",
+      "required": ["utility_p99_score", "risk_weighted_error_rate"],
       "properties": {
-        "fdr_baseline": {"type": "number"},
-        "compliance_index_baseline": {"type": "number"}
+        "utility_p99_score": {"type": "number", "description": "99th percentile utility score (latency, throughput, effectiveness)."},
+        "risk_weighted_error_rate": {"type": "number", "description": "Error rate weighted by consequence severity."}
+      }
+    },
+    "BaselineCompliance": {
+      "type": "object",
+      "description": "Metrics defining the initial regulatory or internal compliance benchmark.",
+      "required": ["fdr_baseline", "compliance_index_baseline"],
+      "properties": {
+        "fdr_baseline": {"type": "number", "description": "Failure Detection Rate (FDR) baseline."},
+        "compliance_index_baseline": {"type": "number", "description": "Weighted index indicating compliance relative to policy definition.", "minimum": 0.0, "maximum": 1.0}
+      }
+    },
+    "CurrentCompliance": {
+      "type": "object",
+      "description": "Current status of regulatory or internal compliance.",
+      "required": ["fdr_current", "compliance_index_current"],
+      "properties": {
+        "fdr_current": {"type": "number", "description": "Current Failure Detection Rate (FDR)."},
+        "compliance_index_current": {"type": "number", "description": "Current weighted index indicating compliance.", "minimum": 0.0, "maximum": 1.0}
       }
     },
     "PerformanceMetrics": {
       "type": "object",
+      "description": "The attested metrics recorded at certification time (the baseline).",
+      "required": ["certified_timestamp", "performance_metrics", "compliance_metrics"],
       "properties": {
-        "certified_timestamp": {"type": "string", "format": "date-time"},
-        "performance_metrics": {"$ref": "#/definitions/MetricsBlock"},
-        "compliance_metrics": {"$ref": "#/definitions/ComplianceBlock"}
-      }
-    },
-    "CurrentMetricsBlock": {
-      "type": "object",
-      "properties": {
-        "utility_p99_score": {"type": "number"},
-        "risk_weighted_error_rate": {"type": "number"}
-      }
-    },
-    "CurrentComplianceBlock": {
-      "type": "object",
-      "properties": {
-        "fdr_current": {"type": "number"},
-        "compliance_index_current": {"type": "number"}
+        "certified_timestamp": {"type": "string", "format": "date-time", "description": "Timestamp of baseline certification."},
+        "performance_metrics": {"$ref": "#/definitions/PerformanceBlock"},
+        "compliance_metrics": {"$ref": "#/definitions/BaselineCompliance"}
       }
     },
     "StatusReport": {
       "type": "object",
+      "description": "A periodic report summarizing current model operational health.",
+      "required": ["report_timestamp", "drift_status", "current_performance", "current_compliance"],
       "properties": {
-        "report_timestamp": {"type": "string", "format": "date-time"},
-        "drift_status": {"type": "string"},
-        "current_performance": {"$ref": "#/definitions/CurrentMetricsBlock"},
-        "current_compliance": {"$ref": "#/definitions/CurrentComplianceBlock"}
+        "report_timestamp": {"type": "string", "format": "date-time", "description": "Timestamp of the status report generation."},
+        "drift_status": {"type": "string", "description": "Overall summary of detected drift (e.g., 'Nominal', 'Warning: Data Drift', 'Alert: Model Degradation')."},
+        "current_performance": {"$ref": "#/definitions/PerformanceBlock"},
+        "current_compliance": {"$ref": "#/definitions/CurrentCompliance"}
       }
     }
   }
