@@ -1,17 +1,67 @@
 {
-  "service_id": "ALV-S V1.0",
-  "purpose": "Validate and certify the integrity of forensic logs (NRALS) post-system failure (SIH/RRP).",
-  "interface_type": "REST/Asynchronous Queue Consumer",
-  "dependency_manifests": [
-    "FSVM V1.0" (Forensic State Verification Manifest),
-    "CRoT V1.0" (For signature validation)
+  "service_id": "ALV-S V2.0",
+  "purpose": "Certify the forensic integrity of near-real-time audit logs (NRALS) subsequent to disruptive system events (SIH/RRP) via policy-driven validation.",
+  "api_version": "2.0",
+  "interface_definition": {
+    "primary_endpoint": "/api/v2/audit/verify",
+    "mode": "Asynchronous Queue Consumer (Low-Latency)",
+    "queue_source": "NRALS_Integrity_Queue"
+  },
+  "input_configuration": {
+    "data_format": "JSON/Protobuf (LZ4 compressed)",
+    "schema_reference": "FSVM V1.0/NRALS_Schema"
+  },
+  "dependency_map": [
+    {
+      "component": "Forensic State Verification Manifest",
+      "alias": "FSVM",
+      "version": "1.0",
+      "role": "Schema and Policy Enforcement"
+    },
+    {
+      "component": "Cryptographic Root of Trust Infrastructure",
+      "alias": "CRoT",
+      "version": "1.1",
+      "role": "Signature and Key Management"
+    },
+    {
+      "component": "Forensic Cryptographic Policy Registry",
+      "alias": "FCPR",
+      "version": "1.0",
+      "role": "Active Cryptographic Standard Lookup"
+    }
   ],
-  "validation_flow": [
-    "Receive NRALS Data Stream/Record.",
-    "Cryptographic signature verification using CRoT infrastructure.",
-    "Schema validation against FSVM.",
-    "Sequence and time-series immutability check.",
-    "Emit ALV-CERT (Audit Log Verified Certificate) upon success."
+  "validation_workflow": [
+    {
+      "step_id": 100,
+      "description": "CRoT Signature Verification",
+      "processor": "CryptoValidator",
+      "requirement": "Utilize FCPR to retrieve active SHA/ECC standards."
+    },
+    {
+      "step_id": 200,
+      "description": "FSVM Schema Validation",
+      "processor": "SchemaEnforcer",
+      "requirement": "Verify structural conformance and mandatory field completeness."
+    },
+    {
+      "step_id": 300,
+      "description": "Immutability Check",
+      "processor": "TemporalAnalyzer",
+      "requirement": "Confirm sequence adherence (Gaps/Overlaps) and cryptographic time-series chaining."
+    }
   ],
-  "failure_protocol": "Immediate external notification if signature or schema validation fails, resulting in a TIER-1 Audit requirement."
+  "output_configuration": {
+    "artifact_type": "ALV-CERT (Audit Log Verified Certificate)",
+    "format": "Signed JSON Web Token (JWS)",
+    "failure_protocol": {
+      "trigger": ["SignatureMismatch", "SchemaViolation"],
+      "action": "T1_AUDIT_TRIGGER (Immediate external notification)",
+      "priority": "CRITICAL"
+    }
+  },
+  "resilience_target": {
+    "latency_p99_ms": 50,
+    "sla_availability": "99.999%"
+  }
 }
