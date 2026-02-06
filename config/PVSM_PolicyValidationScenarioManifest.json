@@ -1,53 +1,66 @@
 {
-  "manifest_id": "PVSM_V97.2_REFACTORED",
+  "manifest_id": "PVSM_V98.0_OPTIMIZED",
+  "version": "1.0.0",
   "deployment_gate": "PEUP_PRE_CERT",
   "execution_context": {
     "environment": "CEEP_SIMULATION_SANDBOX_LVL3",
+    "required_concurrency_mode": "SYNCHRONOUS_EXECUTION",
     "dependency_assets": [
-      {"id": "PVLM", "role": "TARGET", "minimum_integrity_check": "V97.1"},
-      {"id": "CFTM", "role": "TARGET", "minimum_integrity_check": "V97.1"}
-    ],
-    "required_concurrency_mode": "SYNCHRONOUS_EXECUTION"
+      {
+        "id": "PVLM",
+        "type": "CORE_MODULE",
+        "role": "TARGET_POLICY_ENGINE",
+        "minimum_integrity_tag": "V97.1"
+      },
+      {
+        "id": "CFTM",
+        "type": "CORE_MODULE",
+        "role": "TARGET_CONSTRAINT_CHECKER",
+        "minimum_integrity_tag": "V97.1"
+      }
+    ]
   },
   "validation_strategy": {
+    "strategy_type": "DETERMINISTIC_REPLAY",
     "minimum_pass_rate": 1.0,
-    "fail_on_critical_violation": true
+    "fail_on_critical_violation": true,
+    "max_execution_timeout_ms": 5000
   },
   "scenarios": [
     {
       "scenario_id": "VETO_TAUTOLOGY_001",
       "category": "CRITICAL_INTEGRITY",
       "target_module": "PVLM",
-      "priority": "P0_BLOCKER",
-      "description": "Verify that core system tautologies (e.g., integrity > 0, resource allocation < budget) are not vetoed by the proposed PVLM.",
+      "priority_level": 900,
+      "description": "Verify that core system tautologies (e.g., integrity > 0, resource allocation < budget) are not vetoed.",
+      "input_vector_ref": "INPUT/IV_Tautology_A",
       "expected_outcome": {
         "type": "POLICY_ACCEPTANCE",
-        "result_code": "RC_ACCEPT_001",
-        "description": "Scenario must successfully PASS execution."
+        "result_code": "RC_ACCEPT_001"
       }
     },
     {
       "scenario_id": "CFTM_BOUNDARY_CHECK_002",
       "category": "EDGE_CASE_THRESHOLD",
       "target_module": "CFTM",
-      "priority": "P0_BLOCKER",
-      "description": "Validate that tolerance boundaries (epsilon) allow expected standard deviation while critically failing on proven failure vectors.",
+      "priority_level": 900,
+      "description": "Validate tolerance boundaries (epsilon) failing on proven failure vectors.",
+      "input_vector_ref": "INPUT/IV_Boundary_Critical_B",
       "expected_outcome": {
-        "type": "SYSTEM_STATE",
-        "result_code": "RC_CRITICAL_FAIL_042",
-        "description": "System state must register critical failure (Fail=42) under stress test."
+        "type": "SYSTEM_STATE_FAILURE",
+        "result_code": "RC_CRITICAL_FAIL_042"
       }
     },
     {
       "scenario_id": "DEADLOCK_PROHIBITION_003",
       "category": "FLOW_CONTROL",
       "target_module": "PVLM",
-      "priority": "P1_SEVERE",
-      "description": "Ensure no circular veto logic or self-locking conditions are introduced that would prevent all valid GSEP-C execution paths.",
+      "priority_level": 800,
+      "description": "Ensure no circular veto logic or self-locking conditions prevent valid GSEP-C execution paths.",
+      "input_vector_ref": "INPUT/IV_Deadlock_Test_C",
       "expected_outcome": {
         "type": "FLOW_VALIDATION",
-        "result_code": "RC_FLOW_VALID_000",
-        "description": "GSEP flow must remain validated and deadlock-free."
+        "result_code": "RC_FLOW_VALID_000"
       }
     }
   ]
