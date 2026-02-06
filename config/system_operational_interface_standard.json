@@ -1,1 +1,44 @@
-[object Object]
+{
+  "systemId": "SOV-AGI-v94.1",
+  "interfaceVersion": "2.1.0",
+  "standardDefinition": "OperationalInterfaceStandard",
+  "communicationLayer": {
+    "protocol": "ZMQ_HYBRID/M_PULL",
+    "encoding": "MsgPack_Compressed",
+    "primaryServicePort": 9000,
+    "telemetryPort": 9001,
+    "heartbeatIntervalMs": 500,
+    "connectionTimeoutMs": 1500
+  },
+  "securityContext": {
+    "authMechanism": "ECDSA_v5",
+    "integrityCheck": "SHA512_HMAC",
+    "accessLevelDefault": "RESTRICTED",
+    "enforcedACLPath": "security/acl/operational.json"
+  },
+  "telemetry": {
+    "schemaRef": "schemas/telemetry_operational_v1.json",
+    "adaptiveThrottling": true,
+    "maxQueueDepth": 512,
+    "defaultReportingLevel": "WARNING",
+    "requiredMetrics": [
+      "cycleTime_p99",
+      "memoryUsage_resident",
+      "taskQueueLength"
+    ]
+  },
+  "endpointContracts": [
+    {
+      "name": "StatusQuery",
+      "method": "PULL",
+      "rateLimitHz": 10,
+      "responseSchema": "schemas/status_response_v1.json"
+    },
+    {
+      "name": "ConfigUpdate",
+      "method": "PUSH",
+      "rateLimitHz": 0.1,
+      "authRequired": true
+    }
+  ]
+}
