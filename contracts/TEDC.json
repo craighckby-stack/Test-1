@@ -1,4 +1,13 @@
 {
-  "message": "Input contract artifact content was provided as [object Object]. No direct modification to contracts/TEDC.json could be performed.",
-  "status": "INPUT_PARSE_FAILURE_RECOMMENDED_ARCHITECTURAL_PIVOT"
+  "contractName": "TEDC",
+  "sourcePath": "contracts/TEDC.sol",
+  "abi": [],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "gasEstimates": {},
+  "metadata": {
+    "compiler": {},
+    "settings": {}
+  }
 }
