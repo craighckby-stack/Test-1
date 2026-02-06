@@ -1,55 +1,112 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign.agi/schema/DCSM_v1.0.json",
+  "$id": "http://sovereign.agi/schema/governance/DCSM_v94.1.json",
   "title": "Deterministic Commitment Summary Manifest (DCSM)",
-  "description": "Lightweight, finalized summary of the approved state transition (Psi_N -> Psi_N+1) following P-01 PASS, designed for rapid external audit and linkage.",
+  "description": "Finalized, immutable summary confirming a successful, deterministic state transition (Psi_N -> Psi_N+1) following P-01 PASS, optimized for rapid verification.",
   "type": "object",
+  "definitions": {
+    "AxiomaticVetoStatus": {
+      "type": "object",
+      "description": "Validation checks confirming negation of all mandatory vetoes. A value of 'true' indicates the veto condition was successfully negated.\n(i.e., The system state is safe to commit).",
+      "properties": {
+        "pvlm_status": {
+          "type": "boolean",
+          "description": "Policy Veto Lockout Negation status ($\neg$PVLM). Must be true.",
+          "const": true
+        },
+        "mpam_status": {
+          "type": "boolean",
+          "description": "Minimum Performance Assurance Negation status ($\neg$MPAM). Must be true.",
+          "const": true
+        },
+        "adtm_status": {
+          "type": "boolean",
+          "description": "Anomaly Detection Threshold Negation status ($\neg$ADTM). Must be true.",
+          "const": true
+        }
+      },
+      "required": ["pvlm_status", "mpam_status", "adtm_status"],
+      "additionalProperties": false
+    },
+    "AnchorLinkage": {
+      "type": "object",
+      "description": "Crucial forensic and commitment identifiers.",
+      "properties": {
+        "state_root_hash": {
+          "type": "string",
+          "description": "Cryptographic hash (e.g., SHA3-256) of the resulting system state root.",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-fA-F]+$"
+        },
+        "tvcr_index": {
+          "type": "string",
+          "description": "Index linking to the complete Trace and Veto Context Registry (TVCR) entry.",
+          "format": "uuid"
+        }
+      },
+      "required": ["state_root_hash", "tvcr_index"],
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "protocol_version": {
       "type": "string",
-      "description": "SAG Specification version (e.g., V94.5)"
+      "description": "SAG Specification version confirming compliance (e.g., V94.1)"
     },
     "dse_epoch_id": {
       "type": "string",
-      "description": "Unique identifier for this DSE event."
+      "description": "Unique, deterministic identifier for this Decentralized State Evolution (DSE) event.",
+      "format": "uuid"
     },
     "status_p01": {
       "type": "boolean",
-      "description": "P-01 Finality Checkpoint result (must be true)."
+      "description": "P-01 Finality Checkpoint result. MUST be true for commitment.",
+      "const": true
     },
     "metrics_final": {
       "type": "object",
-      "description": "Key metrics used in P-01 verification.",
+      "description": "The quantified metrics used to satisfy P-01 verification (Utility Axioms).",
       "properties": {
-        "temm": {"type": "number", "description": "Target Utility Metric (S01)"},
-        "ufrm": {"type": "number", "description": "Required Baseline Utility Metric (S02)"},
-        "cftm": {"type": "number", "description": "Minimum Required Utility Margin (Epsilon)"}
+        "temm": {
+          "type": "number",
+          "description": "Target Evolution Momentum Metric (S01).",
+          "minimum": 0
+        },
+        "ufrm": {
+          "type": "number",
+          "description": "Underlying Functional Resilience Metric (S02).",
+          "minimum": 0
+        },
+        "cftm": {
+          "type": "number",
+          "description": "Commitment Finality Threshold Margin (Epsilon, must be > 0).",
+          "exclusiveMinimum": 0
+        }
       },
-      "required": ["temm", "ufrm", "cftm"]
+      "required": ["temm", "ufrm", "cftm"],
+      "additionalProperties": false
     },
     "veto_summary": {
-      "type": "object",
-      "description": "Final state of all axiomatic veto manifests (must all be false/negated status).",
-      "properties": {
-        "pvlm_status": {"type": "boolean", "description": "Policy Veto Status ($\\neg$PVLM)"},
-        "mpam_status": {"type": "boolean", "description": "Stability Veto Status ($\\neg$MPAM)"},
-        "adtm_status": {"type": "boolean", "description": "Anomaly Veto Status ($\\neg$ADTM)"}
-      },
-      "required": ["pvlm_status", "mpam_status", "adtm_status"]
+      "$ref": "#/definitions/AxiomaticVetoStatus"
     },
     "context_status": {
       "type": "boolean",
-      "description": "Verified Environmental Context Status (ECVM status)."
+      "description": "Environmental Context Verification Status (ECVM success). MUST be true.",
+      "const": true
     },
     "anchor_links": {
-      "type": "object",
-      "description": "Links to forensic and commitment anchors.",
-      "properties": {
-        "state_root_hash": {"type": "string", "description": "Cryptographic hash of the new state root (Post S10 commitment)."},
-        "tvcr_index": {"type": "string", "description": "Index linking to the corresponding Trace and Veto Context Registry entry."}
-      },
-      "required": ["state_root_hash", "tvcr_index"]
+      "$ref": "#/definitions/AnchorLinkage"
     }
   },
-  "required": ["protocol_version", "dse_epoch_id", "status_p01", "metrics_final", "veto_summary", "context_status", "anchor_links"]
+  "required": [
+    "protocol_version",
+    "dse_epoch_id",
+    "status_p01",
+    "metrics_final",
+    "veto_summary",
+    "context_status",
+    "anchor_links"
+  ],
+  "additionalProperties": false
 }
