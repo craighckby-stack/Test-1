@@ -1,0 +1,26 @@
+{
+  "schema_type": "PolicyParameterSchemaCatalog",
+  "schema_version": "1.0",
+  "description": "Defines and validates schemas for configuration parameters required by policy implementation modules.",
+  "schemas": {
+    "core.algorithms.risk.contextual_modulator_v3": {
+      "description": "Schema for CVM V3 risk adjustment algorithm parameters.",
+      "version": "3.0",
+      "required": ["base_sensitivity_factor", "max_shift_magnitude", "input_metrics"],
+      "properties": {
+        "base_sensitivity_factor": {"type": "number", "min": 1.0, "description": "Base multiplier for sensitivity."},
+        "max_shift_magnitude": {"type": "number", "min": 0.0, "max": 0.5, "description": "Maximum allowable relative shift in the governance threshold."},
+        "input_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["metric_id", "weight"],
+            "properties": {"metric_id": {"type": "string"}, "weight": {"type": "number"}}
+          },
+          "minItems": 1
+        },
+        "override_conditions": {"type": "array", "optional": true}
+      }
+    }
+  }
+}
