@@ -1,0 +1,23 @@
+{
+  "description": "Configuration for the Certified Telemetry Aggregation Service (CTAS). Defines how high-frequency COTS data is batched, aggregated, and persisted to reduce persistence layer load.",
+  "ctas_enabled": true,
+  "aggregation_interval_ms": 5000,
+  "max_batch_size": 500,
+  "latency_reporting": {
+    "enabled": true,
+    "percentiles": [50, 95, 99]
+  },
+  "metric_exceedance_rules": [
+    {
+      "metric_path": "operational_metrics.resources.latency_ms",
+      "threshold_ms": 1000,
+      "action": "LOG_WARNING_IMMEDIATE"
+    },
+    {
+      "metric_path": "operational_metrics.data_layer.peak_queue_depth",
+      "threshold": 50,
+      "action": "EMIT_CRITICAL_ALERT"
+    }
+  ],
+  "data_retention_days": 365
+}
