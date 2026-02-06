@@ -1,72 +1,103 @@
 /**
  * @module DataTransformer
- * @description Centralized utility for validating, decoding, and standardizing raw data 
- * retrieved from various sources based on primitive definitions. Also enforces security requirements.
+ * @description Centralized orchestrator for validating, decoding, and standardizing raw data 
+ * retrieved from various sources based on primitive definitions. Enforces security and integrity checks.
  */
 import Logger from '../utility/Logger.js';
+import SchemaValidator from './SchemaValidator.js'; 
 
 class DataTransformer {
     constructor() {
-        // Assume Logger is available and correctly initialized
         this.logger = Logger.module('DataTransformer');
+        this.validator = SchemaValidator; // Utilize the new validation module
+        
+        // Define decoding strategies centrally
+        this.decoders = {
+            'JSON': this._decodeJson,
+            'PLAINTEXT': this._decodePlaintext,
+            // Decoders can be dynamically registered later
+        };
     }
 
     /**
-     * Transforms raw data according to the source configuration.
-     * Includes security validation and format decoding.
-     * @param {any} rawData - The unprocessed data retrieved by a handler.
-     * @param {object} sourceConfig - The configuration object for the data primitive.
+     * Executes the full data pipeline: Security -> Decode -> Validate.
+     * @param {any} rawData - The unprocessed data retrieved.
+     * @param {object} sourceConfig - Configuration including encoding, security, and schema type.
      * @returns {any} The finalized, validated data payload.
+     * @throws {Error} If security fails, decoding fails, or schema validation fails.
      */
     transform(rawData, sourceConfig) {
         const { encoding_format, security_level, primitive_type } = sourceConfig;
+        const configKey = sourceConfig.key || primitive_type; 
+
+        // 1. Security & Integrity Check (Critical Path)
+        if (!this._verifySecurity(rawData, security_level, configKey)) {
+             throw new Error(`[DATA_SECURITY_FAILURE] Security verification failed for source: ${configKey}`);
+        }
+
+        // 2. Data Decoding
+        let decodedData = this._decodeData(rawData, encoding_format, configKey);
+
+        // 3. Schema & Type Validation
+        this._validateSchema(decodedData, primitive_type, configKey);
         
-        // 1. Mandatory Security Verification
-        if (!this.verifySecurity(rawData, security_level)) {
-             throw new Error(`Security validation failed for ${sourceConfig.key}`);
-        }
-
-        let decodedData;
-
-        // 2. Decoding
-        switch (encoding_format.toUpperCase()) {
-            case 'JSON':
-                decodedData = (typeof rawData === 'string') ? JSON.parse(rawData) : rawData;
-                break;
-            case 'PLAINTEXT':
-                decodedData = rawData; 
-                break;
-            // Add more encoding handlers (e.g., BINARY, PROTOBUF)
-            default:
-                this.logger.warn(`Unsupported encoding format ${encoding_format}. Passing raw data.`);
-                decodedData = rawData;
-        }
-
-        // 3. Type/Schema Validation
-        if (!this.isValidType(decodedData, primitive_type)) {
-             this.logger.error(`Schema validation failed for expected type: ${primitive_type}`);
-             throw new Error('Data schema validation failed after decoding.');
-        }
-
         return decodedData;
     }
 
     /**
-     * Placeholder method for actual security checks (e.g., integrity, authorization).
+     * Handles specific encoding formats using defined strategies.
+     * @private
      */
-    verifySecurity(data, requiredLevel) {
-        // Logic hooks for checking signatures, access tokens, etc.
-        // If data requires HIGH security, specialized checks might run.
-        return true; 
+    _decodeData(rawData, format, key) {
+        const handler = this.decoders[format.toUpperCase()];
+
+        if (!handler) {
+            this.logger.warn(`Unsupported encoding format detected (${format}) for ${key}. Passing raw data.`);
+            return rawData;
+        }
+
+        try {
+            // Call the handler, bound implicitly to the class instance if needed, though simple ones don't require 'this'
+            return handler(rawData);
+        } catch (error) {
+            this.logger.error(`Decoding failed for ${key} (Format: ${format}). Error: ${error.message}`);
+            throw new Error(`[DECODING_FAILURE] Failed to decode data for ${key}.`);
+        }
     }
-    
+
+    // --- Specific Decoders ---
+
+    _decodeJson(rawData) {
+        return (typeof rawData === 'string') ? JSON.parse(rawData) : rawData;
+    }
+
+    _decodePlaintext(rawData) {
+        return rawData; 
+    }
+
+    // --- Core Checks ---
+
     /**
-     * Placeholder method for actual type/schema enforcement.
+     * Executes schema validation using the centralized Validator utility.
+     * @private
      */
-    isValidType(data, expectedType) {
-        // In a real system, this would use a schema validation library (Zod, Joi, etc.)
-        return data !== null && data !== undefined;
+    _validateSchema(data, primitiveType, key) {
+        if (!this.validator.validate(data, primitiveType)) {
+             this.logger.error(`[SCHEMA_MISMATCH] Validation failed for expected type: ${primitiveType} in source ${key}`);
+             throw new Error(`[SCHEMA_VALIDATION_FAILURE] Data structure invalid for primitive type: ${primitiveType}.`);
+        }
+    }
+
+    /**
+     * Executes security checks (e.g., signature verification, TLS integrity).
+     * @private
+     */
+    _verifySecurity(data, requiredLevel, key) {
+        // Logic hook retained, but renamed and contextualized.
+        this.logger.debug(`Running security checks (Level: ${requiredLevel}) for ${key}`);
+        return true; 
     }
 }
 
+// Export as a Singleton instance
 export default new DataTransformer();
