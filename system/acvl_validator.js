@@ -1,4 +1,7 @@
 const fs = require('fs/promises');
+// Assuming Ajv is installed in the runtime environment for high-intelligence validation
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats'); 
 
 /**
  * Custom error type for ACVL validation failures.
@@ -6,6 +9,7 @@ const fs = require('fs/promises');
  */
 class ACVLIntegrityHalt extends Error {
     constructor(message, details = {}) {
+        // Use interpolation for clearer error messages, especially from schema validation
         super(`[ACVL Integrity Halt] ${message}`);
         this.name = 'ACVLIntegrityHalt';
         this.details = details;
@@ -15,19 +19,23 @@ class ACVLIntegrityHalt extends Error {
 /**
  * ACVD Validator & Constraint Loader (ACVL)
  * Enforces semantic and structural integrity of the Axiom Constraint Validation Domain (ACVD) file
- * BEFORE Stage S01 (CSR generation). Requires acvd_policy.json and potentially its schema.
+ * BEFORE Stage S01 (CSR generation). Requires acvd_policy.json and its schema.
  */
 class ACVLValidator {
     constructor(acvdPath = 'config/acvd_policy.json', schemaPath = 'config/acvd_policy_schema.json') {
         this.acvdPath = acvdPath;
         this.schemaPath = schemaPath;
         
-        // Mandatory keys definition moved here for explicit listing, though external schema validation is preferred.
-        this.MANDATORY_KEYS = [
-            'governance_version',
-            'minimum_utility_threshold',
-            'mandatory_policy_signatures'
-        ];
+        // Initialize Ajv instance for strict schema enforcement.
+        this.ajv = new Ajv({ 
+            allErrors: true, 
+            coerceTypes: false, // Maintain strict type checking
+            useDefaults: false 
+        });
+        // Add necessary format validators (e.g., regex checks defined in schema)
+        addFormats(this.ajv);
+        
+        this._validateSchema = null;
     }
 
     /**
@@ -42,49 +50,45 @@ class ACVLValidator {
             return JSON.parse(content);
         } catch (error) {
             if (error.code === 'ENOENT') {
-                 throw new ACVLIntegrityHalt(`Required file not found: ${path}. Purpose: ${purpose}.`);
+                 throw new ACVLIntegrityHalt(`Required file not found: ${path}. Purpose: ${purpose}.`, { code: 'ENOENT' });
             }
             throw new ACVLIntegrityHalt(`Failed to load or parse ${purpose} file (${path}): ${error.message}`);
         }
     }
 
     /**
-     * Executes structural and semantic checks against the loaded ACVD configuration.
-     * @param {Object} config - The loaded ACVD object.
+     * Loads the schema, ACVD configuration, and executes rigorous validation.
+     * Replaces brittle internal checks with robust JSON Schema validation.
      */
-    _performInternalValidation(config) {
-        // 1. Mandatory Key Presence Check
-        this.MANDATORY_KEYS.forEach(key => {
-            if (!(key in config)) {
-                throw new ACVLIntegrityHalt(`ACVD missing mandatory key: ${key}`);
-            }
-        });
-
-        // 2. Semantic Checks: minimum_utility_threshold
-        const threshold = config.minimum_utility_threshold;
-        if (typeof threshold !== 'number' || threshold < 0.0 || threshold > 1.0) {
-             throw new ACVLIntegrityHalt(`minimum_utility_threshold must be a numeric float between 0.0 and 1.0. Received: ${threshold}`);
-        }
-
-        // 3. Structural/Type Check: mandatory_policy_signatures
-        if (!Array.isArray(config.mandatory_policy_signatures) || !config.mandatory_policy_signatures.every(s => typeof s === 'string' && s.length > 0)) {
-            throw new ACVLIntegrityHalt(`mandatory_policy_signatures must be a non-empty array of strings.`);
-        }
-        
-        // 4. Version Format Check: governance_version (Enforce Major.Minor.Patch)
-        if (typeof config.governance_version !== 'string' || !/^\d+\.\d+\.\d+$/.test(config.governance_version)) {
-            throw new ACVLIntegrityHalt(`governance_version must adhere to Major.Minor.Patch format.`);
-        }
-    }
-
     async loadAndValidate() {
-        // Load the ACVD file
+        // 1. Load and compile schema (only runs on first call)
+        if (!this._validateSchema) {
+             const schema = await this._loadJsonFile(this.schemaPath, 'ACVD Policy Schema');
+             this._validateSchema = this.ajv.compile(schema);
+        }
+
+        // 2. Load the ACVD file
         const config = await this._loadJsonFile(this.acvdPath, 'Axiom Constraint Validation Domain (ACVD)');
         
-        // Validate integrity
-        this._performInternalValidation(config);
+        // 3. Execute validation via Ajv
+        const valid = this._validateSchema(config);
 
-        console.log(`[ACVL] ACVD V${config.governance_version} validated successfully. Ready for CSR (S01) generation.`);
+        if (!valid) {
+            // Aggregate all Ajv errors into a detailed halt message
+            const errors = this._validateSchema.errors.map(err => {
+                return `Data path: ${err.instancePath || '/'} | Error: ${err.message}`;
+            });
+            
+            throw new ACVLIntegrityHalt(
+                `ACVD configuration failed rigorous schema validation. Total errors: ${errors.length}`,
+                { 
+                    validationErrors: errors,
+                    ajvDetails: this._validateSchema.errors 
+                }
+            );
+        }
+
+        console.log(`[ACVL] ACVD V${config.governance_version} validated successfully against schema. Ready for CSR (S01) generation.`);
         return config; // Return validated constraints
     }
 }
