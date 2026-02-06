@@ -1,13 +1,1 @@
-{
-  "component_id": "GRS-COMPILER-C01",
-  "purpose": "Pre-validation and compilation of Governance Rule Source (GRS) files against GRS-98.0-01 schema.",
-  "responsibility": [
-    "Syntax checking of embedded Policy Definition Language (PDL)",
-    "Automated version_hash generation (SHA256)",
-    "Mandatory field assertion prior to GRS-VA ingestion",
-    "Preparation for root signature integration"
-  ],
-  "input": "Source GRS file (PDL/JSON)",
-  "output": "Compiled and validated GRS JSON object for ledger commitment.",
-  "dependencies": ["Cryptography/SHA-256 Utility", "PDL Syntax Parser"]
-}
+[object Object]
