@@ -1,0 +1,19 @@
+{
+  "engine_name": "Probabilistic_Risk_Engine",
+  "version": "1.0",
+  "scoring_model": "bayesian_network_v2",
+  "inputs": [
+    {"metric_key": "security_score_normalized", "source": "SAST_engine", "risk_model": "high_impact"},
+    {"metric_key": "functional_integrity_coverage", "source": "test_harness", "risk_model": "medium_impact"},
+    {"metric_key": "historical_stability_metric", "source": "telemetry_data", "risk_model": "low_impact"}
+  ],
+  "model_parameters": {
+    "decay_rate": 0.05,
+    "prior_confidence": 0.80,
+    "anomaly_threshold": 0.01
+  },
+  "output_schema": {
+    "p_score": "float",
+    "confidence_interval": "tuple"
+  }
+}
