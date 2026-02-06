@@ -1,51 +1,104 @@
 // src/governance/configIntegrityMonitor.js
-/**
- * Component: CIM (Configuration Integrity Monitor)
- * Role: Policy Protection Layer
- * Mandate: Ensures the immutability and integrity of critical governance configuration files (like those loaded by C-15 Policy Engine) against unauthorized mutation or tampering.
- * 
- * CIM utilizes cryptographically derived file hashes (SHA-512) stored in a secure ledger (D-01). Any proposed configuration change must pass P-01 adjudication and be verifiably staged by A-01 before the hash is updated and the file is deployed.
- */
 
+const sha512 = require('../utils/cryptoUtils');
+const CIMIntegrityError = require('../system/CIMIntegrityError');
+
+/**
+ * Component: CIM (Configuration Integrity Monitor) v94.1
+ * Role: Policy Protection Layer / Critical Integrity Checkpoint
+ * Mandate: Ensures the immutability and integrity of critical governance configuration files 
+ *          against unauthorized mutation or tampering using SHA-512 checksums verified against the Secure Policy Ledger (D-01).
+ */
 class ConfigIntegrityMonitor {
-    constructor(auditLogger, proposalManager) {
-        this.D01 = auditLogger; 
-        this.A01 = proposalManager;
-        this.governanceConfigFiles = ['config/governance.yaml', 'config/veto_mandates.json'];
-        this.currentHashes = this.loadSecureHashes();
+    
+    constructor(auditLogger, proposalManager, configPaths = ConfigIntegrityMonitor.DEFAULT_CONFIG_PATHS) {
+        if (!auditLogger || !proposalManager) {
+            throw new Error("CIM Initialization Failure: Audit Logger (D-01) and Proposal Manager (A-01) required.");
+        }
+        
+        this.auditLogger = auditLogger; // D-01 interface
+        this.proposalManager = proposalManager; // A-01 interface
+        this.configPaths = configPaths;
+        
+        this.currentHashes = {};
+        this.isReady = false;
     }
 
-    loadSecureHashes() {
-        // Load known good hashes from D-01 ledger or secure cache
-        console.log("CIM: Initializing and loading governance configuration checksums.");
-        // Mock initialization logic
+    static get DEFAULT_CONFIG_PATHS() {
+        return [
+            'config/governance.yaml', 
+            'config/veto_mandates.json'
+        ];
+    }
+
+    /**
+     * Initializes the CIM by loading the securely signed hashes from the secure ledger (D-01).
+     */
+    async initialize() {
+        this.auditLogger.logSystemEvent("CIM", "Loading governance configuration checksums from secure source.");
+        this.currentHashes = await this._loadSecureHashes();
+        this.isReady = true;
+    }
+
+    /**
+     * Internal method to fetch the known-good hashes from the D-01/Secure Policy Ledger.
+     * @private
+     */
+    async _loadSecureHashes() {
+        // Real implementation involves secure I/O/RPC to D-01
+        // Mock data structure remains for initial bootstrap
         return {
             'config/governance.yaml': 'sha512-current-policy-hash-123',
             'config/veto_mandates.json': 'sha512-external-policy-hash-456'
         };
     }
 
+    /**
+     * Executes the integrity check against a computed hash.
+     * @param {string} filePath - The path of the file being checked.
+     * @param {string} currentContent - The actual content read from disk/memory.
+     * @throws {CIMIntegrityError} If hash mismatch is detected.
+     */
     checkIntegrity(filePath, currentContent) {
-        const computedHash = this.computeHash(currentContent);
-        if (this.currentHashes[filePath] !== computedHash) {
-            console.error(`CIM VETO: Integrity failure on ${filePath}. Computed hash mismatch.`);
-            // Trigger system lockdown/quarantine if integrity violation is detected outside of GSEP Stage 4
-            return false; 
+        if (!this.isReady) {
+            throw new Error("CIM Not Initialized: Must call .initialize() first.");
+        }
+
+        const computedHash = sha512(currentContent);
+        const knownHash = this.currentHashes[filePath];
+        
+        if (knownHash && knownHash !== computedHash) {
+            const msg = `Integrity failure detected on ${filePath}. Computed hash mismatch. Unauthorized mutation suspected.`;
+            this.auditLogger.logCritical("CIM VETO", msg, { file: filePath, expected: knownHash, actual: computedHash });
+            throw new CIMIntegrityError(msg, filePath);
         }
         return true;
     }
 
-    updateIntegrityRecord(filePath, approvedNewContent) {
-        // Only called post-P-01 PASS and during A-01 staging
-        const newHash = this.computeHash(approvedNewContent);
-        this.currentHashes[filePath] = newHash;
-        this.D01.logIntegrityUpdate(filePath, newHash); 
-        console.log(`CIM: Policy ${filePath} successfully signed and recorded with new hash.`);
-    }
+    /**
+     * Updates the secure integrity record post-P-01 approval (A-01 staging).
+     * @param {string} filePath - Path of the file updated.
+     * @param {string} approvedNewContent - Content approved by P-01/A-01.
+     */
+    async updateIntegrityRecord(filePath, approvedNewContent) {
+        if (!this.isReady) {
+             throw new Error("CIM Not Initialized.");
+        }
+        
+        const newHash = sha512(approvedNewContent);
 
-    computeHash(content) {
-        // Placeholder for cryptographic hash function (e.g., utilizing Node crypto module)
-        return `sha512-${content.length}-${Math.random().toString(16).slice(2)}`; 
+        // CRITICAL GATE: Ensures this change was legitimate and staged by A-01
+        // Assumes proposalManager implements isAwaitingStaging(path, hash)
+        if (!this.proposalManager.isAwaitingStaging(filePath, newHash)) {
+            this.auditLogger.logCritical("CIM PROTECTION", `Attempted unapproved hash update for ${filePath}. Aborted.`);
+            throw new Error("Unauthorized integrity record update attempt. Missing A-01 staging confirmation.");
+        }
+
+        this.currentHashes[filePath] = newHash;
+        
+        // Persist the change to the secure D-01 ledger
+        await this.auditLogger.storeNewIntegrityHash(filePath, newHash); 
+        this.auditLogger.logIntegrityUpdate(filePath, newHash);
     }
 }
 
