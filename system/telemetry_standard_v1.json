@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://sovereign.agi/telemetry/GGS_V1",
+  "title": "Global Log Standard (G-Log) Telemetry Structure",
+  "type": "object",
+  "description": "Defines the required JSON structure for all operational and auditable telemetry emitted by the Sovereign System (G-Log Standard). This must be strictly enforced at Gate S7 (Exit) to ensure audit chain integrity.",
+  "properties": {
+    "timestamp_iso": {"type": "string", "format": "date-time"},
+    "operation_id": {"type": "string", "description": "Unique ID tracing the entire execution context."},
+    "gate_stage": {"type": "string", "enum": ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"], "description": "The specific operational gate where the log event occurred."},
+    "level": {"type": "string", "enum": ["AUDIT", "ERROR", "WARNING", "INFO", "DEBUG"]},
+    "module": {"type": "string", "description": "Subsystem/component responsible for the event (e.g., CAC, SDVM, ECVM)."},
+    "message": {"type": "string"},
+    "context_data": {"type": "object", "description": "Optional detailed context metrics or payload snippets."}
+  },
+  "required": ["timestamp_iso", "operation_id", "gate_stage", "level", "module", "message"]
+}
