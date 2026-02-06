@@ -1,0 +1,17 @@
+{
+  "artifact_map_version": "1.0",
+  "artifacts": [
+    {
+      "id": "TVCR",
+      "expected_source": "ArtifactCache/V_Registry",
+      "schema_id": "VCS-44A",
+      "freshness_ttl_seconds": 3600
+    },
+    {
+      "id": "ADEP",
+      "expected_source": "SystemDB/AD_Planner",
+      "schema_id": "ADS-22B",
+      "freshness_ttl_seconds": 600
+    }
+  ]
+}
