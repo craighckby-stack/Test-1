@@ -4,18 +4,10 @@
  * using weighted scoring, configurable thresholds, and signal smoothing (EWMA).
  */
 const { pTimeout } = require('../utilities/asyncTimeout');
+// Refactored: Imported configuration constants for centralized management
+const { MINIMUM_GRS_THRESHOLD, HEALTH_DEFAULTS } = require('../config/governanceHealthConfig');
 
-// --- Constants & Enums ---
-const DEFAULT_LATENCY_THRESHOLD_MS = 500;
-const MINIMUM_GRS_THRESHOLD = 0.85;
-
-// Shared Configuration Defaults
-const HEALTH_DEFAULTS = Object.freeze({
-    latencyThresholdMs: DEFAULT_LATENCY_THRESHOLD_MS,
-    // Alpha (α) factor for Exponential Smoothing (0.0 to 1.0). Lower is smoother/more lag.
-    smoothingAlpha: 0.15
-});
-
+// --- Enums ---
 const ComponentStatus = Object.freeze({
     OK: 'OK',
     FAILED: 'FAILED',
@@ -45,29 +37,35 @@ class GovernanceHealthMonitor {
      * @typedef {object} Diagnosable
      * @property {function(): Promise<void>} runDiagnostics - Method to check component operational status.
      *
+     * Refactor Note: Signature updated to use spread syntax for dynamic component registration.
      * @param {object} dependencies
-     * @param {Diagnosable} dependencies.mcraEngine
-     * @param {Diagnosable} dependencies.atmSystem
-     * @param {Diagnosable} dependencies.policyEngine
      * @param {object} dependencies.auditLogger - Required structured logging utility.
      * @param {object} [config={}] - Optional configuration for thresholds and weights.
+     * @param {...Diagnosable} dependencies - Remaining properties are treated as components (e.g., mcraEngine, policyEngine).
      */
-    constructor({ mcraEngine, atmSystem, policyEngine, auditLogger, config = {} }) {
+    constructor({ auditLogger, config = {}, ...diagnosableComponents }) {
         if (!auditLogger || typeof auditLogger.logError !== 'function') {
             throw new Error("GHM Initialization Error: Must provide a valid auditLogger utility.");
         }
 
         this.auditLogger = auditLogger;
-        // Standardized component storage for easy iteration
-        this.components = Object.freeze({ mcraEngine, atmSystem, policyEngine });
+        
+        // Dynamic component registration: captures mcraEngine, atmSystem, etc.
+        this.components = Object.freeze(diagnosableComponents);
         const componentKeys = Object.keys(this.components);
 
-        // Configuration Handling (Merged and Frozen for immutability)
+        // Configuration Handling:
+        // 1. Determine effective weights (Config override -> Default weight -> Fallback 1)
+        const effectiveComponentWeights = componentKeys.reduce((acc, key) => ({
+            ...acc,
+            [key]: config.componentWeights?.[key] ?? HEALTH_DEFAULTS.defaultComponentWeights[key] ?? 1
+        }), {});
+        
+        // Merge and Freeze for immutability
         this.healthConfig = Object.freeze({
             latencyThresholdMs: config.latencyThresholdMs || HEALTH_DEFAULTS.latencyThresholdMs,
             smoothingAlpha: config.smoothingAlpha || HEALTH_DEFAULTS.smoothingAlpha,
-            componentWeights: Object.freeze(componentKeys.reduce((acc, key) =>
-                ({ ...acc, [key]: (config.componentWeights?.[key] ?? 1) }), {}))
+            componentWeights: Object.freeze(effectiveComponentWeights)
         });
 
         // Runtime State: Initialize the Governance Readiness Signal state (smoothed)
@@ -93,6 +91,7 @@ class GovernanceHealthMonitor {
      */
     async checkComponentStatus(componentId) {
         const component = this.components[componentId];
+        // Retrieve weight from pre-calculated effective config
         const weight = this.healthConfig.componentWeights[componentId] || 1;
         const latencyThreshold = this.healthConfig.latencyThresholdMs;
 
@@ -208,7 +207,7 @@ class GovernanceHealthMonitor {
 
     /**
      * Primary interface for the GSEP protocol check in Stage 3.
-     * @param {number} requiredThreshold - Minimum acceptable GRS (defaults to 0.85).
+     * @param {number} requiredThreshold - Minimum acceptable GRS (defaults to global config value).
      * @returns {Promise<boolean>}
      */
     async isReady(requiredThreshold = MINIMUM_GRS_THRESHOLD) {
