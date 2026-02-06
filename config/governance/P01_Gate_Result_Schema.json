@@ -2,40 +2,100 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://aoc.v94.1/P01_Gate_Result.json",
   "title": "P-01 Gate Decision Output Schema",
-  "description": "Defines the verifiable and immutable result of the P-01 calculus, linking the final decision to the inputs used.",
+  "description": "Defines the verifiable and immutable result of the P-01 calculus, linking the final decision to the inputs used. Ensures cryptographic linkage to the M-02 payload and P-01 inputs.",
   "type": "object",
+  "$defs": {
+    "sha256_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "A standard SHA-256 cryptographic hash."
+    },
+    "veto_mechanism": {
+      "type": "string",
+      "enum": [
+        "S03_POLICY",
+        "S02_RISK_THRESHOLD",
+        "NONE"
+      ],
+      "description": "Identifies the specific mechanism leading to a FAIL decision or 'NONE' if the result is a PASS."
+    }
+  },
   "properties": {
     "p01_timestamp_utc": {
       "type": "string",
       "format": "date-time",
-      "description": "Must match the input P01 timestamp."
+      "description": "The authoritative timestamp (UTC) when the P-01 gate calculation was executed."
     },
     "m02_payload_hash": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{64}$",
-      "description": "SHA-256 Hash of the M-02 Payload."
+      "$ref": "#/$defs/sha256_hash",
+      "description": "Cryptographic Hash of the M-02 Payload, ensuring linkage."
     },
     "input_record_hash": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{64}$",
-      "description": "Cryptographic hash (SHA-256) of the full P-01 Gate Input object (for input immutability verification)."
+      "$ref": "#/$defs/sha256_hash",
+      "description": "Cryptographic hash of the complete P-01 Gate Input object (for input immutability verification)."
     },
     "decision": {
       "type": "string",
-      "enum": ["PASS", "FAIL"],
-      "description": "The final PASS/FAIL outcome of the gate calculation."
+      "enum": [
+        "PASS",
+        "FAIL"
+      ],
+      "description": "The final outcome of the gate calculation."
     },
     "gate_score": {
       "type": "number",
       "minimum": -1,
       "maximum": 1,
-      "description": "The normalized operational score resulting from the calculus (S01 - S02)."
+      "description": "The normalized operational signal score resulting from the calculus (S01 - S02)."
     },
     "veto_source": {
-      "type": ["string", "null"],
-      "enum": ["S03_POLICY", "S02_RISK_THRESHOLD", "NONE"],
-      "description": "Identifies the primary factor leading to a FAIL decision, if applicable."
+      "$ref": "#/$defs/veto_mechanism"
     }
   },
-  "required": ["p01_timestamp_utc", "m02_payload_hash", "input_record_hash", "decision", "gate_score"]
+  "required": [
+    "p01_timestamp_utc",
+    "m02_payload_hash",
+    "input_record_hash",
+    "decision",
+    "gate_score",
+    "veto_source"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "FAIL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "veto_source": {
+            "not": {
+              "const": "NONE"
+            },
+            "description": "If the decision is FAIL, the veto_source cannot be NONE."
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "veto_source": {
+            "const": "NONE",
+            "description": "If the decision is PASS, the veto_source must explicitly be NONE."
+          }
+        }
+      }
+    }
+  ]
 }
