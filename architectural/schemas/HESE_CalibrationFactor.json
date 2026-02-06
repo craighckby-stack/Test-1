@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "HESE_CalibrationFactor_v94_1",
+  "title": "HESE Calibration Telemetry Contract",
+  "description": "Defines the required payload structure for Trust and Risk Calibration Factors (TCF/RCF) broadcast by HESE to upstream arbiters.",
+  "type": "object",
+  "properties": {
+    "evolution_id": {
+      "type": "string",
+      "description": "Unique identifier for the evolution batch contributing to the calculation."
+    },
+    "epoch_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of factor generation."
+    },
+    "TCF": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Trust Calibration Factor (0.0=Low Trust, 1.0=Perfect Alignment)."
+    },
+    "RCF": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Risk Calibration Factor (Multiplier affecting MCRA's Operational Risk Buffer)."
+    },
+    "delta_average": {
+      "type": "number",
+      "description": "The normalized historical average of the prediction error ($\bar{\Delta}_T$)."
+    },
+    "delta_variance": {
+      "type": "number",
+      "description": "The statistical variance of prediction errors in the recent window, critical for RCF calculation."
+    }
+  },
+  "required": ["evolution_id", "epoch_timestamp", "TCF", "RCF", "delta_average"]
+}
