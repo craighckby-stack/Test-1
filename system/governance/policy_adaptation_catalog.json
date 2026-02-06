@@ -1,28 +1,47 @@
 {
-  "version": "1.0",
-  "description": "Catalog of formal adaptation algorithms used for dynamic tuning of governance metric thresholds.",
-  "adaptation_policies": [
+  "catalog_version": "2.0",
+  "system_context": "GovernanceThresholdAdaptation",
+  "description": "Structured catalog linking dynamic governance metric adaptation policies to their executable implementation modules. Policies use implementation_ref for decoupling.",
+  "policies": [
     {
-      "policy_id": "EMA-K1",
-      "name": "Exponential Moving Average Adaptive Tuning",
-      "type": "Smoothing",
-      "parameters": {
+      "id": "ADAPT-EMA-V1",
+      "name": "Exponential Moving Average Smoothing (V1)",
+      "mechanism_type": "TimeSeriesSmoothing",
+      "implementation_ref": "core/algorithms/ema_smoother.py",
+      "status": "Active",
+      "config": {
         "alpha": 0.05,
-        "history_window_days": 7,
-        "activation_condition": "MetricsHistorySufficient"
+        "history_window_steps": 168,
+        "history_unit": "Hours",
+        "activation_trigger": "MetricHistoryStable"
       },
-      "logic_specification": "Algorithm 4.1: Weighted Average calculation targeting stability margin."
+      "metadata": {
+        "stability_target": "Margin_0.01",
+        "last_updated": "2024-05-10T10:00:00Z"
+      }
     },
     {
-      "policy_id": "CVM-T3",
-      "name": "Contextual Volatility Modifier",
-      "type": "RiskModulation",
-      "parameters": {
-        "sensitivity_factor": 1.5,
-        "maximum_deviation": 0.1,
-        "input_stream_refs": ["RiskExposureIndex", "OperationalLoadFactor"]
+      "id": "ADAPT-CVM-V3",
+      "name": "Contextual Volatility and Risk Modulation (V3)",
+      "mechanism_type": "ContextualRiskAdjustment",
+      "implementation_ref": "core/algorithms/risk_modulation_v3.py",
+      "status": "Active",
+      "config": {
+        "sensitivity_factor_base": 1.5,
+        "max_threshold_shift": 0.1,
+        "input_streams": [
+          {"stream_id": "RiskExposureIndex", "weight": 0.6},
+          {"stream_id": "OperationalLoadFactor", "weight": 0.4}
+        ],
+        "conditional_boost": {
+          "trigger": "OperationalLoadFactor > 0.8",
+          "action_formula": "sensitivity_factor_base * 1.2"
+        }
       },
-      "logic_specification": "If OperationalLoadFactor > 0.8, multiply sensitivity_factor by 1.2."
+      "metadata": {
+        "deployment_phase": "Production_A/B",
+        "risk_classification": "HighImpact"
+      }
     }
   ]
 }
