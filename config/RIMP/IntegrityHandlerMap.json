@@ -1,0 +1,24 @@
+{
+  "handler_map_version": "1.0",
+  "handlers": [
+    {
+      "ref_id": "recovery.reboot_module_safe",
+      "target_type": "SERVICE_API",
+      "endpoint": "/v1/system/reboot?mode=safe",
+      "min_severity": "CRITICAL"
+    },
+    {
+      "ref_id": "containment.kill_process_and_audit",
+      "target_type": "LOCAL_EXECUTABLE",
+      "path": "/bin/rimp/kill_audit.sh",
+      "params": ["--scope", "{policy_id}"],
+      "min_severity": "HIGH"
+    },
+    {
+      "ref_id": "traffic.throttle_scope",
+      "target_type": "RUNTIME_CONFIG_PATCH",
+      "patch_target": "NET_LIMITS",
+      "severity_override": "MODERATE"
+    }
+  ]
+}
