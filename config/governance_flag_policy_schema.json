@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agi.sovereign/config/governance_flag_policy_schema.json",
+  "title": "Governance Flag Policy Definition Schema",
+  "description": "Schema defining the operational policies associated with each FSL Flag Type, utilized by the Integrity Halt Sentinel (IHS) for immediate remediation action planning.",
+  "type": "object",
+  "required": ["policies"],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "description": "Version of the policy set."
+    },
+    "policies": {
+      "type": "array",
+      "description": "List of defined governance policies, indexed by FlagType and AxiomID.",
+      "items": {
+        "type": "object",
+        "required": ["flag_type", "trigger_axiom_id", "severity", "default_action_plan"],
+        "properties": {
+          "flag_type": {
+            "$ref": "./governance_flag_state_schema.json#/$defs/FSL_FlagType",
+            "description": "The specific Flag Type identifier."
+          },
+          "trigger_axiom_id": {
+            "$ref": "./governance_flag_state_schema.json#/$defs/FSL_AxiomID",
+            "description": "The specific axiom whose violation triggered this policy entry."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL", "SYSTEM_HALT"],
+            "description": "Categorized severity of the breach for prioritization."
+          },
+          "default_action_plan": {
+            "type": "string",
+            "description": "Identifier for the required mitigation script or playbook (e.g., P001_ROLLBACK_SAFE)."
+          },
+          "is_ih_mandatory": {
+            "type": "boolean",
+            "description": "If True, this policy enforces integrity_halt_signal=True, regardless of local agent setting."
+          }
+        }
+      }
+    }
+  }
+}
