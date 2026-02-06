@@ -1,11 +1,37 @@
 import crypto from 'crypto';
 import util from 'util';
 
-// Use built-in promisification for cleaner async handling
 const generateKeyPairAsync = util.promisify(crypto.generateKeyPair);
 
+// Standard cryptographic constants for signing
+// NOTE: These should be configured centrally in a larger system (see architectural proposal)
 const ALGORITHM = 'sha256';
 const CURVE = 'prime256v1'; // ECDSA standard curve (P-256)
+
+/**
+ * Recursively sorts object keys alphabetically to ensure deterministic serialization.
+ * Only modifies objects; returns other types as is.
+ * @param {any} data
+ * @returns {any} A structure identical to data, but with sorted object keys.
+ */
+function _sortData(data) {
+    if (typeof data !== 'object' || data === null) {
+        return data;
+    }
+
+    if (Array.isArray(data)) {
+        // Arrays maintain order but nested objects within are sorted
+        return data.map(item => _sortData(item));
+    }
+
+    // Handle plain objects: sort keys and map values recursively
+    const sortedKeys = Object.keys(data).sort();
+    
+    return sortedKeys.reduce((sortedObject, key) => {
+        sortedObject[key] = _sortData(data[key]);
+        return sortedObject;
+    }, {});
+}
 
 /**
  * Ensures consistent serialization of data for signing purposes (Canonical JSON subset).
@@ -21,24 +47,18 @@ function serialize(data) {
         return Buffer.from(data, 'utf8');
     }
 
-    // Handle complex types (objects/arrays) via deterministic stringification.
+    // Step 1: Recursively sort complex objects to ensure key ordering consistency.
     if (typeof data === 'object' && data !== null) {
-        // Uses a replacer to ensure keys are sorted for deterministic output.
-        const str = JSON.stringify(data, (key, value) => {
-            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                // Create a new object with sorted keys recursively
-                return Object.keys(value).sort().reduce((sorted, k) => {
-                    sorted[k] = value[k];
-                    return sorted;
-                }, {});
-            }
-            return value;
-        });
+        const sortedData = _sortData(data);
+        // Step 2: Stringify the now deterministically ordered structure.
+        const str = JSON.stringify(sortedData);
         return Buffer.from(str, 'utf8');
     }
 
+    // Handle primitives (number, boolean, etc.)
     return Buffer.from(String(data), 'utf8');
 }
+
 
 /**
  * Utility focusing on Asymmetric Cryptography (Digital Signatures - ECDSA).
@@ -47,10 +67,23 @@ function serialize(data) {
  */
 export class SignatureUtil {
 
+    // --- Internal Helpers ---
+    
+    /**
+     * Converts data into its canonical serialized Buffer representation prior to hashing/signing.
+     * @param {any} data - Data payload (string, buffer, or object).
+     * @returns {Buffer} The serialized buffer.
+     */
+    static serializeForSigning(data) {
+        // Exposes the core serialization mechanism used for signing/verification checks.
+        return serialize(data);
+    }
+
     // --- Key Management ---
 
     /**
      * Generates a new ECDSA public/private key pair suitable for digital signing.
+     * Uses P-256 curve and PEM encoding (PKCS#8 for private, SPKI for public).
      * @returns {Promise<{publicKey: string, privateKey: string}>}
      */
     static async generateKeyPair() {
@@ -62,20 +95,10 @@ export class SignatureUtil {
         return { publicKey, privateKey };
     }
 
-    /**
-     * Converts data into its canonical serialized Buffer representation prior to hashing/signing.
-     * @param {any} data - Data payload (string, buffer, or object).
-     * @returns {Buffer} The serialized buffer.
-     */
-    static serializeForSigning(data) {
-        return serialize(data);
-    }
-
     // --- Signing and Verification ---
 
     /**
      * Generates a digital signature for a data payload using a private key.
-     * Data is deterministically serialized internally before signing.
      * @param {any} data - The data payload to sign.
      * @param {string} privateKeyPem - The private key in PEM format.
      * @returns {string} The digital signature (Base64 DER encoding).
@@ -89,7 +112,6 @@ export class SignatureUtil {
 
     /**
      * Verifies a digital signature against the original data using a public key.
-     * Data is deterministically serialized internally before verification.
      * @param {any} data - The original data payload.
      * @param {string} signatureBase64 - The digital signature in base64 format.
      * @param {string} publicKeyPem - The public key in PEM format.
@@ -106,9 +128,8 @@ export class SignatureUtil {
     
     /**
      * Calculates the hash of deterministically serialized data.
-     * Useful for content addressing or checking integrity of large messages.
      * @param {any} data 
-     * @returns {string} Hex encoded hash.
+     * @returns {string} Hex encoded hash (content address).
      */
     static hash(data) {
         const buffer = SignatureUtil.serializeForSigning(data);
