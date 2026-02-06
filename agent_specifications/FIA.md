@@ -1,39 +1,55 @@
 # AGENT SPECIFICATION: FORENSIC INTEGRITY AGENT (FIA)
 
-| Key Parameter | Value |
-|:---:|:---:|
-| Agent ID | A-FIA-001 |
-| Version | 1.0.1 (Refactored) |
-| Status | Critical Core |
-| Domain | Integrity & Recovery |
+## 0. Configuration Block (ACB)
+| Parameter | Value | Definition | Constraint |
+|:---:|:---:|:---|:---:|
+| Agent ID | A-FIA-001 | Unique System Identifier | Mandatory |
+| Version | 2.0.0 (Refactored) | Specification Version | Incremental |
+| Status | Tier-0 Critical | Operational Priority Class | Non-Degradable |
+| Domain | P-05 (Integrity Enclave) | Isolated Trust Context | Architectural (SEE) |
 
-## 1. Core Mandate: Forensic Integrity and Deterministic Snapshotting
+## 1. Core Mandate: Attested State Commitment and Immutability
 
-The Forensic Integrity Agent (FIA) maintains a singular, high-priority mandate: **Total Execution Deterministic Snapshot (TEDS) Capture and Integrity Management.** The FIA ensures the absolute immutability and verifiable isolation of all forensic capture data essential for the **Rollback Protocol (RRP)** initiation and analysis.
+The Forensic Integrity Agent (FIA) maintains the singular mandate of establishing and verifying the integrity of the system state immediately prior to catastrophic failure. This involves executing the **Atomic State Attestation (ASA)** sequence and managing the resulting immutable records.
 
-## 2. Isolation Principle (Segregation of Duties - SoD)
+### 1.1 Key Terminology Update
+- **TEDS (Total Execution Deterministic Snapshot)** is formally renamed to **ASC (Attested State Commit)**, emphasizing the cryptographic verification requirements over mere capture.
+- The capture sequence is referred to as the **Forensic Commit Protocol (FCP)**.
 
-The FIA must operate in an isolated trust domain (P-05) enforced by architectural boundaries. This is non-negotiable.
+## 2. Security Context: Isolated Execution Enclave (SEE)
 
-1.  **Architectural Segregation:** The FIA execution environment and its target storage layer (Forensic Vault, see FVM specification) must be physically and logically isolated from standard Execution Agents (SGS, GAX) to prevent contamination or retrospective modification of evidence.
-2.  **Functional Restriction:** FIA is strictly prohibited from executing P1-P4 standard workflow logic (e.g., Decision Space Evolution - DSE). Its functions are limited exclusively to real-time integrity assurance, cryptographic signing, and data archiving.
+The FIA must operate within a **Secure Execution Enclave (SEE)**, denoted as Trust Domain P-05. This enforces non-negotiable architectural segregation necessary for evidentiary integrity.
+
+1.  **Architectural Segregation:** P-05 environment (including its storage layer, the Forensic Vault Module - FVM) must be logically and physically isolated from P1-P4 standard execution domains (SGS, GAX, etc.). This isolation must prevent back-propagation of operational state changes or retrospective modification attempts.
+2.  **Functional Restriction:** FIA is prohibited from executing non-forensic workflow logic (e.g., DSE, Mission Control). Its execution scope is strictly limited to real-time integrity assurance, cryptographic signing, hash chaining, and FCP execution.
 
 ## 3. Operational Trigger: Rollback Protocol (RRP) Activation
 
-The FIA monitors system telemetry for indicators of structural failure (RRP Activation Signal).
+FIA passively monitors the `RRP Activation Interface (RRP-AI)` for confirmed Fault Mask Signals, indicating the initiation of the Rollback Protocol (RRP).
 
-1.  **Trigger Sources:** Detected failure flags originating primarily from the GAX layer: PVLM (Policy Violation Logic Mask), MPAM (Mission Parameter Anomaly Mask), ADTM (Adversarial Threat Model), or direct P-01 Denial/Failure state.
-2.  **Action Sequence:** Upon receiving an RRP trigger, the FIA executes a mandatory, immediate State Lock. The TEDS sequence is then initiated to capture and sign the exact system state at the moment of failure.
+### 3.1 Fault Mask Signals (Trigger Sources)
+System telemetry alerts confirming state inconsistency:
+- `PVLM`: Policy Violation Logic Mask
+- `MPAM`: Mission Parameter Anomaly Mask
+- `ADTM`: Adversarial Threat Model confirmation
+- `P-01 Failure Lock`: Direct command from Root Governance.
 
-## 4. Data Contracts and Artifact Management
+### 3.2 Action Sequence (Forensic Commit Protocol - FCP)
+Upon receiving a confirmed Fault Mask Signal, the FIA executes the mandatory FCP sequence:
+1.  **State Hard Lock (Atomic Freeze):** Immediate cessation of system clock advancement/memory modification outside of the P-05 boundary.
+2.  **ASC Generation:** Capture of the deterministic frozen state.
+3.  **Integrity Chaining:** Hashing and cryptographic linking of the ASC to previous operational states.
+4.  **Root Signing:** Submission of the ASC hash block to the CRoT for final attestation.
 
-The FIA is responsible for producing two critical, integrity-verified artifacts, archived in the Forensic Vault Module (FVM):
+## 4. Artifact Contracts and Data Outputs
+
+The FIA is responsible for producing two integrity-verified artifacts, securely stored in the FVM.
 
 | Artifact ID | Name | Description | Output Consumer | Integrity Requirement |
 |:---:|:---|:---|:---:|:---:|
-| **TEDS** | Total Execution Deterministic Snapshot | A complete, cryptographically signed, immutable record of the system state prior to the failure lock. | GAX (RRP Analysis Module) | Immutability (Requirement 5.0). Signed by CRoT. |
-| **PCSS** | Policy Correction Statistical Source | Filtered statistical data derived exclusively from the verified TEDS for policy adjustment. | GAX (Policy Adaptation Module) | Verified traceability; Auditable Linkage to source TEDS hash. |
+| **ASC** | Attested State Commit | The cryptographically signed, immutable state record captured during the FCP.| GAX (RRP Analysis Module) | Immutability (Requirement 5.0). Signed by CRoT. Chained Hash Proof. |
+| **RPR** | Rollback Policy Report | Filtered, anonymized statistical data derived *exclusively* from the verified ASC for policy optimization.| GAX (Policy Adaptation Module) | Verified traceability via linkage to source ASC cryptographic hash. |
 
-## 5. Trust Anchor
+## 5. Trust Anchor and Verification
 
-The **Chain of Root Trust (CRoT)** serves as the final, external trust anchor responsible for cryptographically signing the TEDS archive, guaranteeing compliance with all isolation and immutability standards set forth in this specification.
+The **Chain of Root Trust (CRoT)** remains the external authority responsible for digitally signing the ASC, establishing the final proof of compliance regarding isolation and immutability standards defined by this specification (ASC-2.0.0 Standard).
