@@ -1,30 +1,37 @@
 {
-  "profile_version": "1.0.0",
+  "profile_version": "2.0.0",
+  "metadata": {
+    "schema_standard": "AGI_Config_Standard_2.1",
+    "description": "Standardized definition of required archival policies, regulatory mandates, and linked system dependencies."
+  },
   "profiles": {
-    "WORM_L4_Strict_Profile": {
-      "description": "Strict Write Once Read Many implementation adhering to L4 regulatory requirements.",
-      "technical_parameters": {
-        "storage_system_type": "Immutable_Object_Store_v7",
-        "minimum_retention_control": "System_Hardlock_Mandatory",
-        "retention_clock_source": "Coordinated_Epoch_Time",
+    "Regulatory_WORM_L4_Strict": {
+      "profile_category": "Regulatory_Mandate",
+      "description": "Strict Write Once Read Many (WORM) adhering to L4 requirements.",
+      "settings": {
+        "storage_target_id": "Immutable_Object_Store_v7",
+        "minimum_retention_mode": "Hardlock_Mandatory",
+        "clock_source": "Coordinated_Epoch_Time",
         "legal_hold_override_enabled": true
       }
     },
-    "KMS_Cluster_R6_Internal_ID": {
-      "description": "Reference parameters for Internal Key Management Cluster R6.",
-      "implementation": {
-        "type": "Internal_Hardware_Security_Module",
-        "endpoint": "kms.epru.internal.v6",
-        "key_rotation_policy": "Annual_Mandatory",
-        "key_algorithm_spec": "NIST_SP_800-38A"
+    "System_KMS_Cluster_R6": {
+      "profile_category": "System_Dependency",
+      "description": "Configuration reference for Internal Key Management Cluster R6.",
+      "settings": {
+        "dependency_type": "Internal_HSM",
+        "endpoint_uri": "kms.epru.internal.v6",
+        "rotation_policy": "Annual_Mandatory",
+        "algorithm_spec": "NIST_SP_800-38A"
       }
     },
-    "RP_GAX1_LITIGATION": {
+    "Retention_RP_GAX1_LITIGATION": {
+      "profile_category": "Retention_Policy",
       "description": "GAX I required 10-year financial retention policy.",
-      "trigger_criteria": {
-        "start_event": "Transaction_Closure_Date",
-        "end_event": "Retention_Limit_Achieved",
-        "retention_logic": "FIFO_Controlled_Policy_Engine"
+      "retention_logic": {
+        "start_trigger": "Transaction_Closure_Date",
+        "retention_period_years": 10,
+        "cleanup_engine": "FIFO_Controlled_Policy_Engine"
       }
     }
   }
