@@ -1,10 +1,13 @@
 import typing
-from typing import Dict, Any, List, TYPE_CHECKING
+from typing import Dict, Any, List, TYPE_CHECKING, Optional
 
 # Forward declarations for external components (ensures clean imports)
 if TYPE_CHECKING:
-    # Assuming these types exist in related services
+    # Assuming these types exist in related services, ideally centralized in SIHM_Types
     from .SIHM_CommandResult import SIHM_CommandResult
+    
+    class CommandHandlerProtocol(typing.Protocol):
+        def execute(self, **kwargs: Any) -> 'SIHM_CommandResult': ...
 
     class Context:
         def check_status(self, required_status: str) -> bool: ...
@@ -14,13 +17,15 @@ if TYPE_CHECKING:
         def log_critical(self, message: str) -> None: ...
 
     class CommandRegistry:
-        def get_isolated_commands(self) -> Dict[str, Any]: ...
+        def get_isolated_commands(self) -> Dict[str, CommandHandlerProtocol]: ...
 
 
 class SIHM_ExecutionEngine:
     """
     Isolated runtime engine for executing System Integrity Halt Manifest directives.
     Employs robust priority queuing, state checks, failure propagation, and exception handling.
+
+    Refactored to utilize private methods for cleaner execution lifecycle management.
     """
 
     def __init__(self, isolation_context: 'Context', command_registry: 'CommandRegistry'):
@@ -28,12 +33,78 @@ class SIHM_ExecutionEngine:
         self.context = isolation_context
         self.commands: Dict[str, Any] = command_registry.get_isolated_commands()
         self.registry = command_registry
+        self._halt_triggered: bool = False
+
+    def _validate_directive(self, cmd_str: Optional[str], sequence_id: str) -> bool:
+        """Ensures the directive is structurally valid and the command exists."""
+        if not cmd_str:
+            self.context.log_error(f"Directive ID {sequence_id} is missing a 'command' identifier. Skipping.")
+            return False
+
+        if cmd_str not in self.commands:
+            self.context.log_error(f"Unknown SIHM command: '{cmd_str}' ({sequence_id}). Skipping execution.")
+            return False
+            
+        return True
+
+    def _execute_command(self, cmd_str: str, sequence_id: str, params: Dict[str, Any], halt_on_failure: bool) -> None:
+        """Attempts to run the command and handles results or exceptions."""
+        try:
+            command_handler = self.commands[cmd_str]
+            # Expects a structured result (SIHM_CommandResult)
+            result = command_handler.execute(**params)
+            
+            self.context.log_action(sequence_id, result)
+
+            # Check result structure for failure propagation
+            if hasattr(result, 'success') and result.success is False:
+                self.context.log_error(f"Command failure: '{cmd_str}' ({sequence_id}). Message: {getattr(result, 'message', 'No details')}")
+                
+                if halt_on_failure:
+                    self.context.log_critical(f"CRITICAL HALT: Sequence terminated due to mandatory result failure for '{cmd_str}'.")
+                    self._halt_triggered = True
+            
+        except Exception as e:
+            # Catch runtime/system exceptions during command invocation
+            self.context.log_critical(f"FATAL EXCEPTION during '{cmd_str}' ({sequence_id}): {type(e).__name__}: {str(e)}")
+            
+            if halt_on_failure:
+                self.context.log_critical(f"CRITICAL HALT: Sequence terminated due to mandatory exception halt for '{cmd_str}'.")
+                self._halt_triggered = True
+
+    def _process_directive(self, directive: Dict[str, Any]) -> None:
+        """Handles the full lifecycle execution and logging for a single directive."""
+        if self._halt_triggered:
+            return
+
+        cmd_str = directive.get('command')
+        sequence_id = directive.get('sequence_id', 'SEQ_UNKNOWN')
+        required_status = directive.get('required_status')
+        params = directive.get('parameters', {})
+        halt_on_failure = directive.get('halt_on_failure', False)
+
+        if not self._validate_directive(cmd_str, sequence_id):
+            return
+
+        # 1. Context Status Check
+        if required_status and not self.context.check_status(required_status):
+            self.context.log_skip(f"Status requirement failure ({required_status}) for '{cmd_str}' ({sequence_id}).")
+            return
+
+        # 2. Execution and Failure Handling
+        self._execute_command(
+            cmd_str=cmd_str,
+            sequence_id=sequence_id,
+            params=params,
+            halt_on_failure=halt_on_failure
+        )
 
     def execute_manifest(self, manifest_data: Dict[str, Any]) -> bool:
         """
         Executes the provided SIHM manifest response plan in strict priority order.
         Returns True if execution completed successfully without mandatory halting.
         """
+        self._halt_triggered = False # Reset state for new execution run
         response_plan: List[Dict[str, Any]] = manifest_data.get('response_plan', [])
 
         if not response_plan:
@@ -42,57 +113,18 @@ class SIHM_ExecutionEngine:
             
         # 1. Structural Sort: Ensures strict adherence to critical priority levels.
         try:
-            # Use .get with a default priority (0) for robustness against poorly formed manifests
-            response_plan.sort(key=lambda x: x.get('priority_level', 0), reverse=True)
-        except TypeError:
-            self.context.log_critical("Manifest plan contains invalid priority_level types. Halting initialization.")
+            # Robust sorting: Explicitly cast priority level to integer, handling None or missing values as 0.
+            response_plan.sort(key=lambda x: int(x.get('priority_level', 0) or 0), reverse=True)
+        except (TypeError, ValueError) as e:
+            self.context.log_critical(f"Manifest plan sorting failed due to invalid priority type: {e}. Halting initialization.")
             return False
 
-        manifest_execution_success = True
-        
+        # 2. Sequential Execution
         for directive in response_plan:
-            cmd_str = directive.get('command')
-            sequence_id = directive.get('sequence_id', 'SEQ_UNKNOWN')
-            required_status = directive.get('required_status')
-            params = directive.get('parameters', {})
-            # Critical Safety Feature: Determines if command failure necessitates immediate sequence halt
-            halt_on_failure = directive.get('halt_on_failure', False) 
-
-            if not cmd_str:
-                self.context.log_error(f"Directive ID {sequence_id} is missing a 'command' identifier. Skipping.")
-                continue
-
-            # 2. Context Status Check
-            if required_status and not self.context.check_status(required_status):
-                self.context.log_skip(f"Status requirement failure ({required_status}) for '{cmd_str}' ({sequence_id}).")
-                continue
-
-            # 3. Execution
-            if cmd_str not in self.commands:
-                self.context.log_error(f"Unknown SIHM command: '{cmd_str}' ({sequence_id}). Skipping execution.")
-                continue
-
-            try:
-                command_handler = self.commands[cmd_str]
-                # Expects a structured result (SIHM_CommandResult) defined in scaffolding
-                result = command_handler.execute(**params)
-                
-                self.context.log_action(sequence_id, result)
-
-                # 4. Failure Propagation (Requires structured result object)
-                if hasattr(result, 'success') and result.success is False:
-                    self.context.log_error(f"Command failure: '{cmd_str}' ({sequence_id}). Message: {getattr(result, 'message', 'No details')}")
+            self._process_directive(directive)
+            
+            if self._halt_triggered:
+                # Immediate break if an internal directive triggered a mandatory halt.
+                break 
                     
-                    if halt_on_failure:
-                        self.context.log_critical(f"CRITICAL HALT: Sequence terminated due to mandatory halt on failure for '{cmd_str}'.")
-                        manifest_execution_success = False
-                        break 
-                
-            except Exception as e:
-                # Catch runtime/system exceptions during command invocation
-                self.context.log_critical(f"FATAL EXCEPTION during '{cmd_str}' ({sequence_id}): {type(e).__name__}: {str(e)}")
-                manifest_execution_success = False
-                if halt_on_failure:
-                    break 
-                    
-        return manifest_execution_success
+        return not self._halt_triggered
