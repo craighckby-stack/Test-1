@@ -1,28 +1,39 @@
 import json
+from typing import Any, Dict
 
-def canonicalize_json(data: dict) -> bytes:
+def canonicalize_json(data: Dict[str, Any]) -> bytes:
     """Generates a deterministic, canonical representation of a JSON object (JCS compliant logic).
 
-    Ensures cryptographic integrity across signing agents by enforcing:
-    1. Consistent key ordering (alphabetical).
-    2. Minimal white-space.
-    3. Consistent Unicode encoding.
+    This function ensures data integrity for signing and hashing by enforcing:
+    1. Consistent key ordering (alphabetical, mandatory for JCS).
+    2. Minimal white-space (separators=(',', ':')).
+    3. Consistent Unicode encoding (UTF-8, non-ASCII characters preserved).
 
     Args:
-        data: The dictionary representation of the JSON payload.
+        data: The dictionary representation of the payload.
 
     Returns:
         Bytes object containing the canonicalized UTF-8 JSON string.
+    
+    Raises:
+        ValueError: If input data contains non-JSON serializable types.
     """
-    # Use Python's standard library features simulating JCS requirements:
-    # separators=(',', ':') removes whitespace.
-    # sort_keys=True enforces alphabetical ordering.
-    canonical_string = json.dumps(
-        data,
-        sort_keys=True,
-        separators=(',', ':'),
-        ensure_ascii=False  # Required for UTF-8 stability
-    )
+    try:
+        # Configuration matches standard JCS implementation using Python stdlib:
+        # sort_keys=True: Alphabetical key ordering.
+        # separators=(',', ':'): Removes unnecessary whitespace.
+        # ensure_ascii=False: Allows direct UTF-8 encoding of non-ASCII characters.
+        canonical_string = json.dumps(
+            data,
+            sort_keys=True,
+            separators=(',', ':'),
+            ensure_ascii=False
+        )
+    except TypeError as e:
+        # Catch non-serializable objects (e.g., sets, datetime objects not manually serialized)
+        raise ValueError(f"Input data contains non-JSON serializable types: {e}")
+
+    # JCS requires the output to be UTF-8 encoded bytes.
     return canonical_string.encode('utf-8')
 
 if __name__ == '__main__':
