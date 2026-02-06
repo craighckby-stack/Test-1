@@ -1,0 +1,30 @@
+{
+  "validator_version": "1.0.0",
+  "description": "Maps abstract constraint directives defined in schema/teds_field_definitions.json to specific internal IH Sentinel validation functions/libraries.",
+  "type_handlers": {
+    "string": "StringValidator.handleString",
+    "number": "NumericValidator.handleNumber",
+    "boolean": "TypeValidator.handleBoolean"
+  },
+  "constraint_mappings": {
+    "pattern": "RegexEngine.match",
+    "length": "StringProcessor.checkFixedLength",
+    "min_value": "NumericValidator.checkMin",
+    "max_value": "NumericValidator.checkMax",
+    "required": "ExistenceChecker.validatePresence"
+  },
+  "format_handlers": {
+    "ISO8601": {
+      "function": "TimeParser.validateISO8601",
+      "args_map": {
+        "precision": "ms_required"
+      }
+    },
+    "SHA256": {
+      "function": "CryptoEngine.verifyHashFormat",
+      "args_map": {
+        "length": "expected_byte_length"
+      }
+    }
+  }
+}
