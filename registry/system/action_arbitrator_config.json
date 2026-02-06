@@ -1,0 +1,22 @@
+{
+  "service_name": "ActionArbitratorService",
+  "version": "1.0.0",
+  "purpose": "Defines global policies for handling concurrent and prioritized enforcement actions based on reported severity.",
+  "priority_levels": {
+    "CRITICAL": 100,
+    "HIGH": 75,
+    "MEDIUM": 50,
+    "LOW": 25
+  },
+  "default_logging_format": {
+    "severity": "{{policy_severity}}",
+    "timestamp": "ISO_8601",
+    "policy_id": "{{GXC_ID}}",
+    "handler": "{{handler_module}}",
+    "status": "ENFORCED"
+  },
+  "escalation_policy": {
+    "min_critical_overlap_time_ms": 500,
+    "concurrency_violation_handler": "AAS_Shutdown_Module"
+  }
+}
