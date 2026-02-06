@@ -1,52 +1,110 @@
 /**
  * E-01: External Policy Index (EPI)
- * Role: Provides a read-only, cached interface to fetch and enforce immutable, external compliance mandates, regulatory updates, or global mission kill-switches.
- * Integration: Feeds directly into the OGT decision process (P-01 Constraint) as a secondary Veto input alongside C-15.
+ * Role: Provides a robust, read-only, synchronous interface to access verified, immutable external policies (compliance, mandates, kill-switches).
+ * Mechanism: Manages periodic, cryptographically verified updates in the background to ensure high availability and minimal latency for Veto checks.
  */
 class ExternalPolicyIndex {
-    constructor(externalSourceUrl) {
-        this.sourceUrl = externalSourceUrl; // e.g., centralized governance feed
-        this.policyCache = {};
+    /**
+     * @param {Object} config
+     * @param {string} config.sourceUrl - URL of the centralized governance feed.
+     * @param {number} [config.cacheDurationMs=3600000] - Duration in milliseconds for cache renewal.
+     * @param {Object} config.PolicyFetcher - Dependency Injection for the secure fetch utility.
+     */
+    constructor({ sourceUrl, cacheDurationMs = 3600000, PolicyFetcher }) {
+        if (!PolicyFetcher || typeof PolicyFetcher.fetch !== 'function' || !sourceUrl) {
+            throw new Error("E-01: EPI must be initialized with sourceUrl and a reliable PolicyFetcher utility.");
+        }
+        
+        this.sourceUrl = sourceUrl;
+        this.cacheDurationMs = cacheDurationMs;
+        this.fetcher = PolicyFetcher;
+
+        this.policyCache = {}; // The critical synchronous state storage
         this.lastFetchTime = 0;
-        this.cacheDuration = 3600000; // 1 hour
-    }
-
-    async refreshCache() {
-        // Simulated secure fetch mechanism from external, verified source.
-        if (Date.now() - this.lastFetchTime < this.cacheDuration) {
-            return;
-        }
-
-        try {
-            // In a real system, this would involve cryptographic verification of the source
-            const externalMandates = await fetch(this.sourceUrl).then(res => res.json());
-            this.policyCache = this.parseMandates(externalMandates);
-            this.lastFetchTime = Date.now();
-            console.log('E-01 Cache refreshed with external compliance mandates.');
-        } catch (error) {
-            console.error(`E-01: Failed to fetch external policies. Using stale cache.`, error);
-            // Critical: If fetch fails, the system must retain maximum caution (rely on existing safe policies)
-        }
-    }
-
-    parseMandates(rawData) {
-        // Logic to extract mandatory veto conditions (e.g., 'SYSTEM_FREEZE', 'REGULATORY_HALT')
-        return rawData.mandates || {};
+        this.refreshIntervalHandle = null;
+        this.isInitialized = false;
     }
 
     /**
-     * @param {Object} proposalMetadata - Metadata describing the proposed change (e.g., area of modification).
-     * @returns {boolean} True if a mandatory external veto applies.
+     * Starts the initial fetch and sets up the background periodic cache refresh.
+     */
+    async initialize() {
+        if (this.isInitialized) return;
+        
+        // Immediate initial load (critical step 1)
+        await this._fetchAndSetPolicies(true);
+        
+        // Set up the periodic background refresh task (critical step 2)
+        this.refreshIntervalHandle = setInterval(() => {
+            this._fetchAndSetPolicies(false);
+        }, this.cacheDurationMs);
+
+        this.isInitialized = true;
+        console.log(`E-01 Index initialized. Background refresh set for every ${this.cacheDurationMs / 1000}s.`);
+    }
+
+    /**
+     * Stops the periodic cache refresh.
+     */
+    stop() {
+        if (this.refreshIntervalHandle) {
+            clearInterval(this.refreshIntervalHandle);
+            this.refreshIntervalHandle = null;
+            this.isInitialized = false;
+            console.log('E-01 Index refresh interval stopped.');
+        }
+    }
+
+    async _fetchAndSetPolicies(initialLoad = false) {
+        const fetchStartTime = Date.now();
+        try {
+            const externalMandates = await this.fetcher.fetch(this.sourceUrl);
+            
+            // Atomically update the synchronous state
+            this.policyCache = this._parseMandates(externalMandates);
+            this.lastFetchTime = fetchStartTime;
+            
+            console.log('E-01 Cache updated successfully.');
+            return true;
+        } catch (error) {
+            if (initialLoad) {
+                // On critical failure during initial boot, enforce the maximum caution policy.
+                console.error("E-01 CRITICAL FAILURE: Cannot load initial policies. Enforcing failsafe freeze.", error);
+                this.policyCache = { globalFreeze: true }; 
+            } else {
+                 console.error(`E-01: Background policy fetch failed. Relying on existing cache (last fetched: ${new Date(this.lastFetchTime).toISOString()}).`, error);
+            }
+            return false;
+        }
+    }
+
+    _parseMandates(rawData) {
+        // Logic to extract mandatory veto conditions (e.g., 'SYSTEM_FREEZE', 'REGULATORY_HALT')
+        // Use Object.freeze to ensure immutability once loaded into the cache.
+        return Object.freeze(rawData.mandates || {});
+    }
+
+    /**
+     * @param {Object} proposalMetadata - Metadata describing the proposed change (e.g., area of modification, target).
+     * @returns {boolean} True if a mandatory external veto applies. CRITICAL: This MUST be synchronous and fast.
      */
     isVetoRequired(proposalMetadata) {
-        this.refreshCache(); // Ensure fresh compliance check
+        if (!this.isInitialized) {
+            // System queried before initialization completes. Default to maximum caution.
+            console.warn("E-01 queried before initialization. Veto enforced (Fail-Safe Mode). This state should be rare.");
+            return true; 
+        }
+
+        const policy = this.policyCache;
         
-        // Example check: Is a system-wide freeze currently mandated?
-        if (this.policyCache['globalFreeze'] === true) {
+        // 1. Global Mandates (Highest Precedence)
+        if (policy.globalFreeze === true) {
             return true; 
         }
         
-        // Further specific checks based on proposalMetadata and active external policies
+        // Implementation details for more nuanced policy enforcement would go here
+        // Example: if (policy.restrictedAreas.includes(proposalMetadata.target)) return true;
+        
         return false;
     }
 }
