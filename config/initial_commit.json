@@ -1,12 +1,1 @@
-{
-  "commit_utility": "CGR (Configuration Governance Registrar)",
-  "target_artifact": "CSR (Config State Root)",
-  "hashing_algorithm": "SHA3-512 (Deterministic Ordering Required)",
-  "input_manifests": [
-    "config/ACVD.json",
-    "config/FASV.json",
-    "config/EPB.json"
-  ],
-  "input_serialization_method": "Canonical JSON (IETF RFC 8785)",
-  "pre_s00_verification_by": "CRoT"
-}
+[object Object]
