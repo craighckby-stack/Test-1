@@ -1,1 +1,31 @@
-[object Object]
+{
+  "system_version": "v94.1",
+  "generation_policies": {
+    "schema_version": "1.0",
+    "naming_strategy": "kebab-case",
+    "required_headers": ["license", "security_tags"],
+    "complexity_limits": {
+      "max_lines": 500,
+      "max_dependencies": 10
+    }
+  },
+  "template_sources": {
+    "local_path": "./templates/",
+    "remote_git": "git@internal.repo/ctg_templates.git",
+    "cache_ttl_hours": 24
+  },
+  "evolution_controls": {
+    "self_correction_threshold": 0.85,
+    "automatic_validation_level": "strict",
+    "refactoring_priority": ["security", "coherence", "performance"],
+    "entropy_monitoring": {
+      "enabled": true,
+      "max_index": 0.92,
+      "action": "trigger_audit"
+    }
+  },
+  "target_architectures": {
+    "default": "monolithic_service",
+    "allowed": ["microservice", "serverless_function", "cli_utility"]
+  }
+}
