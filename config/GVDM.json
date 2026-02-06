@@ -1,1 +1,27 @@
-[object Object]
+{
+  "version": "1.0.0",
+  "name": "Global_Velocity_Data_Model",
+  "description": "Standardized configuration for vector space dimensions, velocity monitoring thresholds, and system data integrity policies.",
+  "vector_space": {
+    "embedding_dimension": 768,
+    "quantization_bits": 8,
+    "default_metric": "cosine",
+    "indexing_strategy": "HNSW",
+    "hnsw_m": 32,
+    "hnsw_ef_construction": 200,
+    "reindex_load_threshold": 0.85
+  },
+  "velocity_control": {
+    "change_threshold_percent": 0.05,
+    "debounce_window_ms": 500,
+    "max_velocity_events_per_s": 1000,
+    "event_retention_days": 7,
+    "dynamic_throttle_enabled": true
+  },
+  "data_integrity": {
+    "auto_pruning_enabled": true,
+    "stale_data_age_days": 30,
+    "schema_enforcement_level": "strict_warn",
+    "integrity_check_frequency_hours": 6
+  }
+}
