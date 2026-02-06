@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agi.sovereign/config/remediation_playbook_catalog_schema.json",
+  "title": "Remediation Playbook Catalog Schema",
+  "description": "Defines the available remediation playbooks executable by the Integrity Halt Sentinel (IHS) and associated safety constraints and execution details.",
+  "type": "object",
+  "required": ["playbooks"],
+  "properties": {
+    "catalog_version": {
+      "type": "string"
+    },
+    "playbooks": {
+      "type": "object",
+      "description": "Map of Playbook Identifiers (PXXX_NAME) to execution definitions.",
+      "patternProperties": {
+        "^P[0-9]{3}_[A-Z_]+$": {
+          "type": "object",
+          "required": ["name", "executor", "safety_level", "parameters"],
+          "properties": {
+            "name": { "type": "string", "description": "Human-readable name of the playbook." },
+            "executor": {
+              "type": "string",
+              "description": "Path or identifier for the executable remediation script/module within the IHS execution context."
+            },
+            "safety_level": {
+              "type": "string",
+              "enum": ["L0_AUDIT", "L1_SAFE_ROLLBACK", "L2_MUTATING", "L3_DESTRUCTIVE"],
+              "description": "Safety rating determining when automatic execution is permissible without explicit human override."
+            },
+            "requires_confirmation": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, requires operator confirmation regardless of severity or context."
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Runtime arguments required by the executor, defined as a JSON schema object."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
