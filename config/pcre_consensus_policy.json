@@ -1,25 +1,85 @@
 {
-  "policy_id": "PCRE-V1.0",
-  "description": "Defines the required cryptographic signing quorum and multi-party ratification process for updating Core Mandates (P-SET) and ACVM Thresholds.",
-  "ratification_requirements": {
-    "quorum_size": 7,
-    "signer_groups_required": [
-      "Governance_DAO_Key",
-      "System_Stability_Council",
-      "Integrity_Audit_Service"
-    ],
-    "update_frequency_cap_hours": 72
+  "metadata": {
+    "policy_name": "Policy_Consensus_Ratification_Evolution",
+    "policy_version": "V1.1_A",
+    "policy_id": "PCRE-V1.1",
+    "description": "Defines the required cryptographic signing quorum, role-based acceptance thresholds, and multi-party ratification process for updating Core Mandates (P-SET) and ACVM Thresholds."
   },
-  "immutable_targets_hash_locked": [
-    "ACVM",
-    "GSEP-C/F",
-    "DARM"
-  ],
-  "process_flow": [
-    "Policy Draft Creation",
-    "Cryptographic Hash Locking (L2)",
-    "Quorum Vote Consensus Check (P-M02 Constraint Validation)",
-    "Activation/Deployment (New Hash written to CHR)"
-  ],
-  "enforcement_agent": "DMW/CHR Interlock"
+  "governance_constraints": {
+    "ratification_window": {
+      "update_frequency_cap_hours": 72,
+      "rollback_window_hours": 24
+    },
+    "thresholds": {
+      "absolute_min_quorum": 7,
+      "role_acceptance_percentage": 0.67,
+      "total_pool_acceptance_min": 0.51
+    },
+    "signer_roles_required": [
+      {
+        "role_name": "Regulatory_Governance",
+        "groups": [
+          "Governance_DAO_Key"
+        ],
+        "min_signatures_required": 1,
+        "is_mandatory": true
+      },
+      {
+        "role_name": "System_Integrity_Verification",
+        "groups": [
+          "Integrity_Audit_Service",
+          "Security_Harness_Agent"
+        ],
+        "min_signatures_required": 3,
+        "is_mandatory": true
+      },
+      {
+        "role_name": "Operational_Stability",
+        "groups": [
+          "System_Stability_Council"
+        ],
+        "min_signatures_required": 1,
+        "is_mandatory": false
+      }
+    ]
+  },
+  "protected_targets": {
+    "scope": "HashLocked",
+    "targets": [
+      {
+        "module_id": "ACVM",
+        "verification_hook": "VigilanceEngine"
+      },
+      {
+        "module_id": "GSEP-C/F",
+        "verification_hook": "RuntimeKernelHalt"
+      },
+      {
+        "module_id": "DARM",
+        "verification_hook": "StateConsistencyMonitor"
+      }
+    ]
+  },
+  "consensus_workflow": [
+    {
+      "stage_id": "P-DRAFT",
+      "name": "Policy Draft Creation & Pre-Validation",
+      "required_input": "P-SET",
+      "exit_condition": "Cryptographic Hash Locking (L2) Successful"
+    },
+    {
+      "stage_id": "P-VOTE",
+      "name": "Quorum Vote Consensus Check",
+      "dependency": "P-DRAFT",
+      "constraint_check": "P-M02 Validation Engine",
+      "exit_condition": "Thresholds met/exceeded (Total Quorum & Role Quorum)"
+    },
+    {
+      "stage_id": "P-DEPLOY",
+      "name": "Activation and State Commitment",
+      "dependency": "P-VOTE",
+      "enforcement_agent": "DMW/CHR Interlock",
+      "success_state": "New Policy Hash written to CHR and validated by DMW."
+    }
+  ]
 }
