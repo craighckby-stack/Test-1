@@ -1,9 +1,1 @@
-{
-  "module_version": "V94.1",
-  "description": "Governance Threshold Configuration Module (GTCM). Stores authoritative numerical thresholds required for L4 P-01 Commitment Arbitration (GCO). These values are immutable within the current system version \mathcal{V}_{N} and require a new GSEP transition to modify.",
-  "critical_thresholds": {
-    "S_01_UTILITY_MINIMUM": 0.85, 
-    "S_02_RISK_MAXIMUM": 0.10 
-  },
-  "parameters_source": "Initial System Calibration (ISC V94.1)"
-}
+[object Object]
