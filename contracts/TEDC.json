@@ -1,13 +1,1 @@
-{
-  "contractName": "TEDC",
-  "sourcePath": "contracts/TEDC.sol",
-  "abi": [],
-  "bytecode": "0x",
-  "deployedBytecode": "0x",
-  "linkReferences": {},
-  "gasEstimates": {},
-  "metadata": {
-    "compiler": {},
-    "settings": {}
-  }
-}
+The provided artifact file is empty boilerplate. To achieve higher intelligence and efficiency, the underlying contract source file must be instantiated using industry standards (ERC-20 via OpenZeppelin). The generated artifact (this JSON) will then populate automatically upon compilation.
