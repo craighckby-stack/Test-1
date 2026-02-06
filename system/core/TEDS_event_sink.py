@@ -22,8 +22,8 @@ class TEDSDataIntegrityBreach(TEDSContractViolation):
 class TEDSEventSink:
     """
     Manages the sequential, immutable writing of events to the Trusted Event Data Stream (TEDS).
-    Enforces compliance with the TEC (TEDS Event Contract) and signals the IntegritySentinel 
-    upon detected violation.
+    Enforces compliance with the TEC (TEDS Event Contract), including stage-specific requirements,
+    and signals the IntegritySentinel upon detected violation.
     """
     
     # Explicitly define the dependency on the Integrity Halt system
@@ -37,49 +37,66 @@ class TEDSEventSink:
         # Resumes logging sequence if existing persistence handler is provided
         self.expected_sequence_id: int = len(self.log_stream)
 
-    def _check_sequence(self, stage: str) -> None:
-        """Internal check for strict sequential stage adherence. Raises TEDSSequenceBreach if violated."""
+    def _get_expected_contract_entry(self, stage: str) -> Dict[str, Any]:
+        """Internal check for strict sequential stage adherence and returns the contract definition."""
         try:
-            expected_stage = TEC_CONTRACT["sequence"][self.expected_sequence_id]["stage"]
+            contract_entry = TEC_CONTRACT["sequence"][self.expected_sequence_id]
+            expected_stage = contract_entry["stage"]
+            
             if stage != expected_stage:
                 raise TEDSSequenceBreach(
                     f"Expected stage '{expected_stage}' (Seq ID: {self.expected_sequence_id}), received '{stage}'."
                 )
+            return contract_entry
         except IndexError:
             raise TEDSSequenceBreach(
                 f"TEDS sequence overflow. Attempted ID {self.expected_sequence_id}, contract length {len(TEC_CONTRACT['sequence'])}."
             )
 
-    def _check_payload(self, event: Dict[str, Any]) -> None:
-        """Internal check for required key presence in the event data. Raises TEDSDataIntegrityBreach."""
-        required_keys = TEC_CONTRACT.get("required_keys", [])
+    def _check_payload(self, event: Dict[str, Any], contract_entry: Dict[str, Any]) -> None:
+        """
+        Internal check for required key presence, combining global and stage-specific requirements.
+        Assumes contract supports 'stage_specific_keys' in the sequence definition.
+        """
+        
+        global_keys = TEC_CONTRACT.get("required_keys", [])
+        stage_keys = contract_entry.get("stage_specific_keys", [])
+        
+        required_keys = set(global_keys) | set(stage_keys)
+        
         missing_keys = [key for key in required_keys if key not in event]
         
         if missing_keys:
             raise TEDSDataIntegrityBreach(
-                f"Event missing required keys defined in TEC: {', '.join(missing_keys)}."
+                f"Event for stage '{contract_entry['stage']}' (Seq ID: {self.expected_sequence_id}) missing required keys: {', '.join(missing_keys)}."
             )
 
-    def validate_event(self, event_data: Dict[str, Any], stage_id: str) -> None:
+    def validate_event(self, event_data: Dict[str, Any], stage_id: str) -> Dict[str, Any]:
         """
-        Runs comprehensive validation checks. Raises TEDSContractViolation on failure.
+        Runs comprehensive validation checks (sequence and payload schema).
+        Returns the confirmed contract entry for the stage.
         """
-        self._check_sequence(stage_id)
-        self._check_payload(event_data)
+        contract_entry = self._get_expected_contract_entry(stage_id)
+        self._check_payload(event_data, contract_entry)
+        return contract_entry
         
     def commit_event(self, event_data: Dict[str, Any], stage_id: str) -> bool:
         """Attempts to append a validated event to the immutable TEDS."""
         try:
-            self.validate_event(event_data, stage_id)
+            # Step 1: Validation
+            contract_entry = self.validate_event(event_data, stage_id)
             
-            # --- Successful Commitment ---
+            # Step 2: Successful Commitment Preparation
+            # Using hash of contract entry ensures the exact contract definition used is immutable and auditable.
             event_record = {
                 "sequence_id": self.expected_sequence_id,
                 "stage": stage_id,
+                "contract_hash": hash(json.dumps(contract_entry, sort_keys=True)),
                 "commit_timestamp": time.time(), 
                 "data": event_data
             }
             
+            # Step 3: Write to Stream and Increment Sequence
             self.log_stream.append(event_record)
             self.expected_sequence_id += 1
             return True
@@ -87,8 +104,12 @@ class TEDSEventSink:
         except TEDSContractViolation as e:
             # CRITICAL: Signal the halt system immediately upon contract violation
             details = {
+                "violation_type": type(e).__name__,
+                "error_message": e.args[0], 
                 "sequence_id_attempted": self.expected_sequence_id,
-                "stage_attempted": stage_id
+                "stage_attempted": stage_id,
+                "event_data_attempted": event_data, # Include full data for critical audit
+                "contract_definition_length": len(TEC_CONTRACT['sequence'])
             }
             
             self.INTEGRITY_HALT_SIGNAL(
