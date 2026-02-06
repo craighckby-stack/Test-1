@@ -1,22 +1,22 @@
-## Governance Integrity & Rule Attestation Module (GIRAM) Specification V98.0
+## Governance Integrity & Rule Attestation Module (GIRAM) Specification V99.0
 
-**MISSION:** To enforce the prerequisite cryptographic integrity of all critical governance artifacts, defined within the Governance Integrity Root Manifest (GIRM), and prevent the initiation of any GSEP workflow if integrity verification fails.
+**MISSION:** To establish an immutable cryptographic state anchor by enforcing the prerequisite integrity of all governance artifacts defined in the Governance Integrity Root Manifest (GIRM), and to deterministically veto the Governance System Evolution Process (GSEP) initiation if the attestation fails the established baseline.
 
-**GSEP INTEGRATION:** Stage 0 (Pre-GSEP Constraint Orchestration).
+**GSEP INTEGRATION:** Stage 0 - Pre-Execution Constraint Initialization Layer (PECIL).
 
 ### Formal I/O Specifications:
 
-*   **Input:**
-    *   `GIRM_S01`: The current integrity manifest specifying target files and expected baselines.
-    *   `D-01_LIR`: Last Integrity Record (LIR) from the D-01 Audit Logger (immutable baseline hash).
-*   **Output (Success):**
-    *   `GIR_Anchor`: Governance Integrity Register (Attested cryptographic state anchor for GSEP).
-*   **Output (Failure):**
-    *   `VETO_CRITICAL`: VETO signal issued to GCO, requiring EGOM/HIL intervention.
+*   **Input (I-S01):**
+    *   `GIRM_S01`: The current integrity manifest (Must be signed and contain file paths and expected artifact metadata).
+    *   `IB_Reference`: Integrity Baseline Reference (The pre-attested immutable hash commitment, provided via the Audit Subsystem D-01).
+*   **Output (O-S01 Success):**
+    *   `GIR_Anchor`: Governance Integrity Register (Attested and signed cryptographic state anchor for GSEP T-01 Trust Calculus).
+*   **Output (O-S01 Failure):**
+    *   `VETO_P9_CRITICAL`: Critical VETO signal issued immediately to the Constraint Orchestrator (GCO), requiring Human-in-the-Loop (HIL) intervention and formal EGOM (Executive Governance Oversight Module) resolution.
 
-### Core Functionality:
+### Core Functionality (Attestation Sequence):
 
-1.  **Integrity Root Manifest Validation (IRM-V):** GIRAM consumes the `GIRM_S01` and ensures its schema and non-repudiation signature are valid. This manifest defines the complete set of files required for Stage 1 operations (e.g., GRS policies, C-15 configurations).
-2.  **Cryptographic Baseline Synchronization (CBS):** GIRAM performs a Systemic Hash Validation (SHV) of all files listed in the `GIRM_S01`. The generated composite cryptographic hash (SHA-384 in a Cryptographic Non-Repudiation Envelope [CNRE]) is compared against the `D-01_LIR` (Last attested baseline).
-3.  **Constraint Orchestration Lockout:** If CBS verification fails (hash mismatch, signature invalid, or critical file missing), GIRAM transmits an immediate `VETO_CRITICAL` signal to the GCO. This hard-stops Stage 1 initialization and logs a severity P9 critical failure.
-4.  **Governance Integrity Registration (GIR):** Upon successful verification, GIRAM generates the final Governance Integrity Register (`GIR_Anchor`). The GIR is a signed, time-stamped digest representing the attested integrity state, which serves as the immutable rule-set reference anchor for the P-01 Trust Calculus (Stage 3). The `GIR_Anchor` is provided to the GCO.
+1.  **Integrity Root Manifest Validation (IRM-V):** GIRAM receives and verifies the `GIRM_S01`. Validation includes schema conformance, timestamp validity, and verification of the manifest's non-repudiation signature against the system's Governance Root Trust Anchor (GRTA).
+2.  **Attestation State Derivation (ASD):** GIRAM performs Systemic Hash Validation (SHV) across all listed critical artifacts. The resulting data structure is wrapped in a standardized Cryptographic Non-Repudiation Envelope (CNRE) using SHA-512 (upgraded from SHA-384). This deterministic hash derivation represents the current governance state.
+3.  **Baseline Constraint Enforcement (BCE):** The derived CNRE hash (Current State) is compared against the supplied `IB_Reference` (Committed Baseline). If the hashes diverge, a P9 critical failure is instantly registered.
+4.  **GIR Anchor Commitment:** Upon successful BCE, GIRAM generates the final `GIR_Anchor`. This register is signed, time-stamped, and references the successfully verified governance state, providing the immutable reference key for all subsequent GSEP Stages (T-01 Trust Calculus and P-01 Policy Enforcement). The `GIR_Anchor` is committed to the DILS (Distributed Immutable Ledger Service) via the D-02 transaction handler.
