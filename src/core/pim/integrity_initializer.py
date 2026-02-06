@@ -1,71 +1,117 @@
 #!/usr/bin/env python
-# integrity_initializer.py: Mandated Pre-G0 Integrity Check Layer
+# src/core/pim/integrity_initializer.py: Mandated Pre-G0 Integrity Check Layer
 
-import json
 import hashlib
 import os
+import json 
+from pathlib import Path
+import logging
+from typing import Union
 
-POLICY_NEXUS_PATH = 'protocol/pgn_master.yaml'
+# NOTE: Assuming structured logging system (e.g., system_logger.py scaffold) is available.
+logger = logging.getLogger(__name__)
+
+POLICY_NEXUS_PATH = Path('protocol/pgn_master.yaml')
+CHECKSUM_ALGORITHM = 'sha256'
+
+class IntegrityVerificationError(Exception):
+    """Custom exception signaling a failure during cryptographic integrity verification."""
+    pass
 
 class IntegrityInitializer:
-    """Validates foundational configuration integrity (GAX, P-Set specs) 
-    against the PGN checksums prior to activating the PIM (G0 readiness)."""
+    """
+    Validates foundational configuration integrity (GAX, P-Set specs) 
+    against the PGN (Policy Governance Nexus) checksums prior to activating 
+    the PIM (G0 readiness).
     
-    def __init__(self):
-        self.pgn = self._load_pgn_nexus()
+    Utilizes chunked hashing and structured logging preparation for robustness.
+    """
+    
+    def __init__(self, nexus_path: Path = POLICY_NEXUS_PATH):
+        self.nexus_path = nexus_path
+        self.pgn_manifest = self._load_pgn_nexus()
 
-    def _load_pgn_nexus(self):
-        # Simulation: Load and parse the Policy Governance Nexus specification
-        # In production, this would involve secured, signed file loading.
-        print(f"[INIT] Loading Nexus: {POLICY_NEXUS_PATH}")
-        # Assuming YAML structure loaded here
-        return {
-            'version': '1.0',
-            'checksums': {
-                'protocol/gax_master.yaml': 'sha256:abcd123...', 
-                'protocol/cryptographic_manifest.json': 'sha256:efgh456...', 
-            }
-        }
-
-    def calculate_checksum(self, filepath):
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Mandatory config file missing: {filepath}")
+    def _load_pgn_nexus(self) -> dict:
+        """
+        Loads and parses the Policy Governance Nexus specification.
         
-        # Simple hash calculation for demonstration
-        with open(filepath, 'rb') as f:
-            data = f.read()
-            return f"sha256:{hashlib.sha256(data).hexdigest()}"
+        NOTE: In a production environment, this function must securely load 
+        a signed policy file (YAML/JSON) and perform signature validation 
+        before returning content.
+        """
+        logger.info(f"Attempting to load PGN Nexus from: {self.nexus_path}")
+        
+        # --- MOCK IMPLEMENTATION for structural definition ---
+        try:
+            # Simulated content load assuming YAML structure:
+            return {
+                'version': '1.1-PreG0',
+                'checksums': {
+                    'protocol/gax_master.yaml': 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 
+                    'protocol/cryptographic_manifest.json': 'sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210', 
+                }
+            }
+        except Exception as e:
+            # Catch file IO errors or parsing errors if not mocked
+            raise IntegrityVerificationError(f"Failed to securely load PGN Nexus at {self.nexus_path}: {e}")
+        # ---------------------------------------------------
 
-    def run_preflight_check(self):
-        print("[INIT] Running foundational integrity audit.")
+
+    @staticmethod
+    def calculate_checksum(filepath: Union[str, Path], algorithm: str = CHECKSUM_ALGORITHM) -> str:
+        """Calculates the specified hash for a given file path using chunk reading (memory efficient)."""
+        file_path = Path(filepath)
+        
+        if not file_path.exists():
+            raise FileNotFoundError(f"Mandatory configuration file missing: {file_path}")
+        
+        try:
+            h = hashlib.new(algorithm)
+            chunk_size = 65536 # 64 KB
+            
+            with file_path.open('rb') as f:
+                while chunk := f.read(chunk_size):
+                    h.update(chunk)
+            
+            return f"{algorithm}:{h.hexdigest()}"
+        except OSError as e:
+            raise IntegrityVerificationError(f"I/O error during hash calculation for {file_path}: {e}")
+
+    def run_preflight_check(self) -> bool:
+        """Executes the mandated Pre-G0 integrity audit."""
+        logger.info("Executing foundational configuration integrity audit.")
+        
         all_validated = True
         
-        for path, mandated_hash in self.pgn['checksums'].items():
+        for relative_path_str, mandated_hash in self.pgn_manifest['checksums'].items():
+            relative_path = Path(relative_path_str)
+            
             try:
-                current_hash = self.calculate_checksum(path)
+                current_hash = self.calculate_checksum(relative_path)
+                
                 if current_hash != mandated_hash:
-                    print(f"[ERROR] Checksum Mismatch: {path}")
-                    print(f"    Expected: {mandated_hash}")
-                    print(f"    Actual:   {current_hash}")
                     all_validated = False
+                    logger.error(
+                        f"Checksum Mismatch: {relative_path}. "
+                        f"Expected: {mandated_hash}, Actual: {current_hash}"
+                    )
                 else:
-                    print(f"[OK] Validated {path}")
-            except Exception as e:
-                print(f"[CRITICAL ERROR] Initializer failure: {e}")
+                    logger.info(f"Validated OK: {relative_path}")
+                
+            except (FileNotFoundError, IntegrityVerificationError) as e:
+                logger.critical(f"CRITICAL INIT FAILURE: Mandatory component check failed for {relative_path.name}. {e}")
+                # Immediate halt on critical missing or unreadable file
                 return False
-        
+
         if not all_validated:
-            raise SystemExit("FATAL: Pre-G0 integrity breach detected. Cannot proceed.")
+            error_msg = "FATAL: Pre-G0 integrity breach detected. System cannot proceed."
+            logger.critical(error_msg)
+            raise SystemExit(error_msg)
         
-        print("[INIT] Foundational Integrity Passed. Handing control to PIM/EMSU (G0)." )
+        logger.info("Foundational Integrity Passed. Handing control to PIM/EMSU (G0).")
         return True
 
 if __name__ == '__main__':
-    # Mock file existence for demonstration
-    # os.makedirs('protocol', exist_ok=True)
-    # with open('protocol/gax_master.yaml', 'w') as f: f.write('content')
-    # with open('protocol/cryptographic_manifest.json', 'w') as f: f.write('content')
-    
-    # IntegrityInitializer().run_preflight_check() 
-    # Requires actual file structure for live execution
+    # Note: Execution here requires actual file presence in 'protocol/' for meaningful test.
+    logging.basicConfig(level=logging.WARNING, format='[INIT_STANDALONE] %(levelname)s: %(message)s')
     pass
