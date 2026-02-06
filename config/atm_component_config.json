@@ -1,0 +1,29 @@
+{
+  "title": "Autonomous Trust Metric Component Configuration",
+  "version": "v94.1",
+  "description": "Defines the configuration and parameters for the underlying scoring mechanisms used to calculate the weighted metrics defined in the governance schema.",
+  "components": [
+    {
+      "metric": "semantic_compatibility_score",
+      "status": "enabled",
+      "algorithm": "DeepDeltaAnalysisV2",
+      "sensitivity": "medium",
+      "inputs": ["source_code_delta", "dependency_graph_snapshot"],
+      "weight_scaling_factor": 1.0
+    },
+    {
+      "metric": "formal_verification_impact",
+      "status": "enabled",
+      "toolchain": "FormalProver/v7",
+      "failure_handling": "rollback",
+      "verification_scope": "core_components"
+    },
+    {
+      "metric": "resource_allocation_stability",
+      "status": "enabled",
+      "monitoring_agent": "TelemetricSensor/v3",
+      "deviation_tolerance_percent": 12,
+      "lookback_period_hours": 48
+    }
+  ]
+}
