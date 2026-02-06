@@ -12,24 +12,35 @@
 
 /**
  * @typedef {Object} CheckResult
- * @property {boolean} success - True if the check passed.
- * @property {Object} [details] - Optional details regarding the measurement or threshold violation.
+ * @property {boolean} success - True if the check passed (i.e., resources are sufficient).
+ * @property {Object} [details] - Measurement data or information about the threshold violation.
+ */
+
+/**
+ * @typedef {Object} CheckExecutionResult
+ * @property {string} check - The ID of the check run.
+ * @property {string} status - The execution status (PASS, FAIL, ERROR).
+ * @property {boolean} success - Final boolean indicator (false if FAIL or ERROR).
+ * @property {Object} details - Measurement details, error message, or stack trace.
  */
 
 /**
  * @callback ResourceCheckFunction
  * @param {Object} monitor - The system monitoring dependency (e.g., EnvironmentMonitor).
- * @param {Object} governanceConfig - Global governance configuration baselines.
- * @param {Object} metadata - Requirements specific to the current mutation or operation payload (includes requiredResources).
+ * @param {Object} governanceConfig - Global governance configuration baselines (e.g., standard thresholds).
+ * @param {Object} payloadMetadata - Requirements specific to the current mutation or operation payload.
  * @returns {Promise<CheckResult>}
  */
 
-const CHECK_STATUS = {
+const CHECK_STATUS = Object.freeze({
     PASS: 'PASS',
     FAIL: 'FAIL',
     ERROR: 'ERROR', // Indicates an internal execution failure of the check function itself.
-};
+});
 
+/**
+ * Manages and executes resource prerequisite checks.
+ */
 class ResourceCheckRegistry {
     constructor() {
         /** @type {Map<string, ResourceCheckFunction>} */
@@ -39,15 +50,16 @@ class ResourceCheckRegistry {
 
     /**
      * Registers a new check function under a unique identifier.
+     * Throws an error if the function is invalid. Logs a warning if overwriting.
      * @param {string} id - Unique identifier for the check (e.g., 'CORE_CPU_BASELINE').
      * @param {ResourceCheckFunction} checkFn - The function defining the resource verification logic.
      */
     registerCheck(id, checkFn) {
         if (typeof checkFn !== 'function') {
-            throw new TypeError(`RCR Error: Check function for ID ${id} must be a function.`);
+            throw new TypeError(`RCR-E01: Check function for ID ${id} must be a function.`);
         }
         if (this.checks.has(id)) {
-            console.warn(`RCR Warning: Check ID ${id} already registered. Overwriting.`);
+            console.warn(`RCR-W01: Check ID ${id} already registered. Overwriting definition.`);
         }
         this.checks.set(id, checkFn);
     }
@@ -63,41 +75,45 @@ class ResourceCheckRegistry {
 
     /**
      * Executes all registered checks concurrently, providing necessary context.
-     * This method is intended to be called by ResourceAttestationModule.
-     *
-     * @param {Object} monitor - The monitoring dependency providing current system metrics.
-     * @param {Object} governanceConfig - Baseline governance configuration.
-     * @param {Object} metadata - Requirements specific to the mutation payload.
-     * @returns {Promise<Array<{check: string, status: string, success: boolean, details: Object}>>}
-     *          A promise resolving to an array of standardized check results.
+     * @param {Object} monitor - System monitoring dependency.
+     * @param {Object} governanceConfig - Baseline configuration.
+     * @param {Object} payloadMetadata - Mutation-specific requirements.
+     * @returns {Promise<CheckExecutionResult[]>} A promise resolving to an array of standardized check results.
      */
-    runAllChecks(monitor, governanceConfig, metadata) {
+    runAllChecks(monitor, governanceConfig, payloadMetadata) {
         const checkPromises = [];
 
         for (const [id, checkFn] of this.checks.entries()) {
-            // The runner function ensures standardization of results and robust error handling.
+            
+            // Runner wraps the check function for standardized error handling and result formatting.
             const runner = async () => {
+                const executionResult = {
+                    check: id,
+                    status: this.STATUS.ERROR, // Default status is ERROR until successfully resolved
+                    success: false,
+                    details: {},
+                };
+
                 try {
-                    // Pass the full context (monitor, governanceConfig, metadata) to the check function.
-                    const result = await checkFn(monitor, governanceConfig, metadata);
+                    /** @type {CheckResult} */
+                    const checkResult = await checkFn(monitor, governanceConfig, payloadMetadata);
                     
-                    return { 
-                        check: id, 
-                        status: result.success ? this.STATUS.PASS : this.STATUS.FAIL, 
-                        details: result.details || {},
-                        success: result.success
-                    };
+                    // Standardize successful/failed check result
+                    executionResult.success = !!checkResult.success;
+                    executionResult.status = checkResult.success ? this.STATUS.PASS : this.STATUS.FAIL;
+                    executionResult.details = checkResult.details || {};
+                    
+                    return executionResult;
+
                 } catch (error) {
-                    // Handle critical errors during check execution (e.g., monitor unavailable)
-                    return {
-                        check: id,
-                        status: this.STATUS.ERROR,
-                        details: { 
-                            message: `Critical RCR execution error in ${id}: ${error.message}`, 
-                            stack: error.stack 
-                        },
-                        success: false
+                    // Handle critical error during check execution (e.g., internal bug, dependency failure)
+                    executionResult.details = { 
+                        errorType: error.name,
+                        message: `Critical RCR execution error in ${id}: ${error.message}`, 
+                        stack: error.stack
                     };
+                    // status remains ERROR, success remains false.
+                    return executionResult;
                 }
             };
             checkPromises.push(runner());
