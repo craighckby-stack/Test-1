@@ -1,10 +1,11 @@
 // SAG V94.1 - GAX Policy Formal Verification Unit (Orchestration Layer)
-// Refactored for Heuristic History Retrieval and Enhanced Auditing.
+// Refactored for modular context retrieval, precise error handling, and enhanced auditing efficiency.
 
 const { GAX_PolicyConfig } = require('../../config/GAX/PolicyDefinitions.js');
 const { CRoT_HistoryAnchor } = require('../../core/CRoT/HistoryAnchor.js');
 const { PolicyHeuristicIndex } = require('../../core/CRoT/PolicyHeuristicIndex.js');
 const { FormalVerificationEngine } = require('./FormalVerificationEngine.js');
+const { PolicySchemaValidator } = require('./PolicySchemaValidator.js'); // Proposed dependency
 const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
 
 /**
@@ -21,7 +22,8 @@ const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
  * @property {boolean} isVerified - True if the proposed policy is consistent with history/axioms.
  * @property {string} verificationId - Unique ID for this specific verification run.
  * @property {number} timestamp - Time of completion (in ms).
- * @property {string} resultCategory - SUCCESS, FAILURE_AXIOMATIC, FAILURE_INTERNAL.
+ * @property {number} durationMs - Total duration of the verification process.
+ * @property {string} resultCategory - SUCCESS, FAILURE_AXIOMATIC, FAILURE_SCHEMA, FAILURE_INTERNAL.
  * @property {string|null} detailedReport - Human-readable summary.
  * @property {string[]|null} failureConstraints - List of violating axioms or internal error codes.
  */
@@ -47,6 +49,45 @@ function _buildResult(verificationId, timestampStart, details) {
 }
 
 /**
+ * V94.1 Optimized History Retrieval, combining heuristic indexing and depth fallback.
+ * @param {PolicyDelta} proposedPolicyUpdate
+ * @param {object} currentConfig
+ * @param {string} verificationId
+ * @returns {Promise<string[]>} Array of historical constraints.
+ */
+async function _fetchHistoricalContext(proposedPolicyUpdate, currentConfig, verificationId) {
+    let historicalConstraints = [];
+    const minRequiredAnchors = currentConfig.minRequiredAnchors || 5; 
+    const historyLookbackDepth = currentConfig.historicalLookbackDepth || 100;
+
+    // 1. Heuristic History Retrieval
+    const fingerprint = PolicyHeuristicIndex.generateFingerprint(proposedPolicyUpdate);
+    const relevantTxIds = await PolicyHeuristicIndex.getRelevantAnchorIDs(fingerprint);
+
+    if (relevantTxIds.length > 0) {
+        GAXTelemetry.debug('HISTORY_QUERY', { verificationId, type: 'HEURISTIC_ANCHORS', count: relevantTxIds.length });
+        historicalConstraints = await CRoT_HistoryAnchor.getConstraintsByTxIds(relevantTxIds);
+    }
+
+    // 2. Fallback: If heuristic retrieval fails or is insufficient
+    if (historicalConstraints.length < minRequiredAnchors) {
+        GAXTelemetry.debug('HISTORY_QUERY', { verificationId, type: 'DEPTH_FALLBACK', depth: historyLookbackDepth });
+        
+        const depthConstraints = await CRoT_HistoryAnchor.getRecentSuccessfulACVs(historyLookbackDepth);
+        
+        // Combine results, ensuring uniqueness
+        const combinedConstraints = new Set([...historicalConstraints, ...depthConstraints]);
+        historicalConstraints = Array.from(combinedConstraints);
+    }
+
+    if (historicalConstraints.length === 0) {
+        GAXTelemetry.warn('HISTORY_SHALLOW', { verificationId, info: "No certified history found for anchoring." });
+    }
+    
+    return historicalConstraints;
+}
+
+/**
  * Executes the Formal Verification Process for proposed policy updates.
  * This orchestration layer intelligently fetches history and validates consistency.
  *
@@ -65,47 +106,34 @@ async function executeFormalVerification(proposedPolicyUpdate) {
     });
 
     let currentConfig;
-    let historicalConstraints = [];
+    let historicalConstraints;
     let result;
 
     try {
-        // 1. Load Configuration (Assumed cached load)
+        // 1. Load Configuration
         currentConfig = await GAX_PolicyConfig.loadCurrent();
         if (!currentConfig) {
             throw new Error("CONFIG_LOAD_FAILURE: Policy Configuration missing or inaccessible.");
         }
 
-        // 2. Intelligent History Retrieval (V94.1 Heuristic Indexing)
-        const fingerprint = PolicyHeuristicIndex.generateFingerprint(proposedPolicyUpdate);
-        const relevantTxIds = await PolicyHeuristicIndex.getRelevantAnchorIDs(fingerprint);
+        // 2. Pre-Verification (Schema Validation) - Using proposed utility
+        PolicySchemaValidator.validatePolicyUpdate(proposedPolicyUpdate);
 
-        if (relevantTxIds.length > 0) {
-            GAXTelemetry.debug('HISTORY_QUERY', { verificationId, type: 'HEURISTIC_ANCHORS', count: relevantTxIds.length });
-            // Fetch targeted, relevant constraints
-            historicalConstraints = await CRoT_HistoryAnchor.getConstraintsByTxIds(relevantTxIds);
-        }
+        // 3. Intelligent History Retrieval
+        historicalConstraints = await _fetchHistoricalContext(
+            proposedPolicyUpdate,
+            currentConfig,
+            verificationId
+        );
 
-        // Fallback: If heuristic retrieval fails or is insufficient, use fixed depth query
-        if (historicalConstraints.length < currentConfig.minRequiredAnchors) {
-            const historyLookbackDepth = currentConfig.historicalLookbackDepth || 100;
-            GAXTelemetry.debug('HISTORY_QUERY', { verificationId, type: 'DEPTH_FALLBACK', depth: historyLookbackDepth });
-            
-            const depthConstraints = await CRoT_HistoryAnchor.getRecentSuccessfulACVs(historyLookbackDepth);
-            historicalConstraints = [...new Set([...historicalConstraints, ...depthConstraints])];
-        }
-
-        if (historicalConstraints.length === 0) {
-            GAXTelemetry.warn('HISTORY_SHALLOW', { verificationId, info: "No certified history found for anchoring." });
-        }
-
-        // 3. Delegation to the Formal Verification Engine
+        // 4. Delegation to the Formal Verification Engine
         const simulationResult = await FormalVerificationEngine.checkConsistency(
             proposedPolicyUpdate,
             currentConfig,
             historicalConstraints
         );
 
-        // 4. Process Engine Output
+        // 5. Process Engine Output
         if (simulationResult.isConsistent) {
             result = _buildResult(verificationId, timestampStart, {
                 isVerified: true,
@@ -124,17 +152,25 @@ async function executeFormalVerification(proposedPolicyUpdate) {
         }
 
     } catch (error) {
-        // 5. Handle Critical Internal Failure
+        // 6. Handle Failures
         const errorMessage = error.message || "Unknown PVF internal error.";
+        let category = 'FAILURE_INTERNAL';
+
+        if (errorMessage.startsWith('SCHEMA_VIOLATION')) {
+            category = 'FAILURE_SCHEMA';
+            GAXTelemetry.warn('PVF_FAILED_SCHEMA', { verificationId, error: errorMessage });
+        } else if (errorMessage.startsWith('CONFIG_LOAD_FAILURE')) {
+             GAXTelemetry.fatal('PVF_CONFIG_FATAL', { verificationId, error: errorMessage });
+        } else {
+            GAXTelemetry.fatal('PVF_EXECUTION_FATAL', { verificationId, errorName: error.name });
+        }
 
         result = _buildResult(verificationId, timestampStart, {
             isVerified: false,
-            category: 'FAILURE_INTERNAL',
+            category: category,
             report: `Execution failed: ${errorMessage.substring(0, 80)}...`,
-            constraints: [error.name || 'INTERNAL_ERROR', errorMessage.substring(0, 50)]
+            constraints: [error.name || category, errorMessage.substring(0, 50)]
         });
-
-        GAXTelemetry.fatal('PVF_EXECUTION_FATAL', { verificationId, errorName: error.name });
     }
 
     return result;
