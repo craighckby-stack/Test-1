@@ -3,27 +3,63 @@
  * Role: Post-Execution Integrity and Quarantine Enforcement (PEIQ)
  * Monitors post-execution metrics from FBA and triggers mandatory auditing/quarantine
  * if calculated risk exceeds the operational threshold.
+ * Note: Refactored to accept consolidated configuration and utilize standardized risk keys.
  */
+
+// Using standardized risk keys helps downstream analysis and cross-component consistency.
+const RISK_KEYS = {
+    SCORE: 'aggregateRisk',
+    THRESHOLD: 'failureThreshold',
+    STATUS: {
+        BREACH: 'INTEGRITY_BREACH',
+        QUARANTINED: 'QUARANTINED_FAILURE'
+    }
+};
 
 class IntegrityQuarantine {
     /**
      * @param {object} dependencies - Core system dependencies.
-     * @param {object} dependencies.auditLogger - The Decision Audit Logger instance.
+     * @param {object} dependencies.auditLogger - The Decision Audit Logger instance (expected to support structured logging).
      * @param {object} dependencies.fba - The Feedback Loop Aggregator instance.
      * @param {object} dependencies.artifactArchiver - A robust utility for moving/copying payloads.
-     * @param {number} failureThreshold - Threshold derived from risk parameters (e.g., 0.8).
-     * @param {string} quarantinePath - Archive location for failed payloads.
+     * @param {object} config - Configuration parameters.
+     * @param {number} config.failureThreshold - Threshold derived from risk parameters (e.g., 0.8).
+     * @param {string} config.quarantinePath - Archive location for failed payloads.
      */
-    constructor({ auditLogger, fba, artifactArchiver }, failureThreshold, quarantinePath) {
+    constructor({ auditLogger, fba, artifactArchiver }, config) {
         if (!auditLogger || !fba || !artifactArchiver) {
             throw new Error("IntegrityQuarantine requires auditLogger, fba, and artifactArchiver dependencies.");
         }
-        
+        if (!config || typeof config.failureThreshold !== 'number' || typeof config.quarantinePath !== 'string') {
+             throw new Error("IntegrityQuarantine requires valid config { failureThreshold, quarantinePath }.");
+        }
+
         this.auditLogger = auditLogger;
         this.fba = fba;
         this.artifactArchiver = artifactArchiver;
-        this.failureThreshold = failureThreshold;
-        this.quarantinePath = quarantinePath;
+        this.config = config; 
+    }
+
+    /**
+     * Internal method to check if the calculated risk triggers a mandatory quarantine.
+     * @private
+     * @param {number} riskScore
+     * @returns {boolean}
+     */
+    _isBreach(riskScore) {
+        return riskScore > this.config.failureThreshold;
+    }
+
+    /**
+     * Generates a high-priority runtime notification for the breach.
+     * @private
+     * @param {string} proposalId
+     * @param {number} risk
+     */
+    _notifyBreach(proposalId, risk) {
+        const riskFormatted = risk.toFixed(4);
+        const thresholdFormatted = this.config.failureThreshold.toFixed(4);
+        console.warn(`[IQ/PEIQ ALERT] Proposal ID ${proposalId} triggered mandatory quarantine. Risk (${riskFormatted}) exceeded threshold (${thresholdFormatted}).`);
     }
 
     /**
@@ -34,23 +70,25 @@ class IntegrityQuarantine {
      * @returns {Promise<boolean>} True if post-execution integrity holds, false if quarantine is triggered.
      */
     async monitor(proposalId, executionMetrics) {
-        // 1. Calculate aggregated failure risk, potentially involving complex aggregation or async operations
+        // 1. Calculate aggregated failure risk
         const aggregateRisk = await this.fba.calculatePostExecutionRisk(executionMetrics);
 
-        if (aggregateRisk > this.failureThreshold) {
+        if (this._isBreach(aggregateRisk)) {
             
-            console.warn(`PEIQ ALERT [Risk Breach]: Proposal ID ${proposalId}. Risk: ${aggregateRisk.toFixed(4)} exceeds threshold: ${this.failureThreshold.toFixed(4)}.`);
+            this._notifyBreach(proposalId, aggregateRisk);
             
-            // 2. Trigger mandatory audit log
+            // 2. Trigger mandatory structured audit log
             const auditEntry = {
                 proposalId,
-                type: 'INTEGRITY_BREACH',
-                status: 'QUARANTINED_FAILURE',
-                riskScore: aggregateRisk,
-                context: executionMetrics, // Capture full context for debugging
+                type: RISK_KEYS.STATUS.BREACH,
+                status: RISK_KEYS.STATUS.QUARANTINED,
+                [RISK_KEYS.SCORE]: aggregateRisk,
+                [RISK_KEYS.THRESHOLD]: this.config.failureThreshold,
+                context: executionMetrics, 
                 timestamp: new Date().toISOString()
             };
-            await this.auditLogger.logFailure(auditEntry);
+            // Using a structured logging method for clarity and standardization
+            await this.auditLogger.logStructuredEvent(auditEntry); 
 
             // 3. Move the failed payload (A-01 artifact) to quarantine
             await this._enforceQuarantine(proposalId);
@@ -70,11 +108,12 @@ class IntegrityQuarantine {
      */
     async _enforceQuarantine(proposalId) {
         try {
-            await this.artifactArchiver.archiveArtifact(proposalId, this.quarantinePath);
-            console.log(`[Archive Success] Payload ${proposalId} secured in quarantine: ${this.quarantinePath}`);
+            await this.artifactArchiver.archiveArtifact(proposalId, this.config.quarantinePath);
+            console.log(`[IQ/Archive Success] Payload ${proposalId} secured in quarantine: ${this.config.quarantinePath}`);
         } catch (error) {
-            // CRITICAL: Ensure this failure is highly visible. Archival compromise means data loss potential.
-            console.error(`CRITICAL ARCHIVE FAILURE: Failed to move proposal ${proposalId} to quarantine.`, error.message);
+            // CRITICAL: Archival failure must be highly visible, as it compromises data retention and future auditing.
+            console.error(`IQ/CRITICAL ARCHIVE FAILURE: Failed to move proposal ${proposalId} to quarantine. Error: ${error.message}`);
+            // Note: Not re-throwing, but governance should mandate this error triggers an external health monitor alert.
         }
     }
 }
