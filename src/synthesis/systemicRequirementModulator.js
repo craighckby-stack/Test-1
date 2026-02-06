@@ -1,68 +1,80 @@
-// Sovereign AGI v94.3 - Systemic Requirement Modulator (SRM)
+// Sovereign AGI v94.4 - Systemic Requirement Modulator (SRM)
 // Alignment: GSEP Stage 1 (Intent & Scoping)
-// Function: Transforms aggregated feedback (FBA/SEA/EDP) and internal diagnostic outputs 
-// into a structured, validated M-01 Mutation Intent Request package.
+// Function: Synthesizes aggregated system signals (FBA/SEA/EDP) into a structured, 
+// validated M-01 Mutation Intent Request package ready for execution scheduling.
 
-const { FBA } = require('../core/feedbackLoopAggregator');
-const { SEA } = require('../maintenance/systemicEntropyAuditor');
-const { EDP } = require('../maintenance/efficiencyDebtPrioritizer');
+const crypto = require('crypto');
+const SystemSignalSynthesizer = require('./SystemSignalSynthesizer');
 
 class SystemicRequirementModulator {
     constructor() {
+        // Define a strict M-01 schema internally.
         this.M01_SCHEMA = {
-            required: ['targetComponent', 'priorityScore', 'intentType', 'justificationHash'],
-            types: { /* ... schema details ... */ }
+            required: ['targetComponent', 'priorityScore', 'intentType', 'justificationHash', 'signalSources'],
+            types: {
+                intentType: ['Optimization', 'Bugfix', 'Evolution', 'Refactor', 'Scaffold'],
+                priorityScore: 'Number (0-100)',
+                targetComponent: 'String (Path/ID)'
+            }
         };
+        this.synthesizer = new SystemSignalSynthesizer();
     }
 
     /**
-     * Analyzes inputs and generates a high-fidelity M-01 Mutation Intent Request.
-     * @param {Object} inputData - Data derived from system audits (e.g., EDP schedules).
-     * @returns {Object} M-01 Request Package.
+     * Synthesizes complex system signals and generates a high-fidelity M-01 Mutation Intent Request.
+     * @param {Object} signals - Aggregated data bundles { fbaData, seaReport, edpSchedule }.
+     * @returns {Object} M-01 Request Package or failure object.
      */
-    generateM01(inputData) {
-        // 1. Identify critical need (e.g., highest debt priority from EDP)
-        const criticalNeed = this._assessSystemPressure(inputData);
+    generateM01(signals) {
+        // 1. Synthesize signals to derive the systemic need using the dedicated utility.
+        const criticalNeed = this.synthesizer.synthesize(signals);
 
         if (!criticalNeed) {
-            return { success: false, reason: "No prioritized evolutionary intent identified." };
+            return { success: false, reason: "Insufficient systemic pressure detected (P-score below threshold)." };
         }
 
-        // 2. Formulate basic intent structure
+        // 2. Formulate Mutation Intent structure
+        const justificationText = this._generateJustificationText(criticalNeed);
+
         const M01 = {
             timestamp: Date.now(),
             sourceModule: 'SRM',
-            intentType: criticalNeed.type, // e.g., 'Optimization', 'Bugfix', 'Scaffolding'
+            signalSources: criticalNeed.sources, // Track which systems contributed
+            intentType: criticalNeed.type, 
             targetComponent: criticalNeed.component,
-            priorityScore: criticalNeed.priority, // High value means high need
-            justification: `Based on EDP score ${criticalNeed.priority} and SEA assessment.`,
-            justificationHash: this._hashJustification(criticalNeed.justification),
+            priorityScore: criticalNeed.priorityScore, 
+            justification: justificationText,
+            justificationHash: this._hashJustification(justificationText),
+            mutationParams: criticalNeed.mutationParams || {} // Parameters for the actual synthesis
         };
 
-        // 3. Validation against M-01 schema (simulated)
+        // 3. Validation
         if (!this._validateM01Schema(M01)) {
-            throw new Error("M-01 schema validation failure during modulation.");
+            // High-integrity failure state requiring immediate diagnostic capture.
+            throw new Error(`SRM_SCHEMA_VIOLATION: Generated M-01 failed internal validation for ${M01.targetComponent}.`);
         }
 
-        console.log(`SRM: Generated M-01 for component ${M01.targetComponent} with score ${M01.priorityScore}.`);
+        console.log(`SRM: Generated M-01 (${M01.intentType}) for ${M01.targetComponent}, P:${M01.priorityScore}.`);
         return { success: true, M01 };
     }
 
-    _assessSystemPressure(data) {
-        // Placeholder logic: Check EDP for highest priority task.
-        const topPriority = EDP.getHighestScheduledDebt(); 
-        return topPriority;
+    _generateJustificationText(criticalNeed) {
+        return `SRM Synthesis: Requirement modulated to ${criticalNeed.type} on ${criticalNeed.component}. Priority Score: ${criticalNeed.priorityScore}. Input Signal Sources: ${criticalNeed.sources.join(', ')}.`;
     }
 
     _hashJustification(justification) {
-        // Secure cryptographic hashing function to ensure immutability of intent source
-        return require('crypto').createHash('sha256').update(justification).digest('hex');
+        // Uses the imported crypto module
+        return crypto.createHash('sha256').update(justification).digest('hex');
     }
 
     _validateM01Schema(m01) {
-        // In reality, robust schema enforcement would occur here.
-        // For simplicity, checking key fields.
-        return this.M01_SCHEMA.required.every(key => m01.hasOwnProperty(key));
+        // Enforce required fields
+        const requiredCheck = this.M01_SCHEMA.required.every(key => m01.hasOwnProperty(key));
+        
+        // Basic type/value checking (Check intent type against accepted list)
+        const typeCheck = this.M01_SCHEMA.types.intentType.includes(m01.intentType);
+        
+        return requiredCheck && typeCheck;
     }
 }
 
