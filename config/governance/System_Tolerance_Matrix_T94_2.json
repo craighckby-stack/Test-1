@@ -1,0 +1,16 @@
+{
+  "manifest_version": "STM_T94.2",
+  "critical_tolerance_metrics": {
+    "MPAM_Drift_Percentage": {
+      "high_watermark": 0.005,
+      "escalation_code": "RRP-002-S3",
+      "mitigation_strategy": "L1_Self_Correction_Patch"
+    },
+    "PVLM_Violation_Rate_5min": {
+      "high_watermark": 3,
+      "escalation_code": "RRP-001-S2",
+      "mitigation_strategy": "Transient_Veto_Ignition_Cooldown"
+    }
+  },
+  "default_action_if_within_tolerance": "Execute_L0_Mitigation"
+}
