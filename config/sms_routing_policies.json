@@ -1,0 +1,51 @@
+{
+  "description": "Configuration for the Intelligent SMS Routing Engine based on message metadata.",
+  "policies": [
+    {
+      "policy_name": "CriticalAlerts_HighAvailability",
+      "match_conditions": {
+        "compliance_category": "critical_alert",
+        "priority_level_min": 1,
+        "priority_level_max": 2
+      },
+      "routing_strategy": "Primary/Secondary Failover",
+      "route_configs": [
+        {
+          "region_code": "US",
+          "carrier": "Twilio_Dedicated",
+          "order": 1,
+          "cost_weight": 0.1
+        },
+        {
+          "region_code": "*",
+          "carrier": "Vonage_Premium",
+          "order": 1,
+          "cost_weight": 0.2
+        },
+        {
+          "region_code": "*",
+          "carrier": "AWS_SNS_Backup",
+          "order": 2,
+          "cost_weight": 0.9
+        }
+      ]
+    },
+    {
+      "policy_name": "Marketing_BulkSend_Optimization",
+      "match_conditions": {
+        "compliance_category": "marketing",
+        "priority_level_min": 4,
+        "priority_level_max": 5
+      },
+      "routing_strategy": "Lowest Cost First",
+      "route_configs": [
+        {
+          "region_code": "EU",
+          "carrier": "Nexmo_Standard_Bulk",
+          "order": 1,
+          "cost_weight": 0.05
+        }
+      ]
+    }
+  ]
+}
