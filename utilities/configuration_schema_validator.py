@@ -13,11 +13,36 @@ class ConfigurationError(Exception):
 
 class SchemaNotFoundError(ConfigurationError):
     """Raised when a required schema file or mapping is unavailable."""
-    pass
+    def __init__(self, message, artifact_name: str = None, lookup_path: str = None):
+        super().__init__(message)
+        self.artifact_name = artifact_name
+        self.lookup_path = lookup_path
 
 class ConfigurationFileError(ConfigurationError):
     """Raised when the configuration file cannot be read or parsed."""
-    pass
+    def __init__(self, message, file_path: str = None):
+        super().__init__(message)
+        self.file_path = file_path
+
+class ConfigurationIntegrityError(ValidationError):
+    """Custom validation failure tailored for GAX compliance (P-M02/G0)."""
+    def __init__(self, original_error: ValidationError, config_path: str, artifact_name: str):
+        message = (
+            f"[GAX Integrity Exhaustion: P-M02/G0] Validation Failed for '{config_path}' "
+            f"(Artifact: {artifact_name}). Detail: {original_error.message}"
+        )
+        # Preserve core ValidationError properties by forwarding them
+        super().__init__(
+            message=message,
+            validator=original_error.validator,
+            path=original_error.path,
+            schema=original_error.schema,
+            instance=original_error.instance,
+            cause=original_error,
+            context=original_error.context
+        )
+        self.config_path = config_path
+        self.artifact_name = artifact_name
 
 # ----------------------------------
 
@@ -25,6 +50,8 @@ class ConfigurationSchemaValidator:
     """ 
     Enforces GAX governance standards by validating all core configuration 
     artifacts against defined JSON schemas using a centralized master index.
+    
+    Implements schema caching for efficiency.
     """
     
     # Supported file types and their loading functions
@@ -44,39 +71,57 @@ class ConfigurationSchemaValidator:
             )
             
         try:
-            with open(gax_master_spec_path, 'r') as f:
+            with open(gax_master_spec_path, 'r', encoding='utf-8') as f:
                 # Assuming the index maps artifact names to schema file paths
                 self.gax_master_schema_index = yaml.safe_load(f)
         except Exception as e:
-            raise ConfigurationFileError(f"Failed to load GAX Master Schema Index: {e}")
+            raise ConfigurationFileError(
+                f"Failed to load GAX Master Schema Index from {gax_master_spec_path}: {e}",
+                file_path=gax_master_spec_path
+            )
 
-        # Infer the schema root directory from the master index location
-        self.schema_directory = os.path.dirname(gax_master_spec_path)
+        # Infer the schema root directory from the master index location using absolute path
+        self.schema_directory = os.path.dirname(os.path.abspath(gax_master_spec_path))
+        self._schema_cache = {}
 
     def _get_schema(self, artifact_name: str) -> dict:
         """
-        Retrieves the specific validation schema based on the artifact's logical name.
+        Retrieves the validation schema, using a cache if already loaded.
         """
+        if artifact_name in self._schema_cache:
+            return self._schema_cache[artifact_name]
+            
         schema_path_relative = self.gax_master_schema_index.get(artifact_name, None)
         
         if not schema_path_relative:
-            raise SchemaNotFoundError(f"Artifact type '{artifact_name}' not mapped in GAX Master Spec index.")
+            raise SchemaNotFoundError(
+                f"Artifact type '{artifact_name}' not mapped in GAX Master Spec index.",
+                artifact_name=artifact_name
+            )
             
         full_path = os.path.join(self.schema_directory, schema_path_relative)
         
+        if not os.path.exists(full_path):
+             raise SchemaNotFoundError(
+                f"Schema file defined for '{artifact_name}' not found.",
+                artifact_name=artifact_name,
+                lookup_path=full_path
+            )
+
         try:
             # Use yaml.safe_load for robustness against both JSON and YAML schemas
-            with open(full_path, 'r') as f:
+            with open(full_path, 'r', encoding='utf-8') as f:
                 schema_content = yaml.safe_load(f)
                 if not isinstance(schema_content, dict):
-                    raise ValueError("Schema content is malformed or empty.")
-                return schema_content
-        except FileNotFoundError:
-            raise SchemaNotFoundError(
-                f"Schema file defined for '{artifact_name}' not found at {full_path}"
-            )
+                    raise ValueError("Schema content is malformed or empty (not a root object).")
+            
+            self._schema_cache[artifact_name] = schema_content
+            return schema_content
         except Exception as e:
-            raise ConfigurationFileError(f"Error loading schema file {full_path}: {e}")
+            raise ConfigurationFileError(
+                f"Error loading schema file {full_path}: {e}", 
+                file_path=full_path
+            ) from e
 
 
     def validate_configuration(self, config_artifact_path: str, artifact_name: str) -> bool:
@@ -84,11 +129,14 @@ class ConfigurationSchemaValidator:
         Validates a specific configuration artifact against its predefined schema.
         
         Args:
-            config_artifact_path: Full path to the configuration file (e.g., config.yaml).
-            artifact_name: The conceptual name used for schema lookup (e.g., 'telemetry_spec').
+            config_artifact_path: Full path to the configuration file.
+            artifact_name: The conceptual name used for schema lookup.
+            
+        Returns:
+            True if validation succeeds.
             
         Raises:
-            ValidationError: If the configuration violates the schema structure.
+            ConfigurationIntegrityError: If the configuration violates the schema.
             ConfigurationError: If loading or schema mapping fails.
         """
         
@@ -98,34 +146,36 @@ class ConfigurationSchemaValidator:
 
         if not loader:
             raise ConfigurationFileError(
-                f"Unsupported configuration file extension: {ext} at {config_artifact_path}"
+                f"Unsupported configuration file extension: {ext}", 
+                file_path=config_artifact_path
             )
 
         # 2. Load Configuration Data
         try:
-            with open(config_artifact_path, 'r') as f:
+            with open(config_artifact_path, 'r', encoding='utf-8') as f:
                 config_data = loader(f)
         except Exception as e:
             raise ConfigurationFileError(
-                f"Failed to load/parse artifact {config_artifact_path} as {ext} file: {e}"
+                f"Failed to load/parse artifact {config_artifact_path} as {ext} file: {e}",
+                file_path=config_artifact_path
             ) from e
 
-        # 3. Retrieve Schema
-        schema = self._get_schema(artifact_name) # Raises SchemaNotFoundError/ConfigurationFileError
+        # 3. Retrieve Schema (handles caching)
+        schema = self._get_schema(artifact_name) 
         
         # 4. Perform Validation
-        print(f"[CSV] Attempting validation for '{artifact_name}' (Path: {config_artifact_path})...")
+        # Removed internal print statements, relying on external logging/exception reporting.
         
         try:
             validate(instance=config_data, schema=schema)
-            print(f"[CSV Success] Artifact {config_artifact_path} is conformant.")
             return True
             
         except ValidationError as e:
-            # Re-raise with high-context, compliance-signaled message (P-M02: Validation Failure)
-            raise ValidationError(
-                f"[CSV FAILURE - P-M02/G0] Integrity Exhaustion: Validation Failed for {config_artifact_path} "
-                f"(Artifact: {artifact_name}). Error: {e.message}"
+            # Wrap the standard ValidationError with compliance context
+            raise ConfigurationIntegrityError(
+                original_error=e,
+                config_path=config_artifact_path,
+                artifact_name=artifact_name
             ) from e
 
 # Note: This component is mandatory for GSEP-C Gate G0 execution integrity check.
