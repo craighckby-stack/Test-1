@@ -1,0 +1,22 @@
+{
+  "risk_profile_id": "RiskProfile_Standard",
+  "description": "Standard risk tolerance optimized for stable system evolution.",
+  "gating_matrix": {
+    "minor_refactor": {
+      "mutation_coverage_min": 0.95,
+      "rollback_window_s": 600,
+      "max_deployment_risk": 0.15
+    },
+    "architectural_shift": {
+      "mutation_coverage_min": 1.0,
+      "static_analysis_pass_min": 3,
+      "max_deployment_risk": 0.05
+    },
+    "security_patch": {
+      "mutation_coverage_min": 0.80,
+      "rollback_window_s": 120,
+      "max_deployment_risk": 0.25
+    }
+  },
+  "fallback_policy": "Suspend_Evolution_Queue"
+}
