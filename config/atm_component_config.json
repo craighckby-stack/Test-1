@@ -1,29 +1,65 @@
 {
-  "title": "Autonomous Trust Metric Component Configuration",
-  "version": "v94.1",
-  "description": "Defines the configuration and parameters for the underlying scoring mechanisms used to calculate the weighted metrics defined in the governance schema.",
+  "metadata": {
+    "title": "Autonomous Trust Metric Component Configuration",
+    "version": "v95.0",
+    "description": "Defines standardized operational parameters and weights for components feeding into the Autonomous Trust Metric (ATM) calculation engine.",
+    "schema_version": "1.0.0"
+  },
   "components": [
     {
-      "metric": "semantic_compatibility_score",
+      "component_id": "ATM_SC_001",
+      "name": "semantic_compatibility_score",
       "status": "enabled",
-      "algorithm": "DeepDeltaAnalysisV2",
-      "sensitivity": "medium",
-      "inputs": ["source_code_delta", "dependency_graph_snapshot"],
-      "weight_scaling_factor": 1.0
+      "engine": "DeepDeltaAnalysisV3",
+      "runtime_config": {
+        "data_inputs": [
+          "source_code_delta",
+          "dependency_graph_snapshot"
+        ],
+        "caching_strategy": "time_based_ttl",
+        "cache_ttl_seconds": 300
+      },
+      "scoring_parameters": {
+        "weight_percent": 35.0,
+        "sensitivity": "medium_high",
+        "criticality_level": "P1"
+      }
     },
     {
-      "metric": "formal_verification_impact",
+      "component_id": "ATM_FV_002",
+      "name": "formal_verification_impact",
       "status": "enabled",
-      "toolchain": "FormalProver/v7",
-      "failure_handling": "rollback",
-      "verification_scope": "core_components"
+      "engine": "FormalProver/v8",
+      "runtime_config": {
+        "scope": "core_components_p0",
+        "failure_policy": "automatic_rollback",
+        "toolchain_args": [
+          "--strict-mode"
+        ]
+      },
+      "scoring_parameters": {
+        "weight_percent": 50.0,
+        "base_penalty_score": -100,
+        "criticality_level": "P0_Mandatory"
+      }
     },
     {
-      "metric": "resource_allocation_stability",
+      "component_id": "ATM_RS_003",
+      "name": "resource_allocation_stability",
       "status": "enabled",
-      "monitoring_agent": "TelemetricSensor/v3",
-      "deviation_tolerance_percent": 12,
-      "lookback_period_hours": 48
+      "engine": "TelemetricSensor/v4",
+      "runtime_config": {
+        "monitoring_agent": "TelemetryRouter",
+        "lookback_period_hours": 72,
+        "tolerance": {
+          "deviation_percent": 10,
+          "max_frequency_per_hour": 3
+        }
+      },
+      "scoring_parameters": {
+        "weight_percent": 15.0,
+        "criticality_level": "P3"
+      }
     }
   ]
 }
