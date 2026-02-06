@@ -1,0 +1,10 @@
+{
+  "map_version": "1.0",
+  "description": "Maps specific component IDs or code path regexes to abstract strictness profiles defined in ConstraintStrictnessProfile.json. Used by the GAX validation engine to determine dynamic constraint thresholds.",
+  "mappings": {
+    "Core_Scheduler_v95": "CRITICAL_PERFORMANCE",
+    "Data_Storage_Engine": "HIGH_CAPACITY_TCO",
+    "Internal_API_Gateway": "NORMAL_SECURITY",
+    "Default_Fallback": "BASE_PROFILE"
+  }
+}
