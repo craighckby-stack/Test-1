@@ -1,17 +1,36 @@
 {
   "baseline_id": "BASE_GSEP_C_S06_ACTIVE",
-  "timestamp": "2024-05-15T10:00:00Z",
-  "integrity_state": {
-    "VMM_KERNEL_SOURCE_HASH_SHA256": "[Dynamically_Set]",
-    "CRITICAL_CONTAINERS_HASHES": [
-      {"name": "core_execution_engine", "hash": "[Set_Hash_A]", "image_id": "img-987"},
-      {"name": "comm_interface_agent", "hash": "[Set_Hash_B]", "image_id": "img-654"}
-    ],
-    "RESOURCE_CEILING_PERCENT": {
-      "CPU_USAGE_AVG_2MIN": 0.55,
-      "MEMORY_LEAKAGE_THRESHOLD_MB": 128
+  "version": "1.1.0",
+  "snapshot_timestamp": "2024-05-15T10:00:00Z",
+  "state_profile": {
+    "kernel_integrity": {
+      "component": "VMM_KERNEL",
+      "measurement_hash": "[Dynamically_Bound_To_TPM_PCR]",
+      "verification_mode": "ATTESTATION_REGISTER_READ",
+      "algorithm": "SHA256"
     },
-    "EXPECTED_ENTROPY_MIN": 4500
+    "critical_containers": {
+      "algorithm": "SHA256",
+      "manifest": [
+        {"name": "core_execution_engine", "hash": "[Set_Hash_A]", "image_id": "img-987", "policy": "STRICT_MATCH"},
+        {"name": "comm_interface_agent", "hash": "[Set_Hash_B]", "image_id": "img-654", "policy": "STRICT_MATCH"}
+      ]
+    },
+    "resource_limits": {
+      "policy_name": "RIMP_Tier_C",
+      "thresholds": [
+        {"metric": "CPU_UTILIZATION_AVG_2MIN", "limit": 0.55, "unit": "ratio", "severity": "WARNING"},
+        {"metric": "MEMORY_LEAKAGE_CUMULATIVE", "limit": 128, "unit": "MB", "severity": "CRITICAL"}
+      ]
+    },
+    "entropy_pool": {
+      "metric": "OS_ENTROPY_POOL_SIZE",
+      "expected_min": 4500,
+      "unit": "bits"
+    }
   },
-  "audit_trail_signature": "SIG-ECVM-S06-VALID"
+  "audit_trail": {
+    "signature": "SIG-ECVM-S06-VALID",
+    "verification_method": "ECC-P384"
+  }
 }
