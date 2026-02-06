@@ -2,26 +2,27 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "urn:sovereign:schema:governance:CertifiedOperationalTelemetrySchema",
   "title": "Certified Operational Telemetry Schema (COTS)",
-  "description": "Standardized schema for recording non-critical, high-frequency operational metrics and environment data during P3 Audit & Metric Calculation (S07-S10). Essential for performance analysis, optimization loops, and compliance tracking.",
+  "description": "Standardized schema for recording non-critical, high-frequency operational metrics and environment data during P3 Audit & Metric Calculation cycles (S07-S10). Essential for autonomous performance optimization, system health monitoring, and compliance tracking.",
   "type": "object",
   "$defs": {
-    "ResourceMetrics": {
+    "SystemResourceMetrics": {
       "type": "object",
-      "description": "Core resource consumption metrics.",
+      "description": "Core system resource consumption metrics (CPU, Memory, I/O).",
       "properties": {
         "latency_ms": {
           "type": "number",
-          "format": "float",
           "description": "Total execution time (wall clock) in milliseconds for the tracked scope."
         },
         "cpu_utilization_percent": {
           "type": "number",
           "minimum": 0,
-          "maximum": 100
+          "maximum": 100,
+          "description": "Average CPU utilization percentage."
         },
         "memory_footprint_bytes": {
           "type": "integer",
-          "format": "int64"
+          "format": "int64",
+          "description": "Peak memory consumption in bytes."
         },
         "io_read_bytes": {
           "type": "integer",
@@ -34,19 +35,89 @@
           "description": "I/O bytes written during the operational window."
         }
       },
-      "required": ["latency_ms", "cpu_utilization_percent", "memory_footprint_bytes"]
+      "required": [
+        "latency_ms",
+        "cpu_utilization_percent",
+        "memory_footprint_bytes"
+      ]
     },
-    "RQLInteractionMetrics": {
+    "DataLayerMetrics": {
       "type": "object",
-      "description": "Runtime Query Layer (RQL) specific interaction metrics.",
+      "description": "Runtime Query Layer (RQL) specific interaction and caching metrics.",
       "properties": {
-        "read_count": {"type": "integer", "description": "Number of RQL read operations."},
-        "write_count": {"type": "integer", "description": "Number of RQL write operations."},
-        "cache_hits": {"type": "integer"},
-        "cache_misses": {"type": "integer"},
-        "peak_queue_depth": {"type": "integer", "description": "Maximum concurrent pending RQL requests observed."}
+        "read_operations": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of successful RQL read operations."
+        },
+        "write_operations": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of successful RQL write operations."
+        },
+        "cache_hits": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "cache_misses": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "peak_queue_depth": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Maximum concurrent pending RQL requests observed."
+        }
       },
-      "required": ["read_count", "write_count"]
+      "required": [
+        "read_operations",
+        "write_operations",
+        "cache_hits",
+        "cache_misses"
+      ]
+    },
+    "EngineProcessMetrics": {
+      "type": "object",
+      "description": "Metrics relating to internal decision loops and algorithmic efficiency.",
+      "properties": {
+        "optimization_cycles_executed": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Count of self-correction, planning, or optimization loops executed."
+        },
+        "decision_points_resolved": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Count of major branching decision points processed."
+        }
+      },
+      "required": [
+        "optimization_cycles_executed",
+        "decision_points_resolved"
+      ]
+    },
+    "ExecutionOutcome": {
+      "type": "object",
+      "description": "Status and basic error reporting for the measured operational window.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "SUCCESS",
+            "FAILURE_RECOVERABLE",
+            "FAILURE_FATAL"
+          ],
+          "description": "The resulting status of the measured operational scope."
+        },
+        "error_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of non-fatal exceptions or errors handled internally."
+        }
+      },
+      "required": [
+        "status"
+      ]
     }
   },
   "properties": {
@@ -62,38 +133,54 @@
     },
     "agent_source": {
       "type": "string",
-      "description": "The specific internal component or agent generating the telemetry.",
-      "pattern": "^(SGS|GAX|ARC|PVM|RQL)-[A-Z0-9]+$"
+      "description": "The specific internal component or agent generating the telemetry (e.g., RQL-Cache, SGS-Planner). The CTAS prefix is reserved for aggregated data.",
+      "pattern": "^(SGS|GAX|ARC|PVM|RQL|CTAS)-[A-Z0-9]{2,10}$"
     },
     "context_hash": {
       "type": "string",
       "format": "sha256",
-      "description": "Cryptographic hash identifying the exact input state/context that produced these metrics. Essential for performance correlation."
+      "description": "Cryptographic hash identifying the exact input state/context that produced these metrics. Essential for performance correlation and audit trail."
     },
     "operational_metrics": {
       "type": "object",
-      "description": "A comprehensive collection of non-P-01 critical metrics.",
+      "description": "A comprehensive collection of operational performance and behavior metrics.",
       "properties": {
         "resources": {
-          "$ref": "#/$defs/ResourceMetrics",
-          "description": "Detailed physical resource utilization."
+          "$ref": "#/$defs/SystemResourceMetrics",
+          "description": "Detailed physical system resource utilization."
         },
-        "rql_metrics": {
-          "$ref": "#/$defs/RQLInteractionMetrics",
-          "description": "Runtime Query Layer interaction statistics."
+        "data_layer": {
+          "$ref": "#/$defs/DataLayerMetrics",
+          "description": "Statistics on RQL/persistence layer interactions."
         },
-        "optimization_loops_executed": {
-            "type": "integer",
-            "description": "Count of local optimization or adjustment loops executed during the measurement window."
+        "engine_process": {
+          "$ref": "#/$defs/EngineProcessMetrics",
+          "description": "Internal algorithm and process counters."
+        },
+        "outcome": {
+          "$ref": "#/$defs/ExecutionOutcome",
+          "description": "The result status of the operational window."
         }
       },
-      "required": ["resources", "rql_metrics"]
+      "required": [
+        "resources",
+        "data_layer",
+        "engine_process",
+        "outcome"
+      ]
     },
     "intermediate_results_hash": {
       "type": "string",
       "format": "sha256",
-      "description": "Cryptographic hash of complex intermediate results (optional for high-volume data validation)."
+      "description": "Optional hash of complex intermediate results (for data validation during audit).
+            A key metric for Audit Layer validation."
     }
   },
-  "required": ["execution_uuid", "timestamp_utc", "agent_source", "context_hash", "operational_metrics"]
+  "required": [
+    "execution_uuid",
+    "timestamp_utc",
+    "agent_source",
+    "context_hash",
+    "operational_metrics"
+  ]
 }
