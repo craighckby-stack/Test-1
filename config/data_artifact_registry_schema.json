@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Data Artifact Registry Schema",
+  "description": "Defines and registers all fundamental data artifacts and raw input keys referenced by SMS factor definitions.",
+  "type": "object",
+  "required": ["registry_version", "artifacts"],
+  "properties": {
+    "registry_version": {
+      "type": "string",
+      "description": "Semantic version of the artifact definitions."
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Map of data artifact definitions, keyed by their unique identifier (source_data_key in SMS).",
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_]{3,}$": {
+          "type": "object",
+          "required": ["data_type", "description", "source_system"],
+          "properties": {
+            "data_type": {
+              "type": "string",
+              "enum": ["normalized_score", "raw_count", "boolean", "time_series"],
+              "description": "The primary data type of the artifact."
+            },
+            "description": {
+              "type": "string"
+            },
+            "source_system": {
+              "type": "string",
+              "enum": ["CORE", "HMC", "SDR", "EXTERNAL"],
+              "description": "The agent or system that generates or provides the artifact."
+            },
+            "freshness_ttl_hours": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Time-to-live for data validity, in hours."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
