@@ -1,1 +1,47 @@
-[object Object]
+{
+  "model_version": "v2.0.1_RCDM",
+  "model_name": "Robust_Contextual_Decision_Matrix",
+  "description": "Defines dynamic governance phases, consensus rules, and agent weighting for autonomous evolution decisions.",
+  "config": {
+    "default_threshold_pct": 0.65,
+    "criticality_bias_factor": 0.15,
+    "adaptive_safety_override": true
+  },
+  "phases": {
+    "evolution": {
+      "status": "active",
+      "priority": 80,
+      "ruleset_id": "proposal_evaluation",
+      "dynamic_adjustment": {
+        "trigger": "high_risk_score",
+        "new_ruleset_id": "mitigation_assessment"
+      }
+    },
+    "stabilization": {
+      "status": "audit_only",
+      "priority": 95,
+      "ruleset_id": "system_verification",
+      "required_metrics": ["latency", "stability_index"]
+    }
+  },
+  "rulesets": {
+    "proposal_evaluation": {
+      "type": "weighted_consensus",
+      "threshold_key": "config.default_threshold_pct",
+      "influencing_factors": ["utility_gain", "resource_cost", "security_impact"]
+    },
+    "system_verification": {
+      "type": "metric_compliance",
+      "min_stability_index": 0.9995
+    },
+    "mitigation_assessment": {
+      "type": "absolute_veto",
+      "required_actor_approval": ["SafetyAgent", "ArchitecturalCore"]
+    }
+  },
+  "weighting_matrix": {
+    "EfficiencyModule": 0.35,
+    "ArchitectureAgent": 0.40,
+    "SafetyAuditor": 0.25
+  }
+}
