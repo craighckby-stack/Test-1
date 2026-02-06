@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://aoc.v94.1/P01_Gate_Result.json",
+  "title": "P-01 Gate Decision Output Schema",
+  "description": "Defines the verifiable and immutable result of the P-01 calculus, linking the final decision to the inputs used.",
+  "type": "object",
+  "properties": {
+    "p01_timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Must match the input P01 timestamp."
+    },
+    "m02_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA-256 Hash of the M-02 Payload."
+    },
+    "input_record_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "Cryptographic hash (SHA-256) of the full P-01 Gate Input object (for input immutability verification)."
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "The final PASS/FAIL outcome of the gate calculation."
+    },
+    "gate_score": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1,
+      "description": "The normalized operational score resulting from the calculus (S01 - S02)."
+    },
+    "veto_source": {
+      "type": ["string", "null"],
+      "enum": ["S03_POLICY", "S02_RISK_THRESHOLD", "NONE"],
+      "description": "Identifies the primary factor leading to a FAIL decision, if applicable."
+    }
+  },
+  "required": ["p01_timestamp_utc", "m02_payload_hash", "input_record_hash", "decision", "gate_score"]
+}
