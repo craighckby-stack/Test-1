@@ -84,7 +84,7 @@ export class CryptographicUtil {
      * Encrypts a payload (string or object) using AES-256-GCM (Authenticated Encryption).
      * The output is a robust, colon-separated string: IV:EncryptedText:AuthTag.
      * 
-     * @param {string|Object} payload - Data to encrypt. If an object, it is stringified.
+     * @param {string|Object} payload - Data to encrypt. If an object, it is stringified using standard JSON.stringify.
      * @param {string} encryptionKeyHex - 32-byte (64 hex characters) key in hex format.
      * @returns {string} The encrypted data string (IV:Ciphertext:Tag).
      * @throws {Error} If key validation fails.
@@ -104,7 +104,7 @@ export class CryptographicUtil {
         encrypted += cipher.final('hex');
         const tag = cipher.getAuthTag();
 
-        return `${iv.toString('hex')}:${encrypted}:${tag.toString('hex')}`; // IV:Ciphertext:Tag
+        return `${iv.toString('hex')}:${encrypted}:${tag.toString('hex')}; // IV:Ciphertext:Tag
     }
 
     /**
@@ -150,5 +150,26 @@ export class CryptographicUtil {
         }
 
         return decrypted;
+    }
+
+    /**
+     * Decrypts data and attempts to parse it as a JSON object, falling back to a string if parsing fails.
+     * This provides convenience when storing complex configurations or secrets.
+     * 
+     * @param {string} encryptedData - The colon-separated encrypted string (IV:Ciphertext:Tag).
+     * @param {string} encryptionKeyHex - 32-byte (64 hex characters) key in hex format.
+     * @returns {Object|string} The decrypted data, parsed as an object if possible, otherwise the raw string.
+     * @throws {Error} If decryption fails.
+     */
+    static decryptObject(encryptedData, encryptionKeyHex) {
+        const decryptedString = CryptographicUtil.decryptData(encryptedData, encryptionKeyHex);
+        try {
+            const result = JSON.parse(decryptedString);
+            // Ensure we don't accidentally return null if original encrypted data was "null"
+            return result !== null ? result : decryptedString; 
+        } catch (e) {
+            // If JSON parsing fails, the original data was a string, not a serialized object.
+            return decryptedString;
+        }
     }
 }
