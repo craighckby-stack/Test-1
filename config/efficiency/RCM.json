@@ -1,47 +1,108 @@
 {
-  "version": "1.1.0",
-  "policy_name": "StandardAdaptiveEfficiency",
-  "description": "Optimized configuration for granular resource consumption management and cost tracking.",
-  "global_limits": {
-    "max_concurrent_tasks": 100,
-    "max_cumulative_cost_per_cycle": 50000, 
-    "budget_refresh_interval_ms": 60000,
-    "target_system_utilization_percent": 85
+  "version": "2.0.0",
+  "policy_name": "SovereignAGI_RCMA_v2",
+  "description": "Resource Consumption Management Architecture (RCMA). Shifts from reactive limits to predictive cost allocation utilizing structured prioritization and dynamic cost models.",
+  "global_policy": {
+    "cost_unit": "USD",
+    "budget_cycle_ms": 60000,
+    "max_cycle_budget": 50000,
+    "target_utilization_percent": 85,
+    "default_priority_scale": {
+      "Critical": 900,
+      "High": 700,
+      "Medium": 500,
+      "Low": 300,
+      "Background": 100
+    },
+    "max_concurrent_tasks": 100
   },
   "modules": {
     "InferenceEngine": {
-      "priority": "High",
+      "priority": 800,
       "vram_reservation_mb": 4096,
-      "cpu_throttling_ms": 50,
-      "token_limit_per_second": 10000,
-      "cost_model": "(tokens * 0.00002) + (gpu_seconds * 0.0001)"
+      "rate_limiting": {
+        "token_limit_per_second": 10000,
+        "throttling_delay_ms": 50
+      },
+      "cost_model": {
+        "formula": "C = (T * P_t) + (G * P_g)",
+        "unit_costs": {
+          "P_t": 0.00002,
+          "P_g": 0.0001
+        },
+        "input_map": {
+          "T": "tokens_consumed",
+          "G": "gpu_seconds"
+        }
+      }
     },
     "MemoryAccess": {
-      "priority": "Medium",
+      "priority": 500,
       "iops_limit": 5000,
       "max_read_latency_ms": 25,
-      "cost_model": "(read_count * 0.000001) + (write_count * 0.00001)"
+      "cost_model": {
+        "formula": "C = (R * P_r) + (W * P_w)",
+        "unit_costs": {
+          "P_r": 0.000001,
+          "P_w": 0.00001
+        },
+        "input_map": {
+          "R": "read_count",
+          "W": "write_count"
+        }
+      }
     },
     "ToolExecution": {
-      "priority": "Low",
+      "priority": 300,
       "timeout_ms": 5000,
-      "max_api_calls_per_task": 5,
-      "external_cost_weight": 1.5, 
-      "cost_model": "(external_cost * external_cost_weight) + (execution_time_ms * 0.00005)"
+      "rate_limiting": {
+        "max_concurrent_calls": 5,
+        "rate_limit_ms": 100
+      },
+      "external_cost_weight": 1.5,
+      "cost_model": {
+        "formula": "C = (E * W) + (M * P_m)",
+        "unit_costs": {
+          "W": 1.5,
+          "P_m": 0.00005
+        },
+        "input_map": {
+          "E": "external_cost",
+          "M": "execution_time_ms"
+        }
+      }
     }
   },
-  "adaptive_policies": [
+  "dynamic_policies": [
     {
-      "id": "A_001_COST_LIMIT",
-      "trigger": "CumulativeCostExceedsThreshold(0.8)",
-      "action": "AdjustPriority('ToolExecution', 'CriticalLow')",
-      "duration_ms": 300000
+      "id": "DP_001_BUDGET_CTRL",
+      "trigger": {
+        "metric": "CumulativeCostPercentage",
+        "operator": ">",
+        "threshold": 0.8
+      },
+      "action": {
+        "type": "AdjustModulePriority",
+        "module": "ToolExecution",
+        "new_priority": 100
+      },
+      "revert_after_ms": 300000
     },
     {
-      "id": "A_002_SYSTEM_LOAD",
-      "trigger": "SystemLoadAbove(target_system_utilization_percent + 10)",
-      "action": "IncreaseThrottlingDelay('InferenceEngine', 100)",
-      "duration_ms": "forever"
+      "id": "DP_002_HIGH_LOAD_THROTTLE",
+      "trigger": {
+        "metric": "SystemUtilization",
+        "operator": ">",
+        "threshold_relative_to": "target_utilization_percent",
+        "offset": 10
+      },
+      "action": {
+        "type": "IncreaseModuleRateLimit",
+        "module": "InferenceEngine",
+        "property": "throttling_delay_ms",
+        "value": 150
+      },
+      "revert_after_ms": null
     }
   ]
 }
