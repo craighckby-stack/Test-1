@@ -1,18 +1,47 @@
 {
-  "manifest_version": "1.0.0",
+  "config_version": "1.1.0",
   "artifact_id": "DCM",
-  "description": "Drift Control Manifest for L8 DERE operations.",
-  "target_metrics": [
-    "S-01"
+  "description": "Structured Drift Control Manifest for L8 DERE operations and automated anomaly resolution.",
+  "status": "ACTIVE",
+  "monitored_targets": [
+    {
+      "metric_id": "S-01",
+      "metric_name": "System Efficacy Score",
+      "metric_type": "PERFORMANCE",
+      "thresholds": {
+        "drift_threshold_percent": 0.05,
+        "absolute_risk_limit": 0.01,
+        "comparison_method": "PREDICTIVE_VS_ACTUAL"
+      }
+    }
   ],
-  "drift_thresholds": {
-    "max_efficacy_drift_percent": 0.05,
-    "max_risk_drift_absolute": 0.01
+  "drift_policy": {
+    "evaluation_schedule": {
+      "frequency_type": "INTERVAL",
+      "interval_seconds": 3600
+    },
+    "trigger_condition": {
+      "target_delta_formula": "S-01_PREDICTED - S-01_ACTUAL",
+      "action_trigger": "IF_ANY_THRESHOLD_EXCEEDED"
+    },
+    "action_sequence": [
+      {
+        "sequence_id": "P01",
+        "action_type": "RECALIBRATE",
+        "action_target": "S-01",
+        "target_algorithm": "MODEL_A/V3",
+        "priority": 1
+      },
+      {
+        "sequence_id": "F01",
+        "action_type": "FALLBACK",
+        "action_code": "R-01_soft_rollback",
+        "priority": 10
+      }
+    ]
   },
-  "recalibration_policy": {
-    "observation_frequency_seconds": 3600,
-    "recalibration_target_delta": "S-01_predicted - S-01_actual",
-    "fallback_action": "R-01_soft_rollback"
-  },
-  "reporting_contract": "AIA_L8_Audit_Endpoint"
+  "reporting": {
+    "audit_endpoint": "AIA_L8_Audit_Endpoint",
+    "error_level": "WARNING"
+  }
 }
