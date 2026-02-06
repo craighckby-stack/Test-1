@@ -1,0 +1,19 @@
+{
+  "registry_name": "CoreTrustAnchorDefinitionMap",
+  "version": "V1.0.0",
+  "description": "Defines the root cryptographic public key material and revocation policy sources for specified Trust Anchor IDs used in Attestation Policies.",
+  "trust_anchors": {
+    "TRUST_ROOT_AGENT_L1": {
+      "type": "PKI_Root_Certificate",
+      "public_key_pem": "-----BEGIN PUBLIC KEY...",
+      "revocation_list_uri": "https://crl.sovereign.ai/L1.crl",
+      "effective_from": "2023-01-01T00:00:00Z"
+    },
+    "TRUST_ROOT_MASTER_COMMIT": {
+      "type": "Hardware_Root_Key",
+      "public_key_hash": "a5f1b2c4e7d8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4",
+      "hsm_identifier": "HSM_9000_GLOBAL",
+      "key_derivation_policy": "HKDF-SHA512"
+    }
+  }
+}
