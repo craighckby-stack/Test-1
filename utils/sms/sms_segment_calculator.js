@@ -1,47 +1,53 @@
 /**
  * Utility function to calculate the number of SMS segments a message will use.
- * This implementation automatically detects required encoding (GSM 7-bit vs UCS-2 16-bit)
- * and accurately calculates GSM message length, accounting for extended characters.
+ * This module provides comprehensive segment calculation, detecting encoding (GSM 7-bit vs UCS-2 16-bit)
+ * and factoring in GSM extended characters for precise length measurement.
+ *
+ * This module now returns a detailed object including the segment count, encoding type, and character count.
  *
  * @module SmsSegmentCalculator
  */
 
-// --- Standard Constants and Character Sets ---
+// --- Configuration Constants ---
 
-const GSM_STANDARDS = {
-    LIMITS: { single: 160, multi: 153 },
-    // Standard basic characters
-    BASIC_CHARS_REGEX: /[A-Za-z0-9\s!"#\$%&'\(\)\*\+,\-\.\/:;<=>\?@£¥èéùìòÇØøÅåΔΓΛΩΠΨΣΘΞÆæßÉñÑ¿¡\r\n]/g,
-    // Characters that count as two GSM characters
-    EXTENDED_CHARS: ['\f', '^', '{', '}', '\\', '[', '~', ']', '|', '€'],
+const CONFIG = {
+    // Defines GSM 7-bit standards and character sets
+    GSM: {
+        LIMITS: { single: 160, multi: 153 },
+        // Regex defining all characters in the basic 7-bit alphabet, including control chars (CR/LF).
+        BASIC_CHARS_REGEX: /[A-Za-z0-9\s!"#\$%&'\(\)\*\+,\-\.\/:;<=>\?@£¥èéùìòÇØøÅåΔΓΛΩΠΨΣΘΞÆæßÉñÑ¿¡\r\n]/g,
+        // Characters that count as two GSM characters (escape sequences)
+        EXTENDED_CHARS: ['\f', '^', '{', '}', '\\', '[', '~', ']', '|', '€'],
+    },
+    // Defines UCS-2 (16-bit) standards
+    UCS2: {
+        LIMITS: { single: 70, multi: 67 }
+    }
 };
 
-const UCS2_STANDARDS = {
-    LIMITS: { single: 70, multi: 67 }
-};
-
-// Pre-calculate escaped regex for extended characters. Ensure regex control characters are properly escaped.
-const ESCAPED_EXTENDED_CHARS_REGEX = new RegExp(`[${GSM_STANDARDS.EXTENDED_CHARS.map(c => {
-    // Escapes standard regex control characters, including the backslash itself
-    return c.replace(/([.*+?^$(){}|\[\]\\])/g, '\\$1');
+// Pre-calculate escaped regex for extended characters. Used for length calculation and UCS-2 detection.
+const EXTENDED_CHARS_REGEX = new RegExp(`[${CONFIG.GSM.EXTENDED_CHARS.map(c => {
+    // Ensure proper escaping for regex control characters
+    return c.replace(/([.*+?^$(){}|[\]\\])/g, '\\$1');
 }).join('')}]`, 'g');
 
 
 /**
  * Helper to perform basic handlebars-style variable substitution.
- * Note: In a larger system, this functionality should be delegated to a dedicated Templating Engine.
+ * Note: This functionality should be externalized to a dedicated templating engine (see scaffold proposal).
  * @param {string} templateContent
  * @param {Object} data
- * @returns {string}
+ * @returns {string} The fully rendered message string.
  */
-function substituteVariables(templateContent, data) {
+function _renderBasicTemplate(templateContent, data) {
     if (!data || Object.keys(data).length === 0) {
         return templateContent;
     }
+    
     return Object.entries(data).reduce((msg, [key, value]) => {
         // Coerce value to string, handling null/undefined safely
         const replacement = String(value ?? '');
-        // Regex handles {{ key }}, {{key}}, {{ key}} whitespace variation
+        // Regex handles {{key}}, {{ key }}, {{key }} whitespace variation
         const regex = new RegExp(`{{\s*${key}\s*}}`, 'g');
         return msg.replace(regex, replacement);
     }, templateContent);
@@ -50,15 +56,15 @@ function substituteVariables(templateContent, data) {
 
 /**
  * Calculates the effective length of the message under GSM 7-bit encoding,
- * accounting for extended characters counting as 2 (GSM standards).
+ * accounting for extended characters counting as 2.
  * @param {string} message
- * @returns {number}
+ * @returns {number} The effective length in GSM 7-bit units.
  */
-function calculateGsmLength(message) {
+function _calculateGsmLength(message) {
     let length = message.length;
     
-    // Increment length by 1 for every extended character (since it consumes 2 segments)
-    const extendedMatches = message.match(ESCAPED_EXTENDED_CHARS_REGEX);
+    // Increment length by 1 for every extended character match
+    const extendedMatches = message.match(EXTENDED_CHARS_REGEX);
     if (extendedMatches) {
         length += extendedMatches.length;
     }
@@ -67,64 +73,76 @@ function calculateGsmLength(message) {
 
 
 /**
- * Determines if the message requires UCS-2 encoding by checking for non-GSM 7-bit characters.
- * This function attempts to strip all known GSM characters (basic and extended).
+ * Determines if the message requires UCS-2 encoding by iteratively stripping all known GSM characters.
  * @param {string} message
- * @returns {boolean}
+ * @returns {boolean} True if UCS-2 is required.
  */
-function requiresUcs2Encoding(message) {
+function _requiresUcs2Encoding(message) {
     let checkStr = message;
     
-    // 1. Remove all characters that are part of the GSM basic alphabet.
-    checkStr = checkStr.replace(GSM_STANDARDS.BASIC_CHARS_REGEX, '');
+    // 1. Strip basic GSM alphabet characters.
+    checkStr = checkStr.replace(CONFIG.GSM.BASIC_CHARS_REGEX, '');
     
-    // 2. Remove all characters that are part of the GSM extended alphabet.
-    checkStr = checkStr.replace(ESCAPED_EXTENDED_CHARS_REGEX, '');
+    // 2. Strip extended GSM alphabet characters.
+    checkStr = checkStr.replace(EXTENDED_CHARS_REGEX, '');
     
-    // If any characters remain, they force UCS-2 (16-bit).
+    // If any character remains, they force UCS-2 (16-bit).
     return checkStr.length > 0;
 }
 
 
 /**
- * Core utility function to calculate the number of SMS segments.
+ * Core utility function to calculate detailed SMS segment metadata.
  *
  * @param {Object} params
  * @param {string} params.content - The raw template content string.
- * @param {Object} [params.data={}] - The input data used for substitution.
- * @returns {number} The calculated number of segments.
+ * @param {Object} [params.data={}] - Input data for variable substitution.
+ * @returns {{segments: number, encoding: 'GSM'|'UCS2'|'N/A', characterCount: number}} Calculation details.
  */
 function calculateSmsSegments({ content, data = {} }) {
     if (!content) {
-        return 0;
+        return { segments: 0, encoding: 'N/A', characterCount: 0 };
     }
     
-    const finalMessage = substituteVariables(content, data);
-
-    const isUcs2 = requiresUcs2Encoding(finalMessage);
-
-    let length, limits;
+    const finalMessage = _renderBasicTemplate(content, data);
     
-    if (isUcs2) {
-        length = finalMessage.length;
-        limits = UCS2_STANDARDS.LIMITS;
+    let length, limits, encoding;
+
+    if (_requiresUcs2Encoding(finalMessage)) {
+        encoding = 'UCS2';
+        length = finalMessage.length; 
+        limits = CONFIG.UCS2.LIMITS;
     } else {
-        length = calculateGsmLength(finalMessage);
-        limits = GSM_STANDARDS.LIMITS;
+        encoding = 'GSM';
+        length = _calculateGsmLength(finalMessage);
+        limits = CONFIG.GSM.LIMITS;
     }
 
-    // Single segment check
-    if (length <= limits.single) {
-        return 1;
+    let segments;
+    
+    // Calculate segments
+    if (length === 0) {
+        segments = 0;
+    } else if (length <= limits.single) {
+        segments = 1;
+    } else {
+        // Multi-segment calculation: Math.ceil(Total_Chars / Concatenation_Limit)
+        segments = Math.ceil(length / limits.multi);
     }
     
-    // Multi-segment calculation: Math.ceil(Total_Chars / Concatenation_Limit)
-    return Math.ceil(length / limits.multi);
+    return { 
+        segments,
+        encoding,
+        characterCount: length 
+    };
 }
+
 
 module.exports = {
     calculateSmsSegments,
-    // Export standards for configuration inspection and testing
-    GSM_STANDARDS,
-    UCS2_STANDARDS
+    // Expose segment calculation limits for external systems (e.g., config checks, testing)
+    SMS_SEGMENT_LIMITS: {
+        GSM: CONFIG.GSM.LIMITS,
+        UCS2: CONFIG.UCS2.LIMITS
+    }
 };
