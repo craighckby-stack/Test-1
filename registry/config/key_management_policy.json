@@ -1,0 +1,21 @@
+{
+  "key_policy_version": "1.0.0",
+  "entity_role_definitions": {
+    "sovereign_core": "Signing, Sealing, State_Transition",
+    "runtime_module": "Authorization, Attestation"
+  },
+  "rotation_schedule": {
+    "production_keys": {
+      "initial_period_days": 90,
+      "grace_period_days": 14
+    },
+    "test_keys": {
+      "initial_period_days": 30,
+      "grace_period_days": 7
+    }
+  },
+  "revocation_policy": {
+    "on_breach": "Immediate CR-List publishing and state rewind validation",
+    "on_expiration": "Soft deprecation, mandatory replacement after grace period"
+  }
+}
