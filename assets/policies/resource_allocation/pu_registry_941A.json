@@ -1,0 +1,18 @@
+{
+  "registry_id": "PU-941A-CORE-REG",
+  "schema_version": "v1.0",
+  "processing_units": [
+    {
+      "unit_id": "PU-941A-Core-01",
+      "isolation_level": "L4_SEALED",
+      "capacity_status": "80%_AVAILABLE",
+      "allocated_to": []
+    },
+    {
+      "unit_id": "PU-941A-Aux-02",
+      "isolation_level": "L3_CONTAINED",
+      "capacity_status": "FULL",
+      "allocated_to": ["DATA_INGEST_SERVICE"]
+    }
+  ]
+}
