@@ -1,50 +1,69 @@
 {
   "metadata": {
-    "version": "2.0",
-    "description": "Preflight map defining critical system artifacts for validation and retrieval."
+    "version": "3.0",
+    "description": "Indexed map defining essential system artifacts for immediate preflight validation and secure retrieval."
   },
-  "artifacts": [
-    {
-      "short_code": "TVCR",
+  "artifact_map": {
+    "TVCR": {
       "name": "Trusted Validator Configuration Register",
-      "source": {
+      "criticality": "BLOCKING",
+      "retrieval": {
         "type": "CACHE",
-        "key": "V_Registry",
-        "namespace": "ArtifactCache"
+        "parameters": {
+          "key": "V_Registry",
+          "namespace": "ArtifactCache"
+        },
+        "fallback_strategy": "DATABASE"
       },
       "validation": {
         "schema_id": "VCS-44A",
-        "freshness_ttl_seconds": 3600
-      },
-      "criticality": "CRITICAL"
+        "freshness_ttl_seconds": 3600,
+        "integrity_check": {
+          "type": "MIN_COUNT",
+          "value": 1,
+          "message": "Configuration register must contain at least one entry."
+        }
+      }
     },
-    {
-      "short_code": "ADEP",
+    "ADEP": {
       "name": "Autonomous Deployment Plan",
-      "source": {
+      "criticality": "CRITICAL",
+      "retrieval": {
         "type": "DATABASE",
-        "key": "AD_Planner",
-        "namespace": "SystemDB"
+        "parameters": {
+          "key": "AD_Planner",
+          "namespace": "SystemDB",
+          "consistency_level": "STRONG"
+        }
       },
       "validation": {
         "schema_id": "ADS-22B",
-        "freshness_ttl_seconds": 600
-      },
-      "criticality": "CRITICAL"
+        "freshness_ttl_seconds": 600,
+        "integrity_check": {
+          "type": "HASH_COMPARE",
+          "algorithm": "SHA256"
+        }
+      }
     },
-    {
-      "short_code": "SHEP",
+    "SHEP": {
       "name": "System Health Endpoint Pointers",
-      "source": {
+      "criticality": "ADVISORY",
+      "retrieval": {
         "type": "SERVICE_CALL",
-        "key": "/v1/health/endpoints",
-        "namespace": "DiscoveryService"
+        "parameters": {
+          "endpoint": "/v1/health/endpoints",
+          "service_name": "DiscoveryService",
+          "timeout_ms": 500
+        }
       },
       "validation": {
         "schema_id": "HES-10C",
-        "freshness_ttl_seconds": 120
-      },
-      "criticality": "WARNING"
+        "freshness_ttl_seconds": 120,
+        "integrity_check": {
+          "type": "RESPONSE_CODE",
+          "expected": 200
+        }
+      }
     }
-  ]
+  }
 }
