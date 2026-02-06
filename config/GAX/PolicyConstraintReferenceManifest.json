@@ -1,29 +1,39 @@
 {
-  "schema_version": "v1.0",
-  "purpose": "Defines stable identifiers and remediation metadata for all active GAX Policy, Stability, and Behavior constraints.",
+  "schema_version": "v2.1",
+  "purpose": "High-efficiency, stable constraint register for GAX Policy, Stability, and Behavior rules (O(1) lookup performance).",
   "metadata": {
-    "custodian": "GAX",
-    "dse_invariant_link": "Axiomatic Integrity (III)"
+    "custodian": "GAX/PCEU",
+    "dse_invariant_link": "Axiomatic Integrity (III) - Policy Kernel Linkage"
   },
-  "constraints": [
-    // Example structure for a Stability constraint defined in MPAM/PVLM
-    {
-      "id": "POL_001_NONSENSICAL_OPS",
-      "type": "Policy Prohibition",
+  "config_ref": {
+    "severity_levels": ["RRP", "HCP", "LCA"],
+    "category_map": {
+      "POL": "Policy Prohibition",
+      "STB": "Stability Bound",
+      "BEH": "Behavioral Deviation"
+    }
+  },
+  "constraints_map": {
+    "POL_001_NONSENSICAL_OPS": {
+      "category": "POL",
       "severity": "RRP",
+      "enforcement_priority": 90,
       "title": "Non-sense Operational Command Veto",
-      "manifest_source": "PVLM",
-      "remediation_strategy": "Consult PCSS: Require explicit policy linkage and resource attribution.",
+      "source_module": "PVLM",
+      "trigger_path": "Runtime.InputHandler.Command.ValidationFailed",
+      "remediation_ref": "PCSS.LinkageRequired",
       "status": "Active"
     },
-    {
-      "id": "STB_105_RAM_CEILING",
-      "type": "Stability Bound",
+    "STB_105_RAM_CEILING": {
+      "category": "STB",
       "severity": "RRP",
-      "title": "System Memory Ceiling Violation (95% Threshold)",
-      "manifest_source": "MPAM",
-      "remediation_strategy": "Consult VRRM/TVCR logs. Initiate immediate resource triage and pre-rollback snapshot capture.",
-      "threshold_value": "95%"
+      "enforcement_priority": 95,
+      "title": "System Memory Ceiling Violation",
+      "source_module": "MPAM",
+      "trigger_path": "Telemetry.Resource.Memory.Usage(>0.95)",
+      "threshold_value": 0.95,
+      "remediation_ref": "VRRM.TriageSnapshotRollback",
+      "status": "Active"
     }
-  ]
+  }
 }
