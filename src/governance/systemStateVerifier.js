@@ -4,125 +4,127 @@
  * GSEP Role: EPDP D (Verification Lock)
  * Location: src/governance/systemStateVerifier.js
  *
- * Function: Generates and validates cryptographic state hashes of the critical operating environment.
- * This module ensures verifiable root-of-trust mapping before an architectural mutation is staged.
- * It provides the absolute reference point for atomic rollback operations.
+ * Function: Generates and validates cryptographic state hashes of the critical operating environment (Codebase + Config + Context).
+ * This module ensures a verifiable root-of-trust mapping before an architectural mutation is staged or deployed.
+ * It provides the absolute reference point for atomic rollback operations by registering the System State Hash (SSH).
  */
 
 import * as crypto from 'crypto';
-import { MCR } from '../governance/mutationChainRegistrar';
-import { ConfigurationService } from '../config/configurationService';
-import { CodebaseHasher } from '../utility/codebaseHasher';
-import { ActiveStateContextManager } from './activeStateContextManager';
-import { StateSnapshotRepository } from './stateSnapshotRepository'; // New dependency
+// Import Logger as standard practice for a v94.1 component
+import { Logger } from '../utility/logger'; 
 
 export class SystemStateVerifier {
+    
+    // Define the specific algorithm and protocol version for deterministic hashing
+    static HASH_ALGORITHM = 'sha256';
+    static STATE_PROTOCOL_VERSION = 'v1.0';
+
+    /**
+     * @param {object} dependencies
+     * @param {object} dependencies.mutationChainRegistrar - MCR instance (for registration).
+     * @param {object} dependencies.stateSnapshotRepository - SSR instance (for audit/persistence).
+     * @param {object} dependencies.governanceContextService - GCS instance (for resolving C, H, P).
+     */
+    constructor({ mutationChainRegistrar, stateSnapshotRepository, governanceContextService }) {
+        this.mcr = mutationChainRegistrar;
+        this.ssr = stateSnapshotRepository;
+        this.contextService = governanceContextService; // New Dependency
+
+        if (!this.mcr || !this.ssr || !this.contextService) {
+             throw new Error("[SSV] Missing core dependency initialization.");
+        }
+        this.logger = Logger.get('SSV');
+    }
 
     /**
      * Calculates the definitive System State Hash (SSH) based on structured context.
+     * Input structure is canonicalized before hashing, incorporating a protocol version.
      * @param {{configHash: string, codeHash: string, proposalID: string}} context
      * @returns {string}
      */
-    static calculateSystemStateHash({ configHash, codeHash, proposalID }) {
+    static calculateSystemStateHash(context) {
+        const { configHash, codeHash, proposalID } = context;
+
         if (!configHash || !codeHash || !proposalID) {
             throw new Error("[SSV:HashGen] Incomplete context provided for System State Hash calculation.");
         }
-        // Hash structure: SHA256(ConfigHash:CodebaseHash:ProposalID)
-        const combinedInput = `${configHash}:${codeHash}:${proposalID}`;
-        return crypto.createHash('sha256').update(combinedInput).digest('hex');
+        
+        // Canonical structure: SHA256(v1.0|ConfigHash|CodebaseHash|ProposalID)
+        const combinedInput = `${SystemStateVerifier.STATE_PROTOCOL_VERSION}|${configHash}|${codeHash}|${proposalID}`;
+        
+        return crypto.createHash(SystemStateVerifier.HASH_ALGORITHM).update(combinedInput).digest('hex');
     }
     
     /**
-     * Gathers the necessary hashes and the Proposal ID required to define a system state context.
-     * @private
-     * @param {string | null} [proposalIDForLocking=null] - Explicit ID used for locking a *new* state.
-     * @returns {Promise<{configHash: string, codeHash: string, proposalID: string}>}
-     */
-    async _gatherCurrentSystemContext(proposalIDForLocking = null) {
-        
-        const configHash = ConfigurationService.fetchCriticalConfigHash();
-        const codeHash = CodebaseHasher.calculateActiveCodebaseHash(); // Assuming synchronous or pre-computed, per original API
-        
-        let proposalID;
-        
-        if (proposalIDForLocking) {
-            proposalID = proposalIDForLocking;
-        } else {
-            // Used for dynamic validation where the active context must be determined by the system.
-            proposalID = ActiveStateContextManager.getActiveProposalID();
-        }
-
-        if (!proposalID) {
-            throw new Error("[SSV:Context] Unable to determine operational context (Proposal ID is missing).");
-        }
-
-        return { configHash, codeHash, proposalID };
-    }
-
-
-    /**
-     * 1. Calculates a deep cryptographic hash of the current active code and configuration.
-     * 2. Persists the detailed snapshot (C, H, P, SSH) to the State Snapshot Repository (SSR).
-     * 3. Registers this state hash with the Mutation Chain Registrar (MCR).
-     * @param {string} proposalID - The identifier for the mutation proposal being verified.
+     * 1. Fetches canonical context (C, H, P) using GovernanceContextService.
+     * 2. Calculates the definitive System State Hash (SSH).
+     * 3. Persists the detailed snapshot to the SSR.
+     * 4. Registers this state hash with the MCR, locking the verifiable state.
+     * @param {string} proposalID - The identifier for the mutation proposal being verified/locked.
      * @returns {Promise<string>} The verified system state hash.
      */
     async verifyAndLockState(proposalID) {
         if (!proposalID) {
              throw new Error("Proposal ID is required to lock system state.");
         }
+        
         try {
-            // Step 1: Gather and contextualize
-            const context = await this._gatherCurrentSystemContext(proposalID);
-    
-            // Step 2: Calculate definitive System State Hash (SSH)
+            // Step 1 & 2: Gather context and calculate definitive SSH
+            const context = await this.contextService.resolveVerificationContext(proposalID);
             const ssh = SystemStateVerifier.calculateSystemStateHash(context);
 
-            // Step 3: Snapshot Persistence (Auditability Improvement)
-            StateSnapshotRepository.saveSnapshot({ ...context, ssh });
+            // Step 3: Snapshot Persistence (for audit trail)
+            await this.ssr.saveSnapshot({ ...context, ssh, timestamp: Date.now() });
     
-            // Step 4: Register SSH on the ledger via MCR
-            await MCR.registerSystemStateHash(proposalID, ssh);
+            // Step 4: Register SSH on the ledger via MCR (State commitment)
+            await this.mcr.registerSystemStateHash(proposalID, ssh);
             
-            console.log(`[SSV:LOCK] State locked for ${proposalID}. SSH=${ssh.substring(0, 10)}...`);
+            this.logger.info(`State locked for ${proposalID}. SSH=${ssh.substring(0, 10)}...`);
     
             return ssh;
         } catch (error) {
-            // Ensure failure handling is highly explicit for critical governance functions
-            console.error(`[SSV:LOCK] CRITICAL FAILURE during state verification for ${proposalID}:`, error.message);
+            this.logger.critical(`CRITICAL FAILURE during state verification for ${proposalID}: ${error.message}`, { error });
             throw new Error(`State verification failed: ${error.message}`);
         }
     }
 
     /**
-     * Verifies if the current deployed state matches an expected state hash.
-     * @param {string} expectedHash - The hash registered during the lock phase (EPDP D).
+     * Verifies if the current deployed live state matches an expected/registered state hash.
+     * If expectedHash is null, it retrieves the active registered hash from MCR using the active ProposalID.
+     * @param {string | null} [expectedHash=null] - The hash registered during the lock phase (EPDP D).
      * @returns {Promise<boolean>}
      */
-    async validateCurrentStateAgainstHash(expectedHash) {
-        if (!expectedHash) {
-             throw new Error("Expected hash must be provided for validation.");
-        }
+    async validateCurrentStateAgainstHash(expectedHash = null) {
         
         try {
             // Step 1: Gather context based on live operational environment
-            const context = await this._gatherCurrentSystemContext();
+            const context = await this.contextService.resolveVerificationContext();
             const activeProposalID = context.proposalID;
 
-            // Step 2: Recalculate hash based on current live state and defined context
+            // Determine the target hash for comparison
+            const targetHash = expectedHash || await this.mcr.fetchRegisteredSystemStateHash(activeProposalID);
+            
+            if (!targetHash) {
+                this.logger.warn(`Cannot validate state for ID ${activeProposalID}. No expected hash found (neither provided nor registered).`);
+                return false;
+            }
+
+            // Step 2: Recalculate hash based on current live state
             const liveRecalculatedHash = SystemStateVerifier.calculateSystemStateHash(context);
 
-            if (liveRecalculatedHash === expectedHash) {
-                console.log(`[SSV:VERIFY] State Integrity verified successfully. Context ID: ${activeProposalID}`);
+            if (liveRecalculatedHash === targetHash) {
+                this.logger.verified(`State Integrity verified successfully. Context ID: ${activeProposalID}`);
                 return true;
             } 
             
             // State Integrity Failure: Log details clearly
-            console.error(`[SSV:VERIFY] State Integrity Failure (ID: ${activeProposalID}). Expected: ${expectedHash.substring(0, 10)}..., Found: ${liveRecalculatedHash.substring(0, 10)}...`);
+            this.logger.error(
+                `State Integrity Mismatch (ID: ${activeProposalID}). Expected: ${targetHash.substring(0, 10)}..., Found: ${liveRecalculatedHash.substring(0, 10)}...`
+            );
             return false;
 
         } catch (error) {
-             console.error(`[SSV:VERIFY] CRITICAL ERROR during state validation:`, error.message);
+             this.logger.critical(`CRITICAL ERROR during state validation: ${error.message}`, { error });
              return false;
         }
     }
