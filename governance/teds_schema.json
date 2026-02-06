@@ -1,6 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "TEDS Log Schema (v94.1)",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TEDS Log Schema (v94.2)",
   "description": "Secure and mandatory structure for Trusted Event Data Stream (TEDS) records. Enforces strict compliance across all 15 GSEP-C pipeline stages (S00-S14).",
   "type": "object",
   "required": [
@@ -11,13 +11,8 @@
     "artifact_hash",
     "trace_id"
   ],
-  "properties": {
-    "timestamp": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO 8601 UTC timestamp of event finalization."
-    },
-    "stage": {
+  "$defs": {
+    "StageId": {
       "type": "string",
       "enum": [
         "S00",
@@ -38,7 +33,7 @@
       ],
       "description": "The GSEP-C pipeline stage number."
     },
-    "agent": {
+    "AgentId": {
       "type": "string",
       "enum": [
         "CRoT",
@@ -48,7 +43,7 @@
       ],
       "description": "The responsible governing agent (CRoT: Core Runtime, GAX: Governance/Audit, SGS: State Guardian, SYSTEM: Infrastructure/Setup)."
     },
-    "status": {
+    "ExecutionStatus": {
       "type": "string",
       "enum": [
         "PASS",
@@ -59,10 +54,34 @@
       ],
       "description": "Final result of the stage operation."
     },
-    "trace_id": {
+    "ArtifactHash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "Cryptographic artifact hash (SHA-256 required) of the primary output."
+    },
+    "TraceId": {
       "type": "string",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^[0-9a-f]{32}$",
-      "description": "Unique identifier linking all events within a single execution cycle (UUID v4 recommended)."
+      "description": "Unique identifier linking all events (UUID v4 or standard hex)."
+    }
+  },
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of event finalization."
+    },
+    "stage": {
+      "$ref": "#/$defs/StageId"
+    },
+    "agent": {
+      "$ref": "#/$defs/AgentId"
+    },
+    "status": {
+      "$ref": "#/$defs/ExecutionStatus"
+    },
+    "trace_id": {
+      "$ref": "#/$defs/TraceId"
     },
     "message": {
       "type": "string",
@@ -70,9 +89,7 @@
       "description": "Human-readable detail regarding the checkpoint outcome."
     },
     "artifact_hash": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{64}$",
-      "description": "Cryptographic hash (SHA-256 required) of the primary output artifact generated during this stage."
+      "$ref": "#/$defs/ArtifactHash"
     },
     "failure_flags": {
       "type": "object",
@@ -105,24 +122,26 @@
     }
   },
   "additionalProperties": false,
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "status": {
-            "const": "FAIL"
-          }
-        },
-        "required": ["status"]
-      },
-      "then": {
-        "required": ["failure_flags"]
-      },
-      "else": {
-        "not": {
-          "required": ["failure_flags"]
-        }
+  "if": {
+    "properties": {
+      "status": {
+        "const": "FAIL"
       }
+    },
+    "required": [
+      "status"
+    ]
+  },
+  "then": {
+    "required": [
+      "failure_flags"
+    ]
+  },
+  "else": {
+    "not": {
+      "required": [
+        "failure_flags"
+      ]
     }
-  ]
+  }
 }
