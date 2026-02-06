@@ -3,7 +3,7 @@
 
 const { TelemetryProvider } = require('./TelemetryProvider.js'); 
 const { IdGenerator } = require('../Utils/IdGenerator.js'); 
-// In a full implementation, require('./GAXEventRegistry.js') would be used here.
+const GAXEvents = require('./GAXEventRegistry.js'); // Standardized event names
 
 /**
  * @typedef {object} TelemetryContext
@@ -37,70 +37,103 @@ class GAXTelemetryService {
      * @param {string} [level='info'] - Log level ('info', 'warn', 'error', 'debug', 'fatal').
      */
     static publish(eventName, context, data = {}, level = 'info') {
+        // Input validation for critical context elements
         if (!context || !context.component || !context.runId) {
             // Self-logging error if crucial context is missing for traceability.
-            TelemetryProvider.log('error', '[GAX:DIAG_CONTEXT_MISSING]', {
-                eventName: eventName,
+            TelemetryProvider.log('error', GAXEvents.DIAG_CONTEXT_MISSING, {
                 requiredFields: ['component', 'runId'],
                 receivedContext: context,
+                originalEvent: eventName,
                 timestamp: Date.now()
             });
-            // Default context for compromised events
+            // Assign safe defaults for the compromised event
             context = { component: 'GAX_CORE', runId: 'N/A', ...context };
         }
 
         const standardPayload = {
+            eventName: eventName,
             metadata: {
                 timestamp: Date.now(),
                 level: level,
                 ...context
             },
-            eventName: eventName,
             data: data
         };
         
-        // Logging format includes Run ID for easier cross-component trace correlation.
-        TelemetryProvider.log(level, `[GAX][${context.runId}] ${eventName}`, standardPayload);
+        // Use a standardized, concise message for human readability/grepping,
+        // while relying on the structured payload for machine analysis.
+        const message = `[GAX][${context.runId}][${context.component}] ${eventName}`;
+
+        TelemetryProvider.log(level, message, standardPayload);
     }
 
-    // --- Specialized High-Level Wrappers (Simplified signatures, requiring explicit context) ---
+    // --- Specialized High-Level Wrappers (Simplified signatures) ---
 
-    /** @param {string} eventName @param {TelemetryContext} context @param {object=} data */
+    /** 
+     * Logs debug information.
+     * @param {string} eventName - Must be a key from GAXEventRegistry. 
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
+     */
     static debug(eventName, context, data) {
         this.publish(eventName, context, data, 'debug');
     }
 
-    /** @param {string} eventName @param {TelemetryContext} context @param {object=} data */
+    /** 
+     * Logs routine information. 
+     * @param {string} eventName - Must be a key from GAXEventRegistry. 
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
+     */
     static info(eventName, context, data) {
         this.publish(eventName, context, data, 'info');
     }
 
-    /** @param {string} eventName @param {TelemetryContext} context @param {object=} data */
+    /** 
+     * Logs warnings about non-critical issues. 
+     * @param {string} eventName - Must be a key from GAXEventRegistry. 
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
+     */
     static warn(eventName, context, data) {
         this.publish(eventName, context, data, 'warn');
     }
 
-    /** @param {string} eventName @param {TelemetryContext} context @param {object=} data */
+    /** 
+     * Logs errors indicating failures that might require intervention. 
+     * @param {string} eventName - Must be a key from GAXEventRegistry. 
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
+     */
     static error(eventName, context, data) {
         this.publish(eventName, context, data, 'error');
     }
 
-    /** @param {string} eventName @param {TelemetryContext} context @param {object=} data */
+    /** 
+     * Logs fatal errors leading to system halt or critical failure. 
+     * @param {string} eventName - Must be a key from GAXEventRegistry. 
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
+     */
     static fatal(eventName, context, data) {
         this.publish(eventName, context, data, 'fatal');
     }
     
     /** 
-     * Logs successful operations. 
-     * @param {string} eventName @param {TelemetryContext} context @param {object=} data 
+     * Logs successful operations (alias for info). 
+     * @param {string} eventName - Must be a key from GAXEventRegistry.
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
      */
     static success(eventName, context, data) {
         this.publish(eventName, context, data, 'info');
     }
     
     /** 
-     * Logs operational failures, classified as 'error' level. 
-     * @param {string} eventName @param {TelemetryContext} context @param {object=} data 
+     * Logs operational failures (alias for error). 
+     * @param {string} eventName - Must be a key from GAXEventRegistry.
+     * @param {TelemetryContext} context 
+     * @param {object=} data 
      */
     static failure(eventName, context, data) {
         this.publish(eventName, context, data, 'error');
