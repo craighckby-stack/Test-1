@@ -1,0 +1,27 @@
+{
+  "$id": "$/api_schemas.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "V1": {
+      "UserCreation": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string", "minLength": 4 },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" }
+        },
+        "required": ["username", "email", "password"],
+        "additionalProperties": false
+      }
+    },
+    "V2": {
+      "GenericQuery": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "offset": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
