@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://governance.sgs.ai/schema/SSVR.schema.json",
+  "title": "SGS Schema Version Registry (SSVR) Canonical Format",
+  "type": "object",
+  "required": [
+    "integrity_hash",
+    "sgs_system_version",
+    "timestamp",
+    "schema_definitions",
+    "attestation_log"
+  ],
+  "properties": {
+    "integrity_hash": {
+      "description": "Cryptographic hash (SHA-384 recommended) covering the entire SSVR content block.",
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{96}$"
+    },
+    "sgs_system_version": {
+      "description": "The current version of the Sovereign Governance System the schemas belong to (e.g., V94.4.1).",
+      "type": "string",
+      "pattern": "^V[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "timestamp": {
+      "description": "RFC 3339 timestamp of the SSVR file generation.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "schema_definitions": {
+      "description": "Registry of all mandated schemas, their current immutable version, and content hash.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["schema_id", "purpose", "version", "hash_type", "content_hash"],
+        "properties": {
+          "schema_id": {
+            "type": "string",
+            "description": "Short code ID for the schema (e.g., GICM, HETM)."
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "description": "Semantic version of the underlying schema content."
+          },
+          "hash_type": {
+            "type": "string",
+            "enum": ["SHA-256", "SHA-384", "SHA-512"]
+          },
+          "content_hash": {
+            "type": "string",
+            "description": "Cryptographic hash of the linked schema file content."
+          }
+        }
+      }
+    },
+    "attestation_log": {
+      "description": "Log of cryptographic signatures from quorum signers validating this SSVR instance. Must meet 2/3 majority requirement (minimum 3 signers if GAS pool is 4, adjusted dynamically if GAS pool changes).",
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["signer_id", "signature_type", "signature"],
+        "properties": {
+          "signer_id": {
+            "type": "string"
+          },
+          "signature_type": {
+            "type": "string",
+            "enum": ["Ed25519", "P-521", "ECDSA"]
+          },
+          "signature": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
