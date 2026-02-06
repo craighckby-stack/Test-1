@@ -1,7 +1,18 @@
 import typing
 from typing import Dict, Any, List, TYPE_CHECKING, Optional
 
-# Forward declarations for external components (ensures clean imports)
+# --- Manifest Structure Keys (Constants for Robustness) ---
+class SIHMKeys:
+    COMMAND = 'command'
+    SEQUENCE_ID = 'sequence_id'
+    REQUIRED_STATUS = 'required_status'
+    PARAMETERS = 'parameters'
+    HALT_ON_FAILURE = 'halt_on_failure'
+    PRIORITY_LEVEL = 'priority_level'
+    RESPONSE_PLAN = 'response_plan'
+# ---------------------------------------------------------
+
+# Forward declarations and Protocols
 if TYPE_CHECKING:
     # Assuming these types exist in related services, ideally centralized in SIHM_Types
     from .SIHM_CommandResult import SIHM_CommandResult
@@ -24,21 +35,32 @@ class SIHM_ExecutionEngine:
     """
     Isolated runtime engine for executing System Integrity Halt Manifest directives.
     Employs robust priority queuing, state checks, failure propagation, and exception handling.
-
-    Refactored to utilize private methods for cleaner execution lifecycle management.
+    Uses SIHMKeys for explicit structural reference, improving robustness and maintainability.
     """
 
     def __init__(self, isolation_context: 'Context', command_registry: 'CommandRegistry'):
-        # Context and Command Registry are injected dependencies for testability and lifecycle management.
         self.context = isolation_context
-        self.commands: Dict[str, Any] = command_registry.get_isolated_commands()
+        self.commands: Dict[str, 'CommandHandlerProtocol'] = command_registry.get_isolated_commands()
         self.registry = command_registry
         self._halt_triggered: bool = False
+
+    def _handle_command_result(self, cmd_str: str, sequence_id: str, result: 'SIHM_CommandResult', halt_on_failure: bool) -> None:
+        """Processes a structured command result (SIHM_CommandResult) for success/failure propagation."""
+        self.context.log_action(sequence_id, result)
+
+        # Use getattr with a safe default (True) for robustness against non-compliant result objects
+        if not getattr(result, 'success', True):
+            msg = getattr(result, 'message', 'No details provided.')
+            self.context.log_error(f"Command failure: '{cmd_str}' ({sequence_id}). Message: {msg}")
+            
+            if halt_on_failure:
+                self.context.log_critical(f"CRITICAL HALT: Sequence terminated due to mandatory result failure for '{cmd_str}'.")
+                self._halt_triggered = True
 
     def _validate_directive(self, cmd_str: Optional[str], sequence_id: str) -> bool:
         """Ensures the directive is structurally valid and the command exists."""
         if not cmd_str:
-            self.context.log_error(f"Directive ID {sequence_id} is missing a 'command' identifier. Skipping.")
+            self.context.log_error(f"Directive ID {sequence_id} is missing a '{SIHMKeys.COMMAND}' identifier. Skipping.")
             return False
 
         if cmd_str not in self.commands:
@@ -51,18 +73,10 @@ class SIHM_ExecutionEngine:
         """Attempts to run the command and handles results or exceptions."""
         try:
             command_handler = self.commands[cmd_str]
-            # Expects a structured result (SIHM_CommandResult)
+            # Expects a structured result
             result = command_handler.execute(**params)
             
-            self.context.log_action(sequence_id, result)
-
-            # Check result structure for failure propagation
-            if hasattr(result, 'success') and result.success is False:
-                self.context.log_error(f"Command failure: '{cmd_str}' ({sequence_id}). Message: {getattr(result, 'message', 'No details')}")
-                
-                if halt_on_failure:
-                    self.context.log_critical(f"CRITICAL HALT: Sequence terminated due to mandatory result failure for '{cmd_str}'.")
-                    self._halt_triggered = True
+            self._handle_command_result(cmd_str, sequence_id, result, halt_on_failure)
             
         except Exception as e:
             # Catch runtime/system exceptions during command invocation
@@ -77,11 +91,12 @@ class SIHM_ExecutionEngine:
         if self._halt_triggered:
             return
 
-        cmd_str = directive.get('command')
-        sequence_id = directive.get('sequence_id', 'SEQ_UNKNOWN')
-        required_status = directive.get('required_status')
-        params = directive.get('parameters', {})
-        halt_on_failure = directive.get('halt_on_failure', False)
+        # Use constants for explicit key access
+        cmd_str = directive.get(SIHMKeys.COMMAND)
+        sequence_id = directive.get(SIHMKeys.SEQUENCE_ID, 'SEQ_UNKNOWN')
+        required_status = directive.get(SIHMKeys.REQUIRED_STATUS)
+        params = directive.get(SIHMKeys.PARAMETERS, {})
+        halt_on_failure = directive.get(SIHMKeys.HALT_ON_FAILURE, False)
 
         if not self._validate_directive(cmd_str, sequence_id):
             return
@@ -105,16 +120,18 @@ class SIHM_ExecutionEngine:
         Returns True if execution completed successfully without mandatory halting.
         """
         self._halt_triggered = False # Reset state for new execution run
-        response_plan: List[Dict[str, Any]] = manifest_data.get('response_plan', [])
+        response_plan: List[Dict[str, Any]] = manifest_data.get(SIHMKeys.RESPONSE_PLAN, [])
 
         if not response_plan:
             self.context.log_action("N/A", "Manifest provided no response plan. Exiting early.")
             return True
             
-        # 1. Structural Sort: Ensures strict adherence to critical priority levels.
+        # 1. Structural Sort
         try:
-            # Robust sorting: Explicitly cast priority level to integer, handling None or missing values as 0.
-            response_plan.sort(key=lambda x: int(x.get('priority_level', 0) or 0), reverse=True)
+            response_plan.sort(
+                key=lambda x: int(x.get(SIHMKeys.PRIORITY_LEVEL, 0) or 0), 
+                reverse=True
+            )
         except (TypeError, ValueError) as e:
             self.context.log_critical(f"Manifest plan sorting failed due to invalid priority type: {e}. Halting initialization.")
             return False
@@ -124,7 +141,6 @@ class SIHM_ExecutionEngine:
             self._process_directive(directive)
             
             if self._halt_triggered:
-                # Immediate break if an internal directive triggered a mandatory halt.
                 break 
                     
         return not self._halt_triggered
