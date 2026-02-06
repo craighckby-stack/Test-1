@@ -1,0 +1,28 @@
+{
+  "schema_title": "Autonomous Trust Metric Governance Schema",
+  "schema_version": "1.0.0",
+  "description": "Defines aggregation rules, threshold actions, and global weight validation parameters for the ATM.",
+  "weight_validation": {
+    "expected_total_weight_percent": 100.0,
+    "enforcement_policy": "strict_tolerance",
+    "tolerance_percent": 0.0
+  },
+  "thresholds": [
+    {
+      "score_range": "0-30",
+      "criticality": "CATastrophic",
+      "automatic_action": "system_halt_L5",
+      "notification_level": "Executive/P0"
+    },
+    {
+      "score_range": "31-70",
+      "criticality": "High_Risk",
+      "automatic_action": "rollback_last_deployment",
+      "notification_level": "Engineering/P1"
+    }
+  ],
+  "default_metric_aggregation": {
+    "algorithm": "WeightedSumNormalizationV2",
+    "normalization_range": "0-100"
+  }
+}
