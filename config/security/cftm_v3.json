@@ -1,11 +1,25 @@
 {
-  "version": "v3.0",
-  "description": "Core Failure Thresholds Manifest defining mathematical constants for governance axioms (GAX).",
-  "constants": {
-    "tau_normalization": 0.0001, 
-    "notes_tau": "Used in COF denominator (Section 2.1) to ensure stability and prevent division by zero when Risk (S-02) is negligible.",
-    "epsilon_minimum": 0.05, 
-    "notes_epsilon": "The minimum required safety margin by which Efficacy (S-01) must exceed adjusted Risk (S-02) for P-01 Finality Certification (Section 2.2)."
+  "version": "v4.0",
+  "description": "Core Failure Thresholds Manifest (CFTM). Defines immutable mathematical constants for Governance Axiom (GAX) validation models.",
+  "metadata": {
+    "axiom_group": "GAX/P-01",
+    "status": "ProductionReady",
+    "last_revised": "2024-06-15T12:00:00Z"
   },
-  "last_updated": "2024-05-30"
+  "axioms": {
+    "COF_Stability_Model": {
+      "id": "GAX-S-02.1",
+      "constant_key": "DENOMINATOR_STABILITY_TAU",
+      "value": 0.0001,
+      "units": "scalar",
+      "rationale": "Used in the Certification of Failure (COF) denominator to ensure computational stability (prevent division by zero) when observed Risk (S-02) is negligible."
+    },
+    "P01_Finality_Model": {
+      "id": "GAX-P-01.2",
+      "constant_key": "MINIMUM_EFFICACY_SAFETY_MARGIN_EPSILON",
+      "value": 0.05,
+      "units": "ratio",
+      "rationale": "The mandatory percentage by which measured Efficacy (S-01) must exceed adjusted Risk (S-02). Failure to maintain this safety margin halts P-01 Finality Certification."
+    }
+  }
 }
