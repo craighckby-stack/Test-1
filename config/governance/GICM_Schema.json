@@ -1,1 +1,37 @@
-[object Object]
+{
+  "schema_id": "GICM_Schema_v94_1",
+  "description": "Defines structural requirements, integrity constraints, and operational monitoring standards for core AGI data entities.",
+  "version": "1.1.0",
+  "metadata": {
+    "last_updated": "{timestamp}",
+    "maintainer": "Sovereign AGI v94.1"
+  },
+  "entities": {
+    "MissionLifecycle": {
+      "purpose": "Governing the entire span of a mission (pre-exec, exec, post-audit).",
+      "integrity_model": "SHA256_Tree",
+      "fields": {
+        "mission_uuid": {"type": "string", "required": true, "integrity": "immutable"},
+        "governance_level": {"type": "enum", "options": ["L5_Critical", "L3_Standard", "L1_Informational"], "default": "L3_Standard"},
+        "compliance_status": {"type": "enum", "options": ["Compliant", "Violation_Alert", "Audit_Pending"], "monitoring_target": "Violation_Rate < 0.01"},
+        "audit_required_policy": {"type": "string", "nullable": true, "constraint": "If governance_level == L5_Critical, must be non-null"}
+      }
+    },
+    "DataProvenanceRecord": {
+      "purpose": "Tracking the source, processing steps, and classification of all input/output data.",
+      "integrity_model": "BLAKE3",
+      "fields": {
+        "record_hash": {"type": "string", "required": true, "index": "primary"},
+        "source_endpoint": {"type": "url", "required": true},
+        "data_classification": {"type": "enum", "options": ["P0_Sensitive", "P1_Internal", "P2_Public"], "compliance_policy_id": "Policy_DataRetention_003"},
+        "taint_score": {"type": "float", "min": 0.0, "max": 1.0, "monitoring_tag": "DriftThreshold:0.75"}
+      }
+    }
+  },
+  "global_policies": {
+    "default_retention_days": 90,
+    "enforcement_hooks": [
+      {"type": "kafka", "topic": "GICM_Violations"}
+    ]
+  }
+}
