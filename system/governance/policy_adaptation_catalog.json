@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "Catalog of formal adaptation algorithms used for dynamic tuning of governance metric thresholds.",
+  "adaptation_policies": [
+    {
+      "policy_id": "EMA-K1",
+      "name": "Exponential Moving Average Adaptive Tuning",
+      "type": "Smoothing",
+      "parameters": {
+        "alpha": 0.05,
+        "history_window_days": 7,
+        "activation_condition": "MetricsHistorySufficient"
+      },
+      "logic_specification": "Algorithm 4.1: Weighted Average calculation targeting stability margin."
+    },
+    {
+      "policy_id": "CVM-T3",
+      "name": "Contextual Volatility Modifier",
+      "type": "RiskModulation",
+      "parameters": {
+        "sensitivity_factor": 1.5,
+        "maximum_deviation": 0.1,
+        "input_stream_refs": ["RiskExposureIndex", "OperationalLoadFactor"]
+      },
+      "logic_specification": "If OperationalLoadFactor > 0.8, multiply sensitivity_factor by 1.2."
+    }
+  ]
+}
