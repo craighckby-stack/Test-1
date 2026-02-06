@@ -1,9 +1,36 @@
 import { ACVD_SCHEMA } from './ACVD_schema.json';
-import Ajv from 'ajv';
+import Ajv, { ErrorObject } from 'ajv';
 import crypto from 'crypto';
+import { ALGORITHM, canonicalStringify } from '../config/crypto_standards';
 
-const ajv = new Ajv();
+// --- Types ---
+export interface ACVDRecord {
+    ACVD_ID: string;
+    context_hash: string;
+    [key: string]: any; 
+}
+
+export interface ValidationResult {
+    isValid: boolean;
+    errors: { message: string; details?: any }[] | null;
+}
+
+// --- Constants and Setup ---
+const ajv = new Ajv({ allErrors: true, useDefaults: true });
 const validateSchema = ajv.compile(ACVD_SCHEMA);
+
+/**
+ * Generates a SHA256 hash for input data, optionally ensuring canonical stringification if object is provided.
+ * @param data Input data (string or object).
+ * @returns SHA256 hash string.
+ */
+function createIntegrityHash(data: string | object): string {
+    const inputString = typeof data === 'object' 
+        ? canonicalStringify(data) 
+        : data;
+    
+    return crypto.createHash(ALGORITHM).update(inputString).digest('hex');
+}
 
 /**
  * Validates an ACVD record against the canonical schema and performs cryptographic integrity checks.
@@ -11,41 +38,46 @@ const validateSchema = ajv.compile(ACVD_SCHEMA);
  * @param inputContext The actual system context snapshot used to generate the context_hash.
  * @returns Validation results.
  */
-export function validateACVD(record: any, inputContext: string): {
-  isValid: boolean;
-  errors: any[] | null;
-} {
-  // 1. Structural Validation
-  const isValidStructure = validateSchema(record);
-  if (!isValidStructure) {
-    return { isValid: false, errors: validateSchema.errors };
-  }
+export function validateACVD(record: ACVDRecord, inputContext: string): ValidationResult {
+    const errors: { message: string; details?: any }[] = [];
 
-  // 2. Context Hash Integrity Check
-  const computedContextHash = crypto.createHash('sha256').update(inputContext).digest('hex');
-  if (computedContextHash !== record.context_hash) {
-    return {
-      isValid: false,
-      errors: [
-        { message: `Context hash mismatch. Expected ${computedContextHash}, found ${record.context_hash}. Input context was tampered or incorrectly hashed.` },
-      ],
-    };
-  }
+    // 1. Structural Validation
+    const isValidStructure = validateSchema(record);
+    if (!isValidStructure) {
+        if (validateSchema.errors) {
+            errors.push({
+                message: 'ACVD structure failed validation against canonical schema.',
+                details: validateSchema.errors as ErrorObject[]
+            });
+        }
+    }
 
-  // 3. ACVD_ID Calculation Check (Must match the hash of the full record content excluding the ACVD_ID itself)
-  // NOTE: This implementation assumes ACVD_ID is the SHA256 of the canonical JSON string of the rest of the record.
-  const temporaryRecord = { ...record };
-  delete temporaryRecord.ACVD_ID;
-  const expectedACVDId = crypto.createHash('sha256').update(JSON.stringify(temporaryRecord)).digest('hex');
+    // 2. Context Hash Integrity Check
+    const computedContextHash = createIntegrityHash(inputContext);
+    if (computedContextHash !== record.context_hash) {
+        errors.push({
+            message: `Context hash mismatch. Input context appears tampered or incorrectly hashed.`,
+            details: { expected: computedContextHash, found: record.context_hash, check: 'context_hash' }
+        });
+    }
 
-  if (expectedACVDId !== record.ACVD_ID) {
-    return {
-      isValid: false,
-      errors: [
-        { message: `ACVD_ID integrity check failed. Expected ${expectedACVDId}, found ${record.ACVD_ID}.` },
-      ],
-    };
-  }
+    // 3. ACVD_ID Calculation Check
+    // Use object destructuring to safely exclude ACVD_ID for content hashing.
+    const { ACVD_ID, ...recordForHashing } = record;
+    
+    // Hash the rest of the record using canonical stringification
+    const expectedACVDId = createIntegrityHash(recordForHashing);
 
-  return { isValid: true, errors: null };
+    if (expectedACVDId !== ACVD_ID) {
+        errors.push({
+            message: `ACVD_ID integrity check failed. The record content hash does not match the stored ID.`,
+            details: { expected: expectedACVDId, found: ACVD_ID, check: 'ACVD_ID' }
+        });
+    }
+    
+    if (errors.length > 0) {
+        return { isValid: false, errors };
+    }
+
+    return { isValid: true, errors: null };
 }
