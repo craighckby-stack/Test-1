@@ -1,0 +1,28 @@
+{
+  "risk_levels": [
+    {
+      "level": "P0_Mandatory",
+      "severity_score": 1000,
+      "impact": "Systematic Trust Failure",
+      "required_action": "Automatic Rollback/Halt",
+      "notification_groups": ["Sovereign_Kernel", "Ops_Critical"]
+    },
+    {
+      "level": "P1",
+      "severity_score": 500,
+      "impact": "High Trust Degradation",
+      "required_action": "Immediate Audit & Mitigation",
+      "notification_groups": ["Development_Leads"]
+    },
+    {
+      "level": "P3",
+      "severity_score": 100,
+      "impact": "Minor Metric Volatility",
+      "required_action": "Scheduled Review",
+      "notification_groups": ["Telemetry_Watch"]
+    }
+  ],
+  "metadata": {
+    "description": "Defines the operational meaning, required actions, and default penalty weighting for all standardized criticality levels referenced by ATM components."
+  }
+}
