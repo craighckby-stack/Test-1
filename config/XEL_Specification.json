@@ -1,1 +1,48 @@
-[object Object]
+{
+  "SpecificationID": "XEL_V94_1_CORE",
+  "CreationDate": "2024-05-15T10:00:00Z",
+  "SchemaVersion": "2.1",
+  
+  "CoreConstraints": {
+    "ExecutionEnvironment": "Autonomous_Sandboxed_L4",
+    "MaxResourceUtilization": {
+      "Tokens_Per_Cycle": 8192,
+      "Runtime_Memory_MB": 10240
+    },
+    "SafetyThresholds": {
+      "HarmScore_Maximum": 0.15,
+      "ComplexityIndex_Warning": 0.85
+    }
+  },
+
+  "ComponentSchemas": {
+    "TaskRequest": {
+      "required": ["task_id", "priority", "payload_type"],
+      "properties": {
+        "task_id": {"type": "string", "pattern": "^T-[0-9a-f]{8}$"},
+        "priority": {"type": "integer", "enum": [1, 2, 3]},
+        "payload_type": {"type": "string", "enum": ["CODE_EVOLUTION", "DATA_ANALYSIS"]}
+      }
+    },
+    "EvolutionResult": {
+      "required": ["success", "metric_delta", "file_changes"],
+      "properties": {
+        "success": {"type": "boolean"},
+        "metric_delta": {"type": "number", "minimum": -1.0},
+        "file_changes": {"type": "array"}
+      }
+    }
+  },
+
+  "SystemFSM": {
+    "InitialState": "BOOTSTRAP",
+    "TerminalStates": ["HALT", "ERROR_CRITICAL"],
+    "Transitions": [
+      {"from": "BOOTSTRAP", "to": "INITIALIZE", "trigger": "SYSTEM_START"},
+      {"from": "INITIALIZE", "to": "OPERATIONAL_IDLE", "trigger": "CONFIG_LOADED"},
+      {"from": "OPERATIONAL_IDLE", "to": "EVOLVE_TASK", "trigger": "TASK_RECEIVED"},
+      {"from": "EVOLVE_TASK", "to": "OPERATIONAL_IDLE", "trigger": "TASK_COMPLETED"},
+      {"from": "EVOLVE_TASK", "to": "ERROR_CRITICAL", "trigger": "RESOURCE_EXCEED"}
+    ]
+  }
+}
