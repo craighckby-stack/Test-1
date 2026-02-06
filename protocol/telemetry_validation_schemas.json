@@ -1,19 +1,99 @@
 {
-  "description": "Concrete JSON Schema definitions for telemetry compliance protocols (MPAM, SGS, ADTM). Essential for strict ingress data validation before DIAL buffering.",
-  "schemas": {
-    "MPAM_Schema": {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign.v94/protocol/telemetry_validation_schemas.json",
+  "description": "Standardized and strict JSON Schema definitions for telemetry compliance across core protocols (MPAM, SGS, ADTM). Utilizes a common base structure for standardized ingress data validation before DIAL buffering, ensuring high-throughput compliance.",
+  
+  "$defs": {
+    "TelemetryBase": {
       "type": "object",
       "properties": {
-        "MPAM_01_Pressure_Reading": {"type": "number", "minimum": 0.0}
+        "event_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Globally unique identifier for the telemetry event."
+        },
+        "timestamp_utc": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The exact time the event was generated, in ISO 8601 UTC format."
+        },
+        "source_system": {
+          "type": "string",
+          "enum": ["DIAL_RTR", "AUX_SAT", "FIELD_NODE", "SIM_ENV"],
+          "description": "The primary source system originating the data."
+        },
+        "protocol_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\.[0-9]+$",
+          "default": "1.1"
+        }
       },
-      "required": ["MPAM_01_Pressure_Reading"]
+      "required": ["event_id", "timestamp_utc", "source_system"],
+      "additionalProperties": false
     },
-    "SGS_Schema": {
+    
+    "MPAM_Content": {
       "type": "object",
       "properties": {
-        "SGS_05_Transition_History": {"type": "array", "items": {"type": "string"}}
-      }
+        "pressure_reading": {"type": "number", "minimum": 0.0, "description": "Micro-Pressure Anomaly Measurement (MPAM) reading in hPa.", "unit": "hPa"},
+        "calibration_drift": {"type": "number", "default": 0.0}
+      },
+      "required": ["pressure_reading"],
+      "additionalProperties": false
+    },
+    
+    "SGS_Content": {
+      "type": "object",
+      "properties": {
+        "transition_history": {
+          "type": "array", 
+          "items": {"type": "string", "maxLength": 64},
+          "minItems": 1,
+          "description": "State Grid Synchronization (SGS) historical transition sequence identifiers."
+        },
+        "grid_status_code": {"type": "integer", "enum": [100, 200, 300, 404]}
+      },
+      "required": ["transition_history"],
+      "additionalProperties": false
+    },
+    
+    "ADTM_Content": {
+      "type": "object",
+      "properties": {
+        "differential_vector": {
+          "type": "array",
+          "items": {"type": "number"},
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "3D Autonomous Dynamic Trajectory Modeling (ADTM) differential vector [dx, dy, dz] in meters/second."
+        },
+        "confidence_score": {"type": "number", "minimum": 0.7, "maximum": 1.0}
+      },
+      "required": ["differential_vector", "confidence_score"],
+      "additionalProperties": false
     }
   },
-  "spec_version": "94.1.A"
+  
+  "schemas": {
+    "MPAM_Event": {
+      "allOf": [
+        {"$ref": "#/$defs/TelemetryBase"},
+        {"type": "object", "properties": {"payload": {"$ref": "#/$defs/MPAM_Content"}}, "required": ["payload"]}
+      ]
+    },
+    "SGS_Event": {
+      "allOf": [
+        {"$ref": "#/$defs/TelemetryBase"},
+        {"type": "object", "properties": {"payload": {"$ref": "#/$defs/SGS_Content"}}, "required": ["payload"]}
+      ]
+    },
+    "ADTM_Event": {
+      "allOf": [
+        {"$ref": "#/$defs/TelemetryBase"},
+        {"type": "object", "properties": {"payload": {"$ref": "#/$defs/ADTM_Content"}}, "required": ["payload"]}
+      ]
+    }
+  },
+  
+  "spec_version": "94.1.B"
 }
