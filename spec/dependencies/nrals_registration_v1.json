@@ -1,0 +1,32 @@
+{
+  "spec_id": "NRALS_REG_V1.0",
+  "title": "NRALS Manifest Hash Registration Service Contract",
+  "version": "1.0",
+  "description": "Defines the mandatory contract for registering new cryptographic hash manifests with the NRALS Ledger, prerequisite for MCIS integrity verification.",
+  "service_urn": "urn:gac-sys:service:gacrs:manifest-registration",
+  "registration_requirements": {
+    "immutable": true,
+    "transaction_mechanism": "LEDGER_COMMIT",
+    "authorization_level": "GOVERNANCE_EXEC"
+  },
+  "contracts": {
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "manifest_id": {"type": "string", "format": "uuid"},
+        "content_hash": {"type": "string", "format": "sha512"},
+        "asset_type": {"type": "string", "enum": ["CAC", "CFTM", "PVLM", "SIHM", "FSVM"]},
+        "committer_signature": {"type": "string", "format": "JWS"}
+      },
+      "required": ["manifest_id", "content_hash", "asset_type", "committer_signature"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "success": {"type": "boolean"},
+        "transaction_id": {"type": "string"},
+        "ledger_block_ref": {"type": "string"}
+      }
+    }
+  }
+}
