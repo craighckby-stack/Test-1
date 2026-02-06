@@ -1,43 +1,59 @@
 {
   "description": "Tiered Configuration for the Predictive Constraint Sentinel (PCS) Warning Thresholds (W-Set). Implements graded escalation based on defined metrics.",
   "active": true,
-  "version": "1.1.0-alpha",
+  "version": "2.0.0-beta",
   "thresholds": {
     "W-T-001": {
-      "description": "Execution Stage Margin Warning (Temporal P-Set Proximity)",
-      "type": "TEMPORAL",
-      "target_p_set": "P-M01",
+      "metadata": {
+        "description": "Execution Stage Margin Warning (Temporal P-Set Proximity)",
+        "type": "TEMPORAL",
+        "target_p_set": "P-M01"
+      },
       "metric_key": "System.ExecutionStage.Margin",
       "enforced_component": "PIM",
-      "threshold_settings": [
-        { "level": "SOFT", "value": 0.75, "unit": "PERCENT_OF_LIMIT" },
-        { "level": "ELEVATED", "value": 0.85, "unit": "PERCENT_OF_LIMIT" }
+      "settings": [
+        { "level": "SOFT", "severity_index": 10, "value": 0.75, "unit": "PERCENT_CAPACITY" },
+        { "level": "ELEVATED", "severity_index": 30, "value": 0.85, "unit": "PERCENT_CAPACITY" }
       ],
-      "escalation_policy": ["ACTION_LOG_PRIORITY_PIM", "ACTION_REQUEST_TELEMETRY_SAMPLE"]
+      "actions": [
+        { "action_id": "ACTION_LOG_PRIORITY", "config": { "level": "PIM" } },
+        { "action_id": "ACTION_REQUEST_TELEMETRY_SAMPLE", "config": {} }
+      ]
     },
     "W-R-001": {
-      "description": "ACVM Memory Utilization Tiered Warning",
-      "type": "RESOURCE",
-      "target_p_set": "P-M02",
+      "metadata": {
+        "description": "ACVM Memory Utilization Tiered Warning",
+        "type": "RESOURCE",
+        "target_p_set": "P-M02"
+      },
       "metric_key": "ACVM.Memory.Used",
       "enforced_component": "DRO",
-      "threshold_settings": [
-        { "level": "SOFT", "value": 0.80, "unit": "PERCENT_OF_LIMIT" },
-        { "level": "ELEVATED", "value": 0.90, "unit": "PERCENT_OF_LIMIT" }
+      "settings": [
+        { "level": "SOFT", "severity_index": 20, "value": 0.80, "unit": "PERCENT_CAPACITY" },
+        { "level": "ELEVATED", "severity_index": 40, "value": 0.90, "unit": "PERCENT_CAPACITY" }
       ],
-      "escalation_policy": ["ACTION_REQUEST_NONCRITICAL_RELEASE", "ACTION_NOTIFY_IH_WATCH"]
+      "actions": [
+        { "action_id": "ACTION_REQUEST_NONCRITICAL_RELEASE", "config": {} },
+        { "action_id": "ACTION_NOTIFY_IH_WATCH", "config": {} }
+      ]
     },
     "W-R-002": {
-      "description": "Input Buffer Overfill Prediction (Proactive Warning)",
-      "type": "RESOURCE",
-      "target_p_set": "P-M02",
+      "metadata": {
+        "description": "Input Buffer Overfill Prediction (Proactive Warning)",
+        "type": "RESOURCE",
+        "target_p_set": "P-M02"
+      },
+      "prediction_params": {
+        "prediction_window_ms": 50
+      },
       "metric_key": "Input.Buffer.ProjectedFill",
-      "prediction_window_ms": 50,
       "enforced_component": "DHC",
-      "threshold_settings": [
-        { "level": "ELEVATED", "value": 0.95, "unit": "COUNT_PERCENT" }
+      "settings": [
+        { "level": "ELEVATED", "severity_index": 50, "value": 0.95, "unit": "PERCENT_CAPACITY" }
       ],
-      "escalation_policy": ["ACTION_THROTTLE_INPUT_ACQUISITION"]
+      "actions": [
+        { "action_id": "ACTION_THROTTLE_INPUT_ACQUISITION", "config": {} }
+      ]
     }
   }
 }
