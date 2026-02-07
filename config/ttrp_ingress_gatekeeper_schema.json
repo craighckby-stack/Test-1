@@ -17,7 +17,7 @@
         "APPLIED_TTRP_VERSION": {
           "type": "string",
           "format": "regex",
-          "pattern": "^v[0-9]+\\.[0-9]+$",
+          "pattern": "^v[0-9]+\.[0-9]+$",
           "description": "The specific TTRP policy version this service adheres to (e.g., 'v2.0')."
         },
         "DEFAULT_PRIORITY_LEVEL": {
