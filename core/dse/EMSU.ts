@@ -11,21 +11,20 @@
  * Failure to generate or seal the EMS results in an immediate P-M02 Critical Fault, triggering IH.
  */
 
-import { AASS } from './AASS';
-import { ConfigurationRegistry } from '../registry/ConfigurationRegistry';
+const { AASS } = require('./AASS');
+const { ConfigurationRegistry } = require('../registry/ConfigurationRegistry');
 
-export class EMSU {
-    private configRegistry: ConfigurationRegistry;
-
-    constructor(registry: ConfigurationRegistry) {
+class EMSU {
+    
+    constructor(registry /*: ConfigurationRegistry*/) {
         this.configRegistry = registry;
     }
 
     /**
      * S00: Executes the Pre-Flight Lock sequence (G0).
-     * @returns The Sequence Authorization Token (SAT) containing the EMS signature.
+     * @returns {Promise<string>} The Sequence Authorization Token (SAT) containing the EMS signature.
      */
-    public async generateAndSealManifest(chr_checksum: string): Promise<string> {
+    async generateAndSealManifest(chr_checksum) {
         // 1. Load critical hash dependencies (GAX III inputs)
         const acvmHash = await this.configRegistry.getHash('config/acvm.json');
         const policyHash = await this.configRegistry.getHash('config/pcre_policies.json');
@@ -33,7 +32,8 @@ export class EMSU {
         // 2. Compile the Epoch Manifest payload
         const manifestPayload = {
             timestamp: new Date().toISOString(),
-            dse_version: 'v94.1',
+            // Updated DSE version to reflect protocol v94.2 activation
+            dse_version: 'v94.2',
             input_checksum_baseline: chr_checksum,
             governance_hashes: { acvmHash, policyHash }
         };
@@ -54,3 +54,5 @@ export class EMSU {
         return SAT;
     }
 }
+
+module.exports = { EMSU };
