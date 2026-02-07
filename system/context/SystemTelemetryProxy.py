@@ -22,6 +22,13 @@ class OperationalConstraints(TypedDict):
     storage_read_only: bool       # True if persistent storage modification is disallowed
     execution_timeout_s: float    # Max time allotted for complex evolutionary tasks
 
+class EvolutionaryContext(TypedDict):
+    """Metrics related specifically to the Autonomous Code Evolution (ACE) cycle success."""
+    evolution_cycle_success_rate: float # Proportion of successful evolutionary merges (0.0 to 1.0)
+    median_test_coverage_ratio: float   # Median coverage of evolved code segments
+    median_evolution_latency_s: float   # Time taken for a typical evolutionary loop (seconds)
+    cumulative_rollback_count: int      # Total number of times self-evolution was rolled back
+    
 class SystemPerformanceIndicators(TypedDict):
     """Real-time performance metrics and health status."""
     error_rate_p1m: float         # Percentage of operational errors in the past minute (0.0 to 1.0)
@@ -29,6 +36,8 @@ class SystemPerformanceIndicators(TypedDict):
     queue_depth_max: int          # Maximum length across all pending task queues observed
     uptime_seconds: int           # Total system uptime
     self_correction_attempts_p1h: int # Number of self-correction loops executed recently
+    external_network_latency_ms: float # Avg latency to critical external services/repos (ms)
+    estimated_cost_p1h: float     # Estimated operational cost (local currency/hour)
 
 # --- Cohesive Snapshot Definition ---
 
@@ -36,11 +45,13 @@ class SystemTelemetrySnapshot(TypedDict):
     """
     A full, instantaneous snapshot of all critical system telemetry required for 
     Autonomous Code Evolution (ACE) decision making, combining forecast, constraints, 
-    and performance data.
+    performance data, and evolutionary history.
     """
+    timestamp_utc: str                    # UTC ISO timestamp of snapshot capture
     forecast: ResourceForecast
     constraints: OperationalConstraints
     performance: SystemPerformanceIndicators
+    evolution_context: EvolutionaryContext # New vital field
 
 # --- The Telemetry Proxy Protocol ---
 
@@ -59,14 +70,20 @@ class SystemTelemetryProxy(Protocol):
         """
         ...
         
+    # Legacy/Component-specific accessors remain for flexibility
+    
     def get_resource_forecast(self) -> ResourceForecast:
-        """Provides strictly typed projected resource utilization metrics (legacy access)."""
+        """Provides strictly typed projected resource utilization metrics."""
         ...
 
     def get_operational_constraints(self) -> OperationalConstraints:
-        """Fetches current explicit, mandatory operational constraints (legacy access)."""
+        """Fetches current explicit, mandatory operational constraints."""
         ...
     
     def get_performance_indicators(self) -> SystemPerformanceIndicators:
-        """Retrieves current real-time system performance health metrics (legacy access)."""
+        """Retrieves current real-time system performance health metrics."""
+        ...
+        
+    def get_evolutionary_context(self) -> EvolutionaryContext:
+        """Retrieves data specific to the success and speed of ACE cycles."""
         ...
