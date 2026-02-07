@@ -1,27 +1,21 @@
 // GFRM Compliance Engine
 // Autonomous enforcement layer for GFRM_spec.json
 
-import { GFRMSpec } from '../GFRM_spec'; // Adjusted path/extension assuming interface definition
+import { GFRMSpec } from '../GFRM_spec';
 import { ProcessAudit } from '../../interfaces/AuditSchema';
-import { ComplianceAction, ComplianceOutcome, ComplianceSeverity, IRuleEvaluationService } from './types';
-import { RuleEvaluationService } from './RuleEvaluationService'; // Proposed Scaffold
+import {
+    ComplianceAction,
+    ComplianceOutcome,
+    ComplianceSeverity,
+    IRuleEvaluationService
+} from './types';
+import { RuleEvaluationService } from './RuleEvaluationService';
 
 /**
- * Defined local types for clarity (assuming external interfaces are similar)
+ * ComplianceEngine
+ * Drives the enforcement process by utilizing the IRuleEvaluationService 
+ * to check T0 constraints, calculate T1 risk, and determine compliance outcome.
  */
-export { ComplianceAction, ComplianceOutcome, ComplianceSeverity };
-
-export interface ComplianceOutcome {
-    compliance: boolean;
-    severity: ComplianceSeverity;
-    action: ComplianceAction;
-    riskScore: number; // Add risk score for traceability
-    violationDetail?: string;
-}
-
-export type ComplianceSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-export type ComplianceAction = 'Hard_Shutdown_L5' | 'Escalate_V94' | 'Continue_Optimize' | 'Notify_T3';
-
 class ComplianceEngine {
     private ruleset: GFRMSpec;
     private evaluator: IRuleEvaluationService;
@@ -33,55 +27,72 @@ class ComplianceEngine {
     }
 
     /**
-     * Audits a running process against T0 constraints and T1 thresholds.
-     * Utilizes asynchronous processing for potential database lookups or complex model execution.
+     * Audits a running process against GFRM tiers (T0, T1, T2).
      * @param process The audit snapshot of the running process.
      * @returns The determined compliance outcome and required action.
      */
     public async audit(process: ProcessAudit): Promise<ComplianceOutcome> {
-        // 1. T0 Absolute Constraint Check (Immediate Failure)
+        // T0 Check: Absolute, immediate fail constraints.
         const t0Violation = await this.evaluator.checkT0Violations(process);
         if (t0Violation) {
-            return { 
-                compliance: false, 
-                severity: 'CRITICAL', 
-                action: 'Hard_Shutdown_L5',
-                riskScore: 100, // Max risk score assigned on T0 failure
-                violationDetail: t0Violation
-            };
+            return this.createOutcome(
+                false,
+                'CRITICAL',
+                'Hard_Shutdown_L5',
+                100,
+                t0Violation
+            );
         }
 
-        // 2. T1 Operational Risk Assessment (Score based failure)
+        // T1 Check: Operational Risk Assessment
         const riskScore = await this.evaluator.calculateRisk(process);
-        
-        // Use optional chaining with fallback for safe ruleset access
-        const riskThreshold = this.ruleset.governance_tiers?.tier_1_operational_risk?.risk_tolerance_threshold || 50;
+
+        const tier1Config = this.ruleset.governance_tiers?.tier_1_operational_risk;
+        // Default tolerance set high if config missing (fail-safe)
+        const riskThreshold = tier1Config?.risk_tolerance_threshold || 50;
 
         if (riskScore >= riskThreshold) {
-             return { 
-                compliance: false, 
-                severity: 'HIGH', 
-                action: 'Escalate_V94',
-                riskScore: riskScore
-             };
+             return this.createOutcome(
+                false,
+                'HIGH',
+                'Escalate_V94',
+                riskScore
+             );
         }
 
-        // 3. T2 Continuous Optimization (Default success case)
-        return { 
-            compliance: true, 
-            severity: 'LOW', 
-            action: 'Continue_Optimize',
-            riskScore: riskScore
-        };
+        // T2 Check: Continuous Optimization (Default success)
+        return this.createOutcome(
+            true,
+            'LOW',
+            'Continue_Optimize',
+            riskScore
+        );
     }
 
     /**
-     * Utility for refreshing the ruleset if hot reloading is needed.
+     * Internal utility to standardize ComplianceOutcome creation.
+     */
+    private createOutcome(
+        compliance: boolean,
+        severity: ComplianceSeverity,
+        action: ComplianceAction,
+        riskScore: number,
+        violationDetail?: string
+    ): ComplianceOutcome {
+        return { compliance, severity, action, riskScore, violationDetail };
+    }
+
+    /**
+     * Utility for refreshing the ruleset.
      */
     public updateRuleset(newSpec: GFRMSpec): void {
         this.ruleset = newSpec;
-        this.evaluator.updateRuleset(newSpec); // Ensure evaluator is also updated
+        // Ensure evaluator is updated dynamically without restarting the engine
+        this.evaluator.updateRuleset(newSpec);
     }
 }
+
+export { ComplianceEngine };
+export type { ComplianceAction, ComplianceOutcome, ComplianceSeverity, IRuleEvaluationService };
 
 export default ComplianceEngine;
