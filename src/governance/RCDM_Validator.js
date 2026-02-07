@@ -1,13 +1,14 @@
-// Requires a robust JSON Schema validator library (e.g., Ajv or similar)
 import RCDMConfig from './RCDM.json';
+import { SchemaValidator } from '../utility/SchemaValidator.js';
 
 /**
  * Ensures the RCDM governance configuration adheres to the defined operational safety schema.
  * Failure to validate results in immediate system halt or reversion to failsafe.
  */
 export function validateRCDM(config = RCDMConfig) {
+  // NOTE: Assuming synchronous require() is acceptable for local JSON schema files in this environment.
   const governanceSchema = require('./schemas/rcdm-v94.1.json');
-  const validator = new Validator(); // Placeholder for actual validator instance
+  const validator = SchemaValidator.getInstance();
 
   if (!validator.validate(governanceSchema, config)) {
     console.error("RCDM Configuration Validation Failed:", validator.errors);
