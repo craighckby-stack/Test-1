@@ -1,8 +1,10 @@
 /**
  * Sovereign AGI v95.0 - AgiLogger
  * Function: Standardized, structured logging utility for critical AGI operations.
- * Features: Contextual logging (module source), structured data payload support, and configurable levels.
+ * Features: Contextual logging (module source), pure JSON output for centralized processing, and runtime configurable levels.
  */
+
+// --- Static Configuration ---
 
 const LOG_LEVELS = {
     DEBUG: 0,
@@ -12,19 +14,54 @@ const LOG_LEVELS = {
     CRITICAL: 4
 };
 
-const MIN_LOG_LEVEL = LOG_LEVELS.INFO; // Default runtime level
+// Retrieve configuration dynamically (will rely on ConfigService integration later)
+const DEFAULT_MIN_LEVEL = 'INFO';
+const MIN_LOG_LEVEL_NAME = (process.env.AGI_LOG_LEVEL || DEFAULT_MIN_LEVEL).toUpperCase();
+const MIN_LOG_LEVEL_VALUE = LOG_LEVELS[MIN_LOG_LEVEL_NAME] !== undefined 
+    ? LOG_LEVELS[MIN_LOG_LEVEL_NAME] 
+    : LOG_LEVELS.INFO;
+
 
 class AgiLogger {
     /**
-     * @param {string} sourceModule - The name of the module originating the log (e.g., 'SRM').
+     * @param {string} sourceModule - The name of the module originating the log (e.g., 'SRM', 'MemoryKernel').
      */
     constructor(sourceModule) {
         this.source = sourceModule;
-        this.timestamp = () => new Date().toISOString();
+        this.minLevelValue = MIN_LOG_LEVEL_VALUE;
+        this.LOG_LEVELS = LOG_LEVELS;
     }
 
+    timestamp() {
+        return new Date().toISOString();
+    }
+
+    _getConsoleMethod(level) {
+        switch (level) {
+            case 'ERROR':
+            case 'CRITICAL':
+                return console.error;
+            case 'WARN':
+                return console.warn;
+            case 'DEBUG':
+                // Use console.debug if available, otherwise console.log
+                return console.debug || console.log;
+            case 'INFO':
+            default:
+                return console.log;
+        }
+    }
+
+    /**
+     * Private method to emit the structured log entry.
+     * @param {string} level - The log severity level ('INFO', 'ERROR', etc.).
+     * @param {string} message - The main human-readable message.
+     * @param {object} [data={}] - Optional structured data payload.
+     */
     _emit(level, message, data = {}) {
-        if (LOG_LEVELS[level] < MIN_LOG_LEVEL) {
+        const levelValue = this.LOG_LEVELS[level];
+
+        if (levelValue === undefined || levelValue < this.minLevelValue) {
             return;
         }
 
@@ -33,21 +70,17 @@ class AgiLogger {
             level: level,
             source: this.source,
             message: message,
-            ...data
+            // Conditionally add 'payload' only if structured data is present
+            ...(Object.keys(data).length > 0 ? { payload: data } : {})
         };
 
-        // In a production AGI system, this would push to a centralized log store (e.g., elastic/fluentd).
-        // For simplicity, we serialize to the console.
-        const output = `${logEntry.time} [${logEntry.level}] (${logEntry.source}): ${logEntry.message}`; 
+        const consoleMethod = this._getConsoleMethod(level);
         
-        if (Object.keys(data).length > 0) {
-            // Log structured data on a new line
-            console.log(output, JSON.stringify(data));
-        } else {
-            console.log(output);
-        }
+        // Crucial Refactor: Always output structured JSON for efficient machine parsing.
+        consoleMethod(JSON.stringify(logEntry));
     }
 
+    // Public logging methods
     debug(message, data) {
         this._emit('DEBUG', message, data);
     }
