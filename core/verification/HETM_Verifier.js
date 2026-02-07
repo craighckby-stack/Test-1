@@ -1,3 +1,5 @@
+const { LogIntegrityService } = require('../persistence/LogIntegrityService');
+
 class HETMVerifierError extends Error {
     /**
      * @param {string} message 
@@ -168,7 +170,11 @@ class HETMVerifier {
         } catch (e) {
             if (e instanceof HETMVerifierError) {
                 // Log critical failure and trigger secure panic state (S0 environment specific).
-                console.error(`HETM VERIFICATION FAILED [${e.errorCode}]: ${e.message}`);
+                LogIntegrityService.recordVerificationFailure(
+                    'HETM',
+                    e.errorCode,
+                    e.message
+                );
                 // Trigger System Panic 
                 return false;
             }
