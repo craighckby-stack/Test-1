@@ -3,6 +3,10 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, TypedDict
 
+# --- [ Configuration Constants ] ---
+
+DEFAULT_HASH_ALGO: str = 'sha3_512'
+
 # --- [ Custom Exceptions ] ---
 
 class PolicyDaemonError(Exception):
@@ -23,7 +27,7 @@ class ProposalPayload(TypedDict):
 
 class ImmutablePolicySource(TypedDict):
     """The complete immutable data set that is hashed to form the CSR_N+1."""
-    version_id: str  # Generated timestamp + unique ID prefix
+    version_id: str
     ACVD: Dict[str, Any]
     FASV: Dict[str, Any]
 
@@ -47,123 +51,117 @@ class SignatureVerifier:
     """Interface for strong cryptographic verification of attestations."""
     def verify(self, payload_hash: str, authority_id: str, signature: str) -> bool:
         # Placeholder for actual verification logic
-        return len(signature) > 10 and authority_id is not None 
+        return len(signature) > 10 and authority_id is not None
 
-# --- [ Core Hashing Logic Utility ] ---
+# --- [ Recursive Abstraction Layer: Pure Functions ] ---
 
-class ConfigStateHasher:
-    """Utility class to ensure deterministic hashing of configuration states."""
-
-    DEFAULT_ALGORITHM: str = 'sha3_512'
-
-    @staticmethod
-    def calculate(data_source: ImmutablePolicySource, algorithm: str = DEFAULT_ALGORITHM) -> str:
-        """Calculates the deterministic hash based on standardized JSON representation."""
+def _calculate_policy_hash(data_source: ImmutablePolicySource) -> str:
+    """Purity Layer 1: Calculates the deterministic hash of the policy source."""
+    try:
+        # Efficiency: Ensure deterministic JSON serialization for consistent hashing
+        proposal_string = json.dumps(data_source, sort_keys=True, separators=(',', ':'))
+    except TypeError as e:
+        raise ValueError(f"Invalid serializable data structure provided: {e}")
+    
+    if DEFAULT_HASH_ALGO not in hashlib.algorithms_available:
+        # Fatal configuration error during runtime
+        raise RuntimeError(f"Hashing Algorithm '{DEFAULT_HASH_ALGO}' not available.")
         
-        # Security/Efficiency: Ensure deterministic JSON serialization
-        # Standard: sort_keys=True, compact separators=(',', ':')
-        try:
-            proposal_string = json.dumps(data_source, sort_keys=True, separators=(',', ':'))
-        except TypeError as e:
-            raise ValueError(f"Invalid serializable data structure provided: {e}")
-        
-        if algorithm not in hashlib.algorithms_available:
-            raise ValueError(f"Hashing Algorithm '{algorithm}' not available.")
-            
-        hasher = hashlib.new(algorithm)
-        hasher.update(proposal_string.encode('utf-8'))
-        return hasher.hexdigest()
+    hasher = hashlib.new(DEFAULT_HASH_ALGO)
+    hasher.update(proposal_string.encode('utf-8'))
+    return hasher.hexdigest()
 
-# --- [ Daemon Implementation ] ---
 
-class PolicyHotPatchDaemon:
+def _create_initial_state(proposal_data: ProposalPayload) -> ProposalStateInternal:
+    """Purity Layer 2: Abstracts versioning, construction, and hashing into one state factory."""
+    
+    # Generate deterministic version ID (high precision UTC)
+    version_timestamp = datetime.now(timezone.utc).isoformat(timespec='microseconds')
+    version_id = f"CSR_P_{version_timestamp}" 
+    
+    new_proposal_source: ImmutablePolicySource = {
+        "version_id": version_id, 
+        "ACVD": proposal_data["ACVD"],
+        "FASV": proposal_data["FASV"]
+    }
+    
+    # Recurse/Delegate to hashing utility
+    proposed_csr_hash = _calculate_policy_hash(new_proposal_source)
+    
+    return {
+        "proposal": new_proposal_source,
+        "csr_hash": proposed_csr_hash,
+        "signatures": {}
+    }
+
+# --- [ Engine Implementation ] ---
+
+class PolicyRatificationEngine:
     """
-    PHPD (Policy Hot-Patch Daemon) - V2.2: Enhanced State Management and Robustness.
-    Role: Secure, off-cycle staging and ratification of the next Config State Root (CSR_N+1).
+    Policy Ratification Engine (PRE) - Manages the state machine for policy staging.
+    Focuses only on state transitions and validation, deferring data generation to pure functions.
     """
 
     def __init__(self, required_quorum_signatures: int, verifier: SignatureVerifier):
         self.quorum_count: int = required_quorum_signatures
         self.verifier: SignatureVerifier = verifier
-        
-        # Encapsulated state container, initialized to None
         self._current_state: Optional[ProposalStateInternal] = None
 
     def is_proposal_active(self) -> bool:
-        """Checks if a valid proposal is currently loaded and awaiting ratification."""
+        """Checks if a valid proposal is currently loaded."""
         return self._current_state is not None
 
     def load_proposal(self, proposal_data: ProposalPayload) -> str:
-        """Loads the Tier 1 artifacts, generates versioning metadata, and computes the CSR hash."""
+        """Loads proposal by calling the state factory abstraction."""
         
-        # 1. Generate deterministic version ID using explicit UTC (ZULU time) and high precision
-        version_timestamp = datetime.now(timezone.utc).isoformat(timespec='microseconds')
-        version_id = f"CSR_P_{version_timestamp}" 
+        # State Transition: Use the factory function to initialize state.
+        self._current_state = _create_initial_state(proposal_data)
         
-        new_proposal_source: ImmutablePolicySource = {
-            "version_id": version_id, 
-            "ACVD": proposal_data["ACVD"],
-            "FASV": proposal_data["FASV"]
-        }
-        
-        # 2. Calculate the future CSR hash (CSR_N+1)
-        proposed_csr_hash = ConfigStateHasher.calculate(
-            new_proposal_source, ConfigStateHasher.DEFAULT_ALGORITHM
-        )
-        
-        # 3. Update internal state container and reset signatures
-        self._current_state: ProposalStateInternal = {
-            "proposal": new_proposal_source,
-            "csr_hash": proposed_csr_hash,
-            "signatures": {}
-        }
-        
-        return proposed_csr_hash
+        return self._current_state['csr_hash']
 
     def ratify(self, authority_id: str, signature: str) -> bool:
-        """Adds cryptographic ratification, requiring signature verification against the proposed CSR hash."""
+        """Adds cryptographic ratification, verifying signature against the proposed hash."""
         
         if not self._current_state:
             raise ProposalNotLoadedError("Proposal must be loaded before ratification attempts.")
 
         current_hash = self._current_state['csr_hash']
         
+        # Idempotency check
         if authority_id in self._current_state['signatures']:
-            # Authority already signed, idempotent or malicious attempt
             return False 
 
-        # INTEGRITY CHECK: Use the injected verifier for security best practices
+        # Security Check: External verification (dependency injection)
         if not self.verifier.verify(current_hash, authority_id, signature):
             return False 
 
-        # State mutation: add signature
+        # State mutation
         self._current_state['signatures'][authority_id] = signature
         return True
 
     def finalize_and_stage(self) -> StagingArtifact:
-        """Finalizes the new CSR proposal if quorum is met, producing the definitive staging artifact."""
+        """Finalizes the proposal if quorum is met, producing the definitive artifact."""
         
         if not self._current_state:
             raise ProposalNotLoadedError("Cannot finalize; no active proposal found.")
         
         signatures = self._current_state['signatures']
         
-        # Check Quorum
         if len(signatures) < self.quorum_count:
             raise QuorumNotMetError(
                 f"Quorum failed. Need {self.quorum_count} signatures, found {len(signatures)}."
             )
             
-        # Quorum met, construct final artifact and clear internal state
+        # Quorum met, construct final artifact
         staging_artifact: StagingArtifact = {
             "CSR_HASH_N_PLUS_1": self._current_state['csr_hash'],
             "POLICY_PAYLOAD": self._current_state['proposal'],
             "QUORUM_ATTESTATION": signatures,
             "STATUS": "READY_FOR_S00_ANCHORING",
-            "HASH_ALGORITHM": ConfigStateHasher.DEFAULT_ALGORITHM
+            "HASH_ALGORITHM": DEFAULT_HASH_ALGO
         }
         
-        # CRITICAL: Clear proposal state immediately after successful finalization
+        # CRITICAL: Clear proposal state upon successful finalization
         self._current_state = None
         
         return staging_artifact
