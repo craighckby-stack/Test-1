@@ -77,3 +77,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Relocated C3P_State_Model.json from /system/protocols to /governance to comply with the protocol consolidation mandate.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Mandate Failure Definitions from deep JSON configuration to an exportable JS module in /governance to support UNIFIER integration and structural de-fragmentation.
+
+> **[SYSTEM_LOG 2026-02-07]**: Defragmented metrics schema and validation logic from /config, moving all definitions and associated validation into the new governance file: /governance/G1_MetricsSchema.js.
