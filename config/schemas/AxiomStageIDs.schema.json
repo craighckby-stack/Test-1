@@ -13,17 +13,17 @@
       "additionalProperties": false,
       "required": ["S0", "S1", "S2", "S3", "S4", "S4_5", "S6_5", "S8", "S9", "S10", "S11"],
       "properties": {
-        "S0": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Initialization", "description": "Transition commencement and ID generation."}} ] },
-        "S1": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "State Certification", "description": "Certified input state artifact (Psi_N) hashing and commitment."}} ] },
-        "S2": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Cost Modeling", "description": "Execution of S02 Cost/Failure Profile Assessment."}} ] },
-        "S3": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Policy Veto Gate", "description": "Policy Compliance Verification."}} ] },
-        "S4": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Stability Veto Gate", "description": "Stability Analysis and Dynamic Range Check."}} ] },
-        "S4_5": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Context Attestation", "description": "Validation of external and environmental context parameters."}} ] },
-        "S6_5": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Behavioral Divergence Veto", "description": "Check against known divergence signatures and anomalous behavior."}} ] },
-        "S8": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Axiom Execution (P-01)", "description": "GAX computes P-01 decision (Utility > Cost + Epsilon)."}} ] },
-        "S9": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "NRALS Logging", "description": "SGS records the transition outcome in the Non-Repudiable Audit Log System (NRALS)."}} ] },
-        "S10": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "GICM Finalization", "description": "CRoT signs the Governance Inter-Agent Commitment Manifest (GICM)."}} ] },
-        "S11": { "allOf": [{"reason": "Use StageDefinition reference for schema enforcement"}, {"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "State Commit", "description": "Commitment of the next state artifact (Psi_N+1) prior to execution."} } ] }
+        "S0": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Initialization", "description": "Transition commencement and ID generation."}} ] },
+        "S1": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "State Certification", "description": "Certified input state artifact (Psi_N) hashing and commitment."}} ] },
+        "S2": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Cost Modeling", "description": "Execution of S02 Cost/Failure Profile Assessment."}} ] },
+        "S3": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Policy Veto Gate", "description": "Policy Compliance Verification."}} ] },
+        "S4": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Stability Veto Gate", "description": "Stability Analysis and Dynamic Range Check."}} ] },
+        "S4_5": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Context Attestation", "description": "Validation of external and environmental context parameters."}} ] },
+        "S6_5": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Behavioral Divergence Veto", "description": "Check against known divergence signatures and anomalous behavior."}} ] },
+        "S8": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "Axiom Execution (P-01)", "description": "GAX computes P-01 decision (Utility > Cost + Epsilon)."}} ] },
+        "S9": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "NRALS Logging", "description": "SGS records the transition outcome in the Non-Repudiable Audit Log System (NRALS)."}} ] },
+        "S10": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "GICM Finalization", "description": "CRoT signs the Governance Inter-Agent Commitment Manifest (GICM)."}} ] },
+        "S11": { "allOf": [{"$ref": "#/$defs/StageDefinition"}, {"const": {"name": "State Commit", "description": "Commitment of the next state artifact (Psi_N+1) prior to execution."} } ] }
       }
     }
   },
