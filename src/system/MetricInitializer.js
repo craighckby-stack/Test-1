@@ -1,39 +1,80 @@
 const MetricDefinitions = require('../../config/MetricDefinitions.json');
-
-const ValidTypes = new Set(['COUNTER', 'GAUGE', 'SUMMARY', 'HISTOGRAM']);
-const ValidAggregations = new Set(['SUM', 'AVERAGE', 'MAX', 'LAST']);
+const TelemetryAdapter = require('./telemetry/TelemetryAdapter');
 
 /**
- * Validates the structure and consistency of all defined metrics.
- * Initializes a standardized monitoring client based on the definitions.
+ * Standardized constants for metric definition validation.
+ */
+const MetricConstraints = {
+  VALID_TYPES: new Set(['COUNTER', 'GAUGE', 'SUMMARY', 'HISTOGRAM']),
+  VALID_AGGREGATIONS: new Set(['SUM', 'AVERAGE', 'MAX', 'LAST', 'NONE']),
+  REQUIRED_FIELDS: ['description', 'unit', 'criticality', 'tags']
+};
+
+/**
+ * Loads, validates, and registers all defined system metrics with the Telemetry Adapter.
+ * This class ensures definition integrity before the system starts producing metrics.
  */
 class MetricInitializer {
-  constructor() {
-    this.definitions = MetricDefinitions;
-    this.validatedDefinitions = this._validateDefinitions();
-    this._initializeMonitoringClient();
+  /**
+   * @param {Object} definitions - Configuration loaded from MetricDefinitions.json.
+   * @param {Object} adapter - The TelemetryAdapter instance/class.
+   */
+  constructor(definitions, adapter) {
+    this.definitions = definitions;
+    this.telemetryAdapter = adapter;
+    this.validatedDefinitions = this._validateDefinitions(this.definitions);
+    this._registerMetrics();
   }
 
-  _validateDefinitions() {
+  /**
+   * Performs deep validation on the metric definitions structure.
+   * @throws {Error} If any metric fails constraints.
+   * @returns {Object} The validated definition subset.
+   */
+  _validateDefinitions(defs) {
     const validated = {};
-    for (const [name, def] of Object.entries(this.definitions)) {
-      if (!def.key || def.key !== name) throw new Error(`Metric ${name}: key mismatch or missing.`);
-      if (!ValidTypes.has(def.type)) throw new Error(`Metric ${name}: Invalid type specified: ${def.type}`);
-      if (!ValidAggregations.has(def.aggregation_strategy)) throw new Error(`Metric ${name}: Invalid aggregation strategy: ${def.aggregation_strategy}`);
-      
-      // Additional checks for required fields
-      if (!def.description || !def.unit || !def.criticality) throw new Error(`Metric ${name}: Missing required metadata field.`);
-      
+    const { VALID_TYPES, VALID_AGGREGATIONS, REQUIRED_FIELDS } = MetricConstraints;
+
+    for (const [name, def] of Object.entries(defs)) {
+      if (!def || typeof def !== 'object') {
+        throw new Error(`Metric ${name}: Definition must be a valid object.`);
+      }
+
+      // Type Check
+      if (!def.type || !VALID_TYPES.has(def.type)) {
+        throw new Error(`Metric ${name}: Invalid or missing type '${def.type}'. Must be one of: ${[...VALID_TYPES].join(', ')}`);
+      }
+
+      // Aggregation Strategy Check
+      if (!def.aggregation_strategy || !VALID_AGGREGATIONS.has(def.aggregation_strategy)) {
+        throw new Error(`Metric ${name}: Invalid or missing aggregation strategy '${def.aggregation_strategy}'. Must be one of: ${[...VALID_AGGREGATIONS].join(', ')}`);
+      }
+
+      // Required Metadata Check
+      for (const field of REQUIRED_FIELDS) {
+        if (!def[field]) {
+          throw new Error(`Metric ${name}: Missing required metadata field: ${field}.`);
+        }
+      }
+
+      // Ensure tags are a valid structure (array of strings)
+      if (def.tags && (!Array.isArray(def.tags) || def.tags.some(t => typeof t !== 'string'))) {
+         throw new Error(`Metric ${name}: Tags must be an array of strings.`);
+      }
+
       validated[name] = def;
     }
-    console.log(`[MetricInitializer] Successfully validated ${Object.keys(validated).length} metrics.`);
+
+    console.log(`[MetricInitializer] Successfully validated ${Object.keys(validated).length} metric definitions.`);
     return validated;
   }
 
-  _initializeMonitoringClient() {
-    // Implementation to connect to Prometheus/Datadog and register all metrics
-    // using the type and tags defined in MetricDefinitions.json.
-    console.log('[MetricInitializer] Monitoring client initialized and definitions registered.');
+  /**
+   * Passes validated metrics to the underlying telemetry system for registration.
+   */
+  _registerMetrics() {
+    this.telemetryAdapter.registerDefinitions(this.validatedDefinitions);
+    console.log('[MetricInitializer] Metrics successfully registered with Telemetry Adapter.');
   }
 
   getDefinitions() {
@@ -41,4 +82,5 @@ class MetricInitializer {
   }
 }
 
-module.exports = new MetricInitializer();
+// Instantiate and export the singleton using the abstracted adapter
+module.exports = new MetricInitializer(MetricDefinitions, TelemetryAdapter);
