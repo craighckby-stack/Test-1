@@ -4,9 +4,9 @@
  * utilizing the IVM_InputVectorManifest for operational parameters.
  */
 
-import IVM from '../../config/IVM_InputVectorManifest.json';
-import Validator from 'jsonschema'; // Placeholder for robust schema validation library
-import RateLimiter from './RateLimiter';
+const IVM = require('../../config/IVM_InputVectorManifest.json');
+const Validator = require('jsonschema'); 
+const RateLimiter = require('./RateLimiter');
 
 class InputVectorRouter {
     constructor() {
@@ -14,9 +14,11 @@ class InputVectorRouter {
         this.validator = new Validator.Validator();
         this.rateLimiter = new RateLimiter();
         // Register schemas defined in the manifest
-        Object.keys(IVM.definitions).forEach(defName => {
-            this.validator.addSchema(IVM.definitions[defName], `/#/definitions/${defName}`);
-        });
+        if (IVM.definitions) {
+            Object.keys(IVM.definitions).forEach(defName => {
+                this.validator.addSchema(IVM.definitions[defName], `/#/definitions/${defName}`);
+            });
+        }
     }
 
     async routeVector(inputPayload, sourceType) {
@@ -27,17 +29,21 @@ class InputVectorRouter {
         const vectorDef = this.manifest.vectors[vectorId];
 
         // 2. Apply Constraints (Rate Limiting/Auth Check)
-        if (vectorDef.constraints.rateLimit && !this.rateLimiter.check(vectorId)) {
+        if (vectorDef.constraints && vectorDef.constraints.rateLimit && !this.rateLimiter.check(vectorId)) {
             throw new Error(`Rate limit exceeded for vector: ${vectorId}`);
         }
         // (Auth checks would typically be performed here if input metadata included credentials)
 
         // 3. Validation against Schema
         const schemaURI = vectorDef.schemaReference;
-        const validationResult = this.validator.validate(inputPayload, { $ref: schemaURI });
+        if (!schemaURI) {
+            console.warn(`Vector ${vectorId} lacks a schema reference. Skipping validation.`);
+        } else {
+            const validationResult = this.validator.validate(inputPayload, { $ref: schemaURI });
 
-        if (validationResult.errors.length > 0) {
-            throw new Error(`Input validation failed for ${vectorId}: ${validationResult.errors.join('; ')}`);
+            if (validationResult.errors.length > 0) {
+                throw new Error(`Input validation failed for ${vectorId}: ${validationResult.errors.join('; ')}`);
+            }
         }
 
         // 4. Successful Route
@@ -53,7 +59,6 @@ class InputVectorRouter {
 
     identifyVector(payload, sourceType) {
         // Placeholder logic: A full system would use context or defined headers to match inputs.
-        // Example: if (sourceType === 'CLI' && payload.cmd) return 'VEC_USER_COMMAND_CLI';
         for (const [key, def] of Object.entries(this.manifest.vectors)) {
             if (def.sourceType === sourceType) {
                 return key;
@@ -63,4 +68,4 @@ class InputVectorRouter {
     }
 }
 
-export default new InputVectorRouter();
+module.exports = new InputVectorRouter();
