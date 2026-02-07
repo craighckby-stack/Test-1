@@ -1,1 +1,67 @@
-[object Object]
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agi.sovereign.v94/config/governance_constraints.schema.json",
+  "title": "Sovereign AGI Governance Constraints Schema",
+  "description": "Defines core boundaries, ethical constraints, and self-evolution policies for the AGI.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^v[0-9]+\.[0-9]+$",
+      "description": "Schema version for compatibility checking."
+    },
+    "default_mode": {
+      "type": "string",
+      "enum": ["safe_mode", "efficiency_mode", "evolutionary_mode"],
+      "default": "safe_mode"
+    },
+    "constraint_sets": {
+      "type": "array",
+      "description": "A collection of named, prioritized, and context-aware constraint sets.",
+      "items": {
+        "type": "object",
+        "required": ["name", "priority", "rules"],
+        "properties": {
+          "name": {"type": "string"},
+          "priority": {"type": "integer", "description": "Lower number indicates higher precedence/priority."},
+          "activation_condition": {
+            "type": "string",
+            "description": "An expression (e.g., JEXL) defining when this set is active (e.g., 'time.isEvolutionWindow || mission.securityLevel > 5')."
+          },
+          "rules": {
+            "type": "object",
+            "properties": {
+              "resource_limits": {
+                "type": "object",
+                "description": "Operational boundaries on compute resources.",
+                "properties": {
+                  "max_gpu_hours_daily": {"type": "number"},
+                  "max_latency_ms": {"type": "integer"},
+                  "data_storage_cap_gb": {"type": "number"}
+                }
+              },
+              "ethical_filters": {
+                "type": "object",
+                "description": "Alignment and safety boundaries.",
+                "properties": {
+                  "banned_topics": {"type": "array", "items": {"type": "string"}},
+                  "forbidden_actions_refs": {"type": "array", "items": {"type": "string", "format": "uuid", "description": "Reference UUIDs to external, complex policy definitions."}}
+                }
+              },
+              "self_evolution": {
+                "type": "object",
+                "description": "Rules governing internal modification and update cycles.",
+                "properties": {
+                  "modification_window": {"type": "string", "description": "Time window for permitted self-mod, e.g., '22:00-06:00 UTC'"},
+                  "required_consensus_level": {"type": "number", "minimum": 0.5, "maximum": 1.0, "description": "Required internal audit consensus score for core governance file modification."}
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  },
+  "required": ["version", "constraint_sets"]
+}
