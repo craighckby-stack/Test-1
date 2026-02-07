@@ -1,10 +1,10 @@
 /**
- * EnvironmentalSensorHub v94.1
+ * EnvironmentalSensorHub v94.2
  * MISSION: Decouples high-frequency synchronous monitoring (CRM) from potentially slow, 
  * asynchronous sensor data collection (OS metrics, network probes, distributed services).
  * Utilizes self-correcting timers (recursive setTimeout) for stable, non-overlapping collection cycles (Bounded Execution Model).
  */
-class EnvironmentalSensorHub {
+export class EnvironmentalSensorHub {
     constructor(collectionInterval_ms = 1000) {
         // Cache holds the latest atomically updated sensor data (Map for dynamic key management)
         this.cache = new Map();
@@ -120,5 +120,3 @@ class EnvironmentalSensorHub {
         return this.get('normalizedStressIndex') || 0;
     }
 }
-
-module.exports = EnvironmentalSensorHub;
