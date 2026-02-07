@@ -1,12 +1,12 @@
 /**
  * @file AhrsMessage.ts
- * @description Strongly typed interface and validator for the AHRS_v1 protocol.
+ * @description Strongly typed interface and highly optimized validator for the AHRS_v1 protocol.
  */
 
 interface AHRS_Header {
-    seq: number;       // Monotonic sequence number
-    ts_ns: number;     // Timestamp in nanoseconds
-    frame_id: string;  // Reference coordinate frame
+    seq: number;
+    ts_ns: number;
+    frame_id: string;
 }
 
 interface AHRS_Data {
@@ -22,21 +22,61 @@ export interface AhrsMessage {
 }
 
 /**
+ * Highly optimized internal function to validate a fixed-length vector of numbers.
+ * This function uses recursive abstraction for vector structures and minimizes
+ * iteration overhead via a standard 'for' loop.
+ */
+const validateFixedVector = (arr: any, len: number): boolean => {
+    if (!Array.isArray(arr) || arr.length !== len) return false;
+    
+    for (let i = 0; i < len; i++) {
+        if (typeof arr[i] !== 'number') {
+            return false;
+        }
+    }
+    return true;
+};
+
+/**
  * Validates a potential AhrsMessage against the protocol specification.
+ * Optimized for computational efficiency via strict short-circuiting logic and
+ * abstracting fixed vector validation.
+ *
  * @param msg The object to validate
  * @returns True if the object conforms to AhrsMessage structure
  */
 export function validateAhrsMessage(msg: any): boolean {
-    // Note: In a production environment, this would utilize a robust JSON Schema validator library.
-    if (!msg || typeof msg !== 'object' || !msg.header || !msg.data) return false;
+    // 1. Initial quick checks for null/type
+    if (typeof msg !== 'object' || msg === null) return false;
     
     const h = msg.header;
-    if (typeof h.seq !== 'number' || typeof h.ts_ns !== 'number' || typeof h.frame_id !== 'string') return false;
-    
     const d = msg.data;
-    if (!Array.isArray(d.orientation) || d.orientation.length !== 4) return false;
-    if (!Array.isArray(d.angular_velocity) || d.angular_velocity.length !== 3) return false;
-    if (!Array.isArray(d.linear_acceleration) || d.linear_acceleration.length !== 3) return false;
+
+    // 2. Check header and data existence/type
+    if (typeof h !== 'object' || h === null || typeof d !== 'object' || d === null) return false;
+
+    // 3. Header validation (Optimized short-circuit chain)
+    if (
+        typeof h.seq !== 'number' ||
+        typeof h.ts_ns !== 'number' ||
+        typeof h.frame_id !== 'string'
+    ) {
+        return false;
+    }
+
+    // 4. Data validation (Abstracted vector checks)
+    if (
+        !validateFixedVector(d.orientation, 4) ||
+        !validateFixedVector(d.angular_velocity, 3) ||
+        !validateFixedVector(d.linear_acceleration, 3)
+    ) {
+        return false;
+    }
+    
+    // 5. Optional property check (only check if defined)
+    if (d.calibration_status !== undefined && typeof d.calibration_status !== 'number') {
+        return false;
+    }
 
     return true;
 }
