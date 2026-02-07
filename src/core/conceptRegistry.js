@@ -3,7 +3,7 @@
  * This registry serves as the single source of truth for concept IDs used throughout the Sovereign codebase,
  * facilitating documentation, cross-referencing, and runtime concept validation.
  *
- * NOTE: For strict ID usage in consumer files, use imported constants generated at src/constants/conceptIds.js
+ * IMPORTANT: Concept IDs should be consumed via imported constants from src/constants/conceptIds.js (generated automatically by the system).
  */
 
 // --- Type Definitions and Constants for Self-Documentation ---
@@ -13,27 +13,31 @@
 /** @typedef {'Discard'|'Salvage/Reformulate'|'Capture, Validate, and Cache via SIC (AGI-C-13)'|null} HallucinationAction */
 
 /**
- * Interface definition for a single concept entry.
- * @typedef {Object} ConceptDefinition
- * @property {string} id - The unique concept identifier (e.g., 'AGI-C-04').
- * @property {ConceptCategory} category - The high-level category.
- * @property {string} name - The human-readable concept name.
- * @property {string} definition - Detailed explanation of the concept.
- * @property {string} status - Development or strategic status.
- * @property {?string} [implementationPath] - Path to the primary implementation file, if applicable.
- * @property {?HallucinationAction} [action] - Required action for Hallucination types.
+ * High-level categories for concepts, exported for system-wide validation.
+ * @readonly
+ * @enum {ConceptCategory}
  */
-
-/** Exported for external validation/type checking of categories. */
 export const ConceptCategories = Object.freeze({
     AGI: 'AGI',
     ARCHITECTURE: 'ARCH',
     HALLUCINATION: 'HALLUCINATION'
 });
 
+/**
+ * Interface definition for a single concept entry.
+ * @typedef {Object} ConceptDefinition
+ * @property {string} id - The unique concept identifier (e.g., 'AGI-C-04').
+ * @property {ConceptCategory} category - The high-level category.
+ * @property {string} name - The human-readable concept name.
+ * @property {string} definition - Detailed explanation of the concept.
+ * @property {ConceptStatus} status - Development or strategic status.
+ * @property {?string} [implementationPath] - Path to the primary implementation file, if applicable.
+ * @property {?HallucinationAction} [action] - Required action for Hallucination types.
+ */
+
 // --- Internal Concept Data Structure ---
 
-/** @type {ConceptDefinition[]} */
+/** @type {ReadonlyArray<ConceptDefinition>} */
 const RAW_CONCEPT_DEFINITIONS = Object.freeze([
     // AGI CONCEPTS
     { id: 'AGI-C-01', category: ConceptCategories.AGI, name: 'General vs. Narrow Intelligence', definition: 'Achieving cross-domain reasoning.', status: 'Fundamental', implementationPath: null },
@@ -56,66 +60,68 @@ const RAW_CONCEPT_DEFINITIONS = Object.freeze([
     { id: 'ARCH-ATM-02', category: ConceptCategories.ARCHITECTURE, name: 'Trust Decay Schedule (TDS)', definition: 'Systematically decays established trust scores (ATM) over time to prevent stagnation.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
 
     // HALLUCINATION CONCEPTS (Integrated)
-    // Statuses changed to 'Critical' for internal classification consistency, maintaining 'action' field.
     { id: 'HALL-T1', category: ConceptCategories.HALLUCINATION, name: 'Type 1: Pure Noise', definition: 'Unsalvageable factual errors or irrelevant outputs.', status: 'Critical', action: 'Discard' },
     { id: 'HALL-T2', category: ConceptCategories.HALLUCINATION, name: 'Type 2: Misformatted Truth', definition: 'Contains valuable truth but requires significant structural reform to be useful.', status: 'Critical', action: 'Salvage/Reformulate' },
     { id: 'HALL-T3', category: ConceptCategories.HALLUCINATION, name: 'Type 3: Novel Insight (Validated Creativity)', definition: 'Highly successful, non-obvious solutions that exceed direct expectation, requiring formalization.', status: 'Critical', action: 'Capture, Validate, and Cache via SIC (AGI-C-13)' }
 ]);
 
 /**
- * Initializes and validates the Concept Registry.
- * Constructs immutable lookup structures (Map for ID lookup, Object for category grouping).
- *
- * @returns {ConceptRegistryInstance}
+ * Concept Registry Instance Structure.
  * @typedef {Object} ConceptRegistryInstance
- * @property {ConceptDefinition[]} all
- * @property {Map<string, ConceptDefinition>} byId
- * @property {Record<string, ConceptDefinition[]>} byCategory
+ * @property {ReadonlyArray<ConceptDefinition>} all
+ * @property {ReadonlyMap<string, ConceptDefinition>} byId
+ * @property {Readonly<Record<string, ReadonlyArray<ConceptDefinition>>>} byCategory
  * @property {function(string): ?ConceptDefinition} getConceptById
- * @property {function(string): ConceptDefinition[]} getConceptsByCategory
+ * @property {function(ConceptCategory): ReadonlyArray<ConceptDefinition>} getConceptsByCategory
+ */
+
+/**
+ * Initializes and validates the Concept Registry, constructing immutable lookup structures.
+ * @returns {ConceptRegistryInstance}
  */
 function initializeRegistry() {
     const registryById = new Map();
     const registryByCategory = {};
     const categoryValues = Object.values(ConceptCategories);
 
-    RAW_CONCEPT_DEFINITIONS.forEach((concept, index) => {
-        // --- V1: Validation for ID Uniqueness ---
+    for (const concept of RAW_CONCEPT_DEFINITIONS) {
+        // Validation Phase
         if (registryById.has(concept.id)) {
             throw new Error(`[ConceptRegistry] Duplicate concept ID found: ${concept.id}. Integrity compromised.`);
         }
-
-        // --- V2: Validation for Category Existence ---
         if (!categoryValues.includes(concept.category)) {
              throw new Error(`[ConceptRegistry] Invalid category '${concept.category}' for ID ${concept.id}.`);
         }
 
-        // 1. By ID (O(1) access using Map)
-        registryById.set(concept.id, Object.freeze(concept)); // Freeze individual concept definition
+        // Freeze individual definition for deep immutability
+        const frozenConcept = Object.freeze(concept);
 
-        // 2. By Category (Optimized grouping)
+        // Populate Structures
+        registryById.set(concept.id, frozenConcept);
+
         const categoryKey = concept.category;
         if (!registryByCategory[categoryKey]) {
             registryByCategory[categoryKey] = [];
         }
-        registryByCategory[categoryKey].push(concept);
-    });
+        registryByCategory[categoryKey].push(frozenConcept);
+    }
 
-    // Freeze category arrays to prevent modification
+    // Freeze category arrays and the category structure itself
     Object.keys(registryByCategory).forEach(key => {
         Object.freeze(registryByCategory[key]);
     });
     Object.freeze(registryByCategory);
 
+
     /** @type {ConceptRegistryInstance} */
     const registryInstance = {
-        /** The raw list (immutable). */
-        all: RAW_CONCEPT_DEFINITIONS,
+        /** The raw list of concepts (derived from the validated Map values). */
+        all: Object.freeze(Array.from(registryById.values())),
 
         /** O(1) Lookup Map by ID. */
         byId: registryById,
 
-        /** Categorized list map (immutable structure, immutable arrays). */
+        /** Categorized list map (deeply immutable). */
         byCategory: registryByCategory,
 
         /**
@@ -127,13 +133,13 @@ function initializeRegistry() {
 
         /**
          * Retrieves all concepts within a specific category.
-         * @param {string} category
-         * @returns {ConceptDefinition[]}
+         * @param {ConceptCategory} category
+         * @returns {ReadonlyArray<ConceptDefinition>}
          */
         getConceptsByCategory: (category) => registryByCategory[category] || [],
     };
 
-    // Make the entire registry object immutable.
+    // Make the registry API object immutable.
     return Object.freeze(registryInstance);
 }
 
