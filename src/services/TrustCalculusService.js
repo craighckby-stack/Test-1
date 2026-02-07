@@ -1,10 +1,10 @@
-import { TRUST_METRICS_SCHEMA } from '../config/trustCalculusSchema';
+const { TRUST_METRICS_SCHEMA } = require('../config/trustCalculusSchema');
 
 /**
  * Trust Calculus Service (TC-SERVICE)
  * Implements the P-01 Trust Calculus Score calculation based on the defined schema.
  */
-export class TrustCalculusService {
+class TrustCalculusService {
 
     /**
      * Calculates the final P-01 Trust Calculus Score based on the weighted and polarized schema.
@@ -39,3 +39,5 @@ export class TrustCalculusService {
         return Math.min(1.0, Math.max(0.0, weightedSum));
     }
 }
+
+module.exports = { TrustCalculusService };
