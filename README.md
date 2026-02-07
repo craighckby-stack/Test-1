@@ -119,3 +119,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Python governance model resolution logic to JavaScript as GovernanceModelResolver.js, enabling dynamic loading of policy configurations for the UNIFIER Protocol and deleting the obsolete Python artifact.
 
 > **[SYSTEM_LOG 2026-02-07]**: Defragmented governance structure by relocating IConstraintChecker interface definitions from 'checkers' to 'src/core/governance/ConstraintInterfaces.ts' to simplify architectural dependency paths.
+
+> **[SYSTEM_LOG 2026-02-07]**: Retained CertifiedOperationalTelemetrySchema.schema.json as a necessary static definition for validating mandatory operational reports.
