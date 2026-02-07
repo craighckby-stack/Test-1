@@ -163,3 +163,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored DynamicConstraintGenerator.js to ensure UNIFIER compatibility and confirmed its role in generating integrity-hashed M-01 policy packages.
 
 > **[SYSTEM_LOG 2026-02-07]**: Updated config/TEDS_event_schema.json to V94.2 compliance by modifying the schema ID, title, and version description fields.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated the GFRM JSON Schema from /protocols/GSEP_Config to /governance/GSEP_Config to consolidate governance definitions.
