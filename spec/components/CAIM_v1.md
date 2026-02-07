@@ -1,59 +1,72 @@
-# Certified Asset Initialization Module (CAIM) Specification V2.0
+# Certified Asset Initialization Module (CAIM) Specification V3.0
 
-CAIM is the critical, prerequisite module ensuring the generation of the **Certified Runtime Environment (CRE)**. It performs rigorous verification of all Governance Asset and Contract Registry (GACR) resources, guaranteeing that the Governance State Evolution Pipeline (GSEP-C) operates exclusively on cryptographically certified, structurally sound inputs.
+CAIM V3.0 is the definitive, prerequisite module for generating the Certified Runtime Environment (CRE). It implements the Three Pillars of Validation (3PV) to verify Governance Asset and Contract Registry (GACR) resources, ensuring the Governance State Evolution Pipeline (GSEP-C) operates solely on cryptographically certified, structurally sound inputs.
 
-## 1.0 Interface and Runtime Context
+## 1.0 Initialization Context & Certification Output
 
-| Context | Description |
-| :--- | :--- |
-| **Input Source** | Asset paths provided by the GACR interface. |
-| **Output Target** | Certified Runtime Environment (CRE) housed in the Certified Memory Heap (CMH). |
-| **Success State** | CRE available, verified by internal Merkle root (CRE Identity Seal), delivered to GSEP-C. |
-| **Failure State** | Issuance of the Standardized CAIM Initialization Report V1.0, signaling system non-operational status. |
+CAIM strictly mediates the transition from raw asset paths to a provably certified execution environment.
+
+| Context Element | Specification | Standardized Output | Status Trigger |
+| :--- | :--- | :--- | :--- |
+| **Input Source** | Asset Manifest paths provided by GACR. | Certified Memory Heap (CMH) | Success |
+| **Verification Authority** | Crypto Root of Trust (CRoT), SDVM Schemas. | CRE Identity Seal (Merkle Root) | Success |
+| **System State Output** | Operational CRE delivered to GSEP-C. | CAIM Diagnostic Structure Spec (CDSS) Report | Failure |
 
 ## 2.0 CAIM Execution: The Three Pillars of Validation (3PV)
 
-CAIM employs a highly secure three-stage pipeline to transform raw GACR paths into the certified CRE. Each stage gates the next, preventing corrupted data flow and defining a crucial asset state transition.
+3PV defines the immutable, three-stage pipeline for transforming raw assets into the certified CRE. Each pillar is a hardened gate preventing state transition upon validation failure.
 
-| Index | Asset State Transition | Phase Label | Required Dependency | Failure Trigger |
+| Index | Phase Label | Purpose | Required Authority | Transition State |
 | :---: | :--- | :--- | :--- | :--- |
-| 0 | Raw Path -> Certified Asset | **L-PRE: Integrity Verification** | CRoT, MCIS Protocol | System Integrity Halt (SIH) |
-| 1 | Certified Asset -> Structurally Validated Asset | **PRE: Structural Compliance** | SDVM Schema | Rollback Protocol (RRP) |
-| 2 | Validated Asset -> Finalized CRE | **L1: Environment Finalization** | Certified Memory Heap (CMH) | CAIM Reporting |
+| P0 | **L-PRE: Integrity Seal Verification** | Validate cryptographic provenance via CRoT/MCIS. | CRoT, MCIS Protocol | Raw Path -> Certified Asset |
+| P1 | **PRE: Structural Compliance Auditing** | Enforce asset schema rules via SDVM. | SDVM Manifest | Certified Asset -> Validated Asset |
+| P2 | **L1: Environment Finalization & Sealing** | Construct immutable CRE in CMH and calculate the integrity seal. | Certified Memory Heap (CMH) | Validated Asset -> Finalized CRE |
 
 ---
 
-### 2.1 Phase 0: Integrity Verification (L-PRE)
+### 2.1 Pillar P0: Integrity Seal Verification (L-PRE)
 
-Verifies the cryptographic provenance of all required assets against the Crypto Root of Trust (CRoT).
+**Goal:** Ensure asset provenance. Failure triggers SIH.
 
-1.  **Scope Definition:** GACR provides the mandatory asset manifest.
-2.  **Signature Enforcement:** The Manifest/Contract Integrity Spec (MCIS) Protocol verifies every asset's cryptographic signature against the CRoT authorities.
-3.  **Security Guarantee:** Any verification failure activates the immediate System Integrity Halt (SIH), preventing all subsequent execution and logging details in the CAIM Report.
+1.  **Manifest Retrieval:** Obtain the mandatory asset manifest from GACR.
+2.  **Signature Enforcement:** MCIS Protocol verifies every asset's signature and cryptographic hash against the authoritative CRoT registers.
+3.  **Security Guarantee:** Any verification failure activates the System Integrity Halt (SIH) Protocol, immediately terminating execution and producing a critical CDSS Report.
 
-### 2.2 Phase 1: Structural Compliance (PRE)
+### 2.2 Pillar P1: Structural Compliance Auditing (PRE)
 
-Ensures certified assets conform precisely to defined operational data schemas (SDVM).
+**Goal:** Ensure asset conformity to operational schemas. Failure triggers RRP.
 
 1.  **Schema Loading:** Load the authoritative Schema Definition & Validation Manifest (SDVM).
-2.  **Type & Structure Check:** Validate all asset content against SDVM definitions (e.g., mandatory fields, type consistency).
-3.  **Error Handling:** Structural violations trigger the Rollback Protocol (RRP), which logs the SDVM failure specifics in the CAIM Initialization Report before a graceful exit.
+2.  **Data Validation:** Perform rigorous content validation (type checking, required fields, relational constraints) against SDVM definitions for all certified assets.
+3.  **Error Handling:** Structural or semantic violations trigger the Rollback Protocol (RRP), logging SDVM failure specifics within the CDSS Report before exiting.
 
-### 2.3 Phase 2: Environment Finalization (L1)
+### 2.3 Pillar P2: Environment Finalization & Sealing (L1)
 
-Constructs the CRE, seals its integrity, and prepares the certified memory space for GSEP-C handoff.
+**Goal:** Prepare and certify the executable environment.
 
-1.  **Certified Parsing & Loading:** Structurally validated assets are parsed, mapped, and loaded into the immutable Certified Memory Heap (CMH).
-2.  **CRE Integrity Seal:** Calculate the verifiable CRE checksum (e.g., Merkle Root of the CMH) to serve as the immutable CRE Identity Seal.
-3.  **Handoff:** Signal readiness (L1 transition) and provide the CRE Identity Seal to GSEP-C for subsequent operational verification checks.
+1.  **Mapping & Loading:** Structurally validated assets are parsed, securely mapped, and loaded into the immutable Certified Memory Heap (CMH).
+2.  **CRE Identity Seal Generation:** The final, verifiable integrity checksum (Merkle Root) of the CMH is calculated. This is the CRE Identity Seal.
+3.  **GSEP-C Handoff:** CAIM signals the L1 transition success and delivers the finalized CRE (via CMH reference) and the immutable CRE Identity Seal to GSEP-C for subsequent operational verification.
 
-## 3.0 Core Dependencies
+## 3.0 Diagnostic and Protocol Specification
 
-| Component | Role | Required Phase(s) |
-| :--- | :--- | :--- |
-| GACR | Source Manifest Provider | L-PRE, PRE |
-| CRoT | Crypto Authority | L-PRE |
-| SDVM | Asset Structure Authority | PRE |
-| MCIS Protocol | Verification Algorithm | L-PRE |
-| SIH Protocol | Critical Halt Mechanism | L-PRE |
-| RRP Protocol | Controlled Rollback Mechanism | PRE |
+### 3.1 Failure Response Protocols
+
+| Protocol | Triggering Pillar | Severity | Action |
+| :--- | :--- | :--- | :--- |
+| SIH Protocol (System Integrity Halt) | P0 (L-PRE) | Critical | Immediate, unconditional termination. Zero system state change permitted. |
+| RRP Protocol (Rollback Protocol) | P1 (PRE) | High | Controlled termination. Logs error, guarantees no partial asset load persists. |
+
+### 3.2 CAIM Diagnostic Structure Specification (CDSS)
+
+All failures (SIH or RRP) must generate a standardized diagnostic report conforming to the CDSS JSON schema. The CDSS mandates fields including: failure phase (P0/P1), associated protocol (SIH/RRP), cryptographic root of the failure (Hash/CRoT mismatch ID), and asset path. *The CDSS schema is a mandatory external dependency for CAIM operation.* 
+
+## 4.0 Core Dependencies
+
+| Component | Role | Required Phase(s) | Impact |
+| :--- | :--- | :--- | :--- |
+| GACR | Source Asset Manifest Provider | P0, P1 | Input integrity |
+| CRoT | Crypto Root of Trust | P0 | Integrity verification authority |
+| SDVM | Asset Structure Authority | P1 | Compliance verification |
+| MCIS Protocol | Signature Verification Algorithm | P0 | Cryptographic linkage |
+| CMH | Immutable Memory Allocator | P2 | Runtime environment construction |
