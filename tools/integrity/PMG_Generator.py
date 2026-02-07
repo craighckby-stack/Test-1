@@ -1,78 +1,146 @@
 import hashlib
 import json
-import os
-# Assumption: A 'security' module provides cryptographic signing capabilities
-# from security import SignerService 
+from pathlib import Path
+from datetime import datetime, timezone
+# from security import SignerService # Assumed External Dependency
 
-def load_tbr(tbr_path="config/TBR.json"):
-    """Loads the list of configuration files to be hashed."""
-    # Placeholder: TBR structure definition assumed
-    # In a real system, path definition/loading is hardened.
-    if not os.path.exists(tbr_path):
-        raise FileNotFoundError(f"TBR file not found: {tbr_path}")
-        
-    try:
-        with open(tbr_path, 'r') as f:
-            # Assumes TBR provides a list under 'critical_paths'
-            data = json.load(f)
-            return data.get("critical_paths", [])
-    except json.JSONDecodeError:
-        raise ValueError("Invalid TBR structure.")
+# --- Centralized Integrity Configuration Interface (Assumed) ---
+# Placeholder if config/IntegrityPaths.py is not yet generated
+try:
+    from config.IntegrityPaths import IntegrityPaths
+except ImportError:
+    class IntegrityPaths:
+        TBR_FILE = Path("config/TBR.json")
+        POLICY_MANIFEST_SIG = Path("manifest/G0-Policy_Manifest.sig")
+        HASH_ALGORITHM = "SHA-512"
 
-def generate_aggregate_hash(file_paths):
-    """Calculates the deterministic aggregate hash (M-Hash) based on sorted artifact content."""
-    sha512 = hashlib.sha512()
+
+# --- Custom Exception Hierarchy ---
+class ManifestIntegrityError(Exception): pass
+class ConfigurationError(ManifestIntegrityError): pass
+class HashingError(ManifestIntegrityError): pass
+class SigningError(ManifestIntegrityError): pass
+
+
+class PMGGenerator:
+    """
+    Policy Manifest Generator (PMG) calculates the deterministic aggregate
+    system integrity hash (M-Hash) and generates the signed baseline manifest ($T_{0}$).
+    """
     
-    # Hashing stability is paramount: paths must be sorted lexicographically
-    sorted_paths = sorted(file_paths)
+    CHUNK_SIZE = 4096
     
-    for path in sorted_paths:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"TBR referenced critical file missing: {path}")
+    def __init__(self, tbr_path: Path = IntegrityPaths.TBR_FILE, 
+                 output_path: Path = IntegrityPaths.POLICY_MANIFEST_SIG):
+        self.tbr_path = tbr_path
+        self.output_path = output_path
+        self.hash_algorithm = IntegrityPaths.HASH_ALGORITHM
+
+    def _load_tbr(self) -> list[Path]:
+        """Loads the list of critical file paths to be hashed from TBR."""
         
-        # Hash file content in blocks (binary mode)
-        with open(path, 'rb') as f:
-            while chunk := f.read(4096):
-                sha512.update(chunk)
+        if not self.tbr_path.exists():
+            raise ConfigurationError(f"TBR file not found: {self.tbr_path}")
+            
+        try:
+            with self.tbr_path.open('r') as f:
+                data = json.load(f)
+                critical_path_strings = data.get("critical_paths", [])
                 
-    return sha512.hexdigest()
+                # Convert string paths to resolved Path objects for robustness
+                return [Path(p).resolve() for p in critical_path_strings]
+                
+        except json.JSONDecodeError as e:
+            raise ConfigurationError(f"Invalid TBR structure: JSON decode error in {self.tbr_path}: {e}")
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load TBR configuration: {e}")
 
-def create_manifest(output_path="manifest/G0-Policy_Manifest.sig", tbr_path="config/TBR.json"):
-    """Generates the signed manifest file ($T_{0}$ baseline)."""
-    try:
-        print("\n[PMG] Starting $T_{0}$ Manifest generation...")
-        critical_files = load_tbr(tbr_path)
-        m_hash = generate_aggregate_hash(critical_files)
+    def generate_aggregate_hash(self, file_paths: list[Path]) -> str:
+        """Calculates the deterministic aggregate hash (M-Hash) based on sorted artifact content."""
+        
+        sha = hashlib.new(self.hash_algorithm.lower()) # Flexible algorithm instantiation
+        
+        # Stability Requirement: Paths must be sorted lexicographically by their string representation
+        sorted_paths = sorted(file_paths, key=str)
+        
+        for path in sorted_paths:
+            if not path.exists():
+                # Use resolved path for debug visibility
+                raise HashingError(f"TBR referenced critical file missing: {path.name} (Resolved: {path})")
+            
+            try:
+                # Hash file content in blocks (binary mode)
+                with path.open('rb') as f:
+                    while chunk := f.read(self.CHUNK_SIZE):
+                        sha.update(chunk)
+            except IOError as e:
+                raise HashingError(f"I/O error while reading file {path}: {e}")
+                
+        return sha.hexdigest()
+
+    def _construct_manifest_data(self, critical_files: list[Path], m_hash: str) -> dict:
+        """Constructs the core manifest data dictionary, standardizing the timestamp."""
+        
+        # Use ISO format with Zulu time (Z suffix) for secure, standard timestamp
+        timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         
         manifest_data = {
             "version": "3.0",
-            "m_hash": m_hash,
-            "hash_algorithm": "SHA-512",
+            "timestamp": timestamp,
+            "hash_algorithm": self.hash_algorithm,
             "artifact_count": len(critical_files),
-            "timestamp": "SYSTEM_GOVERNANCE_TIMESTAMP" # To be replaced by secure time source
+            "m_hash": m_hash
         }
+        return manifest_data
 
-        # --- SECURITY INTEGRATION POINT ---
-        # signature = SignerService.get_instance("GOV_KEY_STORE").sign(json.dumps(manifest_data))
-        signature = "GOVERNANCE_SIGNATURE_PLACEHOLDER" # Placeholder for security module integration
-
+    def _sign_and_package(self, manifest_data: dict) -> dict:
+        """Handles signing and packages the final manifest structure."""
+        
+        # 1. Standardize JSON input string for deterministic signature generation
+        # Mandate sort_keys=True and specific separators for reliable signing integrity
+        data_to_sign = json.dumps(manifest_data, sort_keys=True, separators=(',', ':'))
+        
+        # signature = SignerService.get_instance("GOV_KEY_STORE").sign(data_to_sign) # Integration Point
+        signature = "GOVERNANCE_SIGNATURE_PLACEHOLDER_V94_1" 
+        
         final_manifest = {
             "metadata": manifest_data,
             "signature": signature
         }
+        return final_manifest
 
-        # Ensure output directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    def create_baseline(self):
+        """Orchestrates the integrity baseline manifest generation."""
+        print(f"\n[PMG] Starting $T_{{0}}$ Manifest generation (v3.0).")
         
-        with open(output_path, 'w') as f:
-            json.dump(final_manifest, f, indent=2)
+        critical_files = self._load_tbr()
+        m_hash = self.generate_aggregate_hash(critical_files)
+        
+        manifest_data = self._construct_manifest_data(critical_files, m_hash)
+        final_manifest = self._sign_and_package(manifest_data)
+        
+        # Ensure output directory exists using pathlib
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Use indent=2 for readability, and sort_keys=True to guarantee deterministic file structure
+        with self.output_path.open('w') as f:
+            json.dump(final_manifest, f, indent=2, sort_keys=True)
             
-        print(f"[PMG] SUCCESS: Manifest created for {len(critical_files)} artifacts at {output_path}.")
-        
+        print(f"[PMG] SUCCESS: Manifest created for {len(critical_files)} artifacts at {self.output_path}.")
+            
+
+def main():
+    """Main execution function, handling top-level orchestration and failure exit."""
+    try:
+        generator = PMGGenerator()
+        generator.create_baseline()
+    except ManifestIntegrityError as e:
+        print(f"[PMG] CRITICAL FAILURE: {type(e).__name__}: {e}")
+        exit(1)
     except Exception as e:
-        print(f"[PMG] CRITICAL FAILURE generating manifest: {e}")
+        print(f"[PMG] UNEXPECTED SYSTEM FAILURE: {type(e).__name__}: {e}")
         exit(1)
 
+
 if __name__ == "__main__":
-    # This script runs during the hardened build phase, not runtime.
-    create_manifest()
+    main()
