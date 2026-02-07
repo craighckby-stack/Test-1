@@ -1,7 +1,6 @@
 /**
- * Logger.js
- * Standardized logging utility for high-level system operations (v94.1).
- * Assumes 'chalk' is available for environment formatting.
+ * utility/Logger.js
+ * Standardized logging utility for high-level system operations (v94.2).
  */
 
 const chalk = require('chalk');
@@ -10,17 +9,21 @@ const LOG_LEVELS = Object.freeze({
     ERROR: 0,
     WARN: 1,
     INFO: 2,
-    DEBUG: 3,
+    DEBUG: 3
 });
 
 // Configurable via environment variable or central system configuration
-const currentLevel = LOG_LEVELS.INFO; 
+const currentLevel = LOG_LEVELS.INFO;
 
 class Logger {
+    constructor(defaultPrefix = 'SYSTEM') {
+        this.defaultPrefix = defaultPrefix;
+    }
+    
     /**
      * Generic logging handler.
      * @param {string} level - ERROR, WARN, INFO, DEBUG
-     * @param {string} prefix - Component identifier (e.g., TQM_ENG)
+     * @param {string} prefix - Component identifier (e.g., KERNEL)
      * @param {Array<any>} message - The log payload
      */
     log(level, prefix, ...message) {
@@ -54,11 +57,16 @@ class Logger {
         }
     }
     
-    // Context-specific wrapper functions
-    error(...m) { this.log('ERROR', 'TQM_ENG', ...m); }
-    warn(...m) { this.log('WARN', 'TQM_ENG', ...m); }
-    info(...m) { this.log('INFO', 'TQM_ENG', ...m); }
-    debug(...m) { this.log('DEBUG', 'TQM_ENG', ...m); }
+    // Context-specific wrapper functions, now utilizing the instance's default prefix
+    error(...m) { this.log('ERROR', this.defaultPrefix, ...m); }
+    warn(...m) { this.log('WARN', this.defaultPrefix, ...m); }
+    info(...m) { this.log('INFO', this.defaultPrefix, ...m); }
+    debug(...m) { this.log('DEBUG', this.defaultPrefix, ...m); }
 }
 
-module.exports = new Logger();
+// Instantiate the default singleton logger, maintaining the historical 'TQM_ENG' prefix.
+const SystemLogger = new Logger('TQM_ENG');
+
+// Export the primary instance (default export) and the Logger class (named export) for UNIFIER modularity.
+module.exports = SystemLogger;
+module.exports.Logger = Logger;
