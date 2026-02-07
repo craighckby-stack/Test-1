@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "System Metric Definitions and Schema",
+  "description": "Defines the formal schema, expected types, and validation rules for all metrics referenced in mode transition triggers and other system configs.",
+  "metrics": {
+    "runtime.failure_rate": {
+      "type": "number",
+      "unit": "ratio (0-1)",
+      "description": "Ratio of failed operations over total operations in a sliding window."
+    },
+    "code_evolution.entropy.normalized_value": {
+      "type": "number",
+      "unit": "normalized (0-1)",
+      "description": "Estimate of code complexity/instability based on recent changes."
+    },
+    "resource.cpu_usage.normalized": {
+      "type": "number",
+      "unit": "ratio (0-1)",
+      "description": "Average CPU utilization normalized against total available capacity."
+    },
+    "code_evolution.revert_rate": {
+      "type": "number",
+      "unit": "ratio (0-1)",
+      "description": "Frequency of source code reverts relative to total accepted modifications."
+    }
+  }
+}
