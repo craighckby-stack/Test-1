@@ -33,3 +33,6 @@ export class RetrievalError extends BaseError {
         super(message, code, false);
     }
 }
+
+// Exporting the base class for comprehensive integration into UNIFIER.js
+export { BaseError };
