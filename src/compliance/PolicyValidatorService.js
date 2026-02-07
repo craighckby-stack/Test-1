@@ -5,7 +5,7 @@ import {
     DEFAULT_GOVERNANCE_SCHEMA_PATH
 } from './schema/PolicySchemaDefinitions.js';
 import fs from 'fs/promises';
-import { Logger } from '../utils/Logger.js'; // Assumes existence of a centralized Logger utility
+import { Logger } from '../utility/Logger.js'; // Path updated per MERGE mandate: /utils -> /utility
 
 /**
  * Manages the loading, compilation, and validation of governance policies
@@ -18,7 +18,7 @@ export class PolicyValidatorService {
      * @param {Logger} [dependencies.logger] - Logger instance.
      * @param {string} [dependencies.defaultSchemaPath] - Override for primary schema path.
      */
-    constructor({ 
+    constructor({
         logger = new Logger('PolicyValidator'),
         defaultSchemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH 
     } = {}) {
