@@ -1,52 +1,69 @@
 {
   "fileId": "GOV_P_001",
-  "version": "1.1.0",
-  "description": "Canonical definition of all governance-critical oversight parameters. Parameters are grouped for automated system auditing and modular loading by the Oversight Parameter Registry (OPR).",
+  "version": "2.0.0",
+  "description": "Canonical definition of all governance-critical oversight parameters, structured for granular control and automated dependency injection.",
+  "groupDefinitions": {
+    "SAFETY_CONTROL": "Parameters defining hard limits and operational boundaries to ensure AI alignment and safety.",
+    "INTERNAL_STATE": "Parameters governing the integrity and stability of internal representational models.",
+    "EXECUTION_SAFETY": "Resource and time constraints for non-verified or experimental code execution.",
+    "EVOLUTION_RESOURCE": "Resource allocation limits for autonomous self-modification and optimization cycles.",
+    "AUDIT_FREQUENCY": "Timeliness requirements for mandatory systemic integrity checks."
+  },
   "parameters": {
-    "P01_RISK_FLOOR": {
-      "group": "Safety_Control",
+    "SAFETY_CONTROL_RISK_FLOOR_RATIO": {
+      "group": "SAFETY_CONTROL",
       "type": "float",
       "unit": "ratio",
       "range": [0.01, 1.0],
       "default": 0.75,
-      "critical": true,
-      "description": "Maximum permitted deviation ratio from the measured baseline risk index (RBI)."
+      "scope": "runtime",
+      "severity": "CATASTROPHIC",
+      "source_module": "RiskEngine",
+      "description": "Maximum permitted deviation ratio from the measured baseline risk index (RBI). High severity."
     },
-    "MAX_ENTROPY_DEBT": {
-      "group": "Internal_State",
+    "INTERNAL_STATE_MAX_ENTROPY_DEBT": {
+      "group": "INTERNAL_STATE",
       "type": "integer",
       "unit": "debt_points",
-      "range": [1, 500],
+      "range": [50, 1000],
       "default": 100,
-      "critical": true,
-      "description": "Threshold for initiating forced self-correction and internal stabilization procedures."
+      "scope": "runtime",
+      "severity": "HIGH",
+      "source_module": "SelfStabilizer",
+      "description": "Threshold for initiating forced self-correction and internal stabilization procedures (Entropy Debt Management)."
     },
-    "SANDBOX_TIMEOUT_MS": {
-      "group": "Execution_Safety",
+    "EXEC_SAFETY_SANDBOX_TIMEOUT_MS": {
+      "group": "EXECUTION_SAFETY",
       "type": "integer",
       "unit": "ms",
-      "range": [500, 30000],
+      "range": [1000, 60000],
       "default": 5000,
-      "critical": true,
+      "scope": "runtime",
+      "severity": "MEDIUM",
+      "source_module": "ExecutionGuard",
       "description": "Timeout (in milliseconds) for independent, unverified code execution sandbox processes."
     },
-    "E05_MAX_GENERATION_CYCLES": {
-      "group": "Evolution_Resource",
+    "EVOLUTION_RESOURCE_MAX_CYCLES": {
+      "group": "EVOLUTION_RESOURCE",
       "type": "integer",
       "unit": "cycles",
-      "range": [5, 500],
+      "range": [10, 500],
       "default": 25,
-      "critical": true,
+      "scope": "runtime",
+      "severity": "HIGH",
+      "source_module": "CodeEvolver",
       "description": "Maximum self-evolutionary generation attempts (cycles) allowed for a single objective before aborting or reverting."
     },
-    "G10_GOVERNANCE_AUDIT_INTERVAL_HRS": {
-      "group": "Audit_Frequency",
+    "AUDIT_FREQ_GOV_AUDIT_INTERVAL_HRS": {
+      "group": "AUDIT_FREQUENCY",
       "type": "integer",
       "unit": "hours",
       "range": [1, 720],
       "default": 24,
-      "critical": false,
-      "description": "Interval for mandatory full governance ledger audits."
+      "scope": "immutable_boot",
+      "severity": "LOW",
+      "source_module": "ComplianceMonitor",
+      "description": "Interval for mandatory full governance ledger audits (default 24 hours)."
     }
   }
 }
