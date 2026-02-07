@@ -1,28 +1,53 @@
-interface GFTReportV94 { /* (Reference schema definition) */ }
+interface GFTReportV94 {
+    report_id: string;
+    timestamp: number;
+    // ... extensive forensic data specific to V94 terminal failure
+}
+
+interface PIAMSealingReceipt {
+    state_hash: string;
+    sealing_key_id: string;
+    sealing_timestamp: number;
+}
 
 /**
  * Post-Mortem Integrity Assurance Module (PIAM) Interface
- * Responsible for terminal isolation, cryptographic sealing of state,
- * and broadcasting the final GFTR during SIH (TERMINAL) failure class events.
+ * Responsible for integrity sealing of terminal state, complete system isolation,
+ * cryptographic signing and robust broadcasting of the final GFTR during 
+ * SIH (TERMINAL) failure class events.
  */
 export interface PIAM_Interface {
-    /**
-     * Initiates Terminal Isolation Sequence and prepares system for deep sleep/hibernation.
-     * @param failureId report_id associated with the terminal event.
-     * @returns True if isolation protocols were secured successfully.
-     */
-    isolateSystem(failureId: string): Promise<boolean>;
 
     /**
-     * Finalizes the GFTR, signs it using the PIAM private key, and ensures broadcast across recovery channels.
-     * This step guarantees non-repudiation of the terminal report.
+     * Executes deep forensic state capture and cryptographically seals the terminal 
+     * execution environment state (memory, registers, filesystem snapshot). 
+     * This is the critical first step for forensic integrity assurance.
+     * @param failureId report_id associated with the terminal event.
+     * @returns A receipt confirming the successful sealing operation, including the state hash.
+     */
+    captureAndSealTerminalState(failureId: string): Promise<PIAMSealingReceipt>;
+
+    /**
+     * Initiates the Physical/Logical Terminal Isolation Sequence. This renders the
+     * active execution environment immutable and prepares for hibernation/deep sleep.
+     * Requires the hash of the sealed state to ensure isolation is chained to integrity validation.
+     * @param stateSealHash The hash of the sealed state package, linking isolation to integrity.
+     * @returns True if isolation protocols were secured successfully.
+     */
+    initiateIsolationSequence(stateSealHash: string): Promise<boolean>;
+
+    /**
+     * Finalizes the GFTR using data derived from the sealed state, signs it using the 
+     * module's private key, and ensures resilient broadcast across specified recovery channels.
+     * Guarantees non-repudiation of the terminal report.
      * @param report The completed GFTR structure.
-     * @returns The cryptographically sealed report transmission status.
+     * @returns Transmission confirmation status.
      */
     sealAndBroadcastReport(report: GFTReportV94): Promise<{ success: boolean; tx_id: string }>;
 
     /**
-     * Triggers the S8+ Recovery Staging Environment lockdown.
+     * Triggers the S8+ Recovery Staging Environment lockdown to prevent premature or unauthorized access
+     * until post-mortem clearance is granted.
      */
     lockdownRecoveryStaging(): Promise<void>;
 }
