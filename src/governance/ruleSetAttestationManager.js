@@ -1,11 +1,7 @@
 /**
  * Component ID: RSAM (Rule Set Attestation Manager)
- * Functional Focus: Secure staging, cryptographic attestation, and version control of the Governance Rule Source (GRS).
- * GSEP Alignment: Stage 1 (Vetting Policy Changes), Stage 3 (Providing attested rule state for C-15).
- *
- * RSAM serves as the mandatory integrity gate for all changes proposed to immutable governance policies (GRS). It prevents 
- * the C-15 Policy Engine from referencing a GRS update until the change is cryptographically attested, version-locked,
- * and validated against the current architectural schema by ASR/CIM.
+ * Optimization Directive: Maximum computational efficiency and recursive abstraction.
+ * Refactoring Focus: Concurrent processing for staging and functional pipeline decomposition for commitment.
  */
 class RuleSetAttestationManager {
     /**
@@ -18,63 +14,73 @@ class RuleSetAttestationManager {
         this.grs = grs;
         this.ktam = ktam;
         this.asr = asr;
-        this.telemetry = telemetry; // V94.1 Enhancement: Structured logging
-        this.stagingBuffer = new Map(); // Using Map for clearer state management keyed by mutationId
+        this.telemetry = telemetry;
+        // O(1) state management optimized for lookup
+        this.stagingBuffer = new Map(); 
+    }
+
+    /**
+     * Core utility: Performs concurrent schema validation and cryptographic hashing.
+     * This maximizes throughput by overlapping potential I/O (ASR) with CPU work (KTAM hashing).
+     * @param {object} proposedRuleSet
+     * @returns {Promise<{ruleHash: string, validationResult: object}>}
+     * @private
+     */
+    async _validateAndHash(proposedRuleSet) {
+        // 1. Concurrent Execution: Validate and Hash run simultaneously
+        const [validationResult, ruleHash] = await Promise.all([
+            this.asr.validatePolicySchema(proposedRuleSet),
+            this.ktam.generateAttestationHash(proposedRuleSet)
+        ]);
+        
+        if (!validationResult.valid) {
+            // Throw structured error for caller to handle telemetry
+            const err = new Error('SCHEMA_INVALID');
+            err.details = validationResult.errors;
+            throw err;
+        }
+
+        return { ruleHash, validationResult };
     }
 
     /**
      * Stages a new governance rule set and performs initial structural vetting asynchronously.
-     * Assumes ASR validation is an asynchronous process.
-     * @param {object} proposedRuleSet - The new rule set payload.
-     * @param {string} mutationId - The ID of the M-01 Intent Package proposing the change.
-     * @param {object} sourceMetadata - Contextual data about the change request.
      * @returns {Promise<object>}
      */
     async stagePolicyUpdate(proposedRuleSet, mutationId, sourceMetadata) {
-        // 1. Schema Validation
-        const validationResult = await this.asr.validatePolicySchema(proposedRuleSet);
-        
-        if (!validationResult.valid) {
-            this.telemetry.critical('RSAM_VETO', {
-                mutationId,
-                reason: 'Schema validation failure',
-                details: validationResult.errors
+        try {
+            const { ruleHash } = await this._validateAndHash(proposedRuleSet);
+            const timestamp = Date.now();
+
+            // 2. Atomic Staging
+            this.stagingBuffer.set(mutationId, { 
+                rules: proposedRuleSet, 
+                ruleHash: ruleHash, 
+                status: 'STAGED', 
+                stageTime: timestamp,
+                source: sourceMetadata 
             });
-            return { success: false, reason: 'SCHEMA_INVALID' };
+            
+            this.telemetry.info('RSAM_POLICY_STAGED', { mutationId, ruleHash: ruleHash.substring(0, 16) });
+            return { success: true, hash: ruleHash };
+
+        } catch (e) {
+            if (e.message === 'SCHEMA_INVALID') {
+                this.telemetry.critical('RSAM_VETO', { mutationId, reason: 'Schema validation failure', details: e.details });
+                return { success: false, reason: 'SCHEMA_INVALID' };
+            }
+            // Re-throw unexpected system errors (e.g., hash generation failure)
+            throw e;
         }
-
-        // 2. Hash Generation
-        const ruleHash = await this.ktam.generateAttestationHash(proposedRuleSet);
-        const timestamp = Date.now();
-
-        // 3. Staging
-        this.stagingBuffer.set(mutationId, { 
-            rules: proposedRuleSet, 
-            ruleHash: ruleHash, 
-            status: 'STAGED', 
-            stageTime: timestamp,
-            source: sourceMetadata 
-        });
-        
-        this.telemetry.info('RSAM_POLICY_STAGED', { mutationId, ruleHash: ruleHash.substring(0, 16) });
-        return { success: true, hash: ruleHash };
     }
 
     /**
-     * Executes cryptographic signing, version-locks the policy set, and triggers GRS activation.
-     * @param {string} mutationId
-     * @param {string} committingAgentId - ID of the agent that authorized the commit (e.g., EPDP result).
-     * @returns {Promise<object|null>} Returns the committed version and attestation metadata.
+     * Recursively abstracted commitment pipeline: Versioning -> Signing -> Activation.
+     * Ensures strict sequential dependencies are met efficiently.
+     * @private
      */
-    async attestAndCommitPolicy(mutationId, committingAgentId) {
-        const stage = this.stagingBuffer.get(mutationId);
-
-        if (!stage || stage.status !== 'STAGED') {
-            this.telemetry.warn('RSAM_COMMIT_FAIL', { mutationId, reason: 'State mismatch or missing stage entry.' });
-            return null;
-        }
-
-        // 1. Versioning: Get the next official version from GRS/version register
+    async _processCommitmentPipeline(stage, committingAgentId) {
+        // 1. Versioning
         const newVersion = await this.grs.proposeNextVersion(stage.ruleHash);
 
         // 2. Cryptographic Attestation Payload Creation
@@ -85,24 +91,40 @@ class RuleSetAttestationManager {
             timestamp: Date.now()
         };
         
-        // 3. Secure Signing: KTAM generates the verifiable attestation signature
+        // 3. Secure Signing (Attestation)
         const attestation = await this.ktam.createCryptographicAttestation(commitmentPayload, 'RSAM_POLICY_LOCK');
         
-        // 4. Atomic Activation into the Governance Rule Source (GRS)
-        try {
-            // GRS ensures that the new rule set is globally accessible and immutably linked to the version/attestation.
-            await this.grs.activateNewRuleSet(stage.rules, newVersion, attestation);
-        } catch (error) {
-            this.telemetry.critical('RSAM_COMMIT_GRS_FAILURE', { mutationId, error: error.message });
-            return null; // Fatal failure during activation, requires manual investigation.
+        // 4. Atomic Activation into the GRS
+        await this.grs.activateNewRuleSet(stage.rules, newVersion, attestation);
+
+        return { version: newVersion, attestation };
+    }
+
+    /**
+     * Executes cryptographic signing, version-locks the policy set, and triggers GRS activation.
+     * @returns {Promise<object|null>}
+     */
+    async attestAndCommitPolicy(mutationId, committingAgentId) {
+        const stage = this.stagingBuffer.get(mutationId);
+
+        if (!stage || stage.status !== 'STAGED') {
+            this.telemetry.warn('RSAM_COMMIT_FAIL', { mutationId, reason: 'State mismatch or missing stage entry.' });
+            return null;
         }
 
-        // 5. Cleanup and State Update
-        // Note: For full auditability, this state data should move to a separate persistent Audit Log Manager before deletion.
-        this.stagingBuffer.delete(mutationId); 
+        try {
+            const result = await this._processCommitmentPipeline(stage, committingAgentId);
 
-        this.telemetry.success('RSAM_COMMITTED', { mutationId, version: newVersion, attestationId: attestation.signatureId });
-        return { version: newVersion, attestation };
+            // 5. Cleanup and Telemetry
+            this.stagingBuffer.delete(mutationId); 
+            this.telemetry.success('RSAM_COMMITTED', { mutationId, version: result.version, attestationId: result.attestation.signatureId });
+            return result;
+
+        } catch (error) {
+            this.telemetry.critical('RSAM_COMMIT_GRS_FAILURE', { mutationId, error: error.message, stack: error.stack });
+            // Note: If activation fails, the stage remains for forensic audit.
+            return null; 
+        }
     }
 
     /**
@@ -110,7 +132,6 @@ class RuleSetAttestationManager {
      * @returns {object}
      */
     getCurrentAttestedRules() {
-        // This method remains synchronous as it is a direct read from the current GRS state.
         return this.grs.getActiveRuleSet();
     }
 }
