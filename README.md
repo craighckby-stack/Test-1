@@ -57,3 +57,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated ARCA failure analysis logic from obsolete Python governance/utils structure to governance/utility/ARCA_Module.js, ensuring UNIFIER protocol compatibility.
 
 > **[SYSTEM_LOG 2026-02-07]**: Preserved SchemaRegistry_Config.json as a non-code governance artifact required for telemetry validation and configuration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Converted config/artifact_manifest.json into an exported ES Module to enable reliable configuration loading via UNIFIER.js.
