@@ -25,4 +25,4 @@ class IRSAMService {
     }
 }
 
-module.exports = IRSAMService;
+export default IRSAMService;
