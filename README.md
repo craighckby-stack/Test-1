@@ -157,3 +157,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored SchemaAnalyzer to use CommonJS exports for UNIFIER.js integration, maintaining core schema delta computation logic.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated DeepNormalizer logic from /utils to /utility to comply with the system defragmentation mandate, ensuring stable object serialization remains available for core integrity services.
+
+> **[SYSTEM_LOG 2026-02-07]**: Integrated src/consensus/ProposalMetricsEngine.js, ensuring the core trust calibration logic is exported for UNIFIER.js execution.
