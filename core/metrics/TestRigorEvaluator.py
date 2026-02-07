@@ -1,39 +1,91 @@
+from typing import List, Protocol
+
+class AbstractCodeAnalyzer(Protocol):
+    """Defines the necessary interface for any code analysis dependency."""
+    def read_file(self, path: str) -> str: ...
+    def analyze_cc(self, code: str) -> float: ...
+    def get_loc(self, code: str) -> int: ...
+    def count_assertions(self, code: str) -> int: ...
+
 class TestRigorEvaluator:
-    """Calculates a composite Test Rigor Score (0.0 to 1.0) based on test complexity and assertion density, not just coverage."""
+    """
+    Calculates a composite Test Rigor Score (0.0 to 1.0) based on complexity and assertion density,
+    decoupled from raw coverage metrics.
+    """
 
-    def __init__(self, analysis_tool='lizard'):
-        # Initialize complexity analysis tool (placeholder)
-        self.tool = analysis_tool
+    def __init__(self, analyzer: AbstractCodeAnalyzer):
+        if not analyzer:
+            raise ValueError("Analyzer dependency must be provided.")
+        self._analyzer = analyzer
 
-    def _calculate_complexity_ratio(self, test_source_code):
-        # Simulate calculation of metrics like Cyclomatic Complexity relative to test size
-        complexity = self.tool.analyze_cc(test_source_code)
-        loc = self.tool.get_loc(test_source_code)
-        return complexity / max(1, loc) if loc > 0 else 0
+    def _calculate_complexity_score(self, test_source_code: str) -> float:
+        """
+        Calculates complexity ratio (CC / LOC) and normalizes it to a 'goodness' score (0.0 to 1.0).
+        A higher score indicates a low/moderate CC/LOC ratio.
+        """
+        cc = self._analyzer.analyze_cc(test_source_code)
+        loc = self._analyzer.get_loc(test_source_code)
+        
+        if loc <= 1:
+            return 0.0
 
-    def _analyze_assertion_density(self, test_source_code):
-        # Simulate calculation of assertion statements per line of test code
-        total_asserts = self.tool.count_assertions(test_source_code)
-        loc = self.tool.get_loc(test_source_code)
-        return total_asserts / max(1, loc) if loc > 0 else 0
+        # Complexity Ratio (CR): CC/LOC. Using a threshold of 0.5 for highly dense/complex tests.
+        complexity_ratio = cc / loc
+        
+        # Map ratio to penalty. Penalize complexity_ratio exceeding the nominal acceptable bounds.
+        # 1.0 means ideal/low complexity ratio; 0.0 means high complexity ratio (CR >= 0.5).
+        normalized_complexity = min(1.0, complexity_ratio / 0.5)
+        return 1.0 - normalized_complexity
 
-    def evaluate(self, affected_test_files: list) -> float:
+    def _calculate_density_score(self, test_source_code: str) -> float:
+        """
+        Calculates assertion statements per line of test code and returns a normalized score (0.0 to 1.0).
+        """
+        total_asserts = self._analyzer.count_assertions(test_source_code)
+        loc = self._analyzer.get_loc(test_source_code)
+
+        if loc <= 1:
+            return 0.0
+        
+        density_ratio = total_asserts / loc
+        
+        # Reward density up to a saturation point (e.g., 0.35 asserts/LOC).
+        saturation_point = 0.35 
+        
+        density_score = min(1.0, density_ratio / saturation_point)
+        return density_score
+
+    def evaluate(self, affected_test_files: List[str]) -> float:
+        """
+        Evaluates the aggregate rigor score for a list of test files.
+        """
         if not affected_test_files:
             return 0.0
             
-        total_complexity_ratio = 0
-        total_density = 0
+        complexity_scores = []
+        density_scores = []
         
         for path in affected_test_files:
-            source = self.tool.read_file(path)
-            total_complexity_ratio += self._calculate_complexity_ratio(source)
-            total_density += self._analyze_assertion_density(source)
+            try:
+                source = self._analyzer.read_file(path)
+                
+                complexity_scores.append(self._calculate_complexity_score(source))
+                density_scores.append(self._calculate_density_score(source))
+            
+            except Exception as e:
+                # In a robust system, this should use structured logging.
+                # For now, simply skip the file on failure.
+                continue
 
-        avg_complexity = total_complexity_ratio / len(affected_test_files)
-        avg_density = total_density / len(affected_test_files)
+        if not complexity_scores:
+            return 0.0
+
+        avg_complexity_score = sum(complexity_scores) / len(complexity_scores)
+        avg_density_score = sum(density_scores) / len(density_scores)
         
-        # Rigor Score = (Density is positive weight) + (Complexity (inverted) is negative weight)
-        # Normalization and weighting required for robust results.
-        rigor_score = (avg_density * 0.6) + ((1 - min(1.0, avg_complexity)) * 0.4)
+        # Final Rigor Score (Normalized 0.0-1.0).
+        # Favor assertion density more heavily.
+        # Note: avg_complexity_score already represents the positive contribution (lower CC is better).
+        rigor_score = (avg_density_score * 0.7) + (avg_complexity_score * 0.3)
         
         return max(0.0, min(1.0, rigor_score))
