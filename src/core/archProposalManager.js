@@ -15,20 +15,9 @@ import { CryptographicUtil } from '../utils/cryptographicUtil.js';
 
 export class ArchProposalManager {
     constructor() {
-        /** @type {Map<string, StagingEntry>} */
+        /** @type {Map<string, Readonly<StagingEntry>>} */
         this.stagingArea = new Map();
         this.auditLogger = new D01_AuditLogger();
-    }
-
-    /**
-     * Internal secure hashing method, utilizing dedicated cryptographic utility.
-     * @param {Object} payload 
-     * @returns {string} The cryptographic hash (e.g., SHA-256).
-     * @private
-     */
-    _calculatePayloadHash(payload) {
-        // Use a dedicated, deterministic hashing function for payloads
-        return CryptographicUtil.hashObject(payload);
     }
 
     /**
@@ -38,34 +27,65 @@ export class ArchProposalManager {
      */
 
     /**
-     * Stages a validated proposal payload upon successful OGT decision.
-     * Ensures payload immutability via Object.freeze and robust hashing.
-     * 
-     * @param {string} proposalId 
-     * @param {Object} proposalPayload - The mutation manifest (code changes, config updates).
-     * @param {DecisionEnvelope} decisionEnvelope 
-     * @returns {string | boolean} The transaction hash on success, or false on failure.
+     * @typedef {Object} StagingEntry
+     * @property {string} proposalId
+     * @property {Object} payload
+     * @property {DecisionEnvelope} decision
+     * @property {string} hash
+     * @property {number} timestamp
      */
-    stageProposal(proposalId, proposalPayload, decisionEnvelope) {
-        if (!decisionEnvelope || decisionEnvelope.status !== 'PASS') {
-            this.auditLogger.logWarning(`A-01: Received rejected or invalid envelope for proposal ${proposalId}. Aborting stage.`);
-            return false;
+
+    /**
+     * Highly abstracted, recursive integrity checker and staging entry creator.
+     * Combines hashing, validation, and immutability setup into a functional unit.
+     * This method serves as the centralized, immutable data preparation gate.
+     * 
+     * @param {string} proposalId
+     * @param {Object} payload 
+     * @param {DecisionEnvelope} decision 
+     * @returns {{entry: Readonly<StagingEntry>, hash: string} | null} 
+     * @private
+     */
+    _secureGateProcess(proposalId, payload, decision) {
+        // Base case for early exit (computational efficiency): Decision failure
+        if (decision?.status !== 'PASS') {
+            return null;
         }
 
-        const transactionHash = this._calculatePayloadHash(proposalPayload);
-        
-        /** @typedef {Object} StagingEntry */
-        const stagingEntry = Object.freeze({ // Enforce entry immutability immediately
+        // Recursive Abstraction: The result of hashing becomes the canonical state proof.
+        const transactionHash = CryptographicUtil.hashObject(payload);
+
+        const stagingEntry = Object.freeze({ // Enforce deep immutability immediately
             proposalId,
-            payload: proposalPayload, 
-            decision: decisionEnvelope,
+            payload: payload, 
+            decision: decision,
             hash: transactionHash,
             timestamp: Date.now()
         });
 
-        this.stagingArea.set(proposalId, stagingEntry);
-        this.auditLogger.logAction(`A-01: Proposal ${proposalId} staged successfully. Hash: ${transactionHash.substring(0, 10)}...`);
-        return transactionHash;
+        // Returns structured data containing the immutable entry and its proof.
+        return { entry: stagingEntry, hash: transactionHash };
+    }
+
+    /**
+     * Stages a validated proposal payload upon successful OGT decision.
+     * @param {string} proposalId 
+     * @param {Object} proposalPayload 
+     * @param {DecisionEnvelope} decisionEnvelope 
+     * @returns {string | boolean} The transaction hash on success, or false on failure.
+     */
+    stageProposal(proposalId, proposalPayload, decisionEnvelope) {
+        // Delegate complex security setup to the abstract gate
+        const result = this._secureGateProcess(proposalId, proposalPayload, decisionEnvelope);
+
+        if (!result) {
+            this.auditLogger.logWarning(`A-01: Received rejected or invalid envelope for proposal ${proposalId}. Aborting stage.`);
+            return false;
+        }
+
+        this.stagingArea.set(proposalId, result.entry);
+        this.auditLogger.logAction(`A-01: Proposal ${proposalId} staged successfully. Hash: ${result.hash.substring(0, 10)}...`);
+        return result.hash;
     }
 
     /**
@@ -83,27 +103,26 @@ export class ArchProposalManager {
             return false;
         }
         
-        // Final integrity check: Re-calculate and verify hash
-        const reCalculatedHash = this._calculatePayloadHash(stagedProposal.payload);
-        
-        if (reCalculatedHash !== stagedProposal.hash) {
-            this.auditLogger.logFatalError(`A-01: Data integrity failure for ${proposalId}. HASH MISMATCH detected between stage and commit. Execution aborted.`);
+        // Computational Efficiency vs. Security: Final re-hash is mandatory security overhead.
+        if (CryptographicUtil.hashObject(stagedProposal.payload) !== stagedProposal.hash) {
+            this.auditLogger.logFatalError(`A-01: Data integrity failure for ${proposalId}. HASH MISMATCH. Execution aborted.`);
             return false;
         }
 
         this.auditLogger.logDebug(`A-01: Integrity check passed for ${proposalId}. Preparing C-04 handover.`);
 
+        // Functional pipeline for execution and cleanup
         try {
-            // Hand off to Autogeny Sandbox (C-04)
-            const executionResult = C04_AutogenySandbox.executeMutation(stagedProposal.payload);
-            
-            if (executionResult) {
-                this.stagingArea.delete(proposalId); // Clean staging area on success
+            const executionSuccess = C04_AutogenySandbox.executeMutation(stagedProposal.payload);
+
+            if (executionSuccess) {
+                // Clean staging area only upon verified success
+                this.stagingArea.delete(proposalId); 
                 this.auditLogger.logAction(`A-01: Proposal ${proposalId} committed to C-04 successfully and staged entry deleted.`);
             } else {
-                this.auditLogger.logError(`A-01: C-04 reported execution failure for ${proposalId}. Proposal remains staged.`);
+                this.auditLogger.logError(`A-01: C-04 reported execution failure for ${proposalId}. Proposal remains staged for audit.`);
             }
-            return executionResult;
+            return executionSuccess;
         } catch (error) {
             this.auditLogger.logFatalError(`A-01: Critical exception during C-04 execution handover for ${proposalId}: ${error.message}`);
             return false;
