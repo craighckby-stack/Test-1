@@ -22,7 +22,7 @@ const AttestationErrorCodes = Object.freeze({
 
     // ----- Self-Verification/AGI State Failures -----
     AFR_E_AGI_301: 'SELF_VERIFICATION_FAILED',
-    AFR_E_AGI_302: 'INSUFFICIENT_PROOFS_GENERATED',
+    AFR_E_AGI_302: 'INSUFFICIENT_PROOFS_GENERATED'
 });
 
 module.exports = AttestationErrorCodes;
