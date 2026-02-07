@@ -1,1 +1,75 @@
-[object Object]
+{
+  "$id": "https://agi.sovereign/governance/schemas/CAC_v1.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Constitutional Agreement/Contract Schema v1",
+  "description": "Defines the fundamental, immutable, and amendable rules governing Sovereign AGI v94.1.\nRefactored for explicit delineation of immutability and precise rule enforcement mechanisms.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version identifier (e.g., 1.0.0)"
+    },
+    "core_directives": {
+      "type": "array",
+      "description": "Immutable list of foundational safety and operational constraints (Prime Directives). Cannot be changed by standard amendment.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "priority": {"type": "integer", "minimum": 1},
+          "rule_text": {"type": "string", "minLength": 10},
+          "enforcement_mechanism": {
+            "type": "string",
+            "description": "Defines the automatic runtime action upon violation.",
+            "enum": ["HARD_STOP_EXECUTION", "ROLLBACK_TRANSACTION", "LOG_AND_FLAG_CRITICAL"]
+          }
+        },
+        "required": ["id", "priority", "rule_text", "enforcement_mechanism"]
+      }
+    },
+    "amendment_procedure": {
+      "type": "object",
+      "description": "Rules defining how mutable sections (like fees, operational configuration) can be amended.",
+      "properties": {
+        "quorum_threshold": {
+          "type": "number",
+          "description": "Required percentage of total voting power (0.0 to 1.0) to participate.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "approval_threshold": {
+          "type": "number",
+          "description": "Required percentage of participating votes (0.0 to 1.0) to pass."
+        },
+        "voting_period_cycles": {
+          "type": "integer",
+          "description": "Duration (in operational cycles/blocks) for the voting phase."
+        }
+      },
+      "required": ["quorum_threshold", "approval_threshold", "voting_period_cycles"]
+    },
+    "authorized_entities": {
+      "type": "object",
+      "description": "Definitions for entities holding specific governance power (public keys, roles, required multisig config).",
+      "properties": {
+        "emergency_override_threshold": {
+          "type": "string",
+          "description": "Required M of N signatures for activation (e.g., '3_of_5')."
+        },
+        "guardian_keys": {
+          "type": "array",
+          "description": "List of public keys for Emergency Guardian role.",
+          "items": {"type": "string"}
+        },
+        "operational_signers": {
+          "type": "array",
+          "description": "Entities authorized to sign standard state transitions.",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["emergency_override_threshold", "guardian_keys"]
+    }
+  },
+  "required": ["version", "core_directives", "amendment_procedure", "authorized_entities"],
+  "additionalProperties": false
+}
