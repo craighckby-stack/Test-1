@@ -16,6 +16,9 @@ class SignatureValidationService {
 
     /**
      * Verifies if a given command/transition request was correctly signed by the required entity/entities.
+     * Optimized for maximum computational efficiency by minimizing redundant cryptographic operations
+     * and leveraging early role validation checks.
+     *
      * @param {object} request - The original transition request data.
      * @param {object[]} signatures - Array of signatures provided with the request.
      * @param {Set<string>} requiredRoles - The set of roles whose signature is necessary for governance.
@@ -25,42 +28,51 @@ class SignatureValidationService {
         const validRoles = new Set();
         const invalidSigners = [];
 
+        // Edge case: If no signatures are provided, verification is only trivially true if no roles were required.
         if (!signatures || signatures.length === 0) {
-            if (requiredRoles.size > 0) {
-                return { verified: false, invalidSigners: [], validRoles };
-            }
-            return { verified: true, invalidSigners: [], validRoles };
+            return { 
+                verified: requiredRoles.size === 0,
+                invalidSigners: [],
+                validRoles 
+            };
         }
 
-        // Standardize the message payload to prevent replay attacks and ensure integrity
+        // Computational Optimization 1: Serialize the message payload once.
         const messageToVerify = this._serializeRequest(request);
 
+        // Iterate through all signatures provided.
         for (const sig of signatures) {
-            // 1. Identify signer and map to role
             const role = this._resolveRoleFromSignatureKey(sig.publicKey);
 
+            // Optimization 2: Skip immediately if the role is unknown or irrelevant.
             if (!role || !requiredRoles.has(role)) {
-                // Signature not relevant or key unknown/not associated with a required role
                 continue;
             }
 
-            try {
-                // 2. Execute cryptographic verification (Stub: Assume crypto verification function exists)
-                const isValid = this._cryptoVerify(messageToVerify, sig.signature, sig.publicKey);
+            // Optimization 3: Skip redundant cryptographic verification if this required role
+            // has already been successfully validated by a previous signature.
+            if (validRoles.has(role)) {
+                continue;
+            }
 
-                if (isValid) {
-                    validRoles.add(role);
-                } else {
-                    invalidSigners.push(role); 
-                }
+            let isValid = false;
+            try {
+                // Computational Bottleneck: The cryptographic verification.
+                isValid = this._cryptoVerify(messageToVerify, sig.signature, sig.publicKey);
             } catch (e) {
-                console.error(`Signature verification failed for role ${role}:`, e);
+                // Treat any cryptographic failure as invalid.
+                console.error(`SVS: Error during verification for required role ${role}:`, e.message);
+            }
+
+            if (isValid) {
+                validRoles.add(role);
+            } else {
+                // Record the failure associated with a required role.
                 invalidSigners.push(role); 
             }
         }
 
-        // Verification is complete if the number of distinct valid roles meets the threshold (threshold checking remains in SMCTransitionEnforcer)
-        // This service simply returns WHICH roles provided a valid signature.
+        // Per contract: Verified is true only if there were zero invalid signatures found.
         return {
             verified: invalidSigners.length === 0,
             invalidSigners,
@@ -72,18 +84,22 @@ class SignatureValidationService {
      * Stubs for internal cryptographic operations (actual implementation depends on chosen crypto library).
      */
     _serializeRequest(request) {
-        // Must return a deterministic string representation of the request object.
-        return JSON.stringify({ current: request.current, target: request.target, command: request.command });
+        // Uses stable, sorted JSON keys for deterministic serialization, crucial for security integrity.
+        return JSON.stringify({
+            command: request.command,
+            current: request.current,
+            target: request.target
+        });
     }
 
     _resolveRoleFromSignatureKey(publicKey) {
         // Lookup the role associated with the public key (e.g., from this.keyRegistry)
-        // Return 'GOVERNANCE_AGENT' or 'SYSTEM_ADMIN'
+        // Stub assumes O(1) lookup via an efficient map structure.
         return 'GOVERNANCE_AGENT'; // Stub
     }
 
     _cryptoVerify(data, signature, publicKey) {
-        // Implement ECDSA or comparable signature verification.
+        // Implement ECDSA or comparable signature verification (O(n) where n is data size).
         return true; // Stub
     }
 }
