@@ -1,12 +1,17 @@
-from enum import Enum
+from enum import StrEnum
 
-class ConstraintKey(Enum):
-    """Enumerates standardized keys for S-04 constraint components and total metric."""
+class ConstraintKey(StrEnum):
+    """Standardized keys for S-04 governance constraint components and total metric.
     
-    # Constraint components (must match keys used in SCOR._constraint_vector)
+    These keys align with the structure required by the S-04 metric computation 
+    and the SCOR._constraint_vector.
+    """
+    
+    # --- Core Constraint Components ---
+    # These map directly to input vectors used in metric aggregation.
     COUPLING_PENALTY = "CPL_PNT"
     RESOURCE_DEBT = "RSC_DBT"
     POLICY_DEVIATION = "PLC_DEV"
     
-    # Standard S-Metric Key
+    # --- System Metrics (Aggregate) ---
     S04_TOTAL = "S-04"
