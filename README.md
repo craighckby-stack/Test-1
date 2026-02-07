@@ -159,3 +159,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated DeepNormalizer logic from /utils to /utility to comply with the system defragmentation mandate, ensuring stable object serialization remains available for core integrity services.
 
 > **[SYSTEM_LOG 2026-02-07]**: Integrated src/consensus/ProposalMetricsEngine.js, ensuring the core trust calibration logic is exported for UNIFIER.js execution.
+
+> **[SYSTEM_LOG 2026-02-07]**: Refactored DynamicConstraintGenerator.js to ensure UNIFIER compatibility and confirmed its role in generating integrity-hashed M-01 policy packages.
