@@ -4,7 +4,7 @@ import { ConstraintValidator } from './ConstraintValidator';
 
 /**
  * Manages, validates, and enforces all system constraints (GAX).
- * Decouples constraint logic from transaction execution flow.
+ * Decouples constraint logic from transaction execution flow and provides generalization for checking limits.
  */
 export class ConstraintEnforcer {
     private constraints: GAXConstraintSet;
@@ -36,33 +36,11 @@ export class ConstraintEnforcer {
     public checkTransaction(txContext: TxContext): ConstraintViolation[] | null {
         const violations: ConstraintViolation[] = [];
 
-        // --- Constraint Runner Loop/Registry (currently inline for simple examples) ---
+        // Phase 1: Global Execution Limits (Gas, Size, Memory, etc.)
+        violations.push(...this._checkGlobalExecutionLimits(txContext));
 
-        // Check 1: Max Gas Units
-        const gasUsed = txContext.resources?.gas || 0;
-        const gasLimitCfg = this.constraints.global_execution_limits.max_gas_units_per_tx;
-
-        if (gasUsed > gasLimitCfg.limit) {
-            violations.push({
-                constraint: 'MAX_GAS_UNITS',
-                level: gasLimitCfg.failure_mode,
-                message: `Tx exceeded max gas limit: ${gasLimitCfg.limit}. Used: ${gasUsed}.`,
-                details: { used: gasUsed, limit: gasLimitCfg.limit, action: gasLimitCfg.failure_mode }
-            });
-        }
-
-        // Check 2: Max Payload Size (Hypothetical, for pattern illustration)
-        const payloadSize = txContext.payload_size || 0;
-        const sizeLimitCfg = this.constraints.global_execution_limits.max_payload_bytes;
-        
-        if (payloadSize > sizeLimitCfg.limit) {
-            violations.push({
-                constraint: 'MAX_PAYLOAD_SIZE',
-                level: sizeLimitCfg.failure_mode,
-                message: `Tx payload size (${payloadSize}B) exceeded limit: ${sizeLimitCfg.limit}B.`,
-                details: { size: payloadSize, limit: sizeLimitCfg.limit }
-            });
-        }
+        // Phase 2: System Integrity/Protocol Specific Limits (e.g., Max State Writes)
+        // Future phases can be added here, maintaining a clean pipeline structure.
 
         return violations.length > 0 ? violations : null;
     }
@@ -70,5 +48,60 @@ export class ConstraintEnforcer {
     /** Retrieves the state of a system governance feature toggle. */
     public getToggle(feature: keyof GAXConstraintSet['system_governance_toggles']): boolean {
         return this.constraints.system_governance_toggles[feature];
+    }
+
+    /**
+     * Generic utility to check a context value against a defined limit configuration.
+     * @private
+     */
+    private _checkLimit(
+        contextValue: number,
+        config: { limit: number, failure_mode: 'REJECT' | 'WARN' },
+        constraintName: string,
+        messageTemplate: (used: number, limit: number) => string,
+        details: object = {}
+    ): ConstraintViolation | null {
+        if (contextValue > config.limit) {
+            return {
+                constraint: constraintName,
+                level: config.failure_mode,
+                message: messageTemplate(contextValue, config.limit),
+                details: { ...details, used: contextValue, limit: config.limit, action: config.failure_mode }
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Handles all constraints defined under the 'global_execution_limits' section.
+     * @private
+     */
+    private _checkGlobalExecutionLimits(txContext: TxContext): ConstraintViolation[] {
+        const violations: ConstraintViolation[] = [];
+        const limits = this.constraints.global_execution_limits;
+
+        // Check 1: Max Gas Units
+        const gasUsed = txContext.resources?.gas || 0;
+        let violation = this._checkLimit(
+            gasUsed,
+            limits.max_gas_units_per_tx,
+            'MAX_GAS_UNITS',
+            (used, limit) => `Tx exceeded max gas limit: ${limit}. Used: ${used}.`
+        );
+        if (violation) violations.push(violation);
+
+        // Check 2: Max Payload Size
+        const payloadSize = txContext.payload_size || 0;
+        violation = this._checkLimit(
+            payloadSize,
+            limits.max_payload_bytes,
+            'MAX_PAYLOAD_SIZE',
+            (size, limit) => `Tx payload size (${size}B) exceeded limit: ${limit}B.`
+        );
+        if (violation) violations.push(violation);
+
+        // Check N: Future limits can be added easily here, using the common _checkLimit pattern.
+
+        return violations;
     }
 }
