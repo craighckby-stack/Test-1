@@ -4,7 +4,7 @@
  * Role: A centralized registry responsible for storing, managing, and executing all specific
  * GSEP compliance and invariant checks. It decouples the M-02 Mutation Pre-Processor
  * from the implementation details of any single check, ensuring high scalability and maintainability.
- * It now enforces strict structured results and supports both synchronous and asynchronous rule execution.
+ * It enforces strict structured results, supports sync/async rule execution, and utilizes dependency injection for logging.
  */
 
 /**
@@ -21,23 +21,27 @@ class RuleExecutorRegistry {
     /** @type {Map<string, function(payload: object, config: object, context: object): (Promise<RuleResult>|RuleResult)>} */
     #executors;
 
+    /** @type {object} */
+    #logger;
+
     /**
-     * Initializes the registry. Designed to accept an optional array of rule definitions
-     * for cleaner dependency injection.
+     * Initializes the registry, injecting rules and system utilities (like the logger).
      * @param {Array<{code: string, handler: function}>} [initialRules=[]] - Rules to pre-load.
+     * @param {object} [logger=console] - A structured logging utility (must support warn, error).
      */
-    constructor(initialRules = []) {
+    constructor(initialRules = [], logger = console) {
         this.#executors = new Map();
+        this.#logger = logger;
         this._loadInitialRules(initialRules);
     }
 
     /**
-     * Loads rules from a definition array.
+     * Loads rules from a definition array using destructuring for clarity.
      * @param {Array<{code: string, handler: function}>} rules 
      */
     _loadInitialRules(rules) {
-        for (const rule of rules) {
-            this.register(rule.code, rule.handler);
+        for (const { code, handler } of rules) {
+            this.register(code, handler);
         }
     }
 
@@ -60,14 +64,19 @@ class RuleExecutorRegistry {
      * @param {object} payload - Mutation payload.
      * @param {object} config - Rule-specific configuration (from invariants).
      * @param {object} context - Current operational context.
-     * @returns {Promise<RuleResult>} Structured Rule Result.
+     * @returns {Promise<RuleResult>} Structured, immutable Rule Result.
      */
     async execute(checkCode, payload, config = {}, context = {}) {
         const handler = this.#executors.get(checkCode);
+        
+        // Create detailed logging context for traceability
         const logContext = { checkCode, payload, config, context }; 
 
         if (!handler) {
-            console.warn(`[G-03] Operational Fault: Registry missing mandatory handler for check code: ${checkCode}.`);
+            this.#logger.warn(
+                `[G-03] Operational Fault: Registry missing mandatory handler for check code: ${checkCode}.`,
+                logContext
+            );
             return this._createFaultResult(
                 checkCode,
                 `Operational fault: No registered handler found for ${checkCode}. Evaluation aborted.`,
@@ -80,20 +89,23 @@ class RuleExecutorRegistry {
             /** @type {RuleResult} */
             let result = await Promise.resolve(handler(payload, config, context));
 
-            // Strict Validation: Enforce the required RuleResult structure.
+            // --- Strict Validation: Enforce the required RuleResult structure. ---
             if (
-                typeof result === 'object' && result !== null &&
-                typeof result.compliant === 'boolean' && typeof result.message === 'string'
+                typeof result !== 'object' || result === null ||
+                typeof result.compliant !== 'boolean' || typeof result.message !== 'string'
             ) {
-                // Ensure the 'code' is attached/overwritten for strict consistency.
-                return { ...result, code: checkCode };
+                const receivedType = result === null ? 'null' : (typeof result);
+                // Fault if the handler returns an unrecognizable object structure.
+                throw new Error(`Handler returned an invalid structure. Must strictly contain { compliant: boolean, message: string }. Received type: ${receivedType}`);
             }
             
-            // Fault if the handler returns an unrecognizable object structure.
-            throw new Error(`Handler returned an invalid structure. Must contain { compliant: boolean, message: string }. Received type: ${typeof result}`);
+            // Ensure the 'code' is attached/overwritten and freeze the result for immutability.
+            return Object.freeze({ ...result, code: checkCode });
             
         } catch (error) {
-            console.error(`[G-03] Rule Execution Exception (${checkCode}) - Handler Failed:`, error.message);
+            this.#logger.error(`[G-03] Rule Execution Exception (${checkCode}) - Handler Failed: ${error.message}`, 
+                { errorStack: error.stack, details: logContext }
+            );
             return this._createFaultResult(
                 checkCode,
                 `Internal handler error: ${error.message}`,
@@ -103,7 +115,7 @@ class RuleExecutorRegistry {
     }
 
     /**
-     * Helper to create a consistent failure result template for internal errors or missing handlers.
+     * Helper to create a consistent, immutable failure result template for internal errors or missing handlers.
      * @private
      * @param {string} code 
      * @param {string} message 
@@ -111,13 +123,14 @@ class RuleExecutorRegistry {
      * @returns {RuleResult}
      */
     _createFaultResult(code, message, details) {
-        return {
+        // Fault results are frozen to ensure system stability against mutation.
+        return Object.freeze({
             compliant: false,
             message: message,
             code: code,
             severity: 'FATAL_INTERNAL',
             details: details
-        };
+        });
     }
 }
 
