@@ -1,1 +1,35 @@
-[object Object]
+{
+  "schemaVersion": "1.1.0",
+  "description": "Optimized mapping of TQM Metrics to Automated Policy Enforcement Triggers, enhancing O(1) lookup efficiency.",
+  "policiesEnabled": true,
+  "policyTrustLevel": 0.95,
+  "metricPolicies": {
+    "Code_Evolution_DefectRate": {
+      "priority": 900,
+      "triggerEvent": "EvolutionCycle_Completion",
+      "rules": [
+        {
+          "threshold": { "metricType": "absolute", "operator": "GREATER_THAN_OR_EQUAL", "value": 0.05 },
+          "policyId": "P_CRITICAL_HALT_REVERSION",
+          "actionConfig": { "type": "System_Halt", "params": { "rollbackDepth": 3, "reportingLevel": "CRITICAL" } }
+        },
+        {
+          "threshold": { "metricType": "relative_delta", "operator": "GREATER_THAN", "value": 0.10 },
+          "policyId": "P_DEGRADATION_AUDIT",
+          "actionConfig": { "type": "Flag_Audit", "params": { "auditor": "QualityCore", "mutationLock": true } }
+        }
+      ]
+    },
+    "Resource_Consumption_Spike": {
+      "priority": 750,
+      "triggerEvent": "ContinuousMonitoring_ThresholdBreach",
+      "rules": [
+        {
+          "threshold": { "metricType": "absolute", "operator": "GREATER_THAN", "value": 0.80 },
+          "policyId": "P_THROTTLE_RATE_LIMITER",
+          "actionConfig": { "type": "Dynamic_Throttle", "params": { "factor": 0.5, "duration_ms": 60000 } }
+        }
+      ]
+    }
+  }
+}
