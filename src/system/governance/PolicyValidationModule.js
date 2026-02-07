@@ -2,8 +2,11 @@
  * PolicyValidationModule (PVM)
  * Checks system actions and proposed decisions against Governance Threshold Configuration Manifest (GTCM) constraints.
  * This module acts as the crucial runtime guardrail.
+ * 
+ * GOVERNANCE: Standard Laws.
+ * UNIFIER_REF: Target Kernel integration module.
  */
-class PolicyValidationModule {
+export class PolicyValidationModule {
     constructor(gtcmConfig) {
         if (!gtcmConfig || !gtcmConfig.constraints) {
             throw new Error("PVM initialization requires valid GTCM constraints structure.");
@@ -46,5 +49,3 @@ class PolicyValidationModule {
         return this.constraints[type] ? this.constraints[type][key] : null;
     }
 }
-
-module.exports = PolicyValidationModule;
