@@ -1,11 +1,10 @@
 import logging
-from typing import Dict, Any, Union, Protocol, List
-from pydantic import BaseModel, ValidationError, Field
+from typing import Dict, Any, Protocol, Type, Final
+from pydantic import BaseModel, ValidationError
+import importlib
 
-# -- Constants ---
-ACVD_THRESHOLD_KEY = "ACVD_THRESHOLD"
+# --- Core Exceptions ---
 
-# Define structured exceptions early for precise error tracking
 class GovernanceHalt(Exception):
     """Base exception for reconciliation failures, preventing CRoT activation."""
     pass
@@ -22,43 +21,58 @@ class ConfigurationLoadError(GovernanceHalt):
     """Raised if necessary Pydantic models cannot be imported or are malformed."""
     pass
 
-# --- Policy Server Definition (Using Protocol for Lighter Weight Typing) ---
+# --- Constants & Configuration Keys ---
+# Standard snake_case attribute name assumption for Pydantic models
+ACVD_THRESHOLD_KEY: Final[str] = "acvd_threshold"
+
+# NOTE: These constants define the dynamic location used by _load_model
+POLICY_MODEL_PATH: Final[str] = ".governance_models"
+POLICY_MODEL_NAME: Final[str] = "PolicyConfigurationModel"
+
+# --- Policy Server Definition ---
 class AbstractPolicyServer(Protocol):
     """Protocol defining the interface for fetching raw configuration data."""
     def fetch_acvd(self) -> Dict[str, Any]:
         """Must return the raw configuration state dictionary (ACVD)."""
         ...
 
-# Set up specialized logging for CSRE
+# --- Setup ---
 logger = logging.getLogger('CSRE')
-# Logging level should be managed centrally in a production environment.
 logger.setLevel(logging.INFO)
+
+# Type alias for cleaner references to the Pydantic model class
+PolicyModelType = Type[BaseModel]
 
 class ConfigStateReconciliationEngine:
     """Validates and reconciles configuration state (e.g., ACVD files) before handing off to CRoT.
-    Enforces mandatory structured validation (Pydantic), eliminating ambiguous dict fallbacks.
+    Enforces mandatory structured validation (Pydantic), leveraging V2 features.
     """
 
     def __init__(self, policy_server: AbstractPolicyServer):
-        # Enforcing typed dependency injection
         self.pcs: AbstractPolicyServer = policy_server
-        # Pre-load model during initialization to fail fast if config files are missing.
-        self._PolicyModel = self._load_model()
         
-        if self._PolicyModel is None:
-            raise ConfigurationLoadError("CSRE failed initialization: Mandatory PolicyConfigurationModel could not be loaded.")
+        # Policy model must be loaded during initialization (fail-fast principle)
+        # Note: If a GovernanceModelResolver were used, this method would be refactored.
+        self._PolicyModel: PolicyModelType = self._load_model()
+        
+        logger.debug(f"CSRE initialized using model: {self._PolicyModel.__name__}")
 
-        logger.debug("CSRE initialized with mandatory structured validation enabled.")
-
-    def _load_model(self) -> Union[type[BaseModel], None]:
-        """Tries to import the necessary Pydantic configuration model from governance_models."""
+    def _load_model(self) -> PolicyModelType:
+        """Tries to dynamically import the necessary Pydantic configuration model."""
         try:
-            # Assuming governance_models.py is local/relative
-            from .governance_models import PolicyConfigurationModel
+            # Resolving relative import based on expected package structure (system.governance)
+            module = importlib.import_module(POLICY_MODEL_PATH, package="system.governance") 
+            
+            PolicyConfigurationModel = getattr(module, POLICY_MODEL_NAME)
+            
+            if not issubclass(PolicyConfigurationModel, BaseModel):
+                 raise TypeError(f"Object {POLICY_MODEL_NAME} is not a Pydantic BaseModel.")
+
             return PolicyConfigurationModel
-        except ImportError as e:
-            logger.error(f"FATAL CONFIG: Cannot import PolicyConfigurationModel for CSRE validation. {e}")
-            return None
+        
+        except (ImportError, AttributeError, TypeError, ValueError) as e:
+            logger.error(f"FATAL CONFIG: Cannot load policy model '{POLICY_MODEL_PATH}.{POLICY_MODEL_NAME}'. Error: {type(e).__name__}: {e}")
+            raise ConfigurationLoadError(f"Dependency load failed for policy model: {e}")
 
     def pre_vet_policies(self) -> BaseModel:
         """Fetches critical configs, verifies schema integrity, and checks fundamental policy logic.
@@ -67,52 +81,48 @@ class ConfigStateReconciliationEngine:
         try:
             raw_data = self.pcs.fetch_acvd()
 
-            # 1. Schema Validation (Mandatory Pydantic use)
+            # 1. Schema Validation 
             validated_model = self._validate_schema(raw_data)
             
             # 2. Advanced Logic Check 
             self._check_threshold_logic(validated_model)
 
-        except GovernanceHalt as e:
-            # Log specific, system-halting errors
-            logger.critical(f"HALT [{e.__class__.__name__}]: Failed pre-vetting policies. {e}")
+        except GovernanceHalt:
+            # Catch known system-halting errors
             raise
         except Exception as e:
-             # Catch unexpected exceptions during processing
-            logger.critical(f"UNEXPECTED HALT: Internal processing error during pre-vetting: {type(e).__name__}: {e}")
-            raise GovernanceHalt(f"Unexpected pre-vet failure: {e}")
+             # Catch unexpected exceptions (e.g., connection errors, severe runtime issues)
+            logger.critical(f"UNEXPECTED HALT: Internal processing error during pre-vetting: {type(e).__name__}: {e}", exc_info=True)
+            raise GovernanceHalt(f"Unexpected pre-vet failure: {type(e).__name__}")
 
-        logger.info("ACVD policies successfully pre-vetted. Ready for CRoT activation.")
+        logger.info(f"ACVD policies successfully validated against {self._PolicyModel.__name__}. Ready for CRoT.")
         return validated_model
 
     def _validate_schema(self, raw_data: Dict[str, Any]) -> BaseModel:
-        """Enforces Pydantic schema validation."""
-        Model = self._PolicyModel 
+        """Enforces Pydantic schema validation using the pre-loaded Policy Model (V2 method)."""
         
         try:
-            validated_model = Model(**raw_data)
+            validated_model = self._PolicyModel.model_validate(raw_data) 
             return validated_model
         except ValidationError as e:
-            # Provide better context on schema failure
-            detailed_errors = [f"{err['loc']}: {err['msg']}" for err in e.errors()]
-            error_message = f"Structured Validation Failed. Errors:\n{'; '.join(detailed_errors)}"
+            # Extract location and message for clear debugging
+            detailed_errors = [f"loc={'/'.join(map(str, err['loc']))}, msg={err['msg']}" for err in e.errors()]
+            error_message = f"Structured Validation Failed ({self._PolicyModel.__name__}). Errors:\n{'; '.join(detailed_errors)}"
+            logger.warning(error_message)
             raise SchemaIntegrityBreach(error_message)
 
     def _check_threshold_logic(self, validated_data: BaseModel) -> bool:
-        """Ensures that critical values meet mathematical or business constraints (e.g., non-negativity)."""
+        """Ensures that critical governance values meet logical constraints (e.g., non-negativity)."""
         
-        # Access via getattr ensures we check runtime existence based on ACVD_THRESHOLD_KEY constant
         try:
             threshold = getattr(validated_data, ACVD_THRESHOLD_KEY)
         except AttributeError:
-             # If Pydantic allowed it, but the key is still missing, this is a fatal mismatch.
-             raise ConfigurationLoadError(f"Pydantic model is missing expected attribute: {ACVD_THRESHOLD_KEY}")
+             raise PolicyLogicError(f"Validation failure: Model {self._PolicyModel.__name__} passed schema check but is missing critical logic attribute: {ACVD_THRESHOLD_KEY}.")
 
-        # Numeric type checking redundancy, though Pydantic should handle this if configured strictly
         if not isinstance(threshold, (int, float)):
-            raise PolicyLogicError(f"ACVD Threshold value ({threshold}) is not numeric.")
+            # Secondary check for type integrity against the fetched value
+            raise PolicyLogicError(f"ACVD Threshold value ({threshold}) failed mandatory numeric typing check (was {type(threshold).__name__}).")
 
-        # Specific TEMM (Threshold Enforcement Management Module) logic check
         if threshold < 0:
              raise PolicyLogicError(f"ACVD Threshold detected as negative ({threshold}). TEMM constraint violation.")
         
