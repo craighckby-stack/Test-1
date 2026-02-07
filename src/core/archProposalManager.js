@@ -4,13 +4,13 @@
  * and immutability between OGT consensus (D-01 decision) and execution (C-04).
  * ID: A-01
  *
- * This component prevents tampering of the approved codebase prior to atomic deployment
- * and compiles the necessary rollback metadata.
+ * Refactored for maximum computational efficiency and recursive abstraction.
+ * The core logic relies on generating a single, immutable, cryptographically
+ * attested proof object (StagingEntry) which abstracts the payload's state.
  */
 
 import { D01_AuditLogger } from './decisionAuditLogger.js';
 import { C04_AutogenySandbox } from '../execution/autogenySandbox.js';
-// New core dependency for cryptographic integrity checks
 import { CryptographicUtil } from '../utils/cryptographicUtil.js'; 
 
 export class ArchProposalManager {
@@ -36,26 +36,26 @@ export class ArchProposalManager {
      */
 
     /**
-     * Highly abstracted, recursive integrity checker and staging entry creator.
-     * Combines hashing, validation, and immutability setup into a functional unit.
-     * This method serves as the centralized, immutable data preparation gate.
+     * Generates an immutable, cryptographically attested staging entry.
+     * This serves as the core recursive abstraction: reducing the complex input (payload, decision)
+     * into a single, provable, frozen state object.
      * 
      * @param {string} proposalId
      * @param {Object} payload 
      * @param {DecisionEnvelope} decision 
-     * @returns {{entry: Readonly<StagingEntry>, hash: string} | null} 
+     * @returns {Readonly<StagingEntry> | null} 
      * @private
      */
-    _secureGateProcess(proposalId, payload, decision) {
-        // Base case for early exit (computational efficiency): Decision failure
+    _generateImmutableProof(proposalId, payload, decision) {
+        // Efficiency: Base case for immediate exit if decision failed.
         if (decision?.status !== 'PASS') {
             return null;
         }
 
-        // Recursive Abstraction: The result of hashing becomes the canonical state proof.
+        // Recursive Abstraction step: Compute canonical proof of state.
         const transactionHash = CryptographicUtil.hashObject(payload);
 
-        const stagingEntry = Object.freeze({ // Enforce deep immutability immediately
+        const stagingEntry = Object.freeze({
             proposalId,
             payload: payload, 
             decision: decision,
@@ -63,8 +63,8 @@ export class ArchProposalManager {
             timestamp: Date.now()
         });
 
-        // Returns structured data containing the immutable entry and its proof.
-        return { entry: stagingEntry, hash: transactionHash };
+        // Returns the single, fully attested, read-only proof object.
+        return stagingEntry;
     }
 
     /**
@@ -75,17 +75,18 @@ export class ArchProposalManager {
      * @returns {string | boolean} The transaction hash on success, or false on failure.
      */
     stageProposal(proposalId, proposalPayload, decisionEnvelope) {
-        // Delegate complex security setup to the abstract gate
-        const result = this._secureGateProcess(proposalId, proposalPayload, decisionEnvelope);
+        // Delegation to the abstract proof generator.
+        const entry = this._generateImmutableProof(proposalId, proposalPayload, decisionEnvelope);
 
-        if (!result) {
+        if (!entry) {
             this.auditLogger.logWarning(`A-01: Received rejected or invalid envelope for proposal ${proposalId}. Aborting stage.`);
             return false;
         }
 
-        this.stagingArea.set(proposalId, result.entry);
-        this.auditLogger.logAction(`A-01: Proposal ${proposalId} staged successfully. Hash: ${result.hash.substring(0, 10)}...`);
-        return result.hash;
+        // Direct insertion into the efficient Map structure.
+        this.stagingArea.set(proposalId, entry);
+        this.auditLogger.logAction(`A-01: Proposal ${proposalId} staged successfully. Hash: ${entry.hash.substring(0, 10)}...`);
+        return entry.hash;
     }
 
     /**
@@ -103,7 +104,7 @@ export class ArchProposalManager {
             return false;
         }
         
-        // Computational Efficiency vs. Security: Final re-hash is mandatory security overhead.
+        // Security Overhead (Mandatory Integrity Check): Re-hashing payload to guarantee memory integrity.
         if (CryptographicUtil.hashObject(stagedProposal.payload) !== stagedProposal.hash) {
             this.auditLogger.logFatalError(`A-01: Data integrity failure for ${proposalId}. HASH MISMATCH. Execution aborted.`);
             return false;
@@ -111,12 +112,12 @@ export class ArchProposalManager {
 
         this.auditLogger.logDebug(`A-01: Integrity check passed for ${proposalId}. Preparing C-04 handover.`);
 
-        // Functional pipeline for execution and cleanup
         try {
+            // C-04 execution is the final operational step.
             const executionSuccess = C04_AutogenySandbox.executeMutation(stagedProposal.payload);
 
             if (executionSuccess) {
-                // Clean staging area only upon verified success
+                // Efficient cleanup using Map.delete
                 this.stagingArea.delete(proposalId); 
                 this.auditLogger.logAction(`A-01: Proposal ${proposalId} committed to C-04 successfully and staged entry deleted.`);
             } else {
