@@ -1,25 +1,44 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "system_id": "GACR_Core",
   "current_version": {
     "major": 97,
     "minor": 5,
     "patch": 0,
-    "suffix": "AE",
-    "stability_level": "Beta_High_Evolution"
+    "label": "AE",
+    "stability": {
+      "level": "BETA",
+      "evolution_rating": 85
+    }
   },
   "version_strategy": {
     "name": "Sovereign_Monotonic_Evolution",
-    "base_format": "{major}.{minor}.{patch}-{suffix}",
-    "monotonic_increment_field": "minor",
-    "ci_trigger_policy": "Autonomous_Decision_Matrix",
-    "required_context_fields": [
-      "code_density_metric",
-      "test_coverage_delta"
+    "format": "{major}.{minor}.{patch}-{label}",
+    "monotonic_field": "minor",
+    "auto_increment_rules": [
+      {
+        "type": "patch",
+        "condition": "TestCoverageDelta >= 0 && CodeDensityMetric < 0.05",
+        "reason": "Minor structural improvement or critical fix."
+      },
+      {
+        "type": "minor",
+        "condition": "TestCoverageDelta > 0.15 || MajorFeatureSetChange",
+        "reason": "Significant functional evolution or major API surface change."
+      }
+    ]
+  },
+  "context_requirements": {
+    "metrics": [
+      {"name": "CodeDensityMetric", "unit": "D/SLOC"},
+      {"name": "TestCoverageDelta", "unit": "%"}
     ]
   },
   "metadata_hooks": {
-    "last_processed_timestamp": "$SYSTEM_BUILD_TIME$",
+    "last_processed_timestamp": {
+      "placeholder": "$SYSTEM_BUILD_TIME$",
+      "format": "ISO8601"
+    },
     "gacr_commit_hash": "$SOURCE_CONTROL_HASH$",
     "deployment_target": "Hyperplane_Mesh"
   }
