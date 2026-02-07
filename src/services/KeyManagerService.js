@@ -1,4 +1,4 @@
-import { SignatureUtil } from '../utils/signatureUtil.js';
+import { SignatureUtil } from '../utility/signatureUtil.js';
 // Assuming a core environment/configuration file exists:
 // import { ENV } from '../config/environment.js';
 
