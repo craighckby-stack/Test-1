@@ -8,7 +8,7 @@
  * 
  * NOTE: For v94.1 intelligence, this class expects DependencyGrapher output for accurate scoring.
  */
-export class SchemaAnalyzer {
+class SchemaAnalyzer {
     
     /**
      * @param {object} config - Configuration object containing sensitivity and threshold settings.
@@ -147,3 +147,5 @@ export class SchemaAnalyzer {
         return { complexityScore, efficiencyScore: Math.max(0, efficiencyScore) };
     }
 }
+
+module.exports = { SchemaAnalyzer };
