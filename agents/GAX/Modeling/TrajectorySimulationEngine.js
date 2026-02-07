@@ -5,60 +5,77 @@
  * asynchronous simulations of P3/P4 execution outcomes based on the current
  * Contextual State Record (CSR) and Axiomatic Constraint Verification Data (ACVD).
  * 
- * It employs statistical models (e.g., Bayesian networks or LSTM) to predict TEMM
- * and ECVM scores based on input features derived from the Manifest.
+ * It utilizes an injected Statistical Model Handler to predict TEMM and ECVM scores.
  */
 class TrajectorySimulationEngine {
     /**
-     * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints.
-     * @param {Object} Configuration - System configuration and load factors.
+     * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
+     * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
+     * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
      */
-    constructor(ACVD_Store, Configuration) {
+    constructor(ACVD_Store, Configuration, ModelHandler) {
+        if (!ModelHandler || typeof ModelHandler.predict !== 'function') {
+            throw new Error("TSE Initialization Error: A valid ModelHandler implementing an asynchronous 'predict' method is required.");
+        }
         this.ACVD = ACVD_Store;
         this.config = Configuration;
-        this.model = this.#initializePredictiveModel();
-    }
-
-    #initializePredictiveModel() {
-        // Placeholder for loading the trained Temporal Metric Model (TMM) weights or initializing a statistical engine.
-        console.log("TSE: Initializing TEMM/ECVM predictive models.");
-        
-        // In a production system, this would load a trained ML model.
-        return {
-            predictTEMM: (features) => 0.85 + (Math.random() * 0.15), 
-            predictECVM: (features) => Math.random() > 0.1 
-        };
+        this.model = ModelHandler;
     }
 
     /**
      * Generates feature vectors from the input manifest for model consumption.
+     * Assumes ACVD operations (like fetching risk) involve asynchronous database interaction.
      * @param {Object} inputManifest
-     * @returns {Object} Feature vector
+     * @returns {Promise<Object>} Feature vector
      */
-    #extractFeatures(inputManifest) {
+    async #extractFeatures(inputManifest) {
         // Detailed logic for feature engineering (e.g., transaction complexity, data volume, historical entity risk)
-        return {
-            complexity_score: inputManifest.complexity || 5,
-            history_risk: this.ACVD.getHistoricalRisk(inputManifest.entityId),
-            current_load_factor: this.config.getCurrentLoadFactor()
-        };
+        try {
+            // ACVD interaction is assumed to be async due to potential database or service calls
+            const historyRisk = await this.ACVD.getHistoricalRisk(inputManifest.entityId);
+
+            return {
+                transactionId: inputManifest.transactionId,
+                complexity_score: inputManifest.complexity || 5,
+                history_risk: historyRisk, // Value derived asynchronously
+                current_load_factor: this.config.getCurrentLoadFactor() 
+            };
+        } catch (error) {
+            console.error("TSE Feature Extraction Failed: Could not retrieve necessary ACVD data.", error);
+            // In a real system, this would throw a specific SimulationError
+            throw new Error("Feature extraction failed."); 
+        }
     }
 
     /**
-     * Runs the full trajectory simulation.
+     * Runs the full trajectory simulation by extracting features and calling the model handler.
      * @param {Object} inputManifest
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
      */
     async runSimulation(inputManifest) {
-        const features = this.#extractFeatures(inputManifest);
+        if (!inputManifest || !inputManifest.entityId) {
+             throw new Error("Invalid Manifest: 'entityId' is required for simulation.");
+        }
 
-        const predictedTEMM = this.model.predictTEMM(features);
-        const predictedECVM = this.model.predictECVM(features);
+        try {
+            const features = await this.#extractFeatures(inputManifest);
 
-        return {
-            predictedTEMM: predictedTEMM,
-            predictedECVM: predictedECVM
-        };
+            // Execute asynchronous model inference
+            const results = await this.model.predict(features);
+
+            if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
+                 throw new Error("Model output format invalid: Expected {temm: number, ecvm: boolean}.");
+            }
+
+            return {
+                predictedTEMM: results.temm,
+                predictedECVM: results.ecvm
+            };
+        } catch (error) {
+            // Propagate specialized errors or wrap general exceptions
+            console.error(`TSE Simulation Failed for ${inputManifest.entityId}:`, error);
+            throw new Error(`Trajectory simulation failed due to prediction system error. ${error.message}`);
+        }
     }
 }
 
