@@ -1,8 +1,4 @@
-in english
-
-started a new branch as it got caught in a loop drift .creating files about thinking how to think 300 plus . 
-
-second branch is now editing pruning bridging logic . so when complete can run again and hopefully the system will work out and answer uts own question how can a system think about thinking.
+think of this as the skeleton.  and the new branch is the birth canal
 
 https://github.com/craighckby-stack/Test-1/tree/System
 
