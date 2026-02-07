@@ -79,3 +79,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Mandate Failure Definitions from deep JSON configuration to an exportable JS module in /governance to support UNIFIER integration and structural de-fragmentation.
 
 > **[SYSTEM_LOG 2026-02-07]**: Defragmented metrics schema and validation logic from /config, moving all definitions and associated validation into the new governance file: /governance/G1_MetricsSchema.js.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated P01_calculus_engine from Python to JavaScript, exporting core decision logic for UNIFIER integration and functional execution.
