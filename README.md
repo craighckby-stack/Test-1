@@ -53,3 +53,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Exported SchemaComplianceEngine class and fixed Ajv constructor initialization logic for UNIFIER compatibility and robust operation.
 
 > **[SYSTEM_LOG 2026-02-07]**: Confirmed and retained /governance/crypto_policy.js as a core governance artifact, ensuring its configuration constants are ready for integration into UNIFIER.js.
+
+> **[SYSTEM_LOG 2026-02-07]**: Retained and formalized the JSON structure within `governanceParams.json` to strictly define operational constraints, architectural freezes, and pruning mandates for the integration phase.
