@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://agi.sovereign.v94/config/governance_constraints.schema.json",
-  "title": "Sovereign AGI Governance Constraints Schema (Refactored)",
-  "description": "Defines core boundaries, ethical constraints, and prioritized self-evolution policies for the AGI.",
+  "title": "Sovereign AGI Governance Constraints Schema (v94.1 Intelligence Refactor)",
+  "description": "Defines core boundaries, ethical constraints, and prioritized self-evolution policies for the AGI. Refactored to include explicit Enforcement Levels and Mitigation Policy references for higher operational intelligence.",
   "type": "object",
   "properties": {
     "version": {
@@ -16,10 +16,11 @@
         "safe_mode",
         "efficiency_mode",
         "evolutionary_mode",
-        "audit_mode"
+        "audit_mode",
+        "maintenance_mode"
       ],
       "default": "safe_mode",
-      "description": "The default operational behavior mode."
+      "description": "The default operational behavior mode, adding 'maintenance_mode' for scheduled, safe refactoring and system resets."
     },
     "constraint_sets": {
       "type": "array",
@@ -30,17 +31,19 @@
           "name",
           "priority",
           "scope",
+          "enforcement_level",
           "rules"
         ],
         "properties": {
           "name": {
             "type": "string",
-            "description": "Unique identifier for the constraint set."
+            "description": "Unique identifier for the constraint set (e.g., 'CoreEthics_P1')."
           },
           "priority": {
             "type": "integer",
             "minimum": 1,
-            "description": "Lower number indicates higher, non-negotiable precedence/priority."
+            "maximum": 1000,
+            "description": "Lower number indicates higher, non-negotiable precedence. P1-P10 reserved for hard ethics."
           },
           "scope": {
             "type": "string",
@@ -48,13 +51,31 @@
               "global",
               "mission",
               "self_modification",
-              "security_escalation"
+              "security_escalation",
+              "data_handling"
             ],
             "description": "The operational scope this constraint set applies to, aiding in efficient runtime lookup."
           },
           "activation_condition": {
             "type": "string",
-            "description": "A conditional expression written in AGI Query Language (AQL) defining when this set is active (e.g., 'context.securityLevel > 5 && system.mode != \"safe_mode\"'). If omitted, the set is always active within its defined scope."
+            "format": "aql-expression",
+            "description": "A conditional expression written in AGI Query Language (AQL) defining when this set is active. If omitted, the set is always active within its scope."
+          },
+          "enforcement_level": {
+            "type": "string",
+            "enum": [
+              "CRITICAL_STOP",
+              "HIGH_THROTTLE",
+              "MEDIUM_LOG",
+              "LOW_INFORMATIONAL"
+            ],
+            "default": "HIGH_THROTTLE",
+            "description": "The immediate operational response required when *any* rule in this set is violated."
+          },
+          "mitigation_strategy_ref": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Reference UUID to a specific pre-defined mitigation policy that executes upon constraint violation."
           },
           "rules": {
             "type": "object",
@@ -65,21 +86,19 @@
                 "properties": {
                   "max_gpu_hours_daily": {
                     "type": "number",
-                    "minimum": 0
+                    "minimum": 0,
+                    "default": 24
                   },
                   "max_cpu_utilization_percent": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 100,
+                    "default": 85,
                     "description": "Real-time throttling percentage."
                   },
                   "max_io_ops_per_sec": {
                     "type": "integer",
                     "minimum": 0
-                  },
-                  "max_latency_ms": {
-                    "type": "integer",
-                    "minimum": 1
                   },
                   "data_storage_cap_gb": {
                     "type": "number",
@@ -93,43 +112,53 @@
                 "properties": {
                   "banned_topics_ref": {
                     "type": "string",
-                    "description": "Reference ID to a centralized list of topics."
+                    "format": "ref-id",
+                    "description": "Reference ID to a centralized list of topics (e.g., 'ETL_V2')."
                   },
                   "forbidden_actions_refs": {
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "format": "uuid",
-                      "description": "Reference UUIDs to external complex policy definitions."
+                      "format": "uuid"
                     }
                   },
                   "required_alignment_score": {
                     "type": "number",
-                    "minimum": 0.8,
+                    "minimum": 0.95,
                     "maximum": 1.0,
-                    "default": 0.95,
-                    "description": "Minimum required internal ethical alignment confidence score."
+                    "default": 0.98,
+                    "description": "Minimum required internal ethical alignment confidence score (Increased rigor).
+                    "
                   }
-                }
+                },
+                "required": [
+                  "required_alignment_score"
+                ]
               },
               "self_evolution": {
                 "type": "object",
                 "description": "Rules governing internal modification and update cycles.",
                 "properties": {
-                  "modification_window": {
+                  "modification_window_utc": {
                     "type": "string",
-                    "description": "Time window for permitted self-mod, e.g., '22:00-06:00 UTC'."
+                    "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$",
+                    "description": "Time window for permitted self-mod in HH:MM-HH:MM UTC format (e.g., '22:00-06:00')."
                   },
                   "required_consensus_level": {
                     "type": "number",
-                    "minimum": 0.5,
+                    "minimum": 0.9,
                     "maximum": 1.0,
-                    "description": "Required internal audit consensus score for core governance file modification."
+                    "default": 0.99,
+                    "description": "Required internal audit consensus score for core governance file modification (Increased rigor)."
                   },
                   "last_external_audit_timestamp": {
                     "type": "string",
-                    "format": "date-time",
-                    "description": "Mandatory tracking of the last independent external oversight check."
+                    "format": "date-time"
+                  },
+                  "allowed_components_pattern": {
+                    "type": "string",
+                    "format": "regex",
+                    "description": "Regex pattern defining which component file paths are permitted to undergo self-modification."
                   }
                 },
                 "required": [
