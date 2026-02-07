@@ -125,3 +125,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated static Retry and Escalation Policy (REP) configuration from JSON format to an exported JavaScript module for UNIFIER integration.
 
 > **[SYSTEM_LOG 2026-02-07]**: Updated the sentinel validation map to include a mandatory `LOG_INTEGRITY_CHECKPOINT` handler, essential for enforcing system integrity protocols referenced by `LogIntegrityService`.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated artifact_manifest_schema.json from /protocol to /governance, updating internal metadata to v94.2.
