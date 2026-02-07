@@ -5,6 +5,7 @@
  */
 class ContentValidatorRegistry {
   constructor() {
+    // Implement Singleton Pattern
     if (ContentValidatorRegistry.instance) {
         return ContentValidatorRegistry.instance;
     }
@@ -23,10 +24,7 @@ class ContentValidatorRegistry {
     if (typeof validatorInstance.validate !== 'function') {
       throw new Error(`[ContentValidatorRegistry] Validator instance for '${name}' must implement an async validate(content, config) method.`);
     }
-    if (this._validators.has(name)) {
-        // Use console.warn for soft overwrite indication, useful during bootstrapping.
-        // console.warn(`[ContentValidatorRegistry] Validator '${name}' is being overwritten.`);
-    }
+    // Suppression of soft overwrite warning to align with core convergence phase.
     this._validators.set(name, validatorInstance);
   }
 
@@ -47,5 +45,5 @@ class ContentValidatorRegistry {
   }
 }
 
-// Create and export the single instance (Singleton)
+// Fulfills UNIFIER Protocol: Export the single instance directly.
 module.exports = new ContentValidatorRegistry();
