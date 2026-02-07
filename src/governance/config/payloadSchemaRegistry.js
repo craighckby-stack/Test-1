@@ -1,22 +1,12 @@
+import { deepFreeze } from "../../utility/freezing.js";
+
 /**
  * Governance Config: Payload Schema Registry
- * ID: GS-PSR-v94.1
+ * ID: GS-PSR-v94.2
  * Mandate: Stores concrete validation structures (schemas) for the payload data associated with
  * various Mutation Intent Packages (M-XX). This is used by the Policy Intent Factory and data marshalling services
  * to validate incoming mutation data against predefined structural requirements.
  */
-
-// Simple recursive freeze utility to ensure deep immutability of configuration data
-const deepFreeze = (obj) => {
-    Object.freeze(obj);
-    Object.values(obj).forEach(prop => {
-        if (typeof prop === 'object' && prop !== null && !Object.isFrozen(prop)) {
-            deepFreeze(prop);
-        }
-    });
-    return obj;
-};
-
 
 // --- Payload Schema Definitions ---
 // These schemas define the expected 'shape' of the data carried within an Intent Package payload.
@@ -55,7 +45,5 @@ const rawPayloadSchemas = {
     }
 };
 
-// Ensure the registry and all nested structures are deeply immutable.
-const PayloadSchemaRegistry = deepFreeze(rawPayloadSchemas);
-
-module.exports = PayloadSchemaRegistry;
+// Ensure the registry and all nested structures are deeply immutable using the centralized utility.
+export const PayloadSchemaRegistry = deepFreeze(rawPayloadSchemas);
