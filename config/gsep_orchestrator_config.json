@@ -1,9 +1,20 @@
 {
-  "gsep_version": "v95.1",
+  "global_config": {
+    "gsep_schema_version": "v95.1-R",
+    "defaults": {
+      "default_stage_timeout_ms": 1000,
+      "tracked_primary_mandate": "P-M01"
+    }
+  },
   "policy_profiles": {
     "P-M01": {
       "description": "Mandatory Baseline Latency Profile",
-      "violation_severity": "HARD"
+      "violation_severity": "HARD",
+      "temporal_threshold": {
+        "mode": "MULTIPLIER",
+        "value": 2.5,
+        "violation_actor": "FSMU"
+      }
     },
     "P-M02": {
       "description": "Integrity and Atomic State Commitment Check",
@@ -14,82 +25,106 @@
       "violation_severity": "HARD"
     },
     "GAX_Standard": {
-      "description": "Gate Assurance Execution Standard (I/II/III)"
+      "description": "Gate Assurance Execution Standard (I/II/III)",
+      "violation_severity": "HARD"
     }
   },
-  "temporal_policy": {
-    "tracked_mandate": "P-M01",
-    "p_m01_hard_threshold_multiplier": 2.5,
-    "hard_violation_actor": "FSMU",
-    "default_timeout_ms": 1000
+  "gate_definitions": {
+    "G0": {
+      "purpose": "Initial Handoff Verification",
+      "validation_module": "GateValidator_Basic"
+    },
+    "G1": {
+      "purpose": "Output Ready Gate (DRO)",
+      "validation_module": "GateValidator_Basic"
+    },
+    "G2": {
+      "purpose": "Post-Commit Integrity Gate",
+      "validation_module": "GateValidator_HashCheck",
+      "failure_policy_override": "P-M02"
+    },
+    "G3": {
+      "purpose": "Final Certification Gate",
+      "validation_module": "GateValidator_Review"
+    }
   },
   "pipeline_stages": [
     {
-      "stage_id": "S00",
+      "stage_name": "Entry_Module_Setup",
       "stage_range": [0, 0],
+      "start_index": 0,
+      "end_index": 0,
       "actor": "EMSU",
-      "gate_reference": "G0",
-      "mandates_applied": ["GAX_Standard"],
-      "max_duration_ms": 50,
-      "output_artifact": "EMS"
+      "gate_exit_ref": "G0",
+      "mandates": ["GAX_Standard"],
+      "timeout_ms": 50,
+      "artifact_output": "EMS"
     },
     {
-      "stage_id": "S01-S06",
+      "stage_name": "Data_Handoff_Chain",
       "stage_range": [1, 6],
-      "stage_type": "CompositeBlock",
+      "start_index": 1,
+      "end_index": 6,
+      "execution_mode": "CompositeBlock",
       "actor": "DHC",
-      "gate_reference": null,
-      "mandates_applied": ["P-M01"],
-      "max_duration_ms": 800,
-      "output_artifact": "ISB"
+      "mandates": ["P-M01"],
+      "timeout_ms": 800,
+      "artifact_output": "ISB"
     },
     {
-      "stage_id": "S07",
+      "stage_name": "DRO_Output_Validation",
       "stage_range": [7, 7],
+      "start_index": 7,
+      "end_index": 7,
       "actor": "DRO",
-      "gate_reference": "G1",
-      "mandates_applied": ["GAX_Standard"],
-      "max_duration_ms": 30,
-      "output_artifact": "ECVM"
+      "gate_exit_ref": "G1",
+      "mandates": ["GAX_Standard"],
+      "timeout_ms": 30,
+      "artifact_output": "ECVM"
     },
     {
-      "stage_id": "S08-S10",
+      "stage_name": "Core_Atomic_Commit",
       "stage_range": [8, 10],
-      "stage_type": "CriticalSection",
+      "start_index": 8,
+      "end_index": 10,
+      "execution_mode": "ATOMIC_COMMIT_CRITICAL",
       "actor": "ACVM Core",
-      "gate_reference": null,
-      "mandates_applied": ["P-M01"],
-      "max_duration_ms": 1500,
-      "output_artifact": "Pre-Commit Snapshot",
-      "execution_mode": "ATOMIC_COMMIT"
+      "mandates": ["P-M01"],
+      "timeout_ms": 1500,
+      "artifact_output": "Pre-Commit Snapshot"
     },
     {
-      "stage_id": "S11",
+      "stage_name": "Psi_Hash_Verification",
       "stage_range": [11, 11],
+      "start_index": 11,
+      "end_index": 11,
       "actor": "AASS/PIM",
-      "gate_reference": "G2",
-      "mandates_applied": ["GAX_Standard", "P-M02"],
-      "max_duration_ms": 20,
-      "output_artifact": "Psi_Final Hash"
+      "gate_exit_ref": "G2",
+      "mandates": ["GAX_Standard", "P-M02"],
+      "timeout_ms": 20,
+      "artifact_output": "Psi_Final Hash"
     },
     {
-      "stage_id": "S12-S13",
+      "stage_name": "Metrics_Telemetry_Capture",
       "stage_range": [12, 13],
-      "stage_type": "MetricsCapture",
+      "start_index": 12,
+      "end_index": 13,
+      "execution_mode": "MetricsCapture",
       "actor": "Telemetry",
-      "gate_reference": null,
-      "mandates_applied": ["P-M01"],
-      "max_duration_ms": 100,
-      "output_artifact": "Post-Commit Metrics"
+      "mandates": ["P-M01"],
+      "timeout_ms": 100,
+      "artifact_output": "Post-Commit Metrics"
     },
     {
-      "stage_id": "S14",
+      "stage_name": "Final_State_Certification",
       "stage_range": [14, 14],
+      "start_index": 14,
+      "end_index": 14,
       "actor": "AASS",
-      "gate_reference": "G3",
-      "mandates_applied": ["P-R03"],
-      "max_duration_ms": 40,
-      "output_artifact": "State Seal Certification"
+      "gate_exit_ref": "G3",
+      "mandates": ["P-R03"],
+      "timeout_ms": 40,
+      "artifact_output": "State Seal Certification"
     }
   ]
 }
