@@ -15,10 +15,13 @@ const GOVERNANCE_LEVELS = {
 class ConfigurationGovernancePolicy {
 
     /**
-     * @param {SystemLog} logger The centralized system logging utility.
-     * @param {SystemConfigurationRegistry} scr Reference to the SCR for current value lookup.
+     * @param {object} logger The centralized system logging utility (usually SystemLog).
+     * @param {object} scr Reference to the SystemConfigurationRegistry (SCR) for current value lookup.
      */
     constructor(logger, scr) {
+        if (!logger || !scr) {
+            throw new Error("CGP Initialization Error: Logger and SCR references are mandatory.");
+        }
         this.logger = logger;
         this.scr = scr;
     }
@@ -31,8 +34,15 @@ class ConfigurationGovernancePolicy {
      * @returns {boolean} True if the change is permissible.
      */
     validateChange(path, newValue, context) {
+        // Context Check
+        if (!context || !context.componentId) {
+            this.logger.error(`[CGP] Access Denied: Missing component context for change request on ${path}.`);
+            return false;
+        }
+
         // 1. Authentication/Authorization Check
-        const requiredLevel = GOVERNANCE_LEVELS.C13; // Simple placeholder logic: requires highest level for all dynamic changes.
+        // Standardizing requirement to C13 for dynamic changes.
+        const requiredLevel = GOVERNANCE_LEVELS.C13;
         const currentLevel = GOVERNANCE_LEVELS[context.componentId] || GOVERNANCE_LEVELS.DEFAULT;
 
         if (currentLevel < requiredLevel) {
@@ -46,11 +56,17 @@ class ConfigurationGovernancePolicy {
         if (typeof currentValue === 'number' && typeof newValue === 'number') {
             // Assumes GOVERNANCE_CONFIG.MAX_CHANGE_DEVIATION is accessible via SCR
             const maxDeviation = this.scr.get('GOVERNANCE_CONFIG.MAX_CHANGE_DEVIATION'); 
-            const deviation = Math.abs((newValue - currentValue) / currentValue);
+            
+            if (maxDeviation === undefined || maxDeviation === null) {
+                // If max deviation isn't defined, skip this critical check, but log a warning.
+                this.logger.warn(`[CGP] Deviation check skipped for ${path}: MAX_CHANGE_DEVIATION not configured in SCR.`);
+            } else {
+                const deviation = Math.abs((newValue - currentValue) / currentValue);
 
-            if (deviation > maxDeviation) {
-                this.logger.critical(`[CGP] CHANGE REJECTED: ${path} deviation (${deviation.toFixed(2)}) exceeds maximum allowed (${maxDeviation}). Prevented self-correction instability.`);
-                return false; 
+                if (deviation > maxDeviation) {
+                    this.logger.critical(`[CGP] CHANGE REJECTED: ${path} deviation (${deviation.toFixed(2)}) exceeds maximum allowed (${maxDeviation}). Prevented self-correction instability.`);
+                    return false; 
+                }
             }
         }
         
@@ -59,4 +75,8 @@ class ConfigurationGovernancePolicy {
     }
 }
 
+/**
+ * Exports the Configuration Governance Policy for integration.
+ * UNIFIER Protocol Compliance: Module export for easy integration.
+ */
 module.exports = ConfigurationGovernancePolicy;
