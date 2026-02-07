@@ -2,7 +2,6 @@ use tokio::sync::mpsc;
 use tracing::{info, error, instrument};
 use std::time::Instant;
 
-// NOTE: In a broader refactoring (see scaffold), these types should move to a core definition module.
 use crate::utility::dynamic_constraint_scheduler::{ConstraintSetId, CompiledConstraintBlock, ConstraintError};
 
 // --- Public Interface Definitions ---
@@ -38,7 +37,7 @@ impl CompilerServiceHandle {
     /// Returns the handle used to send compilation tasks.
     pub fn spawn_service(
         task_buffer_size: usize,
-        result_sender: mpsc::Sender<(ConstraintSetId, Result<CompiledConstraintBlock, ConstraintError>)>, 
+        result_sender: mpsc::Sender<(ConstraintSetId, Result<CompiledConstraintBlock, ConstraintError>)>,
     ) -> CompilerServiceHandle {
         let (task_sender, task_receiver) = mpsc::channel(task_buffer_size);
 
