@@ -1,46 +1,58 @@
 import os
 import yaml
-from typing import Type, Union
+from typing import Type, Union, Any, Dict
 from pydantic import BaseModel, ValidationError
 
-# Assume schemas.system_config contains the definitions
-# from schemas.system_config import SystemConfig
+# --- Custom Exception Hierarchy for Abstraction ---
+
+class ConfigError(Exception):
+    """Base exception for configuration loading errors, allowing callers to handle all related issues."""
+    pass
+
+class ConfigParseError(ConfigError):
+    """Error during YAML parsing."""
+    pass
+
+class ConfigValidationError(ConfigError):
+    """Error during Pydantic schema validation."""
+    
+# --- Refactored Utility Function ---
 
 def load_config_from_file(file_path: str, config_schema: Type[BaseModel]) -> Union[BaseModel, None]:
     """Loads configuration data from a YAML file and validates it against a Pydantic schema.
     
-    If 'yaml' is not available, 'json' is often interchangeable here.
+    Returns None if the file is not found. Raises specific ConfigError on parsing/validation failures.
+    Optimized for efficiency by minimizing redundant I/O checks and utilizing Pydantic's fast validation core.
     """
-    if not os.path.exists(file_path):
-        print(f"Warning: Configuration file not found at {file_path}. Using defaults/environment.")
-        return None
-        
+    data: Dict[str, Any]
+    
     try:
+        # 1. I/O and Parsing: Rely on the efficient `open()` to handle FileNotFoundError
         with open(file_path, 'r') as f:
+            # Use safe_load for secure parsing (essential trade-off)
             data = yaml.safe_load(f)
             
-        # Environment variables and other overlays would typically happen here before validation
+    except FileNotFoundError:
+        # Consistent with original behavior: return None for missing configuration file
+        return None 
         
+    except yaml.YAMLError as e:
+        # 2. Parsing Error Handling (Abstracted failure mode)
+        raise ConfigParseError(f"Error parsing YAML file {file_path}: {e}") from None
+    
+    except Exception as e:
+        # Catch unexpected I/O errors (e.g., permissions)
+        raise ConfigError(f"An unexpected error occurred during file access or parsing: {e}") from None
+
+    # 3. Validation: The computationally intensive core, utilizing optimized Pydantic v2 methods
+    try:
         config = config_schema.model_validate(data)
-        print(f"Configuration loaded successfully from {file_path}.")
+        # Configuration loaded successfully.
         return config
         
-    except FileNotFoundError:
-        print(f"Error: File not found: {file_path}")
-        return None
-    except yaml.YAMLError as e:
-        print(f"Error parsing YAML file {file_path}: {e}")
-        return None
     except ValidationError as e:
-        print(f"FATAL: Configuration validation failed for schema {config_schema.__name__}:\n{e}")
-        raise SystemExit(1)
-    except Exception as e:
-        print(f"An unexpected error occurred during config loading: {e}")
-        return None
-
-# Example Usage (requires SystemConfig import):
-# CONFIG_FILE = os.getenv('CONFIG_PATH', 'config/system.yaml')
-# system_config = load_config_from_file(CONFIG_FILE, SystemConfig)
-# if system_config is None:
-#     # Fallback: Initialize config with pure defaults or environment variables
-#     system_config = SystemConfig()
+        # 4. Validation Error Handling (Abstracted failure mode)
+        # Replaced SystemExit and internal prints with a structured exception for cleaner flow.
+        raise ConfigValidationError(
+            f"Configuration validation failed for schema {config_schema.__name__}:\n{e}"
+        ) from None
