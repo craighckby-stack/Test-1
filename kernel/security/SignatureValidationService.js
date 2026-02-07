@@ -1,90 +1,100 @@
 /**
  * Signature Validation Service (SVS)
  * Responsible for cryptographic verification of transition requests and associated credentials.
- * Decouples cryptographic validation logic from SMC protocol enforcement.
+ * Decouples cryptographic validation logic from SMC protocol enforcement by relying on external engines.
  */
 class SignatureValidationService {
 
     /**
-     * Initializes the service, typically loading cryptographic libraries or key registries.
-     * @param {object} keyRegistry - Map of known public keys associated with roles.
+     * Initializes the service with necessary dependencies.
+     * @param {object} dependencies
+     * @param {object} dependencies.keyIdentityResolver - Service to map public keys/IDs to known system roles.
+     * @param {object} dependencies.cryptoEngine - Interface for cryptographic operations (hashing, signature verification, canonicalization).
      */
-    constructor(keyRegistry) {
-        this.keyRegistry = keyRegistry || {};
-        // NOTE: In production, this would initialize external HSM/crypto interfaces.
+    constructor({ keyIdentityResolver, cryptoEngine }) {
+        if (!keyIdentityResolver || !cryptoEngine) {
+            throw new Error("SignatureValidationService requires keyIdentityResolver and cryptoEngine.");
+        }
+        this.keyIdentityResolver = keyIdentityResolver;
+        this.cryptoEngine = cryptoEngine;
+    }
+
+    /**
+     * Internal method to create a deterministic, canonical representation of the request for signing.
+     * MUST use a standardized canonical format (e.g., JCS, Canonical JSON) to guarantee integrity and determinism.
+     * @param {object} request - The original transition request data.
+     * @returns {string} The canonicalized message payload.
+     */
+    _canonicalizeRequest(request) {
+        return this.cryptoEngine.canonicalize(request);
     }
 
     /**
      * Verifies if a given command/transition request was correctly signed by the required entity/entities.
      * @param {object} request - The original transition request data.
-     * @param {object[]} signatures - Array of signatures provided with the request.
+     * @param {object[]} signatures - Array of signatures provided with the request (must include publicKey/keyId and signature).
      * @param {Set<string>} requiredRoles - The set of roles whose signature is necessary for governance.
-     * @returns {{verified: boolean, invalidSigners: string[], validRoles: Set<string>}}
+     * @returns {{verified: boolean, invalidSigners: string[], validRoles: Set<string>, missingRequiredRoles: Set<string>}}
      */
     verifyRequestSignatures(request, signatures, requiredRoles) {
         const validRoles = new Set();
-        const invalidSigners = [];
+        // Stores roles required for the transition that provided a cryptographically invalid signature.
+        const requiredRoleFailures = new Set(); 
 
         if (!signatures || signatures.length === 0) {
-            if (requiredRoles.size > 0) {
-                return { verified: false, invalidSigners: [], validRoles };
-            }
-            return { verified: true, invalidSigners: [], validRoles };
+            const missingRequiredRoles = new Set(requiredRoles);
+            return { verified: requiredRoles.size === 0, invalidSigners: [], validRoles, missingRequiredRoles };
         }
 
-        // Standardize the message payload to prevent replay attacks and ensure integrity
-        const messageToVerify = this._serializeRequest(request);
+        const messageToVerify = this._canonicalizeRequest(request);
 
         for (const sig of signatures) {
-            // 1. Identify signer and map to role
-            const role = this._resolveRoleFromSignatureKey(sig.publicKey);
+            if (!sig.publicKey || !sig.signature) continue;
 
-            if (!role || !requiredRoles.has(role)) {
-                // Signature not relevant or key unknown/not associated with a required role
+            // 1. Identify signer role using the dedicated resolver
+            const role = this.keyIdentityResolver.resolveRoleFromKey(sig.publicKey);
+
+            const isRequiredRole = role && requiredRoles.has(role);
+
+            if (!role) {
+                // Key is unknown. Ignore signature for validation purposes.
                 continue;
             }
 
             try {
-                // 2. Execute cryptographic verification (Stub: Assume crypto verification function exists)
-                const isValid = this._cryptoVerify(messageToVerify, sig.signature, sig.publicKey);
+                // 2. Execute cryptographic verification
+                const isValid = this.cryptoEngine.verifySignature(messageToVerify, sig.signature, sig.publicKey);
 
                 if (isValid) {
                     validRoles.add(role);
-                } else {
-                    invalidSigners.push(role); 
-                }
+                } else if (isRequiredRole) {
+                    // Signature provided by a required role failed cryptographic check.
+                    requiredRoleFailures.add(role);
+                } 
             } catch (e) {
-                console.error(`Signature verification failed for role ${role}:`, e);
-                invalidSigners.push(role); 
+                // Handle potential errors like malformed keys or crypto engine failure
+                console.error(`[SVS] Error during cryptographic verification for role ${role}:`, e.message);
+                if (isRequiredRole) {
+                    requiredRoleFailures.add(role);
+                }
             }
         }
 
-        // Verification is complete if the number of distinct valid roles meets the threshold (threshold checking remains in SMCTransitionEnforcer)
-        // This service simply returns WHICH roles provided a valid signature.
+        // Determine which required roles are missing (did not provide a valid signature)
+        const missingRequiredRoles = new Set(Array.from(requiredRoles).filter(
+            r => !validRoles.has(r)
+        ));
+
+        // Final verification check: all required roles must be satisfied and none must have failed cryptographically.
+        const requirementsMet = missingRequiredRoles.size === 0 && requiredRoleFailures.size === 0;
+        
         return {
-            verified: invalidSigners.length === 0,
-            invalidSigners,
-            validRoles
+            verified: requirementsMet,
+            // Return the full list of required roles that explicitly failed signing
+            invalidSigners: Array.from(requiredRoleFailures),
+            validRoles,
+            missingRequiredRoles
         };
-    }
-
-    /**
-     * Stubs for internal cryptographic operations (actual implementation depends on chosen crypto library).
-     */
-    _serializeRequest(request) {
-        // Must return a deterministic string representation of the request object.
-        return JSON.stringify({ current: request.current, target: request.target, command: request.command });
-    }
-
-    _resolveRoleFromSignatureKey(publicKey) {
-        // Lookup the role associated with the public key (e.g., from this.keyRegistry)
-        // Return 'GOVERNANCE_AGENT' or 'SYSTEM_ADMIN'
-        return 'GOVERNANCE_AGENT'; // Stub
-    }
-
-    _cryptoVerify(data, signature, publicKey) {
-        // Implement ECDSA or comparable signature verification.
-        return true; // Stub
     }
 }
 
