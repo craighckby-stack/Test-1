@@ -18,7 +18,7 @@
  */
 
 /**
- * GRS: GOVERNANCE RULE SOURCE (V95.2)
+ * GRS: GOVERNANCE RULE SOURCE (V95.3)
  * Scope: Stage 3/Foundation. Critical dependency for P-01 consensus.
  * Function: Provides an immutable, cryptographically verifiable source of truth
  * for the core system policy rule sets and fixed P-01 calculation constants.
@@ -31,7 +31,19 @@ class GovernanceRuleSource {
     #immutableRuleset;
 
     /**
-     * @param {Object} registry - Provides access to necessary services (e.g., SSV for validation, MCR for historical records).
+     * Centralized utility for creating a defensively immutable copy (Deep Clone).
+     * Currently relies on JSON serialization, suitable for simple schema objects.
+     * @param {Object} obj
+     * @returns {Object}
+     */
+    static #deepClone(obj) {
+        // Note: For larger objects or those containing non-JSON types (e.g., Dates, Functions),
+        // a dedicated utility (like a Structured Clone implementation) should be used.
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    /**
+     * @param {Object} registry - Provides access to necessary services.
      */
     constructor(registry) {
         if (!registry) {
@@ -39,26 +51,31 @@ class GovernanceRuleSource {
         }
         this.#registry = registry;
         
-        // This process MUST be synchronous and blocking upon initialization 
-        // as the system cannot run without verified foundational rules.
-        const verifiedSource = this.#fetchVerifiedRuleset();
-        this.#currentRuleSetVersion = verifiedSource.version;
-        this.#immutableRuleset = verifiedSource.ruleset;
+        this.#initializeSource();
         
         // Post-Load integrity checks (e.g., structure validation, schema adherence)
         this.#validateRulesetIntegrity(this.#immutableRuleset);
     }
 
     /**
+     * Synchronous blocking initialization handler.
+     */
+    #initializeSource() {
+        // This process MUST be synchronous and blocking upon initialization 
+        // as the system cannot run without verified foundational rules.
+        const verifiedSource = this.#fetchVerifiedRuleset();
+        this.#currentRuleSetVersion = verifiedSource.version;
+        this.#immutableRuleset = verifiedSource.ruleset;
+    }
+
+    /**
      * Placeholder for the crucial secure retrieval mechanism.
-     * In production, this uses the registry's SSV to fetch and verify the hash
-     * against the immutable manifest before parsing.
+     * In production, this uses the registry's SSV to fetch and verify the hash.
      * @returns {{version: string, ruleset: GovernanceRuleSchema}}
      */
     #fetchVerifiedRuleset() {
-        // --- HARDCODED MOCK DATA FOR DEMONSTRATION --- 
-        // This section will be replaced by actual SSV lookup in V96.
-        const version = 'V95.2.0-AOC'; 
+        // --- HARDCODED MOCK DATA FOR DEMONSTRATION ---
+        const version = 'V95.3.0-AOC'; 
         return {
             version: version,
             ruleset: {
@@ -104,8 +121,7 @@ class GovernanceRuleSource {
      * @returns {VetoRule[]}
      */
     getMandatoryVetoPolicies() {
-        // Essential for immutability: Deep copy the array and its contents.
-        return JSON.parse(JSON.stringify(this.#immutableRuleset.GSEP_VETO_RULES));
+        return GovernanceRuleSource.#deepClone(this.#immutableRuleset.GSEP_VETO_RULES);
     }
 
     /**
@@ -113,13 +129,24 @@ class GovernanceRuleSource {
      * @returns {P01Constants}
      */
     getP01Constants() {
-        // Essential for immutability: Deep copy the object structure.
-        return JSON.parse(JSON.stringify(this.#immutableRuleset.P01_CRITICALITY));
+        return GovernanceRuleSource.#deepClone(this.#immutableRuleset.P01_CRITICALITY);
+    }
+
+    /**
+     * Retrieves a deep clone of a specific rule block.
+     * @param {string} key - The key of the ruleset block (e.g., 'P01_CRITICALITY').
+     * @returns {Object|Array} A deep cloned copy of the rule block data.
+     */
+    getRuleBlock(key) {
+        const ruleBlock = this.#immutableRuleset[key];
+        if (ruleBlock === undefined) {
+            throw new Error(`GRS::RULE_NOT_FOUND - Unknown rule block requested: ${key}`);
+        }
+        return GovernanceRuleSource.#deepClone(ruleBlock);
     }
 
     /**
      * Performs a check against the system's current verified hash.
-     * Requires SSV access via registry.
      * @param {string} manifestHash - The expected cryptographic hash of the GRS manifest.
      * @returns {boolean}
      */
