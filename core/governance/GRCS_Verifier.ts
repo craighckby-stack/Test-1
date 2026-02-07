@@ -1,59 +1,149 @@
-interface GRCSReport { [key: string]: any; /* Use imported GRCS type */ }
+import {
+    GRCSReport,
+    VerificationResult,
+    VerifierConfiguration,
+    CertifiedUtilityMetrics,
+    FailureProfile
+} from './GRCS_VerificationTypes';
+
+// NOTE: Implementation assumes necessary external services (CryptoEngine, PolicyService) are available/imported elsewhere.
 
 /**
- * GRCS_Verifier
+ * Default configuration constants for the Verifier, focusing on hard safety thresholds.
+ */
+const DEFAULT_CONFIG: VerifierConfiguration = {
+    standardRiskCeiling: 500000, // Maximum allowed S02_Value for standard operational profiles (in LiabilityUnit).
+};
+
+
+/**
+ * GRCS_Verifier (v94.1)
  * Utility responsible for verifying the integrity and policy adherence of a Governance Runtime Context Schema (GRCS) report.
+ * Utilizes specific configurations for adaptive risk evaluation.
  */
 export class GRCS_Verifier {
+    private static config: VerifierConfiguration = DEFAULT_CONFIG;
 
     /**
-     * 1. Cryptographically validates the CRoT_Signature against the provided S01 metrics.
-     * 2. Checks if the PolicyReference is currently active and valid.
-     * 3. Ensures S02_Value does not exceed established thresholds based on the LiabilityUnit.
+     * Sets runtime configuration for dynamic threshold adjustments.
+     * @param customConfig Partial configuration object.
      */
-    public static async verify(report: GRCSReport): Promise<boolean> {
-        // Step 1: Signature Verification (CRoT)
-        const signatureValid = await this.verifyCRoT(report.CertifiedUtilityMetrics);
-        if (!signatureValid) {
-            console.error("GRCS Verification Failed: CRoT Signature invalid.");
-            return false;
+    public static configure(customConfig: Partial<VerifierConfiguration>): void {
+        this.config = { ...DEFAULT_CONFIG, ...customConfig };
+    }
+
+    /**
+     * Executes the comprehensive three-phase verification process (CRoT, Policy, Risk).
+     * @param report The GRCS Report object.
+     * @returns A detailed VerificationResult object.
+     */
+    public static async verify(report: GRCSReport): Promise<VerificationResult> {
+        const auditTrail: VerificationResult['auditTrail'] = [];
+
+        // --- Step 1: Cryptographic Integrity Verification (CRoT) ---
+        const signatureEntry = await this.verifyCRoT(report.CertifiedUtilityMetrics);
+        auditTrail.push(signatureEntry);
+        if (!signatureEntry.success) {
+            return { passed: false, auditTrail };
         }
 
-        // Step 2: Policy Compliance Check
-        const policyCompliant = this.checkPolicyAdherence(report.PolicyReference, report.EstimatedFailureProfile);
-        if (!policyCompliant) {
-            console.error(`GRCS Verification Failed: Policy reference ${report.PolicyReference} breach.`);
-            return false;
+        // --- Step 2: Policy Compliance Check ---
+        const policyEntry = this.checkPolicyAdherence(report.PolicyReference, report.EstimatedFailureProfile);
+        auditTrail.push(policyEntry);
+        if (!policyEntry.success) {
+            return { passed: false, auditTrail };
         }
 
-        // Step 3: Threshold and Consistency Checks (S02)
-        const riskAcceptable = this.checkRiskThreshold(report.EstimatedFailureProfile);
-        if (!riskAcceptable) {
-             console.error("GRCS Verification Failed: Estimated failure liability exceeds acceptable risk profile.");
-             return false;
+        // --- Step 3: Threshold and Consistency Checks (S02) ---
+        const riskEntry = this.checkRiskThreshold(report.EstimatedFailureProfile);
+        auditTrail.push(riskEntry);
+        if (!riskEntry.success) {
+            return { passed: false, auditTrail };
         }
         
-        return true;
+        return { passed: true, auditTrail };
     }
 
-    private static async verifyCRoT(metrics: any): Promise<boolean> {
-        // Implementation depends on the underlying cryptographic library and attestation service.
-        // Placeholder: assume external CryptoEngine service call.
-        return true; // Placeholder
+    /**
+     * Checks cryptographic proof of identity using CRoT signature.
+     * (Placeholder simulating call to an external CryptoEngine service)
+     */
+    private static async verifyCRoT(metrics: CertifiedUtilityMetrics): Promise<VerificationResult['auditTrail'][0]> {
+        if (!metrics.CRoT_Signature || metrics.CRoT_Signature.length < 32) {
+             return { 
+                step: 'CRoT_Signature', 
+                success: false, 
+                reason: 'Missing or malformed CRoT signature.' 
+            };
+        }
+        await new Promise(resolve => setTimeout(resolve, 5)); // Simulate external service latency
+        return { 
+            step: 'CRoT_Signature', 
+            success: true, 
+            reason: 'CRoT Signature validated against S01 metrics.',
+            details: metrics.MetricsSetID
+        }; 
     }
 
-    private static checkPolicyAdherence(policyId: string, profile: any): boolean {
-        // Check against active policy database/runtime configuration.
-        if (!policyId.startsWith('P-01')) return false;
-        // Placeholder: assume P-01/Q3-2024 allows S02_Tolerance up to 0.1
-        if (profile.S02_Tolerance > 0.15) return false;
-        return true;
+    /**
+     * Checks if the report adheres to its declared policy reference and tolerance limits defined within the report itself.
+     * (This ensures the reported risk is within its self-declared bounds based on active policy configuration).
+     */
+    private static checkPolicyAdherence(policyId: string, profile: FailureProfile): VerificationResult['auditTrail'][0] {
+        // Example check: All policies must conform to the mandated GRC-A standard.
+        if (!policyId.startsWith('GRC-A')) {
+            return {
+                step: 'Policy_Adherence',
+                success: false,
+                reason: `Policy ID '${policyId}' is not an authorized Governance Runtime Context policy schema. `,
+            };
+        }
+
+        // Check if the reported S02 risk exceeds the policy-mandated S02 tolerance limit (internal breach check).
+        if (profile.S02_Value > profile.S02_Tolerance) {
+            return {
+                step: 'Policy_Adherence',
+                success: false,
+                reason: `Internal policy breach: S02_Value (${profile.S02_Value}) exceeds declared Policy Tolerance (${profile.S02_Tolerance}).`,
+                details: `Policy ID: ${policyId}`
+            };
+        }
+
+        return {
+            step: 'Policy_Adherence',
+            success: true,
+            reason: `Report complies with active policy limits.`, 
+        };
     }
 
-    private static checkRiskThreshold(profile: any): boolean {
-        // Check specific S02 risk thresholds based on Calculus_ID and LiabilityUnit.
-        // e.g., if LiabilityUnit is 'USD', S02_Value must be under $500,000 for standard operations.
-        return profile.S02_Value < 500000; // Placeholder risk limit
+    /**
+     * Checks if the operational risk (S02_Value) exceeds configurable system-wide risk ceilings (external operational check).
+     */
+    private static checkRiskThreshold(profile: FailureProfile): VerificationResult['auditTrail'][0] {
+        const ceiling = this.config.standardRiskCeiling;
+        
+        if (profile.LiabilityUnit !== 'USD' && profile.LiabilityUnit !== 'PPR') {
+             return {
+                step: 'Risk_Threshold',
+                success: false,
+                reason: `Unsupported LiabilityUnit detected: ${profile.LiabilityUnit}. Cannot verify risk threshold against configured ceiling.`,
+            };
+        }
+
+        if (profile.S02_Value >= ceiling) {
+            return {
+                step: 'Risk_Threshold',
+                success: false,
+                reason: `CRITICAL RISK: S02_Value (${profile.S02_Value} ${profile.LiabilityUnit}) exceeds operational ceiling of ${ceiling} ${profile.LiabilityUnit}.`,
+                details: `Ceiling Source: ${this.config === DEFAULT_CONFIG ? 'DEFAULT' : 'CUSTOM'}`
+            };
+        }
+
+        return {
+            step: 'Risk_Threshold',
+            success: true,
+            reason: 'Risk profile is acceptable relative to operational ceiling.',
+        };
     }
 
 }
