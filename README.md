@@ -175,3 +175,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Converted metricWeightValidator.js to CommonJS syntax to ensure compatibility with the UNIFIER protocol execution environment.
 
 > **[SYSTEM_LOG 2026-02-07]**: Scaffolded ConfigLoader.js into the new /utility directory to handle robust loading of JSON configuration files, starting with RIMP Enforcement Policies.
+
+> **[SYSTEM_LOG 2026-02-07]**: Retained pvlm_schema_v94_1.json as a mandatory governance artifact defining the structure for Persistent Volume Lifecycle Management data validation.
