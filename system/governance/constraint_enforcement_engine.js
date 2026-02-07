@@ -1,8 +1,8 @@
 /**
  * Constraint Enforcement Engine (CEE)
- * Version 3.0 - Sovereign AGI v94.1 Evolution
- * Enforces ACVD governance constraints using standardized static analysis tools and dynamic rule execution.
- * Focus: High performance, clear separation of concerns (analysis vs. enforcement) and improved robustness.
+ * Version 4.0 - Sovereign AGI v94.1 Refactor
+ * Converts CEE to be asynchronous, uses explicit typed context (AnalysisContext),
+ * and centralizes constraint definitions for dynamic runtime access.
  */
 
 import { ConstraintsConfig } from './acvd_constraints.json'; 
@@ -11,13 +11,24 @@ import { EntropyScorer } from '../utilities/entropy_scorer';
 import { ScopeMatcher } from '../utilities/scope_matcher'; 
 import { SystemLogger } from '../system_core/system_logger'; 
 
-// Define standardized violation types for clarity and downstream handling
+// IMPORTANT: Requires the creation of ConstraintAnalysisBroker (CAB) for efficient metric gathering.
+import { ConstraintAnalysisBroker } from './constraint_analysis_broker'; 
+
+// Define standardized violation types
 const ViolationType = {
     COMPLEXITY: 'Complexity',
     SAFETY: 'Safety',
     QUALITY: 'Quality',
-    ARCHITECTURE: 'Architecture'
+    ARCHITECTURE: 'Architecture',
+    GOVERNANCE: 'Governance' // Added for internal CEE failures/missing components
 };
+
+/**
+ * @typedef {Object} AnalysisContext
+ * @property {Object} [syntax] - Output of SyntaxAnalyzer (e.g., ast, complexity). Only present if required.
+ * @property {number} [entropy] - Output of EntropyScorer. Only present if required.
+ */
+
 
 export class ConstraintEnforcementEngine {
     
@@ -28,99 +39,115 @@ export class ConstraintEnforcementEngine {
         // Decoupled Dependencies (Dependency Injection)
         this.constraints = dependencies.constraints || ConstraintsConfig;
         this.scopeMatcher = dependencies.scopeMatcher || new ScopeMatcher();
-        this.entropyScorer = dependencies.entropyScorer || new EntropyScorer();
-        this.syntaxAnalyzer = dependencies.syntaxAnalyzer || new SyntaxAnalyzer();
+        
+        // The analysis broker handles the intelligent pre-processing of code metrics
+        this.analysisBroker = dependencies.analysisBroker || new ConstraintAnalysisBroker({
+            syntaxAnalyzer: dependencies.syntaxAnalyzer || new SyntaxAnalyzer(),
+            entropyScorer: dependencies.entropyScorer || new EntropyScorer()
+        });
+
         this.logger = dependencies.logger || new SystemLogger('CEE');
         
         this.ruleHandlers = {
             COMPLEXITY_THRESHOLD: this._checkComplexityThreshold.bind(this),
             FORBIDDEN_PATTERNS: this._checkForbiddenPatterns.bind(this),
             ENTROPY_DENSITY: this._checkEntropyDensity.bind(this),
-            // Future rules mapped here
         };
         
         this.logger.info(`CEE initialized with ${this.constraints.constraint_sets.length} constraint sets.`);
-        // Pre-sort constraints by enforcement level (CRITICAL first)
         this._sortedConstraintSets = this._sortConstraints(this.constraints.constraint_sets);
     }
 
     _sortConstraints(sets) {
-         return sets.sort((a, b) => {
-            const levelMap = { 'CRITICAL': 3, 'MAJOR': 2, 'MINOR': 1, 'INFO': 0 };
-            return (levelMap[b.enforcement_level] || 0) - (levelMap[a.enforcement_level] || 0);
-        });
+         const levelMap = { 'CRITICAL': 3, 'MAJOR': 2, 'MINOR': 1, 'INFO': 0 };
+         return sets.sort((a, b) => (levelMap[b.enforcement_level] || 0) - (levelMap[a.enforcement_level] || 0));
     }
 
     /**
-     * Executes a specific rule check based on its type.
-     * Now accepts sharedAnalysis to prevent redundant computation.
+     * Executes a specific rule check asynchronously.
      * @param {string} filePath 
      * @param {string} fileContent 
      * @param {Object} rule 
-     * @param {Object} sharedAnalysis - Pre-calculated metrics.
-     * @returns {Object|null} Violation object or null.
+     * @param {AnalysisContext} context - Pre-calculated metrics and required data.
+     * @returns {Promise<Object|null>} Violation object or null.
      */
-    _executeCheck(filePath, fileContent, rule, sharedAnalysis) {
+    async _executeCheck(filePath, fileContent, rule, context) {
         const handler = this.ruleHandlers[rule.type];
-        if (handler) {
-            try {
-                // Pass shared analysis to the specific rule handler
-                return handler(filePath, fileContent, rule, sharedAnalysis);
-            } catch (error) {
-                this.logger.error(`Rule execution failed for ${rule.type} on ${filePath}:`, error);
-                // System failure during check counts as a CRITICAL violation of governance health
-                return {
-                    rule: "SYSTEM_FAILURE_CEE",
-                    type: ViolationType.SAFETY,
-                    level: "CRITICAL",
-                    message: `Internal CEE failure during ${rule.type} check execution.`, 
-                    data: { ruleId: rule.name, error: error.message }
-                };
-            }
+        if (!handler) {
+            this.logger.warn(`No handler defined for rule type: ${rule.type}. Rule skipped.`);
+            return null;
         }
-        this.logger.warn(`No handler defined for rule type: ${rule.type}. Rule skipped.`);
-        return null;
+
+        try {
+            // Handlers are synchronous for performance but executed within an async wrapper
+            return handler(filePath, fileContent, rule, context);
+        } catch (error) {
+            this.logger.error(`Rule execution failed for ${rule.type} on ${filePath}:`, error);
+            return {
+                rule: "SYSTEM_FAILURE_CEE",
+                type: ViolationType.GOVERNANCE, 
+                level: "CRITICAL",
+                message: `Internal CEE failure during ${rule.type} check execution.`, 
+                data: { ruleId: rule.name, error: error.message }
+            };
+        }
     }
 
     /**
      * Validates a target code file against all relevant governance rules.
-     * Optimized to perform heavy static analysis once.
+     * Optimized by only generating the necessary analysis context.
      * @param {string} filePath - Path to the file being validated.
      * @param {string} fileContent - The content of the file.
-     * @returns {Array<Object>} List of violations found.
+     * @returns {Promise<Array<Object>>} List of violations found.
      */
-    validate(filePath, fileContent) {
+    async validate(filePath, fileContent) {
         const violations = [];
+        const activeRules = [];
         
-        // 1. Pre-analysis: Calculate metrics shared across multiple rules (efficiency gain)
-        const sharedAnalysis = {
-            syntax: this.syntaxAnalyzer.analyze(fileContent),
-            entropy: this.entropyScorer.calculateEntropy(fileContent)
-        };
-
-        // 2. Iteration and Enforcement
+        // 1. Determine which rules apply to this file scope
         for (const set of this._sortedConstraintSets) {
             for (const rule of set.rules) {
-                // Ensure rule has a level (fall back to set level)
-                rule.enforcement_level = rule.enforcement_level || set.enforcement_level;
-                
                 if (this.scopeMatcher.isMatch(filePath, rule.scope)) {
-                    const violation = this._executeCheck(filePath, fileContent, rule, sharedAnalysis);
-                    if (violation) {
-                        violations.push(violation);
-                        // NOTE: Could implement early exit here if a CRITICAL violation is found
-                    }
+                    rule.enforcement_level = rule.enforcement_level || set.enforcement_level;
+                    activeRules.push(rule);
                 }
             }
         }
+        
+        if (activeRules.length === 0) {
+            return violations;
+        }
+        
+        // 2. Intelligent Pre-analysis using the Broker
+        /** @type {AnalysisContext} */
+        const context = await this.analysisBroker.getContext(fileContent, activeRules);
+
+        // 3. Iteration and Enforcement
+        for (const rule of activeRules) {
+            const violation = await this._executeCheck(filePath, fileContent, rule, context);
+            
+            if (violation) {
+                violations.push(violation);
+                // Intelligence: Stop immediately on CRITICAL violations
+                if (violation.level === 'CRITICAL') {
+                    this.logger.warn(`Critical violation detected in ${filePath}. Halting further rule checks for this file.`);
+                    break;
+                }
+            }
+        }
+
         return violations;
     }
 
     // --- Rule Handlers ---
 
-    _checkComplexityThreshold(filePath, fileContent, rule, sharedAnalysis) {
-        // Use complexity calculated by SyntaxAnalyzer
-        const complexity = sharedAnalysis.syntax.cyclomaticComplexity; 
+    _checkComplexityThreshold(filePath, fileContent, rule, context) {
+        const complexity = context.syntax?.cyclomaticComplexity; 
+
+        if (complexity === undefined) {
+             this.logger.error(`Context missing required 'syntax.cyclomaticComplexity' for rule ${rule.name}.`);
+             return null; // Broker failed to provide required data
+        }
 
         if (complexity > rule.details.limit) {
             return { 
@@ -134,13 +161,14 @@ export class ConstraintEnforcementEngine {
         return null;
     }
 
-    _checkForbiddenPatterns(filePath, fileContent, rule, sharedAnalysis) {
+    _checkForbiddenPatterns(filePath, fileContent, rule, context) {
         const { structural_patterns, regex_patterns } = rule.details;
+        const syntaxAnalyzer = this.analysisBroker.syntaxAnalyzer;
 
-        // 1. Check structural/AST patterns (Higher Intelligence Check)
-        if (structural_patterns && sharedAnalysis.syntax.ast) {
+        // 1. Check structural/AST patterns 
+        if (structural_patterns && context.syntax?.ast) {
             for (const structuralId of structural_patterns) {
-                if (this.syntaxAnalyzer.matchStructuralPattern(sharedAnalysis.syntax.ast, structuralId)) {
+                if (syntaxAnalyzer.matchStructuralPattern(context.syntax.ast, structuralId)) {
                      return { 
                         rule: rule.name, 
                         type: ViolationType.SAFETY, 
@@ -152,7 +180,7 @@ export class ConstraintEnforcementEngine {
             }
         }
 
-        // 2. Check simple regex patterns (Fallback/Text Match Check)
+        // 2. Check simple regex patterns 
         if (regex_patterns) {
              for (const pattern of regex_patterns) {
                 if (new RegExp(pattern, 'g').test(fileContent)) { 
@@ -169,10 +197,14 @@ export class ConstraintEnforcementEngine {
         return null;
     }
     
-    _checkEntropyDensity(filePath, fileContent, rule, sharedAnalysis) {
-        // Use pre-calculated entropy score
-        const entropyScore = sharedAnalysis.entropy;
+    _checkEntropyDensity(filePath, fileContent, rule, context) {
+        const entropyScore = context.entropy;
         const { min_limit, max_limit } = rule.details;
+
+        if (entropyScore === undefined) {
+             this.logger.error(`Context missing required 'entropy' for rule ${rule.name}.`);
+             return null; 
+        }
         
         if (entropyScore < min_limit || entropyScore > max_limit) {
             return { 
