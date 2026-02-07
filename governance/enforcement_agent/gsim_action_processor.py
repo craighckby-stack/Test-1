@@ -8,8 +8,6 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format='[GSIM Processor] %(levelname)s: %(message)s')
     logger = logging.getLogger(__name__)
 
-# NOTE: The actual executor methods should be injected (see __init__ and scaffold proposal)
-
 class GSIMActionProcessor:
     """
     Interprets GSIM Enforcement Maps and executes defined action chains 
@@ -17,69 +15,97 @@ class GSIMActionProcessor:
     
     This class acts as the coordinator between policy configuration and execution runtime.
     """
-    
+
+    # Define the recursive mapping abstraction layer statically.
+    # KEY: GSIM Action Type (used in enforcement map)
+    # VALUE: Expected Executor method name (snake_case)
+    ACTION_MAP_DEFINITION = {
+        "ISOLATE_PROCESS": "isolate_process",
+        "TRIGGER_ROOT_AUDIT": "trigger_root_audit",
+        "NOTIFY_HUMAN": "notify_human",
+        "THROTTLE_QUOTA": "throttle_quota",
+        "REVERT_TO_LAST_GOOD_STATE": "revert_state",
+        "RETRY_PROCESSING": "retry_processing",
+    }
+
     def __init__(self, enforcement_map: Dict[str, Any], executor: Any):
-        """
-        Initializes the processor.
-        :param enforcement_map: The loaded GSIM enforcement configuration.
-        :param executor: An instance conforming to the AbstractSystemActionExecutor interface.
-        """
         self.map = enforcement_map.get('ENFORCEMENT_MAP', {})
         self.executor = executor
+        # Dynamically build handlers during initialization for O(1) lookup during execution
+        self.handlers: Dict[str, Callable] = self._bind_executor_handlers()
+        logger.info("GSIM Action Processor initialized with dynamically bound handlers (Abstraction Level 1).")
+
+    def _bind_executor_handlers(self) -> Dict[str, Callable]:
+        """
+        Recursively binds GSIM action types to specific methods 
+        on the injected executor, using getattr and partial for efficient
+        method resolution and binding overhead reduction at runtime.
+        """
+        handlers = {}
+        for action_type, method_name in self.ACTION_MAP_DEFINITION.items():
+            try:
+                # Efficient runtime lookup of the method reference
+                executor_method = getattr(self.executor, method_name)
+                
+                # Use partial to create a highly efficient, pre-bound callable reference
+                # This eliminates method resolution overhead during the tight execution loop.
+                handlers[action_type] = partial(executor_method)
+                
+            except AttributeError:
+                logger.critical(f"Executor contract violation: Required method '{method_name}' for action '{action_type}' is missing.")
+                # Skip registering handlers for missing methods.
         
-        # Mapping action types to concrete methods on the injected executor object
-        # Uses functools.partial to bind methods to the required Action/Context signature.
-        self.handlers: Dict[str, Callable[[Dict, Dict], Dict]] = {
-            "ISOLATE_PROCESS": partial(self.executor.isolate_process),
-            "TRIGGER_ROOT_AUDIT": partial(self.executor.trigger_root_audit),
-            "NOTIFY_HUMAN": partial(self.executor.notify_human),
-            "THROTTLE_QUOTA": partial(self.executor.throttle_quota),
-            "REVERT_TO_LAST_GOOD_STATE": partial(self.executor.revert_state),
-            "RETRY_PROCESSING": partial(self.executor.retry_processing)
-            # Future actions must be added here and implemented in the concrete Executor
-        }
-        logger.info("GSIM Action Processor initialized with an injected Action Executor.")
+        return handlers
 
     def execute_violation(self, violation_code: str, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Executes the defined action chain for a given violation code.
-        
-        :param violation_code: The GSIM identifier (e.g., 'GSIM-C-SEC-001').
-        :param context: Runtime data relevant to the violation (e.g., entity IDs, logs).
-        :return: A list of results from each executed action.
         """
         if violation_code not in self.map:
-            logger.error(f"Execution skipped: Unknown GSIM code: {violation_code}")
+            # Use format string optimization for logging
+            logger.error("Execution skipped: Unknown GSIM code: %s", violation_code)
             return [{"status": "ERROR", "code": violation_code, "message": "Unknown GSIM enforcement code."}]
 
         entry = self.map[violation_code]
+        action_chain = entry.get('action_chain', [])
         results = []
         
-        logger.warning(f"[BEGIN] Enforcement chain for: {entry.get('name', violation_code)} (Severity: {entry.get('severity', 'LOW')})")
+        # Pre-calculate length of the chain
+        total_actions = len(action_chain)
+        
+        logger.warning("[BEGIN] Enforcement chain for: %s (Severity: %s)", 
+                       entry.get('name', violation_code), entry.get('severity', 'LOW'))
 
-        for i, action in enumerate(entry['action_chain']):
+        for i, action in enumerate(action_chain):
             action_type = action.get('type')
             handler = self.handlers.get(action_type)
 
-            if handler:
-                try:
-                    result = handler(action=action, context=context)
-                    results.append(result)
-                    logger.info(f"Action {i+1}/{len(entry['action_chain'])} ({action_type}) executed successfully.")
-                except Exception as e:
-                    # Critical failure during action execution requires immediate logging and halting if defined policy demands it.
-                    error_message = f"Action '{action_type}' failed execution unexpectedly: {type(e).__name__}: {str(e)}"
-                    logger.critical(error_message, exc_info=True)
-                    results.append({
-                        "status": "CRITICAL_FAILURE", 
-                        "type": action_type, 
-                        "reason": error_message,
-                        "runtime_context": context
-                    })
-                    # NOTE: A robust system should define policy break points (e.g., halt chain if critical action fails)
-            else:
-                logger.error(f"Configuration Error: Action type '{action_type}' in map is not supported/registered.")
+            # O(1) Handler existence check
+            if handler is None:
+                logger.error("Configuration Error: Action type '%s' in map is not supported/registered.", action_type)
                 results.append({"status": "CONFIG_FAIL", "type": action_type, "reason": "Handler not registered"})
+                continue
+            
+            # --- Core Recursive Execution Unit Invocation ---
+            try:
+                # Invocation of the partial function handler is highly efficient.
+                result = handler(action=action, context=context)
+                results.append(result)
+                
+                # Optimized logging format
+                logger.info("Action %d/%d (%s) executed successfully.", 
+                            i + 1, total_actions, action_type)
+                            
+            except Exception as e:
+                error_name = type(e).__name__
+                error_message = f"Action '{action_type}' failed execution unexpectedly: {error_name}: {str(e)}"
+                logger.critical(error_message, exc_info=True)
+                results.append({
+                    "status": "CRITICAL_FAILURE", 
+                    "type": action_type, 
+                    "reason": error_message,
+                    "runtime_context": context
+                })
         
-        logger.warning(f"[END] Enforcement chain completed for {violation_code}.")
+        logger.warning("[END] Enforcement chain completed for %s.", violation_code)
         return results
