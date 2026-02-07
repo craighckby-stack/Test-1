@@ -2,26 +2,25 @@ const { BaseCustomError } = require('./BaseCustomError');
 
 /**
  * InvalidArtifactError
- * Custom error class specifically for failures during contract artifact validation.
- * Used when required fields are missing, formats are incorrect, or definitions are corrupted.
+ * Custom error class specifically for failures during artifact validation (e.g., missing required ABI fields,
+ * corrupted bytecode definitions, or incorrect metadata structure).
  */
 class InvalidArtifactError extends BaseCustomError {
     /**
-     * Standardized error code for programmatic identification.
+     * Standardized error code for programmatic identification across the system.
      */
     static CODE = 'E_INVALID_ARTIFACT';
 
     /**
-     * Constructor inherits implementation from BaseCustomError, 
-     * ensuring message, details, and cause are handled consistently.
-     *
-     * @param {string} message - Human-readable error message.
+     * @param {string} message - Human-readable error message explaining the validation failure.
      * @param {object} [options={}] - Error configuration options.
-     * @param {object} [options.details={}] - Specific details about the validation failure.
-     * @param {Error} [options.cause] - Underlying error.
+     * @param {object} [options.details={}] - Specific data related to the failed artifact structure (e.g., path, field name).
+     * @param {Error} [options.cause] - Underlying operational error, if any.
      */
     constructor(message, options = {}) {
         super(message, options);
+        // Explicitly set the name for reliable stack tracing and consistency.
+        this.name = 'InvalidArtifactError'; 
     }
 }
 
