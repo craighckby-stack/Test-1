@@ -3,12 +3,38 @@
  * 
  * Mechanism for reporting catastrophic failures using minimal, isolated dependencies
  * to ensure integrity even when the primary system environment is compromised.
- * This should utilize synchronous, low-level I/O paths (e.g., unbuffered file writes or dedicated telemetry channels).
+ * Utilizes synchronous, low-level I/O paths (e.g., unbuffered file writes).
+ *
+ * NOTE: Assumes a Node.js environment for synchronous filesystem access (fs).
  */
 
-// NOTE: Avoid importing heavy dependencies here. Use only native utilities or highly secured modules.
+// Default critical log path (should be overridden by CriticalPaths configuration)
+let ISOLATED_LOG_PATH = '/var/log/agi/isolated_failures.log';
+
+// Attempt to load synchronous file system handler once upon module initialization.
+// This approach centralizes environment checking and optimizes subsequent report calls.
+let fsSyncHandler = null;
+try {
+    // Check if we are in a Node-like environment before requiring 'fs'
+    if (typeof require === 'function' && typeof process !== 'undefined' && process.versions && process.versions.node) {
+        fsSyncHandler = require('fs');
+    }
+} catch (e) {
+    // fsSyncHandler remains null if module loading fails or permissions are restricted.
+}
 
 export class IsolatedFailureReporter {
+
+    /**
+     * Set the target log path for isolated failure recording.
+     * Must be called during system bootstrapping.
+     * @param {string} path - The dedicated, highly secured log file path.
+     */
+    static setLogPath(path) {
+        if (typeof path === 'string' && path.length > 0) {
+            ISOLATED_LOG_PATH = path;
+        }
+    }
 
     /**
      * Reports a critical event through the isolated channel.
@@ -22,24 +48,24 @@ export class IsolatedFailureReporter {
             ...failureData
         };
 
+        if (!fsSyncHandler) {
+            // Fallback: If synchronous handler is unavailable (e.g., non-Node environment).
+            console.error(`ISOLATED REPORTER WARNING: Synchronous I/O dependency (fs) is missing. Reporting to stderr.`);
+            console.error(JSON.stringify(report, null, 2));
+            return;
+        }
+
         try {
-            // 1. Log to a dedicated, unbuffered, append-only security log file.
-            // Using synchronous I/O ensures persistence before any subsequent crash or main thread termination.
-            const fs = require('fs'); 
+            // 1. Log to the dedicated, unbuffered, append-only security log file.
             const logEntry = JSON.stringify(report) + '\n';
             
-            // This path must be highly protected and monitored externally
-            const ISOLATED_LOG_PATH = '/var/log/agi/isolated_failures.log'; 
-
-            // Use synchronous write to guarantee immediate disk persistence
-            fs.writeFileSync(ISOLATED_LOG_PATH, logEntry, { flag: 'a' });
-
-            // 2. [Optional/Future]: Trigger secure telemetry API call (low-level communication).
+            // Use synchronous write to guarantee immediate disk persistence using append flag ('a')
+            fsSyncHandler.writeFileSync(ISOLATED_LOG_PATH, logEntry, { flag: 'a' });
 
         } catch (e) {
-            // If the isolated reporter fails (e.g., disk full, permission issue), 
-            // log this failure via console/stderr as the ultimate fallback.
-            console.error(`ISOLATED REPORTER FAILED (${e.message}): Cannot record catastrophic event.`);
+            // If the isolated reporter fails itself (e.g., disk full, permission issue), 
+            // log this failure via console/stderr as the ultimate, lowest-level fallback.
+            console.error(`ISOLATED REPORTER FATAL FAIL (${e.message}): Cannot record catastrophic event to ${ISOLATED_LOG_PATH}`);
             console.error(report);
         }
     }
