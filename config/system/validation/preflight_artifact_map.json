@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "version": "3.0",
-    "description": "Indexed map defining essential system artifacts for immediate preflight validation and secure retrieval."
+    "version": "v94.2-TEST-2",
+    "description": "Indexed map defining essential system artifacts for immediate preflight validation and secure retrieval, aligned with SOVEREIGN v94.2 Integration Protocol."
   },
   "artifact_map": {
     "TVCR": {
