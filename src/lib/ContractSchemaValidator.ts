@@ -4,10 +4,9 @@ import addFormats from 'ajv-formats';
 
 // --- Constants & Custom Error ---
 
-// NOTE: This path is often externalized to a configuration service for environments.
 const CONTRACT_PATH = 'config/TEDS_event_contract.json';
 
-class ContractInitializationError extends Error {
+export class ContractInitializationError extends Error {
     constructor(message: string, public readonly originalError?: Error) {
         super(`Contract validation initialization failed: ${message}`);
         this.name = 'ContractInitializationError';
@@ -16,12 +15,12 @@ class ContractInitializationError extends Error {
 
 // --- Interfaces for Type Safety ---
 
-interface EventPayloadDefinition {
+export interface EventPayloadDefinition {
     payloadSchema: Schema;
     description?: string;
 }
 
-interface TEDSContract {
+export interface TEDSContract {
     version: string;
     // Using Ajv Schema type improves type coherence
     defaultMetadataSchema: Schema;
@@ -30,7 +29,7 @@ interface TEDSContract {
     };
 }
 
-interface ValidationResult {
+export interface ValidationResult {
     isValid: boolean;
     errors: ErrorObject[] | null;
 }
@@ -41,51 +40,63 @@ export class EventContractValidator {
     private ajv: Ajv;
     private contract: TEDSContract;
     
-    // Allows contractPath injection for testing or flexible environment configuration
-    constructor(contractPath: string = CONTRACT_PATH) {
+    // Static helper for configuring AJV, ensuring consistent options
+    private static configureAjv(): Ajv {
         const ajv = new Ajv({ 
             allErrors: true, 
             useDefaults: true, 
             allowUnionTypes: true,
-            strict: true // Recommended for robust schema checking
+            strict: true, 
+            // Added crucial validation configuration: removes unexpected properties upon validation
+            removeAdditional: true 
         });
         addFormats(ajv);
-        this.ajv = ajv;
-        
+        return ajv;
+    }
+
+    // Allows contractPath injection for testing or flexible environment configuration
+    constructor(contractPath: string = CONTRACT_PATH) {
+        this.ajv = EventContractValidator.configureAjv();
         this.loadContract(contractPath);
     }
 
+    /**
+     * Synchronously loads the contract definition from the file system,
+     * parses it, and immediately compiles all schemas.
+     */
     private loadContract(path: string): void {
         try {
             const contractContent = fs.readFileSync(path, 'utf-8');
             this.contract = JSON.parse(contractContent) as TEDSContract;
             this.compileSchemas();
         } catch (e) {
-            // Replaced synchronous process exit with a specific error thrown during initialization
             const err = e instanceof Error ? e : new Error(String(e));
-            throw new ContractInitializationError(
-                `Could not load or parse contract file located at ${path}.`,
-                err
-            );
+            // Enhanced error message clarity
+            const message = `Could not load or parse contract file located at ${path}. Error: ${err.message}`;
+            throw new ContractInitializationError(message, err);
         }
     }
 
+    /**
+     * Compiles individual event schemas (payload + metadata wrapper) and adds them to Ajv.
+     */
     private compileSchemas(): void {
-        const eventTypes = this.contract.eventTypes || {};
+        // Use destructuring for cleaner access
+        const { eventTypes, defaultMetadataSchema } = this.contract;
         
         for (const eventName in eventTypes) {
             if (Object.prototype.hasOwnProperty.call(eventTypes, eventName)) {
                 
                 // Defines the mandatory wrapper for all events
                 const fullSchema: Schema = {
-                    $id: eventName, // Useful for introspection and internal Ajv indexing
+                    $id: eventName, 
                     type: 'object',
                     properties: {
-                        metadata: this.contract.defaultMetadataSchema,
+                        metadata: defaultMetadataSchema,
                         payload: eventTypes[eventName].payloadSchema
                     },
                     required: ['metadata', 'payload'],
-                    additionalProperties: false, // Prevents unintended fields outside metadata/payload
+                    additionalProperties: false,
                 };
                 
                 this.ajv.addSchema(fullSchema, eventName);
@@ -99,20 +110,20 @@ export class EventContractValidator {
         if (!validate) {
             return { 
                 isValid: false, 
-                errors: [{ 
-                    message: `Schema not compiled/found for event type: ${eventName}. Ensure the event name exists in the contract.`, 
+                errors: [{
+                    message: `Schema not compiled/found for event type: ${eventName}. Ensure the event name exists in the contract.`,
                     keyword: 'missingSchema',
                     instancePath: '',
                     schemaPath: '',
-                    params: {}
+                    params: { eventName } // Added context to params
                 } as ErrorObject] 
             };
         }
         
-        const isValid = validate(data);
+        const isValid = validate(data) as boolean;
         
         return {
-            isValid: isValid as boolean,
+            isValid: isValid,
             errors: validate.errors
         };
     }
