@@ -67,3 +67,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored ValidationOrchestrator to use a named export pattern for streamlined module inclusion into UNIFIER.js.
 
 > **[SYSTEM_LOG 2026-02-07]**: Relocated Adaptive Risk Configuration JSON from /protocols/ to /governance/ to comply with the Unified Governance Directive.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated MEC documentation from 'contracts/MEC.md' to 'governance/MEC.md' to consolidate governance documentation structures.
