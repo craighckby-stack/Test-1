@@ -21,3 +21,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Python ConstraintEvaluator to `src/governance/ConstraintEvaluator.js` (JS module) and initiated export preparation for the UNIFIER Protocol, simultaneously deleting the redundant internal `/utils` directory.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored ActiveStateContextManager.js to comply with DE-FRAGMENTATION, moving import reference from /utilities to /utility and verifying its readiness for UNIFIER.js integration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Refactored core/processing/ArtifactProcessor.js to use named module exports for mandatory integration into the UNIFIER protocol.
