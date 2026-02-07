@@ -81,3 +81,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Defragmented metrics schema and validation logic from /config, moving all definitions and associated validation into the new governance file: /governance/G1_MetricsSchema.js.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated P01_calculus_engine from Python to JavaScript, exporting core decision logic for UNIFIER integration and functional execution.
+
+> **[SYSTEM_LOG 2026-02-07]**: Updated config/AITM_Manifest.json schema version to V94.2 to reflect the current Integration Phase protocol.
