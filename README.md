@@ -37,3 +37,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Converted governance/GACMS_protocol.md protocol documentation into governance/GACMS_Definitions.js structure for UNIFIER compatibility and pruned the original Markdown artifact.
 
 > **[SYSTEM_LOG 2026-02-07]**: Translated system/context/TelemetryTypes.py to system/context/TelemetryTypes.ts, exporting critical system contract definitions for UNIFIER.js compatibility.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated metric processing configuration data from 'system/routines' into an exportable JS module within /utility to support centralized system integration.
