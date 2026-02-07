@@ -113,3 +113,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored IRSAMService interface definition to utilize ES Module exports for UNIFIER.js compatibility while preserving the asynchronous governance contract.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated and translated the foundational Python logging utility (LoggerSetup.py) into JavaScript (LoggerSetup.js) in the new /utility directory, enforcing structured JSON output for systemic integrity.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated GAX Policy Risk Definitions to /governance, encapsulating configuration data into an exportable PolicyRiskService module for UNIFIER integration.
