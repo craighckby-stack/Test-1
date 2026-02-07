@@ -1,71 +1,95 @@
 {
-  "config_version": "1.2.0",
-  "artifact_id": "DCM",
-  "description": "Structured Drift Control Manifest for L8 DERE operations, emphasizing decoupled trigger definitions and reusable remediation actions.",
+  "manifest_id": "DCM",
+  "version": "2.0.0",
+  "description": "Drift Control Manifest (DCM v2.0). Structured, declarative monitoring and remediation setup for L8 DERE operations. Formulas have been replaced by structured threshold comparisons.",
   "status": "ACTIVE",
-  "evaluation_schedule": {
+  "execution_context": {
     "frequency_type": "INTERVAL",
-    "interval_seconds": 3600
+    "interval_seconds": 3600,
+    "max_parallel_checks": 10
   },
-  "monitored_targets": [
+  "monitoring_targets": [
     {
       "target_id": "S-01",
       "metric_name": "System Efficacy Score",
-      "metric_type": "PERFORMANCE",
-      "data_sources": ["PREDICTIVE", "ACTUAL"],
-      "remediation_profile": "R01_CoreDrift",
-      "thresholds": {
-        "critical_drift_limit": 0.05,
-        "warning_drift_limit": 0.02,
-        "comparison_method": "PREDICTIVE_VS_ACTUAL"
+      "data_sources": [
+        "PREDICTIVE",
+        "ACTUAL"
+      ],
+      "trigger_profile_id": "TP01_CorePerformance",
+      "evaluation_strategy": {
+        "method": "PREDICTIVE_VS_ACTUAL_ABSDIFF",
+        "thresholds": {
+          "CRITICAL": 0.05,
+          "WARNING": 0.02
+        }
       }
     }
   ],
-  "drift_triggers": [
+  "trigger_profiles": [
     {
-      "profile_id": "R01_CoreDrift",
-      "description": "Trigger set for S-01 core performance degradation.",
+      "profile_id": "TP01_CorePerformance",
+      "description": "Performance degradation triggers derived from absolute difference.",
       "conditions": [
         {
           "severity": "CRITICAL",
-          "formula": "ABS(S-01.PREDICTIVE - S-01.ACTUAL) > thresholds.critical_drift_limit",
+          "threshold_ref": "CRITICAL",
           "action_ref": "A001_Recalibrate_Core"
         },
         {
           "severity": "WARNING",
-          "formula": "ABS(S-01.PREDICTIVE - S-01.ACTUAL) > thresholds.warning_drift_limit",
+          "threshold_ref": "WARNING",
           "action_ref": "A002_Report_Warning"
         }
       ]
     }
   ],
-  "action_catalogue": {
-    "A001_Recalibrate_Core": [
-      {
-        "sequence_id": "P01",
-        "action_type": "RECALIBRATE",
-        "action_target": "S-01",
-        "target_algorithm": "MODEL_A/V3",
-        "priority": 1
+  "remediation_catalogue": {
+    "A001_Recalibrate_Core": {
+      "execution_metadata": {
+        "description": "Standard recalibration sequence.",
+        "max_runtime_s": 300,
+        "rollback_ref": "A003_Soft_Rollback"
       },
-      {
-        "sequence_id": "F01",
-        "action_type": "FALLBACK",
-        "action_code": "R-01_soft_rollback",
-        "priority": 10
-      }
-    ],
-    "A002_Report_Warning": [
-      {
-        "sequence_id": "R02",
-        "action_type": "NOTIFY",
-        "channel": "SLACK_ALERT_DCM",
-        "priority": 50
-      }
-    ]
+      "sequence": [
+        {
+          "step_id": "P01",
+          "action_type": "RECALIBRATE",
+          "target_ref": "S-01",
+          "algorithm": "MODEL_A/V3",
+          "priority": 1
+        }
+      ]
+    },
+    "A002_Report_Warning": {
+      "execution_metadata": {
+        "description": "Simple notification."
+      },
+      "sequence": [
+        {
+          "step_id": "R02",
+          "action_type": "NOTIFY",
+          "channel": "SLACK_ALERT_DCM",
+          "priority": 50
+        }
+      ]
+    },
+    "A003_Soft_Rollback": {
+      "execution_metadata": {
+        "description": "Emergency soft rollback action."
+      },
+      "sequence": [
+        {
+          "step_id": "F01",
+          "action_type": "FALLBACK",
+          "strategy_code": "R-01_soft_rollback",
+          "priority": 10
+        }
+      ]
+    }
   },
-  "reporting": {
+  "reporting_config": {
     "audit_endpoint": "AIA_L8_Audit_Endpoint",
-    "error_level": "WARNING"
+    "minimum_log_level": "WARNING"
   }
 }
