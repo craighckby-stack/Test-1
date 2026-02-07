@@ -1,7 +1,12 @@
 import { GatingIntegrityAuditReport } from '../types/GatingIntegrityAuditReport';
-
-interface PolicyEngine { blockPipeline(identifier: string): Promise<void>; }
-interface AlertingService { sendAlert(alert: { severity: string, message: string }): Promise<void>; }
+import {
+    PolicyEngine,
+    AlertingService,
+    Logger,
+    RemediationService,
+    AuditStatus,
+    CheckSeverity,
+} from './governance.interfaces'; // Import scaffolded types
 
 /**
  * GateDecisionHandler
@@ -12,10 +17,19 @@ export class GateDecisionHandler {
 
     private policyEngine: PolicyEngine;
     private alertingService: AlertingService;
+    private logger: Logger;
+    private remediationService: RemediationService;
 
-    constructor(policyEngine: PolicyEngine, alertingService: AlertingService) {
+    constructor(
+        policyEngine: PolicyEngine,
+        alertingService: AlertingService,
+        logger: Logger,
+        remediationService: RemediationService
+    ) {
         this.policyEngine = policyEngine;
         this.alertingService = alertingService;
+        this.logger = logger;
+        this.remediationService = remediationService;
     }
 
     /**
@@ -25,49 +39,90 @@ export class GateDecisionHandler {
      */
     public async enforceDecision(report: GatingIntegrityAuditReport): Promise<boolean> {
         const { overallStatus } = report.auditSummary;
+        const entityId = report.entity.identifier;
 
-        if (overallStatus === 'FAIL') {
-            await this.handleFailure(report);
-            return false; // Block execution
+        switch (overallStatus) {
+            case AuditStatus.FAIL:
+                await this.handleFailure(report);
+                return false; // Block execution
+
+            case AuditStatus.CONDITIONAL:
+                // Conditional allows execution, but mandatory mitigation must be initiated first.
+                await this.handleConditionalPass(report);
+                return true; 
+
+            case AuditStatus.PASS:
+                this.logger.info(`Gate Decision: PASSED for entity ${entityId}. Status: ${overallStatus}`);
+                return true; // Full clearance
+
+            default:
+                this.logger.error(`Unknown audit status detected for ${entityId}: ${overallStatus}. Treating as failure.`);
+                // Fallback action for undefined statuses should be blocking for security/integrity.
+                await this.policyEngine.blockPipeline(entityId);
+                await this.alertingService.sendAlert({
+                    severity: CheckSeverity.CRITICAL,
+                    message: `GATING INTEGRITY FAILURE: Undefined audit status (${overallStatus}) detected for ${entityId}. Block enforced.`,
+                });
+                return false;
         }
-
-        if (overallStatus === 'CONDITIONAL') {
-            await this.handleConditionalPass(report);
-            return true; // Allow execution, but with mitigation requirement
-        }
-
-        console.log(`Gate Decision: PASSED for entity ${report.entity.identifier}.`);
-        return true; // Full clearance
     }
 
     private async handleFailure(report: GatingIntegrityAuditReport): Promise<void> {
-        const criticalViolations = report.gatingChecks.filter(c => c.severity === 'CRITICAL' && c.status === 'FAILED');
+        const entityId = report.entity.identifier;
 
+        // 1. Identify critical context
+        const criticalViolations = report.gatingChecks.filter(
+            c => c.severity === CheckSeverity.CRITICAL && c.status === AuditStatus.FAIL
+        );
+
+        // 2. Alert
         await this.alertingService.sendAlert({
-            severity: 'CRITICAL',
-            message: `GATING BLOCK enforced: Entity ${report.entity.identifier} failed audit. Violations: ${report.auditSummary.violationCount}.`,
+            severity: CheckSeverity.CRITICAL,
+            message: `GATING BLOCK enforced: Entity ${entityId} failed audit. Violations: ${report.auditSummary.violationCount}.`,
+            context: {
+                criticalCount: criticalViolations.length,
+            }
         });
 
-        // Enforce blockage at the systemic level
-        await this.policyEngine.blockPipeline(report.entity.identifier);
+        // 3. Enforce blockage
+        await this.policyEngine.blockPipeline(entityId);
 
-        if (criticalViolations.length > 0) {
-            console.error(`GATING BLOCK triggered due to ${criticalViolations.length} CRITICAL severity issues.`);
-        }
+        this.logger.error(
+            `GATING BLOCK triggered for ${entityId}. Critical violations found: ${criticalViolations.length}.`,
+            { entityId, violations: report.auditSummary.violationCount }
+        );
     }
 
     private async handleConditionalPass(report: GatingIntegrityAuditReport): Promise<void> {
+        const entityId = report.entity.identifier;
+        
         const requiredActions = report.gatingChecks
-            .filter(c => c.status === 'FAILED' && c.severity !== 'CRITICAL' && c.actionRequired && c.actionRequired.length > 0)
-            .flatMap(c => c.actionRequired);
+            .filter(c => 
+                c.status === AuditStatus.FAIL && 
+                c.severity !== CheckSeverity.CRITICAL && // Must not be critical, otherwise it would be a FAIL
+                c.actionRequired && 
+                c.actionRequired.length > 0
+            )
+            .flatMap(c => c.actionRequired!);
 
         if (requiredActions.length > 0) {
-            // In a production system, this would interact with a ticketing system or automatic remediation tool.
-            console.warn(`CONDITIONAL PASS granted for ${report.entity.identifier}. ${requiredActions.length} mitigation actions required.`);
+            
+            // Initiate mandatory external mitigation tracking (e.g., creating a JIRA ticket)
+            const trackingId = await this.remediationService.initiateMitigation(entityId, requiredActions);
+
+            this.logger.warn(
+                `CONDITIONAL PASS granted for ${entityId}. ${requiredActions.length} mitigation actions required. Tracking ID: ${trackingId}`,
+                { entityId, trackingId }
+            );
+
+            // Notify relevant teams that tracking is active
             await this.alertingService.sendAlert({ 
-                severity: 'MEDIUM', 
-                message: `Conditional passage granted. Mitigation tracking initiated for ${report.entity.identifier}.` 
+                severity: CheckSeverity.MEDIUM, 
+                message: `Conditional passage granted. Mitigation tracking initiated (ID: ${trackingId}) for ${entityId}.` 
             });
+        } else {
+            // Should theoretically not happen if the status is CONDITIONAL, but guards against empty lists.
+            this.logger.info(`Conditional status reported, but no explicit actions found for ${entityId}. Allowing passage.`);
         }
     }
 }
