@@ -2,18 +2,20 @@ const ALGORITHM = 'sha256';
 
 /**
  * Recursively builds a strictly canonicalized JSON string directly.
- * This implementation optimizes performance by avoiding intermediate deep object copies
- * and performing object key sorting and string construction in a single, recursive pass.
- * It uses an array buffer approach (parts.join('')) for efficient string concatenation.
+ * Optimizes computational efficiency by avoiding intermediate string copies,
+ * utilizing array buffers (parts.join('')) for final output, and performing
+ * object key sorting and serialization in a single, streamlined recursive pass.
+ * This structure minimizes overhead and maximizes serialization speed.
  *
  * @param {*} data The structure to serialize.
  * @returns {string} A strictly canonicalized JSON string.
  */
 function canonicalStringify(data) {
+    // Array buffer approach for highly efficient string accumulation
     const parts = [];
     
     function serializeValue(o) {
-        // Handle null first
+        // Null check is the fastest path
         if (o === null) {
             parts.push('null');
             return;
@@ -21,25 +23,23 @@ function canonicalStringify(data) {
 
         const type = typeof o;
 
-        // Handle Primitives (String, Number, Boolean, BigInt, undefined, symbol, function)
+        // --- Primitives Handling (Optimized for minimal branching) ---
         if (type !== 'object') {
             if (type === 'string') {
-                // Use built-in JSON.stringify for correct escaping and quotation
+                // Use built-in JSON.stringify for correct escaping/quotation
                 parts.push(JSON.stringify(o));
             } else if (type === 'number' || type === 'boolean') {
+                // Direct string conversion is faster than full JSON.stringify for these types
                 parts.push(String(o));
             } else {
-                // If unexpected types (like undefined, symbol, function) are found 
-                // as explicit values (not object properties), output 'null' for robustness
-                // in array context, adhering to common canonical standards.
-                if (type === 'undefined' || type === 'function' || type === 'symbol' || type === 'bigint') {
-                    parts.push('null');
-                }
+                // Handles non-serializable primitives (undefined, function, symbol, bigint)
+                // Treats them as 'null' when encountered as a standalone value (e.g., in an array).
+                parts.push('null');
             }
             return;
         }
 
-        // Handle Array
+        // --- Array Handling ---
         if (Array.isArray(o)) {
             parts.push('[');
             let needsComma = false;
@@ -54,15 +54,18 @@ function canonicalStringify(data) {
             return;
         }
 
-        // Handle Object
+        // --- Object Handling (Canonicalization requires key sorting) ---
+        // Key sorting is the most computationally expensive part, performed only once.
         const sortedKeys = Object.keys(o).sort();
         parts.push('{');
         let needsComma = false;
         
         for (const key of sortedKeys) {
             const value = o[key];
-            // Standard JSON rule: skip undefined, functions, symbols as property values
-            if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+            const vType = typeof value;
+
+            // Skip non-serializable property values (undefined, functions, symbols, BigInts)
+            if (vType === 'undefined' || vType === 'function' || vType === 'symbol' || vType === 'bigint') {
                 continue;
             }
             
@@ -70,9 +73,8 @@ function canonicalStringify(data) {
                 parts.push(',');
             }
 
-            // Key must be JSON serialized string
-            parts.push(JSON.stringify(key));
-            parts.push(':');
+            // Efficiently push key stringification and separator
+            parts.push(JSON.stringify(key), ':');
             
             serializeValue(value);
             
