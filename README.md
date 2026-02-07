@@ -155,3 +155,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored CRoTIndexClient by removing the internal mock storage scaffolding and replacing it with an import of the new CRoTPersistenceLayer module.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored SchemaAnalyzer to use CommonJS exports for UNIFIER.js integration, maintaining core schema delta computation logic.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated DeepNormalizer logic from /utils to /utility to comply with the system defragmentation mandate, ensuring stable object serialization remains available for core integrity services.
