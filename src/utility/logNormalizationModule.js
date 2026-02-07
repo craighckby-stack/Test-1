@@ -1,4 +1,20 @@
-const NormalizationError = require('./normalizationError');
+/**
+ * Custom error class for structured normalization failures.
+ * Merged from normalizationError.js to comply with pruning directives (0-5 line file deletion).
+ */
+class NormalizationError extends Error {
+    constructor(message, rawEntry, field, code = 'LNM_000') {
+        super(message);
+        this.name = 'NormalizationError';
+        this.rawEntry = rawEntry;
+        this.field = field;
+        this.code = code;
+        // Ensure the prototype chain is correctly set up for instanceof checks
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, NormalizationError);
+        }
+    }
+}
 
 /**
  * Component ID: LNM
@@ -81,8 +97,7 @@ class LogNormalizationModule {
                         `Coercion failed for field: ${key}. Input: ${rawLogEntry[key]}`,
                         rawLogEntry, key, definition.error_code || 'LNM_300' 
                     );
-                }
-            }
+                }            }
 
             // 3. Constraint/Integrity Validation
             if (definition.validator && !definition.validator(value)) {
@@ -146,4 +161,4 @@ class LogNormalizationModule {
     }
 }
 
-module.exports = LogNormalizationModule;
+module.exports = { LogNormalizationModule, NormalizationError };
