@@ -71,3 +71,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Relocated MEC documentation from 'contracts/MEC.md' to 'governance/MEC.md' to consolidate governance documentation structures.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated internal placeholder atomic check logic from DCM_Precondition_Validator to the new /governance/AtomicChecks module and fixed a scoping bug by storing the SystemStateFeed instance.
+
+> **[SYSTEM_LOG 2026-02-07]**: Refactored TelemetryTransport to use ES6 named export for UNIFIER.js compatibility.
