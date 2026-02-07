@@ -1,0 +1,31 @@
+{
+  "schema_version": "v1.0-EPC",
+  "name": "Enforcement Policy Catalog (EPC)",
+  "metadata": {
+    "status": "Active",
+    "updated_at": "2024-07-26T08:00:00Z"
+  },
+  "policies": {
+    "E-CLAMP_DENOM": {
+      "description": "Computational denominator clamping safeguard.",
+      "action_type": "RUNTIME_MITIGATION",
+      "trigger": "IMMEDIATE",
+      "payload": {
+        "function": "MathOps.clamp_low_epsilon",
+        "hard_floor": 1e-12,
+        "logging_level": "DEBUG"
+      }
+    },
+    "E-P01_DENIAL": {
+      "description": "Hard failure protocol: Denial of P-01 Finality (Core Output Write).",
+      "action_type": "MISSION_HALT",
+      "trigger": "AUDIT_FAIL",
+      "payload": {
+        "function": "System.halt_process",
+        "target_module": "P-01_FINALITY",
+        "logging_level": "ALERT",
+        "failover_mode": "READ_ONLY_LOCKDOWN"
+      }
+    }
+  }
+}
