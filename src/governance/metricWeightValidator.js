@@ -1,10 +1,10 @@
-import { METRIC_CONFIGURATIONS, GOVERNANCE_CATEGORIES } from './retirementMetricWeights';
+const { METRIC_CONFIGURATIONS, GOVERNANCE_CATEGORIES } = require('./retirementMetricWeights');
 
 /**
  * Validates the schema and consistency of the METRIC_CONFIGURATIONS.
  * Ensures data integrity before configuration load into the CORE engine.
  */
-export function validateMetricWeights() {
+function validateMetricWeights() {
     const validInfluences = ['positive', 'negative'];
     const definedCategories = Object.keys(GOVERNANCE_CATEGORIES);
     let validationErrors = [];
@@ -35,3 +35,7 @@ export function validateMetricWeights() {
     console.log("Configuration Validation SUCCESSFUL. All metrics adhere to schema.");
     return true;
 }
+
+module.exports = {
+    validateMetricWeights
+};
