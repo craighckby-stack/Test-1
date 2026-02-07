@@ -1,24 +1,91 @@
 /**
- * Trust Cache Manager (TCM) v1.0
- * Manages the persistence and retrieval of calculated agent trust scores
- * produced by the ProposalMetricsEngine (PME) for high-speed access by
- * ARCH-ATM components and decision routers.
+ * @typedef {object} CacheEntry
+ * @property {number} score - The calculated trust score.
+ * @property {number} expiry - Unix timestamp in milliseconds when the entry expires.
+ */
+
+/**
+ * Trust Cache Manager Configuration structure.
+ * @typedef {object} TrustCacheManagerConfig
+ * @property {number} [ttlSeconds=300] - Time-to-live for cache entries.
+ * @property {number} [cleanupIntervalSeconds=60] - How often the background cleanup runs.
+ */
+
+/**
+ * Trust Cache Manager (TCM) v94.1
+ * Manages the persistence and retrieval of calculated agent trust scores, implementing
+ * active garbage collection for bounded memory usage and configurable lifetime.
  */
 class TrustCacheManager {
-    constructor(ttlSeconds = 300) {
-        // Uses an in-memory Map simulation for high-speed, localized caching.
+    /**
+     * @param {TrustCacheManagerConfig} [config={}] - Configuration object.
+     */
+    constructor(config = {}) {
+        /** @type {Map<string, CacheEntry>} */
         this.cache = new Map();
-        this.ttl = ttlSeconds * 1000; // Convert seconds to milliseconds
+
+        // Default configuration settings and merging provided configuration
+        const defaultConfig = {
+            ttlSeconds: 300,
+            cleanupIntervalSeconds: 60,
+        };
+
+        this.config = { ...defaultConfig, ...config };
+        
+        this.ttl = this.config.ttlSeconds * 1000; // ms
+        this.cleanupInterval = this.config.cleanupIntervalSeconds * 1000; // ms
+        
+        this.cleanupTimer = null; 
+
+        this._startCleanupTask();
+    }
+
+    /**
+     * Initializes the periodic background task for cache cleanup.
+     * Prevents unbounded memory growth from unread, expired entries.
+     * @private
+     */
+    _startCleanupTask() {
+        if (this.cleanupInterval > 0) {
+            this.cleanupTimer = setInterval(() => {
+                this._runCleanup();
+            }, this.cleanupInterval);
+            
+            // Ensure timer does not block process exit in compatible environments
+            if (this.cleanupTimer.unref) {
+                this.cleanupTimer.unref(); 
+            }
+        }
+    }
+
+    /**
+     * Clears all expired entries from the cache in one pass.
+     * @private
+     * @returns {number} The number of items cleaned.
+     */
+    _runCleanup() {
+        const now = Date.now();
+        let cleanedCount = 0;
+        
+        for (const [key, entry] of this.cache.entries()) {
+            if (entry.expiry < now) {
+                this.cache.delete(key);
+                cleanedCount++;
+            }
+        }
+        return cleanedCount;
     }
 
     /**
      * Generates a standardized cache key based on Agent ID and Context.
-     * The context is used primarily for future proofing/segmentation, though scores are currently global.
      * @param {string} agentId 
      * @param {string} currentContext 
      * @returns {string}
      */
     _generateKey(agentId, currentContext = 'GLOBAL') {
+        if (!agentId || typeof agentId !== 'string') {
+            throw new Error("Agent ID must be a valid string.");
+        }
         return `${agentId}:${currentContext}`;
     }
 
@@ -29,10 +96,17 @@ class TrustCacheManager {
      * @param {number} score - The calculated PME score.
      */
     setScore(agentId, currentContext, score) {
+        if (typeof score !== 'number' || isNaN(score)) {
+            throw new TypeError("Score must be a valid number.");
+        }
+
         const key = this._generateKey(agentId, currentContext);
         const expiry = Date.now() + this.ttl;
-        this.cache.set(key, { score, expiry });
-        // console.log(`[TCM] Cached score for ${agentId}. Expires: ${new Date(expiry).toLocaleTimeString()}`);
+        
+        /** @type {CacheEntry} */
+        const entry = { score, expiry };
+
+        this.cache.set(key, entry);
     }
 
     /**
@@ -49,10 +123,10 @@ class TrustCacheManager {
             return null;
         }
 
-        if (entry.expiry < Date.now()) {
-            // Expired entry cleanup
+        const now = Date.now();
+        if (entry.expiry < now) {
+            // Lazy expiration check & cleanup (handles missed cleanup cycles)
             this.cache.delete(key);
-            // console.log(`[TCM] Cache entry expired for ${agentId}.`)
             return null;
         }
 
@@ -61,17 +135,33 @@ class TrustCacheManager {
 
     /**
      * Forces the invalidation of a specific score entry.
+     * @param {string} agentId 
+     * @param {string} currentContext 
      */
-    invalidate(agentId, currentContext) {
-        const key = this._generateKey(agentId, currentContext);
-        this.cache.delete(key);
+    invalidate(agentId, currentContext = 'GLOBAL') {
+        try {
+            const key = this._generateKey(agentId, currentContext);
+            this.cache.delete(key);
+        } catch (e) {
+            // Ignore invalidation errors if key generation fails
+        }
     }
 
     /**
-     * Returns the current size of the cache.
+     * Returns the current size of the cache (including potentially expired items).
      */
     size() {
         return this.cache.size;
+    }
+
+    /**
+     * Stops the background cleanup interval task. Essential for clean system shutdown.
+     */
+    stop() {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+            this.cleanupTimer = null;
+        }
     }
 }
 
