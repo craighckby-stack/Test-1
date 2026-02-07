@@ -1,9 +1,49 @@
 /**
  * @fileoverview ConceptualPolicyEvaluator
  * Executes complex, concept-specific validation policies defined within the Concept Registry.
- * This module prevents the ConceptualIntegrityEngine from becoming a large monolithic switch statement
- * by treating policies as declarative execution rules based on concept metadata.
+ * It dynamically dispatches execution requests to specific Policy Handlers registered 
+ * in the ConceptualPolicyRegistry based on the constraint type, preventing monolithic logic.
  */
+
+import { ConceptualPolicyRegistry } from './ConceptualPolicyRegistry.js';
+
+/**
+ * Executes a single conceptual constraint by looking up the appropriate handler.
+ * @typedef {{ruleId: string, detail: string, severity: string}}	Violation
+ * @param {Object} constraint The policy definition.
+ * @param {Object} context The operational context.
+ * @returns {Violation | null} The violation object if triggered, or null.
+ */
+function executeConstraint(constraint, context) {
+    const policyType = constraint.type;
+    
+    // Look up the dedicated handler function from the registry
+    const handler = ConceptualPolicyRegistry[policyType];
+
+    if (!handler) {
+        console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
+        return {
+            ruleId: 'EVAL-001',
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
+            severity: 'WARNING'
+        };
+    }
+
+    try {
+        // Handlers return the violation object or null if compliant.
+        const result = handler(constraint, context);
+        return result || null;
+
+    } catch (e) {
+        console.error(`[Policy Evaluator] Error executing constraint ${constraint.id || policyType}:`, e);
+        return {
+            ruleId: 'EVAL-002',
+            detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
+            severity: 'CRITICAL'
+        };
+    }
+}
+
 
 export const ConceptualPolicyEvaluator = {
 
@@ -11,43 +51,24 @@ export const ConceptualPolicyEvaluator = {
      * Executes all defined constraints and policies for a given concept against the current context.
      * @param {Object} concept The conceptual definition object (from ConceptRegistry).
      * @param {Object} context The operational context (e.g., file path, diff content, metadata).
-     * @returns {{isValid: boolean, violations: Array<{ruleId: string, detail: string, severity: string}>}}
+     * @returns {{isValid: boolean, violations: Array<Violation>}}
      */
     executePolicies(concept, context) {
-        const violations = [];
+        let violations = [];
 
-        // Execution logic must dynamically interpret concept.constraints or concept.validationRules.
+        // Execution logic is now purely declarative dispatch.
         if (concept.constraints && Array.isArray(concept.constraints)) {
             for (const constraint of concept.constraints) {
-
-                // Example Policy 1: Content/Syntax Check (e.g., must not remove a mandatory AGI identifier)
-                if (constraint.type === 'MandatoryMarker' && context.mutationType === 'MODIFY' && context.filePath === constraint.targetPath) {
-                    if (context.contentDiff && context.contentDiff.includes(`-${constraint.marker}`)) {
-                         violations.push({
-                            ruleId: constraint.id || 'MAND-001',
-                            detail: `Mandatory marker '${constraint.marker}' removed from critical file ${context.filePath}.`,
-                            severity: 'CRITICAL'
-                        });
-                    }
+                const violation = executeConstraint(constraint, context);
+                if (violation) {
+                    violations.push(violation);
                 }
-
-                // Example Policy 2: Architecture Rule (e.g., only specific agents can modify a specific component)
-                if (constraint.type === 'AccessControl' && context.filePath.startsWith(constraint.targetPrefix)) {
-                    if (!constraint.allowedAgents.includes(context.agentId)) {
-                        violations.push({
-                            ruleId: constraint.id || 'AC-002',
-                            detail: `Agent ${context.agentId} lacks permission to modify components prefixed by ${constraint.targetPrefix}.`,
-                            severity: 'MAJOR'
-                        });
-                    }
-                }
-
-                // NOTE: Real implementation would require dynamically loading and executing specialized rule functions.
             }
         }
 
-        // Global policies (e.g., ensuring compliance with Meta-Concept Reflection Archetype)
-        // executeSystemicPolicies(concept, context, violations);
+        // Potential integration point for broader systemic checks:
+        // const systemicViolations = executeSystemicPolicies(concept, context);
+        // violations = violations.concat(systemicViolations);
 
         return {
             isValid: violations.length === 0,
