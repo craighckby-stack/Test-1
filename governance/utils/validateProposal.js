@@ -1,41 +1,62 @@
 const { getProposalValidator } = require('../config/proposalSchemaFactory');
 
-// Pre-compile the validator using the factory pattern for centralized configuration
-const validate = getProposalValidator();
+/**
+ * Maps raw Ajv error objects to a standardized, consumable error structure.
+ * Note: This utility should ideally be replaced by importing the scaffolded 
+ * `governance/utils/formatValidationError.js` once created.
+ * 
+ * @param {Array<object>} ajvErrors 
+ * @returns {Array<object>}
+ */
+const formatErrors = (ajvErrors = []) => {
+    return ajvErrors.map(err => ({
+        path: err.instancePath, 
+        message: err.message,
+        keyword: err.keyword,
+        params: err.params,
+        schemaPath: err.schemaPath,
+    }));
+};
+
+// The validator is pre-compiled using the factory pattern for maximum efficiency.
+const proposalValidator = getProposalValidator();
 
 /**
- * Validates a proposed governance object against the GSC_SST schema.
+ * Validates a proposed governance object against the configured schema.
  * 
- * Note: Since the underlying Ajv instance uses `useDefaults: true`, 
- * the input proposalData object is mutated (coerced, defaults applied) 
- * if validation is successful. The returned `canonicalData` reflects this mutation.
+ * IMPORTANT: The input `proposalData` is internally cloned before validation to maintain
+ * functional purity and prevent side effects on the caller's object, while still allowing
+ * the underlying Ajv instance (`useDefaults: true`) to apply defaults and coercion to the copy.
+ * The processed copy is returned as `canonicalData`.
  * 
- * @param {object} proposalData - The data object submitted as a proposal (will be mutated).
+ * @param {object} proposalData - The raw data object submitted as a proposal (Immutable input).
  * @returns {{isValid: boolean, errors: array, canonicalData: object | null}}
  */
 function validateProposal(proposalData) {
-    const isValid = validate(proposalData);
+    if (typeof proposalData !== 'object' || proposalData === null) {
+        // Immediate rejection for non-object/null input
+        return { 
+            isValid: false, 
+            errors: [{ path: '', message: 'Proposal data must be a valid, non-null object.' }], 
+            canonicalData: null 
+        };
+    }
     
-    // proposalData is now the canonical (defaulted/coerced) version if isValid is true.
-    const canonicalData = isValid ? proposalData : null;
-
+    // Enforce immutability by shallow cloning the data before processing.
+    const dataToProcess = { ...proposalData }; 
+    
+    const isValid = proposalValidator(dataToProcess);
+    
     if (!isValid) {
-        // Map Ajv errors to a cleaner, standardized internal structure.
-        const errors = (validate.errors || []).map(err => ({
-            dataPath: err.instancePath,
-            message: err.message,
-            keyword: err.keyword,
-            params: err.params,
-            schema: err.schemaPath // Added for better debugging
-        }));
-
+        const errors = formatErrors(proposalValidator.errors);
         return { isValid: false, errors, canonicalData: null };
     }
 
     return { 
         isValid: true, 
         errors: [], 
-        canonicalData 
+        // dataToProcess now contains the canonical, defaulted, and coerced structure.
+        canonicalData: dataToProcess 
     };
 }
 
