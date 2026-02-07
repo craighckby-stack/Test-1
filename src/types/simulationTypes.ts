@@ -1,17 +1,17 @@
 /**
  * Simulation Configuration and Reporting Types
  * Used by PreCommitSimulationRunner (PSR) and consumed by Automated Terminal Manager (ATM).
- * Sovereign AGI v94.1 Refactoring: Introduced explicit ratio nomenclature, integrated parameters into the report for audibility, and standardized metric names.
+ * Sovereign AGI v94.1 Refactoring Rationale: Enhanced semantic clarity for ratios (e.g., tolerance, confidence), grouped audit data, and standardized state naming conventions.
  */
 
-// --- Reusable Core Types ---
+// --- Enumerated States and Core Types ---
 
 export const SIMULATION_PROCESS_STRESS_LEVELS = ['low', 'medium', 'high', 'intensive'] as const;
 /** Defines the expected stress load for the simulation run. */
 export type SimulationStressLevel = typeof SIMULATION_PROCESS_STRESS_LEVELS[number];
 
-export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'ROLLBACK_FAILURE'] as const;
-/** Defines the terminal state of the simulation outcome. */
+export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'TOLERANCE_EXCEEDED', 'SYSTEM_CRASH', 'ROLLBACK_FAILURE'] as const;
+/** Defines the terminal state of the simulation outcome. (Refactored: Added specific failure statuses for granular triage) */
 export type SimulationStatusType = typeof SIMULATION_REPORT_STATUSES[number];
 
 // --- Interface Definitions ---
@@ -21,10 +21,15 @@ export type SimulationStatusType = typeof SIMULATION_REPORT_STATUSES[number];
  */
 export interface SimulationParameters {
     readonly stressLevel: SimulationStressLevel;
-    /** Acceptable slowdown ratio relative to baseline (e.g., 0.05 for 5% tolerance). Range: 0.0 to N. */
-    readonly targetLatencyDelta: number;
+
+    /**
+     * Maximum acceptable ratio by which post-mutation latency can exceed baseline (e.g., 0.05 for 5% tolerance).
+     * Range: 0.0 to N. (Refactored name for improved semantic clarity.)
+     */
+    readonly maxAcceptableLatencyIncreaseRatio: number;
+
     /** Minimum acceptable test pass rate ratio (0.0 - 1.0). */
-    readonly requiredPassRate: number;
+    readonly requiredPassRateRatio: number;
 }
 
 /**
@@ -33,31 +38,49 @@ export interface SimulationParameters {
 export interface SimulationPerformanceMetrics {
     readonly totalTestCases: number;
     readonly passedTestCases: number;
-    /** Ratio: 0.0 - 1.0 */
-    readonly passRateRatio: number;
-    
+    /** Ratio of Passed/Total (0.0 - 1.0) */
+    readonly achievedPassRateRatio: number;
+
     /** Baseline performance value (e.g., total execution time in ms). */
     readonly baselineLatencyMs: number;
     /** Performance value after applying changes. */
     readonly postMutationLatencyMs: number;
     /** Ratio of Post / Baseline Latency (e.g., 1.1 means 10% slowdown; 0.9 means 10% improvement). */
     readonly latencyIncreaseRatio: number;
-    
+
     /** Normalized measure of resource usage relative to configured limits (0.0 = low use, 1.0 = ceiling hit). */
-    readonly resourceSaturationRatio: number; 
+    readonly resourceSaturationRatio: number;
+}
+
+/**
+ * Contains immutable metadata necessary for tracking, debugging, and compliance.
+ */
+export interface SimulationAuditData {
+    /** Unique identifier for this specific simulation execution. */
+    readonly simulationId: string;
+    /** The timestamp when the simulation run completed (milliseconds since epoch). */
+    readonly runTimestampMs: number;
+    /** The version of the Sovereign AGI that generated the change set and ran the simulation. */
+    readonly agentVersion: string;
+    /** Detailed reason for failure, exception stack, or simulation crash vector. Null if status is SUCCESS. */
+    readonly failureVector: string | null;
 }
 
 /**
  * The definitive report summarizing the outcome of a pre-commit simulation run.
  */
 export interface SimulationReport {
-    readonly runTimestamp: number;
     /** The specific configuration used for this simulation run. Critical for auditability. */
     readonly parameters: SimulationParameters;
-    /** Final score indicating prediction certainty and systemic risk assessment (0.0 - 1.0). */
-    readonly certaintyScore: number;
+
+    /**
+     * Ratio indicating the model's prediction confidence regarding the systemic stability of the mutation (0.0 = uncertain/high risk, 1.0 = certain/low risk).
+     * (Refactored from certaintyScore to better reflect risk modeling context.)
+     */
+    readonly riskPredictionConfidenceRatio: number;
+
     readonly status: SimulationStatusType;
     readonly metrics: SimulationPerformanceMetrics;
-    /** Detailed reason for failure, exception stack, or simulation crash vector. */
-    readonly failureVector: string | null;
+    /** Grouping of mandatory tracing and debugging metadata. */
+    readonly audit: SimulationAuditData;
 }
