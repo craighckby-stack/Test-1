@@ -129,3 +129,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated artifact_manifest_schema.json from /protocol to /governance, updating internal metadata to v94.2.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Severity Protocol definitions from config/governance to a new executable module within the core /governance directory to meet UNIFIER compatibility and de-fragmentation objectives.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated 'governance_forensic_artifact_catalog.json' to the unified /governance directory structure as mandated by the De-fragmentation Protocol (Objective 3).
