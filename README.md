@@ -179,3 +179,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Retained pvlm_schema_v94_1.json as a mandatory governance artifact defining the structure for Persistent Volume Lifecycle Management data validation.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated PCS_policy_server.py to /governance/PolicyConstraintServer.js (JavaScript) to enable UNIFIER integration and comply with architectural consolidation directives.
+
+> **[SYSTEM_LOG 2026-02-07]**: Modified M-02 Action Registry Schema to enforce consistency between the 'is_query_only' flag and the declared 'side_effects' using conditional validation rules.
