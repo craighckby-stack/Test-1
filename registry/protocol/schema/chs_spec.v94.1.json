@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:sovereign:schema:chs_spec_v94.1",
+  "type": "object",
+  "properties": {
+    "protocolName": {"type": "string"},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+$"},
+    "algorithms": {
+      "type": "object",
+      "properties": {
+        "default": {"type": "string"},
+        "allowed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "alias": {"type": "string"},
+              "securityLevel": {"type": "string", "enum": ["PQR-L4", "High", "Trivial"]},
+              "outputLength": {"type": "integer", "minimum": 4},
+              "postQuantumCertified": {"type": "boolean"}
+            },
+            "required": ["name", "securityLevel", "outputLength"]
+          }
+        }
+      },
+      "required": ["default", "allowed"]
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "maxPayloadSizeKB": {"type": "integer", "minimum": 1},
+        "requiredHeaders": {"type": "array", "items": {"type": "string"}},
+        "minimumAcceptableSecurityLevel": {"type": "string", "enum": ["PQR-L4", "High"]}
+      },
+      "required": ["maxPayloadSizeKB", "requiredHeaders"]
+    }
+  },
+  "required": ["protocolName", "version", "algorithms", "constraints"]
+}
