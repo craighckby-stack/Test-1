@@ -109,3 +109,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: KeyManagerService was updated to conform to the utility merger by correcting the path from /utils to /utility and maintaining its primary functional export.
 
 > **[SYSTEM_LOG 2026-02-07]**: The MitigationActionRouter class was updated to utilize explicit module exports, enabling its integration into the core UNIFIER execution fabric.
+
+> **[SYSTEM_LOG 2026-02-07]**: Refactored IRSAMService interface definition to utilize ES Module exports for UNIFIER.js compatibility while preserving the asynchronous governance contract.
