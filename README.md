@@ -73,3 +73,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated internal placeholder atomic check logic from DCM_Precondition_Validator to the new /governance/AtomicChecks module and fixed a scoping bug by storing the SystemStateFeed instance.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored TelemetryTransport to use ES6 named export for UNIFIER.js compatibility.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated C3P_State_Model.json from /system/protocols to /governance to comply with the protocol consolidation mandate.
