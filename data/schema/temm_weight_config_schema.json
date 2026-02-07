@@ -1,29 +1,35 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://sovereign.agi/temm_weight_config_schema.json",
-  "title": "TEMM Weight Configuration Schema (W08)",
-  "description": "Defines the mandatory structure and constraints for TEMM component weighting configuration (W1, W2, W3). These weights multiply the input vector scores.",
+  "title": "TEMM Score Weight Configuration (Normalized)",
+  "description": "Defines the configuration for prioritizing core operational scores (Goal Alignment, Resource Efficiency, System Resilience). All weights must be normalized [0.0, 1.0]. The runtime system enforces that these three weights sum precisely to 1.0.",
   "type": "object",
-  "properties": {
-    "GHS_weight": {
+  "definitions": {
+    "normalized_weight": {
       "type": "number",
-      "description": "W1: Weight multiplier for the Goal Alignment Score (GHS_score).",
       "minimum": 0.0,
-      "maximum": 1.0
-    },
-    "RES_weight": {
-      "type": "number",
-      "description": "W2: Weight multiplier for the Resource Efficiency Score (RES_score).",
-      "minimum": 0.0,
-      "maximum": 1.0
-    },
-    "SRS_weight": {
-      "type": "number",
-      "description": "W3: Weight multiplier for the System Resilience Score (SRS_score).",
-      "minimum": 0.0,
-      "maximum": 1.0
+      "maximum": 1.0,
+      "description": "A normalized weight multiplier between 0.0 and 1.0."
     }
   },
-  "required": ["GHS_weight", "RES_weight", "SRS_weight"],
+  "properties": {
+    "GHS_weight": {
+      "$ref": "#/definitions/normalized_weight",
+      "description": "W1: Weight multiplier for the Goal Alignment Score (GHS_score)."
+    },
+    "RES_weight": {
+      "$ref": "#/definitions/normalized_weight",
+      "description": "W2: Weight multiplier for the Resource Efficiency Score (RES_score)."
+    },
+    "SRS_weight": {
+      "$ref": "#/definitions/normalized_weight",
+      "description": "W3: Weight multiplier for the System Resilience Score (SRS_score)."
+    }
+  },
+  "required": [
+    "GHS_weight",
+    "RES_weight",
+    "SRS_weight"
+  ],
   "additionalProperties": false
 }
