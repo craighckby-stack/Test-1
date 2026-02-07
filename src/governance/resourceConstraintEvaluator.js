@@ -4,22 +4,31 @@
  * Function: Provides dynamic, real-time operational context (e.g., CPU load, I/O latency, memory pressure)
  *           to the MCRA Engine (C-11) by calculating a weighted Constraint Factor derived from tunable thresholds.
  * GSEP Alignment: Stage 3 (P-01 Input)
+ * Refactor V94.1: Introduced non-linear (squared deviation) penalty scaling and enhanced structural reporting.
  */
 
 const DEFAULT_CONSTRAINTS = {
-    cpu_util: { threshold: 0.85, weight: 0.40, severity_boost: 1.5 }, // High utilization
-    memory_used_ratio: { threshold: 0.90, weight: 0.50, severity_boost: 2.0 }, // Near critical memory pressure
-    io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.2 } // Significant I/O wait
+    // Note: Metrics are expected to be normalized ratios (0.0 to 1.0)
+    cpu_util: { threshold: 0.85, weight: 0.40, severity_boost: 2.0 }, 
+    memory_used_ratio: { threshold: 0.90, weight: 0.50, severity_boost: 3.0 }, // Higher penalty for memory, critical path resource
+    io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.5 }
 };
+
+// Constants defining the proximity (warning) zone behavior
+const PROXIMITY_BAND_START = 0.75; // Start penalty when metric hits 75% of its threshold
+const PROXIMITY_PENALTY_FACTOR = 0.15; // Max penalty fraction when in proximity zone
 
 class ResourceConstraintEvaluator {
     /**
      * @param {Object} metricsService Dependency injected service for system metrics access.
-     * @param {Object} [constraintsConfig] Optional configuration to override default risk thresholds and weights.
+     * @param {Object} [constraintsConfig] Optional configuration, ideally sourced from RuntimeThresholdManager (RTM).
      */
     constructor(metricsService, constraintsConfig = {}) {
+        if (!metricsService) {
+            throw new Error("MetricsService dependency is required for RCE.");
+        }
         this.metricsService = metricsService;
-        // Merge provided configuration over defaults. In a deployed environment, this would be provided by RTM.
+        // Merge configuration for current operational context.
         this.config = {
             ...DEFAULT_CONSTRAINTS,
             ...constraintsConfig
@@ -28,77 +37,127 @@ class ResourceConstraintEvaluator {
 
     /**
      * Internal utility to gather all raw metrics.
-     * @returns {Object} Raw metrics structure.
+     * Maps heterogeneous service outputs to a standardized, flat metric structure (0.0 to 1.0).
+     * @returns {Object<string, number>} Normalized raw metrics.
      */
     _fetchRawMetrics() {
-        const load = this.metricsService.getCurrentLoad();
-        const memory = this.metricsService.getMemoryPressure();
-        // Assuming metrics service provides a structure that can be flattened based on config keys.
-        const iowait = this.metricsService.getIOWaitFactor();
+        try {
+            const load = this.metricsService.getCurrentLoad();
+            const memory = this.metricsService.getMemoryPressure();
+            const iowait = this.metricsService.getIOWaitFactor();
 
-        // Standardizing the flat structure for easy configuration-based processing
-        return {
-            cpu_util: load.cpu_util,
-            memory_used_ratio: memory.used_ratio,
-            io_wait_factor: iowait.iowait_factor
-        };
+            return {
+                // Use nullish coalescing to safely default to 0 if sub-properties are missing
+                cpu_util: load?.cpu_util ?? 0,
+                memory_used_ratio: memory?.used_ratio ?? 0,
+                io_wait_factor: iowait?.iowait_factor ?? 0
+            };
+        } catch (error) {
+            console.error("[RCE] Metric Fetch Critical Error:", error.message);
+            // Return zeroed metrics if the underlying service fails, ensuring a safety default.
+            return {
+                cpu_util: 0,
+                memory_used_ratio: 0,
+                io_wait_factor: 0
+            };
+        }
     }
 
     /**
      * Quantifies raw metrics into a weighted, normalized constraint score using non-linear scaling beyond thresholds.
-     * @param {Object} rawMetrics - Flattened current system metrics.
-     * @returns {{score: number, triggers: Array<string>}} Calculated score and list of triggered constraints.
+     * Implements accelerated penalty using the square of normalized deviation beyond the threshold.
+     * @param {Object<string, number>} rawMetrics - Flattened current system metrics.
+     * @returns {{score: number, triggers: Array<Object>}} Calculated score and detailed list of triggered constraints.
      */
     _calculateAggregateConstraintScore(rawMetrics) {
-        let totalWeightedScore = 0;
-        let totalWeight = 0;
-        const triggeredConstraints = [];
+        let totalWeightedPenalty = 0;
+        let effectiveTotalWeight = 0;
+        const triggerDetails = [];
+
+        for (const config of Object.values(this.config)) {
+            effectiveTotalWeight += config.weight;
+        }
+
+        if (effectiveTotalWeight === 0) {
+            return { score: 0.0, triggers: [] };
+        }
 
         for (const [metricKey, config] of Object.entries(this.config)) {
             const value = rawMetrics[metricKey];
-            if (value === undefined) continue; // Skip if metric not available
+            if (value === undefined || typeof value !== 'number' || value < 0) continue;
 
             const { threshold, weight, severity_boost } = config;
-            totalWeight += weight;
 
+            let penalty = 0;
+            let triggerType = null;
+            
             if (value > threshold) {
-                // Calculate ratio above threshold
-                const ratioAboveThreshold = Math.max(0, (value - threshold)); 
+                // --- CRITICAL CONSTRAINT VIOLATION ---
                 
-                // Use a dynamic risk multiplier: exponentially penalize resources deep into critical territory.
-                const riskMultiplier = 1 + ratioAboveThreshold * severity_boost * 2; 
+                // Calculate deviation ratio relative to the remaining capacity (1.0 - threshold)
+                const remainingCapacity = 1.0 - threshold;
+                
+                const deviationRatio = remainingCapacity > 1e-6 // Epsilon check
+                    ? Math.min(1.0, (value - threshold) / remainingCapacity) 
+                    : (value > threshold ? 1.0 : 0.0);
 
-                const metricScore = weight * Math.min(3.0, riskMultiplier); // Cap multiplier influence
+                // Non-linear acceleration: Penalty accelerates based on severity_boost * square of deviation
+                // The 1 + factor ensures a minimum linear penalty plus the accelerated boost.
+                penalty = weight * deviationRatio * (1 + (deviationRatio ** 2) * severity_boost);
+                
+                // Penalty should never exceed the metric's configured weight
+                penalty = Math.min(weight, penalty);
+                
+                triggerType = 'CRITICAL';
 
-                totalWeightedScore += metricScore;
-                triggeredConstraints.push(metricKey);
-            } else if (value > threshold * 0.75) {
-                // Proximity penalty: apply a minor cost for being close to the critical zone
-                totalWeightedScore += weight * 0.1;
+            } else if (value > threshold * PROXIMITY_BAND_START) {
+                // --- PROXIMITY CONSTRAINT (WARNING ZONE) ---
+
+                // Linearly scale minor penalty based on depth into the proximity band
+                const proximityStartValue = threshold * PROXIMITY_BAND_START;
+                const proximityBandWidth = threshold - proximityStartValue;
+
+                const proximityScale = proximityBandWidth > 1e-6 
+                    ? (value - proximityStartValue) / proximityBandWidth 
+                    : 0;
+                
+                penalty = weight * PROXIMITY_PENALTY_FACTOR * proximityScale;
+                triggerType = 'PROXIMITY';
+            }
+
+            if (penalty > 0) {
+                totalWeightedPenalty += penalty;
+                triggerDetails.push({
+                    metric: metricKey,
+                    value: value.toFixed(3),
+                    threshold: threshold.toFixed(3),
+                    weight: weight.toFixed(2),
+                    penalty_contribution: penalty.toFixed(4),
+                    type: triggerType
+                });
             }
         }
 
-        // Normalize the score based on the total configured weight, capped at 1.0 (Critical Constraint)
-        const normalizedScore = Math.min(1.0, totalWeightedScore / totalWeight);
+        // Normalize the aggregated weighted penalty by the total configuration weight.
+        const normalizedScore = Math.min(1.0, totalWeightedPenalty / effectiveTotalWeight);
 
         return {
             score: normalizedScore,
-            triggers: triggeredConstraints
+            triggers: triggerDetails
         };
     }
 
-
     /**
      * Gathers current environmental constraints and quantifies them into a contextual overhead metric.
-     * @returns {{constraintMetric: number, triggeredConstraints: Array<string>, details: Object}} 
+     * @returns {{constraintMetric: number, triggeredConstraints: Array<Object>, details: Object}} 
      */
     getOperationalContext() {
         const rawMetrics = this._fetchRawMetrics();
         const scoreData = this._calculateAggregateConstraintScore(rawMetrics);
 
         return {
-            constraintMetric: scoreData.score, // Normalized factor (0.0 to 1.0)
-            triggeredConstraints: scoreData.triggers, // Explicit list of factors driving the score up
+            constraintMetric: parseFloat(scoreData.score.toFixed(4)), // Normalized factor (0.0 to 1.0)
+            triggeredConstraints: scoreData.triggers, // Detailed list of factors, including contribution
             details: rawMetrics
         };
     }
