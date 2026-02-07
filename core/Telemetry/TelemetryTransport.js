@@ -3,7 +3,7 @@
  * Handles event queueing, batch creation, flushing, and asynchronous delivery.
  */
 
-class TelemetryTransport {
+export class TelemetryTransport {
     constructor(config) {
         this.endpoint = config.endpoint;
         this.batchSize = config.batchSize || 50;
@@ -37,6 +37,7 @@ class TelemetryTransport {
 
         try {
             // Simulate HTTP POST request
+            // NOTE: 'fetch' is assumed to be globally available in the execution environment (Node 18+ or polyfilled).
             const response = await fetch(this.endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -61,5 +62,3 @@ class TelemetryTransport {
         }
     }
 }
-
-module.exports = TelemetryTransport;
