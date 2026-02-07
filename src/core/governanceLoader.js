@@ -6,19 +6,10 @@
 
 import fs from 'fs';
 import yaml from 'js-yaml';
-import Joi from 'joi';
 import logger from '../utils/logger';
-import ConfigPaths from '../config/ConfigPaths'; // Import proposed centralized path utility
-
-// Define the required immutable schema for external governance controls
-// Immutability is critical for compliance and deterministic operation.
-const GovernanceSchema = Joi.object({
-    required_confidence_default: Joi.number().min(0).max(1).strict().required().label('Required Confidence Default'),
-    risk_model_weights: Joi.object().pattern(Joi.string().strict(), Joi.number().strict()).required().label('Risk Model Weights'),
-    atm_decay_rate: Joi.number().min(0).max(1).strict().required().label('ATM Decay Rate'),
-    // Allows governance file to temporarily override strictness if migration requires it
-    strict_validation: Joi.boolean().default(true).label('Strict Validation Flag'),
-}).unknown(false); // Disallow unknown properties by default (high compliance standard)
+import ConfigPaths from '../config/ConfigPaths';
+import GovernanceSchema from './governance/GovernanceSchema'; // Import decoupled schema
+import { GovernanceKeys } from './governance/GovernanceKeys'; // Import keys for safe accessors
 
 class GovernanceLoader {
     constructor() {
@@ -31,25 +22,39 @@ class GovernanceLoader {
      * @returns {Object} The validated configuration object.
      */
     _loadAndValidateConfig(path) {
-        const fileContents = fs.readFileSync(path, 'utf8');
-        const rawConfig = yaml.load(fileContents);
-        
-        // Determine validation strictness based on the governance file itself
-        const validationOptions = {
-            abortEarly: false,
-            allowUnknown: rawConfig.strict_validation === false
-        };
+        try {
+            const fileContents = fs.readFileSync(path, 'utf8');
+            const rawConfig = yaml.load(fileContents);
+            
+            // Determine validation strictness based on the governance file itself
+            const validationIsStrict = rawConfig[GovernanceKeys.STRICT_VALIDATION] !== false;
 
-        const { error, value } = GovernanceSchema.validate(rawConfig, validationOptions);
+            const validationOptions = {
+                abortEarly: false,
+                allowUnknown: !validationIsStrict, // Allow unknowns if strict_validation is explicitly false
+                stripUnknown: validationIsStrict, // Strip unknown properties if strict (cleaner final config)
+            };
 
-        if (error) {
-            logger.error('Governance Configuration Validation Failed:', error.details);
-            // Aggregate validation errors into a clean message
-            const errorMessages = error.details.map(d => `${d.context.label} [${d.type}]: ${d.message}`).join('; ');
-            throw new Error(`Validation Error Summary: ${errorMessages}`);
+            const { error, value } = GovernanceSchema.validate(rawConfig, validationOptions);
+
+            if (error) {
+                // Improved structured error reporting
+                const errorMessages = error.details
+                    .map(d => `[${d.path.join('.') || 'Root'}]: ${d.message}`)
+                    .join('; ');
+
+                logger.error('Governance Configuration Validation Failed. Strictness:', validationIsStrict, { errors: error.details.length });
+                throw new Error(`Governance Contract Validation Failed: ${errorMessages}`);
+            }
+            
+            return value;
+        } catch (e) {
+            // Standardize exceptions from file access or YAML parsing
+            if (e.name === 'YAMLException' || e.code === 'ENOENT') {
+                throw new Error(`File access/parsing failed: ${e.message}`);
+            }
+            throw e; // Re-throw validation errors
         }
-        
-        return value;
     }
 
     /**
@@ -58,7 +63,7 @@ class GovernanceLoader {
      */
     initialize() {
         if (this._config) {
-            logger.warn('Governance configuration already initialized. Skipping reload.');
+            logger.debug('Governance configuration already initialized. Skipping reload.');
             return this._config;
         }
 
@@ -67,8 +72,11 @@ class GovernanceLoader {
         try {
             const validatedConfig = this._loadAndValidateConfig(configPath);
             
+            // Remove the internal 'strict_validation' key before freezing the exposed configuration
+            const { [GovernanceKeys.STRICT_VALIDATION]: _, ...exposedConfig } = validatedConfig;
+            
             // Enforce immutability upon successful loading to ensure governance contract stability
-            this._config = Object.freeze(validatedConfig); 
+            this._config = Object.freeze(exposedConfig); 
             logger.info('Governance configuration loaded and verified (Immutable).');
             return this._config;
 
@@ -85,7 +93,7 @@ class GovernanceLoader {
      */
     get config() {
         if (!this._config) {
-             throw new Error('Governance configuration not initialized. Call initialize() first.');
+             throw new Error('Sovereign AGI Initialization Failure: Governance configuration not established. Call initialize() first.');
         }
         return this._config; 
     }
@@ -95,8 +103,8 @@ class GovernanceLoader {
      */
     getRiskThresholds() {
         return {
-            requiredConfidenceDefault: this.config.required_confidence_default,
-            riskWeights: this.config.risk_model_weights
+            requiredConfidenceDefault: this.config[GovernanceKeys.REQUIRED_CONFIDENCE_DEFAULT],
+            riskWeights: this.config[GovernanceKeys.RISK_MODEL_WEIGHTS]
         };
     }
     
@@ -105,7 +113,7 @@ class GovernanceLoader {
      */
     getAtmSettings() {
         return {
-            decayRate: this.config.atm_decay_rate,
+            decayRate: this.config[GovernanceKeys.ATM_DECAY_RATE],
         };
     }
 }
