@@ -2,6 +2,7 @@
 
 const sha512 = require('../utils/cryptoUtils');
 const CIMIntegrityError = require('../system/CIMIntegrityError');
+const { CIM_CODES, CRITICAL_TARGETS } = require('./CIMGovernanceCodes');
 
 /**
  * Component: CIM (Configuration Integrity Monitor) v94.1
@@ -12,24 +13,20 @@ const CIMIntegrityError = require('../system/CIMIntegrityError');
  */
 class ConfigIntegrityMonitor {
     
-    // Defines the critical configuration files that MUST be integrity monitored.
-    static get CRITICAL_TARGETS() {
-        return Object.freeze([
-            'config/governance.yaml', 
-            'config/veto_mandates.json'
-        ]);
-    }
+    /**
+     * CRITICAL_TARGETS are now sourced from CIMGovernanceCodes for separation of concerns.
+     */
 
     /**
      * @param {object} dependencies 
-     * @param {object} dependencies.auditLogger - D-01 Interface for logging. Must implement logCritical, logSystemEvent, logSecurityUpdate.
-     * @param {object} dependencies.proposalManager - A-01 Interface for staging approval checks. Must implement retrieveApprovedHash.
+     * @param {object} dependencies.auditLogger - D-01 Interface for logging.
+     * @param {object} dependencies.proposalManager - A-01 Interface for staging approval checks.
      * @param {object} dependencies.policyLedgerInterface - Dedicated D-01 I/O interface (Must implement getPolicyHashes, storeNewIntegrityHash).
      * @param {string[]} [configPaths] - Optional list of paths to monitor. Defaults to CRITICAL_TARGETS.
      */
-    constructor({ auditLogger, proposalManager, policyLedgerInterface }, configPaths = ConfigIntegrityMonitor.CRITICAL_TARGETS) {
+    constructor({ auditLogger, proposalManager, policyLedgerInterface }, configPaths = CRITICAL_TARGETS) {
         if (!auditLogger || !proposalManager || !policyLedgerInterface) {
-            throw new Error("CIM Initialization Failure (E941A): Essential interfaces (Logger, A-01, D-01) required.");
+            throw new Error(`CIM Initialization Failure (${CIM_CODES.INIT_FAILURE}): Essential interfaces required.`);
         }
         
         this.auditLogger = auditLogger; 
@@ -39,12 +36,12 @@ class ConfigIntegrityMonitor {
         // Ensure configuration set is frozen and defensive copy is used.
         this.configPaths = Object.freeze([...new Set(configPaths)]); 
         
-        this.currentHashes = {}; // Map<filePath, expectedHash>
+        this._currentHashes = {}; // Renamed for clarity of internal state
         this.isReady = false;
         
         // Runtime validation check for critical D-01 methods
         if (typeof this.policyLedgerInterface.getPolicyHashes !== 'function') {
-             throw new TypeError("PolicyLedgerInterface missing required method: getPolicyHashes.");
+             throw new TypeError(`PolicyLedgerInterface missing required method: getPolicyHashes. Code: ${CIM_CODES.LEDGER_INTERFACE_MISSING}`);
         }
     }
 
@@ -56,7 +53,8 @@ class ConfigIntegrityMonitor {
     async initialize() {
         if (this.isReady) return; // Idempotency check
 
-        this.auditLogger.logSystemEvent("CIM_INIT", "Attempting secure checksum load from D-01.", { targets: this.configPaths.length });
+        const context = { targets: this.configPaths.length };
+        this.auditLogger.logSystemEvent("CIM_INIT_START", "Attempting secure checksum load from D-01.", context);
         
         try {
             // Securely fetch hashes
@@ -64,20 +62,21 @@ class ConfigIntegrityMonitor {
 
             // Critical validation: Ensure all defined paths were retrieved and are valid strings.
             for (const path of this.configPaths) {
-                if (!fetchedHashes[path] || typeof fetchedHashes[path] !== 'string' || fetchedHashes[path].length < 64) {
+                const hash = fetchedHashes[path];
+                if (!hash || typeof hash !== 'string' || hash.length < 64) {
                     // Fail fast if D-01 is missing integrity data for a mandatory target.
-                    throw new Error(`Mandatory integrity hash missing or invalid from D-01 for path: ${path}`);
+                    throw new Error(`Mandatory integrity hash missing or invalid from D-01 for path: ${path}. Hash length failure.`);
                 }
             }
 
-            this.currentHashes = fetchedHashes;
+            this._currentHashes = fetchedHashes;
             this.isReady = true;
             this.auditLogger.logSystemEvent("CIM_INIT_SUCCESS", `CIM operational, monitoring ${this.configPaths.length} targets.`);
         } catch (error) {
-             const context = { paths: this.configPaths, error: error.message };
-             this.auditLogger.logCritical("CIM_INIT_VETO", "Failed to establish CIM operational state. Potential security vulnerability or Ledger failure.", context);
-             // Re-throw to halt system startup.
-             throw new Error(`CIM initialization fatal error: ${error.message}`);
+             const failureContext = { paths: this.configPaths, detail: error.message };
+             this.auditLogger.logCritical(CIM_CODES.INIT_VETO, "Failed to establish CIM operational state. Potential security vulnerability or Ledger failure.", failureContext);
+             // Re-throw to halt system startup with standardized failure code.
+             throw new Error(`CIM initialization fatal error (${CIM_CODES.INIT_FATAL}): ${error.message}`);
         }
     }
 
@@ -91,30 +90,35 @@ class ConfigIntegrityMonitor {
      */
     checkIntegrity(filePath, currentContent) {
         if (!this.isReady) {
-            throw new Error("CIM State Error: Operational Integrity Monitor must be initialized before use (E941B).");
+            throw new Error(`CIM State Error: Must be initialized before use. Code: ${CIM_CODES.UNINITIALIZED_ACCESS}`);
         }
 
-        const knownHash = this.currentHashes[filePath];
+        const knownHash = this._currentHashes[filePath];
         
         if (!knownHash) {
-            // Code D941C: Untracked path veto. Policy violation (Targeted file added without D-01 registration).
-            const err = `Configuration path '${filePath}' is untracked by Policy Ledger. Integrity Veto D941C Issued.`;
-            this.auditLogger.logCritical("CIM_UNTRACKED_VETO", err, { file: filePath });
-            // CIMIntegrityError should handle the classification
-            throw new CIMIntegrityError(err, filePath, 'UNTRACKED_CONFIG'); 
+            // D941C: Untracked path veto. Policy violation.
+            const msg = `Configuration path '${filePath}' is untracked by Policy Ledger. Integrity Veto Issued.`;
+            this.auditLogger.logCritical(CIM_CODES.UNTRACKED_VETO, msg, { file: filePath });
+            // CIMIntegrityError handles the classification
+            throw new CIMIntegrityError(msg, filePath, 'UNTRACKED_CONFIG'); 
         }
 
         const computedHash = sha512(currentContent);
         
         if (knownHash !== computedHash) {
-            // Code D941D: Hash mismatch veto. Security failure (Unauthorized mutation).
-            const msg = `Integrity failure detected on '${filePath}'. Hash mismatch (D941D). Mutation suspected.`;
-            // Log only a truncated version of the actual hash to prevent accidental leakage/over-logging of sensitive state
-            this.auditLogger.logCritical("CIM_MUTATION_VETO", msg, { file: filePath, expected: knownHash.substring(0, 16) + '...', actual: computedHash.substring(0, 16) + '...' });
+            // D941D: Hash mismatch veto. Security failure (Unauthorized mutation).
+            const msg = `Integrity failure detected on '${filePath}'. Hash mismatch. Mutation suspected.`;
+            // Log only a truncated version of the actual hash for security/brevity
+            const logContext = { 
+                file: filePath, 
+                expected: knownHash.substring(0, 16) + '...', 
+                actual: computedHash.substring(0, 16) + '...' 
+            };
+            this.auditLogger.logCritical(CIM_CODES.MUTATION_VETO, msg, logContext);
             throw new CIMIntegrityError(msg, filePath, 'HASH_MISMATCH');
         }
         
-        this.auditLogger.logSystemEvent("CIM_VERIFIED", `Integrity of ${filePath} verified successfully.`);
+        this.auditLogger.logSystemEvent("CIM_VERIFIED", `Integrity of ${filePath} verified successfully.`, { file: filePath });
         return true;
     }
 
@@ -134,29 +138,30 @@ class ConfigIntegrityMonitor {
         const approvedStateDigest = this.proposalManager.retrieveApprovedHash(filePath);
 
         if (!approvedStateDigest || typeof approvedStateDigest !== 'string' || approvedStateDigest.length < 64) {
-            const context = { file: filePath, digest: approvedStateDigest };
-            this.auditLogger.logCritical("CIM_RECORD_UPDATE_VETO", `Integrity update rejected (E941E). Missing valid approved A-01 state digest.`, context);
+            const context = { file: filePath, digestLength: (approvedStateDigest ? approvedStateDigest.length : 0) };
+            this.auditLogger.logCritical(CIM_CODES.UPDATE_VETO, `Integrity update rejected. Missing valid approved A-01 state digest.`, context);
             throw new Error("Integrity record update vetoed. Missing valid A-01 approval stage data.");
         }
 
-        const oldHash = this.currentHashes[filePath] || 'N/A';
+        const oldHash = this._currentHashes[filePath] || 'N/A';
         
-        // Tentative local update
-        this.currentHashes[filePath] = approvedStateDigest;
+        // Stage tentative local update
+        this._currentHashes[filePath] = approvedStateDigest;
         
         try {
-            // Durable commit to secure ledger
+            // Durable commit to secure ledger (D-01)
             await this.policyLedgerInterface.storeNewIntegrityHash(filePath, approvedStateDigest); 
             
             this.auditLogger.logSystemEvent("CIM_RECORD_COMMITTED", `Integrity digest for ${filePath} securely updated in D-01.`, {
+                file: filePath,
                 oldHash: oldHash.substring(0, 16) + '...', 
                 newHash: approvedStateDigest.substring(0, 16) + '...'
             });
 
         } catch (error) {
-            // CRITICAL RECOVERY: If D-01 commit fails, revert the in-memory state to preserve consistency.
-            this.currentHashes[filePath] = oldHash;
-            this.auditLogger.logCritical("D01_COMMIT_FAILURE", `Failed to commit new hash for ${filePath}. Local state reverted. CIM state unstable.`, { error: error.message });
+            // CRITICAL RECOVERY: If D-01 commit fails, revert the in-memory state to preserve security consistency (using the old, verified hash).
+            this._currentHashes[filePath] = oldHash;
+            this.auditLogger.logCritical(CIM_CODES.D01_COMMIT_FAILURE, `Failed to commit new hash for ${filePath}. Local state reverted. CIM state unstable.`, { file: filePath, error: error.message });
             throw error; // Propagate failure to halt the deployment process.
         }
     }
