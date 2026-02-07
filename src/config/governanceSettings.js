@@ -1,16 +1,16 @@
 /**
- * Governance Settings Configuration Provider (v94.1 - Refactored)
+ * Governance Settings Configuration Provider (v94.1 - Intelligent Refactor)
  * Manages system-wide Governance Health Monitor (GHM) parameters.
- * Utilizes a structured schema and automated type coercion for environment overrides.
+ * Enhances environment override handling, leveraging external (or stubbed) utilities for complex JSON coercion and deep immutability.
  */
 
-// --- Internal Helper for Defensive Type Coercion ---
+// --- UTILITY 1: Primitive Type Coercion ---
 
 /**
- * Safely coerces a string value (typically from process.env) to the required type.
- * Handles number parsing (int/float), robust boolean checks, and defaults if invalid.
+ * Safely coerces a string value to the required primitive type (int, float, bool, string).
+ * NOTE: This utility is marked for extraction to src/utils/config/coercePrimitiveValue.js in subsequent evolution steps.
  */
-const coerceValue = (value, type, defaultValue) => {
+const coercePrimitiveValue = (value, type, defaultValue) => {
     if (value === undefined || value === null) {
         return defaultValue;
     }
@@ -35,12 +35,44 @@ const coerceValue = (value, type, defaultValue) => {
             if (['false', '0', 'f', 'n', 'no'].includes(val.toLowerCase())) {
                 return false;
             }
-            // If ENV value is ambiguous or invalid, return original default
             return defaultValue;
         default:
             return val; // String
     }
 };
+
+// --- UTILITY 2: Safe JSON Coercion and Deep Immutability (Stub) ---
+
+/**
+ * STUB: Placeholder for the robust external JSON coercer utility (see scaffold).
+ * It handles ENV string parsing and deep immutability enforcement for complex objects.
+ */
+const safeJsonCoercer = (envString, defaultValue) => {
+    let coercedValue = defaultValue;
+
+    if (envString) {
+        try {
+            const parsed = JSON.parse(String(envString).trim());
+            if (typeof parsed === 'object' && parsed !== null) {
+                coercedValue = parsed;
+            }
+        } catch (e) {
+            console.warn(`[GHM Config] Failed to parse complex JSON setting (ENV: ${envString ? 'Provided' : 'Missing'}). Using default.`);
+        }
+    }
+
+    // Defensive deep freezing and copying is essential for governance reliability
+    const deepFreeze = (obj) => {
+        if (typeof obj !== 'object' || obj === null || Object.isFrozen(obj)) return obj;
+        Object.keys(obj).forEach(key => deepFreeze(obj[key]));
+        return Object.freeze(obj);
+    };
+
+    // Use deep copy (JSON parsing is efficient for clean data structures here) before freezing
+    const finalObject = JSON.parse(JSON.stringify(coercedValue)); 
+    return deepFreeze(finalObject);
+};
+
 
 // --- Configuration Schema Metadata Definition ---
 
@@ -53,21 +85,20 @@ const GOVERNANCE_SCHEMA = {
     GHM_MAX_VIOLATIONS_TOLERANCE: { default: 5, env: 'GHM_MAX_VIOLATIONS', type: 'int' },
     GHM_HEALTH_MONITOR_ENABLED: { default: true, env: 'GHM_MONITOR_ENABLED', type: 'bool' },
     
-    // Complex Configuration Object (Not primitive ENV overrideable by default, requires dedicated JSON utility)
     GHM_COMPONENT_CRITICALITY_WEIGHTS: {
         default: {
             mcraEngine: 1.5,
             atmSystem: 1.0,
             policyEngine: 1.2
         },
-        env: 'GHM_CRITICALITY_WEIGHTS_JSON', // Placeholder for future JSON coercion utility integration
+        env: 'GHM_CRITICALITY_WEIGHTS_JSON',
         type: 'object'
     },
 };
 
 /**
  * Initializes and finalizes the system governance configuration.
- * Applies environment overrides based on the defined schema and enforces immutability.
+ * Applies environment overrides based on the defined schema and enforces complete immutability.
  * @returns {object} The finalized, immutable governance configuration.
  */
 function initializeGovernanceSettings() {
@@ -78,24 +109,15 @@ function initializeGovernanceSettings() {
         const envValue = process.env[schema.env];
 
         if (schema.type === 'object') {
-            // For complex objects, use the default and ensure it is defensively copied/frozen.
-            // NOTE: Future integration point for src/utils/config/safeJsonCoercer.js
-            let complexObject = schema.default;
-
-            // Defensive deep copy before freezing sub-objects
-            settings[key] = JSON.parse(JSON.stringify(complexObject));
-            Object.freeze(settings[key]);
-        }
-        else if (schema.env) {
-            // Apply defensive type coercion
-            settings[key] = coerceValue(envValue, schema.type, schema.default);
+            // Use robust utility for JSON parsing and mandatory deep freezing
+            settings[key] = safeJsonCoercer(envValue, schema.default);
         } else {
-             // Simple assignment for non-env specific keys (should rarely happen with this schema approach)
-             settings[key] = schema.default;
+            // Use robust utility for primitive type conversion
+            settings[key] = coercePrimitiveValue(envValue, schema.type, schema.default);
         }
     }
 
-    // Final shallow freeze ensures top-level settings cannot be changed.
+    // Final shallow freeze ensures top-level settings object cannot be reassigned.
     return Object.freeze(settings);
 }
 
@@ -103,6 +125,16 @@ const GOVERNANCE_SETTINGS = initializeGovernanceSettings();
 
 module.exports = {
     GOVERNANCE_SETTINGS,
-    /** @param {string} key */
-    getSetting: (key) => GOVERNANCE_SETTINGS[key]
+    /** 
+     * Retrieves a governance setting.
+     * @param {string} key
+     * @returns {*} The configuration value (immutable).
+     */
+    getSetting: (key) => {
+        if (!GOVERNANCE_SETTINGS.hasOwnProperty(key)) {
+            // Log warning if accessing an undocumented/non-existent setting
+            console.warn(`GHM: Attempted to access unknown governance setting: ${key}`);
+        }
+        return GOVERNANCE_SETTINGS[key];
+    }
 };
