@@ -1,47 +1,47 @@
-# SSP-01: SOVEREIGN STATE FINALIZATION SPECIFICATION (v3.1)
+# SSC-01: SOVEREIGN STATE COMMITMENT SPECIFICATION (v4.0)
 
 ---
 protocol_id: SSC-01
 stage: 7 (Terminal Finalization)
-version: 3.1
+version: 4.0
 governing_standard: Sovereign State Commitment Mandate (SSCM)
 ---
 
-## 1. MISSION SCOPE & ENFORCEMENT
-SSC-01 executes as the terminal verification gate (Stage 7) of the System Evolution Cycle. Its singular purpose is the enforcement of the Systemic Truth Anchor (STA) through cryptographically verifiable, irreversible state finalization. It guarantees that the system's operational configuration is derived exclusively from GSEP-certified data structures.
+## 1. SCOPE AND GOVERNANCE
+SSC-01 serves as the terminal Cryptographic Trust Anchor within the System Evolution Cycle (SEC). Its sole mandate is the irreversible, cryptographically verifiable enforcement of the Systemic Truth Anchor (STA), guaranteeing that the operational state is an absolute, immutable derivation of the preceding stages' validated output (GSEP-compliant data). This ensures TCB integrity before activation.
 
-## 2. ATOMIC EXECUTION PRE-CONDITIONS
-SSC-01 SHALL operate exclusively upon receipt of the Stage 6 completion signal and successful Genesis State Evolution Protocol (GSEP) verification. Execution MUST be atomic, achieving system configuration finality or an immediate hard halt.
+## 2. ATOMICITY AND PRE-CONDITIONS
+SSC-01 execution SHALL initiate only upon validated receipt of the Stage 6 completion signal and successful GSEP integrity verification. The entire process MUST execute as an atomic transaction (Commit or Halt). Failure to achieve full commitment mandates an immediate hard halt and state preservation (HALT/C7.0).
 
-## 3. STATE FINALIZATION SEQUENCE
+## 3. STATE COMMITMENT SEQUENCE
 
-### 3.1. Proof Ingestion & Canonical Artifact Registry (CAR)
-SSC-01 MUST synchronously retrieve and validate the required integrity artifacts, collectively forming the Canonical Artifact Registry (CAR). Failure to validate any component triggers E7.1/E7.4 immediately.
+### 3.1. Cryptographic Attestation Matrix (CAM) Ingestion
+SSC-01 MUST synchronously retrieve, validate, and hash the mandatory integrity artifacts, forming the Cryptographic Attestation Matrix (CAM). Validation failure of any component triggers HALT/C7.1 immediately.
 
-| Artifact ID | Source Stage | Purpose | Reference |
+| Artifact ID | Source Stage | Purpose | Enforcement Scope |
 | :--- | :--- | :--- | :--- |
-| GSH | Stage 0 | System Lock Anchor | Genesis System Lock Hash |
-| DSCR | Stage 4 | Canonical State Proof | Deterministic State Checkpoint Registry |
-| ISLR | Stage 5 | Proof-of-Sequence Reference | Immutable State Ledger Reference (LDR-01) |
-| ORC | Stage 6 | Post-Audit Confirmation | Operational Readiness Confirmation Manifest |
+| GSLH | Stage 0 | System Lock Anchor | Genesis Immutability Guarantee |
+| DSCR | Stage 4 | Canonical State Proof | Deterministic Configuration Baseline |
+| ISLR | Stage 5 | Proof-of-Sequence Reference | Immutability Ledger (LDR-01) Chain-of-Custody |
+| ORC | Stage 6 | Post-Audit Confirmation | Operational Readiness Manifest (D-02 Certification) |
 
-### 3.2. SCM Synthesis & Commitment Hash Generation
-The finalized System Configuration Manifest (SCM) structure (defined by `schemas/SCM_v3.json`) SHALL be assembled from the validated CAR inputs. The SCM Root Hash MUST be calculated using the mandatory double-hashing algorithm (SHA3-512^2).
+### 3.2. SCM Synthesis and Deterministic Commitment Hash (DCH) Generation
+The System Configuration Manifest (SCM) SHALL be synthetically constructed strictly adhering to the mandated schema (`schemas/SCM_v3.json`). The resulting SCM structure, compounded with the CAM artifacts, SHALL be hashed to generate the Deterministic Commitment Hash (DCH) using the mandated SHA3-512^2 algorithm.
 
-### 3.3. Identity Binding & Signature Sealing
-The calculated SCM MUST be sealed and bound using the Sovereign Core Signing Key (SCSK). The operation SHALL retrieve Key Validation Metadata (KVM-01) dynamically to ensure SCSK liveness and authorization legitimacy before applying the irrevocable cryptographic signature.
+### 3.3. Identity Binding and Sealing
+I. **Key Validation:** Retrieve dynamic Key Validation Metadata (KVM-01) to verify the liveness, authorization, and validity of the Sovereign Core Signing Key (SCSK).
+II. **Signature Application:** The finalized SCM, bound by the DCH, MUST be irrevocably sealed using the attested SCSK.
 
-### 3.4. Activation Trigger & Dissemination
-The signed SCM is published to the authoritative System Configuration Plane (SCP) and disseminated via the System Broadcast Channel (SBC). This action constitutes the globally coherent, immutable atomic configuration activation trigger, commanding immediate module synchronization.
+### 3.4. Activation Dissemination
+The cryptographically signed SCM is broadcasted via the System Broadcast Channel (SBC) and published to the authoritative System Configuration Plane (SCP). This transmission serves as the globally coherent atomic activation trigger, enforcing immediate module synchronization against the new, committed state.
 
-## 4. IMMUTABILITY & EXCEPTION ENFORCEMENT
+## 4. EXCEPTION MANDATES
 
-SSC-01 enforces strict immutability. If any of the following conditions are met, SSC-01 MUST halt publication, persist the forensic state (P7.5), and issue the *Rollback Mandate (RBM-01)* signal (E7.4).
+SSC-01 enforces a non-negotiable failure state if TCB integrity is compromised. Upon meeting any of the following conditions, SSC-01 MUST immediately halt publication, persist the full forensic state (P7.5), and issue the *Rollback Mandate (RBM-01)* signal to the Governing Core Orchestrator (GCO).
 
-| Code | Exception Type | Condition |
-| :--- | :--- | :--- |
-| **E7.1** | Commitment Failure | The calculated SCM Root Hash fails to match the expected hash commitment recorded within the ISLR (LDR-01). |
-| **E7.2** | Operational Malignancy | The ORC Manifest reports any flagged anomaly or non-optimal flag derived during Stage 6 (D-02 detection). |
-| **E7.3** | Identity Key Breach | The KVM-01 module reports unavailability, revocation, or compromise of the mandated SCSK. |
-
-The issuance of RBM-01 is directed preemptively to the Governing Core Orchestrator (GCO), independent of standard operational feedback loops.
+| Code | Exception Type | Condition | Handler Trigger |
+| :--- | :--- | :--- | :--- |
+| **HALT/C7.1** | CAM Integrity Breach | Failure to validate or ingest a required artifact defined in Section 3.1. | Halt/P7.5/RBM-01 |
+| **HALT/C7.2** | Hash Mismatch | The calculated DCH fails to align with the expected commitment recorded within the ISLR (LDR-01). | Halt/P7.5/RBM-01 |
+| **HALT/C7.3** | Identity Key Compromise | KVM-01 reports revocation, non-attestation, or unauthorized usage of the mandated SCSK. | Halt/P7.5/RBM-01 |
+| **HALT/C7.4** | Operational Malignancy | The ORC manifest explicitly flags a persistent anomaly (non-zero D-02 threat score). | Halt/P7.5/RBM-01 |
