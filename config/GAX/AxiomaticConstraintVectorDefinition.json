@@ -1,5 +1,5 @@
 {
-  "schema_version": "v94.1",
+  "schema_version": "v94.2",
   "description": "Defines the baseline qualitative (Policy) and quantitative (Constraint) invariants enforced by the GAX Axiomatics Agent during GSEP-C Stages. This structure separates static constraints from dynamic state manifests (MPAM, PVLM).",
   "constraint_vector_id": "CVD-2024Q3-02-REVISED",
   "policy_prohibitions": [
