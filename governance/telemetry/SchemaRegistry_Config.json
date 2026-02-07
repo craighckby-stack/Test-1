@@ -1,17 +1,1 @@
-{
-  "SchemaRegistry": {
-    "endpoint": "https://config.sovereign.agi/schema/v1/",
-    "cache_ttl_seconds": 3600,
-    "security_level": "LEVEL_3_ENFORCED",
-    "mandatory_approval_workflows": [
-      "SCHEMA_REVIEW_TEAM_A",
-      "SAFETY_CERTIFICATION_TEAM"
-    ],
-    "default_serialization_format": "Protobuf_V3",
-    "schema_mapping_policy": {
-      "description": "Maps stream prefixes to logical registry paths for lookup efficiency.",
-      "S-10X": "core_kernel_runtime",
-      "S-50X": "fusion_net_control"
-    }
-  }
-}
+[object Object]
