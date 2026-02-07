@@ -5,25 +5,31 @@
 
 // --- Dependencies ---
 const { validateSchema } = require('@governance/payloadSchemaValidator');
-// Load the schema definitions dynamically, decoupling selection from import.
 const payloadSchemas = require('@config/schemas/mutationPayload.json'); 
 const { PayloadSchemaError } = require('./errors/PayloadSchemaError'); 
 const Logger = require('@utils/Logger'); 
+const Config = require('@config/ConfigurationLoader'); // [NEW: Centralized Configuration]
 
 const SUBSYSTEM_ID = 'MPSE';
+// Retrieve the target schema key from configuration for architectural flexibility.
+const DEFAULT_SCHEMA_KEY = Config.get('governance.mpseSchemaVersion', 'MPSE_SCHEMA_V1'); 
 
 class MutationPayloadSpecEngine {
     /**
      * Initializes the MPSE with a specific schema version.
-     * @param {string} schemaKey - The key corresponding to the required schema version (e.g., 'MPSE_SCHEMA_V1').
+     * @param {string} [schemaKey] - The key corresponding to the required schema version.
      */
-    constructor(schemaKey = 'MPSE_SCHEMA_V1') {
-        if (!payloadSchemas[schemaKey]) {
-             // Architectural check: Ensure critical schema dependency exists
-             throw new Error(`[${SUBSYSTEM_ID}] Initialization failure: Specified schema key '${schemaKey}' not found in configuration.`);
+    constructor(schemaKey) {
+        this.schemaVersion = schemaKey || DEFAULT_SCHEMA_KEY;
+        
+        const schemaDefinition = payloadSchemas[this.schemaVersion];
+
+        if (!schemaDefinition) {
+             // Critical initialization failure check
+             throw new Error(`[${SUBSYSTEM_ID}] CRITICAL Initialization failure: Schema '${this.schemaVersion}' missing from definition files.`);
         }
-        this.schema = payloadSchemas[schemaKey];
-        this.schemaVersion = schemaKey;
+        
+        this.schema = schemaDefinition;
         Logger.info(`[${SUBSYSTEM_ID}] Initialized with schema version: ${this.schemaVersion}. Awaiting mutation proposals.`);
     }
 
@@ -34,33 +40,38 @@ class MutationPayloadSpecEngine {
      * @throws {PayloadSchemaError} if validation fails.
      */
     enforceSpecification(payload) {
-        // High-frequency optimization: Use trace/debug for operational logging
-        Logger.trace(`[${SUBSYSTEM_ID}] -> ENFORCE: Starting specification check (V${this.schemaVersion}).`);
+        // Enhanced trace logging includes payload characteristics for debugging
+        Logger.trace(`[${SUBSYSTEM_ID}] -> ENFORCE: Starting specification check (V${this.schemaVersion}). Payload properties: ${Object.keys(payload).length}.`);
         
         const validationResult = validateSchema(payload, this.schema);
 
         if (!validationResult.isValid) {
-            // Aggregate a clear, human-readable summary string for simpler logging
-            const errorSummary = validationResult.errors
-                .map(e => e.path ? `[${e.path}]: ${e.message}` : e.message)
+            // High-fidelity error aggregation for precise governance logging
+            const detailedErrors = validationResult.errors.map(e => ({
+                path: e.path || 'Root',
+                message: e.message,
+                keyword: e.keyword || 'validation' // Include relevant JSON Schema failure metadata
+            }));
+
+            const errorSummary = detailedErrors
+                .map(e => `[${e.path}] (${e.keyword}): ${e.message}`)
                 .join('; ');
             
-            Logger.warn(`[${SUBSYSTEM_ID}] Validation failed (V${this.schemaVersion}). Breach: ${errorSummary}`);
+            Logger.warn(`[${SUBSYSTEM_ID}] Structural breach detected (V${this.schemaVersion}). Summary: ${errorSummary}`);
             
-            // Throw custom error, providing the structured error array (validationResult.errors)
-            // This relies on the proposed evolution of the PayloadSchemaError component.
+            // Throw custom error, passing structured data to enable deep analysis by calling systems
             throw new PayloadSchemaError(
-                `Structural breach identified in mutation payload (V${this.schemaVersion}).`,
+                `Mutation Payload failed MPSE V${this.schemaVersion} validation.`,
                 payload, 
                 errorSummary,
-                validationResult.errors
+                detailedErrors 
             );
         }
 
-        Logger.verbose(`[${SUBSYSTEM_ID}] Payload structurally compliant. Forwarding to P-01.`);
+        Logger.verbose(`[${SUBSYSTEM_ID}] Payload structurally compliant (V${this.schemaVersion}). Forwarding to P-01 Trust Adjudication.`);
         return payload;
     }
 }
 
-// Export a singleton instance using the standard configuration key
-module.exports = new MutationPayloadSpecEngine('MPSE_SCHEMA_V1');
+// Export the singleton instance using the default configuration key.
+module.exports = new MutationPayloadSpecEngine(DEFAULT_SCHEMA_KEY);
