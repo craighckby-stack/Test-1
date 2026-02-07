@@ -5,14 +5,21 @@
  * to determine complexity, dependencies, and change impact categorization. 
  * Designed for intensive computation, utilizing structured methods to prepare 
  * for eventual parallelization (e.g., Worker threads/Off-main-thread analysis).
+ * 
+ * NOTE: For v94.1 intelligence, this class expects DependencyGrapher output for accurate scoring.
  */
 export class SchemaAnalyzer {
     
-    constructor() {
-        // Configuration for sensitivity or exclusion rules could be loaded here.
-        this.SENSITIVITY_THRESHOLDS = {
-            complexityWeight: 0.1,
-            criticalityThreshold: 5 // Example threshold for triggering warnings
+    /**
+     * @param {object} config - Configuration object containing sensitivity and threshold settings.
+     */
+    constructor(config = {}) {
+        this.config = {
+            // Default V94.1 analysis thresholds
+            complexityWeight: 0.1, 
+            criticalityThreshold: 5, // Severity level required for a change to be marked critical
+            // ... other analysis rules
+            ...config
         };
     }
 
@@ -21,93 +28,122 @@ export class SchemaAnalyzer {
      * Assumes schemas A and B are already normalized graph representations.
      * @param {object} schemaA - The baseline normalized schema graph.
      * @param {object} schemaB - The proposed normalized schema graph.
+     * @param {object | null} [dependencyGraph=null] - Pre-calculated dependency map (crucial for accurate metrics).
      * @returns {Promise<{
      *   metrics: { complexityScore: number, breakingChangesCount: number, efficiencyScore: number },
-     *   criticalChanges: Array<{ entity: string, change: string, isBreaking: boolean, type: 'Addition' | 'Deletion' | 'TypeChange' | 'Rename' | 'FormatChange'}>, 
+     *   criticalChanges: Array<object>, 
      *   nonBreakingChanges: Array<object>,
      *   entitiesAffected: Array<string>
      * }>}
      */
-    async computeDelta(schemaA, schemaB) {
+    async computeDelta(schemaA, schemaB, dependencyGraph = null) {
         if (!schemaA || !schemaB) {
             throw new Error("Both schemas must be provided for delta computation.");
         }
 
-        console.log("Starting deep structured schema comparison...");
-
-        const diffs = await this._deepCompareEntities(schemaA, schemaB);
+        // Step 1: Generate detailed, raw differences based on entity structure
+        const rawDiffs = await this._calculateRawDiffs(schemaA, schemaB);
         
-        const entitiesAffected = new Set();
-        const criticalChanges = [];
-        const nonBreakingChanges = [];
-        let breakingChangesCount = 0;
+        // Step 2: Classify and categorize changes based on severity and impact rules
+        const categorized = this._classifyChanges(rawDiffs);
         
-        // Categorize changes based on impact assessment
-        diffs.forEach(diff => {
-            entitiesAffected.add(diff.entity);
-            
-            if (diff.isBreaking) {
-                breakingChangesCount++;
-                criticalChanges.push(diff);
-            } else {
-                nonBreakingChanges.push(diff);
-            }
-        });
-
-        const complexityScore = this._calculateComplexityScore(schemaA, schemaB, entitiesAffected.size);
-
-        // Efficiency score could measure how streamlined schemaB is compared to A
-        const efficiencyScore = 1.0 - (complexityScore * 0.5);
+        // Step 3: Compute final metrics using categorized data and dependency structure
+        const { complexityScore, efficiencyScore } = this._calculateMetrics(
+            schemaA, 
+            categorized.breakingChanges.length, 
+            categorized.entitiesAffected.size,
+            dependencyGraph 
+        );
 
         return {
             metrics: {
                 complexityScore,
-                breakingChangesCount,
+                breakingChangesCount: categorized.breakingChanges.length,
                 efficiencyScore
             },
-            criticalChanges,
-            nonBreakingChanges,
-            entitiesAffected: Array.from(entitiesAffected)
+            criticalChanges: categorized.breakingChanges,
+            nonBreakingChanges: categorized.nonBreakingChanges,
+            entitiesAffected: Array.from(categorized.entitiesAffected)
         };
     }
 
     /**
-     * Internal: Simulates deep, property-level comparison across entities.
-     * In a real implementation, this would involve iterative graph traversal.
+     * Internal: Performs deep, property-level comparison across entities (simulated).
      * @param {object} schemaA 
      * @param {object} schemaB 
-     * @returns {Promise<Array<object>>} Detailed list of changes.
+     * @returns {Promise<Array<{ entity: string, property?: string, change: string, severity: number, isBreaking: boolean, type: string }>>} 
      */
-    async _deepCompareEntities(schemaA, schemaB) {
+    async _calculateRawDiffs(schemaA, schemaB) {
         // Simulate computation delay typical for intensive graph diffing
         await new Promise(resolve => setTimeout(resolve, 50)); 
 
-        // Mocked results showing breaking vs non-breaking separation
+        // Mocked results showing use of 'severity' score
         return [
-            { entity: 'User', change: 'Type widened (string->varchar)', isBreaking: false, type: 'FormatChange' },
-            { entity: 'AuditLog', change: 'Index added', isBreaking: false, type: 'Addition' },
-            { entity: 'CoreSetting', change: 'Primary Key Type Change (int -> UUID)', isBreaking: true, type: 'TypeChange' },
-            { entity: 'AuthToken', change: 'Entity Deleted', isBreaking: true, type: 'Deletion' }
+            { entity: 'User', property: 'name', change: 'Type widened (string->varchar)', severity: 1, isBreaking: false, type: 'FormatChange' },
+            { entity: 'AuditLog', property: null, change: 'Index added', severity: 0, isBreaking: false, type: 'Addition' },
+            { entity: 'CoreSetting', property: 'id', change: 'Primary Key Type Change (int -> UUID)', severity: 10, isBreaking: true, type: 'TypeChange' },
+            { entity: 'AuthToken', property: null, change: 'Entity Deleted', severity: 20, isBreaking: true, type: 'Deletion' }
         ];
+    }
+    
+    /**
+     * Internal: Categorizes raw diffs into critical/non-critical buckets based on configured thresholds.
+     * @param {Array<object>} rawDiffs 
+     * @returns {{ breakingChanges: Array<object>, nonBreakingChanges: Array<object>, entitiesAffected: Set<string> }}
+     */
+    _classifyChanges(rawDiffs) {
+        const entitiesAffected = new Set();
+        const breakingChanges = [];
+        const nonBreakingChanges = [];
+        
+        rawDiffs.forEach(diff => {
+            entitiesAffected.add(diff.entity);
+            
+            // Classify based on pre-calculated breaking flag and runtime severity check
+            if (diff.isBreaking && diff.severity >= this.config.criticalityThreshold) {
+                breakingChanges.push(diff);
+            } else {
+                nonBreakingChanges.push(diff);
+            }
+        });
+        
+        return { breakingChanges, nonBreakingChanges, entitiesAffected };
     }
 
     /**
-     * Internal: Calculates a weighted complexity score based on entity interaction and scope of change.
-     * @param {object} schemaA
-     * @param {object} schemaB
-     * @param {number} affectedCount
-     * @returns {number} Complexity score between 0.0 and 1.0.
+     * Internal: Calculates migration metrics based on scope, breaking changes, and structural depth (if dependency graph provided).
+     * @param {object} schemaA - Base schema structure.
+     * @param {number} breakingChangeCount - Number of critical changes.
+     * @param {number} affectedCount - Number of entities impacted.
+     * @param {object | null} dependencyGraph - The graph detailing entity relationships.
+     * @returns {{ complexityScore: number, efficiencyScore: number }}
      */
-    _calculateComplexityScore(schemaA, schemaB, affectedCount) {
-        const totalEntities = Object.keys(schemaA).length || 1; // Prevent division by zero
+    _calculateMetrics(schemaA, breakingChangeCount, affectedCount, dependencyGraph) {
+        const totalEntities = Object.keys(schemaA).length || 1; 
         const normalizedAffected = affectedCount / totalEntities;
         
-        // Placeholder for true dependency depth analysis (interdependenceFactor)
-        const interdependenceFactor = 0.5; 
+        let interdependenceFactor = 0.5; // Default assumption if graph is missing
         
-        return Math.min(
+        if (dependencyGraph && dependencyGraph.calculateCascadeRisk) {
+            // If DependencyGrapher utility is available (suggested scaffold), use it for precise risk analysis
+            // Note: This assumes DependencyGrapher is either imported or passed/shimmed.
+            try {
+                // Placeholder integration assuming a DependencyGrapher interface
+                interdependenceFactor = dependencyGraph.calculateCascadeRisk(dependencyGraph.graphData, new Set(Array.from(schemaA)));
+            } catch (e) {
+                // Fallback if graph computation fails
+                interdependenceFactor = 0.5 + breakingChangeCount * 0.05; 
+            }
+        }
+
+        const complexityScore = Math.min(
             1.0, 
-            (normalizedAffected * this.SENSITIVITY_THRESHOLDS.complexityWeight * 5) + interdependenceFactor * 0.5
+            (normalizedAffected * this.config.complexityWeight * 5) + interdependenceFactor * 0.5 + (breakingChangeCount * 0.02)
         );
+        
+        // Efficiency score: Reflects system streamlining vs. complexity cost.
+        const efficiencyScore = 1.0 - (complexityScore * 0.6) - (breakingChangeCount * 0.01);
+
+        return { complexityScore, efficiencyScore: Math.max(0, efficiencyScore) };
     }
 }
