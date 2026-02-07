@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Protocol
+from typing import Dict, Any, List, Protocol, Tuple, TypedDict
 
 # Define Protocols for enhanced type hinting and abstraction
 class GoalRegistryInterface(Protocol):
@@ -11,14 +11,21 @@ class SystemTelemetryInterface(Protocol):
         """Returns projected resource utilization and constraints."""
         ...
 
+# Define specific data structures for efficient, type-safe data transfer between kernels
+class AlignmentData(TypedDict):
+    alignment_score: float
+    estimated_resource_delta: float
+
+class L0Prediction(TypedDict):
+    SCR_updates: Dict
+    SBC_assertions: List[str]
+    scope_segments: List[str]
+
 class ContextualEvolutionModel:
     """
-    The Contextual Evolution Modeler (CEM) V2.0
-
-    Role: Pre-processor responsible for translating abstract evolutionary demands 
-    and contextual data (telemetry, goals) into a structured L0 Requirements Manifest.
-    Generates actionable SCR (System Constraint Registry) updates and 
-    SBC (Structural Boundary Contract) assertions.
+    Refactored CEM: Optimizes for functional composition and kernel-based computation.
+    The core logic is decomposed into pure, static computational kernels to facilitate 
+    future parallelization and maximize throughput.
     """
     def __init__(self, 
                  goal_source: GoalRegistryInterface,
@@ -27,76 +34,86 @@ class ContextualEvolutionModel:
         self.goal_source = goal_source
         self.telemetry = telemetry_proxy
         
-    def process_evolution_demand(self, demand_prompt: str, evolution_meta: Dict) -> Dict:
-        """
-        Processes a raw evolutionary demand (prompt) against current context
-        and strategic objectives to generate the L0 manifest.
-        
-        Args:
-            demand_prompt: High-level requirement or stimulus.
-            evolution_meta: Metadata (origin, priority, id).
+    def _fetch_contextual_state(self) -> Tuple[List, Dict]:
+        """Abstracts all external I/O fetching into a single optimized step."""
+        return (
+            self.goal_source.get_strategic_goals(),
+            self.telemetry.get_resource_forecast()
+        )
 
-        Returns:
-            A structured Requirements Manifest payload for L0 structural validation.
-        """
-        
-        current_goals = self.goal_source.get_strategic_goals()
-        current_forecast = self.telemetry.get_resource_forecast()
+    # --- Computational Kernels (Static for maximum independence and efficiency) ---
 
-        # Step 1: Deep Contextual Scoring
-        # The scoring now includes system state grounding
-        alignment_data = self._calculate_relevance(demand_prompt, current_goals, current_forecast)
-
-        # Step 2: Predictive L0 Parameter Generation
-        predicted_constraints = self._predict_l0_requirements(demand_prompt, alignment_data)
-        
-        requirements_manifest = {
-            "source_id": evolution_meta.get("id"),
-            "priority": evolution_meta.get("priority", 50),
-            "strategic_alignment": alignment_data['alignment_score'], 
-            "resource_implication": alignment_data['estimated_resource_delta'],
-            "scope_of_change": predicted_constraints['scope_segments'],
-            "SCR_parameters": predicted_constraints['SCR_updates'], # Constraint updates (e.g., 'MEM_LIMIT': +100MB)
-            "SBC_boundary_assertions": predicted_constraints['SBC_assertions'] # Assertions (e.g., 'MUST NOT breach V9.0 ABI')
-        }
-        
-        return requirements_manifest
-
-    def _calculate_relevance(self, demand: str, goals: List, forecast: Dict) -> Dict:
+    @staticmethod
+    def _relevance_kernel(demand: str, goals: List, forecast: Dict) -> AlignmentData:
         """
-        Determines strategic relevance and estimates resource impact based on demand, goals, and resource forecast.
-        (Placeholder for sophisticated inference engine)
+        Kernel 1: Determines strategic relevance and estimates resource impact. 
+        Designed to be a pure function, easily offloaded or memoized.
         """
-        # Logic 1: Dummy goal scoring
+        # Highly efficient O(1) placeholder logic mimicking complex inference
         alignment_score = 0.98 if "efficiency" in demand.lower() else 0.85
-        
-        # Logic 2: Basic resource impact estimation based on forecast sensitivity
-        estimated_delta = forecast.get('cpu_load_baseline', 0) * 0.1 
-        
+        baseline = forecast.get('cpu_load_baseline', 0.0)
+        estimated_delta = baseline * 0.1 
+
         return {
             "alignment_score": alignment_score,
             "estimated_resource_delta": estimated_delta
         }
 
-    def _predict_l0_requirements(self, demand: str, context_data: Dict) -> Dict:
+    @staticmethod
+    def _prediction_kernel(alignment_data: AlignmentData) -> L0Prediction:
         """
-        Translates contextual data into specific structural assertions and constraint updates.
+        Kernel 2: Translates relevance data into specific structural assertions.
+        Focuses on deterministic state machine translation.
         """
-        # Based on resource implication, update SCR
         scr_updates = {}
-        if context_data['estimated_resource_delta'] > 0.05:
-            scr_updates['EVO_RESOURCE_FLAG'] = True
-            scr_updates['PREDICTED_CPU_CHANGE'] = context_data['estimated_resource_delta']
-            
-        # Determine SBC assertions based on strategic alignment and demand content
         sbc_assertions = []
-        if context_data['alignment_score'] < 0.9:
+        
+        delta = alignment_data['estimated_resource_delta']
+        score = alignment_data['alignment_score']
+
+        if delta > 0.05:
+            scr_updates['EVO_RESOURCE_FLAG'] = True
+            scr_updates['PREDICTED_CPU_CHANGE'] = delta
+            
+        if score < 0.9:
              sbc_assertions.append("VALIDATION_PRIORITY: HIGH (Potential mis-alignment)")
         
-        scope_segments = ["V94_CORE", "NETWORK_MODULE"] # Derived from NL inference
+        scope_segments = ["V94_CORE", "NETWORK_MODULE"] 
 
         return {
             "SCR_updates": scr_updates,
             "SBC_assertions": sbc_assertions,
             "scope_segments": scope_segments
+        }
+
+    def process_evolution_demand(self, demand_prompt: str, evolution_meta: Dict) -> Dict:
+        """
+        Orchestrates kernel execution using recursive abstraction (functional composition).
+        """
+        
+        # 1. Atomic I/O
+        goals, forecast = self._fetch_contextual_state()
+
+        # 2. Chained Kernel Execution 1 (Relevance)
+        alignment_data = ContextualEvolutionModel._relevance_kernel(
+            demand_prompt, goals, forecast
+        )
+
+        # 3. Chained Kernel Execution 2 (Prediction)
+        # Note: Removed redundant 'demand_prompt' argument from kernel 2 for efficiency
+        predicted_constraints = ContextualEvolutionModel._prediction_kernel(
+            alignment_data
+        )
+        
+        # 4. Manifest Assembly (Single dict construction)
+        return {
+            "source_id": evolution_meta.get("id"),
+            "priority": evolution_meta.get("priority", 50),
+            
+            "strategic_alignment": alignment_data['alignment_score'], 
+            "resource_implication": alignment_data['estimated_resource_delta'],
+            
+            "scope_of_change": predicted_constraints['scope_segments'],
+            "SCR_parameters": predicted_constraints['SCR_updates'],
+            "SBC_boundary_assertions": predicted_constraints['SBC_assertions']
         }
