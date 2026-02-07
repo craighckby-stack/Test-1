@@ -25,3 +25,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored core/processing/ArtifactProcessor.js to use named module exports for mandatory integration into the UNIFIER protocol.
 
 > **[SYSTEM_LOG 2026-02-07]**: Relocated PVLM_FailureCodeRegistry.json to /governance, treating canonical failure codes as part of the core lawset definition for outcome validation.
+
+> **[SYSTEM_LOG 2026-02-07]**: Updated WITS_Schema.json internal references to v94.2 to enforce consistency with the active protocol version.
