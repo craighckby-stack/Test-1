@@ -2,13 +2,15 @@
  * Component ID: C-12
  * System Paths and Logging Configuration Utility.
  * Provides centralized, standardized access to filesystem paths for logs, caches, and core configuration.
+ * 
+ * Exported for UNIFIER Protocol compliance.
  */
 
 const path = require('path');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 
-module.exports = {
+const SystemPaths = {
     // Base directories
     ROOT_DIR,
     LOG_DIR: path.join(ROOT_DIR, 'logs'),
@@ -22,5 +24,8 @@ module.exports = {
         FLUSH_INTERVAL_MS: 5000
     },
 
-    getAuditPath: () => path.join(module.exports.LOG_DIR, module.exports.AUDIT.FILE_NAME)
+    // Helper function using SystemPaths reference for self-consistency
+    getAuditPath: () => path.join(SystemPaths.LOG_DIR, SystemPaths.AUDIT.FILE_NAME)
 };
+
+module.exports = SystemPaths;
