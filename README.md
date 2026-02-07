@@ -33,3 +33,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Updated the System Tolerance Matrix manifest version to 'STM_V94.2_Activated' to align configuration metadata with the current protocol.
 
 > **[SYSTEM_LOG 2026-02-07]**: Relocated MEE_Specification configuration data to the consolidated /governance directory and scaffolded a new CommonJS loader for UNIFIER integration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Preserved 'config/policy/risk_floor_config.json' as a mandatory policy configuration asset required for governance validation.
