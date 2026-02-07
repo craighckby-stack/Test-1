@@ -8,7 +8,7 @@
 const Ajv = require('ajv');
 const actionSchema = require('../../config/governance_mitigation_action_schema.json');
 
-class MitigationActionRouter {
+export class MitigationActionRouter {
   constructor(executorRegistry) {
     this.ajv = new Ajv();
     this.validate = this.ajv.compile(actionSchema);
@@ -35,5 +35,3 @@ class MitigationActionRouter {
     return { status: 'Routed', actionId };
   }
 }
-
-module.exports = MitigationActionRouter;
