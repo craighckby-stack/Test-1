@@ -14,7 +14,7 @@ class DynamicConstraintGenerator {
      * @param {Object} governanceRuleSource - Interface to GRS for current rule context.
      * @param {Object} refinementEngine - Source of high-level proposals (GMRE).
      * @param {Object} validator - REQUIRED schema validator instance (e.g., Joi, AJV).
-     * @param {Object} sovereignUtils - REQUIRED utility for hashing, UUID, etc.
+     * @param {Object} sovereignUtils - REQUIRED utility for hashing, UUID, etc. (Expected to be the unified /utility module)
      */
     constructor(governanceRuleSource, refinementEngine, validator, sovereignUtils) {
         if (!validator || !sovereignUtils) {
