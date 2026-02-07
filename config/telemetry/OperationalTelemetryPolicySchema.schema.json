@@ -1,46 +1,91 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "urn:sovereign:schema:config:OperationalTelemetryPolicySchema",
-  "title": "Operational Telemetry Policy Configuration",
-  "description": "Defines the sampling rates, buffering limits, and aggregation policies for generating Certified Operational Telemetry (COTS). Used to balance data fidelity, network load, and storage costs.",
+  "title": "Sovereign AGI Certified Operational Telemetry (COTS) Policy Configuration",
+  "description": "Defines global transport configuration and specific policies for data acquisition (sampling/aggregation) to manage COTS data throughput and fidelity.",
   "type": "object",
   "properties": {
-    "default_sample_rate": {
-      "type": "number",
-      "minimum": 0.0001,
-      "maximum": 1.0,
-      "description": "The default probability (0.0 to 1.0) of logging a telemetry point if no specific policy matches."
+    "GlobalAcquisitionDefaults": {
+      "type": "object",
+      "description": "Default policy applied when no specific override matches a telemetry point.",
+      "properties": {
+        "sample_rate": {
+          "type": "number",
+          "minimum": 0.0001,
+          "maximum": 1.0,
+          "description": "The default probability (0.0 to 1.0) of logging a telemetry point."
+        },
+        "default_aggregation_type": {
+          "type": "string",
+          "enum": ["COUNTER", "GAUGE", "DISTRIBUTION", "SET"],
+          "description": "The default aggregation strategy (e.g., COUNTER for summing events, GAUGE for current value)."
+        }
+      },
+      "required": [
+        "sample_rate",
+        "default_aggregation_type"
+      ]
     },
-    "buffer_size_mb": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum size of the local in-memory telemetry buffer before flushing to the persistence layer."
+    "GlobalTransportConfig": {
+      "type": "object",
+      "description": "Settings governing data buffering, flushing, and network submission.",
+      "properties": {
+        "buffer_size_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024,
+          "description": "Maximum size (MB) of the local in-memory telemetry buffer."
+        },
+        "flush_interval_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000,
+          "description": "Time interval (ms) for triggering a scheduled buffer flush."
+        }
+      },
+      "required": [
+        "buffer_size_mb",
+        "flush_interval_ms"
+      ]
     },
-    "agent_specific_policies": {
+    "PolicyOverrides": {
       "type": "array",
-      "description": "Overrides for specific agents that require higher fidelity tracking or lower overhead.",
+      "description": "Custom policies targeting specific components or events.",
       "items": {
         "type": "object",
         "properties": {
-          "agent_source_pattern": {
+          "source_pattern": {
             "type": "string",
-            "description": "Regex pattern matching the target COTS agent_source (e.g., SGS-.* or RQL-Cache)."
+            "format": "regex",
+            "description": "Regex matching the telemetry agent source (e.g., ^SGS-.*$)."
           },
-          "sampling_probability": {
+          "sampling_rate": {
             "type": "number",
             "minimum": 0.0,
             "maximum": 1.0,
-            "description": "The specific sampling probability for matched agents."
+            "description": "Specific sampling probability for matched sources (0.0=off, 1.0=always)."
           },
-          "priority_level": {
+          "transport_priority": {
             "type": "integer",
-            "enum": [1, 2, 3],
-            "description": "Priority for flushing: 1 (High/Critical), 3 (Low/Background)."
+            "enum": [1, 2, 3, 4],
+            "description": "Priority for transmission: 1 (Critical), 4 (Background/Batch)."
+          },
+          "aggregation_override": {
+            "type": "string",
+            "enum": ["COUNTER", "GAUGE", "DISTRIBUTION", "SET"],
+            "description": "Optional override for the default aggregation type."
           }
         },
-        "required": ["agent_source_pattern", "sampling_probability", "priority_level"]
+        "required": [
+          "source_pattern",
+          "sampling_rate",
+          "transport_priority"
+        ]
       }
     }
   },
-  "required": ["default_sample_rate", "buffer_size_mb"]
+  "required": [
+    "GlobalAcquisitionDefaults",
+    "GlobalTransportConfig"
+  ]
 }
