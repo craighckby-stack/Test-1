@@ -117,3 +117,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Relocated GAX Policy Risk Definitions to /governance, encapsulating configuration data into an exportable PolicyRiskService module for UNIFIER integration.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated Python governance model resolution logic to JavaScript as GovernanceModelResolver.js, enabling dynamic loading of policy configurations for the UNIFIER Protocol and deleting the obsolete Python artifact.
+
+> **[SYSTEM_LOG 2026-02-07]**: Defragmented governance structure by relocating IConstraintChecker interface definitions from 'checkers' to 'src/core/governance/ConstraintInterfaces.ts' to simplify architectural dependency paths.
