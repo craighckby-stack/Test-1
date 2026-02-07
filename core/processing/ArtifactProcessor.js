@@ -164,4 +164,4 @@ class ArtifactProcessor {
   }
 }
 
-module.exports = ArtifactProcessor;
+module.exports = { ArtifactProcessor };
