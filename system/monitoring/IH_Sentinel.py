@@ -3,14 +3,26 @@
 import logging
 from typing import Dict, Any, List, Union, Type
 from abc import ABC, abstractmethod
+import json
 
 # Dependencies from Calculus Engine and Governance Framework
 from system.core.P01_calculus_engine import IntegrityHalt, RRPManager
-# NOTE: TEDS_EVENT_CONTRACT is expected to contain 'mandatory_keys' and potential 'validation_rules'
+# NOTE: TEDS_EVENT_CONTRACT is expected to contain 'mandatory_keys' and 'fields' definitions.
 from config.governance_policies import SENTINEL_CRITICAL_FLAGS
 from config.governance_schema import TEDS_EVENT_CONTRACT
 
 logging.basicConfig(level=logging.INFO, format='[IHSentinel] %(levelname)s: %(message)s')
+
+# Utility for type mapping. To be fully externalized in V95 architecture (see scaffold).
+_TYPE_MAP: Dict[str, Union[Type, tuple]] = {
+    'str': str, 'string': str,
+    'int': int, 'integer': int,
+    'float': float, 'number': (int, float), # Allows ints to pass float checks
+    'bool': bool, 'boolean': bool,
+    'dict': dict, 'object': dict,
+    'list': list, 'array': list,
+    'json': (dict, list, str), # Placeholder for required deep parsing check
+}
 
 class SentinelViolationError(Exception):
     """Custom exception raised when a non-negotiable TEDS contract or axiomatic
@@ -36,7 +48,6 @@ class MandatoryKeyAuditor(TEDSContractAuditor):
     """Checks for the presence of all defined mandatory keys based on TEDS_EVENT_CONTRACT."""
     
     def __init__(self, contract: Dict[str, Any]):
-        # Pre-extract required keys during initialization for minor efficiency gain
         self.required_keys = contract.get('mandatory_keys', [])
 
     def audit(self, event: Dict[str, Any]):
@@ -46,28 +57,65 @@ class MandatoryKeyAuditor(TEDSContractAuditor):
             error_msg = f"Schema Violation: Missing mandatory keys: {missing_keys}"
             raise SentinelViolationError(error_msg, severity="SCHEMA_INTEGRITY_FAILURE")
 
-# --- Primary Sentinel --- 
+class TypeAuditor(TEDSContractAuditor):
+    """Checks data types against definitions provided in the TEDS contract schema (required V94.1 feature)."""
+    
+    def __init__(self, contract: Dict[str, Any]):
+        self.field_definitions = contract.get('fields', {}) # Expects fields section
+
+    def audit(self, event: Dict[str, Any]):
+        for key, definition in self.field_definitions.items():
+            expected_type_str = definition.get('type', 'str').lower()
+            
+            if key not in event: 
+                # Key presence handled by MandatoryKeyAuditor
+                continue 
+
+            value = event[key]
+            expected_type = _TYPE_MAP.get(expected_type_str)
+            
+            if expected_type is None:
+                # Graceful handling of unknown types in config
+                continue
+
+            # Robust check for JSON type integrity (deep structure parsing check)
+            if expected_type_str in ['dict', 'object'] and isinstance(value, str):
+                try:
+                    json.loads(value)
+                except (TypeError, json.JSONDecodeError):
+                    error_msg = (
+                        f"Type Violation: Key '{key}' expected {expected_type_str} "
+                        f"but received non-parseable JSON string."
+                    )
+                    raise SentinelViolationError(error_msg, severity="TYPE_MISMATCH_JSON")
+            
+            # General Type Check (Handles explicit type mismatch)
+            if not isinstance(value, expected_type):
+                error_msg = (
+                    f"Type Violation: Key '{key}' expected {expected_type_str} "
+                    f"but received type {type(value).__name__}"
+                )
+                raise SentinelViolationError(error_msg, severity="TYPE_MISMATCH")
+
+# --- Primary Sentinel ---
 
 class IHSentinel:
     """Actively monitors the TEDS stream for contract deviations and pre-emptively
     triggers an Integrity Halt (IH) if axiomatic failure conditions (IH Flags) are detected.
-    Uses modular auditing and centralized error handling for improved efficiency and robustness.
     """
 
-    # Axiomatic flags loaded dynamically and pre-processed to uppercase
     CRITICAL_FLAGS: List[str] = [flag.upper() for flag in SENTINEL_CRITICAL_FLAGS]
     
     def __init__(self):
         self.auditors: List[TEDSContractAuditor] = [
-            MandatoryKeyAuditor(TEDS_EVENT_CONTRACT)
-            # Future auditors (e.g., TypeAuditor, RangeAuditor) will be added here
+            MandatoryKeyAuditor(TEDS_EVENT_CONTRACT),
+            TypeAuditor(TEDS_EVENT_CONTRACT), # Added TypeAuditor for robust data integrity
+            # Future auditors (e.g., RangeAuditor) will be added here
         ]
         logging.info("IHSentinel initialized. Monitoring axiomatic flags and TEDS contract adherence.")
 
     def _execute_contract_audit(self, event: Dict[str, Any]):
-        """Runs all defined auditors sequentially. Raises SentinelViolationError on first failure."""
-        
-        # Fast-failure auditing
+        """Runs all defined auditors sequentially. Raises SentinelViolationError on first failure (fast-fail)."""
         for auditor in self.auditors:
             auditor.audit(event)
 
@@ -76,10 +124,10 @@ class IHSentinel:
         Phase 2: Critical Flag Axiomatic Check.
         Raises SentinelViolationError if a known critical flag is active.
         """
+        flag_status = event.get('flag_active')
         
-        if event.get('flag_active'):
-            # flag_name is guaranteed to be upper case in CRITICAL_FLAGS check
-            flag_name = str(event['flag_active']).upper()
+        if isinstance(flag_status, str):
+            flag_name = flag_status.upper()
             
             if flag_name in self.CRITICAL_FLAGS:
                 stage = event.get('stage', 'UNKNOWN')
@@ -89,7 +137,6 @@ class IHSentinel:
     def monitor_stream(self, new_event: Dict[str, Any]) -> bool:
         """
         Ingest a new TEDS event. Performs synchronous, non-negotiable checks.
-        Uses centralized exception handling for robust IH triggering.
         Returns True if an IH was triggered, False otherwise.
         """
         if not new_event:
@@ -106,12 +153,13 @@ class IHSentinel:
 
         except SentinelViolationError as e:
             stage = new_event.get('stage', 'Unknown/Pre-Validation')
+            halt_reason = f"[{e.severity}] {e.message}"
             
             logging.critical(
-                f"[{e.severity}] Sentinel triggered Integrity Halt at Stage {stage}: {e.message}"
+                f"Sentinel triggered Integrity Halt at Stage {stage}: {e.message}"
             )
             
             # Centralized Response Mechanism: Only one place initiates Halt and Rollback
-            IntegrityHalt.trigger(f"{e.severity}: {e.message}")
-            RRPManager.initiate_rollback()
+            IntegrityHalt.trigger(halt_reason)
+            RRPManager.initiate_rollback(reason=halt_reason) # Added reason traceability
             return True
