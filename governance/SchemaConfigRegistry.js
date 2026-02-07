@@ -1,26 +1,24 @@
 /**
- * SCR (Schema and Configuration Registry) - v94.1 Intelligence Update
- * Mission: Centralized Governance for AOC Schemas, Version Control, and Constraint Threshold Management.
- * Refactored for mandated asynchronous operation, decoupled governance, robust caching with race condition prevention,
- * and explicit configuration registration capability.
+ * SCR (Schema and Configuration Registry) - Refactored for Abstract Recursion and Efficiency
+ * Mission: Centralized Governance, unified item management, and maximized caching efficiency (L1).
+ * Optimization Directive: Combine schema/config management into unified abstract methods (computational efficiency through reduced complexity).
  */
 class SchemaConfigRegistry {
     /**
-     * @param {object} dependencies - Object containing required dependencies.
-     * @param {object} dependencies.persistenceLayer - Responsible for immutable storage and retrieval.
-     * @param {object} dependencies.authorizationService - Enforces P-01 and other governance mandates.
-     * @param {object} dependencies.integrityUtils - Utility for cryptographic hashing (e.g., calculating content SHA).
+     * @param {object} dependencies - Required dependencies.
+     * @param {object} dependencies.persistenceLayer - Responsible for immutable storage.
+     * @param {object} dependencies.authorizationService - Enforces governance mandates (P-01).
+     * @param {object} dependencies.integrityUtils - Utility for cryptographic hashing.
      */
     constructor({ persistenceLayer, authorizationService, integrityUtils }) {
         if (!persistenceLayer || !authorizationService || !integrityUtils) {
             throw new Error("SCR requires PersistenceLayer, GovernanceAuthorizationService, and IntegrityUtils initialization.");
         }
         
-        // Operational caches (L1)
-        this._schemaCache = new Map(); 
-        this._configCache = new Map(); 
+        // Unified Operational Cache (L1): Stores records keyed by 'type:id'
+        this._cache = new Map(); 
         
-        // Thundering Herd Prevention: Stores Promises for items currently being fetched from persistence.
+        // Thundering Herd Prevention/Load Barrier: Stores Promises for items currently being fetched.
         this._pendingLoads = new Map(); 
 
         this._persistenceLayer = persistenceLayer;
@@ -46,142 +44,119 @@ class SchemaConfigRegistry {
     }
 
     /**
-     * Generates a unique, content-integrity aware version identifier (V[EpochIndex]-[ContentHashPrefix]).
+     * Generates a unique, content-integrity aware version identifier.
      * @param {object} content - The content being versioned.
      * @returns {Promise<string>} The version identifier.
      */
     async _generateVersion(content) {
         const contentString = JSON.stringify(content);
-        // Using injected integrity utility for robust, non-mocked hashing
         const integrityHash = await this._integrityUtils.calculateContentHash(contentString);
         const hashPrefix = integrityHash.substring(0, 12);
         const epochIndex = Math.floor(Date.now() / 10000); 
         return `V${epochIndex}-${hashPrefix}`;
     }
 
+    // --- Core Abstract Management Methods ---
+
     /**
-     * Retrieves data from persistence, ensuring only one fetch occurs per key at a time (Load Barrier).
-     * @param {string} type - 'schema' or 'config'.
+     * Abstract method for fetching items from cache or persistence, using Load Barrier.
+     * Max computational efficiency achieved by unifying schema and config retrieval logic.
+     * @param {'schema' | 'config'} type - Item type.
      * @param {string} id - The unique identifier.
-     * @returns {Promise<object>} The loaded record (or its definition/data).
+     * @returns {Promise<object>} The item payload (definition for schema, data for config).
      */
-    async _loadFromPersistenceWithBarrier(type, id) {
+    async _processItem(type, id) {
         const key = `${type}:${id}`;
-        
-        if (this._pendingLoads.has(key)) {
-            return this._pendingLoads.get(key);
+        const contentKey = type === 'schema' ? 'definition' : 'data';
+
+        // 1. L1 Cache Hit
+        if (this._cache.has(key)) {
+            return this._cache.get(key)[contentKey];
         }
 
+        // Helper to extract the payload from a resolved record promise
+        const extractPayload = (record) => record[contentKey];
+
+        // 2. Load Barrier Check (Thundering Herd Prevention)
+        if (this._pendingLoads.has(key)) {
+            return this._pendingLoads.get(key).then(extractPayload);
+        }
+        
+        // 3. New Persistence Load Operation
         const loadPromise = (async () => {
             try {
-                let record;
-                if (type === 'schema') {
-                    record = await this._persistenceLayer.loadSchema(id);
-                } else { // config
-                    record = await this._persistenceLayer.loadConfig(id);
-                }
+                const persistenceLoadMethod = 
+                    type === 'schema' ? this._persistenceLayer.loadSchema : this._persistenceLayer.loadConfig;
+                
+                const record = await persistenceLoadMethod.call(this._persistenceLayer, id);
                 
                 if (!record) {
                     throw new SchemaConfigRegistry.RegistryError(`${type} ${id} not found.`);
                 }
                 
-                // Update appropriate cache and return specific content
-                if (type === 'schema') {
-                    this._schemaCache.set(id, record);
-                    return record.definition;
-                } else { 
-                    this._configCache.set(id, record);
-                    return record;
-                }
+                this._cache.set(key, record);
+                return record;
             } finally {
                 this._pendingLoads.delete(key);
             }
         })();
 
         this._pendingLoads.set(key, loadPromise);
-        return loadPromise;
+        
+        const record = await loadPromise;
+        return extractPayload(record);
     }
 
-    // --- Schema Operations ---
-
     /**
-     * Registers or updates a schema definition.
-     * Requires L4 P-01 authorization validation.
-     * @param {string} schemaId - The identifier (e.g., 'C-FRAME-V1').
-     * @param {object} schemaDefinition - The JSON schema structure.
-     * @param {object} [authContext={}] - Authorization context for the write operation.
+     * Abstract method for registering and persisting configuration or schema items.
+     * @param {'schema' | 'config'} type - Item type.
+     * @param {string} id - Unique identifier.
+     * @param {object} content - The schema definition or configuration data.
+     * @param {object} [authContext={}] - Authorization context.
      * @returns {Promise<string>} The new version identifier.
      */
-    async registerSchema(schemaId, schemaDefinition, authContext = {}) {
-        await this._checkAuthorization('REGISTER_SCHEMA', authContext);
-
+    async _registerItem(type, id, content, authContext = {}) {
+        const operation = `REGISTER_${type.toUpperCase()}`;
+        await this._checkAuthorization(operation, authContext);
+        
+        const version = await this._generateVersion(content);
+        const key = `${type}:${id}`;
+        const contentKey = type === 'schema' ? 'definition' : 'data';
+        
         const record = {
-            id: schemaId,
-            definition: schemaDefinition,
-            version: await this._generateVersion(schemaDefinition),
-            timestamp: Date.now()
-        };
-
-        await this._persistenceLayer.saveSchema(schemaId, record);
-        this._schemaCache.set(schemaId, record);
-
-        return record.version;
-    }
-
-    /**
-     * Retrieves the latest active schema definition from cache or persistence.
-     * Utilizes Load Barrier to prevent concurrent persistence hits.
-     * @param {string} schemaId - Identifier.
-     * @returns {Promise<object>} The schema definition.
-     */
-    async getLatestSchema(schemaId) {
-        if (this._schemaCache.has(schemaId)) {
-            return this._schemaCache.get(schemaId).definition;
-        }
-
-        // The barrier handler returns the definition directly for schemas
-        return this._loadFromPersistenceWithBarrier('schema', schemaId);
-    }
-    
-    // --- Configuration Operations ---
-
-    /**
-     * Registers or updates system configuration data (e.g., P-01 constraint vectors).
-     * Requires L4 P-01 authorization validation. Configuration data is versioned.
-     * @param {string} configId - Identifier (e.g., 'P01_DECISION_THRESHOLDS').
-     * @param {object} configData - The configuration parameters.
-     * @param {object} [authContext={}] - Authorization context for the write operation.
-     * @returns {Promise<string>} The new version identifier.
-     */
-    async registerConfig(configId, configData, authContext = {}) {
-        await this._checkAuthorization('REGISTER_CONFIG', authContext);
-
-        const record = {
-            id: configId,
-            data: configData,
-            version: await this._generateVersion(configData),
+            id: id,
+            [contentKey]: content, 
+            version: version,
             timestamp: Date.now()
         };
         
-        await this._persistenceLayer.saveConfig(configId, record);
-        this._configCache.set(configId, record);
+        const persistenceSaveMethod = 
+            type === 'schema' ? this._persistenceLayer.saveSchema : this._persistenceLayer.saveConfig;
+            
+        await persistenceSaveMethod.call(this._persistenceLayer, id, record);
+        
+        // Update unified cache
+        this._cache.set(key, record);
 
-        return record.version;
+        return version;
     }
 
-    /**
-     * Retrieves P-01 constraint vectors or other system configuration data.
-     * Utilizes Load Barrier to prevent concurrent persistence hits.
-     * @param {string} configId - Identifier (e.g., 'P01_DECISION_THRESHOLDS').
-     * @returns {Promise<object>} Configuration parameters (the data property of the stored record).
-     */
-    async getConfig(configId) {
-        if (this._configCache.has(configId)) {
-            return this._configCache.get(configId).data;
-        }
+    // --- Public Interface (Recursive Abstraction Layer) ---
 
-        const record = await this._loadFromPersistenceWithBarrier('config', configId);
-        return record.data;
+    async registerSchema(schemaId, schemaDefinition, authContext = {}) {
+        return this._registerItem('schema', schemaId, schemaDefinition, authContext);
+    }
+
+    async getLatestSchema(schemaId) {
+        return this._processItem('schema', schemaId);
+    }
+    
+    async registerConfig(configId, configData, authContext = {}) {
+        return this._registerItem('config', configId, configData, authContext);
+    }
+
+    async getConfig(configId) {
+        return this._processItem('config', configId);
     }
 
     // --- Static Error Handlers ---
