@@ -1,18 +1,17 @@
 /**
  * Constraint Enforcement Engine (CEE)
- * Version 4.0 - Sovereign AGI v94.1 Refactor
- * Converts CEE to be asynchronous, uses explicit typed context (AnalysisContext),
- * and centralizes constraint definitions for dynamic runtime access.
+ * Version 5.0 - Sovereign AGI v94.1 Refactor: Context-Aware, Priority Execution Model
+ * Converts CEE to be asynchronous only where necessary (context generation), utilizes explicit handlers
+ * derived from rule types, and enforces stricter context verification.
  */
 
 import { ConstraintsConfig } from './acvd_constraints.json'; 
-import { SyntaxAnalyzer } from '../utilities/syntax_analyzer'; 
-import { EntropyScorer } from '../utilities/entropy_scorer';
-import { ScopeMatcher } from '../utilities/scope_matcher'; 
 import { SystemLogger } from '../system_core/system_logger'; 
+import { ScopeMatcher } from '../utilities/scope_matcher'; 
+// Note: SyntaxAnalyzer and EntropyScorer are managed via the AnalysisBroker's dependency tree.
 
-// IMPORTANT: Requires the creation of ConstraintAnalysisBroker (CAB) for efficient metric gathering.
 import { ConstraintAnalysisBroker } from './constraint_analysis_broker'; 
+import { ConstraintPatternRegistry } from './constraint_pattern_registry'; 
 
 // Define standardized violation types
 const ViolationType = {
@@ -20,15 +19,23 @@ const ViolationType = {
     SAFETY: 'Safety',
     QUALITY: 'Quality',
     ARCHITECTURE: 'Architecture',
-    GOVERNANCE: 'Governance' // Added for internal CEE failures/missing components
+    GOVERNANCE: 'Governance' // Internal CEE failures/missing components
 };
 
 /**
  * @typedef {Object} AnalysisContext
- * @property {Object} [syntax] - Output of SyntaxAnalyzer (e.g., ast, complexity). Only present if required.
- * @property {number} [entropy] - Output of EntropyScorer. Only present if required.
+ * @property {Object} [syntax] - Output of SyntaxAnalyzer (e.g., ast, cyclomaticComplexity).
+ * @property {number} [entropy] - Output of EntropyScorer.
  */
 
+/**
+ * @typedef {Object} Violation
+ * @property {string} rule
+ * @property {string} type - ViolationType enum value
+ * @property {string} level - e.g., 'CRITICAL', 'MAJOR'
+ * @property {string} message
+ * @property {Object} data
+ */
 
 export class ConstraintEnforcementEngine {
     
@@ -36,58 +43,74 @@ export class ConstraintEnforcementEngine {
      * @param {Object} [dependencies] - Optional injected dependencies for testing/flexibility.
      */
     constructor(dependencies = {}) {
-        // Decoupled Dependencies (Dependency Injection)
-        this.constraints = dependencies.constraints || ConstraintsConfig;
-        this.scopeMatcher = dependencies.scopeMatcher || new ScopeMatcher();
-        
-        // The analysis broker handles the intelligent pre-processing of code metrics
-        this.analysisBroker = dependencies.analysisBroker || new ConstraintAnalysisBroker({
-            syntaxAnalyzer: dependencies.syntaxAnalyzer || new SyntaxAnalyzer(),
-            entropyScorer: dependencies.entropyScorer || new EntropyScorer()
-        });
-
         this.logger = dependencies.logger || new SystemLogger('CEE');
         
-        this.ruleHandlers = {
-            COMPLEXITY_THRESHOLD: this._checkComplexityThreshold.bind(this),
-            FORBIDDEN_PATTERNS: this._checkForbiddenPatterns.bind(this),
-            ENTROPY_DENSITY: this._checkEntropyDensity.bind(this),
-        };
+        // Dependencies
+        this.constraints = dependencies.constraints || ConstraintsConfig;
+        this.scopeMatcher = dependencies.scopeMatcher || new ScopeMatcher();
+        this.analysisBroker = dependencies.analysisBroker || new ConstraintAnalysisBroker({});
+        this.patternRegistry = dependencies.patternRegistry || new ConstraintPatternRegistry(); // New Dependency
         
-        this.logger.info(`CEE initialized with ${this.constraints.constraint_sets.length} constraint sets.`);
+        // Dynamic Rule Handlers mapping (uses convention: _handleRULE_TYPE)
+        this.handlerMap = this._initializeHandlers();
+
         this._sortedConstraintSets = this._sortConstraints(this.constraints.constraint_sets);
+        this.logger.info(`CEE initialized, managing ${this._sortedConstraintSets.length} constraint sets.`);
+    }
+    
+    /**
+     * Uses reflection to map handlers based on the naming convention '_handleRULE_TYPE'.
+     * @returns {Object<string, Function>}
+     */
+    _initializeHandlers() {
+        const handlers = {};
+        for (const key of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
+            if (key.startsWith('_handle') && key.length > 7) {
+                // Extracts TYPE from _handleType, converts to SCREAMING_SNAKE_CASE
+                const ruleType = key.substring(7).toUpperCase(); 
+                handlers[ruleType] = this[key].bind(this);
+            }
+        }
+        return handlers;
     }
 
     _sortConstraints(sets) {
          const levelMap = { 'CRITICAL': 3, 'MAJOR': 2, 'MINOR': 1, 'INFO': 0 };
+         // Sort descending by criticality
          return sets.sort((a, b) => (levelMap[b.enforcement_level] || 0) - (levelMap[a.enforcement_level] || 0));
     }
 
     /**
-     * Executes a specific rule check asynchronously.
+     * Executes a specific rule check synchronously.
      * @param {string} filePath 
      * @param {string} fileContent 
      * @param {Object} rule 
      * @param {AnalysisContext} context - Pre-calculated metrics and required data.
-     * @returns {Promise<Object|null>} Violation object or null.
+     * @returns {Violation|null} Violation object or null.
      */
-    async _executeCheck(filePath, fileContent, rule, context) {
-        const handler = this.ruleHandlers[rule.type];
+    _executeCheck(filePath, fileContent, rule, context) {
+        const handler = this.handlerMap[rule.type]; 
+        
         if (!handler) {
-            this.logger.warn(`No handler defined for rule type: ${rule.type}. Rule skipped.`);
-            return null;
+            this.logger.warn(`No handler defined for rule type: ${rule.type}. Rule skipped. Check naming convention.`);
+            return {
+                rule: "RULE_DEFINITION_MISSING_HANDLER",
+                type: ViolationType.GOVERNANCE, 
+                level: "MAJOR",
+                message: `Rule definition found but no matching handler for type: ${rule.type}`, 
+                data: { ruleId: rule.name }
+            };
         }
 
         try {
-            // Handlers are synchronous for performance but executed within an async wrapper
             return handler(filePath, fileContent, rule, context);
         } catch (error) {
-            this.logger.error(`Rule execution failed for ${rule.type} on ${filePath}:`, error);
+            this.logger.error(`Rule execution failed for ${rule.type} on ${filePath}.`, error);
             return {
                 rule: "SYSTEM_FAILURE_CEE",
                 type: ViolationType.GOVERNANCE, 
                 level: "CRITICAL",
-                message: `Internal CEE failure during ${rule.type} check execution.`, 
+                message: `Internal CEE failure during ${rule.type} check execution: ${error.message.substring(0, 100)}`, 
                 data: { ruleId: rule.name, error: error.message }
             };
         }
@@ -95,21 +118,27 @@ export class ConstraintEnforcementEngine {
 
     /**
      * Validates a target code file against all relevant governance rules.
-     * Optimized by only generating the necessary analysis context.
+     * Optimally fetches only required metrics via the Analysis Broker.
      * @param {string} filePath - Path to the file being validated.
      * @param {string} fileContent - The content of the file.
-     * @returns {Promise<Array<Object>>} List of violations found.
+     * @returns {Promise<Array<Violation>>} List of violations found.
      */
     async validate(filePath, fileContent) {
         const violations = [];
         const activeRules = [];
+        const requiredMetrics = new Set();
         
-        // 1. Determine which rules apply to this file scope
+        // 1. Determine applicable rules, prioritize, and aggregate required metrics
         for (const set of this._sortedConstraintSets) {
             for (const rule of set.rules) {
                 if (this.scopeMatcher.isMatch(filePath, rule.scope)) {
                     rule.enforcement_level = rule.enforcement_level || set.enforcement_level;
                     activeRules.push(rule);
+                    
+                    // Use rule definition to gather specific context requirements
+                    if (rule.metrics_required && Array.isArray(rule.metrics_required)) {
+                        rule.metrics_required.forEach(metric => requiredMetrics.add(metric));
+                    }
                 }
             }
         }
@@ -118,19 +147,19 @@ export class ConstraintEnforcementEngine {
             return violations;
         }
         
-        // 2. Intelligent Pre-analysis using the Broker
+        // 2. Intelligent Pre-analysis (Async step)
         /** @type {AnalysisContext} */
-        const context = await this.analysisBroker.getContext(fileContent, activeRules);
+        const context = await this.analysisBroker.getContext(fileContent, Array.from(requiredMetrics));
 
-        // 3. Iteration and Enforcement
+        // 3. Iteration and Enforcement (Synchronous, Priority Execution)
         for (const rule of activeRules) {
-            const violation = await this._executeCheck(filePath, fileContent, rule, context);
+            const violation = this._executeCheck(filePath, fileContent, rule, context);
             
             if (violation) {
                 violations.push(violation);
                 // Intelligence: Stop immediately on CRITICAL violations
                 if (violation.level === 'CRITICAL') {
-                    this.logger.warn(`Critical violation detected in ${filePath}. Halting further rule checks for this file.`);
+                    this.logger.crit(`Critical violation detected in ${filePath}. Halting rule checks.`);
                     break;
                 }
             }
@@ -139,14 +168,20 @@ export class ConstraintEnforcementEngine {
         return violations;
     }
 
-    // --- Rule Handlers ---
+    // --- Rule Handlers (MUST use convention: _handleRULE_TYPE) ---
 
-    _checkComplexityThreshold(filePath, fileContent, rule, context) {
+    _handleCOMPLEXITY_THRESHOLD(filePath, fileContent, rule, context) {
         const complexity = context.syntax?.cyclomaticComplexity; 
+        const metricPath = 'syntax.cyclomaticComplexity';
 
         if (complexity === undefined) {
-             this.logger.error(`Context missing required 'syntax.cyclomaticComplexity' for rule ${rule.name}.`);
-             return null; // Broker failed to provide required data
+             return {
+                 rule: "METRIC_CONTEXT_MISSING",
+                 type: ViolationType.GOVERNANCE,
+                 level: "MAJOR",
+                 message: `Required metric (${metricPath}) missing from AnalysisContext for rule ${rule.name}.`, 
+                 data: { required: metricPath }
+             };
         }
 
         if (complexity > rule.details.limit) {
@@ -154,26 +189,44 @@ export class ConstraintEnforcementEngine {
                 rule: rule.name, 
                 type: ViolationType.COMPLEXITY, 
                 level: rule.enforcement_level, 
-                message: `Code complexity (${complexity}) exceeds threshold (${rule.details.limit}).`,
+                message: `Code complexity (${complexity}) exceeds configured threshold (${rule.details.limit}).`, 
                 data: { complexity, limit: rule.details.limit }
             };
         }
         return null;
     }
 
-    _checkForbiddenPatterns(filePath, fileContent, rule, context) {
-        const { structural_patterns, regex_patterns } = rule.details;
-        const syntaxAnalyzer = this.analysisBroker.syntaxAnalyzer;
-
+    _handleFORBIDDEN_PATTERNS(filePath, fileContent, rule, context) {
+        const { structural_patterns = [], regex_patterns = [] } = rule.details;
+        
         // 1. Check structural/AST patterns 
-        if (structural_patterns && context.syntax?.ast) {
+        if (structural_patterns.length > 0) {
+             if (!context.syntax?.ast) {
+                 return {
+                     rule: "METRIC_CONTEXT_MISSING",
+                     type: ViolationType.GOVERNANCE,
+                     level: "MAJOR",
+                     message: `Required metric (syntax.ast) missing from AnalysisContext for structural pattern checks.`, 
+                     data: { required: 'syntax.ast' }
+                 };
+             }
+
+            const syntaxAnalyzer = this.analysisBroker.syntaxAnalyzer; 
+            
             for (const structuralId of structural_patterns) {
+                const pattern = this.patternRegistry.getPattern(structuralId);
+
+                if (!pattern) {
+                     this.logger.warn(`Structural pattern ID '${structuralId}' not found in registry. Skipping check.`);
+                     continue;
+                }
+                
                 if (syntaxAnalyzer.matchStructuralPattern(context.syntax.ast, structuralId)) {
                      return { 
                         rule: rule.name, 
                         type: ViolationType.SAFETY, 
                         level: rule.enforcement_level, 
-                        message: `Forbidden structural pattern detected: ${structuralId}`,
+                        message: `Forbidden structural pattern detected: ${structuralId} (${pattern.description || 'unspecified unsafe feature'}).`, 
                         data: { type: 'structural', patternId: structuralId }
                     };
                 }
@@ -181,15 +234,15 @@ export class ConstraintEnforcementEngine {
         }
 
         // 2. Check simple regex patterns 
-        if (regex_patterns) {
+        if (regex_patterns.length > 0) {
              for (const pattern of regex_patterns) {
-                if (new RegExp(pattern, 'g').test(fileContent)) { 
+                if (new RegExp(pattern, 'gm').test(fileContent)) { 
                     return { 
                         rule: rule.name, 
                         type: ViolationType.SAFETY, 
                         level: rule.enforcement_level, 
-                        message: `Forbidden text pattern matched: '${pattern.substring(0, 40)}...'`,
-                        data: { type: 'regex', pattern }
+                        message: `Forbidden text pattern matched: /${pattern.substring(0, 40)}/...`, 
+                        data: { type: 'regex', pattern: pattern }
                     };
                 }
             }
@@ -197,13 +250,19 @@ export class ConstraintEnforcementEngine {
         return null;
     }
     
-    _checkEntropyDensity(filePath, fileContent, rule, context) {
+    _handleENTROPY_DENSITY(filePath, fileContent, rule, context) {
         const entropyScore = context.entropy;
+        const metricPath = 'entropy';
         const { min_limit, max_limit } = rule.details;
 
         if (entropyScore === undefined) {
-             this.logger.error(`Context missing required 'entropy' for rule ${rule.name}.`);
-             return null; 
+             return {
+                 rule: "METRIC_CONTEXT_MISSING",
+                 type: ViolationType.GOVERNANCE,
+                 level: "MAJOR",
+                 message: `Required metric (${metricPath}) missing from AnalysisContext for rule ${rule.name}.`, 
+                 data: { required: metricPath }
+             };
         }
         
         if (entropyScore < min_limit || entropyScore > max_limit) {
@@ -211,12 +270,14 @@ export class ConstraintEnforcementEngine {
                 rule: rule.name, 
                 type: ViolationType.QUALITY, 
                 level: rule.enforcement_level, 
-                message: `Entropy density (${entropyScore.toFixed(3)}) is outside acceptable range [${min_limit}, ${max_limit}]. Suggests obfuscation or excessive triviality.`,
+                message: `Entropy density (${entropyScore.toFixed(3)}) is outside acceptable range [${min_limit}, ${max_limit}]. Suggests obfuscation or excessive triviality.`, 
                 data: { entropyScore, min: min_limit, max: max_limit }
             };
         }
         return null;
     }
+
+    // Future handlers would be added here, e.g., _handleLICENSE_HEADER, _handleAPI_USAGE_RESTRICTION
 }
 
 export const CEE = new ConstraintEnforcementEngine();
