@@ -66,4 +66,5 @@ class ValidationOrchestrator {
     }
 }
 
-module.exports = ValidationOrchestrator;
+// Refactored to a named export for explicit integration into UNIFIER.js.
+module.exports = { ValidationOrchestrator };
