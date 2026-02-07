@@ -1,81 +1,104 @@
-from typing import Dict, Any, Union, Tuple, TypedDict, cast
+from typing import Dict, Any, Union, TypedDict, cast, List, Optional
 import math
 
 # --- Type Definitions ---
-class ComplexitySignature(TypedDict):
-    """The measurable output metrics (Turing Signature) of an SST analysis."""
-    size_bytes: int
-    estimated_depth: int
-    complexity_score: float
 
-class CBMLimits(TypedDict, total=False):
-    """Defines the structural and resource constraints imposed by CBM."""
+class ComplexityMetrics(TypedDict):
+    """The measurable complexity metrics (Turing Signature) of an analysis.
+    These metrics are derived from static structural features.
+    """
+    size_bytes: int
+    depth_heuristic: int
+    turing_score: float
+
+class ComputationalLimits(TypedDict, total=False):
+    """Defines the structural and resource constraints imposed by CBM.
+    These act as hard ceilings for proposed state transitions.
+    """
     max_size_bytes: int
-    max_estimated_depth: int
-    complexity_budget: float
+    max_depth_heuristic: int
+    turing_budget: float
 
 SSTManifest = Dict[str, Any] # System State Transition Manifest (generic payload)
 
 class CBMVeto(Exception):
-    """Custom exception raised when CBM constraints are violated."""
+    """Custom exception raised when CBM constraints are violated.
+    This signals an immediate rejection of the proposed SST.
+    """
     pass
 
 class ComputationalBoundednessModule:
     """
     L2: CBM performs static analysis to ensure the proposed SST (System State Transition) 
-    is computationally bounded (S-02 risk mitigation).
+    is computationally bounded (S-02 risk mitigation, preventing accidental O(n^k) scaling).
 
     CBM relies solely on structural features available pre-execution.
     """
 
-    # Defines how keys in the Signature map to keys in the Limits
-    LIMIT_KEY_MAP: Dict[str, str] = {
+    # Maps ComplexityMetrics keys -> ComputationalLimits keys
+    METRIC_LIMIT_MAP: Dict[str, str] = {
         "size_bytes": "max_size_bytes",
-        "estimated_depth": "max_estimated_depth",
-        "complexity_score": "complexity_budget"
+        "depth_heuristic": "max_depth_heuristic",
+        "turing_score": "turing_budget"
     }
 
-    def __init__(self, limits: CBMLimits):
+    def __init__(self, limits: ComputationalLimits):
         """
         Initializes CBM with structural and resource constraints.
-        :param limits: Dictionary adhering to CBMLimits structure.
+        Ensures limits are valid non-negative numeric values.
         """
         if not limits:
             raise ValueError("CBM initialization requires non-empty resource limits.")
-            
-        # Ensure limits are positive numeric values before casting
-        validated_limits = cast(CBMLimits, {k: v for k, v in limits.items() if isinstance(v, (int, float)) and v >= 0})
-        if not validated_limits:
-            raise ValueError("CBM limits must be valid positive numeric values.")
-            
-        self.limits: CBMLimits = validated_limits
 
-    def calculate_turing_signature(self, sst_manifest: SSTManifest) -> ComplexitySignature:
+        self.limits: ComputationalLimits = {}
+        for k, v in limits.items():
+            if isinstance(v, (int, float)):
+                if v < 0:
+                    raise ValueError(f"Limit '{k}' must be non-negative, got {v}.")
+                # Store validated limit
+                self.limits[k] = v
+
+        if not self.limits:
+             raise ValueError("No valid numeric resource limits were provided after validation.")
+
+    def _calculate_size_proxy(self, data: SSTManifest) -> int:
+        """Estimates the structural size proxy using repr() and UTF-8 encoding.
+        Used as a proxy for serialization and processing cost.
+        """
+        try:
+            return len(repr(data).encode('utf-8'))
+        except TypeError:
+            return 0
+
+    def _calculate_depth_heuristic(self, data: SSTManifest) -> int:
+        """Estimates potential recursion or chaining depth from metadata.
+        Ensures a minimum depth of 1 for scoring.
+        """
+        try:
+            # Defaulting to 1 for minimal non-zero depth
+            depth = int(data.get('metadata', {}).get('depth_hint', 1))
+            return max(1, depth)
+        except (ValueError, TypeError):
+            return 1 # Fallback depth
+
+    def calculate_metrics(self, sst_manifest: SSTManifest) -> ComplexityMetrics:
         """
         Estimates the static computational complexity based on structural features. 
-        Returns a dictionary of measurable complexity metrics (Turing Signature).
+        Returns the Complexity Metrics signature.
         """
         
-        # 1. Structural size (Serialization cost proxy)
-        try:
-            # Using repr() captures structural details better than str() for complexity estimation
-            size_bytes = len(repr(sst_manifest).encode('utf-8'))
-        except TypeError:
-            size_bytes = 0
-            
-        # 2. Heuristic Depth (estimated recursion or chain length)
-        # Defaulting to 2 prevents overly optimistic estimates for missing metadata.
-        estimated_depth = int(sst_manifest.get('metadata', {}).get('depth_hint', 2))
+        size_bytes = self._calculate_size_proxy(sst_manifest)
+        depth_heuristic = self._calculate_depth_heuristic(sst_manifest)
         
-        # 3. Overall Complexity Score (Normalized static metric)
-        # Uses log size * depth, providing a combined risk metric.
+        # 3. Overall Turing Score (Normalized static metric)
+        # Uses log size * depth * scaling factor.
         log_size = math.log(size_bytes + 1, 10) # +1 prevents log(0)
-        complexity_score = log_size * estimated_depth * 0.1
+        turing_score = log_size * depth_heuristic * 0.1 # Retaining original scaling factor 0.1
         
-        signature: ComplexitySignature = {
+        signature: ComplexityMetrics = {
             "size_bytes": size_bytes,
-            "estimated_depth": estimated_depth,
-            "complexity_score": complexity_score
+            "depth_heuristic": depth_heuristic,
+            "turing_score": turing_score
         }
         return signature
 
@@ -83,28 +106,28 @@ class ComputationalBoundednessModule:
         """
         Performs static constraint checking against the predefined CBM ceilings.
         Raises CBMVeto if the bounds are violated.
-        
-        :param sst_manifest: The System State Transition payload to analyze.
-        :return: True if all bounds are met.
         """
-        turing_signature = self.calculate_turing_signature(sst_manifest)
-        
-        violations = []
+        metrics = self.calculate_metrics(sst_manifest)
+        violations: List[str] = []
 
-        for metric_name, value in turing_signature.items():
-            limit_key = self.LIMIT_KEY_MAP.get(metric_name)
+        for metric_name, value in metrics.items():
+            limit_key = self.METRIC_LIMIT_MAP.get(metric_name)
             
             if limit_key and limit_key in self.limits:
                 limit = self.limits[limit_key]
                 
-                if value > limit:
+                # Comparison must handle potential float types for scores/budgets
+                if value > cast(float, limit):
                     violations.append(
-                        f"'{metric_name}' ({value:.4f}) > limit '{limit_key}' ({limit})"
+                        f"Metric '{metric_name}' (V: {value:,.2f}) > Limit '{limit_key}' (L: {limit:,.2f})"
                     )
         
         if violations:
             violation_str = "; ".join(violations)
-            reason = f"CBM VETO (S-02 risk): Static signature violation(s): [{violation_str}]"
+            reason = (
+                f"CBM VETO (S-02 risk mitigation): Static signature violation(s) detected: "
+                f"[{violation_str}]"
+            )
             raise CBMVeto(reason)
         
         return True
