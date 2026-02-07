@@ -1,4 +1,13 @@
 const NormalizationError = require('./normalizationError');
+const GOVERNANCE_SCHEMA = require('../config/governanceLogSchema'); 
+
+// Centralized Error Code Management for structured failure analysis
+const ERROR_CODES = {
+    MISSING_FIELD: 'LNM_100',
+    CONSTRAINT_FAIL: 'LNM_200',
+    COERCION_FAIL: 'LNM_300',
+    RUNTIME_ERROR: 'LNM_999'
+};
 
 /**
  * Component ID: LNM
@@ -6,97 +15,92 @@ const NormalizationError = require('./normalizationError');
  * GSEP Alignment: Stage 5 / Maintenance
  * 
  * Purpose: Ensures schema coherence and integrity validation for all governance log streams
- * before ingestion by analytic engines (GMRE, SEA, EDP). Refactored for structured schema
- * management, type coercion, and resilient batch processing.
+ * before ingestion by analytic engines (GMRE, SEA, EDP). Refactored to utilize a decoupled 
+ * schema configuration (governanceLogSchema) for runtime adaptability and cleaner logic flow.
  */
 
 class LogNormalizationModule {
     constructor() {
-        // Structured Schema Definition for precise validation and automated coercion.
-        // Defines required fields, coercion methods, and integrity validators.
-        this.schemaDefinition = {
-            timestamp: { 
-                required: true, 
-                coercer: (val) => new Date(val).toISOString(), 
-                validator: (val) => val.includes('T') && !isNaN(Date.parse(val)),
-                error_code: 'LNM_401'
-            },
-            component_id: { 
-                required: true, 
-                coercer: (val) => String(val).toUpperCase(),
-                error_code: 'LNM_402'
-            },
-            status_code: { 
-                required: true, 
-                coercer: Number, 
-                validator: Number.isInteger, 
-                error_code: 'LNM_403' 
-            }, 
-            gsep_stage: { 
-                required: true, 
-                coercer: Number, 
-                validator: (val) => val >= 1 && val <= 5, 
-                error_code: 'LNM_404', 
-                error: 'GSEP stage index out of bounds (1-5)'
-            },
-            input_hash: { 
-                required: true, 
-                coercer: String, 
-                validator: (val) => typeof val === 'string' && val.length >= 10, 
-                error_code: 'LNM_405' 
-            }
-        };
-        
+        // Load externalized, immutable schema definition
+        this.schemaDefinition = GOVERNANCE_SCHEMA; 
         this.requiredKeys = Object.keys(this.schemaDefinition);
     }
 
+    // --- Private Utility Methods for Clarity ---
+
+    _checkExistence(key, rawLogEntry, definition) {
+        if (definition.required && !(key in rawLogEntry)) {
+            throw new NormalizationError(
+                `Missing required field: ${key}`,
+                rawLogEntry, key, ERROR_CODES.MISSING_FIELD
+            );
+        }
+    }
+
+    _applyCoercion(key, value, rawLogEntry, definition) {
+        if (definition.coercer && value !== undefined) {
+            try {
+                return definition.coercer(value);
+            } catch (e) {
+                throw new NormalizationError(
+                    `Coercion failed for field: ${key}. Input: ${rawLogEntry[key]}. Error: ${e.message}`,
+                    rawLogEntry, key, definition.error_code || ERROR_CODES.COERCION_FAIL
+                );
+            }
+        }
+        return value;
+    }
+
+    _validateIntegrity(key, value, rawLogEntry, definition) {
+        // Skip validation if the field was optional and missing
+        if (definition.validator && value !== undefined && !definition.validator(value)) {
+            const message = definition.error 
+                ? `Constraint failed: ${definition.error}` 
+                : `Integrity check failed for value: ${value}`;
+
+            throw new NormalizationError(
+                message,
+                rawLogEntry, key, definition.error_code || ERROR_CODES.CONSTRAINT_FAIL
+            );
+        }
+    }
+
+
     /**
-     * Normalizes and validates a raw log entry. Utilizes the internal schema definition.
+     * Normalizes and validates a raw log entry based on the externalized schema definition.
      * @param {Object} rawLogEntry - The raw data.
      * @returns {Object} A clean, validated log object.
      * @throws {NormalizationError} If the log entry violates the mandated schema or constraints.
      */
     normalize(rawLogEntry) {
+        if (typeof rawLogEntry !== 'object' || rawLogEntry === null) {
+             throw new NormalizationError(
+                "Input must be a non-null object.",
+                rawLogEntry, 'input', ERROR_CODES.CONSTRAINT_FAIL 
+            );
+        }
+        
         const normalized = {};
 
         for (const key of this.requiredKeys) {
             const definition = this.schemaDefinition[key];
 
             // 1. Existence Check
-            if (definition.required && !(key in rawLogEntry)) {
-                throw new NormalizationError(
-                    `Missing required field: ${key}`,
-                    rawLogEntry, key, 'LNM_100' 
-                );
-            }
-
+            this._checkExistence(key, rawLogEntry, definition);
+            
             let value = rawLogEntry[key];
 
-            // 2. Coercion
-            if (definition.coercer) {
-                try {
-                    value = definition.coercer(value);
-                } catch (e) {
-                    throw new NormalizationError(
-                        `Coercion failed for field: ${key}. Input: ${rawLogEntry[key]}`,
-                        rawLogEntry, key, definition.error_code || 'LNM_300' 
-                    );
-                }
+            if (value !== undefined) {
+                // 2. Coercion
+                value = this._applyCoercion(key, value, rawLogEntry, definition);
+
+                // 3. Constraint/Integrity Validation
+                this._validateIntegrity(key, value, rawLogEntry, definition);
             }
-
-            // 3. Constraint/Integrity Validation
-            if (definition.validator && !definition.validator(value)) {
-                const message = definition.error 
-                    ? `Constraint failed: ${definition.error}` 
-                    : `Integrity check failed for value: ${value}`;
-
-                throw new NormalizationError(
-                    message,
-                    rawLogEntry, key, definition.error_code || 'LNM_200'
-                );
+            
+            if (value !== undefined) {
+                normalized[key] = value;
             }
-
-            normalized[key] = value;
         }
         
         return normalized;
@@ -109,6 +113,13 @@ class LogNormalizationModule {
      * @returns {{success: Array<Object>, failures: Array<Object>}} Partitioned results.
      */
     processBatch(logArray) {
+        if (!Array.isArray(logArray)) {
+             return { success: [], failures: [{
+                rawEntry: logArray, 
+                error: { message: "Batch input must be an array.", code: ERROR_CODES.RUNTIME_ERROR, name: 'TypeError' }
+            }]};
+        }
+        
         const results = {
             success: [],
             failures: []
@@ -130,12 +141,12 @@ class LogNormalizationModule {
                         }
                     });
                 } else {
-                    // Catch internal system faults
+                    // Catch internal system faults (LNM_999)
                     results.failures.push({
                         rawEntry: rawLogEntry,
                         error: {
-                            message: `Unexpected LNM runtime error: ${error.message}`,
-                            code: 'LNM_999',
+                            message: `Unexpected LNM runtime error during normalization: ${error.message}`,
+                            code: ERROR_CODES.RUNTIME_ERROR,
                             name: 'InternalRuntimeError'
                         }
                     });
