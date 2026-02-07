@@ -1,33 +1,74 @@
 /**
  * Component Governance State Registry - src/governance/governanceStateRegistry.js
- * ID: GSR v94.1
+ * ID: GSR v94.2 (Refactored for robustness and scalability)
  * Role: State Persistence / Transactional Safety
  *
- * The GSR maintains the current governance lifecycle status of all components
- * undergoing high-stakes actions (deprecation, retirement, etc.). 
- * It is critical for ensuring idempotency and sequential execution.
+ * Maintains the current governance lifecycle status of all components.
+ * This ensures idempotency, sequential execution, and provides an authoritative source of truth.
+ *
+ * NOTE: The internal map acts as a placeholder Persistence Adapter. This structure is ready
+ * to inject a durable persistence dependency and interface with an Audit Service.
  */
 
-// Placeholder in-memory store. In production, this would interface with a durable key-value store.
-const componentStateMap = new Map(); 
-
-const COMPONENT_STATUS = {
+// --- Constants ---
+export const COMPONENT_STATUS = {
     ACTIVE: 'ACTIVE',
-    PENDING_REVIEW: 'PENDING_REVIEW',
-    SCHEDULED_ACTION: 'SCHEDULED_ACTION',
+    PENDING_REVIEW: 'PENDING_REVIEW', // A review or voting process is ongoing
+    SCHEDULED_ACTION: 'SCHEDULED_ACTION', // Review passed, pending execution by Actuator
     RETIRED: 'RETIRED',
-    BLOCKED: 'BLOCKED' // Due to external factors/veto
+    BLOCKED: 'BLOCKED' // Due to external factors/veto or failure
+};
+
+/**
+ * @typedef {Object} ComponentState
+ * @property {string} status - Current status from COMPONENT_STATUS.
+ * @property {string} [actionType] - Type of pending or scheduled action (e.g., 'DEPRECATION', 'RETIREMENT').
+ * @property {number} timestamp - Last transition time (Epoch ms).
+ * @property {Object} [decisionReport] - Full report/metadata justifying the current state transition.
+ */
+
+// Placeholder Persistence Layer (In-memory Map)
+const stateMap = new Map(); 
+const DEFAULT_STATE = { status: COMPONENT_STATUS.ACTIVE, timestamp: 0 };
+
+// Placeholder: GovernanceAuditService Dependency (See Scaffold proposal)
+const AuditService = { 
+    logTransition: (id, previous, next) => { /* Placeholder: Integrate governanceAuditService here */ }
 };
 
 class GovernanceStateRegistry {
 
     /**
-     * Retrieves the current status of a component.
+     * Internal Helper for handling state transitions, audit logging, and consistency.
      * @param {string} componentId
-     * @returns {{status: string, actionType?: string, timestamp: number} | null}
+     * @param {Partial<ComponentState>} newStateData
+     */
+    _updateState(componentId, newStateData) {
+        const currentState = this.getStatus(componentId);
+        
+        const nextState = {
+            ...currentState,
+            ...newStateData,
+            timestamp: Date.now(),
+        };
+
+        // Critical audit logging hook
+        AuditService.logTransition(componentId, currentState, nextState);
+        
+        stateMap.set(componentId, nextState);
+        return nextState;
+    }
+
+    /**
+     * Retrieves the current, standardized state object for a component.
+     * Ensures a consistent return type (ComponentState).
+     * @param {string} componentId
+     * @returns {ComponentState}
      */
     getStatus(componentId) {
-        return componentStateMap.get(componentId) || { status: COMPONENT_STATUS.ACTIVE };
+        const state = stateMap.get(componentId);
+        // Return existing state or a newly constructed default active state
+        return state ? state : { ...DEFAULT_STATE, timestamp: Date.now() };
     }
 
     /**
@@ -36,58 +77,87 @@ class GovernanceStateRegistry {
     isComponentRetired(componentId) {
         return this.getStatus(componentId).status === COMPONENT_STATUS.RETIRED;
     }
-
+    
     /**
-     * Checks if a component is currently pending a specific governance action.
+     * Checks if a component is actively undergoing a governance process.
      * @param {string} componentId
-     * @param {string} actionType
+     * @param {string} [actionType] - Optional, check for a specific type of action.
      */
-    isComponentPending(componentId, actionType) {
-        const status = this.getStatus(componentId);
-        return (status.status === COMPONENT_STATUS.PENDING_REVIEW || status.status === COMPONENT_STATUS.SCHEDULED_ACTION) && status.actionType === actionType;
+    isComponentInProcess(componentId, actionType = null) {
+        const state = this.getStatus(componentId);
+
+        const inProcess = (
+            state.status === COMPONENT_STATUS.PENDING_REVIEW || 
+            state.status === COMPONENT_STATUS.SCHEDULED_ACTION
+        );
+
+        if (actionType) {
+            return inProcess && state.actionType === actionType;
+        }
+        return inProcess;
     }
 
     /**
      * Registers that a component review has started (entering PENDING_REVIEW state).
      */
     registerPendingReview(componentId, actionType) {
-        componentStateMap.set(componentId, {
+        if (this.isComponentInProcess(componentId)) {
+            throw new Error(`Component ${componentId} is already in process. Status: ${this.getStatus(componentId).status}`);
+        }
+        return this._updateState(componentId, {
             status: COMPONENT_STATUS.PENDING_REVIEW,
             actionType: actionType,
-            timestamp: Date.now()
+            decisionReport: undefined
         });
     }
 
     /**
-     * Clears the pending state, reverting to ACTIVE or BLOCK.
+     * Clears the pending state, reverting to ACTIVE. Handles vetoes or failed adjudications.
      */
-    clearPendingReview(componentId, actionType) {
+    clearPendingState(componentId) {
         const current = this.getStatus(componentId);
-        if (current.status === COMPONENT_STATUS.PENDING_REVIEW && current.actionType === actionType) {
-            componentStateMap.set(componentId, { status: COMPONENT_STATUS.ACTIVE, timestamp: Date.now() });
+        
+        if (current.status !== COMPONENT_STATUS.PENDING_REVIEW && current.status !== COMPONENT_STATUS.SCHEDULED_ACTION) {
+             return current; // Idempotent success
         }
+
+        return this._updateState(componentId, { 
+            status: COMPONENT_STATUS.ACTIVE,
+            actionType: undefined,
+            decisionReport: undefined
+        });
     }
 
     /**
      * Registers a decision has passed adjudication and is SCHEDULED for execution.
+     * Requires actionReport to contain the actionType.
      */
-    registerActionScheduled(componentId, report) {
-        componentStateMap.set(componentId, {
+    registerActionScheduled(componentId, actionReport) {
+        const currentStatus = this.getStatus(componentId).status;
+        if (currentStatus !== COMPONENT_STATUS.PENDING_REVIEW && currentStatus !== COMPONENT_STATUS.ACTIVE) {
+             throw new Error(`Cannot schedule action for component ${componentId}. Current status: ${currentStatus}`);
+        }
+
+        if (!actionReport || !actionReport.actionType) {
+            throw new Error("Action report is required and must specify actionType.");
+        }
+        
+        return this._updateState(componentId, {
             status: COMPONENT_STATUS.SCHEDULED_ACTION,
-            actionType: report.action,
-            decisionReport: report, // Store full report for traceability
-            timestamp: Date.now()
+            actionType: actionReport.actionType,
+            decisionReport: actionReport,
         });
     }
 
     /**
-     * Updates the component status to permanently retired. (Called by Actuator post-execution)
+     * Updates the component status to permanently retired/finalized.
      */
-    registerRetirementFinalized(componentId) {
-        componentStateMap.set(componentId, {
-            status: COMPONENT_STATUS.RETIRED,
-            actionType: 'RETIREMENT',
-            timestamp: Date.now()
+    registerActionFinalized(componentId, finalStatus = COMPONENT_STATUS.RETIRED, actionType = 'GOVERNANCE_ACTION') {
+        
+        return this._updateState(componentId, {
+            status: finalStatus,
+            actionType: actionType,
+            // decisionReport is implicitly carried forward from SCHEDULED_ACTION
         });
     }
 }
