@@ -1,13 +1,16 @@
 /**
- * SchemaMergeValidator (v94.3 - Refactored for Separation of Concerns Readiness)
+ * SchemaMergeValidator (v94.1 - Decoupled Schema Resolution)
  * Utility class responsible for merging base schemas (Core Indexing Metadata)
  * with custom schema fragments defined within an Artifact Indexing Policy (AIP)
  * and performing robust validation using Ajv.
  *
- * NOTE: Assumes Ajv instance is configured for desired schema dialect (e.g., draft 7/2020-12).
- * This utility focuses primarily on merging, compilation, and validation.
- * Policy structure resolution logic has been isolated into a helper for potential future extraction (see architectural proposal).
+ * NOTE: Relies on the PolicySchemaResolver utility for locating and extracting
+ * the core schema and custom fragment from the policy object.
  */
+
+const { resolveAIPSchemas } = require('./PolicySchemaResolver'); // New dependency
+
+// --- [ Internal Utilities ] ----------------------------------------------------
 
 /**
  * @typedef {object} JSONSchema
@@ -22,7 +25,10 @@
  * @param {JSONSchema} schema
  * @returns {JSONSchema}
  */
-const _cloneSchema = (schema) => JSON.parse(JSON.stringify(schema));
+const deepCloneSchema = (schema) => JSON.parse(JSON.stringify(schema));
+
+
+// --- [ Main Class ] -----------------------------------------------------------
 
 class SchemaMergeValidator {
   /**
@@ -33,16 +39,20 @@ class SchemaMergeValidator {
       throw new Error('SchemaMergeValidator requires a valid Ajv instance.');
     }
     this.ajv = ajvInstance;
+    // Optimization: Pre-bind Ajv cache lookup function.
+    this.getSchema = this.ajv.getSchema.bind(this.ajv);
   }
 
   /**
    * Generates a predictable, cacheable ID for the composite schema based on the policy references.
-   * @param {string} baseRef - The identifier of the base schema.
+   * @param {string} coreSchemaRef - The identifier of the base schema (e.g., 'CoreIndexingMetadata').
    * @param {boolean} hasCustomSchema - Whether a custom fragment was applied.
    * @returns {string} Unique schema cache ID.
    */
-  _generateSchemaId(baseRef, hasCustomSchema) {
-      return `AIP-Composite-${baseRef}-${hasCustomSchema ? 'CUSTOM' : 'BASE'}`;
+  _generateSchemaId(coreSchemaRef, hasCustomSchema) {
+      // Ensure the ref is safely integrated into the ID.
+      const safeRef = coreSchemaRef.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `AIP-Composite-${safeRef}-${hasCustomSchema ? 'CUSTOM' : 'BASE'}`;
   }
 
   /**
@@ -57,11 +67,11 @@ class SchemaMergeValidator {
   createCompositeSchema(baseSchema, customSchema) {
     if (!customSchema || (!customSchema.properties && !customSchema.required && customSchema.additionalProperties === undefined)) {
       // Return a deep clone of the base schema if the custom fragment provides no merging instruction.
-      return _cloneSchema(baseSchema);
+      return deepCloneSchema(baseSchema);
     }
 
     // 1. Deep clone the base schema to maintain source immutability.
-    const merged = _cloneSchema(baseSchema);
+    const merged = deepCloneSchema(baseSchema);
     
     const baseProps = merged.properties || {};
     const customProps = customSchema.properties || {};
@@ -72,7 +82,7 @@ class SchemaMergeValidator {
       ...customProps
     };
 
-    // 3. Merge required fields, ensuring uniqueness and deterministic order.
+    // 3. Merge required fields, ensuring uniqueness and deterministic order (sorting for stability).
     const baseRequired = merged.required || [];
     const customRequired = customSchema.required || [];
     merged.required = [...new Set([...baseRequired, ...customRequired])].sort();
@@ -86,33 +96,8 @@ class SchemaMergeValidator {
   }
 
   /**
-   * Helper function to extract and resolve the base schema reference from the AIP structure.
-   * NOTE: This logic is a candidate for extraction into a PolicySchemaResolver service.
-   * 
-   * @param {object} policy - The full ArtifactIndexingPolicy object.
-   * @returns {{baseSchema: JSONSchema | null, coreSchemaRef: string | null, error: string | null}}
-   */
-  _resolveBaseSchema(policy) {
-    const refPath = policy.indexing_structure?.['$ref'];
-    const coreSchemaRef = refPath?.split('/')?.pop();
-
-    if (!coreSchemaRef || !policy.$defs || !policy.$defs[coreSchemaRef]) {
-        const errorMsg = coreSchemaRef 
-            ? `Definition '${coreSchemaRef}' not found in $defs.`
-            : (refPath ? `Invalid $ref path: ${refPath}` : "Missing 'indexing_structure.$ref'.");
-        return { baseSchema: null, coreSchemaRef: coreSchemaRef || 'unknown', error: errorMsg };
-    }
-
-    return {
-        baseSchema: policy.$defs[coreSchemaRef],
-        coreSchemaRef,
-        error: null
-    };
-  }
-
-  /**
    * Validates a metadata payload against the policy schema. Handles schema resolution,
-   * merging, compilation, and caching. 
+   * merging, compilation, and caching.
    *
    * @param {object} policy - The full ArtifactIndexingPolicy object.
    * @param {object} data - The metadata payload to validate.
@@ -120,45 +105,44 @@ class SchemaMergeValidator {
    */
   validate(policy, data) {
     
-    // 1. Resolve base schema and fragment.
-    const resolution = this._resolveBaseSchema(policy);
+    // 1. Delegate schema resolution to the external utility.
+    const resolution = resolveAIPSchemas(policy);
 
-    if (resolution.error) {
+    if (resolution.error || !resolution.baseSchema) {
         return {
             isValid: false,
-            errors: [{ keyword: 'resolution', message: `Base schema definition error: ${resolution.error}` }],
-            schemaId: resolution.coreSchemaRef
+            errors: [{ keyword: 'resolution', message: `Base schema resolution failed: ${resolution.error}` }],
+            schemaId: resolution.coreSchemaRef || 'unknown'
         };
     }
     
-    const baseSchema = resolution.baseSchema;
-    const coreSchemaRef = resolution.coreSchemaRef;
-    const customSchemaFragment = policy.custom_metadata_schema;
+    const { baseSchema, coreSchemaRef, customSchemaFragment } = resolution;
     
-    // 2. Create the composite schema.
-    const compositeSchema = this.createCompositeSchema(
-      baseSchema,
-      customSchemaFragment
-    );
-    
-    // 3. Generate schema ID for Ajv caching.
-    const schemaId = this._generateSchemaId(coreSchemaRef, !!customSchemaFragment);
+    // 2. Generate schema ID for Ajv caching.
+    const hasCustomSchema = !!customSchemaFragment;
+    const schemaId = this._generateSchemaId(coreSchemaRef, hasCustomSchema);
 
-    let validateFn;
+    let validateFn = this.getSchema(schemaId);
     
     try {
-        validateFn = this.ajv.getSchema(schemaId);
-
         if (!validateFn) {
-            // Compile the dynamic schema and register it.
+            
+            // 3. Create the composite schema (Only done if cache miss).
+            const compositeSchema = this.createCompositeSchema(
+              baseSchema,
+              customSchemaFragment
+            );
+            
+            // 4. Compile and Register.
             this.ajv.addSchema(compositeSchema, schemaId);
-            validateFn = this.ajv.getSchema(schemaId); 
+            validateFn = this.getSchema(schemaId); 
             
             if (!validateFn) {
-                throw new Error("Ajv compilation failed to return validation function after successful add.");
+                throw new Error("Ajv compilation failed, validator function not retrieved.");
             }
         }
 
+        // 5. Execute Validation.
         const isValid = validateFn(data);
 
         return {
