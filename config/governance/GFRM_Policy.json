@@ -1,1 +1,7 @@
-[object Object]
+{
+  "policyName": "Governance Framework Resilience Mandate",
+  "version": "94.2",
+  "status": "ACTIVE",
+  "rulesetReference": "/governance/G0_Rules.js",
+  "enforcementLevel": "CONVERGENT_MANDATE"
+}
