@@ -1,20 +1,44 @@
 {
-  "schema_version": "1.0.0",
-  "modes": {
+  "schema_version": "2.0.0",
+  "failure_modes": {
+    "SEVERITY_MAPPING": {
+      "CRITICAL": 900,
+      "HIGH": 700,
+      "MEDIUM": 500,
+      "LOW": 300,
+      "INFORMATIONAL": 100
+    },
     "HARD_FAIL": {
+      "display_name": "Critical Runtime Violation",
+      "severity_level": "CRITICAL",
       "action": "HALT_EXECUTION",
-      "logging_level": "CRITICAL",
+      "propagation_scope": "SYSTEM",
+      "logging_level": "EMERGENCY",
       "remediation_strategy": "TRIGGER_QUARANTINE_PROTOCOL"
     },
-    "SOFT_WARNING": {
-      "action": "LOG_AND_CONTINUE",
-      "logging_level": "WARNING",
-      "remediation_strategy": "ASYNC_ANALYSIS_JOB"
+    "QUARANTINE_BREACH": {
+      "display_name": "Isolation Evasion Attempt",
+      "severity_level": "CRITICAL",
+      "action": "ISOLATE_PROCESS_SPACE_IMMEDIATE",
+      "propagation_scope": "SYSTEM_KERNEL",
+      "logging_level": "CRITICAL",
+      "remediation_strategy": "REPORT_AND_SEAL"
     },
-    "QUARANTINE": {
-      "action": "ISOLATE_PROCESS_SPACE",
-      "logging_level": "EMERGENCY",
-      "remediation_strategy": "REPORT_AND_REBOOT"
+    "DEGRADED_STATE": {
+      "display_name": "Functionality Impairment",
+      "severity_level": "HIGH",
+      "action": "DEGRADE_FUNCTIONALITY",
+      "propagation_scope": "MODULE",
+      "logging_level": "WARNING",
+      "remediation_strategy": "ROLLBACK_AND_ASYNC_ANALYSIS"
+    },
+    "SOFT_WARNING": {
+      "display_name": "Integrity Check Anomaly",
+      "severity_level": "LOW",
+      "action": "LOG_AND_CONTINUE",
+      "propagation_scope": "THREAD",
+      "logging_level": "DEBUG",
+      "remediation_strategy": "METRICS_AND_ALERT"
     }
   }
 }
