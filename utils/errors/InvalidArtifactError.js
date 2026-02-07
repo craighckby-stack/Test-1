@@ -19,7 +19,11 @@ class InvalidArtifactError extends BaseCustomError {
      */
     constructor(message, options = {}) {
         super(message, options);
-        // Explicitly set the name for reliable stack tracing and consistency.
+        
+        // Ensure the instance includes the standardized error code for serialization and programmatic handling.
+        this.code = InvalidArtifactError.CODE;
+        
+        // Explicitly set the name for reliable stack tracing and consistency (as per existing architectural requirements).
         this.name = 'InvalidArtifactError'; 
     }
 }
