@@ -1,25 +1,26 @@
-# Certified State Transition Ledger (CSTL) V98.3
+# Certified State Transition Ledger (CSTL) Specification V99.0
 
-## 1.0 Mandate
-The Certified State Transition Ledger (CSTL) provides an immutable, cryptographically verifiable history of all successful Governance State Evolution Pipeline (GSEP-C) transitions ($\Psi_{N} \to \Psi_{N+1}$). Its primary purpose is external accountability and internal forensic analysis of the Autonomous State lineage.
+## 1.0 State Mandate (Objective Function)
+The Certified State Transition Ledger (CSTL) serves as the immutable, forensically auditable record of all approved governance transitions ($\Psi_{N} \to \Psi_{N+1}$) originating exclusively from the Governance State Evolution Pipeline (GSEP-C). CSTL entries guarantee both **external accountability** and **internal continuity** through terminal cryptographic commitment (Stage S10).
 
-## 2.0 Architectural Requirements
+## 2.0 Architecture and Integrity Profile
 
-The CSTL is managed by a decentralized consensus mechanism optimized for append-only, sequential data integrity, requiring terminal cryptographic commitment (Stage S10).
+The CSTL is realized as a chain of self-referential cryptographic commitments, optimized for strict sequential integrity and managed under a decentralized, append-only security model.
 
-1.  **Immutability:** Once a record (Commitment Receipt) is chained, it cannot be modified or deleted.
-2.  **Attestation:** Every entry must carry the CRoT Attestation Signature (*) applied at GSEP-C Stage S10.
-3.  **Verifiability:** The full chain must be publicly auditable for sequence integrity.
+1.  **Immutability Enforcement:** Data integrity is guaranteed via chaining `New_State_Hash` of $\Psi_{N}$ to `Parent_State_Hash` of $\Psi_{N+1}$. A Commitment Receipt (CR) is permanently locked upon S10 terminal signing.
+2.  **Certified Attestation (S10):** Every CR must be certified via the unified **CRoT_Signature**, confirming data integrity and compliance across all attested fields.
+3.  **Auditable Verifiability:** The full ledger sequence is verifiable using standard Merkle-Patricia path integrity checking, ensuring non-repudiation of the execution lineage.
 
-## 3.0 Commitment Receipt Structure
+## 3.0 Commitment Receipt (CR) Structure
 
-Each entry in the CSTL, known as a **Commitment Receipt (CR)**, must contain the following attested fields:
+Each CR is the attested metadata bundle of a successful GSEP-C transition. The structure enforces stringent integrity constraints.
 
-| Field | Source | Description | Attestation Requirements |
-|:---|:---|:---|:---|
-| `Receipt_ID` | SGS/CISM | Unique sequential identifier for the GSEP-C instance. | Non-Collidable Hash (NH-256) |
-| `Parent_State_Hash` | CRoT | Cryptographic hash of the certified $\Psi_{N}$ state. | Attested by GICM |
-| `New_State_Hash` | SGS/CRoT | Cryptographic hash of the resulting certified $\Psi_{N+1}$ state. | Attested by GICM |
-| `P01_Metric_Report` | GAX | Signed summary of final $ S_{01}, S_{02}, \epsilon $ and Veto outcomes. | Signed by GAX |
-| `CRoT_Signature` | CRoT | Terminal cryptographic commitment signature confirming integrity of the receipt data. | Mandatory (*) |
-| `Timestamp_Attestation` | HETM/CRoT | Non-repudiable execution timestamp secured by the host environment. | Terminal Lock |
+| Field | Source Module | Data Type/Size | Integrity Constraint | Description |
+|:---|:---|:---|:---|:---|
+| `Ledger_Index` | CSTL Kernel | U64 (Sequence ID) | Sequential & Non-repudiable | Monotonic index assigned upon final append. |
+| `Transition_ID` | SGS/CISM | NH-256 Hash | Non-Collidable Hash | Unique cryptographic ID for the GSEP-C execution run. |
+| `Parent_State_Hash` | CRoT | $H(\Psi_{N})$ | CRoT Attested Chain Link | Hash of the verified preceding state ($\Psi_{N}$). |
+| `New_State_Hash` | SGS/CRoT | $H(\Psi_{N+1})$ | CRoT Certified Outcome | Hash of the newly certified evolved state ($\Psi_{N+1}$). |
+| `Metrics_Report_Hash` | GAX | $H(\text{P01 Report})$ | Signed GAX Summary | Cryptographic hash of the certified P01 performance/veto metrics payload. |
+| `Timestamp_Attestation` | HETM/CRoT | ISO 8601 UTC | Terminal Lock (S10) | Non-repudiable execution timestamp proving liveness. |
+| `CRoT_Signature` | CRoT | ECDSA/Ed25519 | Terminal Commitment (*) | Signature over the concatenated hashes/fields, guaranteeing receipt integrity. |
