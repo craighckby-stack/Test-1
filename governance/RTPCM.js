@@ -13,37 +13,38 @@ class RTPCM {
      * @param {LedgerService} deps.ledger - D-01/MCR dependency for audited transaction logging.
      * @param {ConfigValidator} deps.validator - The Governance Rule Configuration Module (GRCM) validation utility.
      * @param {HashUtility} deps.hasher - Utility for generating cryptographic hashes of configuration states.
-     * @param {ObjectUtils} [deps.objectUtils] - Utility for canonicalization and deep freezing (proposed scaffold).
+     * @param {Object} deps.integrityService - Utility providing canonicalStringify and deepFreeze (now mandatory).
      * @param {Object} [initialConfig={}] - Optional initial configuration settings.
      */
-    constructor({ ledger, validator, hasher, objectUtils }, initialConfig = {}) {
-        if (!ledger || !validator || !hasher) {
-            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher) must be provided.");
+    constructor({ ledger, validator, hasher, integrityService }, initialConfig = {}) {
+        if (!ledger || !validator || !hasher || !integrityService) {
+            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityService) must be provided.");
         }
         
-        // Internal State Management for Version Control and History
-        this._configRegistry = new Map();   // Stores { versionId: deepFrozenConfig }
-        this._activationTimeline = [];     // Tracks activation sequence: [{ versionId, timestamp, source }]
-        this._activeVersionId = null;
+        // Critical safety checks for structural fidelity utilities.
+        if (typeof integrityService.canonicalStringify !== 'function' || typeof integrityService.deepFreeze !== 'function') {
+             throw new Error("RTPCM Initialization Error: integrityService must implement canonicalStringify and deepFreeze methods.");
+        }
 
         // Dependencies
         this._ledger = ledger;
         this._validator = validator;
         this._hasher = hasher;
-        this._objectUtils = objectUtils;
+        this._integrityService = integrityService; // Renamed from _objectUtils
 
-        // Safety check for critical utilities needed for governance fidelity
-        if (this._objectUtils && (!this._objectUtils.canonicalStringify || !this._objectUtils.deepFreeze)) {
-             throw new Error("RTPCM Initialization Error: ObjectUtils must provide canonicalStringify and deepFreeze methods.");
-        }
+        // Internal State Management for Version Control and History
+        this._configRegistry = new Map();   // Stores { versionId: deepFrozenConfig }
+        this._activationTimeline = [];     // Tracks activation sequence: [{ versionId, timestamp, source, changeIndex }]
+        this._activeVersionId = null;
 
         // Bootstrap: Register initial configuration if provided.
         if (Object.keys(initialConfig).length > 0) {
             try {
-                this.registerNewVersion(initialConfig, 'BOOTSTRAP');
+                // Initial registration must be explicitly sourced as BOOTSTRAP_V0
+                this.registerNewVersion(initialConfig, 'BOOTSTRAP_V0');
             } catch (e) {
                 // Critical failure if initial config cannot be loaded or validated.
-                throw new Error(`RTPCM Initialization Failed (Critical): Initial configuration rejected. Details: ${e.message}`);
+                throw new Error(`RTPCM Initialization Failed (CRITICAL): Initial configuration rejected. Details: ${e.message}`);
             }
         }
     }
@@ -58,53 +59,44 @@ class RTPCM {
     }
 
     /**
-     * Generates a deterministic, version-specific hash of the configuration object.
-     * Utilizes canonical serialization to ensure hash consistency independent of key order.
+     * Generates a deterministic, version-specific hash using canonical serialization.
      * @param {Object} config 
      * @returns {string} The configuration hash (version ID).
+     * @throws {Error} If canonical serialization fails, compromising hash integrity.
      */
     calculateHash(config) {
-        let serializedConfig;
-        
-        if (this._objectUtils && this._objectUtils.canonicalStringify) {
-            serializedConfig = this._objectUtils.canonicalStringify(config);
-        } else {
-            // Fallback for environment lacking Canonicalizer utility. WARNING issued.
-            console.warn("RTPCM WARNING: Canonical JSON serialization utility missing. Using standard JSON.stringify which may lead to key-order instability in hashing.");
-            serializedConfig = JSON.stringify(config);
+        try {
+            const serializedConfig = this._integrityService.canonicalStringify(config);
+            return this._hasher.digest(serializedConfig);
+        } catch (error) {
+            throw new Error(`RTPCM Hashing Integrity Failure: Cannot perform canonical serialization. Error: ${error.message}`);
         }
-
-        return this._hasher.digest(serializedConfig);
     }
 
     /**
-     * Registers a new configuration version, locking it (deep freeze), storing it historically, and logging to the AIA ledger.
+     * Registers a new configuration version, locking it (deep freeze), storing it historically, and logging.
      * @param {Object} newConfig - The proposed policy configuration.
      * @param {string} [source='API_CALL'] - Context/source of the update.
-     * @returns {{versionId: string, config: Object}} The cryptographic hash and the registered config.
-     * @throws {Error} If configuration validation fails.
+     * @returns {{versionId: string, config: Object, isNew: boolean}}
+     * @throws {Error} If configuration validation or canonicalization fails.
      */
     registerNewVersion(newConfig, source = 'API_CALL') {
         if (!this.validateNewConfig(newConfig)) {
-            throw new Error("RTPCM_GOV_ERROR: Configuration validation failed against Governance Rules.");
+            throw new Error("RTPCM_GOV_ERROR: Configuration validation failed against Governance Rules Schema.");
         }
         
         const configHash = this.calculateHash(newConfig);
 
-        if (configHash === this._activeVersionId) {
-            // Skip registration if content is identical to the currently active version.
-            return { versionId: configHash, config: this.getHistoricalConfig(configHash) };
+        // Check for existing version (deduplication)
+        const isNewVersion = !this._configRegistry.has(configHash);
+        
+        if (!isNewVersion) {
+            // Skip registration if content is identical to an existing version.
+            return { versionId: configHash, config: this._configRegistry.get(configHash), isNew: false };
         }
 
-        // 1. Enforce Deep Immutability.
-        let frozenConfig;
-        if (this._objectUtils && this._objectUtils.deepFreeze) {
-            frozenConfig = this._objectUtils.deepFreeze(newConfig);
-        } else {
-            // Critical governance warning if the utility is missing.
-            console.error("RTPCM CRITICAL ERROR: Deep freeze utility missing. Relying only on shallow freeze.");
-            frozenConfig = Object.freeze(newConfig);
-        }
+        // 1. Enforce Deep Immutability using the guaranteed service.
+        const frozenConfig = this._integrityService.deepFreeze(newConfig);
 
         this._configRegistry.set(configHash, frozenConfig);
         
@@ -114,29 +106,37 @@ class RTPCM {
             versionId: configHash,
             timestamp: Date.now(),
             source: source,
+            changeIndex: this._activationTimeline.length + 1 // Use 1-based index for logging clarity
         };
         this._activationTimeline.push(activationRecord);
         
-        // 3. Auditing
+        // 3. Auditing via Ledger
         this._ledger.logTransaction('RTPCM_CONFIG_ACTIVATION', {
             ...activationRecord,
-            details: `P-01 Trust Calculus parameters activated (Change Index: ${this._activationTimeline.length}).`,
+            details: `P-01 Trust Calculus parameters version ${configHash.substring(0, 8)} activated.`,
         });
         
-        return { versionId: configHash, config: frozenConfig };
+        return { versionId: configHash, config: frozenConfig, isNew: true };
     }
 
     /**
      * Retrieves the currently active configuration, packaged with its version identifier.
-     * @returns {{versionId: string|null, config: Object|null, note?: string}} The active configuration and its ID.
+     * @returns {{versionId: string|null, config: Object|null}}
      */
     getActiveConfig() {
         if (!this._activeVersionId) {
-            // Return null config if unconfigured, with explicit zero-state note for clarity.
-            return { versionId: null, config: null, note: "RTPCM unconfigured. Zero-state configuration applied." }; 
+            // Return defined structure in zero-state
+            return { versionId: null, config: null }; 
         }
+
         const config = this._configRegistry.get(this._activeVersionId);
-        return { versionId: this._activeVersionId, config: config };
+
+        // Fail-safe check: configuration must exist if ID is set.
+        if (!config) {
+             throw new Error("RTPCM State Integrity Error: Active version ID exists but configuration is missing from registry.");
+        }
+
+        return { versionId: this._activeVersionId, config };
     }
 
     /**
@@ -150,11 +150,19 @@ class RTPCM {
 
     /**
      * Retrieves the chronological timeline of configuration activations.
-     * @returns {Array<Object>}
+     * @returns {ReadonlyArray<Object>} Returns a deeply frozen timeline array.
      */
     getActivationTimeline() {
-        // Return a frozen clone to prevent modification of the internal timeline.
-        return Object.freeze([...this._activationTimeline]);
+        // Deep freeze the array copy to prevent external mutation of the history records.
+        return this._integrityService.deepFreeze([...this._activationTimeline]);
+    }
+
+    /**
+     * Exposed accessor for the ID of the currently active configuration.
+     * @returns {string|null}
+     */
+    getActiveVersionId() {
+        return this._activeVersionId;
     }
 }
 
