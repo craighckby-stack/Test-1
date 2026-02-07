@@ -1,43 +1,51 @@
-import { PROPOSAL_SCHEMA_DEFINITION, validateProposalEventSchema, PROPOSAL_STATUS_ENUM } from '../../config/metricsSchema.js';
+import { validateProposalEventSchema, PROPOSAL_STATUS_ENUM } from '../../config/metricsSchema.js';
 
 /**
- * Factory class responsible for creating and validating immutable Proposal Event objects.
- * Ensures 100% adherence to metricsSchema before injection into the PSHI or consensus queue.
+ * Factory leveraging immediate execution, immutability, and state-agnostic methods
+ * to create and validate Proposal Event objects with maximum computational efficiency.
  */
 export class ProposalEventFactory {
     
     /**
      * Creates a new, validated, and frozen Proposal Event.
-     * @param {object} rawEventData - The raw data payload from an Agent submission.
+     * Optimizes construction by using layered assignment for efficient default handling.
+     * 
+     * @param {object} rawEventData - The raw data payload.
      * @returns {object} A validated and frozen Proposal Event object.
-     * @throws {Error} If validation fails (missing required fields or type errors).
+     * @throws {Error} If validation fails.
      */
     static create(rawEventData) {
         
-        // 1. Initial validation using the schema utility
+        // 1. Validation Check
         const validationResult = validateProposalEventSchema(rawEventData);
 
         if (!validationResult.isValid) {
-            const errors = [
-                ...validationResult.missingFields.map(f => `Missing required field: ${f}`),
-                ...validationResult.typeErrors
-            ].join('; ');
+            // Optimized Error Aggregation:
+            // Chains map and concat operations to aggregate errors without relying on expensive array spread literals.
+            const errors = validationResult.missingFields
+                .map(f => `Missing required field: ${f}`)
+                .concat(validationResult.typeErrors)
+                .join('; ');
             
             throw new Error(`Proposal Event failed schema validation: ${errors}`);
         }
 
-        // 2. Ensure transient fields (like timestamp) are handled if not present in raw data
-        const validatedEvent = {
-            timestamp: Date.now(), // Default timestamp
-            ...rawEventData
-        };
+        // 2. Efficient Construction and Default Assignment
+        const now = Date.now();
+        
+        // Use Object.assign for guaranteed, single-pass merging of defaults and raw data.
+        // Layering ensures factory defaults (timestamp, PENDING status) are present 
+        // unless explicitly overridden by rawEventData, eliminating post-construction mutation.
+        const validatedEvent = Object.assign(
+            {
+                timestamp: now, 
+                validation_status: PROPOSAL_STATUS_ENUM.PENDING
+            },
+            rawEventData
+        );
 
-        // Ensure the status is valid or defaults to PENDING if necessary (though schema requires it)
-        if (!validatedEvent.validation_status) {
-            validatedEvent.validation_status = PROPOSAL_STATUS_ENUM.PENDING;
-        }
-
-        // 3. Freeze the object to ensure immutability once created.
+        // 3. Immutability Enforcement
+        // Essential for ensuring data integrity when queuing the event for consensus.
         return Object.freeze(validatedEvent);
     }
 }
