@@ -56,15 +56,13 @@ const RAW_CONCEPT_DEFINITIONS = Object.freeze([
     { id: 'ARCH-ATM-02', category: ConceptCategories.ARCHITECTURE, name: 'Trust Decay Schedule (TDS)', definition: 'Systematically decays established trust scores (ATM) over time to prevent stagnation.', status: 'Critical Consensus', implementationPath: 'src/consensus/atmSystem.js' },
 
     // HALLUCINATION CONCEPTS (Integrated)
-    // Statuses changed to 'Critical' for internal classification consistency, maintaining 'action' field.
     { id: 'HALL-T1', category: ConceptCategories.HALLUCINATION, name: 'Type 1: Pure Noise', definition: 'Unsalvageable factual errors or irrelevant outputs.', status: 'Critical', action: 'Discard' },
     { id: 'HALL-T2', category: ConceptCategories.HALLUCINATION, name: 'Type 2: Misformatted Truth', definition: 'Contains valuable truth but requires significant structural reform to be useful.', status: 'Critical', action: 'Salvage/Reformulate' },
     { id: 'HALL-T3', category: ConceptCategories.HALLUCINATION, name: 'Type 3: Novel Insight (Validated Creativity)', definition: 'Highly successful, non-obvious solutions that exceed direct expectation, requiring formalization.', status: 'Critical', action: 'Capture, Validate, and Cache via SIC (AGI-C-13)' }
 ]);
 
 /**
- * Initializes and validates the Concept Registry.
- * Constructs immutable lookup structures (Map for ID lookup, Object for category grouping).
+ * Initializes and validates the Concept Registry. Uses a single reductive pass for maximum computational efficiency.
  *
  * @returns {ConceptRegistryInstance}
  * @typedef {Object} ConceptRegistryInstance
@@ -75,62 +73,51 @@ const RAW_CONCEPT_DEFINITIONS = Object.freeze([
  * @property {function(string): ConceptDefinition[]} getConceptsByCategory
  */
 function initializeRegistry() {
-    const registryById = new Map();
-    const registryByCategory = {};
     const categoryValues = Object.values(ConceptCategories);
 
-    RAW_CONCEPT_DEFINITIONS.forEach((concept, index) => {
-        // --- V1: Validation for ID Uniqueness ---
-        if (registryById.has(concept.id)) {
+    // Use reduce for a single, efficient O(N) traversal, building both index structures simultaneously.
+    const { byId, byCategory } = RAW_CONCEPT_DEFINITIONS.reduce((acc, concept) => {
+        // --- Validation & Uniqueness Check ---
+        if (acc.byId.has(concept.id)) {
             throw new Error(`[ConceptRegistry] Duplicate concept ID found: ${concept.id}. Integrity compromised.`);
         }
-
-        // --- V2: Validation for Category Existence ---
         if (!categoryValues.includes(concept.category)) {
              throw new Error(`[ConceptRegistry] Invalid category '${concept.category}' for ID ${concept.id}.`);
         }
 
-        // 1. By ID (O(1) access using Map)
-        registryById.set(concept.id, Object.freeze(concept)); // Freeze individual concept definition
+        // Freeze individual concept definition immediately upon validation
+        const frozenConcept = Object.freeze(concept);
+
+        // 1. By ID (O(1) access)
+        acc.byId.set(frozenConcept.id, frozenConcept);
 
         // 2. By Category (Optimized grouping)
-        const categoryKey = concept.category;
-        if (!registryByCategory[categoryKey]) {
-            registryByCategory[categoryKey] = [];
+        const categoryKey = frozenConcept.category;
+        if (!acc.byCategory[categoryKey]) {
+            acc.byCategory[categoryKey] = [];
         }
-        registryByCategory[categoryKey].push(concept);
-    });
+        acc.byCategory[categoryKey].push(frozenConcept);
 
-    // Freeze category arrays to prevent modification
-    Object.keys(registryByCategory).forEach(key => {
-        Object.freeze(registryByCategory[key]);
+        return acc;
+    }, { byId: new Map(), byCategory: {} });
+
+    // Freeze category arrays to ensure full structural immutability after population.
+    Object.keys(byCategory).forEach(key => {
+        Object.freeze(byCategory[key]);
     });
-    Object.freeze(registryByCategory);
+    Object.freeze(byCategory);
 
     /** @type {ConceptRegistryInstance} */
     const registryInstance = {
-        /** The raw list (immutable). */
         all: RAW_CONCEPT_DEFINITIONS,
+        byId: byId,
+        byCategory: byCategory,
 
-        /** O(1) Lookup Map by ID. */
-        byId: registryById,
+        /** Retrieves a concept definition by its unique ID. O(1) complexity. */
+        getConceptById: (id) => byId.get(id) || null,
 
-        /** Categorized list map (immutable structure, immutable arrays). */
-        byCategory: registryByCategory,
-
-        /**
-         * Retrieves a concept definition by its unique ID.
-         * @param {string} id
-         * @returns {?ConceptDefinition}
-         */
-        getConceptById: (id) => registryById.get(id) || null,
-
-        /**
-         * Retrieves all concepts within a specific category.
-         * @param {string} category
-         * @returns {ConceptDefinition[]}
-         */
-        getConceptsByCategory: (category) => registryByCategory[category] || [],
+        /** Retrieves all concepts within a specific category. */
+        getConceptsByCategory: (category) => byCategory[category] || [],
     };
 
     // Make the entire registry object immutable.
