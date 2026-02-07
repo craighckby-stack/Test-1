@@ -127,3 +127,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Updated the sentinel validation map to include a mandatory `LOG_INTEGRITY_CHECKPOINT` handler, essential for enforcing system integrity protocols referenced by `LogIntegrityService`.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated artifact_manifest_schema.json from /protocol to /governance, updating internal metadata to v94.2.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated Severity Protocol definitions from config/governance to a new executable module within the core /governance directory to meet UNIFIER compatibility and de-fragmentation objectives.
