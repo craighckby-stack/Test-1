@@ -1,23 +1,26 @@
 {
   "contract_id": "TEDS_AGI_V94_PRIMARY_REFIT",
-  "schema_version": "3.0.0",
+  "schema_version": "4.0.0",
   "status": "active",
   "governance": {
     "default_mode": "adaptive_autonomy",
     "evolution_safety_index_threshold": 0.85,
     "audit_level": "L3_high_fidelity",
-    "feedback_loop_enabled": true
+    "feedback_loop_enabled": true,
+    "rollback_strategy": "semantic_versioning_check",
+    "dependency_lock_level": "major_version_only"
   },
   "operational_windows": {
-    "standard_utc": "00:00-23:59",
+    "default_schedule": "24/7/UTC",
     "critical_maintenance_active": false,
     "emergency_override_active": false
   },
   "constraint_profiles": {
     "adaptive_autonomy": {
       "resource_limits": {
-        "memory_gb": 16,
-        "max_system_calls_per_sec": 8,
+        "memory": "16 GB",
+        "cpu_allocation": "16 cores/threads",
+        "io_rate": "8 calls/s",
         "concurrency_limit": 16
       },
       "security_profile": {
@@ -27,8 +30,9 @@
     },
     "critical_task": {
       "resource_limits": {
-        "memory_gb": 48,
-        "max_system_calls_per_sec": 25,
+        "memory": "48 GB",
+        "cpu_allocation": "32 cores/threads",
+        "io_rate": "25 calls/s",
         "concurrency_limit": 32
       },
       "security_profile": {
@@ -42,9 +46,16 @@
       "enforcement_level": "strict",
       "required_profile": "critical_task",
       "permissions_matrix": {
-        "filesystem": ["write:internal", "read:config"],
-        "network": ["low_latency:external"],
-        "telemetry": ["high_volume"]
+        "filesystem": [
+          "write:internal",
+          "read:config"
+        ],
+        "network": [
+          "low_latency_external_sync"
+        ],
+        "telemetry": [
+          "P0_realtime_reporting"
+        ]
       },
       "escalation_policy": "P1_manual_review"
     },
@@ -52,9 +63,16 @@
       "enforcement_level": "lenient",
       "required_profile": "adaptive_autonomy",
       "permissions_matrix": {
-        "filesystem": ["read:config", "read:project"],
-        "logging": ["high_fidelity"],
-        "network": ["telemetry_only"]
+        "filesystem": [
+          "read:config",
+          "read:project_metadata"
+        ],
+        "logging": [
+          "high_fidelity_structured"
+        ],
+        "network": [
+          "telemetry_reporting_only"
+        ]
       },
       "escalation_policy": "P3_automated_rollback"
     }
