@@ -1,7 +1,7 @@
 /**
  * Component ID: RSAM (Rule Set Attestation Manager)
  * Optimization Directive: Maximum computational efficiency and recursive abstraction.
- * Refactoring Focus: Concurrent processing for staging and functional pipeline decomposition for commitment.
+ * Refactoring Focus: Functional decomposition via recursive pipeline execution and concurrent processing.
  */
 class RuleSetAttestationManager {
     /**
@@ -11,30 +11,29 @@ class RuleSetAttestationManager {
      * @param {object} telemetry - Structured logging/monitoring system
      */
     constructor(grs, ktam, asr, telemetry) {
+        // Minimize internal state footprint and ensure O(1) lookup
         this.grs = grs;
         this.ktam = ktam;
         this.asr = asr;
         this.telemetry = telemetry;
-        // O(1) state management optimized for lookup
         this.stagingBuffer = new Map(); 
     }
 
     /**
      * Core utility: Performs concurrent schema validation and cryptographic hashing.
-     * This maximizes throughput by overlapping potential I/O (ASR) with CPU work (KTAM hashing).
+     * Maximizes throughput by overlapping potential I/O (ASR) with CPU work (KTAM hashing).
      * @param {object} proposedRuleSet
      * @returns {Promise<{ruleHash: string, validationResult: object}>}
      * @private
      */
     async _validateAndHash(proposedRuleSet) {
-        // 1. Concurrent Execution: Validate and Hash run simultaneously
+        // Highly optimized concurrent execution using Promise.all
         const [validationResult, ruleHash] = await Promise.all([
-            this.asr.validatePolicySchema(proposedRuleSet),
-            this.ktam.generateAttestationHash(proposedRuleSet)
+            this.asr.validatePolicySchema(proposedRuleSet), // I/O or CPU intensive validation
+            this.ktam.generateAttestationHash(proposedRuleSet) // CPU intensive hashing
         ]);
         
         if (!validationResult.valid) {
-            // Throw structured error for caller to handle telemetry
             const err = new Error('SCHEMA_INVALID');
             err.details = validationResult.errors;
             throw err;
@@ -52,7 +51,7 @@ class RuleSetAttestationManager {
             const { ruleHash } = await this._validateAndHash(proposedRuleSet);
             const timestamp = Date.now();
 
-            // 2. Atomic Staging
+            // Atomic Staging
             this.stagingBuffer.set(mutationId, { 
                 rules: proposedRuleSet, 
                 ruleHash: ruleHash, 
@@ -69,35 +68,94 @@ class RuleSetAttestationManager {
                 this.telemetry.critical('RSAM_VETO', { mutationId, reason: 'Schema validation failure', details: e.details });
                 return { success: false, reason: 'SCHEMA_INVALID' };
             }
-            // Re-throw unexpected system errors (e.g., hash generation failure)
             throw e;
         }
     }
 
+    // --- Start of Recursive Abstraction and Functional Decomposition ---
+
     /**
-     * Recursively abstracted commitment pipeline: Versioning -> Signing -> Activation.
-     * Ensures strict sequential dependencies are met efficiently.
+     * Step 1: Determines the next logical version for the governance rule set.
+     * Input State: { stage, committingAgentId }
+     * Output State: { stage, newVersion, committingAgentId }
      * @private
      */
-    async _processCommitmentPipeline(stage, committingAgentId) {
-        // 1. Versioning
+    async _stepVersioning({ stage, committingAgentId }) {
         const newVersion = await this.grs.proposeNextVersion(stage.ruleHash);
+        return { stage, newVersion, committingAgentId }; 
+    }
 
-        // 2. Cryptographic Attestation Payload Creation
+    /**
+     * Step 2: Creates the necessary metadata payload for cryptographic signing.
+     * @private
+     */
+    async _stepCreatePayload(state) {
         const commitmentPayload = {
-            dataHash: stage.ruleHash,
-            version: newVersion,
-            agent: committingAgentId,
+            dataHash: state.stage.ruleHash,
+            version: state.newVersion,
+            agent: state.committingAgentId,
             timestamp: Date.now()
         };
-        
-        // 3. Secure Signing (Attestation)
-        const attestation = await this.ktam.createCryptographicAttestation(commitmentPayload, 'RSAM_POLICY_LOCK');
-        
-        // 4. Atomic Activation into the GRS
-        await this.grs.activateNewRuleSet(stage.rules, newVersion, attestation);
+        return { ...state, commitmentPayload };
+    }
 
-        return { version: newVersion, attestation };
+    /**
+     * Step 3: Cryptographically signs the payload using the Key & Trust Anchor Manager.
+     * @private
+     */
+    async _stepSignAttestation(state) {
+        const attestation = await this.ktam.createCryptographicAttestation(state.commitmentPayload, 'RSAM_POLICY_LOCK');
+        return { ...state, attestation };
+    }
+
+    /**
+     * Step 4: Atomically activates the attested rule set within the Governance Rule Source.
+     * @private
+     */
+    async _stepActivateGRS(state) {
+        await this.grs.activateNewRuleSet(state.stage.rules, state.newVersion, state.attestation);
+        // Final result payload
+        return { version: state.newVersion, attestation: state.attestation };
+    }
+
+    /**
+     * Core Recursive Pipeline Executor.
+     * Executes a series of sequential asynchronous steps, passing state forward.
+     * This enforces strict dependencies functionally.
+     * @param {object} initialState - The data passed into the first step.
+     * @param {Array<Function>} steps - Array of asynchronous functions (step handlers).
+     * @private
+     */
+    async _executePipeline(initialState, steps) {
+        // Base case: If no steps remain, the pipeline is complete.
+        if (steps.length === 0) {
+            return initialState;
+        }
+
+        const [currentStep, ...remainingSteps] = steps;
+        
+        // Recursive step: Execute the current function and pass its result
+        // as the input state for the rest of the pipeline.
+        const intermediateState = await currentStep(initialState);
+
+        return this._executePipeline(intermediateState, remainingSteps);
+    }
+
+    /**
+     * Initializes and orchestrates the recursively defined commitment pipeline.
+     * @private
+     */
+    async _abstractCommitmentInitiator(stage, committingAgentId) {
+        const initialState = { stage, committingAgentId };
+        
+        const commitmentSteps = [
+            this._stepVersioning.bind(this),
+            this._stepCreatePayload.bind(this),
+            this._stepSignAttestation.bind(this),
+            this._stepActivateGRS.bind(this)
+        ];
+        
+        return this._executePipeline(initialState, commitmentSteps);
     }
 
     /**
@@ -113,16 +171,16 @@ class RuleSetAttestationManager {
         }
 
         try {
-            const result = await this._processCommitmentPipeline(stage, committingAgentId);
+            // Use the recursively defined, abstracted commitment pipeline
+            const result = await this._abstractCommitmentInitiator(stage, committingAgentId);
 
-            // 5. Cleanup and Telemetry
+            // Cleanup and Telemetry
             this.stagingBuffer.delete(mutationId); 
-            this.telemetry.success('RSAM_COMMITTED', { mutationId, version: result.version, attestationId: result.attestation.signatureId });
+            this.telemetry.success('RSAM_COMMITTED', { mutationId, version: result.version, attestationId: result.attestation.signatureId.substring(0, 16) });
             return result;
 
         } catch (error) {
             this.telemetry.critical('RSAM_COMMIT_GRS_FAILURE', { mutationId, error: error.message, stack: error.stack });
-            // Note: If activation fails, the stage remains for forensic audit.
             return null; 
         }
     }
