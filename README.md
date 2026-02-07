@@ -139,3 +139,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Standardized src/config/systemPaths.js configuration object (C-12) to ensure robust module self-referencing and UNIFIER.js compatibility.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated SSVR integrity check to main governance structure, converting to CommonJS module format for UNIFIER integration and updating utility dependency paths.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated core system parameters from config/GOVERNANCE_PARAMS.json to the new exportable module /governance/G1_Config.js to comply with the UNIFIER Protocol and the Governance merger directive.
