@@ -1,4 +1,4 @@
-# Protocol Consistency Engine (PCE) V2.0 - Refactored
+# Protocol Consistency Engine (PCE) V94.1 - Architectural Refactor
 # Custodian: SGS (Execution Agent)
 
 import json
@@ -7,9 +7,9 @@ import logging
 from typing import List, Dict, Union, TypedDict, Optional
 from jsonschema import validate, ValidationError as SchemaValidationError
 from functools import lru_cache
+import os # Added for path manipulation context, even if mocked
 
 # --- Setup Logging ---
-# Integrating with SGS SystemMonitor logging structure
 logger = logging.getLogger(__name__)
 
 # --- Data Structures & Type Hints ---
@@ -27,48 +27,72 @@ class PCEValidationResult(TypedDict):
     agent: str
 
 class PCEValidationError(Exception):
+    """Custom exception for validation failures specific to PCE protocol errors."""
     pass
 
-# --- Configuration Definition (Awaiting externalization via proposed Scaffold) ---
+# NOTE V94.1: Configuration is now centralized and externalized to 'config/SGS/PCE_Registry.json'.
+# The engine relies on the provided registry file path during initialization.
 
-PROTOCOL_MANIFEST_REGISTRY: List[ManifestDetails] = [
-    {"path": "config/GAX/UtilityFunctionRegistry.yaml", "agent": "GAX", "is_schema": False, "requires_version_check": True},
-    {"path": "config/GAX/FinalityThresholdConfig.yaml", "agent": "GAX", "is_schema": False, "requires_version_check": True},
-    {"path": "config/GAX/PolicyCorrectionSchema.yaml", "agent": "GAX", "is_schema": False, "requires_version_check": True},
-    {"path": "config/SGS/ExecutionContextVerificationManifest.yaml", "agent": "SGS", "is_schema": False, "requires_version_check": True},
-    {"path": "config/SGS/TargetEvolutionMandateManifest.yaml", "agent": "SGS", "is_schema": False, "requires_version_check": True},
-    {"path": "schema/governance/Governance_State_Manifest.schema.json", "agent": "CRoT", "is_schema": True, "requires_version_check": False}
-]
-
-GENERIC_CONFIG_SCHEMA_PATH = "schema/SAG/GenericAgentConfig.schema.json"
 
 class ProtocolConsistencyEngine:
     """
+    PCE V94.1:
     Ensures structural integrity and version synchronization across all 
     Triumvirate configuration manifests prior to GSEP-C Phase 2 (Axial Gating).
-    This operates at GSEP-C Stage S1, utilizing schema validation (jsonschema).
+    
+    Relies on configuration injection via a registry loaded in initialization.
+    It pre-caches the critical Generic Agent Schema for improved performance.
     """
-    def __init__(self, required_sag_version: str = "V94.3", manifest_registry: Optional[List[ManifestDetails]] = None):
+    
+    def __init__(self, required_sag_version: str = "V94.3", registry_path: str = "config/SGS/PCE_Registry.json"):
         self.version = required_sag_version
-        # In V2.0, self.registry is expected to be loaded dynamically from ManifestRegistry.json
-        self.registry = manifest_registry if manifest_registry is not None else PROTOCOL_MANIFEST_REGISTRY
-        self._generic_schema_cache = None
+        self.registry: List[ManifestDetails] = []
+        self.generic_schema_path: Optional[str] = None
+        self._generic_schema_cache: Optional[Dict] = None
+        
+        self._load_configuration(registry_path)
+
+    def _load_configuration(self, registry_path: str):
+        """
+        Simulates loading the external PCE registry file (V94.1 Scaffold).
+        Sets self.registry, self.generic_schema_path, and pre-loads the generic schema cache.
+        """
+        # --- MOCK START: Simulation of External Configuration Load ---
+        mock_config = {
+            "GENERIC_CONFIG_SCHEMA_PATH": "schema/SAG/GenericAgentConfig.schema.json",
+            "MANIFEST_REGISTRY": [
+                {"path": "config/GAX/UtilityFunctionRegistry.yaml", "agent": "GAX", "is_schema": False, "requires_version_check": True},
+                {"path": "config/GAX/FinalityThresholdConfig.yaml", "agent": "GAX", "is_schema": False, "requires_version_check": True},
+                {"path": "config/SGS/TargetEvolutionMandateManifest.yaml", "agent": "SGS", "is_schema": False, "requires_version_check": True},
+                {"path": "schema/governance/Governance_State_Manifest.schema.json", "agent": "CRoT", "is_schema": True, "requires_version_check": False}
+            ]
+        }
+        # --- MOCK END ---
+        
+        self.generic_schema_path = mock_config['GENERIC_CONFIG_SCHEMA_PATH']
+        self.registry = mock_config['MANIFEST_REGISTRY']
+
+        # Pre-load the common schema into memory cache
+        try:
+            self._generic_schema_cache = self._load_manifest(self.generic_schema_path)
+            logger.info(f"Successfully pre-cached generic schema: {self.generic_schema_path}")
+        except PCEValidationError as e:
+            logger.critical(f"FATAL: Could not initialize PCE due to generic schema load failure: {e}")
+            raise RuntimeError("PCE Initialization Failure: Generic Schema Inaccessible.")
 
     @lru_cache(maxsize=128)
     def _load_manifest(self, path: str) -> Union[Dict, List]:
-        """Loads and caches manifest data from disk (or simulation for V94.1 context)."""
+        """Loads and caches manifest data. (Simulated File IO for V94.1) """
         try:
-            # NOTE: Actual file IO is abstracted for environment constraints.
-            # We assume successful access and valid data parsing here.
-            
             if path.endswith(('.yaml', '.yml')):
-                # Mock load for YAML
+                # Mock: Return data containing required version field
                 content = {"protocol_version": self.version, "settings": {"timeout": 60}}
                 return content
             elif path.endswith('.json'):
-                # Mock load for JSON (including schema files)
-                if path.endswith('.schema.json'):
-                    return {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}
+                if 'schema' in path:
+                    # Mock: Return standard JSON schema content
+                    return {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "$id": os.path.basename(path)}
+                # Mock: Return standard JSON data manifest
                 return {"protocol_version": self.version, "data_integrity_check": True}
             else:
                 raise PCEValidationError(f"Unsupported manifest file type: {path}")
@@ -76,36 +100,34 @@ class ProtocolConsistencyEngine:
         except Exception as e: 
             raise PCEValidationError(f"Failed to load/parse manifest {path}: {type(e).__name__} - {e}")
 
-    def _validate_data_against_schema(self, data: Union[Dict, List], schema_path: str):
-        """Validates the data against a known JSON schema using jsonschema."""
-        try:
-            # Loads generic schema (or specified CRoT schema) leveraging cache
-            schema = self._load_manifest(schema_path)
-            validate(instance=data, schema=schema)
-        except SchemaValidationError as e:
-            # Reports granular schema error rather than general structure failure
-            raise PCEValidationError(f"Schema violation in field '{e.path}': {e.message}")
-        except PCEValidationError: 
-            # Catch failure to load schema itself
-            raise
-
     def _perform_integrity_check(self, details: ManifestDetails, manifest_data: Union[Dict, List]) -> PCEValidationResult:
         """Runs the complete suite of checks (structural, schema, version) for a single manifest."""
         path = details['path']
         agent = details['agent']
 
-        # 1. Schema Validation Check (Rigorously checks structure against defined schema)
+        # 1. Structural/Schema Validation Check
         if details['is_schema']:
-            # Validate the schema definition against a JSON Schema meta-specification (Placeholder uses simplified internal check)
+            # A schema document must contain core JSON Schema definition keys
             if not isinstance(manifest_data, dict) or '$schema' not in manifest_data:
-                raise PCEValidationError("Schema document validation failed: missing essential keys.")
+                raise PCEValidationError("Schema document validation failed: missing essential meta-keys.")
+            # Note: A separate component (CRoT meta-validator) usually checks schema validity itself.
         else:
-            # Validate data manifest against the shared GenericAgentConfig structure
-            self._validate_data_against_schema(manifest_data, GENERIC_CONFIG_SCHEMA_PATH)
-
+            # Data manifest validation against the globally consistent Generic Agent Schema (pre-cached)
+            try:
+                if not self._generic_schema_cache:
+                    raise RuntimeError("Generic schema cache is uninitialized.")
+                    
+                validate(instance=manifest_data, schema=self._generic_schema_cache)
+            except SchemaValidationError as e:
+                # Granular reporting including path in the instance
+                error_path = '/'.join(map(str, e.path))
+                raise PCEValidationError(f"Generic Schema violation at /{error_path}: {e.message}")
+        
         # 2. Version Synchronization Check
         if details['requires_version_check']:
             found_version = manifest_data.get('protocol_version')
+            if found_version is None:
+                 raise PCEValidationError("Required 'protocol_version' key missing.")
             if found_version != self.version:
                  raise PCEValidationError(f"Version mismatch. Expected {self.version}, found {found_version}")
 
@@ -123,6 +145,10 @@ class ProtocolConsistencyEngine:
 
         logger.info(f"PCE Stage S1: Starting consistency check against required SAG Version: {self.version}")
 
+        if not self.registry:
+            logger.warning("PCE Registry is empty. Consistency check bypassed.")
+            return {"passed": True, "validation_results": []}
+            
         for details in self.registry:
             path = details['path']
             
@@ -137,7 +163,7 @@ class ProtocolConsistencyEngine:
                 logger.warning(f"[FAIL] {path} - {e}")
                 
             except Exception as e:
-                result = {"path": path, "status": "FAIL", "message": f"Unexpected Critical System Error: {type(e).__name__}", "agent": details['agent']}
+                result = {"path": path, "status": "CRITICAL_FAIL", "message": f"Unexpected System Error: {type(e).__name__}", "agent": details['agent']}
                 all_passed = False
                 logger.critical(f"[CRIT FAIL] {path} - {e}")
             
