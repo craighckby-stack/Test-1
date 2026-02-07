@@ -2,41 +2,62 @@ const GovConstants = require('./governanceConstants');
 
 /**
  * Component: Governance Constraint Orchestrator (GCO)
- * ID: GCO-v94.2
- * Alignment: GSEP Stage 0/1 Intermediary. (Refactored to v94.2 due to async implementation.)
+ * ID: GCO-v94.3 (Minor iteration for refined constraint handling)
+ * Alignment: GSEP Stage 0/1 Intermediary.
  * Focus: Integrity barrier ensuring all policy-level modifications adhere strictly to the GSEP lifecycle and require
- *        immediate RSAM pre-attestation using the M-01 intent standard.
+ *        immediate RSAM pre-attestation using the M-01 intent standard for critical targets.
  */
 class GovernanceConstraintOrchestrator {
     
     /**
-     * @param {IRSAMService} rsam - Risk & Security Attestation Manager (Expected async implementation)
-     * @param {SystemRouter} router - System router for GSEP stage progression (Expected async implementation)
+     * @param {IRSAMService} rsam - Risk & Security Attestation Manager
+     * @param {SystemRouter} router - System router for GSEP stage progression
      * @param {PolicyIntentFactory} intentFactory - Specialized factory for M-01 package creation
+     * @param {IntentSchemaValidator} [validator] - Optional payload validator utility (Recommended)
      */
-    constructor(rsam, router, intentFactory) {
-        // Enforce strict dependency validation upon initialization
-        if (!rsam) throw new Error("GCO Initialization Error: Missing RSAM Service.");
-        if (!router) throw new Error("GCO Initialization Error: Missing System Router.");
-        if (!intentFactory) throw new Error("GCO Initialization Error: Missing Policy Intent Factory.");
+    constructor(rsam, router, intentFactory, validator = null) {
+        // Step 0: Robust dependency enforcement
+        if (!rsam) throw new Error("GCO Dependency Error: Missing RSAM Service.");
+        if (!router) throw new Error("GCO Dependency Error: Missing System Router.");
+        if (!intentFactory) throw new Error("GCO Dependency Error: Missing Policy Intent Factory.");
 
         this.rsam = rsam; 
         this.router = router; 
-        this.intentFactory = intentFactory; 
-        this.CRITICAL_GOV_TARGETS = GovConstants.CRITICAL_GOV_TARGETS || [];
-        this.GSEP_STAGES = GovConstants.GSEP_STAGES || {};
+        this.intentFactory = intentFactory;
+        this.validator = validator; // Use validator if provided
+
+        // Cache critical constants for faster lookup
+        this.CRITICAL_TARGETS_LIST = GovConstants.CRITICAL_GOV_TARGETS || [];
+        this.GSEP_STAGES_MAP = GovConstants.GSEP_STAGES || {};
+
+        // Define expected stage destinations based on the constant map structure
+        this.STAGE_0_VETTING = this.GSEP_STAGES_MAP.STAGE_0_VETTING;
+        this.STAGE_1_SCOPE = this.GSEP_STAGES_MAP.STAGE_1_SCOPE;
+
+        if (!this.STAGE_1_SCOPE || !this.STAGE_0_VETTING) {
+             console.warn("GCO Init Warning: GSEP stage map incomplete. Critical routing may fail.");
+        }
     }
 
     /**
-     * Validates and normalizes the raw request payload structure.
+     * Pre-checks and standardizes the raw request payload structure using the integrated validator 
+     * or minimal internal checks if no dedicated validator is present.
      * @param {MutationIntentPayload} rawRequest
-     * @returns {MutationIntentPayload} Normalized payload
+     * @returns {MutationIntentPayload} Validated and standardized payload
      * @throws {Error} if payload is fundamentally invalid
      */
-    _validatePayload(rawRequest) {
-        if (!rawRequest || typeof rawRequest !== 'object') {
-            throw new Error("GCO Payload Error: Request is null, undefined, or not an object.");
+    _standardizeAndValidatePayload(rawRequest) {
+        if (this.validator) {
+            // Leverage dedicated validator if available
+            return this.validator.validateMutationIntent(rawRequest);
         }
+
+        // Fallback minimal internal validation
+        if (!rawRequest || typeof rawRequest !== 'object' || Array.isArray(rawRequest)) {
+            throw new Error("GCO Payload Constraint Violation: Request must be a standard intent object.");
+        }
+        
+        // Ensure targets array exists for constraint checking efficiency
         if (!Array.isArray(rawRequest.targets)) {
              rawRequest.targets = []; 
         }
@@ -44,14 +65,18 @@ class GovernanceConstraintOrchestrator {
     }
 
     /**
-     * Step 1: Detect if the mutation intent targets critical governance policies.
-     * (Synchronous detection is maintained for efficiency)
-     * @param {MutationIntentPayload} request - Assumed validated payload.
+     * Step 1: Detect if the mutation intent targets critical governance policies using component IDs.
+     * @param {MutationIntentPayload} request - Assumed standardized payload.
      * @returns {boolean} True if critical targets are affected.
      */
-    _detectCriticalPolicyTarget(request) {
+    _isTargetingCriticalPolicy(request) {
+        // Using cached list for efficient array check
+        if (this.CRITICAL_TARGETS_LIST.length === 0) {
+            return false; // Cannot check constraints if no targets defined
+        }
+
         return request.targets.some(target => 
-            this.CRITICAL_GOV_TARGETS.includes(target.componentID)
+            target && target.componentID && this.CRITICAL_TARGETS_LIST.includes(target.componentID)
         );
     }
     
@@ -60,54 +85,66 @@ class GovernanceConstraintOrchestrator {
      * M-01 Intent Creation -> RSAM Pre-Attestation -> Prioritized Routing (Stage 1).
      * @param {MutationIntentPayload} validatedRequest 
      * @returns {Promise<Object>} Standardized critical routing decision.
+     * @throws {Error} if routing fails or attestation fails (RSAM handles internal retry logic, GCO handles routing failure)
      */
     async _processCriticalRoute(validatedRequest) {
+         if (!this.STAGE_1_SCOPE) {
+             throw new Error("GCO Critical Route Error: GSEP Stage 1 (Scope) destination is undefined.");
+         }
+        
          // 1. Create specialized high-risk intent package (M-01)
-        const m01IntentPackage = this.intentFactory.createM01Intent(validatedRequest);
+         const m01IntentPackage = this.intentFactory.createM01Intent(validatedRequest);
 
-        // 2. Register intent with RSAM for mandatory asynchronous pre-attestation.
-        await this.rsam.registerPolicyIntent(m01IntentPackage);
+         // 2. Mandatory RSAM Pre-Attestation Registration. Awaiting ensures constraint is met before routing.
+         await this.rsam.registerPolicyIntent(m01IntentPackage);
         
-        // 3. Force route directly to GSEP Stage 1 (Scope) with max priority.
-        const destinationStage = this.GSEP_STAGES.STAGE_1_SCOPE;
-        
-        // Assuming prioritizeRoute is async
-        const routeResult = await this.router.prioritizeRoute(destinationStage, m01IntentPackage.id);
+         // 3. Force route directly to GSEP Stage 1 (Scope) with maximum priority flag.
+         const routeResult = await this.router.prioritizeRoute(this.STAGE_1_SCOPE, m01IntentPackage.id);
 
-        return {
-            route: routeResult.path,
-            intentId: m01IntentPackage.id,
-            status: 'CRITICAL_ROUTE',
-            targetType: 'HIGH_GOVERNANCE_POLICY'
-        };
+         // Return high-fidelity routing data
+         return {
+             routePath: routeResult.path,
+             intentId: m01IntentPackage.id,
+             status: 'ROUTE_CRITICAL_GOVERNANCE',
+             targetType: 'HIGH_GOVERNANCE_POLICY',
+             attestationRequired: true
+         };
     }
 
     /**
-     * Primary entry point. Evaluates the intent payload and routes it.
+     * Primary entry point. Evaluates the intent payload and routes it based on constraint checks.
      * 
      * @param {MutationIntentPayload} rawRequest - The input request containing targets and proposed changes.
-     * @returns {Promise<Object>} Standardized routing decision.
+     * @returns {Promise<Object>} Standardized routing decision payload.
      */
     async evaluateAndRoute(rawRequest) {
-        // Robustness: Input validation and normalization
-        const validatedRequest = this._validatePayload(rawRequest);
+        try {
+            // Robustness: Input validation and standardization (v94.3 improvement)
+            const validatedRequest = this._standardizeAndValidatePayload(rawRequest);
 
-        if (this._detectCriticalPolicyTarget(validatedRequest)) {
-            return this._processCriticalRoute(validatedRequest);
+            if (this._isTargetingCriticalPolicy(validatedRequest)) {
+                return this._processCriticalRoute(validatedRequest);
+            }
+
+            // Standard route handling: Non-critical policies go to Stage 0 Vetting
+            if (!this.STAGE_0_VETTING) {
+                 throw new Error("GCO Standard Route Error: GSEP Stage 0 (Vetting) destination is undefined.");
+            }
+            
+            // Standard asynchronous routing
+            const standardRoute = await this.router.route(this.STAGE_0_VETTING, validatedRequest);
+            
+            return {
+                routePath: standardRoute.path,
+                intentId: null, // No M-01 intent created for standard route
+                status: 'ROUTE_STANDARD_CHANGE',
+                targetType: 'GENERAL_SYSTEM_CHANGE',
+                attestationRequired: false // Attestation may happen later in GSEP stages
+            };
+        } catch (error) {
+            // Centralized error handling for GCO constraints
+            throw new Error(`GCO Constraint Orchestration Failure: ${error.message}`);
         }
-
-        // Standard request handling: Route to Stage 0 Vetting
-        const destinationStage = this.GSEP_STAGES.STAGE_0_VETTING;
-        
-        // All high-level service interaction is made asynchronous for non-blocking efficiency.
-        const standardRoute = await this.router.route(destinationStage, validatedRequest);
-        
-        return {
-            route: standardRoute.path,
-            intentId: null, 
-            status: 'STANDARD_ROUTE',
-            targetType: 'GENERAL_SYSTEM_CHANGE'
-        };
     }
 }
 
