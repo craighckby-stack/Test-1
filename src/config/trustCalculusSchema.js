@@ -1,89 +1,80 @@
 /**
  * P-01 Trust Calculus Schema & Definition (TC-SCHEMA)
  * ID: TC-SCHEMA
- * Role: Defines the immutable mathematical standards, weighting, and metric factors
- *       applied by CORE (Component Obsolescence Review Engine).
- * Ensures standardized input interpretation and explicitly defines metric polarity.
+ * Role: Defines immutable standards, weighting, and metric factors.
  * 
- * Refactored for explicit type definitions (JSDoc) and enforcement of strict configuration.
+ * Optimized for maximum initialization efficiency using a single-pass validation IIFE.
  */
 
-/** @typedef {1 | -1} TrustPolarityValue - 1: Positive Correlation, -1: Negative Correlation */
+// --- Constants and Types ---
+
+/** @typedef {1 | -1} TrustPolarityValue - 1: Positive, -1: Negative */
+
+export const TRUST_POLARITY = Object.freeze(/** @type {{POSITIVE: TrustPolarityValue, NEGATIVE: TrustPolarityValue}} */ ({
+    POSITIVE: 1, // Higher Metric -> Higher Trust Score (Direct Correlation)
+    NEGATIVE: -1, // Higher Metric -> Lower Trust Score (Inverse Correlation)
+}));
+
+const P = TRUST_POLARITY.POSITIVE;
+const N = TRUST_POLARITY.NEGATIVE;
+const WEIGHT_TOLERANCE = 1e-9; // Floating point precision threshold
+
+
 /**
- * @typedef {Object} TrustMetricSchemaItem
- * @property {number} weight - Weight factor (0.0 to 1.0). Total weights must sum to 1.0.
- * @property {TrustPolarityValue} polarity - Defines correlation with Trust Score.
- * @property {string} description - Semantic explanation of the metric.
+ * Uses an Immediately Invoked Function Expression (IIFE) to define, validate,
+ * and freeze the schema in a single, efficient pass during module load.
+ * This guarantees purity, immutability, and fails fast if configuration is invalid.
  */
+const { TRUST_METRICS_SCHEMA, METRIC_NAMES } = (() => {
+    // 1. Schema Definition (Declarative Source of Truth)
+    const definition = {
+        redundancyScore: {
+            weight: 0.40,
+            polarity: P,
+            description: "Reflects fallback safety net availability (resilience metric)."
+        },
+        criticalDependencyExposure: {
+            weight: 0.35,
+            polarity: N,
+            description: "Reflects direct risk impact from potential failure cascade."
+        },
+        usageRate: {
+            weight: 0.15,
+            polarity: N,
+            description: "Reflects current component necessity (Inverted: Lower usage increases retirement safety margin)."
+        },
+        complexityReductionEstimate: {
+            weight: 0.10,
+            polarity: P,
+            description: "Reflects technical debt reduction value upon retirement/removal."
+        }
+    };
 
-// --- Constants ---
+    const keys = Object.keys(definition);
+    let totalWeight = 0;
 
-export const TRUST_POLARITY = /** @type {{POSITIVE: TrustPolarityValue, NEGATIVE: TrustPolarityValue}} */ ({
-    /** Higher metric value -> Higher derived Trust Score (Direct Correlation) */
-    POSITIVE: 1,
-    /** Higher metric value -> Lower derived Trust Score (Inverse Correlation, requires 1-X normalization) */
-    NEGATIVE: -1,
-});
+    // 2. Validation Phase (Single Iteration for Sum and Polarity Checks)
+    for (const key of keys) {
+        const item = definition[key];
+        totalWeight += item.weight;
 
-const { POSITIVE, NEGATIVE } = TRUST_POLARITY;
-
-// --- Schema Definition ---
-
-/** @type {{[metricName: string]: TrustMetricSchemaItem}} */
-const SCHEMA_DEFINITION = {
-    redundancyScore: {
-        weight: 0.40,
-        polarity: POSITIVE,
-        description: "Reflects fallback safety net availability (resilience metric)."
-    },
-    criticalDependencyExposure: {
-        weight: 0.35,
-        polarity: NEGATIVE,
-        description: "Reflects direct risk impact from potential failure cascade."
-    },
-    usageRate: {
-        weight: 0.15,
-        polarity: NEGATIVE,
-        description: "Reflects current component necessity (Inverted: Lower usage increases retirement safety margin)."
-    },
-    complexityReductionEstimate: {
-        weight: 0.10,
-        polarity: POSITIVE,
-        description: "Reflects technical debt reduction value upon retirement/removal."
+        if (item.polarity !== P && item.polarity !== N) {
+             throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${item.polarity}`);
+        }
     }
-};
-
-// --- Validation and Export ---
-
-/**
- * Validates the schema integrity, primarily ensuring weights sum correctly and polarities are valid.
- * Throws an error on configuration failure.
- * @param {Object} schema 
- * @returns {string[]} Metric names
- */
-function validateSchemaAndGetNames(schema) {
-    const totalWeight = Object.values(schema).reduce((sum, item) => sum + item.weight, 0);
-    const WEIGHT_TOLERANCE = 1e-9; // Sufficient precision for floating point sum check
-
+    
+    // Check Total Weight (Abstraction of numerical validation)
     if (Math.abs(totalWeight - 1.0) > WEIGHT_TOLERANCE) {
         throw new Error(
             `[TC-SCHEMA ERROR] Initialization Failure: Metric weights must sum exactly to 1.0. Current sum: ${totalWeight}`
         );
     }
     
-    // Check if all defined polarities are valid constants
-    for (const key in schema) {
-        const p = schema[key].polarity;
-        if (p !== POSITIVE && p !== NEGATIVE) {
-             throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${p}`);
-        }
-    }
+    // 3. Immutability Phase
+    return {
+        TRUST_METRICS_SCHEMA: Object.freeze(definition),
+        METRIC_NAMES: Object.freeze(keys) // Ensure metric names array is also immutable
+    };
+})();
 
-    return Object.keys(schema);
-}
-
-// Execute validation immediately upon module load
-export const METRIC_NAMES = validateSchemaAndGetNames(SCHEMA_DEFINITION);
-
-// Export the validated and frozen schema to enforce immutability.
-export const TRUST_METRICS_SCHEMA = Object.freeze(SCHEMA_DEFINITION);
+export { TRUST_METRICS_SCHEMA, METRIC_NAMES };
