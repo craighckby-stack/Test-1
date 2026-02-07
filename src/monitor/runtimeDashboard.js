@@ -1,4 +1,3 @@
-// FILE: src/monitor/runtimeDashboard.js
 /**
  * @module RuntimeDashboard
  * @description Utility for real-time aggregation and visualization of core AGI system metrics.
@@ -11,44 +10,67 @@ import { getMcraThresholds } from '../consensus/mcraEngine';
 import { fetchSystemMetrics } from '../core/metricsAggregator';
 
 /**
+ * Wrapper function to safely execute an asynchronous fetcher.
+ * Ensures that a single failing metric retrieval does not halt the entire dashboard report generation.
+ * 
+ * @param {Function} fetcher The async function to call.
+ * @param {*} defaultValue The default value to return on error or failure.
+ * @returns {Promise<*>} The result or the default value.
+ */
+const safeFetch = async (fetcher, defaultValue) => {
+    try {
+        return await fetcher();
+    } catch (error) {
+        console.warn(`[Dashboard] Failed to fetch data from ${fetcher.name}. Using default value. Error: ${error.message}`);
+        return defaultValue;
+    }
+};
+
+/**
  * Aggregates all relevant real-time system performance metrics.
- * This function optimizes fetching using concurrent processing and returns a stable metrics object.
- * It relies on the new `metricsAggregator` to provide real, calculated KPIs rather than simulated data.
+ * Optimizes fetching using concurrent processing (Promise.all) with added resilience (safeFetch).
  *
  * @returns {Promise<{
- *   trustDecayRate: number,
- *   currentConsensusThreshold: number,
- *   agentSuccessRates: Object<string, number>,
- *   sicHitRate: number,
- *   validatedCreativity: number
+ *   timestamp: number,
+ *   consensus: { trustDecayRate: number, currentConsensusThreshold: number },
+ *   agents: { successRates: Object<string, number> },
+ *   performance: { sicHitRate: number, validatedCreativity: number }
  * }>}
  */
 export async function generateRuntimeReport() {
-    // Concurrent data fetching optimization via Promise.all
-    const [
-        atmData, 
-        mcraThreshold,
-        systemMetrics
+    // Define structured defaults to ensure the report object is always stable.
+    const ATM_DEFAULTS = { decayRate: NaN, scores: {} };
+    const MCRA_DEFAULTS = NaN;
+    const METRICS_DEFAULTS = { sicHitRate: NaN, validatedCreativity: NaN };
+
+    const [ 
+        atmResult, 
+        mcraThresholdResult,
+        systemMetricsResult
     ] = await Promise.all([
-        fetchAtmScores(),
-        getMcraThresholds(),
-        fetchSystemMetrics() 
+        safeFetch(fetchAtmScores, ATM_DEFAULTS),
+        safeFetch(getMcraThresholds, MCRA_DEFAULTS),
+        safeFetch(fetchSystemMetrics, METRICS_DEFAULTS) 
     ]);
 
     const report = {
-        // Consensus Metrics (ATM)
-        trustDecayRate: atmData.decayRate,
-        agentSuccessRates: atmData.scores,
+        timestamp: Date.now(), // Critical for temporal monitoring
 
-        // Consensus Metrics (MCRA)
-        currentConsensusThreshold: mcraThreshold,
+        // Categorized System State (Intelligence Enhancement)
+        consensus: {
+            trustDecayRate: atmResult.decayRate,
+            currentConsensusThreshold: mcraThresholdResult,
+        },
 
-        // System Performance Metrics (from Aggregator)
-        sicHitRate: systemMetrics.sicHitRate,
-        validatedCreativity: systemMetrics.validatedCreativity,
+        agents: {
+            successRates: atmResult.scores,
+        },
+
+        performance: {
+            sicHitRate: systemMetricsResult.sicHitRate,
+            validatedCreativity: systemMetricsResult.validatedCreativity,
+        },
     };
 
     return report;
 }
-
-// export function renderDashboard() { ... (For actual rendering logic, omitted for CLI focused scaffold) }
