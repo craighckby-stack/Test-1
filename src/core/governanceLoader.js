@@ -8,23 +8,48 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import Joi from 'joi';
 import logger from '../utils/logger';
-// Ideally, import ConfigService for path resolution in the future
-
-const GOVERNANCE_CONFIG_PATH = 'config/governance.yaml';
+import ConfigPaths from '../config/ConfigPaths'; // Import proposed centralized path utility
 
 // Define the required immutable schema for external governance controls
 // Immutability is critical for compliance and deterministic operation.
 const GovernanceSchema = Joi.object({
-    required_confidence_default: Joi.number().min(0).max(1).strict().required(),
-    risk_model_weights: Joi.object().pattern(Joi.string().strict(), Joi.number().strict()).required(),
-    atm_decay_rate: Joi.number().min(0).max(1).strict().required(),
+    required_confidence_default: Joi.number().min(0).max(1).strict().required().label('Required Confidence Default'),
+    risk_model_weights: Joi.object().pattern(Joi.string().strict(), Joi.number().strict()).required().label('Risk Model Weights'),
+    atm_decay_rate: Joi.number().min(0).max(1).strict().required().label('ATM Decay Rate'),
     // Allows governance file to temporarily override strictness if migration requires it
-    strict_validation: Joi.boolean().default(true),
+    strict_validation: Joi.boolean().default(true).label('Strict Validation Flag'),
 }).unknown(false); // Disallow unknown properties by default (high compliance standard)
 
 class GovernanceLoader {
     constructor() {
-        this._config = null; // Use internal naming convention
+        this._config = null; 
+    }
+
+    /**
+     * Internal helper to load and validate the configuration file contents.
+     * @param {string} path - The path to the governance YAML file.
+     * @returns {Object} The validated configuration object.
+     */
+    _loadAndValidateConfig(path) {
+        const fileContents = fs.readFileSync(path, 'utf8');
+        const rawConfig = yaml.load(fileContents);
+        
+        // Determine validation strictness based on the governance file itself
+        const validationOptions = {
+            abortEarly: false,
+            allowUnknown: rawConfig.strict_validation === false
+        };
+
+        const { error, value } = GovernanceSchema.validate(rawConfig, validationOptions);
+
+        if (error) {
+            logger.error('Governance Configuration Validation Failed:', error.details);
+            // Aggregate validation errors into a clean message
+            const errorMessages = error.details.map(d => `${d.context.label} [${d.type}]: ${d.message}`).join('; ');
+            throw new Error(`Validation Error Summary: ${errorMessages}`);
+        }
+        
+        return value;
     }
 
     /**
@@ -37,39 +62,25 @@ class GovernanceLoader {
             return this._config;
         }
 
+        const configPath = ConfigPaths.GOVERNANCE_CONFIG;
+
         try {
-            const fileContents = fs.readFileSync(GOVERNANCE_CONFIG_PATH, 'utf8');
-            const rawConfig = yaml.load(fileContents);
-            
-            // Apply strict validation based on defined schema and config file preference
-            const validationOptions = {
-                abortEarly: false,
-                // Only allow unknown keys if 'strict_validation: false' is present in the governance file
-                allowUnknown: rawConfig.strict_validation === false
-            };
-
-            const { error, value } = GovernanceSchema.validate(rawConfig, validationOptions);
-
-            if (error) {
-                logger.error('Governance Configuration Validation Failed:', error.details);
-                throw new Error(`Invalid governance schema defined in ${GOVERNANCE_CONFIG_PATH}: ${error.message}`);
-            }
+            const validatedConfig = this._loadAndValidateConfig(configPath);
             
             // Enforce immutability upon successful loading to ensure governance contract stability
-            this._config = Object.freeze(value); 
+            this._config = Object.freeze(validatedConfig); 
             logger.info('Governance configuration loaded and verified (Immutable).');
             return this._config;
 
         } catch (e) {
             // Mandatory halt if governance thresholds cannot be established (Compliance requirement)
-            logger.fatal(`FATAL ERROR: Could not establish OGT governance contract: ${e.message}`);
-            process.exit(1);
+            logger.fatal(`FATAL OGT ERROR: Could not establish governance contract using ${configPath}. Reason: ${e.message}`);
+            process.exit(1); // Non-recoverable startup failure
         }
     }
 
     /**
      * Retrieves the entire immutable configuration object.
-     * Use accessor methods instead of accessing keys directly where possible.
      * @returns {Object} The immutable governance configuration.
      */
     get config() {
@@ -84,7 +95,7 @@ class GovernanceLoader {
      */
     getRiskThresholds() {
         return {
-            confidenceDefault: this.config.required_confidence_default,
+            requiredConfidenceDefault: this.config.required_confidence_default,
             riskWeights: this.config.risk_model_weights
         };
     }
