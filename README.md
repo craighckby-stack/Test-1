@@ -135,3 +135,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Migrated DSE integrity analysis logic from Python to an exportable JavaScript module, consolidating the location to `/utility`.
 
 > **[SYSTEM_LOG 2026-02-07]**: Translated the critical fail-fast Host Environment Trust Manifest (HETM) Verifier from Python to JavaScript and migrated it to `/core/verification`, ensuring UNIFIER.js compatibility and supporting mandatory evolutionary objectives.
+
+> **[SYSTEM_LOG 2026-02-07]**: Standardized src/config/systemPaths.js configuration object (C-12) to ensure robust module self-referencing and UNIFIER.js compatibility.
