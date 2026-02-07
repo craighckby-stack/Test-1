@@ -1,0 +1,78 @@
+{
+  "$id": "https://agi.sovereign.v94.1/protocol/execution_result_schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sovereign AGI Execution Result Schema",
+  "description": "Defines the outcome, metrics, and resulting state changes after a completed AGI execution cycle, complementing the initial Execution Context.",
+  "type": "object",
+  "required": [
+    "execution_id",
+    "timestamp_end",
+    "status",
+    "output_state_hash",
+    "metrics"
+  ],
+  "properties": {
+    "execution_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "References the unique identifier from the associated Execution Context."
+    },
+    "timestamp_end": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp marking the completion time."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "FAILURE",
+        "ABORTED"
+      ],
+      "description": "Final termination status of the execution."
+    },
+    "output_state_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Cryptographic root hash (SHA-256) of the resulting target filesystem state or artifact directory produced by the AGI."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Performance and resource consumption statistics.",
+      "required": [
+        "duration_ms",
+        "model_usage"
+      ],
+      "properties": {
+        "duration_ms": {
+          "type": "integer",
+          "description": "Total execution time in milliseconds."
+        },
+        "max_memory_mb": {
+          "type": "integer",
+          "description": "Peak system memory usage observed during the run."
+        },
+        "model_usage": {
+          "type": "object",
+          "description": "Details on tokens consumed by the underlying LLMs.",
+          "required": [
+            "input_tokens",
+            "output_tokens",
+            "model_id"
+          ],
+          "properties": {
+            "model_id": {
+              "type": "string"
+            },
+            "input_tokens": {
+              "type": "integer"
+            },
+            "output_tokens": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}
