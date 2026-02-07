@@ -1,52 +1,81 @@
 {
-  "metric_version": "1.0",
-  "description": "Defines standard metrics tracked for cost modeling and dynamic policy triggers.",
-  "metrics": {
+  "schema_version": "2.0",
+  "description": "Standardized metric definitions for AGI resource utilization, performance profiling, and financial tracking. Includes structural elements for type safety, standardized units, and policy linkage.",
+  "metric_definitions": {
     "tokens_consumed": {
-      "source_system": "InferenceCore/Telemetry",
-      "unit": "Token",
-      "aggregation_method": "SUM_PER_CYCLE",
-      "storage_policy": "Rolling30d"
+      "type": "RESOURCE_USAGE",
+      "source": "InferenceCore",
+      "unit": "TOKEN",
+      "data_type": "INTEGER",
+      "aggregation": "SUM",
+      "storage_policy": "HOT_30D",
+      "is_critical": true
     },
     "gpu_seconds": {
-      "source_system": "HardwareMonitor/GPU",
-      "unit": "Second",
-      "aggregation_method": "SUM_PER_CYCLE",
-      "storage_policy": "Rolling30d"
+      "type": "RESOURCE_USAGE",
+      "source": "HardwareMonitor",
+      "unit": "SECONDS",
+      "data_type": "FLOAT",
+      "aggregation": "SUM",
+      "storage_policy": "HOT_30D",
+      "is_critical": true
     },
-    "read_count": {
-      "source_system": "DataService/Storage",
-      "unit": "IOPS_Event",
-      "aggregation_method": "COUNT",
-      "storage_policy": "Rolling30d"
+    "data_read_count": {
+      "type": "IO",
+      "source": "DataService",
+      "unit": "COUNT",
+      "data_type": "INTEGER",
+      "aggregation": "SUM",
+      "storage_policy": "HOT_30D"
     },
-    "write_count": {
-      "source_system": "DataService/Storage",
-      "unit": "IOPS_Event",
-      "aggregation_method": "COUNT",
-      "storage_policy": "Rolling30d"
+    "data_write_count": {
+      "type": "IO",
+      "source": "DataService",
+      "unit": "COUNT",
+      "data_type": "INTEGER",
+      "aggregation": "SUM",
+      "storage_policy": "HOT_30D"
     },
-    "execution_time_ms": {
-      "source_system": "ToolOrchestrator",
-      "unit": "Millisecond",
-      "aggregation_method": "SUM_PER_CYCLE",
-      "storage_policy": "Rolling30d"
+    "tool_execution_time_ms": {
+      "type": "PERFORMANCE",
+      "source": "ToolOrchestrator",
+      "unit": "MILLISECONDS",
+      "data_type": "FLOAT",
+      "aggregation": "AVERAGE",
+      "storage_policy": "HOT_30D",
+      "optimize_goal": "MINIMIZE"
     },
-    "external_cost": {
-      "source_system": "ToolOrchestrator/ExternalAPI",
+    "external_api_cost": {
+      "type": "FINANCIAL",
+      "source": "ToolOrchestrator/ExternalAPI",
       "unit": "USD",
-      "aggregation_method": "SUM_PER_CYCLE",
-      "storage_policy": "Permanent"
+      "data_type": "FLOAT",
+      "aggregation": "SUM",
+      "storage_policy": "PERMANENT",
+      "critical_threshold": 0.05
     },
-    "CumulativeCostPercentage": {
-      "source_system": "RCM_PolicyEngine",
-      "unit": "Percentage",
-      "aggregation_method": "PEAK_PER_CYCLE"
+    "current_budget_utilization_percent": {
+      "type": "POLICY_STATE",
+      "source": "RCM_PolicyEngine",
+      "unit": "PERCENTAGE",
+      "data_type": "FLOAT",
+      "aggregation": "MAX",
+      "storage_policy": "HOT_30D"
     },
-    "SystemUtilization": {
-      "source_system": "Kernel",
-      "unit": "Percentage",
-      "aggregation_method": "AVERAGE_PER_CYCLE"
+    "system_cpu_utilization_percent": {
+      "type": "PERFORMANCE",
+      "source": "Kernel",
+      "unit": "PERCENTAGE",
+      "data_type": "FLOAT",
+      "aggregation": "AVERAGE",
+      "storage_policy": "HOT_30D",
+      "optimize_goal": "STABILIZE"
+    }
+  },
+  "metadata_dictionary": {
+    "storage_policies": {
+      "HOT_30D": "Data retained in high-speed storage for 30 days before archival.",
+      "PERMANENT": "Data retained indefinitely for financial and audit trails."
     }
   }
 }
