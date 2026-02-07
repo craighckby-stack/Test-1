@@ -1,13 +1,74 @@
 /**
  * GAX Constraint Validation Context Resolver
  * Maps execution context (e.g., request type, route) to a defined validation group.
+ * Pre-processes configuration for optimized runtime lookups.
  */
 
 import { RequestContext } from '@core/middleware/RequestContext.js';
 
 export class ValidationContextResolver {
+  /**
+   * @param {object} config - Application configuration object.
+   * @param {object} config.contextResolution.contextMap - The flat mapping of context keys to groups.
+   */
   constructor(config) {
-    this.contextMap = config.contextResolution.contextMap;
+    this.httpRoutes = {};
+    this.jobContexts = {};
+    // Use safe access and immediately process config to optimize lookups.
+    this.#processContextMap(config.contextResolution?.contextMap || {});
+  }
+
+  /**
+   * Internal method to restructure the flat configuration map into optimized,
+   * method-specific route arrays and job context map.
+   * Inserts exact matches before glob matches in route arrays for correct priority lookup.
+   * @param {object} contextMap
+   */
+  #processContextMap(contextMap) {
+    for (const key in contextMap) {
+      const group = contextMap[key];
+
+      if (key.startsWith('HTTP:')) {
+        // Expected format: HTTP:METHOD:PATH
+        const parts = key.substring(5).split(':', 2);
+        if (parts.length !== 2) continue;
+
+        const method = parts[0].toUpperCase();
+        const pathPattern = parts[1];
+        const isGlob = pathPattern.endsWith('/*');
+
+        if (!this.httpRoutes[method]) {
+          this.httpRoutes[method] = [];
+        }
+
+        const routeEntry = { pattern: pathPattern, group, isGlob };
+
+        // Prioritize exact matches (unshift) over glob matches (push).
+        if (!isGlob) {
+            this.httpRoutes[method].unshift(routeEntry);
+        } else {
+            this.httpRoutes[method].push(routeEntry);
+        }
+
+      } else if (key.startsWith('JOB_TYPE:')) {
+        // Expected format: JOB_TYPE:NAME
+        const jobType = key.substring(9);
+        this.jobContexts[jobType] = group;
+      }
+    }
+  }
+
+  /**
+   * Handles basic route pattern matching (only supports '/*' glob at the end).
+   * @param {string} targetPath - The actual request route.
+   * @param {string} pattern - The configured route pattern.
+   * @returns {boolean}
+   */
+  #matchesPattern(targetPath, pattern) {
+      if (pattern.endsWith('/*')) {
+          return targetPath.startsWith(pattern.slice(0, -2));
+      }
+      return targetPath === pattern;
   }
 
   /**
@@ -17,30 +78,28 @@ export class ValidationContextResolver {
    */
   resolveGroup(context) {
     if (context.isHttpRequest()) {
-      const key = `${context.method}:${context.route}`; 
+      const method = context.method.toUpperCase();
+      const route = context.route; 
       
-      // Basic route glob matching (can be expanded to regex)
-      for (const pattern in this.contextMap) {
-        if (pattern.startsWith('HTTP') && this.matchesPattern(key, pattern.substring(5))) {
-          return this.contextMap[pattern];
+      const methodRoutes = this.httpRoutes[method];
+
+      if (methodRoutes) {
+        // Iterates through pre-filtered and prioritized list (exact matches first)
+        for (const entry of methodRoutes) {
+          if (this.#matchesPattern(route, entry.pattern)) {
+            return entry.group;
+          }
         }
       }
+      
     } else if (context.isJobRequest()) {
-       const key = `JOB_TYPE:${context.jobType}`;
-       if (this.contextMap[key]) {
-         return this.contextMap[key];
+       const jobType = context.jobType;
+       // O(1) direct lookup for job type
+       if (this.jobContexts[jobType]) {
+         return this.jobContexts[jobType];
        }
     }
 
-    // Default to the highest priority group or 'default'
     return 'default';
-  }
-  
-  // Simple utility for pattern matching against paths
-  matchesPattern(target, pattern) {
-      if (pattern.endsWith('/*')) {
-          return target.startsWith(pattern.slice(0, -2));
-      }
-      return target === pattern;
   }
 }
