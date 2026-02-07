@@ -6,11 +6,12 @@
  * GSEP Alignment: Stage 3 Configuration Support (P-01 Input refinement)
  */
 
-const DEFAULT_THRESHOLDS = {
-    cpu_util: { threshold: 0.85, weight: 0.40, severity_boost: 1.5 },
-    memory_used_ratio: { threshold: 0.90, weight: 0.50, severity_boost: 2.0 },
-    io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.2 }
-};
+// Define constants outside the class scope and freeze them for immutability and memory optimization.
+const DEFAULT_THRESHOLDS = Object.freeze({
+    cpu_util: Object.freeze({ threshold: 0.85, weight: 0.40, severity_boost: 1.5 }),
+    memory_used_ratio: Object.freeze({ threshold: 0.90, weight: 0.50, severity_boost: 2.0 }),
+    io_wait_factor: Object.freeze({ threshold: 0.60, weight: 0.10, severity_boost: 1.2 })
+});
 
 class ResourceThresholdManager {
     /**
@@ -30,36 +31,62 @@ class ResourceThresholdManager {
         /** @private {Object|null} Cache for the fully resolved configuration. */
         this.cachedConfig = null;
         
-        // Initialize and load base configurations synchronously upon instantiation.
+        // Initialize base configurations synchronously.
         this._initializeConfiguration();
     }
 
     /**
-     * Centralized configuration loading and merging using the ConfigService.
+     * Highly optimized configuration merging abstraction (Fixed Depth 2).
+     * Creates a new object by merging 'layer' onto 'base'.
+     * Uses internal iteration and Object.assign for maximum V8 optimization 
+     * in updating configuration definitions (threshold, weight, etc.).
+     * This encapsulates the core configuration resolution logic.
+     * @private
+     * @param {Object} base - The starting configuration map.
+     * @param {Object} layer - The configuration layer to apply as overrides.
+     * @returns {Object} A new, merged configuration map.
+     */
+    _mergeLayer(base, layer) {
+        // Optimization: Shallow copy the base metrics structure.
+        const merged = { ...base }; 
+        
+        // Iterate only over the override keys (more efficient than Object.entries)
+        for (const metricKey in layer) {
+            // Prepare the base metric definition (defaults to empty object if new metric)
+            const baseMetric = base[metricKey] || {};
+            
+            // Use Object.assign for high-performance property merging within the metric definition.
+            // Creates a new metric definition object.
+            merged[metricKey] = Object.assign({}, baseMetric, layer[metricKey]);
+        }
+        return merged;
+    }
+
+
+    /**
+     * Centralized configuration loading and merging.
+     * Establishes the stable, static base configuration chain: 
+     * [Defaults] -> [Service Base] -> [Environment Profile]
      * @private
      */
     _initializeConfiguration() {
-        // 1. Load Base Configuration (using hardcoded defaults as fallback)
-        const baseConfig = this.configService.get('resourceThresholds.base') || DEFAULT_THRESHOLDS;
+        const baseFromService = this.configService.get('resourceThresholds.base') || {};
 
-        // 2. Load Environment Overrides
-        const overrides = this.configService.get(`resourceThresholds.profiles.${this.environmentProfile}`) || {};
+        // Layer 1 & 2: Merge Defaults with Base configuration from service
+        let staticConfig = this._mergeLayer(DEFAULT_THRESHOLDS, baseFromService);
 
-        // 3. Merge configurations
-        let staticConfig = { ...baseConfig };
-        
-        for (const [key, profileConfig] of Object.entries(overrides)) {
-            staticConfig[key] = {
-                ...staticConfig[key],
-                ...profileConfig
-            };
+        // Layer 3: Apply Environment Overrides
+        const overrides = this.configService.get(`resourceThresholds.profiles.${this.environmentProfile}`);
+        if (overrides) {
+            staticConfig = this._mergeLayer(staticConfig, overrides);
         }
         
         this.baseConfiguration = staticConfig;
     }
 
     /**
-     * Applies dynamic adjustments from the Adaptive Tuner, if present.
+     * Applies dynamic adjustments from the Adaptive Tuner, if present, 
+     * using the recursive merging abstraction.
      * @private
      * @param {Object} currentConfig - The statically merged configuration.
      * @returns {Object} The dynamically adjusted configuration.
@@ -71,19 +98,8 @@ class ResourceThresholdManager {
         
         const adjustments = this.adaptiveTuner.getAdjustments(currentConfig);
         
-        // Deep merge adjustments onto the current configuration
-        const dynamicallyTunedConfig = { ...currentConfig };
-        
-        for (const [metric, adjustment] of Object.entries(adjustments)) {
-            if (dynamicallyTunedConfig[metric]) {
-                dynamicallyTunedConfig[metric] = {
-                    ...dynamicallyTunedConfig[metric],
-                    ...adjustment
-                };
-            }
-        }
-        
-        return dynamicallyTunedConfig;
+        // Layer 4: Apply Dynamic Adjustments using the optimized merger
+        return this._mergeLayer(currentConfig, adjustments);
     }
 
     /**
@@ -93,14 +109,15 @@ class ResourceThresholdManager {
      * @returns {Object} Merged configuration object defining current operating constraints.
      */
     getTunedConstraintConfig(refresh = false) {
+        // Optimization: Fast path exit using cache
         if (this.cachedConfig && !refresh) {
             return this.cachedConfig;
         }
 
-        // 1. Start with the statically loaded configuration
-        let finalConfig = { ...this.baseConfiguration };
+        // Start with the pre-calculated static configuration
+        let finalConfig = this.baseConfiguration;
         
-        // 2. Apply dynamic adjustments (Adaptive Tuning)
+        // Apply dynamic adjustments (Layer 4)
         finalConfig = this._applyAdaptiveTuning(finalConfig);
 
         this.cachedConfig = finalConfig;
