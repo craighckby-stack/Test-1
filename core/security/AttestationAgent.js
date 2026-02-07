@@ -1,45 +1,84 @@
-const TEE_Interface = require('../TEE_Interface');
-const CryptoService = require('../../utility/CryptoService');
+const Interface = require('../TEE_Interface');
+const Cryptographer = require('../../utility/CryptoService');
+
+const MODULE_ID = "SIVM_V2";
+const CONFIG_KEY = "SIVM_EKEY_1";
 
 /**
- * @file SRAA_AttestationAgent.js
- * Secure Remote Attestation Agent (SRAA) Logic.
- * Runs upon SIVM failure signals to collect and transmit forensic evidence securely.
- * @exports {function} runAttestation
+ * Configuration abstraction: Retrieves the necessary endpoint parameters.
+ * @returns {{url: string, key: string}} Attestation destination configuration.
  */
+const getAttestationConfig = () => {
+    // O(1) synchronous lookup
+    return Interface.getEndpoint(CONFIG_KEY);
+};
 
 /**
- * Collects minimal forensic snapshot and securely transmits it out-of-band.
+ * Precondition check: Ensures the environment meets minimum security requirements.
+ * @throws {Error} If the system is not in a secure state.
+ */
+const validateSecureContext = () => {
+    if (!Interface.isSecureState()) {
+        throw new Error("Security context violation: Attestation aborted.");
+    }
+};
+
+/**
+ * Phase 1: Generation of the immutable data package (The Pledge).
+ * Collects sealed evidence and failure metadata.
+ */
+const generateImmutablePledge = async (failureData) => {
+    const sealedEvidence = await Interface.collectSealedEvidence();
+    return {
+        timestamp: Interface.getSecureTime(),
+        module_id: MODULE_ID,
+        failure_data: failureData,
+        immutable_evidence: sealedEvidence
+    };
+};
+
+/**
+ * Phase 2: Sealing the Pledge (Encryption).
+ * Encrypts the manifest using AES-256-GCM via the derived key.
+ */
+const sealManifest = async (pledge, destinationKey) => {
+    const packageString = JSON.stringify(pledge);
+    return Cryptographer.encryptData(packageString, destinationKey);
+};
+
+/**
+ * Phase 3: Secure Audit Transmission.
+ * Transmits the sealed package out-of-band.
+ */
+const transmitAuditReport = (destinationUrl, encryptedManifest) => {
+    return Interface.transmitSecurely(destinationUrl, encryptedManifest);
+};
+
+/**
+ * Attestation Workflow Orchestrator.
+ * Executes the Secure Remote Attestation Pipeline (SRAA) as a compositional flow.
  * @param {object} failureStateData - Data describing the system failure state.
- * @returns {Promise<boolean>} True if transmission was successful.
+ * @returns {Promise<boolean>} True if the transmission pipeline completed successfully.
  */
 async function runAttestation(failureStateData) {
-    // ATTESTATION_ENDPOINT is retrieved dynamically, matching Python behavior.
-    const ATTESTATION_ENDPOINT = TEE_Interface.getEndpoint("SIVM_EKEY_1");
+    try {
+        // Abstract Stage 1: Pre-flight and Configuration
+        validateSecureContext();
+        const config = getAttestationConfig();
 
-    if (!TEE_Interface.isSecureState()) {
+        // Abstract Stage 2: Evidence Collection and Packaging (Pledge)
+        const pledge = await generateImmutablePledge(failureStateData);
+
+        // Abstract Stage 3: Computation and Sealing (Manifest)
+        const encryptedManifest = await sealManifest(pledge, config.key);
+
+        // Abstract Stage 4: Secure Transmission (Audit)
+        return await transmitAuditReport(config.url, encryptedManifest);
+
+    } catch (e) {
+        // Optimization: Fail fast if preconditions or async operations fail.
         return false;
     }
-
-    // 1. Collect immutable evidence
-    const evidence = await TEE_Interface.collectSealedEvidence();
-
-    // 2. Package failure context
-    const packageData = {
-        timestamp: TEE_Interface.getSecureTime(),
-        module_id: "SIVM_V2",
-        failure_data: failureStateData,
-        immutable_evidence: evidence
-    };
-
-    // 3. Encrypt package (AES-256-GCM)
-    const packageString = JSON.stringify(packageData);
-    const encryptedPackage = await CryptoService.encryptData(packageString, ATTESTATION_ENDPOINT.key);
-
-    // 4. Transmit securely
-    const success = await TEE_Interface.transmitSecurely(ATTESTATION_ENDPOINT.url, encryptedPackage);
-
-    return success;
 }
 
 module.exports = {
