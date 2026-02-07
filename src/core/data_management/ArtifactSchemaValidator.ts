@@ -1,62 +1,82 @@
-// src/core/data_management/ArtifactSchemaValidator.ts
-
 import { readFileSync } from 'fs';
-import Ajv from 'ajv';
+import Ajv, { ValidateFunction } from 'ajv';
+import path from 'path';
 
-// Using Ajv for rapid runtime schema validation
+// Use a centralized, globally accessible Ajv instance for compilation efficiency.
 const ajv = new Ajv({ 
-    coerceTypes: true, // Optionally attempt type coercion
+    coerceTypes: true, 
     allowUnionTypes: true 
 });
 
 /**
- * Manages dynamic loading and validation of external schemas referenced by 
- * the Data Artifact Registry (via the 'schema_ref' field).
- * 
- * This utility is critical for ensuring that structured data payloads conform 
- * to the defined governance and operational contracts at runtime.
+ * Manages dynamic loading, compilation, caching, and validation of schemas.
+ * Enforces a Singleton pattern to ensure the schema cache is initialized and accessed only once,
+ * maximizing computational efficiency by avoiding redundant schema loading and compilation.
  */
 export class ArtifactSchemaValidator {
-    private loadedSchemas: Map<string, Ajv.ValidateFunction>;
+    private static instance: ArtifactSchemaValidator;
+    // Map stores compiled Ajv functions (optimization key)
+    private loadedSchemas: Map<string, ValidateFunction> = new Map();
     private schemaBasePath: string;
 
-    constructor(schemaBasePath: string = './config/schemas') {
-        this.loadedSchemas = new Map();
-        // Ensure the path ends with a separator
-        this.schemaBasePath = schemaBasePath.endsWith('/') ? schemaBasePath : `${schemaBasePath}/`;
+    /**
+     * Private constructor enforces Singleton pattern.
+     * Uses path.resolve for robust, platform-independent base path handling.
+     */
+    private constructor(schemaBasePath: string) {
+        // Abstract path normalization using path module
+        this.schemaBasePath = path.resolve(schemaBasePath);
     }
 
     /**
-     * Loads and compiles a schema from the file system based on its reference path.
-     * Caches the compiled validator function for performance.
-     * @param schemaRef The path defined in the artifact registry (e.g., 'CORE_TRANSACTION_EVENT.json')
-     * @returns Ajv validation function.
+     * Factory method to retrieve the centralized Singleton instance.
+     * This is the entry point for maximizing recursive cache efficiency.
+     * @param schemaBasePath Path used only on first initialization (default: './config/schemas').
      */
-    private loadSchema(schemaRef: string): Ajv.ValidateFunction {
+    public static getInstance(schemaBasePath: string = './config/schemas'): ArtifactSchemaValidator {
+        if (!ArtifactSchemaValidator.instance) {
+            ArtifactSchemaValidator.instance = new ArtifactSchemaValidator(schemaBasePath);
+        }
+        return ArtifactSchemaValidator.instance;
+    }
+
+    /**
+     * Core recursive abstraction mechanism: Loads and compiles a schema, prioritizing cache access.
+     * @param schemaRef The path defined in the artifact registry.
+     * @returns Compiled Ajv validation function.
+     */
+    private loadSchema(schemaRef: string): ValidateFunction {
+        // 1. Recursive Efficiency: Check cache (Base Case/Immediate Return)
         if (this.loadedSchemas.has(schemaRef)) {
             return this.loadedSchemas.get(schemaRef)!;
         }
 
-        const fullPath = `${this.schemaBasePath}${schemaRef}`;
-        console.debug(`[ArtifactSchemaValidator] Attempting to load schema from: ${fullPath}`);
+        // 2. Abstraction: Build the full path robustly.
+        const fullPath = path.join(this.schemaBasePath, schemaRef);
+        console.debug(`[ArtifactSchemaValidator] Loading schema from: ${fullPath}`);
 
         try {
             const schemaContent = readFileSync(fullPath, 'utf-8');
             const schema = JSON.parse(schemaContent);
-            // Compilation ensures the schema itself is valid and ready for use
+            
+            // 3. Computational Step: Ajv compilation (CPU intensive, happens only once per schemaRef)
             const validate = ajv.compile(schema);
+            
+            // 4. Cache Update (Future Efficiency)
             this.loadedSchemas.set(schemaRef, validate);
             return validate;
         } catch (error) {
-            console.error(`Error loading or parsing schema at ${fullPath}:`, error);
-            throw new Error(`Failed to initialize validator for schemaRef: ${schemaRef}. Ensure file exists and is valid JSON Schema.`);
+            const msg = `Failed to initialize validator for schemaRef: ${schemaRef}. Ensure file exists and is valid JSON Schema at ${fullPath}.`;
+            console.error(msg, error);
+            throw new Error(msg);
         }
     }
 
     /**
-     * Validates a given structured data payload against the referenced artifact schema.
+     * Validates a structured data payload against the referenced artifact schema.
+     * The client interacts only with validation; loading/caching is abstracted internally.
      * @param data The data object to validate.
-     * @param schemaRef The reference key for the schema definition (e.g., 'API_RESPONSE.json').
+     * @param schemaRef The reference key for the schema definition.
      * @returns True if valid.
      * @throws Error if validation fails.
      */
@@ -65,7 +85,7 @@ export class ArtifactSchemaValidator {
         const isValid = validate(data);
 
         if (!isValid) {
-            // Providing clear error details from Ajv
+            // Highly optimized error reporting using Ajv's built-in text generator
             const errorDetails = ajv.errorsText(validate.errors, { dataVar: 'data' });
             throw new Error(`Data artifact validation failed for schema '${schemaRef}'. Details: ${errorDetails}`);
         }
