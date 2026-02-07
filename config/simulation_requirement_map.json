@@ -1,27 +1,44 @@
 {
-  "description": "Defines the mapping logic for converting MIS impact/scope classifications into GTCM simulation fidelity keys.",
-  "version": "1.0",
-  "mapping_rules": [
+  "description": "Prioritized rules for translating MIS incident classification (Impact/Scope) into GTCM Simulation Fidelity Profiles.",
+  "version": "2.0",
+  "fidelity_profiles": {
+    "high_critical": "Requires maximum resource allocation, real-time feedback loops, and tertiary validation layers.",
+    "medium_severe": "Requires detailed state logging and accelerated simulation clock.",
+    "standard_default": "Standard simulation parameters.",
+    "low_minimal": "Minimal resource use, baseline safety checks only."
+  },
+  "resolution_matrix": [
     {
+      "priority": 5,
       "impact": "critical",
       "scope": "core",
-      "key_output": "high_critical",
-      "priority": 100
+      "target_profile": "high_critical",
+      "rationale": "Direct threat to core system components."
     },
     {
+      "priority": 4,
+      "impact": "critical",
+      "scope": ["peripheral", "external"],
+      "target_profile": "medium_severe",
+      "rationale": "Criticality demands high response, but scope limits resource drain."
+    },
+    {
+      "priority": 3,
       "impact": "high",
       "scope": "*",
-      "key_output": "medium_high",
-      "priority": 90
+      "target_profile": "medium_severe"
     },
     {
+      "priority": 2,
       "impact": "medium",
       "scope": "*",
-      "key_output": "medium_default",
-      "priority": 80
+      "target_profile": "standard_default"
     }
   ],
   "default_rule": {
-    "key_output": "low_default"
+    "priority": 1,
+    "impact": "*",
+    "scope": "*",
+    "target_profile": "low_minimal"
   }
 }
