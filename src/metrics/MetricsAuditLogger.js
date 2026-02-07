@@ -1,71 +1,133 @@
 const EventEmitter = require('events');
+const CORE_LOGGER = global.CORE_LOGGER || console;
 
 /**
- * Metrics Audit Logger (MAL) v1.0
+ * Default Configuration for Metrics Audit Logger
+ */
+const DEFAULT_CONFIG = {
+    flushIntervalMs: 5000, // Time-based trigger (5 seconds)
+    maxQueueSize: 500,     // Size-based trigger (Flush if 500 entries are queued)
+    suppressInternalErrors: true, // If true, logs error internally but doesn't throw during timed/size flush
+};
+
+/**
+ * Metrics Audit Logger (MAL) v2.0 - ARCH-ATM Integration Module
  * Provides a standardized interface for logging critical decision metrics and calibration
- * parameters into a streamable, persistent audit trail. Essential for post-hoc analysis
- * of trust score evolution and failure mode tracing, ensuring transparency in ARCH-ATM.
+ * parameters into a streamable, persistent audit trail. Essential for post-hoc analysis.
+ *
+ * Requirements for streamAdapter: Must implement write(entries: Array<AuditEntry>): Promise<void>
  */
 class MetricsAuditLogger extends EventEmitter {
-    constructor(streamAdapter) {
+    constructor(streamAdapter, config = {}) {
         super();
-        // streamAdapter might be a Kafka producer, database logger, or simple file stream
+        this.config = { ...DEFAULT_CONFIG, ...config };
+        
+        if (!streamAdapter || typeof streamAdapter.write !== 'function') {
+            throw new Error("MetricsAuditLogger requires a streamAdapter with a 'write(data)' method.");
+        }
+        
         this.adapter = streamAdapter; 
         this.logQueue = [];
         this.isFlushing = false;
-        this.flushInterval = 5000; // Flush every 5 seconds
+        this.isRunning = false;
+
+        this.start();
+    }
+    
+    /** Initializes periodic flushing. */
+    start() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        this.flushTimer = setInterval(() => this._triggerFlushIfScheduled(), this.config.flushIntervalMs);
+        if (this.flushTimer.unref) {
+            this.flushTimer.unref(); // Ensures timer doesn't hold the process open unnecessarily
+        }
+    }
+
+    /** Clears the timer and executes a final, forced flush, ensuring clean shutdown. */
+    async shutdown() {
+        if (!this.isRunning) return Promise.resolve();
         
-        this.startFlushing();
-    }
-
-    startFlushing() {
-        this.flushTimer = setInterval(() => this.flush(), this.flushInterval);
-    }
-
-    stopFlushing() {
+        this.isRunning = false;
         clearInterval(this.flushTimer);
+        
+        try {
+            // Flush remaining data
+            await this.flush(true); 
+            this.emit('shutdownComplete');
+        } catch (e) {
+            CORE_LOGGER.error('MAL Shutdown failed during final flush.', { error: e.message, queueSize: this.logQueue.length });
+        }
+    }
+
+    _triggerFlushIfScheduled() {
+        if (this.logQueue.length > 0) {
+            this.flush();
+        }
     }
 
     /**
      * Logs a specific metric event for auditing.
-     * @param {string} metricType - e.g., 'TRUST_SCORE_CALIBRATION', 'CIW_ADJUSTMENT', 'PSHI_UPDATE'.
+     * @param {string} metricType - Defines the class of metric (e.g., 'CALIBRATION', 'EXECUTION').
      * @param {object} data - The payload containing context, inputs, and outputs.
      */
     log(metricType, data) {
-        const timestamp = new Date().toISOString();
+        if (!this.isRunning) {
+            this.emit('metricDropped', { reason: 'Shutdown', metricType });
+            return;
+        }
+        
         const entry = {
-            timestamp,
+            timestamp: new Date().toISOString(),
             metricType,
             data
         };
+        
         this.logQueue.push(entry);
         this.emit('metricLogged', entry);
+
+        // Immediate flush trigger if queue size exceeds threshold and we are not currently flushing
+        if (this.logQueue.length >= this.config.maxQueueSize && !this.isFlushing) {
+            this.flush();
+        }
     }
 
-    async flush() {
-        if (this.logQueue.length === 0 || this.isFlushing) {
+    /**
+     * Executes the asynchronous persistence of queued metrics.
+     * @param {boolean} force - If true, ignores the isFlushing lock (used during startup/shutdown).
+     */
+    async flush(force = false) {
+        if (this.logQueue.length === 0 || (this.isFlushing && !force)) {
             return;
         }
 
         this.isFlushing = true;
-        const entriesToFlush = [...this.logQueue];
+        
+        // Atomically grab the current queue entries
+        const entriesToFlush = this.logQueue;
         this.logQueue = [];
 
         try {
-            // Implementation dependent: Use the provided stream adapter to persist data
-            if (this.adapter && typeof this.adapter.write === 'function') {
-                await this.adapter.write(entriesToFlush);
-            } else {
-                // Fallback or No-op if adapter is not configured
-            }
+            await this.adapter.write(entriesToFlush);
+            this.emit('flushSuccess', { count: entriesToFlush.length });
         } catch (error) {
-            console.error("Error flushing audit metrics:", error.message);
-            // Re-queue failed entries for safety
-            this.logQueue.unshift(...entriesToFlush);
+            CORE_LOGGER.error('MAL: Data persistence failure during flush.', { 
+                error: error.message, 
+                targetAdapter: this.adapter.constructor.name,
+                count: entriesToFlush.length 
+            });
+            
+            // Re-queue failed entries for resilience
+            if (this.config.suppressInternalErrors || force) {
+                this.logQueue.unshift(...entriesToFlush);
+            }
+            
+            this.emit('flushFailure', { error, count: entriesToFlush.length });
+            
         } finally {
             this.isFlushing = false;
         }
     }
 }
 
-module.exports = MetricsAuditLogger;
+module.exports = { MetricsAuditLogger, DEFAULT_CONFIG };
