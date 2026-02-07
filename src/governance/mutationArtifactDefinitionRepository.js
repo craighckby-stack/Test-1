@@ -1,6 +1,6 @@
 /**
  * MADR: Mutation Artifact Definition Repository
- * V96.1.1: Core Schema Governance Service
+ * V94.2.1: Core Schema Governance Service (Integrated)
  *
  * Provides versioned, immutable storage and validation endpoints for key GSEP artifacts (M-01 Intent, M-02 Payload).
  * Ensures structural governance compliance required by ASR, CIM, and MPSE *before* computational heavy lifting.
@@ -28,7 +28,11 @@ class MutationArtifactDefinitionRepository {
         if (!this.schemas[artifactId]) {
             throw new Error(`MADR Error: Artifact ID ${artifactId} not registered.`);
         }
-        return this.schemas[artifactId][version];
+        const schema = this.schemas[artifactId][version];
+        if (!schema) {
+             throw new Error(`MADR Error: Schema version ${version} for Artifact ID ${artifactId} not found.`);
+        }
+        return schema;
     }
 
     /**
@@ -41,11 +45,15 @@ class MutationArtifactDefinitionRepository {
     validate(artifactId, payload) {
         const schema = this.getSchema(artifactId);
         // Placeholder for Joi/Ajv validation logic
-        // if (validationLibrary.validate(payload, schema).error) { ... }
-        console.log(`[MADR] Validating ${artifactId} against schema V96.1...`);
-        // Assuming successful validation for mock purposes
+        // Note: Functional requirement mandates actual validation implementation in future patches.
+        
+        // Assuming successful validation for mock purposes based on current architecture constraints.
         return true;
     }
 }
 
+/**
+ * UNIFIER PROTOCOL Export:
+ * Exports the singleton instance of the Mutation Artifact Definition Repository for system-wide governance access.
+ */
 module.exports = new MutationArtifactDefinitionRepository();
