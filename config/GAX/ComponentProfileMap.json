@@ -1,10 +1,43 @@
 {
-  "map_version": "1.0",
-  "description": "Maps specific component IDs or code path regexes to abstract strictness profiles defined in ConstraintStrictnessProfile.json. Used by the GAX validation engine to determine dynamic constraint thresholds.",
-  "mappings": {
-    "Core_Scheduler_v95": "CRITICAL_PERFORMANCE",
-    "Data_Storage_Engine": "HIGH_CAPACITY_TCO",
-    "Internal_API_Gateway": "NORMAL_SECURITY",
-    "Default_Fallback": "BASE_PROFILE"
-  }
+  "map_version": "2.0",
+  "description": "Structured priority-based mapping of system components (ID, Path, Tag) to abstract strictness profiles defined in ConstraintStrictnessProfile.json. Used by the GAX validation engine (v94.1+) to determine dynamic constraint thresholds, favoring high-priority matches.",
+  "mapping_schema": "PRIORITY_ARRAY_V2",
+  "mappings": [
+    {
+      "priority": 100,
+      "match_type": "ID",
+      "target": "Core_Scheduler_v95",
+      "profile_id": "CRITICAL_PERFORMANCE"
+    },
+    {
+      "priority": 95,
+      "match_type": "TAG",
+      "target": "HIGH_THROUGHPUT",
+      "profile_id": "CRITICAL_PERFORMANCE"
+    },
+    {
+      "priority": 80,
+      "match_type": "ID",
+      "target": "Data_Storage_Engine",
+      "profile_id": "HIGH_CAPACITY_TCO"
+    },
+    {
+      "priority": 70,
+      "match_type": "PATH_REGEX",
+      "target": "^src/gateways/internal/.*",
+      "profile_id": "NORMAL_SECURITY"
+    },
+    {
+      "priority": 60,
+      "match_type": "ID",
+      "target": "Internal_API_Gateway",
+      "profile_id": "NORMAL_SECURITY"
+    },
+    {
+      "priority": 0,
+      "match_type": "FALLBACK",
+      "target": "*",
+      "profile_id": "BASE_PROFILE"
+    }
+  ]
 }
