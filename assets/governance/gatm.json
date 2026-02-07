@@ -1,19 +1,19 @@
 {
-  "schema_version": "3.0.0",
-  "data_version": "V95.4-A",
-  "description": "Normalized Governance Agent Threshold Manifest (GATM) v3.0. Defines operational policy targets, separated into governing constants and time-bound metrics, leveraging hierarchical categorization and a unified metrics structure for improved indexing and operational retrieval efficiency. Policy linkage utilizes standardized Policy IDs (P_*) referencing the GPDR.",
+  "schema_version": "3.1.0",
+  "data_version": "V95.5-B",
+  "description": "Normalized Governance Agent Threshold Manifest (GATM) v3.1. Refactored for map-based retrieval efficiency (O(1)). Defines operational policy targets categorized by target scope (SLO/Guardrail) and governing constants. Policy linkage utilizes standardized Policy IDs (P_*) referencing the GPDR.",
   "governance_constants": {
-    "StateTransition_MandatoryReviewRatio": {
+    "STATE_TRANSITION_MANDATORY_REVIEW_RATIO": {
       "value": 0.95,
       "type": "RATIO",
       "description": "Ratio (0.0-1.0) above which transition requires mandatory immediate governance review and audit logging.",
       "policy_id": "P_AUDIT_REVIEW_BLOCK"
     }
   },
-  "metric_policy_targets": [
-    {
-      "target_id": "TGT_001_LATENCY_VETO",
+  "policy_targets": {
+    "TGT_001_LATENCY_VETO": {
       "metric_id": "S2_VetoGate_MaxLatency",
+      "scope": "GUARDRAIL",
       "type": "LATENCY",
       "domain": "execution_pathways",
       "threshold": 50,
@@ -21,9 +21,9 @@
       "criticality": "HIGH",
       "failure_policy": "P_HALT_AND_REPORT"
     },
-    {
-      "target_id": "TGT_002_LATENCY_FINALI",
+    "TGT_002_LATENCY_FINALI": {
       "metric_id": "S7_FinalityGate_MaxLatency",
+      "scope": "SLO",
       "type": "LATENCY",
       "domain": "execution_pathways",
       "threshold": 150,
@@ -31,9 +31,9 @@
       "criticality": "MEDIUM",
       "failure_policy": "P_REPORT_AND_DEGRADE"
     },
-    {
-      "target_id": "TGT_003_LATENCY_COMMIT",
+    "TGT_003_LATENCY_COMMIT": {
       "metric_id": "S9_Commit_Timeout",
+      "scope": "GUARDRAIL",
       "type": "LATENCY",
       "domain": "execution_pathways",
       "threshold": 100,
@@ -41,9 +41,9 @@
       "criticality": "HIGH",
       "failure_policy": "P_ROLLBACK_AND_ALERT"
     },
-    {
-      "target_id": "TGT_004_LATENCY_ST",
+    "TGT_004_LATENCY_ST": {
       "metric_id": "StateTransition_MaxDuration",
+      "scope": "SLO",
       "type": "LATENCY",
       "domain": "operational_health",
       "threshold": 1000,
@@ -51,9 +51,9 @@
       "criticality": "MEDIUM",
       "failure_policy": "P_TIMEOUT_AND_REVERT"
     },
-    {
-      "target_id": "TGT_005_FREQUENCY_RRP",
+    "TGT_005_FREQUENCY_RRP": {
       "metric_id": "RRP_MaximumFrequency",
+      "scope": "CADENCE",
       "type": "FREQUENCY",
       "domain": "governance_cadence",
       "threshold": 5,
@@ -63,5 +63,5 @@
       "failure_policy": "P_RATE_LIMIT_QUEUE",
       "description": "Limits Requests for Resource Provisioning (RRP) over a 7-day period."
     }
-  ]
+  }
 }
