@@ -173,3 +173,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Removed the placeholder configuration file 'security/key_status_statemachine.json' to comply with the pruning mandate.
 
 > **[SYSTEM_LOG 2026-02-07]**: Converted metricWeightValidator.js to CommonJS syntax to ensure compatibility with the UNIFIER protocol execution environment.
+
+> **[SYSTEM_LOG 2026-02-07]**: Scaffolded ConfigLoader.js into the new /utility directory to handle robust loading of JSON configuration files, starting with RIMP Enforcement Policies.
