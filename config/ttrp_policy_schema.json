@@ -1,63 +1,105 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://gsep.ai/schemas/ttrp_policy_v1.0.json",
+  "$id": "http://gsep.ai/schemas/ttrp_policy_v2.0.json",
   "type": "object",
-  "title": "Telemetry Transport and Retention Policy (TTRP) Schema",
-  "description": "Defines policies for handling, routing, and retaining diagnostic and forensic telemetry generated during critical events (P-01 FAIL, IH), complementing ACVD constraints.",
+  "title": "Telemetry Transport and Retention Policy (TTRP) Schema v2.0",
+  "description": "Defines modular policies for handling, routing, and retaining diagnostic and forensic telemetry, focusing on scalability and operational rigor.",
   "required": [
     "TRANSPORT_CONFIGURATION",
-    "RETENTION_POLICY"
+    "RETENTION_POLICIES"
   ],
+  "definitions": {
+    "RateLimitingAction": {
+      "type": "string",
+      "enum": ["DROP", "SAMPLE", "DEGRADE_PAYLOAD", "BUFFER"],
+      "description": "Action taken when the rate limit for non-critical logs is exceeded."
+    },
+    "RetentionRule": {
+      "type": "object",
+      "properties": {
+        "MIN_DAYS": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum retention period required for this telemetry level (in days)."
+        },
+        "MAX_RETENTION_MB_PER_DAY": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional hard cap on total data size retained per day for cost control. 0 means unlimited."
+        }
+      },
+      "required": ["MIN_DAYS"],
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "TRANSPORT_CONFIGURATION": {
       "type": "object",
       "description": "Settings for secure transmission and routing of telemetry data.",
       "properties": {
-        "CRITICAL_ENDPOINT_URI": {
-          "type": "string",
-          "format": "uri",
-          "description": "Secure URI for high-priority (FORENSIC/IH) log transport."
+        "CRITICAL_TRANSPORT": {
+          "type": "object",
+          "description": "Configuration for P-01/IH level forensic data transport.",
+          "properties": {
+            "ENDPOINT_URI": {
+              "type": "string",
+              "format": "uri",
+              "description": "Secure, high-availability URI."
+            },
+            "AUTHENTICATION_METHOD": {
+              "type": "string",
+              "enum": ["TLS_CLIENT_CERT", "OAUTH2_JWT", "API_KEY_ROTATING"],
+              "description": "Required mechanism for endpoint authentication."
+            }
+          },
+          "required": ["ENDPOINT_URI", "AUTHENTICATION_METHOD"]
         },
-        "RATE_LIMIT_NON_CRITICAL_TPS": {
-          "type": "integer",
-          "minimum": 10,
-          "description": "Maximum transactions per second allowed for BASIC/VERBOSE logs to prevent resource exhaustion."
+        "NON_CRITICAL_RATE_LIMIT": {
+          "type": "object",
+          "properties": {
+            "MAX_TPS": {
+              "type": "integer",
+              "minimum": 10,
+              "description": "Maximum transactions per second allowed for non-critical telemetry streams."
+            },
+            "ON_EXCEED_ACTION": {
+              "$ref": "#/definitions/RateLimitingAction"
+            }
+          },
+          "required": ["MAX_TPS", "ON_EXCEED_ACTION"]
         },
-        "ENFORCE_ENCRYPTION": {
+        "ENFORCE_E2E_ENCRYPTION": {
           "type": "boolean",
-          "description": "If TRUE, all telemetry payloads must use mandatory end-to-end encryption."
+          "description": "If TRUE, all telemetry payloads must use mandatory end-to-end encryption (ACVD requirement)."
         }
       },
       "required": [
-        "CRITICAL_ENDPOINT_URI",
-        "RATE_LIMIT_NON_CRITICAL_TPS",
-        "ENFORCE_ENCRYPTION"
+        "CRITICAL_TRANSPORT",
+        "NON_CRITICAL_RATE_LIMIT",
+        "ENFORCE_E2E_ENCRYPTION"
       ]
     },
-    "RETENTION_POLICY": {
+    "RETENTION_POLICIES": {
       "type": "object",
-      "description": "Defines mandatory storage durations for different telemetry classes.",
-      "properties": {
-        "FORENSIC_RETENTION_DAYS": {
-          "type": "integer",
-          "minimum": 90,
-          "description": "Minimum retention period (days) for FORENSIC-level telemetry."
-        },
-        "DIAGNOSTIC_RETENTION_DAYS": {
-          "type": "integer",
-          "minimum": 30,
-          "description": "Minimum retention period (days) for DIAGNOSTIC-level telemetry."
-        },
-        "BASIC_RETENTION_DAYS": {
-          "type": "integer",
-          "minimum": 7,
-          "description": "Minimum retention period (days) for routine/BASIC telemetry."
+      "description": "Map defining retention requirements by dynamic telemetry priority level (e.g., FORENSIC, DIAGNOSTIC, TRACE).",
+      "patternProperties": {
+        "^[A-Z0-9_]+$": {
+          "$ref": "#/definitions/RetentionRule"
         }
       },
-      "required": [
-        "FORENSIC_RETENTION_DAYS",
-        "DIAGNOSTIC_RETENTION_DAYS"
-      ]
+      "required": ["FORENSIC", "DIAGNOSTIC"],
+      "minProperties": 2,
+      "properties": {
+        "FORENSIC": {
+          "description": "Retention details for highest-priority, incident-related telemetry."
+        },
+        "DIAGNOSTIC": {
+          "description": "Retention details for system operational data."
+        },
+        "BASIC": {
+          "description": "Retention details for routine/low-priority data."
+        }
+      }
     }
   }
 }
