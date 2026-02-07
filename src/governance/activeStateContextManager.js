@@ -9,7 +9,8 @@
  * This state is considered the operational root-of-trust for auditing (SSV).
  */
 
-import { GovernanceLock, GovernanceError } from "../utilities/governance/governancePrimitives";
+// MANDATE 3: DE-FRAGMENTATION & PRUNING (utilities -> utility)
+import { GovernanceLock, GovernanceError } from "../utility/governancePrimitives.js";
 
 // Defines the initial, unverified bootstrap state.
 const CONTEXT_INITIALIZED_STATE = Object.freeze({
@@ -18,6 +19,7 @@ const CONTEXT_INITIALIZED_STATE = Object.freeze({
     timestamp: Date.now()
 });
 
+// MANDATE 2: UNIFIER PROTOCOL (Export retained)
 export class ActiveStateContextManager {
     // #activeContext holds an immutable state object: { id, versionHash, timestamp }
     static #activeContext = null;
