@@ -65,3 +65,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Exported the `ValidationContextResolver` class to support centralized context management and compliance with the UNIFIER Protocol.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored ValidationOrchestrator to use a named export pattern for streamlined module inclusion into UNIFIER.js.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated Adaptive Risk Configuration JSON from /protocols/ to /governance/ to comply with the Unified Governance Directive.
