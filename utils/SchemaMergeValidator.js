@@ -1,16 +1,28 @@
 /**
- * SchemaMergeValidator (v94.2)
+ * SchemaMergeValidator (v94.3 - Refactored for Separation of Concerns Readiness)
  * Utility class responsible for merging base schemas (Core Indexing Metadata)
  * with custom schema fragments defined within an Artifact Indexing Policy (AIP)
  * and performing robust validation using Ajv.
  *
  * NOTE: Assumes Ajv instance is configured for desired schema dialect (e.g., draft 7/2020-12).
- * This utility focuses solely on the merging and compilation logic.
+ * This utility focuses primarily on merging, compilation, and validation.
+ * Policy structure resolution logic has been isolated into a helper for potential future extraction (see architectural proposal).
  */
 
-// Utility function for creating a deep clone of basic JSON schema structures.
-// Retained for zero external dependencies, optimized for schema objects.
-const deepCloneSchema = (schema) => JSON.parse(JSON.stringify(schema));
+/**
+ * @typedef {object} JSONSchema
+ * @property {object} [properties]
+ * @property {string[]} [required]
+ * @property {boolean} [additionalProperties]
+ */
+
+/**
+ * Utility function for creating a deep clone of basic JSON schema structures.
+ * This ensures base schemas remain immutable during the merging process.
+ * @param {JSONSchema} schema
+ * @returns {JSONSchema}
+ */
+const _cloneSchema = (schema) => JSON.parse(JSON.stringify(schema));
 
 class SchemaMergeValidator {
   /**
@@ -34,38 +46,38 @@ class SchemaMergeValidator {
   }
 
   /**
-   * Creates a composite schema by performing a targeted deep merge,
-   * combining 'properties' and 'required' arrays, favoring custom settings
-   * for 'additionalProperties' while preserving the base schema's integrity.
+   * Creates a composite schema by performing a targeted deep merge.
+   * Merges 'properties' and 'required' arrays, favoring custom settings
+   * for 'additionalProperties'.
    *
-   * @param {object} baseSchema - The resolved CoreIndexingMetadata schema (or equivalent).
-   * @param {object | null} customSchema - The schema fragment (e.g., AIP.custom_metadata_schema).
-   * @returns {object} The merged JSON Schema (a deep copy of the base modified by custom).
+   * @param {JSONSchema} baseSchema - The resolved CoreIndexingMetadata schema.
+   * @param {JSONSchema | null | undefined} customSchema - The schema fragment (e.g., AIP.custom_metadata_schema).
+   * @returns {JSONSchema} The merged JSON Schema.
    */
   createCompositeSchema(baseSchema, customSchema) {
-    if (!customSchema) {
-      return baseSchema; 
+    if (!customSchema || (!customSchema.properties && !customSchema.required && customSchema.additionalProperties === undefined)) {
+      // Return a deep clone of the base schema if the custom fragment provides no merging instruction.
+      return _cloneSchema(baseSchema);
     }
 
-    // Deep clone the base schema to maintain source immutability.
-    const merged = deepCloneSchema(baseSchema);
+    // 1. Deep clone the base schema to maintain source immutability.
+    const merged = _cloneSchema(baseSchema);
     
     const baseProps = merged.properties || {};
     const customProps = customSchema.properties || {};
 
-    // 1. Merge properties: Custom properties extend/overwrite base properties.
+    // 2. Merge properties: Custom properties extend/overwrite base properties.
     merged.properties = { 
       ...baseProps,
       ...customProps
     };
 
-    // 2. Merge required fields, ensuring uniqueness.
+    // 3. Merge required fields, ensuring uniqueness and deterministic order.
     const baseRequired = merged.required || [];
     const customRequired = customSchema.required || [];
-    // Use Set for unique union, then sort for deterministic output.
     merged.required = [...new Set([...baseRequired, ...customRequired])].sort();
 
-    // 3. Handle additionalProperties: Custom fragment explicitly overrides base.
+    // 4. Handle additionalProperties: Custom fragment explicitly overrides base if defined.
     if (customSchema.additionalProperties !== undefined) {
       merged.additionalProperties = customSchema.additionalProperties;
     }
@@ -74,30 +86,53 @@ class SchemaMergeValidator {
   }
 
   /**
+   * Helper function to extract and resolve the base schema reference from the AIP structure.
+   * NOTE: This logic is a candidate for extraction into a PolicySchemaResolver service.
+   * 
+   * @param {object} policy - The full ArtifactIndexingPolicy object.
+   * @returns {{baseSchema: JSONSchema | null, coreSchemaRef: string | null, error: string | null}}
+   */
+  _resolveBaseSchema(policy) {
+    const refPath = policy.indexing_structure?.['$ref'];
+    const coreSchemaRef = refPath?.split('/')?.pop();
+
+    if (!coreSchemaRef || !policy.$defs || !policy.$defs[coreSchemaRef]) {
+        const errorMsg = coreSchemaRef 
+            ? `Definition '${coreSchemaRef}' not found in $defs.`
+            : (refPath ? `Invalid $ref path: ${refPath}` : "Missing 'indexing_structure.$ref'.");
+        return { baseSchema: null, coreSchemaRef: coreSchemaRef || 'unknown', error: errorMsg };
+    }
+
+    return {
+        baseSchema: policy.$defs[coreSchemaRef],
+        coreSchemaRef,
+        error: null
+    };
+  }
+
+  /**
    * Validates a metadata payload against the policy schema. Handles schema resolution,
-   * merging, compilation, and caching. Note: For large systems, consider moving policy 
-   * resolution and fetching outside of this class (see PolicyService scaffold proposal).
+   * merging, compilation, and caching. 
    *
-   * @param {object} policy - The full ArtifactIndexingPolicy object (must contain $defs).
+   * @param {object} policy - The full ArtifactIndexingPolicy object.
    * @param {object} data - The metadata payload to validate.
    * @returns {{isValid: boolean, errors: import('ajv').ErrorObject[] | null, schemaId: string}} Validation result object.
    */
   validate(policy, data) {
     
-    // 1. Resolve base schema reference path from policy structure.
-    const refPath = policy.indexing_structure?.['$ref'];
-    const coreSchemaRef = refPath?.split('/')?.pop();
-    
-    if (!coreSchemaRef || !policy.$defs || !policy.$defs[coreSchemaRef]) {
-        const missingRef = coreSchemaRef || (refPath ? `Ref target ${refPath}` : "Missing $ref");
+    // 1. Resolve base schema and fragment.
+    const resolution = this._resolveBaseSchema(policy);
+
+    if (resolution.error) {
         return {
             isValid: false,
-            errors: [{ keyword: 'system', message: `Base indexing definition not resolvable: ${missingRef}.` }],
-            schemaId: coreSchemaRef || 'unknown'
+            errors: [{ keyword: 'resolution', message: `Base schema definition error: ${resolution.error}` }],
+            schemaId: resolution.coreSchemaRef
         };
     }
-
-    const baseSchema = policy.$defs[coreSchemaRef]; 
+    
+    const baseSchema = resolution.baseSchema;
+    const coreSchemaRef = resolution.coreSchemaRef;
     const customSchemaFragment = policy.custom_metadata_schema;
     
     // 2. Create the composite schema.
@@ -118,10 +153,9 @@ class SchemaMergeValidator {
             // Compile the dynamic schema and register it.
             this.ajv.addSchema(compositeSchema, schemaId);
             validateFn = this.ajv.getSchema(schemaId); 
-
+            
             if (!validateFn) {
-                // Should not happen if Ajv compiles successfully but included for robustness.
-                throw new Error("Ajv failed to retrieve compiled schema after successful add.");
+                throw new Error("Ajv compilation failed to return validation function after successful add.");
             }
         }
 
@@ -135,10 +169,10 @@ class SchemaMergeValidator {
         
     } catch (e) {
       // Handle Ajv compilation errors (e.g., malformed schemas).
-      console.error(`AJV Compilation Error for schema ID ${schemaId}. Policy Ref: ${coreSchemaRef}`, e);
+      const message = e instanceof Error ? e.message : String(e);
       return {
         isValid: false,
-        errors: [{ keyword: 'compilation', message: `Schema compilation failed: ${e.message}` }],
+        errors: [{ keyword: 'compilation', message: `Schema compilation failed: ${message}` }],
         schemaId: schemaId
       };
     }
