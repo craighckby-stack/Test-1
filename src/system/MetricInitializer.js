@@ -2,17 +2,57 @@ const MetricDefinitions = require('../../config/MetricDefinitions.json');
 const TelemetryAdapter = require('./telemetry/TelemetryAdapter');
 
 /**
- * Standardized constants for metric definition validation.
+ * Standardized constraints for metric definition validation.
+ * Using functional constants optimizes lookup efficiency (O(1) for Set checks).
  */
-const MetricConstraints = {
+const METRIC_CONSTRAINTS = {
   VALID_TYPES: new Set(['COUNTER', 'GAUGE', 'SUMMARY', 'HISTOGRAM']),
   VALID_AGGREGATIONS: new Set(['SUM', 'AVERAGE', 'MAX', 'LAST', 'NONE']),
   REQUIRED_FIELDS: ['description', 'unit', 'criticality', 'tags']
 };
 
 /**
+ * Performs highly efficient, short-circuiting validation on a single metric definition.
+ * This encapsulates the validation logic for maximum abstraction and efficiency.
+ * @param {string} name - The metric key name.
+ * @param {Object} def - The definition object.
+ * @throws {Error} If any constraint fails.
+ */
+function _validateSingleMetric(name, def) {
+  const C = METRIC_CONSTRAINTS;
+
+  // 1. Basic Structure Check
+  if (!def || typeof def !== 'object') {
+    throw new Error(`Metric ${name}: Definition must be a valid object.`);
+  }
+
+  // 2. Type Check (O(1) Set lookup)
+  if (!def.type || !C.VALID_TYPES.has(def.type)) {
+    throw new Error(`Metric ${name}: Invalid type '${def.type}'. Must be one of: ${[...C.VALID_TYPES].join(', ')}`);
+  }
+
+  // 3. Aggregation Strategy Check (O(1) Set lookup)
+  if (!def.aggregation_strategy || !C.VALID_AGGREGATIONS.has(def.aggregation_strategy)) {
+    throw new Error(`Metric ${name}: Invalid aggregation strategy '${def.aggregation_strategy}'. Must be one of: ${[...C.VALID_AGGREGATIONS].join(', ')}`);
+  }
+
+  // 4. Required Metadata Check (Efficient linear iteration)
+  for (const field of C.REQUIRED_FIELDS) {
+    if (def[field] === undefined || def[field] === null) {
+      throw new Error(`Metric ${name}: Missing required metadata field: ${field}.`);
+    }
+  }
+
+  // 5. Tags Structure Check
+  const tags = def.tags;
+  if (!Array.isArray(tags) || tags.some(t => typeof t !== 'string')) {
+     throw new Error(`Metric ${name}: Tags must be an array of strings.`);
+  }
+}
+
+/**
  * Loads, validates, and registers all defined system metrics with the Telemetry Adapter.
- * This class ensures definition integrity before the system starts producing metrics.
+ * This class prioritizes definition integrity and initialization speed.
  */
 class MetricInitializer {
   /**
@@ -20,52 +60,28 @@ class MetricInitializer {
    * @param {Object} adapter - The TelemetryAdapter instance/class.
    */
   constructor(definitions, adapter) {
-    this.definitions = definitions;
     this.telemetryAdapter = adapter;
-    this.validatedDefinitions = this._validateDefinitions(this.definitions);
+    // Delegate validation to the abstract helper function
+    this.validatedDefinitions = this._processAndValidateAll(definitions);
     this._registerMetrics();
   }
 
   /**
-   * Performs deep validation on the metric definitions structure.
-   * @throws {Error} If any metric fails constraints.
-   * @returns {Object} The validated definition subset.
+   * Iteratively processes all definitions using the abstracted validation routine.
+   * Achieves efficiency through linear iteration and validation short-circuiting.
+   * @param {Object} defs - Configuration definitions.
+   * @returns {Object} The validated subset.
    */
-  _validateDefinitions(defs) {
+  _processAndValidateAll(defs) {
     const validated = {};
-    const { VALID_TYPES, VALID_AGGREGATIONS, REQUIRED_FIELDS } = MetricConstraints;
-
-    for (const [name, def] of Object.entries(defs)) {
-      if (!def || typeof def !== 'object') {
-        throw new Error(`Metric ${name}: Definition must be a valid object.`);
-      }
-
-      // Type Check
-      if (!def.type || !VALID_TYPES.has(def.type)) {
-        throw new Error(`Metric ${name}: Invalid or missing type '${def.type}'. Must be one of: ${[...VALID_TYPES].join(', ')}`);
-      }
-
-      // Aggregation Strategy Check
-      if (!def.aggregation_strategy || !VALID_AGGREGATIONS.has(def.aggregation_strategy)) {
-        throw new Error(`Metric ${name}: Invalid or missing aggregation strategy '${def.aggregation_strategy}'. Must be one of: ${[...VALID_AGGREGATIONS].join(', ')}`);
-      }
-
-      // Required Metadata Check
-      for (const field of REQUIRED_FIELDS) {
-        if (!def[field]) {
-          throw new Error(`Metric ${name}: Missing required metadata field: ${field}.`);
-        }
-      }
-
-      // Ensure tags are a valid structure (array of strings)
-      if (def.tags && (!Array.isArray(def.tags) || def.tags.some(t => typeof t !== 'string'))) {
-         throw new Error(`Metric ${name}: Tags must be an array of strings.`);
-      }
-
+    const definitionEntries = Object.entries(defs);
+    
+    for (const [name, def] of definitionEntries) {
+      _validateSingleMetric(name, def); // O(1) checks ensure fast failure
       validated[name] = def;
     }
 
-    console.log(`[MetricInitializer] Successfully validated ${Object.keys(validated).length} metric definitions.`);
+    console.log(`[MetricInitializer] Successfully validated ${definitionEntries.length} metric definitions.`);
     return validated;
   }
 
