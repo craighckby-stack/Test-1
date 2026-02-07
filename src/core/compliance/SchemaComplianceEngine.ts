@@ -9,7 +9,8 @@ export class SchemaComplianceEngine {
     private schema: any;
 
     constructor() {
-        this.ajv = new Ajv({ schemas: [this.schema] });
+        // Fix: Corrected synchronous Ajv initialization which previously referenced 'this.schema' before it was loaded.
+        this.ajv = new Ajv();
     }
 
     public async loadSchema(): Promise<void> {
