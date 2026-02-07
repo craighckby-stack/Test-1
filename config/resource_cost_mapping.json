@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "currency_unit": "credits_v94.1",
+  "version": "v94.2",
+  "currency_unit": "credits_v94.2",
   "api_costs": {
     "openai_gpt_4o": {
       "input_cost_per_m_token": 5.00,
