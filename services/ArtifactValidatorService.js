@@ -4,14 +4,26 @@
  */
 class ArtifactValidatorService {
 
-    constructor(schemaRegistry) {
-        this.registry = schemaRegistry; // The V2.0 ArtifactSchemaRegistry.json
+    /**
+     * @param {object} schemaRegistry - The configuration object defining artifact schemas.
+     * @param {object} cryptoService - Dependency for cryptographic operations (signatures, hashes, merkle).
+     * @param {object} constraintUtility - Utility for specialized type/format checks.
+     */
+    constructor(schemaRegistry, cryptoService, constraintUtility) {
+        if (!schemaRegistry || !cryptoService || !constraintUtility) {
+            throw new Error("ArtifactValidatorService requires schemaRegistry, cryptoService, and constraintUtility dependencies.");
+        }
+        this.registry = schemaRegistry;
+        this.cryptoService = cryptoService;
+        this.constraintUtility = constraintUtility;
     }
 
     /**
      * Validates an artifact against its registered schema and cryptographic rules.
      * @param {string} artifactId The ID (e.g., 'PMH_LOCK_V1')
      * @param {object} payload The artifact data
+     * @returns {Promise<boolean>} True if validation succeeds.
+     * @throws {Error} If validation fails at any stage.
      */
     async validate(artifactId, payload) {
         const definition = this.registry.artifact_definitions[artifactId];
@@ -19,46 +31,103 @@ class ArtifactValidatorService {
             throw new Error(`Schema definition not found for artifact: ${artifactId}`);
         }
 
-        // 1. Structural Validation (Fields and Types)
-        this._validateStructure(definition.schema, payload);
+        // 1. Structural and Constraint Validation
+        this._validateStructure(definition.schema, payload, artifactId);
 
         // 2. Cryptographic Integrity Validation
-        await this._validateCryptography(definition.cryptographic_requirements, payload);
+        await this._validateCryptography(definition.cryptographic_requirements, payload, artifactId);
 
-        console.log(`${artifactId} validation successful.`);
         return true;
     }
 
-    _validateStructure(schema, payload) {
+    /**
+     * Performs structural validation (presence, type, format checks) by delegating to the utility.
+     */
+    _validateStructure(schema, payload, artifactId) {
         for (const [field, constraints] of Object.entries(schema)) {
-            if (constraints.required && !Object.prototype.hasOwnProperty.call(payload, field)) {
-                throw new Error(`Validation failed: Missing required field ${field}`);
+            const hasField = Object.prototype.hasOwnProperty.call(payload, field);
+
+            if (constraints.required && !hasField) {
+                throw new Error(`[${artifactId}] Validation failed: Missing required field "${field}"`);
             }
-            // TODO: Implement strong type/format checking based on constraints.type (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
+
+            if (hasField) {
+                // Delegate strong type/format checking (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
+                const value = payload[field];
+                this.constraintUtility.validateField(field, value, constraints);
+            }
         }
     }
 
-    async _validateCryptography(requirements, payload) {
-        // Enforce required signatures and integrity checks (e.g., Merkle proof verification).
+    /**
+     * Performs cryptographic validation (signatures, Merkle proofs) using the CryptoService.
+     */
+    async _validateCryptography(requirements, payload, artifactId) {
+        if (!requirements) {
+            return; // No cryptographic requirements specified
+        }
 
-        // Example: Check if the required signing authorities have provided valid signatures
+        // Canonical data is the specific data block that was signed/hashed.
+        const dataToVerify = this._getCanonicalData(payload, requirements.signed_fields);
+
+        // --- 1. Signature Authority Verification ---
         if (requirements.signing_authorities) {
-            for (const authority of requirements.signing_authorities) {
-                // Logic requires looking up the relevant signature field (e.g., attestation_signature_psr)
-                // and verifying against the public key of the authority.
-                // Requires a secure key management system lookup (SKMS).
+            for (const requirement of requirements.signing_authorities) {
+                const { key_identifier_field, signature_field, authority_name } = requirement;
+
+                const keyId = payload[key_identifier_field];
+                const signature = payload[signature_field];
+
+                if (!keyId || !signature) {
+                    throw new Error(`[${artifactId}] Cryptography failed: Missing key ID (${key_identifier_field}) or signature (${signature_field}) for authority ${authority_name}.`);
+                }
+
+                const isValid = await this.cryptoService.verifySignature(dataToVerify, signature, keyId, authority_name);
+
+                if (!isValid) {
+                    throw new Error(`[${artifactId}] Cryptography failed: Invalid signature detected for authority: ${authority_name}.`);
+                }
             }
         }
 
-        // Example: Verify Merkle Root integrity
+        // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
         if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
-            // Logic to reconstruct the tree from target fields and verify the root.
-        }
+            const { algorithm, target_fields, root_field } = requirements.integrity;
+            const claimedRoot = payload[root_field];
 
-        // TODO: Detailed signature and hash chain validation logic must be implemented here.
+            if (!claimedRoot) {
+                 throw new Error(`[${artifactId}] Integrity failed: Missing claimed Merkle Root (${root_field}).`);
+            }
+
+            // Collect data points whose hashes form the Merkle tree leaves.
+            const leavesData = target_fields.map(field => payload[field]);
+
+            const calculatedRoot = await this.cryptoService.calculateMerkleRoot(leavesData, algorithm);
+
+            if (calculatedRoot !== claimedRoot) {
+                 throw new Error(`[${artifactId}] Integrity failed: Calculated Merkle Root mismatch (Claimed: ${claimedRoot}, Calculated: ${calculatedRoot}).`);
+            }
+        }
     }
 
-    // SKMS lookup methods would be included here...
+    /**
+     * Helper to prepare the canonicalized data payload used for cryptographic operations.
+     * Assumes specific fields need to be canonicalized based on requirements.signed_fields.
+     * Note: Proper implementation requires strict JCS (JSON Canonicalization Scheme).
+     */
+    _getCanonicalData(payload, signedFields) {
+        if (signedFields && Array.isArray(signedFields)) {
+            const dataSubset = {};
+            signedFields.forEach(field => {
+                if (Object.prototype.hasOwnProperty.call(payload, field)) {
+                    dataSubset[field] = payload[field];
+                }
+            });
+            // A robust JCS implementation would sort keys recursively here.
+            return JSON.stringify(dataSubset);
+        }
+        return JSON.stringify(payload);
+    }
 }
 
 module.exports = ArtifactValidatorService;
