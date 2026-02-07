@@ -1,9 +1,13 @@
+import CacheService from '../utility/CacheService.js';
+
 // GPRClient: Manages secure connection, caching, parameter retrieval, and version resolution using config/gpr.config.json.
 
 class GPRClient {
   constructor(config) {
     this.config = config.governance_registry;
-    this.cache = new new CacheService(this.config.service_config.resilience);
+    // Dependency CacheService is assumed to be moved to the merged /utility path.
+    // Fixed instantiation error (removed double 'new').
+    this.cache = new CacheService(this.config.service_config.resilience);
     this.isReady = false;
   }
 
@@ -26,4 +30,4 @@ class GPRClient {
   // ... other retrieval and maintenance methods ...
 }
 
-module.exports = GPRClient;
+export default GPRClient;
