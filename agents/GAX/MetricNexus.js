@@ -59,4 +59,4 @@ class MetricNexus {
     }
 }
 
-module.exports = MetricNexus;
+export default MetricNexus;
