@@ -1,12 +1,13 @@
+const { SystemLogger } = require('../../utility/SystemLogger');
+
 /**
  * Constraint Analysis Broker (CAB)
  * Purpose: Intelligently determines and executes the minimum required static analysis
  * to satisfy the active set of governance constraints, centralizing context generation.
+ * Integrated for UNIFIER.js compatibility.
  */
 
-import { SystemLogger } from '../system_core/system_logger'; 
-
-export class ConstraintAnalysisBroker {
+class ConstraintAnalysisBroker {
     
     /**
      * @param {Object} dependencies 
@@ -82,3 +83,5 @@ export class ConstraintAnalysisBroker {
         return Array.from(requirements);
     }
 }
+
+module.exports = { ConstraintAnalysisBroker };
