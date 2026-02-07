@@ -4,44 +4,50 @@
     "name": "Global_Dimensional_Velocity_Model",
     "description": "Standardized configuration defining feature space topology, real-time change monitoring (velocity), and systemic data governance rules."
   },
-  "core_model_dimensionality": {
-    "feature_dimensions": 768,
+  "feature_space_topology": {
+    "embedding_size": 768,
     "quantization_profile": {
-      "type": "Product_Quantization",
+      "type": "PRODUCT_QUANTIZATION",
       "bits_per_centroid": 8
-    },
-    "storage_engine_config": {
-      "default_metric": "cosine",
-      "strategy": "HNSW",
-      "parameters": {
-        "M": 32,
-        "ef_construction": 200,
-        "reindex_trigger_load": 0.85
-      }
+    }
+  },
+  "vector_indexing_config": {
+    "index_algorithm": "HNSW",
+    "similarity_metric": "cosine",
+    "optimization_target": "MAX_RECALL",
+    "indexing_parameters": {
+      "M": 32,
+      "ef_construction": 200,
+      "reindex_trigger_load": 0.85,
+      "hnsw_optimization_mode": "IN_MEMORY_PRELOAD"
     }
   },
   "runtime_velocity_metrics": {
-    "normalization_window_ms": 3600000,
+    "aggregation_window_ms": 3600000,
     "anomaly_thresholds": {
       "relative_std_dev_multiplier": 3.0,
       "min_change_percentage": 0.05
     },
-    "rate_limiting": {
-      "debounce_window_ms": 500,
-      "max_events_per_second": 1000,
-      "dynamic_throttle_enabled": true
+    "rate_control": {
+      "debounce_ms": 500,
+      "max_ingress_rps": 1000,
+      "throttle_mode": "DYNAMIC_BACKPRESSURE"
     },
     "event_retention_days": 7
   },
   "data_governance_policies": {
-    "auto_pruning": {
-      "enabled": true,
+    "data_lifespan": {
+      "auto_pruning_enabled": true,
       "stale_age_days": 30
     },
     "schema_validation": {
       "enforcement_level": "STRICT_WARN",
-      "allowed_levels": ["OFF", "WARN", "STRICT_WARN", "BLOCK"],
       "integrity_check_frequency_hours": 6
+    },
+    "privacy_compliance": {
+      "pii_masking_enabled": false,
+      "default_masking_algorithm": "NONE",
+      "auditing_level": "METADATA_ONLY"
     }
   }
 }
