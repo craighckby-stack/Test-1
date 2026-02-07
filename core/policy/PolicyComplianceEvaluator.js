@@ -2,58 +2,89 @@
  * Policy Compliance Evaluator (PCE)
  * Objective: Real-time validation of current system state against the Adaptive Policy Matrix (APM).
  * Role: High-frequency operational watchdog, executing AdaptiveDeviationHandling actions.
+ * Optimization Note: Configuration initialization is now pre-processed for O(1) weight lookups.
  */
 
 import { APM } from '../config/governance/APM-99.0_CORE.json';
+import { SystemActionDispatcher } from '../system/SystemActionDispatcher.js'; // Decouples action execution from evaluation
 
 class PolicyComplianceEvaluator {
+    /** @type {Object.<number, number>} Policy Code -> Weight */
+    weightMap = {};
+    
+    /** @type {Array<Object>} */
+    reactionThresholds = [];
+
+    /** @type {Object} */
+    trustConfig = {};
+
     constructor() {
-        this.matrix = APM.AdaptiveDeviationHandling;
+        const matrix = APM.AdaptiveDeviationHandling;
+
+        // 1. Optimize Weights: Transform Array into Map/Object for O(1) lookup in high-frequency calculation.
+        this.weightMap = matrix.ADH_Policy_Weights.reduce((acc, weight) => {
+            acc[weight.Code] = weight.Weight;
+            return acc;
+        }, {});
+
+        // 2. Initialize Core Policy Configuration
+        this.reactionThresholds = matrix.ADH_ReactionMatrix.Thresholds;
         this.trustConfig = APM.TrustDefinitions.T_Adaptive_Thresholds;
-        // Initialize optimized look-up tables based on Policy_Weights/ReactionMatrix
+
+        // Dependency check (optional, but good practice)
+        if (typeof SystemActionDispatcher === 'undefined') {
+             console.error("PCE requires SystemActionDispatcher for compliance enforcement.");
+        }
     }
 
+    /**
+     * Main evaluation routine to validate operational state against adaptive policies.
+     * @param {Object} metrics - Real-time system performance metrics.
+     * @param {Object} operationalContext - Contextual metadata (e.g., current mission phase).
+     * @returns {boolean} True if a compliance action was dispatched, false otherwise.
+     */
     evaluateSystemState(metrics, operationalContext) {
-        // 1. Evaluate Trust and Operational Thresholds
+        // A. Primary Trust Policy Check (Fast fail evaluation)
         if (metrics.P99_CommitTime_ms > this.trustConfig.HighLatency.Scale) {
-            this.triggerAction(this.trustConfig.HighLatency.Trigger);
+            console.warn(`[PCE Trust Violation] Latency breach: ${metrics.P99_CommitTime_ms}ms.`);
+            SystemActionDispatcher.dispatchAction(this.trustConfig.HighLatency.Trigger, { type: 'trust_violation', metrics });
+            return true;
         }
 
-        // 2. Calculate Deviation Score based on weighted metrics
-        let deviationScore = this.calculateWeightedDeviation(metrics, operationalContext);
+        // B. Calculate Composite Deviation Score
+        const deviationScore = this.calculateWeightedDeviation(metrics);
 
-        // 3. Execute reaction based on ReactionMatrix thresholds
-        const reaction = this.matrix.ADH_ReactionMatrix.Thresholds.find(t => deviationScore >= t.Max_Sigma);
+        // C. Determine and Execute Reaction
+        // Assumes reactionThresholds are sorted by Max_Sigma (descending) in configuration for optimal search efficiency.
+        const reaction = this.reactionThresholds.find(t => deviationScore >= t.Max_Sigma);
 
         if (reaction) {
-            console.warn(`Deviation detected (Score: ${deviationScore}). Action: ${reaction.Action}`);
-            this.executeMandatedAction(reaction.Action);
+            console.warn(`[PCE Deviation] Score: ${deviationScore.toFixed(3)}. Policy Mandate: ${reaction.Action}`);
+            SystemActionDispatcher.dispatchAction(reaction.Action, { score: deviationScore, metrics, context: operationalContext });
             return true;
         }
         return false;
     }
 
-    calculateWeightedDeviation(metrics, context) {
-        // Simplified high-level calculation placeholder (Actual implementation involves optimized signal processing)
+    /**
+     * Calculates the system deviation score based on predefined weighted policies.
+     * Uses O(1) lookup via weightMap for critical performance.
+     * @param {Object} metrics - System metrics.
+     * @returns {number} The calculated deviation score.
+     */
+    calculateWeightedDeviation(metrics) {
         let score = 0;
-        score += (metrics.securityViolationRate * this.matrix.ADH_Policy_Weights.find(w => w.Code === 1).Weight);
-        score += (metrics.efficiencyLossSigma * this.matrix.ADH_Policy_Weights.find(w => w.Code === 2).Weight);
-        // ...
+
+        // Policy Code 1: Security Rate
+        score += (metrics.securityViolationRate * (this.weightMap[1] || 0)); 
+        // Policy Code 2: Efficiency Loss
+        score += (metrics.efficiencyLossSigma * (this.weightMap[2] || 0));
+        // Add other core metrics here...
+        
         return score;
     }
 
-    executeMandatedAction(action) {
-        // Interface with core Execution Plane
-        switch (action) {
-            case 'ISOLATE_SUBSYSTEM':
-                // Logic to enforce isolation
-                break;
-            case 'SELF_TERMINATE_MISSION':
-                // Secure shutdown protocol
-                break;
-            // ... other actions
-        }
-    }
+    // executeMandatedAction has been removed and replaced by delegation to SystemActionDispatcher
 }
 
 export const PCE = new PolicyComplianceEvaluator();
