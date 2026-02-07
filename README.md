@@ -49,3 +49,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Validated the governance/policy/RTPCSchema.json schema; no refactoring was required as it is a static configuration definition located correctly within the merged /governance directory.
 
 > **[SYSTEM_LOG 2026-02-07]**: Scaffolded TrustRegistryLoader.js in /governance to expose core trust anchor data required for UNIFIER.js execution.
+
+> **[SYSTEM_LOG 2026-02-07]**: Exported SchemaComplianceEngine class and fixed Ajv constructor initialization logic for UNIFIER compatibility and robust operation.
