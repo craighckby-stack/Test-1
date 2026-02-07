@@ -1,22 +1,89 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign.agi/telemetry/RCM_V1",
-  "title": "Resource Consumption Metrics (RCM) Sub-Schema",
+  "$id": "http://sovereign.agi/telemetry/RCM_V2",
+  "title": "Resource Consumption Metrics (RCM) Sub-Schema V2",
   "type": "object",
-  "description": "Standard structure for reporting resource consumption, designed to be used as the value for the 'context_data' field in GGS_V2 logs when resource usage tracking is required.",
+  "description": "Standard structure for granular resource consumption reporting (Compute, I/O, Financial). Used as 'context_data' payload in GGS_V2 logs.",
   "properties": {
-    "model_name": {"type": "string", "description": "The specific LLM or specialized model utilized (e.g., GP-94.1/CAC-V2).
-    "tokens_input": {"type": "integer", "minimum": 0, "description": "Number of input tokens processed."
+    "execution_id": {
+      "type": "string",
+      "description": "Unique identifier for the specific execution trace or span, linking RCM data to the parent GGS log."
     },
-    "tokens_output": {"type": "integer", "minimum": 0, "description": "Number of output tokens generated."
+    "model_context": {
+      "type": "object",
+      "description": "Metrics specific to the active decision model and associated tokenization.",
+      "properties": {
+        "model_name": {
+          "type": "string",
+          "description": "The specific LLM or specialized sub-model utilized (e.g., GP-94.1/CAC-V2/ReflexAgent-1)."
+        },
+        "tokens_input": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of tokens processed in the input context."
+        },
+        "tokens_output": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of tokens generated in the output response."
+        }
+      },
+      "required": [
+        "model_name",
+        "tokens_input",
+        "tokens_output"
+      ]
     },
-    "cpu_cycles_ms": {"type": "integer", "minimum": 0, "description": "CPU utilization/processing time measured in milliseconds (per instance)."
+    "compute_metrics": {
+      "type": "object",
+      "description": "Metrics quantifying compute cycles consumed, providing insight into raw processing efficiency.",
+      "properties": {
+        "latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total end-to-end processing latency reported by the service, measured in milliseconds."
+        },
+        "cpu_usage_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Dedicated core CPU time utilization measured in milliseconds."
+        },
+        "accelerator_usage_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Dedicated GPU/HPU acceleration time measured in milliseconds, if applicable."
+        },
+        "memory_peak_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Peak working set memory utilized during the execution phase, measured in bytes."
+        }
+      },
+      "required": [
+        "latency_ms",
+        "cpu_usage_ms"
+      ]
     },
-    "gpu_cycles_ms": {"type": "integer", "minimum": 0, "description": "GPU acceleration usage time in milliseconds, if applicable."
-    },
-    "latency_ms": {"type": "integer", "minimum": 0, "description": "Total end-to-end processing latency for the span being measured."
-    },
-    "estimated_cost_usd": {"type": "number", "minimum": 0, "description": "Estimated monetary cost attributed to this specific action, critical for CAC tracking."}
+    "financial_metrics": {
+      "type": "object",
+      "description": "Cost tracking data.",
+      "properties": {
+        "estimated_cost_usd": {
+          "type": "number",
+          "format": "float",
+          "minimum": 0,
+          "description": "Estimated monetary cost attributed to this specific action (USD), calculated based on real-time pricing models."
+        }
+      },
+      "required": [
+        "estimated_cost_usd"
+      ]
+    }
   },
-  "required": ["model_name", "tokens_input", "tokens_output", "latency_ms", "estimated_cost_usd"]
+  "required": [
+    "execution_id",
+    "model_context",
+    "compute_metrics",
+    "financial_metrics"
+  ]
 }
