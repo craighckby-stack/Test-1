@@ -1,100 +1,115 @@
 /**
  * SSVRIntegrityCheck.js
  * ----------------------------------------------------
- * Core utility for validating the Schema Version Registry (SSVR)
+ * Core utility for validating the Sovereign Schema Version Registry (SSVR)
  * during system initialization against physical governance files and digital attestations.
  *
  * Refactor V94.1 Sovereign AGI Changes:
- * 1. Explicit Canonicalization: Replaced fallible hash input serialization with a dedicated,
- *    cryptographically safe CanonicalJson utility.
- * 2. Optimized Policy Flow: Policy configuration is loaded once at runtime and explicitly
- *    passed to dependent verification steps, improving dependency clarity.
- * 3. Enhanced Attestation Rules: Added support for 'strict_version' requirements in attestation policy checks.
+ * 1. Policy Encapsulation: Explicitly use modern Object spread/destructuring for cloning and key deletion.
+ * 2. Optimized Flow Control: Policies are now loaded and passed down explicitly. Consolidated error reporting structure.
+ * 3. Canonical Serialization: Reinforced mandatory use of `CanonicalJson` for all hash inputs.
  */
 
 import { CRoTCrypto } from 'core/crypto/CRoT';
 import { SystemFiles } from 'core/system/filesystem';
-import { CanonicalJson } from 'core/utils/CanonicalJson'; 
+import { CanonicalJson } from 'core/utils/CanonicalJson';
 
+// Policy path for Root-of-Trust configuration verification
 const INTEGRITY_POLICY_PATH = 'governance/config/IntegrityPolicy.json';
-let _integrityPolicyCache = null;
 
-class SSVRIntegrityCheck {
+/**
+ * SSVRIntegrityCheck handles the verification lifecycle for a single SSVR document.
+ */
+export class SSVRIntegrityCheck {
+  
+  static _integrityPolicyCache = null;
+
   constructor(ssvrContent) {
     if (!ssvrContent || typeof ssvrContent !== 'object' || !ssvrContent.version) {
-      throw new Error("SSVR Validation Setup Error: Invalid SSVR object provided. Missing version or structure.");
+      throw new Error("SSVR Validation Setup Error: Invalid SSVR object provided or missing version.");
     }
     this.ssvr = ssvrContent;
+    this.verificationResults = [];
   }
 
   /**
    * Helper function to safely load and cache configuration from the governing policy file.
+   * Policy definition must be nested under the 'SSVR' key.
    */
   static async loadIntegrityPolicy() {
-    if (!_integrityPolicyCache) {
-        try {
-            const policyContent = await SystemFiles.read(INTEGRITY_POLICY_PATH);
-            // Assumes SSVR policy configuration is nested under the 'SSVR' key.
-            const parsedPolicy = JSON.parse(policyContent).SSVR;
-            if (!parsedPolicy) {
-                 throw new Error("Configuration file found but 'SSVR' policy definition is missing.");
-            }
-            _integrityPolicyCache = parsedPolicy;
-        } catch (e) {
-            throw new Error(`Integrity Policy Load Failure: Could not load SSVR policy from ${INTEGRITY_POLICY_PATH}. Details: ${e.message}`);
-        }
+    if (SSVRIntegrityCheck._integrityPolicyCache) {
+        return SSVRIntegrityCheck._integrityPolicyCache;
     }
-    return _integrityPolicyCache;
+    
+    try {
+        const policyContent = await SystemFiles.read(INTEGRITY_POLICY_PATH);
+        const parsedPolicy = JSON.parse(policyContent).SSVR;
+        
+        if (!parsedPolicy) {
+             throw new Error("Configuration file found but 'SSVR' policy definition is missing within it.");
+        }
+        SSVRIntegrityCheck._integrityPolicyCache = parsedPolicy;
+        return parsedPolicy;
+    } catch (e) {
+        // Re-throw with high-context failure detail
+        throw new Error(`Integrity Policy Load Failure for SSVR check: Cannot load policy from ${INTEGRITY_POLICY_PATH}. Details: ${e.message}`);
+    }
   }
 
   /**
    * Generates a cryptographically canonical JSON string of the SSVR content
-   * excluding the integrity_hash field to prepare for self-hashing.
+   * excluding the integrity_hash field for self-hashing preparation.
+   * Utilizes Object destructuring for efficient property removal.
    */
   _createHashableSSVRContent() {
-    const tempSSVR = JSON.parse(JSON.stringify(this.ssvr)); // Deep clone
-    delete tempSSVR.integrity_hash;
+    // Extract and ignore integrity_hash; the remainder is hashableSSVR
+    const { integrity_hash, ...hashableSSVR } = this.ssvr; 
 
-    // Utilize the mandated standard CanonicalJson utility for deterministic serialization.
-    return CanonicalJson.stringify(tempSSVR);
+    // Mandated CanonicalJson for deterministic serialization.
+    return CanonicalJson.stringify(hashableSSVR);
   }
 
   /**
    * Step 1: Verify the top-level integrity hash of the SSVR document itself.
    */
   async verifySelfIntegrity(policy) {
+    const step = 'SSVR_SELF_HASH';
     const hashableContent = this._createHashableSSVRContent();
     const hashAlgorithm = policy.hash_algorithm || 'SHA-256';
-
-    if (!this.ssvr.integrity_hash) {
-        throw new Error(`SSVR Integrity Failure: 'integrity_hash' field is missing from SSVR document v${this.ssvr.version}.`);
-    }
-
-    const calculatedHash = await CRoTCrypto.hash(hashableContent, hashAlgorithm);
     
-    if (calculatedHash !== this.ssvr.integrity_hash) {
-      const storedPrefix = this.ssvr.integrity_hash.substring(0, 10);
-      const calculatedPrefix = calculatedHash.substring(0, 10);
-      throw new Error(`SSVR Self-Integrity Check Failed (v${this.ssvr.version}): Calculated hash (${calculatedPrefix}...) does not match stored hash (${storedPrefix}...).`);
+    if (!this.ssvr.integrity_hash) {
+        throw new Error(`[${step}] Integrity Failure: 'integrity_hash' field is missing from SSVR document v${this.ssvr.version}.`);
     }
-    return true;
+
+    try {
+        const calculatedHash = await CRoTCrypto.hash(hashableContent, hashAlgorithm);
+        
+        if (calculatedHash !== this.ssvr.integrity_hash) {
+          const storedPrefix = this.ssvr.integrity_hash.substring(0, 10);
+          const calculatedPrefix = calculatedHash.substring(0, 10);
+          throw new Error(`Calculated hash (${calculatedPrefix}...) does not match stored hash (${storedPrefix}...).`);
+        }
+        this.verificationResults.push({ step, status: 'PASS', algorithm: hashAlgorithm });
+    } catch (e) {
+        throw new Error(`[${step}] Self-Integrity Check Failed (v${this.ssvr.version}). Details: ${e.message}`);
+    }
   }
 
   /**
-   * Step 2: Verify the hashes of all external schemas referenced in the registry
-   * by recalculating their content hash upon runtime loading.
+   * Step 2: Verify the hashes of all external schemas referenced in the registry.
    */
   async verifySchemaContentHashes() {
+    const step = 'SCHEMA_CONTENT_HASHES';
     if (!Array.isArray(this.ssvr.schema_definitions)) {
-        throw new Error(`SSVR Structure Error: 'schema_definitions' array is missing or malformed in v${this.ssvr.version}.`);
+        throw new Error(`[${step}] Structure Error: 'schema_definitions' array is missing or malformed in v${this.ssvr.version}.`);
     }
     
-    const verificationPromises = this.ssvr.schema_definitions.map(async (schemaDef, index) => {
+    const results = await Promise.all(this.ssvr.schema_definitions.map(async (schemaDef, index) => {
       const schemaId = schemaDef.schema_id;
       const schemaPath = `governance/schema/${schemaId}.json`;
       
       if (!schemaDef.content_hash || !schemaDef.hash_type) {
-           return { id: schemaId, verified: false, error: `Schema definition ${index} missing required fields (content_hash/hash_type).` };
+           return { id: schemaId, verified: false, error: `Missing required definition fields (content_hash/hash_type).` };
       }
 
       try {
@@ -105,26 +120,25 @@ class SSVRIntegrityCheck {
              return { id: schemaId, version: schemaDef.version, verified: false, error: `File Read Error: Cannot locate or read file at ${schemaPath}` };
         }
 
+        // Note: SSVR content verification often requires hashing the raw file buffer, not the parsed JSON object.
         const calculatedContentHash = await CRoTCrypto.hash(schemaContent, schemaDef.hash_type);
 
         if (calculatedContentHash !== schemaDef.content_hash) {
           const expectedPrefix = schemaDef.content_hash.substring(0, 8);
-          return { id: schemaId, version: schemaDef.version, verified: false, error: `Content hash mismatch. Expected: ${expectedPrefix}...` };
+          return { id: schemaId, version: schemaDef.version, verified: false, error: `Content hash mismatch. Expected prefix: ${expectedPrefix}...` };
         }
         return { id: schemaId, version: schemaDef.version, verified: true };
       } catch (e) {
-        return { id: schemaId, version: schemaDef.version, verified: false, error: `Schema Processing Error (${schemaId}): ${e.message}` };
+        return { id: schemaId, version: schemaDef.version, verified: false, error: `Unexpected Schema Processing Error: ${e.message}` };
       }
-    });
+    }));
 
-    const results = await Promise.all(verificationPromises);
-    
     const failures = results.filter(r => !r.verified);
     if (failures.length > 0) {
       const failureList = failures.map(f => `${f.id} (v${f.version || 'N/A'}): ${f.error}`).join('\n  - ');
-      throw new Error(`Foundational Schema Content Integrity Failed (${failures.length} errors):\n  - ${failureList}`);
+      throw new Error(`[${step}] Foundational Schema Content Integrity Failed (${failures.length} total errors):\n  - ${failureList}`);
     }
-    return true;
+    this.verificationResults.push({ step, status: 'PASS', schemas: this.ssvr.schema_definitions.length });
   }
 
   /**
@@ -132,52 +146,62 @@ class SSVRIntegrityCheck {
    * and meet version requirements defined by the loaded policy.
    */
   async verifyAttestationsPresence(policy) {
-    if (!Array.isArray(this.ssvr.attestation_log)) {
-        if (policy.required_attestations && policy.required_attestations.length > 0) {
-            throw new Error("Attestation Log Structure Error: Attestation log is missing, but required signatures are mandated by policy.");
-        }
-        return true; 
-    }
-    
+    const step = 'ATTESTATION_POLICY_CHECK';
     const requiredSigners = policy.required_attestations || [];
+    
+    if (!Array.isArray(this.ssvr.attestation_log) && requiredSigners.length > 0) {
+        throw new Error(`[${step}] Attestation Log Structure Error: Log is missing, but ${requiredSigners.length} required signatures mandated by policy.`);
+    }
 
     for (const requiredAttestation of requiredSigners) {
       const signerId = requiredAttestation.signer_id;
-      const foundAttestation = this.ssvr.attestation_log.find(log => log.signer_id === signerId);
+      const foundAttestation = (this.ssvr.attestation_log || []).find(log => log.signer_id === signerId);
 
       if (!foundAttestation) {
-        throw new Error(`Attestation Requirement Failure: Missing required signature from signer: ${signerId}.`);
+        throw new Error(`[${step}] Requirement Failure: Missing required signature from signer: ${signerId}.`);
       }
       
-      // Enforce strict version matching if mandated by policy
-      if (requiredAttestation.strict_version && foundAttestation.version && 
-          String(foundAttestation.version) !== String(requiredAttestation.strict_version)) {
-         throw new Error(`Attestation Requirement Failure: Signer ${signerId} provided version ${foundAttestation.version}, but policy strictly requires ${requiredAttestation.strict_version}.`);
+      // Enforce strict version matching
+      if (requiredAttestation.strict_version) {
+         if (!foundAttestation.version || String(foundAttestation.version) !== String(requiredAttestation.strict_version)) {
+             throw new Error(`[${step}] Requirement Failure: Signer ${signerId} provided v${foundAttestation.version || 'N/A'}, but policy strictly requires v${requiredAttestation.strict_version}.`);
+         }
       }
       
-      // Enforce minimum version
-      if (requiredAttestation.minimum_version && foundAttestation.version && 
-          foundAttestation.version < requiredAttestation.minimum_version) {
-        // Note: This is maintained as a soft failure/warning unless a strict requirement is set.
-        console.warn(`[SSVR Integrity Soft Warning] Attestation for ${signerId} (v${foundAttestation.version}) is below policy minimum v${requiredAttestation.minimum_version}.`);
+      // Enforce minimum version (logging warning if soft failure)
+      if (requiredAttestation.minimum_version) {
+          const required = parseFloat(requiredAttestation.minimum_version);
+          const actual = parseFloat(foundAttestation.version);
+          if (isNaN(actual) || actual < required) {
+             // Note: In strict V94.1 governance, this should fail initialization if policy mandates minimums, not just warn.
+             throw new Error(`[${step}] Requirement Failure: Attestation for ${signerId} (v${foundAttestation.version}) is below policy minimum v${requiredAttestation.minimum_version}.`);
+          }
       }
     }
-    return true;
+    this.verificationResults.push({ step, status: 'PASS', required: requiredSigners.length });
   }
 
   /**
    * Runs the complete sequence of integrity checks.
    */
   async runFullCheck() {
+    const startTime = process.hrtime.bigint();
+    
+    // Load policy first; this is critical state.
     const policy = await SSVRIntegrityCheck.loadIntegrityPolicy();
 
+    // Sequence of verification steps (Fail-Fast design pattern)
     await this.verifySelfIntegrity(policy);
     await this.verifySchemaContentHashes();
     await this.verifyAttestationsPresence(policy);
     
-    console.log(`[SSVR v${this.ssvr.version}] Foundational Integrity Check Passed.`);
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - startTime) / 1000000;
+    
+    console.log(`[SSVR v${this.ssvr.version}] Foundational Integrity Check Passed in ${durationMs.toFixed(3)}ms. Audit Log:`, this.verificationResults);
     return true;
   }
 }
 
-export default SSVRIntegrityCheck;
+// We export the class directly instead of using 'default' to align with modern module conventions and ease future mock injection.
+export { SSVRIntegrityCheck as default };
