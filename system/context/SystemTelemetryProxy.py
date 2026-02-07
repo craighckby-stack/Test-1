@@ -1,8 +1,9 @@
 from typing import Protocol, TypedDict, Literal
 
-# --- System Context Enum-like Definitions (Improving Security/Clarity) ---
+# --- Contextual Literals (Improving Security/Clarity) ---
 
-SecurityMode = Literal['PERMISSIVE', 'LOCKED', 'AUDIT_ONLY']
+SecurityMode = Literal['PERMISSIVE', 'LOCKED', 'AUDIT_ONLY', 'EMERGENCY_SHUTDOWN']
+ExecutionPhase = Literal['STANDBY', 'PLANNING', 'EVOLVING', 'TESTING', 'DEPLOYING']
 
 # --- Strict Definitions for Telemetry Payloads ---
 
@@ -13,6 +14,7 @@ class ResourceForecast(TypedDict):
     io_latency_p95_ms: float      # Projected 95th percentile I/O latency (ms)
     disk_utilization_ratio: float # Projected storage saturation (0.0 to 1.0)
     network_egress_bps: int       # Projected network egress (bits per second)
+    confidence_score: float       # Model's confidence in this forecast (0.0 to 1.0)
 
 class OperationalConstraints(TypedDict):
     """Current explicit operational and environmental constraints."""
@@ -21,6 +23,7 @@ class OperationalConstraints(TypedDict):
     security_mode: SecurityMode   # Current security posture
     storage_read_only: bool       # True if persistent storage modification is disallowed
     execution_timeout_s: float    # Max time allotted for complex evolutionary tasks
+    current_execution_phase: ExecutionPhase # Current phase of the evolutionary lifecycle
 
 class EvolutionaryContext(TypedDict):
     """Metrics related specifically to the Autonomous Code Evolution (ACE) cycle success."""
@@ -28,6 +31,7 @@ class EvolutionaryContext(TypedDict):
     median_test_coverage_ratio: float   # Median coverage of evolved code segments
     median_evolution_latency_s: float   # Time taken for a typical evolutionary loop (seconds)
     cumulative_rollback_count: int      # Total number of times self-evolution was rolled back
+    current_debt_ratio: float           # Technical debt incurred vs. mitigated in the cycle (0.0 to 1.0)
     
 class SystemPerformanceIndicators(TypedDict):
     """Real-time performance metrics and health status."""
@@ -38,39 +42,40 @@ class SystemPerformanceIndicators(TypedDict):
     self_correction_attempts_p1h: int # Number of self-correction loops executed recently
     external_network_latency_ms: float # Avg latency to critical external services/repos (ms)
     estimated_cost_p1h: float     # Estimated operational cost (local currency/hour)
+    resource_contention_index: float # Severity of observed resource throttling/locking (0.0 to 1.0)
 
 # --- Cohesive Snapshot Definition ---
 
 class SystemTelemetrySnapshot(TypedDict):
     """
     A full, instantaneous snapshot of all critical system telemetry required for 
-    Autonomous Code Evolution (ACE) decision making, combining forecast, constraints, 
-    performance data, and evolutionary history.
+    Autonomous Code Evolution (ACE) decision making. Timestamp uses ISO 8601 UTC.
     """
     timestamp_utc: str                    # UTC ISO timestamp of snapshot capture
     forecast: ResourceForecast
     constraints: OperationalConstraints
     performance: SystemPerformanceIndicators
-    evolution_context: EvolutionaryContext # New vital field
+    evolution_context: EvolutionaryContext
 
 # --- The Telemetry Proxy Protocol ---
 
 class SystemTelemetryProxy(Protocol):
     """
     Contract interface for fetching real-time and projected system operational 
-    context (SCR inputs). Implementations must adhere to this contract.
-
-    The recommended access pattern is via get_full_snapshot().
+    context (SCR inputs). Implementations must ensure that get_full_snapshot() 
+    provides temporally consistent data across all its contained components.
     """
 
     def get_full_snapshot(self) -> SystemTelemetrySnapshot:
         """
         Retrieves a complete, structured snapshot of all telemetry data points in a 
-        single atomic operation. This minimizes underlying communication overhead.
+        single atomic operation. This is the preferred access method.
         """
         ...
         
-    # Legacy/Component-specific accessors remain for flexibility
+    # Component-specific accessors: Mandatory for structural consistency.
+    # Implementations are strongly encouraged to delegate these to fields 
+    # of the SystemTelemetrySnapshot to ensure temporal alignment.
     
     def get_resource_forecast(self) -> ResourceForecast:
         """Provides strictly typed projected resource utilization metrics."""
