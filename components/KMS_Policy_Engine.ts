@@ -2,56 +2,109 @@
  * @file KMS_Policy_Engine.ts
  * @description Centralized policy enforcement component for cryptographic operations, 
  * responsible for validating signature integrity, usage compliance, and lifecycle state 
- * against the definitions in KMS_Identity_Mapping.json.
+ * against defined policies.
  */
 
 import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
+import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
 
-interface KeyRequest {
-  identityId: string;
-  operation: string; // e.g., 'SIGN_RECOVERY', 'STATE_ATTESTATION'
-  signatureAgeMinutes: number;
-  geoCoordinate?: [number, number];
+/**
+ * Custom error class for detailed policy validation failures.
+ */
+export class PolicyValidationError extends Error {
+  constructor(message: string, public identityId: string, public checkFailed: string) {
+    super(message);
+    this.name = 'PolicyValidationError';
+  }
 }
 
+/**
+ * KMSPolicyEngine
+ * Handles complex policy enforcement using strongly typed configuration.
+ */
 class KMSPolicyEngine {
-  private policies: typeof KMS_Identity_Mapping;
+  private policies: PolicyStructure;
 
   constructor() {
-    this.policies = KMS_Identity_Mapping; 
+    // Cast the imported JSON structure to the defined interface for safety
+    this.policies = KMS_Identity_Mapping as unknown as PolicyStructure;
   }
 
-  public validate(request: KeyRequest): boolean {
-    const roleEntry = this.policies.identity_map.find(e => e.identity_id === request.identityId);
-
+  /**
+   * Resolves the identity entry from the mapping.
+   */
+  private getIdentityEntry(identityId: string): IdentityMapEntry {
+    const roleEntry = this.policies.identity_map.find(e => e.identity_id === identityId);
     if (!roleEntry) {
-      console.error(`Identity ${request.identityId} not mapped.`);
-      return false;
+      throw new PolicyValidationError(`Identity ${identityId} not mapped in system policies.`, identityId, 'IdentityResolution');
     }
+    return roleEntry;
+  }
 
+  /**
+   * Resolves the usage profile based on the identity entry.
+   */
+  private getUsageProfile(roleEntry: IdentityMapEntry): UsageProfile {
     const profile = this.policies.usage_profiles[roleEntry.usage_profile_id];
-
-    // 1. Check Allowed Usage
-    if (!profile.allowed_usages.includes(request.operation)) {
-      console.warn(`Operation ${request.operation} not allowed for profile ${profile.description}`);
-      return false;
+    if (!profile) {
+        throw new PolicyValidationError(`Usage profile ${roleEntry.usage_profile_id} not defined.`, roleEntry.identity_id, 'ProfileResolution');
     }
+    return profile;
+  }
 
-    // 2. Check Signature TTL
-    if (request.signatureAgeMinutes > this.policies.global_security_policies.signature_ttl_minutes) {
-      console.warn('Signature expired based on global policy.');
-      return false;
+  /**
+   * 1. Checks if the requested operation is permitted by the profile.
+   */
+  private checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
+    if (!profile.allowed_usages.includes(operation)) {
+      throw new PolicyValidationError(
+        `Operation ${operation} forbidden for profile ${profile.description}.`,
+        identityId,
+        'ForbiddenUsage'
+      );
     }
+  }
 
-    // 3. Check Geospatial Lock (if enforced)
-    if (this.policies.global_security_policies.access_controls.enforce_geospatial_lock && !request.geoCoordinate) {
-        console.error('Geospatial verification missing when required.');
-        return false;
+  /**
+   * 2. Checks if the signature age exceeds the globally defined Time-To-Live (TTL).
+   */
+  private checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
+    const globalTTL = this.policies.global_security_policies.signature_ttl_minutes;
+    if (signatureAgeMinutes > globalTTL) {
+      throw new PolicyValidationError(
+        `Signature expired (Age: ${signatureAgeMinutes}m). Max TTL: ${globalTTL}m.`,
+        identityId,
+        'SignatureTTL'
+      );
     }
-    
-    // Add Key Rotation Status check here (omitted for brevity)
+  }
 
-    return true;
+  /**
+   * 3. Checks for geospatial compliance if required by global policy.
+   */
+  private checkGeospatialLock(identityId: string, geoCoordinate?: [number, number]): void {
+    const geoConfig = this.policies.global_security_policies.access_controls;
+    if (geoConfig.enforce_geospatial_lock && !geoCoordinate) {
+        throw new PolicyValidationError('Geospatial verification missing when required.', identityId, 'GeospatialLock');
+    }
+    // NOTE: Full GeoFence enforcement logic (e.g., checking coordinates against 'allowed_countries') 
+    // would be handled by an external GeoIP utility and integrated here.
+  }
+  
+  /**
+   * Validates a KeyRequest against all applicable policies.
+   * Throws PolicyValidationError on first failure.
+   */
+  public validate(request: KeyRequest): boolean {
+    const identityEntry = this.getIdentityEntry(request.identityId);
+    const profile = this.getUsageProfile(identityEntry);
+
+    // Execute Checks
+    this.checkAllowedUsage(request.identityId, profile, request.operation);
+    this.checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
+    this.checkGeospatialLock(request.identityId, request.geoCoordinate);
+
+    return true; // All policies passed
   }
 }
 
