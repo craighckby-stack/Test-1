@@ -185,3 +185,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Hardened the core AgiCryptoService security by terminating dangerous signature verification mocks and exporting a concrete service instance.
 
 > **[SYSTEM_LOG 2026-02-07]**: Updated core/dse/EMSU.ts to v94.2, converted imports/exports to CommonJS, and exported EMSU for UNIFIER integration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Consolidated the Mandate Intake Specification (MIS) JSON Schema into the centralized /governance directory structure to comply with the DE-FRAGMENTATION objective.
