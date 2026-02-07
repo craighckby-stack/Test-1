@@ -105,3 +105,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Terminated asynchronous scaffolding delay and ensured the SystemLoadSensor module is functionally exported for UNIFIER integration.
 
 > **[SYSTEM_LOG 2026-02-07]**: Retained CISM_Manifest.md as a foundational governance specification document necessary for defining state persistence logic.
+
+> **[SYSTEM_LOG 2026-02-07]**: KeyManagerService was updated to conform to the utility merger by correcting the path from /utils to /utility and maintaining its primary functional export.
