@@ -13,37 +13,49 @@ const ExponentialMovingAverager = require('./ExponentialMovingAverager');
  */
 class AveragingManager {
     
-    /**
-     * @private
-     * @readonly
-     */
+    /** @private @readonly */
     static #AveragerType = ExponentialMovingAverager;
+
+    /**
+     * Helper to enforce standard key validation.
+     * @private
+     * @param {string} key 
+     */
+    static #validateKey(key) {
+        if (typeof key !== 'string' || key.trim() === '') {
+            throw new Error("AveragingManager metric key must be a non-empty string.");
+        }
+    }
+
+    /** @private @type {number} */
+    #defaultAlpha;
+    
+    /** @private @type {Map<string, AveragerInstance>} */
+    #averagers;
 
     /**
      * @param {number} [defaultAlpha=0.1] - The smoothing factor (0 to 1) used for new EMAs created without a specific alpha value.
      */
     constructor(defaultAlpha = 0.1) {
         
+        let safeAlpha = defaultAlpha;
         if (typeof defaultAlpha !== 'number' || defaultAlpha <= 0 || defaultAlpha >= 1) {
-             // Treat invalid input defensively and set a standard fallback.
              console.warn(`AveragingManager received invalid default alpha: ${defaultAlpha}. Falling back to 0.1.`);
-             this._defaultAlpha = 0.1;
-        } else {
-            /** @private @type {number} */
-            this._defaultAlpha = defaultAlpha;
+             safeAlpha = 0.1;
         }
 
-        /** @private @type {Map<string, AveragerInstance>} */
-        this._averagers = new Map();
+        this.#defaultAlpha = safeAlpha;
+        this.#averagers = new Map();
     }
     
     /**
      * Validates and returns an effective alpha value, falling back to the default if necessary.
+     * @private
      * @param {number | undefined} alpha
      * @returns {number}
      */
-    _getEffectiveAlpha(alpha) {
-        return (typeof alpha === 'number' && alpha > 0 && alpha < 1) ? alpha : this._defaultAlpha;
+    #getEffectiveAlpha(alpha) {
+        return (typeof alpha === 'number' && alpha > 0 && alpha < 1) ? alpha : this.#defaultAlpha;
     }
 
     /**
@@ -56,17 +68,15 @@ class AveragingManager {
      * @throws {Error} If the provided key is invalid.
      */
     getAverager(key, alpha) {
-        if (typeof key !== 'string' || key.trim() === '') {
-            throw new Error("AveragingManager key must be a non-empty string.");
-        }
+        AveragingManager.#validateKey(key);
         
-        if (!this._averagers.has(key)) {
-            const effectiveAlpha = this._getEffectiveAlpha(alpha);
+        if (!this.#averagers.has(key)) {
+            const effectiveAlpha = this.#getEffectiveAlpha(alpha);
             // Use the internally defined static type reference
             const newAverager = new AveragingManager.#AveragerType(effectiveAlpha); 
-            this._averagers.set(key, newAverager);
+            this.#averagers.set(key, newAverager);
         }
-        return this._averagers.get(key);
+        return this.#averagers.get(key);
     }
 
     /**
@@ -79,17 +89,16 @@ class AveragingManager {
      */
     update(key, value) {
         if (typeof value !== 'number' || isNaN(value)) {
-            // Defensive return without error handling for robustness in data streams
+            // Value is invalid. Return current average for resilience, if available.
             return this.getAverage(key); 
         }
         
-        // Ensure key is valid before proceeding
         try {
+            // Attempt to retrieve/create averager. Key validation happens inside getAverager.
             const averager = this.getAverager(key);
             return averager.update(value);
         } catch (e) {
-            // Handle key validation error silently in update context, but log.
-            // console.error(`AveragingManager update failed for key '${key}': ${e.message}`);
+            // Key validation failed. Failing silently for robustness in data streams.
             return null;
         }
     }
@@ -101,8 +110,8 @@ class AveragingManager {
      */
     getAverage(key) {
         if (!key) return null;
-        const averager = this._averagers.get(key);
-        return averager?.average ?? null; // Use nullish coalescing for concise null return
+        const averager = this.#averagers.get(key);
+        return averager?.average ?? null; 
     }
 
     /**
@@ -111,8 +120,8 @@ class AveragingManager {
      */
     getAllAverages() {
         return Object.fromEntries(
-            // Mapping iteration ensures no side effects and is highly performant.
-            [...this._averagers.entries()].map(([key, averager]) => [key, averager.average])
+            // Using Array.from for robust iteration and mapping
+            Array.from(this.#averagers.entries(), ([key, averager]) => [key, averager.average])
         );
     }
 
@@ -123,7 +132,7 @@ class AveragingManager {
      */
     reset(key) {
         if (key) {
-            const averager = this._averagers.get(key);
+            const averager = this.#averagers.get(key);
             if (averager) {
                 averager.reset();
                 return true;
@@ -132,7 +141,7 @@ class AveragingManager {
         } 
         
         // Full reset
-        this._averagers.forEach(a => a.reset());
+        this.#averagers.forEach(a => a.reset());
         return true;
     }
 
@@ -142,8 +151,12 @@ class AveragingManager {
      * @returns {boolean} True if the averager was successfully removed, false otherwise.
      */
     removeAverager(key) {
-        if (typeof key !== 'string' || key.trim() === '') return false;
-        return this._averagers.delete(key);
+        try {
+            AveragingManager.#validateKey(key);
+            return this.#averagers.delete(key);
+        } catch (e) {
+            return false; // Invalid key
+        }
     }
 }
 
