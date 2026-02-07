@@ -39,3 +39,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Translated system/context/TelemetryTypes.py to system/context/TelemetryTypes.ts, exporting critical system contract definitions for UNIFIER.js compatibility.
 
 > **[SYSTEM_LOG 2026-02-07]**: Migrated metric processing configuration data from 'system/routines' into an exportable JS module within /utility to support centralized system integration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated SchemaRegistry to /utility/ directory to conform with path consolidation mandates, maintaining core Ajv schema management functionality.
