@@ -1,7 +1,7 @@
 # COMPONENT SPECIFICATION: FORENSIC VAULT MODULE (FVM)
 
 | Key Parameter | Value |
-|:---:|:---:|
+|:---: |:---: |
 | Component ID | C-FVM-001 |
 | Status | Critical Core |
 | Domain | Immutable Storage |
