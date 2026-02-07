@@ -23,3 +23,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored ActiveStateContextManager.js to comply with DE-FRAGMENTATION, moving import reference from /utilities to /utility and verifying its readiness for UNIFIER.js integration.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored core/processing/ArtifactProcessor.js to use named module exports for mandatory integration into the UNIFIER protocol.
+
+> **[SYSTEM_LOG 2026-02-07]**: Relocated PVLM_FailureCodeRegistry.json to /governance, treating canonical failure codes as part of the core lawset definition for outcome validation.
