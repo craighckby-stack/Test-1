@@ -1,36 +1,53 @@
 {
   "metadata": {
-    "version": "3.0",
-    "description": "Indexed map defining essential system artifacts for immediate preflight validation and secure retrieval."
+    "version": "4.0",
+    "description": "Normalized and policy-driven index for essential system artifacts used in preflight validation (PFR).",
+    "notes": "Version 4.0 standardizes retrieval configuration and abstracts validation mechanisms using specialized 'config' objects."
+  },
+  "global_policy": {
+    "pfr_trigger_context": ["INITIAL_BOOT", "DEPLOYMENT_COMMIT"],
+    "criticality_levels": {
+      "BLOCKING": 90,
+      "CRITICAL": 70,
+      "ADVISORY": 30
+    }
   },
   "artifact_map": {
     "TVCR": {
       "name": "Trusted Validator Configuration Register",
-      "criticality": "BLOCKING",
+      "criticality_level": 90,
+      "scope": "SYSTEM_CORE",
       "retrieval": {
-        "type": "CACHE",
-        "parameters": {
+        "method": "CACHE_FETCH",
+        "primary_source": "ArtifactCache",
+        "fallback_policy": "DATABASE_PULL",
+        "config": {
           "key": "V_Registry",
-          "namespace": "ArtifactCache"
-        },
-        "fallback_strategy": "DATABASE"
+          "namespace": "ArtifactCache",
+          "consistency": "STRONG"
+        }
       },
       "validation": {
         "schema_id": "VCS-44A",
-        "freshness_ttl_seconds": 3600,
-        "integrity_check": {
-          "type": "MIN_COUNT",
-          "value": 1,
-          "message": "Configuration register must contain at least one entry."
+        "ttl_seconds": 3600,
+        "integrity": {
+          "mechanism": "COUNT_MINIMUM",
+          "config": {
+            "minimum_value": 1,
+            "message": "Configuration register must contain at least one entry."
+          }
         }
       }
     },
     "ADEP": {
       "name": "Autonomous Deployment Plan",
-      "criticality": "CRITICAL",
+      "criticality_level": 70,
+      "scope": "EXECUTION_PLANNER",
       "retrieval": {
-        "type": "DATABASE",
-        "parameters": {
+        "method": "DATABASE_PULL",
+        "primary_source": "SystemDB",
+        "fallback_policy": "NONE",
+        "config": {
           "key": "AD_Planner",
           "namespace": "SystemDB",
           "consistency_level": "STRONG"
@@ -38,19 +55,25 @@
       },
       "validation": {
         "schema_id": "ADS-22B",
-        "freshness_ttl_seconds": 600,
-        "integrity_check": {
-          "type": "HASH_COMPARE",
-          "algorithm": "SHA256"
+        "ttl_seconds": 600,
+        "integrity": {
+          "mechanism": "HASH_COMPARISON",
+          "config": {
+            "algorithm": "SHA256",
+            "source_hash_field": "metadata.checksum"
+          }
         }
       }
     },
     "SHEP": {
       "name": "System Health Endpoint Pointers",
-      "criticality": "ADVISORY",
+      "criticality_level": 30,
+      "scope": "COMMUNICATION_LAYER",
       "retrieval": {
-        "type": "SERVICE_CALL",
-        "parameters": {
+        "method": "SERVICE_CALL",
+        "primary_source": "DiscoveryService",
+        "fallback_policy": "NONE",
+        "config": {
           "endpoint": "/v1/health/endpoints",
           "service_name": "DiscoveryService",
           "timeout_ms": 500
@@ -58,10 +81,13 @@
       },
       "validation": {
         "schema_id": "HES-10C",
-        "freshness_ttl_seconds": 120,
-        "integrity_check": {
-          "type": "RESPONSE_CODE",
-          "expected": 200
+        "ttl_seconds": 120,
+        "integrity": {
+          "mechanism": "STATUS_CODE_CHECK",
+          "config": {
+            "expected_code": 200,
+            "max_retries": 1
+          }
         }
       }
     }
