@@ -75,3 +75,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Refactored TelemetryTransport to use ES6 named export for UNIFIER.js compatibility.
 
 > **[SYSTEM_LOG 2026-02-07]**: Relocated C3P_State_Model.json from /system/protocols to /governance to comply with the protocol consolidation mandate.
+
+> **[SYSTEM_LOG 2026-02-07]**: Migrated Mandate Failure Definitions from deep JSON configuration to an exportable JS module in /governance to support UNIFIER integration and structural de-fragmentation.
