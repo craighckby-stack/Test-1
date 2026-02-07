@@ -11,6 +11,9 @@
  * @property {number} [cleanupIntervalSeconds=60] - How often the background cleanup runs.
  */
 
+const DEFAULT_TTL_SECONDS = 300; // 5 minutes
+const DEFAULT_CLEANUP_INTERVAL_SECONDS = 60; // 1 minute
+
 /**
  * Trust Cache Manager (TCM) v94.1
  * Manages the persistence and retrieval of calculated agent trust scores, implementing
@@ -24,18 +27,17 @@ class TrustCacheManager {
         /** @type {Map<string, CacheEntry>} */
         this.cache = new Map();
 
-        // Default configuration settings and merging provided configuration
-        const defaultConfig = {
-            ttlSeconds: 300,
-            cleanupIntervalSeconds: 60,
+        // Resolve configuration with defaults
+        const resolvedConfig = {
+            ttlSeconds: DEFAULT_TTL_SECONDS,
+            cleanupIntervalSeconds: DEFAULT_CLEANUP_INTERVAL_SECONDS,
+            ...config
         };
 
-        this.config = { ...defaultConfig, ...config };
+        this._ttlMs = resolvedConfig.ttlSeconds * 1000;
+        this._cleanupIntervalMs = resolvedConfig.cleanupIntervalSeconds * 1000;
         
-        this.ttl = this.config.ttlSeconds * 1000; // ms
-        this.cleanupInterval = this.config.cleanupIntervalSeconds * 1000; // ms
-        
-        this.cleanupTimer = null; 
+        this._cleanupTimer = null; 
 
         this._startCleanupTask();
     }
@@ -46,14 +48,13 @@ class TrustCacheManager {
      * @private
      */
     _startCleanupTask() {
-        if (this.cleanupInterval > 0) {
-            this.cleanupTimer = setInterval(() => {
-                this._runCleanup();
-            }, this.cleanupInterval);
+        if (this._cleanupIntervalMs > 0) {
+            // Use .bind(this) to ensure the execution context for _runCleanup is correct
+            this._cleanupTimer = setInterval(this._runCleanup.bind(this), this._cleanupIntervalMs);
             
-            // Ensure timer does not block process exit in compatible environments
-            if (this.cleanupTimer.unref) {
-                this.cleanupTimer.unref(); 
+            // Optimization: Allow Node process to exit cleanly if this is the only active timer.
+            if (typeof this._cleanupTimer.unref === 'function') {
+                this._cleanupTimer.unref(); 
             }
         }
     }
@@ -68,7 +69,8 @@ class TrustCacheManager {
         let cleanedCount = 0;
         
         for (const [key, entry] of this.cache.entries()) {
-            if (entry.expiry < now) {
+            // Use <= now for strict expiration handling
+            if (entry.expiry <= now) {
                 this.cache.delete(key);
                 cleanedCount++;
             }
@@ -78,30 +80,33 @@ class TrustCacheManager {
 
     /**
      * Generates a standardized cache key based on Agent ID and Context.
+     * Normalizes the context to ensure consistent key usage (trimmed, uppercase).
      * @param {string} agentId 
-     * @param {string} currentContext 
+     * @param {string} [currentContext='GLOBAL'] 
      * @returns {string}
      */
     _generateKey(agentId, currentContext = 'GLOBAL') {
         if (!agentId || typeof agentId !== 'string') {
-            throw new Error("Agent ID must be a valid string.");
+            throw new Error("TCM Error: Agent ID must be a non-empty string.");
         }
-        return `${agentId}:${currentContext}`;
+        
+        const context = (currentContext || 'GLOBAL').trim().toUpperCase();
+        return `${agentId}:${context}`;
     }
 
     /**
      * Stores a calculated trust score with an expiration time.
      * @param {string} agentId 
-     * @param {string} currentContext 
+     * @param {string} [currentContext='GLOBAL'] 
      * @param {number} score - The calculated PME score.
      */
-    setScore(agentId, currentContext, score) {
-        if (typeof score !== 'number' || isNaN(score)) {
-            throw new TypeError("Score must be a valid number.");
+    setScore(agentId, currentContext = 'GLOBAL', score) {
+        if (typeof score !== 'number' || isNaN(score) || !isFinite(score)) {
+            throw new TypeError("TCM Error: Score must be a valid, finite number.");
         }
 
         const key = this._generateKey(agentId, currentContext);
-        const expiry = Date.now() + this.ttl;
+        const expiry = Date.now() + this._ttlMs;
         
         /** @type {CacheEntry} */
         const entry = { score, expiry };
@@ -111,39 +116,45 @@ class TrustCacheManager {
 
     /**
      * Retrieves a score from the cache if it is valid (not expired).
+     * Implements lazy expiration check/cleanup.
      * @param {string} agentId 
-     * @param {string} currentContext 
+     * @param {string} [currentContext='GLOBAL'] 
      * @returns {number|null} The cached score, or null if missing/expired.
      */
-    getScore(agentId, currentContext) {
-        const key = this._generateKey(agentId, currentContext);
-        const entry = this.cache.get(key);
+    getScore(agentId, currentContext = 'GLOBAL') {
+        try {
+            const key = this._generateKey(agentId, currentContext);
+            const entry = this.cache.get(key);
 
-        if (!entry) {
-            return null;
+            if (!entry) {
+                return null;
+            }
+
+            const now = Date.now();
+            if (entry.expiry <= now) {
+                // Lazy expiration: delete expired item immediately
+                this.cache.delete(key);
+                return null;
+            }
+
+            return entry.score;
+        } catch (e) {
+            // Gracefully handle errors from _generateKey (e.g., invalid Agent ID)
+            return null; 
         }
-
-        const now = Date.now();
-        if (entry.expiry < now) {
-            // Lazy expiration check & cleanup (handles missed cleanup cycles)
-            this.cache.delete(key);
-            return null;
-        }
-
-        return entry.score;
     }
 
     /**
      * Forces the invalidation of a specific score entry.
      * @param {string} agentId 
-     * @param {string} currentContext 
+     * @param {string} [currentContext='GLOBAL'] 
      */
     invalidate(agentId, currentContext = 'GLOBAL') {
         try {
             const key = this._generateKey(agentId, currentContext);
             this.cache.delete(key);
         } catch (e) {
-            // Ignore invalidation errors if key generation fails
+            // Ignore invalidation attempts based on bad input keys
         }
     }
 
@@ -158,9 +169,9 @@ class TrustCacheManager {
      * Stops the background cleanup interval task. Essential for clean system shutdown.
      */
     stop() {
-        if (this.cleanupTimer) {
-            clearInterval(this.cleanupTimer);
-            this.cleanupTimer = null;
+        if (this._cleanupTimer) {
+            clearInterval(this._cleanupTimer);
+            this._cleanupTimer = null;
         }
     }
 }
