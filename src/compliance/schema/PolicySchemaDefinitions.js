@@ -1,23 +1,27 @@
-import path from 'path';
+import { path } from 'path'; // Removed dependency in favor of identifier export
 
 // --- Configuration Constants ---
 
 /**
- * Path to the primary governance schema file, used by the configuration loader.
+ * Default location identifier for the primary governance schema file.
+ * NOTE: Actual path resolution (e.g., using path.resolve) should occur in the loader utility, 
+ * allowing this file to focus solely on definitions and abstract identification.
  */
-export const DEFAULT_GOVERNANCE_SCHEMA_PATH = path.resolve('config/governanceSchema.json');
+export const GOVERNANCE_SCHEMA_IDENTIFIER = 'config/governanceSchema.json';
 
 /**
  * Base configuration parameters for the AJV validator instance.
  * Enables strict structural enforcement essential for compliance verification.
  */
-export const AJV_BASE_CONFIG = {
+export const AJV_CONFIG_STRICT = {
     // Report all structural discrepancies rather than failing fast on the first error.
     allErrors: true,
     // Enforce stricter JSON schema rules (e.g., prohibiting unknown format usages).
     strict: true,
-    // Ensure types defined in schema are respected, even when input is derived from strings (e.g., env vars).
+    // Allows AJV to cast data types to match schema types (e.g., "5" -> 5)
     coerceTypes: true,
+    // Enable validation for standard formats (e.g., email, uuid, date-time)
+    formats: true,
 };
 
 // --- Reusable Schema Fragments (Definitions) ---
@@ -29,13 +33,18 @@ export const AJV_BASE_CONFIG = {
 export const COMMON_SCHEMA_DEFS = {
     SeverityLevel: {
         type: "string",
-        enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"],
-        description: "Standardized operational severity level."
+        enum: ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL", "DEBUG"], 
+        description: "Standardized operational severity level indicating impact or urgency."
     },
     VetoTriggerSource: {
         type: "string",
-        enum: ["POLICY_BREACH", "RESOURCE_EXHAUSTION", "SECURITY_EVENT", "MANUAL_OVERRIDE", "ANOMALY_DETECTION"],
-        description: "The originating cause for a veto action."
+        enum: ["POLICY_BREACH", "RESOURCE_EXHAUSTION", "SECURITY_EVENT", "MANUAL_OVERRIDE", "ANOMALY_DETECTION", "INIT_FAILURE"], 
+        description: "The originating cause for a veto action, leading to system halt."
+    },
+    EntityIdentifier: {
+        type: "string",
+        format: "uuid", // Assumes standard UUID structure for traceability
+        description: "A unique identifier for a monitored entity or resource."
     }
 };
 
@@ -47,12 +56,14 @@ export const COMMON_SCHEMA_DEFS = {
  * Utilizes common definitions for internal standardization.
  */
 export const MINIMAL_FALLBACK_SCHEMA = {
+    $schema: "http://json-schema.org/draft-07/schema#",
     $id: "https://v94.1/schemas/minimal-compliance.json",
     $defs: COMMON_SCHEMA_DEFS,
     type: "object",
+    description: "Minimal necessary compliance structure required for core operational continuity.",
     properties: {
+        system_uuid: { $ref: "#/$defs/EntityIdentifier" },
         compliance_level_mandate: {
-            // Uses standardized $defs reference for consistency and clarity
             $ref: "#/$defs/SeverityLevel",
             description: "The mandated baseline operational severity required (e.g., HIGH)."
         },
@@ -62,12 +73,12 @@ export const MINIMAL_FALLBACK_SCHEMA = {
                 type: "object",
                 properties: {
                     source: { $ref: "#/$defs/VetoTriggerSource" },
-                    description: { type: "string", minLength: 5 }
+                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*" } // Enforcing structure
                 },
-                required: ["source"],
+                required: ["source", "description"], 
                 additionalProperties: false
             },
-            minItems: 1,
+            minItems: 0, 
             description: "List of system events or states that trigger an automatic veto or halt, indexed by source type."
         }
     },
