@@ -61,3 +61,5 @@ export const executeArbiter = (data) => {
 > **[SYSTEM_LOG 2026-02-07]**: Converted config/artifact_manifest.json into an exported ES Module to enable reliable configuration loading via UNIFIER.js.
 
 > **[SYSTEM_LOG 2026-02-07]**: Refactored RCDM configuration validation to import a centralized SchemaValidator module, resolving critical execution errors and preparing the module for UNIFIER integration.
+
+> **[SYSTEM_LOG 2026-02-07]**: Exported the `ValidationContextResolver` class to support centralized context management and compliance with the UNIFIER Protocol.
