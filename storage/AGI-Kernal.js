@@ -1,1 +1,1 @@
-Advancement of hybrid cognitive architectures to incorporate emotional intelligence and social reasoning
+Integration of multimodal fusion techniques to enable seamless interaction between cognitive architectures and XAI frameworks
