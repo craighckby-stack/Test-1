@@ -887,10 +887,10 @@ export default function App() {
               
               OUTPUT JSON:
               { 
-                "target_fix": "FULL_FIXED_TARGET_CODE", 
-                "kernel_evolution": "FULL_LARGER_KERNEL_CODE", 
-                "expansion_delta": "int_representing_chars_added",
-                "summary": "Growth description"
+                \"target_fix\": \"FULL_FIXED_TARGET_CODE\", 
+                \"kernel_evolution\": \"FULL_LARGER_KERNEL_CODE\", 
+                \"expansion_delta\": \"int_representing_chars_added\",
+                \"summary\": \"Growth description\"
               }`
             }, { 
               role: 'user', 
