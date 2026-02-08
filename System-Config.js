@@ -1,1 +1,1 @@
-Deploying Edge AI Solutions with Real-Time Federated Learning and Model Pruning
+Enhancing Edge AI with Transfer Learning andContinual Learning
