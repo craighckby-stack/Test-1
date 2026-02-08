@@ -1,1 +1,1 @@
-Integrate cognitive graph neural networks with meta-reinforcement learning and attention mechanisms to enable more effective learning from multimodal data sources
+Integrate multimodal attention mechanisms with graph neural networks to enhance meta-reinforcement learning capabilities
