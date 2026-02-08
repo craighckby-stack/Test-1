@@ -1,1 +1,1 @@
-Integration of attention mechanisms and graph attention networks to enhance multimodal graph neural networks
+Extension of multimodal graph neural networks to handle heterogeneous graph structures and edge types
