@@ -1,1 +1,1 @@
-Implementation of differential privacy and secure multi-party computation protocols for enhanced data protection
+Deployment of homomorphic encryption for secure computation on encrypted data
