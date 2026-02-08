@@ -1,1 +1,1 @@
-Implementing attention-based neural networks with transfer learning and meta-learning for improved multimodal fusion
+Developing multimodal fusion models with explainability and interpretability using attention mechanisms and meta-learning
