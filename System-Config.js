@@ -1,1 +1,1 @@
-Deployment of blockchain-based access control and audit trails to ensure secure and transparent Federated Learning
+Implementation of homomorphic encryption to enable secure computations on encrypted data in federated learning
