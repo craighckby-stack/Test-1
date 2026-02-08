@@ -1,1 +1,1 @@
-Implementation of differential privacy and decentralized data storage to improve data security and user control
+Expansion of decentralized data storage with blockchain technology to further enhance security and transparency
