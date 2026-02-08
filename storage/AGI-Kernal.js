@@ -1,1 +1,1 @@
-Integration of hybrid intelligence with autonomous systems for adaptive decision-making
+Advancement of hybrid intelligence with cognitive architectures for enhanced autonomous decision-making
