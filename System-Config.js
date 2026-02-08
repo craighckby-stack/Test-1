@@ -1,1 +1,1 @@
-Implement homomorphic encryption protocols to further enhance the security of federated learning
+Implementation of homomorphic encryption protocols for federated learning security
