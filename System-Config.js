@@ -1,1 +1,1 @@
-Deployment of a hybrid edge-cloud architecture to optimize edge computing and fog computing capabilities, ensuring seamless and secure data processing across the decentralized data marketplace
+Implementation of a Blockchain-based Security Framework for Secure Data Sharing and Access Control
