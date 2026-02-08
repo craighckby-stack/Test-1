@@ -1,1 +1,1 @@
-Development of a unified framework for secure multi-party computation, homomorphic encryption, and federated learning with integrated causal explainability
+Implementation of a blockchain-based decentralized system for secure and transparent data sharing, with integrated explainable AI and causal analysis
