@@ -1,1 +1,1 @@
-Implementation of Threshold Encryption and Oblivious Transfer to enhance Secure Multi-Party Computation
+Implementation of Homomorphic Encryption and Zero-Knowledge Proofs to further enhance Secure Multi-Party Computation and data privacy
