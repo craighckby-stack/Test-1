@@ -1,1 +1,1 @@
-Integration of explainable AI and transfer learning for multimodal interfaces to improve human-machine collaboration and decision-making
+Development of cognitive architectures to enable more intuitive human-machine interaction and adaptive decision-making
