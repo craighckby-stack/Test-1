@@ -1,1 +1,1 @@
-Advancement of hybrid cognitive architectures to support human-AI symbiosis
+Integration of neural-symbolic reasoning for enhanced decision-making capabilities
