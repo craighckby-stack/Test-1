@@ -1,1 +1,1 @@
-Integrate Quantum-Secure Multi-Party Computation protocol with homomorphic encryption
+Integration of Quantum-Secure Multi-Party Computation protocol with homomorphic encryption
