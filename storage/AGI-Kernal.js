@@ -1,1 +1,1 @@
-Integration of Graph Attention Networks and Meta-Learning for Enhanced Model Adaptability
+Expansion of Meta-Learning Framework to Incorporate Multitask Learning and Adaptive Weighting for Improved Model Generalizability
