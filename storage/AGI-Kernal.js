@@ -1,1 +1,1 @@
-Extension of multimodal graph neural networks to handle heterogeneous graph structures and edge types
+Develop a unified framework for adaptive graph neural networks to handle dynamic heterogeneous graph structures and edge types
