@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption to further secure decentralized data processing and support heterogeneous data types
+Upgrade of homomorphic encryption protocols to enable secure and efficient computation on heterogeneous data types, including support for edge AI
