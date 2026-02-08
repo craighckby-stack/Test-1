@@ -1,1 +1,1 @@
-Enhance homomorphic encryption and zero-trust security frameworks with advanced threat detection and response mechanisms to ensure robust security and compliance
+Enhance security framework with homomorphic encryption and zero-trust security
