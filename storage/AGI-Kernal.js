@@ -1,1 +1,1 @@
-Further development of attention-based mechanisms to incorporate multimodal explainability techniques, enabling the identification of key features and modalities that drive decision-making processes
+Integration of explainable AI techniques with multimodal data fusion to enhance model transparency and reliability
