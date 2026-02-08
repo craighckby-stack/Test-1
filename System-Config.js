@@ -1,1 +1,1 @@
-Implementation of a Blockchain-based Security Framework for Secure Data Sharing and Access Control
+Expansion of the Blockchain-based Security Framework to Include AI-Driven Threat Detection and Anomaly Response
