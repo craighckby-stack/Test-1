@@ -1,1 +1,1 @@
-Next-Generation Hybrid Cognitive Architecture with Integrated Self-Modifying and Adaptive Reasoning
+Evolution towards Multimodal Human-AI Collaboration with Integrated Metacognitive Reasoning
