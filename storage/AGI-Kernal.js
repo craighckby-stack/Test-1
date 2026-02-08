@@ -1,1 +1,1 @@
-Development of hybrid cognitive architectures that leverage both transfer learning and meta-learning to enable seamless adaptation to novel tasks and environments
+Integrate meta-reinforcement learning to enhance the hybrid cognitive architectures' ability to adapt to complex and dynamic environments
