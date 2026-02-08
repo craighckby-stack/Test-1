@@ -1,1 +1,1 @@
-Integration of Multimodal Fusion with Cognitive Graph Embeddings and Edge AI for Real-Time Processing
+Integration of Transfer Learning with Cognitive Graph Embeddings and Multimodal Fusion for Context-Aware Real-Time Processing
