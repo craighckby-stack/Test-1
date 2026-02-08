@@ -1,1 +1,1 @@
-Implement threshold-based homomorphic encryption and asynchronous federated learning protocols to improve data sharing security and efficiency
+Implement differential privacy and decentralized data storage solutions to further enhance data sharing security and user control
