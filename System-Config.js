@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and blockchain-based access control for secure data sharing in edge AI
+Development of a decentralized data marketplace using blockchain and token-based incentives for secure and efficient data sharing
