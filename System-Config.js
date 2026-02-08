@@ -1,1 +1,1 @@
-Implement Explainable Attention Mechanisms for Real-Time Edge Inference
+Integrate Causal-Attention Mechanisms for Autonomous Edge Inference
