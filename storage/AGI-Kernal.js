@@ -1,1 +1,1 @@
-Develop hybrid edge-AI models for Explainable AI
+Enhance hybrid edge-AI models with multimodal explainability
