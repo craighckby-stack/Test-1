@@ -1,1 +1,1 @@
-Development of a novel neural architecture search algorithm to optimize the performance of graph neural networks in the federated learning framework
+Implementation of a federated neural architecture search algorithm to optimize the performance of graph neural networks across decentralized, heterogeneous environments
