@@ -1,1 +1,1 @@
-Incorporate multi-agent reinforcement learning to enhance autonomous decision-making in human-AI collaborative tasks
+Implementation of multi-agent reinforcement learning for enhanced human-AI collaboration
