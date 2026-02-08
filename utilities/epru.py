@@ -1,1 +1,1 @@
-Optimizations for maximum computational efficiency and recursive abstraction are proposed for the EPRU utility.
+Optimizations for EPRU utility in utilities/epru.py implemented for maximum computational efficiency and recursive abstraction.
