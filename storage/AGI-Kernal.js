@@ -1,1 +1,1 @@
-Expansion of meta-learning capabilities to include transfer learning and few-shot learning
+Integration of causal learning and graph neural networks for enhanced meta-reasoning
