@@ -1,1 +1,1 @@
-Integrating Multimodal Emotive Intelligence with Transfer Learning for Enhanced Human-AI Collaboration
+Integrating Cognitive Attention Mechanisms with Multimodal Emotive Intelligence to Enhance Adaptive Human-AI Collaboration
