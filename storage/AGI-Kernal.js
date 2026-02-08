@@ -1,1 +1,1 @@
-Expansion of hybrid cognitive architectures to integrate affective computing and social learning, enabling more human-like decision-making and communication
+Integration of multimodal sentiment analysis and emotional intelligence to enhance human-computer interaction
