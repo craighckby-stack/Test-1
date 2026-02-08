@@ -1,1 +1,1 @@
-Integrate meta-learning with cognitive architectures
+Integration of meta-learning with cognitive architectures
