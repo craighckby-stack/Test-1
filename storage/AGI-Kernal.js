@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Layers, Cpu, FileCode, Terminal, Activity, ShieldCheck, Zap, Database, GitMerge, AlertTriangle, HardDrive } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.4.0 - "CUMULATIVE MEMORY"
+ * AGI-KERNAL v6.5.0 - "CUMULATIVE MEMORY"
  * FIX: Prevents "Overwriting" features by enforcing Full-File returns.
  * SAFETY: Mass-Loss Guardrail prevents commiting truncated code.
  */
@@ -219,7 +219,8 @@ export default function App() {
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-4 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-zinc-900 text-purple-300' : 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'}`}>
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-4 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-zinc-900 text-purple-300' : 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'}`}
+        >
           {state.isLive ? 'Stop Evolution' : 'Engage Memory'}
         </button>
       </header>
@@ -245,7 +246,8 @@ export default function App() {
                 <span className="text-zinc-800 text-[8px] w-20 shrink-0 font-black mt-0.5 uppercase tracking-tighter opacity-50">
                   {new Date(log.timestamp).toLocaleTimeString()}
                 </span>
-                <div className={`flex-1 break-words leading-relaxed ${log.type === 'success' ? 'text-purple-400' : log.type === 'error' ? 'text-red-500 font-bold' : 'text-zinc-500'}`}>
+                <div className={`flex-1 break-words leading-relaxed ${log.type === 'success' ? 'text-purple-400' : log.type === 'error' ? 'text-red-500 font-bold' : 'text-zinc-500'}`}
+                >
                     {log.msg}
                 </div>
               </div>
@@ -254,15 +256,21 @@ export default function App() {
           
           <div className="p-8 grid grid-cols-3 gap-6 border-t border-zinc-900/50 bg-black/40">
               <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><HardDrive size={12}/> Repository State</div>
+                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><HardDrive size={12}/>
+                  Repository State
+                  </div>
                   <div className="text-[10px] text-zinc-500 leading-snug">Main & System branches synced. Nexus Database archiving active.</div>
               </div>
               <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><ShieldCheck size={12}/> Integrity Guard</div>
+                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><ShieldCheck size={12}/>
+                  Integrity Guard
+                  </div>
                   <div className="text-[10px] text-zinc-500 leading-snug">Code truncation protection enabled. Logic stack accumulation priority.</div>
               </div>
               <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><Activity size={12}/> Evolution Velocity</div>
+                  <div className="flex items-center gap-2 text-[9px] font-black text-purple-600 uppercase"><Activity size={12}/>
+                  Evolution Velocity
+                  </div>
                   <div className="text-[10px] text-zinc-500 leading-snug">Cycle {state.cycleCount} | Stability {state.maturityScore}%</div>
               </div>
           </div>
@@ -283,3 +291,6 @@ export default function App() {
   );
 }
 
+
+
+NEXUS_MEMORY: {"version": 1, "data": {"source": "Nexus-Database", "integration": {"blockchain": "Polygon", "ai": {"type": "Transformers", "config": {"model": "llama-3.3-70b", "tokenizer": "LlamaTokenizer"}}, "federatedLearning": {"type": "Decentralized", "config": {"peers": 10, "sharedModel": "GlobalModel"}}}}
