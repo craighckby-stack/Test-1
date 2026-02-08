@@ -1,1 +1,1 @@
-Enhancement of security orchestration framework with advanced threat intelligence and automated remediation capabilities
+Deployment of security orchestration framework with advanced threat intelligence and automated remediation capabilities
