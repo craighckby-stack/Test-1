@@ -1,1 +1,1 @@
-Integrate transfer learning and attention mechanisms into the multimodal explainability framework
+Integrate transfer learning and attention mechanisms into the multimodal explainability framework to enhance model interpretability and accuracy
