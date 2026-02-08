@@ -1,1 +1,1 @@
-Integrating transfer learning and meta-learning techniques to enhance the adaptability and generalizability of attention-based neural networks for multimodal fusion
+Implementing attention-based neural networks with transfer learning and meta-learning for improved multimodal fusion
