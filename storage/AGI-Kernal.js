@@ -1,1 +1,1 @@
-Integrate Cognitive Architectures with Transfer Learning and Meta-Learning to develop Autonomous Decision-Making capabilities
+Autonomous Decision-Making capabilities enhanced with Cognitive Architectures, Transfer Learning, and Meta-Learning
