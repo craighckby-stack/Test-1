@@ -1,1 +1,1 @@
-Neural-symbolic reasoning integration with multimodal fusion for diverse data processing
+Hierarchical neural-symbolic reasoning for complex decision-making
