@@ -1,1 +1,1 @@
-Implement service mesh extensions for edge computing
+Deploy service mesh extensions with advanced security features
