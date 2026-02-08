@@ -1,1 +1,1 @@
-Deployment of edge AI for real-time secure data processing with homomorphic encryption
+Scalable edge AI deployment for secure and efficient data processing, leveraging homomorphic encryption and differential privacy techniques
