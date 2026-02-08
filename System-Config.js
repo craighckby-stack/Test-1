@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption for secure computation on encrypted data
+Implementation of secure multi-party computation protocols for federated learning
