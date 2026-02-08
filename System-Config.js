@@ -1,1 +1,1 @@
-Scalable edge AI deployment for secure and efficient data processing, leveraging homomorphic encryption and differential privacy techniques
+Implementation of federated learning techniques to facilitate collaborative edge AI model training while maintaining data privacy
