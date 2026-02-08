@@ -1,1 +1,1 @@
-Integration of Explainable AI to provide transparent and interpretable decisions, further enhancing the Reinforcement Learning capabilities
+Evolve the Explainable AI module to incorporate edge AI, enabling real-time decision-making at the edge, and integrate with the cloud-native architecture for seamless data synchronization
