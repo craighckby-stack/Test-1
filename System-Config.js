@@ -1,1 +1,1 @@
-Developing a zero-trust architecture to ensure end-to-end security and data integrity
+Implementing a decentralized identity verification system to further strengthen the zero-trust architecture
