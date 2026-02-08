@@ -1,1 +1,1 @@
-Enhanced Autonomous Explainability through Attention-Based Neural Networks and In-Edge Adaptive Security via Homomorphic Encryption
+Implementation of quantum-resistant homomorphic encryption and AI-driven security orchestration for adaptive threat detection and response
