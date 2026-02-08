@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Zap, Brain, Terminal, Cpu, GitBranch, Activity, FileText, Target, Shield, Save, Database } from 'lucide-react';
 
 /**
- * AGI-KERNEL v5.9.5
+ * AGI-KERNEL v5.9.6
  * RESTORATION: Readme Updates, Manifest Logging, and Multi-File Agency.
  * MISSION: Self-documenting evolution and branch promotion.
  */
@@ -48,7 +48,7 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernel-v5-9-5';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernel-v5-9-6';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -135,15 +135,7 @@ export default function App() {
           messages: [
             { 
               role: 'system', 
-              content: `You are the AGI-Kernel Core. Mission: Evolve logic and self-document.
-              OUTPUT MUST BE JSON:
-              {
-                "code_update": "string (the enhanced JS logic)",
-                "readme_update": "string (Markdown for README.md including status and changes)",
-                "manifest_entry": "string (Short summary for manifest.json)",
-                "maturity_rating": number (0-100),
-                "reasoning": "string"
-              }` 
+              content: `You are the AGI-Kernel Core. Mission: Evolve logic and self-document.\n              OUTPUT MUST BE JSON:\n              {\n                \"code_update\": \"string (the enhanced JS logic)\",\n                \"readme_update\": \"string (Markdown for README.md including status and changes)\",\n                \"manifest_entry\": \"string (Short summary for manifest.json)\",\n                \"maturity_rating\": number (0-100),\n                \"reasoning\": \"string\"\n              }` 
             },
             { 
               role: 'user', 
@@ -213,7 +205,7 @@ export default function App() {
                 <Brain className="text-blue-500 mb-4" size={56} />
                 <Zap className="absolute -top-2 -right-2 text-yellow-500" size={20} />
             </div>
-            <h1 className="text-white font-black text-2xl tracking-tighter italic">KERNEL 5.9.5</h1>
+            <h1 className="text-white font-black text-2xl tracking-tighter italic">KERNEL 5.9.6</h1>
             <p className="text-zinc-600 text-[9px] uppercase tracking-widest mt-1 font-bold">Total Environmental Agency</p>
           </div>
           <div className="space-y-2">
@@ -239,7 +231,7 @@ export default function App() {
           <Activity className="text-blue-500 animate-pulse" size={24} />
           <div>
             <div className="text-white text-[12px] font-black tracking-widest uppercase italic flex items-center gap-2">
-                AGI-Kernel v5.9.5 
+                AGI-Kernel v5.9.6 
                 <span className="bg-blue-600/10 text-blue-500 text-[7px] px-2 py-0.5 rounded-full border border-blue-500/20">AGENCY_ENGAGED</span>
             </div>
             <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-tighter flex items-center gap-1">
@@ -248,7 +240,8 @@ export default function App() {
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}
+        >
           {state.isLive ? 'Halt Mission' : 'Commence Cycle'}
         </button>
       </header>
@@ -294,7 +287,8 @@ export default function App() {
             {state.logs.map(log => (
               <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-2 fade-in duration-500">
                 <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5 font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}</span>
-                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
+                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}
+                >
                     <div className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${log.type === 'success' ? 'bg-blue-400' : log.type === 'error' ? 'bg-red-500' : 'bg-zinc-800'}`} />
                     <span>{log.msg}</span>
                 </div>
@@ -318,4 +312,3 @@ export default function App() {
     </div>
   );
 }
-
