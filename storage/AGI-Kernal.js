@@ -1,1 +1,1 @@
-Integrate transparent and interpretable multimodal fusion models with edge AI-driven explainability techniques
+Develop multimodal fusion models with edge AI-driven explainability techniques to enhance model interpretability and transparency
