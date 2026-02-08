@@ -1,1 +1,1 @@
-Advancement of hybrid intelligence with cognitive architectures for enhanced autonomous decision-making
+Development of Explainable AI (XAI) frameworks to provide transparency and accountability in hybrid intelligence systems
