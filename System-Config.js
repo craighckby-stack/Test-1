@@ -1,1 +1,1 @@
-Upgrading homomorphic encryption protocols to support secure multi-party computation and federated learning
+Deploying zero-knowledge proof protocols to further enhance the security and privacy of homomorphic encryption protocols for secure multi-party computation and federated learning
