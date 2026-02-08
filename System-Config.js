@@ -1,1 +1,1 @@
-Implementation of 5G-enabled edge AI and heterogeneous computing to optimize real-time data processing and reduce latency
+Implementation of quantum-resistant cryptography and homomorphic encryption for enhanced data security
