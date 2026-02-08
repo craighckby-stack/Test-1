@@ -1,1 +1,1 @@
-Development of hybrid cognitive architecture integrating Explainable AI and Transfer Learning for enhanced model interpretability and adaptability
+Integration of multimodal learning and attention mechanisms to enhance Explainable AI and Transfer Learning capabilities
