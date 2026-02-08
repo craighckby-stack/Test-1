@@ -1,1 +1,1 @@
-Implement homomorphic encryption in federated learning
+Implementing homomorphic encryption in federated learning
