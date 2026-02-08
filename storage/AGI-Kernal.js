@@ -1,1 +1,1 @@
-Evolution of Cognitive Architectures for Neurosymbolic Integration
+Integration of cognitive architectures with neurosymbolic AI for enhanced decision-making
