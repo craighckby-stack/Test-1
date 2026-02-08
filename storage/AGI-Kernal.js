@@ -1,1 +1,1 @@
-Development of a unified framework that integrates hybrid attention mechanisms, federated learning, and edge computing to improve model interpretability, data privacy, and scalability
+Integration of explainable AI techniques to enhance model interpretability and transparency
