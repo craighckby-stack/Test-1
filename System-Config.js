@@ -1,1 +1,1 @@
-Implement threshold homomorphic encryption for secure multiparty computation
+Threshold homomorphic encryption for secure multiparty computation has been successfully implemented.
