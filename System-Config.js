@@ -1,1 +1,1 @@
-Implementation of differential privacy methods to further enhance the security and privacy of federated learning models
+Integration of homomorphic encryption methods with differential privacy to enable secure and private computation on sensitive data
