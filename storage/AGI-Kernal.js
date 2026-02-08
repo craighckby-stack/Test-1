@@ -1,1 +1,1 @@
-Integration of transfer learning and meta-learning to adapt cognitive architectures to new tasks and environments
+Development of hybrid cognitive architectures that leverage both transfer learning and meta-learning to enable seamless adaptation to novel tasks and environments
