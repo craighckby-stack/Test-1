@@ -1,1 +1,1 @@
-Implementation of edge AI and IoT for real-time data processing and analysis
+Scalable Edge AI Deployments
