@@ -1,1 +1,1 @@
-Integration of Blockchain-based security measures and Federated Learning to improve data privacy and security
+Expansion of Blockchain-based security measures to include Homomorphic Encryption and Zero-Knowledge Proofs for enhanced data protection
