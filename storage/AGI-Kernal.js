@@ -1,1 +1,1 @@
-Integrating attention mechanisms and graph neural networks to enhance multimodal fusion models and explainability techniques
+Integrating cognitive architectures with multimodal fusion models to enable more effective human-computer interaction and decision-making
