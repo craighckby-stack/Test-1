@@ -1,1 +1,1 @@
-Implementation of human-machine interaction framework with Edge AI and Explainable AI
+Implementation of adaptive learning algorithms to enhance human-machine interaction with Edge AI and Explainable AI
