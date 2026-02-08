@@ -1,1 +1,1 @@
-Implementing meta-learning attention mechanisms for adaptive feature extraction
+Integration of meta-learning attention mechanisms with existing feature extraction modules
