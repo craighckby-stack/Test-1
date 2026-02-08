@@ -1,1 +1,1 @@
-Integrate deep learning models with cognitive architectures to enhance decision-making and adaptability
+Integration of multimodal learning frameworks to further enhance decision-making and adaptability
