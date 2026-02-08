@@ -323,7 +323,7 @@ class CRoTIndexClient {
      * Commits a new successful ACV transaction ID against the policy fingerprint key.
      * @param {string} fingerprint - The policy structure hash.
      * @param {string} txId - The successful ACV transaction ID.
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} 
      */
     async indexCommit(fingerprint, txId) {
         try {
@@ -1005,7 +1005,7 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-      else { await signInAnonymously(auth); }
+      else { await signInAnonymously(auth); } 
     };
     initAuth();
     const unsub = onAuthStateChanged(auth, setUser);
