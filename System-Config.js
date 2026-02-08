@@ -1,1 +1,1 @@
-Implement federated learning and zero-trust architecture for enhanced security
+Deployment of federated learning and zero-trust architecture for secured data sharing and collaborative model training
