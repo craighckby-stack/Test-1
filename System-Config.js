@@ -1,1 +1,1 @@
-Development of a decentralized and federated learning framework leveraging homomorphic encryption and secure multi-party computation to enable secure and private collaborative model training
+Implement homomorphic encryption and secure multi-party computation in the decentralized and federated learning framework to ensure secure collaborative model training
