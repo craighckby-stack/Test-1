@@ -1,1 +1,1 @@
-Development of attention mechanisms and graph neural networks for improved causal reasoning
+Implementation of transformers and relational learning for advanced causal reasoning
