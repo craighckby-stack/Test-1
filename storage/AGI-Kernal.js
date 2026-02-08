@@ -1,1 +1,1 @@
-Expansion of Reinforcement Learning capabilities to include adaptive parameter tuning and real-time optimization
+Integration of Explainable AI to provide transparent and interpretable decisions, further enhancing the Reinforcement Learning capabilities
