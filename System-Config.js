@@ -1,1 +1,1 @@
-Implement machine learning-based anomaly detection and integrate with existing zero-trust architecture
+Implement machine learning-based anomaly detection and integrate with existing zero-trust architecture to improve security and threat detection
