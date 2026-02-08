@@ -1,1 +1,1 @@
-Implement edge AI and decentralized data processing to improve real-time data fusion and reduce latency
+Implementation of 5G-enabled edge AI and heterogeneous computing to optimize real-time data processing and reduce latency
