@@ -1,1 +1,1 @@
-Integration of cognitive architectures with neurosymbolic AI for enhanced decision-making
+Hybrid Approach to Cognitive Architectures
