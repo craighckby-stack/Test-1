@@ -1,1 +1,1 @@
-Integration of attention mechanisms for enhanced reasoning capabilities
+Expansion of attention mechanisms to incorporate multimodal input processing
