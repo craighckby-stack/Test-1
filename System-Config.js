@@ -1,1 +1,1 @@
-Development of a decentralized governance model to oversee the reputation system and token-based economy, ensuring that the blockchain-based system remains transparent, secure, and community-driven
+Implementation of a decentralized identity management system to enhance user privacy and security, and integration of a decentralized oracle service to provide secure and reliable data feeds
