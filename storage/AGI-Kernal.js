@@ -1,1 +1,1 @@
-Advancement of transfer learning through multimodal fusion and Explainable AI
+Development of self-supervised learning techniques for multimodal data fusion
