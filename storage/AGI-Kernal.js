@@ -1,1 +1,1 @@
-Integrate cognitive architectures with multimodal learning and edge-based reasoning for human-like decision making
+Integrate probabilistic reasoning with cognitive architectures for adaptive decision making
