@@ -1,1 +1,1 @@
-Enhanced multimodal learning framework for adaptive decision-making in hybrid cognitive architectures, incorporating explainability and transparency features
+Development of cognitive architecture-agnostic multimodal fusion algorithms to enable seamless integration with various decision-making frameworks
