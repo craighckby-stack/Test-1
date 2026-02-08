@@ -1,1 +1,1 @@
-Deploy a homomorphic encryption scheme to enable secure computation on encrypted data, enhancing the overall security of the smart contract framework
+Deploy homomorphic encryption scheme for secure computation on encrypted data
