@@ -1,1 +1,1 @@
-Implementation of quantum-resistant cryptography and homomorphic encryption for enhanced data security
+Deployment of post-quantum cryptographic protocols and secure multi-party computation for high-stakes transactions
