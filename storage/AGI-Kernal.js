@@ -1,1 +1,1 @@
-Implementing cognitive attention mechanisms in meta-reinforcement learning to adapt to dynamically changing environments
+Advancing cognitive attention mechanisms with multimodal input processing and edge AI for enhanced real-time adaptability
