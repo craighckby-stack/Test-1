@@ -1,1 +1,1 @@
-Integration of cognitive architectures with transfer learning and attention-based multimodal fusion
+Integration of cognitive architectures with meta-learning and attention-based multimodal fusion for enhanced adaptability
