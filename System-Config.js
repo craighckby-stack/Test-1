@@ -1,1 +1,1 @@
-Expansion of the self-sovereign identity management system to include more advanced Quantum-Resistant Cryptography techniques and secure multi-party computation protocols, ensuring robust security and data protection
+Implementation of homomorphic encryption techniques to enable secure data processing and analysis, while maintaining the confidentiality and integrity of sensitive information
