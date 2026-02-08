@@ -1,1 +1,1 @@
-Implementing post-quantum cryptography with federated learning and secure multi-party computation for enhanced edge AI security
+Implementing post-quantum cryptography with federated learning for enhanced edge AI security
