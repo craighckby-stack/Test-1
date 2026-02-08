@@ -1,1 +1,1 @@
-Integration with Neurosymbolic AI for Hybrid Reasoning
+Evolution of Cognitive Architectures for Neurosymbolic Integration
