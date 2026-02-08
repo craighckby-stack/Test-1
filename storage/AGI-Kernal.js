@@ -1,1 +1,1 @@
-Development of a hybrid approach combining causal inference with machine learning to enhance predictive accuracy
+Integrate transfer learning and meta-learning techniques to improve the adaptability and generalizability of the hybrid causal inference and machine learning approach
