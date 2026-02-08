@@ -1,1 +1,1 @@
-Implementation of attention mechanisms with adaptive uncertainty quantification for robust multimodal fusion
+Expansion of attention mechanisms to incorporate multi-task learning and transfer learning capabilities
