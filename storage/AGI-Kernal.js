@@ -1,1 +1,1 @@
-Advancing the application of multimodal fusion architectures to emerging fields like autonomous vehicles and smart cities, with a focus on improving decision-making under uncertainty and enhancing human-AI collaboration
+Integrate cognitive architectures to enable human-AI collaboration in complex decision-making processes, incorporating multimodal fusion and graph attention network-transformer hybrid models to enhance explainability and transparency
