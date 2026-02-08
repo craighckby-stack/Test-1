@@ -1,1 +1,1 @@
-Integration of Graph Neural Networks and Transfer Learning for Enhanced Model Flexibility and Explainability
+Expansion of Graph Neural Networks to accommodate multimodal data fusion and attention mechanisms, enhancing model flexibility and explainability
