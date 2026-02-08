@@ -1,1 +1,1 @@
-Integrate the hybrid approach with existing search algorithms and data structures to create a more efficient and optimal search strategy. This can include combining the benefits of IDDFS and A* search to create a more robust search algorithm.
+Integrate the hybrid approach into the existing search framework, allowing for seamless switching between different search algorithms and heuristic functions.
