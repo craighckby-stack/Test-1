@@ -1,1 +1,1 @@
-Incorporating probabilistic reasoning into cognitive architectures to enable more robust decision-making
+Integrating probabilistic reasoning with attention-based graph neural networks to develop more adaptive and resilient cognitive architectures
