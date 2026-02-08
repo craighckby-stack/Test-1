@@ -1,1 +1,1 @@
-Expansion of Decentralized Data Governance framework to include Artificial Intelligence-powered data validation and anomaly detection
+Integration of Blockchain-based security measures and Federated Learning to improve data privacy and security
