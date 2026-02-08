@@ -1,1 +1,1 @@
-Upgrading transparent AI frameworks with improved attention visualization for better explainability
+Implementing attention mechanism optimizations for transparent AI frameworks to enhance explainability and robustness
