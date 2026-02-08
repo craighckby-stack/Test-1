@@ -1,1 +1,1 @@
-Implementing attention-based neural networks for multimodal fusion with edge AI-driven interpretability
+Integrating transfer learning and meta-learning techniques to enhance the adaptability and generalizability of attention-based neural networks for multimodal fusion
