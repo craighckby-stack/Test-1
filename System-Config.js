@@ -1,1 +1,1 @@
-Autonomous Network Management with Predictive Analytics
+Implement Intent-Based Networking with Cognitive Architecture for Autonomous Decision Making
