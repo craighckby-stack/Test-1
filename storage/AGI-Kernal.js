@@ -1,1 +1,1 @@
-Advancement of context-aware attention mechanisms
+Development of dynamic graph-based attention mechanisms for enhanced context understanding
