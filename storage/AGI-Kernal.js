@@ -1,1 +1,1 @@
-Evolve cognitive architectures to incorporate explainability and transparency, enabling more trustworthy human-computer interaction and decision-making
+Develop hybrid cognitive architectures that combine symbolic and connectionist AI, enabling more precise explainability and transparency in human-computer interaction and decision-making
