@@ -1,1 +1,1 @@
-Developing a unified framework for secure multi-party computation, enabling seamless integration of homomorphic encryption, zero-knowledge proofs, and differential privacy for federated learning
+Implementing a decentralized identity management system using blockchain and self-sovereign identity to enhance security and privacy in federated learning
