@@ -1,1 +1,1 @@
-Development of explainable AI modules for multimodal data fusion
+Develop modular architecture for incorporation of cognitive architectures and attention mechanisms
