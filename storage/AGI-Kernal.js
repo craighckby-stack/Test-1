@@ -1,1 +1,1 @@
-Integration of multimodal learning for adaptive decision-making in hybrid cognitive architectures
+Enhanced multimodal learning framework for adaptive decision-making in hybrid cognitive architectures, incorporating explainability and transparency features
