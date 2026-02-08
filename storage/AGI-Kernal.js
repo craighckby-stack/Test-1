@@ -1,1 +1,1 @@
-Incorporate attention mechanisms and graph neural networks into the Explainable AI framework
+Incorporation of attention mechanisms and graph neural networks into the Explainable AI framework
