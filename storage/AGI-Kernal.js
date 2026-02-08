@@ -11,7 +11,82 @@ import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, L
  * MISSION: Merge Target logic INTO Kernel logic without deletion.
  */
 
-// --- Utility Mocks for Proposal Validation (Absorbed from Target Data) ---
+// --- Absorbed Target Data Utilities ---
+
+// Mock GAX Telemetry Service
+const GAXTelemetry = {
+    system: (msg, data) => console.log(`[GAX:SYS] ${msg}`, data || ''),
+    debug: (msg, data) => console.log(`[GAX:DBG] ${msg}`, data || ''),
+    error: (msg, data) => console.error(`[GAX:ERR] ${msg}`, data || ''),
+    info: (msg, data) => console.info(`[GAX:INF] ${msg}`, data || ''),
+    critical: (msg, data) => console.error(`[GAX:CRIT] ${msg}`, data || ''),
+};
+
+// Placeholder: Replace with actual KV persistence interface
+const StorageService = {
+    getCRoTIndexHandle: () => ({ 
+        // Mock functions for persistence operations
+        lookup: async (key) => { 
+            // Simulate finding some anchors for testing
+            if (key.startsWith('0')) return ['tx_a1', 'tx_a2', 'tx_a3'];
+            return [];
+        },
+        append: async (key, value, metadata) => {
+            GAXTelemetry.debug('Storage_Append_Mock', { key, value, metadata });
+        },
+    })
+};
+
+/**
+ * CRoTIndexClient
+ * Handles the low-level data interaction for the PolicyHeuristicIndex, abstracting 
+ * access to the CRoT Key-Value persistence layer. It manages data retrieval 
+ * (lookup of anchors) and persistence (commit indexing).
+ */
+class CRoTIndexClient {
+    
+    constructor() {
+        this.indexStore = StorageService.getCRoTIndexHandle();
+        GAXTelemetry.system('CRoT_IndexClient_Init');
+    }
+
+    /**
+     * Retrieves historical ACV transaction IDs (anchors) associated with a policy fingerprint.
+     * @param {string} fingerprint - SHA-256 policy structure hash.
+     * @returns {Promise<string[]>} Array of ACV transaction IDs.
+     */
+    async getAnchorsByFingerprint(fingerprint) {
+        try {
+            const anchors = await this.indexStore.lookup(fingerprint);
+            GAXTelemetry.debug('CRoT_IndexRead', { count: anchors.length, fingerprint: fingerprint.substring(0, 8) });
+            return anchors;
+        } catch (error) {
+            GAXTelemetry.error('CRoT_IndexRead_Failure', { error: error.message });
+            return [];
+        }
+    }
+
+    /**
+     * Commits a new successful ACV transaction ID against the policy fingerprint key.
+     * @param {string} fingerprint - The policy structure hash.
+     * @param {string} txId - The successful ACV transaction ID.
+     * @returns {Promise<void>}
+     */
+    async indexCommit(fingerprint, txId) {
+        try {
+            await this.indexStore.append(fingerprint, txId, { timestamp: Date.now() });
+            GAXTelemetry.info('CRoT_IndexWrite_Success', { txId, fingerprint: fingerprint.substring(0, 8) });
+        } catch (error) {
+            GAXTelemetry.critical('CRoT_IndexWrite_Failure', { txId, error: error.message });
+            throw new Error(`CRoT Indexing failed for TX ID ${txId}.`);
+        }
+    }
+}
+
+const crotIndexClient = new CRoTIndexClient();
+// --- End Absorbed Target Data Utilities ---
+
+// --- Utility Mocks for Proposal Validation ---
 const validateSchema = (data, schema) => ({ valid: true, errors: [] });
 
 const calculateHash = (data) => {
@@ -453,6 +528,10 @@ export default function App() {
       });
 
       if (!updateRes.ok) throw new Error(`Push Error: ${updateRes.status}`);
+
+      // Post-Success Action: Index the successful transaction (Mocked TX ID)
+      const policyFingerprint = calculateHash(targetCode);
+      await crotIndexClient.indexCommit(policyFingerprint, `TX-${Date.now()}`);
 
       await pushLog(`GRAFT_SUCCESS: Integrated ${targetNode.path}. Framework expanded.`, 'success');
       dispatch({ type: 'INCREMENT_CYCLE', gain: 5, success: true });
