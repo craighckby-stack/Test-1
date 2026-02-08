@@ -1,1 +1,1 @@
-Upgrade to lattice-based homomorphic encryption for improved security and efficiency in secure computation
+Implementation of Fully Homomorphic Encryption and the incorporation of Differential Privacy techniques to further enhance the security of data analysis and computation
