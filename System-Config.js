@@ -1,1 +1,1 @@
-Integrate homomorphic encryption with secure multiparty computation protocols to enable secure and private federated learning on sensitive data
+Integrate homomorphic encryption with secure multiparty computation protocols
