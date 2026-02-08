@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption for secure data processing
+Implementation of federated learning for decentralized and secure model training
