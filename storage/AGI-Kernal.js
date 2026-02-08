@@ -1,1 +1,1 @@
-Development of self-supervised learning techniques for multimodal data fusion
+Integration of graph neural networks for improved multimodal representation learning
