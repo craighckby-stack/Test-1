@@ -1,1 +1,1 @@
-Enhancing relational learning and knowledge graph representation through the incorporation of edge-based attention mechanisms and probabilistic reasoning
+Implementing novel relational learning techniques that leverage edge-based attention mechanisms and probabilistic reasoning to enhance knowledge graph representation and improve predictive accuracy
