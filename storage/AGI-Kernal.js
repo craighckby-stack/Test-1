@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enhance the attention-based mechanisms, allowing for more accurate modeling of complex temporal dynamics and cross-modal interactions
+Development of explainable multimodal fusion models to provide insights into the decision-making process of the attention-based mechanisms, enabling more transparent and accountable AI systems
