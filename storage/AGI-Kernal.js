@@ -1,1 +1,1 @@
-Development of cognitive architecture-agnostic multimodal fusion algorithms with integrated Explainable AI (XAI) and Transfer Learning techniques for enhanced model interpretability and adaptability
+Integrate multimodal fusion algorithms with advanced XAI techniques to provide real-time model interpretability and adaptability
