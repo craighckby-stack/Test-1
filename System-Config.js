@@ -1,1 +1,1 @@
-implementation of advanced threshold homomorphic encryption techniques
+Implementation of quantum-resistant cryptographic primitives for enhanced security
