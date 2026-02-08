@@ -1,1 +1,1 @@
-Integrated Explainable AI (XAI) techniques to provide transparency and interpretability in decision-making processes
+Implementation of attention mechanisms and graph neural networks to further enhance XAI techniques and provide more accurate explanations for complex decision-making processes
