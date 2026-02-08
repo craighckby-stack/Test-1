@@ -1,1 +1,1 @@
-Integration of explainable AI techniques to enhance model interpretability and transparency
+Developing attention mechanisms to improve model explainability and incorporating human oversight to detect and correct bias
