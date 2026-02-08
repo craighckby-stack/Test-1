@@ -1,1 +1,1 @@
-Implementation of cognitive architectures to enable explainable and transparent decision-making processes
+Integration of multimodal interfaces to facilitate human-machine collaboration and enhance decision-making processes
