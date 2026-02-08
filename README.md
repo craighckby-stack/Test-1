@@ -1,25 +1,32 @@
-# AGI-KERNAL
-
-Cumulative Memory Core v7.1.0
-
+# AGI-KERNAL // CUMULATIVE MEMORY CORE
 ## Introduction
-Cumulative Memory is an experiment in the realm of Artificial General Intelligence (AGI) emphasizing cumulative growth and evolutionary algorithms. The core idea revolves around the concept of "Cumulative Evolution" — enhancing the system's capabilities through continuous learning from experiences and interactions.
 
-## System Overview
-* The system utilizes a React-based frontend to visualize and interact with the AGI core.
-* It relies on Firebase for user authentication and real-time data synchronization.
-* GitHub APIs are used for version control and repository management.
-* Cerebras API is used for large language model integration.
+This is the main project for AGI-KERNAL, a project aimed at creating a cumulative memory core for artificial general intelligence. The goal is to build a system that can learn from its past experiences and apply that knowledge to future tasks.
 
-## Cumulative Evolution
-* The system runs on a cycle-based evolution, where each cycle involves reading the current state of the repository, synthesizing new code based on the current and desired states, and committing this new code.
-* The synthesis process involves querying a large language model to generate code that fulfills the system's prime directive of cumulative growth.
-* Each cycle also assesses the maturity of the system, adjusting parameters for future cycles based on performance metrics.
+## Getting Started
 
-## Safety Features
-* Mass-Loss Guard: Prevents accidental truncation of the codebase by rejecting new code that is significantly smaller than the current version.
+### Prerequisites
 
-## Future Development
-* Integration with Blockchain: To enable secure, decentralized, and transparent interactions with the cumulative memory core.
-* Federated Learning: Implementing peer-to-peer learning to enhance the system's ability to adapt and grow without centralized data collection.
+* Node.js installed
+* A GitHub account
+* A Cerebras account
 
+### Installation
+
+1. Clone the repository: `git clone https://github.com/craighckby-stack/AGI-KERNAL.git`
+2. Install the dependencies: `npm install`
+3. Create a new file called `firebaseConfig.js` with your Firebase configuration
+4. Create a new file called `cerebrasKey.js` with your Cerebras key
+5. Run the application: `npm start`
+
+## Contributing
+
+Contributions are welcome! If you have any ideas or suggestions, please open an issue or pull request.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Acknowledgments
+
+* This project was inspired by the work of [Cerebras](https://www.cerebras.net/) and [GitHub](https://github.com/).
