@@ -1,1 +1,1 @@
-Implementing attention-based graph neural networks to enhance relational learning and improve knowledge graph representation
+Enhancing relational learning and knowledge graph representation through the incorporation of edge-based attention mechanisms and probabilistic reasoning
