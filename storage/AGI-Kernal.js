@@ -1,1 +1,1 @@
-Integration of causal inference techniques to improve explanatory power
+Development of a hybrid approach combining causal inference with machine learning to enhance predictive accuracy
