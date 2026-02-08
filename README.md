@@ -1,9 +1,1 @@
-# AGI-KERNAL Project
-
-### Overview
-AGI-KERNAL is a cumulative memory project that integrates AI and blockchain technologies.
-
-### Releases
-* v6.4: Initial release with basic functionality.
-* v7.0.0: Improved safety features and enhanced performance.
-* v7.1.0: Further optimization and feature additions.
+# AGI-KERNAL\n\nCumulative Memory System\n====================\n\nThe AGI-KERNAL is an experimental AI system designed to evolve and improve over time through cumulative updates.\n\n## Overview\n\nThe AGI-KERNAL consists of the following components:\n\n* Cumulative Memory: The core component of the AGI-KERNAL, responsible for storing and managing the system's knowledge and experience.\n* Evolution Engine: The component responsible for applying updates and improvements to the Cumulative Memory.\n* Federated Learning: A decentralized learning mechanism that enables the AGI-KERNAL to learn from multiple sources and peers.\n\n## Technical Details\n\n* Blockchain: Polygon\n* AI Model: Llama-3.3-70b\n* Tokenizer: LlamaTokenizer\n* Federated Learning: Decentralized, with 128 peers and a GlobalModel shared model\n\n## Changelog\n\n* v7.1.0: Updated Cumulative Memory to version 7, with improved federated learning and decentralized architecture\n
