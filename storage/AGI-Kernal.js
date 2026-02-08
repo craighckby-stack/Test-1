@@ -1,1 +1,1 @@
-Integrating cognitive architectures with neuromorphic computing principles to enhance hybrid model adaptability
+Evolve hybrid model adaptability by integrating cognitive architectures with spiking neural networks and synaptic plasticity rules
