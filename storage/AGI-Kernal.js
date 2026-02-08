@@ -147,7 +147,7 @@ const atou = (str) => { try { return decodeURIComponent(Array.prototype.map.call
  * Function: Generates an auditable, fully resolved semantic version string 
  * adhering to the Semantic Versioning 2.0.0 standard with mandatory build metadata.
  */
-class KernelVersionManager {
+class KernelVersionManager { 
     
     /**
      * @param {object} config - Initial version configuration.
@@ -328,6 +328,41 @@ export class StateSnapshotRepository {
      */
     static getSize() {
         return stateSnapshots.size;
+    }
+}
+
+/**
+ * Utility for robust URI pattern matching, supporting path parameters and complex globbing.
+ * This moves complex route comparison logic out of the core ValidationContextResolver,
+ * making the resolver lighter and paving the way for supporting RESTful parameter validation.
+ */
+export class RouterPatternMatcher {
+
+    /**
+     * Checks if a target path matches a given pattern.
+     * Supports exact match, trailing wildcard (*), and basic named parameters (:param).
+     * 
+     * @param {string} targetPath - The incoming URI path (e.g., '/users/123/details').
+     * @param {string} pattern - The configured pattern (e.g., '/users/:id/*').
+     * @returns {boolean} True if matched.
+     */
+    static matches(targetPath, pattern) {
+        if (targetPath === pattern) {
+            return true; // Exact match
+        }
+
+        // Convert RESTful patterns and globbing into a regular expression.
+        // Note: Escapes dots and replaces common syntax for path components.
+        let regexPattern = pattern
+            .replace(/\./g, '\.') 
+            .replace(/:([a-zA-Z0-9_]+)/g, '([^/]+)') // Match named parameters
+            .replace(/\/\*$/, '(/.*)?'); // Match trailing wildcard '/*'
+        
+        // Ensure the pattern matches the full path from start to end.
+        const regex = new RegExp(`^${regexPattern}$`); 
+        
+        // Perform regex test
+        return regex.test(targetPath);
     }
 }
 
@@ -912,7 +947,7 @@ export default function App() {
               EXPANSION MANDATE: Every response MUST be equal to or LARGER than the original KERNAL_CODE.
               1. Fix errors in TARGET_CODE.
               2. Extract all logic, styles, and patterns from TARGET_CODE.
-              3. Integrate that logic into KERNEL_CODE.
+              3. Integrate that logic into KERNEL_CODE, ensuring the new RouterPatternMatcher class is included as a core utility.
               4. The TARGET_CODE defines crypto constants: DEFAULT_HASH_ALGORITHM: 'sha256', DEFAULT_STRING_ENCODING: 'utf8', SUPPORTED_INTEGRITY_ALGORITHMS: ['sha256', 'sha512', 'blake2b512']. You must ensure these concepts are deeply integrated into the Governance Integrity Layer (GIL) and KERNAL_CONSTANTS structure, validating the CCR (Cryptographic Constants Registry).
               5. You MUST retain every single existing line of KERNEL_CODE.
               6. Add verbose comments and new helper methods based on the absorbed logic.
