@@ -1,1 +1,1 @@
-Implementation of Homomorphic Encryption for Secure Data Processing and Analysis
+Implementation of Quantum-Resistant Homomorphic Encryption for enhanced secure data processing and analysis
