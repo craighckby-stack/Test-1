@@ -1,1 +1,1 @@
-Develop a unified framework for adaptive graph neural networks to handle dynamic heterogeneous graph structures and edge types
+Unify graph neural network framework
