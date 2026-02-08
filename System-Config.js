@@ -1,1 +1,1 @@
-Implement secure multiparty computation protocols and differential privacy techniques to further enhance the security and transparency of federated learning and XAI systems
+Integrate homomorphic encryption with secure multiparty computation protocols to enable secure and private federated learning on sensitive data
