@@ -1,1 +1,1 @@
-Implementation of explainable AI techniques to provide transparency and accountability in decision-making processes
+Integration of edge AI and IoT devices to enable real-time processing and analysis of multimodal data
