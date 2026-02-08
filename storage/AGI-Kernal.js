@@ -1,1 +1,1 @@
-Developing multimodal fusion models with edge AI-driven explainability techniques
+Implementing attention-based neural networks for multimodal fusion with edge AI-driven interpretability
