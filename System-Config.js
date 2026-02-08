@@ -1,1 +1,1 @@
-Implementation of secure multiparty computation protocols using homomorphic encryption to enable privacy-preserving federated learning
+Implement threshold homomorphic encryption to reduce computational overhead and increase the efficiency of secure multiparty computation protocols
