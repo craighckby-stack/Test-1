@@ -1,1 +1,1 @@
-Expansion of Explainable AI techniques to incorporate attention mechanisms and graph-based explanations for multimodal fusion models
+Development of multimodal fusion models with focus on attention mechanisms and graph-based explanations
