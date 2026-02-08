@@ -1,1 +1,1 @@
-Implementation of Homomorphic Encryption with Quantum-Resistant algorithms
+Integration of Zero-Knowledge Proofs with existing Homomorphic Encryption for improved data security and privacy
