@@ -1,1 +1,1 @@
-Secure aggregation protocols and differential privacy techniques have been successfully implemented
+Secure aggregation protocols and differential privacy techniques implementation
