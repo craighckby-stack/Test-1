@@ -1,1 +1,1 @@
-Deployment of federated learning and differential privacy for secure and decentralized data analysis
+Implementation of homomorphic encryption and secure multiparty computation for improved data privacy and security in federated learning
