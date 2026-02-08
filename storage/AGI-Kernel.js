@@ -4,12 +4,6 @@ import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { Zap, Brain, Terminal, Cpu, GitBranch, Activity, FileText, Target, Shield, Save, Database } from 'lucide-react';
 
-/**
- * AGI-KERNEL v5.9.8
- * ENHANCEMENT: Improved Error Handling, Enhanced Logging, and UI Refinements.
- * MISSION: Self-documenting evolution and branch promotion.
- */
-
 const INITIAL_STATE = {
   isBooted: false,
   isLive: false,
@@ -240,8 +234,7 @@ export default function App() {
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}
-        >
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
           {state.isLive ? 'Halt Mission' : 'Commence Cycle'}
         </button>
       </header>
@@ -257,15 +250,15 @@ export default function App() {
               </div>
           </div>
           <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><FileText size={10}/> Tracking</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><FileText size={10}/> Tracking</div>
               <div className="text-white text-xs font-mono truncate">README / manifest / {state.config.path.split('/').pop()}</div>
           </div>
           <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><GitBranch size={10}/> Active Branch</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><GitBranch size={10}/> Active Branch</div>
               <div className="text-white text-xs font-mono">main {'->'} System</div>
           </div>
           <div className="space-y-1 text-right">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Next Epoch</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Next Epoch</div>
               <div className="text-blue-500 text-xs font-mono italic">{state.config.threshold - state.cycleCount} Cycles Remaining</div>
           </div>
       </div>
@@ -277,8 +270,8 @@ export default function App() {
                 {state.activeObjective}
             </div>
             <div className="flex gap-4">
-                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Save size={10}/> Git Sync: Active</div>
-                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Brain size={10}/> LLM: {state.config.model}</div>
+                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Save size={10}/> Git Sync: Active</div>
+                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Brain size={10}/> LLM: {state.config.model}</div>
             </div>
         </div>
         <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
@@ -287,8 +280,7 @@ export default function App() {
             {state.logs.map(log => (
               <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-2 fade-in duration-500">
                 <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5 font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}</span>
-                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}
-                >
+                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
                     <div className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${log.type === 'success' ? 'bg-blue-400' : log.type === 'error' ? 'bg-red-500' : 'bg-zinc-800'}`} />
                     <span>{log.msg}</span>
                 </div>
