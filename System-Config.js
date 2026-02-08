@@ -1,1 +1,1 @@
-Implementation of a blockchain-based decentralized system for secure and transparent data sharing, with integrated explainable AI and causal analysis
+Expansion of the blockchain-based system to include a decentralized data marketplace with built-in incentives for high-quality data contributions
