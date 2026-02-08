@@ -1,1 +1,1 @@
-Evolve cognitive graph neural networks to incorporate multimodal learning and adaptive reasoning techniques for enhanced multiscale understanding and edge AI applications
+Develop hybrid cognitive graph neural networks that merge symbolic and connectionist AI for more robust multimodal learning and reasoning
