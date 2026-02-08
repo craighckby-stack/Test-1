@@ -1,1 +1,1 @@
-Implementation of a heterogeneous data network management system to support seamless data sharing and model training across diverse edge devices and data networks
+Deployment of a multi-access edge computing framework to facilitate low-latency and high-bandwidth data processing
