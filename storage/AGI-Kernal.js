@@ -1,1 +1,1 @@
-Continued advancements in multimodal learning and edge AI, enabling more sophisticated real-time adaptive learning capabilities and expanded application across various domains.
+Advancements in multimodal learning and edge AI
