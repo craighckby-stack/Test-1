@@ -1,1 +1,1 @@
-Expansion of attention mechanisms to incorporate multimodal input processing
+Enhanced multimodal fusion with integrated uncertainty quantification for improved attention mechanisms
