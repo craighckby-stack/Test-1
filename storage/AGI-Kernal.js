@@ -1,1 +1,1 @@
-Integrate attention mechanisms into the hybrid multimodal fusion framework to improve the weights of different modalities and enhance overall performance
+Integrate attention mechanisms into the hybrid multimodal fusion framework
