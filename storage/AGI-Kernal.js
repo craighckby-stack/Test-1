@@ -1,1 +1,1 @@
-Integration of attention mechanisms into Explainable AI framework
+Enhancing Explainable AI framework with multimodal attention mechanisms
