@@ -1,1 +1,1 @@
-Expansion of predictive maintenance to include proactive anomaly detection and automated root cause analysis
+Implementation of Explainable AI (XAI) methodologies to provide transparent and interpretable results from proactive anomaly detection and automated root cause analysis
