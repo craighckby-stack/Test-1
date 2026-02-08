@@ -1,1 +1,1 @@
-Advancement of neuro-symbolic integration methods to incorporate multimodal reasoning and meta-learning capabilities for enhanced hybrid XAI framework adaptability
+Development of neuro-symbolic integration methods with multimodal reasoning and meta-learning capabilities
