@@ -1,1 +1,1 @@
-Expansion of the decentralized identity management system to support secure, decentralized data storage and integration of a reputation system to promote trustworthy interactions
+Development of a blockchain-based platform to support the decentralized identity management system, ensuring secure, transparent, and tamper-proof data storage and reputation management
