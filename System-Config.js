@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption methods for secure multi-party computation to enhance data privacy
+Implementation of fully homomorphic encryption for secure data aggregation and analysis
