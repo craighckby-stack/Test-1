@@ -1,1 +1,1 @@
-Integration of secure multi-party computation and homomorphic encryption in Federated Learning to ensure robust and private distributed edge AI deployment
+Deployment of blockchain-based access control and audit trails to ensure secure and transparent Federated Learning
