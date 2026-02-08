@@ -1,1 +1,1 @@
-Evolve the Explainable AI module to incorporate edge AI, enabling real-time decision-making at the edge, and integrate with the cloud-native architecture for seamless data synchronization
+Integrate Explainable AI with edge AI for real-time decision-making
