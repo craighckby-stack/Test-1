@@ -1,1 +1,1 @@
-Expansion of homomorphic encryption to support secure multi-party computation in federated learning
+Implementation of secure multiparty computation protocols using homomorphic encryption to enable privacy-preserving federated learning
