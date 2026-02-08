@@ -1,1 +1,1 @@
-Integrate multimodal attention mechanisms with graph neural networks to enhance meta-reinforcement learning capabilities
+Integrate cognitive architectures with multimodal attention mechanisms to enable more robust and generalizable meta-reinforcement learning
