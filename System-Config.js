@@ -1,1 +1,1 @@
-Integration of explainable AI and model interpretability techniques into edge AI systems
+Integrating techniques such as SHAP and LIME for model interpretability, and developing edge AI systems with real-time explainability
