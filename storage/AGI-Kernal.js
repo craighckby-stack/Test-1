@@ -1,1 +1,1 @@
-Integrate Edge AI and real-time processing with Explainable AI and Transfer Learning techniques to create a transparent and adaptive human-machine interaction framework
+Implement human-machine interaction framework with Edge AI and Explainable AI
