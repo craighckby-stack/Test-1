@@ -1,1 +1,1 @@
-Integration of cognitive architectures with multimodal learning for enhanced decision-making
+Development of explainable AI modules for multimodal learning to improve transparency and trust in decision-making
