@@ -1,1 +1,1 @@
-Integration of homomorphic encryption methods with differential privacy to enable secure and private computation on sensitive data
+Integration of homomorphic encryption and differential privacy for secure computation
