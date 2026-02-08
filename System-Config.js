@@ -1,1 +1,1 @@
-Implementation of a cloud-native architecture to leverage scalability, flexibility, and cost-effectiveness, building on the existing service mesh
+Expand the service mesh to include edge computing capabilities, ensuring secure, scalable, and efficient data processing and analytics across the entire architecture
