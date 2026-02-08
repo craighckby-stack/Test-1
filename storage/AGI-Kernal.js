@@ -1,1 +1,1 @@
-Integrating cognitive architectures with neuromorphic computing principles to create more agile and adaptive hybrid models
+Integrating cognitive architectures with neuromorphic computing principles to enhance hybrid model adaptability
