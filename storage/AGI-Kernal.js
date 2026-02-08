@@ -1,1 +1,1 @@
-Implement probabilistic reasoning with cognitive architectures to enhance adaptive decision making
+Integrating probabilistic reasoning with cognitive architectures
