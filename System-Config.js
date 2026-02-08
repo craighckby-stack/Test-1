@@ -1,1 +1,1 @@
-Implementation of a microservices-based architecture to improve scalability and modularity
+Introduction of a service mesh to enhance microservices communication, security, and observability
