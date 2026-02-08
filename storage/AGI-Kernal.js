@@ -1,1 +1,1 @@
-Develop Autonomous Decision-Making capabilities by integrating Cognitive Architectures with Transfer Learning and Meta-Learning, enhancing model adaptability and generalizability
+Integrate Cognitive Architectures with Transfer Learning and Meta-Learning to develop Autonomous Decision-Making capabilities
