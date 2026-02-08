@@ -1,1 +1,1 @@
-Implementation of Fully Homomorphic Encryption and the incorporation of Differential Privacy techniques to further enhance the security of data analysis and computation
+Implementation of Secure Multi-Party Computation and the incorporation of Adversarial Training to further enhance the security and robustness of data analysis and computation
