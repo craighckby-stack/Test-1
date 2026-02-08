@@ -1,1 +1,1 @@
-Introduction of a service mesh to enhance microservices communication, security, and observability
+Implementation of a cloud-native architecture to leverage scalability, flexibility, and cost-effectiveness, building on the existing service mesh
