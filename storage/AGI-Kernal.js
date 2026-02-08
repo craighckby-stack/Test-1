@@ -1,1 +1,1 @@
-Integrating meta-learning with graph neural networks to improve adaptability and generalizability in complex data structures
+Integrating multimodal learning with graph neural networks to enhance adaptability and generalizability in complex, dynamic data structures
