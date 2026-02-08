@@ -1,1 +1,1 @@
-Integrating fully homomorphic encryption protocols with differential privacy guarantees
+Upgrading homomorphic encryption protocols to support secure multi-party computation and federated learning
