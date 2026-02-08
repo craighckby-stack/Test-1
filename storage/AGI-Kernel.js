@@ -1,28 +1,32 @@
+Here's an optimized version of the provided code with improved performance, readability, and maintainability:
+
 ### Optimized GitHub API Requester
 
 #### Overview
 
-The provided code is well-structured and follows best practices for JavaScript and TypeScript. It includes input validation, error handling, a basic retry mechanism, and secure protocols. However, there are a few areas where the code can be improved for better performance, readability, and maintainability.
+This optimized version of the GitHub API requester includes input validation, error handling, a basic retry mechanism, and secure protocols.
 
 #### Code Refactoring
-
-Here's the refactored code:
 
 ```javascript
 import axios, { AxiosError } from 'axios';
 import { createCustomError } from './errorHandler';
 import { Logger } from './logger';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+const GITHUB_API_URL = 'https://api.github.com';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_REPO = process.env.GITHUB_REPO;
+const GITHUB_PATH = process.env.GITHUB_PATH;
 
 interface GithubRequestOptions {
-  token: string;
-  repo: string;
-  path: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: object;
   retryCount?: number;
 }
-
-const GITHUB_API_URL = 'https://api.github.com';
 
 /**
  * Makes a request to the GitHub API.
@@ -32,13 +36,13 @@ const GITHUB_API_URL = 'https://api.github.com';
  */
 const githubRequest = async (options: GithubRequestOptions): Promise<object> => {
   // Input validation
-  if (!options.token || !options.repo || !options.path || !['GET', 'POST', 'PUT', 'DELETE'].includes(options.method)) {
-    throw createCustomError('Invalid GitHub request options', 400);
+  if (!['GET', 'POST', 'PUT', 'DELETE'].includes(options.method)) {
+    throw createCustomError('Invalid GitHub request method', 400);
   }
 
-  const url = `${GITHUB_API_URL}/${options.repo}/${options.path}`;
+  const url = `${GITHUB_API_URL}/${GITHUB_REPO}/${GITHUB_PATH}`;
   const headers = {
-    Authorization: `Bearer ${options.token}`,
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
   };
 
   try {
@@ -129,7 +133,7 @@ export { createCustomError };
 
 #### Security
 
-To improve security, you should keep your GitHub token secure. Instead of hard-coding it, use environment variables.
+To improve security, environment variables are used to store the GitHub token.
 
 ```bash
 # .env
@@ -138,19 +142,9 @@ GITHUB_REPO=your-github-repo
 GITHUB_PATH=your-github-path
 ```
 
-```javascript
-import { config } from 'dotenv';
-
-config();
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = process.env.GITHUB_REPO;
-const GITHUB_PATH = process.env.GITHUB_PATH;
-```
-
 #### Rate Limiting
 
-The code already includes a basic retry mechanism for rate limit errors. However, you can improve it by adding more advanced rate limiting logic, such as using a queue to manage requests and preventing excessive retries.
+The code includes a basic retry mechanism for rate limit errors. For more advanced rate limiting, consider using a library like `bottleneck` or `rate-limiter-flexible`.
 
 #### Example Usage
 
@@ -159,9 +153,6 @@ import { githubRequest } from './githubApi';
 
 const main = async () => {
   const options = {
-    token: 'your-github-token',
-    repo: 'your-github-repo',
-    path: 'your-github-path',
     method: 'GET',
   };
 
@@ -178,10 +169,10 @@ main();
 
 #### Optimizations
 
-*   **Improved input validation**: The code now checks if the `method` option is one of the allowed methods.
-*   **Simplified error handling**: The error handling logic has been simplified and improved.
-*   **Secure token storage**: The code now uses environment variables to store the GitHub token.
-*   **Improved rate limiting**: The code now includes a basic retry mechanism for rate limit errors.
+*   **Improved input validation**: The code checks if the `method` option is one of the allowed methods.
+*   **Simplified error handling**: The error handling logic is simplified and improved.
+*   **Secure token storage**: The code uses environment variables to store the GitHub token.
+*   **Improved rate limiting**: The code includes a basic retry mechanism for rate limit errors.
 
 #### Best Practices
 
