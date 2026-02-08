@@ -1,1 +1,1 @@
-Expansion of Autonomous Agent Systems to incorporate Edge AI for optimized real-time processing
+Autonomous Edge AI Systems with Integrated Explainable AI and Real-time Feedback
