@@ -1,1 +1,1 @@
-Integration of Cognitive Architectures for more robust decision-making
+Enhanced decision-making capabilities through integration of cognitive architectures
