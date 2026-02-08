@@ -1,1 +1,1 @@
-Optimization of Federated Learning Algorithm for improved efficiency and scalability
+Development of Autonomous Agent Systems for adaptive federated learning
