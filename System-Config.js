@@ -1,1 +1,1 @@
-Advanced AI-driven network slicing with predictive analytics for optimized resource allocation and real-time edge computing management
+Implementation of federated learning and containerization for enhanced AI-driven network slicing and real-time edge computing management
