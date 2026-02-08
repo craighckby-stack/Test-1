@@ -1,1 +1,1 @@
-Integration of secure multi-party computation and homomorphic encryption for end-to-end data protection and privacy preservation
+Deployment of a federated learning architecture that leverages secure multi-party computation and homomorphic encryption to enable secure and private model training across decentralized data networks
