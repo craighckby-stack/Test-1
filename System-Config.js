@@ -1,1 +1,1 @@
-Implementation of explainable AI and model pruning techniques to improve edge AI performance
+Deployment of model pruning and knowledge distillation techniques to optimize edge AI performance and facilitate real-time decision-making
