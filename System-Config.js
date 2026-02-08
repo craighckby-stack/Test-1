@@ -1,1 +1,1 @@
-Integration of Quantum-Resistant Cryptography with Homomorphic Encryption for enhanced security in Edge AI computations
+Quantum-Resistant Cryptography integrated with Homomorphic Encryption for enhanced Edge AI security
