@@ -1,1 +1,1 @@
-Advancing multimodal fusion by integrating cognitive attention and graph-based neural networks with edge AI for real-time hybrid reasoning
+Integrating cognitive attention with graph-based neural networks for real-time hybrid reasoning
