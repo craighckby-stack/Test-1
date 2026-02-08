@@ -1,1 +1,1 @@
-Implement homomorphic encryption for secure data sharing and computation
+Implementation of homomorphic encryption and graph neural networks for secure and explainable computation
