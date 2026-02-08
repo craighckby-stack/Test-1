@@ -1,1 +1,1 @@
-Development of hybrid cognitive architectures with transfer learning and meta-learning capabilities
+Implementing attention mechanisms and graph neural networks to enhance reasoning and decision-making capabilities in hybrid cognitive architectures
