@@ -1,1 +1,1 @@
-Development of secure and efficient aggregation protocols for federated learning with homomorphic encryption
+Optimization of aggregation protocols using secure multi-party computation techniques for improved scalability
