@@ -1,1 +1,1 @@
-Expansion of Meta-Learning Framework to Incorporate Multitask Learning and Adaptive Weighting for Improved Model Generalizability
+Integration of Graph Neural Networks and Transfer Learning for Enhanced Model Flexibility and Explainability
