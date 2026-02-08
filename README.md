@@ -1,62 +1,71 @@
-Update the README file to include a section on the IDDFS algorithm, its advantages, and its applications. Provide examples and use cases to illustrate the algorithm's effectiveness.
+Update the documentation to reflect the changes in the search algorithm and data structures used. This should include explanations of the hybrid approach, the use of a set for visited nodes, and the priority queue for node selection.
 
 ## Gemini Research
-This deep research addresses the optimality of the specific graph traversal algorithm that combines Iterative Deepening Depth-First Search (IDDFS) with a heuristic function: the **Iterative Deepening A\* (IDA\*)** algorithm.
+The optimal combination of Iterative Deepening Depth-First Search (IDDFS) and a heuristic function for node exploration in a weighted graph with a large number of nodes and edges is the **Iterative Deepening A\* (IDA\*)** algorithm.
 
-The core finding is that **IDA\* is optimal and complete, provided the heuristic function used is admissible.**
+IDA\* is specifically designed to balance the search efficiency of informed search methods (like A\*) with the minimal memory footprint of IDDFS, making it the superior choice when the search space is too large for standard memory-intensive algorithms like A\*.
 
 ---
 
-## 1. The Algorithm: Iterative Deepening A\* (IDA\*)
+## 1. The Optimal Combination: Iterative Deepening A\* (IDA\*)
 
-The Iterative Deepening A\* (IDA\*) algorithm is a variant of IDDFS that integrates the principles of the best-first search algorithm, $A^*$, to guide its search.
+The IDA\* algorithm is a variant of IDDFS that uses the evaluation function of the A\* search algorithm to guide its depth-first exploration.
 
-In standard IDDFS, the iterative limit is the **depth** of the search tree. In IDA\*, this is replaced by a **cost limit**, or **f-limit**, based on the evaluation function of $A^*$.
+### Core Mechanics
 
-### Mechanism
+1.  **Evaluation Function (A\* Heuristic):** Like A\*, IDA\* evaluates each node $n$ using the function $f(n) = g(n) + h(n)$.
+    *   **$g(n)$:** The actual cost (sum of edge weights) from the start node to the current node $n$.
+    *   **$h(n)$:** The heuristic estimate of the cost from node $n$ to the goal node.
+2.  **Iterative Deepening (IDDFS Framework):** Instead of using a simple depth limit (like standard IDDFS), IDA\* uses a **cost threshold** based on the $f(n)$ value.
+3.  **Search Process:**
+    *   The first iteration performs a Depth-First Search (DFS) but prunes any branch where the $f(n)$ value exceeds a minimal initial cost threshold.
+    *   If the goal is not found, the threshold is updated to the minimum $f(n)$ value encountered that exceeded the previous threshold.
+    *   This process repeats, iteratively deepening the search space based on total estimated path cost, not simply path length.
 
-1.  **Evaluation Function:** Like $A^*$, IDA\* uses the evaluation function $f(n) = g(n) + h(n)$ for any node $n$:
-    *   $g(n)$: The actual cost from the starting node to node $n$.
-    *   $h(n)$: The estimated cost from node $n$ to the goal state (the heuristic function).
-    *   $f(n)$: The estimated total cost of the path through node $n$ to the goal.
-2.  **Iterative Deepening:** IDA\* performs a series of depth-first searches, where each iteration has a cutoff value, $L$.
-3.  **Pruning:** In any given iteration with limit $L$, the depth-first search **prunes** any path whose $f(n)$ value exceeds $L$.
-4.  **Limit Update:** If the goal node is not found, the limit $L$ for the next iteration is set to the **minimum $f$-value** of all nodes that were pruned in the current iteration. This ensures the next search expands the most promising frontier nodes that were just beyond the previous limit.
+### Why IDA\* is Optimal for Large Graphs
 
-## 2. Optimality Condition: Admissibility
+| Feature | IDA\* (IDDFS + A\*) | A\* (Best-First Search) | Greedy Best-First Search (GBFS) |
+| :--- | :--- | :--- | :--- |
+| **Path Optimality** | **Guaranteed** (finds the shortest path) | Guaranteed | **Not Guaranteed** (suboptimal) |
+| **Space Complexity** | **$O(d)$ (Minimal)** | $O(b^d)$ (Exponential) | $O(b^d)$ (Exponential) |
+| **Time Complexity** | $O(b^d)$ (Asymptotically similar to A\*) | $O(b^d)$ | Depends on Heuristic Quality |
+| **Applicability to Large Graphs**| **Excellent** (Memory-efficient) | Poor (Memory-intensive) | Poor (Memory-intensive) |
+| **Core Heuristic** | **Admissible** $h(n)$ (Required for optimality) | Admissible $h(n)$ | Any $h(n)$ |
 
-The optimality of IDA\*—meaning it guarantees finding the **least-cost path** to the goal—is strictly dependent on the properties of the heuristic function, $h(n)$.
+In a weighted graph with a large number of nodes and edges, A\* fails due to its exponential memory usage $O(b^d)$, where $b$ is the branching factor and $d$ is the depth of the solution. IDA\* overcomes this by employing the depth-first nature of IDDFS, maintaining a space complexity that is only linear with the search depth ($O(d)$), while retaining the optimality guarantee of A\*.
 
-The crucial condition is **admissibility**:
+## 2. The Essential Heuristic: Admissibility
 
-*   **Admissible Heuristic:** A heuristic function $h(n)$ is admissible if it **never overestimates** the true cost to reach the goal from node $n$. That is, for every node $n$, $h(n) \le h^*(n)$, where $h^*(n)$ is the true minimum cost.
+For IDA\* to guarantee an **optimal** path (the shortest path in a weighted graph), the heuristic function, $h(n)$, must be **admissible**.
 
-### Why Admissibility Guarantees Optimality
+### The Admissibility Condition
 
-If the heuristic is admissible:
+An admissible heuristic is one that **never overestimates** the actual cost to reach the goal. That is:
 
-1.  The $f$-value of the optimal path to the goal, $f(Goal)^*$, is equal to its true cost, as $g(Goal)^* = f(Goal)^*$ and $h(Goal)=0$.
-2.  Since $h(n)$ is admissible, any path's estimated cost $f(n)$ will never be greater than its true cost.
-3.  IDA\* will only terminate an iteration when it finds a goal node whose $f(Goal)$ value is exactly the current limit $L$.
-4.  Because the limits $L$ are set based on the minimum $f$-value of the pruned nodes and are strictly increasing, the very first time the algorithm finds a goal node, that node's cost must be the minimum possible cost in the entire state space. A cheaper path to the goal could not have been overlooked, as its $f$-value would be lower and thus would have been found in a previous (or the current) iteration.
+$$h(n) \le h^*(n)$$
 
-### Note on Consistency/Monotonicity
+where $h^*(n)$ is the true cost from node $n$ to the nearest goal node.
 
-While the $A^*$ algorithm often requires a more restrictive property called **consistency** (or **monotonicity**) for certain implementations (like graph search without re-expanding nodes), **IDA\* does not require monotonicity for its optimality**. Admissibility is sufficient.
+### Impact on Performance
 
-## 3. Completeness
+The *quality* of an admissible heuristic is crucial for IDA\*'s efficiency.
 
-IDA\* is a **complete** algorithm. This means that if a solution exists, IDA\* is guaranteed to find it, provided the branch factor of the graph is finite and the costs of edges are positive (or the optimal path cost is finite).
+*   **Weak Heuristics:** A heuristic that greatly *underestimates* the true cost (e.g., $h(n) = 0$) is admissible but results in many iterations and excessive node re-expansions, making the search much slower.
+*   **Strong Heuristics:** The best admissible heuristic is one that is **consistent** (or monotonic) and is as close as possible to the true cost $h^*(n)$ without exceeding it. A stronger heuristic means the $f(n)$ threshold grows more rapidly toward the optimal solution cost, leading to fewer iterations and less wasted exploration.
 
-## 4. Performance Trade-offs
+## 3. Alternative for Suboptimal, Faster Solutions
 
-The integration of the heuristic function transforms IDDFS into a powerful, informed search algorithm with distinct performance characteristics compared to $A^*$:
+If finding a path *quickly* is more important than guaranteeing the *absolute shortest* path (i.e., trading optimality for speed), a variant called **Weighted IDA\*** may be used.
 
-| Characteristic | IDA\* (Iterative Deepening A\*) | $A^*$ (Standard Best-First) |
-| :--- | :--- | :--- |
-| **Space Complexity** | $O(d)$, where $d$ is the depth of the optimal path. **Highly memory efficient** due to depth-first search nature. | $O(b^d)$, where $b$ is the branch factor. Can run out of memory quickly. |
-| **Time Complexity** | $O(b^d)$. Can be competitive with $A^*$. | $O(b^d)$. |
-| **Node Expansion** | Since it repeats the search in each iteration, nodes are expanded multiple times. However, in trees with a large branch factor, the overhead is relatively small, as the overwhelming majority of nodes are at the deepest level. | Each node is expanded at most once (under standard implementations). |
-| **Optimality** | Optimal with an **admissible** heuristic. | Optimal with an **admissible** heuristic (and consistent for certain graph implementations). |
+### Weighted IDA\*
 
-In summary, IDA\* retains the **linear space complexity** of IDDFS, which makes it suitable for problems with extremely large search spaces (e.g., the 15-Puzzle or 8-Puzzle). The addition of the admissible heuristic function allows it to maintain the **optimality** property, ensuring the first solution found is the least-cost path.
+This technique uses a non-admissible evaluation function by introducing a weight $w > 1$ to the heuristic:
+
+$$f_w(n) = g(n) + w \cdot h(n)$$
+
+*   **Mechanism:** This weight exaggerates the heuristic estimate, making the search more "greedy" and directional, similar to Greedy Best-First Search. It focuses the search more intently toward the goal.
+*   **Trade-off:** This significantly reduces the total number of nodes expanded and makes the algorithm faster, but it forfeits optimality. However, the solution path found is guaranteed to have a cost no more than $w$ times the optimal cost.
+
+## Conclusion
+
+For optimal node exploration in a large weighted graph, the **Iterative Deepening A\* (IDA\*)** algorithm is the optimal combination. Its reliance on the **admissible heuristic** from A\* ensures an optimal path is found, while its IDDFS framework ensures the search is manageable within tight memory constraints. The biggest practical challenge is designing a powerful, yet admissible, heuristic to minimize the time penalty of repeated node expansion.
