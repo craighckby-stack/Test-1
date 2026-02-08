@@ -1,1 +1,1 @@
-Federated learning deployment with blockchain-based security for tamper-proof model updates
+Decentralized data governance with secure multi-party computation
