@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption techniques to enable secure computations on encrypted data
+ Deployment of homomorphic encryption techniques
