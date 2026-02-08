@@ -1,1 +1,1 @@
-Scaling Neurosymbolic Interfaces for Edge AI through Federated Learning and Transparent Explainability
+Deploying Edge AI Solutions with Real-Time Federated Learning and Model Pruning
