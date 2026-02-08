@@ -1,1 +1,1 @@
-Secure aggregation protocols and differential privacy techniques implementation
+Implementation of federated learning with secure multi-party computation
