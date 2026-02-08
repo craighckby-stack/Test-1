@@ -1,1 +1,1 @@
-Development of Edge AI Model Pruning and Knowledge Distillation Techniques for Efficient Deployment on Resource-Constrained Devices
+Investigation of Novel Quantization Techniques and Neural Architecture Search Methods for Optimized Edge AI Model Deployment
