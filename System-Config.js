@@ -1,1 +1,1 @@
-Development of a decentralized data marketplace using blockchain and token-based incentives for secure and efficient data sharing
+Expansion of the decentralized data marketplace to include edge computing and fog computing capabilities for improved real-time data processing and reduced latency
