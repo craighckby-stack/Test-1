@@ -1,1 +1,1 @@
-Development of Integrated Human-AI Collaboration Frameworks with Multimodal Interaction and Advanced Metacognitive Reasoning Capabilities
+Expansion of Integrated Human-AI Collaboration Frameworks to Incorporate Emotive Intelligence and Empathetic Reasoning
