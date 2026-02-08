@@ -1,1 +1,1 @@
-Development of a hybrid cognitive architecture that integrates transfer learning, meta-learning, and graph neural networks to enhance multimodal fusion and decision-making capabilities
+Implementation of attention mechanisms and multimodal fusion techniques to enhance the hybrid cognitive architecture's ability to process and integrate diverse data modalities
