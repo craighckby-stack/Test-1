@@ -1,1 +1,1 @@
-Implement homomorphic encryption and zero-knowledge proofs in federated learning to ensure secure and private data sharing across diverse data sources
+Implement threshold-based homomorphic encryption and asynchronous federated learning protocols to improve data sharing security and efficiency
