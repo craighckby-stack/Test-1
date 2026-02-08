@@ -1,1 +1,1 @@
-Implementing secure multi-party computation protocols with homomorphic encryption and zero-knowledge proofs for federated learning
+Implementing a hybrid approach to secure multi-party computation, combining homomorphic encryption and zero-knowledge proofs with differential privacy to enhance the security and privacy of federated learning
