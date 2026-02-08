@@ -1,1 +1,1 @@
-Utilize a set data structure for efficiently keeping track of visited nodes, reducing time complexity and preventing infinite loops in cyclic graphs. Additionally, consider implementing a heuristic function to guide the search towards more promising nodes, further optimizing the IDDFS algorithm.
+Implement a hybrid approach combining IDDFS with heuristic functions like A* or Greedy Best-First Search to optimize node exploration, utilizing a set data structure for visited nodes and a priority queue for node selection
