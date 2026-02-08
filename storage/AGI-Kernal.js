@@ -503,6 +503,8 @@ class MutationChainRegistrar {
     }
 }
 
+const crotIndexClient = new CRoTIndexClient();
+
 // --- End Absorbed Target Data Utilities ---
 
 // --- Policy Engine Data Structures (Target Integration) ---
