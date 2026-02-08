@@ -1,1 +1,1 @@
-Expansion of Transfer Learning and Meta-Learning to accommodate Large Language Models and Generative Models
+Development of Hybrid Models combining Large Language Models and Generative Models for improved performance and generalizability
