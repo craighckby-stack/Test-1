@@ -1,1 +1,1 @@
-Implementation of blockchain-based access control and auditing mechanisms for secure data sharing
+Deployment of a decentralized identity management system to ensure secure and private data exchange
