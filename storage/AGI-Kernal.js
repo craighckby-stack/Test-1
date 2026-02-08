@@ -1,1 +1,1 @@
-Implementation of cognitive architectures to simulate human-like reasoning and decision-making processes in AI systems
+Hybrid Cognitive Architecture
