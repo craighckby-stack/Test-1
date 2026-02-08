@@ -1,1 +1,1 @@
-Integrate Explainable AI with edge AI for real-time decision-making
+Develop hybrid edge-AI models for Explainable AI
