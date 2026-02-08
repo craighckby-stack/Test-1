@@ -1,1 +1,1 @@
-Hybrid Approach to Cognitive Architectures
+Integrate attention mechanisms to enhance reasoning capabilities
