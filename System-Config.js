@@ -1,1 +1,1 @@
-Development of a decentralized data governance framework to ensure secure and compliant data sharing
+Implementation of blockchain-based access control and auditing mechanisms for secure data sharing
