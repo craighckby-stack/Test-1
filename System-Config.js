@@ -1,1 +1,1 @@
-Implementation of Adversarial Training with Swarm Intelligence and Explainable AI for Enhanced Threat Detection and Response
+Implementation of Hybrid Adversarial Training with Swarm Intelligence, Explainable AI, and Edge AI for Enhanced Threat Detection and Response
