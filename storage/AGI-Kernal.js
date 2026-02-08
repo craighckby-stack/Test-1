@@ -1,1 +1,1 @@
-Implementing Hybrid Reasoning for Dynamic Knowledge Representation
+Integrating Explainable AI for Transparency and Trust
