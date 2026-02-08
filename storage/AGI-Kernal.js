@@ -1,1 +1,1 @@
-Implementing hybrid models that combine graph neural networks with attention mechanisms
+Integrating transfer learning and few-shot learning techniques to improve graph neural network performance
