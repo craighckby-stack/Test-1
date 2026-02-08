@@ -1,1 +1,1 @@
-Implement threshold homomorphic encryption to reduce computational overhead and increase the efficiency of secure multiparty computation protocols
+Implement threshold homomorphic encryption for secure multiparty computation
