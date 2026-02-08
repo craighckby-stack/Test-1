@@ -1,1 +1,1 @@
-Implement secure and privacy-preserving federated learning frameworks with homomorphic encryption, differential privacy, and decentralized data management
+Implementing secure and decentralized federated learning frameworks with homomorphic encryption
