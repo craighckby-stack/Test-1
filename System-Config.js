@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and differential privacy techniques to further secure AI model sharing and collaboration
+Enhance security with the implementation of federated learning and zero-trust architecture to protect AI models and data
