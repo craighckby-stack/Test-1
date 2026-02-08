@@ -1,1 +1,1 @@
-Develop transparent AI frameworks with attention visualization and model interpretability for enhanced trustworthiness
+Developing transparent AI frameworks with attention visualization
