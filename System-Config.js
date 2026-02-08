@@ -1,1 +1,1 @@
-Implementation of a Decentralized Data Governance framework using Blockchain and Smart Contracts for secure data management
+Expansion of Decentralized Data Governance framework to include Artificial Intelligence-powered data validation and anomaly detection
