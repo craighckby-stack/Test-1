@@ -1,1 +1,1 @@
-Integration of predictive maintenance with automated remediation for CEaaS using hybrid AI approaches
+Expansion of predictive maintenance to include proactive anomaly detection and automated root cause analysis
