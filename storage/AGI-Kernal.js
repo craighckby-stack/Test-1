@@ -1,1 +1,1 @@
-Integration of graph-based neural networks to enhance temporal dynamics and cross-modal interactions
+Implementation of attention-based mechanisms to improve the accuracy of graph-based neural networks in modeling complex temporal dynamics and cross-modal interactions
