@@ -1,1 +1,1 @@
-Development of Hybrid Models combining Large Language Models and Generative Models for improved performance and generalizability
+Integration of Cognitive Architectures with Hybrid Models to facilitate more human-like reasoning and problem-solving capabilities
