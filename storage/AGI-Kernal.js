@@ -1,1 +1,1 @@
-Updated IDDFS implementation to utilize a set data structure for efficiently keeping track of visited nodes, reducing time complexity and preventing infinite loops in cyclic graphs.
+Utilize a set data structure for efficiently keeping track of visited nodes, reducing time complexity and preventing infinite loops in cyclic graphs. Additionally, consider implementing a heuristic function to guide the search towards more promising nodes, further optimizing the IDDFS algorithm.
