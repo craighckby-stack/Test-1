@@ -1,1 +1,1 @@
-Integrating transfer learning and few-shot learning techniques to improve graph neural network performance
+Investigating the application of meta-learning to graph neural networks for enhanced adaptability and generalizability
