@@ -1,1 +1,1 @@
-Integration of cognitive architectures with explainable AI and multimodal learning
+Enhanced multimodal learning capabilities with transfer learning and meta-learning techniques
