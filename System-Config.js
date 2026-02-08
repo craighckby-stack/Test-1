@@ -1,1 +1,1 @@
-Implementing novel relational learning techniques that leverage edge-based attention mechanisms and probabilistic reasoning to enhance knowledge graph representation and improve predictive accuracy
+Developing more advanced relational learning techniques that incorporate multimodal attention mechanisms and probabilistic reasoning to improve knowledge graph representation and predictive accuracy
