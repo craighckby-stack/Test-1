@@ -1,1 +1,1 @@
-Implementation of Secure Multi-Party Computation and the incorporation of Adversarial Training to further enhance the security and robustness of data analysis and computation
+Implementation of Federated Learning and Homomorphic Encryption to enhance data privacy and security in decentralized networks
