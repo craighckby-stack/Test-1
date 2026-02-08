@@ -1,1 +1,1 @@
-Integration of Transfer Learning and Meta-Learning techniques to further enhance the Explainable AI framework's adaptability and generalizability across diverse domains and tasks
+Refine the Explainable AI framework by incorporating attention mechanisms and graph neural networks to improve its performance on complex, multi-relational data
