@@ -1,1 +1,1 @@
-Integration of federated learning and differential privacy techniques to further enhance the security and privacy of the decentralized access control system, while ensuring compliance with emerging regulatory requirements
+Implementation of homomorphic encryption and zero-trust security frameworks to further reinforce the decentralized access control system and ensure robust compliance with emerging regulatory requirements
