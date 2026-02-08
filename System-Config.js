@@ -1,1 +1,1 @@
-Implement holistic security orchestration framework with automated threat response
+Implementation of holistic security orchestration framework with automated threat response
