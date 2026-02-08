@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption for secure data aggregation and federated learning
+Homomorphic encryption for secure data aggregation and federated learning with differential privacy
