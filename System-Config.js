@@ -1,1 +1,1 @@
-Implementation of zero-knowledge proof protocols for secure data sharing and verification
+Implementation of Homomorphic Encryption for Secure Data Processing and Analysis
