@@ -1,1 +1,1 @@
-Expansion of federated learning to support edge AI and real-time model updates
+Implementation of explainable AI and model pruning techniques to improve edge AI performance
