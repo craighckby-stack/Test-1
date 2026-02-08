@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation for enhanced data collaboration
+Deployment of federated learning for secure and decentralized model training
