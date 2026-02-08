@@ -1,1 +1,1 @@
-Integrate multimodal fusion models with graph neural networks to analyze complex relationships and improve predictive accuracy
+Develop hybrid models that combine graph neural networks with attention mechanisms to better capture complex relationships and improve predictive accuracy
