@@ -1,1 +1,1 @@
-Enhancing attention mechanisms with explainability techniques for more transparent decision-making processes
+Enhance explainability techniques with transparent decision-making processes and adaptive data filtering
