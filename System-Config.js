@@ -1,1 +1,1 @@
-Deployment of a Decentralized Identity Management System utilizing Blockchain and AI-driven biometric authentication for secure data access and control
+Integration of Edge Computing and IoT devices to enhance the Decentralized Identity Management System
