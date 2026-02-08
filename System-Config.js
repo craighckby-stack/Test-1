@@ -1,1 +1,1 @@
-Implement secure multi-party computation protocols
+Implementation of secure multi-party computation protocols
