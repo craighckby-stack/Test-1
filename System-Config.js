@@ -1,1 +1,1 @@
-Integration of homomorphic encryption and secure multi-party computation to enable secure and private data processing
+Implementation of secure and private data processing protocols utilizing homomorphic encryption and secure multi-party computation
