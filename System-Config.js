@@ -1,1 +1,1 @@
-Integration of Lattice-Based Cryptography and Code-Based Cryptography for enhanced security and efficiency in Post-Quantum Cryptography standards
+Implementation of a Hybrid Post-Quantum Cryptography Suite, combining Lattice-Based Cryptography and Code-Based Cryptography with quantum-resistant key exchange protocols for enhanced security
