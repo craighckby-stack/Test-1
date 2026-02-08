@@ -1,1 +1,1 @@
-Integrate Neurosymbolic Reasoning
+Integration of Neurosymbolic Reasoning with existing architecture
