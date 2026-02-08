@@ -1,1 +1,1 @@
-Implementation of more advanced cryptographic techniques, such as zero-knowledge proofs, to further enhance data security and privacy
+Integration of homomorphic encryption and secure multi-party computation to enable secure and private data processing
