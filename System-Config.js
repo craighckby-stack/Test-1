@@ -1,1 +1,1 @@
-Implementation of fully homomorphic encryption for secure zero-knowledge proof protocols
+Deployment of edge AI for real-time secure data processing with homomorphic encryption
