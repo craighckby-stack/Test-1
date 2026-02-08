@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Layers, Cpu, FileCode, Terminal, Activity, ShieldCheck, Zap, Database, GitMerge, AlertTriangle, HardDrive } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.5.0 - "CUMULATIVE MEMORY"
+ * AGI-KERNAL v7.0.0 - "CUMULATIVE MEMORY"
  * FIX: Prevents "Overwriting" features by enforcing Full-File returns.
  * SAFETY: Mass-Loss Guardrail prevents commiting truncated code.
  */
@@ -20,8 +20,8 @@ const INITIAL_STATE = {
   isLive: false,
   status: 'IDLE',
   activeObjective: 'Epoch Stabilized.',
-  cycleCount: 502,
-  maturityScore: 8,
+  cycleCount: 503,
+  maturityScore: 9,
   repoMap: { 'main': [], 'System': [], 'Nexus-Database': [] },
   logs: [],
   config: { 
@@ -55,7 +55,7 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v7';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -219,8 +219,7 @@ export default function App() {
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-4 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-zinc-900 text-purple-300' : 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'}`}
-        >
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-4 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-zinc-900 text-purple-300' : 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'}`}>
           {state.isLive ? 'Stop Evolution' : 'Engage Memory'}
         </button>
       </header>
@@ -279,7 +278,7 @@ export default function App() {
 
       <footer className="h-12 border-t border-zinc-900 px-12 flex items-center justify-between text-[8px] uppercase tracking-[0.6em] text-zinc-800 font-black shrink-0">
         <span>AGI-KERNAL // CUMULATIVE MEMORY CORE</span>
-        <span className="text-purple-900/40">v6.4.0</span>
+        <span className="text-purple-900/40">v7.0.0</span>
       </footer>
 
       <style>{`
@@ -288,9 +287,11 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #3b0764; border-radius: 10px; }
       `}</style>
     </div>
-  );
+ );
 }
 
 
 
-NEXUS_MEMORY: {"version": 1, "data": {"source": "Nexus-Database", "integration": {"blockchain": "Polygon", "ai": {"type": "Transformers", "config": {"model": "llama-3.3-70b", "tokenizer": "LlamaTokenizer"}}, "federatedLearning": {"type": "Decentralized", "config": {"peers": 10, "sharedModel": "GlobalModel"}}}}
+NEXUS_MEMORY: {"version": 3, "data": {"source": "Nexus-Database", "integration": {"blockchain": "Polygon", "ai": {"type": "Transformers", "config": {"model": "llama-3.3-70b", "tokenizer": "LlamaTokenizer"}}, "federatedLearning": {"type": "Decentralized", "config": {"peers": 15, "sharedModel": "GlobalModel"}}}}
+
+
