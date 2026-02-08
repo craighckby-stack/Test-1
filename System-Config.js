@@ -1,1 +1,1 @@
-Enhance CEaaS with AI-driven anomaly detection and predictive analytics for proactive resilience testing
+Deploy AI-driven anomaly detection for proactive resilience testing in CEaaS
