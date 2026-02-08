@@ -1,1 +1,1 @@
-Fusion of Explainable AI and Transfer Learning for enhanced model adaptability
+Next-gen Explainable AI framework incorporating attention mechanisms and graph neural networks for enhanced model transparency
