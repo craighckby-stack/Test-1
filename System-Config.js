@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation and homomorphic encryption in decentralized and federated learning frameworks
+Development of a unified framework for secure multi-party computation, homomorphic encryption, and federated learning with integrated causal explainability
