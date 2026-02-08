@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption to further enhance the security and privacy of the multi-party computation protocol, enabling more robust and trustworthy data analysis and model training
+Integration of differential privacy techniques with homomorphic encryption to further protect sensitive data and ensure the security of the multi-party computation protocol
