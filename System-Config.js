@@ -1,1 +1,1 @@
-Integration of blockchain-based secure multi-party computation to further enhance data privacy and security in federated learning
+Implementation of homomorphic encryption in blockchain-based secure multi-party computation to enable secure and private data processing in federated learning
