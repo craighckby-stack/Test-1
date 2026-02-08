@@ -1,1 +1,1 @@
-Integration of Transfer Learning and Meta-Learning to enhance cognitive architectures
+Hybrid Cognitive Architecture with Integrated Transfer, Meta, and Edge Learning
