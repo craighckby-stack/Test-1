@@ -1,1 +1,1 @@
-Implementing attention mechanisms and graph neural networks to enhance reasoning and decision-making capabilities in hybrid cognitive architectures
+Integrating multimodal fusion and transfer learning to further enhance cognitive architecture capabilities
