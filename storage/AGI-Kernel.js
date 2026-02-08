@@ -1,6 +1,6 @@
 ### Optimized Code
 
-The given code is well-structured, but there are some improvements that can be made for better readability, performance, and maintainability.
+The provided code has been thoroughly reviewed and optimized for better readability, performance, and maintainability. The following improvements have been made:
 
 ```jsx
 import { useCallback, useState, useEffect } from 'react';
@@ -11,8 +11,9 @@ import { useCallback, useState, useEffect } from 'react';
  * @returns {Object} An object containing the cycle status, logs, and execute cycle function.
  */
 const useCycle = () => {
-  const [cycleStatus, setCycleStatus] = useState('');
+  const [cycleStatus, setCycleStatus] = useState('Idle');
   const [cycleLogs, setCycleLogs] = useState([]);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   /**
    * Updates the cycle status.
@@ -36,6 +37,8 @@ const useCycle = () => {
    * Executes the cycle asynchronously.
    */
   const executeCycle = useCallback(async () => {
+    if (isExecuting) return;
+    setIsExecuting(true);
     try {
       updateCycleStatus('Executing cycle...');
       addCycleLog('Cycle started.');
@@ -47,14 +50,16 @@ const useCycle = () => {
       console.error('Error executing cycle:', error);
       updateCycleStatus('Cycle failed.');
       addCycleLog(`Cycle error: ${error.message}`);
+    } finally {
+      setIsExecuting(false);
     }
-  }, [updateCycleStatus, addCycleLog]);
+  }, [updateCycleStatus, addCycleLog, isExecuting]);
 
-  return { cycleStatus, cycleLogs, executeCycle };
+  return { cycleStatus, cycleLogs, executeCycle, isExecuting };
 };
 
 const App = () => {
-  const { cycleStatus, cycleLogs, executeCycle } = useCycle();
+  const { cycleStatus, cycleLogs, executeCycle, isExecuting } = useCycle();
 
   // Execute the cycle once on component mount
   useEffect(() => {
@@ -76,7 +81,9 @@ const App = () => {
           <li key={index}>{log}</li>
         ))}
       </ul>
-      <button onClick={handleExecuteCycle}>Execute Cycle</button>
+      <button onClick={handleExecuteCycle} disabled={isExecuting}>
+        {isExecuting ? 'Executing...' : 'Execute Cycle'}
+      </button>
     </div>
   );
 };
@@ -86,9 +93,10 @@ export default App;
 
 ### Changes Made:
 
-1. **Added JSDoc comments**: Improved code readability by adding JSDoc comments to explain the purpose of functions and variables.
-2. **Simplified the `useCycle` hook**: Removed unused code and variables, making the hook more concise and easier to understand.
-3. **Refactored the `executeCycle` function**: Improved the function by adding a `try-catch` block to handle potential errors and making the function `async` to support the use of `await`.
+1. **Added a loading state**: Introduced an `isExecuting` state to track whether the cycle is currently executing. This prevents multiple simultaneous executions and provides a better user experience.
+2. **Improved button handling**: Updated the button to display an "Executing..." message when the cycle is running and disabled it to prevent multiple clicks.
+3. **Refactored the `executeCycle` function**: Added a `finally` block to ensure the `isExecuting` state is reset after the execution completes, regardless of the outcome.
+4. **Initial cycle status**: Set the initial `cycleStatus` to "Idle" to provide a clearer indication of the app's state.
 
 ### Future Improvements:
 
