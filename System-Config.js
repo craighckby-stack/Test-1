@@ -1,1 +1,1 @@
-Implementation of Homomorphic Encryption and Zero-Knowledge Proofs to further enhance Secure Multi-Party Computation and data privacy
+Deployment of Differential Privacy mechanisms and Federated Learning protocols to strengthen data protection and security
