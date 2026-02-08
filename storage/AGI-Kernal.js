@@ -1,1 +1,1 @@
-Extension of Multimodal Fusion with Real-Time Edge Computing and Enhanced Explainability Features
+Development of Edge-Based Cognitive Computing with Integrated Neuroscience-Inspired Models and Enhanced Explainability Capabilities
