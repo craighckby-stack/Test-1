@@ -1,1 +1,1 @@
-Integration of differential privacy techniques to further enhance the security and privacy of federated learning
+Implement homomorphic encryption techniques to enable secure computations on private data in federated learning environments
