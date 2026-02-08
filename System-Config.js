@@ -1,1 +1,1 @@
-Deploying AI-driven anomaly detection for proactive resilience testing in Cloud Engineering as a Service (CEaaS)
+Expansion of AI-driven anomaly detection to include predictive maintenance and automated remediation for CEaaS
