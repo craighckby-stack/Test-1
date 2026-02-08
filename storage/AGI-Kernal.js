@@ -530,8 +530,6 @@ class MutationChainRegistrar {
     }
 }
 
-// Note: crotIndexClient was defined twice in the original source, removing the duplicate definition here.
-
 // --- End Absorbed Target Data Utilities ---
 
 // --- Policy Engine Data Structures (Target Integration) ---
