@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enhance explainability across diverse data sources
+Development of transparent and adaptive multimodal fusion algorithms to facilitate real-time insights from heterogeneous data sources
