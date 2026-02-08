@@ -1,32 +1,19 @@
-# AGI-KERNAL // CUMULATIVE MEMORY CORE
-## Introduction
+# AGI-KERNAL
 
-This is the main project for AGI-KERNAL, a project aimed at creating a cumulative memory core for artificial general intelligence. The goal is to build a system that can learn from its past experiences and apply that knowledge to future tasks.
+AGI-KERNAL is a cumulative memory system designed to grow and adapt over time. The system is built on top of a React application and utilizes Firebase for authentication and data storage.
 
-## Getting Started
+## Features
 
-### Prerequisites
+* Cumulative memory: The system has the ability to grow and adapt over time, adding new features and optimizations while preserving existing functionality.
+* Safety guard: The system includes a mass-loss guard that prevents accidental truncation of the codebase.
+* Evolution velocity: The system tracks its own evolution velocity, providing insights into its growth and stability.
 
-* Node.js installed
-* A GitHub account
-* A Cerebras account
+## Technical Details
 
-### Installation
+* The system utilizes a React application with Firebase authentication and data storage.
+* The system uses a custom scrollbar and includes a number of other UI components.
 
-1. Clone the repository: `git clone https://github.com/craighckby-stack/AGI-KERNAL.git`
-2. Install the dependencies: `npm install`
-3. Create a new file called `firebaseConfig.js` with your Firebase configuration
-4. Create a new file called `cerebrasKey.js` with your Cerebras key
-5. Run the application: `npm start`
+## Future Development
 
-## Contributing
-
-Contributions are welcome! If you have any ideas or suggestions, please open an issue or pull request.
-
-## License
-
-This project is licensed under the MIT License.
-
-## Acknowledgments
-
-* This project was inspired by the work of [Cerebras](https://www.cerebras.net/) and [GitHub](https://github.com/).
+* The system will continue to evolve and adapt over time, adding new features and optimizations while preserving existing functionality.
+* The system will be refined and improved, with a focus on stability and performance.
