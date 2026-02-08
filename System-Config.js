@@ -1,1 +1,1 @@
-Upgrade of homomorphic encryption protocols to enable secure and efficient computation on heterogeneous data types, including support for edge AI
+Implementation of fully homomorphic encryption protocols for secure edge AI computation and integration with federated learning
