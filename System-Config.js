@@ -1,1 +1,1 @@
-Expansion of Transfer Learning to Include Few-Shot Learning for Enhanced Edge AI Model Adaptability
+Development of Edge AI Model Pruning and Knowledge Distillation Techniques for Efficient Deployment on Resource-Constrained Devices
