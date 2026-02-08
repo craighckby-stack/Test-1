@@ -1,1 +1,1 @@
-Integrate Explainable AI and Transfer Learning to cognitive architectures for improved transparency and adaptability in human-machine collaboration
+Integrate Explainable AI and Transfer Learning to cognitive architectures
