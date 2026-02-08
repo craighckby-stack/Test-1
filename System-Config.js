@@ -1,1 +1,1 @@
-Implement zero-trust architecture and advanced threat detection systems to improve security and integrity of data transmissions
+Deploy zero-trust architecture with advanced threat detection and response
