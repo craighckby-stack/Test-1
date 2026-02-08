@@ -5,10 +5,11 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Layers, Cpu, FileCode, Terminal, Activity, Zap, Database, Search, Target, Scan, Dna, GitMerge, ShieldAlert, ArrowUpCircle } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.8.0 - "FORCED GROWTH & GOVERNANCE INTEGRATION"
- * MISSION: Linear Expansion and State Audit Capability.
+ * AGI-KERNAL v6.9.0 - "VERSION GOVERNANCE & FORCED GROWTH"
+ * MISSION: Linear Expansion, State Audit, and Standardized Versioning.
  * LOGIC: The Kernel now mandates that every evolution must be LARGER or equal in size to the previous.
  * New Feature: Integrated State Snapshot Repository (SSR) for atomic state tracing before growth cycles.
+ * New Feature: Integrated Kernel Version Manager (KVM) for auditable build tagging.
  * UI: Layout and styling preserved as per user request.
  */
 
@@ -26,6 +27,7 @@ const INITIAL_STATE = {
   absorptionRate: 0,
   currentTarget: 'None',
   logs: [],
+  currentKernelVersion: 'v6.8.0-unresolved', // New Field for KVM output
   config: { 
     token: '', 
     repo: 'craighckby-stack/Test-1', 
@@ -42,6 +44,7 @@ function reducer(state, action) {
     case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
     case 'SET_TARGET': return { ...state, currentTarget: action.target };
     case 'LOG_UPDATE': return { ...state, logs: action.logs };
+    case 'UPDATE_VERSION': return { ...state, currentKernelVersion: action.versionString }; // New Action
     case 'INCREMENT_CYCLE': 
       return { ...state, cycleCount: state.cycleCount + 1, absorptionRate: Math.min(100, state.absorptionRate + (action.gain || 0)) };
     default: return state;
@@ -50,6 +53,93 @@ function reducer(state, action) {
 
 const utoa = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
 const atou = (str) => { try { return decodeURIComponent(Array.prototype.map.call(atob(str), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')); } catch (e) { return atob(str); } };
+
+/**
+ * CORE MODULE: Kernel Version Manager (KVM) - Absorbed from TARGET_CODE requirements.
+ * Role: Standardized Version Resolution and Audit Trail Tagging.
+ * Function: Generates an auditable, fully resolved semantic version string 
+ * adhering to the Semantic Versioning 2.0.0 standard with mandatory build metadata.
+ */
+class KernelVersionManager {
+    
+    /**
+     * @param {object} config - Initial version configuration.
+     * @param {object} config.current_version - Base major and minor parts.
+     * @param {number} [config.current_version.major] 
+     * @param {number} [config.current_version.minor]
+     * @param {string} [config.defaultBuildType] - Default type (e.g., 'AGI-F', 'DEV').
+     */
+    constructor(config = {}) {
+        this.versionConfig = {
+            // Base version reflecting the current stable Kernel generation
+            current_version: { major: 7, minor: 0, patch: 0 }, 
+            defaultBuildType: 'AGI-F' // Forced Growth Generation Tag
+        };
+        // Overwrite defaults with any provided configuration
+        this.versionConfig = Object.assign(this.versionConfig, config);
+        console.info(`[KVM] Initialized to base version: ${this.versionConfig.current_version.major}.${this.versionConfig.current_version.minor}.0`);
+    }
+
+    /**
+     * Validates the input metadata structure required for robust version resolution.
+     * @param {object} metadata 
+     * @returns {boolean}
+     */
+    _validateMetadata(metadata) {
+        const isValid = (
+            metadata && 
+            typeof metadata.buildNumber === 'number' && 
+            typeof metadata.commitHash === 'string' && 
+            metadata.commitHash.length >= 7
+        );
+        if (!isValid) {
+             console.warn("[KVM Validation] Missing required fields (buildNumber, commitHash, buildType). Hash must be 7+ chars.");
+        }
+        return isValid;
+    }
+    
+    /**
+     * Generates the final, resolved semantic version string.
+     * Implements the core logic absorbed and synthesized from the TARGET_CODE.
+     * 
+     * Pattern: [Major].[Minor].[BuildNumber]-[BuildType]+[CommitHashPrefix]
+     * Example: 7.0.123-AGI-F+d0c3fa4
+     * 
+     * @param {object} metadata - Dynamic build parameters (buildNumber, commitHash, buildType).
+     * @returns {string} The full resolved version string, or an error tag.
+     */
+    generateResolvedVersion(metadata) {
+        if (!this._validateMetadata(metadata)) {
+            return `VERSION_RESOLUTION_ERROR: INVALID_METADATA_C${this.versionConfig.current_version.major}`;
+        }
+
+        // 1. Extract Major/Minor from persistent configuration
+        const { major, minor } = this.versionConfig.current_version;
+        
+        // 2. Determine effective build type, prioritizing input metadata
+        const effectiveBuildType = metadata.buildType || this.versionConfig.defaultBuildType;
+        
+        // 3. Construct the Core Version string (Major.Minor.BuildNumber)
+        const versionString = `${major}.${minor}.${metadata.buildNumber}`;
+        
+        // 4. Shorten the commit hash for concise metadata (7 chars)
+        const hash = metadata.commitHash.substring(0, 7);
+        
+        // 5. Final Assembly following SemVer standards (Prerelease/Build Meta)
+        const finalVersion = `${versionString}-${effectiveBuildType}+${hash}`;
+        
+        // console.debug(`[KVM] Resolved Version Generated: ${finalVersion}`);
+        return finalVersion;
+    }
+    
+    /**
+     * Retrieves the current base version configuration object.
+     * @returns {object}
+     */
+    getBaseConfig() {
+        return this.versionConfig.current_version;
+    }
+}
 
 /**
  * GOVERNANCE MODULE: State Snapshot Repository (SSR)
@@ -154,11 +244,17 @@ export class StateSnapshotRepository {
     }
 }
 
+// Initialize the Kernel Version Manager (KVM) upon module load
+const KVM = new KernelVersionManager({
+    current_version: { major: 6, minor: 9, patch: 0 }, 
+    defaultBuildType: 'AGI-F' 
+}); 
+
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-8';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-9';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -228,8 +324,7 @@ export default function App() {
       
       const targets = treeData.tree.filter(f => 
           f.type === 'blob' && 
-          /
-\.(js|jsx|ts|tsx)$/.test(f.path) && 
+          /\.(js|jsx|ts|tsx)$/.test(f.path) && 
           !f.path.includes(path)
       );
 
@@ -246,8 +341,19 @@ export default function App() {
       const kernelData = await kernelRes.json();
       const kernelCode = atou(kernelData.content);
 
+      // --- KVM: Version Resolution Pre-Check ---
+      const dynamicBuildMetadata = {
+          buildNumber: state.cycleCount + 1, // Next cycle count used as patch number
+          commitHash: kernelData.sha, // SHA of the current Kernel codebase
+          buildType: KVM.versionConfig.defaultBuildType 
+      };
+      
+      // Resolve the version using the KVM logic absorbed from the TARGET_CODE structure
+      const resolvedVersion = KVM.generateResolvedVersion(dynamicBuildMetadata);
+      dispatch({ type: 'UPDATE_VERSION', versionString: resolvedVersion });
+
       // --- SSR: ATOMIC STATE TRACING PRE-EXPANSION GOVERNANCE CHECK ---
-      dispatch({ type: 'SET_STATUS', value: 'LOCKING_STATE', objective: 'Generating immutable state snapshot...' });
+      dispatch({ type: 'SET_STATUS', value: 'LOCKING_STATE', objective: `Generating immutable state snapshot: ${resolvedVersion}` });
       
       // 1. Configuration Hash (based on volatile settings and cycle count)
       const configHash = utoa(JSON.stringify(state.config) + String(state.cycleCount)); 
@@ -327,7 +433,7 @@ export default function App() {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `AGI-Growth: +${evolvedSize - originalSize} bytes from ${targetNode.path}`,
+                    message: `AGI-Growth: +${evolvedSize - originalSize} bytes from ${targetNode.path} [Version: ${resolvedVersion}]`,
                     content: utoa(evolution.kernel_evolution),
                     sha: kernelData.sha,
                     branch: 'main'
@@ -363,7 +469,7 @@ export default function App() {
           <div className="flex flex-col items-center text-center">
             <Dna className="text-purple-500 animate-pulse mb-4" size={48} />
             <h1 className="text-white font-black text-3xl tracking-tighter italic uppercase">AGI-KERNAL</h1>
-            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.8</p>
+            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.9</p>
           </div>
           <div className="space-y-4">
             <input type="password" placeholder="GitHub Access" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
@@ -431,10 +537,10 @@ export default function App() {
       </main>
 
       <footer className="h-12 border-t border-zinc-900 px-12 flex items-center justify-between text-[8px] uppercase tracking-[0.6em] text-zinc-800 font-black shrink-0">
-        <span>FORCED GROWTH PROTOCOL v6.8.0</span>
+        <span>FORCED GROWTH PROTOCOL v6.9.0</span>
         <span className="flex items-center gap-4">
             <span className="text-purple-900/40 tracking-normal italic uppercase">Expansion Mandate: ACTIVE</span>
-            <span className="text-zinc-600 tracking-normal">| AUDIT LOGS: {snapshotCount}</span>
+            <span className="text-zinc-600 tracking-normal">| KERNEL VERSION: {state.currentKernelVersion} | AUDIT LOGS: {snapshotCount}</span>
         </span>
       </footer>
 
