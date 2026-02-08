@@ -1,1 +1,1 @@
-Expansion of blockchain-based authentication protocol to support decentralized data storage
+Implementation of smart contract-based access control for decentralized data storage
