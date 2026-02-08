@@ -1,1 +1,1 @@
-Integration of hierarchical attention mechanisms with graph-based neural networks
+Implementation of hierarchical attention mechanisms with multiresolution graph convolutions
