@@ -1,1 +1,1 @@
-Integrate transfer learning and meta-learning techniques to adapt human-AI collaboration models to new domains and tasks
+Integrate multimodal fusion techniques to enhance human-AI collaboration models, enabling more effective adaptation to new domains and tasks
