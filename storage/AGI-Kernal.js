@@ -1,1 +1,1 @@
-Developing attention mechanisms to improve model explainability and incorporating human oversight to detect and correct bias
+Enhancing attention mechanisms with multimodal learning capabilities
