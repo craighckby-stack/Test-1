@@ -1,1 +1,1 @@
-Implementation of attention-based neural networks enhanced with cognitive architectures for improved hybrid reasoning capabilities
+Hybrid cognitive reasoning capabilities with attention-based neural networks and cognitive architectures will be further enhanced through the incorporation of multimodal learning and meta-learning techniques.
