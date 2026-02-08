@@ -1,1 +1,1 @@
-Implementation of Hybrid Neurosymbolic Reasoning for enhanced decision-making
+Integration of Cognitive Architectures for more robust decision-making
