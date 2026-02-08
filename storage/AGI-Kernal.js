@@ -1,1 +1,1 @@
-Integration of Neuro-symbolic Reasoning for Cognitive Architecture Enhancement
+Evolution of Neuro-symbolic Reasoning towards Self-Modifying Cognitive Architectures
