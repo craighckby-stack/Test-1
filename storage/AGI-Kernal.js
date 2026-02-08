@@ -1,1 +1,1 @@
-Integrate Transfer Learning and Multi-Agent Reinforcement Learning for Adaptive Edge AI
+Integrate edge AI with human-computer interaction for enhanced adaptability
