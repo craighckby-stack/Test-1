@@ -1,1 +1,1 @@
-Implementation of a homomorphic encryption protocol to enable secure computations on decentralized data
+Development of a decentralized data governance framework to ensure secure and compliant data sharing
