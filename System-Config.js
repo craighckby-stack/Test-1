@@ -1,1 +1,1 @@
-Implementation of quantum-resistant homomorphic encryption and AI-driven security orchestration for adaptive threat detection and response
+Implementation of post-quantum cryptography and AI-driven security orchestration for adaptive threat detection and response, leveraging quantum-resistant homomorphic encryption
