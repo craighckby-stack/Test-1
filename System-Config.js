@@ -1,1 +1,1 @@
-Integration of Post-Quantum Cryptography with Differential Privacy for secure and private Edge AI
+Post-Quantum Cryptography with Federated Learning for enhanced secure and private Edge AI
