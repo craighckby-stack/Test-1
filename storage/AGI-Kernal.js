@@ -1,1 +1,1 @@
-Multimodal explainability framework integration with human feedback loop
+Evolve multimodal explainability framework to incorporate transfer learning and attention mechanisms for improved model interpretability
