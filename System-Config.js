@@ -1,1 +1,1 @@
-Machine learning-based anomaly detection integrated with zero-trust architecture
+Scalable zero-trust architecture with machine learning-based anomaly detection
