@@ -1,1 +1,1 @@
-Implementation of transparent and explainable AI techniques, including model interpretability and uncertainty estimation, to enhance trust and reliability
+Deployment of federated learning techniques to enhance model interpretability, uncertainty estimation, and data privacy, while promoting decentralized AI development
