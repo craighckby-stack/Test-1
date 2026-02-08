@@ -1,1 +1,1 @@
-Integrating cognitive architectures with multimodal fusion models to enable more effective human-computer interaction and decision-making
+Evolve cognitive architectures to incorporate explainability and transparency, enabling more trustworthy human-computer interaction and decision-making
