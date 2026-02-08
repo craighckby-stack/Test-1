@@ -1,1 +1,1 @@
- Enhancement of meta-reasoning capabilities through the fusion of causal learning and graph neural networks
+Integration of meta-reasoning with cognitive architectures to enable more robust decision-making
