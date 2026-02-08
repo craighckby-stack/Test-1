@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption and federated learning techniques for secure data collaboration
+Expansion of homomorphic encryption to support multi-party computation, and integration of blockchain-based access control for enhanced security and data governance.
