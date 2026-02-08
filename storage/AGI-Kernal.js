@@ -1,1 +1,1 @@
-Incorporation of multimodal fusion and edge AI for real-time learning
+Incorporation of transfer learning and meta-learning for adaptive AI
