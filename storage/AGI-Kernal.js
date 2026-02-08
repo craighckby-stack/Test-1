@@ -1,1 +1,1 @@
-Integrating cognitive architectures for enhanced human-AI collaboration
+Integrating cognitive architectures with multimodal interaction for increased human-AI collaboration efficiency
