@@ -1,1 +1,1 @@
-Deployment of federated learning and zero-trust architecture for secured data sharing and collaborative model training
+Implementation of homomorphic encryption and secure multi-party computation for enhanced data privacy and security
