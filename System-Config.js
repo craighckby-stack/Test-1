@@ -1,1 +1,1 @@
-Integration of Cognitive Architectures with Edge AI to Enable Real-time Human-AI Symbiosis and Adaptive Decision-Making
+Deploying Edge AI-Infused Cognitive Architectures for Real-Time Human-AI Symbiosis
