@@ -1,1 +1,1 @@
-Incorporation of multimodal fusion techniques with cognitive architectures for enhanced human-computer interaction and decision-making
+Integration of transfer learning and meta-learning techniques to improve multimodal fusion and cognitive architectures
