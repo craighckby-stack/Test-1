@@ -1,1 +1,1 @@
-Implementing post-quantum cryptography with federated learning for enhanced edge AI security
+Integration of post-quantum cryptography with federated learning protocols to secure edge AI frameworks
