@@ -1,1 +1,1 @@
-Development of hybrid models combining Explainable AI and cognitive architectures for enhanced decision-making
+Enhanced Explainable AI framework incorporating cognitive architectures for human-AI collaboration
