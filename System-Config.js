@@ -1,1 +1,1 @@
-Advancement of federated learning architecture to support AI-driven model optimization and dynamic aggregation techniques
+Enhancement of federated learning architecture with edge computing capabilities to reduce latency and improve real-time model optimization
