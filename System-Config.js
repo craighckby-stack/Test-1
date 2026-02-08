@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and differential privacy to secure edge AI frameworks with post-quantum cryptography and federated learning protocols
+Implementation of secure multi-party computation and fully homomorphic encryption for edge AI frameworks with distributed federated learning protocols
