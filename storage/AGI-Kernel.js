@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { GAX } from './gax';
+import { config } from './config';
+import { schema } from './schema';
 
 // Custom Hook to manage cycle status, logs, and execution
 const useCycle = () => {
@@ -19,6 +22,8 @@ const useCycle = () => {
         setIsExecuting(true);
 
         try {
+            // Validate constraints before executing the cycle
+            await validateConstraints();
             // Simulate cycle execution with a 1-second delay
             await new Promise((resolve) => setTimeout(resolve, 1000));
             // Log successful execution
@@ -33,6 +38,18 @@ const useCycle = () => {
         } finally {
             // Reset isExecuting flag
             setIsExecuting(false);
+        }
+    };
+
+    // Function to validate constraints
+    const validateConstraints = async () => {
+        // Load constraints from config
+        const constraints = config.constraints;
+        // Validate constraints using GAX
+        const validationResults = await GAX.validateConstraints(constraints);
+        // Check if validation was successful
+        if (!validationResults.valid) {
+            throw new Error('Constraint validation failed');
         }
     };
 
