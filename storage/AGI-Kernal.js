@@ -1,1 +1,1 @@
-Integrate Cognitive Architectures with multimodal learning and affective computing for more nuanced decision-making
+Integration of cognitive architectures with multimodal learning and affective computing
