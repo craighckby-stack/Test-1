@@ -1,1 +1,1 @@
-Deploy homomorphic encryption scheme for secure computation on encrypted data
+Implement secure multi-party computation protocols to enable collaborative learning and inference on decentralized, encrypted data
