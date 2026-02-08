@@ -1,1 +1,1 @@
-Implementation of Post-Quantum Cryptography standards and Quantum-Resistant Homomorphic Encryption for secure and efficient data processing
+Integration of Lattice-Based Cryptography and Code-Based Cryptography for enhanced security and efficiency in Post-Quantum Cryptography standards
