@@ -1,1 +1,1 @@
-Implementation of meta-learning algorithms to facilitate autonomous adaptation and self-modification of cognitive architectures
+Integrate meta-learning algorithms with cognitive architectures to enable adaptive self-modification
