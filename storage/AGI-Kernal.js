@@ -1,1 +1,1 @@
-Expansion of multimodal fusion models to incorporate explainability techniques and edge AI for real-time insights
+Integrate transparent and interpretable multimodal fusion models with edge AI-driven explainability techniques
