@@ -1,1 +1,1 @@
-Machine learning-based anomaly detection has been successfully integrated with the existing zero-trust architecture, bolstering security and threat detection capabilities
+Machine learning-based anomaly detection integrated with zero-trust architecture
