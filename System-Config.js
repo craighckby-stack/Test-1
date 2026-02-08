@@ -1,1 +1,1 @@
-Deployment of a multi-access edge computing framework to facilitate low-latency and high-bandwidth data processing
+Integrating federated learning capabilities to enable collaborative model training across decentralized data sources
