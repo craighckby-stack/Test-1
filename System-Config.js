@@ -1,1 +1,1 @@
-Expansion of Blockchain-based security measures to include Homomorphic Encryption and Zero-Knowledge Proofs for enhanced data protection
+Deployment of a Decentralized Identity Management System utilizing Blockchain and AI-driven biometric authentication for secure data access and control
