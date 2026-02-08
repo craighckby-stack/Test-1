@@ -1,1 +1,1 @@
-Integrating Cognitive Attention Mechanisms with Multimodal Emotive Intelligence to Enhance Adaptive Human-AI Collaboration
+Establishing Integrated Cognitive Frameworks for Adaptive Human-AI Collaboration
