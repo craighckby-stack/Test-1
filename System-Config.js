@@ -1,1 +1,1 @@
-Implement homomorphic encryption
+Integrating homomorphic encryption with secure multi-party computation protocols
