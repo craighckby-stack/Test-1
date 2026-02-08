@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols for federated learning
+Deployment of homomorphic encryption techniques to enhance the security and privacy of federated learning models
