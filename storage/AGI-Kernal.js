@@ -1,1 +1,1 @@
-Implementation of multi-agent reinforcement learning for enhanced human-AI collaboration
+Integrate multimodal fusion techniques to enable more effective human-AI collaboration
