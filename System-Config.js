@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols to enable collaborative learning across decentralized data sources
+Upgrade of secure multi-party computation protocols to support horizontally partitioned data and enable more efficient collaborative learning
