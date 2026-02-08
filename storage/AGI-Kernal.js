@@ -1,1 +1,1 @@
-Develop hybrid cognitive graph neural networks that merge symbolic and connectionist AI for more robust multimodal learning and reasoning
+Develop hybrid cognitive graph neural networks
