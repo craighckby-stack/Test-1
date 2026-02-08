@@ -1,1 +1,1 @@
-Enhance relational learning and causal reasoning by integrating graph neural networks with transformers
+Enhance relational learning and causal reasoning with graph neural networks and transformers
