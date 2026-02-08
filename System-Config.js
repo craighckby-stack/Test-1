@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols for homomorphic encryption
+Integration of zero-knowledge proof protocols for enhanced security and authentication
