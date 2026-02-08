@@ -1,1 +1,1 @@
-Upgrading Edge AI-Infused Cognitive Architectures with Explainable AI and Adaptive Learning Mechanisms
+Upgrading Edge AI-Infused Cognitive Architectures with Neurosymbolic Interfaces and Explainable AI for Improved Transparency and Trust
