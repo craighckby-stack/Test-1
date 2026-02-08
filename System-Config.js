@@ -1,1 +1,1 @@
-Enhancement of Real-Time Decision-Making with Edge AI and IoT
+Implementation of edge AI and IoT for real-time data processing and analysis
