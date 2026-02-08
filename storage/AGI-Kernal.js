@@ -1,1 +1,1 @@
-Integration of graph attention networks with multimodal fusion for enhanced feature learning
+Advanced graph attention networks with multimodal fusion for enhanced feature learning and explainability
