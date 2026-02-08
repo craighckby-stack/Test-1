@@ -1,1 +1,1 @@
-Implementing a decentralized identity management system using blockchain and self-sovereign identity to enhance security and privacy in federated learning
+Integrate the decentralized identity management system with the data curation framework, utilizing blockchain-based access control and self-sovereign identity for secure data sharing and collaboration
