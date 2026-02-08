@@ -1,1 +1,1 @@
-Integrate Transfer Learning and Meta-Learning for few-shot learning capabilities
+Integration of Transfer Learning and Meta-Learning for enhanced few-shot learning capabilities
