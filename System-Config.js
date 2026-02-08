@@ -1,1 +1,1 @@
-Implementation of Federated Learning and Meta-Learning for improved Edge AI performance and adaptability
+Advanced Federated Learning and Meta-Learning techniques for real-time Edge AI adaptation
