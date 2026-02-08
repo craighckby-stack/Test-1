@@ -1,1 +1,1 @@
-Upgrading Edge AI-Infused Cognitive Architectures with Neurosymbolic Interfaces and Explainable AI for Improved Transparency and Trust
+Implementing Edge AI-Infused Cognitive Architectures with Neurosymbolic Interfaces for Enhanced Transparency and Trust
