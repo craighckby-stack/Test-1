@@ -1,1 +1,1 @@
-Integration of Secure Multi-Party Computation with Hybrid Encryption and Homomorphic Encryption
+Implementation of Threshold Encryption and Oblivious Transfer to enhance Secure Multi-Party Computation
