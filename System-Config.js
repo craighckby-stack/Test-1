@@ -1,1 +1,1 @@
-Enhancement of security orchestration framework with AI-driven predictive analytics and automated incident response
+Expansion of AI-driven predictive analytics to include anomaly detection and response, enhancing the security orchestration framework's capabilities
