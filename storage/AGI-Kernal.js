@@ -1,1 +1,1 @@
-Development of more advanced multimodal fusion techniques using attention mechanisms and graph attention networks
+Development of Explainable AI techniques to provide insights into decision-making processes of multimodal fusion models
