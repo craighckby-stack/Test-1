@@ -1,1 +1,1 @@
-Introduced a Nexus class to manage the graph and provide a more organized way of accessing node neighbors. Updated the dls function to use the Nexus class.
+To further improve the code, consider using a more efficient data structure for storing visited nodes, such as a `Map` or a `HashSet`, depending on the programming language. Additionally, you can add more error handling and input validation to make the code more robust.
