@@ -1,1 +1,1 @@
-Development of transparent and interpretable multimodal fusion models to provide insights into decision-making processes
+Expansion of multimodal fusion models to incorporate explainability techniques and edge AI for real-time insights
