@@ -1,1 +1,1 @@
-Implementation of fully homomorphic encryption protocols for secure edge AI computation and integration with federated learning
+Enhance fully homomorphic encryption protocols for secure edge AI computation and federated learning with differential privacy guarantees
