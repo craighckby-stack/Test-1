@@ -1,1 +1,1 @@
-Developing explainable AI methods for adaptive multimodal fusion models
+Evolve multimodal fusion models to incorporate transparent and interpretable neural network architectures
