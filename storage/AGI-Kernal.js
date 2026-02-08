@@ -1,1 +1,1 @@
-Integrate edge AI with human-computer interaction for enhanced adaptability
+Integrate cognitive architectures with edge AI for personalized human-computer interaction
