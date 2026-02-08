@@ -1,1 +1,1 @@
-Enhance security with the implementation of federated learning and zero-trust architecture to protect AI models and data
+Implement federated learning and zero-trust architecture for enhanced security
