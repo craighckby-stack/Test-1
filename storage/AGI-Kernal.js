@@ -1,1 +1,1 @@
-Integration of meta-learning with cognitive architectures
+Expansion of meta-learning capabilities to include transfer learning and few-shot learning
