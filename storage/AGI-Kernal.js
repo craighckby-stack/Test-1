@@ -1,1 +1,1 @@
-Implementation of Explainable AI (XAI) techniques to provide transparency and interpretability in decision-making processes, enabling the cognitive architecture to generate explanations for its actions and recommendations
+Integration of multimodal interaction capabilities to enable more natural and intuitive human-machine interactions, leveraging advances in computer vision, natural language processing, and cognitive architectures
