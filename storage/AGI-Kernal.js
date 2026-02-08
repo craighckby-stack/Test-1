@@ -1,1 +1,1 @@
-Integrate transfer learning and meta-learning techniques to improve the adaptability and generalizability of the hybrid causal inference and machine learning approach
+Integrate transfer learning and meta-learning techniques to enhance adaptability and generalizability
