@@ -1,1 +1,1 @@
-Development of Autonomous Agent Systems for adaptive federated learning
+Implementation of Autonomous Agent Systems for real-time adaptive learning
