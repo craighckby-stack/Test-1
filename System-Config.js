@@ -1,1 +1,1 @@
-Quantum-Resistant Cryptography integrated with Homomorphic Encryption for enhanced Edge AI security
+Integration of Post-Quantum Cryptography with Differential Privacy for secure and private Edge AI
