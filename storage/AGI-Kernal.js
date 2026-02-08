@@ -1,1 +1,1 @@
-Multimodal interface expansion to include augmented reality and cognitive architectures for enhanced human-machine collaboration
+Integration of explainable AI and transfer learning for multimodal interfaces to improve human-machine collaboration and decision-making
