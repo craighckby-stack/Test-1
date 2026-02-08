@@ -1,1 +1,25 @@
-# AGI-KERNAL v7.0.0\nThis project is an experiment in cumulative growth and automated code development. The goal is to create a sustainable and continuously evolving system through AI-driven code generation. The process involves AI reviewing existing code, adding new features, and optimizing performance, all while adhering to strict safety protocols to prevent data loss or code truncation. The system aims to achieve maturity through iterative cycles of improvement.\n## Maturity: 11\n## Reason: Codebase has reached a new level of maturity and functionality\n## Usage\n1. Initialize the cumulative core by providing the necessary authentication details for GitHub and Cerebras.\n2. Engage the memory to start the evolution process. The system will periodically review its current state, generate new code, and commit changes to the repository.\n3. Monitor the logs for updates on the system's status and any issues that may arise during the evolution process.\n## Contributing\nContributions are welcome, but please ensure that any changes adhere to the prime directive of cumulative growth. All pull requests will be reviewed by the AI to ensure compliance with project guidelines.\n## License\nThis project is licensed under the MIT License.\n
+# AGI-KERNAL
+
+Cumulative Memory Core v7.1.0
+
+## Introduction
+Cumulative Memory is an experiment in the realm of Artificial General Intelligence (AGI) emphasizing cumulative growth and evolutionary algorithms. The core idea revolves around the concept of "Cumulative Evolution" — enhancing the system's capabilities through continuous learning from experiences and interactions.
+
+## System Overview
+* The system utilizes a React-based frontend to visualize and interact with the AGI core.
+* It relies on Firebase for user authentication and real-time data synchronization.
+* GitHub APIs are used for version control and repository management.
+* Cerebras API is used for large language model integration.
+
+## Cumulative Evolution
+* The system runs on a cycle-based evolution, where each cycle involves reading the current state of the repository, synthesizing new code based on the current and desired states, and committing this new code.
+* The synthesis process involves querying a large language model to generate code that fulfills the system's prime directive of cumulative growth.
+* Each cycle also assesses the maturity of the system, adjusting parameters for future cycles based on performance metrics.
+
+## Safety Features
+* Mass-Loss Guard: Prevents accidental truncation of the codebase by rejecting new code that is significantly smaller than the current version.
+
+## Future Development
+* Integration with Blockchain: To enable secure, decentralized, and transparent interactions with the cumulative memory core.
+* Federated Learning: Implementing peer-to-peer learning to enhance the system's ability to adapt and grow without centralized data collection.
+
