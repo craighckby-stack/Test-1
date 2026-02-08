@@ -1,1 +1,1 @@
-Implementation of Autonomous Explainability and Adaptive Security in Hybrid AI Frameworks
+Enhanced Autonomous Explainability through Attention-Based Neural Networks and In-Edge Adaptive Security via Homomorphic Encryption
