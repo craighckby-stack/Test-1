@@ -1,1 +1,1 @@
-Integration of transfer learning and meta-learning to enhance real-time adaptive learning capabilities
+Integration of multimodal learning and edge AI to further enhance real-time adaptive learning capabilities
