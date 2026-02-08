@@ -1,1 +1,1 @@
-Integration of cognitive architectures to enable more human-like reasoning and decision-making capabilities in AI systems
+Advancement of hybrid cognitive architectures to incorporate emotional intelligence and social reasoning
