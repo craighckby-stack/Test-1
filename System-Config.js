@@ -1,1 +1,1 @@
-Implement a blockchain-based authentication protocol
+Implement a blockchain-based authentication protocol to ensure secure data access and transaction transparency
