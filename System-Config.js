@@ -1,1 +1,1 @@
-Implementing a decentralized identity verification system to further strengthen the zero-trust architecture
+Deploying the decentralized identity verification system and expanding its scope to include AI-driven threat detection and response mechanisms
