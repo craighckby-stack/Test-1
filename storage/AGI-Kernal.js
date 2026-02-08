@@ -1,1 +1,1 @@
-Integration of meta-reinforcement learning to enhance hybrid cognitive architectures
+Integration of multimodal learning for adaptive decision-making in hybrid cognitive architectures
