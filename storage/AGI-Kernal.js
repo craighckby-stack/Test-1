@@ -1,1 +1,1 @@
-Implementation of Federated Learning techniques to further enhance human-in-the-loop evaluation, enabling more efficient and personalized model refinement while maintaining data privacy
+Expansion of Federated Learning to incorporate edge computing and device-level model training, allowing for real-time data analysis and more personalized model refinements
