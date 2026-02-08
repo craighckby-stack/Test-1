@@ -1,1 +1,1 @@
-Integrate meta-reinforcement learning to enhance the hybrid cognitive architectures' ability to adapt to complex and dynamic environments
+Integration of meta-reinforcement learning to enhance hybrid cognitive architectures
