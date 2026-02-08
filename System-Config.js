@@ -1,1 +1,1 @@
-Integration of horizontally partitioned data and secure multi-party computation protocols for collaborative learning
+Implementation of secure multi-party computation protocols for collaborative learning on horizontally partitioned data, enabling federated learning frameworks
