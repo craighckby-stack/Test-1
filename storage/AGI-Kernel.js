@@ -1,22 +1,20 @@
 ```python
 # Optimizer class
+from collections import OrderedDict
+
 class Optimizer:
-    def __init__(self):
-        self.cache = {}
-        self.max_cache_size = 1000  # Maximum cache size
-        self.cache_count = 0  # Current cache count
-        self.cache_order = []  # To track the order of access
+    def __init__(self, max_cache_size: int = 1000):
+        self.cache = OrderedDict()
+        self.max_cache_size = max_cache_size
 
     def optimize_logic(self, user_input: str) -> str:
         try:
             if not isinstance(user_input, str):
-                raise ValueError("Invalid input type"
-            )
+                raise ValueError("Invalid input type")
 
             if user_input in self.cache:
                 # Update the access order
-                self.cache_order.remove(user_input)
-                self.cache_order.append(user_input)
+                self.cache.move_to_end(user_input)
                 return self.cache[user_input]
 
             result = self._process_input(user_input)
@@ -31,14 +29,8 @@ class Optimizer:
         return user_input
 
     def _add_to_cache(self, key: str, value: str):
-        if self.cache_count < self.max_cache_size:
-            self.cache[key] = value
-            self.cache_order.append(key)
-            self.cache_count += 1
-        else:
+        if len(self.cache) >= self.max_cache_size:
             # Remove the oldest item from the cache before adding a new one
-            oldest_key = self.cache_order.pop(0)
-            del self.cache[oldest_key]
-            self.cache[key] = value
-            self.cache_order.append(key)
+            self.cache.popitem(last=False)
+        self.cache[key] = value
 ``
