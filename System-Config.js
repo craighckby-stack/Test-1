@@ -1,1 +1,1 @@
-Integrating federated learning capabilities to enable collaborative model training across decentralized data sources
+Implementing blockchain-based encryption for secure federated learning
