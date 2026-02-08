@@ -1,1 +1,1 @@
-Expansion of homomorphic encryption to support secure multi-party computation and differential privacy
+Implement secure multi-party computation protocols to enable private and decentralized knowledge sharing
