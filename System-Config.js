@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation and graph neural networks for decentralized and explainable computation
+Deployment of federated learning and differential privacy for secure and decentralized data analysis
