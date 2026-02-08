@@ -1,1 +1,1 @@
-Implement zero-knowledge proof protocols to enhance the security and authenticity of blockchain-based federated learning
+Implement homomorphic encryption to enable secure computation on encrypted data in blockchain-based federated learning
