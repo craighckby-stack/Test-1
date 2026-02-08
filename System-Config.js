@@ -1,1 +1,1 @@
-Implement a federated learning framework with homomorphic encryption to enable secure and decentralized model training and updates
+Implement secure aggregation protocols and differential privacy techniques to further enhance the security and privacy of the federated learning framework
