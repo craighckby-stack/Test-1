@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques for enhanced cognitive graph neural networks
+Integration of Transfer Learning and Meta-Learning for Adaptive Cognitive Graph Neural Networks
