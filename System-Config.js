@@ -1,1 +1,1 @@
-Integrate homomorphic encryption with federated learning to ensure end-to-end data privacy and security in decentralized data governance frameworks
+Develop secure multi-party computation protocols for federated learning to enable privacy-preserving data sharing across decentralized networks
