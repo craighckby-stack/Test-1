@@ -1,1 +1,1 @@
-Advancements in multimodal learning and edge AI
+Multimodal learning and edge AI enhancements
