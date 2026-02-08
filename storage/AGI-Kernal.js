@@ -1,1 +1,1 @@
-Development of multimodal fusion mechanisms to facilitate seamless integration of multiple data sources and modalities, enhancing human-AI interaction and collaboration
+Integration of cognitive architectures to enable more human-like reasoning and decision-making capabilities in AI systems
