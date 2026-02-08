@@ -1,1 +1,1 @@
-Integrating differential privacy with homomorphic encryption for enhanced data security
+Developing a zero-trust architecture to ensure end-to-end security and data integrity
