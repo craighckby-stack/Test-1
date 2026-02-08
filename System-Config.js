@@ -1,1 +1,1 @@
-Integration of Edge AI with Causal-Attention Mechanisms
+Optimization of Edge AI with Causal-Attention Mechanisms for low-latency applications
