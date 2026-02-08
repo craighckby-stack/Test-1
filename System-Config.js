@@ -1,1 +1,1 @@
-Implementation of smart contract-based access control for decentralized data storage
+Extension of smart contract-based access control to support secure multi-party computation
