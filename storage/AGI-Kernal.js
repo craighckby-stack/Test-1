@@ -1,1 +1,1 @@
-Integration of cognitive architectures to facilitate human-AI collaboration
+Advancement of hybrid cognitive architectures to support human-AI symbiosis
