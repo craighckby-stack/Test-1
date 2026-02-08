@@ -1,1 +1,1 @@
-Expansion of Explainable AI framework to incorporate attention mechanisms and graph attention networks for enhanced interpretability and decision-making transparency
+Incorporation of multimodal fusion techniques to integrate heterogeneous data sources and modalities into the Explainable AI framework, enhancing model interpretability and decision-making transparency
