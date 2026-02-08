@@ -1,11 +1,12 @@
-# Cumulative Memory Core v7.0.0
-This is a cumulative memory core with enhanced features for cumulative growth and protection against mass loss.
+# AGI-KERNAL v7.0.0
+AGI-KERNAL is a cumulative growth-oriented AI system.
 
-## New Features
-- Federated learning with decentralized architecture
-- Enhanced integrity guard for code truncation protection
-- Improved repository state management
+# Features
+- Enables decentralized learning
+- Uses transformers for AI tasks
+- Supports Polygon blockchain
 
-## Roadmap
-- Implement decentralized data storage
-- Integrate with other AI models for enhanced cumulative growth
+# Roadmap
+1. Improve the performance of the transformers model
+2. Increase the number of peers in the decentralized network
+3. Develop a more sophisticated federated learning algorithm
