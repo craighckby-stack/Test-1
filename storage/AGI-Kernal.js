@@ -1,1 +1,1 @@
-Evolve hybrid model adaptability by integrating cognitive architectures with spiking neural networks and synaptic plasticity rules
+Integrate cognitive architectures with spiking neural networks and synaptic plasticity rules
