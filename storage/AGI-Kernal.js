@@ -1,1 +1,1 @@
-Incorporation of attention mechanisms and graph attention networks to enhance multimodal fusion techniques
+Development of more sophisticated multimodal fusion techniques using attention mechanisms and graph attention networks
