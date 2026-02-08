@@ -1,1 +1,1 @@
-Develop multimodal fusion framework for human-AI collaboration
+Developing multimodal fusion framework for human-AI collaboration
