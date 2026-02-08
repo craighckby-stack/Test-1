@@ -1,1 +1,1 @@
-Expansion of multimodal fusion with meta-learning to incorporate transfer learning and domain adaptation for enhanced few-shot learning capabilities
+Multimodal fusion with meta-learning expanded to incorporate transfer learning and domain adaptation
