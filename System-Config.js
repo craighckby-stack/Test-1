@@ -1,1 +1,1 @@
-Integration of Quantum-Secure Multi-Party Computation protocol with homomorphic encryption
+Implementation of a Hybrid Encryption protocol that combines the benefits of Homomorphic Encryption and Zero-Knowledge Proofs to enhance data security and privacy
