@@ -1,1 +1,1 @@
-Implement differential privacy and decentralized data storage solutions to further enhance data sharing security and user control
+Implementation of differential privacy and decentralized data storage to improve data security and user control
