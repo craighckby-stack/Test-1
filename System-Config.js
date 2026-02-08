@@ -1,1 +1,1 @@
-Decentralized Identity Management System secured with Quantum-Resistant Cryptography and Homomorphic Encryption
+Implement a self-sovereign identity management system with blockchain-based Quantum-Resistant Cryptography and secure multi-party computation
