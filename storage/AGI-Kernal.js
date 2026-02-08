@@ -1,1 +1,1 @@
-Expansion of Integrated Human-AI Collaboration Frameworks to Incorporate Emotive Intelligence and Empathetic Reasoning
+Implementation of Emotive Intelligence and Empathetic Reasoning in Human-AI Collaboration Frameworks
