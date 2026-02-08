@@ -1,1 +1,1 @@
-Integrate multimodal transfer learning with cognitive graph-based knowledge representation to facilitate more efficient and adaptive learning
+Integrate cognitive graph-based attention mechanisms with multimodal transfer learning to enhance adaptive learning capabilities
