@@ -1,1 +1,1 @@
-Evolution of Neuro-symbolic Reasoning towards Self-Modifying Cognitive Architectures
+Next-Generation Neuro-Symbolic Reasoning with Integrated Causal Learning and Transferable Knowledge Graphs
