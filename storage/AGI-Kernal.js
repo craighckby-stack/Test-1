@@ -1,1 +1,1 @@
-Integrate cognitive graph neural networks with attention mechanisms and meta-reinforcement learning
+Cognitive graph neural networks with attention mechanisms and meta-reinforcement learning
