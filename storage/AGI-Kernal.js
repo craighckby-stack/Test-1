@@ -1,1 +1,1 @@
-Hybrid cognitive architectures will leverage transfer learning and meta-learning to improve knowledge retention and adaptation capabilities, enabling more efficient learning and decision-making processes.
+Development of hybrid cognitive architectures with transfer learning and meta-learning capabilities
