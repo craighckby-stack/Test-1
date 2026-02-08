@@ -1,1 +1,1 @@
-Integration of transfer learning and meta-learning techniques to enhance the adaptability and generalizability of hybrid XAI frameworks
+Development of neuro-symbolic integration methods to fuse deep learning and symbolic AI for improved explainability and robustness in hybrid XAI frameworks
