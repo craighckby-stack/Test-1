@@ -1,1 +1,1 @@
-Implementation of attention mechanisms and graph neural networks to further enhance XAI techniques and provide more accurate explanations for complex decision-making processes
+Implementation of multimodal fusion techniques to combine explanations from attention mechanisms and graph neural networks, enabling more comprehensive and nuanced understanding of complex decision-making processes
