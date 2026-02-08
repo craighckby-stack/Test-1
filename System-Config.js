@@ -1,1 +1,1 @@
-Enhancement of federated learning architecture with edge computing capabilities to reduce latency and improve real-time model optimization
+Implementation of AI-driven network slicing for optimal resource allocation and dynamic edge computing management
