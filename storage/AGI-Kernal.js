@@ -1,1 +1,1 @@
-Implementation of Cognitive Graph Embeddings for Multimodal Fusion with Explainable AI
+Integration of Multimodal Fusion with Cognitive Graph Embeddings and Edge AI for Real-Time Processing
