@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption for secure data processing and zero-knowledge proof authentication
+Expansion of homomorphic encryption to support secure multi-party computation and differential privacy
