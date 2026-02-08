@@ -1,1 +1,1 @@
-Implementation of attention mechanisms to enhance the explainability of multimodal fusion models
+Expansion of attention mechanisms to incorporate temporal dynamics and cross-modal interactions
