@@ -1,1 +1,1 @@
-Integrate the updated IDDFS implementation with other graph traversal algorithms, such as Breadth-First Search (BFS) and Depth-First Search (DFS), to create a comprehensive graph search library.
+Integrate the IDDFS algorithm with a graph library to visualize the search process and demonstrate its efficiency in finding the shortest path in complex graphs.
