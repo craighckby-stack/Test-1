@@ -1,1 +1,1 @@
-Developing transparent AI frameworks with attention visualization
+Upgrading transparent AI frameworks with improved attention visualization for better explainability
