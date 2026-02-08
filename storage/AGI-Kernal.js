@@ -1,1 +1,1 @@
-Evolve multimodal learning to incorporate cognitive architectures for more human-like reasoning
+Integrate cognitive architectures with multimodal learning to achieve human-like reasoning
