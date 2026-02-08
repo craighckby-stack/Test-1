@@ -1,1 +1,1 @@
-Integration of chaos engineering for resilience testing and advanced security audits
+Implementation of automated Chaos Engineering as a Service (CEaaS) for continuous resilience testing and security auditing
