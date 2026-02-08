@@ -1,1 +1,1 @@
-Deployment of a secure multi-party computation protocol to enable privacy-preserving data analysis and machine learning model training
+Implementation of homomorphic encryption to further enhance the security and privacy of the multi-party computation protocol, enabling more robust and trustworthy data analysis and model training
