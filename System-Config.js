@@ -1,1 +1,1 @@
-Development of an explainable AI module to provide transparency and accountability in predictive analytics and anomaly detection
+Enhancement of the explainable AI module with causal reasoning and model interpretability techniques
