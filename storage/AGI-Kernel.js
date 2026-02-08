@@ -1,97 +1,7 @@
-This code appears to be well-structured and follows best practices for coding. However, here are a few potential improvements that can be made:
+The code you've posted appears to be well-organized and properly formatted. It adheres to best practices and has included improvements to the original code. Here are the optimized versions of the code you provided:
 
-### **Consistent Type Definitions**
-
-In `utils/api.js`, you define two interfaces: `GithubRequestOptions` and `CerebrasRequestOptions`. However, you don't define the type for `githubRequest` and `callCerebras` functions. You can define the return type as `Promise<object>` and also specify the type for the options parameter.
-
+**utils/api.js**
 ```javascript
-const githubRequest = async (options: GithubRequestOptions): Promise<object> => {
-  // ...
-};
-
-const callCerebras = async (options: CerebrasRequestOptions): Promise<object> => {
-  // ...
-};
-```
-
-### **Error Handling**
-
-In `utils/request.js`, you catch all errors and log them to the console. However, you can improve error handling by logging more specific error messages.
-
-```javascript
-catch (error) {
-  if (error instanceof TypeError) {
-    logger.error('TypeError: Invalid data type', error);
-  } else if (error instanceof SyntaxError) {
-    logger.error('SyntaxError: Invalid syntax', error);
-  } else if (error instanceof Error) {
-    logger.error('Error making request:', error);
-  } else {
-    logger.error('Unknown error:', error);
-  }
-  throw error;
-}
-```
-
-### **Input Validation**
-
-In `utils/api.js`, you don't validate the input options for `githubRequest` and `callCerebras` functions. You should add input validation to ensure that the required parameters are provided and have the correct type.
-
-```javascript
-const githubRequest = async (options: GithubRequestOptions): Promise<object> => {
-  if (!options.token || !options.repo || !options.path) {
-    throw new CustomError('Invalid GitHub request options', 400);
-  }
-
-  // ...
-};
-
-const callCerebras = async (options: CerebrasRequestOptions): Promise<object> => {
-  if (!options.cerebrasKey || !options.model || !options.prompt || !options.system) {
-    throw new CustomError('Invalid Cerebras request options', 400);
-  }
-
-  // ...
-};
-```
-
-### **Logger Class**
-
-In `utils/logger.js`, you define a `Logger` class with private properties. However, you can simplify the class by removing the private properties and using functions to log messages.
-
-```javascript
-const logger = {
-  log: (message: string) => console.log(message),
-  error: (message: string, error: Error) => console.error(message, error),
-  warn: (message: string) => console.warn(message),
-  debug: (message: string) => console.debug(message),
-};
-
-export { logger };
-```
-
-### **CustomError Class**
-
-In `utils/errors.js`, you define a `CustomError` class that extends the `Error` class. However, you can simplify the class by removing the constructor and using a function to create custom errors.
-
-```javascript
-const createCustomError = (message: string, status: number) => {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-};
-
-export { createCustomError };
-```
-
-By making these improvements, you can make the code more robust, maintainable, and efficient. 
-
-Here is the refactored code:
-
-#### utils/api.js
-
-```javascript
-// utils/api.js
 import { makeRequest } from './request';
 import { createCustomError } from './errors';
 import logger from './logger';
@@ -174,10 +84,8 @@ const callCerebras = async (options: CerebrasRequestOptions): Promise<object> =>
 export { githubRequest, callCerebras };
 ```
 
-#### utils/request.js
-
+**utils/request.js**
 ```javascript
-// utils/request.js
 import logger from './logger';
 
 const makeRequest = async (url: string, method: string = 'GET', body: object | null = null, headers: object = {}): Promise<object> => {
@@ -214,10 +122,8 @@ const makeRequest = async (url: string, method: string = 'GET', body: object | n
 export { makeRequest };
 ```
 
-#### utils/logger.js
-
+**utils/logger.js**
 ```javascript
-// utils/logger.js
 const logger = {
   log: (message: string) => console.log(message),
   error: (message: string, error: Error) => console.error(message, error),
@@ -228,10 +134,8 @@ const logger = {
 export { logger };
 ```
 
-#### utils/errors.js
-
+**utils/errors.js**
 ```javascript
-// utils/errors.js
 const createCustomError = (message: string, status: number) => {
   const error = new Error(message);
   error.status = status;
@@ -241,10 +145,8 @@ const createCustomError = (message: string, status: number) => {
 export { createCustomError };
 ```
 
-#### Example Usage
-
+**main.js**
 ```javascript
-// main.js
 import { githubRequest, callCerebras } from './utils/api';
 import logger from './utils/logger';
 
@@ -270,3 +172,27 @@ const main = async () => {
 };
 
 main();
+```
+
+Here are some general suggestions:
+
+* You may want to add some validation for the GitHub and Cerebras tokens to ensure they are in the correct format.
+* You could also add some error handling for cases where the GitHub or Cerebras APIs return unexpected responses.
+* You might want to consider using a more robust logging solution than just `console.log`.
+* You could also add some documentation to your code to explain what each function does and how to use it. 
+
+I hope these suggestions are helpful. Let me know if you have any other questions. 
+
+Also note that `createCustomError` function is not using `Error` class and instead is directly using a function. Consider extending `Error` class instead of function to get all error functionalities. Here is the improved code:
+```javascript
+class CustomError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+const createCustomError = (message: string, status: number) => {
+  return new CustomError(message, status);
+};
+
+export { createCustomError };
