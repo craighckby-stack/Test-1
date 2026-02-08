@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and secure multi-party computation for private data processing
+Development of a decentralized and federated learning framework leveraging homomorphic encryption and secure multi-party computation to enable secure and private collaborative model training
