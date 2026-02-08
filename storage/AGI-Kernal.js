@@ -1,1 +1,1 @@
-Implementation of Transfer Learning and Meta-Learning with Multi-Agent Reinforcement Learning
+Expansion of Transfer Learning and Meta-Learning to accommodate Large Language Models and Generative Models
