@@ -1,1 +1,1 @@
-Deployment of federated learning for secure and decentralized model training
+Federated learning deployment with blockchain-based security for tamper-proof model updates
