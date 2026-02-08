@@ -1,1 +1,1 @@
-Integrate cognitive architectures with multimodal interaction and attention mechanisms
+Integration of cognitive architectures with multimodal interaction and attention mechanisms
