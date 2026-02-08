@@ -1,1 +1,1 @@
-Exploration of Sparsity-Aware Neural Architecture Search and Post-Quantization Methods for Improved Edge AI Efficiency
+Development of Novel Sparsity-Aware Training Methods and Quantization-Aware Neural Architecture Search for Enhanced Edge AI Performance
