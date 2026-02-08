@@ -1,1 +1,1 @@
-Implemented a hybrid approach combining Iterative Deepening Depth-First Search (IDDFS) with heuristic functions like A* or Greedy Best-First Search to optimize node exploration. Utilized a set data structure for visited nodes and a priority queue for node selection.
+Hybrid IDDFS with A* and Greedy Best-First Search
