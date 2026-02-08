@@ -1,1 +1,1 @@
-Enhancing the blockchain-based identity verification system with a decentralized data storage solution and advanced cryptography techniques to ensure secure, transparent, and efficient data management
+Implementation of a decentralized data encryption protocol and a secure multi-party computation framework to further enhance data security and privacy
