@@ -1,1 +1,1 @@
-Development of hybrid cognitive architectures that seamlessly integrate meta-reasoning, explainable AI, and edge AI capabilities
+Integration of multimodal learning and neuro-symbolic reasoning to enhance hybrid cognitive architectures
