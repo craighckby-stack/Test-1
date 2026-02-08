@@ -1,1 +1,1 @@
-Investigation of Edge AI and Federated Learning for Real-Time Multimodal Fusion
+Integration of Multimodal Fusion with Explainable AI for Enhanced Real-Time Insights
