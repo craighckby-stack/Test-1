@@ -1,1 +1,1 @@
-Homomorphic encryption will be integrated with secure multi-party computation protocols to ensure robust and secure data processing
+Implementation of zero-knowledge proof protocols to further enhance data security and privacy
