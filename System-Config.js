@@ -1,1 +1,1 @@
-Integrating homomorphic encryption with secure multi-party computation protocols
+Homomorphic encryption will be integrated with secure multi-party computation protocols to ensure robust and secure data processing
