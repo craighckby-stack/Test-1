@@ -1,1 +1,1 @@
-Integration of blockchain-based identity management and secure multi-party computation for trusted AI model sharing and collaboration
+Implementation of homomorphic encryption and differential privacy techniques to further secure AI model sharing and collaboration
