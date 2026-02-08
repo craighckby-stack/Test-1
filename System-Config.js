@@ -1,1 +1,1 @@
-Enhanced secure multiparty computation with quantized homomorphic encryption for improved performance
+Implementation of zero-knowledge proof protocols for secure data sharing and verification
