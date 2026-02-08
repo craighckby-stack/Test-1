@@ -1,1 +1,1 @@
-Integrate Causal-Attention Mechanisms for Autonomous Edge Inference
+Integration of Edge AI with Causal-Attention Mechanisms
