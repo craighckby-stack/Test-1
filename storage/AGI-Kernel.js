@@ -1,19 +1,39 @@
-import React, { useState } from 'react';
+```javascript
+import React, { useState, useEffect } from 'react';
 import { GAX } from './gax';
 import { config } from './config';
 import { schema } from './schema';
+import { logger } from './logger';
+import { governance } from './governance';
 
 // Custom Hook to manage cycle status, logs, and execution
 const useCycle = () => {
     const [cycleStatus, setCycleStatus] = useState('Idle');
     const [cycleLogs, setCycleLogs] = useState([]);
     const [isExecuting, setIsExecuting] = useState(false);
+    const [constraints, setConstraints] = useState([]);
+    const [policies, setPolicies] = useState([]);
+
+    // Load constraints and policies from config and governance
+    useEffect(() => {
+        const loadConstraintsAndPolicies = async () => {
+            try {
+                const constraints = await config.getConstraints();
+                const policies = await governance.getPolicies();
+                setConstraints(constraints);
+                setPolicies(policies);
+            } catch (error) {
+                logger.error('Error loading constraints and policies:', error);
+            }
+        };
+        loadConstraintsAndPolicies();
+    }, []);
 
     // Function to execute the cycle asynchronously
     const executeCycle = async () => {
         // Check if cycle is already executing
         if (isExecuting) {
-            console.log('Cycle is already executing');
+            logger.warn('Cycle is already executing');
             return;
         }
 
@@ -43,9 +63,7 @@ const useCycle = () => {
 
     // Function to validate constraints
     const validateConstraints = async () => {
-        // Load constraints from config
-        const constraints = config.constraints;
-        // Validate constraints using GAX
+        // Use GAX to validate constraints
         const validationResults = await GAX.validateConstraints(constraints);
         // Check if validation was successful
         if (!validationResults.valid) {
@@ -76,3 +94,4 @@ const App = () => {
 };
 
 export default App;
+```
