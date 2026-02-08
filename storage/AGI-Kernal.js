@@ -1,1 +1,1 @@
-Implementation of hierarchical attention mechanisms for multi-modal context understanding
+Integrate hierarchical attention mechanisms with graph-based neural networks for improved context understanding
