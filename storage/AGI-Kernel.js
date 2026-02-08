@@ -1,5 +1,5 @@
 ```javascript
-// Updated useCycle hook with constraint validation framework
+// Updated useCycle hook with constraint optimization framework
 const useCycle = () => {
     const [cycleStatus, setCycleStatus] = useState('Idle');
     const [cycleLogs, setCycleLogs] = useState([]);
@@ -7,6 +7,7 @@ const useCycle = () => {
     const [constraints, setConstraints] = useState([]);
     const [policies, setPolicies] = useState([]);
     const [validationResults, setValidationResults] = useState({});
+    const [optimizationResults, setOptimizationResults] = useState({});
 
     // Load constraints and policies from config and governance
     useEffect(() => {
@@ -38,6 +39,8 @@ const useCycle = () => {
         try {
             // Validate constraints before executing the cycle
             await validateConstraints();
+            // Optimize constraints
+            await optimizeConstraints();
             // Simulate cycle execution with a 1-second delay
             await new Promise((resolve) => setTimeout(resolve, 1000));
             // Log successful execution
@@ -66,12 +69,20 @@ const useCycle = () => {
         setValidationResults(validationResults);
     };
 
+    // Function to optimize constraints
+    const optimizeConstraints = async () => {
+        // Use optimization engine to optimize constraints
+        const optimizationResults = await optimizationEngine.optimizeConstraints(constraints);
+        setOptimizationResults(optimizationResults);
+    };
+
     return {
         cycleStatus,
         cycleLogs,
         isExecuting,
         executeCycle,
-        validationResults
+        validationResults,
+        optimizationResults
     };
 };
 ```
