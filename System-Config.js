@@ -1,1 +1,1 @@
-Implementation of a decentralized data storage solution using interplanetary file systems (IPFS) to further enhance data security and availability
+Implementation of a homomorphic encryption protocol to enable secure computations on decentralized data
