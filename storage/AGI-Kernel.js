@@ -1,18 +1,12 @@
 ```javascript
-import React, { useState, useEffect } from 'react';
-import { GAX } from './gax';
-import { config } from './config';
-import { schema } from './schema';
-import { logger } from './logger';
-import { governance } from './governance';
-
-// Custom Hook to manage cycle status, logs, and execution
+// Updated useCycle hook with constraint validation framework
 const useCycle = () => {
     const [cycleStatus, setCycleStatus] = useState('Idle');
     const [cycleLogs, setCycleLogs] = useState([]);
     const [isExecuting, setIsExecuting] = useState(false);
     const [constraints, setConstraints] = useState([]);
     const [policies, setPolicies] = useState([]);
+    const [validationResults, setValidationResults] = useState({});
 
     // Load constraints and policies from config and governance
     useEffect(() => {
@@ -69,29 +63,15 @@ const useCycle = () => {
         if (!validationResults.valid) {
             throw new Error('Constraint validation failed');
         }
+        setValidationResults(validationResults);
     };
 
-    return { cycleStatus, cycleLogs, isExecuting, executeCycle };
+    return {
+        cycleStatus,
+        cycleLogs,
+        isExecuting,
+        executeCycle,
+        validationResults
+    };
 };
-
-// Example usage
-const App = () => {
-    const { cycleStatus, cycleLogs, isExecuting, executeCycle } = useCycle();
-
-    return (
-        <div>
-            <h1>Cycle Status: {cycleStatus}</h1>
-            <button disabled={isExecuting} onClick={executeCycle}>
-                {isExecuting ? 'Executing...' : 'Execute Cycle'}
-            </button>
-            <ul>
-                {cycleLogs.map((log, index) => (
-                    <li key={index}>{log}</li>
-                ))}
-            </ul>
-        </div>
-    );
-};
-
-export default App;
 ```
