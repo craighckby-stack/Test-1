@@ -1,1 +1,1 @@
-Expansion of multimodal fusion to incorporate emotional intelligence and social cognition, enabling the cognitive architecture to better understand human behavior and decision-making processes
+Implementation of Explainable AI (XAI) techniques to provide transparency and interpretability in decision-making processes, enabling the cognitive architecture to generate explanations for its actions and recommendations
