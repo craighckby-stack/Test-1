@@ -1,1 +1,1 @@
-Autonomous Edge AI Systems with Integrated Human-in-the-Loop Explainability and Real-time Adaptive Feedback
+Advancements in Explainable Edge AI with Real-time Human-in-the-Loop Feedback and Autonomous Decision-Making
