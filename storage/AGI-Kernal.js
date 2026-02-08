@@ -1,1 +1,1 @@
-Integration of Transfer Learning and Meta-Learning for Adaptive Cognitive Graph Neural Networks
+Hybrid Cognitive Graph Neural Networks with integrated transfer learning and meta-learning for adaptive reasoning and decision-making
