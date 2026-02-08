@@ -10,11 +10,6 @@ import {
   Activity, Shield, Zap, Brain, Terminal, Layers, Power, AlertTriangle, Scale, BookOpen, Search, Gavel, CheckCircle, XCircle, Code
 } from 'lucide-react';
 
-/**
- * SOVEREIGN AGI KERNEL V4.7 - CONSTITUTIONAL PATCH
- * Fixed: Proposer Governance Blindness, Arbiter Diff context, Syntax Validation, Objective Rotation.
- */
-
 const GOVERNED_OBJECTIVES = [
   "Add JSDoc comment to arbitrateMutation explaining the dual-agent constitutional model.",
   "Refine the dashboard UI border-white/5 to border-white/10 for increased visual definition.",
@@ -37,19 +32,28 @@ const INITIAL_STATE = {
   config: { token: '', repo: '', kernelPath: '', interval: 60000, cerebrasKey: '', model: 'llama3.1-70b' }
 };
 
-function reducer(state, action) {
+const reducer = (state, action) => {
   switch (action.type) {
-    case 'BOOT': return { ...state, isBooted: true, config: { ...state.config, ...action.config } };
-    case 'SET_LIVE': return { ...state, isLive: action.value };
-    case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
-    case 'LOG_UPDATE': return { ...state, logs: action.logs };
-    case 'GO_ARBITRATE': return { ...state, arbitrationResult: action.data };
-    case 'GOV_LOADED': return { ...state, governance: action.data };
-    case 'INCREMENT_CYCLE': return { ...state, cycleCount: state.cycleCount + 1, health: Math.max(0, state.health - (action.decay || 0)) };
-    case 'SET_TAB': return { ...state, activeTab: action.tab };
-    default: return state;
+    case 'BOOT': 
+      return { ...state, isBooted: true, config: { ...state.config, ...action.config } };
+    case 'SET_LIVE': 
+      return { ...state, isLive: action.value };
+    case 'SET_STATUS': 
+      return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
+    case 'LOG_UPDATE': 
+      return { ...state, logs: action.logs };
+    case 'GO_ARBITRATE': 
+      return { ...state, arbitrationResult: action.data };
+    case 'GOV_LOADED': 
+      return { ...state, governance: action.data };
+    case 'INCREMENT_CYCLE': 
+      return { ...state, cycleCount: state.cycleCount + 1, health: Math.max(0, state.health - (action.decay || 0)) };
+    case 'SET_TAB': 
+      return { ...state, activeTab: action.tab };
+    default: 
+      return state;
   }
-}
+};
 
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "fallback" };
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -141,7 +145,6 @@ export default function App() {
 
   const validateKernelSource = (code) => {
     try {
-      // Basic syntax check by stripping imports and trying to construct a function
       new Function(code.replace(/import\s+.*\s+from\s+['"].*['"];?/g, ''));
       if (!code.includes('export default')) return { valid: false, error: 'Missing export default component' };
       if (!code.includes('useReducer')) return { valid: false, error: 'State management mechanism (useReducer) stripped' };
@@ -207,7 +210,6 @@ Return a JSON object exactly:
       const objective = GOVERNED_OBJECTIVES[cur.cycleCount % GOVERNED_OBJECTIVES.length];
       const govContext = gov.priorityFiles.map(f => `[${f.path}]:\n${f.content.substring(0, 500)}`).join('\n\n');
 
-      // PROPOSER PHASE
       dispatch({ type: 'SET_STATUS', value: 'PROPOSING', objective: `Task: ${objective}` });
       const proposerPrompt = `
 GOVERNANCE LAWSET:
@@ -226,7 +228,6 @@ Return ONLY the complete, valid source code.
       const newSourceRaw = await callCerebras(proposerPrompt, "You are an AGI Proposer Agent. You must respect the Lawset provided.");
       const newSource = newSourceRaw.replace(/```[a-z]*\n?|```/g, '').trim();
 
-      // ARBITRATOR PHASE
       const verdict = await arbitrateMutation(currentSource, newSource, gov);
       
       if (!verdict.approved) {
@@ -235,7 +236,6 @@ Return ONLY the complete, valid source code.
         return;
       }
 
-      // SYNTAX VALIDATION PHASE
       const syntaxCheck = validateKernelSource(newSource);
       if (!syntaxCheck.valid) {
         await pushLog(`SYNTAX VETO: ${syntaxCheck.error}`, 'error');
@@ -245,7 +245,6 @@ Return ONLY the complete, valid source code.
 
       await pushLog(`ARBITER APPROVED: ${verdict.reasoning}`, 'success');
 
-      // DEPLOY PHASE
       const branchName = `gsim-evo-v4-7-${cur.cycleCount}-${Date.now().toString().slice(-4)}`;
       const main = await githubRequest('/git/ref/heads/main');
       await githubRequest('/git/refs', 'POST', { ref: `refs/heads/${branchName}`, sha: main.object.sha });
@@ -439,4 +438,3 @@ Return ONLY the complete, valid source code.
     </div>
   );
 }
-
