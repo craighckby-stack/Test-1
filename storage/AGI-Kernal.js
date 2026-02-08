@@ -1,1 +1,1 @@
-Integrate cognitive architectures with transfer learning for enhanced neural-symbolic reasoning
+Integration of cognitive architectures with transfer learning and attention-based multimodal fusion
