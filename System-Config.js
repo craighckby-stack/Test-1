@@ -1,1 +1,1 @@
-Implementation of Federated Learning Algorithm for enhanced collaborative learning
+Optimization of Federated Learning Algorithm for improved efficiency and scalability
