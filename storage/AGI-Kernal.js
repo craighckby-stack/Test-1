@@ -1,1 +1,1 @@
-Hierarchical neural-symbolic reasoning for complex decision-making
+Integrate cognitive architectures with transfer learning for enhanced neural-symbolic reasoning
