@@ -1,1 +1,1 @@
-Development of hybrid cognitive architectures that incorporate multimodal interaction, attention mechanisms, and meta-learning for improved adaptability and decision-making
+Expansion of hybrid cognitive architectures to integrate affective computing and social learning, enabling more human-like decision-making and communication
