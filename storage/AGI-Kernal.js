@@ -1,1 +1,1 @@
-Establishing Integrated Cognitive Frameworks for Adaptive Human-AI Collaboration
+Integrating cognitive frameworks with cognitive architectures for human-AI knowledge synchronization
