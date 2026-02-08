@@ -1,1 +1,1 @@
-Integrate cognitive architectures with edge AI for personalized human-computer interaction
+Integration with Neurosymbolic AI for Hybrid Reasoning
