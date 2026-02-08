@@ -32,7 +32,7 @@ function debounce(func, wait) {
             timeoutId = null;
             if (isExecuting) {
                 needsRerun = true;
-                return; 
+                return;
             }
             
             isExecuting = true;
@@ -1022,7 +1022,7 @@ export default function App() {
       const targetCode = safeAtou(targetData.content);
       const kernelCode = safeAtou(kernelData.content);
 
-      dispatch({ type: 'SET_STATUS', value: 'EVOLVING', objective: 'Merging Metric Framework...' });
+      dispatch({ type: 'EVOLVING', objective: 'Merging Metric Framework...' });
       const evolution = await executeEvolution(targetCode, kernelCode);
 
       // Verify that evolution actually contains kernel logic before pushing
