@@ -1,1 +1,1 @@
-Integration of zero-knowledge proof protocols for enhanced security and authentication
+Deployment of homomorphic encryption for secure data processing and zero-knowledge proof authentication
