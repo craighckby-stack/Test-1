@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption techniques to enable secure data processing and analysis, while maintaining the confidentiality and integrity of sensitive information
+Deployment of federated learning techniques to facilitate secure and decentralized data sharing and model training
