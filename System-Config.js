@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption for secure data sharing
+Implementation of secure multi-party computation for enhanced data collaboration
