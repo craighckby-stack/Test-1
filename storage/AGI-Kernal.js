@@ -1,1 +1,1 @@
-Integration of cognitive architectures with multimodal fusion techniques to enable more robust human-AI collaboration
+Evolve cognitive architectures to incorporate transfer learning and meta-learning for enhanced adaptability and knowledge sharing across human-AI collaborative tasks
