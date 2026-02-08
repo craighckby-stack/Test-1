@@ -1,1 +1,1 @@
-Investigation of graph attention network architectures with transfer learning and meta-learning for multimodal data
+Expansion of graph attention network architectures to incorporate multimodal fusion techniques and attention mechanism analysis for improved performance on complex datasets
