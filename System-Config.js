@@ -1,1 +1,1 @@
-Implementation of differential privacy and secure multi-party computation techniques for enhanced security and privacy
+Deployment of homomorphic encryption and federated learning techniques for secure data collaboration
