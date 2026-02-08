@@ -1,1 +1,1 @@
-Integration of multimodal fusion with Edge AI and Explainable AI to enable real-time adaptive learning
+Integration of transfer learning and meta-learning to enhance real-time adaptive learning capabilities
