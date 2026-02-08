@@ -1,1 +1,1 @@
-Integration of multimodal fusion and cognitive architectures to enable more robust and flexible neuro-symbolic reasoning
+Introduction of cognitive graph neural networks for multiscale reasoning and integration with edge AI
