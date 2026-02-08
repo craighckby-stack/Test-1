@@ -1,1 +1,1 @@
-Implementation of a decentralized identity management system to enhance user privacy and security, and integration of a decentralized oracle service to provide secure and reliable data feeds
+Expansion of the decentralized identity management system to support secure, decentralized data storage and integration of a reputation system to promote trustworthy interactions
