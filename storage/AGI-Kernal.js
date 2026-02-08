@@ -1,1 +1,1 @@
-Integration of cognitive architectures with multimodal interaction and attention mechanisms
+Development of hybrid cognitive architectures that incorporate multimodal interaction, attention mechanisms, and meta-learning for improved adaptability and decision-making
