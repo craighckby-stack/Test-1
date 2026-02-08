@@ -1,1 +1,1 @@
-Expansion of the decentralized data encryption protocol to include secure data sharing and access control mechanisms, ensuring that sensitive information is protected while maintaining the integrity of the system
+Implementation of a blockchain-based access control system to further secure data sharing and ensure the integrity of the decentralized data encryption protocol
