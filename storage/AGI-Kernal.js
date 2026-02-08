@@ -1,1 +1,1 @@
-Development of multimodal fusion models with focus on attention mechanisms and graph-based explanations
+Development of multimodal fusion models with advanced attention mechanisms and graph-based explanations, incorporating cognitive architectures
