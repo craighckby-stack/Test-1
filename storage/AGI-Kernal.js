@@ -1,1 +1,1 @@
-Integrate cognitive architectures with multimodal learning for human-like reasoning
+Integrate cognitive architectures with multimodal learning and edge-based reasoning for human-like decision making
