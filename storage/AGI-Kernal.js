@@ -1,1 +1,1 @@
-Multimodal fusion and transfer learning advancements
+Integrate cognitive architectures for human-AI collaboration
