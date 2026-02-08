@@ -1,1 +1,1 @@
-Expansion of multimodal fusion with meta-learning to include few-shot learning and adversarial training
+Multimodal fusion with meta-learning expansion to include transfer learning and ensemble methods
