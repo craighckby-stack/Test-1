@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enhance Hybrid Cognitive Graph Neural Networks with multiscale and multiresolution analysis for improved adaptive reasoning and decision-making
+Evolution of Hybrid Cognitive Graph Neural Networks to incorporate Explainable AI and transparent decision-making frameworks, leveraging the learned benefits of multimodal fusion and multiscale analysis
