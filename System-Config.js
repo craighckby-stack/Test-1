@@ -1,1 +1,1 @@
-Implementing attention mechanisms for transparent decision-making processes
+Enhancing attention mechanisms with explainability techniques for more transparent decision-making processes
