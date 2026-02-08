@@ -1,1 +1,1 @@
-Development of hybrid XAI frameworks integrating cognitive architectures, multimodal fusion, and attention mechanisms to provide more accurate and transparent model interpretability
+Integration of transfer learning and meta-learning techniques to enhance the adaptability and generalizability of hybrid XAI frameworks
