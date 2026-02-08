@@ -1,1 +1,1 @@
-Expand Edge Computing and IoT integration to include Federated Learning and Secure Multi-Party Computation, bolstering Decentralized Identity Management System security and efficiency
+Implement Quantum-Resistant Cryptography and Homomorphic Encryption to further secure Decentralized Identity Management System and enable computations on encrypted data
