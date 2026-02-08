@@ -1,1 +1,1 @@
-Expansion of multimodal explainability techniques to include human-in-the-loop feedback mechanisms for improved model accuracy and trust
+Integrate multimodal explainability techniques with human-in-the-loop feedback mechanisms to enhance model accuracy and trust
