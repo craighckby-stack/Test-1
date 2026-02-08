@@ -1,1 +1,1 @@
-Deployment of differential privacy and secure multi-party computation protocols to further bolster data protection in decentralized networks
+Implementation of homomorphic encryption and federated learning protocols to enable secure and decentralized collaboration in AI model training
