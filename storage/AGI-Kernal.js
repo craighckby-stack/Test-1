@@ -1,1 +1,1 @@
-Integrating cognitive attention with graph-based neural networks for real-time hybrid reasoning
+Implementation of attention-based neural networks enhanced with cognitive architectures for improved hybrid reasoning capabilities
