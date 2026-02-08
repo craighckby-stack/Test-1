@@ -1,1 +1,1 @@
-Expansion of zero-trust security to include advanced threat detection using AI-powered predictive analytics
+Implementation of a holistic security orchestration framework to streamline threat detection and response across the zero-trust security architecture
