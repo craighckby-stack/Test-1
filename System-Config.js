@@ -1,1 +1,1 @@
-Integration of Edge Computing and IoT devices to enhance the Decentralized Identity Management System
+Expand Edge Computing and IoT integration to include Federated Learning and Secure Multi-Party Computation, bolstering Decentralized Identity Management System security and efficiency
