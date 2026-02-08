@@ -1,1 +1,1 @@
-Implementation of attention-based mechanisms to improve the accuracy of graph-based neural networks in modeling complex temporal dynamics and cross-modal interactions
+Integration of multimodal fusion techniques to enhance the attention-based mechanisms, allowing for more accurate modeling of complex temporal dynamics and cross-modal interactions
