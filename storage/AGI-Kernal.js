@@ -1,1 +1,1 @@
-Integrate multimodal interaction capabilities with Explainable AI (XAI) to enhance transparency and trust in human-computer collaboration
+Integrate multimodal interaction with XAI for transparent human-computer collaboration
