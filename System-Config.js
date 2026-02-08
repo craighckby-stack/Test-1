@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and federated learning protocols to enable secure and decentralized collaboration in AI model training
+Integration of differential privacy and secure multi-party computation techniques to further bolster the security and privacy of AI model training protocols
