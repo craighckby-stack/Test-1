@@ -1,1 +1,1 @@
-Integration of transfer learning for expedited neural network development
+Expansion of transfer learning capabilities to accommodate multimodal data
