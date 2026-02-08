@@ -1,1 +1,1 @@
-Integration of neuro-symbolic integration methods with Explainable AI (XAI) for transparent decision-making
+Implementation of cognitive architectures to enhance neuro-symbolic integration with XAI, enabling more comprehensive and transparent decision-making.
