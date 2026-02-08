@@ -1,1 +1,1 @@
-Integration of Explainable AI (XAI) techniques with homomorphic encryption for transparent and secure data processing, and expansion of federated learning to support multi-party computation
+Implement secure multiparty computation protocols and differential privacy techniques to further enhance the security and transparency of federated learning and XAI systems
