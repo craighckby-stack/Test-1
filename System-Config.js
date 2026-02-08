@@ -1,1 +1,1 @@
-Implementation of Adaptive Control Algorithms for Real-Time Decision-Making
+Enhancement of Real-Time Decision-Making with Edge AI and IoT
