@@ -1,1 +1,1 @@
-Deploy zero-trust architecture with advanced threat detection and response
+Zero-trust architecture deployment with advanced threat detection and response
