@@ -1,1 +1,1 @@
-Implementation of fully homomorphic encryption for secure data aggregation and analysis
+Deployment of a secure multi-party computation protocol to enable privacy-preserving data analysis and machine learning model training
