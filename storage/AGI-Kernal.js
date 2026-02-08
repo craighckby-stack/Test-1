@@ -1,1 +1,1 @@
-Integration of causal learning and graph neural networks for enhanced meta-reasoning
+ Enhancement of meta-reasoning capabilities through the fusion of causal learning and graph neural networks
