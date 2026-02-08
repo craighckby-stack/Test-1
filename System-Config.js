@@ -1,1 +1,1 @@
-Developing transparent and explainable AI models using techniques such as model-agnostic interpretability and edge AI systems with real-time feedback
+Explainable AI models with real-time feedback
