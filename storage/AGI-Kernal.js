@@ -1,1 +1,1 @@
-Integration of neurosymbolic reasoning and transfer learning to enhance cognitive attention mechanisms
+Advanced integration of cognitive attention mechanisms with multimodal fusion for enhanced decision-making
