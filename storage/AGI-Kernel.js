@@ -3,6 +3,8 @@
 class Optimizer:
     def __init__(self):
         self.cache = {}
+        self.max_cache_size = 1000  # Maximum cache size
+        self.cache_count = 0  # Current cache count
 
     def optimize_logic(self, user_input: str) -> str:
         try:
@@ -13,9 +15,8 @@ class Optimizer:
                 return self.cache[user_input]
 
             result = self._process_input(user_input)
-            self.cache[user_input] = result
+            self._add_to_cache(user_input, result)
             return result
-
         except Exception as e:
             print(f"An error occurred: {str(e)}")
             return None
@@ -23,4 +24,13 @@ class Optimizer:
     def _process_input(self, user_input: str) -> str:
         # Example: Just return the input for demonstration
         return user_input
+
+    def _add_to_cache(self, key: str, value: str):
+        if self.cache_count < self.max_cache_size:
+            self.cache[key] = value
+            self.cache_count += 1
+        else:
+            # Remove the oldest item from the cache before adding a new one
+            self.cache.pop(next(iter(self.cache)))
+            self.cache[key] = value
 ``
