@@ -1,1 +1,1 @@
-Development of an Explainable AI framework for Hybrid Cognitive Graph Neural Networks, integrating transparent decision-making and multimodal fusion capabilities
+Expansion of Explainable AI framework to incorporate attention mechanisms and graph attention networks for enhanced interpretability and decision-making transparency
