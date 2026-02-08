@@ -1,1 +1,1 @@
-Enhance autonomous decision-making with multimodal sensing and real-time feedback adjustment
+Implementation of Adaptive Control Algorithms for Real-Time Decision-Making
