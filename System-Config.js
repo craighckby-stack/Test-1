@@ -1,1 +1,1 @@
-Expand the service mesh to include edge computing capabilities, ensuring secure, scalable, and efficient data processing and analytics across the entire architecture
+Expand service mesh to include edge computing capabilities
