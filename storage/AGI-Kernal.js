@@ -1,1 +1,1 @@
-Enhancing attention mechanisms with multimodal learning capabilities
+Integration of cognitive architectures to facilitate human-AI collaboration
