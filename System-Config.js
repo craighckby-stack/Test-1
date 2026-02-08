@@ -1,1 +1,1 @@
-Implement secure multi-party computation protocols to enable private and decentralized knowledge sharing
+Implement secure multi-party computation protocols
