@@ -1,1 +1,1 @@
-Advanced node embedding techniques will be developed to unify graph neural network frameworks, incorporating both structural and attribute information
+Development of explainable graph neural networks to provide insights into node embedding techniques
