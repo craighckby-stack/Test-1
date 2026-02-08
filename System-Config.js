@@ -1,1 +1,1 @@
-Implementation of a blockchain-based access control system to further secure data sharing and ensure the integrity of the decentralized data encryption protocol
+Implementation of a machine learning-based intrusion detection system to enhance the security of the blockchain-based access control system and protect against emerging threats
