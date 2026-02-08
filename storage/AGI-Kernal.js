@@ -1,1 +1,1 @@
-Hybrid IDDFS with A* and Greedy Best-First Search optimized for concurrent TTS, Image Gen, and Search tasks
+Integration of Reinforcement Learning to enhance task scheduling and resource allocation
