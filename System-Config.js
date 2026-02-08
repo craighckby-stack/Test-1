@@ -1,1 +1,1 @@
-Advancements in Explainable Edge AI with Enhanced Real-time Human-in-the-Loop Feedback and Autonomous Decision-Making with Adaptive Causal Reasoning
+Implementation of Explainable Edge AI with Real-time Human-in-the-Loop Feedback and Autonomous Decision-Making using Adaptive Causal Reasoning and Transfer Learning
