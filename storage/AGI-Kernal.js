@@ -1,1 +1,1 @@
-Development of neuro-symbolic integration methods to fuse deep learning and symbolic AI for improved explainability and robustness in hybrid XAI frameworks
+Advancement of neuro-symbolic integration methods to incorporate multimodal reasoning and meta-learning capabilities for enhanced hybrid XAI framework adaptability
