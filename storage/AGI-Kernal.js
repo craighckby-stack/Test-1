@@ -1,1 +1,1 @@
-Introduction of cognitive graph neural networks for multiscale reasoning and integration with edge AI
+Implementation of transfer learning and meta-learning to enhance cognitive graph neural networks for improved multiscale reasoning and edge AI integration
