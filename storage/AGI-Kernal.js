@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enhance explainability and incorporate human-in-the-loop feedback
+Development of transparent and interpretable multimodal fusion models to provide insights into decision-making processes
