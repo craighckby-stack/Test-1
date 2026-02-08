@@ -1,1 +1,1 @@
-Development of Novel Sparsity-Aware Training Methods and Quantization-Aware Neural Architecture Search for Enhanced Edge AI Performance
+Implementation of Federated Learning and Differential Privacy to Ensure Secure and Distributed Edge AI Deployment
