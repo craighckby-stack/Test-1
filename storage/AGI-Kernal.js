@@ -1,1 +1,1 @@
-Integrate attention mechanisms with multimodal fusion models to improve interpretability and transparency
+Integrate multimodal fusion models with graph neural networks to analyze complex relationships and improve predictive accuracy
