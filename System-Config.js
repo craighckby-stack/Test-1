@@ -1,1 +1,1 @@
-Developing more advanced relational learning techniques that incorporate multimodal attention mechanisms and probabilistic reasoning to improve knowledge graph representation and predictive accuracy
+Incorporating advanced symbolic reasoning and multimodal fusion techniques to enhance knowledge graph representation and predictive accuracy
