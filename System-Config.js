@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and secure multiparty computation for improved data privacy and security in federated learning
+Integrate differential privacy and zero-knowledge proofs with homomorphic encryption to further enhance data security and protection in federated learning environments
