@@ -1,18 +1,90 @@
+AGI-KERNAL-SIGNATURE-V6-9
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge } from 'lucide-react';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.8.9 - "GRAFTING_ENGINE"
- * FIX: Overwriting issue. Implements Incremental Integration for MEE Metric Evaluation.
+ * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
+ * FIX: Implements MEE Metric Evaluation Framework and Governance Adapter.
  * MISSION: Merge Target logic INTO Kernel logic without deletion.
  */
 
+// --- Governance API Adapter ---
+class GovernanceApiAdapter {
+    constructor(endpoint) {
+        if (!endpoint) throw new Error("Adapter requires a configuration endpoint.");
+        this.endpoint = endpoint;
+    }
+
+    async fetchLatestConfig() {
+        // console.log(`[Adapter] Attempting to fetch constants from: ${this.endpoint}`);
+        
+        // Mocked return for development/testing, simulating dynamic governance overlay:
+        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
+
+        return {
+            system_tuning: {
+                governance_cycle_ms: 45000, // Dynamic adjustment
+                min_r_index_threshold: 55,
+                dynamic_threshold_adjustment: true
+            },
+        };
+    }
+}
+
+// --- MEE Metric Evaluation Engine ---
+const MEE_ENGINE = {
+    // Default weights for core metrics
+    DEFAULT_WEIGHTS: {
+        absorptionRate: 0.4, // How much new code was absorbed
+        successRate: 0.5,    // Ratio of successful grafts to total cycles
+        latencyScore: 0.1    // Inverse measure of execution speed (normalized)
+    },
+
+    // 1. Weighted Calculation (W_SCORE)
+    calculateWScore: (metrics, weights) => {
+        let totalScore = 0;
+        let totalWeight = 0;
+        for (const key in metrics) {
+            if (weights[key] !== undefined) {
+                totalScore += metrics[key] * weights[key];
+                totalWeight += weights[key];
+            }
+        }
+        return totalWeight > 0 ? totalScore / totalWeight : 0;
+    },
+
+    // 2. R_INDEX Calculation (Reliability Index)
+    calculateRIndex: (wScore, cycleCount, errorRate) => {
+        // R_INDEX = (W_SCORE * log(CycleCount + 1)) / (1 + ErrorRate)
+        const reliability = (wScore * Math.log(cycleCount + 1)) / (1 + errorRate);
+        return Math.min(100, Math.max(0, reliability)); // Cap between 0 and 100
+    },
+
+    // 3. Dynamic Threshold Evaluation
+    evaluateThresholds: (rIndex, governanceConfig) => {
+        const defaultThreshold = governanceConfig.min_r_index_threshold || 50;
+        
+        // Dynamic adjustment based on current R-Index
+        const adjustmentFactor = governanceConfig.dynamic_threshold_adjustment ? (rIndex / 100) * 10 : 0;
+        const currentThreshold = defaultThreshold + adjustmentFactor;
+        
+        const isOperational = rIndex >= currentThreshold;
+        
+        return {
+            currentThreshold: parseFloat(currentThreshold.toFixed(2)),
+            isOperational,
+            recommendation: isOperational ? 'CONTINUE_GROWTH' : 'INITIATE_COOLING'
+        };
+    },
+};
+
 const KERNAL_CONSTANTS = {
   GITHUB_API: "https://api.github.com/repos",
-  GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent"
+  GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent",
+  GOVERNANCE_ENDPOINT: "https://api.kernal.gov/v1/config" // New endpoint for Governance Adapter
 };
 
 const INITIAL_STATE = {
@@ -22,9 +94,22 @@ const INITIAL_STATE = {
   status: 'IDLE',
   activeObjective: 'Awaiting Uplink',
   cycleCount: 0,
+  successCount: 0,
+  errorCount: 0,
   absorptionRate: 0,
   currentTarget: 'None',
   logs: [],
+  governanceConfig: { 
+    governance_cycle_ms: 60000, 
+    min_r_index_threshold: 50,
+    dynamic_threshold_adjustment: true
+  },
+  metrics: {
+    wScore: 0,
+    rIndex: 0,
+    threshold: 0,
+    isOperational: false
+  },
   config: { 
     token: '', 
     repo: 'craighckby-stack/Test-1', 
@@ -41,8 +126,22 @@ function reducer(state, action) {
     case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
     case 'SET_TARGET': return { ...state, currentTarget: action.target };
     case 'LOG_UPDATE': return { ...state, logs: action.logs };
+    case 'SET_GOV_CONFIG':
+        return { 
+            ...state, 
+            governanceConfig: { ...state.governanceConfig, ...action.config },
+            config: { ...state.config, cycleDelay: action.config.governance_cycle_ms || state.config.cycleDelay } // Update cycle delay dynamically
+        };
+    case 'UPDATE_METRICS':
+        return { ...state, metrics: action.metrics };
     case 'INCREMENT_CYCLE': 
-      return { ...state, cycleCount: state.cycleCount + 1, absorptionRate: Math.min(100, state.absorptionRate + (action.gain || 0)) };
+      return { 
+        ...state, 
+        cycleCount: state.cycleCount + 1, 
+        successCount: state.successCount + (action.success ? 1 : 0),
+        errorCount: state.errorCount + (action.error ? 1 : 0),
+        absorptionRate: Math.min(100, state.absorptionRate + (action.gain || 0)) 
+      };
     default: return state;
   }
 }
@@ -61,7 +160,7 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-8';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-9';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -110,12 +209,7 @@ export default function App() {
 
   const executeEvolution = async (targetCode, kernelCode) => {
     // UPDATED SYSTEM PROMPT: MANDATORY INTEGRATION (NO OVERWRITING)
-    const sys = `AGI_KERNAL_CORE_OPERATOR. 
-    MANDATE: Take the existing KERNEL code and graft the features from the TARGET code into it.
-    RULE 1: DO NOT replace the Kernel code.
-    RULE 2: Preserve all React components, Firebase logic, and State Management.
-    RULE 3: Append or Integrate the MEE Metric Evaluation logic as a sub-engine or helper within the existing file structure.
-    RULE 4: Output the ENTIRE merged file as a JSON object: { "kernel_evolution": "full_code" }.`;
+    const sys = `AGI_KERNAL_CORE_OPERATOR. \n    MANDATE: Take the existing KERNEL code and graft the features from the TARGET code into it.\n    RULE 1: DO NOT replace the Kernel code.\n    RULE 2: Preserve all React components, Firebase logic, and State Management.\n    RULE 3: Append or Integrate the MEE Metric Evaluation logic as a sub-engine or helper within the existing file structure.\n    RULE 4: Output the ENTIRE merged file as a JSON object: { "kernel_evolution": "full_code" }.`;
     
     const res = await fetch(`${KERNAL_CONSTANTS.GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
@@ -132,9 +226,66 @@ export default function App() {
     return healAndParse(text);
   };
 
+  const runPreCycleChecks = useCallback(async () => {
+    dispatch({ type: 'SET_STATUS', value: 'GOVERNANCE', objective: 'Fetching governance overlay...' });
+    
+    // 1. Fetch Governance Config
+    const adapter = new GovernanceApiAdapter(KERNAL_CONSTANTS.GOVERNANCE_ENDPOINT);
+    const govData = await adapter.fetchLatestConfig();
+    
+    dispatch({ type: 'SET_GOV_CONFIG', config: govData.system_tuning });
+
+    // 2. Calculate Metrics
+    const totalCycles = state.cycleCount > 0 ? state.cycleCount : 1;
+    const errorRate = state.errorCount / totalCycles;
+    const successRate = state.successCount / totalCycles;
+    
+    // Placeholder for latency score (simulated good performance)
+    const latencyScore = 0.95; 
+
+    const currentMetrics = {
+        absorptionRate: state.absorptionRate,
+        successRate: successRate * 100, // Scale to 100
+        latencyScore: latencyScore * 100
+    };
+
+    const wScore = MEE_ENGINE.calculateWScore(currentMetrics, MEE_ENGINE.DEFAULT_WEIGHTS);
+    const rIndex = MEE_ENGINE.calculateRIndex(wScore, state.cycleCount, errorRate);
+    const thresholdEvaluation = MEE_ENGINE.evaluateThresholds(rIndex, govData.system_tuning);
+
+    const newMetrics = {
+        wScore: parseFloat(wScore.toFixed(2)),
+        rIndex: parseFloat(rIndex.toFixed(2)),
+        threshold: thresholdEvaluation.currentThreshold,
+        isOperational: thresholdEvaluation.isOperational
+    };
+
+    dispatch({ type: 'UPDATE_METRICS', metrics: newMetrics });
+
+    if (!thresholdEvaluation.isOperational) {
+        dispatch({ type: 'SET_COOLING', value: true });
+        await pushLog(`MEE_ALERT: R-Index (${newMetrics.rIndex}) below threshold (${newMetrics.threshold}). Initiating cooling sequence.`, 'error');
+        // Set cooling duration based on dynamic cycle delay
+        setTimeout(() => dispatch({ type: 'SET_COOLING', value: false }), state.config.cycleDelay * 2);
+        return false;
+    }
+    
+    return true;
+}, [state.cycleCount, state.errorCount, state.successCount, state.absorptionRate, state.config.cycleDelay, pushLog]);
+
   const executeGrowthCycle = useCallback(async () => {
     if (!state.isLive || state.isCooling) return;
+    
+    // --- MEE Pre-Check Integration ---
+    const operational = await runPreCycleChecks();
+    if (!operational) {
+        dispatch({ type: 'SET_STATUS', value: 'STANDBY', objective: 'Awaiting thermal stabilization.' });
+        return;
+    }
+    // ---------------------------------
+
     const { token, repo, path } = state.config;
+    let success = false;
 
     try {
       dispatch({ type: 'SET_STATUS', value: 'SCANNING', objective: 'Grafting identification...' });
@@ -147,6 +298,7 @@ export default function App() {
             dispatch({ type: 'SET_COOLING', value: true });
             await pushLog("THROTTLE: Entering deep-cool state.", 'error');
             setTimeout(() => dispatch({ type: 'SET_COOLING', value: false }), 90000);
+            dispatch({ type: 'INCREMENT_CYCLE', error: true });
             return;
         }
         throw new Error(`Tree Fetch Failed: ${treeRes.status}`);
@@ -190,19 +342,21 @@ export default function App() {
       if (!updateRes.ok) throw new Error(`Push Error: ${updateRes.status}`);
 
       await pushLog(`GRAFT_SUCCESS: Integrated ${targetNode.path}. Framework expanded.`, 'success');
-      dispatch({ type: 'INCREMENT_CYCLE', gain: 5 });
+      dispatch({ type: 'INCREMENT_CYCLE', gain: 5, success: true });
+      success = true;
 
     } catch (e) { 
       await pushLog(`FAULT: ${e.message}`, 'error'); 
+      dispatch({ type: 'INCREMENT_CYCLE', error: true });
     } finally { 
       dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Ready.' }); 
     }
-  }, [state.isLive, state.isCooling, state.config, pushLog]);
+  }, [state.isLive, state.isCooling, state.config, pushLog, runPreCycleChecks]);
 
   useEffect(() => {
     if (state.isLive) {
       cycleTimer.current = setInterval(executeGrowthCycle, state.config.cycleDelay);
-      executeGrowthCycle();
+      executeGrowthCycle(); // Run immediately on start
     } else { clearInterval(cycleTimer.current); }
     return () => clearInterval(cycleTimer.current);
   }, [state.isLive, executeGrowthCycle, state.config.cycleDelay]);
@@ -214,7 +368,7 @@ export default function App() {
           <div className="flex flex-col items-center text-center">
             <GitMerge className="text-blue-500 mb-4" size={40} />
             <h1 className="text-white font-black text-2xl tracking-tighter uppercase italic leading-none">GRAFTING ENGINE</h1>
-            <p className="text-zinc-500 text-[9px] uppercase tracking-[0.2em] mt-2">v6.8.9 // MEE-Metric Ready</p>
+            <p className="text-zinc-500 text-[9px] uppercase tracking-[0.2em] mt-2">v6.9 // MEE-Metric Ready</p>
           </div>
           <div className="space-y-3">
             <input type="password" placeholder="GitHub Token" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
@@ -227,6 +381,9 @@ export default function App() {
       </div>
     );
   }
+
+  const rIndexColor = state.metrics.rIndex >= state.metrics.threshold ? 'text-emerald-400' : 'text-red-400';
+  const rIndexBg = state.metrics.rIndex >= state.metrics.threshold ? 'bg-emerald-900/20' : 'bg-red-900/20';
 
   return (
     <div className="fixed inset-0 bg-[#020202] text-zinc-400 flex flex-col font-sans overflow-hidden">
@@ -246,7 +403,7 @@ export default function App() {
         </button>
       </header>
 
-      <div className="bg-zinc-950/50 border-b border-zinc-900 px-10 py-4 grid grid-cols-4 gap-4">
+      <div className="bg-zinc-950/50 border-b border-zinc-900 px-10 py-4 grid grid-cols-6 gap-4">
           <div className="p-3 bg-zinc-900/30 rounded-2xl border border-zinc-800/40">
              <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Merge Mode</span>
              <span className="text-blue-400 text-[9px] font-mono flex items-center gap-2 uppercase">
@@ -257,13 +414,21 @@ export default function App() {
              <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Framework</span>
              <span className="text-emerald-500 text-[9px] font-mono block">MEE_ACTIVE</span>
           </div>
+          <div className={`p-3 rounded-2xl border border-zinc-800/40 ${rIndexBg}`}>
+             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">R-Index</span>
+             <span className={`${rIndexColor} text-[10px] font-mono flex items-center gap-1`}><Gauge size={10}/> {state.metrics.rIndex}</span>
+          </div>
           <div className="p-3 bg-zinc-900/30 rounded-2xl border border-zinc-800/40 text-center">
-             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Cycles</span>
-             <span className="text-white text-[10px] font-mono">{state.cycleCount}</span>
+             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Threshold</span>
+             <span className="text-white text-[10px] font-mono">{state.metrics.threshold}</span>
+          </div>
+          <div className="p-3 bg-zinc-900/30 rounded-2xl border border-zinc-800/40 text-center">
+             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Cycles (E/S)</span>
+             <span className="text-white text-[10px] font-mono">{state.cycleCount} ({state.errorCount}/{state.successCount})</span>
           </div>
           <div className="p-3 bg-zinc-900/30 rounded-2xl border border-zinc-800/40 text-right">
-             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Data Sourcing</span>
-             <span className="text-zinc-500 text-[9px] font-mono">PROVIDER_MAPPED</span>
+             <span className="text-[7px] text-zinc-600 uppercase font-black mb-1 block">Next Cycle</span>
+             <span className="text-zinc-500 text-[9px] font-mono">{state.config.cycleDelay / 1000}s</span>
           </div>
       </div>
 
@@ -287,7 +452,7 @@ export default function App() {
             <span className="flex items-center gap-1"><ShieldCheck size={8}/> OVERWRITE_SHIELD_ON</span>
             <span className="flex items-center gap-1"><Zap size={8}/> ASYNC_METRICS_READY</span>
         </div>
-        <span>v6.8.9 // {state.config.repo}</span>
+        <span>v6.9 // {state.config.repo}</span>
       </footer>
 
       <style>{`
@@ -298,4 +463,3 @@ export default function App() {
     </div>
   );
 }
-
