@@ -1,1 +1,1 @@
-Deployment of a decentralized identity management system using blockchain technology to ensure secure and private data sharing
+Implementation of a hybrid blockchain architecture, combining public and private chains to optimize scalability, security, and interoperability
