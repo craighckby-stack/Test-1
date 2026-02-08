@@ -1,1 +1,1 @@
-Integration of multimodal interfaces to facilitate human-machine collaboration and enhance decision-making processes
+Multimodal interface expansion to include augmented reality and cognitive architectures for enhanced human-machine collaboration
