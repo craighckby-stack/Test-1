@@ -1,1 +1,1 @@
-Enhancing Edge AI with Transfer Learning andContinual Learning
+Implementation of Federated Learning and Meta-Learning for improved Edge AI performance and adaptability
