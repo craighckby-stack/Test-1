@@ -1,1 +1,1 @@
-Enhance multimodal fusion framework with adaptive weighting mechanisms
+multimodal fusion framework enhancement
