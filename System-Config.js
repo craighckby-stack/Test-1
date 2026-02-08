@@ -1,1 +1,1 @@
-Implementation of Federated Learning and Differential Privacy to Ensure Secure and Distributed Edge AI Deployment
+Advancement of Federated Learning to incorporate secure multi-party computation and homomorphic encryption, ensuring robust and private distributed edge AI deployment
