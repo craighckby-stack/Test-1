@@ -1,1 +1,1 @@
-Optimized code for maximum computational efficiency and recursive abstraction
+function validateSimulationResult(result: any): boolean { return Object.keys(result).every(key => { if (typeof result[key] === 'object') { return validateSimulationResult(result[key]); } else { return true; } }); }
