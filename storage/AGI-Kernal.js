@@ -1,1 +1,1 @@
-Advanced integration of cognitive attention mechanisms with multimodal fusion for enhanced decision-making
+Integration of hybrid attention mechanisms with transfer learning for accelerated adaptation
