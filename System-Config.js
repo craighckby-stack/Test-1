@@ -1,1 +1,1 @@
-Integration of edge AI and IoT devices to enable real-time processing and analysis of multimodal data
+Edge AI-Driven IoT Ecosystem
