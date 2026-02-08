@@ -1,1 +1,1 @@
-Integrate cognitive architectures with multimodal learning to achieve human-like reasoning
+Integrate cognitive architectures with multimodal learning for human-like reasoning
