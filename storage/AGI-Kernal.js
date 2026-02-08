@@ -1,1 +1,1 @@
-Next-gen Explainable AI framework incorporating attention mechanisms and graph neural networks for enhanced model transparency
+Integration of multimodal fusion techniques to enhance explainability and incorporate human-in-the-loop feedback
