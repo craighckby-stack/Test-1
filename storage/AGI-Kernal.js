@@ -1,1 +1,1 @@
-Integration of cognitive architectures and multimodal fusion techniques into XAI frameworks to enhance model interpretability and handle complex, dynamic systems
+Development of hybrid XAI frameworks integrating cognitive architectures, multimodal fusion, and attention mechanisms to provide more accurate and transparent model interpretability
