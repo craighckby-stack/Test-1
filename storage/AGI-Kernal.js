@@ -1,1 +1,1 @@
-Integration of cognitive architectures with multimodal learning and affective computing
+Advancement of cognitive architectures to incorporate more sophisticated multimodal learning and affective computing mechanisms, enabling more nuanced human-AI interactions
