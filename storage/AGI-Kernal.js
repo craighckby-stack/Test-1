@@ -1,1 +1,1 @@
-Integrating probabilistic reasoning with cognitive architectures
+Incorporating probabilistic reasoning into cognitive architectures to enable more robust decision-making
