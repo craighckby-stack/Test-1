@@ -1,1 +1,1 @@
-Implementation of adaptive learning algorithms to enhance human-machine interaction with Edge AI and Explainable AI
+Integration of multimodal fusion with Edge AI and Explainable AI to enable real-time adaptive learning
