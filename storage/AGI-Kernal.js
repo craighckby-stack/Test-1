@@ -1,1 +1,1 @@
-Development of Explainable AI frameworks that incorporate multimodal learning and attention mechanisms for transparent decision-making
+Implementation of hybrid attention mechanisms that combine self-attention and graph attention to improve the interpretability of multimodal learning models
