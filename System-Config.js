@@ -1,1 +1,1 @@
-Implement Federated Learning Algorithm
+Implementation of Federated Learning Algorithm for enhanced collaborative learning
