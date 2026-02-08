@@ -1,1 +1,1 @@
-Deployment of federated learning techniques to enhance model interpretability, uncertainty estimation, and data privacy, while promoting decentralized AI development
+Implementation of explainable AI techniques to provide transparency and accountability in decision-making processes
