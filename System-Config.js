@@ -1,1 +1,1 @@
-Implementation of zero-knowledge proof protocols to further enhance data security and privacy
+Deployment of homomorphic encryption techniques to enable secure computations on encrypted data
