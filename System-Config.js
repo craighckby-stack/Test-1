@@ -1,1 +1,1 @@
-Decentralized data governance with secure multi-party computation
+Implement homomorphic encryption for secure data sharing and computation
