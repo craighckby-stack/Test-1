@@ -1,1 +1,1 @@
-Enhance explainability techniques with transparent decision-making processes and adaptive data filtering
+Enhancement of explainability techniques with transparent decision-making processes and adaptive data filtering
