@@ -1,1 +1,1 @@
-Integrate multimodal fusion algorithms with advanced XAI techniques to provide real-time model interpretability and adaptability
+Fusion of Explainable AI and Transfer Learning for enhanced model adaptability
