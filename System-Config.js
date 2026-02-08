@@ -1,1 +1,1 @@
-Implementation of a decentralized data encryption protocol and a secure multi-party computation framework to further enhance data security and privacy
+Expansion of the decentralized data encryption protocol to include secure data sharing and access control mechanisms, ensuring that sensitive information is protected while maintaining the integrity of the system
