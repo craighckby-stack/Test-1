@@ -1,1 +1,1 @@
-Implementation of hierarchical attention mechanisms with multiresolution graph convolutions
+Integration of graph attention networks with multimodal fusion for enhanced feature learning
