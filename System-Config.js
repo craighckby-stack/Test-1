@@ -1,1 +1,1 @@
-Implementation of quantum-resistant cryptographic primitives for enhanced security
+Deployment of homomorphic encryption for secure data processing
