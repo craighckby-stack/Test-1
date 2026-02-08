@@ -1,1 +1,1 @@
-Integrate multimodal fusion techniques to enhance human-AI collaboration models, enabling more effective adaptation to new domains and tasks
+Integration of cognitive architectures with multimodal fusion techniques to enable more robust human-AI collaboration
