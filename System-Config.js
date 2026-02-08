@@ -1,1 +1,1 @@
-Expansion of decentralized data governance framework to include federated learning and secure multi-party computation
+Integrate homomorphic encryption with federated learning to ensure end-to-end data privacy and security in decentralized data governance frameworks
