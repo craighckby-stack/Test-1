@@ -1,1 +1,1 @@
-Integration of explainable AI and transparency techniques to provide insights into the decision-making process of the multimodal fusion model, enabling more trustworthy and reliable outcomes
+Integration of multimodal fusion with cognitive architectures to enable more comprehensive and human-like decision-making processes
