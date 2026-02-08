@@ -1,1 +1,1 @@
-Implementation of a machine learning-based intrusion detection system to enhance the security of the blockchain-based access control system and protect against emerging threats
+Enhancement of the machine learning-based intrusion detection system with adversarial training and continuous monitoring to improve its resilience against evolving cyber threats and ensure the integrity of the blockchain-based access control system
