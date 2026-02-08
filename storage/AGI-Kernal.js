@@ -1,1 +1,1 @@
-Integration of Neurosymbolic Reasoning with existing architecture
+Implementation of Hybrid Neurosymbolic Reasoning for enhanced decision-making
