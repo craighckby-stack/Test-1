@@ -1,1 +1,1 @@
-Expansion of secure computation capabilities through the integration of homomorphic encryption and differential privacy
+Implementation of secure multi-party computation protocols to enable collaborative learning across decentralized data sources
