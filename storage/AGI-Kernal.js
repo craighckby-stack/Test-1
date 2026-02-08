@@ -1,1 +1,1 @@
-Integrate attention mechanisms to enhance reasoning capabilities
+Integration of attention mechanisms for enhanced reasoning capabilities
