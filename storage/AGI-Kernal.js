@@ -1,1 +1,1 @@
-Integrate meta-learning with cognitive architectures to enable adaptive and dynamic knowledge graph updates
+Integrate meta-learning with cognitive architectures
