@@ -1,1 +1,1 @@
-Expansion of Multimodal Fusion to Incorporate Edge Computing for Reduced Latency
+Extension of Multimodal Fusion with Real-Time Edge Computing and Enhanced Explainability Features
