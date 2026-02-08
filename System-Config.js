@@ -1,1 +1,1 @@
-Implementation of a zero-knowledge proof protocol to further secure multi-party computation within the smart contract framework
+Deploy a homomorphic encryption scheme to enable secure computation on encrypted data, enhancing the overall security of the smart contract framework
