@@ -1,1 +1,1 @@
-Differential privacy, zero-knowledge proofs, and homomorphic encryption in federated learning
+Implement differential privacy, zero-knowledge proofs, and homomorphic encryption in federated learning to ensure secure and private data sharing
