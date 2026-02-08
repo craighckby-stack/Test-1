@@ -1,1 +1,1 @@
-Unify graph neural network framework
+Developing enhanced node embedding for unified graph neural network framework
