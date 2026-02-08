@@ -1,1 +1,1 @@
-Multimodal learning integration with edge AI for real-time processing enhancement
+Integration of cognitive architectures with multimodal learning for enhanced decision-making
