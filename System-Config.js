@@ -1,1 +1,1 @@
-Deployment of secure and decentralized data sharing protocols for edge AI applications
+Implementation of homomorphic encryption and blockchain-based access control for secure data sharing in edge AI
