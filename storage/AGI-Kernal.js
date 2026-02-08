@@ -1,1 +1,1 @@
-Implementation of advanced attention mechanisms, such as graph attention networks and transformers, to further improve graph neural network performance
+Integration of multimodal fusion techniques to enable graph neural networks to process and integrate multiple types of data
