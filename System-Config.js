@@ -1,1 +1,1 @@
-Implementation of Explainable Edge AI with Real-time Human-in-the-Loop Feedback and Autonomous Decision-Making using Adaptive Causal Reasoning and Transfer Learning
+Integration of Cognitive Architectures with Edge AI to Enable Real-time Human-AI Symbiosis and Adaptive Decision-Making
