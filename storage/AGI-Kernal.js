@@ -1,1 +1,1 @@
-multimodal fusion framework enhancement
+development of modular neural network architecture
