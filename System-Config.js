@@ -1,1 +1,1 @@
-Deployment of model pruning and knowledge distillation techniques to optimize edge AI performance and facilitate real-time decision-making
+Implementation of automated hyperparameter tuning and adaptive optimization algorithms to further improve edge AI performance
