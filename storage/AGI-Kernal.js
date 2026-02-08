@@ -137,7 +137,8 @@ export default function App() {
               }`
             }, { 
               role: 'user', 
-              content: `CURRENT_CODE: ${mainFile?.content || ""}\n\nNEXUS_MEMORY: ${nexusFile?.content || ""}` 
+              content: `CURRENT_CODE: ${mainFile?.content || ""}\n\nNEXUS_MEMORY: ${nexusFile?.content || ""} 
+` 
             }],
             response_format: { type: "json_object" }
           })
@@ -288,10 +289,4 @@ export default function App() {
       `}</style>
     </div>
  );
-}
-
-
-
-NEXUS_MEMORY: {"version": 3, "data": {"source": "Nexus-Database", "integration": {"blockchain": "Polygon", "ai": {"type": "Transformers", "config": {"model": "llama-3.3-70b", "tokenizer": "LlamaTokenizer"}}, "federatedLearning": {"type": "Decentralized", "config": {"peers": 15, "sharedModel": "GlobalModel"}}}}
-
 
