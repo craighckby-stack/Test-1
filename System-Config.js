@@ -1,1 +1,1 @@
-Implementing secure and decentralized federated learning frameworks with homomorphic encryption
+Deploying blockchain-based federated learning frameworks with differential privacy
