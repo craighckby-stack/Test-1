@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption to enhance data privacy and security in federated learning
+Development of secure and efficient aggregation protocols for federated learning with homomorphic encryption
