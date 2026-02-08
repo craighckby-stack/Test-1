@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption techniques to enhance the security and privacy of federated learning models
+Implementation of differential privacy methods to further enhance the security and privacy of federated learning models
