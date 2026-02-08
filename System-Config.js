@@ -1,1 +1,1 @@
-Enhancement of explainability techniques with transparent decision-making processes and adaptive data filtering
+Implementation of transparent and explainable AI techniques, including model interpretability and uncertainty estimation, to enhance trust and reliability
