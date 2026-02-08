@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enable seamless interaction between cognitive architectures and XAI frameworks
+Implementation of attention mechanisms to enhance the explainability of multimodal fusion models
