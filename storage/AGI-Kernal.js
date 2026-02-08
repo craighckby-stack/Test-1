@@ -1,1 +1,1 @@
-Advancing cognitive attention mechanisms with multimodal input processing and edge AI for enhanced real-time adaptability
+Integration of neurosymbolic reasoning and transfer learning to enhance cognitive attention mechanisms
