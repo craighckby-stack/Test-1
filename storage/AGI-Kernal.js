@@ -1,1 +1,1 @@
-Hybrid Cognitive Architecture
+Integrate Neurosymbolic Reasoning
