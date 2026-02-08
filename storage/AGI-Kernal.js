@@ -1,1 +1,1 @@
-Hybrid intelligence incorporation via neuromorphic computing and cognitive architectures
+Integration of hybrid intelligence with autonomous systems for adaptive decision-making
