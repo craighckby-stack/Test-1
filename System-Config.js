@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols to complement homomorphic encryption
+Enhanced security with multi-party computation protocols and homomorphic encryption
