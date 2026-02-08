@@ -1,1 +1,1 @@
-Integration of the hybrid attention mechanisms with the federated learning architecture to enhance model interpretability and data privacy
+Development of a unified framework that integrates hybrid attention mechanisms, federated learning, and edge computing to improve model interpretability, data privacy, and scalability
