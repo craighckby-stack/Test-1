@@ -1,1 +1,1 @@
-Evolve hybrid cognitive architectures to integrate multimodal interaction capabilities, enabling more effective human-computer collaboration and decision-making
+Integrate multimodal interaction capabilities with Explainable AI (XAI) to enhance transparency and trust in human-computer collaboration
