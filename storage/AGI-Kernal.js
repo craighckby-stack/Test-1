@@ -1,1 +1,1 @@
-Develop multimodal fusion models with edge AI-driven explainability techniques
+Developing multimodal fusion models with edge AI-driven explainability techniques
