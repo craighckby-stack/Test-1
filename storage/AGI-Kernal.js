@@ -1,1 +1,1 @@
-Developing multimodal fusion models with explainability and interpretability using attention mechanisms and meta-learning
+Developing multimodal fusion models with advanced explainability techniques, such as feature importance and layer-wise relevance propagation, to improve model interpretability and incorporating transfer learning to leverage pre-trained models
