@@ -1,1 +1,1 @@
-Development of Edge-Based Cognitive Computing with Integrated Neuroscience-Inspired Models and Enhanced Explainability Capabilities
+Integration of Neuro-symbolic Reasoning for Cognitive Architecture Enhancement
