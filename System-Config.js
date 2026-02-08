@@ -1,1 +1,1 @@
-Implementation of a Hybrid Post-Quantum Cryptography Suite, combining Lattice-Based Cryptography and Code-Based Cryptography with quantum-resistant key exchange protocols for enhanced security
+Development of a Quantum-Secure Multi-Party Computation protocol to enable secure and private collaborative decision-making across distributed networks
