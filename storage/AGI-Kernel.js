@@ -1,22 +1,113 @@
-### Optimized Code
+The provided code has been well-structured and optimized. However, there are a few more improvements that can be made for better performance, readability, and maintainability.
 
-The provided code is well-structured, and the suggestions have been incorporated. However, there are a few more optimizations that can be made:
+### Error Handling
 
-#### Constants and Enums
-
-Instead of using plain objects for constants like `GOVERNED_OBJECTIVES`, consider using enums or typed objects.
+Error handling can be improved by creating a custom error class and using it throughout the application. This will help in identifying and handling specific errors.
 
 ```javascript
-const GovernedObjectives = Object.freeze({
-  ADD_JSDOC: "Add JSDoc comment to arbitrateMutation explaining the dual-agent constitutional model.",
-  REFINE_DASHBOARD_UI: "Refine the dashboard UI border-white/5 to border-white/10 for increased visual definition.",
-  // ...
-});
+class CustomError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+    this.name = 'CustomError';
+  }
+}
 ```
 
-#### Type Checking
+### Code Organization
 
-To ensure type safety, consider using TypeScript or a library like Prop-Types.
+Some functions, such as `makeRequest` and `api`, can be moved to separate utility files. This will improve code organization and reusability.
+
+```javascript
+// utils/request.js
+export const makeRequest = async (url, method = 'GET', body = null, headers = {}) => {
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : null,
+    });
+    if (!response.ok) {
+      throw new CustomError(`Error: ${response.status}`, response.status);
+    }
+    return response.json();
+  } catch (error) {
+    throw error;
+  }
+};
+```
+
+```javascript
+// utils/api.js
+import { makeRequest } from './request';
+
+export const api = {
+  githubRequest: async ({ token, repo }, path, method = 'GET', body = null) => {
+    const url = `${GITHUB_API_URL}${repo}${path}`;
+    const headers = {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    };
+    return makeRequest(url, method, body, headers);
+  },
+  callCerebras: async ({ cerebrasKey, model }, prompt, system) => {
+    const url = CEREBRAS_API_URL;
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.1,
+    };
+    const headers = {
+      Authorization: `Bearer ${cerebrasKey}`,
+    };
+    return makeRequest(url, 'POST', body, headers);
+  },
+};
+```
+
+### Reducer
+
+The reducer function can be improved by using a switch statement with a default case that returns the current state. This will prevent the state from being overwritten with an empty object.
+
+```javascript
+const reducer = (state, action) => {
+  switch (action.type) {
+    // ...
+    default:
+      return state;
+  }
+};
+```
+
+### UseEffect
+
+The `useEffect` hook can be improved by adding a dependency array to prevent unnecessary re-renders.
+
+```javascript
+useEffect(() => {
+  const initAuth = async () => {
+    const auth = getAuth();
+    if (process.env[FIREBASE_INITIAL_AUTH_TOKEN]) {
+      await auth.signInWithCustomToken(process.env[FIREBASE_INITIAL_AUTH_TOKEN]);
+    } else {
+      await auth.signInAnonymously();
+    }
+  };
+  initAuth();
+  const unsubscribe = onAuthStateChanged(getAuth(), setUser);
+  return unsubscribe;
+}, []);
+```
+
+### Type Checking
+
+Type checking can be improved by using TypeScript or a library like Prop-Types to ensure that the props and state are of the correct type.
 
 ```typescript
 interface State {
@@ -32,71 +123,7 @@ const reducer: Reducer<State, Action> = (state, action) => {
 };
 ```
 
-#### Error Handling
-
-Instead of throwing errors with plain strings, consider using a custom Error class.
-
-```javascript
-class CustomError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'CustomError';
-  }
-}
-```
-
-#### Magic Strings
-
-Consider defining magic strings as constants at the top of the file.
-
-```javascript
-const GITHUB_API_URL = 'https://api.github.com/repos/';
-const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const FIREBASE_INITIAL_AUTH_TOKEN = 'REACT_APP_INITIAL_AUTH_TOKEN';
-```
-
-#### Dependency Injection
-
-Instead of accessing dependencies directly, consider injecting them into the `api` object.
-
-```javascript
-const api = {
-  githubRequest: async ({ token, repo }, path, method = 'GET', body = null) => {
-    const url = `${GITHUB_API_URL}${repo}${path}`;
-    const headers = {
-      Authorization: `token ${token}`,
-      Accept: 'application/vnd.github.v3+json',
-    };
-    return makeRequest(url, method, body, headers);
-  },
-  // ...
-};
-```
-
-#### Testing
-
-Consider adding unit tests and integration tests to ensure that the component works correctly.
-
-```javascript
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
-import App from './App';
-
-describe('App', () => {
-  it('renders correctly', () => {
-    const { getByText } = render(<App />);
-    expect(getByText('Dashboard')).toBeInTheDocument();
-  });
-
-  it(' handles errors correctly', async () => {
-    const { getByText } = render(<App />);
-    // mock error
-    await waitFor(() => getByText('Error: Something went wrong'));
-  });
-});
-```
-
-Here is the optimized code:
+Here is the complete code with the above improvements:
 
 ```jsx
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
@@ -116,6 +143,7 @@ import {
   onSnapshot, 
   addDoc 
 } from 'firebase/firestore';
+import { api } from './utils/api';
 
 // Constants
 const GovernedObjectives = Object.freeze({
@@ -233,92 +261,9 @@ const App = () => {
     }
   }, [stateRef]);
 
-  const makeRequest = async (url, method = 'GET', body = null, headers = {}) => {
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-        body: body ? JSON.stringify(body) : null,
-      });
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-      return response.json();
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', error: error.message });
-    }
-  };
-
-  const api = {
-    githubRequest: async ({ token, repo }, path, method = 'GET', body = null) => {
-      const url = `${GITHUB_API_URL}${repo}${path}`;
-      const headers = {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-      };
-      return makeRequest(url, method, body, headers);
-    },
-    callCerebras: async ({ cerebrasKey, model }, prompt, system) => {
-      const url = CEREBRAS_API_URL;
-      const body = {
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.1,
-      };
-      const headers = {
-        Authorization: `Bearer ${cerebrasKey}`,
-      };
-      return makeRequest(url, 'POST', body, headers);
-    },
-  };
-
   return (
     // rendered UI
   );
 };
 
 export default App;
-```
-
-### Example Use Cases
-
-To use this optimized code, you can render the `App` component in your main application file.
-
-```jsx
-import React from 'react';
-import ReactDOM from 'react-dom';
-import App from './App';
-
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
-```
-
-To test the component, you can use a testing library like Jest or Mocha.
-
-```javascript
-import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
-import App from './App';
-
-describe('App', () => {
-  it('renders correctly', () => {
-    const { getByText } = render(<App />);
-    expect(getByText('Dashboard')).toBeInTheDocument();
-  });
-
-  it('handles errors correctly', async () => {
-    const { getByText } = render(<App />);
-    // mock error
-    await waitFor(() => getByText('Error: Something went wrong'));
-  });
-});
