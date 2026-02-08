@@ -1,1 +1,1 @@
-Integration of multimodal sentiment analysis and emotional intelligence to enhance human-computer interaction
+Implementation of cognitive architectures to simulate human-like reasoning and decision-making processes in AI systems
