@@ -1,1 +1,1 @@
-Expansion of adaptive multimodal fusion techniques to include Edge AI and real-time processing capabilities, enabling more efficient and dynamic human-machine interactions
+Integrate Edge AI and real-time processing with Explainable AI and Transfer Learning techniques to create a transparent and adaptive human-machine interaction framework
