@@ -1,1 +1,1 @@
-Integration of hybrid attention mechanisms with transfer learning for accelerated adaptation
+Enhanced hybrid attention mechanisms with multimodal fusion for improved transfer learning efficiency
