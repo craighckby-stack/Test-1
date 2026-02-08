@@ -1,1 +1,1 @@
-Autonomous Decision-Making capabilities enhanced with Cognitive Architectures, Transfer Learning, and Meta-Learning
+Integrate Cognitive Architectures with multimodal learning and affective computing for more nuanced decision-making
