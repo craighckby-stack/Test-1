@@ -11,6 +11,39 @@ import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, L
  * MISSION: Merge Target logic INTO Kernel logic without deletion.
  */
 
+// --- Utility Mocks for Proposal Validation (Absorbed from Target Data) ---
+const validateSchema = (data, schema) => ({ valid: true, errors: [] });
+
+const calculateHash = (data) => {
+    // Simple mock hash generation for integrity check
+    const str = JSON.stringify(data);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(32, '0');
+};
+
+const executionEngine = {
+    // Mock storage retrieval
+    getRawPayload: async (hash) => {
+        // Simulate finding a payload for a known hash pattern
+        if (hash.startsWith('0000')) {
+            return { module: 'core', action: 'update_params', value: 100 };
+        }
+        return null;
+    },
+    // Mock execution simulation
+    simulateCall: async (modulePath, method, rawPayload) => {
+        if (method === 'fail_test') {
+            return { success: false, error: 'Simulation failed due to critical path error.' };
+        }
+        return { success: true, report: { gasUsed: 500, stateChange: 'Simulated OK' } };
+    }
+};
+
 // --- Governance API Adapter ---
 class GovernanceApiAdapter {
     constructor(endpoint) {
@@ -19,8 +52,6 @@ class GovernanceApiAdapter {
     }
 
     async fetchLatestConfig() {
-        // console.log(`[Adapter] Attempting to fetch constants from: ${this.endpoint}`);
-        
         // Mocked return for development/testing, simulating dynamic governance overlay:
         await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
 
@@ -80,6 +111,88 @@ const MEE_ENGINE = {
         };
     },
 };
+
+// --- Proposal Payload Validator (Absorbed Logic) ---
+
+// Standardized list of proposal types that require an executable payload.
+const ACTIONABLE_PROPOSAL_TYPES = new Set([
+  'PROTOCOL_UPGRADE',
+  'TREASURY_ALLOCATION',
+  'PARAMETER_CHANGE'
+]);
+
+/**
+ * Validates the integrity and executability of an actionable proposal payload.
+ *
+ * 1. Checks proposal type.
+ * 2. Retrieves raw payload data.
+ * 3. Verifies payload integrity via hash comparison.
+ * 4. Performs safe execution simulation.
+ *
+ * @param {object} proposal - The proposal object.
+ * @returns {Promise<{valid: boolean, reason?: string, simulationReport?: object}>}
+ */
+async function validateProposalPayload(proposal) {
+  const { type, details, implementationTarget } = proposal;
+
+  if (!ACTIONABLE_PROPOSAL_TYPES.has(type)) {
+    // Skip validation for informational or standard proposals (e.g., 'Discussion')
+    return { valid: true, reason: 'Informational proposal, no execution payload required.' };
+  }
+
+  if (!implementationTarget || !implementationTarget.payloadHash) {
+    return { valid: false, reason: `Actionable proposal of type ${type} lacks implementationTarget payload details.` };
+  }
+  
+  const expectedHash = implementationTarget.payloadHash;
+
+  // 1. Retrieve Raw Payload Data
+  const rawPayload = await executionEngine.getRawPayload(expectedHash);
+  if (!rawPayload) {
+    return { valid: false, reason: `Executable payload data missing from storage for hash: ${expectedHash}.` };
+  }
+  
+  // 2. Hash Integrity Check
+  try {
+    const computedHash = calculateHash(rawPayload);
+    
+    if (computedHash !== expectedHash) {
+      // Use substring to avoid logging massive hashes in error messages, focusing on identification.
+      const safeExpected = expectedHash.substring(0, 16);
+      const safeComputed = computedHash.substring(0, 16);
+      return { 
+        valid: false, 
+        reason: `Payload integrity failed. Computed hash (${safeComputed}...) does not match expected hash (${safeExpected}...).` 
+      };
+    }
+  } catch (hashError) {
+     return { valid: false, reason: `Failed during hash computation: ${hashError.message}` };
+  }
+
+  // 3. Perform Safe Execution Simulation
+  const simulationResult = await executionEngine.simulateCall(
+    implementationTarget.modulePath,
+    implementationTarget.method,
+    rawPayload
+  );
+
+  if (!simulationResult.success) {
+    return { valid: false, reason: `Execution simulation failed: ${simulationResult.error}` };
+  }
+
+  // 4. Semantic Validation: Ensure simulation output conforms to specifications.
+  // Using the mock utility defined above.
+  const semanticValidation = validateSchema(rawPayload, details.specification);
+  if (!semanticValidation.valid) {
+      return { valid: false, reason: `Semantic validation failed against specification.` };
+  }
+  
+  return { 
+    valid: true, 
+    simulationReport: simulationResult.report,
+    message: 'Payload integrity verified and execution simulated successfully.'
+  };
+}
 
 const KERNAL_CONSTANTS = {
   GITHUB_API: "https://api.github.com/repos",
