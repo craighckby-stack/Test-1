@@ -1,1 +1,1 @@
-Integration of cognitive architectures with meta-learning and attention-based multimodal fusion for enhanced adaptability
+Unification of multimodal fusion and meta-learning for self-aware and autonomous systems
