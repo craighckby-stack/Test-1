@@ -1,1 +1,1 @@
-Advanced cognitive architectures with multimodal learning capabilities
+Integrate cognitive architectures with explainable AI and multimodal learning for enhanced transparency and decision-making
