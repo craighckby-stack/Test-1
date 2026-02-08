@@ -1,1 +1,1 @@
-Implementation of a reputation system and token-based economy within the decentralized data marketplace to promote high-quality data contributions and ensure the integrity of the blockchain-based system
+Development of a decentralized governance model to oversee the reputation system and token-based economy, ensuring that the blockchain-based system remains transparent, secure, and community-driven
