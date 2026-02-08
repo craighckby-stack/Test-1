@@ -1,1 +1,1 @@
-Unification of multimodal fusion and meta-learning for self-aware and autonomous systems
+Integration of cognitive architectures with multimodal fusion and meta-learning for enhanced self-awareness and autonomy
