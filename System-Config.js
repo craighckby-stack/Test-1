@@ -1,1 +1,1 @@
-Optimize threshold homomorphic encryption for improved performance and scalability
+optimization of threshold homomorphic encryption
