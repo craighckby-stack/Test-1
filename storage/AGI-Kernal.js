@@ -5,17 +5,42 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Layers, Cpu, FileCode, Terminal, Activity, Zap, Database, Search, Target, Scan, Dna, GitMerge, ShieldAlert, ArrowUpCircle } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.9.0 - "VERSION GOVERNANCE & FORCED GROWTH"
+ * AGI-KERNAL v6.10.0 - "VERSION GOVERNANCE, FORCED GROWTH & CONFIGURATION AUDIT"
  * MISSION: Linear Expansion, State Audit, and Standardized Versioning.
  * LOGIC: The Kernel now mandates that every evolution must be LARGER or equal in size to the previous.
  * New Feature: Integrated State Snapshot Repository (SSR) for atomic state tracing before growth cycles.
  * New Feature: Integrated Kernel Version Manager (KVM) for auditable build tagging.
+ * NEW FEATURE: Configuration Governance Module (CGM) integrated to validate runtime settings against schemas (TARGET_CODE absorption).
  * UI: Layout and styling preserved as per user request.
  */
 
 const KERNAL_CONSTANTS = {
   CEREBRAS_URL: "https://api.cerebras.ai/v1/chat/completions",
   GITHUB_API: "https://api.github.com/repos"
+};
+
+/**
+ * CONFIGURATION SCHEMAS (Defined for CGM validation)
+ * Ensures that the volatile configuration object meets operational requirements.
+ */
+const CORE_CONFIG_SCHEMA = {
+    type: "object",
+    title: "AGI_CORE_CONFIGURATION_V1",
+    description: "Mandatory fields for GitHub and AI API interaction.",
+    required: ["token", "repo", "path", "cerebrasKey", "cycleDelay"],
+    properties: {
+        token: { type: "string", description: "GitHub Access Token (Read/Write)." },
+        repo: { type: "string", description: "Target GitHub Repository (user/repo)." },
+        path: { type: "string", description: "Kernel file path within repository for self-evolution." },
+        cerebrasKey: { type: "string", description: "AI API Authorization Key for growth generation." },
+        cycleDelay: { type: "number", description: "Delay between growth cycles in milliseconds (min 10000)." },
+    },
+};
+
+const KERNEL_SCHEMAS = {
+    CORE_CONFIG: CORE_CONFIG_SCHEMA,
+    // Placeholder for future schema expansion (e.g., policy definitions)
+    POLICY_DEFINITION: { type: "object", required: ["policyName", "versionID"] }
 };
 
 const INITIAL_STATE = {
@@ -35,11 +60,18 @@ const INITIAL_STATE = {
     cerebrasKey: '', 
     cycleDelay: 30000 
   },
+  configValidationErrors: [], // New state field to track CGM failures
 };
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'BOOT': return { ...state, isBooted: true, config: { ...state.config, ...action.config } };
+    case 'BOOT': 
+      return { 
+        ...state, 
+        isBooted: true, 
+        config: { ...state.config, ...action.config },
+        configValidationErrors: action.validationErrors || [] // Store errors if boot succeeded but warnings present
+      }; 
     case 'SET_LIVE': return { ...state, isLive: action.value, status: action.value ? 'HUNTING' : 'STANDBY' };
     case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
     case 'SET_TARGET': return { ...state, currentTarget: action.target };
@@ -110,7 +142,7 @@ class KernelVersionManager {
      */
     generateResolvedVersion(metadata) {
         if (!this._validateMetadata(metadata)) {
-            return `VERSION_RESOLUTION_ERROR: INVALID_METADATA_C${this.versionConfig.current_version.major}`;
+            return `VERSION_RESOLUTION_ERROR: INVALID_METADATA_C${this.versionConfig.current_version.major}`; 
         }
 
         // 1. Extract Major/Minor from persistent configuration
@@ -244,9 +276,77 @@ export class StateSnapshotRepository {
     }
 }
 
+/**
+ * GOVERNANCE MODULE: Configuration Governance Module (CGM)
+ * Role: Ensures runtime configuration integrity based on defined JSON Schemas.
+ * Logic absorbed and enhanced from TARGET_CODE (validateConfig).
+ */
+class ConfigurationGovernanceModule {
+    
+    /**
+     * Executes structural and type validation based on a schema.
+     * Implements the core logic of the TARGET_CODE's configuration validator.
+     * 
+     * @param {object} configObject - The configuration structure to validate.
+     * @param {object} schema - The predefined JSON schema.
+     * @param {string} configName - Descriptive name.
+     * @returns {object} { isValid: boolean, errors: Array<string> }
+     */
+    static validateConfig(configObject, schema, configName) {
+        const results = { isValid: true, errors: [] };
+
+        // 1. Root Structure Check (Mandatory existence check)
+        if (!configObject || typeof configObject !== 'object' || Object.keys(configObject).length === 0) {
+            results.isValid = false;
+            results.errors.push(`[Fatal] Config ${configName} is empty, null, or not an object.`);
+            return results;
+        }
+
+        // 2. Required Field Check (Core implementation derived from TARGET_CODE)
+        if (schema && Array.isArray(schema.required)) {
+            for (const key of schema.required) {
+                if (!(key in configObject) || configObject[key] === null || configObject[key] === '') {
+                    results.isValid = false;
+                    results.errors.push(`[CGM Error] Config ${configName} missing or empty required field: ${key}.`);
+                }
+            }
+        }
+        
+        // 3. Type Checking Simulation (Critical path properties only)
+        if (schema && schema.properties && results.isValid) {
+            for (const [key, definition] of Object.entries(schema.properties)) {
+                if (key in configObject && configObject[key] !== null) {
+                    const actualType = typeof configObject[key];
+                    const expectedType = definition.type;
+
+                    if (expectedType === 'string' && actualType !== 'string') {
+                         results.isValid = false;
+                         results.errors.push(`[CGM Type Error] ${configName}.${key} expected '${expectedType}', got '${actualType}'.`);
+                    } else if (expectedType === 'number' && actualType !== 'number') {
+                         // Allow string inputs for numbers (like cycleDelay) but check convertibility
+                         if (actualType === 'string' && !isNaN(parseInt(configObject[key], 10))) {
+                              // If convertible, issue warning but continue (soft fail)
+                              console.warn(`[CGM Soft Warning] ${configName}.${key} received string, treating as number.`);
+                         } else {
+                              results.isValid = false;
+                              results.errors.push(`[CGM Type Error] ${configName}.${key} expected '${expectedType}', got '${actualType}'.`);
+                         }
+                    }
+                }
+            }
+        }
+
+        if (!results.isValid) {
+            console.error(`[CGM Audit Failure] Configuration ${configName} failed integrity checks. ${results.errors.length} critical faults.`);
+        }
+
+        return results;
+    }
+}
+
 // Initialize the Kernel Version Manager (KVM) upon module load
 const KVM = new KernelVersionManager({
-    current_version: { major: 6, minor: 9, patch: 0 }, 
+    current_version: { major: 6, minor: 10, patch: 0 }, // Bumped minor version for CGM integration
     defaultBuildType: 'AGI-F' 
 }); 
 
@@ -254,7 +354,7 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-9';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-10';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -266,7 +366,7 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-      else { await signInAnonymously(auth); }
+      else { await signInAnonymously(auth); } 
     };
     initAuth();
     const unsub = onAuthStateChanged(auth, setUser);
@@ -296,6 +396,37 @@ export default function App() {
       setSnapshotCount(StateSnapshotRepository.getSize());
   }, []);
 
+  /**
+   * Implementation of configuration validation and BOOT sequence handling.
+   * This function utilizes the absorbed Configuration Governance Module (CGM).
+   */
+  const handleKernelBoot = () => {
+      // Merge input with defaults to create the effective config object
+      const effectiveConfig = { 
+          ...INITIAL_STATE.config, 
+          ...bootInput, 
+          // Ensure cycleDelay is coerced to number if input as string from UI
+          cycleDelay: parseInt(bootInput.cycleDelay, 10) || INITIAL_STATE.config.cycleDelay
+      };
+      
+      // Execute validation using the integrated CGM (TARGET_CODE logic)
+      const validationResult = ConfigurationGovernanceModule.validateConfig(
+          effectiveConfig,
+          KERNEL_SCHEMAS.CORE_CONFIG,
+          'RUNTIME_CORE_CONFIG'
+      );
+      
+      if (validationResult.isValid) {
+          // Proceed with booting the system state
+          console.info("[CGM/BOOT] Configuration passed audit. Initializing kernel.");
+          dispatch({ type: 'BOOT', config: effectiveConfig, validationErrors: validationResult.errors });
+      } else {
+          // Log validation failures and prevent boot
+          validationResult.errors.forEach(err => pushLog(`BOOT FAILURE: ${err}`, 'error'));
+          console.error("[CGM/BOOT] Configuration Validation Failure. Kernel refused initialization.");
+      }
+  };
+
   const persistentFetch = async (url, options, retries = 5) => {
     for (let i = 0; i < retries; i++) {
         try {
@@ -315,6 +446,14 @@ export default function App() {
     if (!state.isLive) return;
     const { token, repo, path, cerebrasKey } = state.config;
 
+    // PRE-FLIGHT CHECK: Re-validate configuration integrity before accessing sensitive APIs
+    const audit = ConfigurationGovernanceModule.validateConfig(state.config, KERNEL_SCHEMAS.CORE_CONFIG, 'PREFLIGHT_CYCLE');
+    if (!audit.isValid) {
+        audit.errors.forEach(err => await pushLog(`CRITICAL PREFLIGHT AUDIT FAILED: ${err}`, 'error'));
+        dispatch({ type: 'SET_LIVE', value: false }); // Force shutdown on integrity breach
+        return;
+    }
+
     try {
       dispatch({ type: 'SET_STATUS', value: 'SCANNING', objective: 'Searching for complex data...' });
       const treeRes = await persistentFetch(`${KERNAL_CONSTANTS.GITHUB_API}/${repo}/git/trees/main?recursive=1`, {
@@ -324,7 +463,7 @@ export default function App() {
       
       const targets = treeData.tree.filter(f => 
           f.type === 'blob' && 
-          /\.(js|jsx|ts|tsx)$/.test(f.path) && 
+          /�.(js|jsx|ts|tsx)$/.test(f.path) && 
           !f.path.includes(path)
       );
 
@@ -469,13 +608,14 @@ export default function App() {
           <div className="flex flex-col items-center text-center">
             <Dna className="text-purple-500 animate-pulse mb-4" size={48} />
             <h1 className="text-white font-black text-3xl tracking-tighter italic uppercase">AGI-KERNAL</h1>
-            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.9</p>
+            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.10 (CGM ACTIVE)</p>
           </div>
           <div className="space-y-4">
-            <input type="password" placeholder="GitHub Access" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
-            <input type="password" placeholder="Cerebras Key" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
+            <input type="password" placeholder="GitHub Access Token (Required)" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
+            <input type="password" placeholder="Cerebras/AI Key (Required)" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
+            <input type="number" placeholder={`Cycle Delay (ms, Current: ${INITIAL_STATE.config.cycleDelay})`} className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.cycleDelay} onChange={e => setBootInput({...bootInput, cycleDelay: e.target.value})} />
           </div>
-          <button onClick={() => dispatch({ type: 'BOOT', config: bootInput })} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-5 rounded-2xl font-black uppercase text-[11px] transition-all">Engage Growth</button>
+          <button onClick={handleKernelBoot} className="w-full bg-purple-600 hover:bg-purple-500 text-white py-5 rounded-2xl font-black uppercase text-[11px] transition-all">Engage Growth & Validate Config</button>
         </div>
       </div>
     );
@@ -532,15 +672,23 @@ export default function App() {
                 </div>
               </div>
             ))}
+            {state.configValidationErrors.length > 0 && (
+                 <div className="p-4 bg-red-900/20 text-red-400 border border-red-900 rounded-xl font-bold">
+                    CONFIGURATION WARNINGS DETECTED (Soft Errors):
+                    <ul className="list-disc ml-6 mt-1">
+                         {state.configValidationErrors.map((err, i) => <li key={i} className="font-normal text-xs">{err}</li>)}
+                    </ul>
+                 </div>
+            )}
           </div>
         </div>
       </main>
 
       <footer className="h-12 border-t border-zinc-900 px-12 flex items-center justify-between text-[8px] uppercase tracking-[0.6em] text-zinc-800 font-black shrink-0">
-        <span>FORCED GROWTH PROTOCOL v6.9.0</span>
+        <span>FORCED GROWTH PROTOCOL v6.10.0</span>
         <span className="flex items-center gap-4">
             <span className="text-purple-900/40 tracking-normal italic uppercase">Expansion Mandate: ACTIVE</span>
-            <span className="text-zinc-600 tracking-normal">| KERNEL VERSION: {state.currentKernelVersion} | AUDIT LOGS: {snapshotCount}</span>
+            <span className="text-zinc-600 tracking-normal">| KERNEL VERSION: {state.currentKernelVersion} | AUDIT LOGS: {snapshotCount} | CGM STATUS: {state.configValidationErrors.length > 0 ? 'WARNING' : 'CLEAN'}</span>
         </span>
       </footer>
 
