@@ -1,1 +1,1 @@
-Development of explainable graph neural networks to provide insights into node embedding techniques
+Integration of attention mechanisms into explainable graph neural networks to improve node embedding interpretability
