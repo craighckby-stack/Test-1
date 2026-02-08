@@ -1,1 +1,1 @@
-Integration of neural-symbolic reasoning for enhanced decision-making capabilities
+Neural-symbolic reasoning integration with multimodal fusion for diverse data processing
