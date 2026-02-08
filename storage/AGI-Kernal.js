@@ -1,1 +1,1 @@
-Developing adaptive meta-learning algorithms for dynamic domain alignment and integration with cognitive architectures
+Integration of Transfer Learning for Enhanced Domain Adaptation
