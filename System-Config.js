@@ -1,1 +1,1 @@
-Enhancement of the explainable AI module with causal reasoning and model interpretability techniques
+Causal reasoning and interpretability enhancement for explainable AI
