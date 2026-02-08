@@ -1,1 +1,1 @@
-Explainable AI with multimodal fusion framework for transparent human-AI collaboration
+Development of a hybrid multimodal fusion framework that integrates cognitive graph neural networks with explainable AI techniques
