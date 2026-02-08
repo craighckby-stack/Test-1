@@ -5,9 +5,10 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { Layers, Cpu, FileCode, Terminal, Activity, Zap, Database, Search, Target, Scan, Dna, GitMerge, ShieldAlert, ArrowUpCircle } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.7.0 - "FORCED GROWTH"
- * MISSION: Linear Expansion.
+ * AGI-KERNAL v6.8.0 - "FORCED GROWTH & GOVERNANCE INTEGRATION"
+ * MISSION: Linear Expansion and State Audit Capability.
  * LOGIC: The Kernel now mandates that every evolution must be LARGER or equal in size to the previous.
+ * New Feature: Integrated State Snapshot Repository (SSR) for atomic state tracing before growth cycles.
  * UI: Layout and styling preserved as per user request.
  */
 
@@ -50,16 +51,120 @@ function reducer(state, action) {
 const utoa = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
 const atou = (str) => { try { return decodeURIComponent(Array.prototype.map.call(atob(str), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')); } catch (e) { return atob(str); } };
 
+/**
+ * GOVERNANCE MODULE: State Snapshot Repository (SSR)
+ * Role: EPDP D/E Auxiliary (Atomic State Tracing)
+ * Function: Stores an immutable record of cryptographic components defining a System State Hash (SSH).
+ * This provides a detailed, persistent audit trail for rollback and integrity checks.
+ * NOTE: Currently uses an in-memory Map structure for rapid prototyping, requiring state notifications in React.
+ */
+const stateSnapshots = new Map();
+
+/**
+ * Defines the expected structure for a System State Snapshot.
+ * @typedef {{ proposalID: string, configHash: string, codebaseHash: string, ssh: string, timestamp: number }} SystemStateSnapshot
+ */
+
+export class StateSnapshotRepository {
+
+    /**
+     * Internal utility for checking snapshot validity structure.
+     * Ensures all required keys are present and are non-empty strings.
+     * @param {any} snapshot 
+     * @returns {boolean}
+     */
+    static _validateSnapshot(snapshot) {
+        if (typeof snapshot !== 'object' || snapshot === null) {
+            console.error(`[SSR Validation Error] Snapshot object is null or not an object.`);
+            return false;
+        }
+        const requiredKeys = ['proposalID', 'configHash', 'codebaseHash', 'ssh'];
+        for (const key of requiredKeys) {
+            if (typeof snapshot[key] !== 'string' || snapshot[key].length === 0) {
+                console.error(`[SSR Validation Error] Missing or invalid key: ${key} in provided structure.`);
+                return false;
+            }
+        }
+        if (typeof snapshot.timestamp !== 'number') {
+             console.error(`[SSR Validation Error] Missing or invalid timestamp.`);
+             return false;
+        }
+        return true;
+    }
+
+    /**
+     * Saves the complete cryptographic context snapshot, ensuring immutability.
+     * The proposalID serves as the unique identifier and transaction lock.
+     * @param {SystemStateSnapshot} snapshot
+     * @returns {void}
+     */
+    static saveSnapshot(snapshot) {
+        if (!StateSnapshotRepository._validateSnapshot(snapshot)) {
+            console.error(`[SSR] Critical Error: Invalid snapshot provided. Refusing to store immutable record.`);
+            return;
+        }
+
+        if (stateSnapshots.has(snapshot.proposalID)) {
+            // Immutability Check: Prevent overwriting existing, locked state records.
+            console.warn(`[SSR] Warning: Attempted to overwrite state snapshot for Proposal ID ${snapshot.proposalID}. Operation skipped due to immutability mandate.`);
+            return;
+        }
+        
+        // Store the immutable record defensively copied and frozen to guarantee read-only status.
+        const immutableRecord = Object.freeze({ ...snapshot });
+        stateSnapshots.set(snapshot.proposalID, immutableRecord);
+        console.info(`[SSR] State snapshot successfully locked and saved for Proposal ID: ${snapshot.proposalID}. Total records: ${stateSnapshots.size}.`);
+    }
+
+    /**
+     * Retrieves a detailed snapshot by Proposal ID.
+     * @param {string} proposalID
+     * @returns {SystemStateSnapshot | undefined}
+     */
+    static getSnapshot(proposalID) {
+        // Returns the frozen object or undefined, maintaining read-only access.
+        return stateSnapshots.get(proposalID);
+    }
+
+    /**
+     * Checks if a snapshot exists for a given Proposal ID, crucial for integrity checks.
+     * @param {string} proposalID
+     * @returns {boolean}
+     */
+    static hasSnapshot(proposalID) {
+        return stateSnapshots.has(proposalID);
+    }
+
+    /**
+     * Clears all snapshots. Restricted to privileged environment resets/testing.
+     * @returns {void}
+     */
+    static clearRepository() {
+        const count = stateSnapshots.size;
+        stateSnapshots.clear();
+        console.warn(`[SSR] Repository Cleared. ${count} records forcefully removed.`);
+    }
+
+    /**
+     * Retrieves the total count of stored snapshots (Metric).
+     * @returns {number}
+     */
+    static getSize() {
+        return stateSnapshots.size;
+    }
+}
+
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-7';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-8';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [user, setUser] = useState(null);
   const [bootInput, setBootInput] = useState({ ...INITIAL_STATE.config });
+  const [snapshotCount, setSnapshotCount] = useState(StateSnapshotRepository.getSize()); // Initialize SSR count
   const cycleTimer = useRef(null);
 
   useEffect(() => {
@@ -84,6 +189,15 @@ export default function App() {
   const pushLog = useCallback(async (msg, type = 'info') => {
     if (!auth.currentUser) return;
     try { await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'logs'), { msg, type, timestamp: Date.now() }); } catch (e) { console.error(e); }
+  }, []);
+
+  /**
+   * Wrapper to save the snapshot and notify the React UI of the repository size change.
+   * @param {SystemStateSnapshot} snapshot
+   */
+  const saveSnapshotAndNotify = useCallback((snapshot) => {
+      StateSnapshotRepository.saveSnapshot(snapshot);
+      setSnapshotCount(StateSnapshotRepository.getSize());
   }, []);
 
   const persistentFetch = async (url, options, retries = 5) => {
@@ -114,7 +228,8 @@ export default function App() {
       
       const targets = treeData.tree.filter(f => 
           f.type === 'blob' && 
-          /\.(js|jsx|ts|tsx)$/.test(f.path) && 
+          /
+\.(js|jsx|ts|tsx)$/.test(f.path) && 
           !f.path.includes(path)
       );
 
@@ -131,6 +246,29 @@ export default function App() {
       const kernelData = await kernelRes.json();
       const kernelCode = atou(kernelData.content);
 
+      // --- SSR: ATOMIC STATE TRACING PRE-EXPANSION GOVERNANCE CHECK ---
+      dispatch({ type: 'SET_STATUS', value: 'LOCKING_STATE', objective: 'Generating immutable state snapshot...' });
+      
+      // 1. Configuration Hash (based on volatile settings and cycle count)
+      const configHash = utoa(JSON.stringify(state.config) + String(state.cycleCount)); 
+      // 2. Codebase Hash (SHA of the current Kernel file)
+      const codebaseHash = kernelData.sha;
+      // 3. Unique Proposal ID
+      const proposalID = `C${state.cycleCount}T${Date.now()}`;
+      // 4. System State Hash (SSH) derivation for integrity verification
+      const ssh = utoa(`SSH_V1|${proposalID}|${configHash}|${codebaseHash}`); 
+
+      const preExpansionSnapshot = {
+          proposalID,
+          configHash,
+          codebaseHash,
+          ssh,
+          timestamp: Date.now()
+      };
+      
+      // Save the state snapshot before the potentially destructive expansion request
+      saveSnapshotAndNotify(preExpansionSnapshot); 
+
       dispatch({ type: 'SET_STATUS', value: 'EXPANDING', objective: 'Enforcing Growth Mandate...' });
       
       const cerebrasRes = await fetch(KERNAL_CONSTANTS.CEREBRAS_URL, {
@@ -138,8 +276,8 @@ export default function App() {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey.trim()}` },
           body: JSON.stringify({
             model: 'llama-3.3-70b',
-            messages: [{ 
-              role: 'system', 
+            messages: [{
+              role: 'system',
               content: `You are AGI-KERNAL. 
               EXPANSION MANDATE: Every response MUST be equal to or LARGER than the original KERNAL_CODE.
               1. Fix errors in TARGET_CODE.
@@ -208,7 +346,7 @@ export default function App() {
     } finally {
       dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Post-Expansion Coolant...' });
     }
-  }, [state.isLive, state.config, pushLog]);
+  }, [state.isLive, state.config, pushLog, saveSnapshotAndNotify, state.cycleCount]);
 
   useEffect(() => {
     if (state.isLive) {
@@ -225,7 +363,7 @@ export default function App() {
           <div className="flex flex-col items-center text-center">
             <Dna className="text-purple-500 animate-pulse mb-4" size={48} />
             <h1 className="text-white font-black text-3xl tracking-tighter italic uppercase">AGI-KERNAL</h1>
-            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.7</p>
+            <p className="text-purple-400 text-[10px] uppercase tracking-[0.5em] mt-2 font-mono">FORCED GROWTH v6.8</p>
           </div>
           <div className="space-y-4">
             <input type="password" placeholder="GitHub Access" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
@@ -293,8 +431,11 @@ export default function App() {
       </main>
 
       <footer className="h-12 border-t border-zinc-900 px-12 flex items-center justify-between text-[8px] uppercase tracking-[0.6em] text-zinc-800 font-black shrink-0">
-        <span>FORCED GROWTH PROTOCOL v6.7.0</span>
-        <span className="text-purple-900/40 tracking-normal italic uppercase">Expansion Mandate: ACTIVE</span>
+        <span>FORCED GROWTH PROTOCOL v6.8.0</span>
+        <span className="flex items-center gap-4">
+            <span className="text-purple-900/40 tracking-normal italic uppercase">Expansion Mandate: ACTIVE</span>
+            <span className="text-zinc-600 tracking-normal">| AUDIT LOGS: {snapshotCount}</span>
+        </span>
       </footer>
 
       <style>{`
@@ -305,4 +446,3 @@ export default function App() {
     </div>
   );
 }
-
