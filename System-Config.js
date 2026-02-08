@@ -1,1 +1,1 @@
-Implementation of federated learning techniques to facilitate collaborative edge AI model training while maintaining data privacy
+Integration of blockchain-based secure multi-party computation to further enhance data privacy and security in federated learning
