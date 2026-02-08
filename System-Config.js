@@ -1,1 +1,1 @@
-Expansion of AI-driven anomaly detection to include predictive maintenance and automated remediation for CEaaS
+Integration of predictive maintenance with automated remediation for CEaaS using hybrid AI approaches
