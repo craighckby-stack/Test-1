@@ -1,1 +1,1 @@
-Integrate cognitive architectures with spiking neural networks and synaptic plasticity rules
+Integrate deep learning models with cognitive architectures to enhance decision-making and adaptability
