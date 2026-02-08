@@ -1,1 +1,1 @@
-Integration of transfer learning and meta-learning techniques to enhance the adaptability and generalizability of graph neural networks
+Expansion of transfer learning and meta-learning techniques to incorporate multimodal data fusion and edge intelligence
