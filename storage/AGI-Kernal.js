@@ -1,1 +1,1 @@
-Integration of multimodal learning and meta-learning techniques with attention-based neural networks and cognitive architectures
+Development of hybrid cognitive architectures incorporating multimodal fusion and meta-learning techniques with attention-based neural networks
