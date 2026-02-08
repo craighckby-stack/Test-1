@@ -1,1 +1,1 @@
-Optimization of aggregation protocols using secure multi-party computation techniques for improved scalability
+Deployment of homomorphic encryption methods for secure multi-party computation to enhance data privacy
