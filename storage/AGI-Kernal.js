@@ -1,1 +1,1 @@
-Integration of cognitive graph-based attention mechanisms with multimodal transfer learning
+Advancement of context-aware attention mechanisms
