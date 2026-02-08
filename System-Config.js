@@ -1,1 +1,1 @@
-Integrate fully homomorphic encryption protocols with differential privacy guarantees
+Integrating fully homomorphic encryption protocols with differential privacy guarantees
