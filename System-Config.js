@@ -1,1 +1,1 @@
-Refinement of holistic security orchestration framework
+Holistic security orchestration framework refinement
