@@ -1,1 +1,1 @@
-Expansion of multimodal learning capabilities to include video and sensor data processing
+Implementation of explainability and transparency mechanisms for multimodal learning models
