@@ -1,1 +1,1 @@
-Develop a blockchain-based framework for secure and transparent data sharing and auditing, utilizing zero-knowledge proofs and federated learning
+Develop a decentralized data governance framework, leveraging homomorphic encryption and differential privacy to ensure secure and transparent data sharing and auditing
