@@ -1,1 +1,1 @@
-Evolution of Hybrid Cognitive Graph Neural Networks to incorporate Explainable AI and transparent decision-making frameworks, leveraging the learned benefits of multimodal fusion and multiscale analysis
+Development of an Explainable AI framework for Hybrid Cognitive Graph Neural Networks, integrating transparent decision-making and multimodal fusion capabilities
