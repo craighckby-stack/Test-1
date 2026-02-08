@@ -1,1 +1,1 @@
-Deployment of Hybrid Explainable AI Frameworks with Advanced Adversarial Training and Cognitive Architecture Integration
+Advancement of Hybrid Explainable AI Frameworks with Adaptive Adversarial Training and Transfer Learning
