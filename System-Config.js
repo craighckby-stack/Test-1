@@ -1,1 +1,1 @@
-Deployment of a federated learning architecture that leverages secure multi-party computation and homomorphic encryption to enable secure and private model training across decentralized data networks
+Expansion of the federated learning architecture to support heterogeneous data networks and edge computing devices
