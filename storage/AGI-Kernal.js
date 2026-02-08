@@ -1,1 +1,1 @@
-Integration of Temporal Convolutional Networks for Real-Time Multimodal Fusion
+Expansion of Multimodal Fusion to Incorporate Edge Computing for Reduced Latency
