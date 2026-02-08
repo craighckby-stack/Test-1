@@ -1,1 +1,1 @@
-Integrate multimodal learning and meta-learning techniques with attention-based neural networks and cognitive architectures
+Integration of multimodal learning and meta-learning techniques with attention-based neural networks and cognitive architectures
