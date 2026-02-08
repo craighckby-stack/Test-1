@@ -1,1 +1,1 @@
-Integration of Temporal Graph Attention Networks for enhanced neuro-symbolic reasoning and transfer learning across dynamic knowledge graphs
+Integration of probabilistic reasoning and temporal graph attention networks to enhance neuro-symbolic reasoning and transfer learning across dynamic knowledge graphs
