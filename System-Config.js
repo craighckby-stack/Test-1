@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and graph neural networks for secure and explainable computation
+Implementation of secure multi-party computation and graph neural networks for decentralized and explainable computation
