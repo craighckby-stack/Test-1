@@ -18,3 +18,6 @@ The AGI-Kernel Core operates on a dual-branch strategy, with 'main' serving as t
 
 ### LLM Integration: llama-3.3-70b
 The AGI-Kernel Core leverages the llama-3.3-70b large language model for its cognitive tasks. This integration enables the system to generate high-quality logic updates and documentation, driving its evolution forward.
+
+### Maturity Rating: {res.maturity_rating}
+### Reasoning: {res.reasoning}
