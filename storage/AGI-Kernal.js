@@ -1,1 +1,1 @@
-Evolve cognitive architectures to incorporate transfer learning and meta-learning for enhanced adaptability and knowledge sharing across human-AI collaborative tasks
+Incorporate multi-agent reinforcement learning to enhance autonomous decision-making in human-AI collaborative tasks
