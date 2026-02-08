@@ -1,1 +1,1 @@
-Investigation of Explainable AI approaches to provide transparency into model decision-making processes
+Integrate attention mechanisms into the Explainable AI framework to enable more accurate model interpretability
