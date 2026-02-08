@@ -1,1 +1,1 @@
-Integration of multimodal explainability techniques into hybrid edge-AI models to enhance transparency and trustworthiness
+Expansion of multimodal explainability techniques to include human-in-the-loop feedback mechanisms for improved model accuracy and trust
