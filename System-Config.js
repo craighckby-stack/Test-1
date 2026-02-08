@@ -1,1 +1,1 @@
-Expansion of decentralized data storage with blockchain technology to further enhance security and transparency
+Integrating decentralized data storage with blockchain technology and cognitive graph-based multimodal fusion for secure and transparent data management
