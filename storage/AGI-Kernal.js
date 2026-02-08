@@ -1,1 +1,1 @@
-Investigating the application of novel multimodal fusion architectures in real-world scenarios, such as healthcare and finance, to further demonstrate their effectiveness and identify areas for improvement
+Advancing the application of multimodal fusion architectures to emerging fields like autonomous vehicles and smart cities, with a focus on improving decision-making under uncertainty and enhancing human-AI collaboration
