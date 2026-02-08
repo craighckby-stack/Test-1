@@ -1,1 +1,1 @@
-Expansion of Federated Learning to incorporate edge computing and device-level model training, allowing for real-time data analysis and more personalized model refinements
+Enhanced Federated Learning with Edge AI and Explainability
