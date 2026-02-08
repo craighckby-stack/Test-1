@@ -1,1 +1,1 @@
-Implementation of federated learning for decentralized and secure model training
+Expansion of federated learning to support edge AI and real-time model updates
