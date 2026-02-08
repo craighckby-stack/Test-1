@@ -1,1 +1,1 @@
-Extension of smart contract-based access control to support secure multi-party computation
+Implementation of a zero-knowledge proof protocol to further secure multi-party computation within the smart contract framework
