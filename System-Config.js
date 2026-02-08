@@ -1,1 +1,1 @@
-Integration of differential privacy techniques with homomorphic encryption to further protect sensitive data and ensure the security of the multi-party computation protocol
+Implementation of a hybrid approach combining differential privacy and homomorphic encryption to ensure end-to-end security and privacy preservation in multi-party computations
