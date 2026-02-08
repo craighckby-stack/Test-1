@@ -1,1 +1,1 @@
-Integration of Explainable AI with multimodal fusion framework for transparent human-AI collaboration
+Explainable AI with multimodal fusion framework for transparent human-AI collaboration
