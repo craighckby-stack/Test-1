@@ -1,1 +1,1 @@
-Incorporating advanced symbolic reasoning and multimodal fusion techniques to enhance knowledge graph representation and predictive accuracy
+Incorporating advanced symbolic reasoning and multimodal fusion techniques to improve knowledge graph representation and predictive accuracy
