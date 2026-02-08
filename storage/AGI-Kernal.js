@@ -1,1 +1,1 @@
-Integrate graph attention networks with multimodal fusion techniques and attention mechanism analysis for improved performance on complex datasets
+Integration of graph attention networks with multimodal fusion techniques and attention mechanism analysis
