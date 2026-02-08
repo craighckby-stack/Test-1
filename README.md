@@ -1,38 +1,61 @@
-Added a note to the README file explaining the optimization made to the IDDFS algorithm and its benefits.
+## IDDFS Implementation
+### Overview
+This implementation provides an iterative deepening depth-first search (IDDFS) algorithm, which is used to find a path between two nodes in a graph. The algorithm is optimized to handle cycles in the graph and provides an efficient solution by keeping track of visited nodes.
+### Usage
+To use the `iddfs` function, simply call it with the `root` node, `goal` node, and optional `depth` limit. The function will return the goal node if found, or `null` otherwise.
 
 ## Gemini Research
-The Iterative Deepening Depth-First Search (IDDFS) algorithm is a highly regarded search strategy in Artificial Intelligence and computer science, and its optimality is a foundational theoretical guarantee.
+The Iterative Deepening Depth-First Search (IDDFS) algorithm is a powerful uninformed search technique that combines the benefits of Breadth-First Search (BFS) and Depth-First Search (DFS). It achieves this by performing a series of depth-limited DFS searches, with the depth limit increasing by one in each iteration until the goal state is found.
 
-The deep research confirms that IDDFS is indeed an **optimal** search algorithm, provided the problem space meets specific conditions.
+Deep research on IDDFS reveals critical characteristics regarding its optimality, efficiency, and the trade-offs associated with cycle handling in graphs.
 
 ---
 
-### IDDFS Optimality Analysis
+## Optimality
 
-The optimality of IDDFS stems from its unique design, which combines the desirable features of Breadth-First Search (BFS) and Depth-First Search (DFS).
+**IDDFS is complete and optimal** under specific conditions, making it a highly desirable uninformed search algorithm.
 
-#### 1. Condition for Optimality: Shortest Path
+*   **Completeness:** IDDFS is **complete**, meaning that if a solution exists, the algorithm is guaranteed to find it. This is due to the iterative nature of the depth-limit increase, which systematically explores all nodes at a given depth before moving to the next level, similar to BFS.
+*   **Optimality:** IDDFS is **optimal** when the problem involves finding the shortest path in terms of the number of edges.
+    *   In **unweighted graphs** (where the cost of every edge is the same, typically 1), optimality is guaranteed because IDDFS, like BFS, finds the shallowest goal state first.
+    *   If edge costs are non-uniform, IDDFS is *not* guaranteed to find the minimum-cost path, as a goal state at a shallower depth might have a higher cumulative cost than a goal state at a deeper level. For minimum-cost path finding in weighted graphs, algorithms like Uniform Cost Search or A* are typically preferred.
 
-IDDFS is optimal in the sense that it is guaranteed to find the **shallowest goal node**.
+---
 
-*   **Unweighted Graphs:** In a graph where all edges have the same cost (i.e., an unweighted graph), finding the shallowest goal node is equivalent to finding the **shortest path** from the start state to the goal state. This is the primary context in which IDDFS is strictly optimal.
-*   **Weighted Graphs:** In a weighted graph (where edges have different costs), IDDFS is generally *not* optimal. For weighted graphs, an algorithm like Uniform Cost Search (UCS) or A\* Search must be used to ensure the lowest-cost path is found. IDDFS can be adapted (e.g., Iterative Deepening A\*, or IDA\*) but in its standard form, it only guarantees finding the goal at the minimum *depth*.
+## Efficiency (Time and Space Complexity)
 
-#### 2. The Mechanism of Optimality
+IDDFS achieves an optimal balance between the exponential time complexity of BFS and the linear space complexity of DFS.
 
-IDDFS achieves its optimality by systematically increasing a **depth limit** in an iterative manner.
+### Time Complexity ($O(b^d)$)
 
-*   **Mimicking BFS:** In each iteration, a standard Depth-Limited Search (DLS) is performed down to the current depth limit ($d$). Because the depth limit is *incrementally* increased ($0, 1, 2, 3, \dots$), the algorithm effectively explores all nodes at depth $d$ before it explores any nodes at depth $d+1$. This is the exact mechanism that guarantees BFS optimality. Since IDDFS finds the shortest path by depth, it is essentially replicating the completeness and optimality of BFS.
-*   **Guaranteed Shortest Path:** When a goal node is found at depth $d$, the algorithm is guaranteed that no goal node exists at a depth less than $d$ (i.e., $d-1, d-2, \dots$), because the previous iterations would have already found it if it existed. Therefore, the first goal found is the one with the shortest path length.
+The time complexity of IDDFS is $O(b^d)$, where $b$ is the **branching factor** (the number of successors for a state) and $d$ is the **depth of the shallowest goal state**.
 
-#### 3. Theoretical Proof and Guarantees
+*   **Redundant Expansions:** The algorithm repeatedly re-expands nodes at shallower depths in each new iteration. However, this re-expansion is shown to have minimal impact on the overall asymptotic complexity.
+*   **Asymptotic Optimality:** In a search tree with a constant branching factor, the number of nodes at the deepest level ($d$) is significantly greater than the sum of all nodes at all shallower levels ($0$ to $d-1$). For example, with a branching factor of 10 and a depth of 5, the nodes at depth 5 account for over 90% of all generated nodes. Therefore, the repeated work done at shallower levels does not change the exponential nature of the time complexity, which remains asymptotically the same as BFS: **$O(b^d)$**. IDDFS is considered **asymptotically optimal** among uninformed search methods.
 
-The theoretical guarantees of IDDFS were formally analyzed and proven in detail by Richard Korf in his seminal 1985 paper, "Depth-First Iterative-Deepening: An Optimal Admissible Tree Search".
+### Space Complexity ($O(bd)$)
 
-The key properties discussed in the analysis include:
+The space complexity of IDDFS is its greatest strength, as it only requires space proportional to the depth of the current search path, which is $O(bd)$.
 
-*   **Completeness:** IDDFS is **complete**, meaning that if a solution exists in the search space, the algorithm is guaranteed to find it (as long as the graph is not infinitely branched).
-*   **Time Complexity:** The time complexity is $O(b^d)$, where $b$ is the branching factor and $d$ is the depth of the shallowest goal. This is asymptotically the same as BFS, making it time-optimal among the uninformed search algorithms.
-*   **Space Complexity:** The space complexity is $O(d)$, which is characteristic of DFS. This is the primary advantage of IDDFS—it is **space-optimal** because it only needs to store the current path from the root to the current node, unlike BFS which can require $O(b^d)$ space to store the frontier of all nodes at the current depth.
+*   **Linear Space:** Since each iteration is a depth-first search, it only needs to store the nodes on the current path from the root to the deepest node being explored. This results in space complexity of **$O(d)$** in terms of depth, or **$O(bd)$** where $b$ is included to account for storing the children of each node on the stack.
+*   **Advantage over BFS:** This linear space complexity is a massive advantage over BFS, which requires storing the entire fringe (all nodes at the current level) and therefore has a space complexity of $O(b^d)$, potentially exhausting memory for deep searches.
 
-In summary, IDDFS combines the **optimality and completeness of BFS** with the **space-efficiency of DFS**, which is why it is often the preferred uninformed search algorithm when the search space is large or has a high branching factor.
+---
+
+## Cycle Handling
+
+While IDDFS is complete and optimal for trees and unweighted graphs, **cycle handling is necessary when searching arbitrary graphs** and introduces a critical trade-off with its hallmark space efficiency.
+
+### Necessity of Cycle Detection
+
+*   In a graph containing cycles, the underlying Depth-Limited DFS (DLS) in IDDFS can enter an infinite loop if not stopped.
+*   Even if the individual DLS iterations are guaranteed to terminate due to the depth limit, a cycle can cause **repeated exploration of the same subgraph** in different iterations, leading to massive performance degradation or an inability to find the goal efficiently.
+
+### The Space Complexity Trade-Off
+
+To properly handle cycles and prevent redundant work in a general graph, one must employ a **visited set** (or hash table) to keep track of all nodes expanded across all iterations.
+
+*   **Local Cycle Detection:** If the algorithm only checks for a cycle *in the current path* (i.e., whether the current node is an ancestor), the space complexity remains **$O(bd)$**. This prevents the DLS from entering a trivial infinite loop but **does not prevent re-exploring entire subgraphs** in the same iteration or in subsequent iterations.
+*   **Global Cycle Detection (Full Graph Search):** To prevent *all* redundant expansions, a global visited set must be maintained. However, the space required for a global visited set is proportional to the number of states visited, which can be **$O(V)$** (where $V$ is the number of vertices) or **$O(b^d)$** in the worst-case, sacrificing the primary benefit of IDDFS.
+
+Therefore, the use of IDDFS for graph search involves a fundamental trade-off: maintain the **linear space efficiency ($O(bd)$)** and tolerate the possibility of redundant subgraph exploration (or require a global memory set, thus making the space complexity comparable to BFS). In practice, IDDFS is most effective in problems where the search space is a tree or an implicitly defined graph that is too large to store in memory, making its linear space complexity invaluable.
