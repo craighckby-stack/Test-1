@@ -1,1 +1,1 @@
-Integration of differential privacy and secure multi-party computation techniques to further bolster the security and privacy of AI model training protocols
+Implementation of differential privacy and secure multi-party computation techniques for enhanced security and privacy
