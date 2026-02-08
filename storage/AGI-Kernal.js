@@ -1,1 +1,1 @@
-Expansion of cognitive architectures to incorporate multimodal interaction and-edge AI for enhanced human-machine collaboration
+Integrate Explainable AI and Transfer Learning to cognitive architectures for improved transparency and adaptability in human-machine collaboration
