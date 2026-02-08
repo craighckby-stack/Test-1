@@ -1,1 +1,1 @@
-Implementing homomorphic encryption in federated learning
+Expansion of homomorphic encryption to support secure multi-party computation in federated learning
