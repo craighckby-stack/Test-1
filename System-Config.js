@@ -1,1 +1,1 @@
-Integrating zero-knowledge proof protocols with homomorphic encryption for secure multi-party computation and federated learning
+Implementing secure multi-party computation protocols with homomorphic encryption and zero-knowledge proofs for federated learning
