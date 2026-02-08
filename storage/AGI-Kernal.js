@@ -279,6 +279,191 @@ class MutationChainRegistrar {
 
 // --- End Absorbed Target Data Utilities ---
 
+// --- Policy Engine Data Structures (Target Integration) ---
+
+class TrieNode {
+    constructor() {
+        this.children = new Map();
+        this.policies = []; // Stores policies matching this prefix
+    }
+}
+
+class PolicyTrie {
+    constructor() {
+        this.root = new TrieNode();
+    }
+
+    insert(prefix, policy) {
+        let node = this.root;
+        for (const char of prefix) {
+            if (!node.children.has(char)) {
+                node.children.set(char, new TrieNode());
+            }
+            node = node.children.get(char);
+        }
+        node.policies.push(policy);
+    }
+
+    search(key) {
+        let node = this.root;
+        let matchingPolicies = [];
+        for (const char of key) {
+            if (node.children.has(char)) {
+                node = node.children.get(char);
+                matchingPolicies.push(...node.policies);
+            } else {
+                // Stop if prefix doesn't match further
+                break;
+            }
+        }
+        // Also check for policies stored at the end of the full key path
+        matchingPolicies.push(...node.policies); 
+        return [...new Set(matchingPolicies)]; // Deduplicate
+    }
+}
+
+class IntervalTree {
+    constructor() {
+        this.intervals = []; // Stores { start, end, policy }
+    }
+
+    insert(start, end, policy) {
+        this.intervals.push({ start, end, policy });
+    }
+
+    initialize() {
+        // Sort by start point for efficient querying
+        this.intervals.sort((a, b) => a.start - b.start);
+    }
+
+    query(point) {
+        const matchingPolicies = [];
+        // Leverage sorting to stop early
+        for (const interval of this.intervals) {
+            if (interval.start > point) {
+                break; 
+            }
+            if (point >= interval.start && point <= interval.end) {
+                matchingPolicies.push(interval.policy);
+            }
+        }
+        return matchingPolicies;
+    }
+}
+
+class MccPolicyEngine {
+    constructor() {
+        this.policies = [];
+        this.prefixRules = new PolicyTrie();
+        this.rangeTree = new IntervalTree();
+        GAXTelemetry.system('MccPolicyEngine_Init');
+    }
+
+    /**
+     * Recursive function to handle complex policy conditions.
+     * @param {object} conditions - The condition object (e.g., { type: 'AND', rules: [...] })
+     * @param {object} transactionData - The data being evaluated.
+     * @returns {boolean}
+     */
+    evaluateConditionsRecursively(conditions, transactionData) {
+        if (!conditions) return true;
+
+        const { type, rules, field, operator, value } = conditions;
+
+        if (type === 'AND') {
+            return rules.every(rule => this.evaluateConditionsRecursively(rule, transactionData));
+        }
+        if (type === 'OR') {
+            return rules.some(rule => this.evaluateConditionsRecursively(rule, transactionData));
+        }
+
+        // Base condition evaluation
+        const txValue = transactionData[field];
+
+        if (txValue === undefined) return false;
+
+        switch (operator) {
+            case 'EQ': return txValue === value;
+            case 'GT': return txValue > value;
+            case 'LT': return txValue < value;
+            case 'CONTAINS': return String(txValue).includes(String(value));
+            default: return false;
+        }
+    }
+
+    /**
+     * Initializes the engine by compiling policies into optimized structures.
+     * @param {Array<object>} rawPolicies - List of policies.
+     */
+    initializeEngine(rawPolicies) {
+        // 1. Prioritize policies based on a defined order (e.g., 'priority' field, higher is better)
+        this.policies = [...rawPolicies].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        
+        this.prefixRules = new PolicyTrie();
+        this.rangeTree = new IntervalTree();
+
+        this.policies.forEach(policy => {
+            if (policy.matchType === 'PREFIX' && policy.prefix) {
+                this.prefixRules.insert(policy.prefix, policy);
+            }
+            if (policy.matchType === 'RANGE' && policy.rangeStart !== undefined && policy.rangeEnd !== undefined) {
+                this.rangeTree.insert(policy.rangeStart, policy.rangeEnd, policy);
+            }
+        });
+        
+        this.rangeTree.initialize();
+        GAXTelemetry.info('MccPolicyEngine_Compiled', { count: this.policies.length });
+    }
+
+    /**
+     * Evaluates a transaction against all compiled policies.
+     * @param {object} transactionData - The data to evaluate (e.g., { accountId: '123', amount: 500, geoCode: '001' })
+     * @returns {Array<object>} List of matching policies, prioritized.
+     */
+    evaluateTransaction(transactionData) {
+        const matchingPolicies = new Set();
+        
+        // 1. Prefix Matching (e.g., geo codes)
+        if (transactionData.geoCode) {
+            this.prefixRules.search(transactionData.geoCode).forEach(p => matchingPolicies.add(p));
+        }
+        
+        // 2. Range Matching (e.g., amount)
+        if (transactionData.amount !== undefined) {
+            this.rangeTree.query(transactionData.amount).forEach(p => matchingPolicies.add(p));
+        }
+
+        // 3. Full Iteration and Recursive Condition Check (Leveraging sorted list for priority)
+        const finalMatches = [];
+        
+        for (const policy of this.policies) {
+            // Optimization: If already matched by fast lookup and no complex conditions, push and continue.
+            if (matchingPolicies.has(policy) && !policy.conditions) {
+                finalMatches.push(policy);
+                continue;
+            }
+
+            // Check recursive conditions
+            if (this.evaluateConditionsRecursively(policy.conditions, transactionData)) {
+                finalMatches.push(policy);
+            }
+        }
+
+        // The results are already prioritized due to the initial sorting.
+        return finalMatches;
+    }
+}
+
+// Mock policies for testing the engine
+const mockPolicies = [
+    { id: 1, priority: 100, matchType: 'PREFIX', prefix: '001', conditions: { type: 'GT', field: 'amount', value: 1000 } },
+    { id: 2, priority: 50, matchType: 'RANGE', rangeStart: 100, rangeEnd: 500, conditions: null },
+    { id: 3, priority: 10, matchType: 'GENERAL', conditions: { type: 'AND', rules: [{ field: 'currency', operator: 'EQ', value: 'USD' }, { field: 'riskScore', operator: 'LT', value: 5 }] } }
+];
+
+const mccPolicyEngine = new MccPolicyEngine();
+mccPolicyEngine.initializeEngine(mockPolicies);
+
 // --- Utility Mocks for Proposal Validation ---
 const validateSchema = (data, schema) => ({ valid: true, errors: [] });
 
@@ -532,7 +717,7 @@ const safeAtou = (str) => {
   try {
     const cleaned = str.replace(/\s/g, '');
     return decodeURIComponent(Array.prototype.map.call(atob(cleaned), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  } catch (e) { return atob(str.replace(/\s/g, '')); }
+  } catch (e) { return atob(str.replace(/\s/g, '')); } 
 };
 
 const safeUtoa = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
@@ -593,7 +778,7 @@ export default function App() {
       const codeKeyMatch = cleaned.match(/"kernel_evolution"\s*:\s*"/);
       if (codeKeyMatch) {
         let startIdx = codeKeyMatch.index + codeKeyMatch[0].length;
-        let recovered = cleaned.substring(startIdx).replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/"\s*}$/, '').replace(/"$/, '');
+        let recovered = cleaned.substring(startIdx).replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/"\s*\}$/, '').replace(/"$/, '');
         return { kernel_evolution: recovered, _recovered: true };
       }
       throw new Error("FRAGMENT_PARSING_FAILED");
