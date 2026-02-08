@@ -1,1 +1,1 @@
-Implementation of federated learning and containerization for enhanced AI-driven network slicing and real-time edge computing management
+Integration of blockchain-based identity management and secure multi-party computation for trusted AI model sharing and collaboration
