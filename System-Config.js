@@ -1,1 +1,1 @@
-Implement attention mechanisms for transparent decision-making
+Implementing attention mechanisms for transparent decision-making processes
