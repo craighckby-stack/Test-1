@@ -1,1 +1,1 @@
-Development of a blockchain-based platform to support the decentralized identity management system, ensuring secure, transparent, and tamper-proof data storage and reputation management
+Implementation of a decentralized data storage solution using interplanetary file systems (IPFS) to further enhance data security and availability
