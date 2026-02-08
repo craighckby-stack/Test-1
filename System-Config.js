@@ -1,1 +1,1 @@
-Expand service mesh to include edge computing capabilities
+Implement service mesh extensions for edge computing
