@@ -1,1 +1,1 @@
-Integration of multimodal learning and attention mechanisms to enhance Explainable AI and Transfer Learning capabilities
+Development of Explainable AI frameworks that incorporate multimodal learning and attention mechanisms for transparent decision-making
