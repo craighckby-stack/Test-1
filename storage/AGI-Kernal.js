@@ -1,1 +1,1 @@
-Develop modular architecture for incorporation of cognitive architectures and attention mechanisms
+Implementing hierarchical attention mechanisms for improved cognitive architecture performance
