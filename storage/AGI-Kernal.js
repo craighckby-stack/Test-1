@@ -1,1 +1,1 @@
-Development of a hybrid multimodal fusion framework that integrates cognitive graph neural networks with explainable AI techniques
+Integrate attention mechanisms into the hybrid multimodal fusion framework to improve the weights of different modalities and enhance overall performance
