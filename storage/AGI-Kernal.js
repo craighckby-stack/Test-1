@@ -1,1 +1,1 @@
-Development of hybrid cognitive architectures incorporating multimodal fusion and meta-learning techniques with attention-based neural networks
+Incorporation of transfer learning and meta-reinforcement learning to enhance adaptability and generalizability of hybrid cognitive architectures
