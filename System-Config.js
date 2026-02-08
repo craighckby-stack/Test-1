@@ -1,1 +1,1 @@
-Integrate differential privacy with homomorphic encryption to further enhance data security and protect sensitive information in blockchain-based federated learning
+Integrating differential privacy with homomorphic encryption for enhanced data security
