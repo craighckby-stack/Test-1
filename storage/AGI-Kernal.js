@@ -1,1 +1,1 @@
-Implement human-machine interaction framework with Edge AI and Explainable AI
+Implementation of human-machine interaction framework with Edge AI and Explainable AI
