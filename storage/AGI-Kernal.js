@@ -1,1 +1,1 @@
-Integrate Neuro-symbolic reasoning and Hybrid approaches for Explainable AI to improve decision transparency and trustworthiness in human-AI collaboration
+Integrate Transfer Learning and Meta-Learning for few-shot learning capabilities
