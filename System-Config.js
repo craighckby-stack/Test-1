@@ -1,1 +1,1 @@
-Deploying blockchain-based federated learning frameworks with differential privacy
+Integrate homomorphic encryption with blockchain-based federated learning to further enhance data privacy and security
