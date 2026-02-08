@@ -1,1 +1,1 @@
-Integrating multimodal learning with graph neural networks to enhance adaptability and generalizability in complex, dynamic data structures
+Integrating Explainable AI (XAI) and Transfer Learning to further improve model interpretability and adaptability in dynamic data environments
