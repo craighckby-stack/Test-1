@@ -1,1 +1,1 @@
-function evolveLogic(inputData) { if (!inputData) { return null; } else { return inputData; } }
+function evolveLogic(inputData, depth = 0, maxDepth = 10) { if (depth > maxDepth) { return null; } if (!inputData) { return null; } else if (Array.isArray(inputData)) { return inputData.map(item => evolveLogic(item, depth + 1, maxDepth)); } else if (typeof inputData === 'object') { return Object.keys(inputData).reduce((acc, key) => ({ ...acc, [key]: evolveLogic(inputData[key], depth + 1, maxDepth) }), {}); } else { return inputData; } }
