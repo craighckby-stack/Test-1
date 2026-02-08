@@ -1,1 +1,1 @@
-Integration of explainable AI techniques with multimodal data fusion to enhance model transparency and reliability
+Expansion of explainable AI techniques to incorporate multimodal feedback mechanisms, enabling real-time model performance evaluation and adaptation
