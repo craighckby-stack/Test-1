@@ -1,1 +1,1 @@
-Integrate hierarchical attention mechanisms with graph-based neural networks for improved context understanding
+Integration of hierarchical attention mechanisms with graph-based neural networks
