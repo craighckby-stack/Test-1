@@ -1,1 +1,1 @@
-Implement a self-sovereign identity management system with blockchain-based Quantum-Resistant Cryptography and secure multi-party computation
+Implementation of a self-sovereign identity management system with blockchain-based Quantum-Resistant Cryptography and secure multi-party computation
