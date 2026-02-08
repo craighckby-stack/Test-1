@@ -1,1 +1,1 @@
-Integration of post-quantum cryptography with federated learning protocols to secure edge AI frameworks
+Post-quantum cryptography integrated with federated learning protocols will be advanced by implementing homomorphic encryption and differential privacy to secure edge AI frameworks.
