@@ -1,1 +1,1 @@
-Implementation of automated Chaos Engineering as a Service (CEaaS) for continuous resilience testing and security auditing
+Enhance CEaaS with AI-driven anomaly detection and predictive analytics for proactive resilience testing
