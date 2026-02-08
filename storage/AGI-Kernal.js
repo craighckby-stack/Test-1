@@ -1,1 +1,1 @@
-Integrate cognitive architectures with explainable AI and multimodal learning for enhanced transparency and decision-making
+Integration of cognitive architectures with explainable AI and multimodal learning
