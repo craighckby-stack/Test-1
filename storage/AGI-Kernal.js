@@ -1,1 +1,1 @@
-Exploration of novel graph attention network architectures that leverage transfer learning and meta-learning techniques for enhanced multimodal data processing
+Investigation of graph attention network architectures with transfer learning and meta-learning for multimodal data
