@@ -1,1 +1,1 @@
-Integration of Multimodal Learning and Attention Mechanisms to further enhance model interpretability and real-time decision-making
+Implementation of Explainable AI and Transfer Learning to ensure seamless integration of Multimodal Learning and Attention Mechanisms
