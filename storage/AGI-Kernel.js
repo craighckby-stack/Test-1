@@ -10,7 +10,7 @@ import {
   Activity, Shield, Zap, Brain, Terminal, Layers, Power, AlertTriangle, Scale, BookOpen, Search, Gavel, CheckCircle, XCircle, Code
 } from 'lucide-react';
 
-const_GOVERNED_OBJECTIVES = [
+const GOVERNED_OBJECTIVES = [
   "Add JSDoc comment to arbitrateMutation explaining the dual-agent constitutional model.",
   "Refine the dashboard UI border-white/5 to border-white/10 for increased visual definition.",
   "Implement a console.info heartbeat at the entry of the loadGovernanceContext function.",
@@ -18,7 +18,7 @@ const_GOVERNED_OBJECTIVES = [
   "Optimize the log entry rendering by adding a unique cryptographic-style prefix to timestamps."
 ];
 
-const_INITIAL_STATE = {
+const INITIAL_STATE = {
   isBooted: false,
   isLive: false,
   status: 'IDLE',
@@ -62,7 +62,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'sovereign-agi-v4-7';
 
 export default function App() {
-  const [state, dispatch] = useReducer(reducer, _INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [user, setUser] = useState(null);
   const [bootInput, setBootInput] = useState({ token: '', repo: '', kernelPath: '', cerebrasKey: '' });
   
@@ -207,7 +207,7 @@ Return a JSON object exactly:
       const kernelFile = await githubRequest(`/contents/${cur.config.kernelPath}`);
       const currentSource = decodeURIComponent(atob(kernelFile.content).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
 
-      const objective = _GOVERNED_OBJECTIVES[cur.cycleCount % _GOVERNED_OBJECTIVES.length];
+      const objective = GOVERNED_OBJECTIVES[cur.cycleCount % GOVERNED_OBJECTIVES.length];
       const govContext = gov.priorityFiles.map(f => `[${f.path}]:\n${f.content.substring(0, 500)}`).join('\n\n');
 
       dispatch({ type: 'SET_STATUS', value: 'PROPOSING', objective: `Task: ${objective}` });
