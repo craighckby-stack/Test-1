@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enable graph neural networks to process and integrate multiple types of data
+Expansion of multimodal fusion techniques to incorporate attention mechanisms and graph attention networks for improved data integration
