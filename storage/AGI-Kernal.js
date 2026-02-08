@@ -1,1 +1,1 @@
-Development of cognitive architectures to enable more intuitive human-machine interaction and adaptive decision-making
+Expansion of cognitive architectures to incorporate multimodal interaction and-edge AI for enhanced human-machine collaboration
