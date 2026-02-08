@@ -1,1 +1,1 @@
-Implement attention-based graph neural networks for efficient relational learning
+Integrate attention-based graph neural networks for efficient relational learning and knowledge representation
