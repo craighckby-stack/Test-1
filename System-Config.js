@@ -1,1 +1,1 @@
-Explainable AI models with real-time feedback
+Implement attention mechanisms for transparent decision-making
