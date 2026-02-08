@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption for secure computation on encrypted data
+Upgrade to lattice-based homomorphic encryption for improved security and efficiency in secure computation
