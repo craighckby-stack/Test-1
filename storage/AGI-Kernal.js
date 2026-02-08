@@ -1,1 +1,1 @@
-Development of explainable AI modules for multimodal learning to improve transparency and trust in decision-making
+Implementation of attention mechanisms in explainable AI modules for multimodal learning
