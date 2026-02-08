@@ -1,1 +1,1 @@
-Develop secure multi-party computation protocols for federated learning to enable privacy-preserving data sharing across decentralized networks
+Deployment of secure multi-party computation protocols for federated learning
