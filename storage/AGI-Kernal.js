@@ -1,1 +1,1 @@
-Develop hybrid models that combine graph neural networks with attention mechanisms to better capture complex relationships and improve predictive accuracy
+Implementing hybrid models that combine graph neural networks with attention mechanisms
