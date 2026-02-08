@@ -1,1 +1,28 @@
-# AGI-KERNAL\n\nCumulative Memory System\n====================\n\nThe AGI-KERNAL is an experimental AI system designed to evolve and improve over time through cumulative updates.\n\n## Overview\n\nThe AGI-KERNAL consists of the following components:\n\n* Cumulative Memory: The core component of the AGI-KERNAL, responsible for storing and managing the system's knowledge and experience.\n* Evolution Engine: The component responsible for applying updates and improvements to the Cumulative Memory.\n* Federated Learning: A decentralized learning mechanism that enables the AGI-KERNAL to learn from multiple sources and peers.\n\n## Technical Details\n\n* Blockchain: Polygon\n* AI Model: Llama-3.3-70b\n* Tokenizer: LlamaTokenizer\n* Federated Learning: Decentralized, with 128 peers and a GlobalModel shared model\n\n## Changelog\n\n* v7.1.0: Updated Cumulative Memory to version 7, with improved federated learning and decentralized architecture\n
+# AGI-KERNAL v7.1.0
+
+AGI-KERNAL is an open-source project that aims to create a comprehensive artificial general intelligence (AGI) framework. The project is composed of several interconnected modules, each responsible for a specific aspect of AGI development.
+
+## Overview
+
+The AGI-KERNAL framework is designed to be modular, scalable, and decentralized. It utilizes a distributed architecture, allowing multiple nodes to contribute to the development of the AGI.
+
+## Components
+
+* **Nexus-Database**: A decentralized database that stores and manages the AGI's knowledge graph.
+* **Cerebras AI**: A cutting-edge AI model that enables the AGI to learn and reason about the world.
+* **Federated Learning**: A decentralized learning framework that allows multiple nodes to contribute to the development of the AGI.
+
+## Roadmap
+
+* **Q1 2024**: Release of the AGI-KERNAL framework v7.1.0
+* **Q2 2024**: Integration of the Nexus-Database and Cerebras AI components
+* **Q3 2024**: Implementation of the federated learning framework
+* **Q4 2024**: Release of the AGI-KERNAL framework v8.0.0
+
+## Contributing
+
+If you are interested in contributing to the AGI-KERNAL project, please visit our GitHub repository and follow the guidelines outlined in the README file.
+
+## License
+
+The AGI-KERNAL project is licensed under the Apache License 2.0.
