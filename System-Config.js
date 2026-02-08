@@ -1,1 +1,1 @@
-Implementation of zero-knowledge proof protocols to further enhance security and privacy in multi-party computation
+Deployment of homomorphic encryption techniques to augment the security and privacy capabilities of the zero-knowledge proof protocols in multi-party computation
