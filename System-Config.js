@@ -1,1 +1,1 @@
-Deployment of federated learning techniques to facilitate secure and decentralized data sharing and model training
+Implementation of homomorphic encryption to enhance data privacy and security in federated learning
