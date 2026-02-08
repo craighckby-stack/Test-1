@@ -281,10 +281,16 @@ Return ONLY the complete, valid source code.
     });
   }, [user]);
 
+  const handleBootInput = (event) => {
+    if (event.key === 'Enter') {
+      dispatch({ type: 'BOOT', config: bootInput });
+    }
+  };
+
   if (!state.isBooted) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-zinc-500 font-mono">
-        <div className="w-full max-w-sm space-y-6">
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-zinc-500 font-mono" onKeyDown={handleBootInput}>
+        <div className="w-full max-w-sm space-y-6" tabIndex={0}>
           <div className="text-center">
             <Scale size={48} className="mx-auto text-amber-500 mb-2" />
             <h1 className="text-white text-sm font-black tracking-widest uppercase">Arbiter Kernel v4.7</h1>
