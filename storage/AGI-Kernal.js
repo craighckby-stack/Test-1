@@ -1,1 +1,1 @@
-Integrate meta-learning techniques to enhance the adaptability of attention mechanisms
+Implement meta-learning attention mechanisms for adaptive feature extraction
