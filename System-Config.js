@@ -1,1 +1,1 @@
-Implement homomorphic encryption and differential privacy to secure edge AI frameworks with post-quantum cryptography and federated learning protocols
+Implementation of homomorphic encryption and differential privacy to secure edge AI frameworks with post-quantum cryptography and federated learning protocols
