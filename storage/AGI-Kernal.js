@@ -1,1 +1,1 @@
-Integration of graph neural networks with attention mechanisms for improved multimodal learning and explainability
+Implementation of multimodal attention mechanisms to enable more accurate and interpretable results in graph neural networks
