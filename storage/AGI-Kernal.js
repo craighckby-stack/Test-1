@@ -1,1 +1,1 @@
-Expansion of transfer learning and meta-learning techniques to incorporate multimodal data fusion and edge intelligence
+Incorporation of multimodal fusion and edge AI for real-time learning
