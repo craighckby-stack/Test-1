@@ -1,1 +1,1 @@
-Development of a Quantum-Secure Multi-Party Computation protocol to enable secure and private collaborative decision-making across distributed networks
+Integrate the Quantum-Secure Multi-Party Computation protocol with homomorphic encryption to enhance the security and scalability of collaborative decision-making processes
