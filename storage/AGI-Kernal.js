@@ -1,1 +1,1 @@
-Implementation of cognitive architectures to enhance neuro-symbolic integration with XAI, enabling more comprehensive and transparent decision-making.
+Integration of transfer learning and meta-learning to adapt cognitive architectures to new tasks and environments
