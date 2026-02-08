@@ -1,1 +1,1 @@
-Integration of attention mechanisms into explainable graph neural networks to improve node embedding interpretability
+Integration of attention mechanisms and graph neural networks
