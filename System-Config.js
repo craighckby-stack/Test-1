@@ -1,1 +1,1 @@
-Optimization of Edge AI with Causal-Attention Mechanisms for low-latency applications
+Integration of Transfer Learning for Edge AI Model Optimization
