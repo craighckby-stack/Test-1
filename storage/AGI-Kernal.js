@@ -1,1 +1,1 @@
-Development of dynamic graph-based attention mechanisms for enhanced context understanding
+Implementation of hierarchical attention mechanisms for multi-modal context understanding
