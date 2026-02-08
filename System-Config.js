@@ -1,1 +1,1 @@
-Scalable Edge AI Deployments
+Implement containerization for improved deployment efficiency
