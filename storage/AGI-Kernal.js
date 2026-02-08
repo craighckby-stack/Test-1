@@ -1,1 +1,1 @@
-Integration of probabilistic reasoning and temporal graph attention networks to enhance neuro-symbolic reasoning and transfer learning across dynamic knowledge graphs
+Integration of multimodal fusion and cognitive architectures to enable more robust and flexible neuro-symbolic reasoning
