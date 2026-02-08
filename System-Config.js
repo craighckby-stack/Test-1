@@ -1,1 +1,1 @@
-Implementation of automated hyperparameter tuning and adaptive optimization algorithms to further improve edge AI performance
+Development of explainable AI and model interpretability techniques to improve edge AI trustworthiness and transparency
