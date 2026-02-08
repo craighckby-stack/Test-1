@@ -1,1 +1,1 @@
-Integration of cognitive graph-based attention mechanisms with multimodal transfer learning is complete
+Integration of cognitive graph-based attention mechanisms with multimodal transfer learning
