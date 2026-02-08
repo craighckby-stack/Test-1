@@ -1,1 +1,1 @@
-Multimodal fusion with meta-learning expansion to include transfer learning and ensemble methods
+Expansion of multimodal fusion to incorporate cognitive attention and graph-based neural networks for enhanced hybrid reasoning
