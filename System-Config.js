@@ -1,1 +1,1 @@
-Integration of a Secure Multi-Party Computation protocol with the Hybrid Encryption protocol to facilitate secure and private data sharing among multiple stakeholders, while maintaining the benefits of Homomorphic Encryption and Zero-Knowledge Proofs
+Integration of Secure Multi-Party Computation with Hybrid Encryption and Homomorphic Encryption
