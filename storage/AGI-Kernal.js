@@ -1,1 +1,1 @@
-Expansion of graph attention network architectures to incorporate multimodal fusion techniques and attention mechanism analysis for improved performance on complex datasets
+Integrate multimodal fusion techniques with graph attention network architectures to enhance model performance on complex datasets
