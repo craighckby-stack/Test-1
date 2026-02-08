@@ -1,1 +1,1 @@
-Expansion of transfer learning capabilities to accommodate multimodal data
+Integration of multimodal fusion techniques to enhance transfer learning capabilities
