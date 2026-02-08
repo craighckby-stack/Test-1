@@ -1,1 +1,1 @@
-development of modular neural network architecture
+Integration of transfer learning for expedited neural network development
