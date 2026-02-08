@@ -1,1 +1,1 @@
-Implementation of blockchain-based authentication protocol
+Expansion of blockchain-based authentication protocol to support decentralized data storage
