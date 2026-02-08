@@ -1,1 +1,1 @@
-Enhanced multimodal fusion with integrated uncertainty quantification for improved attention mechanisms
+Implementation of attention mechanisms with adaptive uncertainty quantification for robust multimodal fusion
