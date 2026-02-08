@@ -1,1 +1,1 @@
-Deployment of post-quantum cryptographic protocols and secure multi-party computation for high-stakes transactions
+Implementation of homomorphic encryption for secure computation on encrypted data
