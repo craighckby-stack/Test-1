@@ -1,1 +1,1 @@
-Implement fully homomorphic encryption to further secure the zero-knowledge proof protocols and enable more efficient multi-party computation
+Implementation of fully homomorphic encryption for secure zero-knowledge proof protocols
