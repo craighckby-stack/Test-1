@@ -1,1 +1,1 @@
-Development of transparent and adaptive multimodal fusion algorithms to facilitate real-time insights from heterogeneous data sources
+Implementation of cognitive architectures to enable explainable and transparent decision-making processes
