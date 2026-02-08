@@ -1,1 +1,1 @@
-Integrate cognitive architectures to enable human-AI collaboration in complex decision-making processes, incorporating multimodal fusion and graph attention network-transformer hybrid models to enhance explainability and transparency
+Integrate transfer learning and meta-learning techniques to adapt human-AI collaboration models to new domains and tasks
