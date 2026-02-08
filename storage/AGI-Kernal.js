@@ -1,1 +1,1 @@
-Integration of Transfer Learning and Meta-Learning to Enhance Multimodal Fusion
+Investigation of Edge AI and Federated Learning for Real-Time Multimodal Fusion
