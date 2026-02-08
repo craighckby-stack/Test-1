@@ -1,1 +1,1 @@
-Explainable AI and model interpretability techniques will be integrated into edge AI systems to provide transparent and trustworthy outputs, facilitating human-machine collaboration and enhancing overall system reliability.
+Integration of explainable AI and model interpretability techniques into edge AI systems
