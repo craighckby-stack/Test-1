@@ -1,1 +1,1 @@
-Expansion of attention mechanisms to incorporate temporal dynamics and cross-modal interactions
+Integration of graph-based neural networks to enhance temporal dynamics and cross-modal interactions
