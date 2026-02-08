@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols for collaborative learning on horizontally partitioned data, enabling federated learning frameworks
+Develop a decentralized and differential privacy-preserving framework for federated learning, utilizing homomorphic encryption and secure multi-party computation protocols
