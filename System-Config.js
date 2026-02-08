@@ -1,1 +1,1 @@
-Development of transparent and interpretable AI frameworks, incorporating techniques such as attention visualization and model interpretability to enhance trustworthiness and explainability
+Develop transparent AI frameworks with attention visualization and model interpretability for enhanced trustworthiness
