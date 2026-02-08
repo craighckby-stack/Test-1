@@ -1,1 +1,1 @@
-Integration of graph neural networks for improved multimodal representation learning
+Integration of attention mechanisms to enhance graph neural network performance
