@@ -1,1 +1,1 @@
-Integrating probabilistic reasoning with attention-based graph neural networks to develop more adaptive and resilient cognitive architectures
+Developing hybrid architectures that integrate probabilistic reasoning with attention-based graph neural networks and edge-based attention mechanisms to enable more adaptive and resilient cognitive systems
