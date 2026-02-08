@@ -1,1 +1,1 @@
-Develop hybrid cognitive graph neural networks
+Next-generation cognitive graph neural networks with integrated federated learning
