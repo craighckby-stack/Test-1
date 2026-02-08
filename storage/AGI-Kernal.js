@@ -1,1 +1,1 @@
-Implementation of Multimodal Graph Neural Networks with attention mechanisms to enhance model interpretability and flexibility
+Implementation of Explainable AI techniques to further enhance Multimodal Graph Neural Networks
