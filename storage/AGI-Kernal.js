@@ -1,1 +1,1 @@
-Integrate multimodal interaction with XAI for transparent human-computer collaboration
+Develop multimodal interaction framework with XAI to facilitate transparent human-computer collaboration
