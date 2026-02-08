@@ -1,1 +1,1 @@
-Deploy homomorphic encryption in blockchain-based federated learning to ensure secure and private data processing
+Implementation of secure multi-party computation for decentralized data processing
