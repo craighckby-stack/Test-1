@@ -1,1 +1,1 @@
-Implement Homomorphic Encryption for secure computation on encrypted data in Edge AI
+Implementation of Homomorphic Encryption for secure computation on encrypted data in Edge AI
