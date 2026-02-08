@@ -1,1 +1,1 @@
-Expansion of AI-driven predictive analytics to include anomaly detection and response, enhancing the security orchestration framework's capabilities
+Development of an explainable AI module to provide transparency and accountability in predictive analytics and anomaly detection
