@@ -1,1 +1,1 @@
-Implementation of a Hybrid Encryption protocol that combines the benefits of Homomorphic Encryption and Zero-Knowledge Proofs to enhance data security and privacy
+Integration of a Secure Multi-Party Computation protocol with the Hybrid Encryption protocol to facilitate secure and private data sharing among multiple stakeholders, while maintaining the benefits of Homomorphic Encryption and Zero-Knowledge Proofs
