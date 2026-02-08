@@ -1,1 +1,1 @@
-Integration of Transfer Learning for Edge AI Model Optimization
+Expansion of Transfer Learning to Include Few-Shot Learning for Enhanced Edge AI Model Adaptability
