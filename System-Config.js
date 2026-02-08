@@ -1,1 +1,1 @@
-Enhancement of the machine learning-based intrusion detection system with adversarial training and continuous monitoring to improve its resilience against evolving cyber threats and ensure the integrity of the blockchain-based access control system
+Implementation of a decentralized and autonomous security protocol to enhance the resilience and trustworthiness of the blockchain-based access control system, utilizing a combination of artificial intelligence, machine learning, and edge computing
