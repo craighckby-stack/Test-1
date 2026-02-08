@@ -1,1 +1,1 @@
-Integrate homomorphic encryption with secure multiparty computation protocols
+Enhanced secure multiparty computation with quantized homomorphic encryption for improved performance
