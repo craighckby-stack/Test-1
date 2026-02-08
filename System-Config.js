@@ -1,1 +1,1 @@
-Advancement of secure multi-party computation to support heterogeneous data types and scalable decentralized data processing
+Implementation of homomorphic encryption to further secure decentralized data processing and support heterogeneous data types
