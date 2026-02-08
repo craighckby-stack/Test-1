@@ -1,1 +1,1 @@
-Implementing blockchain-based encryption for secure federated learning
+Deployment of homomorphic encryption for secure data sharing
