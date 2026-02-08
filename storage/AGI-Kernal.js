@@ -1,1 +1,1 @@
-Refine the Explainable AI framework by incorporating attention mechanisms and graph neural networks to improve its performance on complex, multi-relational data
+Incorporate attention mechanisms and graph neural networks into the Explainable AI framework
