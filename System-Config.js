@@ -1,1 +1,1 @@
-Enhance security framework with homomorphic encryption and zero-trust security
+Enhancement of security framework with homomorphic encryption and zero-trust security
