@@ -1,1 +1,1 @@
-Evolution of multimodal fusion techniques to incorporate explainability metrics and attention mechanism transparency
+Incorporation of multimodal fusion techniques with cognitive architectures for enhanced human-computer interaction and decision-making
