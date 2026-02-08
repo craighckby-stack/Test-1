@@ -1,1 +1,1 @@
-Integration ofAttention Mechanism and Graph Neural Networks into XAI frameworks for improved model interpretability and handling complex relationships
+Integration of cognitive architectures and multimodal fusion techniques into XAI frameworks to enhance model interpretability and handle complex, dynamic systems
