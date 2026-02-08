@@ -1,1 +1,1 @@
-Homomorphic encryption for secure data aggregation and federated learning with differential privacy
+Implementation of more advanced cryptographic techniques, such as zero-knowledge proofs, to further enhance data security and privacy
