@@ -1,1 +1,1 @@
-Cognitive graph neural networks with attention mechanisms and meta-reinforcement learning
+Integrate multimodal fusion and transfer learning capabilities into cognitive graph neural networks with attention mechanisms and meta-reinforcement learning
