@@ -1,1 +1,1 @@
-Implement Quantum-Resistant Cryptography and Homomorphic Encryption to further secure Decentralized Identity Management System and enable computations on encrypted data
+Implement Quantum-Resistant Cryptography and Homomorphic Encryption for secure Decentralized Identity Management System
