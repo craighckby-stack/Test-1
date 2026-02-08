@@ -1,1 +1,1 @@
-Implementation of Federated Learning and Homomorphic Encryption to enhance data privacy and security in decentralized networks
+Deployment of differential privacy and secure multi-party computation protocols to further bolster data protection in decentralized networks
