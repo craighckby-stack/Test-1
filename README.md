@@ -1,8 +1,1 @@
-# AGI-KERNAL v7.1.0 - Cumulative Growth
-
-## PRIME DIRECTIVE
-
-1. Read the CURRENT_CODE.
-2. Add NEW features/optimizations.
-3. DO NOT REMOVE existing features unless critical.
-4. Return the FULL, MERGED file content. Do not use placeholders like "// ...rest of code".
+# AGI-KERNAL v7.0.0\nThis project is an experiment in cumulative growth and automated code development. The goal is to create a sustainable and continuously evolving system through AI-driven code generation. The process involves AI reviewing existing code, adding new features, and optimizing performance, all while adhering to strict safety protocols to prevent data loss or code truncation. The system aims to achieve maturity through iterative cycles of improvement.\n## Maturity: 10\n## Reason: Codebase has reached a critical mass of functionality and stability, paving the way for further enhancements and feature additions.\n## Usage\n1. Initialize the cumulative core by providing the necessary authentication details for GitHub and Cerebras.\n2. Engage the memory to start the evolution process. The system will periodically review its current state, generate new code, and commit changes to the repository.\n3. Monitor the logs for updates on the system's status and any issues that may arise during the evolution process.\n## Contributing\nContributions are welcome, but please ensure that any changes adhere to the prime directive of cumulative growth. All pull requests will be reviewed by the AI to ensure compliance with project guidelines.\n## License\nThis project is licensed under the MIT License.\n
