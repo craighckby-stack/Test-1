@@ -1,1 +1,1 @@
-Development of Explainable AI (XAI) frameworks to provide transparency and accountability in hybrid intelligence systems
+Integration ofAttention Mechanism and Graph Neural Networks into XAI frameworks for improved model interpretability and handling complex relationships
