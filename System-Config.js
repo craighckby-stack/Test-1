@@ -1,1 +1,1 @@
-Integration of Zero-Knowledge Proofs with existing Homomorphic Encryption for improved data security and privacy
+Implementation of a Decentralized Data Governance framework using Blockchain and Smart Contracts for secure data management
