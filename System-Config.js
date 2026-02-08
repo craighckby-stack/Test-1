@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and Byzantine fault tolerance in self-healing swarm networks
+Implementation of secure federated learning and asynchronous distributed optimization for swarm networks
