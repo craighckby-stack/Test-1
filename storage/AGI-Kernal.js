@@ -1,1 +1,1 @@
-Next-Generation Neuro-Symbolic Reasoning with Integrated Causal Learning and Transferable Knowledge Graphs
+Integration of Temporal Graph Attention Networks for enhanced neuro-symbolic reasoning and transfer learning across dynamic knowledge graphs
