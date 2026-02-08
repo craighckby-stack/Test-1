@@ -1,1 +1,1 @@
-Expansion of the decentralized data marketplace to include edge computing and fog computing capabilities for improved real-time data processing and reduced latency
+Deployment of a hybrid edge-cloud architecture to optimize edge computing and fog computing capabilities, ensuring seamless and secure data processing across the decentralized data marketplace
