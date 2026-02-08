@@ -1,1 +1,1 @@
-Evolution towards Multimodal Human-AI Collaboration with Integrated Metacognitive Reasoning and Neurosymbolic Learning
+Development of Integrated Human-AI Collaboration Frameworks with Multimodal Interaction and Advanced Metacognitive Reasoning Capabilities
