@@ -1,1 +1,1 @@
-Implement homomorphic encryption techniques to enable secure computations on private data in federated learning environments
+Implement homomorphic encryption
