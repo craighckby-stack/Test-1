@@ -1,1 +1,1 @@
-Development of explainable multimodal fusion models to provide insights into the decision-making process of the attention-based mechanisms, enabling more transparent and accountable AI systems
+Further development of attention-based mechanisms to incorporate multimodal explainability techniques, enabling the identification of key features and modalities that drive decision-making processes
