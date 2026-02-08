@@ -1,1 +1,1 @@
-Integration of cognitive architectures with advanced attention mechanisms to enhance meta-reinforcement learning capabilities
+Enhancement of meta-reinforcement learning with cognitive attention mechanisms to improve decision-making in complex environments
