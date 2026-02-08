@@ -1,1 +1,1 @@
-Investigating the application of meta-learning to graph neural networks for enhanced adaptability and generalizability
+Integrating meta-learning with graph neural networks to improve adaptability and generalizability in complex data structures
