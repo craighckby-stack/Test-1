@@ -1,1 +1,1 @@
-Integrating Explainable AI for Transparency and Trust
+Development of hybrid models combining Explainable AI and cognitive architectures for enhanced decision-making
