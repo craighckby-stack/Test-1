@@ -1,1 +1,1 @@
-Enhanced Federated Learning with Edge AI and Explainability
+Integrate Transfer Learning and Multi-Agent Reinforcement Learning for Adaptive Edge AI
