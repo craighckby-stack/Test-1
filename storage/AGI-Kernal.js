@@ -1,1 +1,1 @@
-Incorporation of attention mechanisms and graph neural networks into the Explainable AI framework
+Incorporation of Transfer Learning and Meta-Learning capabilities into the Explainable AI framework to enhance model adaptability and generalizability
