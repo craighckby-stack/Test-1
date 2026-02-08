@@ -1,1 +1,1 @@
-Deployment of a decentralized identity management system to ensure secure and private data exchange
+Implement a blockchain-based authentication protocol to enhance the security of the decentralized identity management system
