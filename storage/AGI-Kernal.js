@@ -1,1 +1,1 @@
-Evolve cognitive architectures to incorporate attention mechanisms and meta-reinforcement learning for more efficient and adaptable decision-making
+Integrate cognitive graph neural networks with attention mechanisms and meta-reinforcement learning
