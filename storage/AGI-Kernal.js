@@ -1,1 +1,1 @@
-Integration of multimodal fusion techniques to enhance model interpretability and robustness in dynamic data environments
+Integration of explainable AI and transparency techniques to provide insights into the decision-making process of the multimodal fusion model, enabling more trustworthy and reliable outcomes
