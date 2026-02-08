@@ -1,1 +1,1 @@
-Integration of Explainable AI for Transparency in Ensemble Methods and Hybrid Adversarial Training
+Implementation of Hybrid Explainable AI and Advanced Adversarial Training with Cognitive Architectures
