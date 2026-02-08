@@ -1,1 +1,1 @@
-Investigation of Novel Quantization Techniques and Neural Architecture Search Methods for Optimized Edge AI Model Deployment
+Exploration of Sparsity-Aware Neural Architecture Search and Post-Quantization Methods for Improved Edge AI Efficiency
