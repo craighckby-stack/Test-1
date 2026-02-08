@@ -1,1 +1,1 @@
-Integrate cognitive architectures with transfer learning to enable adaptive multimodal fusion and meta-learning in federated learning frameworks
+Developing adaptive multimodal fusion models with cognitive architectures and transfer learning
