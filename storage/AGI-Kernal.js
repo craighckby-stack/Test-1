@@ -1,1 +1,1 @@
-Implementation of attention mechanisms in explainable AI modules for multimodal learning
+Integration of graph neural networks with attention mechanisms for improved multimodal learning and explainability
