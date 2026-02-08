@@ -1,1 +1,1 @@
-Implement homomorphic encryption to enable secure computation on encrypted data in blockchain-based federated learning
+Integrate differential privacy with homomorphic encryption to further enhance data security and protect sensitive information in blockchain-based federated learning
