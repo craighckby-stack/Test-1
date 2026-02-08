@@ -1,1 +1,1 @@
-Development of cognitive architecture-agnostic multimodal fusion algorithms to enable seamless integration with various decision-making frameworks
+Expansion of cognitive architecture-agnostic multimodal fusion algorithms to incorporate Explainable AI (XAI) and Transfer Learning techniques
