@@ -1,1 +1,1 @@
-Expansion of Graph Neural Networks to accommodate multimodal data fusion and attention mechanisms, enhancing model flexibility and explainability
+Implementation of Multimodal Graph Neural Networks with attention mechanisms to enhance model interpretability and flexibility
