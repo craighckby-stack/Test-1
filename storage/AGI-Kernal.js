@@ -1,1 +1,1 @@
-Developing enhanced node embedding for unified graph neural network framework
+Advanced node embedding techniques will be developed to unify graph neural network frameworks, incorporating both structural and attribute information
