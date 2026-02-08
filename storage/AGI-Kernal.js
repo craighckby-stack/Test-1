@@ -1,1 +1,1 @@
-Developing adaptive multimodal fusion models with cognitive architectures and transfer learning
+Developing explainable AI methods for adaptive multimodal fusion models
