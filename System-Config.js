@@ -1,1 +1,1 @@
-Develop a secure and decentralized data processing framework, leveraging techniques from differential privacy, homomorphic encryption, and secure multi-party computation to ensure robust and trustworthy AI-driven systems
+Develop a blockchain-based framework for secure and transparent data sharing and auditing, utilizing zero-knowledge proofs and federated learning
