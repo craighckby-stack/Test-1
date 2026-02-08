@@ -1,1 +1,1 @@
-Implementation of a decentralized and autonomous security protocol to enhance the resilience and trustworthiness of the blockchain-based access control system, utilizing a combination of artificial intelligence, machine learning, and edge computing
+Integration of federated learning and differential privacy techniques to further enhance the security and privacy of the decentralized access control system, while ensuring compliance with emerging regulatory requirements
