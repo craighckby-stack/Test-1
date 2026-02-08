@@ -8,6 +8,7 @@ const useCycle = () => {
     const [policies, setPolicies] = useState([]);
     const [validationResults, setValidationResults] = useState({});
     const [optimizationResults, setOptimizationResults] = useState({});
+    const [error, setError] = useState(null);
 
     // Load constraints and policies from config and governance
     useEffect(() => {
@@ -19,6 +20,7 @@ const useCycle = () => {
                 setPolicies(policies);
             } catch (error) {
                 logger.error('Error loading constraints and policies:', error);
+                setError(error);
             }
         };
         loadConstraintsAndPolicies();
@@ -52,6 +54,7 @@ const useCycle = () => {
             setCycleLogs((prevLogs) => [...prevLogs, 'Error during cycle execution: ' + error.message]);
             // Set cycle status to idle
             setCycleStatus('Idle');
+            setError(error);
         } finally {
             // Reset isExecuting flag
             setIsExecuting(false);
@@ -82,7 +85,8 @@ const useCycle = () => {
         isExecuting,
         executeCycle,
         validationResults,
-        optimizationResults
+        optimizationResults,
+        error
     };
 };
 ```
