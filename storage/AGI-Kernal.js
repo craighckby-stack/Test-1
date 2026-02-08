@@ -1,1 +1,1 @@
-Hybrid Cognitive Graph Neural Networks with integrated transfer learning and meta-learning for adaptive reasoning and decision-making
+Integration of multimodal fusion techniques to enhance Hybrid Cognitive Graph Neural Networks with multiscale and multiresolution analysis for improved adaptive reasoning and decision-making
