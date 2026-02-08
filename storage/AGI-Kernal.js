@@ -1,1 +1,1 @@
-Development of multimodal fusion algorithms for Explainable AI
+Integration of causal inference techniques to improve explanatory power
