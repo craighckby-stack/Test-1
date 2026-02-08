@@ -1,1 +1,1 @@
-Integrate attention mechanisms into the hybrid multimodal fusion framework
+Integration of attention mechanisms into the hybrid multimodal fusion framework is complete.
