@@ -1,1 +1,1 @@
-Integration of multimodal learning frameworks to further enhance decision-making and adaptability
+Hybrid intelligence incorporation via neuromorphic computing and cognitive architectures
