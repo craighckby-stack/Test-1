@@ -1,1 +1,1 @@
-Implement Differential Privacy and Secure Multi-Party Computation techniques to enhance the security and privacy of Federated Learning and Meta-Learning in Edge AI applications
+Implement Homomorphic Encryption for secure computation on encrypted data in Edge AI
