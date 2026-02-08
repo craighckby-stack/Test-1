@@ -1,1 +1,1 @@
-Implementation of hybrid attention mechanisms that combine self-attention and graph attention to improve the interpretability of multimodal learning models
+Integration of the hybrid attention mechanisms with the federated learning architecture to enhance model interpretability and data privacy
