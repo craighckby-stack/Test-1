@@ -1,1 +1,1 @@
-Integration of Cognitive Architectures with Hybrid Models to facilitate more human-like reasoning and problem-solving capabilities
+Advanced cognitive architectures with multimodal learning capabilities
