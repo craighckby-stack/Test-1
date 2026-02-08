@@ -1,1 +1,1 @@
-Implementation of a hybrid blockchain architecture, combining public and private chains to optimize scalability, security, and interoperability
+Expansion of hybrid blockchain architecture to include sharding and off-chain computation, further enhancing scalability and reducing latency while maintaining security and interoperability
