@@ -1,1 +1,1 @@
-Causal reasoning and interpretability enhancement for explainable AI
+Development of attention mechanisms and graph neural networks for improved causal reasoning
