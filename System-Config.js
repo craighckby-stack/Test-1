@@ -1,1 +1,1 @@
-Advancement of Federated Learning to incorporate secure multi-party computation and homomorphic encryption, ensuring robust and private distributed edge AI deployment
+Integration of secure multi-party computation and homomorphic encryption in Federated Learning to ensure robust and private distributed edge AI deployment
