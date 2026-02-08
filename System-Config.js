@@ -1,1 +1,1 @@
-Implementation of homomorphic encryption and secure multi-party computation for enhanced data privacy and security
+Integration of secure multi-party computation and homomorphic encryption for end-to-end data protection and privacy preservation
