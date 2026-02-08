@@ -1,1 +1,1 @@
-Integrating cognitive frameworks with cognitive architectures for human-AI knowledge synchronization
+Implementing Hybrid Reasoning for Dynamic Knowledge Representation
