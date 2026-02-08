@@ -1,1 +1,1 @@
-Implement secure multi-party computation protocols to enable collaborative learning and inference on decentralized, encrypted data
+Integration of homomorphic encryption with secure multi-party computation protocols for robust decentralized data processing
