@@ -1,1 +1,1 @@
-Implementation of federated learning to enable secure and decentralized model updates
+Advancement of federated learning architecture to support AI-driven model optimization and dynamic aggregation techniques
