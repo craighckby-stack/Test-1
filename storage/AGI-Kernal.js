@@ -1,1 +1,1 @@
-Development of neuro-symbolic integration methods with multimodal reasoning and meta-learning capabilities
+Integration of neuro-symbolic integration methods with Explainable AI (XAI) for transparent decision-making
