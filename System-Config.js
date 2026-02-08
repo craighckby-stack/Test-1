@@ -1,1 +1,1 @@
-Integrate differential privacy and zero-knowledge proofs with homomorphic encryption to further enhance data security and protection in federated learning environments
+Implement differential privacy and zero-knowledge proofs with homomorphic encryption in federated learning
