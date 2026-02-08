@@ -1,1 +1,1 @@
-Integration of meta-reasoning with cognitive architectures to enable more robust decision-making
+Development of hybrid cognitive architectures that seamlessly integrate meta-reasoning, explainable AI, and edge AI capabilities
