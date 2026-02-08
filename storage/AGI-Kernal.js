@@ -1,1 +1,1 @@
-Integration of attention mechanisms and graph neural networks
+Development of explainable AI modules for multimodal data fusion
