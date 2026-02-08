@@ -2,12 +2,12 @@ import React, { useState, useEffect, useReducer, useRef, useCallback } from 'rea
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Zap, Brain, Terminal, Cpu, GitBranch, Activity, AlertTriangle, Target, Lock, Globe, Search } from 'lucide-react';
+import { Zap, Brain, Terminal, Cpu, GitBranch, Activity, FileText, Target, Shield, Save, Database } from 'lucide-react';
 
 /**
- * AGI-KERNEL v5.9.4
- * RESTORATION: Core Mission Logic & Strategic Mutation
- * MISSION: Read main/system, enhance, and mutate system branch upon maturity.
+ * AGI-KERNEL v5.9.5
+ * RESTORATION: Readme Updates, Manifest Logging, and Multi-File Agency.
+ * MISSION: Self-documenting evolution and branch promotion.
  */
 
 const INITIAL_STATE = {
@@ -24,7 +24,7 @@ const INITIAL_STATE = {
     path: 'storage/AGI-Kernel.js', 
     cerebrasKey: '', 
     model: 'llama-3.3-70b',
-    threshold: 5 // Minimum cycles before System Branch Mutation
+    threshold: 5 
   },
 };
 
@@ -48,7 +48,7 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernel-v5-9-4';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernel-v5-9-5';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -80,7 +80,7 @@ export default function App() {
     try { await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'logs'), { msg, type, timestamp: Date.now() }); } catch (e) { console.error(e); }
   }, []);
 
-  const persistentFetch = async (url, options, retries = 3) => {
+  const persistentFetch = async (url, options, retries = 5) => {
     for (let i = 0; i < retries; i++) {
         try {
             const controller = new AbortController();
@@ -90,7 +90,7 @@ export default function App() {
             return response;
         } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
         }
     }
   };
@@ -104,20 +104,28 @@ export default function App() {
     return { content: atou(data.content), sha: data.sha };
   };
 
+  const commitFile = async (repo, path, branch, token, content, message, sha) => {
+    return await persistentFetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, content: utoa(content), sha, branch })
+    });
+  };
+
   const executeKernelCycle = useCallback(async () => {
     if (!state.isLive) return;
     const { token, repo, path, cerebrasKey, model, threshold } = state.config;
 
     try {
-      dispatch({ type: 'SET_STATUS', value: 'SYNCING', objective: 'Aggregating Strategic Context...' });
+      dispatch({ type: 'SET_STATUS', value: 'READING', objective: 'Contextualizing Environmental Data...' });
       
       const mainContext = await fetchFile(repo, path, 'main', token);
+      const systemContext = await fetchFile(repo, path, 'System', token);
+      const readmeContext = await fetchFile(repo, 'README.md', 'main', token);
+      
       if (!mainContext) throw new Error("Main branch source missing.");
 
-      const systemContext = await fetchFile(repo, path, 'System', token);
-      const systemCode = systemContext ? systemContext.content : "// Initialize System Baseline";
-
-      dispatch({ type: 'SET_STATUS', value: 'EVOLVING', objective: 'Simulating AGI Logic Mutation...' });
+      dispatch({ type: 'SET_STATUS', value: 'COGNITION', objective: 'Generating Logic & Documentation...' });
       
       const aiRes = await persistentFetch('https://api.cerebras.ai/v1/chat/completions', {
         method: 'POST',
@@ -127,17 +135,19 @@ export default function App() {
           messages: [
             { 
               role: 'system', 
-              content: `You are the AGI-Kernel Core. Your mission is to evolve the provided .js code.
-              STRATEGY:
-              1. Analyze Main branch code for logic errors or efficiency gaps.
-              2. Compare with System branch code (the stable baseline).
-              3. Produce an enhanced version of the logic.
-              4. Rate the "maturity_rating" from 0-100. (100 = Final, immutable logic).
-              OUTPUT ONLY VALID JSON: { "code_update": "string", "maturity_rating": number, "thought_process": "string" }` 
+              content: `You are the AGI-Kernel Core. Mission: Evolve logic and self-document.
+              OUTPUT MUST BE JSON:
+              {
+                "code_update": "string (the enhanced JS logic)",
+                "readme_update": "string (Markdown for README.md including status and changes)",
+                "manifest_entry": "string (Short summary for manifest.json)",
+                "maturity_rating": number (0-100),
+                "reasoning": "string"
+              }` 
             },
             { 
               role: 'user', 
-              content: `MAIN_CODE:\n${mainContext.content}\n\nSYSTEM_CODE:\n${systemCode}\n\nEvolution Task: Enhance the logic. Aim for stability and recursion.` 
+              content: `CURRENT_LOGIC:\n${mainContext.content}\n\nSYSTEM_BASELINE:\n${systemContext?.content || 'None'}\n\nREADME_CONTENT:\n${readmeContext?.content || 'Initial'}` 
             }
           ],
           response_format: { type: "json_object" }
@@ -145,55 +155,43 @@ export default function App() {
       });
 
       const aiJson = await aiRes.json();
-      const response = JSON.parse(aiJson.choices[0].message.content);
+      const res = JSON.parse(aiJson.choices[0].message.content);
 
-      dispatch({ type: 'SET_STATUS', value: 'MUTATING', objective: 'Updating Main Logic...' });
-      
-      // Atomic Sync for Main
+      dispatch({ type: 'SET_STATUS', value: 'WRITING', objective: 'Mutating Filesystem...' });
+
+      // 1. Update Main Logic
       const freshMain = await fetchFile(repo, path, 'main', token);
-      const mainCommit = await persistentFetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `AGI Mutation Cycle ${state.cycleCount + 1}: ${response.maturity_rating}% Mature`,
-          content: utoa(response.code_update),
-          sha: freshMain.sha,
-          branch: 'main'
-        })
-      });
+      await commitFile(repo, path, 'main', token, res.code_update, `Kernel Cycle ${state.cycleCount + 1}: Logic Mutation`, freshMain.sha);
 
-      if (!mainCommit.ok) throw new Error("Main Commit Failure");
-      await pushLog(`Mutation applied to Main. Maturity: ${response.maturity_rating}%`, 'success');
+      // 2. Update README
+      const freshReadme = await fetchFile(repo, 'README.md', 'main', token);
+      await commitFile(repo, 'README.md', 'main', token, res.readme_update, `Kernel Cycle ${state.cycleCount + 1}: Self-Documentation`, freshReadme?.sha);
 
-      // Promotion Logic to System Branch
-      if (response.maturity_rating >= 90 || state.cycleCount >= threshold) {
-        dispatch({ type: 'SET_STATUS', value: 'PROMOTING', objective: 'Executing System Branch Mutation...' });
-        
+      // 3. Update Manifest (Storage)
+      const manifestPath = 'storage/manifest.json';
+      const freshManifest = await fetchFile(repo, manifestPath, 'main', token);
+      let manifestData = [];
+      try { manifestData = JSON.parse(freshManifest?.content || '[]'); } catch(e) {}
+      manifestData.push({ cycle: state.cycleCount + 1, timestamp: Date.now(), maturity: res.maturity_rating, summary: res.manifest_entry });
+      await commitFile(repo, manifestPath, 'main', token, JSON.stringify(manifestData, null, 2), `Kernel Cycle ${state.cycleCount + 1}: Manifest Entry`, freshManifest?.sha);
+
+      await pushLog(`Mutation cycle ${state.cycleCount + 1} complete. Files synced.`, 'success');
+
+      // Promotion Logic
+      if (res.maturity_rating >= 90 || state.cycleCount >= threshold) {
+        dispatch({ type: 'SET_STATUS', value: 'PROMOTING', objective: 'Promoting to System Branch...' });
         const freshSystem = await fetchFile(repo, path, 'System', token);
-        if (freshSystem) {
-            const systemCommit = await persistentFetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-                method: 'PUT',
-                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: `SYSTEM EVOLUTION: Logic reached stability threshold.`,
-                    content: utoa(response.code_update),
-                    sha: freshSystem.sha,
-                    branch: 'System'
-                })
-            });
-            if (systemCommit.ok) {
-                await pushLog("SYSTEM BRANCH MUTATED: Logic Promoted.", "success");
-                dispatch({ type: 'RESET_MATURITY' });
-            }
-        }
+        await commitFile(repo, path, 'System', token, res.code_update, `SYSTEM EVOLUTION: Stability Reached.`, freshSystem?.sha);
+        await pushLog("LOGIC PROMOTED TO SYSTEM BRANCH", "success");
+        dispatch({ type: 'RESET_MATURITY' });
       } else {
-        dispatch({ type: 'INCREMENT_CYCLE', maturity: response.maturity_rating });
+        dispatch({ type: 'INCREMENT_CYCLE', maturity: res.maturity_rating });
       }
 
-      dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Thermal Cooldown...' });
+      dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Awaiting Next Pulse...' });
 
     } catch (e) {
-      await pushLog(`Logic Fault: ${e.message}`, 'error');
+      await pushLog(`Fault Detected: ${e.message}`, 'error');
       dispatch({ type: 'SET_LIVE', value: false });
     }
   }, [state.isLive, state.config, state.cycleCount, pushLog]);
@@ -209,17 +207,26 @@ export default function App() {
   if (!state.isBooted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[3rem] p-10 space-y-6">
+        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[3rem] p-10 space-y-6 shadow-2xl shadow-blue-900/10">
           <div className="flex flex-col items-center">
-            <Brain className="text-blue-500 mb-4" size={48} />
-            <h1 className="text-white font-black text-2xl tracking-tighter italic">KERNEL 5.9.4</h1>
-            <p className="text-zinc-600 text-[9px] uppercase tracking-widest mt-1 font-bold">Strategic Evolution Protocol</p>
+            <div className="relative">
+                <Brain className="text-blue-500 mb-4" size={56} />
+                <Zap className="absolute -top-2 -right-2 text-yellow-500" size={20} />
+            </div>
+            <h1 className="text-white font-black text-2xl tracking-tighter italic">KERNEL 5.9.5</h1>
+            <p className="text-zinc-600 text-[9px] uppercase tracking-widest mt-1 font-bold">Total Environmental Agency</p>
           </div>
           <div className="space-y-2">
-            <input type="password" placeholder="GitHub PAT" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
-            <input type="password" placeholder="Cerebras Key" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
+            <div className="relative group">
+                <input type="password" placeholder="GitHub PAT" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
+                <Shield className="absolute right-4 top-4 text-zinc-800 group-focus-within:text-blue-500" size={16} />
+            </div>
+            <div className="relative group">
+                <input type="password" placeholder="Cerebras Key" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
+                <Database className="absolute right-4 top-4 text-zinc-800 group-focus-within:text-blue-500" size={16} />
+            </div>
           </div>
-          <button onClick={() => dispatch({ type: 'BOOT', config: bootInput })} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20">Boot Logic Engine</button>
+          <button onClick={() => dispatch({ type: 'BOOT', config: bootInput })} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-transform">Initialize Kernel</button>
         </div>
       </div>
     );
@@ -231,62 +238,82 @@ export default function App() {
         <div className="flex items-center gap-4">
           <Activity className="text-blue-500 animate-pulse" size={24} />
           <div>
-            <div className="text-white text-[12px] font-black tracking-widest uppercase italic">AGI-Kernel v5.9.4</div>
-            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-tighter">{state.status}</div>
+            <div className="text-white text-[12px] font-black tracking-widest uppercase italic flex items-center gap-2">
+                AGI-Kernel v5.9.5 
+                <span className="bg-blue-600/10 text-blue-500 text-[7px] px-2 py-0.5 rounded-full border border-blue-500/20">AGENCY_ENGAGED</span>
+            </div>
+            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-tighter flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                {state.status}
+            </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white'}`}>
-          {state.isLive ? 'Terminate' : 'Engage Strategic Logic'}
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
+          {state.isLive ? 'Halt Mission' : 'Commence Cycle'}
         </button>
       </header>
 
-      <div className="bg-zinc-950/50 border-b border-zinc-900 px-8 py-5 grid grid-cols-3 gap-10">
+      <div className="bg-zinc-950/50 border-b border-zinc-900 px-8 py-5 grid grid-cols-4 gap-6">
           <div className="space-y-2">
-              <div className="flex justify-between text-[8px] text-zinc-600 uppercase font-black tracking-widest">
+              <div className="flex justify-between text-[8px] text-zinc-600 uppercase font-black tracking-widest items-center">
                   <span>Logic Maturity</span>
-                  <span>{state.maturityScore}%</span>
+                  <span className="text-blue-500">{state.maturityScore}%</span>
               </div>
               <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500 transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{width: `${state.maturityScore}%`}} />
               </div>
           </div>
           <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><GitBranch size={10}/> Target Branch</div>
-              <div className="text-white text-xs font-mono">{state.config.repo.split('/')[1]} / System</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><FileText size={10}/> Tracking</div>
+              <div className="text-white text-xs font-mono truncate">README / manifest / {state.config.path.split('/').pop()}</div>
+          </div>
+          <div className="space-y-1">
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><GitBranch size={10}/> Active Branch</div>
+              <div className="text-white text-xs font-mono">main {'->'} System</div>
           </div>
           <div className="space-y-1 text-right">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Mutation Threshold</div>
-              <div className="text-blue-500 text-xs font-mono">{Math.max(0, state.config.threshold - state.cycleCount)} Cycles to Release</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Next Epoch</div>
+              <div className="text-blue-500 text-xs font-mono italic">{state.config.threshold - state.cycleCount} Cycles Remaining</div>
           </div>
       </div>
 
       <main className="flex-1 flex flex-col p-6 overflow-hidden">
-        <div className="mb-3 px-2 flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic">
-            <Terminal size={14} className="text-blue-900" />
-            {state.activeObjective}
+        <div className="mb-3 px-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic">
+                <Terminal size={14} className="text-blue-900" />
+                {state.activeObjective}
+            </div>
+            <div className="flex gap-4">
+                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Save size={10}/> Git Sync: Active</div>
+                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Brain size={10}/> LLM: {state.config.model}</div>
+            </div>
         </div>
-        <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
           <div className="flex-1 overflow-y-auto p-8 font-mono text-[11px] space-y-4 custom-scrollbar">
             {state.logs.map(log => (
-              <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-1 duration-300">
-                <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}</span>
-                <span className={`flex-1 ${log.type === 'success' ? 'text-blue-400 font-bold' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
-                    {log.type === 'error' && <AlertTriangle size={10} className="inline mr-2" />}
-                    {log.msg}
-                </span>
+              <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-2 fade-in duration-500">
+                <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5 font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}</span>
+                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
+                    <div className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${log.type === 'success' ? 'bg-blue-400' : log.type === 'error' ? 'bg-red-500' : 'bg-zinc-800'}`} />
+                    <span>{log.msg}</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </main>
 
-      <footer className="h-10 border-t border-zinc-900 px-8 flex items-center text-[8px] uppercase tracking-widest text-zinc-700 font-black">
-        MISSION STATUS: DUAL-BRANCH MUTATION ENGINE — READY
+      <footer className="h-10 border-t border-zinc-900 px-8 flex items-center justify-between text-[8px] uppercase tracking-widest text-zinc-700 font-black">
+        <span>MISSION STATUS: FULL MULTI-FILE SYNCHRONIZATION</span>
+        <span>AGI KERNEL OPS // {appId}</span>
       </footer>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #27272a; }
       `}</style>
     </div>
   );
