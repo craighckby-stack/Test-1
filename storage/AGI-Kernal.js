@@ -1,1 +1,1 @@
-Enhanced decision-making capabilities through integration of cognitive architectures
+Integration of Transfer Learning and Meta-Learning to enhance cognitive architectures
