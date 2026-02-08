@@ -1,1 +1,1 @@
-Deployment of decentralized data governance frameworks with differential privacy and secure function evaluation for edge AI systems
+Implement a federated learning framework with homomorphic encryption to enable secure and decentralized model training and updates
