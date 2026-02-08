@@ -1,1 +1,1 @@
-Scalable zero-trust architecture with machine learning-based anomaly detection
+Implementation of federated learning to enable secure and decentralized model updates
