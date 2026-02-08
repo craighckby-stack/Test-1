@@ -1,1 +1,1 @@
-Implementation of Explainable AI and Edge AI to enhance model transparency and real-time processing capabilities
+Integration of Multimodal Learning and Attention Mechanisms to further enhance model interpretability and real-time decision-making
