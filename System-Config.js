@@ -1,1 +1,1 @@
-Integrate the decentralized identity management system with the data curation framework, utilizing blockchain-based access control and self-sovereign identity for secure data sharing and collaboration
+Implement a decentralized data governance framework, leveraging blockchain-based access control, self-sovereign identity, and zero-knowledge proofs to ensure secure, transparent, and auditable data sharing and collaboration
