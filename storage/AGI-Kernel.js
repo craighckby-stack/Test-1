@@ -1,149 +1,18 @@
-The provided code has been well-structured and optimized. However, there are a few more improvements that can be made for better performance, readability, and maintainability.
-
-### Error Handling
-
-Error handling can be improved by creating a custom error class and using it throughout the application. This will help in identifying and handling specific errors.
-
-```javascript
-class CustomError extends Error {
-  constructor(message, code) {
-    super(message);
-    this.code = code;
-    this.name = 'CustomError';
-  }
-}
-```
-
-### Code Organization
-
-Some functions, such as `makeRequest` and `api`, can be moved to separate utility files. This will improve code organization and reusability.
-
-```javascript
-// utils/request.js
-export const makeRequest = async (url, method = 'GET', body = null, headers = {}) => {
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : null,
-    });
-    if (!response.ok) {
-      throw new CustomError(`Error: ${response.status}`, response.status);
-    }
-    return response.json();
-  } catch (error) {
-    throw error;
-  }
-};
-```
-
-```javascript
-// utils/api.js
-import { makeRequest } from './request';
-
-export const api = {
-  githubRequest: async ({ token, repo }, path, method = 'GET', body = null) => {
-    const url = `${GITHUB_API_URL}${repo}${path}`;
-    const headers = {
-      Authorization: `token ${token}`,
-      Accept: 'application/vnd.github.v3+json',
-    };
-    return makeRequest(url, method, body, headers);
-  },
-  callCerebras: async ({ cerebrasKey, model }, prompt, system) => {
-    const url = CEREBRAS_API_URL;
-    const body = {
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.1,
-    };
-    const headers = {
-      Authorization: `Bearer ${cerebrasKey}`,
-    };
-    return makeRequest(url, 'POST', body, headers);
-  },
-};
-```
-
-### Reducer
-
-The reducer function can be improved by using a switch statement with a default case that returns the current state. This will prevent the state from being overwritten with an empty object.
-
-```javascript
-const reducer = (state, action) => {
-  switch (action.type) {
-    // ...
-    default:
-      return state;
-  }
-};
-```
-
-### UseEffect
-
-The `useEffect` hook can be improved by adding a dependency array to prevent unnecessary re-renders.
-
-```javascript
-useEffect(() => {
-  const initAuth = async () => {
-    const auth = getAuth();
-    if (process.env[FIREBASE_INITIAL_AUTH_TOKEN]) {
-      await auth.signInWithCustomToken(process.env[FIREBASE_INITIAL_AUTH_TOKEN]);
-    } else {
-      await auth.signInAnonymously();
-    }
-  };
-  initAuth();
-  const unsubscribe = onAuthStateChanged(getAuth(), setUser);
-  return unsubscribe;
-}, []);
-```
-
-### Type Checking
-
-Type checking can be improved by using TypeScript or a library like Prop-Types to ensure that the props and state are of the correct type.
-
-```typescript
-interface State {
-  isBooted: boolean;
-  isLive: boolean;
-  status: string;
-  activeObjective: string;
-  // ...
-}
-
-const reducer: Reducer<State, Action> = (state, action) => {
-  // ...
-};
-```
-
-Here is the complete code with the above improvements:
+Here is a refactored version of the code with further improvements for better performance, readability, and maintainability:
 
 ```jsx
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
-import { 
-  initializeApp, 
-  getFirestore, 
-  getAuth, 
-  onAuthStateChanged, 
-  signInWithCustomToken, 
-  signInAnonymously 
+import {
+  initializeApp,
+  getFirestore,
+  getAuth,
+  onAuthStateChanged,
+  signInWithCustomToken,
+  signInAnonymously,
 } from 'firebase/app';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  collection, 
-  onSnapshot, 
-  addDoc 
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { api } from './utils/api';
+import { CustomError } from './utils/errors';
 
 // Constants
 const GovernedObjectives = Object.freeze({
@@ -225,11 +94,15 @@ const App = () => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const auth = getAuth();
-      if (process.env[FIREBASE_INITIAL_AUTH_TOKEN]) {
-        await auth.signInWithCustomToken(process.env[FIREBASE_INITIAL_AUTH_TOKEN]);
-      } else {
-        await auth.signInAnonymously();
+      try {
+        const auth = getAuth();
+        if (process.env[FIREBASE_INITIAL_AUTH_TOKEN]) {
+          await auth.signInWithCustomToken(process.env[FIREBASE_INITIAL_AUTH_TOKEN]);
+        } else {
+          await auth.signInAnonymously();
+        }
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', error: error.message });
       }
     };
     initAuth();
@@ -245,7 +118,7 @@ const App = () => {
       clearInterval(timer);
     }
     return () => clearInterval(timer);
-  }, [state.isLive]);
+  }, [state.isLive, state.config.interval]);
 
   const executeCycle = useCallback(async () => {
     if (isExecuting.current || !stateRef.current.isLive) return;
@@ -253,13 +126,30 @@ const App = () => {
 
     try {
       // logic to execute a cycle
+      await api.githubRequest({
+        token: stateRef.current.config.token,
+        repo: stateRef.current.config.repo,
+      }, stateRef.current.config.kernelPath);
+      dispatch({ type: 'INCREMENT_CYCLE' });
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', error: error.message });
+      if (error instanceof CustomError) {
+        dispatch({ type: 'SET_ERROR', error: error.message });
+      } else {
+        dispatch({ type: 'SET_ERROR', error: 'An unknown error occurred' });
+      }
     } finally {
       isExecuting.current = false;
       dispatch({ type: 'SET_STATUS', value: 'STABLE' });
     }
-  }, [stateRef]);
+  }, [stateRef, dispatch]);
+
+  const handleTabChange = useCallback((tab) => {
+    dispatch({ type: 'SET_TAB', tab });
+  }, [dispatch]);
+
+  const handleObjectiveChange = useCallback((objective) => {
+    dispatch({ type: 'SET_STATUS', value: 'EXECUTING', objective });
+  }, [dispatch]);
 
   return (
     // rendered UI
@@ -267,3 +157,85 @@ const App = () => {
 };
 
 export default App;
+```
+
+```javascript
+// utils/api.js
+import { makeRequest } from './request';
+import { CustomError } from './errors';
+
+const GITHUB_API_URL = 'https://api.github.com/repos/';
+const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
+
+const api = {
+  githubRequest: async ({ token, repo }, path, method = 'GET', body = null) => {
+    try {
+      const url = `${GITHUB_API_URL}${repo}${path}`;
+      const headers = {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+      };
+      return makeRequest(url, method, body, headers);
+    } catch (error) {
+      throw new CustomError('Failed to make GitHub request', error.status);
+    }
+  },
+  callCerebras: async ({ cerebrasKey, model }, prompt, system) => {
+    try {
+      const url = CEREBRAS_API_URL;
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.1,
+      };
+      const headers = {
+        Authorization: `Bearer ${cerebrasKey}`,
+      };
+      return makeRequest(url, 'POST', body, headers);
+    } catch (error) {
+      throw new CustomError('Failed to call Cerebras API', error.status);
+    }
+  },
+};
+
+export { api };
+```
+
+```javascript
+// utils/request.js
+const makeRequest = async (url, method = 'GET', body = null, headers = {}) => {
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : null,
+    });
+    if (!response.ok) {
+      throw new Error(`Error: ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    throw error;
+  }
+};
+
+export { makeRequest };
+```
+
+```javascript
+// utils/errors.js
+class CustomError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+    this.name = 'CustomError';
+  }
+}
+
+export { CustomError };
