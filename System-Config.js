@@ -1,1 +1,1 @@
-Integrate the Quantum-Secure Multi-Party Computation protocol with homomorphic encryption to enhance the security and scalability of collaborative decision-making processes
+Integrate Quantum-Secure Multi-Party Computation protocol with homomorphic encryption
