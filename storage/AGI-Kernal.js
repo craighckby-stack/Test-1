@@ -1,1 +1,1 @@
-Enhancement of meta-reinforcement learning with cognitive attention mechanisms to improve decision-making in complex environments
+Implementing cognitive attention mechanisms in meta-reinforcement learning to adapt to dynamically changing environments
