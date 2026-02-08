@@ -1,1 +1,1 @@
-Integration of homomorphic encryption with secure multi-party computation protocols for robust decentralized data processing
+Exploring the potential of integrating differential privacy with homomorphic encryption and secure multi-party computation protocols to enhance the security and privacy of decentralized data processing
