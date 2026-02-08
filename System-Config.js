@@ -1,1 +1,1 @@
-Implementation of Autonomous Agent Systems for real-time adaptive learning
+Expansion of Autonomous Agent Systems to incorporate Edge AI for optimized real-time processing
