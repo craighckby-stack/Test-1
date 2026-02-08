@@ -1,1 +1,1 @@
-Develop hybrid cognitive architectures that combine symbolic and connectionist AI, enabling more precise explainability and transparency in human-computer interaction and decision-making
+Evolve hybrid cognitive architectures to integrate multimodal interaction capabilities, enabling more effective human-computer collaboration and decision-making
