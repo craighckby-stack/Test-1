@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation protocols
+Deployment of homomorphic encryption for secure data processing
