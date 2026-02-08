@@ -1,1 +1,1 @@
-Deployment of homomorphic encryption for secure data processing and implementation of federated learning for AI model updates
+Integration of Explainable AI (XAI) techniques with homomorphic encryption for transparent and secure data processing, and expansion of federated learning to support multi-party computation
