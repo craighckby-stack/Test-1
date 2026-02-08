@@ -1,1 +1,1 @@
-Implement homomorphic encryption and secure multi-party computation in the decentralized and federated learning framework to ensure secure collaborative model training
+Implement secure multi-party computation and homomorphic encryption in decentralized and federated learning frameworks
