@@ -1,1 +1,1 @@
-Integrate attention mechanisms into the Explainable AI framework to enable more accurate model interpretability
+Integrate attention mechanisms into the Explainable AI framework
