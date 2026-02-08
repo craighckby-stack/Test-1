@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation and fully homomorphic encryption for edge AI frameworks with distributed federated learning protocols
+Deployment of decentralized data governance frameworks with differential privacy and secure function evaluation for edge AI systems
