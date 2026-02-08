@@ -1,1 +1,1 @@
-Implementation of secure multi-party computation for decentralized data processing
+Advancement of secure multi-party computation to support heterogeneous data types and scalable decentralized data processing
