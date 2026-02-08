@@ -1,1 +1,1 @@
-Integration of multimodal learning and neuro-symbolic reasoning to enhance hybrid cognitive architectures
+Integration of transfer learning and meta-learning to further enhance hybrid cognitive architectures
