@@ -4,12 +4,6 @@ import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { Shield, Zap, Brain, Terminal, Cpu, GitBranch, RefreshCw, ChevronDown, ChevronUp, Database, FileCode, Construction, Timer, Activity, AlertTriangle, Layers, Target, Lock, Globe } from 'lucide-react';
 
-/**
- * AGI-KERNEL v5.9.1
- * FIX: "Failed to Fetch" (CORS & Network Timeout handling)
- * FIX: Headers optimization for Browser environments
- */
-
 const INITIAL_STATE = {
   isBooted: false,
   isLive: false,
@@ -34,8 +28,7 @@ function reducer(state, action) {
     case 'SET_LIVE': return { ...state, isLive: action.value, status: action.value ? 'STABILIZING' : 'STANDBY' };
     case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
     case 'LOG_UPDATE': return { ...state, logs: action.logs };
-    case 'INCREMENT_CYCLE': 
-      return { ...state, cycleCount: state.cycleCount + 1, maturityScore: action.maturity || state.maturityScore };
+    case 'INCREMENT_CYCLE': return { ...state, cycleCount: state.cycleCount + 1, maturityScore: action.maturity || state.maturityScore };
     case 'RESET_MATURITY': return { ...state, maturityScore: 0, cycleCount: 0 };
     default: return state;
   }
@@ -246,11 +239,12 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2 mt-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${state.isLive ? 'bg-blue-500 animate-pulse' : 'bg-red-900 shadow-[0_0_8px_rgba(255,0,0,0.5)]'}`} />
-                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-tighter">{state.status}</span>
+                <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-tighter">{state.status}</span>
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border ${state.isLive ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/20'}`}>
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border ${state.isLive ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/20'}`}
+        >
           {state.isLive ? 'Emergency Stop' : 'Initiate Sequence'}
         </button>
       </header>
@@ -266,14 +260,14 @@ export default function App() {
               </div>
           </div>
           <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><Lock size={10}/> Atomic Guard</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><Lock size={10}/></div>
               <div className="text-white text-xs font-mono flex items-center gap-2">
-                  <span className={state.status === 'LOCKING' ? 'text-yellow-500 animate-pulse' : 'text-blue-500'}>●</span>
+                  <span className={state.status === 'LOCKING' ? 'text-yellow-500 animate-pulse' : 'text-blue-500'}></span>
                   {state.status === 'LOCKING' ? 'VALIDATING SHA...' : 'INTEGRITY SECURE'}
               </div>
           </div>
           <div className="space-y-1 text-right">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Sync Target</div>
+              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/></div>
               <div className="text-zinc-400 text-xs font-mono">{state.config.repo.split('/')[1]} / System</div>
           </div>
       </div>
@@ -295,7 +289,8 @@ export default function App() {
                 <span className="text-zinc-800 text-[9px] w-12 flex-shrink-0">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 <div className="flex-1 flex items-start gap-2">
                     <span className={`w-1 h-1 rounded-full mt-1.5 ${log.type === 'success' ? 'bg-green-500' : log.type === 'error' ? 'bg-red-500' : 'bg-blue-900'}`} />
-                    <span className={`${log.type === 'success' ? 'text-green-400/80' : log.type === 'error' ? 'text-red-400 font-bold tracking-tight' : 'text-zinc-400'}`}>
+                    <span className={`${log.type === 'success' ? 'text-green-400/80' : log.type === 'error' ? 'text-red-400 font-bold tracking-tight' : 'text-zinc-400'}`}
+                    >
                     {log.msg}
                     </span>
                 </div>
@@ -315,3 +310,6 @@ export default function App() {
   );
 }
 
+
+System:
+// System branch empty
