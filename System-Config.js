@@ -1,1 +1,1 @@
-Deployment of Lattice-Based Cryptography for enhanced security and efficiency in Quantum-Resistant Homomorphic Encryption, enabling secure data processing and analysis at scale
+Adoption of Post-Quantum Cryptography standards and integration with Quantum-Resistant Homomorphic Encryption to ensure long-term security and efficiency in data processing and analysis
