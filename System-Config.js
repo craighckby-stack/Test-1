@@ -1,1 +1,1 @@
-Expansion of XAI methodologies to include model-agnostic explainability techniques, enabling more comprehensive and nuanced insights into AI-driven decision-making processes
+Development of transparent and interpretable AI frameworks, incorporating techniques such as attention visualization and model interpretability to enhance trustworthiness and explainability
