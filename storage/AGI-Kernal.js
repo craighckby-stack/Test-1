@@ -1,1 +1,1 @@
-Implementation of adaptive multimodal fusion techniques to seamlessly integrate and process data from various interaction modalities, enabling more accurate and context-aware human-machine interactions
+Expansion of adaptive multimodal fusion techniques to include Edge AI and real-time processing capabilities, enabling more efficient and dynamic human-machine interactions
