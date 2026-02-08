@@ -1,1 +1,1 @@
-Zero-trust architecture deployment with advanced threat detection and response
+Implement machine learning-based anomaly detection and integrate with existing zero-trust architecture for enhanced threat identification and autonomous response
