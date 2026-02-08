@@ -1,1 +1,1 @@
-optimization of threshold homomorphic encryption
+implementation of advanced threshold homomorphic encryption techniques
