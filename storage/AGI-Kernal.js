@@ -1,1 +1,1 @@
-Next-generation cognitive graph neural networks with integrated federated learning
+Integration of multimodal fusion techniques for enhanced cognitive graph neural networks
