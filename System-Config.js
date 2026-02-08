@@ -1,1 +1,1 @@
-Implementation of secure federated learning and asynchronous distributed optimization for swarm networks
+Deployment of secure and decentralized data sharing protocols for edge AI applications
