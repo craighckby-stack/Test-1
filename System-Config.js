@@ -1,1 +1,1 @@
-Implementation of a hybrid approach combining differential privacy and homomorphic encryption to ensure end-to-end security and privacy preservation in multi-party computations
+Deployment of a decentralized identity management system using blockchain technology to ensure secure and private data sharing
