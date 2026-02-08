@@ -1,1 +1,1 @@
-Integration of multimodal fusion with cognitive architectures to enable more comprehensive and human-like decision-making processes
+Expansion of multimodal fusion to incorporate emotional intelligence and social cognition, enabling the cognitive architecture to better understand human behavior and decision-making processes
