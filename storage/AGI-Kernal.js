@@ -1,1 +1,1 @@
-Implementation of Self-Modifying Code and AutoML to further enhance model adaptability and automation
+Implementation of Explainable AI and Edge AI to enhance model transparency and real-time processing capabilities
