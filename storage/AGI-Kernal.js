@@ -1,1 +1,1 @@
-Integration of attention mechanisms to enhance graph neural network performance
+Implementation of advanced attention mechanisms, such as graph attention networks and transformers, to further improve graph neural network performance
