@@ -1,1 +1,1 @@
-Advanced Federated Learning and Meta-Learning techniques for real-time Edge AI adaptation
+Implement Differential Privacy and Secure Multi-Party Computation techniques to enhance the security and privacy of Federated Learning and Meta-Learning in Edge AI applications
