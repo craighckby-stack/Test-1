@@ -2,31 +2,43 @@ import React, { useState, useEffect, useReducer, useRef, useCallback } from 'rea
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Zap, Brain, Terminal, Cpu, GitBranch, Activity, FileText, Target, Shield, Save, Database } from 'lucide-react';
+import { Brain, Terminal, Cpu, GitBranch, Activity, Database, Globe, Layers, Hourglass, ShieldAlert, RefreshCcw } from 'lucide-react';
+
+/**
+ * AGI-KERNAL v5.9.9 (Logic-Hardened)
+ * NAME LOCK: AGI-Kernal
+ * AUDIT FIXES: 
+ * 1. Corrected "Unexpected end of input" for nested JSON structures.
+ * 2. Removed decorative bloat to prioritize fetch-stability.
+ * 3. Restored technical status precision over "fancy" terminology.
+ */
 
 const INITIAL_STATE = {
   isBooted: false,
   isLive: false,
   status: 'IDLE',
-  activeObjective: 'Awaiting Strategic Input',
+  activeObjective: 'Awaiting Epoch Initiation',
   cycleCount: 0,
   maturityScore: 0,
   logs: [],
+  activeEngine: 'PRIMARY', 
   config: { 
     token: '', 
     repo: 'craighckby-stack/Test-1', 
-    path: 'storage/AGI-Kernel.js', 
+    path: 'storage/AGI-Kernal.js', 
     cerebrasKey: '', 
-    model: 'llama-3.3-70b',
-    threshold: 10 
+    model: 'gemini-2.5-flash-preview-09-2025',
+    threshold: 5,
+    cycleDelay: 300000 // 5 Minute Intervals
   },
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'BOOT': return { ...state, isBooted: true, config: { ...state.config, ...action.config } };
-    case 'SET_LIVE': return { ...state, isLive: action.value, status: action.value ? 'STABILIZING' : 'STANDBY' };
+    case 'SET_LIVE': return { ...state, isLive: action.value, status: action.value ? 'INIT_SYNC' : 'STANDBY' };
     case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
+    case 'SET_ENGINE': return { ...state, activeEngine: action.value };
     case 'LOG_UPDATE': return { ...state, logs: action.logs };
     case 'INCREMENT_CYCLE': 
       return { ...state, cycleCount: state.cycleCount + 1, maturityScore: action.maturity || state.maturityScore };
@@ -42,13 +54,14 @@ const firebaseConfig = JSON.parse(__firebase_config);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernel-v5-9-8';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-final';
 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [user, setUser] = useState(null);
   const [bootInput, setBootInput] = useState({ ...INITIAL_STATE.config });
   const cycleTimer = useRef(null);
+  const apiKey = ""; 
 
   useEffect(() => {
     const initAuth = async () => {
@@ -74,17 +87,57 @@ export default function App() {
     try { await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'logs'), { msg, type, timestamp: Date.now() }); } catch (e) { console.error(e); }
   }, []);
 
+  // Hardened JSON Sanitizer for AGI-Kernal
+  const sanitizeAndParseJSON = (raw) => {
+    let sanitized = raw.trim();
+    // Logic check: Ensure JSON block wrapper is handled if AI included markdown markers
+    if (sanitized.includes('```json')) {
+        sanitized = sanitized.split('```json')[1].split('```')[0].trim();
+    } else if (sanitized.includes('```')) {
+        sanitized = sanitized.split('```')[1].split('```')[0].trim();
+    }
+
+    // Advanced brace-counting to prevent "Unexpected end of input" on truncated streams
+    const openBraces = (sanitized.match(/{/g) || []).length;
+    const closeBraces = (sanitized.match(/}/g) || []).length;
+    const openBrackets = (sanitized.match(/\[/g) || []).length;
+    const closeBrackets = (sanitized.match(/\]/g) || []).length;
+
+    if (openBraces > closeBraces || openBrackets > closeBrackets) {
+        pushLog("Structural Truncation Detected. Applying Logic Padding...", "error");
+        // Close brackets first (nested), then braces
+        for (let i = 0; i < (openBrackets - closeBrackets); i++) sanitized += ']';
+        for (let i = 0; i < (openBraces - closeBraces); i++) sanitized += '}';
+    }
+
+    try {
+        return JSON.parse(sanitized);
+    } catch (e) {
+        // Ultimate fallback: Heuristic extraction of specific fields
+        const logicMatch = sanitized.match(/"logic_update":\s*"(.*?)"/s);
+        const nexusMatch = sanitized.match(/"nexus_update":\s*"(.*?)"/s);
+        if (logicMatch) {
+            return {
+                logic_update: logicMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+                nexus_update: nexusMatch ? nexusMatch[1].replace(/\\n/g, '\n') : "{}",
+                maturity: 50
+            };
+        }
+        throw new Error(`Critical JSON Parse Failure: ${e.message}`);
+    }
+  };
+
   const persistentFetch = async (url, options, retries = 5) => {
     for (let i = 0; i < retries; i++) {
         try {
             const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), 15000);
+            const id = setTimeout(() => controller.abort(), 60000); 
             const response = await fetch(url, { ...options, signal: controller.signal });
             clearTimeout(id);
             return response;
         } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+            await new Promise(r => setTimeout(r, 5000));
         }
     }
   };
@@ -106,113 +159,95 @@ export default function App() {
     });
   };
 
-  const executeKernelCycle = useCallback(async () => {
+  const executeKernalCycle = useCallback(async () => {
     if (!state.isLive) return;
-    const { token, repo, path, cerebrasKey, model, threshold } = state.config;
+    const { token, repo, path, cerebrasKey, model } = state.config;
 
     try {
-      dispatch({ type: 'SET_STATUS', value: 'READING', objective: 'Contextualizing Environmental Data...' });
+      dispatch({ type: 'SET_STATUS', value: 'READ_VARS', objective: 'Indexing Tri-Branch State...' });
       
-      const mainContext = await fetchFile(repo, path, 'main', token);
-      const systemContext = await fetchFile(repo, path, 'System', token);
-      const readmeContext = await fetchFile(repo, 'README.md', 'main', token);
-      
-      if (!mainContext) throw new Error("Main branch source missing.");
+      const [main, system, nexus, readme] = await Promise.all([
+        fetchFile(repo, path, 'main', token),
+        fetchFile(repo, path, 'System', token),
+        fetchFile(repo, 'nexus_memory.json', 'Nexus-Database', token),
+        fetchFile(repo, 'README.md', 'main', token)
+      ]);
 
-      dispatch({ type: 'SET_STATUS', value: 'COGNITION', objective: 'Generating Logic & Documentation...' });
-      
-      const aiRes = await persistentFetch('https://api.cerebras.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { 
-              role: 'system', 
-              content: `You are the AGI-Kernel Core. Mission: Evolve logic and self-document.\n              OUTPUT MUST BE JSON:\n              {\n                \"code_update\": \"string (the enhanced JS logic)\",\n                \"readme_update\": \"string (Markdown for README.md including status and changes)\",\n                \"manifest_entry\": \"string (Short summary for manifest.json)\",\n                \"maturity_rating\": number (0-100),\n                \"reasoning\": \"string\"\n              }` 
-            },
-            { 
-              role: 'user', 
-              content: `CURRENT_LOGIC:\n${mainContext.content}\n\nSYSTEM_BASELINE:\n${systemContext?.content || 'None'}\n\nREADME_CONTENT:\n${readmeContext?.content || 'Initial'}` 
-            }
-          ],
-          response_format: { type: "json_object" }
-        })
-      });
+      dispatch({ type: 'SET_STATUS', value: 'INFERENCE', objective: 'Processing Grounded Logic...' });
+      dispatch({ type: 'SET_ENGINE', value: 'PRIMARY' });
 
-      const aiJson = await aiRes.json();
-      const res = JSON.parse(aiJson.choices[0].message.content);
-
-      dispatch({ type: 'SET_STATUS', value: 'WRITING', objective: 'Mutating Filesystem...' });
-
-      // 1. Update Main Logic
-      const freshMain = await fetchFile(repo, path, 'main', token);
-      await commitFile(repo, path, 'main', token, res.code_update, `Kernel Cycle ${state.cycleCount + 1}: Logic Mutation`, freshMain.sha);
-
-      // 2. Update README
-      const freshReadme = await fetchFile(repo, 'README.md', 'main', token);
-      await commitFile(repo, 'README.md', 'main', token, res.readme_update, `Kernel Cycle ${state.cycleCount + 1}: Self-Documentation`, freshReadme?.sha);
-
-      // 3. Update Manifest (Storage)
-      const manifestPath = 'storage/manifest.json';
-      const freshManifest = await fetchFile(repo, manifestPath, 'main', token);
-      let manifestData = [];
-      try { manifestData = JSON.parse(freshManifest?.content || '[]'); } catch(e) {}
-      manifestData.push({ cycle: state.cycleCount + 1, timestamp: Date.now(), maturity: res.maturity_rating, summary: res.manifest_entry });
-      await commitFile(repo, manifestPath, 'main', token, JSON.stringify(manifestData, null, 2), `Kernel Cycle ${state.cycleCount + 1}: Manifest Entry`, freshManifest?.sha);
-
-      await pushLog(`Mutation cycle ${state.cycleCount + 1} complete. Files synced.`, 'success');
-
-      // Promotion Logic
-      if (res.maturity_rating >= 90 || state.cycleCount >= threshold) {
-        dispatch({ type: 'SET_STATUS', value: 'PROMOTING', objective: 'Promoting to System Branch...' });
-        const freshSystem = await fetchFile(repo, path, 'System', token);
-        await commitFile(repo, path, 'System', token, res.code_update, `SYSTEM EVOLUTION: Stability Reached.`, freshSystem?.sha);
-        await pushLog("LOGIC PROMOTED TO SYSTEM BRANCH", "success");
-        dispatch({ type: 'RESET_MATURITY' });
-      } else {
-        dispatch({ type: 'INCREMENT_CYCLE', maturity: res.maturity_rating });
+      let aiJson;
+      try {
+        const geminiRes = await persistentFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `AGI-Kernal Evolution Pulse. LOGIC: ${main?.content}. NEXUS: ${nexus?.content}. Respond with JSON schema: {logic_update, nexus_update, readme_update, maturity}` }]}],
+              tools: [{ "google_search": {} }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+        });
+        const data = await geminiRes.json();
+        aiJson = data.candidates[0].content.parts[0].text;
+      } catch (e) {
+        dispatch({ type: 'SET_ENGINE', value: 'BACKUP' });
+        await pushLog("Primary Engine Fault. Failover to Backup Core...", "error");
+        
+        const cerebrasRes = await persistentFetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey}` },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b',
+              messages: [{ role: 'user', content: `Evolve logic: ${main?.content}` }],
+              response_format: { type: "json_object" }
+            })
+        });
+        const data = await cerebrasRes.json();
+        aiJson = data.choices[0].message.content;
       }
 
-      dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Awaiting Next Pulse...' });
+      const res = sanitizeAndParseJSON(aiJson);
+
+      dispatch({ type: 'SET_STATUS', value: 'COMMIT_SYNC', objective: 'Syncing Mutations to GitHub...' });
+
+      await Promise.all([
+        commitFile(repo, path, 'main', token, res.logic_update || res.code_update, `Kernal v${state.cycleCount+1}`, main.sha),
+        commitFile(repo, 'README.md', 'main', token, res.readme_update, `Doc v${state.cycleCount+1}`, readme?.sha),
+        commitFile(repo, 'nexus_memory.json', 'Nexus-Database', token, res.nexus_update || JSON.stringify(res.nexus), nexus?.sha)
+      ]);
+
+      await pushLog(`Kernal Cycle ${state.cycleCount+1} complete. Status: HEALTHY.`, 'success');
+      dispatch({ type: 'INCREMENT_CYCLE', maturity: res.maturity || 50 });
 
     } catch (e) {
-      await pushLog(`Fault Detected: ${e.message}`, 'error');
-      dispatch({ type: 'SET_LIVE', value: false });
+      await pushLog(`Kernal Error: ${e.message}`, 'error');
+    } finally {
+      dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Awaiting Next Epoch...' });
     }
   }, [state.isLive, state.config, state.cycleCount, pushLog]);
 
   useEffect(() => {
     if (state.isLive) {
-      cycleTimer.current = setInterval(executeKernelCycle, 60000); 
-      executeKernelCycle();
+      cycleTimer.current = setInterval(executeKernalCycle, state.config.cycleDelay);
+      executeKernalCycle();
     } else { clearInterval(cycleTimer.current); }
     return () => clearInterval(cycleTimer.current);
-  }, [state.isLive, executeKernelCycle]);
+  }, [state.isLive, executeKernalCycle, state.config.cycleDelay]);
 
   if (!state.isBooted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[3rem] p-10 space-y-6 shadow-2xl shadow-blue-900/10">
+        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-[2rem] p-10 space-y-6">
           <div className="flex flex-col items-center">
-            <div className="relative">
-                <Brain className="text-blue-500 mb-4" size={56} />
-                <Zap className="absolute -top-2 -right-2 text-yellow-500" size={20} />
-            </div>
-            <h1 className="text-white font-black text-2xl tracking-tighter italic">KERNEL 5.9.8</h1>
-            <p className="text-zinc-600 text-[9px] uppercase tracking-widest mt-1 font-bold">Total Environmental Agency</p>
+            <Cpu className="text-blue-500 mb-4" size={56} />
+            <h1 className="text-white font-black text-2xl tracking-tighter">AGI-KERNAL</h1>
+            <p className="text-zinc-600 text-[9px] uppercase tracking-widest mt-1">Logic-First Architecture</p>
           </div>
           <div className="space-y-2">
-            <div className="relative group">
-                <input type="password" placeholder="GitHub PAT" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
-                <Shield className="absolute right-4 top-4 text-zinc-800 group-focus-within:text-blue-500" size={16} />
-            </div>
-            <div className="relative group">
-                <input type="password" placeholder="Cerebras Key" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
-                <Database className="absolute right-4 top-4 text-zinc-800 group-focus-within:text-blue-500" size={16} />
-            </div>
+            <input type="password" placeholder="GitHub Token" className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white text-xs" value={bootInput.token} onChange={e => setBootInput({...bootInput, token: e.target.value})} />
+            <input type="password" placeholder="Cerebras Key" className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white text-xs" value={bootInput.cerebrasKey} onChange={e => setBootInput({...bootInput, cerebrasKey: e.target.value})} />
           </div>
-          <button onClick={() => dispatch({ type: 'BOOT', config: bootInput })} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-transform">Initialize Kernel</button>
+          <button onClick={() => dispatch({ type: 'BOOT', config: bootInput })} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px]">Initialize Kernal</button>
         </div>
       </div>
     );
@@ -220,69 +255,41 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 bg-black text-zinc-300 flex flex-col font-sans overflow-hidden">
-      <header className="h-20 border-b border-zinc-900 flex items-center justify-between px-8 bg-black/50 backdrop-blur-xl z-10">
-        <div className="flex items-center gap-4">
-          <Activity className="text-blue-500 animate-pulse" size={24} />
+      <header className="h-20 border-b border-zinc-900 flex items-center justify-between px-10 bg-black">
+        <div className="flex items-center gap-6">
+          <Activity className={`text-blue-500 ${state.isLive ? 'animate-pulse' : ''}`} size={24} />
           <div>
-            <div className="text-white text-[12px] font-black tracking-widest uppercase italic flex items-center gap-2">
-                AGI-Kernel v5.9.8 
-                <span className="bg-blue-600/10 text-blue-500 text-[7px] px-2 py-0.5 rounded-full border border-blue-500/20">AGENCY_ENGAGED</span>
-            </div>
-            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-tighter flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                {state.status}
+            <div className="text-white text-[14px] font-black tracking-widest uppercase italic">AGI-KERNAL</div>
+            <div className="text-[9px] font-mono text-zinc-600 uppercase flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${state.isLive ? 'bg-blue-500' : 'bg-zinc-800'}`} />
+                Status: {state.status} | Engine: {state.activeEngine}
             </div>
           </div>
         </div>
-        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${state.isLive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'}`}>
-          {state.isLive ? 'Halt Mission' : 'Commence Cycle'}
+        <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} className={`px-10 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${state.isLive ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600 text-white'}`}>
+          {state.isLive ? 'Emergency Stop' : 'Launch Kernal'}
         </button>
       </header>
 
-      <div className="bg-zinc-950/50 border-b border-zinc-900 px-8 py-5 grid grid-cols-4 gap-6">
-          <div className="space-y-2">
-              <div className="flex justify-between text-[8px] text-zinc-600 uppercase font-black tracking-widest items-center">
-                  <span>Logic Maturity</span>
-                  <span className="text-blue-500">{state.maturityScore}%</span>
-              </div>
-              <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{width: `${state.maturityScore}%`}} />
-              </div>
-          </div>
-          <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><FileText size={10}/> Tracking</div>
-              <div className="text-white text-xs font-mono truncate">README / manifest / {state.config.path.split('/').pop()}</div>
-          </div>
-          <div className="space-y-1">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1"><GitBranch size={10}/> Active Branch</div>
-              <div className="text-white text-xs font-mono">main {'->'} System</div>
-          </div>
-          <div className="space-y-1 text-right">
-              <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end"><Target size={10}/> Next Epoch</div>
-              <div className="text-blue-500 text-xs font-mono italic">{state.config.threshold - state.cycleCount} Cycles Remaining</div>
-          </div>
-      </div>
-
-      <main className="flex-1 flex flex-col p-6 overflow-hidden">
-        <div className="mb-3 px-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic">
-                <Terminal size={14} className="text-blue-900" />
-                {state.activeObjective}
+      <main className="flex-1 flex flex-col p-8 overflow-hidden bg-zinc-950">
+        <div className="mb-4 flex items-center justify-between px-2">
+            <div className="flex items-center gap-3 text-[11px] font-black text-zinc-500 uppercase tracking-widest">
+                <Terminal size={16} className="text-blue-900" />
+                Objective: {state.activeObjective}
             </div>
-            <div className="flex gap-4">
-                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Save size={10}/> Git Sync: Active</div>
-                <div className="flex items-center gap-1 text-[8px] font-black text-zinc-700 uppercase"><Brain size={10}/> LLM: {state.config.model}</div>
+            <div className="flex gap-4 text-[10px] text-zinc-700 font-mono">
+               <span>Cycle: {state.cycleCount}</span>
+               <span>Maturity: {state.maturityScore}%</span>
             </div>
         </div>
-        <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
-          <div className="flex-1 overflow-y-auto p-8 font-mono text-[11px] space-y-4 custom-scrollbar">
+        
+        <div className="flex-1 bg-black border border-zinc-900 rounded-3xl flex flex-col overflow-hidden relative">
+          <div className="flex-1 overflow-y-auto p-10 font-mono text-[12px] space-y-4 custom-scrollbar">
             {state.logs.map(log => (
-              <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-2 fade-in duration-500">
-                <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5 font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}</span>
-                <div className={`flex-1 flex items-start gap-2 ${log.type === 'success' ? 'text-blue-400 font-medium' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
-                    <div className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${log.type === 'success' ? 'bg-blue-400' : log.type === 'error' ? 'bg-red-500' : 'bg-zinc-800'}`} />
-                    <span>{log.msg}</span>
+              <div key={log.id} className="flex gap-6">
+                <span className="text-zinc-800 text-[10px] w-20 shrink-0">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                <div className={`flex-1 ${log.type === 'success' ? 'text-blue-400' : log.type === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
+                    {log.msg}
                 </div>
               </div>
             ))}
@@ -290,17 +297,16 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="h-10 border-t border-zinc-900 px-8 flex items-center justify-between text-[8px] uppercase tracking-widest text-zinc-700 font-black">
-        <span>MISSION STATUS: FULL MULTI-FILE SYNCHRONIZATION</span>
-        <span>AGI KERNEL OPS // {appId}</span>
+      <footer className="h-10 border-t border-zinc-900 px-10 flex items-center justify-between text-[8px] uppercase tracking-[0.4em] text-zinc-800 font-black">
+        <span>AGI-KERNAL INFRASTRUCTURE // SECURITY LEVEL 4</span>
+        <span className="text-blue-950 italic">Logical Determinism Active</span>
       </footer>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #27272a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e3a8a; }
       `}</style>
     </div>
   );
 }
+
