@@ -14,6 +14,26 @@ import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, L
 // --- Absorbed Target Data Utilities (New Enums/Interfaces) ---
 
 /**
+ * validateKMSPolicyIntegrity
+ * @param {object} policy The key management policy object.
+ * @returns {Array<string>} List of errors.
+ */
+export function validateKMSPolicyIntegrity(policy) {
+    const errors = [];
+    const definedKeyTypes = new Set(Object.keys(policy.key_type_definitions || {}));
+
+    if (policy.rotation_schedule) {
+        for (const [scheduleName, rotationEntry] of Object.entries(policy.rotation_schedule)) {
+            if (rotationEntry.key_type && !definedKeyTypes.has(rotationEntry.key_type)) {
+                errors.push(`Rotation schedule '${scheduleName}' references undefined key type: ${rotationEntry.key_type}`);
+            }
+        }
+    }
+
+    return errors;
+}
+
+/**
  * Standardized data structures for PIAM (Post-Mortem Integrity Assurance Module).
  */
 
