@@ -1,1 +1,1 @@
-Upgrade of secure multi-party computation protocols to support horizontally partitioned data and enable more efficient collaborative learning
+Integration of horizontally partitioned data and secure multi-party computation protocols for collaborative learning
