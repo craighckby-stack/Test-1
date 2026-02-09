@@ -10,20 +10,31 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.4 enhancement) implements robust internal telemetry logging 
-    (supporting Autonomous Directives for Monitoring Systems) and enhances 
-    Meta-Reasoning support by calculating a Governance Health Score within the 
-    validation report.
-
+    This version (v7.4.5 enhancement) refines the Governance Health Score calculation using dynamic severity weighting 
+    (supporting Meta-Reasoning) and formalizes log queue management for the Telemetry System (Infrastructure).
+    
     Improvements in Cycle 1: Enhanced structural validation checks, defensive JSON data 
     extraction (JSON Parsing/Error Handling), and standardized internal logging 
     for improved Error Handling and Meta-Reasoning support.
     
     Improvements in Cycle 2: Formalized internal logging queue, governance score calculation, 
     and robust input validation in transition_state for enhanced fault tolerance (Autonomy/Meta-Reasoning).
+    
+    Improvements in Cycle 3 (v7.4.5): Implemented dynamic, weighted scoring system for Governance Health Score 
+    and added log flushing capabilities for Telemetry integration.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
+    
+    # Infrastructure: Weights for calculating Governance Health Score (Meta-Reasoning support)
+    SEVERITY_WEIGHTS = {
+        "CRITICAL": 0.40, 
+        "STRUCTURAL_ERROR": 0.50, 
+        "GOVERNANCE_VIOLATION": 0.45,
+        "METRIC_FAILURE": 0.35,
+        "DATA_TYPE_ERROR": 0.30,
+        "STATE_ERROR": 0.40
+    }
     
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         self.schema_path = schema_path
@@ -73,8 +84,16 @@ class ACVD_DecisionEngine:
             print(f"[ACVD {level} | {context} @ {log_entry['timestamp']}] {message}")
 
     def get_logs(self) -> List[Dict[str, Any]]:
-        """Provides access to the internal log queue for external monitoring systems."""
+        """Provides access to a copy of the internal log queue for external monitoring systems."""
         return self._log_queue[:] # Return a copy
+        
+    def flush_logs(self):
+        """Clears the internal log queue after logs have been successfully consumed by the Telemetry System.
+        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
+        """
+        if self._log_queue:
+            self._log_queue.clear()
+            self._log_status("DEBUG", "Internal log queue flushed.", "LOG_FLUSH")
 
     def _load_schema(self, path: str) -> Dict[str, Any]:
         """Loads and parses the ACVD schema file with robust error handling (JSON Parsing)."""
@@ -103,7 +122,7 @@ class ACVD_DecisionEngine:
         """Performs structural, state, and metric validation, returning a detailed report 
         for AGI meta-reasoning and learning history (Meta-Reasoning support).
         
-        Now includes a 'governanceHealthScore' for easy strategic decision filtering.
+        The governanceHealthScore is now calculated dynamically based on accumulated severity weights.
         """
         report: Dict[str, Any] = {
             "status": "PASS",
@@ -112,8 +131,11 @@ class ACVD_DecisionEngine:
             "governanceHealthScore": 1.0 # Initial score (1.0 = perfect compliance)
         }
         
+        negative_score_accumulation = 0.0
+        
         # Robustness check on input type
         if not isinstance(proposal, dict):
+            # This is a total failure, instant 0.0 score based on structural integrity
             report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Input proposal is not a valid dictionary.", "context": "Input Type"})
             report['status'] = 'FAIL'
             report['governanceHealthScore'] = 0.0
@@ -123,13 +145,15 @@ class ACVD_DecisionEngine:
         
         # 1. Basic State Recognition Check
         if self.valid_states and current_state not in self.valid_states and current_state != 'INITIAL_SUBMISSION':
+            issue_type = "STATE_ERROR"
             report['issues'].append({
-                "type": "STATE_ERROR",
+                "type": issue_type,
                 "severity": "CRITICAL",
                 "message": f"Proposal state '{current_state}' is not a recognized workflow state.",
                 "context": f"Valid states: {', '.join(self.valid_states)}"
             })
             report['status'] = 'FAIL'
+            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.40)
 
         # Optimization: Skip deep metrics checks unless explicitly PENDING_VALIDATION
         if current_state != 'PENDING_VALIDATION' and report['status'] != 'FAIL':
@@ -140,83 +164,84 @@ class ACVD_DecisionEngine:
         validation_metrics = proposal.get('validationMetrics')
         safety_assessment = proposal.get('safetyAssessment')
         
-        initial_fail = report['status'] == 'FAIL'
-        
-        # We will use max_issues to normalize the governance score against a predictable failure count.
-        max_issues = 4 
-        issue_count = 0
-
         # 2a. Check for existence and type of critical validation structures
         if not isinstance(validation_metrics, dict):
-            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."})
+            issue_type = "STRUCTURAL_ERROR"
+            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."})
             report['status'] = 'FAIL'
-            issue_count += 1
+            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.50)
 
         if not isinstance(safety_assessment, dict):
-            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."})
+            issue_type = "STRUCTURAL_ERROR"
+            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."})
             report['status'] = 'FAIL'
-            issue_count += 1
+            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.50)
 
-        if report['status'] == 'FAIL' and not initial_fail:
-            # Recalculate score before returning early due to critical structural failure
-            report['governanceHealthScore'] = max(0.0, 1.0 - (issue_count / max_issues))
-            return report
+        # Early calculation if structural errors prevent reliable metric checking
+        if negative_score_accumulation >= 0.5 and report['status'] == 'FAIL':
+             report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
+             return report
 
         # 2b. Regression Test Status Check (Defensive extraction)
         test_status = validation_metrics.get('regressionTestStatus') if isinstance(validation_metrics, dict) else None
         
         if test_status != 'PASS':
+            issue_type = "METRIC_FAILURE"
             if test_status is None:
                 message = "Missing 'regressionTestStatus' key. Assuming failure for governance compliance."
             else:
                 message = f"Proposal failed critical regression tests. Status: {test_status}"
                 
             report['issues'].append({
-                "type": "METRIC_FAILURE",
+                "type": issue_type,
                 "severity": "CRITICAL",
                 "message": message,
                 "metric": "regressionTestStatus"
             })
             report['status'] = 'FAIL'
-            issue_count += 1
+            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.35)
 
         # 2c. Safety Score Check (Defensive extraction and Type checking)
         safety_score = None
         
         if isinstance(safety_assessment, dict):
             raw_score = safety_assessment.get('confidenceScore')
+            
+            # Defensive extraction using try/except (Error Handling, JSON Parsing Robustness)
             try:
                 safety_score = float(raw_score)
             except (ValueError, TypeError):
                 safety_score = 0.0
+                issue_type = "DATA_TYPE_ERROR"
                 if raw_score is None:
                     msg = "Missing 'confidenceScore'. Defaulting score to 0.0."
                 else:
                     msg = f"confidenceScore '{raw_score}' is not a valid number. Defaulting score to 0.0."
                     
                 report['issues'].append({
-                    "type": "DATA_TYPE_ERROR",
+                    "type": issue_type,
                     "severity": "CRITICAL",
                     "message": msg,
                     "metric": "confidenceScore",
                 })
                 report['status'] = 'FAIL'
-                issue_count += 1
+                negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.30)
         
         if safety_score is not None and safety_score < self.safety_threshold:
+            issue_type = "GOVERNANCE_VIOLATION"
             report['issues'].append({
-                "type": "GOVERNANCE_VIOLATION",
+                "type": issue_type,
                 "severity": "CRITICAL",
                 "message": f"Confidence score {safety_score:.2f} is below minimum threshold ({self.safety_threshold:.2f}).",
                 "metric": "confidenceScore",
                 "value": safety_score
             })
             report['status'] = 'FAIL'
-            issue_count += 1
+            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.45)
         
         # 3. Calculate Governance Health Score (Supports Meta-Reasoning/Strategic Decision-making)
-        # Score decreases based on critical issues found, capping at 0.
-        report['governanceHealthScore'] = max(0.0, 1.0 - (issue_count / max_issues))
+        # Score decreases based on accumulated negative weight, capping at 0.
+        report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
 
         return report
 
