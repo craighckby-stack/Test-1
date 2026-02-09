@@ -10,13 +10,10 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.8 enhancement) centralizes the penalty calculation logic into a 
-    dedicated helper method, standardizing the application of dynamic severity weights 
-    for both internal self-assessment and external proposal validation. This improves 
-    abstraction and code maintenance (Self-Modification, Meta-Reasoning).
-    
-    Improvements in Cycle 5 (v7.4.7): Implemented `perform_self_assessment` for internal monitoring and
-    Operational Integrity Scoring, enhancing self-governance and Error Handling robustness.
+    This version (v7.4.9 enhancement) introduces mandatory state transition path validation,
+    requiring the governance schema to define legal transitions (e.g., DRAFT -> PENDING_VALIDATION).
+    This feature enforces strategic coherence and strengthens multi-step planning capabilities
+    (Strategic Decision-making, Error Handling).
     
     Improvements in Cycle 6 (v7.4.8): Refactored penalty calculation into `_get_penalty_weight` 
     to ensure consistent application of severity weights and internal assessment modifiers.
@@ -48,6 +45,7 @@ class ACVD_DecisionEngine:
             self._log_status("CRITICAL", "Failed to load governance schema. Operating in limited mode.", "INIT_FAILSAFE")
             
         self.valid_states = self.schema.get('valid_states', []) 
+        self.state_transitions = self.schema.get('state_transitions', {}) # NEW: Transition map support
         
         # Load configurable thresholds
         config = self.schema.get('config', {})
@@ -361,12 +359,25 @@ class ACVD_DecisionEngine:
             self._log_status("ERROR", "Transition failed: New state is invalid.", "TRANSITION_INPUT_FAIL")
             raise ValueError("Target state must be a non-empty string.")
             
+        previous_state = proposal.get('state', 'UNINITIALIZED')
+
         # 1. State Validity Check
         if self.valid_states and new_state not in self.valid_states:
              self._log_status("ERROR", f"Invalid target state attempted: {new_state}", "TRANSITION_GOVERNANCE")
              raise ValueError(f"Invalid target state: {new_state}. Must be one of {', '.join(self.valid_states)}")
              
-        # 2. Governance Enforcement based on Validation Report (if provided)
+        # 2. Transition Path Check (NEW)
+        if self.state_transitions:
+            allowed_next_states = self.state_transitions.get(previous_state, [])
+            
+            # We allow 'UNINITIALIZED' state to transition to any recognized starting state without explicit mapping, 
+            # but for any defined state, the transition must be explicitly permitted.
+            if previous_state != 'UNINITIALIZED' and new_state not in allowed_next_states:
+                self._log_status("CRITICAL", f"Illegal state transition attempted: {previous_state} -> {new_state}. Governance block.", "TRANSITION_PATH_VIOLATION")
+                # Use a specific exception type to allow recovery/rollback systems to differentiate this error
+                raise PermissionError(f"Illegal state transition attempted. {previous_state} cannot transition directly to {new_state}. Allowed paths: {', '.join(allowed_next_states)}")
+
+        # 3. Governance Enforcement based on Validation Report (if provided)
         if validation_report and new_state == 'APPROVED':
             if not isinstance(validation_report, dict):
                  self._log_status("ERROR", "Validation report is not a dictionary, cannot proceed with approval.", "TRANSITION_GOVERNANCE")
@@ -382,7 +393,7 @@ class ACVD_DecisionEngine:
             "decisionMaker": decision_maker,
             "decisionType": "STATE_CHANGE",
             "reason": reason,
-            "previousState": proposal.get('state', 'UNINITIALIZED'), 
+            "previousState": previous_state, 
             "timestamp": get_utc_timestamp()
         }
         
