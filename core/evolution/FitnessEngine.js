@@ -343,13 +343,13 @@ class FitnessEngine {
 
       // NEW SECURITY IMPROVEMENT (Error Handling/Autonomy):
       // 3a. Check for metric followed immediately by open parenthesis without operator (e.g., M_A(M_B+2))
-      if (trimmedFormula.match(new RegExp(metricIdPattern.source + '\\('))) {
+      if (trimmedFormula.match(new RegExp(metricIdPattern.source + '\('))) {
           console.error("FitnessEngine Security Alert: Metric followed immediately by open parenthesis (missing operator).");
           return false;
       }
 
       // 3b. Check for close parenthesis followed immediately by metric without operator (e.g., (M_B+2)M_A)
-      if (trimmedFormula.match(new RegExp('\\)' + metricIdPattern.source))) {
+      if (trimmedFormula.match(new RegExp('\)' + metricIdPattern.source))) {
           console.error("FitnessEngine Security Alert: Close parenthesis followed immediately by metric (missing operator).");
           return false;
       }
@@ -422,7 +422,7 @@ class FitnessEngine {
         
         // Use word boundary replacement to ensure metric key substitution is precise.
         // Wraps value in parentheses to ensure order of operations integrity.
-        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
+        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
     }
 
     let result;
@@ -448,7 +448,12 @@ class FitnessEngine {
         result = (new Function('return ' + safeCalculationString))();
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}.`);
+            // Robust Error Handling: Check for Infinity specifically (Error Handling/Logic)
+            if (result === Infinity || result === -Infinity) {
+                 console.error(`FitnessEngine Critical Error: Formula execution resulted in Infinity (likely undetected division by zero or overflow) for formula: ${formula}.`);
+            } else {
+                 console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}.`);
+            }
             return 0.0;
         }
         return result;
@@ -593,19 +598,28 @@ class FitnessEngine {
     coreScores["JSON Parsing"] += overallImprovement * 0.3;
     coreScores["Creativity"] += overallImprovement * 0.2;
     
-    // 2. Strategic Depth Assessment (Profile-specific)
+    // 2. Strategic Alignment Boost Assessment (Logic Improvement)
     const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
 
+    let alignmentBoost = {};
+    
     if (isComplexFormula) {
         // High reward for successful dynamic calculation, crucial for AGI self-assessment
-        coreScores["Meta-Reasoning"] += normalizedScore * 1.5; 
-        coreScores["Autonomy"] += normalizedScore * 0.5;
+        alignmentBoost["Meta-Reasoning"] = 1.5; 
+        alignmentBoost["Autonomy"] = 0.5;
     }
     
     if (profile.optimization_goal === 'minimize') {
         // High reward for identifying and solving challenging optimization problems (Creativity/Novelty)
-        coreScores["Creativity"] += normalizedScore * 1.2; 
+        alignmentBoost["Creativity"] = (alignmentBoost["Creativity"] || 0) + 1.2; 
     }
+    
+    // Apply scaled alignment boosts, capped by the normalized overall success.
+    for (const cap in alignmentBoost) {
+        const scaledBoost = alignmentBoost[cap] * normalizedScore;
+        coreScores[cap] += scaledBoost;
+    }
+    
     
     // 3. Historical Success Boost (Links Meta-Reasoning directly to progression)
     const historicalProgressed = this._checkHistoricalSuccess(rawMetrics, historicalMetrics, profile);
