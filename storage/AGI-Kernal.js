@@ -980,4 +980,43 @@ class TaskSequencerEngine {
     }
 
     getMaxRetries(failureMode) {
-        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X
+        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X/) : null;
+        if (match) {
+            return parseInt(match[1], 10);
+        }
+        return failureMode === "RETRY_INF" ? Infinity : 0;
+    }
+
+    handleFailureEscalation(failureMode, task, incidentContext) {
+        this.logger.critical(`Escalation triggered by task ${task.step_id}. Mode: ${failureMode}`, { context: incidentContext });
+        // In a real kernel, this would involve calling the RemediationService or AlertingService.
+        // Mocking behavior:
+        if (failureMode.startsWith("INITIATE_HUMAN")) {
+            GAXTelemetry.critical("OVERSIGHT_REQUEST", { incident: incidentContext.id, task: task.step_id });
+        }
+    }
+    
+    async runTaskWithTimeout(task, incidentContext) {
+        if (!this.actionMap[task.action]) {
+            throw new Error(`Unknown action type: ${task.action}`);
+        }
+
+        const actionFunction = this.actionMap[task.action];
+        const timeout = task.timeout_ms || 30000;
+        
+        let timerId;
+        
+        const timeoutPromise = new Promise((_, reject) => {
+            timerId = setTimeout(() => {
+                reject(new Error(`Task ${task.step_id} timed out after ${timeout}ms.`));
+            }, timeout);
+            // Prevent timer from keeping the process alive unnecessarily
+            if (timerId.unref) timerId.unref(); 
+        });
+
+        const actionPromise = actionFunction(task.parameters || {}, incidentContext, task.delay_ms);
+
+        try {
+            const result = await Promise.race([actionPromise, timeoutPromise]);
+            clearTimeout(timerId);
+            this.logger.info(`Task
