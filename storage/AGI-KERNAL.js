@@ -1,1 +1,1 @@
-Added Kalman filter for enhanced predictive modeling and introduced exception handling for Bayesian inference module
+Added adaptive learning rate for Kalman filter and integrated try-except blocks for Bayesian inference module
