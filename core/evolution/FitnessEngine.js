@@ -169,7 +169,7 @@ class FitnessEngine {
   validateFormula(formula, metricKeys) {
       // 1. Check for forbidden characters (anything not standard metrics/operators)
       // Standard metrics contain upper case letters and underscores.
-      const forbiddenCharsPattern = /[^A-Z0-9_+\-\*\/().\s]/g; // Escaping regex characters
+      const forbiddenCharsPattern = /[^A-Z0-9_+\-*\/().\s]/g; // Escaping regex characters
       // We check if cleaning removes anything unexpected, indicating an unsafe character.
       if (formula.trim().length !== formula.trim().replace(forbiddenCharsPattern, '').length) {
           console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
@@ -207,7 +207,7 @@ class FitnessEngine {
     const metricKeys = Object.keys(rawMetrics);
 
     // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /, (, ))
-    const isComplexFormula = /[+\-\*\/()]/.test(formula);
+    const isComplexFormula = /[+\-*\/()]/.test(formula);
 
     if (!isComplexFormula) {
         // Baseline lookup (Cycle 1 maturity)
@@ -227,9 +227,9 @@ class FitnessEngine {
         // Use the new safe getter to ensure numerical safety
         const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
-        // Improvement: Use escaped word boundaries (\b) for robust replacement
-        // Substitute metric names with their numerical values, wrapped in parentheses for order of operations safety
-        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
+        // FIX: Use double backslash (\\b) for robust word boundary replacement in RegExp constructor.
+        // This ensures M_COST doesn't accidentally replace M_TOTAL_COST in part.
+        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
     try {
@@ -318,17 +318,18 @@ class FitnessEngine {
   static mapScoreToCapability(fitnessScore) {
       const clampedScore = Math.max(0, Math.min(10, fitnessScore));
       
-      // Simple heuristic mapping for Cycle 1: Stronger logic due to formula parsing, neutral memory/navigation.
-      // Scores are normalized to the 0-10 scale.
+      // Improvement (Meta-Reasoning): Increase the weight of the fitness score 
+      // on Logic and Memory, reflecting the complexity of formula processing and configuration usage.
       
-      const logicBase = Math.min(10, 5 + Math.floor(clampedScore * 0.2)); // 5 + up to 2 points
-      const memoryBase = Math.min(10, 4 + Math.floor(clampedScore * 0.3)); // 4 + up to 3 points
-      const navBase = Math.min(10, 3 + Math.floor(clampedScore * 0.1)); // 3 + up to 1 point
+      const logicScore = 5 + clampedScore * 0.5; // Heavily tied to formula parsing (Meta-Reasoning)
+      const memoryScore = 4 + clampedScore * 0.3; // Tied to configuration management/metrics storage
+      const navScore = 3 + clampedScore * 0.1; // Minimal weight, as this module doesn't handle file navigation
       
+      // Return capabilities with one decimal place precision
       return {
-          navigation: navBase,
-          logic: logicBase,
-          memory: memoryBase
+          navigation: parseFloat(navScore.toFixed(1)),
+          logic: parseFloat(logicScore.toFixed(1)),
+          memory: parseFloat(memoryScore.toFixed(1))
       };
   }
 }
