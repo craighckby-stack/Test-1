@@ -1,11 +1,11 @@
 const os = require('os');
 
 AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
+import { initializeApp, getApp, getApps } from \'firebase/app\';
+import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
 
 /**
  * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
@@ -190,6 +190,105 @@ class AveragerFactory {
 // Global instance of the factory, accessible by the Kernel's state management loop.
 const MEE_AveragerFactory = new AveragerFactory();
 
+// --- TARGET INTEGRATION: Conceptual Policy Evaluation Layer ---
+
+/**
+ * @fileoverview ConceptualPolicyEvaluator
+ * Executes complex, concept-specific validation policies defined within the Concept Registry.
+ * It dynamically dispatches execution requests to specific Policy Handlers registered 
+ * in the ConceptualPolicyRegistry based on the constraint type, preventing monolithic logic.
+ */
+
+/** 
+ * STUB: Conceptual Policy Registry. Defines handlers for policy types. 
+ * In a full system, this would be imported from './ConceptualPolicyRegistry.js'.
+ */
+const ConceptualPolicyRegistry = {
+    // Example Handler: Checks if a numeric metric exceeds a threshold.
+    'thresholdCheck': (constraint, context) => {
+        const value = context[constraint.metricKey];
+        if (typeof value === 'number' && value > constraint.max) {
+             return {
+                ruleId: constraint.id || 'GOV-003',
+                detail: `Metric ${constraint.metricKey} (${value.toFixed(4)}) exceeded max threshold of ${constraint.max}.`,
+                severity: constraint.severity || 'HIGH'
+            };
+        }
+        return null;
+    }
+    // Add other policy handlers as needed for a real system
+};
+
+/**
+ * Executes a single conceptual constraint by looking up the appropriate handler.
+ * @typedef {{ruleId: string, detail: string, severity: string}} Violation
+ * @param {Object} constraint The policy definition.
+ * @param {Object} context The operational context.
+ * @returns {Violation | null} The violation object if triggered, or null.
+ */
+function executeConstraint(constraint, context) {
+    const policyType = constraint.type;
+    
+    // Look up the dedicated handler function from the registry
+    const handler = ConceptualPolicyRegistry[policyType];
+
+    if (!handler) {
+        console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
+        return {
+            ruleId: 'EVAL-001',
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
+            severity: 'WARNING'
+        };
+    }
+
+    try {
+        // Handlers return the violation object or null if compliant.
+        const result = handler(constraint, context);
+        return result || null;
+
+    } catch (e) {
+        console.error(`[Policy Evaluator] Error executing constraint ${constraint.id || policyType}:`, e);
+        return {
+            ruleId: 'EVAL-002',
+            detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
+            severity: 'CRITICAL'
+        };
+    }
+}
+
+
+export const ConceptualPolicyEvaluator = {
+
+    /**
+     * Executes all defined constraints and policies for a given concept against the current context.
+     * @param {Object} concept The conceptual definition object (from ConceptRegistry).
+     * @param {Object} context The operational context (e.g., file path, diff content, metadata).
+     * @returns {{isValid: boolean, violations: Array<Violation>}}
+     */
+    executePolicies(concept, context) {
+        let violations = [];
+
+        // Execution logic is now purely declarative dispatch.
+        if (concept.constraints && Array.isArray(concept.constraints)) {
+            for (const constraint of concept.constraints) {
+                const violation = executeConstraint(constraint, context);
+                if (violation) {
+                    violations.push(violation);
+                }
+            }
+        }
+
+        // Potential integration point for broader systemic checks:
+        // const systemicViolations = executeSystemicPolicies(concept, context);
+        // violations = violations.concat(systemicViolations);
+
+        return {
+            isValid: violations.length === 0,
+            violations: violations
+        };
+    }
+};
+
 // --- KERNEL INTEGRATION: State Management and UI (Preserved Structure) ---
 
 /**
@@ -200,7 +299,7 @@ const agiReducer = (state, action) => {
         case 'SET_AUTH_STATE':
             return { ...state, isAuthenticated: action.payload.isAuthenticated, uid: action.payload.uid };
         case 'UPDATE_METRICS':
-            return { ...state, systemMetrics: action.payload };
+            return { ...state, systemMetrics: action.payload, governanceReport: action.payload.governanceReport };
         case 'LOG_MESSAGE':
             return { ...state, logs: [...state.logs, action.payload] };
         default:
@@ -213,7 +312,29 @@ const initialState = {
     uid: null,
     systemMetrics: {},
     logs: [],
-    averagers: new Map() // Storing active averagers for runtime calculation
+    averagers: new Map(), // Storing active averagers for runtime calculation
+    governanceReport: { isValid: true, violations: [] }
+};
+
+// Dummy Concept Definition for Policy Testing (Example: Critical Load Policy)
+const GovernanceConcept = {
+    name: "CriticalSystemHealth",
+    constraints: [
+        { 
+            id: 'SYS-LOAD-001', 
+            type: 'thresholdCheck', 
+            metricKey: 'osCpuLoad1m_avg', 
+            max: 5.0, // High threshold for a 5-second average
+            severity: 'CRITICAL' 
+        },
+        { 
+            id: 'SYS-MEM-002', 
+            type: 'thresholdCheck', 
+            metricKey: 'osMemoryUsagePercent_avg', 
+            max: 0.95, // 95% usage
+            severity: 'WARNING' 
+        }
+    ]
 };
 
 /**
@@ -251,7 +372,7 @@ function AGI_Kernel() {
     }, []);
 
 
-    // 2. Metric Collection and Evaluation Loop (Integrating MEE)
+    // 2. Metric Collection and Evaluation Loop (Integrating MEE and Policy Evaluator)
     useEffect(() => {
         if (!state.isAuthenticated) return;
 
@@ -260,7 +381,7 @@ function AGI_Kernel() {
                 const rawMetrics = await systemLoadSensorInstance.run();
                 const evaluatedMetrics = {};
 
-                // Process raw metrics using MEE Averaging Engine
+                // Step A: Process raw metrics using MEE Averaging Engine
                 for (const [key, value] of Object.entries(rawMetrics)) {
                     // Simple heuristic mapping to MEE types
                     let type;
@@ -280,18 +401,28 @@ function AGI_Kernel() {
                     evaluatedMetrics[`${key}_avg`] = averager.calculate();
                 }
 
-                dispatch({ type: 'UPDATE_METRICS', payload: evaluatedMetrics });
+                // Step B: Execute Conceptual Policies using the Evaluator (Grafted TARGET feature)
+                const governanceReport = ConceptualPolicyEvaluator.executePolicies(GovernanceConcept, evaluatedMetrics);
+                
+                if (!governanceReport.isValid) {
+                    governanceReport.violations.forEach(v => {
+                        dispatch({ type: 'LOG_MESSAGE', payload: `[GOVERNANCE VIOLATION] ${v.severity}: ${v.detail}` });
+                    });
+                }
+
+                dispatch({ type: 'UPDATE_METRICS', payload: { ...evaluatedMetrics, governanceReport } });
 
                 // Post metrics to Firebase (Kernel persistence requirement)
                 await addDoc(collection(db, "telemetry"), {
                     timestamp: new Date(),
                     uid: state.uid,
-                    metrics: evaluatedMetrics
+                    metrics: evaluatedMetrics,
+                    governance: governanceReport
                 });
 
             } catch (error) {
-                console.error("Metric collection error:", error);
-                dispatch({ type: 'LOG_MESSAGE', payload: `Metric Error: ${error.message}` });
+                console.error("Metric/Policy evaluation error:", error);
+                dispatch({ type: 'LOG_MESSAGE', payload: `Kernel Loop Error: ${error.message}` });
             }
         }, 5000); // Poll every 5 seconds
 
@@ -321,16 +452,36 @@ function AGI_Kernel() {
             <h1><Cpu className="icon" /> AGI Kernel Core Operational Status (v6.9)</h1>
             <p>Status: {state.isAuthenticated ? <ShieldCheck /> : <AlertTriangle />} {state.isAuthenticated ? "Authenticated and Operational" : "Awaiting Authentication"}</p>
 
+            <section className="governance-panel">
+                <h2><Lock /> Governance Status</h2>
+                {state.governanceReport.isValid ? (
+                    <p><ShieldCheck color="green" /> All policies compliant.</p>
+                ) : (
+                    <div>
+                        <AlertTriangle color="red" /> {state.governanceReport.violations.length} Violation(s) Detected:
+                        <ul>
+                            {state.governanceReport.violations.map((v, i) => (
+                                <li key={i} style={{ color: v.severity === 'CRITICAL' ? 'red' : 'orange' }}>
+                                    [{v.ruleId}] {v.detail} (Severity: {v.severity})
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </section>
+
             <section className="metrics-panel">
                 <h2><Gauge /> Performance Metrics (MEE Evaluated)</h2>
-                {Object.keys(state.systemMetrics).length === 0 ? (
+                {Object.keys(state.systemMetrics).filter(k => !k.endsWith('_avg')).length === 0 ? (
                     <p>Collecting initial metrics...</p>
                 ) : (
-                    Object.entries(state.systemMetrics).map(([key, value]) => (
-                        <div key={key}>
-                            <strong>{key}:</strong> {typeof value === 'number' ? value.toFixed(4) : String(value)}
-                        </div>
-                    ))
+                    Object.entries(state.systemMetrics)
+                        .filter(([key, value]) => key.endsWith('_avg'))
+                        .map(([key, value]) => (
+                            <div key={key}>
+                                <strong>{key.replace('_avg', '')} (Avg):</strong> {typeof value === 'number' ? value.toFixed(4) : String(value)}
+                            </div>
+                        ))
                 )}
             </section>
 
