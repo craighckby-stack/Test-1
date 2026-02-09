@@ -233,50 +233,55 @@ Key Requirements:
         if (status === 429) {
             // Self-Improvement v7.2.1: Granular error detection, specifically for rate limiting (429).
             baseErrorMessage = `LLM API failed (Rate Limit 429) [${apiProvider}]: ${safeErrorText}`;
-            // Log a warning specifically about hitting the rate limit
-            await pushLog(`Warning: API Rate Limit hit for ${apiProvider}. Waiting period likely required.`, 'warning');
-        } else if (status === 401 || status === 403) {
-            // Self-Improvement v7.3.1: Explicitly handle Authentication failures for better user feedback.
-            baseErrorMessage = `LLM API failed (Authentication/Permission Error ${status}) [${apiProvider}]: Check API Key and permissions. Details: ${safeErrorText}`;
-            await pushLog(`Critical: API Key Unauthorized or Forbidden for ${apiProvider}.`, 'critical');
-        }
-
-        throw new Error(baseErrorMessage); 
-      }
-
-      const data = await res.json();
-      const rawResponse = parseResponse(data);
-      
-      if (!rawResponse) {
-        // Enhanced logging: log a slice of the raw data for context
-        const partialData = JSON.stringify(data).slice(0, 1000);
-        await pushLog(`LLM response was empty or unparseable. Partial JSON response: ${partialData}`, 'error');
-        throw new Error("LLM response was empty or unparseable by the internal wrapper.");
-      }
-      
-      await pushLog('LLM generation complete. Parsing result...', 'success');
-      
-      // Use the JSON recovery mechanism to handle potential truncation
-      const structuredResult = recoverJSON(rawResponse);
-
-      if (!structuredResult) {
-          // ... (rest of original logic for structuredResult failure)
-      }
-      
-    } catch (e) {
-        // Clear the timeout whether the fetch succeeded or failed to resolve the promise.
-        clearTimeout(timeoutId);
-
-        // Self-Improvement v7.8.1: Distinguish network timeouts (AbortError) from other network failures.
-        let errorMessage = e.message || String(e);
-        
-        if (e.name === 'AbortError') {
-            errorMessage = `LLM Generation Timeout (${TIMEOUT_MS / 1000}s) reached. Aborting request.`;
-            await pushLog(errorMessage, 'warning');
+            await pushLog(baseErrorMessage, 'warning'); // Log as warning since rate limits are recoverable
+        } else if (status >= 400 && status < 500) {
+            // Client errors (Bad Request, Unauthorized, Invalid Token, etc.)
+            await pushLog(baseErrorMessage, 'error');
         } else {
-            await pushLog(`LLM Generation Failure: ${errorMessage}`, 'critical');
+            // Server errors (5xx)
+            await pushLog(baseErrorMessage, 'critical');
         }
 
-        return { success: false, error: errorMessage };
+        // Self-Improvement v7.9.0: Ensure standardized failure return regardless of status type.
+        const returnError = specificErrorMessage || `API call failed with status ${status}`;
+        return { success: false, error: returnError };
+      }
+
+      // If response OK, proceed to parse
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        // This usually happens if the API sends back a non-JSON success message (rare but possible)
+        const rawText = await res.text();
+        await pushLog(`LLM API succeeded but response was unparseable JSON. Raw text: ${rawText.slice(0, 100)}...`, 'error');
+        return { success: false, error: `API response succeeded but content was invalid JSON.` };
+      }
+
+      const content = parseResponse(data);
+
+      if (!content) {
+        // Model returned success but content field was empty (e.g., filtered safety policy)
+        await pushLog('LLM returned content was null or empty.', 'warning');
+        return { success: false, error: 'LLM returned empty content.' };
+      }
+
+      await pushLog('LLM response received successfully.', 'debug');
+      return { success: true, content: content };
+
+    } catch (e) {
+      // Catch network errors, persistentFetch errors, and AbortErrors (Timeout)
+      clearTimeout(timeoutId);
+      
+      let errorMessage = e.message || 'Unknown network error during LLM generation.';
+      let logLevel = 'critical';
+
+      if (e.name === 'AbortError') {
+        errorMessage = `LLM API timed out after ${TIMEOUT_MS / 1000} seconds.`;
+        logLevel = 'warning'; // Timeouts are often transient
+      }
+      
+      await pushLog(`LLM Generation Failed (Exception): ${errorMessage}`, logLevel);
+      return { success: false, error: errorMessage };
     }
-};
+});
