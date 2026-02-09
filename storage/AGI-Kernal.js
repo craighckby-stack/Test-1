@@ -507,6 +507,72 @@ export { UtilityEfficacyMonitor };
 
 // --- END: AGI Utility Efficacy Monitor Graft ---
 
+// --- START: AGI Secure Configuration Resolver Graft (TARGET) ---
+
+/**
+ * SecureConfigurationResolver
+ * Role: Asynchronously loads, validates, and resolves critical, secure configuration files
+ * (e.g., governance policies, security manifests) from the filesystem.
+ *
+ * Optimization applied: Improved error handling, streamlined resolve method, enhanced readability.
+ */
+class SecureConfigurationResolver {
+    constructor() {
+        // Enhanced readability: Use a dedicated logger instance
+        this.logger = new Logger('SecureConfigResolver');
+    }
+
+    /**
+     * Streamlined method to asynchronously read, parse, and resolve a configuration file.
+     *
+     * @param {string} configName The base name of the configuration file (e.g., 'governance').
+     * @param {string} [extension='.json'] The expected file extension.
+     * @returns {Promise<object>} The parsed configuration object.
+     * @throws {Error} If the file cannot be read, parsed, or is invalid.
+     */
+    async resolve(configName, extension = '.json') {
+        // Streamlined path resolution using the global Config service
+        const fullPath = Config.getConfigPath(configName, extension);
+        this.logger.info(`Attempting to resolve secure configuration: ${configName} at ${fullPath}`);
+
+        try {
+            // 1. Read the file content
+            const rawData = await FS_PROMISES.readFile(fullPath, 'utf8');
+
+            // 2. Parse the content (assuming JSON for standard AGI configs)
+            const configObject = JSON.parse(rawData);
+
+            // 3. Basic structural check
+            if (typeof configObject !== 'object' || configObject === null) {
+                throw new Error("Configuration file content is not a valid JSON object.");
+            }
+
+            this.logger.success(`Configuration '${configName}' resolved successfully.`);
+            return configObject;
+
+        } catch (error) {
+            // Improved Error Handling: Distinguish between file system errors and parsing errors.
+            let errorMessage;
+
+            if (error.code === 'ENOENT') {
+                errorMessage = `File not found: ${fullPath}. Critical configuration missing.`;
+            } else if (error instanceof SyntaxError) {
+                errorMessage = `Parsing Error in ${configName}: Invalid JSON format. ${error.message}`;
+            } else {
+                errorMessage = `Resolution failed for ${configName}: ${error.message}`;
+            }
+
+            this.logger.fatal(errorMessage);
+            // Re-throw a standardized error for upstream handling
+            throw new Error(`SecureConfigResolutionError: ${errorMessage}`);
+        }
+    }
+}
+
+export const SecureConfigResolver = new SecureConfigurationResolver();
+
+// --- END: AGI Secure Configuration Resolver Graft (TARGET) ---
+
 // KERNEL Imports (React/Firebase)
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
