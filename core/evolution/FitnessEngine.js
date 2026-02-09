@@ -44,7 +44,7 @@ class FitnessEngine {
     
     // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
     this.FLOAT_TOLERANCE = 1e-9;
-    this.EPSILON = 1e-9; // Used for inverse scaling stability
+    this.EPSILON = 1e-9; // Used for inverse scaling stability and zero comparison
   }
 
   /**
@@ -56,13 +56,20 @@ class FitnessEngine {
    * @returns {number} The safe numeric metric value.
    */
   _safeGetMetricValue(rawMetrics, metricKey) {
+      const exists = rawMetrics && rawMetrics.hasOwnProperty(metricKey);
+      
+      if (!exists) {
+          // NEW IMPROVEMENT (Error Handling): Log when a referenced metric is entirely missing, indicating a data collection failure.
+          console.warn(`FitnessEngine: Metric '${metricKey}' is entirely missing from rawMetrics. Using 0.0.`);
+          return 0.0;
+      }
+      
       const value = rawMetrics[metricKey];
+
       // Explicitly check for null/undefined/non-number or non-finite numbers
       if (typeof value !== 'number' || !isFinite(value)) {
           // Enhanced logging for specific failure (Error Handling/Meta-Reasoning)
-          if (rawMetrics && rawMetrics.hasOwnProperty(metricKey)) {
-              console.warn(`FitnessEngine: Metric '${metricKey}' found but is unsafe/non-finite (${value}). Using 0.0.`);
-          }
+          console.warn(`FitnessEngine: Metric '${metricKey}' found but is unsafe/non-finite (${value}). Using 0.0.`);
           return 0.0;
       }
       return value;
@@ -348,6 +355,14 @@ class FitnessEngine {
         // Step 1: Sanitize the resulting calculation string before execution for enhanced security and stability.
         const safeCalculationString = this.sanitizeFormula(calculationString);
         
+        // NEW IMPROVEMENT (Error Handling): Pre-check for Division by Zero in the substituted numeric string
+        // Searches for / followed immediately by a literal 0 (optionally surrounded by parentheses/decimals/whitespace)
+        const divisionByZeroCheck = /\/(\(?\s*0(\.0*)?\s*\)?)/g;
+        if (divisionByZeroCheck.test(safeCalculationString)) {
+             console.error(`FitnessEngine Critical Error: Detected potential division by zero after substitution: ${safeCalculationString}. Aborting calculation.`);
+             return 0.0;
+        }
+
         // Check if sanitization resulted in an empty or meaningless string
         if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()') {
              console.warn(`FitnessEngine: Sanitization resulted in an empty calculation string for formula: ${formula}. Returning 0.0.`);
@@ -535,22 +550,22 @@ class FitnessEngine {
         coreScores[key] = Math.max(5.0, coreScores[key]);
     }
     
-    // 5. Map AGI Core Capabilities back to expected output keys
+    // 5. Map AGI Core Capabilities back to expected output keys (using fixed weights derived from internal core scores)
     return {
-        // Navigation: Focus on Autonomy (self-direction) and Creativity (novel paths)
+        // Navigation: Focus on self-directed paths (Autonomy) and novelty (Creativity)
         navigation: parseFloat(Math.min(10, 
             coreScores["Autonomy"] * 0.45 + 
             coreScores["Creativity"] * 0.35 + 
             coreScores["Meta-Reasoning"] * 0.2
         ).toFixed(2)),
         
-        // Logic: Strategic decision making (Meta-Reasoning) and Fault Tolerance (Error Handling)
+        // Logic: Focus on strategic decision making (Meta-Reasoning) and fault tolerance (Error Handling)
         logic: parseFloat(Math.min(10, 
             coreScores["Meta-Reasoning"] * 0.6 + 
             coreScores["Error Handling"] * 0.4
         ).toFixed(2)),
         
-        // Memory: Data integrity and persistence (Error Handling, JSON Parsing)
+        // Memory: Focus on data integrity and persistence (Error Handling, JSON Parsing)
         memory: parseFloat(Math.min(10, 
             coreScores["Error Handling"] * 0.5 + 
             coreScores["JSON Parsing"] * 0.5
