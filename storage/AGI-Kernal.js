@@ -2,7 +2,7 @@ const os = require('os');
 const fs = require('fs');
 
 // --- Grafted Type Definitions for GRCS Verification (GRCS_VerificationTypes) ---
-type LiabilityUnit = \'USD\' | \'PPR\' | \'N/A\';
+type LiabilityUnit = 'USD' | 'PPR' | 'N/A';
 
 interface FailureProfile {
     S02_Value: number;
@@ -38,12 +38,68 @@ interface VerificationResult {
     auditTrail: AuditTrailEntry[];
 }
 
+// --- ACVD Integrity Dependencies (TARGET Integration) ---
+
+// Define concrete implementation for HashService (required by ACVD_IntegrityValidator)
+class HashService {
+    calculateSHA256(data) {
+        // Deterministic mock hashing for context verification
+        const dataString = typeof data === 'object' ? JSON.stringify(data).length.toString() : String(data).length.toString();
+        return `MOCK_SHA256_CONTEXT_${dataString}`;
+    }
+
+    async hashFile(filePath) {
+        // Mock asynchronous file hashing based on file path length
+        await new Promise(resolve => setTimeout(resolve, 10)); 
+        if (filePath.includes('missing_file')) {
+            throw new Error(`File not found: ${filePath}`);
+        }
+        return `MOCK_SHA256_FILE_${filePath.length}`;
+    }
+}
+const hashServiceInstance = new HashService();
+
+// Define concrete implementation for SchemaValidator (required by ACVD_IntegrityValidator)
+class SchemaValidator {
+    validate(acvdRecord, acvdSchema) {
+        // Simplified mock validation for ACVD structure check
+        const errors = [];
+        let valid = true;
+
+        if (typeof acvdRecord !== 'object' || acvdRecord === null) {
+            errors.push({ dataPath: 'Root', message: 'Input must be an object' });
+            valid = false;
+        }
+
+        // Basic check for required fields based on ACVD_SCHEMA context
+        if (acvdSchema && acvdSchema.required) {
+             acvdSchema.required.forEach(field => {
+                if (!acvdRecord || !Object.prototype.hasOwnProperty.call(acvdRecord, field)) {
+                    errors.push({ dataPath: field, message: `Missing required property: ${field}` });
+                    valid = false;
+                }
+            });
+        }
+
+        return { valid, errors };
+    }
+}
+const schemaValidatorInstance = new SchemaValidator();
+
+const ACVD_SCHEMA = {
+    type: 'object',
+    properties: {
+        context_hash: { type: 'string' },
+        artifact_changes: { type: 'array' }
+    },
+    required: ['context_hash', 'artifact_changes']
+};
 
 // --- Mock System Utilities for DCM Scheduler (TARGET Dependencies) ---
 const MockRateLimiter = {
     check: (key) => {
-        // Mock: Always allow unless key is \'CRITICAL_ACTION_LIMIT\'
-        return key !== \'CRITICAL_ACTION_LIMIT\';
+        // Mock: Always allow unless key is 'CRITICAL_ACTION_LIMIT'
+        return key !== 'CRITICAL_ACTION_LIMIT';
     }
 };
 
@@ -55,19 +111,8 @@ const MockTaskQueue = {
     }
 };
 
-const MockSchemaValidator = {
-    validate: (schema, payload) => {
-        // Simplified mock: Check if payload is an object
-        if (typeof payload !== \'object\' || payload === null) return false;
-        
-        // Simulate successful validation based on schema presence
-        if (!schema) return true; 
-
-        // In a real scenario, this would use the ArtifactValidatorService\'s internal logic.
-        // We assume successful if the payload is complex enough.
-        return Object.keys(payload).length > 0;
-    }
-};
+// Alias the formal SchemaValidator instance for compatibility with existing KERNEL code
+const MockSchemaValidator = schemaValidatorInstance;
 
 // Define global scope utilities access point (as required by TARGET code)
 const global = {
@@ -80,16 +125,16 @@ const global = {
 
 // Mock Handler Execution (Used by SYNCHRONOUS type)
 const MockActionHandlers = {
-    \'./handlers/CoreUpdateHandler.js\': {
+    './handlers/CoreUpdateHandler.js': {
         execute: async (payload, context) => {
             // console.log(`[DCM_Handler] Executing CoreUpdate with payload: ${JSON.stringify(payload)}`);
-            return { result: \'Core Update Successful\', data: payload, context };
+            return { result: 'Core Update Successful', data: payload, context };
         }
     },
-    \'./handlers/TelemetryPublish.js\': {
+    './handlers/TelemetryPublish.js': {
         execute: async (payload, context) => {
             // console.log(`[DCM_Handler] Executing Telemetry Publish`);
-            return { result: \'Telemetry Published\', count: payload.metrics ? payload.metrics.length : 0 };
+            return { result: 'Telemetry Published', count: payload.metrics ? payload.metrics.length : 0 };
         }
     }
 };
@@ -97,19 +142,19 @@ const MockActionHandlers = {
 // Mock Action Registry (DCM_Action_Registry)
 const MockActionRegistry = {
     actions: {
-        \'CORE_UPDATE_SYSTEM\': {
+        'CORE_UPDATE_SYSTEM': {
             description: "Synchronous critical core code update.",
-            execution_type: \'SYNCHRONOUS\',
-            rate_limit_key: \'critical_core_op\',
-            handler_path: \'./handlers/CoreUpdateHandler.js\',
-            schema: { input: { type: \'object\', required: true } }
+            execution_type: 'SYNCHRONOUS',
+            rate_limit_key: 'critical_core_op',
+            handler_path: './handlers/CoreUpdateHandler.js',
+            schema: { input: { type: 'object', required: true } }
         },
-        \'PUBLISH_TELEMETRY\': {
+        'PUBLISH_TELEMETRY': {
             description: "Asynchronous standard telemetry publishing.",
-            execution_type: \'ASYNCHRONOUS\',
-            rate_limit_key: \'telemetry_burst\',
-            handler_path: \'./handlers/TelemetryPublish.js\',
-            schema: { input: { metrics: { type: \'array\', required: true } } },
+            execution_type: 'ASYNCHRONOUS',
+            rate_limit_key: 'telemetry_burst',
+            handler_path: './handlers/TelemetryPublish.js',
+            schema: { input: { metrics: { type: 'array', required: true } } },
             retry_policy: { attempts: 3, delay: 1000 }
         }
     }
@@ -120,7 +165,7 @@ const MockActionRegistry = {
 
 /**
  * @fileoverview Central interface for all AGI filesystem and codebase interaction.
- * This abstracts away Node.js \'fs\' dependencies and centralizes codebase checks,
+ * This abstracts away Node.js 'fs' dependencies and centralizes codebase checks,
  * allowing the core logic to remain platform-agnostic and testable (AGI-C-06).
  */
 export class CodebaseAccessor {
@@ -132,7 +177,7 @@ export class CodebaseAccessor {
      * @returns {boolean} True if the file exists.
      */
     static fileExists(filePath) {
-        if (!filePath || typeof filePath !== \'string\') {
+        if (!filePath || typeof filePath !== 'string') {
             return false;
         }
         try {
@@ -162,7 +207,7 @@ class ClampingUtility {
      * @returns {number} The clamped value.
      */
     static clamp(value, min, max) {
-        if (typeof value !== \'number\') {
+        if (typeof value !== 'number') {
             throw new TypeError("Clamping input must be a number.");
         }
         return Math.max(min, Math.min(max, value));
@@ -170,11 +215,11 @@ class ClampingUtility {
 }
 
 AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
-import { initializeApp, getApp, getApps } from \'firebase/app\';
-import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
 
 /**
  * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
@@ -203,53 +248,53 @@ const auth = getAuth(app);
  */
 const GAXEventRegistry = Object.freeze({
     // System Lifecycle (SYS)
-    SYS_INIT_START: \'SYS:INIT:START\',
-    SYS_INIT_COMPLETE: \'SYS:INIT:COMPLETE\',
-    SYS_EXECUTION_START: \'SYS:EXECUTION:START\',
-    SYS_EXECUTION_END: \'SYS:EXECUTION:END\',
-    SYS_SHUTDOWN: \'SYS:SHUTDOWN\',
+    SYS_INIT_START: 'SYS:INIT:START',
+    SYS_INIT_COMPLETE: 'SYS:INIT:COMPLETE',
+    SYS_EXECUTION_START: 'SYS:EXECUTION:START',
+    SYS_EXECUTION_END: 'SYS:EXECUTION:END',
+    SYS_SHUTDOWN: 'SYS:SHUTDOWN',
 
     // Policy & Verification (PV)
-    PV_REQUEST_INITIATED: \'PV:REQUEST:INITIATED\',
-    PV_RULE_CHECK_SUCCESS: \'PV:RULE:CHECK:SUCCESS\',
-    PV_RULE_CHECK_FAILURE: \'PV:RULE:CHECK:FAILURE\',
-    PV_ACCESS_DENIED: \'PV:ACCESS:DENIED\',
+    PV_REQUEST_INITIATED: 'PV:REQUEST:INITIATED',
+    PV_RULE_CHECK_SUCCESS: 'PV:RULE:CHECK:SUCCESS',
+    PV_RULE_CHECK_FAILURE: 'PV:RULE:CHECK:FAILURE',
+    PV_ACCESS_DENIED: 'PV:ACCESS:DENIED',
 
     // Autonomous Evolution (AXIOM)
-    AXIOM_GENERATION_START: \'AXIOM:GENERATION:START\',
-    AXIOM_EVOLUTION_STEP_PERFORMED: \'AXIOM:EVOLUTION:STEP_PERFORMED\',
-    AXIOM_CODE_COMMITTED: \'AXIOM:CODE:COMMITTED\',
-    AXIOM_CODE_REVERTED: \'AXIOM:CODE:REVERTED\',
-    AXIOM_TEST_RUN_SUCCESS: \'AXIOM:TEST:RUN_SUCCESS\',
-    AXIOM_TEST_RUN_FAILURE: \'AXIOM:TEST:RUN_FAILURE\',
+    AXIOM_GENERATION_START: 'AXIOM:GENERATION:START',
+    AXIOM_EVOLUTION_STEP_PERFORMED: 'AXIOM:EVOLUTION:STEP_PERFORMED',
+    AXIOM_CODE_COMMITTED: 'AXIOM:CODE:COMMITTED',
+    AXIOM_CODE_REVERTED: 'AXIOM:CODE:REVERTED',
+    AXIOM_TEST_RUN_SUCCESS: 'AXIOM:TEST:RUN_SUCCESS',
+    AXIOM_TEST_RUN_FAILURE: 'AXIOM:TEST:RUN_FAILURE',
 
     // Planning and Context Management (PLAN)
-    PLAN_GOAL_DEFINED: \'PLAN:GOAL:DEFINED\',
-    PLAN_STEP_GENERATED: \'PLAN:STEP:GENERATED\',
-    PLAN_STEP_COMPLETED: \'PLAN:STEP:COMPLETED\',
-    PLAN_CONTEXT_RETRIEVAL_START: \'PLAN:CONTEXT:RETRIEVAL_START\',
-    PLAN_CONTEXT_RETRIEVAL_COMPLETE: \'PLAN:CONTEXT:RETRIEVAL_COMPLETE\',
+    PLAN_GOAL_DEFINED: 'PLAN:GOAL:DEFINED',
+    PLAN_STEP_GENERATED: 'PLAN:STEP:GENERATED',
+    PLAN_STEP_COMPLETED: 'PLAN:STEP:COMPLETED',
+    PLAN_CONTEXT_RETRIEVAL_START: 'PLAN:CONTEXT:RETRIEVAL_START',
+    PLAN_CONTEXT_RETRIEVAL_COMPLETE: 'PLAN:CONTEXT:RETRIEVAL_COMPLETE',
 
     // External API Interaction (API)
-    API_REQUEST_SENT: \'API:EXTERNAL:REQUEST_SENT\',
-    API_RESPONSE_RECEIVED: \'API:EXTERNAL:RESPONSE_RECEIVED\',
-    API_RATE_LIMIT_HIT: \'API:EXTERNAL:RATE_LIMIT_HIT\',
+    API_REQUEST_SENT: 'API:EXTERNAL:REQUEST_SENT',
+    API_RESPONSE_RECEIVED: 'API:EXTERNAL:RESPONSE_RECEIVED',
+    API_RATE_LIMIT_HIT: 'API:EXTERNAL:RATE_LIMIT_HIT',
 
     // Data/Context Storage (DATA)
-    DATA_CACHE_HIT: \'DATA:CACHE:HIT\',
-    DATA_CACHE_MISS: \'DATA:CACHE:MISS\',
-    DATA_STORAGE_WRITE_FAILURE: \'DATA:STORAGE:WRITE_FAILURE\',
+    DATA_CACHE_HIT: 'DATA:CACHE:HIT',
+    DATA_CACHE_MISS: 'DATA:CACHE:MISS',
+    DATA_STORAGE_WRITE_FAILURE: 'DATA:STORAGE:WRITE_FAILURE',
 
     // System Diagnostics, Errors, and Warnings (DIAG)
-    DIAG_CONFIGURATION_FAULT: \'DIAG:CONFIGURATION:FAULT\',
-    DIAG_CONTEXT_RESOLUTION_MISSING: \'DIAG:CONTEXT:RESOLUTION_MISSING\',
-    DIAG_COMPONENT_FATAL_ERROR: \'DIAG:COMPONENT:FATAL_ERROR\',
-    DIAG_WARNING_THRESHOLD_EXCEEDED: \'DIAG:WARNING:THRESHOLD_EXCEEDED\',
+    DIAG_CONFIGURATION_FAULT: 'DIAG:CONFIGURATION:FAULT',
+    DIAG_CONTEXT_RESOLUTION_MISSING: 'DIAG:CONTEXT:RESOLUTION_MISSING',
+    DIAG_COMPONENT_FATAL_ERROR: 'DIAG:COMPONENT:FATAL_ERROR',
+    DIAG_WARNING_THRESHOLD_EXCEEDED: 'DIAG:WARNING:THRESHOLD_EXCEEDED',
 
     // Telemetry Infrastructure (TEL)
-    TEL_PUBLISH_SUCCESS: \'TEL:PUBLISH:SUCCESS\',
-    TEL_PUBLISH_FAILURE: \'TEL:PUBLISH:FAILURE\',
-    TEL_DATA_DROPPED: \'TEL:DATA:DROPPED\'
+    TEL_PUBLISH_SUCCESS: 'TEL:PUBLISH:SUCCESS',
+    TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
+    TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
 });
 
 // --- TARGET INTEGRATION: ICachePersistence Interface ---
@@ -274,7 +319,7 @@ class ICachePersistence {
      * @returns {Promise<PersistenceGetResult|null>} Returns the value and original expiration timestamp, or null if missing.
      */
     async get(key) {
-        throw new Error(\'ICachePersistence method `get` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `get` must be implemented by subclass.');
     }
 
     /**
@@ -285,7 +330,7 @@ class ICachePersistence {
      * @returns {Promise<void>}
      */
     async set(key, value, ttlMs) {
-        throw new Error(\'ICachePersistence method `set` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `set` must be implemented by subclass.');
     }
 
     /**
@@ -294,7 +339,7 @@ class ICachePersistence {
      * @returns {Promise<boolean>} True if the key was deleted, false otherwise.
      */
     async delete(key) {
-        throw new Error(\'ICachePersistence method `delete` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `delete` must be implemented by subclass.');
     }
     
     /**
@@ -302,7 +347,7 @@ class ICachePersistence {
      * @returns {Promise<void>}
      */
     async connect() {
-         // Default no-op for systems that don\'t require explicit connection.
+         // Default no-op for systems that don't require explicit connection.
     }
     
     /**
@@ -317,12 +362,12 @@ class ICachePersistence {
 // --- TARGET INTEGRATION: SystemLoadSensor (MEE Metric Source) ---
 
 /**
- * A concrete example of a sensor component adhering to the Hub\'s expected interface.
+ * A concrete example of a sensor component adhering to the Hub's expected interface.
  * Measures CPU load and memory usage.
  */
 class SystemLoadSensor {
     constructor() {
-        this.name = \'SystemLoadSensor\';
+        this.name = 'SystemLoadSensor';
     }
 
     /**
@@ -356,9 +401,9 @@ const INTEGRITY_CONSTANTS = {
         SHA512: /^[0-9a-fA-F]{128}$/
     },
     METRIC_TYPES: {
-        LOAD: \'SystemLoad\',
-        MEMORY: \'MemoryUsage\',
-        CUSTOM: \'CustomMetric\'
+        LOAD: 'SystemLoad',
+        MEMORY: 'MemoryUsage',
+        CUSTOM: 'CustomMetric'
     }
 };
 
@@ -375,7 +420,7 @@ class BaseAverager {
     }
 
     submit(value) {
-        if (typeof value === \'number\') {
+        if (typeof value === 'number') {
             this.values.push(value);
         } else {
             console.warn(`[${this.name}] Invalid value submitted:`, value);
@@ -428,12 +473,12 @@ class AveragerFactory {
     _initializeDefaultTypes() {
         this.registerType(INTEGRITY_CONSTANTS.METRIC_TYPES.LOAD, UsagePercentageAverager);
         this.registerType(INTEGRITY_CONSTANTS.METRIC_TYPES.MEMORY, UsagePercentageAverager);
-        this.registerType(\'default\', DefaultAverager);
+        this.registerType('default', DefaultAverager);
     }
 
     /**
      * Registers a new metric type and its associated Averager class.
-     * @param {string} metricType - The identifier string (e.g., \'SystemLoad\').
+     * @param {string} metricType - The identifier string (e.g., 'SystemLoad').
      * @param {class} AveragerClass - The class constructor (must extend BaseAverager).
      */
     registerType(metricType, AveragerClass) {
@@ -449,17 +494,17 @@ class AveragerFactory {
 
     /**
      * Creates a new instance of the appropriate Averager based on the metric type.
-     * Falls back to \'default\' if the type is not found.
+     * Falls back to 'default' if the type is not found.
      * @param {string} metricType - The identifier string.
-     * @param {string} instanceName - The specific name for the metric instance (e.g., \'cpu_1m_avg\').
+     * @param {string} instanceName - The specific name for the metric instance (e.g., 'cpu_1m_avg').
      * @returns {BaseAverager} An instance of the registered averager class.
      */
     create(metricType, instanceName) {
         let AveragerClass = this.registry.get(metricType);
 
         if (!AveragerClass) {
-            console.warn(`[AveragerFactory] Metric type \'${metricType}\' not found. Using \'default\' averager.`);
-            AveragerClass = this.registry.get(\'default\');
+            console.warn(`[AveragerFactory] Metric type '${metricType}' not found. Using 'default' averager.`);
+            AveragerClass = this.registry.get('default');
         }
 
         return new AveragerClass(instanceName);
@@ -474,7 +519,7 @@ class AveragerFactory {
     }
 }
 
-// Global instance of the factory, accessible by the Kernel\'s state management loop.
+// Global instance of the factory, accessible by the Kernel's state management loop.
 const MEE_AveragerFactory = new AveragerFactory();
 
 // --- TARGET INTEGRATION: Conceptual Policy Evaluation Layer ---
@@ -488,17 +533,17 @@ const MEE_AveragerFactory = new AveragerFactory();
 
 /** 
  * STUB: Conceptual Policy Registry. Defines handlers for policy types. 
- * In a full system, this would be imported from \'./ConceptualPolicyRegistry.js\'.
+ * In a full system, this would be imported from './ConceptualPolicyRegistry.js'.
  */
 const ConceptualPolicyRegistry = {
     // Example Handler: Checks if a numeric metric exceeds a threshold.
-    \'thresholdCheck\': (constraint, context) => {
+    'thresholdCheck': (constraint, context) => {
         const value = context[constraint.metricKey];
-        if (typeof value === \'number\' && value > constraint.max) {
+        if (typeof value === 'number' && value > constraint.max) {
              return {
-                ruleId: constraint.id || \'GOV-003\',
+                ruleId: constraint.id || 'GOV-003',
                 detail: `Metric ${constraint.metricKey} (${value.toFixed(4)}) exceeded max threshold of ${constraint.max}.`,
-                severity: constraint.severity || \'HIGH\'
+                severity: constraint.severity || 'HIGH'
             };
         }
         return null;
@@ -522,9 +567,9 @@ function executeConstraint(constraint, context) {
     if (!handler) {
         console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
         return {
-            ruleId: \'EVAL-001\',
-            detail: `Unknown constraint type \'${policyType}\' detected during evaluation.`,
-            severity: \'WARNING\'
+            ruleId: 'EVAL-001',
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
+            severity: 'WARNING'
         };
     }
 
@@ -536,9 +581,9 @@ function executeConstraint(constraint, context) {
     } catch (e) {
         console.error(`[Policy Evaluator] Error executing constraint ${constraint.id || policyType}:`, e);
         return {
-            ruleId: \'EVAL-002\',
+            ruleId: 'EVAL-002',
             detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
-            severity: \'CRITICAL\'
+            severity: 'CRITICAL'
         };
     }
 }
@@ -584,31 +629,31 @@ export const ConceptualPolicyEvaluator = {
 const SchemaRegistry = {
     artifact_definitions: {
         // Example definition for a Protected Mutable Health (PMH) Lock V1 artifact
-        \'PMH_LOCK_V1\': {
+        'PMH_LOCK_V1': {
             schema: {
-                lock_id: { required: true, type: \'string\' },
-                timestamp: { required: true, type: \'TIMESTAMP_ISO8601\' },
-                payload_hash: { required: true, type: \'HASH_SHA256\' },
-                signature_a: { required: true, type: \'string\' },
-                signer_key_id: { required: true, type: \'string\' },
-                merkle_root: { required: true, type: \'string\' }
+                lock_id: { required: true, type: 'string' },
+                timestamp: { required: true, type: 'TIMESTAMP_ISO8601' },
+                payload_hash: { required: true, type: 'HASH_SHA256' },
+                signature_a: { required: true, type: 'string' },
+                signer_key_id: { required: true, type: 'string' },
+                merkle_root: { required: true, type: 'string' }
             },
             cryptographic_requirements: {
-                signed_fields: [\'lock_id\', \'timestamp\', \'payload_hash\'],
+                signed_fields: ['lock_id', 'timestamp', 'payload_hash'],
                 signing_authorities: [{
-                    key_identifier_field: \'signer_key_id\',
-                    signature_field: \'signature_a\',
-                    authority_name: \'Core_AGI_Authority\'
+                    key_identifier_field: 'signer_key_id',
+                    signature_field: 'signature_a',
+                    authority_name: 'Core_AGI_Authority'
                 }],
                 integrity: {
-                    algorithm: \'MERKLE_SHA256\',
-                    target_fields: [\'payload_hash\'],
-                    root_field: \'merkle_root\'
+                    algorithm: 'MERKLE_SHA256',
+                    target_fields: ['payload_hash'],
+                    root_field: 'merkle_root'
                 }
             }
         },
-        \'GENERIC_TELEMETRY_V1\': {
-            schema: { telemetry_data: { required: true, type: \'object\' } },
+        'GENERIC_TELEMETRY_V1': {
+            schema: { telemetry_data: { required: true, type: 'object' } },
             cryptographic_requirements: null
         }
     }
@@ -628,7 +673,7 @@ class CryptoService {
     async calculateMerkleRoot(leavesData, algorithm) {
         // Mock deterministic root generation
         // The hash ensures deterministic mocking based on leaf content for successful validation.
-        const hash = leavesData.map(d => String(d).length).join(\'-\');
+        const hash = leavesData.map(d => String(d).length).join('-');
         return `MOCK_ROOT_${algorithm}_${hash}`;
     }
 }
@@ -639,19 +684,19 @@ const cryptoServiceInstance = new CryptoService();
  */
 class ConstraintUtility {
     validateField(field, value, constraints) {
-        if (constraints.type === \'string\' && typeof value !== \'string\') {
+        if (constraints.type === 'string' && typeof value !== 'string') {
             throw new Error(`Type mismatch for field ${field}: expected string.`);
         }
-        if (constraints.type === \'object\' && typeof value !== \'object\') {
+        if (constraints.type === 'object' && typeof value !== 'object') {
              throw new Error(`Type mismatch for field ${field}: expected object.`);
         }
-        if (constraints.type === \'TIMESTAMP_ISO8601\') {
-            if (typeof value !== \'string\' || isNaN(Date.parse(value))) {
+        if (constraints.type === 'TIMESTAMP_ISO8601') {
+            if (typeof value !== 'string' || isNaN(Date.parse(value))) {
                 throw new Error(`Format mismatch for field ${field}: not ISO8601.`);
             }
         }
         // Simplified HASH_SHA256 check
-        if (constraints.type === \'HASH_SHA256\' && (typeof value !== \'string\' || value.length < 10)) {
+        if (constraints.type === 'HASH_SHA256' && (typeof value !== 'string' || value.length < 10)) {
              throw new Error(`Format mismatch for field ${field}: invalid hash format.`);
         }
         return true;
@@ -682,7 +727,7 @@ class ArtifactValidatorService {
 
     /**
      * Validates an artifact against its registered schema and cryptographic rules.
-     * @param {string} artifactId The ID (e.g., \'PMH_LOCK_V1\')
+     * @param {string} artifactId The ID (e.g., 'PMH_LOCK_V1')
      * @param {object} payload The artifact data
      * @returns {Promise<boolean>} True if validation succeeds.
      * @throws {Error} If validation fails at any stage.
@@ -755,330 +800,5 @@ class ArtifactValidatorService {
         }
 
         // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
-        if (requirements.integrity && requirements.integrity.algorithm.startsWith(\'MERKLE_\')) {
-            const { algorithm, target_fields, root_field } = requirements.integrity;
-            const claimedRoot = payload[root_field];
-
-            if (!claimedRoot) {
-                 throw new Error(`[${artifactId}] Integrity failed: Missing claimed Merkle Root (${root_field}).`);
-            }
-
-            // Collect data points whose hashes form the Merkle tree leaves.
-            const leavesData = target_fields.map(field => {
-                 if (!Object.prototype.hasOwnProperty.call(payload, field)) {
-                    throw new Error(`[${artifactId}] Integrity failed: Merkle target field missing: ${field}`);
-                }
-                return payload[field];
-            });
-
-            const calculatedRoot = await this.cryptoService.calculateMerkleRoot(leavesData, algorithm);
-
-            if (calculatedRoot !== claimedRoot) {
-                 throw new Error(`[${artifactId}] Integrity failed: Calculated Merkle Root mismatch (Claimed: ${claimedRoot}, Calculated: ${calculatedRoot}).`);
-            }
-        }
-    }
-
-    /**
-     * Helper to prepare the canonicalized data payload used for cryptographic operations.
-     * Note: Proper implementation requires strict JCS (JSON Canonicalization Scheme).
-     */
-    _getCanonicalData(payload, signedFields) {
-        if (signedFields && Array.isArray(signedFields)) {
-            const dataSubset = {};
-            // Sort keys for canonicalization
-            signedFields.sort().forEach(field => {
-                if (Object.prototype.hasOwnProperty.call(payload, field)) {
-                    dataSubset[field] = payload[field];
-                } 
-            });
-            return JSON.stringify(dataSubset);
-        }
-        return JSON.stringify(payload);
-    }
-}
-
-// Global instance of the Artifact Validator
-const artifactValidator = new ArtifactValidatorService(
-    SchemaRegistry, 
-    cryptoServiceInstance, 
-    constraintUtilityInstance
-);
-
-
-// --- TARGET INTEGRATION: GatingRunnerService (Optimized - Meets Requirements 1, 2, 3, 4) ---
-
-/**
- * Defines the structure for a result returned by an individual gating check.
- * Corresponds to the streamlined GatingCheckResult (Requirement 3).
- * @typedef {{ checkId: string, status: \'PASS\' | \'FAIL\' | \'ERROR\', severity: \'LOW\' | \'HIGH\' | \'CRITICAL\', message: string, detail?: Object }}
- */
-
-/**
- * Defines a single integrity check within the GICM (Gating Integrity Check Manifest).
- * @typedef {{ id: string, type: \'POLICY\' | \'ARTIFACT\' | \'RECURSIVE\', config: Object, dependencies?: string[] }}
- */
-
-/**
- * Defines the overall manifest structure.
- * @typedef {{ manifestId: string, checks: Array<GatingCheck> }}
- */
-
-class GatingRunnerServiceOptimized {
-    constructor(policyEvaluator, artifactValidator) {
-        this.policyEvaluator = policyEvaluator;
-        this.artifactValidator = artifactValidator;
-        // Requirement 1: Memoization/Caching mechanism (checkCache)
-        this.checkCache = new Map();
-    }
-
-    /**
-     * Executes a single GatingCheck.
-     * @param {GatingCheck} check 
-     * @param {Object} context The current operational context (metrics, data).
-     * @returns {Promise<GatingCheckResult>}
-     */
-    async _executeCheck(check, context) {
-        const { id, type, config } = check;
-
-        // NOTE ON MEMOIZATION (Requirement 1):
-        // Since context (metrics) changes frequently, true memoization is skipped for real-time checks.
-        // The cache structure is retained to support idempotent/static checks in a complex manifest.
-
-        try {
-            let result = null;
-
-            switch (type) {
-                case \'POLICY\':
-                    // Uses the existing ConceptualPolicyEvaluator
-                    const policyResult = this.policyEvaluator.executePolicies({ constraints: config.constraints }, context);
-                    if (!policyResult.isValid) {
-                        const violation = policyResult.violations[0];
-                         result = {
-                            checkId: id,
-                            status: \'FAIL\',
-                            severity: violation.severity,
-                            message: `Policy violation: ${violation.detail}`,
-                            detail: violation
-                        };
-                    }
-                    break;
-
-                case \'ARTIFACT\':
-                    // Uses the existing ArtifactValidatorService
-                    const payload = context[config.payloadKey];
-                    if (!payload) {
-                         throw new Error(`Artifact payload key not found in context: ${config.payloadKey}`);
-                    }
-                    await this.artifactValidator.validate(config.artifactId, payload);
-                    break;
-                
-                case \'RECURSIVE\':
-                    // Requirement 2: Placeholder for recursive abstraction check
-                    // This would recursively call runManifest for sub-manifests, enforcing tail recursion patterns.
-                    if (config.depth && config.depth > 5) {
-                        throw new Error("Recursive depth limit exceeded (Simulated).");
-                    }
-                    // Simulating success for recursive check abstraction
-                    break;
-
-                default:
-                    throw new Error(`Unknown check type: ${type}`);
-            }
-
-            // If no exception thrown and result not explicitly set to FAIL: (Requirement 3: Streamlined result)
-            const finalResult = result || {
-                checkId: id,
-                status: \'PASS\',
-                severity: \'LOW\',
-                message: `Check ${id} passed successfully.`
-            };
-
-            this.checkCache.set(id, finalResult);
-            return finalResult;
-
-        } catch (error) {
-            const errorResult = {
-                checkId: id,
-                status: \'ERROR\',
-                severity: \'CRITICAL\',
-                message: `Check failed with runtime error: ${error.message}`,
-                detail: { stack: error.stack ? error.stack.substring(0, 100) : \'No stack info\' }
-            };
-            this.checkCache.set(id, errorResult);
-            return errorResult;
-        }
-    }
-
-    /**
-     * Executes the entire Gating Integrity Check Manifest (GICM).
-     * Requirement 4: Leverages asynchronous execution for concurrency.
-     * @param {GatingCheckManifest} manifest
-     * @param {Object} context
-     * @returns {Promise<Array<GatingCheckResult>>}
-     */
-    async runManifest(manifest, context) {
-        this.clearCache(); // Clear cache for new run based on new context
-
-        if (!manifest || !manifest.checks || manifest.checks.length === 0) {
-            return [];
-        }
-
-        const checkPromises = manifest.checks.map(check => 
-            this._executeCheck(check, context)
-        );
-
-        // Execute all checks concurrently (Requirement 4)
-        return Promise.all(checkPromises);
-    }
-    
-    /**
-     * Clears the internal check cache.
-     */
-    clearCache() {
-        this.checkCache.clear();
-    }
-}
-
-// Instantiate the service using existing dependencies
-const gatingRunnerService = new GatingRunnerServiceOptimized(
-    ConceptualPolicyEvaluator,
-    artifactValidator
-);
-
-// Dummy Concept Definition for Policy Testing (Example: Critical Load Policy)
-const GovernanceConcept = {
-    name: "CriticalSystemHealth",
-    constraints: [
-        { 
-            id: \'SYS-LOAD-001\', 
-            type: \'thresholdCheck\', 
-            metricKey: \'osCpuLoad1m_avg\', 
-            max: 5.0, // High threshold for a 5-second average
-            severity: \'CRITICAL\' 
-        },
-        { 
-            id: \'SYS-MEM-002\', 
-            type: \'thresholdCheck\', 
-            metricKey: \'osMemoryUsagePercent_avg\', 
-            max: 0.95, // 95% usage
-            severity: \'WARNING\' 
-        }
-    ]
-};
-
-// Unified Gating Integrity Check Manifest (GICM) for the Kernel loop
-const KernelGICM = {
-    manifestId: \'KERNAL_HEALTH_V1\',
-    checks: [
-        // Policy Check 1 (CPU Load)
-        { 
-            id: \'GICM-POL-001\', 
-            type: \'POLICY\', 
-            config: {
-                constraints: [GovernanceConcept.constraints[0]] // SYS-LOAD-001
-            }
-        },
-        // Policy Check 2 (Memory Usage)
-        { 
-            id: \'GICM-POL-002\', 
-            type: \'POLICY\', 
-            config: {
-                constraints: [GovernanceConcept.constraints[1]] // SYS-MEM-002
-            }
-        },
-        // Artifact Check
-        {   
-            id: \'GICM-ART-003\',
-            type: \'ARTIFACT\',
-            config: {
-                artifactId: \'PMH_LOCK_V1\',
-                payloadKey: \'latest_pmh_lock\' // Must be provided in context
-            }
-        },
-        // Recursive Placeholder Check (Requirement 2)
-        {
-            id: \'GICM-REC-004\',
-            type: \'RECURSIVE\',
-            config: { depth: 1, targetManifest: \'DEEP_SCAN_V1\' }
-        }
-    ]
-};
-
-
-// --- TARGET INTEGRATION: DCM_Action_Scheduler_and_Gatekeeper ---
-
-/**
- * DCM_Action_Scheduler_and_Gatekeeper (TARGET Integration)
- * Manages action governance (rate limiting, queues) and determines execution routing.
- * This component decouples the core DCM decision engine from execution logic details.
- * Note: Depends on MockActionRegistry and global.SystemUtilities defined above.
- */
-class DCM_Action_Scheduler_and_Gatekeeper {
-    constructor(actionRegistry) {
-        this.registry = actionRegistry.actions;
-        this.rateLimiter = global.SystemUtilities.RateLimiter; 
-        this.taskQueue = global.SystemUtilities.TaskQueue; // Assumed task queue utility
-    }
-
-    async scheduleExecution(actionKey, payload, context) {
-        const config = this.registry[actionKey];
-        if (!config) {
-            throw new Error(`[DCM_Scheduler] Action ${actionKey} not found in registry.`);
-        }
-
-        // 1. Governance Check (Rate Limiting Enforcement)
-        if (config.rate_limit_key && !this.rateLimiter.check(config.rate_limit_key)) {
-            // Implement dynamic response based on retry_policy or rejection
-            throw new Error(`[DCM_Scheduler] Rate limit exceeded for action: ${actionKey}`); 
-        }
-
-        // 2. Schema Validation (Input)
-        if (!global.SystemUtilities.SchemaValidator.validate(config.schema.input, payload)) {
-             throw new Error(`[DCM_Scheduler] Validation failed for payload of action: ${actionKey}`);
-        }
-
-        // 3. Execution Routing
-        switch (config.execution_type) {
-            case \'SYNCHRONOUS\':
-                // Local direct handler invocation (blocking operation)
-                // Using mocked handlers defined locally, replacing Node.js require(config.handler_path)
-                const Handler = MockActionHandlers[config.handler_path]; 
-                
-                if (!Handler || typeof Handler.execute !== \'function\') {
-                    throw new Error(`[DCM_Scheduler] Handler not found or missing execute method for action: ${actionKey}`);
-                }
-                // Execute synchronously and return result
-                return await Handler.execute(payload, context); 
-
-            case \'ASYNCHRONOUS\':
-                // Queue the task for background execution
-                const task = {
-                    actionKey: actionKey,
-                    payload: payload,
-                    context: context,
-                    retryPolicy: config.retry_policy 
-                };
-                await this.taskQueue.enqueue(task);
-                return { status: \'QUEUED\', message: `Task ${actionKey} successfully queued.` };
-
-            default:
-                throw new Error(`[DCM_Scheduler] Unknown execution type: ${config.execution_type}`);
-        }
-    }
-}
-const dcmScheduler = new DCM_Action_Scheduler_and_Gatekeeper(MockActionRegistry);
-
-// --- TARGET INTEGRATION: GRCS_Verifier (MEE Sub-Engine) ---
-
-/**
- * Default configuration constants for the Verifier, focusing on hard safety thresholds.
- */
-const DEFAULT_CONFIG: VerifierConfiguration = {
-    standardRiskCeiling: 500000, // Maximum allowed S02_Value for standard operational profiles (in LiabilityUnit).
-};
-
-
-/**
- * GRCS_Verifier (v94.1)
- * Utility responsible for verifying the integrity and policy adherence
+        if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
+            const { algorithm, target_fields, root_field }
