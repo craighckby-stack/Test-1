@@ -1,4 +1,4 @@
-// Implementation of the ACE Fitness Evaluation Engine for AGI-KERNEL v7.4.3.
+// Implementation of the ACE Fitness Evaluation Engine for AGI-KERNEL v7.4.4 (Updated).
 // This engine drives Maturity Progression and Capability Self-Assessment.
 
 /**
@@ -32,6 +32,13 @@ class FitnessEngine {
                 this.isOperational = false;
                 break;
             }
+            
+            // NEW: Robust Oracle Structure Check (Error Handling/JSON Parsing)
+            if (profile.oracles && !Array.isArray(profile.oracles)) {
+                console.error(`FitnessEngine: Profile '${profileName}' oracles property must be an array, found type ${typeof profile.oracles}.`);
+                this.isOperational = false;
+                break;
+            }
         }
     }
     
@@ -42,6 +49,7 @@ class FitnessEngine {
   /**
    * Internal utility to safely retrieve and validate a metric value.
    * Ensures the value is a finite number, defaulting to 0.0 otherwise (Error Handling).
+   * Added logging to identify unsafe metrics.
    * 
    * @param {Object} rawMetrics - Collected M_* metrics.
    * @param {string} metricKey - The key to look up.
@@ -51,6 +59,10 @@ class FitnessEngine {
       const value = rawMetrics[metricKey];
       // Explicitly check for null/undefined/non-number or non-finite numbers
       if (typeof value !== 'number' || !isFinite(value)) {
+          // Enhanced logging for specific failure (Error Handling/Meta-Reasoning)
+          if (rawMetrics.hasOwnProperty(metricKey)) {
+              console.warn(`FitnessEngine: Metric '${metricKey}' found but is unsafe/non-finite (${value}). Using 0.0.`);
+          }
           return 0.0;
       }
       return value;
@@ -191,7 +203,7 @@ class FitnessEngine {
    */
   validateFormula(formula, metricKeys) {
       // 1. Check for forbidden characters (anything not standard metrics/operators)
-      const allowedPattern = /^[A-Z0-9_+\-*\/().\s]+$/;
+      const allowedPattern = /^[A-Z0-9_+\-*\/().\s]+$/; 
       if (!allowedPattern.test(formula)) {
           console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
           return false;
@@ -255,6 +267,12 @@ class FitnessEngine {
     try {
         // Step 1: Sanitize the resulting calculation string before execution for enhanced security and stability.
         const safeCalculationString = this.sanitizeFormula(calculationString);
+        
+        // NEW: Check if sanitization resulted in an empty or meaningless string
+        if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()') {
+             console.warn(`FitnessEngine: Sanitization resulted in an empty calculation string for formula: ${formula}. Returning 0.0.`);
+             return 0.0;
+        }
 
         // SECURITY IMPROVEMENT: Replace eval() with Function constructor for execution in a cleaner scope (Autonomy/Error Handling).
         result = (new Function('return ' + safeCalculationString))();
@@ -268,7 +286,8 @@ class FitnessEngine {
 
     } catch (e) {
         // Robust Error Handling during formula execution: log the problematic calculation string.
-        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Formula attempted: ${calculationString}`);
+        // Enhanced context for Meta-Reasoning feedback loop.
+        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Original formula: ${formula}. Attempted string: ${calculationString}`);
         return 0.0;
     }
   }
