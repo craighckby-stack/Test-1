@@ -2,7 +2,8 @@
  * @module SchemaValidator
  * @description Central utility for managing and executing type and schema validation 
  * against defined data primitives. This decouples schema enforcement from data handling logistics.
- * Upgraded to support AGI-Kernel v7.4.3 mission objectives (Evolution Output, Nexus, MQM validation).
+ * Upgraded to support AGI-Kernel v7.4.3 mission objectives (Evolution Output, Nexus, MQM validation), 
+ * including boundary checks and nested schema references.
  */
 
 class SchemaValidator {
@@ -25,10 +26,18 @@ class SchemaValidator {
                     code_update: 'string',
                     maturity_rating: 'number',
                 },
+                boundaries: { // NEW: Enforce percentage range
+                    maturity_rating: { min: 0, max: 100 }
+                },
                 nested: {
                     capabilities: { // Ensures the required capability structure is present
                         required: ['navigation', 'logic', 'memory'],
-                        types: { navigation: 'number', logic: 'number', memory: 'number' }
+                        types: { navigation: 'number', logic: 'number', memory: 'number' },
+                        boundaries: { // NEW: Capabilities are scored 0-10
+                            navigation: { min: 0, max: 10 }, 
+                            logic: { min: 0, max: 10 }, 
+                            memory: { min: 0, max: 10 } 
+                        }
                     }
                 }
             },
@@ -40,6 +49,9 @@ class SchemaValidator {
                     cycle: 'number',
                     strategy: 'string',
                     timestamp: 'number'
+                },
+                nested: { // NEW: Ensures metrics conforms to MQMMetrics schema
+                    metrics: { ref: 'MQMMetrics' }
                 }
             },
             
@@ -50,6 +62,11 @@ class SchemaValidator {
                     error_rate: 'number',
                     latency_ms: 'number',
                     improvement_score: 'number'
+                },
+                boundaries: { // NEW: Define reasonable bounds for MQM data
+                    error_rate: { min: 0, max: 1 }, // Standard probability
+                    latency_ms: { min: 0, max: 600000 }, // Max 10 mins latency
+                    improvement_score: { min: -1, max: 1 } // -1 (regression) to 1 (major improvement)
                 }
             },
             
@@ -121,12 +138,38 @@ class SchemaValidator {
                 }
             }
         }
+        
+        // 3. Range check (NEW)
+        if (schema.boundaries) {
+            for (const [prop, range] of Object.entries(schema.boundaries)) {
+                if (Object.prototype.hasOwnProperty.call(data, prop)) {
+                    let actualValue = data[prop];
+                    // Coerce potential stringified number before boundary check
+                    if (typeof actualValue === 'string' && schema.types?.[prop] === 'number') {
+                        actualValue = parseFloat(actualValue);
+                    }
+                    if (typeof actualValue === 'number' && !isNaN(actualValue)) {
+                        if (actualValue < range.min || actualValue > range.max) {
+                            errors.push(`Schema ${primitiveType}: Value for '${prop}' (${actualValue}) is outside required range [${range.min}-${range.max}].`);
+                        }
+                    }
+                }
+            }
+        }
 
-        // 3. Nested object check
+        // 4. Nested object check (Updated to handle 'ref' for cross-schema checks)
         if (schema.nested) {
             for (const [prop, nestedSchema] of Object.entries(schema.nested)) {
                 if (data[prop]) {
-                    const nestedResult = this._validateNested(data[prop], nestedSchema, `${primitiveType}.${prop}`);
+                    let nestedResult;
+                    if (nestedSchema.ref) {
+                        // Handle cross-reference validation (e.g., NexusEntry -> MQMMetrics)
+                        nestedResult = this.validate(data[prop], nestedSchema.ref); 
+                    } else {
+                        // Handle inline nested validation (e.g., EvolutionOutput -> capabilities)
+                        nestedResult = this._validateNested(data[prop], nestedSchema, `${primitiveType}.${prop}`);
+                    }
+                    
                     if (!nestedResult.isValid) {
                         errors.push(...nestedResult.errors);
                     }
@@ -178,6 +221,24 @@ class SchemaValidator {
             }
         }
         
+        // Range check for nested (NEW)
+        if (schema.boundaries) {
+            for (const [prop, range] of Object.entries(schema.boundaries)) {
+                 if (Object.prototype.hasOwnProperty.call(data, prop)) {
+                    let actualValue = data[prop];
+                    // Coerce potential stringified number
+                    if (typeof actualValue === 'string' && schema.types?.[prop] === 'number') {
+                        actualValue = parseFloat(actualValue);
+                    }
+                    if (typeof actualValue === 'number' && !isNaN(actualValue)) {
+                        if (actualValue < range.min || actualValue > range.max) {
+                            errors.push(`Schema ${path}: Value for '${prop}' (${actualValue}) is outside required range [${range.min}-${range.max}].`);
+                        }
+                    }
+                }
+            }
+        }
+
         return { isValid: errors.length === 0, errors };
     }
 }
