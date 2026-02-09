@@ -8,6 +8,38 @@ export default function App() {
   // Self-Improvement v7.3.1: Base time for Adaptive Heartbeat
   const BASE_PULSE_MS = 30000; // 30 seconds
 
+  // Self-Improvement v7.4.0: Adaptive Heartbeat Core Logic Implementation
+  const calculatePulseInterval = (base, multiplier = 1.0) => {
+    const factor = multiplier > 0 ? multiplier : 1.0;
+    // Enforcing a minimum pulse interval (1000ms) for stability
+    const calculated = Math.max(base / factor, 1000); 
+    return Math.floor(calculated);
+  };
+  
+  const runKernelCycle = async () => {
+    if (busy.current) {
+      console.warn("Kernel busy, skipping cycle.");
+      return;
+    }
+    busy.current = true;
+    dispatch({ type: 'CYCLE_START' });
+    
+    try {
+      // Simulating core processing based on system maturity level (Maturity 28%)
+      // Future implementation: perception, planning, and action module calls
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100)); 
+      dispatch({ type: 'PROCESSING_PHASE_1' });
+      
+    } catch (error) {
+      console.error("AGI-KERNEL Cycle Error:", error);
+      dispatch({ type: 'CYCLE_ERROR', payload: error.message });
+    } finally {
+      busy.current = false;
+      dispatch({ type: 'CYCLE_END' });
+    }
+  };
+
+
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -16,5 +48,41 @@ export default function App() {
         } else {
           await signInAnonymously(auth);
         }
+        setUser(auth.currentUser);
+        dispatch({ type: 'KERNEL_READY' }); // Signal readiness
       } catch (err) {
-        console.error(\"Auth failed\
+        console.error("Auth failed:", err);
+      }
+    };
+    initAuth();
+  }, []); // Only runs on component mount
+
+  
+  useEffect(() => {
+    // Adaptive Heartbeat Activation (Self-Improvement v7.4.0)
+    if (!user || state.kernel_ready !== true) return; 
+
+    const pulse = () => {
+      runKernelCycle();
+      
+      const multiplier = state.config.pulse_multiplier || 1.0;
+      const interval = calculatePulseInterval(BASE_PULSE_MS, multiplier);
+      
+      // Schedule next pulse using setTimeout for adaptive timing
+      cycleRef.current = setTimeout(pulse, interval);
+    };
+
+    // Initial activation
+    pulse();
+
+    // Cleanup function
+    return () => {
+      if (cycleRef.current) {
+        clearTimeout(cycleRef.current);
+      }
+    };
+  }, [BASE_PULSE_MS, state.config.pulse_multiplier, user, state.kernel_ready]); 
+
+  // Placeholder return
+  return null; 
+}
