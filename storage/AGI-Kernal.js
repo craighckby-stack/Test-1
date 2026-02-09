@@ -332,6 +332,48 @@ interface VerificationResult {
     auditTrail: AuditTrailEntry[];
 }
 
+// --- TARGET INTEGRATION: GAX Constraint Checker Definitions ---
+
+interface TxContext {
+    transactionId: string;
+    actor: string;
+    payload: any;
+    timestamp: number;
+}
+
+interface GAXConstraintSet {
+    policyVersion: string;
+    globalLimits: {
+        maxExecutionTimeMs: number;
+    };
+    categoryConstraints: Record<string, any[]>;
+}
+
+interface ConstraintViolation {
+    checkerId: string;
+    ruleId: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    message: string;
+    details?: any;
+}
+
+/**
+ * IConstraintChecker defines the interface for specialized constraint checkers.
+ * This pattern allows ConstraintEnforcer to register and run specific categories
+ * of checks dynamically, decoupled from the core execution loop.
+ */
+export interface IConstraintChecker {
+    // Initializes the checker with relevant parts of the GAX constraint set
+    initialize(constraints: GAXConstraintSet): void;
+
+    // Runs the specific category of checks against the transaction context
+    check(txContext: TxContext): ConstraintViolation[];
+
+    // Identifier for debugging and logging
+    checkerId: string;
+}
+
+
 // --- ACVD Integrity Dependencies (TARGET Integration) ---
 
 // Define concrete implementation for HashService (required by ACVD_IntegrityValidator)
@@ -696,7 +738,7 @@ class AveragerFactory {
         let AveragerClass = this.registry.get(metricType);
 
         if (!AveragerClass) {
-            global.CORE_LOGGER.warn(`Metric type '${metricType}' not found. Using 'default' averager.`, { type: metricType });
+            global.CORE_LOGGER.warn(`Metric type '\${metricType}\' not found. Using 'default' averager.`, { type: metricType });
             AveragerClass = this.registry.get('default');
         }
 
@@ -749,7 +791,7 @@ function executeConstraint(constraint, context) {
         global.CORE_LOGGER.warn(`Unknown constraint type encountered: ${policyType}. Skipping.`, { constraintType: policyType });
         return {
             ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '${policyType}' detected during evaluation.`, 
+            detail: `Unknown constraint type '\${policyType}\' detected during evaluation.`,
             severity: 'WARNING'
         };
     }
