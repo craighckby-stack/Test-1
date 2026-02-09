@@ -30,13 +30,21 @@ class SchemaValidator {
                     maturity_rating: { min: 0, max: 100 }
                 },
                 nested: {
-                    capabilities: { // Ensures the required capability structure is present
-                        required: ['navigation', 'logic', 'memory'],
-                        types: { navigation: 'number', logic: 'number', memory: 'number' },
-                        boundaries: { // NEW: Capabilities are scored 0-10
-                            navigation: { min: 0, max: 10 }, 
-                            logic: { min: 0, max: 10 }, 
-                            memory: { min: 0, max: 10 } 
+                    capabilities: { // Ensures the required capability structure is present, matching README 7.0 definitions.
+                        required: ['error_handling', 'json_parsing', 'meta_reasoning', 'autonomy', 'creativity'],
+                        types: {
+                            error_handling: 'number',
+                            json_parsing: 'number',
+                            meta_reasoning: 'number',
+                            autonomy: 'number',
+                            creativity: 'number'
+                        },
+                        boundaries: { // Capabilities are scored 0-10
+                            error_handling: { min: 0, max: 10 }, 
+                            json_parsing: { min: 0, max: 10 }, 
+                            meta_reasoning: { min: 0, max: 10 },
+                            autonomy: { min: 0, max: 10 },
+                            creativity: { min: 0, max: 10 }
                         }
                     }
                 }
@@ -82,6 +90,16 @@ class SchemaValidator {
      */
     getSchema(primitiveType) {
         return this.schemas[primitiveType] || null;
+    }
+
+    /**
+     * Specialized validation for the primary LLM Evolution output structure.
+     * Alias for validate(data, 'EvolutionOutput'). (Crucial for Mission Step 1)
+     * @param {object} data - The parsed JSON data from the LLM.
+     * @returns {{isValid: boolean, errors: string[]}}
+     */
+    validateEvolutionOutput(data) {
+        return this.validate(data, 'EvolutionOutput');
     }
 
     /**
@@ -139,7 +157,7 @@ class SchemaValidator {
             }
         }
         
-        // 3. Range check (NEW)
+        // 3. Range check
         if (schema.boundaries) {
             for (const [prop, range] of Object.entries(schema.boundaries)) {
                 if (Object.prototype.hasOwnProperty.call(data, prop)) {
@@ -221,7 +239,7 @@ class SchemaValidator {
             }
         }
         
-        // Range check for nested (NEW)
+        // Range check for nested
         if (schema.boundaries) {
             for (const [prop, range] of Object.entries(schema.boundaries)) {
                  if (Object.prototype.hasOwnProperty.call(data, prop)) {
