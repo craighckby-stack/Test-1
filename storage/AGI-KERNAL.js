@@ -13,9 +13,10 @@
       const MAX_EVOLUTION_LEVEL = 100; // Constraint based on system documentation
       const MAX_PERFORMANCE_GAIN = 0.15; // Autonomous self-optimization target
       
-      // V7.6.0: Policy Integrity Feedback Loop (Safety Integration based on DCCA/AITM context)
+      // V7.8.0: Integrity Cautious Default (Safety Posture Enhancement)
       // High integrityScore (1.0) maintains speed; low score (0.0) forces cautious operation.
-      const integrityScore = state.policy_integrity_score || 1.0; // Assumed 0.0 to 1.0
+      // Defaulting to 0.0 if score is undefined ensures operation defaults to the guaranteed safety floor (0.5)
+      const integrityScore = state.policy_integrity_score ?? 0.0; // Assumed 0.0 to 1.0
       
       // Safety Factor: Scales down overall speed gain based on integrity risk. 
       // Ensures minimum operational multiplier of 0.5 relative to other factors.
