@@ -7,6 +7,7 @@ pub type IntegrityHash = [u8; INTEGRITY_HASH_SIZE];
 
 // Target maximum execution time for atomicity (5ms)
 const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
+const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural evolution
 
 // --- Trait Definitions for Dependency Injection ---
 
@@ -34,6 +35,7 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
 // Defines the output structure for the immutable state capture
 #[derive(Debug, Clone, Default)] // Added Clone and Default for infrastructural flexibility
 pub struct RscmPackage {
+    pub capture_version: u16, // New field to track package structural version
     pub absolute_capture_ts_epoch_ns: u64,
     pub capture_latency_ns: u64,
     pub integrity_hash: IntegrityHash, // Changed from String to fixed-size array
@@ -48,6 +50,7 @@ pub enum SnapshotError {
     MemoryCaptureFailed,
     Timeout { actual_duration_ns: u64 }, // Enhanced error to include performance data
     IntegrityHashingFailed,
+    HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
 }
 
 /// Generates an immutable, temporally constrained state snapshot (RSCM Package).
@@ -68,18 +71,32 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let trace = T::capture_execution_stack();
 
     // 3. Assemble and cryptographic hash generation
-    let context_flags: u32 = 0x42; // GSEP-C flag
+    // 0x42: GSEP-C flag | High bits could be used for minor configuration versions later.
+    let context_flags: u32 = 0x42; 
 
-    // Use CRoT implementation tailored for fixed-output integrity (requires CRoT scaffolded changes)
+    // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?;
 
+    // Hash sequence: Data, Trace, Context, Version
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
 hasher.update(&context_flags.to_le_bytes()); 
+hasher.update(&RSCM_PACKAGE_VERSION.to_le_bytes()); // Ensure version is included in the hash computation
     
-    let hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
+    let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
+    // 3.1. Validate hash integrity size
+    if raw_hash.len() != INTEGRITY_HASH_SIZE {
+        return Err(SnapshotError::HashingOutputMismatch { 
+            expected: INTEGRITY_HASH_SIZE, 
+            actual: raw_hash.len() 
+        });
+    }
+
+    let mut integrity_hash: IntegrityHash = [0; INTEGRITY_HASH_SIZE];
+    integrity_hash.copy_from_slice(&raw_hash);
+    
     let duration = start_time.elapsed();
     let latency_ns = duration.as_nanos();
 
@@ -90,9 +107,10 @@ hasher.update(&context_flags.to_le_bytes());
 
     // 4. Final RSCM object creation
     Ok(RscmPackage {
+        capture_version: RSCM_PACKAGE_VERSION,
         absolute_capture_ts_epoch_ns: absolute_ts,
         capture_latency_ns: latency_ns as u64,
-        integrity_hash: hash,
+        integrity_hash,
         volatile_memory_dump: vm_dump,
         stack_trace: trace,
         context_flags,
