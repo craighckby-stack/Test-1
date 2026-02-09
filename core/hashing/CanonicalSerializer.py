@@ -14,6 +14,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     ensuring deterministic output for hashing purposes.
     
     This encoder prioritizes consistency and robustness for core AGI data structures.
+    AGI-KERNEL Improvement: Added logic for serializing custom objects via 
+    __dict__ or explicit 'to_canonical_dict' method for better integration 
+    with /agents and /emergent components.
     """
     def default(self, obj):
         # 1. Handle non-native iterables deterministically
@@ -37,6 +40,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         # 4. Handle mappings that might not be dicts (e.g., OrderedDict if present)
         if isinstance(obj, collections.Mapping) and not isinstance(obj, dict):
             return dict(obj)
+            
+        # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
+        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid')):
+            # Prioritize explicit interface if defined by the object itself
+            if hasattr(obj, 'to_canonical_dict'):
+                return obj.to_canonical_dict()
+            
+            # Fallback to serializing public attributes
+            if hasattr(obj, '__dict__'):
+                # Ensures we don't try to serialize attributes of standard types that only happen to have __dict__
+                return obj.__dict__
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
