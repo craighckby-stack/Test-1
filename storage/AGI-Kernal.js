@@ -876,3 +876,88 @@ class TaskSequencerEngine {
         }
     }
 }
+
+// --- START TARGET INTEGRATION: Failure State Analysis Engine (FSAE) and Governance Constants ---
+
+/**
+ * G-C01 Integration: Governance Constants
+ */
+const FAILURE_STAGES = {
+    P01_TRUST_CALCULUS: 'P01_TRUST_CALCULUS',
+    M02_R_INDEX_READINESS: 'M02_R_INDEX_READINESS'
+};
+
+const MANDATE_ACTION_TYPES = {
+    MANUAL_REVIEW: 'MANUAL_REVIEW',
+    INCREASE_COVERAGE: 'INCREASE_COVERAGE',
+    STABILITY_FOCUS: 'STABILITY_FOCUS',
+    UNKNOWN_ACTION: 'UNKNOWN_ACTION',
+    RUN_DIAGNOSTIC: 'RUN_DIAGNOSTIC' // Added for remediation map compatibility
+};
+
+const GOV_TARGETS = {
+    DEFAULT_R_INDEX_TARGET: 0.85,
+    VETO_RETRY_TARGET: 0.10, // Very low target after a hard veto
+};
+
+/**
+ * ATM Telemetry and Metrics System Mock (Required by FSAE)
+ */
+class MetricsSystem {
+    // Adapter for GAX
+    logWarning(code, data) { GAXTelemetry.warn(`[ATM:WARN] ${code}`, data); }
+    logEvent(code, data) { GAXTelemetry.info(`[ATM:EVENT] ${code}`, data); }
+    
+    // Required by FSAE for P-01 analysis
+    diagnoseScoreDeficiency(trustWeightings) {
+        // Mock analysis: returns the component with the highest weight/deficit
+        const components = Object.keys(trustWeightings || {});
+        if (components.length === 0) {
+            return { majorDeficiencyComponent: null };
+        }
+        
+        // Simple mock logic: returns the component with the highest value (mock deficit)
+        const majorDeficiencyComponent = components.reduce((a, b) => 
+            (trustWeightings[a] > trustWeightings[b] ? a : b), components[0]
+        );
+
+        return { majorDeficiencyComponent, detailedAnalysis: 'Mock deficit detected' };
+    }
+}
+const metricsSystem = new MetricsSystem();
+
+/**
+ * C15 Policy Engine and Remediation Map Mock (Required by FSAE)
+ */
+class RemediationMap {
+    getRemediation(stage, reasonKey) {
+        const map = {
+            [FAILURE_STAGES.P01_TRUST_CALCULUS]: {
+                'VETOED': {
+                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { priority: 'IMMEDIATE' } }],
+                    newTarget: GOV_TARGETS.VETO_RETRY_TARGET
+                },
+                'MAJOR_TRUST_DEFICIT': {
+                    actions: [
+                        { type: MANDATE_ACTION_TYPES.INCREASE_COVERAGE, data: { baseIncrease: 20, gapMultiplier: 1.5, reason: 'High confidence gap' } },
+                        { type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { priority: 'HIGH' } }
+                    ],
+                    newTarget: null 
+                },
+                'TARGETED_TRUST_DEFICIT': {
+                    actions: [{ type: MANDATE_ACTION_TYPES.INCREASE_COVERAGE, data: { baseIncrease: 10, gapMultiplier: 1.0 } }],
+                    newTarget: 0.75
+                },
+                'GENERAL_DEFICIT': {
+                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { brief: 'Low score, non-critical' } }],
+                    newTarget: 0.90
+                },
+                'UNCATEGORIZED': {
+                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { brief: 'Unknown P01 reason' } }],
+                    newTarget: GOV_TARGETS.DEFAULT_R_INDEX_TARGET
+                }
+            },
+            [FAILURE_STAGES.M02_R_INDEX_READINESS]: {
+                'COMPONENT_INSTABILITY': {
+                    actions: [{ type: MANDATE_ACTION_TYPES.STABILITY_FOCUS, data: { focus_area: 'CORE' } }],
+                    newTarget: GOV_TARGETS.DEFAULT_R_INDEX_TARGET +
