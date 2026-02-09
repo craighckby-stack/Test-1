@@ -231,16 +231,16 @@ export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'TOLERANCE_EXCE
 
 /**
  * The definitive report summarizing the outcome of a pre-commit simulation run.
+ * NOTE: This is implicitly used by the MEE Engine.
  */
-// @ts-ignore
-// export interface SimulationReport {
-//     readonly parameters: SimulationParameters;
-//     readonly riskPredictionConfidenceRatio: number;
-//     readonly status: SimulationStatusType;
-//     readonly metrics: SimulationPerformanceMetrics;
-//     readonly tolerances: SimulationToleranceCheckResult;
-//     readonly audit: SimulationAuditData;
-// }
+export interface SimulationReport {
+    readonly parameters: any; // SimulationParameters;
+    readonly riskPredictionConfidenceRatio: number;
+    readonly status: string; // SimulationStatusType;
+    readonly metrics: any; // SimulationPerformanceMetrics;
+    readonly tolerances: any; // SimulationToleranceCheckResult;
+    readonly audit: any; // SimulationAuditData;
+}
 
 // --- END TARGET INTEGRATION: Simulation Configuration and Reporting Types ---
 
@@ -698,5 +698,68 @@ const RuleRegistry = {
     policyRules: []
 };
 
-// Adapt the existing GAXTelemetry interface to use the new structured CoreGovTelemetry instance
-const GAX
+
+// --- START TARGET INTEGRATION: KeyIdentityResolver (MEE Dependency) ---
+
+/**
+ * KeyIdentityResolver (MEE Core Engine Dependency)
+ * Optimizes the identification and abstraction of complex, hierarchical key identities
+ * used in policy evaluation and metric reporting (MEE).
+ * Uses internal caching (memoization) and path traversal optimization.
+ */
+class KeyIdentityResolver {
+    constructor() {
+        // Cache for resolved identities, mapping path string to IdentityDescriptor.
+        this.identityCache = new Map();
+    }
+
+    /**
+     * Standardized descriptor structure for a resolved identity.
+     * @typedef {object} IdentityDescriptor
+     * @property {string} canonicalPath - The normalized, full path (e.g., 'system.processor.affinity').
+     * @property {string} baseName - The leaf name (e.g., 'affinity').
+     * @property {string} scope - The parent context scope (e.g., 'system.processor').
+     * @property {number} depth - The depth of the key in the hierarchy.
+     */
+
+    /**
+     * Parses a key path into a canonical identity descriptor.
+     * Implements memoization for maximum computational efficiency.
+     * @param {string} keyPath - The dot-separated or slash-separated key path (e.g., 'a.b.c' or 'a/b/c').
+     * @returns {IdentityDescriptor}
+     */
+    resolveIdentity(keyPath) {
+        if (this.identityCache.has(keyPath)) {
+            return this.identityCache.get(keyPath);
+        }
+
+        const normalizedPath = keyPath.replace(/\//g, '.');
+        if (!normalizedPath) {
+            throw new AxiomPolicyError("Attempted to resolve an empty key path.", "INVALID_KEY_PATH");
+        }
+
+        const parts = normalizedPath.split('.');
+        const depth = parts.length;
+        const baseName = parts[depth - 1];
+        const scope = depth > 1 ? parts.slice(0, depth - 1).join('.') : '';
+
+        const descriptor = {
+            canonicalPath: normalizedPath,
+            baseName,
+            scope,
+            depth
+        };
+
+        this.identityCache.set(keyPath, descriptor);
+        return descriptor;
+    }
+
+    /**
+     * Recursively abstracts the identity up the hierarchy based on abstraction level.
+     * This is crucial for applying policy rules that scope to parent containers.
+     * @param {string} keyPath - The starting canonical path.
+     * @param {number} abstractionLevel - How many levels up to abstract (0 = self, 1 = parent, etc.).
+     * @returns {object | null} The abstracted descriptor, or null if abstraction fails.
+     */
+    recursiveAbstraction(keyPath, abstractionLevel) {
+        if (abstractionLevel < 0)
