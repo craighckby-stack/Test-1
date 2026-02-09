@@ -54,27 +54,21 @@ export function validateKMSPolicyIntegrity(policy) {
 /**
  * General Failure Termination Report (GFTR) V94 Schema.
  * Used for documenting terminal SIH events.
+ * Note: Includes extensive forensic data specific to V94 terminal failure.
+ * @typedef {object} GFTReportV94
+ * @property {string} report_id
+ * @property {number} timestamp
+ * // ... extensive forensic data specific to V94 terminal failure
  */
-// @ts-ignore: TypeScript interfaces need to be handled carefully in JS context
-// export interface GFTReportV94 {
-//     report_id: string;
-//     timestamp: number;
-//     system_version: string;
-//     sealed_state_hash: string;
-//     // Placeholder for required extensive forensic fields...
-// }
 
 /**
  * Receipt confirming successful execution environment state sealing.
  * Critical for establishing forensic chain-of-custody.
+ * @typedef {object} PIAMSealingReceipt
+ * @property {string} state_hash - SHA of the sealed execution environment state.
+ * @property {string} sealing_key_id - Key used for cryptographic sealing.
+ * @property {number} sealing_timestamp - Time of sealing operation (UNIX epoch ms).
  */
-// @ts-ignore
-// export interface PIAMSealingReceipt {
-//     state_hash: string;
-//     sealing_key_id: string;
-//     sealing_timestamp: number;
-//     integrity_check_nonce: string;
-// }
 
 export const AuditStatus = {
     PASS: 'PASS',
@@ -255,6 +249,19 @@ export function validateAhrsMessage(msg) {
 // export interface PolicyEngine { 
 //     blockPipeline(identifier: string): Promise<void>; 
 // }
+
+/**
+ * Post-Mortem Integrity Assurance Module (PIAM) Interface
+ * @typedef {object} PIAM_Interface
+ * @property {function(string): Promise<PIAMSealingReceipt>} captureAndSealTerminalState
+ *           Executes deep forensic state capture and cryptographically seals the terminal execution environment state.
+ * @property {function(string): Promise<boolean>} initiateIsolationSequence
+ *           Initiates the Physical/Logical Terminal Isolation Sequence.
+ * @property {function(GFTReportV94): Promise<{ success: boolean; tx_id: string }>} sealAndBroadcastReport
+ *           Finalizes the GFTR, signs it, and ensures resilient broadcast.
+ * @property {function(): Promise<void>} lockdownRecoveryStaging
+ *           Triggers the S8+ Recovery Staging Environment lockdown.
+ */
 
 // @ts-ignore
 // export interface AlertingService { 
@@ -862,4 +869,10 @@ class TaskSequencerEngine {
     }
 
     handleFailureEscalation(mode, task, context) {
-        this.logger.critical(`PCRA Escalation: Mode ${mode} triggered by ${task.step_id}. Incident: ${context.id
+        this.logger.critical(`PCRA Escalation: Mode ${mode} triggered by ${task.step_id}. Incident: ${context.id}`, { mode, task, context });
+        // In a real system, CRITICAL_SYSTEM_HALT mode would trigger PIAM sealing sequence.
+        if (mode === "CRITICAL_SYSTEM_HALT") {
+            this.logger.critical("FORCING CRITICAL SYSTEM HALT DUE TO PCRA ABORT.", { task: task.step_id });
+        }
+    }
+}
