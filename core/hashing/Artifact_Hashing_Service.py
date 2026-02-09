@@ -28,7 +28,7 @@ class ArtifactHashingService:
         if not hashlib.algorithms_available or default_algorithm not in hashlib.algorithms_available:
              raise HashingInitializationError(f"Default algorithm '{default_algorithm}' is unavailable.")
         self._default_algorithm = default_algorithm
-        self._standard_exclusions = HashingConfiguration.STANDARD_EXCLUSIONS
+        self._standard_exclusions: Set[str] = HashingConfiguration.STANDARD_EXCLUSIONS
 
     @staticmethod
     def _filter_artifact_data(
@@ -72,7 +72,8 @@ class ArtifactHashingService:
         self,
         artifact_data: Dict[str, Any], 
         algorithm: Optional[str] = None,
-        exclusion_keys: Optional[Iterable[str]] = None
+        exclusion_keys: Optional[Iterable[str]] = None,
+        use_standard_exclusions: bool = True
     ) -> str:
         """
         Generates a deterministic hash for a given artifact dictionary, optionally 
@@ -81,7 +82,8 @@ class ArtifactHashingService:
         Args:
             artifact_data: The dictionary representation of the artifact state.
             algorithm: The hashing algorithm (defaults to configured instance algorithm).
-            exclusion_keys: Keys in the dictionary to ignore before hashing (transient data).
+            exclusion_keys: Additional keys in the dictionary to ignore before hashing.
+            use_standard_exclusions: If True, automatically merges system-wide standard exclusions.
 
         Returns:
             The hexadecimal hash digest string.
@@ -89,8 +91,18 @@ class ArtifactHashingService:
         hash_algo = algorithm if algorithm else self._default_algorithm
         
         try:
+            final_exclusions: Set[str] = set()
+
+            # Apply standard exclusions if requested
+            if use_standard_exclusions:
+                final_exclusions.update(self._standard_exclusions)
+            
+            # Apply runtime exclusions
+            if exclusion_keys:
+                final_exclusions.update(set(exclusion_keys))
+
             # 1. Pre-process/Filter data
-            processed_data = self._filter_artifact_data(artifact_data, exclusion_keys)
+            processed_data = self._filter_artifact_data(artifact_data, final_exclusions)
             
             # 2. Serialize filtered data
             serialized_data = self._serialize_artifact(processed_data)
@@ -111,7 +123,8 @@ class ArtifactHashingService:
         expected_hash: str, 
         artifact_data: Dict[str, Any], 
         algorithm: Optional[str] = None,
-        exclusion_keys: Optional[Iterable[str]] = None
+        exclusion_keys: Optional[Iterable[str]] = None,
+        use_standard_exclusions: bool = True
     ) -> bool:
         """
         Verifies if the calculated hash of the artifact (with optional key exclusions) 
@@ -122,16 +135,21 @@ class ArtifactHashingService:
             artifact_data: The artifact dictionary to verify.
             algorithm: The hashing algorithm used.
             exclusion_keys: Keys to ignore during hash calculation.
+            use_standard_exclusions: If True, automatically merges system-wide standard exclusions.
 
         Returns:
             True if the hashes match, False otherwise.
         """
         try:
-            calculated_hash = self.get_canonical_hash(artifact_data, algorithm, exclusion_keys)
+            calculated_hash = self.get_canonical_hash(
+                artifact_data, 
+                algorithm, 
+                exclusion_keys,
+                use_standard_exclusions
+            )
             
             # Use constant time comparison for security
             return hashlib.compare_digest(calculated_hash, expected_hash)
         except Exception:
             # If hashing fails during verification, return False as integrity cannot be confirmed.
             return False
-
