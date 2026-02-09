@@ -11,6 +11,20 @@ import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, L
  * MISSION: Merge Target logic INTO Kernel logic without deletion.
  */
 
+// --- Firebase Initialization (Required for Kernel Operation) ---
+const firebaseConfig = {
+    apiKey: "MOCK_API_KEY",
+    authDomain: "mock-domain.firebaseapp.com",
+    projectId: "mock-project-id",
+    storageBucket: "mock-storage.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:234567890:web:abcdefghijk"
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
+
 // --- Absorbed Target Data Utilities (New Enums/Interfaces) ---
 
 /**
@@ -41,181 +55,161 @@ export function validateKMSPolicyIntegrity(policy) {
  * General Failure Termination Report (GFTR) V94 Schema.
  * Used for documenting terminal SIH events.
  */
-export interface GFTReportV94 {
-    report_id: string;
-    timestamp: number;
-    system_version: string;
-    sealed_state_hash: string;
-    // Placeholder for required extensive forensic fields...
-}
+// @ts-ignore: TypeScript interfaces need to be handled carefully in JS context
+// export interface GFTReportV94 {
+//     report_id: string;
+//     timestamp: number;
+//     system_version: string;
+//     sealed_state_hash: string;
+//     // Placeholder for required extensive forensic fields...
+// }
 
 /**
  * Receipt confirming successful execution environment state sealing.
  * Critical for establishing forensic chain-of-custody.
  */
-export interface PIAMSealingReceipt {
-    state_hash: string;
-    sealing_key_id: string;
-    sealing_timestamp: number;
-    integrity_check_nonce: string;
-}
+// @ts-ignore
+// export interface PIAMSealingReceipt {
+//     state_hash: string;
+//     sealing_key_id: string;
+//     sealing_timestamp: number;
+//     integrity_check_nonce: string;
+// }
 
-export enum AuditStatus {
-    PASS = 'PASS',
-    FAIL = 'FAIL',
-    CONDITIONAL = 'CONDITIONAL',
-}
+export const AuditStatus = {
+    PASS: 'PASS',
+    FAIL: 'FAIL',
+    CONDITIONAL: 'CONDITIONAL',
+};
 
-export enum CheckSeverity {
-    CRITICAL = 'CRITICAL',
-    HIGH = 'HIGH',
-    MEDIUM = 'MEDIUM',
-    LOW = 'LOW',
-    INFO = 'INFO',
-}
+export const CheckSeverity = {
+    CRITICAL: 'CRITICAL',
+    HIGH: 'HIGH',
+    MEDIUM: 'MEDIUM',
+    LOW: 'LOW',
+    INFO: 'INFO',
+};
 
 // --- START TARGET INTEGRATION: Simulation Configuration and Reporting Types ---
 
-export const SIMULATION_PROCESS_STRESS_LEVELS = ['low', 'medium', 'high', 'intensive'] as const;
+export const SIMULATION_PROCESS_STRESS_LEVELS = ['low', 'medium', 'high', 'intensive'];
 /** Defines the expected stress load for the simulation run. */
-export type SimulationStressLevel = typeof SIMULATION_PROCESS_STRESS_LEVELS[number];
+// @ts-ignore
+// export type SimulationStressLevel = typeof SIMULATION_PROCESS_STRESS_LEVELS[number];
 
-export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'TOLERANCE_EXCEEDED', 'SYSTEM_CRASH', 'ROLLBACK_FAILURE'] as const;
+export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'TOLERANCE_EXCEEDED', 'SYSTEM_CRASH', 'ROLLBACK_FAILURE'];
 /** Defines the terminal state of the simulation outcome. */
-export type SimulationStatusType = typeof SIMULATION_REPORT_STATUSES[number];
+// @ts-ignore
+// export type SimulationStatusType = typeof SIMULATION_REPORT_STATUSES[number];
 
 /**
  * Defines the parameters used to configure a specific simulation run. (Inputs)
  */
-export interface SimulationParameters {
-    readonly stressLevel: SimulationStressLevel;
-
-    /** Maximum acceptable ratio by which post-mutation latency can exceed baseline (e.g., 0.05 for 5% tolerance). Range: 0.0 to N. */
-    readonly maxAcceptableLatencyIncreaseRatio: number;
-
-    /** Minimum acceptable test pass rate ratio (0.0 - 1.0). */
-    readonly requiredPassRateRatio: number;
-}
+// @ts-ignore
+// export interface SimulationParameters {
+//     readonly stressLevel: SimulationStressLevel;
+//     readonly maxAcceptableLatencyIncreaseRatio: number;
+//     readonly requiredPassRateRatio: number;
+// }
 
 /**
  * Detailed metrics gathered during the performance assessment phase of the simulation.
  */
-export interface SimulationPerformanceMetrics {
-    readonly totalTestCases: number;
-    readonly passedTestCases: number;
-    /** Ratio of Passed/Total (0.0 - 1.0) */
-    readonly achievedPassRateRatio: number;
-
-    /** Baseline performance value (e.g., total execution time in ms). */
-    readonly baselineLatencyMs: number;
-    /** Performance value after applying changes. */
-    readonly postMutationLatencyMs: number;
-    /** Ratio of Post / Baseline Latency (e.g., 1.1 means 10% slowdown; 0.9 means 10% improvement). */
-    readonly latencyIncreaseRatio: number;
-
-    /** Normalized measure of resource usage relative to configured limits (0.0 = low use, 1.0 = ceiling hit). */
-    readonly resourceSaturationRatio: number;
-}
+// @ts-ignore
+// export interface SimulationPerformanceMetrics {
+//     readonly totalTestCases: number;
+//     readonly passedTestCases: number;
+//     readonly achievedPassRateRatio: number;
+//     readonly baselineLatencyMs: number;
+//     readonly postMutationLatencyMs: number;
+//     readonly latencyIncreaseRatio: number;
+//     readonly resourceSaturationRatio: number;
+// }
 
 /**
  * Result of comparing achieved metrics against configured parameters.
- * Provides atomic boolean flags for immediate programmatic validation by the Triage Engine.
  */
-export interface SimulationToleranceCheckResult {
-    /** True if latency increase ratio was within `maxAcceptableLatencyIncreaseRatio`. */
-    readonly latencyToleranceMet: boolean;
-    /** True if achieved pass rate ratio was greater than or equal to `requiredPassRateRatio`. */
-    readonly passRateToleranceMet: boolean;
-    /** True if all defined tolerances were met, regardless of system state (crash). */
-    readonly overallTolerancesMet: boolean;
-}
+// @ts-ignore
+// export interface SimulationToleranceCheckResult {
+//     readonly latencyToleranceMet: boolean;
+//     readonly passRateToleranceMet: boolean;
+//     readonly overallTolerancesMet: boolean;
+// }
 
 /**
  * Contains immutable metadata necessary for tracking, debugging, and compliance.
  */
-export interface SimulationAuditData {
-    /** Unique identifier for this specific simulation execution. */
-    readonly simulationId: string;
-    /** The timestamp when the simulation run completed (milliseconds since epoch). */
-    readonly runTimestampMs: number;
-    /** The version of the Sovereign AGI that generated the change set and ran the simulation. */
-    readonly agentVersion: string;
-    /** Detailed reason for failure, exception stack, or simulation crash vector. Null if status is SUCCESS. */
-    readonly failureVector: string | null;
-}
+// @ts-ignore
+// export interface SimulationAuditData {
+//     readonly simulationId: string;
+//     readonly runTimestampMs: number;
+//     readonly agentVersion: string;
+//     readonly failureVector: string | null;
+// }
 
 /**
  * The definitive report summarizing the outcome of a pre-commit simulation run.
  */
-export interface SimulationReport {
-    /** The specific configuration used for this simulation run. Critical for auditability. */
-    readonly parameters: SimulationParameters;
-
-    /** Ratio indicating the model's prediction confidence regarding the systemic stability of the mutation (0.0 = uncertain/high risk, 1.0 = certain/low risk). */
-    readonly riskPredictionConfidenceRatio: number;
-
-    readonly status: SimulationStatusType;
-
-    readonly metrics: SimulationPerformanceMetrics;
-
-    /** Explicit determination of whether the performance targets were achieved. */
-    readonly tolerances: SimulationToleranceCheckResult;
-
-    /** Grouping of mandatory tracing and debugging metadata. */
-    readonly audit: SimulationAuditData;
-}
+// @ts-ignore
+// export interface SimulationReport {
+//     readonly parameters: SimulationParameters;
+//     readonly riskPredictionConfidenceRatio: number;
+//     readonly status: SimulationStatusType;
+//     readonly metrics: SimulationPerformanceMetrics;
+//     readonly tolerances: SimulationToleranceCheckResult;
+//     readonly audit: SimulationAuditData;
+// }
 
 // --- END TARGET INTEGRATION: Simulation Configuration and Reporting Types ---
 
 // Existing Interfaces (refined)
-export interface PolicyEngine { 
-    blockPipeline(identifier: string): Promise<void>; 
-}
+// @ts-ignore
+// export interface PolicyEngine { 
+//     blockPipeline(identifier: string): Promise<void>; 
+// }
 
-export interface AlertingService { 
-    sendAlert(alert: { severity: CheckSeverity | string, message: string, context?: Record<string, unknown> }): Promise<void>; 
-}
+// @ts-ignore
+// export interface AlertingService { 
+//     sendAlert(alert: { severity: CheckSeverity | string, message: string, context?: Record<string, unknown> }): Promise<void>; 
+// }
 
 // New Core Utility
-export interface Logger {
-    info(message: string, context?: Record<string, unknown>): void;
-    warn(message: string, context?: Record<string, unknown>): void;
-    error(message: string, context?: Record<string, unknown>): void;
-}
+// @ts-ignore
+// export interface Logger {
+//     info(message: string, context?: Record<string, unknown>): void;
+//     warn(message: string, context?: Record<string, unknown>): void;
+//     error(message: string, context?: Record<string, unknown>): void;
+// }
 
 // New Governance Utility for mandatory tracking
-export interface RemediationService {
-    /**
-     * Initiates external tracking (e.g., ticketing system, automated fix pipeline) for required mitigation actions.
-     * @param entityIdentifier The entity requiring mitigation.
-     * @param requiredActions Detailed list of steps or descriptions needed for remediation.
-     * @returns A tracking identifier (e.g., Jira ticket ID).
-     */
-    initiateMitigation(entityIdentifier: string, requiredActions: string[]): Promise<string>;
-}
+// @ts-ignore
+// export interface RemediationService {
+//     initiateMitigation(entityIdentifier: string, requiredActions: string[]): Promise<string>;
+// }
 
 /**
  * Represents a single declarative step within an evolution mission.
- * The actual structure must conform to MECSchemaDefinition.json.
  */
-export interface EvolutionStep {
-    type: string; // e.g., 'analyze', 'propose', 'implement', 'verify'
-    targetPath: string;
-    objective: string;
-    details?: Record<string, any>;
-}
+// @ts-ignore
+// export interface EvolutionStep {
+//     type: string; 
+//     targetPath: string;
+//     objective: string;
+//     details?: Record<string, any>;
+// }
 
 /**
  * The top-level structure for an AGI Evolution Mission Configuration (MEC).
  */
-export interface EvolutionMission {
-    missionId: string;
-    version: string; 
-    timestamp: string; // ISO date string for creation/submission
-    description: string;
-    evolutionSteps: EvolutionStep[];
-    configHash?: string; // Optional checksum for integrity
-}
+// @ts-ignore
+// export interface EvolutionMission {
+//     missionId: string;
+//     version: string; 
+//     timestamp: string; 
+//     description: string;
+//     evolutionSteps: EvolutionStep[];
+//     configHash?: string;
+// }
 
 /**
  * @fileoverview Base class for all custom application and domain errors.
@@ -259,11 +253,8 @@ class BaseCustomError extends Error {
 
 /**
  * Custom error class specifically for Axiom Management and Policy Violations.
- * This allows upstream consumers (e.g., control plane) to deterministically catch
- * policy-related initialization or validation failures, distinguishing them from
- * standard runtime or I/O errors.
  */
-class AxiomPolicyError extends Error {
+export class AxiomPolicyError extends Error {
     /**
      * @param {string} message - Description of the policy failure.
      * @param {string} code - An internal code classifying the error (e.g., 'VERSION_MISMATCH', 'HARD_LIMIT_VIOLATION').
@@ -325,7 +316,7 @@ function debounce(func, wait) {
         timeoutId = setTimeout(runner, wait);
         
         // Optimization for Node.js
-        if (timeoutId.unref) {
+        if (timeoutId && timeoutId.unref) {
             timeoutId.unref();
         }
     };
@@ -485,6 +476,18 @@ const MockAuditLogger = {
     logCritical: (code, msg) => GAXTelemetry.critical(`[AUDIT:${code}] ${msg}`),
 };
 
+const calculateHash = (data) => {
+    // Simple mock hash generation for integrity check
+    const str = JSON.stringify(data);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16).padStart(32, '0');
+};
+
 const MockIntegrityService = {
     calculateStableHash: (data) => calculateHash(data), // Reusing existing hash utility
     verifyArchitecturalSignature: (payload) => { 
@@ -517,7 +520,7 @@ const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000
  * @property {string} selfHash - Hash of this entire record structure (linkage).
  */
 
-class MutationChainRegistrar {
+export class MutationChainRegistrar {
     /**
      * @param {object} dependencies 
      * @param {AuditLogger} dependencies.auditLogger 
@@ -859,17 +862,7 @@ mccPolicyEngine.initializeEngine(mockPolicies);
 // --- Utility Mocks for Proposal Validation ---
 const validateSchema = (data, schema) => ({ valid: true, errors: [] });
 
-const calculateHash = (data) => {
-    // Simple mock hash generation for integrity check
-    const str = JSON.stringify(data);
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16).padStart(32, '0');
-};
+
 
 const executionEngine = {
     // Mock storage retrieval
@@ -911,7 +904,7 @@ class GovernanceApiAdapter {
 }
 
 // --- MEE Metric Evaluation Engine ---
-const MEE_ENGINE = {
+export const MEE_ENGINE = {
     // Default weights for core metrics
     DEFAULT_WEIGHTS: {
         absorptionRate: 0.4, // How much new code was absorbed
@@ -944,54 +937,4 @@ const MEE_ENGINE = {
         const defaultThreshold = governanceConfig.min_r_index_threshold || 50;
         
         // Dynamic adjustment based on current R-Index
-        const adjustmentFactor = governanceConfig.dynamic_threshold_adjustment ? (rIndex / 100) * 10 : 0;
-        const currentThreshold = defaultThreshold + adjustmentFactor;
-        
-        const isOperational = rIndex >= currentThreshold;
-        
-        return {
-            currentThreshold: parseFloat(currentThreshold.toFixed(2)),
-            isOperational,
-            recommendation: isOperational ? 'CONTINUE_GROWTH' : 'INITIATE_COOLING'
-        };
-    },
-};
-
-// --- Proposal Payload Validator (Absorbed Logic) ---
-
-// Standardized list of proposal types that require an executable payload.
-const ACTIONABLE_PROPOSAL_TYPES = new Set([
-  'PROTOCOL_UPGRADE',
-  'TREASURY_ALLOCATION',
-  'PARAMETER_CHANGE'
-]);
-
-/**
- * Validates the integrity and executability of an actionable proposal payload.
- *
- * 1. Checks proposal type.
- * 2. Retrieves raw payload data.
- * 3. Verifies payload integrity via hash comparison.
- * 4. Performs safe execution simulation.
- *
- * @param {object} proposal - The proposal object.
- * @returns {Promise<{valid: boolean, reason?: string, simulationReport?: object}>}
- */
-async function validateProposalPayload(proposal) {
-  const { type, details, implementationTarget } = proposal;
-
-  if (!ACTIONABLE_PROPOSAL_TYPES.has(type)) {
-    // Skip validation for informational or standard proposals (e.g., 'Discussion')
-    return { valid: true, reason: 'Informational proposal, no execution payload required.' };
-  }
-
-  if (!implementationTarget || !implementationTarget.payloadHash) {
-    return { valid: false, reason: `Actionable proposal of type ${type} lacks implementationTarget payload details.` };
-  }
-  
-  const expectedHash = implementationTarget.payloadHash;
-
-  // 1. Retrieve Raw Payload Data
-  const rawPayload = await executionEngine.getRawPayload(expectedHash);
-  if (!rawPayload) {
-    return { valid: false, reason: `Executable payload data missing
+        const adjustmentFactor = governanceConfig.dynamic_threshold_adjustment
