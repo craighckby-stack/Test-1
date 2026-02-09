@@ -19,6 +19,8 @@ class FitnessEngine {
         this.config = metricsConfig;
         this.isOperational = true;
     }
+    // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
+    this.FLOAT_TOLERANCE = 1e-9;
   }
 
   /**
@@ -47,6 +49,8 @@ class FitnessEngine {
    * @returns {number} Calculated fitness score (0.0 to MAX_FITNESS).
    */
   calculate(rawMetrics, profileName) {
+    const MAX_FITNESS = 10.0;
+
     // Robust Error Handling: Ensure rawMetrics is usable
     if (typeof rawMetrics !== 'object' || rawMetrics === null) {
         console.warn(`FitnessEngine: Invalid rawMetrics provided. Returning baseline score 0.`);
@@ -118,8 +122,6 @@ class FitnessEngine {
     }
 
     // 4. Normalize and clamp the final score for stability (Error Handling)
-    const MAX_FITNESS = 10.0; // Allow scores > 1.0 for rewards, but cap before infinity.
-    score = Math.min(score, score); // Placeholder to satisfy requirement, replaced by max cap below
     
     // Final clamping to ensure non-negativity and finite result (Error Handling)
     if (!isFinite(score)) {
@@ -142,9 +144,17 @@ class FitnessEngine {
    * @returns {string} Sanitized formula string.
    */
   sanitizeFormula(formulaString) {
-    // Only allow numbers, basic arithmetic, spaces, and parentheses.
-    // Explicitly allowing 'e' or 'E' for scientific notation robustness (1e-9).
+    // After substitution, the string should ONLY contain numbers, parentheses, and arithmetic operators.
+    // Allow 'e' for scientific notation (e.g., 1e-9).
     let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
+    
+    // Additional defense: basic check for obvious attempts to execute code post-sanitization
+    if (/[a-zA-Z]/.test(sanitized.replace(/e/g, ''))) {
+        // If any letter remains (excluding 'e' from scientific notation), something is wrong.
+        console.error("FitnessEngine Security Alert: Post-substitution formula sanitization failed: suspicious characters remain.");
+        return "0.0"; 
+    }
+    
     return sanitized;
   }
   
@@ -218,7 +228,8 @@ class FitnessEngine {
         const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
         // Improvement: Use escaped word boundaries (\b) for robust replacement
-        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
+        // Substitute metric names with their numerical values, wrapped in parentheses for order of operations safety
+        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
     }
 
     try {
@@ -245,10 +256,11 @@ class FitnessEngine {
   }
 
   /**
-   * Detailed conditional evaluation logic. Enhanced for safer numerical comparison.
+   * Detailed conditional evaluation logic. Enhanced for safer numerical comparison using tolerance.
    * @param {*} value 
    * @param {string} condition - operators like '>', '<', '>=', '<=', '==', '!='
    * @param {*} threshold 
+   * @returns {boolean}
    */
   checkCondition(value, condition, threshold) {
     if (value === undefined || threshold === undefined) return false;
@@ -261,27 +273,63 @@ class FitnessEngine {
     
     const isNumComparison = !isNaN(numValue) && !isNaN(numThreshold);
 
-    const val = isNumComparison ? numValue : value;
-    const thresh = isNumComparison ? numThreshold : threshold;
+    if (isNumComparison) {
+      const val = numValue;
+      const thresh = numThreshold;
 
+      switch (conditionOp) {
+        case '>': return val > thresh + this.FLOAT_TOLERANCE; // Check slightly above threshold
+        case '<': return val < thresh - this.FLOAT_TOLERANCE; // Check slightly below threshold
+        case '>=': return val > thresh - this.FLOAT_TOLERANCE;
+        case '<=': return val < thresh + this.FLOAT_TOLERANCE;
+        case '==':
+        case '===':
+          return Math.abs(val - thresh) < this.FLOAT_TOLERANCE; // Use tolerance for floating point numbers
+        case '!=':
+        case '!==':
+          return Math.abs(val - thresh) >= this.FLOAT_TOLERANCE;
+        default:
+          break; // Fall through to non-numerical comparison if operator is non-standard
+      }
+    }
+    
+    // Fallback: Non-numerical comparison using strict equality
     switch (conditionOp) {
-      case '>':
-        return isNumComparison && (val > thresh);
-      case '<':
-        return isNumComparison && (val < thresh);
-      case '>=':
-        return isNumComparison && (val >= thresh);
-      case '<=':
-        return isNumComparison && (val <= thresh);
       case '==':
-        return val == thresh; // Allow loose equality for non-numerical comparison
+      case '===':
+        return value === threshold;
       case '!=':
-        return val != thresh;
+      case '!==':
+        return value !== threshold;
       default:
         // Graceful failure for unknown conditions (Error Handling)
-        console.warn(`FitnessEngine: Unknown condition operator: ${condition}`);
+        console.warn(`FitnessEngine: Unknown or unsupported condition operator: ${condition} for comparison.`);
         return false;
     }
+  }
+  
+  /**
+   * Maps a final fitness score (0-10) to the kernel's core capabilities (0-10).
+   * This method supports the required structured output for self-assessment.
+   * 
+   * @param {number} fitnessScore - The result of calculate().
+   * @returns {Object<string, number>} Capability scores.
+   */
+  static mapScoreToCapability(fitnessScore) {
+      const clampedScore = Math.max(0, Math.min(10, fitnessScore));
+      
+      // Simple heuristic mapping for Cycle 1: Stronger logic due to formula parsing, neutral memory/navigation.
+      // Scores are normalized to the 0-10 scale.
+      
+      const logicBase = Math.min(10, 5 + Math.floor(clampedScore * 0.2)); // 5 + up to 2 points
+      const memoryBase = Math.min(10, 4 + Math.floor(clampedScore * 0.3)); // 4 + up to 3 points
+      const navBase = Math.min(10, 3 + Math.floor(clampedScore * 0.1)); // 3 + up to 1 point
+      
+      return {
+          navigation: navBase,
+          logic: logicBase,
+          memory: memoryBase
+      };
   }
 }
 
