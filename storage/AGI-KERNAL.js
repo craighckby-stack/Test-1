@@ -13,7 +13,18 @@ if (!state.booted) return (
           </div>
           <input type="text" placeholder="Path (e.g. storage/kernel.js)" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={input.path} onChange={e => setInput({...input, path: e.target.value})} />
           <div className="grid grid-cols-2 gap-4">
-            <select className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs appearance-none" value={input.provider} onChange={e => setInput({...input, provider: e.target.value, model: e.target.value === 'gemini' ? 'gemini-2.5-flash-preview-09-2025' : 'llama-3.3-70b'})}>
+            <select className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs appearance-none" value={input.provider} onChange={e => {
+              const newProvider = e.target.value;
+              let defaultModel = input.model;
+
+              if (newProvider === 'gemini') {
+                defaultModel = 'gemini-2.5-flash-preview-09-2025';
+              } else if (newProvider === 'cerebras') {
+                defaultModel = 'llama-3.3-70b';
+              }
+
+              setInput({...input, provider: newProvider, model: defaultModel});
+            }}>
               <option value="gemini">Gemini</option>
               <option value="cerebras">Cerebras</option>
             </select>
