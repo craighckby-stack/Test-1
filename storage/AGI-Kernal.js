@@ -387,4 +387,4 @@ const STDM_V99_POLICY = {
     type: "object",
     properties: {
         componentId: { type: "string" },
-        version: { type: "string"}
+        version: { type: "string\
