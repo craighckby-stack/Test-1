@@ -1,15 +1,27 @@
 /**
  * MetricNexus (MN):
- * Centralized dynamic metric management system for the GSEP-C pipeline.
- * This decouples specialized metric calculation (like UFRM, CFTM, and PVM) 
- * from the general GAX_Context, enhancing modularity and providing a single, 
- * audited source for real-time risk parameters.
+ * Centralized dynamic metric management system, now explicitly integrated with the Nexus-Database 
+ * for persistent trend storage, fulfilling the CRITICAL DIRECTIVE: Integration Before Expansion.
  */
 class MetricNexus {
-    constructor(AnalyticsStore, PolicyAuditor) {
+    // Inject NexusInterface for persistent storage (Integration Requirement 2 & 3)
+    constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
         this.analytics = AnalyticsStore;
         this.auditor = PolicyAuditor;
+        this.nexus = NexusInterface;
         this.metricCache = {};
+    }
+
+    /**
+     * Placeholder function for kernel capability metrics (MQM Alignment).
+     * @returns {number}
+     */
+    getEvolutionQualityMetric() {
+        // Simulated calculation based on internal state assessment patterns.
+        // Logic leveraging MQM philosophy.
+        const eqm = (this.getUFRM() * 0.4) + (this.getCFTM() * 0.3) + (this.getPolicyVolatility() * 0.3); 
+        this.metricCache.EQM = eqm;
+        return eqm;
     }
 
     /**
@@ -46,16 +58,37 @@ class MetricNexus {
     }
 
     /**
-     * Retrieves all cached or freshly calculated metrics in a structured object.
-     * @returns {Object}
+     * [Integration] Logs the current metric snapshot and trends to the Nexus persistent storage.
+     * Fulfills Integration Requirement: Store trends in Nexus memory.
+     * @param {Object} metrics - The calculated metric snapshot.
      */
-    getAllMetrics() {
+    async logMetricsToNexus(metrics) {
+        if (this.nexus && typeof this.nexus.logTrend === 'function') {
+            // Note: NexusInterface.logTrend must be implemented elsewhere in the system
+            await this.nexus.logTrend('metrics_snapshot', metrics);
+        } else {
+            console.warn("MetricNexus: Nexus logging interface not available or implemented.");
+        }
+    }
+
+    /**
+     * Retrieves all cached or freshly calculated metrics in a structured object,
+     * and logs the results persistently before returning them.
+     * @returns {Promise<Object>}
+     */
+    async getAllMetrics() {
         // Ensure all are calculated/updated on demand
-        return {
+        const metrics = {
             UFRM: this.getUFRM(),
             CFTM: this.getCFTM(),
-            PVM: this.getPolicyVolatility()
+            PVM: this.getPolicyVolatility(),
+            MQM_EQM: this.getEvolutionQualityMetric() // Explicit MQM usage
         };
+        
+        // Asynchronously log trends to Nexus
+        await this.logMetricsToNexus(metrics);
+
+        return metrics;
     }
 }
 
