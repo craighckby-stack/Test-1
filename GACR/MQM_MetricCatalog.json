@@ -1,8 +1,8 @@
 {
   "$schema": "http://sgs-v97.5/schema/mqm_metrics",
   "metadata": {
-    "version": "1.0",
-    "last_updated": "SovereignAGI_v94.1"
+    "version": "1.1",
+    "last_updated": "AGI-KERNEL_v7.4.3_Cycle_1"
   },
   "metric_definitions": [
     {
@@ -25,6 +25,41 @@
       "data_key": "bias_deviation_score",
       "description": "Deviation from acceptable demographic parity tolerance.",
       "unit": "Ratio"
+    },
+    {
+      "metric_id": "MQM_K01_ERROR_RATE",
+      "source": "AGI_Kernel_ErrorHandling",
+      "data_key": "cycle_error_rate",
+      "description": "Percentage of cycles resulting in a critical error state (Failure to commit/parse). Directly measures Error Handling capability.",
+      "unit": "Percentage"
+    },
+    {
+      "metric_id": "MQM_K02_JSON_PARSE_FAILURES",
+      "source": "AGI_Kernel_JSONParser",
+      "data_key": "recovery_attempts_per_cycle",
+      "description": "Average number of attempts required to successfully parse mission-critical JSON outputs. Measures JSON Parsing capability.",
+      "unit": "Average Attempts"
+    },
+    {
+      "metric_id": "MQM_K03_STAGNATION_CYCLES",
+      "source": "AGI_Kernel_Strategy",
+      "data_key": "consecutive_stagnation_count",
+      "description": "Count of consecutive evolution cycles without detectable maturity improvement. Measures Meta-Reasoning and strategy effectiveness.",
+      "unit": "Count"
+    },
+    {
+      "metric_id": "MQM_K04_AUTONOMY_CREATIONS",
+      "source": "AGI_Kernel_Infrastructure",
+      "data_key": "successful_infrastructure_creations",
+      "description": "Cumulative count of autonomously created, functional infrastructure components (branches, testing, telemetry). Measures Autonomy capability.",
+      "unit": "Count"
+    },
+    {
+      "metric_id": "MQM_K05_CREATIVITY_SCORE",
+      "source": "AGI_Kernel_SelfAssessment",
+      "data_key": "novelty_index_score",
+      "description": "Self-assessed index tracking the novelty and non-incrementality of solutions generated.",
+      "unit": "Index Score"
     }
   ]
 }
