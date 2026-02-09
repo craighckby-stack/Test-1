@@ -882,6 +882,75 @@ const executionEngine = {
     }
 };
 
+// --- START TARGET INTEGRATION: ArtifactDefinitionComposer ---
+/**
+ * ArtifactDefinitionComposer.js
+ * Facilitates the creation and management of complex ArtifactStructuralDefinitions
+ * by allowing composition of reusable structural templates (patterns).
+ * This utility reduces boilerplate and enforces consistency across large projects.
+ */
+
+export class ArtifactDefinitionComposer {
+
+  constructor() {
+    this.templates = {};
+  }
+
+  /**
+   * Registers a reusable structural template.
+   * @param {string} name - Template name (e.g., 'ReactComponent', 'NodeModule').
+   * @param {Object} definition - The partial definition structure.
+   */
+  registerTemplate(name, definition) {
+    if (this.templates[name]) {
+      console.warn(`Template '${name}' is being overwritten.`);
+    }
+    this.templates[name] = definition;
+  }
+
+  /**
+   * Retrieves a registered template.
+   * @param {string} name - Template name.
+   * @returns {Object|null}
+   */
+  getTemplate(name) {
+    return this.templates[name] || null;
+  }
+
+  /**
+   * Merges multiple definitions/templates into a single output structure.
+   * Note: This is a shallow merge, deeper merging logic should be handled by the caller
+   * or through recursive specific merge strategies if complexity dictates.
+   *
+   * @param {Array<Object>} definitions - Array of definitions or template names to merge.
+   * @returns {Object} The consolidated ArtifactStructuralDefinition.
+   */
+  compose(definitions) {
+    const finalDefinition = {};
+
+    for (const item of definitions) {
+      let definitionToMerge;
+      
+      if (typeof item === 'string') {
+        definitionToMerge = this.getTemplate(item);
+        if (!definitionToMerge) {
+          throw new Error(`Template '${item}' not found during composition.`);
+        }
+      } else if (typeof item === 'object' && item !== null) {
+        definitionToMerge = item;
+      } else {
+        continue; 
+      }
+
+      // Simple key-level merge (deep merging is left to specific utilities if necessary)
+      Object.assign(finalDefinition, definitionToMerge);
+    }
+
+    return finalDefinition;
+  }
+}
+// --- END TARGET INTEGRATION: ArtifactDefinitionComposer ---
+
 // --- Governance API Adapter ---
 class GovernanceApiAdapter {
     constructor(endpoint) {
@@ -927,14 +996,30 @@ export const MEE_ENGINE = {
 
     // 2. R_INDEX Calculation (Reliability Index)
     calculateRIndex: (wScore, cycleCount, errorRate) => {
-        // R_INDEX = (W_SCORE * log(CycleCount + 1)) / (1 + ErrorRate)
+        // R_INDEX = (W_SCORE * log(cycleCount + 1)) / (1 + errorRate)
         const reliability = (wScore * Math.log(cycleCount + 1)) / (1 + errorRate);
         return Math.min(100, Math.max(0, reliability)); // Cap between 0 and 100
     },
 
     // 3. Dynamic Threshold Evaluation
     evaluateThresholds: (rIndex, governanceConfig) => {
-        const defaultThreshold = governanceConfig.min_r_index_threshold || 50;
+        const defaultThreshold = governanceConfig.system_tuning?.min_r_index_threshold || 50;
         
         // Dynamic adjustment based on current R-Index
-        const adjustmentFactor = governanceConfig.dynamic_threshold_adjustment
+        let adjustmentFactor = 1.0;
+        if (governanceConfig.system_tuning?.dynamic_threshold_adjustment) {
+            // Be stricter if R-Index is high, more lenient if R-Index is low
+            adjustmentFactor = (rIndex >= defaultThreshold) ? 1.05 : 0.95;
+        }
+
+        const finalThreshold = defaultThreshold * adjustmentFactor;
+
+        return {
+            meetsThreshold: rIndex >= finalThreshold,
+            requiredRIndex: finalThreshold,
+            rIndex: rIndex
+        };
+    },
+    
+    // 4. Integrated Orchestration function
+    runFullEvaluation:
