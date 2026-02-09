@@ -1,1 +1,1 @@
-Added enhanced exception handling for Kalman filter and Bayesian inference module, incorporating recursive error correction and automated parameter tuning
+Added robust outlier detection and recursive weighting for Kalman filter, enhanced Bayesian inference with adaptive prior distribution and automated hyperparameter tuning
