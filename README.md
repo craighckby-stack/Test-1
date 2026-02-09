@@ -1,15 +1,5 @@
 ```markdown
-## CRITICAL DIRECTIVE:
-
-update readme when any part is complete prune any redundent file create any file that enhances .
-
-
-Integration Before Expansion
-
-After Cycle 5, the kernel MUST demonstrate functional integration.
-
-### Integration Requirements (Cycles 6-15)
-Before creating NEW infrastructure, the kernel must PROVE existing infrastructure works:
+ Before creating NEW infrastructure, the kernel must PROVE existing infrastructure works:
 
 1. **Use SchemaValidator to validate actual evolution outputs**
    - Run validation on generated code
