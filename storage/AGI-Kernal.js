@@ -74,6 +74,99 @@ export enum CheckSeverity {
     INFO = 'INFO',
 }
 
+// --- START TARGET INTEGRATION: Simulation Configuration and Reporting Types ---
+
+export const SIMULATION_PROCESS_STRESS_LEVELS = ['low', 'medium', 'high', 'intensive'] as const;
+/** Defines the expected stress load for the simulation run. */
+export type SimulationStressLevel = typeof SIMULATION_PROCESS_STRESS_LEVELS[number];
+
+export const SIMULATION_REPORT_STATUSES = ['SUCCESS', 'FAILURE', 'TOLERANCE_EXCEEDED', 'SYSTEM_CRASH', 'ROLLBACK_FAILURE'] as const;
+/** Defines the terminal state of the simulation outcome. */
+export type SimulationStatusType = typeof SIMULATION_REPORT_STATUSES[number];
+
+/**
+ * Defines the parameters used to configure a specific simulation run. (Inputs)
+ */
+export interface SimulationParameters {
+    readonly stressLevel: SimulationStressLevel;
+
+    /** Maximum acceptable ratio by which post-mutation latency can exceed baseline (e.g., 0.05 for 5% tolerance). Range: 0.0 to N. */
+    readonly maxAcceptableLatencyIncreaseRatio: number;
+
+    /** Minimum acceptable test pass rate ratio (0.0 - 1.0). */
+    readonly requiredPassRateRatio: number;
+}
+
+/**
+ * Detailed metrics gathered during the performance assessment phase of the simulation.
+ */
+export interface SimulationPerformanceMetrics {
+    readonly totalTestCases: number;
+    readonly passedTestCases: number;
+    /** Ratio of Passed/Total (0.0 - 1.0) */
+    readonly achievedPassRateRatio: number;
+
+    /** Baseline performance value (e.g., total execution time in ms). */
+    readonly baselineLatencyMs: number;
+    /** Performance value after applying changes. */
+    readonly postMutationLatencyMs: number;
+    /** Ratio of Post / Baseline Latency (e.g., 1.1 means 10% slowdown; 0.9 means 10% improvement). */
+    readonly latencyIncreaseRatio: number;
+
+    /** Normalized measure of resource usage relative to configured limits (0.0 = low use, 1.0 = ceiling hit). */
+    readonly resourceSaturationRatio: number;
+}
+
+/**
+ * Result of comparing achieved metrics against configured parameters.
+ * Provides atomic boolean flags for immediate programmatic validation by the Triage Engine.
+ */
+export interface SimulationToleranceCheckResult {
+    /** True if latency increase ratio was within `maxAcceptableLatencyIncreaseRatio`. */
+    readonly latencyToleranceMet: boolean;
+    /** True if achieved pass rate ratio was greater than or equal to `requiredPassRateRatio`. */
+    readonly passRateToleranceMet: boolean;
+    /** True if all defined tolerances were met, regardless of system state (crash). */
+    readonly overallTolerancesMet: boolean;
+}
+
+/**
+ * Contains immutable metadata necessary for tracking, debugging, and compliance.
+ */
+export interface SimulationAuditData {
+    /** Unique identifier for this specific simulation execution. */
+    readonly simulationId: string;
+    /** The timestamp when the simulation run completed (milliseconds since epoch). */
+    readonly runTimestampMs: number;
+    /** The version of the Sovereign AGI that generated the change set and ran the simulation. */
+    readonly agentVersion: string;
+    /** Detailed reason for failure, exception stack, or simulation crash vector. Null if status is SUCCESS. */
+    readonly failureVector: string | null;
+}
+
+/**
+ * The definitive report summarizing the outcome of a pre-commit simulation run.
+ */
+export interface SimulationReport {
+    /** The specific configuration used for this simulation run. Critical for auditability. */
+    readonly parameters: SimulationParameters;
+
+    /** Ratio indicating the model's prediction confidence regarding the systemic stability of the mutation (0.0 = uncertain/high risk, 1.0 = certain/low risk). */
+    readonly riskPredictionConfidenceRatio: number;
+
+    readonly status: SimulationStatusType;
+
+    readonly metrics: SimulationPerformanceMetrics;
+
+    /** Explicit determination of whether the performance targets were achieved. */
+    readonly tolerances: SimulationToleranceCheckResult;
+
+    /** Grouping of mandatory tracing and debugging metadata. */
+    readonly audit: SimulationAuditData;
+}
+
+// --- END TARGET INTEGRATION: Simulation Configuration and Reporting Types ---
+
 // Existing Interfaces (refined)
 export interface PolicyEngine { 
     blockPipeline(identifier: string): Promise<void>; 
@@ -901,131 +994,4 @@ async function validateProposalPayload(proposal) {
   // 1. Retrieve Raw Payload Data
   const rawPayload = await executionEngine.getRawPayload(expectedHash);
   if (!rawPayload) {
-    return { valid: false, reason: `Executable payload data missing from storage for hash: ${expectedHash}.` };
-  }
-  
-  // 2. Hash Integrity Check
-  try {
-    const computedHash = calculateHash(rawPayload);
-    
-    if (computedHash !== expectedHash) {
-      // Use substring to avoid logging massive hashes in error messages, focusing on identification.
-      const safeExpected = expectedHash.substring(0, 16);
-      const safeComputed = computedHash.substring(0, 16);
-      return { 
-        valid: false, 
-        reason: `Payload integrity failed. Computed hash (${safeComputed}...) does not match expected hash (${safeExpected}...).` 
-      };
-    }
-  } catch (hashError) {
-     return { valid: false, reason: `Failed during hash computation: ${hashError.message}` };
-  }
-
-  // 3. Perform Safe Execution Simulation
-  const simulationResult = await executionEngine.simulateCall(
-    implementationTarget.modulePath,
-    implementationTarget.method,
-    rawPayload
-  );
-
-  if (!simulationResult.success) {
-    return { valid: false, reason: `Execution simulation failed: ${simulationResult.error}` };
-  }
-
-  // 4. Semantic Validation: Ensure simulation output conforms to specifications.
-  // Using the mock utility defined above.
-  const semanticValidation = validateSchema(rawPayload, details.specification);
-  if (!semanticValidation.valid) {
-      return { valid: false, reason: `Semantic validation failed against specification.` };
-  }
-  
-  return { 
-    valid: true, 
-    simulationReport: simulationResult.report,
-    message: 'Payload integrity verified and execution simulated successfully.'
-  };
-}
-
-const KERNAL_CONSTANTS = {
-  GITHUB_API: "https://api.github.com/repos",
-  GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent",
-  GOVERNANCE_ENDPOINT: "https://api.kernal.gov/v1/config" // New endpoint for Governance Adapter
-};
-
-const INITIAL_STATE = {
-  isBooted: false,
-  isLive: false,
-  isCooling: false,
-  status: 'IDLE',
-  activeObjective: 'Awaiting Uplink',
-  cycleCount: 0,
-  successCount: 0,
-  errorCount: 0,
-  absorptionRate: 0,
-  currentTarget: 'None',
-  logs: [],
-  governanceConfig: { 
-    governance_cycle_ms: 60000, 
-    min_r_index_threshold: 50,
-    dynamic_threshold_adjustment: true
-  },
-  metrics: {
-    wScore: 0,
-    rIndex: 0,
-    threshold: 0,
-    isOperational: false
-  },
-  config: { 
-    token: '', 
-    repo: 'craighckby-stack/Test-1', 
-    path: 'storage/AGI-Kernal.js', 
-    cycleDelay: 60000 
-  },
-};
-
-function reducer(state, action) {
-  switch (action.type) {
-    case 'BOOT': return { ...state, isBooted: true, config: { ...state.config, ...action.config } };
-    case 'SET_LIVE': return { ...state, isLive: action.value, status: action.value ? 'HUNTING' : 'STANDBY' };
-    case 'SET_COOLING': return { ...state, isCooling: action.value, status: action.value ? 'COOLING' : 'IDLE' };
-    case 'SET_STATUS': return { ...state, status: action.value, activeObjective: action.objective || state.activeObjective };
-    case 'SET_TARGET': return { ...state, currentTarget: action.target };
-    case 'LOG_UPDATE': return { ...state, logs: action.logs };
-    case 'SET_GOV_CONFIG':
-        return { 
-            ...state, 
-            governanceConfig: { ...state.governanceConfig, ...action.config },
-            config: { ...state.config, cycleDelay: action.config.governance_cycle_ms || state.config.cycleDelay } // Update cycle delay dynamically
-        };
-    case 'UPDATE_METRICS':
-        return { ...state, metrics: action.metrics };
-    case 'INCREMENT_CYCLE': 
-      return { 
-        ...state, 
-        cycleCount: state.cycleCount + 1, 
-        successCount: state.successCount + (action.success ? 1 : 0),
-        errorCount: state.errorCount + (action.error ? 1 : 0),
-        absorptionRate: Math.min(100, state.absorptionRate + (action.gain || 0)) 
-      };
-    default: return state;
-  }
-}
-
-const safeAtou = (str) => {
-  if (!str) return "";
-  try {
-    const cleaned = str.replace(/\s/g, '');
-    return decodeURIComponent(Array.prototype.map.call(atob(cleaned), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  } catch (e) { return atob(str.replace(/\s/g, '')); } 
-};
-
-const safeUtoa = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m, p) => String.fromCharCode('0x' + p)));
-
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'agi-kernal-v6-9';
-
-export default function App() {
-  const [state, dispatch] = useReducer
+    return { valid: false, reason: `Executable payload data missing
