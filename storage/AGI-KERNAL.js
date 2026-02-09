@@ -22,14 +22,18 @@ useEffect(() => {
       const configuredMultiplier = state.config.pulse_multiplier || 1.0;
       const evolutionLevel = state.evolution_level || 0; // Assume 0-100 scale for maturity
       
-      // V7.9.5: Integrity Score Clamping and Safety Floor Enforcement (DCCA Policy Compliance)
+      // V8.2.0: Integrity Policy Violation Monitoring and Adaptive Safety Classification (DCCA/PIVTE Integration)
       const rawIntegrityScore = state.policy_integrity_score ?? 0.0; 
       
       // 1. Ensure integrity score adheres to [0.0, 1.0] bounds for calculation stability
       const clampedIntegrityScore = Math.min(1.0, Math.max(0.0, rawIntegrityScore)); 
       
+      // Policy Check: Determine if integrity score triggered mandatory safety floor throttling.
+      // This state is crucial for Meta-Reasoning and PIVTE logging/telemetry.
+      const isIntegrityThrottleActive = clampedIntegrityScore < MIN_SAFETY_FLOOR; 
+
       // Safety Factor: Ensures minimum operational multiplier (MIN_SAFETY_FLOOR) set by config.
-      // Scales down overall speed gain based on integrity risk (aligned with DCCA)
+      // Scales down overall speed gain based on integrity risk (aligned with DCCA).
       const safetyFactor = Math.max(MIN_SAFETY_FLOOR, clampedIntegrityScore); 
       
       // Maturity Factor: System speeds up slightly as evolution level increases.
