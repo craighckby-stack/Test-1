@@ -9,6 +9,10 @@
       const configuredMultiplier = state.config.pulse_multiplier || 1.0;
       const evolutionLevel = state.evolution_level || 0; // Assume 0-100 scale for maturity
       
+      // V7.7.0: Standardized Maturity Scaling and Autonomy Target Increase (15% max gain)
+      const MAX_EVOLUTION_LEVEL = 100; // Constraint based on system documentation
+      const MAX_PERFORMANCE_GAIN = 0.15; // Autonomous self-optimization target
+      
       // V7.6.0: Policy Integrity Feedback Loop (Safety Integration based on DCCA/AITM context)
       // High integrityScore (1.0) maintains speed; low score (0.0) forces cautious operation.
       const integrityScore = state.policy_integrity_score || 1.0; // Assumed 0.0 to 1.0
@@ -17,9 +21,10 @@
       // Ensures minimum operational multiplier of 0.5 relative to other factors.
       const safetyFactor = Math.max(0.5, integrityScore); 
       
-      // Maturity Factor: System speeds up slightly as evolution level increases (up to 10% faster)
-      // This enforces autonomous self-optimization of the cycle rate.
-      const maturityFactor = 1.0 + (evolutionLevel / 1000); 
+      // Maturity Factor: System speeds up slightly as evolution level increases.
+      // Calculation: 1.0 + (Level / MaxLevel * MaxGain)
+      const maturityGain = (evolutionLevel / MAX_EVOLUTION_LEVEL) * MAX_PERFORMANCE_GAIN;
+      const maturityFactor = 1.0 + maturityGain; 
       
       const adjustedMaturityFactor = maturityFactor * safetyFactor;
       
@@ -40,4 +45,4 @@
         clearTimeout(cycleRef.current);
       }
     };
-  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready]); 
+  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready])
