@@ -10,9 +10,9 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.10 enhancement) introduces dedicated log summary capabilities 
-    to strengthen internal monitoring and telemetry infrastructure (Autonomy).
-    It retains the mandatory state transition path validation and penalty weighting.
+    This version enhances governance persistence (Infrastructure/Meta-Reasoning) by
+    implementing schema saving functionality to ensure dynamically updated severity
+    weights persist across evolution cycles.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -28,20 +28,28 @@ class ACVD_DecisionEngine:
         "STATE_ERROR": 0.40
     }
     
+    # Defines how internal log levels map to governance issue types for penalty calculation (Abstraction)
+    _INTERNAL_ISSUE_MAP = {
+        "CRITICAL": "CRITICAL",
+        "ERROR": "STRUCTURAL_ERROR", 
+        "WARNING": "GOVERNANCE_VIOLATION" 
+    }
+
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         self.schema_path = schema_path
         self._log_queue: List[Dict[str, Any]] = [] # Infrastructure: Internal queue for Telemetry System
+        # Assume persistence is desired for Meta-Reasoning outputs unless overridden
+        self.persist_config = True
         
         try:
             self.schema = self._load_schema(schema_path)
         except Exception:
             # If schema loading fails critically, initialize with minimal safe defaults
-            # Ensure the engine remains operational for core functions even without full governance
             self.schema = {} 
             self._log_status("CRITICAL", "Failed to load governance schema. Operating in limited mode.", "INIT_FAILSAFE")
             
         self.valid_states = self.schema.get('valid_states', []) 
-        self.state_transitions = self.schema.get('state_transitions', {}) # NEW: Transition map support
+        self.state_transitions = self.schema.get('state_transitions', {}) # Transition map support
         
         # Load configurable thresholds
         config = self.schema.get('config', {})
@@ -92,7 +100,6 @@ class ACVD_DecisionEngine:
         
         if not os.path.exists(path):
             self._log_status("CRITICAL", f"ACVD Schema not found at {path}. Governance cannot proceed.", "SCHEMA_LOAD")
-            # We raise here because the failure needs to be caught in __init__ for fail-safe mode.
             raise FileNotFoundError(f"ACVD Schema not found at {path}.")
         
         try:
@@ -111,6 +118,33 @@ class ACVD_DecisionEngine:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
             raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
             
+    def _save_schema(self):
+        """Persists the current schema (including dynamically updated severity weights)
+        back to the file system, supporting Meta-Reasoning persistence (Infrastructure: Data Persistence)."""
+        if not self.persist_config:
+            self._log_status("DEBUG", "Schema persistence disabled by configuration.", "SCHEMA_PERSIST_SKIP")
+            return
+
+        # Prepare the data structure to save
+        save_data = self.schema.copy()
+        
+        # Ensure the configuration block exists and update weights
+        if 'config' not in save_data:
+            save_data['config'] = {}
+            
+        # Update dynamic elements derived from learning
+        save_data['config']['severity_weights'] = self.severity_weights
+        save_data['config']['min_safety_score'] = self.safety_threshold
+
+        try:
+            with open(self.schema_path, 'w') as f:
+                # Use standard JSON formatting for readability
+                json.dump(save_data, f, indent=4)
+            self._log_status("INFO", f"Governance schema and weights persisted successfully to {self.schema_path}.", "SCHEMA_PERSIST_SUCCESS")
+        except Exception as e:
+            self._log_status("CRITICAL", f"Failed to persist schema to disk: {e}", "SCHEMA_PERSIST_FAIL")
+
+            
     def _get_penalty_weight(self, issue_type: str, is_internal_assessment: bool = False) -> float:
         """ 
         Retrieves the severity weight for a given issue type, applying internal assessment 
@@ -121,7 +155,6 @@ class ACVD_DecisionEngine:
         
         if is_internal_assessment:
             # Internal issues (like engine logging errors) are penalized slightly less severely 
-            # than external governance failures (proposal rejection), supporting graceful recovery.
             return weight * 0.5
         
         return weight
@@ -141,13 +174,6 @@ class ACVD_DecisionEngine:
             "timestamp": get_utc_timestamp()
         }
 
-        # Map internal log levels to defined issue types for weight application
-        LOG_LEVEL_MAP = {
-            "CRITICAL": "CRITICAL",
-            "ERROR": "STRUCTURAL_ERROR", 
-            "WARNING": "GOVERNANCE_VIOLATION" 
-        }
-        
         negative_score_accumulation = 0.0
         
         for log in self._log_queue:
@@ -158,9 +184,9 @@ class ACVD_DecisionEngine:
             elif level == 'ERROR':
                 assessment['errorLogCount'] += 1
 
-            # Apply penalty based on the log level severity, using centralized penalty calculation
-            if level in LOG_LEVEL_MAP:
-                issue_type = LOG_LEVEL_MAP[level]
+            # Apply penalty based on the log level severity, using abstracted map
+            if level in self._INTERNAL_ISSUE_MAP:
+                issue_type = self._INTERNAL_ISSUE_MAP[level]
                 weight = self._get_penalty_weight(issue_type, is_internal_assessment=True)
                 negative_score_accumulation += weight
 
@@ -202,8 +228,7 @@ class ACVD_DecisionEngine:
 
     def flush_logs(self):
         """Clears the internal log queue after logs have been successfully consumed by the Telemetry System.
-        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
-        """
+        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)"""
         if self._log_queue:
             self._log_queue.clear()
             self._log_status("DEBUG", "Internal log queue flushed.", "LOG_FLUSH")
@@ -211,6 +236,8 @@ class ACVD_DecisionEngine:
     def update_severity_weights(self, new_weights: Dict[str, float]):
         """Allows Meta-Reasoning component to dynamically update governance scoring strategy 
         based on learning outcomes. (Supports Autonomy and Meta-Reasoning).
+        
+        Crucially, this now persists the changes using _save_schema.
         """
         if not isinstance(new_weights, dict):
             self._log_status("ERROR", "Cannot update weights: Input must be a dictionary.", "WEIGHT_UPDATE_FAIL")
@@ -228,6 +255,7 @@ class ACVD_DecisionEngine:
         
         if updates_applied > 0:
             self._log_status("INFO", f"Severity weights dynamically updated. {updates_applied} entries changed.", "WEIGHT_UPDATE_SUCCESS")
+            self._save_schema() # Persistence of Meta-Reasoning output
         else:
             self._log_status("DEBUG", "Severity weights update called, but no valid changes were applied.", "WEIGHT_UPDATE_NOOP")
 
@@ -235,8 +263,6 @@ class ACVD_DecisionEngine:
     def validate_proposal(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """Performs structural, state, and metric validation, returning a detailed report 
         for AGI meta-reasoning and learning history (Meta-Reasoning support).
-        
-        The governanceHealthScore is calculated dynamically based on accumulated severity weights.
         """
         report: Dict[str, Any] = {
             "status": "PASS",
@@ -249,11 +275,9 @@ class ACVD_DecisionEngine:
         
         # Robustness check on input type
         if not isinstance(proposal, dict):
-            # This is a total failure, instant score reduction
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Input proposal is not a valid dictionary.", "context": "Input Type"})
             report['status'] = 'FAIL'
-            # Use centralized penalty calculation
             negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
             report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
             return report
