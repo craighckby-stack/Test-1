@@ -21,18 +21,30 @@ class SchemaValidationError extends Error {
 /**
  * The Schema Validator enforces the structural integrity of data across the XEL environment.
  * It is designed for robustness (Error Handling) and dynamic updates (Autonomy).
+ * 
+ * Improvement: Accepts external dependency (onValidationFailure) to integrate with Nexus/MQM (Integration Requirement).
  */
 class SchemaValidatorEngine {
-    constructor() {
+    /**
+     * @param {object} options - Configuration options.
+     * @param {object} [options.componentSchemas] - Schema definitions to override defaults.
+     * @param {function} [options.onValidationFailure] - Callback function for Nexus/MQM logging. (mqmPayload, failureEntry)
+     */
+    constructor(options = {}) {
+        const { componentSchemas, onValidationFailure } = options;
+        
         this.validator = null;
         this.SchemaValidationError = SchemaValidationError;
+        
+        // INTEGRATION HOOK: Function provided by the kernel core (App.js -> logToDb/MQM)
+        this.onValidationFailure = onValidationFailure || (() => {}); 
         
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
         this.failureHistory = []; 
         this.MAX_HISTORY = 100; // Store the last 100 failures
         
-        // Initialize validator with imported specification
-        this.initializeValidator(XEL_Specification.ComponentSchemas);
+        // Initialize validator using provided schemas or default imported ones
+        this.initializeValidator(componentSchemas || XEL_Specification.ComponentSchemas);
     }
 
     /**
@@ -55,6 +67,10 @@ class SchemaValidatorEngine {
         if (componentSchemas) {
             Object.entries(componentSchemas).forEach(([name, schema]) => {
                 try {
+                    // Check if schema is already defined to avoid strict mode errors on re-init
+                    if (this.validator.getSchema(name)) {
+                         this.validator.removeSchema(name);
+                    }
                     this.validator.addSchema(schema, name);
                 } catch (e) {
                     // Log schema registration failure, but continue initialization
@@ -75,10 +91,14 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * Internal method to log validation failures for Meta-Reasoning analysis.
+     * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
+     * @param {string} schemaName 
+     * @param {Array<object>} errors 
+     * @param {boolean} isCritical 
+     * @param {object} dataSample - The data being validated (for context extraction).
      */
-    _trackFailure(schemaName, errors, isCritical) {
-        const timestamp = Date.now();
+    _trackFailure(schemaName, errors, isCritical, dataSample) {
+        // 1. Prepare history and summary
         const summary = errors.map(e => ({
             path: e.instancePath || e.dataPath || 'N/A',
             keyword: e.keyword,
@@ -86,20 +106,34 @@ class SchemaValidatorEngine {
         }));
         
         const failureEntry = {
-            timestamp,
+            timestamp: Date.now(),
             schemaName,
-            isCritical, // Critical (throw) or Soft (tryValidate)
+            isCritical, 
             summary,
             count: errors.length
         };
         
+        // 2. Log to Internal History (Requirement 3: Nexus Inform Strategy)
         this.failureHistory.unshift(failureEntry);
-        // Maintain fixed size history
         if (this.failureHistory.length > this.MAX_HISTORY) {
             this.failureHistory.pop();
         }
         
-        // Console log only critical failures to maintain clean operational trace
+        // 3. Trigger External Nexus/MQM Logging (Requirement 1 & 2)
+        const mqmPayload = {
+            metric_type: 'VALIDATION_FAILURE',
+            schema: schemaName,
+            criticality: isCritical ? 'CRITICAL_THROW' : 'SOFT_RECOVERY',
+            error_count: errors.length,
+            // Capture data structure context for pattern recognition
+            context_keys: dataSample ? Object.keys(dataSample).slice(0, 8).join(', ') : 'N/A',
+            first_error: summary[0] || {}
+        };
+        
+        // APPLY existing tools: Use the injected function to log the metrics to Nexus/MQM system
+        this.onValidationFailure(mqmPayload, failureEntry);
+
+        // 4. Console log only critical failures
         if (isCritical) {
              console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${summary[0].path}`);
         }
@@ -129,8 +163,8 @@ class SchemaValidatorEngine {
         const valid = validateFn(data); // Data is potentially mutated here (clean up)
         
         if (!valid) {
-            // Meta-Reasoning: Track critical failure
-            this._trackFailure(schemaName, validateFn.errors, true); 
+            // Integration: Track critical failure, passing the original data structure context
+            this._trackFailure(schemaName, validateFn.errors, true, data); 
             
             // Error Handling: Throw custom error 
             throw new this.SchemaValidationError(schemaName, validateFn.errors);
@@ -151,21 +185,22 @@ class SchemaValidatorEngine {
         const validateFn = this.validator.getSchema(schemaName);
         if (!validateFn) return null; 
         
-        // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
-        // Using structured clone or a robust utility is ideal, but JSON deep copy is used here for simplicity within file context.
         let dataCopy;
         try {
+            // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
             dataCopy = JSON.parse(JSON.stringify(data));
         } catch (e) {
             console.warn(`[SCHEMA_ENGINE]: Data serialization failed during tryValidate: ${e.message}`);
-            return null; // Cannot proceed if data is not serializable
+            // Track failure of the copying process itself if data is non-serializable
+            this._trackFailure(schemaName, [{keyword: 'serialization', message: 'Input data non-serializable'}], false, data);
+            return null; 
         }
         
         const valid = validateFn(dataCopy);
         
         if (!valid) {
-            // Meta-Reasoning: Track soft failure
-            this._trackFailure(schemaName, validateFn.errors, false);
+            // Integration: Track soft failure, passing the original data structure context
+            this._trackFailure(schemaName, validateFn.errors, false, data);
             return null;
         }
         
@@ -181,5 +216,5 @@ class SchemaValidatorEngine {
     }
 }
 
+// We rely on the integrating kernel (App.js) to instantiate SchemaValidatorEngine with necessary hooks.
 export { SchemaValidatorEngine, SchemaValidationError };
-export default new SchemaValidatorEngine();
