@@ -9,7 +9,10 @@ class SchemaValidationError extends Error {
     constructor(schemaName, errors) {
         // Use a temporary Ajv instance to access the errorsText utility cleanly
         const tempAjv = new Ajv();
-        const errorText = tempAjv.errorsText(errors, { separator: '; ', dataVar: schemaName });
+        // Fallback for potentially malformed errors structure
+        const errorText = errors && Array.isArray(errors) 
+            ? tempAjv.errorsText(errors, { separator: '; ', dataVar: schemaName })
+            : 'Validation context missing or malformed.';
         
         super(`XEL Validation Failed [${schemaName}]: ${errorText}`);
         this.name = 'SchemaValidationError';
@@ -100,18 +103,18 @@ class SchemaValidatorEngine {
      */
     _trackFailure(schemaName, errors, isCritical, dataSample) {
         // 1. Prepare history and summary
-        const summary = errors.map(e => ({
+        const summary = errors?.map(e => ({
             path: e.instancePath || e.dataPath || 'N/A',
             keyword: e.keyword,
             message: e.message
-        }));
+        })) || [];
         
         const failureEntry = {
             timestamp: Date.now(),
             schemaName,
             isCritical, 
             summary,
-            count: errors.length
+            count: summary.length
         };
         
         // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
@@ -123,12 +126,13 @@ class SchemaValidatorEngine {
         // 3. Trigger External Nexus/MQM Logging (Integration Points)
         const mqmPayload = {
             metric_type: 'AGI_INTEGRATION_FAILURE',
+            kernel_version: 'v7.4.3', // Added kernel version for Nexus context
             source_component: 'SchemaValidatorEngine',
             // Direct link to core AGI capabilities for strategy refinement
             AGI_CAPABILITY_IMPACT: 'JSON Parsing/Error Handling', 
             schema_name: schemaName,
             criticality: isCritical ? 'CRITICAL_THROW' : 'SOFT_RECOVERY',
-            error_count: errors.length,
+            error_count: summary.length,
             // Detailed error context for LLM output analysis
             first_error_keyword: summary[0]?.keyword || 'N/A',
             first_error_path: summary[0]?.path || 'N/A',
@@ -136,11 +140,16 @@ class SchemaValidatorEngine {
         };
         
         // APPLY existing tools: Use the injected function to log the metrics to Nexus/MQM system
-        this.onValidationFailure(mqmPayload, failureEntry);
+        // Robustness Improvement: Ensure logging failure does not crash the core system.
+        try {
+            this.onValidationFailure(mqmPayload, failureEntry);
+        } catch (e) {
+            console.warn(`[MQM_LOG_FAIL]: Failed to execute onValidationFailure hook for ${schemaName}:`, e.message);
+        }
 
         // 4. Console log only critical failures
         if (isCritical) {
-             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${summary[0]?.path || 'N/A'}`);
+             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${summary.length}, KeyPath=${summary[0]?.path || 'N/A'}`);
         }
     }
 
