@@ -1,11 +1,44 @@
 const os = require('os');
+const fs = require('fs');
+
+// === TARGET INTEGRATION: Codebase Accessor (AGI-C-06) ===
+
+/**
+ * @fileoverview Central interface for all AGI filesystem and codebase interaction.
+ * This abstracts away Node.js 'fs' dependencies and centralizes codebase checks,
+ * allowing the core logic to remain platform-agnostic and testable (AGI-C-06).
+ */
+export class CodebaseAccessor {
+
+    /**
+     * Checks if a file or directory exists at the given path within the codebase scope.
+     * This should eventually be connected to an in-memory representation for speed.
+     * @param {string} filePath The absolute or project-relative path to check.
+     * @returns {boolean} True if the file exists.
+     */
+    static fileExists(filePath) {
+        if (!filePath || typeof filePath !== 'string') {
+            return false;
+        }
+        try {
+            // TODO: Replace direct fs access with cached codebase state lookup
+            return fs.existsSync(filePath);
+        } catch (error) {
+            // Logging unexpected error during file check is critical
+            console.error(`[CodebaseAccessor] Failed to check existence of ${filePath}:`, error);
+            return false;
+        }
+    }
+
+    // Future extensions should include: readFile, writeFile, updateCodebaseMap, etc.
+}
 
 AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
-import { initializeApp, getApp, getApps } from \'firebase/app\';
-import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
 
 /**
  * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
@@ -280,7 +313,7 @@ class AveragerFactory {
 
     /**
      * Creates a new instance of the appropriate Averager based on the metric type.
-     * Falls back to \'default\' if the type is not found.
+     * Falls back to 'default' if the type is not found.
      * @param {string} metricType - The identifier string.
      * @param {string} instanceName - The specific name for the metric instance (e.g., 'cpu_1m_avg').
      * @returns {BaseAverager} An instance of the registered averager class.
@@ -319,7 +352,7 @@ const MEE_AveragerFactory = new AveragerFactory();
 
 /** 
  * STUB: Conceptual Policy Registry. Defines handlers for policy types. 
- * In a full system, this would be imported from \'./ConceptualPolicyRegistry.js\'.
+ * In a full system, this would be imported from './ConceptualPolicyRegistry.js'.
  */
 const ConceptualPolicyRegistry = {
     // Example Handler: Checks if a numeric metric exceeds a threshold.
@@ -819,7 +852,8 @@ const KernelGICM = {
             }
         },
         // Artifact Check
-        {n            id: 'GICM-ART-003',
+        {
+            id: 'GICM-ART-003',
             type: 'ARTIFACT',
             config: {
                 artifactId: 'PMH_LOCK_V1',
@@ -1014,84 +1048,4 @@ function AGI_Kernel() {
     return (
         <div className="agi-kernel-dashboard">
             <h1><Cpu className="icon" /> AGI Kernel Core Operational Status (v6.9)</h1>
-            <p>Status: {state.isAuthenticated ? <ShieldCheck /> : <AlertTriangle />} {state.isAuthenticated ? "Authenticated and Operational" : "Awaiting Authentication"}</p>
-
-            <section className="governance-panel">
-                <h2><Lock /> Governance Status (GICM)</h2>
-                {state.governanceReport.isValid ? (
-                    <p><ShieldCheck color="green" /> All policies compliant.</p>
-                ) : (
-                    <div>
-                        <AlertTriangle color="red" /> {state.governanceReport.violations.length} Violation(s) Detected:
-                        <ul>
-                            {state.governanceReport.violations.map((v, i) => (
-                                <li key={i} style={{ color: v.severity === 'CRITICAL' ? 'red' : 'orange' }}>
-                                    [{v.ruleId}] {v.detail} (Severity
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-            </section>
-
-            <section className="metrics-panel">
-                <h2><Gauge /> System Metrics (MEE Averages)</h2>
-                <ul>
-                    {Object.keys(state.systemMetrics)
-                        .filter(key => key.endsWith('_avg'))
-                        .map(key => (
-                            <li key={key}>{key}: {(state.systemMetrics[key] * 100).toFixed(2)}{key.includes('Percent') ? '%' : ''}</li>
-                        ))}
-                    <li>osTotalMemoryBytes (Raw): {state.systemMetrics.osTotalMemoryBytes || 'N/A'}</li>
-                </ul>
-            </section>
-
-            <section className="logs-panel">
-                <h2><ScanText /> Kernel Logs</h2>
-                <div className="log-output">
-                    {state.logs.slice().reverse().map((log, index) => (
-                        <p key={index}>{new Date().toLocaleTimeString()}: {log}</p>
-                    ))}
-                </div>
-            </section>
-
-            <style jsx global>{`
-                .agi-kernel-dashboard {
-                    font-family: monospace;
-                    padding: 20px;
-                    background: #1e1e1e;
-                    color: #00ffaa;
-                    border: 2px solid #00ffaa;
-                    border-radius: 8px;
-                }
-                h1, h2 {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    border-bottom: 1px solid #005533;
-                    padding-bottom: 5px;
-                    margin-top: 20px;
-                }
-                .icon {
-                    width: 20px;
-                    height: 20px;
-                }
-                .log-output {
-                    max-height: 200px;
-                    overflow-y: scroll;
-                    border: 1px solid #005533;
-                    padding: 10px;
-                    background: #0d0d0d;
-                }
-                .log-output p {
-                    margin: 2px 0;
-                    font-size: 0.85em;
-                    line-height: 1.2;
-                }
-                .governance-panel p, ul {
-                    padding-left: 20px;
-                }
-            `}</style>
-        </div>
-    );
-}
+            <p>Status: {state.
