@@ -7,6 +7,14 @@ from datetime import datetime
 from pathlib import Path
 from .HashingErrors import ArtifactSerializationError
 
+# AGI-KERNEL Improvement: Import dataclasses for robust structural data serialization (Cycle 1)
+try:
+    import dataclasses
+    from dataclasses import is_dataclass, asdict
+    DATACLASSES_AVAILABLE = True
+except ImportError:
+    DATACLASSES_AVAILABLE = False
+
 
 class CanonicalJSONEncoder(json.JSONEncoder):
     """
@@ -16,7 +24,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     This encoder prioritizes consistency and robustness for core AGI data structures.
     AGI-KERNEL Improvement: Added logic for serializing custom objects via 
     __dict__ or explicit 'to_canonical_dict' method for better integration 
-    with /agents and /emergent components.
+    with /agents and /emergent components. Also added explicit support for Python dataclasses (Cycle 1).
     """
     def default(self, obj):
         # 1. Handle non-native iterables deterministically
@@ -43,6 +51,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
         if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid')):
+            
+            # 5a. Explicit dataclass serialization for structural integrity (NEW)
+            if DATACLASSES_AVAILABLE and is_dataclass(obj):
+                # Use asdict() for robust, nested conversion of dataclass fields.
+                return asdict(obj)
+
             # Prioritize explicit interface if defined by the object itself
             if hasattr(obj, 'to_canonical_dict'):
                 return obj.to_canonical_dict()
