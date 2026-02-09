@@ -171,7 +171,7 @@ class AveragerFactory {
         let AveragerClass = this.registry.get(metricType);
 
         if (!AveragerClass) {
-            console.warn(`[AveragerFactory] Metric type '${metricType}' not found. Using 'default' averager.`);
+            console.warn(`[AveragerFactory] Metric type '\${metricType}' not found. Using 'default' averager.`);
             AveragerClass = this.registry.get('default');
         }
 
