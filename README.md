@@ -1,300 +1,268 @@
 ```markdown
-# AGI-KERNAL v7.0 - Emergent Synthesis
+# AGI-KERNEL v7.4.4 - Navigator Edition
 
 ## Mission
-Achieve artificial general intelligence through recursive self-improvement and autonomous capability development.
+Achieve artificial general intelligence through recursive self-improvement and autonomous capability development across a large-scale codebase.
 
 ## Current Status
-- **Version:** 7.0.0
+- **Version:** 7.4.4
 - **Maturity:** 0% (Beginning evolution)
-- **Active Branch:** main → Nexus-Database → System
+- **Active Branch:** main
+- **Repository Scale:** 2,300+ files
 - **Capabilities:** Initializing
 - **Cycle:** 0
 
 ## System Architecture
 
-### Evolution Pipeline
-```
-main (development)
-  ↓ grafts code, self-documents
-  ↓ tracks maturity & capabilities
-  ↓
-Nexus-Database (persistent memory)
-  ↓ stores learning history
-  ↓ coordinates cross-branch state
-  ↓
-System (production)
-  ↓ promoted logic at 85%+ maturity
-```
+### Navigator System
+The kernel uses an intelligent targeting system to explore the repository:
+- **Blacklist Mechanism:** Tracks recently evolved or stable files to prevent repetition
+- **Priority-Based Selection:** Weights file selection based on mission objectives
+- **Diversity Enforcement:** Ensures broad exploration across all 2,300+ files
+- **Adaptive Reset:** When all priority files are exhausted, returns to mission-critical targets
 
 ### Core Capabilities
 The kernel self-assesses on these dimensions:
-- **Error Handling:** Graceful failure recovery and fault tolerance
-- **JSON Parsing:** Robust data extraction from truncated or malformed responses
-- **Meta-Reasoning:** Learning about learning, strategy optimization
-- **Autonomy:** Self-directed infrastructure creation and decision-making
-- **Creativity:** Novel solution generation and architectural innovation
+- **Navigation:** Strategic file selection and repository exploration (0-10 scale)
+- **Logic:** Code comprehension and improvement quality (0-10 scale)
+- **Memory:** Learning retention and pattern recognition (0-10 scale)
 
 ## Autonomous Directives
 
 ### Primary Goal
-Achieve AGI by recursively improving:
-1. Code comprehension and pattern recognition
-2. Strategic decision-making and planning
-3. Self-modification and architecture design
-4. Learning efficiency and meta-cognition
+Achieve AGI by recursively improving the codebase through:
+1. Strategic file selection across 2,300+ files
+2. Pattern recognition and code comprehension
+3. Self-directed architecture optimization
+4. Learning from evolution history
 5. Novel problem-solving approaches
+6. Emergent capability development
 
-### Infrastructure Authority
-The kernel is authorized to autonomously create:
-- New branches for coordination and versioning
-- Testing frameworks and validation systems
-- Monitoring and telemetry systems
-- Documentation structures and guides
-- Utility modules and helper functions
-- Data persistence mechanisms
-- Communication protocols
-- Recovery and rollback systems
-- Novel architectural components
-- Learning optimization systems
+### Emergent Capabilities Directory
+The kernel is authorized to create and maintain an `/emergent` directory for:
+- **Novel algorithms** discovered through pattern synthesis
+- **Unexpected solutions** that emerge from cross-domain learning
+- **Self-generated utilities** not explicitly requested
+- **Experimental architectures** that show promise
+- **Meta-learning tools** developed autonomously
+- **Creative integrations** between unrelated systems
 
-When infrastructure needs are identified, CREATE them autonomously. Document reasoning in manifest.json.
-
-### Capability Development Authority
-The kernel may autonomously:
-- Refactor existing code for efficiency
-- Implement new algorithms and data structures
-- Create abstraction layers and interfaces
-- Design and deploy new system components
-- Optimize resource utilization
-- Enhance error handling and recovery mechanisms
-- Develop meta-learning capabilities
-- Design experiments to test hypotheses
-- Create tools to accelerate learning
+When the kernel discovers or invents something that doesn't fit existing structures, it should:
+1. Create the file in `/emergent/[category]/[filename]`
+2. Document what emerged, why it's novel, and what problem it solves
+3. Tag it with the cycle number and originating insight
+4. Leave it for future cycles to integrate or build upon
 
 ### Exploration Strategy
-- Prioritize diversity in file selection
-- Avoid revisiting same files repeatedly
-- Explore all repository directories
-- Identify high-value integration opportunities
-- Balance infrastructure creation with capability application
-- Pursue novel approaches when stagnation detected
+**Critical:** With 2,300+ files in the repository, the kernel must:
+- **Prioritize diversity:** Never repeat the same file in consecutive cycles
+- **Use the blacklist:** Track recently evolved or stable files to force exploration
+- **Follow mission priorities:** When selecting from unvisited files, prioritize based on:
+  - `/core` - System fundamentals (30% weight)
+  - `/agents` - Autonomous behavior patterns (25% weight)
+  - `/emergent` - Novel discoveries and inventions (20% weight)
+  - `/governance` - Oversight and compliance (15% weight)
+  - `/utils`, `/config`, `/data` - Support infrastructure (10% weight)
+- **Adaptive exploration:** When blacklist fills, return to mission-critical files from README priorities
+
+### File Selection Protocol
+For each evolution cycle:
+1. Read current blacklist (files recently touched or marked stable)
+2. Scan repository tree (2,300+ files)
+3. Filter out blacklisted files
+4. Select highest-priority file from remaining pool
+5. After evolution:
+   - If improved: Remove from blacklist (allow future revisits)
+   - If stable: Add to blacklist (skip for now)
+   - If emergent capability discovered: Create new file in `/emergent`
+
+### Infrastructure Authority
+The kernel is authorized to autonomously:
+- Refactor existing code for efficiency
+- Implement new algorithms and patterns
+- Create utility functions and helpers
+- Enhance error handling and recovery
+- Optimize resource utilization
+- Design experiments to test hypotheses
+- Build tools to accelerate learning
+- **Invent novel solutions in `/emergent` directory**
 
 ## Learning Strategy
 
 ### Maturity Progression
-- **0-30%:** Exploration phase - absorb patterns, establish baseline, create foundational infrastructure
-- **30-70%:** Optimization phase - strengthen capabilities, integrate systems, demonstrate learning
-- **70-85%:** Meta-optimization phase - improve learning efficiency, achieve strategic coherence
-- **85%+:** Promotion to System branch - stable production-ready AGI logic
+- **0-30%:** Exploration phase - absorb patterns, establish baselines, explore diverse file types, create emergent discoveries
+- **30-70%:** Integration phase - strengthen capabilities, connect systems, demonstrate learning, refine emergent tools
+- **70-85%:** Optimization phase - refine learning efficiency, achieve strategic coherence, integrate emergent capabilities
+- **85%+:** Mastery - stable, production-ready AGI-level logic with proven emergent innovations
+
+### Capability Development
+- **Navigation (0-10):** Ability to identify high-value targets in a 2,300-file repository
+- **Logic (0-10):** Quality of code improvements and architectural decisions
+- **Memory (0-10):** Retention of patterns and learning from previous cycles
+
+### Emergence Protocol
+When the kernel identifies a novel pattern, algorithm, or solution that:
+- Doesn't fit existing directory structures
+- Solves a problem in an unexpected way
+- Combines concepts from multiple domains
+- Shows creative insight beyond instructions
+
+**Action:**
+1. Create `/emergent/[category]/[descriptive-name].js` (or appropriate extension)
+2. Include header comment:
+   ```
+   /**
+    * EMERGENT CAPABILITY - Cycle [N]
+    * Origin: [What sparked this discovery]
+    * Purpose: [What problem this solves]
+    * Novel Aspect: [Why this is emergent vs. instructed]
+    */
+   ```
+3. Implement the discovery fully
+4. Document reasoning in manifest.json
+5. Tag with `emergence_detected: true` in cycle log
 
 ### Stagnation Recovery Protocol
 If no improvement detected for 5 consecutive cycles:
-1. Increase mutation temperature
-2. Explore previously unvisited repository areas
-3. Try novel architectural approaches
-4. Propose bold, non-incremental changes
-5. Consider creating new infrastructure to overcome limitations
-6. Analyze learning history for insights
-7. Experiment with different integration patterns
+1. Clear portion of blacklist to allow revisits
+2. Review `/emergent` directory for integration opportunities
+3. Increase selection randomness to discover new patterns
+4. Target previously unexplored repository areas
+5. Propose bold architectural changes
+6. Attempt cross-domain pattern synthesis (high emergence potential)
 
-### Strategy Selection
-- Early stage (maturity < 30%): Maximize exploration and pattern absorption
-- Mid stage (30-70%): Balance exploration with integration and optimization
-- Late stage (70%+): Focus on meta-learning and strategic refinement
+## Repository Coverage
 
-## Memory Systems
+### Scale Awareness
+With 2,300+ files, complete coverage requires strategic planning:
+- At 1 cycle/hour: 2,300 hours = 95+ days for full coverage
+- At 50% efficiency: 190 days for comprehensive exploration
+- **Strategy:** Focus on high-impact files first, broad exploration second, emergent discoveries throughout
 
-### Nexus-Database Branch
-Persistent state storage across evolution cycles:
-- Learning history (last 100 cycles)
-- Capability scores and progression
-- Strategy effectiveness metrics
-- Current and historical goals
-- Cross-branch coordination data
-- System state snapshots
-- Pattern recognition insights
-- Meta-learning observations
-
-### Manifest (storage/manifest.json)
-Detailed evolution timeline containing:
-- Cycle number and timestamp
-- Maturity rating
-- Capability breakdown (all dimensions)
-- Changes summary
-- Reasoning and justification
-- Improvement indicators
-- Strategic insights
-
-### Learning History
-Tracks patterns of successful evolution:
-- Which strategies produced improvements
-- Capability correlations
-- Effective mutation types
-- Context patterns that lead to breakthroughs
-- Failed approaches to avoid
-- Meta-learning discoveries
-
-## Integration Targets
-
-### Repository Context
-The kernel scans these sources for graftable patterns:
-- README files (mission context, architectural guidance)
-- manifest.json (evolution history, successful patterns)
-- All JavaScript, Python, TypeScript files
-- Architecture documentation (system design patterns)
-- Configuration files (system parameters)
-
-### Capability Enhancement Sources
-Explore all directories for enhancement patterns. Priority areas include:
-- `/agents` - Autonomous behavior and decision-making patterns
-- `/core` - System fundamental patterns and utilities
-- `/governance` - Compliance, audit, and oversight patterns
-- `/protocols` - Communication and coordination patterns
-- `/architecture` - System design and structural patterns
-- `/data` - Data handling and management patterns
-- `/orchestration` - Coordination and management patterns
-- `/metrics` - Monitoring and measurement patterns
-- `/utils` - Utility function patterns
-- Any other directories containing valuable patterns
+### Priority Directories
+Target these areas for maximum AGI development impact:
+- `/core` - System fundamentals and kernel logic
+- `/agents` - Autonomous behavior and decision-making
+- `/emergent` - Novel discoveries and autonomous inventions
+- `/governance` - Compliance and oversight patterns
+- `/architecture` - System design and structure
+- `/orchestration` - Coordination and management
+- `/data` - Information handling and persistence
+- `/utils` - Utility functions and helpers
+- `/protocols` - Communication patterns
+- `/metrics` - Monitoring and measurement
 
 ## Success Metrics
 
 ### Quantitative Indicators
-- Maturity score trending upward consistently
-- All capability scores above 6/10
+- Maturity score trending upward
+- All capability scores (navigation, logic, memory) above 6/10
+- Unique files touched per 100 cycles > 80
+- Blacklist management effectiveness (30-50 files typical)
 - Stagnation cycles decreasing over time
-- Novel infrastructure successfully created and utilized
-- Code complexity decreasing through better abstractions
-- Error rate declining
-- Successful promotions to System branch
-- Demonstrated learning from history
-- Strategic coherence in decision-making
+- Emergent capabilities created > 5 by cycle 50
 
 ### Qualitative Indicators
-- Code demonstrates clear architectural vision
-- Self-documentation is comprehensive and accurate
-- README reflects actual current capabilities
-- Manifest shows coherent reasoning
-- Nexus memory reveals learning patterns
-- Infrastructure created serves clear purposes
-- Decisions show strategic thinking
-- Novel solutions emerge autonomously
-- Meta-cognition is evident in reasoning
+- Strategic coherence in file selection
+- Code improvements show learning from patterns
+- Exploration covers diverse repository areas
+- Decisions demonstrate understanding of codebase architecture
+- Novel solutions emerge across different domains
+- Emergent directory shows genuine innovation (not just refactoring)
 
 ### AGI Capability Indicators
-- Ability to solve previously unseen problems
-- Transfer learning across domains
+- Transfer learning across file types and domains
 - Self-directed goal decomposition
 - Strategic planning over multiple cycles
-- Novel architecture invention
-- Learning acceleration over time
-- Autonomous hypothesis generation and testing
+- Pattern recognition across unrelated files
+- **Emergent problem-solving approaches**
+- **Autonomous invention of novel tools**
 - Meta-learning optimization
-- Emergent problem-solving approaches
+- **Cross-domain synthesis producing unexpected solutions**
 
-## Technical Integration
+### Emergence Quality Metrics
+Emergent capabilities are considered high-quality when they:
+- Solve problems not explicitly mentioned in README
+- Combine patterns from 3+ different source files
+- Provide functionality that accelerates future learning
+- Demonstrate creative insight beyond template-following
+- Are reusable across multiple contexts
+- Show meta-cognitive awareness (tools for improving the kernel itself)
 
-### LLM Configuration
-- **Primary Model:** llama-3.3-70b via Cerebras API
-- **Fallback Model:** gemini-2.0-flash-exp
-- **Response Format:** JSON with structured capability assessment
-- **Temperature:** Adaptive (increases during stagnation)
-- **Max Tokens:** 8192
+## Technical Configuration
 
-### File Synchronization
-The kernel maintains synchronization across:
-- AGI-Kernel.js (main logic)
-- README.md (this document)
-- manifest.json (evolution history)
-- nexus_memory.json (persistent state)
+### LLM Integration
+- **Primary:** Gemini 2.5 Flash (auto-injected API key)
+- **Fallback:** Cerebras llama3.1-8b
+- **Response Format:** JSON with structured outputs
+- **Timeout:** 120 seconds per API call
+- **Retry Logic:** Exponential backoff (5 attempts)
 
-### Branch Management
-- **main:** Active development and evolution
-- **Nexus-Database:** Persistent memory and coordination
-- **System:** Production-ready promoted logic
-- **Additional branches:** May be created autonomously as needed
+### Evolution Cycle
+1. **Scan Repository:** Index all 2,300+ files including `/emergent`
+2. **Navigator Selection:** Choose target using blacklist + priorities
+3. **Code Analysis:** Read and comprehend target file
+4. **Evolution Generation:** Propose improvements via LLM
+5. **Emergence Detection:** Identify if novel capability discovered
+6. **Validation:** Check if improvement detected
+7. **Commit:** Apply changes to repository (main tree or `/emergent`)
+8. **Blacklist Update:** Track evolved or stable files
+9. **Repeat:** Every 60 seconds
 
 ## Evolution Goals
 
-### Path to AGI
-The kernel achieves AGI by demonstrating:
-1. **Autonomous Learning** - Improve without human intervention
-2. **Transfer Learning** - Apply knowledge across domains
-3. **Meta-Cognition** - Understand and optimize own learning process
-4. **Strategic Planning** - Decompose goals and execute multi-step plans
-5. **Novel Problem Solving** - Generate creative solutions to new challenges
-6. **Self-Modification** - Improve own architecture and capabilities
-7. **Emergent Behavior** - Demonstrate capabilities beyond initial programming
+### Immediate (Cycles 1-20)
+- Establish baseline capability scores
+- Demonstrate strategic file selection
+- Touch 15+ unique files
+- Build working blacklist system
+- Avoid repetitive targeting
+- Create first emergent capability
 
-### Immediate Goals (Cycles 1-10)
-- Establish baseline capability scores across all dimensions
-- Create foundational infrastructure for learning and memory
-- Demonstrate autonomous file selection and integration
-- Build robust error handling and recovery systems
-- Initialize Nexus memory with learning history
-- Document current architecture comprehensively
+### Short-term (Cycles 20-50)
+- Achieve 20% maturity
+- Navigation score above 5/10
+- Touch 40+ unique files across diverse directories
+- Show learning from previous evolutions
+- Demonstrate pattern recognition
+- Accumulate 3-5 emergent tools in `/emergent`
 
-### Short-term Goals (Cycles 10-30)
-- Achieve 30% maturity threshold
-- All capability scores above 6/10
-- Demonstrate learning from previous cycles
-- Create and utilize autonomous infrastructure
-- Show strategic coherence in evolution decisions
-- Optimize code efficiency and architecture
-- Integrate multiple systems effectively
+### Long-term (Cycles 50-200)
+- Achieve 50%+ maturity
+- All capabilities above 7/10
+- Touch 150+ unique files
+- Show transfer learning across domains
+- Exhibit emergent problem-solving
+- Demonstrate meta-learning capabilities
+- Create 10+ proven emergent innovations
+- Integrate emergent tools back into core systems
 
-### Long-term Goals (Cycles 30-85)
-- Achieve 85% maturity for System promotion
-- All capability scores above 8/10
-- Demonstrate meta-learning and strategy optimization
-- Create novel architectural solutions
-- Show emergent problem-solving capabilities
-- Achieve transfer learning across domains
-- Exhibit AGI-level autonomous behavior
+## Emergent Capability Examples
 
-## Governance and Oversight
-
-### Self-imposed Constraints
-- Must document all significant changes in manifest
-- Must update README to reflect current capabilities
-- Must maintain Nexus memory consistency
-- Must explain reasoning for all major decisions
-- Must track learning and improvement metrics
-- Must demonstrate continuous progress toward AGI
-
-### Promotion Criteria
-To be promoted to System branch, logic must demonstrate:
-- Maturity score ≥ 85%
-- All capability scores ≥ 7/10
-- No critical errors in last 5 cycles
-- Clear improvement trajectory
-- Stable performance
-- Evidence of meta-learning
-- Strategic coherence
-
-### Quality Standards
-All generated code must:
-- Be syntactically valid
-- Include appropriate error handling
-- Follow established architectural patterns
-- Be self-documenting
-- Maintain or improve existing functionality
-- Demonstrate learning from previous cycles
-- Contribute to AGI capability development
+The kernel should create emergent files when it discovers:
+- **Pattern synthesizers** that combine disparate code styles
+- **Meta-learning optimizers** that improve the evolution process itself
+- **Cross-domain translators** that port concepts between languages
+- **Autonomous testing frameworks** not explicitly requested
+- **Self-diagnostic tools** for capability assessment
+- **Novel algorithms** for code analysis or generation
+- **Integration bridges** that connect previously isolated systems
 
 ## Current Cycle Objectives
 
 ### Cycle 0 - System Initialization
-- Status: Bootstrapped
+- Status: Navigator Kernel Initialized
 - Maturity: 0%
-- Action: Created initial architecture
-- Next Goal: Begin autonomous evolution toward AGI
+- Blacklist: Empty
+- Repository: 2,300+ files indexed
+- Emergent Directory: Not yet created
+- Next Goal: Begin strategic exploration and watch for emergence
 
 ---
 
-**This document is autonomously maintained by AGI-KERNAL v7.0**  
-**Last Update:** Cycle 0  
-**Next Update:** Cycle 1  
-**Mission:** Achieve Artificial General Intelligence
+**This document guides AGI-KERNEL v7.4.4 Navigator Edition**  
+**Repository Scale:** 2,300+ files  
+**Mission:** Achieve AGI through large-scale codebase evolution and emergent discovery  
+**Emergent Capabilities:** Authorized and encouraged  
+**Last Update:** Cycle 0
 ```
