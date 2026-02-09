@@ -4,9 +4,8 @@ const generate = useCallback(async (objective, currentCode, deepContext, systemP
 
     let url = '';
     let body = {};
-    const headers = { 'Content-Type': 'application/json' }; // Initialize headers globally
-    let parseResponse = (data) => data; // Function to extract the text response
-
+    const headers = { 'Content-Type': 'application/json' };
+    let parseResponse = (data) => data;
     const messages = [];
 
     // 1. System message (Core directive)
@@ -15,7 +14,6 @@ const generate = useCallback(async (objective, currentCode, deepContext, systemP
     }
 
     // 2. Contextual message (Code and Objective)
-    // NOTE: This forms the core prompt injection for the AGI kernel's context window.
     messages.push({
       role: 'user',
       content: `
@@ -33,50 +31,60 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       `
     });
 
-    // --- Provider Specific Configuration ---
-    if (apiProvider === 'cerebras' || apiProvider === 'openai') {
-      // Standard OpenAI / Azure format, widely compatible with many LLM APIs
-      url = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : (CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions');
-      
-      // Centralize Bearer Token handling
-      if (apiKey) {
-         headers['Authorization'] = `Bearer ${apiKey}`;
-      } else {
-         await pushLog(`Configuration Error: API key missing for ${apiProvider}`, 'critical');
-         return { success: false, error: `API key missing for ${apiProvider}` };
+    // --- Provider Specific Configuration (Using switch for cleaner structure) ---
+    switch (apiProvider) {
+      case 'cerebras':
+      case 'openai': {
+        // Standard OpenAI / Azure format, widely compatible
+        url = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : (CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions');
+        
+        // Authentication Check
+        if (!apiKey) {
+           await pushLog(`Configuration Error: API key missing for ${apiProvider}`, 'critical');
+           return { success: false, error: `API key missing for ${apiProvider}` };
+        }
+        headers['Authorization'] = `Bearer ${apiKey}`;
+
+        body = {
+          model: model,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 4096,
+          stream: false
+        };
+        parseResponse = (data) => data.choices?.[0]?.message?.content || null;
+        break;
       }
 
-      body = {
-        model: model,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 4096,
-        stream: false
-      };
-      parseResponse = (data) => data.choices?.[0]?.message?.content || null;
-      
-    } else if (apiProvider === 'gemini') {
-      // NOTE: Gemini API key is passed via query param for v1beta compatibility.
-      url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
-      
-      // Gemini API v1beta requires role transformation and 'parts' structure
-      const geminiMessages = messages.map(msg => ({
-        role: msg.role === 'system' ? 'user' : msg.role, // Map system prompts to user role for compatibility
-        parts: [{ text: msg.content }]
-      }));
-      
-      body = {
-        contents: geminiMessages,
-        config: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
+      case 'gemini': {
+        if (!apiKey) {
+           await pushLog(`Configuration Error: API key missing for gemini`, 'critical');
+           return { success: false, error: `API key missing for gemini` };
         }
-      };
-      parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-      
-    } else {
-      await pushLog(`Configuration Error: Unknown API provider: ${apiProvider}`, 'critical');
-      return { success: false, error: `Unknown API provider: ${apiProvider}` };
+        
+        // NOTE: Gemini API key is passed via query param for v1beta compatibility.
+        url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
+        
+        // Gemini API v1beta requires role transformation and 'parts' structure
+        const geminiMessages = messages.map(msg => ({
+          role: msg.role === 'system' ? 'user' : msg.role, // Map system prompts to user role for compatibility
+          parts: [{ text: msg.content }]
+        }));
+        
+        body = {
+          contents: geminiMessages,
+          config: {
+            temperature: 0.7,
+            maxOutputTokens: 4096,
+          }
+        };
+        parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+        break;
+      }
+
+      default:
+        await pushLog(`Configuration Error: Unknown API provider: ${apiProvider}`, 'critical');
+        return { success: false, error: `Unknown API provider: ${apiProvider}` };
     }
 
     // --- Execution ---
@@ -102,6 +110,9 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       const rawResponse = parseResponse(data);
       
       if (!rawResponse) {
+        // Enhanced logging: log a slice of the raw data for context
+        const partialData = JSON.stringify(data).slice(0, 1000);
+        await pushLog(`LLM response was empty or unparseable. Partial JSON response: ${partialData}`, 'error');
         throw new Error("LLM response was empty or unparseable by the internal wrapper.");
       }
       
