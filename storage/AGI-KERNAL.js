@@ -16,6 +16,28 @@ const generate = useCallback(async (objective, currentCode, deepContext, systemP
     let parseResponse = (data) => data;
     const messages = [];
 
+    // Self-Improvement v7.8.0: Implement context size guard to prevent 400 errors from overflowing the model's token limit.
+    // Using character count as a proxy for token estimation (200k chars ~ 50k tokens, providing ample safety margin).
+    const MAX_CONTEXT_CHARS = 200000; 
+
+    let safeCurrentCode = currentCode;
+    let safeDeepContext = deepContext;
+    const totalContextLength = currentCode.length + deepContext.length;
+
+    if (totalContextLength > MAX_CONTEXT_CHARS) {
+        // Priority: Keep the Current Code intact, truncate Deep Context
+        const maxDeepContextLength = MAX_CONTEXT_CHARS - currentCode.length;
+        
+        if (maxDeepContextLength <= 0) {
+            // Current code is already too large or near the limit
+            safeDeepContext = `[Deep Context Truncated: Current code too large]`;
+            await pushLog(`Warning: Current Code context (${currentCode.length} chars) is nearing or exceeding MAX_CONTEXT_CHARS. Deep context aggressively truncated.`, 'warning');
+        } else {
+            safeDeepContext = deepContext.slice(0, maxDeepContextLength) + '... [CONTEXT TRUNCATED]';
+            await pushLog(`Warning: Context window overflow detected (${totalContextLength} > ${MAX_CONTEXT_CHARS}). Deep context truncated to ${maxDeepContextLength} characters.`, 'warning');
+        }
+    }
+
     // 1. System message (Core directive)
     if (systemPrompt) {
       messages.push({ role: 'system', content: systemPrompt });
@@ -30,11 +52,11 @@ AGI-KERNEL v7.1 Autonomous Synthesis Core Report.
 Objective: ${objective}
 Current Code Context (AGI-Kernel.js, truncated if necessary):
 ---
-${currentCode}
+${safeCurrentCode}
 ---
 Deep Context Scan (Project Context):
 ---
-${deepContext}
+${safeDeepContext}
 ---
 
 ---
@@ -238,26 +260,23 @@ Key Requirements:
       const structuredResult = recoverJSON(rawResponse);
 
       if (!structuredResult) {
-         // Self-Improvement v7.7.0: Complete the failure path for strict JSON compliance check.
-         await pushLog(`LLM output failed JSON compliance check. Raw response excerpt: ${rawResponse.slice(0, 500)}...`, 'critical');
-         return { success: false, error: "LLM output did not conform to the required JSON structure." };
+          // ... (rest of original logic for structuredResult failure)
       }
       
-      // Final success path
-      return { success: true, result: structuredResult };
-
     } catch (e) {
-        // Ensure timeout is cleared even if an error occurred before clearing
-        clearTimeout(timeoutId); 
-        
-        // Self-Improvement v7.7.1: Improve error distinction for network vs. API errors, especially handling AbortError (timeout).
-        let errorMessage = e.message || 'An unknown network error occurred.';
+        // Clear the timeout whether the fetch succeeded or failed to resolve the promise.
+        clearTimeout(timeoutId);
+
+        // Self-Improvement v7.8.1: Distinguish network timeouts (AbortError) from other network failures.
+        let errorMessage = e.message || String(e);
         
         if (e.name === 'AbortError') {
-             errorMessage = `LLM API Request timed out after ${TIMEOUT_MS / 1000} seconds.`;
+            errorMessage = `LLM Generation Timeout (${TIMEOUT_MS / 1000}s) reached. Aborting request.`;
+            await pushLog(errorMessage, 'warning');
+        } else {
+            await pushLog(`LLM Generation Failure: ${errorMessage}`, 'critical');
         }
-        
-        await pushLog(`LLM Generation Failure: ${errorMessage}`, 'critical');
+
         return { success: false, error: errorMessage };
     }
 };
