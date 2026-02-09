@@ -1,5 +1,13 @@
 const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "", temperature = 0.7, maxTokens = 4096) => {
     const { apiProvider, apiKey, model } = state.config;
+    
+    // Self-Improvement v7.1.1: Centralize API key validation. Since all current supported providers
+    // require an API key, we fail fast here, cleaning up the provider-specific logic blocks.
+    if (!apiKey) {
+        await pushLog(`Configuration Error: API key missing for ${apiProvider}.`, 'critical');
+        return { success: false, error: `API key missing for ${apiProvider}` };
+    }
+
     await pushLog(`Generating response via ${apiProvider} (${model})...`, 'info');
 
     let url = '';
@@ -38,11 +46,7 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         // Standard OpenAI / Azure format, widely compatible
         url = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : (CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions');
         
-        // Authentication Check
-        if (!apiKey) {
-           await pushLog(`Configuration Error: API key missing for ${apiProvider}`, 'critical');
-           return { success: false, error: `API key missing for ${apiProvider}` };
-        }
+        // Authentication: API key is guaranteed to exist
         headers['Authorization'] = `Bearer ${apiKey}`;
 
         body = {
@@ -57,11 +61,6 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       }
 
       case 'anthropic': {
-        if (!apiKey) {
-          await pushLog(`Configuration Error: API key missing for anthropic`, 'critical');
-          return { success: false, error: `API key missing for anthropic` };
-        }
-
         url = CONFIG.ANTHROPIC_API || 'https://api.anthropic.com/v1/messages';
         headers['x-api-key'] = apiKey;
         headers['anthropic-version'] = '2023-06-01'; // Required API version header
@@ -92,25 +91,16 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       }
 
       case 'gemini': {
-        if (!apiKey) {
-           await pushLog(`Configuration Error: API key missing for gemini`, 'critical');
-           return { success: false, error: `API key missing for gemini` };
-        }
         
         // IMPROVEMENT: Ensure robust URL construction, as Gemini requires the model in the path.
-        // Use a robust default template, replacing the model placeholder.
         const geminiBaseTemplate = CONFIG.GEMINI_API || 'https://generativelanguage.googleapis.com/v1/models/MODEL_NAME:generateContent';
-        
-        // Ensure the `model` specified in config replaces the placeholder in the URL template
         const finalGeminiUrl = geminiBaseTemplate.replace('MODEL_NAME', model);
         
         // NOTE: Gemini API key is passed via query param for v1 compatibility.
         url = `${finalGeminiUrl}?key=${apiKey}`;
         
         // FIX: Gemini API v1 requires strict 'user'/'model' alternation. 
-        // We filter out the dedicated 'system' message (Message 1) because mapping it to 'user' causes 
-        // sequential user messages which fails the API. The core instruction is already included 
-        // within the main 'user' context message (Message 2).
+        // We filter out the dedicated 'system' message.
         const geminiMessages = messages
           .filter(msg => msg.role !== 'system')
           .map(msg => ({
@@ -165,7 +155,9 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`LLM API failed [${apiProvider}] (${res.status}): ${errorText.slice(0, 200)}`); 
+        // Improved safety: truncate error text for logging to prevent massive console floods from API backends
+        const safeErrorText = errorText.length > 500 ? errorText.slice(0, 500) + '...' : errorText;
+        throw new Error(`LLM API failed [${apiProvider}] (${res.status}): ${safeErrorText}`); 
       }
 
       const data = await res.json();
@@ -194,4 +186,4 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       await pushLog(`LLM Generation Fatal Error: ${e.message}`, 'critical');
       return { success: false, error: e.message };
     }
-  }, [state.config, pushLog, persistentFetch]);
+  }, [state.config, pushLog, persistentFetch])
