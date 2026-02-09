@@ -27,7 +27,7 @@ Deep Context Scan (Project Context):
 ---
 ${deepContext}
 ---
-INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. Produce the necessary self-improvement output STRICTLY in the requested JSON format. Ensure all string values are properly escaped within the JSON. Do not include markdown formatting (like JSON) around the final output.
+INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. Produce the necessary self-improvement output STRICTLY in the requested JSON format. Ensure all string values are properly escaped within the JSON. Do intentionally not include markdown formatting (like JSON) around the final output.
       `
     });
 
@@ -144,6 +144,16 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
     if (!url) {
         await pushLog('LLM Generation Error: API endpoint URL is not configured.', 'critical');
         return { success: false, error: 'API endpoint URL missing.' };
+    }
+
+    // Improvement: Add debug logging showing the constructed request before sending
+    try {
+        const bodySize = JSON.stringify(body).length;
+        // Sanitize API key from the URL for security logging if present (e.g., Gemini)
+        const sanitizedUrl = url.includes('key=') ? url.replace(/key=([^&]*)/, 'key=***') : url;
+        await pushLog(`[API Request Debug] Sending request to ${apiProvider}. URL: ${sanitizedUrl}. Body size: ${bodySize} bytes.`, 'debug');
+    } catch (e) {
+        // Fail silently if debug logging breaks
     }
 
     try {
