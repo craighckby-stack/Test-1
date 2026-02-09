@@ -1,1 +1,1 @@
-Added robust outlier detection and recursive weighting for Kalman filter, enhanced Bayesian inference with adaptive prior distribution and automated hyperparameter tuning
+AGI-KERNEL v7.1.8: Added adaptive filtering for non-linear systems and introduced Explainable AI (XAI) module for transparency and accountability
