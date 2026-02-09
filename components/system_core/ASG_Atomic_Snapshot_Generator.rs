@@ -8,6 +8,7 @@ pub type IntegrityHash = [u8; INTEGRITY_HASH_SIZE];
 // Target maximum execution time for atomicity (5ms)
 const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
 const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural evolution
+const CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Confidentiality Flag
 
 // --- Trait Definitions for Dependency Injection ---
 
@@ -71,22 +72,19 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let trace = T::capture_execution_stack();
 
     // 3. Assemble and cryptographic hash generation
-    // 0x42: GSEP-C flag | High bits could be used for minor configuration versions later.
-    let context_flags: u32 = 0x42; 
+    let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
 
     // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // Bundle fixed metadata for atomic hashing
-    let mut metadata_bundle = Vec::new();
-    metadata_bundle.extend_from_slice(&context_flags.to_le_bytes()); 
-    metadata_bundle.extend_from_slice(&RSCM_PACKAGE_VERSION.to_le_bytes());
-
     // Hash sequence: 1. Volatile Data, 2. Stack Trace, 3. Fixed Metadata (Flags + Version)
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
-    hasher.update(&metadata_bundle); 
+    
+    // Direct hashing of fixed metadata components (eliminates temporary Vec allocation)
+    hasher.update(&context_flags.to_le_bytes()); 
+    hasher.update(&RSCM_PACKAGE_VERSION.to_le_bytes());
     
     let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
