@@ -19,6 +19,22 @@ class FitnessEngine {
         this.config = metricsConfig;
         this.isOperational = true;
     }
+    
+    // JSON Parsing: Deep structural validation check for profiles
+    if (this.isOperational) {
+        for (const profileName in this.config.profiles) {
+            const profile = this.config.profiles[profileName];
+            if (typeof profile !== 'object' || 
+                !profile.target_metric || 
+                !profile.optimization_goal ||
+                !['minimize', 'maximize', 'neutral'].includes(profile.optimization_goal)) {
+                console.error(`FitnessEngine: Profile '${profileName}' failed structural validation (Missing target_metric or invalid optimization_goal).`);
+                this.isOperational = false;
+                break;
+            }
+        }
+    }
+    
     // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
     this.FLOAT_TOLERANCE = 1e-9;
   }
@@ -82,14 +98,14 @@ class FitnessEngine {
     if (Array.isArray(profile.oracles)) {
         profile.oracles.forEach(oracle => {
             
-            // JSON Parsing Robustness: Safely read metric value
-            const metricValue = this._safeGetMetricValue(rawMetrics, oracle.metric);
-            
-            if (!oracle.metric || !oracle.condition || oracle.value === undefined) {
-                console.warn(`FitnessEngine: Skipping malformed oracle definition (Missing metric, condition, or threshold).`);
+            // JSON Parsing Robustness: Safely read metric value and validate oracle type
+            if (!oracle.metric || !oracle.condition || oracle.value === undefined || 
+                (oracle.violation_type !== 'penalty' && oracle.violation_type !== 'reward')) {
+                console.warn(`FitnessEngine: Skipping malformed or improperly typed oracle definition.`);
                 return;
             }
-
+            
+            const metricValue = this._safeGetMetricValue(rawMetrics, oracle.metric);
             const passes = this.checkCondition(metricValue, oracle.condition, oracle.value);
             
             // Parse factors safely (Error Handling)
@@ -118,14 +134,17 @@ class FitnessEngine {
       // Robust minimization: Uses inverse transformation.
       // Using EPSILON prevents division by zero and rewards the achievement of zero error/complexity maximally.
       const EPSILON = 1e-9;
-      score = 1.0 / (score + EPSILON); 
+      score = 10.0 / (score + EPSILON); // Multiplied by 10.0 to normalize inverse scaling
+    } else if (profile.optimization_goal === 'maximize') {
+        // Scale up towards 10
+        score = Math.min(MAX_FITNESS, score);
     }
 
     // 4. Normalize and clamp the final score for stability (Error Handling)
     
     // Final clamping to ensure non-negativity and finite result (Error Handling)
     if (!isFinite(score)) {
-        console.warn(`FitnessEngine: Score resulted in non-finite value (${score}). Clamping to high, safe finite value (0.0).`);
+        console.warn(`FitnessEngine: Score resulted in non-finite value (${score}). Clamping to safe finite value (0.0).`);
         score = 0.0;
     } else {
         // Apply hard cap to prevent runaway scores from minimization goals
@@ -145,12 +164,13 @@ class FitnessEngine {
    */
   sanitizeFormula(formulaString) {
     // After substitution, the string should ONLY contain numbers, parentheses, and arithmetic operators.
-    // Allow 'e' for scientific notation (e.g., 1e-9).
+    // Allow 'e' or 'E' for scientific notation (e.g., 1e-9).
+    // This aggressively removes anything that isn't a safe numeric/operator character.
     let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
     
     // Additional defense: basic check for obvious attempts to execute code post-sanitization
-    if (/[a-zA-Z]/.test(sanitized.replace(/e/g, ''))) {
-        // If any letter remains (excluding 'e' from scientific notation), something is wrong.
+    if (/[a-zA-Z]/.test(sanitized.replace(/[eE]/g, ''))) {
+        // If any non-scientific notation letter remains, suspicious characters are present.
         console.error("FitnessEngine Security Alert: Post-substitution formula sanitization failed: suspicious characters remain.");
         return "0.0"; 
     }
@@ -168,16 +188,13 @@ class FitnessEngine {
    */
   validateFormula(formula, metricKeys) {
       // 1. Check for forbidden characters (anything not standard metrics/operators)
-      // Standard metrics contain upper case letters and underscores.
-      const forbiddenCharsPattern = /[^A-Z0-9_+\-*\/().\s]/g; // Escaping regex characters
-      // We check if cleaning removes anything unexpected, indicating an unsafe character.
-      if (formula.trim().length !== formula.trim().replace(forbiddenCharsPattern, '').length) {
+      const allowedPattern = /^[A-Z0-9_+\-*\/().\s]+$/;
+      if (!allowedPattern.test(formula)) {
           console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
           return false;
       }
       
       // 2. Check if all "words" (potential metric IDs) are defined keys.
-      // Matches sequences of uppercase letters and underscores (standard metric naming).
       const tokens = formula.match(/[A-Z_]+/g) || [];
       const unknownMetrics = tokens.filter(token => !metricKeys.includes(token));
       
@@ -210,7 +227,7 @@ class FitnessEngine {
     const isComplexFormula = /[+\-*\/()]/.test(formula);
 
     if (!isComplexFormula) {
-        // Baseline lookup (Cycle 1 maturity)
+        // Baseline lookup
         return this._safeGetMetricValue(rawMetrics, formula);
     }
     
@@ -227,8 +244,7 @@ class FitnessEngine {
         // Use the new safe getter to ensure numerical safety
         const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
-        // FIX: Use double backslash (\\b) for robust word boundary replacement in RegExp constructor.
-        // This ensures M_COST doesn't accidentally replace M_TOTAL_COST in part.
+        // Use word boundary replacement to ensure metric key substitution is precise.
         calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
@@ -236,14 +252,12 @@ class FitnessEngine {
         // Step 1: Sanitize the resulting calculation string before evaluation for enhanced security and stability.
         const safeCalculationString = this.sanitizeFormula(calculationString);
 
-        // NOTE: Use of eval() is a deliberate architectural decision to enable
-        // autonomous formula generation (Meta-Reasoning). The security risk is mitigated
-        // by pre-validation (validateFormula) and post-substitution sanitization.
+        // NOTE: Use of eval() is mitigated by validation and sanitization.
         const result = eval(safeCalculationString);
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
             // Enhanced error logging: show the resulting string that produced the non-safe result.
-            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}`);
+            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}.`);
             return 0.0;
         }
         return result;
@@ -309,28 +323,74 @@ class FitnessEngine {
   }
   
   /**
-   * Maps a final fitness score (0-10) to the kernel's core capabilities (0-10).
-   * This method supports the required structured output for self-assessment.
+   * Meta-Reasoning: Dynamically maps the final fitness score (0-10) to the kernel's core capabilities (0-10),
+   * based on the specific profile used, reflecting the strategic intent of the assessment.
    * 
+   * Note: Capability results are mapped back to the required 'navigation', 'logic', and 'memory' output keys.
+   *
    * @param {number} fitnessScore - The result of calculate().
+   * @param {string} profileName - The profile used for calculation.
    * @returns {Object<string, number>} Capability scores.
    */
-  static mapScoreToCapability(fitnessScore) {
-      const clampedScore = Math.max(0, Math.min(10, fitnessScore));
-      
-      // Improvement (Meta-Reasoning): Increase the weight of the fitness score 
-      // on Logic and Memory, reflecting the complexity of formula processing and configuration usage.
-      
-      const logicScore = 5 + clampedScore * 0.5; // Heavily tied to formula parsing (Meta-Reasoning)
-      const memoryScore = 4 + clampedScore * 0.3; // Tied to configuration management/metrics storage
-      const navScore = 3 + clampedScore * 0.1; // Minimal weight, as this module doesn't handle file navigation
-      
-      // Return capabilities with one decimal place precision
-      return {
-          navigation: parseFloat(navScore.toFixed(1)),
-          logic: parseFloat(logicScore.toFixed(1)),
-          memory: parseFloat(memoryScore.toFixed(1))
-      };
+  assessCapabilities(fitnessScore, profileName) {
+    const clampedScore = Math.max(0, Math.min(10, fitnessScore));
+    const normalizedScore = clampedScore / 10.0; // 0.0 to 1.0
+
+    // Base scores (minimum competency)
+    let coreScores = {
+      "Error Handling": 5.0,
+      "JSON Parsing": 5.0,
+      "Meta-Reasoning": 5.0,
+      "Autonomy": 5.0,
+      "Creativity": 5.0,
+    };
+    
+    // Core contribution of calculation quality (Max 5 points improvement)
+    const baseImprovement = normalizedScore * 5.0;
+
+    // 1. General boosts based on overall success
+    coreScores["Error Handling"] += baseImprovement * 0.4; 
+    coreScores["JSON Parsing"] += baseImprovement * 0.3;
+    coreScores["Meta-Reasoning"] += baseImprovement * 0.5; 
+    coreScores["Autonomy"] += baseImprovement * 0.3;
+    coreScores["Creativity"] += baseImprovement * 0.2;
+    
+    // 2. Profile-specific Strategic Adjustment (Enhanced Meta-Reasoning)
+    const profile = this.config.profiles[profileName];
+    if (profile) {
+        
+        // Check for complexity (Meta-Reasoning, Autonomy)
+        if (/[+\-*\/()]/.test(profile.target_metric)) {
+            coreScores["Meta-Reasoning"] += normalizedScore * 1.0; 
+            coreScores["Autonomy"] += normalizedScore * 0.5;
+        }
+        
+        // Check for minimization goals (Creativity, finding novel solutions)
+        if (profile.optimization_goal === 'minimize') {
+            coreScores["Creativity"] += normalizedScore * 1.0; 
+        }
+
+        // Check for oracles related to stability (Error Handling)
+        const errorOracleCount = profile.oracles ? profile.oracles.filter(o => o.metric && (o.metric.includes('ERROR') || o.metric.includes('FAILURE'))).length : 0;
+        coreScores["Error Handling"] += Math.min(1.0, errorOracleCount * 0.5) * normalizedScore;
+    }
+
+    // 3. Final normalization and clamping (0.0 to 10.0) for core capabilities
+    for (const key in coreScores) {
+        coreScores[key] = Math.min(10.0, coreScores[key]);
+    }
+    
+    // 4. Map AGI Core Capabilities back to expected output keys: navigation, logic, memory
+    return {
+        // Navigation: Structural soundness / Architectural Exploration
+        navigation: parseFloat(Math.min(10, coreScores["Autonomy"] * 0.3 + coreScores["Creativity"] * 0.2).toFixed(2)),
+        
+        // Logic: Strategic decision making / Meta-Reasoning
+        logic: parseFloat(Math.min(10, coreScores["Meta-Reasoning"] * 0.6 + coreScores["Autonomy"] * 0.4).toFixed(2)),
+        
+        // Memory: Data integrity and persistence (Error Handling, JSON Parsing)
+        memory: parseFloat(Math.min(10, coreScores["Error Handling"] * 0.5 + coreScores["JSON Parsing"] * 0.5).toFixed(2))
+    };
   }
 }
 
