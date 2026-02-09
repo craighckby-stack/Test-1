@@ -223,9 +223,4 @@ export const MINIMAL_FALLBACK_SCHEMA = {
                 type: "object",
                 properties: {
                     source: { $ref: "#/$defs/VetoTriggerSource" },
-                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*"}
-                }
-            }
-        }
-    }
-};
+                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*\
