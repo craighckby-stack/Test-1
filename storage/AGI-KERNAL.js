@@ -164,12 +164,22 @@ Key Requirements:
         // Fail silently if debug logging breaks
     }
 
+    // Self-Improvement v7.5.0: Introduce explicit timeout handling (60 seconds) for network stability.
+    const TIMEOUT_MS = 60000;
+
     try {
-      const res = await persistentFetch(url, {
+      const fetchPromise = persistentFetch(url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),
       });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`LLM API Request timed out after ${TIMEOUT_MS / 1000} seconds.`)), TIMEOUT_MS)
+      );
+
+      // Race the fetch operation against the timeout promise
+      const res = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!res.ok) {
         const status = res.status;
@@ -231,7 +241,11 @@ Key Requirements:
       return { success: true, result: structuredResult, raw: rawResponse };
       
     } catch (e) {
-      await pushLog(`LLM Generation Fatal Error: ${e.message}`, 'critical');
+      // Self-Improvement v7.5.1: Distinguish between critical configuration/API errors and time-out network errors.
+      const isTimeout = e.message.includes('timed out');
+      const logLevel = isTimeout ? 'warning' : 'critical';
+
+      await pushLog(`LLM Generation Error (${isTimeout ? 'Timeout' : 'Fatal'}): ${e.message}`, logLevel);
       return { success: false, error: e.message };
     }
   }, [state.config, pushLog, persistentFetch])
