@@ -390,7 +390,7 @@ export class GSIMMapResolver {
 
     /**
      * @param {EnforcementRule} rule
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} 
      */
     private async loadDependencies(rule) {
         for (const dep of rule.dependencies) {
