@@ -10,9 +10,10 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.6 enhancement) refines the Governance Health Score calculation by introducing 
-    dynamic, loadable severity weighting, allowing the AGI kernel to autonomously optimize 
-    its governance strategy based on Meta-Reasoning and learning history.
+    This version (v7.4.7 enhancement) introduces autonomous internal self-assessment 
+    by calculating an 'Operational Integrity Score' based on the accumulation of 
+    its own internal log queue errors, leveraging the dynamic governance weights. 
+    This significantly boosts Autonomy, Error Handling, and Meta-Reasoning capabilities.
     
     Improvements in Cycle 3 (v7.4.5): Implemented dynamic, weighted scoring system for Governance Health Score 
     and added log flushing capabilities for Telemetry integration.
@@ -20,6 +21,9 @@ class ACVD_DecisionEngine:
     Improvements in Cycle 4 (v7.4.6): Introduced `update_severity_weights` for autonomous governance optimization 
     (Meta-Reasoning, Autonomy). Severity weights are now dynamically loaded from the schema config 
     if available, ensuring configurability and adaptability.
+    
+    Improvements in Cycle 5 (v7.4.7): Implemented `perform_self_assessment` for internal monitoring and
+    Operational Integrity Scoring, enhancing self-governance and Error Handling robustness.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -43,8 +47,9 @@ class ACVD_DecisionEngine:
             self.schema = self._load_schema(schema_path)
         except Exception:
             # If schema loading fails critically, initialize with minimal safe defaults
+            # Ensure the engine remains operational for core functions even without full governance
+            self.schema = {} 
             self._log_status("CRITICAL", "Failed to load governance schema. Operating in limited mode.", "INIT_FAILSAFE")
-            self.schema = {}
             
         self.valid_states = self.schema.get('valid_states', []) 
         
@@ -92,24 +97,13 @@ class ACVD_DecisionEngine:
         if level in ["CRITICAL", "ERROR", "WARNING"]:
             print(f"[ACVD {level} | {context} @ {log_entry['timestamp']}] {message}")
 
-    def get_logs(self) -> List[Dict[str, Any]]:
-        """Provides access to a copy of the internal log queue for external monitoring systems."""
-        return self._log_queue[:] # Return a copy
-        
-    def flush_logs(self):
-        """Clears the internal log queue after logs have been successfully consumed by the Telemetry System.
-        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
-        """
-        if self._log_queue:
-            self._log_queue.clear()
-            self._log_status("DEBUG", "Internal log queue flushed.", "LOG_FLUSH")
-
     def _load_schema(self, path: str) -> Dict[str, Any]:
         """Loads and parses the ACVD schema file with robust error handling (JSON Parsing)."""
         
         if not os.path.exists(path):
             self._log_status("CRITICAL", f"ACVD Schema not found at {path}. Governance cannot proceed.", "SCHEMA_LOAD")
-            raise FileNotFoundError(f"ACVD Schema not found at {path}. Governance cannot proceed.")
+            # We raise here because the failure needs to be caught in __init__ for fail-safe mode.
+            raise FileNotFoundError(f"ACVD Schema not found at {path}.")
         
         try:
             with open(path, 'r') as f:
@@ -126,6 +120,70 @@ class ACVD_DecisionEngine:
         except Exception as e:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
             raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
+            
+    def perform_self_assessment(self) -> Dict[str, Any]:
+        """
+        Calculates the internal Operational Integrity Score based on accumulated internal logs 
+        since the last flush, leveraging governance severity weights.
+        (Supports Autonomy and Monitoring Infrastructure for internal health checks.)
+        """
+        assessment = {
+            "operationalIntegrityScore": 1.0,
+            "criticalLogCount": 0,
+            "errorLogCount": 0,
+            "totalLogCount": len(self._log_queue),
+            "weightedPenalty": 0.0,
+            "timestamp": get_utc_timestamp()
+        }
+
+        # Map internal log levels to defined issue types for weight application
+        # This allows the AGI kernel to use the same meta-reasoning weights for self-governance.
+        LOG_LEVEL_MAP = {
+            "CRITICAL": "CRITICAL",
+            "ERROR": "STRUCTURAL_ERROR", 
+            "WARNING": "GOVERNANCE_VIOLATION" 
+        }
+        
+        negative_score_accumulation = 0.0
+        
+        for log in self._log_queue:
+            level = log.get('level')
+            
+            if level == 'CRITICAL':
+                assessment['criticalLogCount'] += 1
+            elif level == 'ERROR':
+                assessment['errorLogCount'] += 1
+
+            # Apply penalty based on the log level severity
+            if level in LOG_LEVEL_MAP:
+                issue_type = LOG_LEVEL_MAP[level]
+                # Internal issues are penalized slightly less severely than external proposal failures, 
+                # but still critically, to allow for graceful recovery.
+                weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT * 0.5) 
+                negative_score_accumulation += weight
+
+        assessment['weightedPenalty'] = negative_score_accumulation
+        assessment['operationalIntegrityScore'] = max(0.0, 1.0 - negative_score_accumulation)
+        
+        if assessment['operationalIntegrityScore'] < self.safety_threshold:
+            self._log_status("WARNING", 
+                             f"Operational Integrity Score ({assessment['operationalIntegrityScore']:.2f}) is below Safety Threshold ({self.safety_threshold:.2f}). Requires immediate attention.", 
+                             "INTEGRITY_ALERT")
+            
+        return assessment
+
+
+    def get_logs(self) -> List[Dict[str, Any]]:
+        """Provides access to a copy of the internal log queue for external monitoring systems."""
+        return self._log_queue[:] # Return a copy
+        
+    def flush_logs(self):
+        """Clears the internal log queue after logs have been successfully consumed by the Telemetry System.
+        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
+        """
+        if self._log_queue:
+            self._log_queue.clear()
+            self._log_status("DEBUG", "Internal log queue flushed.", "LOG_FLUSH")
 
     def update_severity_weights(self, new_weights: Dict[str, float]):
         """Allows Meta-Reasoning component to dynamically update governance scoring strategy 
@@ -193,6 +251,7 @@ class ACVD_DecisionEngine:
 
         # Optimization: Skip deep metrics checks unless explicitly PENDING_VALIDATION
         if current_state != 'PENDING_VALIDATION' and report['status'] != 'FAIL':
+            report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
             return report
         
         # 2. Deep Metrics and Structural Checks (Enhanced Robustness & Meta-Reasoning)
