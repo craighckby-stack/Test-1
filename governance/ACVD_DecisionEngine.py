@@ -14,10 +14,14 @@ class ACVD_DecisionEngine:
     implementing schema saving functionality to ensure dynamically updated severity
     weights persist across evolution cycles. It also improves initialization robustness
     and integrates explicit strategic recommendations into self-assessment (Meta-Reasoning).
+    
+    Improvements include atomic persistence via temporary files for fault tolerance
+    and abstraction of internal penalty calculation for tuning via Meta-Reasoning.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 # Used if an issue type is not defined in self.severity_weights
+    DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 # Internal assessment issues are half penalty by default
     
     # Base weights, used if no configuration is found in the schema (static reference)
     _BASE_SEVERITY_WEIGHTS = {
@@ -71,6 +75,12 @@ class ACVD_DecisionEngine:
             self._BASE_SEVERITY_WEIGHTS
         )
         
+        # Load internal penalty multiplier (supports Meta-Reasoning tuning)
+        self.internal_penalty_multiplier = config.get(
+            'internal_penalty_multiplier',
+            self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
+        )
+        
         if not self.valid_states:
             self._log_status(
                 "WARNING", 
@@ -102,7 +112,7 @@ class ACVD_DecisionEngine:
             print(f"[ACVD {level} | {context} @ {log_entry['timestamp']}] {message}")
 
     def _load_schema(self, path: str) -> Dict[str, Any]:
-        """Loads and parses the ACVD schema file with robust error handling (JSON Parsing)."""
+        """Loads and parses the ACVD schema file with robust error handling (JSON Parsing, Error Handling)."""
         
         if not os.path.exists(path):
             # Do not log as CRITICAL here, let the caller (__init__) handle the failover
@@ -120,13 +130,16 @@ class ACVD_DecisionEngine:
             # Enhanced context reporting for JSON Parsing Robustness
             self._log_status("CRITICAL", f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected.", "JSON_PARSE_ERROR")
             raise ValueError(f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected: {e}")
+        except PermissionError:
+            self._log_status("CRITICAL", f"Permission denied accessing ACVD Schema file at {path}.", "FILE_PERMISSION_ERROR")
+            raise PermissionError(f"Permission denied accessing ACVD Schema file at {path}.")
         except Exception as e:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
             raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
             
     def _save_schema(self):
         """Persists the current schema (including dynamically updated severity weights)
-        back to the file system, supporting Meta-Reasoning persistence (Infrastructure: Data Persistence)."""
+        using an atomic write pattern (temp file) to ensure fault tolerance. (Infrastructure/Error Handling)."""
         if not self.persist_config:
             self._log_status("DEBUG", "Schema persistence disabled by configuration.", "SCHEMA_PERSIST_SKIP")
             return
@@ -141,14 +154,27 @@ class ACVD_DecisionEngine:
         # Update dynamic elements derived from learning
         save_data['config']['severity_weights'] = self.severity_weights
         save_data['config']['min_safety_score'] = self.safety_threshold
+        save_data['config']['internal_penalty_multiplier'] = self.internal_penalty_multiplier
 
+        temp_path = self.schema_path + '.tmp'
+        
         try:
-            with open(self.schema_path, 'w') as f:
+            # 1. Write to temporary file for atomicity
+            with open(temp_path, 'w') as f:
                 # Use standard JSON formatting for readability
                 json.dump(save_data, f, indent=4)
+            
+            # 2. Rename/Overwrite main file (Atomic move on most systems)
+            os.replace(temp_path, self.schema_path)
+            
             self._log_status("INFO", f"Governance schema and weights persisted successfully to {self.schema_path}.", "SCHEMA_PERSIST_SUCCESS")
+        except PermissionError:
+            self._log_status("CRITICAL", f"Failed to persist schema: Permission denied writing to {self.schema_path}.", "SCHEMA_PERSIST_FAIL_PERM")
         except Exception as e:
-            self._log_status("CRITICAL", f"Failed to persist schema to disk: {e}", "SCHEMA_PERSIST_FAIL")
+            # Clean up temp file if rename failed
+            if os.path.exists(temp_path):
+                 os.remove(temp_path)
+            self._log_status("CRITICAL", f"Failed to persist schema to disk due to unexpected error: {e}", "SCHEMA_PERSIST_FAIL")
 
             
     def _get_penalty_weight(self, issue_type: str, is_internal_assessment: bool = False) -> float:
@@ -160,8 +186,8 @@ class ACVD_DecisionEngine:
         weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
         
         if is_internal_assessment:
-            # Internal issues (like engine logging errors) are penalized slightly less severely 
-            return weight * 0.5
+            # Apply configurable internal penalty multiplier (Meta-Reasoning/Abstraction)
+            return weight * self.internal_penalty_multiplier
         
         return weight
 
