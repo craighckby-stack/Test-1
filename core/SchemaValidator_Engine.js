@@ -145,18 +145,19 @@ class SchemaValidatorEngine {
             message: e.message
         })) || [];
         
+        // Determine Capability Impact dynamically (Meta-Reasoning)
+        const firstErrorKeyword = summary[0]?.keyword || 'N/A';
+        const capabilityImpact = this._mapErrorToCapability(firstErrorKeyword);
+
         const failureEntry = {
             timestamp: Date.now(),
             schemaName,
             isCritical, 
             summary,
-            count: summary.length
+            count: summary.length,
+            capabilityImpact: capabilityImpact // STORED for internal analysis/Memory
         };
         
-        // Determine Capability Impact dynamically (Meta-Reasoning)
-        const firstErrorKeyword = summary[0]?.keyword || 'N/A';
-        const capabilityImpact = this._mapErrorToCapability(firstErrorKeyword);
-
         // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
         this.failureHistory.unshift(failureEntry);
         if (this.failureHistory.length > this.MAX_HISTORY) {
@@ -199,6 +200,58 @@ class SchemaValidatorEngine {
      */
     getFailureHistory() {
         return this.failureHistory;
+    }
+
+    /**
+     * Performs a rapid self-diagnostic analysis of recent validation failures.
+     * Identifies the most stressed schema and the primary AGI capability impact.
+     * This emergent tool supports AGI-Kernel's Navigation and Logic refinement (Meta-Learning).
+     * @returns {{mostStressedSchema: string, mostImpactedCapability: string, totalFailures: number, historyLength: number, analysisDate: number}}
+     */
+    analyzeFailureTrends() {
+        const history = this.failureHistory;
+        if (history.length === 0) {
+            return {
+                mostStressedSchema: 'None',
+                mostImpactedCapability: 'None',
+                totalFailures: 0,
+                historyLength: 0,
+                analysisDate: Date.now()
+            };
+        }
+
+        const schemaCounts = {};
+        const capabilityCounts = {};
+        let totalFailures = 0;
+
+        history.forEach(entry => {
+            // Count total failure occurrences (not just entry count)
+            totalFailures += entry.count;
+            
+            // Count by schema name
+            schemaCounts[entry.schemaName] = (schemaCounts[entry.schemaName] || 0) + entry.count;
+            
+            // Count by capability impact
+            const cap = entry.capabilityImpact || 'Unknown';
+            capabilityCounts[cap] = (capabilityCounts[cap] || 0) + entry.count;
+        });
+
+        // Helper to find the key with the maximum count
+        const findMax = (counts) => Object.entries(counts).reduce(
+            (max, [key, count]) => (count > max.count ? { key, count } : max),
+            { key: 'N/A', count: 0 }
+        );
+
+        const mostStressedSchema = findMax(schemaCounts).key;
+        const mostImpactedCapability = findMax(capabilityCounts).key;
+        
+        return {
+            mostStressedSchema,
+            mostImpactedCapability,
+            totalFailures,
+            historyLength: history.length,
+            analysisDate: Date.now()
+        };
     }
 
     /**
