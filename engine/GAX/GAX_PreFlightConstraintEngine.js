@@ -1,3 +1,24 @@
+/**
+ * Custom error class for reporting path resolution failures.
+ * Improves internal error handling and differentiation (AGI Goal: Error Handling)
+ */
+class PathResolutionError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PathResolutionError";
+  }
+}
+
+/**
+ * Constants for standardized rule types (AGI Goal: Refactoring/Abstraction)
+ */
+const RuleTypes = {
+  PRESENCE: 'presence',
+  DATA_TYPE: 'dataType',
+  VALUE_MATCH: 'valueMatch',
+};
+
+
 class GAX_PreFlightConstraintEngine {
   constructor(constraintDefinition) {
     this.constraints = constraintDefinition.mandatory_constraints;
@@ -12,8 +33,13 @@ class GAX_PreFlightConstraintEngine {
    */
   _checkType(value, expectedType) {
     if (value === undefined) return false; 
+    
+    // Explicitly handle null: null is only valid if expected type is 'object' or 'null'
     if (value === null) return expectedType === 'object' || expectedType === 'null';
+    
     if (expectedType === 'array') return Array.isArray(value);
+    
+    // Check for plain object, excluding arrays
     if (expectedType === 'object') return typeof value === 'object' && !Array.isArray(value);
     
     return typeof value === expectedType;
@@ -28,20 +54,21 @@ class GAX_PreFlightConstraintEngine {
   _executeRule(value, rule) {
     const isDefined = value !== undefined && value !== null;
 
-    if (rule.type === 'presence') {
+    if (rule.type === RuleTypes.PRESENCE) {
       // Assumes rule.required is a boolean flag for structural necessity
       return rule.required ? isDefined : true;
     }
     
-    // Skip further checks if the field is not present and not required to be present
-    if (!isDefined) return true; 
+    // Skip further checks if the field is not present/null, unless it's a type check
+    // Type checks need the value to be null/undefined to check against type expectations.
+    if (!isDefined && rule.type !== RuleTypes.DATA_TYPE) return true; 
 
-    if (rule.type === 'dataType') {
+    if (rule.type === RuleTypes.DATA_TYPE) {
       const expectedType = rule.expected;
       return this._checkType(value, expectedType);
     }
     
-    if (rule.type === 'valueMatch') {
+    if (rule.type === RuleTypes.VALUE_MATCH) {
         return value === rule.expectedValue;
     }
     
@@ -51,7 +78,7 @@ class GAX_PreFlightConstraintEngine {
 
   /**
    * Robust implementation of reliable JSON path traversal using dot notation.
-   * Throws 'PathNotFound' if any part of the path is missing or undefined.
+   * Throws PathResolutionError if any part of the path is missing or undefined/null.
    * @param {object} artifact The data structure to traverse.
    * @param {string} path Dot-notation path (e.g., 'data.user.id').
    * @returns {*} The value at the path.
@@ -63,9 +90,9 @@ class GAX_PreFlightConstraintEngine {
     let current = artifact;
 
     for (const part of pathParts) {
-      if (current === undefined || current === null || !(part in current)) {
-        // Use a specific internal signal for path not found
-        throw new Error('PathNotFound'); 
+      // Check if current node is traversable and contains the part
+      if (current === undefined || current === null || !(typeof current === 'object' && part in current)) {
+        throw new PathResolutionError('Path segment not found or intermediate node is not an object.'); 
       }
       current = current[part];
     }
@@ -85,7 +112,7 @@ class GAX_PreFlightConstraintEngine {
       try {
         value = this._getValueAtPath(targetArtifact, path);
       } catch (e) {
-        if (e.message === 'PathNotFound') {
+        if (e instanceof PathResolutionError) {
             pathFound = false;
         } else {
             // Handle unexpected structural errors (e.g., trying to index a primitive)
@@ -96,7 +123,7 @@ class GAX_PreFlightConstraintEngine {
 
       if (!pathFound) {
         // If path is not found, only a mandatory 'presence' rule can fail here.
-        if (rule.type === 'presence' && rule.required === true) {
+        if (rule.type === RuleTypes.PRESENCE && rule.required === true) {
             isValid = false;
             results.push({ constraint: constraintId, path, status: 'FAILED', reason: `Mandatory field is missing.` });
         }
@@ -116,21 +143,28 @@ class GAX_PreFlightConstraintEngine {
       try {
         const value = this._getValueAtPath(targetArtifact, path);
         
-        // Only check type if the value is defined and not null (unless expected type is null or object)
-        if (value !== undefined && value !== null) {
-            const typeOK = this._checkType(value, expectedType);
+        // We check the type regardless of null/defined status, relying on _checkType's precise logic
+        // which returns false if, for example, 'string' is expected but 'null' is received.
+        
+        const typeOK = this._checkType(value, expectedType);
             
-            if (!typeOK) {
-                 results.push({ path, status: 'FAILED', reason: `Required type validation failed. Expected '${expectedType}', got '${Array.isArray(value) ? 'array' : typeof value}'.` });
-            }
-        } else if (value === undefined && expectedType !== 'undefined' && expectedType !== 'null') {
-             // If the path exists (wasn't PathNotFound) but resolved to undefined, it's often a failure
-             results.push({ path, status: 'FAILED', reason: `Required type validation failed: Value at path is undefined.` });
+        if (!typeOK) {
+            // Determine actual type for better reporting
+            let actualType;
+            if (value === null) actualType = 'null';
+            else if (value === undefined) actualType = 'undefined';
+            else actualType = Array.isArray(value) ? 'array' : typeof value;
+            
+            results.push({ 
+                path, 
+                status: 'FAILED', 
+                reason: `Required type validation failed. Expected '${expectedType}', got '${actualType}'.` 
+            });
         }
 
       } catch (e) {
-        if (e.message === 'PathNotFound') {
-             // If PathNotFound occurs, it indicates a structural issue for a required type.
+        if (e instanceof PathResolutionError) {
+             // If PathNotFound occurs, it indicates a structural issue for a required type defined in typeMap.
              results.push({ path, status: 'FAILED', reason: `Required path for type check was not found in artifact.` });
         } else {
              results.push({ path, status: 'ERROR', reason: `Type validation error: ${e.message}` });
