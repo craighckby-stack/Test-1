@@ -3,6 +3,11 @@
  * Centralized dynamic metric management system, now explicitly integrated with the Nexus-Database 
  * for persistent trend storage, fulfilling the CRITICAL DIRECTIVE: Integration Before Expansion.
  * 
+ * Fulfills Requirements:
+ * - Use MQM metrics to measure actual improvement (via EQM).
+ * - Store trends in Nexus memory (via logMetricsToNexus).
+ * - Use Nexus memory to inform strategy (via getHistoricalTrends).
+ * 
  * Dependencies MUST implement:
  * - AnalyticsStore: calculateResidualRisk(), getHistoricalVolatilityFactor()
  * - PolicyAuditor: calculatePolicyChangeRate()
@@ -13,7 +18,8 @@ class MetricNexus {
     constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
         this.analytics = AnalyticsStore;
         this.auditor = PolicyAuditor;
-        this.nexus = NexusInterface;
+        // Ensure NexusInterface is always defined for safer checks later.
+        this.nexus = NexusInterface || {}; 
         this.metricCache = {};
     }
 
@@ -29,17 +35,21 @@ class MetricNexus {
     }
 
     /**
-     * Placeholder function for kernel capability metrics (MQM Alignment).
-     * This serves as the primary Quantitative Indicator.
-     * @returns {number}
+     * Calculates the Evolution Quality Metric (EQM), the primary MQM indicator.
+     * EQM is a weighted fusion of risk and trend metrics, crucial for autonomous self-assessment.
+     * @returns {number} (0-100 quality scale)
      */
     getEvolutionQualityMetric() {
         const ufrm = this.getUFRM();
         const cftm = this.getCFTM();
         const pvm = this.getPolicyVolatility();
         
-        // Logic leveraging MQM philosophy.
-        const eqm = (ufrm * 0.4) + (cftm * 0.3) + (pvm * 0.3); 
+        // Applying the MQM formula based on risk factors (assuming inputs are 0.0 to 1.0, where 1.0 is high risk).
+        const riskScore = (ufrm * 0.4) + (cftm * 0.3) + (pvm * 0.3); 
+        
+        // Normalize the metric to fit a 0-100 quality scale (100 being lowest risk/highest quality).
+        const eqm = Math.max(0, 100 - riskScore * 100); 
+
         const sanitizedEqm = this._sanitizeMetric(eqm);
         
         this.metricCache.EQM = sanitizedEqm;
@@ -48,11 +58,9 @@ class MetricNexus {
 
     /**
      * Calculates and returns the Unknown Factor Risk Metric (UFRM).
-     * @returns {number}
+     * @returns {number} (Risk Factor, typically 0.0 to 1.0)
      */
     getUFRM() {
-        // Logic leveraging AnalyticsStore to calculate residual variance or unknown state space
-        // Defensive check added: If AnalyticsStore or method is missing, returns 0.
         const rawUfrm = this.analytics?.calculateResidualRisk?.() ?? 0;
         const ufrm = this._sanitizeMetric(rawUfrm);
         this.metricCache.UFRM = ufrm;
@@ -61,10 +69,9 @@ class MetricNexus {
 
     /**
      * Calculates and returns the Contextual Flux Trend Metric (CFTM).
-     * @returns {number}
+     * @returns {number} (Volatility Factor, typically 0.0 to 1.0)
      */
     getCFTM() {
-        // Logic leveraging real-time telemetry on system volatility
         const rawCftm = this.analytics?.getHistoricalVolatilityFactor?.() ?? 0;
         const cftm = this._sanitizeMetric(rawCftm);
         this.metricCache.CFTM = cftm;
@@ -73,8 +80,7 @@ class MetricNexus {
 
     /**
      * Calculates and returns the Policy Volatility Metric (PVM).
-     * Used by PSR's projection handler.
-     * @returns {number}
+     * @returns {number} (Change Rate Factor, typically 0.0 to 1.0)
      */
     getPolicyVolatility() {
         const rawPvm = this.auditor?.calculatePolicyChangeRate?.() ?? 0;
@@ -86,32 +92,44 @@ class MetricNexus {
     /**
      * [Integration] Logs the current metric snapshot and trends to the Nexus persistent storage.
      * Fulfills Integration Requirement: Store trends in Nexus memory (Req 2).
+     * Uses internal error handling pattern for resilience.
      * @param {Object} metrics - The calculated metric snapshot.
      */
     async logMetricsToNexus(metrics) {
-        if (this.nexus && typeof this.nexus.logTrend === 'function') {
+        // Must check for core functionality existence before logging
+        if (typeof this.nexus.logTrend !== 'function') {
+            console.warn("MetricNexus [CRITICAL DIRECTIVE]: Nexus logging interface (logTrend) not available.");
+            return;
+        }
+        try {
             await this.nexus.logTrend('metrics_snapshot', { 
                 timestamp: Date.now(), 
                 ...metrics 
             });
-        } else {
-            // Updated warning to include CRITICAL DIRECTIVE context
-            console.warn("MetricNexus [CRITICAL DIRECTIVE Failure]: Nexus logging interface not available or implemented.");
+        } catch (error) {
+            // Use existing error handling pattern: log the fault but do not halt the evolution.
+            console.error(`MetricNexus Persistence Failure: Failed to log trends to Nexus. Error: ${error.message}`);
         }
     }
 
     /**
      * [Integration] Reads historical metric trends from Nexus.
      * Fulfills Integration Requirement: Use Nexus memory to inform strategy (Req 3).
+     * Uses internal error handling pattern for resilience.
      * @param {number} limit - Number of history entries to retrieve.
      * @returns {Promise<Array<Object>>}
      */
     async getHistoricalTrends(limit = 10) {
-        if (this.nexus && typeof this.nexus.readTrends === 'function') {
-            return this.nexus.readTrends('metrics_snapshot', limit);
+        if (typeof this.nexus.readTrends !== 'function') {
+            return [];
         }
-        // Return empty array if Nexus interface is missing, preventing system crash.
-        return [];
+        try {
+            return await this.nexus.readTrends('metrics_snapshot', limit);
+        } catch (error) {
+            // Use existing error handling pattern: log the fault and return safe empty array.
+            console.error(`MetricNexus Retrieval Failure: Failed to retrieve historical trends from Nexus. Error: ${error.message}`);
+            return [];
+        }
     }
 
     /**
