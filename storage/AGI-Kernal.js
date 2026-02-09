@@ -1,9 +1,9 @@
-/** AGI-KERNAL RECOVERY v6.9.8 (Evolutionary Risk Assessment Graft) **/
-
-// --- KERNEL EVOLUTION: Audit Data Normalization Layer ---
-
-// package.json (Node.js dependencies)
-{
+/** AGI-KERNAL RECOVERY v6.9.7 **/
+source",
+  "files": [
+    {
+      "filename": "package.json",
+      "content": "{
   "name": "agi-kernel-governance",
   "version": "1.0.0",
   "description": "AGI Kernel Governance and Audit Normalization Engine.",
@@ -19,10 +19,11 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
-}
-
-// src/GSEP_Config/ConfigLoader.js (NEW FILE: Configuration Utility)
-/**
+}"
+    },
+    {
+      "filename": "src/GSEP_Config/ConfigLoader.js",
+      "content": "/**
  * src/GSEP_Config/ConfigLoader.js
  * Mock utility to load governance configuration files.
  */
@@ -39,10 +40,11 @@ function loadConfig(configName) {
     throw new Error(`Configuration file ${configName} not found.`);
 }
 
-module.exports = { loadConfig };
-
-// src/evolution/Evolutionary_Risk_Assessor.js (NEW FILE: TARGET Graft)
-/**
+module.exports = { loadConfig };"
+    },
+    {
+      "filename": "src/evolution/Evolutionary_Risk_Assessor.js",
+      "content": "/**
  * Evolutionary_Risk_Assessor.js
  * 
  * Utility module to analyze proposed code evolutions against GPC risk profiles.
@@ -103,19 +105,186 @@ function assessProposal(proposal, currentMetrics) {
     };
 }
 
-module.exports = { assessProposal };
+module.exports = { assessProposal };"
+    },
+    {
+      "filename": "src/analysis/DialAnalysisRuleEngine.js",
+      "content": "/**
+ * src/analysis/DialAnalysisRuleEngine.js
+ * 
+ * Optimized Rule Engine for Dial Analysis.
+ * Maximizes computational efficiency using iterative processing and memoization 
+ * to handle complex, potentially recursive rule dependencies without deep stack calls.
+ */
 
-// server.js (Node.js Backend/API - MODIFIED)
-const express = require('express');
+class DialAnalysisRuleEngine {
+    constructor() {
+        // Cache for rule results to prevent re-evaluation (Memoization)
+        this.resultCache = new Map();
+    }
+
+    /**
+     * Clears the internal cache.
+     */
+    clearCache() {
+        this.resultCache.clear();
+    }
+
+    /**
+     * Core recursive abstraction logic implemented iteratively for efficiency.
+     * Evaluates a single rule based on metrics and potentially results of other rules.
+     * 
+     * @param {string} ruleId - The ID of the rule to evaluate.
+     * @param {Object} rules - The complete rule set definition.
+     * @param {Object} metrics - The normalized input metrics (e.g., from AuditDataNormalizer).
+     * @returns {boolean} The result of the rule evaluation.
+     */
+    _evaluateRuleIterative(ruleId, rules, metrics) {
+        if (this.resultCache.has(ruleId)) {
+            return this.resultCache.get(ruleId);
+        }
+
+        const rule = rules[ruleId];
+        if (!rule) {
+            console.warn(`Rule ${ruleId} not found.`);
+            return false;
+        }
+
+        // Use a stack for iterative simulation of recursion (Tail Call Optimization substitute)
+        const evaluationStack = [{ id: ruleId, rule, index: 0, results: [] }];
+        const localCache = new Map(); // Local cache for current evaluation path
+
+        while (evaluationStack.length > 0) {
+            const currentFrame = evaluationStack[evaluationStack.length - 1];
+            const { id, rule, index, results } = currentFrame;
+
+            if (localCache.has(id)) {
+                // If already computed in this path, pop and use result
+                evaluationStack.pop();
+                if (evaluationStack.length > 0) {
+                    evaluationStack[evaluationStack.length - 1].results.push(localCache.get(id));
+                } else {
+                    // Final result
+                    this.resultCache.set(id, localCache.get(id));
+                    return localCache.get(id);
+                }
+                continue;
+            }
+
+            // Base Case: Simple Metric Check
+            if (rule.type === 'metric_check') {
+                const metricValue = metrics[rule.metric];
+                let result = false;
+                if (rule.operator === '>') {
+                    result = metricValue > rule.value;
+                } else if (rule.operator === '<') {
+                    result = metricValue < rule.value;
+                }
+                
+                localCache.set(id, result);
+                evaluationStack.pop();
+                
+                if (evaluationStack.length > 0) {
+                    evaluationStack[evaluationStack.length - 1].results.push(result);
+                } else {
+                    this.resultCache.set(id, result);
+                    return result;
+                }
+                continue;
+            }
+
+            // Recursive Case: Logical Combination (AND/OR)
+            if (rule.type === 'logical_combine') {
+                const dependencies = rule.dependencies;
+
+                if (index < dependencies.length) {
+                    // Push dependency onto the stack for evaluation
+                    const dependencyId = dependencies[index];
+                    currentFrame.index++; // Move to the next dependency for the next iteration
+                    
+                    // Check global cache first
+                    if (this.resultCache.has(dependencyId)) {
+                        results.push(this.resultCache.get(dependencyId));
+                        continue;
+                    }
+                    
+                    // Check local cache (if dependency was already resolved in this run)
+                    if (localCache.has(dependencyId)) {
+                        results.push(localCache.get(dependencyId));
+                        continue;
+                    }
+
+                    // Push new frame for dependency
+                    evaluationStack.push({ 
+                        id: dependencyId, 
+                        rule: rules[dependencyId], 
+                        index: 0, 
+                        results: [] 
+                    });
+                    continue;
+                } else {
+                    // All dependencies resolved, calculate final result for this frame
+                    let finalResult;
+                    if (rule.operator === 'AND') {
+                        finalResult = results.every(r => r === true);
+                    } else if (rule.operator === 'OR') {
+                        finalResult = results.some(r => r === true);
+                    } else {
+                        finalResult = false;
+                    }
+
+                    localCache.set(id, finalResult);
+                    this.resultCache.set(id, finalResult); // Update global cache
+
+                    evaluationStack.pop();
+                    
+                    if (evaluationStack.length > 0) {
+                        evaluationStack[evaluationStack.length - 1].results.push(finalResult);
+                    } else {
+                        return finalResult;
+                    }
+                }
+            }
+        }
+        // Should not be reached if rule structure is valid
+        return false; 
+    }
+
+    /**
+     * Executes the rule engine against a set of metrics and rules.
+     * @param {Object} rules - The rule definition object.
+     * @param {Object} metrics - The input metrics (e.g., { efficiencyScore: 0.9, complianceScore: 0.5 }).
+     * @param {string} entryRuleId - The starting rule ID for evaluation.
+     * @returns {Object} The final evaluation result and cache status.
+     */
+    execute(rules, metrics, entryRuleId) {
+        this.clearCache();
+        const result = this._evaluateRuleIterative(entryRuleId, rules, metrics);
+        
+        return {
+            result: result,
+            evaluatedRules: Array.from(this.resultCache.keys()),
+            cacheHits: this.resultCache.size // Simplified metric
+        };
+    }
+}
+
+module.exports = DialAnalysisRuleEngine;"
+    },
+    {
+      "filename": "server.js",
+      "content": "const express = require('express');
 const path = require('path');
 const AuditDataNormalizer = require('./src/governance/AuditDataNormalizer');
-const { assessProposal } = require('./src/evolution/Evolutionary_Risk_Assessor'); // <-- NEW IMPORT
+const { assessProposal } = require('./src/evolution/Evolutionary_Risk_Assessor');
+const DialAnalysisRuleEngine = require('./src/analysis/DialAnalysisRuleEngine'); // <-- NEW IMPORT
 
 const app = express();
 const PORT = 3000;
 
-// Initialize the normalizer
+// Initialize the normalizer and the rule engine
 const normalizer = new AuditDataNormalizer();
+const ruleEngine = new DialAnalysisRuleEngine(); // <-- NEW INSTANTIATION
 
 // Mock raw telemetry data for demonstration
 const mockRawData = {
@@ -153,6 +322,43 @@ const mockProposal = {
     }
 };
 
+// Mock Rule Set for Dial Analysis
+const mockDialRules = {
+    // R1: Base Metric Check - Efficiency is Critical
+    'R1_CRITICAL_EFFICIENCY': {
+        type: 'metric_check',
+        metric: 'efficiencyScore',
+        operator: '<',
+        value: 0.5
+    },
+    // R2: Base Metric Check - Compliance is Low
+    'R2_LOW_COMPLIANCE': {
+        type: 'metric_check',
+        metric: 'complianceScore',
+        operator: '<',
+        value: 0.7
+    },
+    // R3: Base Metric Check - High Violations
+    'R3_HIGH_VIOLATIONS': {
+        type: 'metric_check',
+        metric: 'violationCount',
+        operator: '>',
+        value: 1
+    },
+    // R4: Combination - System Instability (R1 OR R2)
+    'R4_SYSTEM_INSTABILITY': {
+        type: 'logical_combine',
+        operator: 'OR',
+        dependencies: ['R1_CRITICAL_EFFICIENCY', 'R2_LOW_COMPLIANCE']
+    },
+    // R5: Final Critical Status (R4 AND R3) - Requires both instability AND high violations
+    'R5_CRITICAL_STATUS': {
+        type: 'logical_combine',
+        operator: 'AND',
+        dependencies: ['R4_SYSTEM_INSTABILITY', 'R3_HIGH_VIOLATIONS']
+    }
+};
+
 /**
  * API Endpoint to get normalized audit data
  */
@@ -181,6 +387,29 @@ app.get('/api/evolution/assess', (req, res) => {
     });
 });
 
+/**
+ * API Endpoint to run Dial Analysis Rules (NEW)
+ */
+app.get('/api/analysis/dial-rules', (req, res) => {
+    // Use a specific component's normalized data for analysis (e.g., AGI_CORE_001)
+    const rawData = mockRawData['AGI_CORE_001'];
+    const normalizedMetrics = normalizer.normalize('AGI_CORE_001', rawData);
+
+    const analysisResult = ruleEngine.execute(
+        mockDialRules, 
+        normalizedMetrics, 
+        'R5_CRITICAL_STATUS' // Entry point
+    );
+
+    res.json({
+        component: 'AGI_CORE_001',
+        metrics: normalizedMetrics,
+        rules_evaluated: analysisResult.evaluatedRules,
+        is_critical: analysisResult.result,
+        engine_status: `Cache hits: ${analysisResult.cacheHits}`
+    });
+});
+
 // Serve static React files (assuming client build is available)
 app.use(express.static(path.join(__dirname, 'client/build')));
 
@@ -192,233 +421,3 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`AGI Kernel Governance Engine running on http://localhost:${PORT}`);
 });
-
-// src/governance/AuditDataNormalizer.js (Core Logic)
-/**
- * src/governance/AuditDataNormalizer.js
- * Purpose: Processes raw system telemetry and audit logs, transforming them into the
- * normalized metrics [0.0, 1.0] required by the PerformanceMetricGenerator.
- * This layer handles logic such as converting latency spikes or resource usage percentages
- * into the required 'efficiencyScore', and aggregating log events into compliance ratios.
- */
-class AuditDataNormalizer {
-
-    /**
-     * Standard configuration thresholds for metric conversion.
-     */
-    static DEFAULT_THRESHOLDS = {
-        P95_LATENCY_GOOD_MS: 50, // Optimal latency threshold
-        P95_LATENCY_BAD_MS: 500, // Latency score drops to 0.0 above this threshold
-        RESOURCE_USAGE_MAX_PCT: 85, // Resource usage must stay below this for 1.0 score
-        COMPLIANCE_WINDOW_MS: 3600000 // 1 hour window for compliance ratio calculation
-    };
-
-    /**
-     * @param {Object} config - Optional threshold overrides.
-     */
-    constructor(config = {}) {
-        this.thresholds = { ...AuditDataNormalizer.DEFAULT_THRESHOLDS, ...config };
-    }
-
-    /**
-     * Converts a raw operational latency metric into a standardized efficiency score (0.0 to 1.0).
-     * @param {number} p95LatencyMs - The P95 latency observed in milliseconds.
-     * @returns {number} Efficiency Score (0.0 to 1.0).
-     */
-    _calculateEfficiencyScore(p95LatencyMs) {
-        const { P95_LATENCY_GOOD_MS, P95_LATENCY_BAD_MS } = this.thresholds;
-
-        if (p95LatencyMs <= P95_LATENCY_GOOD_MS) {
-            return 1.0;
-        }
-        if (p95LatencyMs >= P95_LATENCY_BAD_MS) {
-            return 0.0;
-        }
-
-        // Linear interpolation between the good and bad thresholds
-        const range = P95_LATENCY_BAD_MS - P95_LATENCY_GOOD_MS;
-        const score = 1.0 - (p95LatencyMs - P95_LATENCY_GOOD_MS) / range;
-        
-        return Math.max(0.0, Math.min(1.0, score));
-    }
-
-    /**
-     * Normalizes all collected raw data into the format required by the metric generator.
-     * 
-     * @param {string} actorId - ID of the component.
-     * @param {Object} rawTelemetry - Raw, recent telemetry and event logs.
-     * @param {number} rawTelemetry.p95LatencyMs - Observed 95th percentile latency.
-     * @param {number} rawTelemetry.complianceChecksRun - Total policy checks executed.
-     * @param {number} rawTelemetry.complianceChecksFailed - Total policy checks failed.
-     * @param {number} rawTelemetry.seriousViolations - Count of non-recoverable, severe policy breaches.
-     * @returns {Object} Normalized Audit Data (complianceScore, violationCount, efficiencyScore).
-     */
-    normalize(actorId, rawTelemetry) {
-        const { 
-            p95LatencyMs = Infinity,
-            complianceChecksRun = 0,
-            complianceChecksFailed = 0,
-            seriousViolations = 0 
-        } = rawTelemetry;
-
-        // 1. Calculate Compliance Score (Ratio of successful checks)
-        let complianceScore = 1.0;
-        if (complianceChecksRun > 0) {
-            const successChecks = complianceChecksRun - complianceChecksFailed;
-            complianceScore = successChecks / complianceChecksRun;
-        }
-
-        // 2. Calculate Efficiency Score (Using internal calculation logic)
-        const efficiencyScore = this._calculateEfficiencyScore(p95LatencyMs);
-
-        return {
-            complianceScore: complianceScore,
-            violationCount: seriousViolations,
-            efficiencyScore: efficiencyScore
-        };
-    }
-}
-
-module.exports = AuditDataNormalizer;
-
-// client/src/App.js (React Entry Point - MODIFIED)
-import React from 'react';
-import GovernanceDashboard from './components/GovernanceDashboard'; // Renamed component
-
-function App() {
-  return (
-    <div className="App">
-      <GovernanceDashboard />
-    </div>
-  );
-}
-
-export default App;
-
-// client/src/components/GovernanceDashboard.jsx (React UI Component - MODIFIED/RENAMED)
-import React, { useState, useEffect } from 'react';
-
-const ScoreGauge = ({ score, label, color }) => {
-    const displayScore = (score * 100).toFixed(1);
-    const gaugeStyle = {
-        width: '100px',
-        height: '100px',
-        borderRadius: '50%',
-        background: `conic-gradient(${color} ${displayScore}%, #eee ${displayScore}%)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '1.2em',
-        fontWeight: 'bold',
-        margin: '10px'
-    };
-    return (
-        <div style={{ textAlign: 'center' }}>
-            <div style={gaugeStyle}>
-                <div style={{ background: 'white', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {displayScore}%
-                </div>
-            </div>
-            <small>{label}</small>
-        </div>
-    );
-};
-
-const EvolutionAssessment = ({ assessmentData }) => {
-    if (!assessmentData) return <div>Awaiting Evolution Assessment...</div>;
-
-    const { proposal, assessment } = assessmentData;
-    const { recommendation, risk, gain_metric, reasoning } = assessment;
-
-    const getColor = (rec) => {
-        if (rec.includes("APPROVE")) return 'green';
-        if (rec.includes("CAUTION")) return 'orange';
-        return 'red';
-    };
-
-    return (
-        <div style={{ border: '1px solid #ccc', padding: '15px', margin: '20px 0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-            <h3>Evolution Proposal Assessment ({proposal.id})</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-                <ScoreGauge 
-                    score={gain_metric} 
-                    label="Predicted Gain (CPU Red.)" 
-                    color="blue" 
-                />
-                <div style={{ textAlign: 'left' }}>
-                    <p><strong>Recommendation:</strong> <span style={{ color: getColor(recommendation), fontWeight: 'bold' }}>{recommendation}</span></p>
-                    <p><strong>Calculated Risk Ratio:</strong> {isFinite(risk) ? risk.toFixed(3) : 'N/A'}</p>
-                    <p><strong>Reasoning:</strong> {reasoning}</p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const GovernanceDashboard = () => { // Renamed from AuditDashboard
-    const [auditData, setAuditData] = useState(null);
-    const [assessmentData, setAssessmentData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        const fetchAuditData = fetch('/api/audit/normalized').then(res => {
-            if (!res.ok) throw new Error('Failed to fetch normalized audit data');
-            return res.json();
-        }).then(data => data.data);
-
-        const fetchAssessmentData = fetch('/api/evolution/assess').then(res => {
-            if (!res.ok) throw new Error('Failed to fetch evolution assessment');
-            return res.json();
-        }).then(data => data);
-
-        Promise.all([fetchAuditData, fetchAssessmentData])
-            .then(([audit, assessment]) => {
-                setAuditData(audit);
-                setAssessmentData(assessment);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setError(err.message);
-                setLoading(false);
-            });
-    }, []);
-
-    if (loading) return <div>Loading AGI Governance Metrics...</div>;
-    if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
-    if (!auditData) return <div>No audit data available.</div>;
-
-    return (
-        <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px' }}>
-            <h1>AGI Kernel Governance Dashboard</h1>
-            
-            <EvolutionAssessment assessmentData={assessmentData} />
-
-            <h2>Normalized Audit Telemetry</h2>
-            {Object.entries(auditData).map(([actorId, metrics]) => (
-                <div key={actorId} style={{ border: '1px solid #ddd', padding: '15px', margin: '10px 0', borderRadius: '5px' }}>
-                    <h3>{actorId}</h3>
-                    <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                        <ScoreGauge 
-                            score={metrics.efficiencyScore} 
-                            label="Efficiency Score" 
-                            color={metrics.efficiencyScore > 0.8 ? 'green' : metrics.efficiencyScore > 0.5 ? 'orange' : 'red'} 
-                        />
-                        <ScoreGauge 
-                            score={metrics.complianceScore} 
-                            label="Compliance Score" 
-                            color={metrics.complianceScore > 0.9 ? 'green' : metrics.complianceScore > 0.7 ? 'orange' : 'red'} 
-                        />
-                        <div style={{ textAlign: 'center', margin: '10px' }}>
-                            <h2 style={{ color: metrics.violationCount > 0 ? 'red' : 'green' }}>{metrics.violationCount}</h2>
-                            <small>Serious Violations</small>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-export default GovernanceDashboard;
