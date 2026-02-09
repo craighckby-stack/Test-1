@@ -88,6 +88,81 @@ class SpecificationLoader {
 
 export const XELSpecificationLoader = SpecificationLoader;
 
+// --- TARGET INTEGRATION: ParameterCustodian (Governance Adapter) ---
+/**
+ * ParameterCustodian: Service responsible for read, validation, and atomic mutation 
+ * of the core governance parameters defined in governanceParams.json.
+ * It enforces SecurityThresholds and checks ComplexityGrowthLimitPerCycle before commitment.
+ */
+
+class ParameterCustodian {
+    constructor(governanceConfigPath) {
+        this.configPath = governanceConfigPath;
+        // WARNING: This assumes a mock or pre-loaded governance file path.
+        // In a real KERNEL environment, this require might need to be wrapped or replaced with async loading.
+        try {
+            this.currentParams = require(governanceConfigPath);
+        } catch (e) {
+            console.warn(`[ParameterCustodian] Failed to require governance config at ${governanceConfigPath}. Using mock structure.`);
+            this.currentParams = { evolutionControl: { complexityGrowthLimitPerCycle: 10 }, securityEvidence: true };
+        }
+    }
+
+    read(keyPath) {
+        // Utility to fetch deeply nested parameters
+        let current = this.currentParams;
+        if (keyPath) {
+             const parts = keyPath.split('.');
+             for (const part of parts) {
+                 if (current && Object.prototype.hasOwnProperty.call(current, part)) {
+                     current = current[part];
+                 } else {
+                     return undefined;
+                 }
+             }
+        }
+        return current;
+    }
+
+    async validateMutation(proposedParams) {
+        const currentEvolution = this.currentParams.evolutionControl;
+        const proposedEvolution = proposedParams.evolutionControl;
+
+        if (!currentEvolution || !proposedEvolution) {
+             throw new Error("Missing evolution control structure in current or proposed parameters.");
+        }
+
+        // 1. Check Complexity Growth Constraint
+        // Placeholder: Needs actual metric comparison function
+        if (proposedEvolution.complexityGrowthLimitPerCycle > currentEvolution.complexityGrowthLimitPerCycle * 1.5) {
+            throw new Error("Mutation violates complexity growth constraints.");
+        }
+
+        // 2. Check Security Threshold Requirements (e.g., requiring specific entropy/consensus input for change)
+        if (!proposedParams.securityEvidence) {
+             throw new Error("Missing authorization evidence for critical parameter modification.");
+        }
+
+        return true; 
+    }
+
+    async commit(proposedParams) {
+        await this.validateMutation(proposedParams);
+        
+        // Atomic write to disk and system reload/policy update 
+        try {
+            const dataToWrite = JSON.stringify(proposedParams, null, 2);
+            await FS_PROMISES.writeFile(this.configPath, dataToWrite, 'utf8');
+            
+            this.currentParams = proposedParams;
+            console.log("Governance parameters updated successfully.");
+        } catch (error) {
+            console.error("Failed to commit governance parameters:", error);
+            throw new Error(`Commit failed: ${error.message}`);
+        }
+    }
+}
+
 // --- Grafted Type Definitions for GRCS Verification (GRCS_VerificationTypes) ---
 type LiabilityUnit = 'USD' | 'PPR' | 'N/A';
 
@@ -565,7 +640,7 @@ class BaseAverager {
             this.values.push(value);
         } else {
             console.warn(`[${this.name}] Invalid value submitted:`, value);
-        n}
+        }
     }
 
     calculate() {
@@ -709,7 +784,7 @@ function executeConstraint(constraint, context) {
         console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
         return {
             ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`, 
             severity: 'WARNING'
         };
     }
@@ -807,213 +882,4 @@ class CryptoService {
     async verifySignature(data, signature, keyId, authorityName) {
         // Mock verification: True unless explicit failure condition met
         if (data.includes("INVALID_SIGNATURE_PAYLOAD")) return false;
-        await new Promise(resolve => setTimeout(resolve, 1));
-        return true;
-    }
-
-    async calculateMerkleRoot(leavesData, algorithm) {
-        // Mock deterministic root generation
-        // The hash ensures deterministic mocking based on leaf content for successful validation.
-        const hash = leavesData.map(d => String(d).length).join('-');
-        return `MOCK_ROOT_${algorithm}_${hash}`;
-    }
-}
-const cryptoServiceInstance = new CryptoService();
-
-/**
- * STUB: Utility for specialized type/format checks (e.g., ISO8601, specific hash formats).
- */
-class ConstraintUtility {
-    validateField(field, value, constraints) {
-        if (constraints.type === 'string' && typeof value !== 'string') {
-            throw new Error(`Type mismatch for field ${field}: expected string.`);
-        }
-        if (constraints.type === 'object' && typeof value !== 'object') {
-             throw new Error(`Type mismatch for field ${field}: expected object.`);
-        }
-        if (constraints.type === 'TIMESTAMP_ISO8601') {
-            if (typeof value !== 'string' || isNaN(Date.parse(value))) {
-                throw new Error(`Format mismatch for field ${field}: not ISO8601.`);
-            }
-        }
-        // Simplified HASH_SHA256 check
-        if (constraints.type === 'HASH_SHA256' && (typeof value !== 'string' || value.length < 10)) {
-             throw new Error(`Format mismatch for field ${field}: invalid hash format.`);
-        }
-        return true;
-    }
-}
-const constraintUtilityInstance = new ConstraintUtility();
-
-
-/**
- * ArtifactValidatorService - Ensures adherence to defined artifact schemas and cryptographic constraints.
- * Ingests artifact payload and schema definition to perform verification. (Grafted TARGET Logic)
- */
-class ArtifactValidatorService {
-
-    /**
-     * @param {object} schemaRegistry - The configuration object defining artifact schemas.
-     * @param {object} cryptoService - Dependency for cryptographic operations (signatures, hashes, merkle).
-     * @param {object} constraintUtility - Utility for specialized type/format checks.
-     */
-    constructor(schemaRegistry, cryptoService, constraintUtility) {
-        if (!schemaRegistry || !cryptoService || !constraintUtility) {
-            throw new Error("ArtifactValidatorService requires schemaRegistry, cryptoService, and constraintUtility dependencies.");
-        }
-        this.registry = schemaRegistry;
-        this.cryptoService = cryptoService;
-        this.constraintUtility = constraintUtility;
-    }
-
-    /**
-     * Validates an artifact against its registered schema and cryptographic rules.
-     * @param {string} artifactId The ID (e.g., 'PMH_LOCK_V1')
-     * @param {object} payload The artifact data
-     * @returns {Promise<boolean>} True if validation succeeds.
-     * @throws {Error} If validation fails at any stage.
-     */
-    async validate(artifactId, payload) {
-        const definition = this.registry.artifact_definitions[artifactId];
-        if (!definition) {
-            throw new Error(`Schema definition not found for artifact: ${artifactId}`);
-        }
-
-        // 1. Structural and Constraint Validation
-        this._validateStructure(definition.schema, payload, artifactId);
-
-        // 2. Cryptographic Integrity Validation
-        if (definition.cryptographic_requirements) {
-            await this._validateCryptography(definition.cryptographic_requirements, payload, artifactId);
-        }
-
-        return true;
-    }
-
-    /**
-     * Performs structural validation (presence, type, format checks) by delegating to the utility.
-     */
-    _validateStructure(schema, payload, artifactId) {
-        for (const [field, constraints] of Object.entries(schema)) {
-            const hasField = Object.prototype.hasOwnProperty.call(payload, field);
-
-            if (constraints.required && !hasField) {
-                throw new Error(`[${artifactId}] Validation failed: Missing required field "${field}"`);
-            }
-
-            if (hasField) {
-                // Delegate strong type/format checking (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
-                const value = payload[field];
-                this.constraintUtility.validateField(field, value, constraints);
-            }
-        }
-    }
-
-    /**
-     * Performs cryptographic validation (signatures, Merkle proofs) using the CryptoService.
-     */
-    async _validateCryptography(requirements, payload, artifactId) {
-        if (!requirements) {
-            return; // No cryptographic requirements specified
-        }
-
-        // Canonical data is the specific data block that was signed/hashed.
-        const dataToVerify = this._getCanonicalData(payload, requirements.signed_fields);
-
-        // --- 1. Signature Authority Verification ---
-        if (requirements.signing_authorities) {
-            for (const requirement of requirements.signing_authorities) {
-                const { key_identifier_field, signature_field, authority_name } = requirement;
-
-                const keyId = payload[key_identifier_field];
-                const signature = payload[signature_field];
-
-                if (!keyId || !signature) {
-                    throw new Error(`[${artifactId}] Cryptography failed: Missing key ID (${key_identifier_field}) or signature (${signature_field}) for authority ${authority_name}.`);
-                }
-
-                const isValid = await this.cryptoService.verifySignature(dataToVerify, signature, keyId, authority_name);
-
-                if (!isValid) {
-                    throw new Error(`[${artifactId}] Cryptography failed: Invalid signature detected for authority: ${authority_name}.`);
-                }
-            }
-        }
-
-        // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
-        if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
-            const { algorithm, target_fields, root_field } = requirements.integrity;
-
-            // 1. Calculate the expected root based on payload fields
-            const leafData = target_fields.map(field => {
-                if (!payload[field]) {
-                    throw new Error(`[${artifactId}] Integrity failed: Missing required target field for Merkle root calculation: ${field}`);
-                }
-                return payload[field];
-            });
-
-            const expectedRoot = await this.cryptoService.calculateMerkleRoot(leafData, algorithm);
-            const providedRoot = payload[root_field];
-
-            if (expectedRoot !== providedRoot) {
-                throw new Error(`[${artifactId}] Integrity failed: Merkle root mismatch. Expected ${expectedRoot}, got ${providedRoot}.`);
-            }
-        }
-    }
-    
-    /** Helper to generate the canonical string for signing/hashing. */
-    _getCanonicalData(payload, signedFields) {
-        // Simple canonicalization: sort keys and join values.
-        const canonicalObject = {};
-        signedFields.sort().forEach(field => {
-            canonicalObject[field] = payload[field];
-        });
-        return JSON.stringify(canonicalObject);
-    }
-}
-const artifactValidatorInstance = new ArtifactValidatorService(SchemaRegistry, cryptoServiceInstance, constraintUtilityInstance);
-
-
-// --- MEE SUB-ENGINE INTEGRATION: MEE Policies Definition ---
-const MEE_POLICIES = Object.freeze([
-    {
-        id: 'MEE-LOAD-001',
-        description: 'Critical CPU load threshold check.',
-        type: 'thresholdCheck', // Handled by ConceptualPolicyRegistry
-        metricKey: 'averaged_osCpuLoad1m', // Key stored in the engine's internal context
-        max: 5.0, // High load
-        severity: 'CRITICAL'
-    },
-    {
-        id: 'MEE-MEM-002',
-        description: 'High memory usage warning.',
-        type: 'thresholdCheck',
-        metricKey: 'averaged_osMemoryUsagePercent',
-        max: 0.85, // 85% usage
-        severity: 'WARNING'
-    }
-]);
-
-/**
- * MEE_MetricEvaluationEngine (MEE)
- * Central hub for collecting, aggregating, and evaluating runtime metrics against governance policies.
- */
-class MEE_MetricEvaluationEngine {
-    constructor(sensorRegistry, averagerFactory, policyEvaluator, policies) {
-        this.sensors = sensorRegistry; // Array of sensor instances
-        this.averagers = {};
-        this.averagerFactory = averagerFactory;
-        this.policyEvaluator = policyEvaluator;
-        this.policies = policies;
-        this.currentMetrics = {}; // Last raw metric set
-        this.averagedMetrics = {}; // Calculated averages for evaluation
-
-        this._initializeAveragers();
-    }
-
-    /**
-     * Maps expected metrics from sensors to specialized averager instances.
-     */
-    _initializeAveragers() {
-        // Initialize averagers for known system metrics
-        this.
+        await new Promise(resolve => setTimeout(
