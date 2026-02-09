@@ -1,19 +1,21 @@
 {
-  "GMIP_VERSION": "V2.0",
-  "STANDARD_ID": "MCS-V1.2",
+  "GMIP_VERSION": "AGI-KERNEL-V7.4",
+  "STANDARD_ID": "AGI-7.4-MCT",
   "HASHING_ALGORITHM": "SHA3-256",
-  "CANONICALIZATION_IMPLEMENTATION": "JSON_CANONICAL_STANDARD_RFC8785",
+  "CANONICALIZATION_IMPLEMENTATION": "JSON_SORTED_KEYS_DETERMINISTIC",
   "MANIFEST_FIELDS_INCLUSION_LIST": [
-    "schemaId",
-    "policyDefinitions",
-    "vetoGates",
-    "resourceControls"
+    "cycle",
+    "timestamp",
+    "maturity",
+    "capability_breakdown",
+    "changes_summary",
+    "reasoning",
+    "improvement_indicators"
   ],
   "METADATA_EXCLUSION_FOR_HASHING": [
-    "timestamp_local",
-    "signer_identity",
-    "MAS",
-    "deployment_target"
+    "local_timestamp",
+    "cycle_runtime_ms",
+    "signer_identity"
   ],
-  "REASONING": "Provides a deterministic specification for Manifest Root Hash ($M_H$) generation, ensuring inter-agent consistency (GAX/CRoT) and preventing hash mismatches that would break the Manifest Hash Chain (MHC)."
+  "REASONING": "Provides deterministic hashing for core kernel state metrics (Maturity, Capabilities, Cycle) to ensure the integrity and audibility of the Manifest Hash Chain (MHC) required by the Nexus-Database persistent memory system."
 }
