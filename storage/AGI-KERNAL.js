@@ -164,22 +164,26 @@ Key Requirements:
         // Fail silently if debug logging breaks
     }
 
-    // Self-Improvement v7.5.0: Introduce explicit timeout handling (60 seconds) for network stability.
+    // Self-Improvement v7.5.0/v7.7.1: Introduce explicit timeout handling (60 seconds) using AbortController for network stability.
     const TIMEOUT_MS = 60000;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const timeoutId = setTimeout(() => {
+        // Aborting triggers an 'AbortError' which will be caught below.
+        controller.abort(); 
+    }, TIMEOUT_MS);
 
     try {
-      const fetchPromise = persistentFetch(url, {
+      const res = await persistentFetch(url, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(body),
+        signal: signal,
       });
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`LLM API Request timed out after ${TIMEOUT_MS / 1000} seconds.`)), TIMEOUT_MS)
-      );
-
-      // Race the fetch operation against the timeout promise
-      const res = await Promise.race([fetchPromise, timeoutPromise]);
+      // Clear the timeout as soon as the fetch resolves (before checking res.ok)
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const status = res.status;
@@ -234,22 +238,26 @@ Key Requirements:
       const structuredResult = recoverJSON(rawResponse);
 
       if (!structuredResult) {
-         // Self-Improvement v7.6.0: Ensure explicit failure return path when structured JSON recovery fails, 
-         // providing the raw text for caller debugging and analysis, and fixing the previous truncated logging statement.
-         await pushLog('Failed to recover structured JSON from LLM output. Returning raw text for inspection.', 'error');
-         return { 
-            success: false, 
-            error: "Failed to parse structured JSON output. Raw text provided in 'rawResponse'.",
-            rawResponse: rawResponse 
-         };
+         // Self-Improvement v7.7.0: Complete the failure path for strict JSON compliance check.
+         await pushLog(`LLM output failed JSON compliance check. Raw response excerpt: ${rawResponse.slice(0, 500)}...`, 'critical');
+         return { success: false, error: "LLM output did not conform to the required JSON structure." };
       }
       
+      // Final success path
       return { success: true, result: structuredResult };
-      
-    } catch (error) {
-      // Network errors, timeouts, or thrown errors from non-200 responses land here.
-      const errorMessage = error.message || 'An unknown network error occurred during generation.';
-      await pushLog(`LLM Generation Failed: ${errorMessage}`, 'critical');
-      return { success: false, error: errorMessage };
+
+    } catch (e) {
+        // Ensure timeout is cleared even if an error occurred before clearing
+        clearTimeout(timeoutId); 
+        
+        // Self-Improvement v7.7.1: Improve error distinction for network vs. API errors, especially handling AbortError (timeout).
+        let errorMessage = e.message || 'An unknown network error occurred.';
+        
+        if (e.name === 'AbortError') {
+             errorMessage = `LLM API Request timed out after ${TIMEOUT_MS / 1000} seconds.`;
+        }
+        
+        await pushLog(`LLM Generation Failure: ${errorMessage}`, 'critical');
+        return { success: false, error: errorMessage };
     }
-  }, [state.config, pushLog]);
+};
