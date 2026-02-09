@@ -27,10 +27,66 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// --- TARGET INTEGRATION: GAX Event Registry (Telemetry Standard) ---
+/**
+ * Standardized Event Names for the GAX Telemetry Service (Global Autonomous X-System).
+ * Structure: NAMESPACE:SUBDOMAIN:ACTION
+ */
+const GAXEventRegistry = Object.freeze({
+    // System Lifecycle (SYS)
+    SYS_INIT_START: 'SYS:INIT:START',
+    SYS_INIT_COMPLETE: 'SYS:INIT:COMPLETE',
+    SYS_EXECUTION_START: 'SYS:EXECUTION:START',
+    SYS_EXECUTION_END: 'SYS:EXECUTION:END',
+    SYS_SHUTDOWN: 'SYS:SHUTDOWN',
+
+    // Policy & Verification (PV)
+    PV_REQUEST_INITIATED: 'PV:REQUEST:INITIATED',
+    PV_RULE_CHECK_SUCCESS: 'PV:RULE:CHECK:SUCCESS',
+    PV_RULE_CHECK_FAILURE: 'PV:RULE:CHECK:FAILURE',
+    PV_ACCESS_DENIED: 'PV:ACCESS:DENIED',
+
+    // Autonomous Evolution (AXIOM)
+    AXIOM_GENERATION_START: 'AXIOM:GENERATION:START',
+    AXIOM_EVOLUTION_STEP_PERFORMED: 'AXIOM:EVOLUTION:STEP_PERFORMED',
+    AXIOM_CODE_COMMITTED: 'AXIOM:CODE:COMMITTED',
+    AXIOM_CODE_REVERTED: 'AXIOM:CODE:REVERTED',
+    AXIOM_TEST_RUN_SUCCESS: 'AXIOM:TEST:RUN_SUCCESS',
+    AXIOM_TEST_RUN_FAILURE: 'AXIOM:TEST:RUN_FAILURE',
+
+    // Planning and Context Management (PLAN)
+    PLAN_GOAL_DEFINED: 'PLAN:GOAL:DEFINED',
+    PLAN_STEP_GENERATED: 'PLAN:STEP:GENERATED',
+    PLAN_STEP_COMPLETED: 'PLAN:STEP:COMPLETED',
+    PLAN_CONTEXT_RETRIEVAL_START: 'PLAN:CONTEXT:RETRIEVAL_START',
+    PLAN_CONTEXT_RETRIEVAL_COMPLETE: 'PLAN:CONTEXT:RETRIEVAL_COMPLETE',
+
+    // External API Interaction (API)
+    API_REQUEST_SENT: 'API:EXTERNAL:REQUEST_SENT',
+    API_RESPONSE_RECEIVED: 'API:EXTERNAL:RESPONSE_RECEIVED',
+    API_RATE_LIMIT_HIT: 'API:EXTERNAL:RATE_LIMIT_HIT',
+
+    // Data/Context Storage (DATA)
+    DATA_CACHE_HIT: 'DATA:CACHE:HIT',
+    DATA_CACHE_MISS: 'DATA:CACHE:MISS',
+    DATA_STORAGE_WRITE_FAILURE: 'DATA:STORAGE:WRITE_FAILURE',
+
+    // System Diagnostics, Errors, and Warnings (DIAG)
+    DIAG_CONFIGURATION_FAULT: 'DIAG:CONFIGURATION:FAULT',
+    DIAG_CONTEXT_RESOLUTION_MISSING: 'DIAG:CONTEXT:RESOLUTION_MISSING',
+    DIAG_COMPONENT_FATAL_ERROR: 'DIAG:COMPONENT:FATAL_ERROR',
+    DIAG_WARNING_THRESHOLD_EXCEEDED: 'DIAG:WARNING:THRESHOLD_EXCEEDED',
+
+    // Telemetry Infrastructure (TEL)
+    TEL_PUBLISH_SUCCESS: 'TEL:PUBLISH:SUCCESS',
+    TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
+    TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
+});
+
 // --- TARGET INTEGRATION: SystemLoadSensor (MEE Metric Source) ---
 
 /**
- * A concrete example of a sensor component adhering to the Hub's expected interface.
+ * A concrete example of a sensor component adhering to the Hub\'s expected interface.
  * Measures CPU load and memory usage.
  */
 class SystemLoadSensor {
@@ -162,7 +218,7 @@ class AveragerFactory {
 
     /**
      * Creates a new instance of the appropriate Averager based on the metric type.
-     * Falls back to 'default' if the type is not found.
+     * Falls back to \'default\' if the type is not found.
      * @param {string} metricType - The identifier string.
      * @param {string} instanceName - The specific name for the metric instance (e.g., 'cpu_1m_avg').
      * @returns {BaseAverager} An instance of the registered averager class.
@@ -187,7 +243,7 @@ class AveragerFactory {
     }
 }
 
-// Global instance of the factory, accessible by the Kernel's state management loop.
+// Global instance of the factory, accessible by the Kernel\'s state management loop.
 const MEE_AveragerFactory = new AveragerFactory();
 
 // --- TARGET INTEGRATION: Conceptual Policy Evaluation Layer ---
@@ -201,7 +257,7 @@ const MEE_AveragerFactory = new AveragerFactory();
 
 /** 
  * STUB: Conceptual Policy Registry. Defines handlers for policy types. 
- * In a full system, this would be imported from './ConceptualPolicyRegistry.js'.
+ * In a full system, this would be imported from \'./ConceptualPolicyRegistry.js\'.
  */
 const ConceptualPolicyRegistry = {
     // Example Handler: Checks if a numeric metric exceeds a threshold.
@@ -910,3 +966,74 @@ function AGI_Kernel() {
                             {state.governanceReport.violations.map((v, i) => (
                                 <li key={i} style={{ color: v.severity === 'CRITICAL' ? 'red' : 'orange' }}>
                                     [{v.ruleId}] {v.detail} (Severity
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </section>
+
+            <section className="metrics-panel">
+                <h2><Gauge /> System Metrics (MEE Averages)</h2>
+                <ul>
+                    {Object.keys(state.systemMetrics)
+                        .filter(key => key.endsWith('_avg'))
+                        .map(key => (
+                            <li key={key}>{key}: {(state.systemMetrics[key] * 100).toFixed(2)}{key.includes('Percent') ? '%' : ''}</li>
+                        ))}
+                    <li>osTotalMemoryBytes (Raw): {state.systemMetrics.osTotalMemoryBytes || 'N/A'}</li>
+                </ul>
+            </section>
+
+            <section className="logs-panel">
+                <h2><ScanText /> Kernel Logs</h2>
+                <div className="log-output">
+                    {state.logs.slice().reverse().map((log, index) => (
+                        <p key={index}>{new Date().toLocaleTimeString()}: {log}</p>
+                    ))}
+                </div>
+            </section>
+
+            <style jsx global>{`
+                .agi-kernel-dashboard {
+                    font-family: monospace;
+                    padding: 20px;
+                    background: #1e1e1e;
+                    color: #00ffaa;
+                    border: 2px solid #00ffaa;
+                    border-radius: 8px;
+                }
+                h1, h2 {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    border-bottom: 1px solid #005533;
+                    padding-bottom: 5px;
+                    margin-top: 20px;
+                }
+                .icon {
+                    width: 20px;
+                    height: 20px;
+                }
+                .log-output {
+                    max-height: 200px;
+                    overflow-y: scroll;
+                    border: 1px solid #005533;
+                    padding: 10px;
+                    background: #0d0d0d;
+                }
+                .log-output p {
+                    margin: 2px 0;
+                    font-size: 0.85em;
+                    line-height: 1.2;
+                }
+                .governance-panel p, ul {
+                    padding-left: 20px;
+                }
+            `}</style>
+        </div>
+    );
+}
+
+// NOTE: In a complete React environment, this component would be exported and rendered.
+// export default AGI_Kernel;
