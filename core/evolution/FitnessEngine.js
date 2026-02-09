@@ -110,6 +110,21 @@ class FitnessEngine {
   }
 
   /**
+   * Autonomy/Error Handling: Sanitizes the dynamic calculation string before evaluation.
+   * Only allows basic arithmetic operators, parentheses, decimals, and numbers.
+   * This is crucial because it uses eval() for Meta-Reasoning functionality.
+   * 
+   * @param {string} formulaString - The string after metric substitution.
+   * @returns {string} Sanitized formula string.
+   */
+  sanitizeFormula(formulaString) {
+    // Only allow numbers (and metrics already replaced by numbers), basic arithmetic, spaces, and parentheses.
+    // Using a broad negative match to strip anything unsafe.
+    let sanitized = formulaString.replace(/[^-+*/().\s\d]/g, '');
+    return sanitized;
+  }
+
+  /**
    * Implements dynamic formula execution for Meta-Reasoning capability development.
    * Recognizes complex formulas vs. simple metric lookups.
    * 
@@ -141,19 +156,22 @@ class FitnessEngine {
                       ? rawMetrics[metricKey] 
                       : 0.0;
         
-        // Improvement: Use escaped word boundaries (\\b) for robust replacement
+        // Improvement: Use escaped word boundaries (\b) for robust replacement
         // This ensures M_ERROR_RATE is not partially substituted in M_TOTAL_ERROR_RATE.
-        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
+        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
     }
 
     try {
+        // Step 1: Sanitize the resulting calculation string before evaluation for enhanced security and stability.
+        const safeCalculationString = this.sanitizeFormula(calculationString);
+
         // NOTE: Use of eval() is a deliberate architectural decision to enable
         // autonomous formula generation (Meta-Reasoning).
-        const result = eval(calculationString);
+        const result = eval(safeCalculationString);
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
             // Enhanced error logging: show the resulting string that produced the non-safe result.
-            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${calculationString}`);
+            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}`);
             return 0.0;
         }
         return result;
