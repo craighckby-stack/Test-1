@@ -9,6 +9,15 @@
  * Crucial for the kernel's Meta-Reasoning and Self-Improvement cycle, now integrating Historical Context.
  */
 class FitnessEngine {
+  
+  // Define internal weights structure for transparency and modularity (Logic Improvement)
+  static CAPABILITY_WEIGHTS = {
+      // Maps Internal Core Scores to AGI Core Capabilities (Navigation, Logic, Memory)
+      navigation: { Autonomy: 0.45, Creativity: 0.35, "Meta-Reasoning": 0.20 },
+      logic: { "Meta-Reasoning": 0.60, "Error Handling": 0.40 },
+      memory: { "Error Handling": 0.50, "JSON Parsing": 0.50 }
+  };
+
   constructor(metricsConfig) {
     if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
         // Robust data extraction/JSON Parsing check
@@ -20,6 +29,10 @@ class FitnessEngine {
         this.isOperational = true;
     }
     
+    // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
+    this.FLOAT_TOLERANCE = 1e-9;
+    this.EPSILON = 1e-9; // Used for inverse scaling stability and zero comparison
+
     // JSON Parsing: Deep structural validation check for profiles
     if (this.isOperational) {
         for (const profileName in this.config.profiles) {
@@ -41,10 +54,6 @@ class FitnessEngine {
             }
         }
     }
-    
-    // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
-    this.FLOAT_TOLERANCE = 1e-9;
-    this.EPSILON = 1e-9; // Used for inverse scaling stability and zero comparison
   }
 
   /**
@@ -328,13 +337,30 @@ class FitnessEngine {
           return false;
       }
       
-      // 3. Check parenthesis balance (Error Handling/Autonomy)
+      // Normalize formula by removing spaces for structural checks
+      const trimmedFormula = formula.replace(/\s/g, '');
+      const metricIdPattern = /[A-Z_]+/; // Pattern for a metric ID
+
+      // NEW SECURITY IMPROVEMENT (Error Handling/Autonomy):
+      // 3a. Check for metric followed immediately by open parenthesis without operator (e.g., M_A(M_B+2))
+      if (trimmedFormula.match(new RegExp(metricIdPattern.source + '\\('))) {
+          console.error("FitnessEngine Security Alert: Metric followed immediately by open parenthesis (missing operator).");
+          return false;
+      }
+
+      // 3b. Check for close parenthesis followed immediately by metric without operator (e.g., (M_B+2)M_A)
+      if (trimmedFormula.match(new RegExp('\\)' + metricIdPattern.source))) {
+          console.error("FitnessEngine Security Alert: Close parenthesis followed immediately by metric (missing operator).");
+          return false;
+      }
+      
+      // 4. Check parenthesis balance (Error Handling/Autonomy)
       if (!this._checkParenthesisBalance(formula)) {
           console.error("FitnessEngine Security Alert: Formula failed parenthesis balance check (structural integrity error).");
           return false;
       }
       
-      // 4. Check for invalid operator sequences
+      // 5. Check for invalid operator sequences
       const formulaOperatorsOnly = formula.replace(/[A-Z0-9_().\s]/g, '');
       // Looks for two or more non-hyphen operators (or non-initial hyphens) in sequence, after removing metrics.
       const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; 
@@ -344,14 +370,12 @@ class FitnessEngine {
           return false;
       }
 
-      // 5. Check for formulas starting or ending with disallowed operators
+      // 6. Check for formulas starting or ending with disallowed operators
       const trimFormula = formula.trim();
       // We allow start with + or - for unary operations.
       const disallowedStartEnd = /^[*\/]|[+\-*\/]$/; // Disallow starting with * or / OR ending with any operator
 
       if (disallowedStartEnd.test(trimFormula)) {
-          // Note: While substitution makes ending operators safe if they represent the end of a metric, 
-          // allowing operators at the end is bad practice for a formula definition.
           console.error("FitnessEngine Security Alert: Formula starts or ends with invalid operator.");
           return false;
       }
@@ -563,11 +587,11 @@ class FitnessEngine {
     // Updated weights to prioritize Error Handling and Autonomy for foundational stability.
     const overallImprovement = normalizedScore * 4.5; 
 
-    coreScores["Error Handling"] += overallImprovement * 0.5; // High priority
-    coreScores["Autonomy"] += overallImprovement * 0.4;       // High priority
-    coreScores["Meta-Reasoning"] += overallImprovement * 0.4; // Strategic priority
-    coreScores["JSON Parsing"] += overallImprovement * 0.3; // Data robustness
-    coreScores["Creativity"] += overallImprovement * 0.2;     // Novelty
+    coreScores["Error Handling"] += overallImprovement * 0.5;
+    coreScores["Autonomy"] += overallImprovement * 0.4;
+    coreScores["Meta-Reasoning"] += overallImprovement * 0.4;
+    coreScores["JSON Parsing"] += overallImprovement * 0.3;
+    coreScores["Creativity"] += overallImprovement * 0.2;
     
     // 2. Strategic Depth Assessment (Profile-specific)
     const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
@@ -583,7 +607,7 @@ class FitnessEngine {
         coreScores["Creativity"] += normalizedScore * 1.2; 
     }
     
-    // 3. Historical Success Boost (New: Links Meta-Reasoning directly to progression)
+    // 3. Historical Success Boost (Links Meta-Reasoning directly to progression)
     const historicalProgressed = this._checkHistoricalSuccess(rawMetrics, historicalMetrics, profile);
     if (historicalProgressed) {
         coreScores["Meta-Reasoning"] += 1.0; // Significant boost for successful learning application
@@ -601,27 +625,20 @@ class FitnessEngine {
         coreScores[key] = Math.max(5.0, coreScores[key]);
     }
     
-    // 5. Map AGI Core Capabilities back to expected output keys (using fixed weights derived from internal core scores)
-    return {
-        // Navigation: Focus on self-directed paths (Autonomy) and novelty (Creativity)
-        navigation: parseFloat(Math.min(10,
-            coreScores["Autonomy"] * 0.45 + 
-            coreScores["Creativity"] * 0.35 + 
-            coreScores["Meta-Reasoning"] * 0.2
-        ).toFixed(2)),
-        
-        // Logic: Focus on strategic decision making (Meta-Reasoning) and fault tolerance (Error Handling)
-        logic: parseFloat(Math.min(10, 
-            coreScores["Meta-Reasoning"] * 0.6 + 
-            coreScores["Error Handling"] * 0.4
-        ).toFixed(2)),
-        
-        // Memory: Focus on data integrity and persistence (Error Handling, JSON Parsing)
-        memory: parseFloat(Math.min(10, 
-            coreScores["Error Handling"] * 0.5 + 
-            coreScores["JSON Parsing"] * 0.5
-        ).toFixed(2))
-    };
+    // 5. Map AGI Core Capabilities back to expected output keys using defined weights (Logic Improvement)
+    let agiScores = {};
+    const weights = FitnessEngine.CAPABILITY_WEIGHTS;
+
+    for (const agiCap in weights) {
+        let weightedSum = 0;
+        for (const internalCap in weights[agiCap]) {
+            weightedSum += coreScores[internalCap] * weights[agiCap][internalCap];
+        }
+        // Clamp and format the final score
+        agiScores[agiCap] = parseFloat(Math.min(10, weightedSum).toFixed(2));
+    }
+    
+    return agiScores;
   }
 }
 
