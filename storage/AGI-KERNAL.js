@@ -1,1 +1,1 @@
-export default function App() { ... }
+export default function App() { try { /* original code */ } catch (error) { console.error('Error:', error); } }
