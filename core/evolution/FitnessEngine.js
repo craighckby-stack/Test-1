@@ -329,9 +329,32 @@ class FitnessEngine {
           return false;
       }
       
-      // 3. NEW IMPROVEMENT (Error Handling/Autonomy): Check parenthesis balance
+      // 3. Check parenthesis balance (Error Handling/Autonomy)
       if (!this._checkParenthesisBalance(formula)) {
           console.error("FitnessEngine Security Alert: Formula failed parenthesis balance check (structural integrity error).");
+          return false;
+      }
+      
+      // NEW IMPROVEMENT 4 (Error Handling/Autonomy): Check for invalid operator sequences
+      // Looks for two or more non-hyphen operators (or non-initial hyphens) in sequence, after removing metrics.
+      // Hyphens are tricky as they can be subtraction or unary negative.
+      const formulaOperatorsOnly = formula.replace(/[A-Z0-9_().\s]/g, '');
+      // Check for operators that are not part of a valid unary sign sequence (e.g., ++, **, //, +-, /*)
+      const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; // Catches things like '++' or '*/' or '+-' (which is often ambiguous/bad style)
+      
+      if (invalidOperatorSequence.test(formulaOperatorsOnly.replace(/\s/g, ''))) {
+          console.error("FitnessEngine Security Alert: Formula failed invalid operator sequence check (structural integrity error).");
+          return false;
+      }
+
+      // NEW IMPROVEMENT 5 (Error Handling/Autonomy): Check for formulas starting or ending with disallowed operators
+      const trimFormula = formula.trim();
+      // A formula should generally not start or end with multiplication or division, even though substitution happens later.
+      // We allow start with + or - for unary operations.
+      const disallowedStartEnd = /^[\*\/]|[\*\/]$/;
+
+      if (disallowedStartEnd.test(trimFormula)) {
+          console.error("FitnessEngine Security Alert: Formula starts or ends with invalid operator.");
           return false;
       }
       
@@ -387,7 +410,7 @@ class FitnessEngine {
         
         // NEW IMPROVEMENT (Error Handling): Pre-check for Division by Zero in the substituted numeric string
         // Searches for / followed immediately by a literal 0 (optionally surrounded by parentheses/decimals/whitespace)
-        const divisionByZeroCheck = /\/(\(?\s*0(\.0*)?\s*\)?)/g;
+        const divisionByZeroCheck = /\/(\s*\(?\s*0(\.0*)?\s*\)?)/g;
         if (divisionByZeroCheck.test(safeCalculationString)) {
              console.error(`FitnessEngine Critical Error: Detected potential division by zero after substitution: ${safeCalculationString}. Aborting calculation.`);
              return 0.0;
@@ -538,15 +561,15 @@ class FitnessEngine {
       "Creativity": 5.5,
     };
     
-    // Contribution based on overall success (Max 4.5 points improvement)
+    // 1. Contribution based on overall success (Max 4.5 points improvement)
+    // Updated weights to prioritize Error Handling and Autonomy for foundational stability.
     const overallImprovement = normalizedScore * 4.5; 
 
-    // 1. General boosts based on overall success
-    coreScores["Error Handling"] += overallImprovement * 0.4; 
-    coreScores["JSON Parsing"] += overallImprovement * 0.3; // Rewards data robustness
-    coreScores["Meta-Reasoning"] += overallImprovement * 0.5; // Rewards strategic achievement
-    coreScores["Autonomy"] += overallImprovement * 0.3;
-    coreScores["Creativity"] += overallImprovement * 0.2;
+    coreScores["Error Handling"] += overallImprovement * 0.5; // High priority
+    coreScores["Autonomy"] += overallImprovement * 0.4;       // High priority
+    coreScores["Meta-Reasoning"] += overallImprovement * 0.4; // Strategic priority
+    coreScores["JSON Parsing"] += overallImprovement * 0.3; // Data robustness
+    coreScores["Creativity"] += overallImprovement * 0.2;     // Novelty
     
     // 2. Strategic Depth Assessment (Profile-specific)
     const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
