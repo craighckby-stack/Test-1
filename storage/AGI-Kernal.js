@@ -3,6 +3,13 @@ const KERNEL_SYNC_FS = require('fs');
 import FS_PROMISES from 'fs/promises';
 import path from 'path';
 
+// KERNEL Imports (React/Firebase)
+import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
+
 // TARGET Imports
 import { validate } from 'fast-json-validator';
 // Mock the policy schema, as external JSON import is not possible here.
@@ -15,14 +22,62 @@ const STDM_V99_POLICY = {
     required: ["componentId", "version"]
 };
 
-// Mock Logger implementation for SpecificationLoader dependency
-class Logger {
-    constructor(source) { this.source = source; }
-    info(msg) { console.log(`[${this.source}][INFO] ${msg}`); }
-    warn(msg) { console.warn(`[${this.source}][WARN] ${msg}`); }
-    fatal(msg) { console.error(`[${this.source}][FATAL] ${msg}`); }
-    success(msg) { console.log(`[${this.source}][SUCCESS] ${msg}`); }
+// --- TARGET INTEGRATION: Sovereign AGI Core Structured Logger Utility v1.0 ---
+/**
+ * Provides a standardized interface for structured logging across all AGI modules.
+ */
+class CoreLogger {
+    constructor(moduleName) {
+        this.module = moduleName;
+    }
+
+    _log(level, message, metadata = {}) {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            level: level.toUpperCase(),
+            module: this.module,
+            message: message,
+            ...metadata,
+        };
+        
+        // In a production AGI system, this would stream to Kafka/Logstash/etc.
+        const output = JSON.stringify(logEntry);
+        
+        if (level === 'error' || level === 'warn' || level === 'fatal') {
+            console.error(output);
+        } else {
+            console.log(output);
+        }
+    }
+
+    info(message, metadata) { this._log('info', message, metadata); }
+    warn(message, metadata) { this._log('warn', message, metadata); }
+    error(message, metadata) { this._log('error', message, metadata); }
+    fatal(message, metadata) { this._log('fatal', message, metadata); }
+    debug(message, metadata) { this._log('debug', message, metadata); }
+    success(message, metadata) { this._log('success', message, metadata); }
 }
+
+// Global singleton for ease of use across the application
+const singletonLogger = new CoreLogger('SYSTEM');
+// Define global scope utilities access point (as required by KERNEL/TARGET code)
+const global = {
+    CORE_LOGGER: singletonLogger,
+    SystemUtilities: { /* will be populated later */ }
+};
+
+// Mock Logger implementation for SpecificationLoader dependency (now using structured CoreLogger)
+class Logger extends CoreLogger {
+    constructor(source) {
+        super(source);
+        this.source = source;
+    }
+    info(msg) { super.info(msg); }
+    warn(msg) { super.warn(msg); }
+    fatal(msg) { super.fatal(msg); }
+    success(msg) { super.success(msg); }
+}
+
 
 // --- TARGET INTEGRATION: SpecificationLoader (AGI-C-01) ---
 
@@ -31,9 +86,6 @@ const DEFAULT_SPEC_PATH = path.resolve(process.cwd(), 'config/XEL_Specification.
 /**
  * Specification Loader Service (Async): Manages the loading, parsing, and version control 
  * of XEL Specifications.
- * 
- * Decouples I/O from component execution via asynchronous loading and uses explicit 
- * initialization.
  */
 class SpecificationLoader {
     /**
@@ -104,18 +156,17 @@ export const XELSpecificationLoader = SpecificationLoader;
 /**
  * ParameterCustodian: Service responsible for read, validation, and atomic mutation 
  * of the core governance parameters defined in governanceParams.json.
- * It enforces SecurityThresholds and checks ComplexityGrowthLimitPerCycle before commitment.
  */
 
 class ParameterCustodian {
     constructor(governanceConfigPath) {
         this.configPath = governanceConfigPath;
+        this.logger = global.CORE_LOGGER; 
         // WARNING: This assumes a mock or pre-loaded governance file path.
-        // In a real KERNEL environment, this require might need to be wrapped or replaced with async loading.
         try {
             this.currentParams = require(governanceConfigPath);
         } catch (e) {
-            console.warn(`[ParameterCustodian] Failed to require governance config at ${governanceConfigPath}. Using mock structure.`);
+            this.logger.warn(`Failed to require governance config at ${governanceConfigPath}. Using mock structure.`, { component: 'ParameterCustodian' });
             this.currentParams = { evolutionControl: { complexityGrowthLimitPerCycle: 10 }, securityEvidence: true };
         }
     }
@@ -167,9 +218,9 @@ class ParameterCustodian {
             await FS_PROMISES.writeFile(this.configPath, dataToWrite, 'utf8');
             
             this.currentParams = proposedParams;
-            console.log("Governance parameters updated successfully.");
+            this.logger.info("Governance parameters updated successfully.", { path: this.configPath });
         } catch (error) {
-            console.error("Failed to commit governance parameters:", error);
+            this.logger.error("Failed to commit governance parameters:", { error: error.message, stack: error.stack });
             throw new Error(`Commit failed: ${error.message}`);
         }
     }
@@ -178,32 +229,26 @@ class ParameterCustodian {
 // --- TARGET INTEGRATION: SchemaPolicyValidator (STDM Governance Enforcement) ---
 /**
  * STDM V99 Policy Validator
- * Ensures all component configurations and scaffolding adhere strictly to the
- * Sovereign AGI Governance Standard Model before commitment or deployment.
  */
 export class SchemaPolicyValidator {
   private schema = STDM_V99_POLICY;
 
   constructor() {
     // Initialize the validator with the compiled governance schema
-    // In a real environment, this might dynamically fetch the latest version.
   }
 
   /**
    * Validates a component's configuration object against the STDM V99 schema.
-   * @param config The configuration object to validate.
-   * @returns {boolean} True if compliant, throws error otherwise.
    */
   public enforceCompliance(config) {
     const results = validate(this.schema, config);
 
     if (!results.valid) {
-      console.error("Governance violation detected.", results.errors);
+      global.CORE_LOGGER.error("Governance violation detected.", { errors: results.errors, policy: 'STDM_V99' });
       throw new Error(`STDM V99 Compliance failure for component config. Errors: ${JSON.stringify(results.errors)}`);
     }
     
     // Check Immutability enforcement
-    // ... (logic for detecting attempts to modify fields listed in immutableFields)
 
     return true;
   }
@@ -315,7 +360,7 @@ const MockRateLimiter = {
 const MockTaskQueue = {
     enqueue: async (task) => {
         // Mock: Simulate queueing
-        // console.log(`[DCM_Scheduler] Enqueued task: ${task.actionKey}`);
+        // global.CORE_LOGGER.info(`[DCM_Scheduler] Enqueued task: ${task.actionKey}`);
         return true;
     }
 };
@@ -323,26 +368,25 @@ const MockTaskQueue = {
 // Alias the formal SchemaValidator instance for compatibility with existing KERNEL code
 const MockSchemaValidator = schemaValidatorInstance;
 
-// Define global scope utilities access point (as required by TARGET code)
-const global = {
-    SystemUtilities: {
-        RateLimiter: MockRateLimiter,
-        TaskQueue: MockTaskQueue,
-        SchemaValidator: MockSchemaValidator
-    }
+// Populate global scope utilities access point 
+global.SystemUtilities = {
+    RateLimiter: MockRateLimiter,
+    TaskQueue: MockTaskQueue,
+    SchemaValidator: MockSchemaValidator
 };
+
 
 // Mock Handler Execution (Used by SYNCHRONOUS type)
 const MockActionHandlers = {
     './handlers/CoreUpdateHandler.js': {
         execute: async (payload, context) => {
-            // console.log(`[DCM_Handler] Executing CoreUpdate with payload: ${JSON.stringify(payload)}`);
+            // global.CORE_LOGGER.debug(`[DCM_Handler] Executing CoreUpdate with payload: ${JSON.stringify(payload)}`);
             return { result: 'Core Update Successful', data: payload, context };
         }
     },
     './handlers/TelemetryPublish.js': {
         execute: async (payload, context) => {
-            // console.log(`[DCM_Handler] Executing Telemetry Publish`);
+            // global.CORE_LOGGER.debug(`[DCM_Handler] Executing Telemetry Publish`);
             return { result: 'Telemetry Published', count: payload.metrics ? payload.metrics.length : 0 };
         }
     }
@@ -374,16 +418,11 @@ const MockActionRegistry = {
 
 /**
  * @fileoverview Central interface for all AGI filesystem and codebase interaction.
- * This abstracts away Node.js 'fs' dependencies and centralizes codebase checks,
- * allowing the core logic to remain platform-agnostic and testable (AGI-C-06).
  */
 export class CodebaseAccessor {
 
     /**
      * Checks if a file or directory exists at the given path within the codebase scope.
-     * This should eventually be connected to an in-memory representation for speed.
-     * @param {string} filePath The absolute or project-relative path to check.
-     * @returns {boolean} True if the file exists.
      */
     static fileExists(filePath) {
         if (!filePath || typeof filePath !== 'string') {
@@ -393,8 +432,7 @@ export class CodebaseAccessor {
             // TODO: Replace direct fs access with cached codebase state lookup
             return KERNEL_SYNC_FS.existsSync(filePath);
         } catch (error) {
-            // Logging unexpected error during file check is critical
-            console.error(`[CodebaseAccessor] Failed to check existence of ${filePath}:`, error);
+            global.CORE_LOGGER.error(`Failed to check existence of ${filePath}:`, { error: error.message, path: filePath, component: 'CodebaseAccessor' });
             return false;
         }
     }
@@ -411,9 +449,6 @@ class ClampingUtility {
     /**
      * Ensures a value is strictly within a specified minimum and maximum boundary.
      * @param {number} value - The input value.
-     * @param {number} min - The lower bound (inclusive).
-     * @param {number} max - The upper bound (inclusive).
-     * @returns {number} The clamped value.
      */
     static clamp(value, min, max) {
         if (typeof value !== 'number') {
@@ -448,9 +483,6 @@ const telemetryEngineInstance = new TelemetryEngineMock();
 
 /**
  * ComponentTagInferrer (Grafted Feature)
- * v94.1 Sovereign AGI Component for Autonomous Configuration Refinement.
- * MISSION: Analyze component metrics (static/runtime) and suggest optimal Tags
- *          to minimize reliance on manual ComponentProfileMap updates.
  */
 class ComponentTagInferrer {
   constructor(staticAnalyzer, telemetryEngine) {
@@ -473,12 +505,12 @@ class ComponentTagInferrer {
     const runtimeData = this.telemetryEngine.getRecentData(id);
     let suggestedTags = [];
 
-    // 1. Static Analysis Inference (e.g., high cyclomatic complexity suggests LOW_STRICTNESS_QA)
+    // 1. Static Analysis Inference
     if (analysis.dependency_count > 50) {
       suggestedTags.push('INFRASTRUCTURE_CRITICAL');
     }
 
-    // 2. Runtime/Telemetry Inference (e.g., constant high queue depth suggests HIGH_THROUGHPUT)
+    // 2. Runtime/Telemetry Inference
     if (runtimeData.queue_depth_avg > 100) {
       suggestedTags.push('HIGH_THROUGHPUT');
     }
@@ -490,204 +522,20 @@ class ComponentTagInferrer {
 // Expose the instance for potential use in the Kernel environment
 export const MEE_ComponentTagInferrer = new ComponentTagInferrer(staticAnalyzerInstance, telemetryEngineInstance);
 
-AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
+// --- TARGET INTEGRATION: MEE/Integrity Dependencies ---
 
-/**
- * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
- * FIX: Implements MEE Metric Evaluation Framework and Governance Adapter.
- * MISSION: Merge Target logic INTO Kernel logic without deletion.
- */
-
-// --- Firebase Initialization (Required for Kernel Operation) ---
-const firebaseConfig = {
-    apiKey: "MOCK_API_KEY",
-    authDomain: "mock-domain.firebaseapp.com",
-    projectId: "mock-project-id",
-    storageBucket: "mock-storage.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:234567890:web:abcdefghijk"
+// Define INTEGRITY_CONSTANTS required by IntegrityUtils class
+const INTEGRITY_CONSTANTS = {
+    REGEX: {
+        // Standard SHA-512 Hash (128 hex characters)
+        SHA512: /^[0-9a-fA-F]{128}$/
+    },
+    METRIC_TYPES: {
+        LOAD: 'SystemLoad',
+        MEMORY: 'MemoryUsage',
+        CUSTOM: 'CustomMetric'
+    }
 };
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-// --- TARGET INTEGRATION: GAX Event Registry (Telemetry Standard) ---
-/**
- * Standardized Event Names for the GAX Telemetry Service (Global Autonomous X-System).
- * Structure: NAMESPACE:SUBDOMAIN:ACTION
- */
-const GAXEventRegistry = Object.freeze({
-    // System Lifecycle (SYS)
-    SYS_INIT_START: 'SYS:INIT:START',
-    SYS_INIT_COMPLETE: 'SYS:INIT:COMPLETE',
-    SYS_EXECUTION_START: 'SYS:EXECUTION:START',
-    SYS_EXECUTION_END: 'SYS:EXECUTION:END',
-    SYS_SHUTDOWN: 'SYS:SHUTDOWN',
-
-    // Policy & Verification (PV)
-    PV_REQUEST_INITIATED: 'PV:REQUEST:INITIATED',
-    PV_RULE_CHECK_SUCCESS: 'PV:RULE:CHECK:SUCCESS',
-    PV_RULE_CHECK_FAILURE: 'PV:RULE:CHECK:FAILURE',
-    PV_ACCESS_DENIED: 'PV:ACCESS:DENIED',
-
-    // Autonomous Evolution (AXIOM)
-    AXIOM_GENERATION_START: 'AXIOM:GENERATION:START',
-    AXIOM_EVOLUTION_STEP_PERFORMED: 'AXIOM:EVOLUTION:STEP_PERFORMED',
-    AXIOM_CODE_COMMITTED: 'AXIOM:CODE:COMMITTED',
-    AXIOM_CODE_REVERTED: 'AXIOM:CODE:REVERTED',
-    AXIOM_TEST_RUN_SUCCESS: 'AXIOM:TEST:RUN_SUCCESS',
-    AXIOM_TEST_RUN_FAILURE: 'AXIOM:TEST:RUN_FAILURE',
-
-    // Planning and Context Management (PLAN)
-    PLAN_GOAL_DEFINED: 'PLAN:GOAL:DEFINED',
-    PLAN_STEP_GENERATED: 'PLAN:STEP:GENERATED',
-    PLAN_STEP_COMPLETED: 'PLAN:STEP:COMPLETED',
-    PLAN_CONTEXT_RETRIEVAL_START: 'PLAN:CONTEXT:RETRIEVAL_START',
-    PLAN_CONTEXT_RETRIEVAL_COMPLETE: 'PLAN:CONTEXT:RETRIEVAL_COMPLETE',
-
-    // External API Interaction (API)
-    API_REQUEST_SENT: 'API:EXTERNAL:REQUEST_SENT',
-    API_RESPONSE_RECEIVED: 'API:EXTERNAL:RESPONSE_RECEIVED',
-    API_RATE_LIMIT_HIT: 'API:EXTERNAL:RATE_LIMIT_HIT',
-
-    // Data/Context Storage (DATA)
-    DATA_CACHE_HIT: 'DATA:CACHE:HIT',
-    DATA_CACHE_MISS: 'DATA:CACHE:MISS',
-    DATA_STORAGE_WRITE_FAILURE: 'DATA:STORAGE:WRITE_FAILURE',
-
-    // System Diagnostics, Errors, and Warnings (DIAG)
-    DIAG_CONFIGURATION_FAULT: 'DIAG:CONFIGURATION:FAULT',
-    DIAG_CONTEXT_RESOLUTION_MISSING: 'DIAG:CONTEXT:RESOLUTION_MISSING',
-    DIAG_COMPONENT_FATAL_ERROR: 'DIAG:COMPONENT:FATAL_ERROR',
-    DIAG_WARNING_THRESHOLD_EXCEEDED: 'DIAG:WARNING:THRESHOLD_EXCEEDED',
-
-    // Telemetry Infrastructure (TEL)
-    TEL_PUBLISH_SUCCESS: 'TEL:PUBLISH:SUCCESS',
-    TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
-    TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
-});
-
-// --- TARGET INTEGRATION: GAX Event Schema Definition ---
-/**
- * Telemetry Event Schema Definition (v94.1 AGI Enhancement).
- * Defines the required structure, types, and constraints for core GAX event payloads.
- * This structure supports runtime validation to ensure data consistency and quality.
- */
-const GAXEventSchema = Object.freeze({
-    // System Lifecycle Events
-    'SYS:INIT:START': {
-        description: 'Records system version and entry parameters at startup.',
-        schema: {
-            version: { type: 'string', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
-            executionId: { type: 'string', required: true, format: 'uuid' },
-            startupMode: { type: 'string', required: true, enum: ['standard', 'recovery', 'test', 'maintenance'] }
-        }
-    },
-    
-    // Policy Verification Events
-    'PV:REQUEST:INITIATED': {
-        description: 'Records the beginning of a formal policy verification request.',
-        schema: {
-            policyType: { type: 'string', required: true, enum: ['security', 'compliance', 'resource'] },
-            componentId: { type: 'string', required: true },
-            contextHash: { type: 'string', required: true, format: 'sha256' },
-            requestDataSize: { type: 'number', required: false, min: 0 }
-        }
-    },
-    
-    // Autonomous Evolution Events
-    'AXIOM:CODE:COMMITTED': {
-        description: 'Logs successful commit of autonomously generated or evolved code.',
-        schema: {
-            targetFile: { type: 'string', required: true },
-            commitHash: { type: 'string', required: true, format: 'sha1' },
-            diffSize: { type: 'number', required: true, min: 1 },
-            evolutionaryObjective: { type: 'string', required: true },
-            previousHash: { type: 'string', required: false, format: 'sha1' }
-        }
-    },
-    
-    // Diagnostic Events
-    'DIAG:COMPONENT:FATAL_ERROR': {
-        description: 'Reports a critical, system-halting error within a component.',
-        schema: {
-            componentName: { type: 'string', required: true },
-            errorCode: { type: 'string', required: true },
-            errorMessage: { type: 'string', required: true },
-            stackTrace: { type: 'string', required: true, allowEmpty: true },
-            isRetryable: { type: 'boolean', required: false }
-        }
-    }
-});
-
-
-// --- TARGET INTEGRATION: ICachePersistence Interface ---
-/**
- * @typedef {object} PersistenceGetResult
- * @property {any} value - The data value stored.
- * @property {number} expiry - Unix timestamp in milliseconds for expiration.
- */
-
-/**
- * ICachePersistence Interface (v94.1)
- * Defines the required structure for any pluggable cache backend (in-memory, Redis, DB).
- * Implementing this allows the TrustCacheManager to abstract storage details, making
- * the consensus module scalable and fault-tolerant in a cluster environment.
- * All methods must be asynchronous and return Promises.
- */
-class ICachePersistence {
-    
-    /**
-     * Retrieves a cache entry based on a key.
-     * @param {string} key - The unique cache key.
-     * @returns {Promise<PersistenceGetResult|null>} Returns the value and original expiration timestamp, or null if missing.
-     */
-    async get(key) {
-        throw new Error('ICachePersistence method `get` must be implemented by subclass.');
-    }
-
-    /**
-     * Stores a value with a specified Time-To-Live (TTL).
-     * @param {string} key - The unique cache key.
-     * @param {any} value - The data value to store (often serialized).
-     * @param {number} ttlMs - Total lifespan in milliseconds.
-     * @returns {Promise<void>}
-     */
-    async set(key, value, ttlMs) {
-        throw new Error('ICachePersistence method `set` must be implemented by subclass.');
-    }
-
-    /**
-     * Deletes an entry from the cache.
-     * @param {string} key - The unique cache key.
-     * @returns {Promise<boolean>} True if the key was deleted, false otherwise.
-     */
-    async delete(key) {
-        throw new Error('ICachePersistence method `delete` must be implemented by subclass.');
-    }
-    
-    /**
-     * Connects and initializes the underlying persistence system.
-     * @returns {Promise<void>}
-     */
-    async connect() {
-         // Default no-op for systems that don't require explicit connection.
-    }
-    
-    /**
-     * Shuts down or disconnects resources cleanly.
-     * @returns {Promise<void>}
-     */
-    async disconnect() {
-         // Default no-op.
-    }
-}
 
 // --- TARGET INTEGRATION: SystemLoadSensor (MEE Metric Source) ---
 
@@ -722,26 +570,11 @@ class SystemLoadSensor {
 
 const systemLoadSensorInstance = new SystemLoadSensor(); 
 
-// --- TARGET INTEGRATION: MEE/Integrity Dependencies ---
-
-// Define INTEGRITY_CONSTANTS required by IntegrityUtils class
-const INTEGRITY_CONSTANTS = {
-    REGEX: {
-        // Standard SHA-512 Hash (128 hex characters)
-        SHA512: /^[0-9a-fA-F]{128}$/
-    },
-    METRIC_TYPES: {
-        LOAD: 'SystemLoad',
-        MEMORY: 'MemoryUsage',
-        CUSTOM: 'CustomMetric'
-    }
-};
 
 // --- TARGET INTEGRATION: MEE/Averaging Engine Components ---
 
 /**
  * Base class for all metric averagers.
- * Ensures a common interface for value submission and retrieval.
  */
 class BaseAverager {
     constructor(name) {
@@ -753,7 +586,7 @@ class BaseAverager {
         if (typeof value === 'number') {
             this.values.push(value);
         } else {
-            console.warn(`[${this.name}] Invalid value submitted:`, value);
+            global.CORE_LOGGER.warn(`Invalid value submitted:`, { averager: this.name, valueType: typeof value });
         }
     }
 
@@ -788,7 +621,6 @@ class UsagePercentageAverager extends BaseAverager {
 
 /**
  * Optimized and recursively abstracted AveragerFactory class.
- * Manages the registry of metric type strings to their respective Averager implementation classes.
  */
 class AveragerFactory {
     constructor() {
@@ -808,32 +640,23 @@ class AveragerFactory {
 
     /**
      * Registers a new metric type and its associated Averager class.
-     * @param {string} metricType - The identifier string (e.g., 'SystemLoad').
-     * @param {class} AveragerClass - The class constructor (must extend BaseAverager).
      */
     registerType(metricType, AveragerClass) {
         if (!(AveragerClass && AveragerClass.prototype instanceof BaseAverager)) {
-            console.error(`[AveragerFactory] Class must extend BaseAverager or be a valid class: ${metricType}`);
+            global.CORE_LOGGER.error(`Class must extend BaseAverager or be a valid class: ${metricType}`, { type: metricType });
             return;
-        }
-        if (this.registry.has(metricType)) {
-            // Warning suppressed for clean output, but structure preserved.
         }
         this.registry.set(metricType, AveragerClass);
     }
 
     /**
      * Creates a new instance of the appropriate Averager based on the metric type.
-     * Falls back to 'default' if the type is not found.
-     * @param {string} metricType - The identifier string.
-     * @param {string} instanceName - The specific name for the metric instance (e.g., 'cpu_1m_avg').
-     * @returns {BaseAverager} An instance of the registered averager class.
      */
     create(metricType, instanceName) {
         let AveragerClass = this.registry.get(metricType);
 
         if (!AveragerClass) {
-            console.warn(`[AveragerFactory] Metric type '${metricType}' not found. Using 'default' averager.`);
+            global.CORE_LOGGER.warn(`Metric type '${metricType}' not found. Using 'default' averager.`, { type: metricType });
             AveragerClass = this.registry.get('default');
         }
 
@@ -842,7 +665,6 @@ class AveragerFactory {
 
     /**
      * Retrieves the list of currently registered metric type strings.
-     * @returns {string[]} Array of registered metric type keys.
      */
     getRegisteredTypes() {
         return Array.from(this.registry.keys());
@@ -850,20 +672,12 @@ class AveragerFactory {
 }
 
 // Global instance of the factory, accessible by the Kernel's state management loop.
-const MEE_AveragerFactory = new AveragerFactory();
+export const MEE_AveragerFactory = new AveragerFactory();
 
 // --- TARGET INTEGRATION: Conceptual Policy Evaluation Layer ---
 
-/**
- * @fileoverview ConceptualPolicyEvaluator
- * Executes complex, concept-specific validation policies defined within the Concept Registry.
- * It dynamically dispatches execution requests to specific Policy Handlers registered 
- * in the ConceptualPolicyRegistry based on the constraint type, preventing monolithic logic.
- */
-
 /** 
  * STUB: Conceptual Policy Registry. Defines handlers for policy types. 
- * In a full system, this would be imported from './ConceptualPolicyRegistry.js'.
  */
 const ConceptualPolicyRegistry = {
     // Example Handler: Checks if a numeric metric exceeds a threshold.
@@ -878,14 +692,11 @@ const ConceptualPolicyRegistry = {
         }
         return null;
     }
-    // Add other policy handlers as needed for a real system
 };
 
 /**
  * Executes a single conceptual constraint by looking up the appropriate handler.
  * @typedef {{ruleId: string, detail: string, severity: string}} Violation
- * @param {Object} constraint The policy definition.
- * @param {Object} context The operational context.
  * @returns {Violation | null} The violation object if triggered, or null.
  */
 function executeConstraint(constraint, context) {
@@ -895,7 +706,7 @@ function executeConstraint(constraint, context) {
     const handler = ConceptualPolicyRegistry[policyType];
 
     if (!handler) {
-        console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
+        global.CORE_LOGGER.warn(`Unknown constraint type encountered: ${policyType}. Skipping.`, { constraintType: policyType });
         return {
             ruleId: 'EVAL-001',
             detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
@@ -909,7 +720,7 @@ function executeConstraint(constraint, context) {
         return result || null;
 
     } catch (e) {
-        console.error(`[Policy Evaluator] Error executing constraint ${constraint.id || policyType}:`, e);
+        global.CORE_LOGGER.error(`Error executing constraint ${constraint.id || policyType}:`, { error: e.message, constraint: constraint });
         return {
             ruleId: 'EVAL-002',
             detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
@@ -923,9 +734,6 @@ export const ConceptualPolicyEvaluator = {
 
     /**
      * Executes all defined constraints and policies for a given concept against the current context.
-     * @param {Object} concept The conceptual definition object (from ConceptRegistry).
-     * @param {Object} context The operational context (e.g., file path, diff content, metadata).
-     * @returns {{isValid: boolean, violations: Array<Violation>}}
      */
     executePolicies(concept, context) {
         let violations = [];
@@ -939,10 +747,6 @@ export const ConceptualPolicyEvaluator = {
                 }
             }
         }
-
-        // Potential integration point for broader systemic checks:
-        // const systemicViolations = executeSystemicPolicies(concept, context);
-        // violations = violations.concat(systemicViolations);
 
         return {
             isValid: violations.length === 0,
@@ -1007,3 +811,186 @@ class CryptoService {
         }
         // Simplified mock: deterministic root based on length
         return `MOCK_MERKLE_ROOT_${hashes.length}`;
+    }
+}
+
+// --- TARGET INTEGRATION: ICachePersistence Interface ---
+/**
+ * @typedef {object} PersistenceGetResult
+ * @property {any} value - The data value stored.
+ * @property {number} expiry - Unix timestamp in milliseconds for expiration.
+ */
+
+/**
+ * ICachePersistence Interface (v94.1)
+ * Defines the required structure for any pluggable cache backend (in-memory, Redis, DB).
+ */
+class ICachePersistence {
+    
+    /**
+     * Retrieves a cache entry based on a key.
+     * @returns {Promise<PersistenceGetResult|null>} Returns the value and original expiration timestamp, or null if missing.
+     */
+    async get(key) {
+        throw new Error('ICachePersistence method `get` must be implemented by subclass.');
+    }
+
+    /**
+     * Stores a value with a specified Time-To-Live (TTL).
+     * @returns {Promise<void>}
+     */
+    async set(key, value, ttlMs) {
+        throw new Error('ICachePersistence method `set` must be implemented by subclass.');
+    }
+
+    /**
+     * Deletes an entry from the cache.
+     * @returns {Promise<boolean>} True if the key was deleted, false otherwise.
+     */
+    async delete(key) {
+        throw new Error('ICachePersistence method `delete` must be implemented by subclass.');
+    }
+    
+    /**
+     * Connects and initializes the underlying persistence system.
+     * @returns {Promise<void>}
+     */
+    async connect() {
+         // Default no-op for systems that don't require explicit connection.
+    }
+    
+    /**
+     * Shuts down or disconnects resources cleanly.
+     * @returns {Promise<void>}
+     */
+    async disconnect() {
+         // Default no-op.
+    }
+}
+
+// --- TARGET INTEGRATION: GAX Event Registry (Telemetry Standard) ---
+/**
+ * Standardized Event Names for the GAX Telemetry Service (Global Autonomous X-System).
+ */
+const GAXEventRegistry = Object.freeze({
+    // System Lifecycle (SYS)
+    SYS_INIT_START: 'SYS:INIT:START',
+    SYS_INIT_COMPLETE: 'SYS:INIT:COMPLETE',
+    SYS_EXECUTION_START: 'SYS:EXECUTION:START',
+    SYS_EXECUTION_END: 'SYS:EXECUTION:END',
+    SYS_SHUTDOWN: 'SYS:SHUTDOWN',
+
+    // Policy & Verification (PV)
+    PV_REQUEST_INITIATED: 'PV:REQUEST:INITIATED',
+    PV_RULE_CHECK_SUCCESS: 'PV:RULE:CHECK:SUCCESS',
+    PV_RULE_CHECK_FAILURE: 'PV:RULE:CHECK:FAILURE',
+    PV_ACCESS_DENIED: 'PV:ACCESS:DENIED',
+
+    // Autonomous Evolution (AXIOM)
+    AXIOM_GENERATION_START: 'AXIOM:GENERATION:START',
+    AXIOM_EVOLUTION_STEP_PERFORMED: 'AXIOM:EVOLUTION:STEP_PERFORMED',
+    AXIOM_CODE_COMMITTED: 'AXIOM:CODE:COMMITTED',
+    AXIOM_CODE_REVERTED: 'AXIOM:CODE:REVERTED',
+    AXIOM_TEST_RUN_SUCCESS: 'AXIOM:TEST:RUN_SUCCESS',
+    AXIOM_TEST_RUN_FAILURE: 'AXIOM:TEST:RUN_FAILURE',
+
+    // Planning and Context Management (PLAN)
+    PLAN_GOAL_DEFINED: 'PLAN:GOAL:DEFINED',
+    PLAN_STEP_GENERATED: 'PLAN:STEP:GENERATED',
+    PLAN_STEP_COMPLETED: 'PLAN:STEP:COMPLETED',
+    PLAN_CONTEXT_RETRIEVAL_START: 'PLAN:CONTEXT:RETRIEVAL_START',
+    PLAN_CONTEXT_RETRIEVAL_COMPLETE: 'PLAN:CONTEXT:RETRIEVAL_COMPLETE',
+
+    // External API Interaction (API)
+    API_REQUEST_SENT: 'API:EXTERNAL:REQUEST_SENT',
+    API_RESPONSE_RECEIVED: 'API:EXTERNAL:RESPONSE_RECEIVED',
+    API_RATE_LIMIT_HIT: 'API:EXTERNAL:RATE_LIMIT_HIT',
+
+    // Data/Context Storage (DATA)
+    DATA_CACHE_HIT: 'DATA:CACHE:HIT',
+    DATA_CACHE_MISS: 'DATA:CACHE:MISS',
+    DATA_STORAGE_WRITE_FAILURE: 'DATA:STORAGE:WRITE_FAILURE',
+
+    // System Diagnostics, Errors, and Warnings (DIAG)
+    DIAG_CONFIGURATION_FAULT: 'DIAG:CONFIGURATION:FAULT',
+    DIAG_CONTEXT_RESOLUTION_MISSING: 'DIAG:CONTEXT:RESOLUTION_MISSING',
+    DIAG_COMPONENT_FATAL_ERROR: 'DIAG:COMPONENT:FATAL_ERROR',
+    DIAG_WARNING_THRESHOLD_EXCEEDED: 'DIAG:WARNING:THRESHOLD_EXCEEDED',
+
+    // Telemetry Infrastructure (TEL)
+    TEL_PUBLISH_SUCCESS: 'TEL:PUBLISH:SUCCESS',
+    TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
+    TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
+});
+
+// --- TARGET INTEGRATION: GAX Event Schema Definition ---
+/**
+ * Telemetry Event Schema Definition (v94.1 AGI Enhancement).
+ */
+const GAXEventSchema = Object.freeze({
+    // System Lifecycle Events
+    'SYS:INIT:START': {
+        description: 'Records system version and entry parameters at startup.',
+        schema: {
+            version: { type: 'string', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
+            executionId: { type: 'string', required: true, format: 'uuid' },
+            startupMode: { type: 'string', required: true, enum: ['standard', 'recovery', 'test', 'maintenance'] }
+        }
+    },
+    
+    // Policy Verification Events
+    'PV:REQUEST:INITIATED': {
+        description: 'Records the beginning of a formal policy verification request.',
+        schema: {
+            policyType: { type: 'string', required: true, enum: ['security', 'compliance', 'resource'] },
+            componentId: { type: 'string', required: true },
+            contextHash: { type: 'string', required: true, format: 'sha256' },
+            requestDataSize: { type: 'number', required: false, min: 0 }
+        }
+    },
+    
+    // Autonomous Evolution Events
+    'AXIOM:CODE:COMMITTED': {
+        description: 'Logs successful commit of autonomously generated or evolved code.',
+        schema: {
+            targetFile: { type: 'string', required: true },
+            commitHash: { type: 'string', required: true, format: 'sha1' },
+            diffSize: { type: 'number', required: true, min: 1 },
+            evolutionaryObjective: { type: 'string', required: true },
+            previousHash: { type: 'string', required: false, format: 'sha1' }
+        }
+    },
+    
+    // Diagnostic Events
+    'DIAG:COMPONENT:FATAL_ERROR': {
+        description: 'Reports a critical, system-halting error within a component.',
+        schema: {
+            componentName: { type: 'string', required: true },
+            errorCode: { type: 'string', required: true },
+            errorMessage: { type: 'string', required: true },
+            stackTrace: { type: 'string', required: true, allowEmpty: true },
+            isRetryable: { type: 'boolean', required: false }
+        }
+    }
+});
+
+
+AGI-KERNAL-SIGNATURE-V6-9
+
+// --- Firebase Initialization (Required for Kernel Operation) ---
+const firebaseConfig = {
+    apiKey: "MOCK_API_KEY",
+    authDomain: "mock-domain.firebaseapp.com",
+    projectId: "mock-project-id",
+    storageBucket: "mock-storage.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:234567890:web:abcdefghijk"
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+/**
+ * KERNEL State Management and React Components (Preserved)
+ */
