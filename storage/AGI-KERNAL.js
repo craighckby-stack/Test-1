@@ -1,18 +1,4 @@
-  // --- NEXUS MEMORY OPERATIONS ---
-  const loadNexusMemory = async (repo, token) => {
-    if (!state.config.enableNexus) return null;
-    
-    try {
-      const nexusData = await fetchFile(repo, 'nexus_memory.json', 'Nexus-Database', token);
-      return nexusData ? JSON.parse(nexusData.content) : null;
-    } catch (e) { 
-      await pushLog(`Error loading Nexus Memory: ${e.message}`, 'error');
-      return null;
-    }
-  };
-
-  // --- LLM COMMUNICATION & ORCHESTRATION ---
-  const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "") => {
+const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "") => {
     const { apiProvider, apiKey, model } = state.config;
     await pushLog(`Generating response via ${apiProvider} (${model})...`, 'info');
 
@@ -75,6 +61,18 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       };
       parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
       
+    } else if (apiProvider === 'openai') {
+      // Standard OpenAI / Azure format, widely compatible with many LLM APIs
+      url = CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions';
+      body = {
+        model: model,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 4096,
+        stream: false
+      };
+      parseResponse = (data) => data.choices?.[0]?.message?.content || null;
+
     } else {
       await pushLog(`Configuration Error: Unknown API provider: ${apiProvider}`, 'critical');
       return { success: false, error: `Unknown API provider: ${apiProvider}` };
@@ -84,7 +82,9 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       const headers = { 
         'Content-Type': 'application/json' 
       };
-      if (apiProvider === 'cerebras') {
+
+      // Centralize Bearer Token handling for compatible providers
+      if (apiProvider === 'cerebras' || apiProvider === 'openai') {
          headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
@@ -123,8 +123,3 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       return { success: false, error: e.message };
     }
   }, [state.config, pushLog, persistentFetch]);
-
-  // --- EXECUTION LOOP (V7.1 Core Initiation) ---
-  // Placeholder for the next major implementation step.
-
-  const renderStatusIcon = (status) => { /* ... implementation */ };
