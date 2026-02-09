@@ -32,13 +32,17 @@ class SchemaValidatorEngine {
      * @param {object} options - Configuration options.
      * @param {object} [options.componentSchemas] - Schema definitions to override defaults.
      * @param {function} [options.onValidationFailure] - Callback function for Nexus/MQM logging. (mqmPayload, failureEntry)
+     * @param {string} [options.kernelVersion='N/A'] - The current kernel version for dynamic reporting (Meta-Reasoning).
      */
     constructor(options = {}) {
-        const { componentSchemas, onValidationFailure } = options;
+        const { componentSchemas, onValidationFailure, kernelVersion = 'N/A' } = options;
         
         this.validator = null;
         this.SchemaValidationError = SchemaValidationError;
         
+        // Store dynamic runtime metadata
+        this.kernelVersion = kernelVersion;
+
         // INTEGRATION HOOK: Function provided by the kernel core (App.js -> logToDb/MQM)
         this.onValidationFailure = onValidationFailure || (() => {}); 
         
@@ -94,6 +98,38 @@ class SchemaValidatorEngine {
     }
 
     /**
+     * Maps the type of validation error (Ajv keyword) to the primary AGI capability under stress.
+     * This enhances meta-reasoning by providing strategic context to the Nexus-Database.
+     * @param {string} keyword - Ajv error keyword (e.g., 'required', 'type', 'serialization_fail').
+     * @returns {string} Primary AGI capability dimension.
+     */
+    _mapErrorToCapability(keyword) {
+        switch (keyword) {
+            case 'required':
+            case 'additionalProperties':
+                // Failures in data completeness or structure adherence stress JSON Parsing/Abstraction limits.
+                return 'JSON Parsing';
+            case 'type':
+            case 'format':
+            case 'maximum':
+            case 'minimum':
+                // Failures related to data types/constraints stress underlying Logic/Implementation integrity.
+                return 'Logic';
+            case 'serialization_fail':
+            case 'nonSerializable':
+                // Direct failure of data persistence/handling requires robust recovery logic.
+                return 'Error Handling';
+            case 'const':
+            case 'enum':
+                // Failures in specific value constraints relate to decision boundaries.
+                return 'Meta-Reasoning';
+            default:
+                // General structural failures or unknown issues relate to foundational schema design/quality.
+                return 'Creativity'; 
+        }
+    }
+
+    /**
      * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
      * This is the critical integration point for Requirements 2 (Log to Nexus) and 3 (Use MQM metrics).
      * @param {string} schemaName 
@@ -117,6 +153,10 @@ class SchemaValidatorEngine {
             count: summary.length
         };
         
+        // Determine Capability Impact dynamically (Meta-Reasoning)
+        const firstErrorKeyword = summary[0]?.keyword || 'N/A';
+        const capabilityImpact = this._mapErrorToCapability(firstErrorKeyword);
+
         // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
         this.failureHistory.unshift(failureEntry);
         if (this.failureHistory.length > this.MAX_HISTORY) {
@@ -126,15 +166,15 @@ class SchemaValidatorEngine {
         // 3. Trigger External Nexus/MQM Logging (Integration Points)
         const mqmPayload = {
             metric_type: 'AGI_INTEGRATION_FAILURE',
-            kernel_version: 'v7.4.3', // Added kernel version for Nexus context
+            kernel_version: this.kernelVersion, // Dynamic versioning
             source_component: 'SchemaValidatorEngine',
-            // Direct link to core AGI capabilities for strategy refinement
-            AGI_CAPABILITY_IMPACT: 'JSON Parsing/Error Handling', 
+            // Dynamic link to core AGI capabilities for strategy refinement
+            AGI_CAPABILITY_IMPACT: capabilityImpact, 
             schema_name: schemaName,
             criticality: isCritical ? 'CRITICAL_THROW' : 'SOFT_RECOVERY',
             error_count: summary.length,
             // Detailed error context for LLM output analysis
-            first_error_keyword: summary[0]?.keyword || 'N/A',
+            first_error_keyword: firstErrorKeyword,
             first_error_path: summary[0]?.path || 'N/A',
             data_structure_keys: dataSample ? Object.keys(dataSample).slice(0, 8).join(', ') : 'N/A',
         };
