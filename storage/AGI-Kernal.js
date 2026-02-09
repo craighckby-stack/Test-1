@@ -763,7 +763,7 @@ export class MutationChainRegistrar {
 
     /**
      * Initializes the registrar by loading historical data asynchronously and verifying linkage.
-     * @returns {Promise<void>}
+     * @returns {Promise<void>}...
      */
     async initialize() {
         if (this.isInitialized) return;
@@ -1019,4 +1019,18 @@ class TaskSequencerEngine {
         try {
             const result = await Promise.race([actionPromise, timeoutPromise]);
             clearTimeout(timerId);
-            this.logger.info(`Task
+            this.logger.info(`Task ${task.step_id} completed successfully.`, result);
+            return result; // Return the result of the successful action
+        } catch (e) {
+            clearTimeout(timerId);
+            throw e; // Re-throw any failure (action failure or timeout)
+        }
+    }
+}
+
+// --- End Integration of PCRA Task Sequencer Engine ---
+
+// --- MEE Metric Evaluation Sub-Engine Integration: TrustMatrixManager ---
+
+// Adapter for TrustMatrixManager's persistence requirements
+const TrustMatrixPersistenceMock = (() => {
