@@ -2,9 +2,10 @@ useEffect(() => {
     // Adaptive Heartbeat Activation (Self-Improvement v7.4.0)
     if (!user || state.kernel_ready !== true) return; 
 
-    // V7.9.0: Constraint Externalization Defaults (Preparation for Nexus integration)
-    const MAX_EVOLUTION_LEVEL = 100; // System Documentation Constraint
-    const MAX_PERFORMANCE_GAIN = 0.15; // ASO Target (Autonomous Self-Optimization)
+    // V7.9.0: Constraint Externalization (Completed Integration)
+    // Retrieves critical operational constraints from state.config, defaulting to system specification.
+    const MAX_EVOLUTION_LEVEL = state.config.max_evolution_level || 100; 
+    const MAX_PERFORMANCE_GAIN = state.config.max_performance_gain || 0.15; 
 
     const pulse = () => {
       runKernelCycle();
@@ -47,4 +48,4 @@ useEffect(() => {
         clearTimeout(cycleRef.current);
       }
     };
-  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready])
+  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.config.max_evolution_level, state.config.max_performance_gain, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready])
