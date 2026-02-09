@@ -16,6 +16,9 @@ import Ajv from 'ajv';
 import { validate } from 'fast-json-validator';
 import { ulid, decodeTime } from 'ulid'; // Assumes 'ulid' package is installed
 
+// Policy path for Root-of-Trust configuration verification
+const INTEGRITY_POLICY_PATH = 'governance/config/IntegrityPolicy.json';
+
 // === START: GRCS Verification Types Graft (AGI-C-16) ===
 
 export interface FailureProfile {
@@ -163,6 +166,19 @@ export class DeepNormalizer {
 
 // === END: Canonicalization Utility Graft ===
 
+// === START: TARGET CanonicalJson Implementation ===
+
+/**
+ * Wrapper for DeepNormalizer to match TARGET's CanonicalJson dependency.
+ */
+class CanonicalJson {
+    static stringify(obj) {
+        return DeepNormalizer.stableStringify(obj);
+    }
+}
+
+// === END: TARGET CanonicalJson Implementation ===
+
 /**
  * Mock ChecksumVerifier based on DeepNormalizer for stable hashing.
  * Used for integrity verification of configuration maps (like GSIM).
@@ -219,7 +235,47 @@ class IntegrityHashUtility {
   }
 }
 
+const integrityHasher = new IntegrityHashUtility();
+
 // === END: Integrity Hashing Utility Graft ===
+
+// === START: TARGET CRoTCrypto Implementation ===
+
+/**
+ * Mock implementation of CRoTCrypto using KERNEL's IntegrityHashUtility.
+ */
+class CRoTCrypto {
+    static async hash(data, algorithm = 'SHA-256') {
+        // TARGET requires SHA-256 or policy-defined algorithm.
+        if (algorithm !== 'SHA-256' && algorithm !== 'SHA256') {
+            throw new Error(`CRoTCrypto Error: Unsupported hash algorithm required by policy: ${algorithm}`);
+        }
+        return integrityHasher.calculateHash(data);
+    }
+}
+
+// === END: TARGET CRoTCrypto Implementation ===
+
+// === START: TARGET SystemFiles Implementation ===
+
+/**
+ * Mock implementation of SystemFiles using KERNEL's FS_PROMISES.
+ */
+class SystemFiles {
+    static async read(filePath) {
+        // Assuming files are UTF-8 encoded JSON/text files
+        const absolutePath = path.resolve(filePath);
+        try {
+            const content = await FS_PROMISES.readFile(absolutePath, { encoding: 'utf8' });
+            return content;
+        } catch (e) {
+            // Re-throw specific error for file not found/read failure
+            throw new Error(`SystemFiles Read Error: Cannot read file at ${filePath}. ${e.message}`);
+        }
+    }
+}
+
+// === END: TARGET SystemFiles Implementation ===
 
 /**
  * Manages access to secrets/configuration data encrypted using the system's Master Encryption Key (MEK).
