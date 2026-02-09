@@ -2,9 +2,14 @@
  * MetricNexus (MN):
  * Centralized dynamic metric management system, now explicitly integrated with the Nexus-Database 
  * for persistent trend storage, fulfilling the CRITICAL DIRECTIVE: Integration Before Expansion.
+ * 
+ * Dependencies MUST implement:
+ * - AnalyticsStore: calculateResidualRisk(), getHistoricalVolatilityFactor()
+ * - PolicyAuditor: calculatePolicyChangeRate()
+ * - NexusInterface: logTrend(key, data), readTrends(key, limit)
  */
 class MetricNexus {
-    // Inject NexusInterface for persistent storage (Integration Requirement 2 & 3)
+    // Inject NexusInterface for persistent storage and strategic retrieval (Integration Requirement 2 & 3)
     constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
         this.analytics = AnalyticsStore;
         this.auditor = PolicyAuditor;
@@ -13,15 +18,32 @@ class MetricNexus {
     }
 
     /**
+     * Internal validator to ensure metrics are valid numbers (robustness improvement).
+     * @param {*} value 
+     * @returns {number}
+     */
+    _sanitizeMetric(value) {
+        const sanitized = parseFloat(value);
+        // Returns 0 if NaN, ensuring numerical stability for MQM calculation.
+        return isNaN(sanitized) ? 0 : sanitized;
+    }
+
+    /**
      * Placeholder function for kernel capability metrics (MQM Alignment).
+     * This serves as the primary Quantitative Indicator.
      * @returns {number}
      */
     getEvolutionQualityMetric() {
-        // Simulated calculation based on internal state assessment patterns.
+        const ufrm = this.getUFRM();
+        const cftm = this.getCFTM();
+        const pvm = this.getPolicyVolatility();
+        
         // Logic leveraging MQM philosophy.
-        const eqm = (this.getUFRM() * 0.4) + (this.getCFTM() * 0.3) + (this.getPolicyVolatility() * 0.3); 
-        this.metricCache.EQM = eqm;
-        return eqm;
+        const eqm = (ufrm * 0.4) + (cftm * 0.3) + (pvm * 0.3); 
+        const sanitizedEqm = this._sanitizeMetric(eqm);
+        
+        this.metricCache.EQM = sanitizedEqm;
+        return sanitizedEqm;
     }
 
     /**
@@ -30,7 +52,9 @@ class MetricNexus {
      */
     getUFRM() {
         // Logic leveraging AnalyticsStore to calculate residual variance or unknown state space
-        const ufrm = this.analytics.calculateResidualRisk();
+        // Defensive check added: If AnalyticsStore or method is missing, returns 0.
+        const rawUfrm = this.analytics?.calculateResidualRisk?.() ?? 0;
+        const ufrm = this._sanitizeMetric(rawUfrm);
         this.metricCache.UFRM = ufrm;
         return ufrm;
     }
@@ -41,7 +65,8 @@ class MetricNexus {
      */
     getCFTM() {
         // Logic leveraging real-time telemetry on system volatility
-        const cftm = this.analytics.getHistoricalVolatilityFactor();
+        const rawCftm = this.analytics?.getHistoricalVolatilityFactor?.() ?? 0;
+        const cftm = this._sanitizeMetric(rawCftm);
         this.metricCache.CFTM = cftm;
         return cftm;
     }
@@ -52,23 +77,41 @@ class MetricNexus {
      * @returns {number}
      */
     getPolicyVolatility() {
-        const pvm = this.auditor.calculatePolicyChangeRate();
+        const rawPvm = this.auditor?.calculatePolicyChangeRate?.() ?? 0;
+        const pvm = this._sanitizeMetric(rawPvm);
         this.metricCache.PVM = pvm;
         return pvm;
     }
 
     /**
      * [Integration] Logs the current metric snapshot and trends to the Nexus persistent storage.
-     * Fulfills Integration Requirement: Store trends in Nexus memory.
+     * Fulfills Integration Requirement: Store trends in Nexus memory (Req 2).
      * @param {Object} metrics - The calculated metric snapshot.
      */
     async logMetricsToNexus(metrics) {
         if (this.nexus && typeof this.nexus.logTrend === 'function') {
-            // Note: NexusInterface.logTrend must be implemented elsewhere in the system
-            await this.nexus.logTrend('metrics_snapshot', metrics);
+            await this.nexus.logTrend('metrics_snapshot', { 
+                timestamp: Date.now(), 
+                ...metrics 
+            });
         } else {
-            console.warn("MetricNexus: Nexus logging interface not available or implemented.");
+            // Updated warning to include CRITICAL DIRECTIVE context
+            console.warn("MetricNexus [CRITICAL DIRECTIVE Failure]: Nexus logging interface not available or implemented.");
         }
+    }
+
+    /**
+     * [Integration] Reads historical metric trends from Nexus.
+     * Fulfills Integration Requirement: Use Nexus memory to inform strategy (Req 3).
+     * @param {number} limit - Number of history entries to retrieve.
+     * @returns {Promise<Array<Object>>}
+     */
+    async getHistoricalTrends(limit = 10) {
+        if (this.nexus && typeof this.nexus.readTrends === 'function') {
+            return this.nexus.readTrends('metrics_snapshot', limit);
+        }
+        // Return empty array if Nexus interface is missing, preventing system crash.
+        return [];
     }
 
     /**
@@ -85,7 +128,7 @@ class MetricNexus {
             MQM_EQM: this.getEvolutionQualityMetric() // Explicit MQM usage
         };
         
-        // Asynchronously log trends to Nexus
+        // Log trends (Integration Requirement 2)
         await this.logMetricsToNexus(metrics);
 
         return metrics;
