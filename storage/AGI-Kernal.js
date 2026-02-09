@@ -1,18 +1,18 @@
 const os = require('os');
-const KERNEL_SYNC_FS = require(\'fs\');
-import FS_PROMISES from \'fs/promises\';
-import path from \'path\';
+const KERNEL_SYNC_FS = require('fs');
+import FS_PROMISES from 'fs/promises';
+import path from 'path';
 
 // KERNEL Imports (React/Firebase)
-import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
-import { initializeApp, getApp, getApps } from \'firebase/app\';
-import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
 
 // TARGET Imports
-import Ajv from \'ajv\';
-import { validate } from \'fast-json-validator\';
+import Ajv from 'ajv';
+import { validate } from 'fast-json-validator';
 
 // NOTE: protocolSchema must be mocked as external JSON cannot be imported in this sandbox environment.
 // Mocking P01_VEC_Protocol.json
@@ -33,7 +33,7 @@ const validateResponse = ajv.compile(protocolSchema.definitions.ResponseFrame);
 export function isValidPayload(data) {
   const valid = validatePayload(data);
   if (!valid) {
-    // console.error(\'Vector Payload Validation Failed:\', validatePayload.errors);
+    // console.error('Vector Payload Validation Failed:', validatePayload.errors);
   }
   return valid;
 }
@@ -41,7 +41,7 @@ export function isValidPayload(data) {
 export function isValidResponse(data) {
   const valid = validateResponse(data);
   if (!valid) {
-    // console.error(\'Response Frame Validation Failed:\', validateResponse.errors);
+    // console.error('Response Frame Validation Failed:', validateResponse.errors);
   }
   return valid;
 }
@@ -80,23 +80,23 @@ class CoreLogger {
         // In a production AGI system, this would stream to Kafka/Logstash/etc.
         const output = JSON.stringify(logEntry);
         
-        if (level === \'error\' || level === \'warn\' || level === \'fatal\') {
+        if (level === 'error' || level === 'warn' || level === 'fatal') {
             console.error(output);
         } else {
             console.log(output);
         }
     }
 
-    info(message, metadata) { this._log(\'info\', message, metadata); }
-    warn(message, metadata) { this._log(\'warn\', message, metadata); }
-    error(message, metadata) { this._log(\'error\', message, metadata); }
-    fatal(message, metadata) { this._log(\'fatal\', message, metadata); }
-    debug(message, metadata) { this._log(\'debug\', message, metadata); }
-    success(message, metadata) { this._log(\'success\', message, metadata); }
+    info(message, metadata) { this._log('info', message, metadata); }
+    warn(message, metadata) { this._log('warn', message, metadata); }
+    error(message, metadata) { this._log('error', message, metadata); }
+    fatal(message, metadata) { this._log('fatal', message, metadata); }
+    debug(message, metadata) { this._log('debug', message, metadata); }
+    success(message, metadata) { this._log('success', message, metadata); }
 }
 
 // Global singleton for ease of use across the application
-const singletonLogger = new CoreLogger(\'SYSTEM\');
+const singletonLogger = new CoreLogger('SYSTEM');
 // Define global scope utilities access point (as required by KERNEL/TARGET code)
 const global = {
     CORE_LOGGER: singletonLogger,
@@ -118,7 +118,7 @@ class Logger extends CoreLogger {
 
 // --- TARGET INTEGRATION: SpecificationLoader (AGI-C-01) ---
 
-const DEFAULT_SPEC_PATH = path.resolve(process.cwd(), \'config/XEL_Specification.json\');
+const DEFAULT_SPEC_PATH = path.resolve(process.cwd(), 'config/XEL_Specification.json');
 
 /**
  * Specification Loader Service (Async): Manages the loading, parsing, and version control 
@@ -131,7 +131,7 @@ class SpecificationLoader {
     constructor(config = {}) {
         this.specPath = config.specPath || DEFAULT_SPEC_PATH;
         this.specification = null;
-        this.logger = new Logger(\'SpecificationLoader\');
+        this.logger = new Logger('SpecificationLoader');
         this.isLoaded = false;
     }
 
@@ -151,7 +151,7 @@ class SpecificationLoader {
         try {
             // Mock file read since we are in a merged file context
             const data = JSON.stringify({ ComponentSchemas: {} }); // Mock success
-            // const data = await FS_PROMISES.readFile(this.specPath, \'utf8\');
+            // const data = await FS_PROMISES.readFile(this.specPath, 'utf8');
             this.specification = JSON.parse(data);
             this.isLoaded = true;
             this.logger.success("XEL Specification loaded successfully.");
@@ -206,7 +206,7 @@ class ParameterCustodian {
             // this.currentParams = require(governanceConfigPath);
             this.currentParams = { evolutionControl: { complexityGrowthLimitPerCycle: 10 }, securityEvidence: true };
         } catch (e) {
-            this.logger.warn(`Failed to require governance config at ${governanceConfigPath}. Using mock structure.`, { component: \'ParameterCustodian\' });
+            this.logger.warn(`Failed to require governance config at ${governanceConfigPath}. Using mock structure.`, { component: 'ParameterCustodian' });
             this.currentParams = { evolutionControl: { complexityGrowthLimitPerCycle: 10 }, securityEvidence: true };
         }
     }
@@ -215,7 +215,7 @@ class ParameterCustodian {
         // Utility to fetch deeply nested parameters
         let current = this.currentParams;
         if (keyPath) {
-             const parts = keyPath.split(\'.\');
+             const parts = keyPath.split('.');
              for (const part of parts) {
                  if (current && Object.prototype.hasOwnProperty.call(current, part)) {
                      current = current[part];
@@ -255,7 +255,7 @@ class ParameterCustodian {
         // Atomic write to disk and system reload/policy update 
         try {
             const dataToWrite = JSON.stringify(proposedParams, null, 2);
-            // await FS_PROMISES.writeFile(this.configPath, dataToWrite, \'utf8\');
+            // await FS_PROMISES.writeFile(this.configPath, dataToWrite, 'utf8');
             
             this.currentParams = proposedParams;
             this.logger.info("Governance parameters updated successfully.", { path: this.configPath });
@@ -278,13 +278,13 @@ export class SchemaPolicyValidator {
   }
 
   /**
-   * Validates a component\'s configuration object against the STDM V99 schema.
+   * Validates a component's configuration object against the STDM V99 schema.
    */
   public enforceCompliance(config) {
     const results = validate(this.schema, config);
 
     if (!results.valid) {
-      global.CORE_LOGGER.error("Governance violation detected.", { errors: results.errors, policy: \'STDM_V99\' });
+      global.CORE_LOGGER.error("Governance violation detected.", { errors: results.errors, policy: 'STDM_V99' });
       throw new Error(`STDM V99 Compliance failure for component config. Errors: ${JSON.stringify(results.errors)}`);
     }
     
@@ -296,7 +296,7 @@ export class SchemaPolicyValidator {
 
 
 // --- Grafted Type Definitions for GRCS Verification (GRCS_VerificationTypes) ---
-type LiabilityUnit = \'USD\' | \'PPR\' | \'N/A\';
+type LiabilityUnit = 'USD' | 'PPR' | 'N/A';
 
 interface FailureProfile {
     S02_Value: number;
@@ -338,14 +338,14 @@ interface VerificationResult {
 class HashService {
     calculateSHA256(data) {
         // Deterministic mock hashing for context verification
-        const dataString = typeof data === \'object\' ? JSON.stringify(data).length.toString() : String(data).length.toString();
+        const dataString = typeof data === 'object' ? JSON.stringify(data).length.toString() : String(data).length.toString();
         return `MOCK_SHA256_CONTEXT_${dataString}`;
     }
 
     async hashFile(filePath) {
         // Mock asynchronous file hashing based on file path length
         await new Promise(resolve => setTimeout(resolve, 10)); 
-        if (filePath.includes(\'missing_file\')) {
+        if (filePath.includes('missing_file')) {
             throw new Error(`File not found: ${filePath}`);
         }
         return `MOCK_SHA256_FILE_${filePath.length}`;
@@ -360,8 +360,8 @@ class SchemaValidator {
         const errors = [];
         let valid = true;
 
-        if (typeof acvdRecord !== \'object\' || acvdRecord === null) {
-            errors.push({ dataPath: \'Root\', message: \'Input must be an object\' });
+        if (typeof acvdRecord !== 'object' || acvdRecord === null) {
+            errors.push({ dataPath: 'Root', message: 'Input must be an object' });
             valid = false;
         }
 
@@ -381,19 +381,19 @@ class SchemaValidator {
 const schemaValidatorInstance = new SchemaValidator();
 
 const ACVD_SCHEMA = {
-    type: \'object\',
+    type: 'object',
     properties: {
-        context_hash: { type: \'string\' },
-        artifact_changes: { type: \'array\' }
+        context_hash: { type: 'string' },
+        artifact_changes: { type: 'array' }
     },
-    required: [\'context_hash\', \'artifact_changes\']
+    required: ['context_hash', 'artifact_changes']
 };
 
 // --- Mock System Utilities for DCM Scheduler (TARGET Dependencies) ---
 const MockRateLimiter = {
     check: (key) => {
-        // Mock: Always allow unless key is \'CRITICAL_ACTION_LIMIT\'
-        return key !== \'CRITICAL_ACTION_LIMIT\';
+        // Mock: Always allow unless key is 'CRITICAL_ACTION_LIMIT'
+        return key !== 'CRITICAL_ACTION_LIMIT';
     }
 };
 
@@ -418,16 +418,16 @@ global.SystemUtilities = {
 
 // Mock Handler Execution (Used by SYNCHRONOUS type)
 const MockActionHandlers = {
-    \'./handlers/CoreUpdateHandler.js\': {
+    './handlers/CoreUpdateHandler.js': {
         execute: async (payload, context) => {
             // global.CORE_LOGGER.debug(`[DCM_Handler] Executing CoreUpdate with payload: ${JSON.stringify(payload)}`);
-            return { result: \'Core Update Successful\', data: payload, context };
+            return { result: 'Core Update Successful', data: payload, context };
         }
     },
-    \'./handlers/TelemetryPublish.js\': {
+    './handlers/TelemetryPublish.js': {
         execute: async (payload, context) => {
             // global.CORE_LOGGER.debug(`[DCM_Handler] Executing Telemetry Publish`);
-            return { result: \'Telemetry Published\', count: payload.metrics ? payload.metrics.length : 0 };
+            return { result: 'Telemetry Published', count: payload.metrics ? payload.metrics.length : 0 };
         }
     }
 };
@@ -435,19 +435,19 @@ const MockActionHandlers = {
 // Mock Action Registry (DCM_Action_Registry)
 const MockActionRegistry = {
     actions: {
-        \'CORE_UPDATE_SYSTEM\': {
+        'CORE_UPDATE_SYSTEM': {
             description: "Synchronous critical core code update.",
-            execution_type: \'SYNCHRONOUS\',
-            rate_limit_key: \'critical_core_op\',
-            handler_path: \'./handlers/CoreUpdateHandler.js\',
-            schema: { input: { type: \'object\', required: true } }
+            execution_type: 'SYNCHRONOUS',
+            rate_limit_key: 'critical_core_op',
+            handler_path: './handlers/CoreUpdateHandler.js',
+            schema: { input: { type: 'object', required: true } }
         },
-        \'PUBLISH_TELEMETRY\': {
+        'PUBLISH_TELEMETRY': {
             description: "Asynchronous standard telemetry publishing.",
-            execution_type: \'ASYNCHRONOUS\',
-            rate_limit_key: \'telemetry_burst\',
-            handler_path: \'./handlers/TelemetryPublish.js\',
-            schema: { input: { metrics: { type: \'array\', required: true } } },
+            execution_type: 'ASYNCHRONOUS',
+            rate_limit_key: 'telemetry_burst',
+            handler_path: './handlers/TelemetryPublish.js',
+            schema: { input: { metrics: { type: 'array', required: true } } },
             retry_policy: { attempts: 3, delay: 1000 }
         }
     }
@@ -465,14 +465,14 @@ export class CodebaseAccessor {
      * Checks if a file or directory exists at the given path within the codebase scope.
      */
     static fileExists(filePath) {
-        if (!filePath || typeof filePath !== \'string\') {
+        if (!filePath || typeof filePath !== 'string') {
             return false;
         }
         try {
             // TODO: Replace direct fs access with cached codebase state lookup
             return KERNEL_SYNC_FS.existsSync(filePath);
         } catch (error) {
-            global.CORE_LOGGER.error(`Failed to check existence of ${filePath}:`, { error: error.message, path: filePath, component: \'CodebaseAccessor\' });
+            global.CORE_LOGGER.error(`Failed to check existence of ${filePath}:`, { error: error.message, path: filePath, component: 'CodebaseAccessor' });
             return false;
         }
     }
@@ -491,7 +491,7 @@ class ClampingUtility {
      * @param {number} value - The input value.
      */
     static clamp(value, min, max) {
-        if (typeof value !== \'number\') {
+        if (typeof value !== 'number') {
             throw new TypeError("Clamping input must be a number.");
         }
         return Math.max(min, Math.min(max, value));
@@ -504,7 +504,7 @@ class ClampingUtility {
 class StaticAnalyzerMock {
     analyze(path) {
         // Mock logic: Simulate high dependency count for specific paths
-        const dependency_count = path && path.includes(\'critical_path\') ? 60 : 25;
+        const dependency_count = path && path.includes('critical_path') ? 60 : 25;
         return { dependency_count };
     }
 }
@@ -513,7 +513,7 @@ class StaticAnalyzerMock {
 class TelemetryEngineMock {
     getRecentData(id) {
         // Mock logic: Simulate high queue depth for specific components
-        const queue_depth_avg = id && id.startsWith(\'HIGH_LOAD\') ? 150 : 50;
+        const queue_depth_avg = id && id.startsWith('HIGH_LOAD') ? 150 : 50;
         return { queue_depth_avg };
     }
 }
@@ -538,8 +538,8 @@ class ComponentTagInferrer {
 
   infer(componentDescriptor) {
     // Ensure componentDescriptor has necessary fields for mocking if called outside of defined context
-    const path = componentDescriptor.path || \'\';
-    const id = componentDescriptor.id || \'\';
+    const path = componentDescriptor.path || '';
+    const id = componentDescriptor.id || '';
 
     const analysis = this.staticAnalyzer.analyze(path);
     const runtimeData = this.telemetryEngine.getRecentData(id);
@@ -547,12 +547,12 @@ class ComponentTagInferrer {
 
     // 1. Static Analysis Inference
     if (analysis.dependency_count > 50) {
-      suggestedTags.push(\'INFRASTRUCTURE_CRITICAL\');
+      suggestedTags.push('INFRASTRUCTURE_CRITICAL');
     }
 
     // 2. Runtime/Telemetry Inference
     if (runtimeData.queue_depth_avg > 100) {
-      suggestedTags.push(\'HIGH_THROUGHPUT\');
+      suggestedTags.push('HIGH_THROUGHPUT');
     }
     
     return Array.from(new Set(suggestedTags)); // Return unique inferred tags
@@ -571,21 +571,21 @@ const INTEGRITY_CONSTANTS = {
         SHA512: /^[0-9a-fA-F]{128}$/
     },
     METRIC_TYPES: {
-        LOAD: \'SystemLoad\',
-        MEMORY: \'MemoryUsage\',
-        CUSTOM: \'CustomMetric\'
+        LOAD: 'SystemLoad',
+        MEMORY: 'MemoryUsage',
+        CUSTOM: 'CustomMetric'
     }
 };
 
 // --- TARGET INTEGRATION: SystemLoadSensor (MEE Metric Source) ---
 
 /**
- * A concrete example of a sensor component adhering to the Hub\'s expected interface.
+ * A concrete example of a sensor component adhering to the Hub's expected interface.
  * Measures CPU load and memory usage.
  */
 class SystemLoadSensor {
     constructor() {
-        this.name = \'SystemLoadSensor\';
+        this.name = 'SystemLoadSensor';
     }
 
     /**
@@ -623,7 +623,7 @@ class BaseAverager {
     }
 
     submit(value) {
-        if (typeof value === \'number\') {
+        if (typeof value === 'number') {
             this.values.push(value);
         } else {
             global.CORE_LOGGER.warn(`Invalid value submitted:`, { averager: this.name, valueType: typeof value });
@@ -675,7 +675,7 @@ class AveragerFactory {
     _initializeDefaultTypes() {
         this.registerType(INTEGRITY_CONSTANTS.METRIC_TYPES.LOAD, UsagePercentageAverager);
         this.registerType(INTEGRITY_CONSTANTS.METRIC_TYPES.MEMORY, UsagePercentageAverager);
-        this.registerType(\'default\', DefaultAverager);
+        this.registerType('default', DefaultAverager);
     }
 
     /**
@@ -696,8 +696,8 @@ class AveragerFactory {
         let AveragerClass = this.registry.get(metricType);
 
         if (!AveragerClass) {
-            global.CORE_LOGGER.warn(`Metric type \'${metricType}\' not found. Using \'default\' averager.`, { type: metricType });
-            AveragerClass = this.registry.get(\'default\');
+            global.CORE_LOGGER.warn(`Metric type '${metricType}' not found. Using 'default' averager.`, { type: metricType });
+            AveragerClass = this.registry.get('default');
         }
 
         return new AveragerClass(instanceName);
@@ -711,7 +711,7 @@ class AveragerFactory {
     }
 }
 
-// Global instance of the factory, accessible by the Kernel\'s state management loop.
+// Global instance of the factory, accessible by the Kernel's state management loop.
 export const MEE_AveragerFactory = new AveragerFactory();
 
 // --- TARGET INTEGRATION: Conceptual Policy Evaluation Layer ---
@@ -721,13 +721,13 @@ export const MEE_AveragerFactory = new AveragerFactory();
  */
 const ConceptualPolicyRegistry = {
     // Example Handler: Checks if a numeric metric exceeds a threshold.
-    \'thresholdCheck\': (constraint, context) => {
+    'thresholdCheck': (constraint, context) => {
         const value = context[constraint.metricKey];
-        if (typeof value === \'number\' && value > constraint.max) {
+        if (typeof value === 'number' && value > constraint.max) {
              return {
-                ruleId: constraint.id || \'GOV-003\',
+                ruleId: constraint.id || 'GOV-003',
                 detail: `Metric ${constraint.metricKey} (${value.toFixed(4)}) exceeded max threshold of ${constraint.max}.`,
-                severity: constraint.severity || \'HIGH\'
+                severity: constraint.severity || 'HIGH'
             };
         }
         return null;
@@ -748,9 +748,9 @@ function executeConstraint(constraint, context) {
     if (!handler) {
         global.CORE_LOGGER.warn(`Unknown constraint type encountered: ${policyType}. Skipping.`, { constraintType: policyType });
         return {
-            ruleId: \'EVAL-001\',
-            detail: `Unknown constraint type \'${policyType}\' detected during evaluation.`,
-            severity: \'WARNING\'
+            ruleId: 'EVAL-001',
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`, 
+            severity: 'WARNING'
         };
     }
 
@@ -762,9 +762,9 @@ function executeConstraint(constraint, context) {
     } catch (e) {
         global.CORE_LOGGER.error(`Error executing constraint ${constraint.id || policyType}:`, { error: e.message, constraint: constraint });
         return {
-            ruleId: \'EVAL-002\',
+            ruleId: 'EVAL-002',
             detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
-            severity: \'CRITICAL\'
+            severity: 'CRITICAL'
         };
     }
 }
@@ -803,31 +803,31 @@ export const ConceptualPolicyEvaluator = {
 const SchemaRegistry = {
     artifact_definitions: {
         // Example definition for a Protected Mutable Health (PMH) Lock V1 artifact
-        \'PMH_LOCK_V1\': {
+        'PMH_LOCK_V1': {
             schema: {
-                lock_id: { required: true, type: \'string\' },
-                timestamp: { required: true, type: \'TIMESTAMP_ISO8601\' },
-                payload_hash: { required: true, type: \'HASH_SHA256\' },
-                signature_a: { required: true, type: \'string\' },
-                signer_key_id: { required: true, type: \'string\' },
-                merkle_root: { required: true, type: \'string\' }
+                lock_id: { required: true, type: 'string' },
+                timestamp: { required: true, type: 'TIMESTAMP_ISO8601' },
+                payload_hash: { required: true, type: 'HASH_SHA256' },
+                signature_a: { required: true, type: 'string' },
+                signer_key_id: { required: true, type: 'string' },
+                merkle_root: { required: true, type: 'string' }
             },
             cryptographic_requirements: {
-                signed_fields: [\'lock_id\', \'timestamp\', \'payload_hash\'],
+                signed_fields: ['lock_id', 'timestamp', 'payload_hash'],
                 signing_authorities: [{
-                    key_identifier_field: \'signer_key_id\',
-                    signature_field: \'signature_a\',
-                    authority_name: \'Core_AGI_Authority\'
+                    key_identifier_field: 'signer_key_id',
+                    signature_field: 'signature_a',
+                    authority_name: 'Core_AGI_Authority'
                 }],
                 integrity: {
-                    algorithm: \'MERKLE_SHA256\',
-                    target_fields: [\'payload_hash\'],
-                    root_field: \'merkle_root\'
+                    algorithm: 'MERKLE_SHA256',
+                    target_fields: ['payload_hash'],
+                    root_field: 'merkle_root'
                 }
             }
         },
-        \'GENERIC_TELEMETRY_V1\': {
-            schema: { telemetry_data: { required: true, type: \'object\' } },
+        'GENERIC_TELEMETRY_V1': {
+            schema: { telemetry_data: { required: true, type: 'object' } },
             cryptographic_requirements: null
         }
     }
@@ -872,7 +872,7 @@ class ICachePersistence {
      * @returns {Promise<PersistenceGetResult|null>} Returns the value and original expiration timestamp, or null if missing.
      */
     async get(key) {
-        throw new Error(\'ICachePersistence method `get` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `get` must be implemented by subclass.');
     }
 
     /**
@@ -880,7 +880,7 @@ class ICachePersistence {
      * @returns {Promise<void>}
      */
     async set(key, value, ttlMs) {
-        throw new Error(\'ICachePersistence method `set` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `set` must be implemented by subclass.');
     }
 
     /**
@@ -888,7 +888,7 @@ class ICachePersistence {
      * @returns {Promise<boolean>} True if the key was deleted, false otherwise.
      */
     async delete(key) {
-        throw new Error(\'ICachePersistence method `delete` must be implemented by subclass.\');
+        throw new Error('ICachePersistence method `delete` must be implemented by subclass.');
     }
     
     /**
@@ -896,7 +896,7 @@ class ICachePersistence {
      * @returns {Promise<void>}
      */
     async connect() {
-         // Default no-op for systems that don\'t require explicit connection.
+         // Default no-op for systems that don't require explicit connection.
     }
     
     /**
@@ -914,53 +914,53 @@ class ICachePersistence {
  */
 const GAXEventRegistry = Object.freeze({
     // System Lifecycle (SYS)
-    SYS_INIT_START: \'SYS:INIT:START\',
-    SYS_INIT_COMPLETE: \'SYS:INIT:COMPLETE\',
-    SYS_EXECUTION_START: \'SYS:EXECUTION:START\',
-    SYS_EXECUTION_END: \'SYS:EXECUTION:END\',
-    SYS_SHUTDOWN: \'SYS:SHUTDOWN\',
+    SYS_INIT_START: 'SYS:INIT:START',
+    SYS_INIT_COMPLETE: 'SYS:INIT:COMPLETE',
+    SYS_EXECUTION_START: 'SYS:EXECUTION:START',
+    SYS_EXECUTION_END: 'SYS:EXECUTION:END',
+    SYS_SHUTDOWN: 'SYS:SHUTDOWN',
 
     // Policy & Verification (PV)
-    PV_REQUEST_INITIATED: \'PV:REQUEST:INITIATED\',
-    PV_RULE_CHECK_SUCCESS: \'PV:RULE:CHECK:SUCCESS\',
-    PV_RULE_CHECK_FAILURE: \'PV:RULE:CHECK:FAILURE\',
-    PV_ACCESS_DENIED: \'PV:ACCESS:DENIED\',
+    PV_REQUEST_INITIATED: 'PV:REQUEST:INITIATED',
+    PV_RULE_CHECK_SUCCESS: 'PV:RULE:CHECK:SUCCESS',
+    PV_RULE_CHECK_FAILURE: 'PV:RULE:CHECK:FAILURE',
+    PV_ACCESS_DENIED: 'PV:ACCESS:DENIED',
 
     // Autonomous Evolution (AXIOM)
-    AXIOM_GENERATION_START: \'AXIOM:GENERATION:START\',
-    AXIOM_EVOLUTION_STEP_PERFORMED: \'AXIOM:EVOLUTION:STEP_PERFORMED\',
-    AXIOM_CODE_COMMITTED: \'AXIOM:CODE:COMMITTED\',
-    AXIOM_CODE_REVERTED: \'AXIOM:CODE:REVERTED\',
-    AXIOM_TEST_RUN_SUCCESS: \'AXIOM:TEST:RUN_SUCCESS\',
-    AXIOM_TEST_RUN_FAILURE: \'AXIOM:TEST:RUN_FAILURE\',
+    AXIOM_GENERATION_START: 'AXIOM:GENERATION:START',
+    AXIOM_EVOLUTION_STEP_PERFORMED: 'AXIOM:EVOLUTION:STEP_PERFORMED',
+    AXIOM_CODE_COMMITTED: 'AXIOM:CODE:COMMITTED',
+    AXIOM_CODE_REVERTED: 'AXIOM:CODE:REVERTED',
+    AXIOM_TEST_RUN_SUCCESS: 'AXIOM:TEST:RUN_SUCCESS',
+    AXIOM_TEST_RUN_FAILURE: 'AXIOM:TEST:RUN_FAILURE',
 
     // Planning and Context Management (PLAN)
-    PLAN_GOAL_DEFINED: \'PLAN:GOAL:DEFINED\',
-    PLAN_STEP_GENERATED: \'PLAN:STEP:GENERATED\',
-    PLAN_STEP_COMPLETED: \'PLAN:STEP:COMPLETED\',
-    PLAN_CONTEXT_RETRIEVAL_START: \'PLAN:CONTEXT:RETRIEVAL_START\',
-    PLAN_CONTEXT_RETRIEVAL_COMPLETE: \'PLAN:CONTEXT:RETRIEVAL_COMPLETE\',
+    PLAN_GOAL_DEFINED: 'PLAN:GOAL:DEFINED',
+    PLAN_STEP_GENERATED: 'PLAN:STEP:GENERATED',
+    PLAN_STEP_COMPLETED: 'PLAN:STEP:COMPLETED',
+    PLAN_CONTEXT_RETRIEVAL_START: 'PLAN:CONTEXT:RETRIEVAL_START',
+    PLAN_CONTEXT_RETRIEVAL_COMPLETE: 'PLAN:CONTEXT:RETRIEVAL_COMPLETE',
 
     // External API Interaction (API)
-    API_REQUEST_SENT: \'API:EXTERNAL:REQUEST_SENT\',
-    API_RESPONSE_RECEIVED: \'API:EXTERNAL:RESPONSE_RECEIVED\',
-    API_RATE_LIMIT_HIT: \'API:EXTERNAL:RATE_LIMIT_HIT\',
+    API_REQUEST_SENT: 'API:EXTERNAL:REQUEST_SENT',
+    API_RESPONSE_RECEIVED: 'API:EXTERNAL:RESPONSE_RECEIVED',
+    API_RATE_LIMIT_HIT: 'API:EXTERNAL:RATE_LIMIT_HIT',
 
     // Data/Context Storage (DATA)
-    DATA_CACHE_HIT: \'DATA:CACHE:HIT\',
-    DATA_CACHE_MISS: \'DATA:CACHE:MISS\',
-    DATA_STORAGE_WRITE_FAILURE: \'DATA:STORAGE:WRITE_FAILURE\',
+    DATA_CACHE_HIT: 'DATA:CACHE:HIT',
+    DATA_CACHE_MISS: 'DATA:CACHE:MISS',
+    DATA_STORAGE_WRITE_FAILURE: 'DATA:STORAGE:WRITE_FAILURE',
 
     // System Diagnostics, Errors, and Warnings (DIAG)
-    DIAG_CONFIGURATION_FAULT: \'DIAG:CONFIGURATION:FAULT\',
-    DIAG_CONTEXT_RESOLUTION_MISSING: \'DIAG:CONTEXT:RESOLUTION_MISSING\',
-    DIAG_COMPONENT_FATAL_ERROR: \'DIAG:COMPONENT:FATAL_ERROR\',
-    DIAG_WARNING_THRESHOLD_EXCEEDED: \'DIAG:WARNING:THRESHOLD_EXCEEDED\',
+    DIAG_CONFIGURATION_FAULT: 'DIAG:CONFIGURATION:FAULT',
+    DIAG_CONTEXT_RESOLUTION_MISSING: 'DIAG:CONTEXT:RESOLUTION_MISSING',
+    DIAG_COMPONENT_FATAL_ERROR: 'DIAG:COMPONENT:FATAL_ERROR',
+    DIAG_WARNING_THRESHOLD_EXCEEDED: 'DIAG:WARNING:THRESHOLD_EXCEEDED',
 
     // Telemetry Infrastructure (TEL)
-    TEL_PUBLISH_SUCCESS: \'TEL:PUBLISH:SUCCESS\',
-    TEL_PUBLISH_FAILURE: \'TEL:PUBLISH:FAILURE\',
-    TEL_DATA_DROPPED: \'TEL:DATA:DROPPED\'
+    TEL_PUBLISH_SUCCESS: 'TEL:PUBLISH:SUCCESS',
+    TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
+    TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
 });
 
 // --- TARGET INTEGRATION: GAX Event Schema Definition ---
@@ -969,47 +969,47 @@ const GAXEventRegistry = Object.freeze({
  */
 const GAXEventSchema = Object.freeze({
     // System Lifecycle Events
-    \'SYS:INIT:START\': {
-        description: \'Records system version and entry parameters at startup.\',
+    'SYS:INIT:START': {
+        description: 'Records system version and entry parameters at startup.',
         schema: {
-            version: { type: \'string\', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
-            executionId: { type: \'string\', required: true, format: \'uuid\' },
-            startupMode: { type: \'string\', required: true, enum: [\'standard\', \'recovery\', \'test\', \'maintenance\'] }
+            version: { type: 'string', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
+            executionId: { type: 'string', required: true, format: 'uuid' },
+            startupMode: { type: 'string', required: true, enum: ['standard', 'recovery', 'test', 'maintenance'] }
         }
     },
     
     // Policy Verification Events
-    \'PV:REQUEST:INITIATED\': {
-        description: \'Records the beginning of a formal policy verification request.\',
+    'PV:REQUEST:INITIATED': {
+        description: 'Records the beginning of a formal policy verification request.',
         schema: {
-            policyType: { type: \'string\', required: true, enum: [\'security\', \'compliance\', \'resource\'] },
-            componentId: { type: \'string\', required: true },
-            contextHash: { type: \'string\', required: true, format: \'sha256\' },
-            requestDataSize: { type: \'number\', required: false, min: 0 }
+            policyType: { type: 'string', required: true, enum: ['security', 'compliance', 'resource'] },
+            componentId: { type: 'string', required: true },
+            contextHash: { type: 'string', required: true, format: 'sha256' },
+            requestDataSize: { type: 'number', required: false, min: 0 }
         }
     },
     
     // Autonomous Evolution Events
-    \'AXIOM:CODE:COMMITTED\': {
-        description: \'Logs successful commit of autonomously generated or evolved code.\',
+    'AXIOM:CODE:COMMITTED': {
+        description: 'Logs successful commit of autonomously generated or evolved code.',
         schema: {
-            targetFile: { type: \'string\', required: true },
-            commitHash: { type: \'string\', required: true, format: \'sha1\' },
-            diffSize: { type: \'number\', required: true, min: 1 },
-            evolutionaryObjective: { type: \'string\', required: true },
-            previousHash: { type: \'string\', required: false, format: \'sha1\' }
+            targetFile: { type: 'string', required: true },
+            commitHash: { type: 'string', required: true, format: 'sha1' },
+            diffSize: { type: 'number', required: true, min: 1 },
+            evolutionaryObjective: { type: 'string', required: true },
+            previousHash: { type: 'string', required: false, format: 'sha1' }
         }
     },
     
     // Diagnostic Events
-    \'DIAG:COMPONENT:FATAL_ERROR\': {
-        description: \'Reports a critical, system-halting error within a component.\',
+    'DIAG:COMPONENT:FATAL_ERROR': {
+        description: 'Reports a critical, system-halting error within a component.',
         schema: {
-            componentName: { type: \'string\', required: true },
-            errorCode: { type: \'string\', required: true },
-            errorMessage: { type: \'string\', required: true },
-            stackTrace: { type: \'string\', required: true, allowEmpty: true },
-            isRetryable: { type: \'boolean\', required: false }
+            componentName: { type: 'string', required: true },
+            errorCode: { type: 'string', required: true },
+            errorMessage: { type: 'string', required: true },
+            stackTrace: { type: 'string', required: true, allowEmpty: true },
+            isRetryable: { type: 'boolean', required: false }
         }
     }
 });
