@@ -123,6 +123,24 @@ export class DeepNormalizer {
 // === END: Canonicalization Utility Graft ===
 
 /**
+ * Mock ChecksumVerifier based on DeepNormalizer for stable hashing.
+ * Used for integrity verification of configuration maps (like GSIM).
+ */
+class ChecksumVerifier {
+    /**
+     * Generates a stable hash (mocked as a simple string length check + stable stringify)
+     * @param {any} data 
+     * @returns {string} Mock hash string
+     */
+    static generate(data) {
+        const canonicalString = DeepNormalizer.stableStringify(data);
+        // In a real system, this would be SHA256(canonicalString).
+        // Mocking a deterministic output based on content length for structural testing.
+        return `HASH_${canonicalString.length}_${canonicalString.substring(0, 8)}`;
+    }
+}
+
+/**
  * Manages access to secrets/configuration data encrypted using the system's Master Encryption Key (MEK).
  * This provider enforces the use of the MEK (expected via environment variables) for centralized security management.
  * The MEK is retrieved and validated only once upon the first access, ensuring application failure
@@ -223,6 +241,126 @@ export class SecureConfigProvider {
 }
 
 // === END: Security Utilities Graft ===
+
+// Mock Types for GSIM Enforcement System
+/** @typedef {'SCHEMA' | 'CONFIG' | 'KEY_VAULT_REFERENCE' | 'MODEL'} DependencyType */
+
+/**
+ * @typedef {Object} Dependency
+ * @property {DependencyType} dependency_type
+ * @property {string} uri
+ */
+
+/**
+ * @typedef {Object} EnforcementRule
+ * @property {string} rule_id
+ * @property {string} condition
+ * @property {string} action
+ * @property {Dependency[] | undefined} dependencies
+ */
+
+/**
+ * @typedef {Object} GsimMetadata
+ * @property {string} checksum - Expected hash of the enforcement_map content.
+ * @property {string} version
+ */
+
+/**
+ * @typedef {Object} GsimEnforcementMap
+ * @property {string} map_id
+ * @property {GsimMetadata} metadata
+ * @property {EnforcementRule[]} enforcement_map
+ */
+
+// === START: GSIM Map Resolver Graft (AGI-C-12) ===
+
+/**
+ * GSIM Map Resolver v1.0
+ * Handles integrity verification and dependency pre-loading for GSIM Enforcement Maps.
+ * Uses ChecksumVerifier (mocked) and SecureConfigProvider (existing KERNEL utility).
+ */
+export class GSIMMapResolver {
+
+    /**
+     * 1. Validates the integrity of the map data against the declared checksum.
+     * 2. Pre-resolves and caches required external dependencies based on type.
+     * @param {GsimEnforcementMap} mapData The parsed GSIM enforcement map.
+     * @returns {Promise<EnforcementRule[]>}
+     */
+    public async resolve(mapData) {
+        console.log(`[GSIM] Attempting resolution for map ID: ${mapData.map_id}`);
+
+        // 1. Integrity Verification
+        const calculatedHash = ChecksumVerifier.generate(mapData.enforcement_map);
+        if (calculatedHash !== mapData.metadata.checksum) {
+            throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch. Expected: ${mapData.metadata.checksum}, Got: ${calculatedHash}`);
+        }
+
+        // 2. Dependency Resolution Loop
+        for (const rule of mapData.enforcement_map) {
+            if (rule.dependencies && rule.dependencies.length > 0) {
+                await this.loadDependencies(rule);
+            }
+        }
+
+        console.log(`[GSIM] Map ${mapData.map_id} resolved successfully.`);
+        return mapData.enforcement_map;
+    }
+
+    /**
+     * @param {EnforcementRule} rule
+     * @returns {Promise<void>}
+     */
+    private async loadDependencies(rule) {
+        for (const dep of rule.dependencies) {
+            switch (dep.dependency_type) {
+                case 'SCHEMA':
+                    // Logic to fetch, cache, and compile external schema definition
+                    await this.fetchSchema(dep.uri);
+                    break;
+                case 'CONFIG':
+                    // Logic to fetch mandatory configuration file
+                    await this.fetchConfig(dep.uri);
+                    break;
+                case 'KEY_VAULT_REFERENCE':
+                    // Secure key retrieval using KERNEL's SecureConfigProvider
+                    await this.retrieveKeyReference(dep.uri);
+                    break;
+                // ... other types
+            }
+        }
+    }
+
+    // Placeholder functions (Mocking network/FS operations)
+    private async fetchSchema(uri) { 
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    
+    private async fetchConfig(uri) { 
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    
+    /**
+     * Retrieves a secret reference using the KERNEL's secure configuration mechanism.
+     * @param {string} uri - The URI/reference to the encrypted secret.
+     */
+    private async retrieveKeyReference(uri) { 
+        // Mock encrypted data retrieval based on URI structure
+        const mockEncryptedData = `MOCK_IV:${uri.split('/').pop()}_SECRET_VALUE:MOCK_TAG`;
+        
+        try {
+            const secret = SecureConfigProvider.getSecret(mockEncryptedData);
+            // In a real system, this secret would be cached or injected into the runtime context.
+            return secret;
+        } catch (e) {
+            IsolatedFailureReporter.reportFailure(`Failed to retrieve/decrypt key vault reference ${uri}: ${e.message}`, 'CRITICAL');
+            throw new Error(`Key retrieval failed for ${uri}.`);
+        }
+    }
+}
+
+// === END: GSIM Map Resolver Graft ===
 
 // === START: Critical Paths Graft (AGI-C-08) ===
 
@@ -437,4 +575,4 @@ const STDM_V99_POLICY = {
     type: "object",
     properties: {
         componentId: { type: "string" },
-        version: { type: "string"}
+        version: { type: "string"}}
