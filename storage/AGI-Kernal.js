@@ -194,7 +194,7 @@ export interface AhrsMessage {
  * Helper to check if an array is a tuple of numbers of a specific length,
  * ensuring all elements are finite numbers.
  */
-function isNumericTuple(arr: unknown, length: number): arr is Array<number> {
+function isNumericTuple(arr, length) {
     if (!Array.isArray(arr) || arr.length !== length) {
         return false;
     }
@@ -208,10 +208,10 @@ function isNumericTuple(arr: unknown, length: number): arr is Array<number> {
  * @param msg The object to validate (input type set to 'unknown' for safety)
  * @returns True if the object conforms to AhrsMessage structure and content constraints.
  */
-export function validateAhrsMessage(msg: unknown): msg is AhrsMessage {
+export function validateAhrsMessage(msg) {
     if (typeof msg !== 'object' || msg === null) return false;
     
-    const potentialMsg = msg as Partial<AhrsMessage>;
+    const potentialMsg = msg;
 
     // 1. Check top level structure
     if (!potentialMsg.header || typeof potentialMsg.header !== 'object' || potentialMsg.header === null ||
@@ -760,192 +760,106 @@ export class MutationChainRegistrar {
     }
 }
 
-// --- End Absorbed Target Data Utilities ---
+// --- Start Integration of PCRA Task Sequencer Engine (MEE Sub-Engine) ---
 
-// --- Policy Engine Data Structures (Target Integration) ---
+// Required mock action map (Must be defined globally for MockDependencyRegistry)
+const MockActionMap = {
+    'system_check': async (params, context, timeout) => {
+        GAXTelemetry.debug(`[TSE Action] Running system_check with params: ${JSON.stringify(params)}`);
+        // Simulate potential failure
+        if (params.critical_threshold && context.severity > params.critical_threshold) {
+             throw new Error("System check failed due to high severity.");
+        }
+        await new Promise(resolve => setTimeout(resolve, timeout || 100));
+        return { success: true, action: 'system_check' };
+    },
+    'isolate_network': async (params, context, timeout) => {
+        GAXTelemetry.warn(`[TSE Action] Initiating isolation for incident: ${context.id}`);
+        await new Promise(resolve => setTimeout(resolve, timeout || 500));
+        return { result: 'network_segment_isolated', action: 'isolate_network' };
+    },
+    'run_diagnostic': async (params, context, timeout) => {
+        GAXTelemetry.info(`[TSE Action] Running full diagnostics on entity: ${params.entity}`);
+        await new Promise(resolve => setTimeout(resolve, timeout || 200));
+        return { status: 'DIAGNOSTIC_COMPLETE', action: 'run_diagnostic' };
+    }
+};
 
-class TrieNode {
-    constructor() {
-        this.children = new Map();
-        this.policies = []; // Stores policies matching this prefix
+// Required Dependency Registry for TaskSequencerEngine
+class DependencyRegistry {
+    getLogger(name) {
+        // Adapt GAXTelemetry to the expected Logger interface 
+        return {
+            info: (msg, context) => GAXTelemetry.info(`[${name}] ${msg}`, context),
+            warn: (msg, context) => GAXTelemetry.warn(`[${name}] ${msg}`, context),
+            error: (msg, context) => GAXTelemetry.error(`[${name}] ${msg}`, context),
+            critical: (msg, context) => GAXTelemetry.critical(`[${name}] ${msg}`, context),
+            debug: (msg, context) => GAXTelemetry.debug(`[${name}] ${msg}`, context)
+        };
+    }
+    getActionMap() {
+        return MockActionMap;
     }
 }
+const dependencyRegistry = new DependencyRegistry();
 
-class PolicyTrie {
-    constructor() {
-        this.root = new TrieNode();
-    }
 
-    insert(prefix, policy) {
-        let node = this.root;
-        for (const char of prefix) {
-            if (!node.children.has(char)) {
-                node.children.set(char, new TrieNode());
-            }
-            node = node.children.get(char);
-        }
-        node.policies.push(policy);
-    }
-
-    search(key) {
-        let node = this.root;
-        let matchingPolicies = [];
-        for (const char of key) {
-            if (node.children.has(char)) {
-                node = node.children.get(char);
-                matchingPolicies.push(...node.policies);
-            } else {
-                // Stop if prefix doesn't match further
-                break;
-            }
-        }
-        // Also check for policies stored at the end of the full key path
-        matchingPolicies.push(...node.policies); 
-        return [...new Set(matchingPolicies)]; // Deduplicate
-    }
-}
-
-class IntervalTree {
-    constructor() {
-        this.intervals = []; // Stores { start, end, policy }
-    }
-
-    insert(start, end, policy) {
-        this.intervals.push({ start, end, policy });
-    }
-
-    initialize() {
-        // Sort by start point for efficient querying
-        this.intervals.sort((a, b) => a.start - b.start);
-    }
-
-    query(point) {
-        const matchingPolicies = [];
-        // Leverage sorting to stop early
-        for (const interval of this.intervals) {
-            if (interval.start > point) {
-                break; 
-            }
-            if (point >= interval.start && point <= interval.end) {
-                matchingPolicies.push(interval.policy);
-            }
-        }
-        return matchingPolicies;
-    }
-}
-
-class MccPolicyEngine {
-    constructor() {
-        this.policies = [];
-        this.prefixRules = new PolicyTrie();
-        this.rangeTree = new IntervalTree();
-        GAXTelemetry.system('MccPolicyEngine_Init');
+class TaskSequencerEngine {
+    constructor(dependencyRegistry) {
+        this.logger = dependencyRegistry.getLogger('PCRA_TSE');
+        this.actionMap = dependencyRegistry.getActionMap();
     }
 
     /**
-     * Recursive function to handle complex policy conditions.
-     * @param {object} conditions - The condition object (e.g., { type: 'AND', rules: [...] })
-     * @param {object} transactionData - The data being evaluated.
-     * @returns {boolean}
+     * Executes a resolution strategy sequence defined by structured Task Objects.
+     * @param {Array<Object>} sequence - The execution_sequence array.
+     * @param {Object} incidentContext - Contextual data.
      */
-    evaluateConditionsRecursively(conditions, transactionData) {
-        if (!conditions) return true;
+    async executeStrategy(sequence, incidentContext) {
+        this.logger.debug(`Starting sequenced execution for incident: ${incidentContext.id}`);
 
-        const { type, rules, field, operator, value } = conditions;
+        for (const task of sequence) {
+            const maxRetries = this.getMaxRetries(task.on_failure);
+            let attempts = 0;
+            let successful = false;
 
-        if (type === 'AND') {
-            return rules.every(rule => this.evaluateConditionsRecursively(rule, transactionData));
+            while (attempts <= maxRetries && !successful) {
+                attempts++;
+                try {
+                    await this.runTaskWithTimeout(task, incidentContext);
+                    successful = true;
+                } catch (error) {
+                    this.logger.warn(`Task ${task.step_id} failed (Attempt ${attempts}/${maxRetries + 1}). Mode: ${task.on_failure}`, { error: error.message });
+
+                    if (attempts > maxRetries || task.on_failure === "FAIL_FAST") {
+                        this.handleFailureEscalation(task.on_failure, task, incidentContext);
+                        throw new Error(`Strategy aborted: Task ${task.step_id} failed permanently.`);
+                    }
+                    if (task.on_failure.startsWith("INITIATE_HUMAN")) {
+                        this.handleFailureEscalation(task.on_failure, task, incidentContext);
+                        return { status: "WAITING_OVERSIGHT", step: task.step_id };
+                    }
+                    // Exponential backoff or standardized wait
+                    await new Promise(resolve => setTimeout(resolve, Math.min(100 * attempts * 2, 5000)));
+                }
+            }
         }
-        if (type === 'OR') {
-            return rules.some(rule => this.evaluateConditionsRecursively(rule, transactionData));
-        }
-
-        // Base condition evaluation
-        const txValue = transactionData[field];
-
-        if (txValue === undefined) return false;
-
-        switch (operator) {
-            case 'EQ': return txValue === value;
-            case 'GT': return txValue > value;
-            case 'LT': return txValue < value;
-            case 'CONTAINS': return String(txValue).includes(String(value));
-            default: return false;
-        }
+        return { status: "SUCCESS" };
     }
 
-    /**
-     * Initializes the engine by compiling policies into optimized structures.
-     * @param {Array<object>} rawPolicies - List of policies.
-     */
-    initializeEngine(rawPolicies) {
-        // 1. Prioritize policies based on a defined order (e.g., 'priority' field, higher is better)
-        this.policies = [...rawPolicies].sort((a, b) => (b.priority || 0) - (a.priority || 0));
-        
-        this.prefixRules = new PolicyTrie();
-        this.rangeTree = new IntervalTree();
-
-        this.policies.forEach(policy => {
-            if (policy.matchType === 'PREFIX' && policy.prefix) {
-                this.prefixRules.insert(policy.prefix, policy);
-            }
-            if (policy.matchType === 'RANGE' && policy.rangeStart !== undefined && policy.rangeEnd !== undefined) {
-                this.rangeTree.insert(policy.rangeStart, policy.rangeEnd, policy);
-            }
-        });
-        
-        this.rangeTree.initialize();
-        GAXTelemetry.info('MccPolicyEngine_Compiled', { count: this.policies.length });
+    getMaxRetries(failureMode) {
+        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X$/) : null;
+        return match ? parseInt(match[1], 10) : 0;
     }
 
-    /**
-     * Evaluates a transaction against all compiled policies.
-     * @param {object} transactionData - The data to evaluate (e.g., { accountId: '123', amount: 500, geoCode: '001' })
-     * @returns {Array<object>} List of matching policies, prioritized.
-     */
-    evaluateTransaction(transactionData) {
-        const matchingPolicies = new Set();
-        
-        // 1. Prefix Matching (e.g., geo codes)
-        if (transactionData.geoCode) {
-            this.prefixRules.search(transactionData.geoCode).forEach(p => matchingPolicies.add(p));
+    async runTaskWithTimeout(task, context) {
+        if (!this.actionMap[task.action]) {
+            const errorMsg = `Action handler missing for: ${task.action}`;
+            this.logger.error(errorMsg);
+            throw new Error(errorMsg);
         }
-        
-        // 2. Range Matching (e.g., amount)
-        if (transactionData.amount !== undefined) {
-            this.rangeTree.query(transactionData.amount).forEach(p => matchingPolicies.add(p));
-        }
-
-        // 3. Full Iteration and Recursive Condition Check (Leveraging sorted list for priority)
-        const finalMatches = [];
-        
-        for (const policy of this.policies) {
-            // Optimization: If already matched by fast lookup and no complex conditions, push and continue.
-            if (matchingPolicies.has(policy) && !policy.conditions) {
-                finalMatches.push(policy);
-                continue;
-            }
-
-            // Check recursive conditions
-            if (this.evaluateConditionsRecursively(policy.conditions, transactionData)) {
-                finalMatches.push(policy);
-            }
-        }
-
-        // The results are already prioritized due to the initial sorting.
-        return finalMatches;
+        return await this.actionMap[task.action](task.parameters, context, task.timeout_ms);
     }
-}
 
-// Mock policies for testing the engine
-const mockPolicies = [
-    { id: 1, priority: 100, matchType: 'PREFIX', prefix: '001', conditions: { type: 'GT', field: 'amount', value: 1000 } },
-    { id: 2, priority: 50, matchType: 'RANGE', rangeStart: 100, rangeEnd: 500, conditions: null },
-    { id: 3, priority: 10, matchType: 'GENERAL', conditions: { type: 'AND', rules: [{ field: 'currency', operator: 'EQ', value: 'USD' }, { field: 'riskScore', operator: 'LT', value: 5 }] } }
-];
-
-const mccPolicyEngine = new MccPolicyEngine();
-mccPolicyEngine.initializeEngine(mockPolicies);
-
-// --- Utility Mocks for Proposal Validation ---
-const validateSchema = (data, schema) => ({
+    handleFailureEscalation(mode, task, context) {
+        this.logger.critical(`PCRA Escalation: Mode ${mode} triggered by ${task.step_id}. Incident: ${context.id
