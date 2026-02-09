@@ -24,7 +24,11 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     This encoder prioritizes consistency and robustness for core AGI data structures.
     AGI-KERNEL Improvement: Added logic for serializing custom objects via 
     __dict__ or explicit 'to_canonical_dict' method for better integration 
-    with /agents and /emergent components. Also added explicit support for Python dataclasses (Cycle 1).
+    with /agents and /emergent components. Also added explicit support for Python dataclasses.
+    
+    Cycle 1 Refinement: Enhanced the __dict__ fallback mechanism to filter out 
+    private/internal attributes (starting with '_') to prevent non-deterministic 
+    hashing based on cache or transient internal state.
     """
     def default(self, obj):
         # 1. Handle non-native iterables deterministically
@@ -52,7 +56,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
         if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid')):
             
-            # 5a. Explicit dataclass serialization for structural integrity (NEW)
+            # 5a. Explicit dataclass serialization for structural integrity
             if DATACLASSES_AVAILABLE and is_dataclass(obj):
                 # Use asdict() for robust, nested conversion of dataclass fields.
                 return asdict(obj)
@@ -63,8 +67,16 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
             # Fallback to serializing public attributes
             if hasattr(obj, '__dict__'):
-                # Ensures we don't try to serialize attributes of standard types that only happen to have __dict__
-                return obj.__dict__
+                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_' 
+                # to improve determinism and prevent hashing transient state.
+                safe_dict = {
+                    k: v for k, v in obj.__dict__.items()
+                    if not k.startswith('_')
+                }
+                
+                # Only return the dictionary if it contains actual serializable data
+                if safe_dict:
+                    return safe_dict
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
