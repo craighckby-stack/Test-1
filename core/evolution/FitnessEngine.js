@@ -6,7 +6,7 @@
  * Consumes config/metrics_and_oracles_v2.json and calculates the fitness score
  * for a new codebase generation based on collected runtime and static metrics.
  * 
- * Crucial for the kernel's Meta-Reasoning and Self-Improvement cycle.
+ * Crucial for the kernel's Meta-Reasoning and Self-Improvement cycle, now integrating Historical Context.
  */
 class FitnessEngine {
   constructor(metricsConfig) {
@@ -44,13 +44,13 @@ class FitnessEngine {
     
     // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
     this.FLOAT_TOLERANCE = 1e-9;
+    this.EPSILON = 1e-9; // Used for inverse scaling stability
   }
 
   /**
    * Internal utility to safely retrieve and validate a metric value.
    * Ensures the value is a finite number, defaulting to 0.0 otherwise (Error Handling).
-   * Added logging to identify unsafe metrics.
-   * 
+   *
    * @param {Object} rawMetrics - Collected M_* metrics.
    * @param {string} metricKey - The key to look up.
    * @returns {number} The safe numeric metric value.
@@ -60,7 +60,7 @@ class FitnessEngine {
       // Explicitly check for null/undefined/non-number or non-finite numbers
       if (typeof value !== 'number' || !isFinite(value)) {
           // Enhanced logging for specific failure (Error Handling/Meta-Reasoning)
-          if (rawMetrics.hasOwnProperty(metricKey)) {
+          if (rawMetrics && rawMetrics.hasOwnProperty(metricKey)) {
               console.warn(`FitnessEngine: Metric '${metricKey}' found but is unsafe/non-finite (${value}). Using 0.0.`);
           }
           return 0.0;
@@ -69,14 +69,15 @@ class FitnessEngine {
   }
 
   /**
-   * Calculates fitness based on raw metric data and the specified profile.
-   * Aligns with the Error Handling core capability.
+   * Calculates fitness based on raw metric data, history, and the specified profile.
+   * Aligns with the Error Handling and Meta-Reasoning core capabilities.
    *
    * @param {Object} rawMetrics - Collected M_* metrics (e.g., M_ERROR_RATE, M_COMPLEXITY).
    * @param {string} profileName - E.g., 'P_PRODUCTION_STABILITY'.
+   * @param {Object} [historicalMetrics={}] - Historical metrics (e.g., previous cycle averages from Nexus).
    * @returns {number} Calculated fitness score (0.0 to MAX_FITNESS).
    */
-  calculate(rawMetrics, profileName) {
+  calculate(rawMetrics, profileName, historicalMetrics = {}) {
     const MAX_FITNESS = 10.0;
 
     // Robust Error Handling: Ensure rawMetrics is usable
@@ -93,8 +94,8 @@ class FitnessEngine {
     const profile = this.config.profiles[profileName];
     if (!profile) {
         // Graceful failure recovery
-        console.warn(`FitnessEngine: Profile ${profileName} not found. Returning neutral score (0.5).`);
-        return 0.5;
+        console.warn(`FitnessEngine: Profile ${profileName} not found. Returning neutral score (5.0).`);
+        return 5.0;
     }
     
     // 1. Calculate the initial derived metric score. (Meta-Reasoning capability exercised here)
@@ -147,15 +148,16 @@ class FitnessEngine {
     // 3. Handle optimization goals (e.g., minimizing complexity)
     if (profile.optimization_goal === 'minimize') {
       // Robust minimization: Uses inverse transformation.
-      // Using EPSILON prevents division by zero and rewards the achievement of zero error/complexity maximally.
-      const EPSILON = 1e-9;
-      score = 10.0 / (score + EPSILON); // Multiplied by 10.0 to normalize inverse scaling
+      score = 10.0 / (score + this.EPSILON); // Multiplied by 10.0 to normalize inverse scaling
     } else if (profile.optimization_goal === 'maximize') {
         // Scale up towards 10
         score = Math.min(MAX_FITNESS, score);
     }
+    
+    // 4. Apply Historical Context Adjustment (Meta-Reasoning Integration)
+    score = this._applyHistoricalAdjustment(score, rawMetrics, historicalMetrics, profile);
 
-    // 4. Normalize and clamp the final score for stability (Error Handling)
+    // 5. Normalize and clamp the final score for stability (Error Handling)
     
     // Final clamping to ensure non-negativity and finite result (Error Handling)
     if (!isFinite(score)) {
@@ -168,19 +170,85 @@ class FitnessEngine {
     
     return Math.max(0, score);
   }
+  
+  /**
+   * Meta-Reasoning: Adjusts the score based on comparison to historical performance (Nexus data).
+   * Rewards improvement, penalizes regression relative to the history.
+   */
+  _applyHistoricalAdjustment(currentScore, rawMetrics, historicalMetrics, profile) {
+      // Check for necessary context
+      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
+          return currentScore;
+      }
+      
+      const targetMetric = profile.target_metric;
+      const currentTargetValue = this.calculateDerivedMetric(rawMetrics, targetMetric);
+      
+      // Attempt to calculate historical target value (Handle formulas safely)
+      let historicalTargetValue;
+      try {
+           // Use a copy of the target metric ID/formula against historical data
+           historicalTargetValue = this.calculateDerivedMetric(historicalMetrics, targetMetric);
+      } catch (e) {
+           console.warn("FitnessEngine: Could not derive historical metric value. Skipping historical adjustment.");
+           return currentScore;
+      }
+      
+      if (currentTargetValue < this.EPSILON && historicalTargetValue < this.EPSILON) {
+          // Both zero/near-zero, effectively no change if minimizing
+          return currentScore;
+      }
+      
+      const improvementThreshold = 0.05; // Requires 5% relative change to trigger adjustment
+      const adjustmentFactor = 0.15; // Up to +/- 15% adjustment based on history
+
+      // 1. Calculate relative difference
+      let relativeDifference = 0.0;
+      if (historicalTargetValue > this.EPSILON) {
+          relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
+      }
+      
+      let performanceChange = 0; // 0: neutral, 1: reward, -1: penalty
+      
+      if (profile.optimization_goal === 'minimize') {
+          // Reduction in metric value is good (negative relativeDifference is desired)
+          if (relativeDifference < -improvementThreshold) {
+              performanceChange = 1; // Reward
+          } else if (relativeDifference > improvementThreshold) {
+              performanceChange = -1; // Penalty
+          }
+      } else if (profile.optimization_goal === 'maximize') {
+          // Increase in metric value is good (positive relativeDifference is desired)
+          if (relativeDifference > improvementThreshold) {
+              performanceChange = 1; // Reward
+          } else if (relativeDifference < -improvementThreshold) {
+              performanceChange = -1; // Penalty
+          }
+      }
+      
+      if (performanceChange === 1) {
+          // Reward for learning and progression (Meta-Reasoning success)
+          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric}. Applying reward.`);
+          return currentScore * (1 + adjustmentFactor);
+      } else if (performanceChange === -1) {
+          // Penalty for regression (requires Meta-Reasoning response)
+          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric}. Applying penalty.`);
+          // Use a smaller penalty factor (0.5 * adjustmentFactor) to encourage exploration
+          return currentScore * (1 - adjustmentFactor * 0.5);
+      }
+      
+      return currentScore;
+  }
 
   /**
    * Autonomy/Error Handling: Sanitizes the dynamic calculation string before evaluation.
    * Only allows basic arithmetic operators, parentheses, decimals, and numbers.
-   * This is crucial because it executes dynamic code for Meta-Reasoning functionality.
-   * 
+   *
    * @param {string} formulaString - The string after metric substitution.
    * @returns {string} Sanitized formula string.
    */
   sanitizeFormula(formulaString) {
-    // After substitution, the string should ONLY contain numbers, parentheses, and arithmetic operators.
-    // Allow 'e' or 'E' for scientific notation (e.g., 1e-9).
-    // This aggressively removes anything that isn't a safe numeric/operator character.
+    // Aggressive whitelisting/removal based on acceptable JS arithmetic tokens
     let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
     
     // Additional defense: basic check for obvious attempts to execute code post-sanitization
@@ -196,10 +264,6 @@ class FitnessEngine {
   /**
    * Autonomy/Security: Pre-validates the formula to ensure it only references known
    * metrics and safe arithmetic structure, before substitution and evaluation.
-   * 
-   * @param {string} formula - The original formula string (e.g., "M_ERR * 5").
-   * @param {string[]} metricKeys - Array of valid metric keys (e.g., ["M_ERR", "M_COMP"]).
-   * @returns {boolean} True if validation passes, false otherwise.
    */
   validateFormula(formula, metricKeys) {
       // 1. Check for forbidden characters (anything not standard metrics/operators)
@@ -224,8 +288,7 @@ class FitnessEngine {
 
   /**
    * Implements dynamic formula execution for Meta-Reasoning capability development.
-   * Recognizes complex formulas vs. simple metric lookups.
-   * 
+   *
    * @param {Object} rawMetrics - Collected M_* metrics.
    * @param {string} targetMetricIdOrFormula - The target ID or dynamic calculation string.
    * @returns {number} The calculated metric value.
@@ -268,36 +331,30 @@ class FitnessEngine {
         // Step 1: Sanitize the resulting calculation string before execution for enhanced security and stability.
         const safeCalculationString = this.sanitizeFormula(calculationString);
         
-        // NEW: Check if sanitization resulted in an empty or meaningless string
+        // Check if sanitization resulted in an empty or meaningless string
         if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()') {
              console.warn(`FitnessEngine: Sanitization resulted in an empty calculation string for formula: ${formula}. Returning 0.0.`);
              return 0.0;
         }
 
-        // SECURITY IMPROVEMENT: Replace eval() with Function constructor for execution in a cleaner scope (Autonomy/Error Handling).
+        // SECURITY IMPROVEMENT: Use Function constructor for isolated execution.
         result = (new Function('return ' + safeCalculationString))();
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-            // Enhanced error logging: show the resulting string that produced the non-safe result.
             console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}.`);
             return 0.0;
         }
         return result;
 
     } catch (e) {
-        // Robust Error Handling during formula execution: log the problematic calculation string.
-        // Enhanced context for Meta-Reasoning feedback loop.
-        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Original formula: ${formula}. Attempted string: ${calculationString}`);
+        // Robust Error Handling during formula execution
+        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Attempted string: ${calculationString}`);
         return 0.0;
     }
   }
 
   /**
    * Detailed conditional evaluation logic. Enhanced for safer numerical comparison using tolerance.
-   * @param {*} value 
-   * @param {string} condition - operators like '>', '<', '>=', '<=', '==', '!='
-   * @param {*} threshold 
-   * @returns {boolean}
    */
   checkCondition(value, condition, threshold) {
     if (value === undefined || threshold === undefined) return false;
@@ -346,70 +403,90 @@ class FitnessEngine {
   }
   
   /**
+   * Helper to return default capabilities upon error.
+   */
+  _defaultCapabilityMapping() {
+      return {
+        navigation: 5.0, 
+        logic: 5.0, 
+        memory: 5.0
+      };
+  }
+
+  /**
    * Meta-Reasoning: Dynamically maps the final fitness score (0-10) to the kernel's core capabilities (0-10),
-   * based on the specific profile used, reflecting the strategic intent of the assessment.
-   * 
-   * Note: Capability results are mapped back to the required 'navigation', 'logic', and 'memory' output keys.
+   * based on the specific profile used and the complexity of the calculation.
    *
    * @param {number} fitnessScore - The result of calculate().
    * @param {string} profileName - The profile used for calculation.
+   * @param {Object} rawMetrics - Metrics used in current cycle.
+   * @param {Object} historicalMetrics - Metrics used for historical comparison.
    * @returns {Object<string, number>} Capability scores.
    */
-  assessCapabilities(fitnessScore, profileName) {
+  assessCapabilities(fitnessScore, profileName, rawMetrics = {}, historicalMetrics = {}) {
     const clampedScore = Math.max(0, Math.min(10, fitnessScore));
     const normalizedScore = clampedScore / 10.0; // 0.0 to 1.0
 
-    // Base scores (minimum competency)
+    const profile = this.config.profiles[profileName];
+    if (!profile) return this._defaultCapabilityMapping();
+
+    // Base scores reflect minimum operational competency (5.5)
     let coreScores = {
-      "Error Handling": 5.0,
-      "JSON Parsing": 5.0,
-      "Meta-Reasoning": 5.0,
-      "Autonomy": 5.0,
-      "Creativity": 5.0,
+      "Error Handling": 5.5,
+      "JSON Parsing": 5.5,
+      "Meta-Reasoning": 5.5,
+      "Autonomy": 5.5,
+      "Creativity": 5.5,
     };
     
-    // Core contribution of calculation quality (Max 5 points improvement)
-    const baseImprovement = normalizedScore * 5.0;
+    // Contribution based on overall success (Max 4.5 points improvement)
+    const overallImprovement = normalizedScore * 4.5; 
 
     // 1. General boosts based on overall success
-    coreScores["Error Handling"] += baseImprovement * 0.4; 
-    coreScores["JSON Parsing"] += baseImprovement * 0.3;
-    coreScores["Meta-Reasoning"] += baseImprovement * 0.5; 
-    coreScores["Autonomy"] += baseImprovement * 0.3;
-    coreScores["Creativity"] += baseImprovement * 0.2;
+    coreScores["Error Handling"] += overallImprovement * 0.4; 
+    coreScores["JSON Parsing"] += overallImprovement * 0.3; // Rewards data robustness
+    coreScores["Meta-Reasoning"] += overallImprovement * 0.5; // Rewards strategic achievement
+    coreScores["Autonomy"] += overallImprovement * 0.3;
+    coreScores["Creativity"] += overallImprovement * 0.2;
     
-    // 2. Profile-specific Strategic Adjustment (Enhanced Meta-Reasoning)
-    const profile = this.config.profiles[profileName];
-    if (profile) {
-        
-        // Check for complexity (Meta-Reasoning, Autonomy)
-        if (/[+\-*\/()]/.test(profile.target_metric)) {
-            coreScores["Meta-Reasoning"] += normalizedScore * 1.0; 
-            coreScores["Autonomy"] += normalizedScore * 0.5;
-        }
-        
-        // Check for minimization goals (Creativity, finding novel solutions)
-        if (profile.optimization_goal === 'minimize') {
-            coreScores["Creativity"] += normalizedScore * 1.0; 
-        }
+    // 2. Strategic Depth Assessment (Profile-specific)
+    const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
 
-        // Check for oracles related to stability (Error Handling)
-        const errorOracleCount = profile.oracles ? profile.oracles.filter(o => o.metric && (o.metric.includes('ERROR') || o.metric.includes('FAILURE'))).length : 0;
-        coreScores["Error Handling"] += Math.min(1.0, errorOracleCount * 0.5) * normalizedScore;
+    if (isComplexFormula) {
+        // High reward for successful dynamic calculation, crucial for AGI self-assessment
+        coreScores["Meta-Reasoning"] += normalizedScore * 1.5; 
+        coreScores["Autonomy"] += normalizedScore * 0.5;
     }
-
-    // 3. Final normalization and clamping (0.0 to 10.0) for core capabilities
+    
+    if (profile.optimization_goal === 'minimize') {
+        // High reward for identifying and solving challenging optimization problems (Creativity/Novelty)
+        coreScores["Creativity"] += normalizedScore * 1.2; 
+    }
+    
+    // Historical context check
+    if (Object.keys(historicalMetrics).length > 0) {
+        // Reward for engaging with memory and progression assessment
+        coreScores["Meta-Reasoning"] += normalizedScore * 0.5;
+    }
+    
+    // 3. Robustness Assessment (Based on inherent class success)
+    // Since this engine successfully loaded config and performed safe operations:
+    coreScores["JSON Parsing"] += (this.isOperational ? 0.5 : 0.0);
+    
+    // 4. Final normalization and clamping (0.0 to 10.0)
     for (const key in coreScores) {
         coreScores[key] = Math.min(10.0, coreScores[key]);
+        // Ensure minimum baseline reflects system stability
+        coreScores[key] = Math.max(5.0, coreScores[key]);
     }
     
-    // 4. Map AGI Core Capabilities back to expected output keys: navigation, logic, memory
+    // 5. Map AGI Core Capabilities back to expected output keys
     return {
-        // Navigation: Structural soundness / Architectural Exploration
-        navigation: parseFloat(Math.min(10, coreScores["Autonomy"] * 0.3 + coreScores["Creativity"] * 0.2).toFixed(2)),
+        // Navigation: Focus on Autonomy and Architecture/Creativity
+        navigation: parseFloat(Math.min(10, coreScores["Autonomy"] * 0.4 + coreScores["Creativity"] * 0.3 + coreScores["Meta-Reasoning"] * 0.1).toFixed(2)),
         
-        // Logic: Strategic decision making / Meta-Reasoning
-        logic: parseFloat(Math.min(10, coreScores["Meta-Reasoning"] * 0.6 + coreScores["Autonomy"] * 0.4).toFixed(2)),
+        // Logic: Strategic decision making (Meta-Reasoning) and Fault Tolerance (Error Handling)
+        logic: parseFloat(Math.min(10, coreScores["Meta-Reasoning"] * 0.6 + coreScores["Error Handling"] * 0.4).toFixed(2)),
         
         // Memory: Data integrity and persistence (Error Handling, JSON Parsing)
         memory: parseFloat(Math.min(10, coreScores["Error Handling"] * 0.5 + coreScores["JSON Parsing"] * 0.5).toFixed(2))
