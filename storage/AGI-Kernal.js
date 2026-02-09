@@ -140,6 +140,46 @@ class ChecksumVerifier {
     }
 }
 
+// === START: Integrity Hashing Utility Graft (AGI-C-13) ===
+
+/**
+ * IntegrityHashUtility
+ * Provides SHA256 hashing capabilities, including recursive hashing for
+ * generating stable, collision-resistant identifiers for complex data states.
+ */
+class IntegrityHashUtility {
+  constructor() {}
+  
+  /**
+   * Calculates a standard SHA256 hash of the input data.
+   * @param {string | Buffer} data 
+   * @returns {Promise<string>} Hex digest
+   */
+  async calculateHash(data) {
+    // Note: 'crypto' is a Node.js built-in module, dynamically imported here.
+    const crypto = await import('crypto');
+    const hash = crypto.createHash('sha256');
+    hash.update(data);
+    return hash.digest('hex');
+  }
+  
+  /**
+   * Calculates a recursive hash (hashing the hash N times).
+   * Used for generating unique, time-delayed identifiers or proof-of-work style tokens.
+   * @param {string | Buffer} data 
+   * @param {number} [depth=0] Current recursion depth.
+   * @param {number} [maxDepth=5] Maximum recursion depth.
+   * @returns {Promise<string>} Final hex digest after N iterations.
+   */
+  async calculateRecursiveHash(data, depth = 0, maxDepth = 5) {
+    if (depth >= maxDepth) return await this.calculateHash(data);
+    const hashedData = await this.calculateHash(data);
+    return await this.calculateRecursiveHash(hashedData, depth + 1, maxDepth);
+  }
+}
+
+// === END: Integrity Hashing Utility Graft ===
+
 /**
  * Manages access to secrets/configuration data encrypted using the system's Master Encryption Key (MEK).
  * This provider enforces the use of the MEK (expected via environment variables) for centralized security management.
@@ -575,4 +615,4 @@ const STDM_V99_POLICY = {
     type: "object",
     properties: {
         componentId: { type: "string" },
-        version: { type: "string"}}
+        version: { type: "string"}}}
