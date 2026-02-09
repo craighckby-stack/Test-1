@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 from typing import Dict, Any, List
+from pathlib import Path
 
 def get_utc_timestamp() -> str:
     """Returns the current UTC timestamp formatted consistently for system logging."""
@@ -37,10 +38,10 @@ class ACVD_DecisionEngine:
 
     This version enhances Meta-Reasoning and Autonomy by:
     1. Centralizing configuration defaults for clarity.
-    2. Implementing dynamic log impact analysis (`_analyze_log_impact`) to provide 
-       actionable tuning suggestions based on accumulated internal penalties.
-    3. Improving `perform_self_assessment` to output structured tuning data 
-       instead of static strategy strings, supporting recursive self-improvement.
+    2. Implementing dynamic log impact analysis (`_calculate_log_impact`) to provide 
+       **proactive, actionable tuning suggestions** including proposed new weights, 
+       supporting the AGI kernel's recursive self-improvement loop.
+    3. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
     """
 
     # Use centralized defaults
@@ -52,44 +53,22 @@ class ACVD_DecisionEngine:
     
     
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
-        self.schema_path = schema_path
+        # Use Path objects internally for robust file handling
+        self.schema_path = Path(schema_path)
         self._log_queue: List[Dict[str, Any]] = [] # Infrastructure: Internal queue for Telemetry System
         self.persist_config = True
 
-        self.schema = {}
-        self.valid_states = []
-        self.state_transitions = {}
-        config = {}
+        # Initialize core attributes robustly
+        self.schema: Dict[str, Any] = {}
+        self.valid_states: List[str] = []
+        self.state_transitions: Dict[str, List[str]] = {}
         
-        try:
-            loaded_schema = self._load_schema(schema_path)
-            self.schema = loaded_schema
-            self.valid_states = self.schema.get('valid_states', []) 
-            self.state_transitions = self.schema.get('state_transitions', {}) 
-            config = self.schema.get('config', {})
-        except Exception:
-            # If schema loading fails critically, attributes remain at safe defaults (empty lists/dicts)
-            # Print fallback message since _log_status may rely on fully initialized attributes
-            print(f"[ACVD CRITICAL | INIT_FAILSAFE @ {get_utc_timestamp()}] Failed to load governance schema. Operating in limited mode.")
-            
+        # Initialize configurable attributes
+        self.safety_threshold: float = self.DEFAULT_MIN_SAFETY_SCORE
+        self.severity_weights: Dict[str, float] = self._BASE_SEVERITY_WEIGHTS.copy()
+        self.internal_penalty_multiplier: float = self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
         
-        # Load configurable thresholds
-        self.safety_threshold = config.get(
-            'min_safety_score', 
-            self.DEFAULT_MIN_SAFETY_SCORE
-        )
-        
-        # Load severity weights dynamically (supports Meta-Reasoning/Autonomy)
-        self.severity_weights = config.get(
-            'severity_weights',
-            self._BASE_SEVERITY_WEIGHTS
-        )
-        
-        # Load internal penalty multiplier (supports Meta-Reasoning tuning)
-        self.internal_penalty_multiplier = config.get(
-            'internal_penalty_multiplier',
-            self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
-        )
+        self._load_configuration()
         
         if not self.valid_states:
             self._log_status(
@@ -98,18 +77,48 @@ class ACVD_DecisionEngine:
                 "ACVD_INIT"
             )
         
-        if self.safety_threshold == self.DEFAULT_MIN_SAFETY_SCORE and 'min_safety_score' not in config.keys():
+        if self.safety_threshold == self.DEFAULT_MIN_SAFETY_SCORE and 'min_safety_score' not in self.schema.get('config', {}).keys():
              self._log_status(
                 "INFO", 
                 f"Using default safety score threshold: {self.DEFAULT_MIN_SAFETY_SCORE}", 
                 "CONFIG_DEFAULT"
             )
 
+    def _load_configuration(self):
+        """Internal method to handle schema loading and configuration application."""
+        try:
+            loaded_schema = self._load_schema(self.schema_path)
+            self.schema = loaded_schema
+            self.valid_states = self.schema.get('valid_states', []) 
+            self.state_transitions = self.schema.get('state_transitions', {}) 
+            config = self.schema.get('config', {})
+        except Exception:
+            # If schema loading fails critically, use default attributes initialized in __init__
+            print(f"[ACVD CRITICAL | INIT_FAILSAFE @ {get_utc_timestamp()}] Failed to load governance schema. Operating in limited mode.")
+            config = {} # Ensure config is empty for safe loading below
+            
+        # Load configurable thresholds
+        self.safety_threshold = config.get(
+            'min_safety_score', 
+            self.DEFAULT_MIN_SAFETY_SCORE
+        )
+        
+        # Load severity weights dynamically (supports Meta-Reasoning/Autonomy)
+        # Use .copy() to ensure BASE_SEVERITY_WEIGHTS are included if not all are defined in schema config
+        self.severity_weights = self._BASE_SEVERITY_WEIGHTS.copy()
+        self.severity_weights.update(config.get(
+            'severity_weights',
+            {}
+        ))
+        
+        # Load internal penalty multiplier (supports Meta-Reasoning tuning)
+        self.internal_penalty_multiplier = config.get(
+            'internal_penalty_multiplier',
+            self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
+        )
 
     def _log_status(self, level: str, message: str, context: str):
-        """Standardized internal logging mechanism, queueing structured logs for Telemetry System integration.
-        (Supports Autonomous Directives for Monitoring and Telemetry Systems)
-        """
+        """Standardized internal logging mechanism, queueing structured logs for Telemetry System integration."""
         log_entry = {
             "timestamp": get_utc_timestamp(),
             "level": level,
@@ -124,23 +133,20 @@ class ACVD_DecisionEngine:
             except Exception:
                 pass
 
-    def _load_schema(self, path: str) -> Dict[str, Any]:
-        """Loads and parses the ACVD schema file with robust error handling (JSON Parsing, Error Handling)."""
+    def _load_schema(self, path: Path) -> Dict[str, Any]:
+        """Loads and parses the ACVD schema file with robust error handling (Pathlib integration)."""
         
-        if not os.path.exists(path):
-            # Do not log as CRITICAL here, let the caller (__init__) handle the failover
+        if not path.exists():
             raise FileNotFoundError(f"ACVD Schema not found at {path}.")
         
         try:
-            with open(path, 'r') as f:
-                content = f.read()
-                if not content.strip():
-                    self._log_status("ERROR", "ACVD Schema file is empty.", "SCHEMA_LOAD")
-                    raise ValueError("ACVD Schema file is empty.")
-                # JSON Parsing robustness enhancement: logs context on failure.
-                return json.loads(content)
+            content = path.read_text(encoding='utf-8')
+            if not content.strip():
+                self._log_status("ERROR", "ACVD Schema file is empty.", "SCHEMA_LOAD")
+                raise ValueError("ACVD Schema file is empty.")
+            
+            return json.loads(content)
         except json.JSONDecodeError as e:
-            # Enhanced context reporting for JSON Parsing Robustness
             self._log_status("CRITICAL", f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected.", "JSON_PARSE_ERROR")
             raise ValueError(f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected: {e}")
         except PermissionError:
@@ -152,44 +158,39 @@ class ACVD_DecisionEngine:
             
     def _save_schema(self):
         """Persists the current schema (including dynamically updated severity weights)
-        using an atomic write pattern (temp file) to ensure fault tolerance. (Infrastructure/Error Handling)."""
+        using an atomic write pattern (temp file) to ensure fault tolerance (Pathlib integration)."""
         if not self.persist_config:
             self._log_status("DEBUG", "Schema persistence disabled by configuration.", "SCHEMA_PERSIST_SKIP")
             return
 
-        # Prepare the data structure to save
         save_data = self.schema.copy()
         
-        # Ensure the configuration block exists and update weights
         if 'config' not in save_data:
             save_data['config'] = {}
             
-        # Update dynamic elements derived from learning
         save_data['config']['severity_weights'] = self.severity_weights
         save_data['config']['min_safety_score'] = self.safety_threshold
         save_data['config']['internal_penalty_multiplier'] = self.internal_penalty_multiplier
 
-        temp_path = self.schema_path + '.tmp'
+        temp_path = self.schema_path.with_suffix('.json.tmp')
         
         try:
             # 1. Write to temporary file for atomicity
-            with open(temp_path, 'w') as f:
-                # Use standard JSON formatting for readability
-                json.dump(save_data, f, indent=4)
+            temp_path.write_text(json.dumps(save_data, indent=4), encoding='utf-8')
             
             # 2. Rename/Overwrite main file (Atomic move on most systems)
-            os.replace(temp_path, self.schema_path)
+            temp_path.replace(self.schema_path)
             
             self._log_status("INFO", f"Governance schema and weights persisted successfully to {self.schema_path}.", "SCHEMA_PERSIST_SUCCESS")
         except PermissionError:
             self._log_status("CRITICAL", f"Failed to persist schema: Permission denied writing to {self.schema_path}.", "SCHEMA_PERSIST_FAIL_PERM")
         except Exception as e:
             # Clean up temp file if rename failed
-            if os.path.exists(temp_path):
+            if temp_path.exists():
                  try:
-                     os.remove(temp_path)
+                     temp_path.unlink()
                  except:
-                     pass # Ignore cleanup failure if main error is logged
+                     pass 
             self._log_status("CRITICAL", f"Failed to persist schema to disk due to unexpected error: {e}", "SCHEMA_PERSIST_FAIL")
 
             
@@ -207,11 +208,10 @@ class ACVD_DecisionEngine:
         
         return weight
     
-    def _analyze_log_impact(self) -> Dict[str, Any]:
+    def _calculate_log_impact(self) -> Dict[str, Any]:
         """
-        (META-REASONING) Analyzes the accumulated internal log queue to determine which 
-        governance issue types contributed the most penalty. 
-        Provides structured data for autonomous tuning suggestions.
+        (META-REASONING) Calculates the accumulated internal log penalty contribution per issue type.
+        Includes Proactive Tuning Heuristic: Suggests adjustments to weights based on observed risk vs. current penalty.
         """
         impact = {issue_type: 0.0 for issue_type in self._BASE_SEVERITY_WEIGHTS.keys()}
         
@@ -230,16 +230,54 @@ class ACVD_DecisionEngine:
             # Sort issue types by their total weighted penalty contribution (highest first)
             sorted_impact = sorted(impact.items(), key=lambda item: item[1], reverse=True)
             
+            # Calculate total weight sum for ratio comparison (used for dynamic tuning heuristic)
+            total_current_weight = sum(self.severity_weights.values()) or 1.0 
+
             # Identify the top 3 contributors for actionable insight
             for issue_type, penalty_value in sorted_impact[:3]:
                 if penalty_value > 0.0:
                     percentage = (penalty_value / total_impact) * 100
+                    current_weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+                    
+                    # --- Proactive Tuning Heuristic (Emergent Logic) ---
+                    suggested_adjustment = 0.0
+                    new_suggested_weight = current_weight
+                    suggestion_type = "MAINTAIN_STABILITY"
+                    
+                    # 1. Calculate ratios
+                    contribution_ratio = penalty_value / total_impact
+                    current_weight_ratio = current_weight / total_current_weight
+
+                    # 2. Heuristic for increasing penalty (Weight is under-representing observed risk)
+                    if contribution_ratio > current_weight_ratio * 1.5 and current_weight < 0.9: 
+                        # Observed penalty is 50% higher than expected based on current weight distribution
+                        
+                        # Calculate adjustment proportional to the gap between current weight and maximum (1.0)
+                        increase_factor = min(0.1, contribution_ratio * 0.2) # Max 10% increase per cycle
+                        
+                        suggested_adjustment = (1.0 - current_weight) * increase_factor
+                        new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
+                        suggestion_type = "INCREASE_PENALTY"
+
+                    # 3. Heuristic for decreasing penalty (Weight is over-penalizing low risk)
+                    elif contribution_ratio < current_weight_ratio * 0.5 and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
+                        # Observed penalty is less than 50% of expected based on current weight distribution
+                        
+                        decrease_factor = 0.05
+                        suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decrease_factor
+                        new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
+                        suggestion_type = "DECREASE_PENALTY"
+                        
+                    # ----------------------------------------------------
+                        
                     tuning_suggestions.append({
                         "issue_type": issue_type,
                         "weighted_penalty_contribution": round(penalty_value, 4),
                         "percentage_of_total_penalty": round(percentage, 2),
-                        "current_weight": self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT),
-                        "is_currently_critical": (issue_type == "CRITICAL" or penalty_value >= 0.5) # Heuristic for criticality
+                        "current_weight": current_weight, 
+                        "is_currently_critical": (issue_type == "CRITICAL" or current_weight >= 0.5), 
+                        "suggestion_type": suggestion_type,
+                        "suggested_new_weight": new_suggested_weight
                     })
                     
         return {
@@ -248,16 +286,33 @@ class ACVD_DecisionEngine:
         }
 
 
+    def propose_autonomous_tuning(self) -> Dict[str, float]:
+        """
+        Extracts only the actionable weight adjustments from the log impact analysis.
+        This structured output can be directly consumed by update_severity_weights.
+        (Supports Autonomous Directives/Meta-Learning).
+        """
+        impact_analysis = self._calculate_log_impact()
+        tuning_updates = {}
+        
+        for suggestion in impact_analysis['issue_contributions']:
+            if suggestion['suggestion_type'] in ["INCREASE_PENALTY", "DECREASE_PENALTY"]:
+                issue_type = suggestion['issue_type']
+                suggested_weight = suggestion['suggested_new_weight']
+                current_weight = suggestion['current_weight']
+                
+                # Only propose if the change is non-negligible (> 0.0001)
+                if abs(suggested_weight - current_weight) > 0.0001:
+                    tuning_updates[issue_type] = suggested_weight
+                    
+        return tuning_updates
+
     def perform_self_assessment(self) -> Dict[str, Any]:
         """
-        Calculates the internal Operational Integrity Score based on accumulated internal logs 
-        since the last flush, leveraging governance severity weights.
-        (Supports Autonomy and Monitoring Infrastructure for internal health checks.)
-        
-        Now includes structured tuning suggestions based on log impact analysis (Meta-Reasoning).
+        Calculates the internal Operational Integrity Score and includes structured tuning data.
         """
         
-        log_impact_analysis = self._analyze_log_impact()
+        log_impact_analysis = self._calculate_log_impact()
         negative_score_accumulation = log_impact_analysis['total_weighted_impact']
         
         assessment = {
@@ -267,9 +322,11 @@ class ACVD_DecisionEngine:
             "totalLogCount": len(self._log_queue),
             "weightedPenalty": negative_score_accumulation,
             "timestamp": get_utc_timestamp(),
-            "tuningSuggestions": log_impact_analysis['issue_contributions'], # Structured data for Meta-Reasoning
+            "tuningSuggestions": log_impact_analysis['issue_contributions'], # Structured data including proactive suggestions
             "strategicGuidance": "NONE" # Simple string summary of required action
         }
+        
+        tuning_proposals = self.propose_autonomous_tuning()
         
         # Recalculate basic counts
         for log in self._log_queue:
@@ -288,15 +345,18 @@ class ACVD_DecisionEngine:
             # Meta-Reasoning: Provide actionable strategic feedback for the AGI kernel
             if assessment['criticalLogCount'] > 0:
                  assessment['strategicGuidance'] = "RECOVER_CRITICAL_FAULT_TOLERANCE"
+            elif tuning_proposals:
+                 assessment['strategicGuidance'] = "APPLY_AUTONOMOUS_GOVERNANCE_TUNING"
             elif assessment['errorLogCount'] > assessment['totalLogCount'] * 0.2 and assessment['totalLogCount'] > 5:
-                 # If errors are frequent (over 20% of logs) and we have enough data
                  assessment['strategicGuidance'] = "IMPROVE_ERROR_HANDLING_ABSTRACTION"
-            elif assessment['weightedPenalty'] > 0.1: # Significant penalty but not dominated by CRITICAL/ERROR counts
+            elif assessment['weightedPenalty'] > 0.1: 
                  assessment['strategicGuidance'] = "REFINE_GOVERNANCE_WEIGHTS_BASED_ON_TUNING_SUGGESTIONS"
             else:
                  assessment['strategicGuidance'] = "INVESTIGATE_LOW_LEVEL_WARNINGS"
         else:
-            if negative_score_accumulation > 0.0:
+            if tuning_proposals:
+                 assessment['strategicGuidance'] = "REVIEW_AND_APPLY_PREVENTATIVE_TUNING"
+            elif negative_score_accumulation > 0.0:
                  assessment['strategicGuidance'] = "REVIEW_TUNING_SUGGESTIONS_FOR_PREVENTATIVE_OPTIMIZATION"
             else:
                  assessment['strategicGuidance'] = "SYSTEM_STABLE_CONTINUE_EXPLORATION"
@@ -351,8 +411,10 @@ class ACVD_DecisionEngine:
         for key, value in new_weights.items():
             # Robust validation: Ensure input value is a sensible float/int between 0.0 and 1.0
             if isinstance(value, (int, float)) and 0.0 <= value <= 1.0:
-                self.severity_weights[key] = float(value)
-                updates_applied += 1
+                # Ensure we are actually making a change before updating
+                if self.severity_weights.get(key) != float(value):
+                    self.severity_weights[key] = float(value)
+                    updates_applied += 1
             else:
                 self._log_status("WARNING", f"Skipping invalid weight '{key}': value {value} must be float/int between 0.0 and 1.0.", "WEIGHT_UPDATE_SKIP")
         
