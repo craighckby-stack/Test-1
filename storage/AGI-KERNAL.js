@@ -3,9 +3,12 @@ useEffect(() => {
     if (!user || state.kernel_ready !== true) return; 
 
     // V7.9.0: Constraint Externalization (Completed Integration)
+    // V8.0.0: Dynamic Safety Constraint Injection (APTE Integration)
     // Retrieves critical operational constraints from state.config, defaulting to system specification.
     const MAX_EVOLUTION_LEVEL = state.config.max_evolution_level || 100; 
     const MAX_PERFORMANCE_GAIN = state.config.max_performance_gain || 0.15; 
+    // New: Defines the minimum operational multiplier floor, allowing GAX/APTE to dynamically tune safety response.
+    const MIN_SAFETY_FLOOR = state.config.min_pulse_safety_floor || 0.5;
 
     const pulse = () => {
       runKernelCycle();
@@ -20,9 +23,9 @@ useEffect(() => {
       // 1. Ensure integrity score adheres to [0.0, 1.0] bounds for calculation stability
       const clampedIntegrityScore = Math.min(1.0, Math.max(0.0, rawIntegrityScore)); 
       
-      // Safety Factor: Ensures minimum operational multiplier of 0.5 (Safety Floor).
+      // Safety Factor: Ensures minimum operational multiplier (MIN_SAFETY_FLOOR) set by config.
       // Scales down overall speed gain based on integrity risk (aligned with DCCA)
-      const safetyFactor = Math.max(0.5, clampedIntegrityScore); 
+      const safetyFactor = Math.max(MIN_SAFETY_FLOOR, clampedIntegrityScore); 
       
       // Maturity Factor: System speeds up slightly as evolution level increases.
       // Calculation: 1.0 + (Level / MaxLevel * MaxGain)
@@ -48,4 +51,4 @@ useEffect(() => {
         clearTimeout(cycleRef.current);
       }
     };
-  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.config.max_evolution_level, state.config.max_performance_gain, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready])
+  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.config.max_evolution_level, state.config.max_performance_gain, state.config.min_pulse_safety_floor, state.evolution_level, state.policy_integrity_score, user, state.kernel_ready])
