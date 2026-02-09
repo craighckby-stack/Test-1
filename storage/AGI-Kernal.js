@@ -13,6 +13,7 @@ import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, L
 // TARGET Imports
 import Ajv from 'ajv';
 import { validate } from 'fast-json-validator';
+import { ulid, decodeTime } from 'ulid'; // Assumes \'ulid\' package is installed
 
 // NOTE: protocolSchema must be mocked as external JSON cannot be imported in this sandbox environment.
 // Mocking P01_VEC_Protocol.json
@@ -58,6 +59,57 @@ const STDM_V99_POLICY = {
     },
     required: ["componentId", "version"]
 };
+
+// === START: ChronoIdGenerator Integration (TARGET) ===
+
+// Definitions required for UlidChronoIdGenerator (mocking ../ChronoIdGenerator types)
+export type ChronoId = string & { __chronoId: never }; // Branded type for safety
+export interface ChronoIdGenerator {
+    generateId(): ChronoId;
+    extractTimestamp(chronoId: ChronoId): number;
+    isValid(value: string): value is ChronoId;
+}
+
+/**
+ * Concrete implementation of ChronoIdGenerator utilizing the ULID 
+ * (Universally Unique Lexicographically Sortable Identifier) algorithm.
+ */
+export class UlidChronoIdGenerator implements ChronoIdGenerator {
+
+  /**
+   * Generates a new ULID.
+   */
+  public generateId(): ChronoId {
+    return ulid() as ChronoId;
+  }
+
+  /**
+   * Extracts the creation timestamp (milliseconds) from the ULID.
+   * Uses the standard ULID function to decode the time prefix.
+   * @param chronoId The ULID string.
+   * @returns The associated Unix epoch timestamp (milliseconds).
+   */
+  public extractTimestamp(chronoId: ChronoId): number {
+    // Note: decodeTime handles the validation internally based on the ULID spec.
+    return decodeTime(chronoId);
+  }
+
+  /**
+   * Validates if the string is a valid ULID (26 characters, Base32 encoding).
+   * This check is usually done via a simple regex or utilizing a utility from the ULID library if available.
+   */
+  public isValid(value: string): value is ChronoId {
+    // A basic check for ULID structure: 26 chars, alphanumeric/Base32.
+    if (value.length !== 26) {
+      return false;
+    }
+    // Regex check (standard ULID character set excluding I, L, O, U for Crockford Base32)
+    const ulidRegex = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+    return ulidRegex.test(value.toUpperCase()) as value is ChronoId;
+  }
+}
+
+// === END: ChronoIdGenerator Integration ===
 
 // --- TARGET INTEGRATION: Sovereign AGI Core Structured Logger Utility v1.0 ---
 /**
@@ -490,7 +542,7 @@ const MockActionRegistry = {
             rate_limit_key: 'telemetry_burst',
             handler_path: './handlers/TelemetryPublish.js',
             schema: { input: { metrics: { type: 'array', required: true } } },
-            retry_policy: { attempts: 3, delay: 1000 }
+            retry_policy: { attempts: 3, delay: 1000 } 
         }
     }
 };
@@ -791,7 +843,7 @@ function executeConstraint(constraint, context) {
         global.CORE_LOGGER.warn(`Unknown constraint type encountered: ${policyType}. Skipping.`, { constraintType: policyType });
         return {
             ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '\${policyType}\' detected during evaluation.`,
+            detail: `Unknown constraint type '\${policyType}\' detected during evaluation.`, // NOTE: Escaped inner string for JSON safety
             severity: 'WARNING'
         };
     }
@@ -1071,8 +1123,4 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
-const auth = getAuth(app);
-
-/**
- * KERNEL State Management and React Components (Preserved)
- */
+const auth = getAuth
