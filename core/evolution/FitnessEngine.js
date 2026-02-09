@@ -108,18 +108,21 @@ class FitnessEngine {
             const metricValue = this._safeGetMetricValue(rawMetrics, oracle.metric);
             const passes = this.checkCondition(metricValue, oracle.condition, oracle.value);
             
-            // Parse factors safely (Error Handling)
             let factor = 0;
-            if (oracle.violation_type === 'penalty' && oracle.penalty_factor !== undefined) {
-                factor = parseFloat(oracle.penalty_factor);
-            } else if (oracle.violation_type === 'reward' && oracle.reward_factor !== undefined) {
-                factor = parseFloat(oracle.reward_factor);
+            let factorKey = oracle.violation_type === 'penalty' ? 'penalty_factor' : 'reward_factor';
+            
+            if (oracle[factorKey] !== undefined) {
+                // Ensure factor parsing is robust and handles non-numeric input gracefully (Error Handling/JSON Parsing)
+                let parsedFactor = parseFloat(oracle[factorKey]);
+                if (isNaN(parsedFactor) || !isFinite(parsedFactor)) {
+                    console.warn(`FitnessEngine: Oracle factor for '${oracle.metric}' is non-numeric/unsafe. Using factor 0.`);
+                    parsedFactor = 0;
+                }
+                // Clamping factor to [0, 1] internally for stability
+                factor = Math.max(0, Math.min(1, parsedFactor)); 
             }
 
-            // Clamping factor to [0, 1] internally for stability
-            factor = Math.max(0, Math.min(1, factor));
-
-            if (!isNaN(factor)) { 
+            if (factor > this.FLOAT_TOLERANCE) { 
                 if (!passes && oracle.violation_type === 'penalty') {
                     score *= Math.max(0, (1 - factor)); // Penalty, ensuring result remains non-negative
                 } else if (passes && oracle.violation_type === 'reward') {
@@ -157,7 +160,7 @@ class FitnessEngine {
   /**
    * Autonomy/Error Handling: Sanitizes the dynamic calculation string before evaluation.
    * Only allows basic arithmetic operators, parentheses, decimals, and numbers.
-   * This is crucial because it uses eval() for Meta-Reasoning functionality.
+   * This is crucial because it executes dynamic code for Meta-Reasoning functionality.
    * 
    * @param {string} formulaString - The string after metric substitution.
    * @returns {string} Sanitized formula string.
@@ -248,12 +251,13 @@ class FitnessEngine {
         calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
+    let result;
     try {
-        // Step 1: Sanitize the resulting calculation string before evaluation for enhanced security and stability.
+        // Step 1: Sanitize the resulting calculation string before execution for enhanced security and stability.
         const safeCalculationString = this.sanitizeFormula(calculationString);
 
-        // NOTE: Use of eval() is mitigated by validation and sanitization.
-        const result = eval(safeCalculationString);
+        // SECURITY IMPROVEMENT: Replace eval() with Function constructor for execution in a cleaner scope (Autonomy/Error Handling).
+        result = (new Function('return ' + safeCalculationString))();
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
             // Enhanced error logging: show the resulting string that produced the non-safe result.
