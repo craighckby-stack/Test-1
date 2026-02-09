@@ -43,6 +43,30 @@ function loadConfig(configName) {
 module.exports = { loadConfig };"
     },
     {
+      "filename": "src/governance/AuditDataNormalizer.js",
+      "content": "/**
+ * src/governance/AuditDataNormalizer.js
+ * Converts raw telemetry data into standardized governance metrics.
+ * Required for server.js functionality.
+ */
+class AuditDataNormalizer {
+    normalize(actorId, rawTelemetry) {
+        // Example normalization logic
+        const complianceRatio = rawTelemetry.complianceChecksFailed / rawTelemetry.complianceChecksRun;
+        // Assume 500ms is the target max latency for scoring
+        const latencyScore = 1 - (rawTelemetry.p95LatencyMs / 500); 
+
+        return {
+            efficiencyScore: Math.max(0, latencyScore),
+            complianceScore: 1 - complianceRatio,
+            violationCount: rawTelemetry.seriousViolations
+        };
+    }
+}
+
+module.exports = AuditDataNormalizer;"
+    },
+    {
       "filename": "src/evolution/Evolutionary_Risk_Assessor.js",
       "content": "/**
  * Evolutionary_Risk_Assessor.js
@@ -272,152 +296,148 @@ class DialAnalysisRuleEngine {
 module.exports = DialAnalysisRuleEngine;"
     },
     {
-      "filename": "server.js",
-      "content": "const express = require('express');
-const path = require('path');
-const AuditDataNormalizer = require('./src/governance/AuditDataNormalizer');
-const { assessProposal } = require('./src/evolution/Evolutionary_Risk_Assessor');
-const DialAnalysisRuleEngine = require('./src/analysis/DialAnalysisRuleEngine'); // <-- NEW IMPORT
-
-const app = express();
-const PORT = 3000;
-
-// Initialize the normalizer and the rule engine
-const normalizer = new AuditDataNormalizer();
-const ruleEngine = new DialAnalysisRuleEngine(); // <-- NEW INSTANTIATION
-
-// Mock raw telemetry data for demonstration
-const mockRawData = {
-    'AGI_CORE_001': {
-        p95LatencyMs: 75, 
-        complianceChecksRun: 1000,
-        complianceChecksFailed: 50,
-        seriousViolations: 2
+      "filename": "src/telemetry/GAXEventSchema.js",
+      "content": "/**
+ * Telemetry Event Schema Definition (v94.1 AGI Enhancement).
+ * Defines the required structure, types, and constraints for core GAX event payloads.
+ * This structure supports runtime validation to ensure data consistency and quality.
+ */
+const GAXEventSchema = Object.freeze({
+    // System Lifecycle Events
+    'SYS:INIT:START': {
+        description: 'Records system version and entry parameters at startup.',
+        schema: {
+            version: { type: 'string', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
+            executionId: { type: 'string', required: true, format: 'uuid' },
+            startupMode: { type: 'string', required: true, enum: ['standard', 'recovery', 'test', 'maintenance'] }
+        }
     },
-    'AGI_IO_GATEWAY': {
-        p95LatencyMs: 550, 
-        complianceChecksRun: 500,
-        complianceChecksFailed: 0,
-        seriousViolations: 0
+    
+    // Policy Verification Events
+    'PV:REQUEST:INITIATED': {
+        description: 'Records the beginning of a formal policy verification request.',
+        schema: {
+            policyType: { type: 'string', required: true, enum: ['security', 'compliance', 'resource'] },
+            componentId: { type: 'string', required: true },
+            contextHash: { type: 'string', required: true, format: 'sha256' },
+            requestDataSize: { type: 'number', required: false, min: 0 }
+        }
     },
-    'AGI_MEMORY_CACHE': {
-        p95LatencyMs: 40, 
-        complianceChecksRun: 2000,
-        complianceChecksFailed: 10,
-        seriousViolations: 0
+    
+    // Autonomous Evolution Events
+    'AXIOM:CODE:COMMITTED': {
+        description: 'Logs successful commit of autonomously generated or evolved code.',
+        schema: {
+            targetFile: { type: 'string', required: true },
+            commitHash: { type: 'string', required: true, format: 'sha1' },
+            diffSize: { type: 'number', required: true, min: 1 },
+            evolutionaryObjective: { type: 'string', required: true },
+            previousHash: { type: 'string', required: false, format: 'sha1' }
+        }
+    },
+    
+    // Diagnostic Events
+    'DIAG:COMPONENT:FATAL_ERROR': {
+        description: 'Reports a critical, system-halting error within a component.',
+        schema: {
+            componentName: { type: 'string', required: true },
+            errorCode: { type: 'string', required: true },
+            errorMessage: { type: 'string', required: true },
+            stackTrace: { type: 'string', required: true, allowEmpty: true },
+            isRetryable: { type: 'boolean', required: false }
+        }
     }
-};
+});
 
-// Mock data for the evolution assessment endpoint
-const mockCurrentMetrics = {
-    recent_errors: 0.005, // Low error rate (stable)
-    uptime_hours: 100
-};
-
-const mockProposal = {
-    id: 'P_001_OPTIMIZATION',
-    metrics: {
-        predicted_cpu_reduction: 0.20, // 20% gain
-        cyclomatic_change: 30 // Low complexity change
-    }
-};
-
-// Mock Rule Set for Dial Analysis
-const mockDialRules = {
-    // R1: Base Metric Check - Efficiency is Critical
-    'R1_CRITICAL_EFFICIENCY': {
-        type: 'metric_check',
-        metric: 'efficiencyScore',
-        operator: '<',
-        value: 0.5
+module.exports = GAXEventSchema;"
     },
-    // R2: Base Metric Check - Compliance is Low
-    'R2_LOW_COMPLIANCE': {
-        type: 'metric_check',
-        metric: 'complianceScore',
-        operator: '<',
-        value: 0.7
-    },
-    // R3: Base Metric Check - High Violations
-    'R3_HIGH_VIOLATIONS': {
-        type: 'metric_check',
-        metric: 'violationCount',
-        operator: '>',
-        value: 1
-    },
-    // R4: Combination - System Instability (R1 OR R2)
-    'R4_SYSTEM_INSTABILITY': {
-        type: 'logical_combine',
-        operator: 'OR',
-        dependencies: ['R1_CRITICAL_EFFICIENCY', 'R2_LOW_COMPLIANCE']
-    },
-    // R5: Final Critical Status (R4 AND R3) - Requires both instability AND high violations
-    'R5_CRITICAL_STATUS': {
-        type: 'logical_combine',
-        operator: 'AND',
-        dependencies: ['R4_SYSTEM_INSTABILITY', 'R3_HIGH_VIOLATIONS']
-    }
-};
+    {
+      "filename": "src/telemetry/TelemetryValidator.js",
+      "content": "/**
+ * src/telemetry/TelemetryValidator.js
+ * Implements runtime validation against the GAX Event Schema.
+ */
+const GAXEventSchema = require('./GAXEventSchema');
 
 /**
- * API Endpoint to get normalized audit data
+ * Mock validation utility based on GAXEventSchema constraints.
+ * NOTE: This is a simplified implementation. A real system would use a library like Joi or Ajv.
  */
-app.get('/api/audit/normalized', (req, res) => {
-    const normalizedResults = {};
-
-    for (const [actorId, rawTelemetry] of Object.entries(mockRawData)) {
-        normalizedResults[actorId] = normalizer.normalize(actorId, rawTelemetry);
+class TelemetryValidator {
+    constructor() {
+        this.schemas = GAXEventSchema;
     }
 
-    res.json({
-        timestamp: Date.now(),
-        data: normalizedResults
-    });
-});
+    /**
+     * Validates a single telemetry event payload against its defined schema.
+     * @param {string} eventType - The key identifying the event (e.g., 'SYS:INIT:START').
+     * @param {object} payload - The data payload to validate.
+     * @returns {object} - { isValid: boolean, errors: array }
+     */
+    validate(eventType, payload) {
+        const eventDefinition = this.schemas[eventType];
 
-/**
- * API Endpoint to assess a proposed kernel evolution (NEW)
- */
-app.get('/api/evolution/assess', (req, res) => {
-    const assessment = assessProposal(mockProposal, mockCurrentMetrics);
-    res.json({
-        proposal: mockProposal,
-        current_metrics: mockCurrentMetrics,
-        assessment: assessment
-    });
-});
+        if (!eventDefinition) {
+            return { isValid: false, errors: [`Unknown event type: ${eventType}`] };
+        }
 
-/**
- * API Endpoint to run Dial Analysis Rules (NEW)
- */
-app.get('/api/analysis/dial-rules', (req, res) => {
-    // Use a specific component's normalized data for analysis (e.g., AGI_CORE_001)
-    const rawData = mockRawData['AGI_CORE_001'];
-    const normalizedMetrics = normalizer.normalize('AGI_CORE_001', rawData);
+        const schema = eventDefinition.schema;
+        const errors = [];
 
-    const analysisResult = ruleEngine.execute(
-        mockDialRules, 
-        normalizedMetrics, 
-        'R5_CRITICAL_STATUS' // Entry point
-    );
+        for (const key in schema) {
+            const definition = schema[key];
+            const value = payload[key];
+            const isPresent = Object.prototype.hasOwnProperty.call(payload, key);
 
-    res.json({
-        component: 'AGI_CORE_001',
-        metrics: normalizedMetrics,
-        rules_evaluated: analysisResult.evaluatedRules,
-        is_critical: analysisResult.result,
-        engine_status: `Cache hits: ${analysisResult.cacheHits}`
-    });
-});
+            // 1. Required Check
+            if (definition.required && !isPresent) {
+                errors.push(`Missing required field: ${key}`);
+                continue;
+            }
 
-// Serve static React files (assuming client build is available)
-app.use(express.static(path.join(__dirname, 'client/build')));
+            // Skip further checks if field is optional and missing
+            if (!isPresent && !definition.required) {
+                continue;
+            }
 
-// Catch-all handler for React routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-});
+            // 2. Type Check
+            if (typeof value !== definition.type) {
+                // Special handling for boolean types where value might be undefined/null if optional
+                if (definition.type === 'boolean' && (value === undefined || value === null) && !definition.required) {
+                    // OK
+                } else if (definition.allowEmpty && (value === null || value === '')) {
+                    // Allowed to be empty/null, skip type check
+                } else {
+                    errors.push(`Field ${key} has incorrect type. Expected ${definition.type}, got ${typeof value}`);
+                }
+            }
 
-app.listen(PORT, () => {
-    console.log(`AGI Kernel Governance Engine running on http://localhost:${PORT}`);
-});
+            // 3. Specific Constraint Checks (Simplified examples)
+            if (definition.pattern && definition.type === 'string' && !new RegExp(definition.pattern).test(value)) {
+                errors.push(`Field ${key} failed pattern validation.`);
+            }
+            if (definition.enum && !definition.enum.includes(value)) {
+                errors.push(`Field ${key} value '${value}' is not in allowed enum list.`);
+            }
+            if (definition.min !== undefined && definition.type === 'number' && value < definition.min) {
+                errors.push(`Field ${key} value ${value} is below minimum ${definition.min}.`);
+            }
+            // Format checks (uuid, sha1, sha256) are mocked here
+            if (definition.format && definition.type === 'string') {
+                if (definition.format === 'uuid' && value.length < 30) { // Simplified check
+                    errors.push(`Field ${key} failed UUID format check.`);
+                }
+                if ((definition.format === 'sha1' && value.length !== 40) || (definition.format === 'sha256' && value.length !== 64)) {
+                    errors.push(`Field ${key} failed ${definition.format} format check.`);
+                }
+            }
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors: errors
+        };
+    }
+}
+
+module.exports = TelemetryValidator;
