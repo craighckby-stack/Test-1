@@ -7,7 +7,7 @@
  * for autonomous self-assessment (Integration Requirement 2).
  * 
  * Fulfills Requirements:
- * 2. Use MQM metrics to measure actual improvement (via EQM).
+ * 2. Use MQM metrics to measure actual improvement (via EQM and ImprovementDelta).
  * 3. Store trends in Nexus memory (via logMetricsToNexus).
  * 4. Use Nexus memory to inform strategy (via getHistoricalTrends).
  * 
@@ -16,6 +16,16 @@
  * - PolicyAuditor: calculatePolicyChangeRate()
  * - NexusInterface: logTrend(key, data), readTrends(key, limit)
  */
+
+const METRIC_CONSTANTS = {
+    // Weights for Evolution Quality Metric (EQM) calculation (must sum to 1.0)
+    WEIGHT_UFRM: 0.4,
+    WEIGHT_CFTM: 0.3,
+    WEIGHT_PVM: 0.3,
+    // Key used for Nexus persistent storage
+    NEXUS_TREND_KEY: 'metrics_snapshot'
+};
+
 class MetricNexus {
     // Inject NexusInterface, AnalyticsStore, and PolicyAuditor.
     constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
@@ -31,17 +41,7 @@ class MetricNexus {
             typeof this.nexus.readTrends === 'function';
 
         if (!this.isNexusIntegrationActive) {
-            console.warn("MetricNexus [CRITICAL DIRECTIVE WARNING]: NexusInterface persistence required by Cycles 6-15 is inactive. Metrics will not be stored/retrieved historically.");
-        }
-
-        // Integration Requirement Validation 2 (Core MQM calculation).
-        this.isMQMCalculationActive = 
-            typeof this.analytics.calculateResidualRisk === 'function' &&
-            typeof this.analytics.getHistoricalVolatilityFactor === 'function' &&
-            typeof this.auditor.calculatePolicyChangeRate === 'function';
-            
-        if (!this.isMQMCalculationActive) {
-            console.warn("MetricNexus [CRITICAL DIRECTIVE WARNING]: MQM component dependencies (Analytics/Auditor) are missing. EQM calculation will default to zero risk.");
+            console.warn("[MN CRITICAL WARNING]: NexusInterface persistence required by Cycles 6-15 is inactive. Metrics will not be stored/retrieved historically.");
         }
     }
 
@@ -66,17 +66,16 @@ class MetricNexus {
      * @returns {number} (0-100 quality scale)
      */
     getEvolutionQualityMetric() {
-        // If core calculation components are missing, return 0 to force attention on dependency fulfillment.
-        if (!this.isMQMCalculationActive) {
-            return 0; 
-        }
         
         const ufrm = this.getUFRM();
         const cftm = this.getCFTM();
         const pvm = this.getPolicyVolatility();
         
         // Applying the MQM formula based on risk factors (inputs are 0.0 to 1.0, where 1.0 is high risk).
-        const riskScore = (ufrm * 0.4) + (cftm * 0.3) + (pvm * 0.3); 
+        const riskScore = 
+            (ufrm * METRIC_CONSTANTS.WEIGHT_UFRM) + 
+            (cftm * METRIC_CONSTANTS.WEIGHT_CFTM) + 
+            (pvm * METRIC_CONSTANTS.WEIGHT_PVM); 
         
         // Normalize the metric to fit a 0-100 quality scale (100 being lowest risk/highest quality).
         // Ensure riskScore is capped at 1.0 before calculation.
@@ -137,7 +136,7 @@ class MetricNexus {
         }
         try {
             // Log under a specific key for easy retrieval later
-            await this.nexus.logTrend('metrics_snapshot', { 
+            await this.nexus.logTrend(METRIC_CONSTANTS.NEXUS_TREND_KEY, { 
                 timestamp: Date.now(), 
                 ...metrics 
             });
@@ -158,7 +157,7 @@ class MetricNexus {
             return [];
         }
         try {
-            return await this.nexus.readTrends('metrics_snapshot', limit);
+            return await this.nexus.readTrends(METRIC_CONSTANTS.NEXUS_TREND_KEY, limit);
         } catch (error) {
             // Use existing error handling pattern: log the fault and return safe empty array.
             console.error(`MetricNexus Retrieval Failure: Failed to retrieve historical trends from Nexus. Error: ${error.message}`);
@@ -167,12 +166,42 @@ class MetricNexus {
     }
 
     /**
+     * Calculates the improvement delta in MQM_EQM compared to the previously logged cycle.
+     * Fulfills Integration Requirement 2 (Measure actual improvement).
+     * NOTE: This should be called AFTER getAllMetrics logs the current state.
+     * @returns {Promise<{delta: number, previousEQM: number|null}>}
+     */
+    async calculateImprovementDelta() {
+        // Retrieve the last two cycles (Current [0] and Previous [1]).
+        const historicalTrends = await this.getHistoricalTrends(2); 
+
+        if (historicalTrends.length < 2) {
+            return { delta: 0, previousEQM: null }; 
+        }
+
+        const currentMetrics = historicalTrends[0];
+        const previousMetrics = historicalTrends[1];
+
+        const currentEQM = this._sanitizeMetric(currentMetrics.MQM_EQM);
+        const previousEQM = this._sanitizeMetric(previousMetrics.MQM_EQM);
+        
+        const delta = currentEQM - previousEQM;
+
+        this.metricCache.MQM_Delta = delta;
+        
+        return { 
+            delta: delta, 
+            previousEQM: previousEQM 
+        };
+    }
+
+    /**
      * Retrieves all cached or freshly calculated metrics in a structured object,
      * and logs the results persistently before returning them.
-     * @returns {Promise<Object>}
+     * @returns {Promise<Object>} Returns metrics including MQM_Delta.
      */
     async getAllMetrics() {
-        // Calculate components sequentially to ensure the final EQM reflects current state
+        // 1. Calculate components
         const ufrm = this.getUFRM();
         const cftm = this.getCFTM();
         const pvm = this.getPolicyVolatility();
@@ -185,10 +214,17 @@ class MetricNexus {
             MQM_EQM: mqmEqm // Explicit MQM usage
         };
         
-        // Log trends (Integration Requirement 3)
+        // 2. Log trends (Integration Requirement 3)
         await this.logMetricsToNexus(metrics);
 
-        return metrics;
+        // 3. Calculate Improvement Delta (Integration Requirement 2)
+        const { delta, previousEQM } = await this.calculateImprovementDelta();
+
+        return { 
+            ...metrics, 
+            MQM_Delta: delta, 
+            Previous_EQM: previousEQM 
+        };
     }
 }
 
