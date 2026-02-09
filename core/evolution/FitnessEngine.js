@@ -174,6 +174,7 @@ class FitnessEngine {
   /**
    * Meta-Reasoning: Adjusts the score based on comparison to historical performance (Nexus data).
    * Rewards improvement, penalizes regression relative to the history.
+   * The adjustment factor is now dynamic, proportional to the magnitude of change.
    */
   _applyHistoricalAdjustment(currentScore, rawMetrics, historicalMetrics, profile) {
       // Check for necessary context
@@ -200,7 +201,7 @@ class FitnessEngine {
       }
       
       const improvementThreshold = 0.05; // Requires 5% relative change to trigger adjustment
-      const adjustmentFactor = 0.15; // Up to +/- 15% adjustment based on history
+      const adjustmentBaseFactor = 0.15; // Base factor for adaptive scaling
 
       // 1. Calculate relative difference
       let relativeDifference = 0.0;
@@ -225,16 +226,31 @@ class FitnessEngine {
               performanceChange = -1; // Penalty
           }
       }
+
+      // 2. Calculate dynamic adjustment based on magnitude of change
+      let dynamicAdjustment = 0;
+      const rawFactor = Math.abs(relativeDifference);
+
+      if (rawFactor > improvementThreshold) {
+          // If the change is significant, the adjustment factor grows proportionally, clamped.
+          // Max effect at 30%
+          dynamicAdjustment = Math.min(0.30, rawFactor * adjustmentBaseFactor * 5); 
+      } else if (performanceChange !== 0) {
+          // If just crossing the threshold, use the base factor
+          dynamicAdjustment = adjustmentBaseFactor;
+      }
+
+      // Ensure minimum effect if adjustment is calculated
+      dynamicAdjustment = Math.max(0.02, dynamicAdjustment);
       
       if (performanceChange === 1) {
           // Reward for learning and progression (Meta-Reasoning success)
-          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric}. Applying reward.`);
-          return currentScore * (1 + adjustmentFactor);
+          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric}. Applying adaptive reward (${dynamicAdjustment.toFixed(3)}).`);
+          return currentScore * (1 + dynamicAdjustment);
       } else if (performanceChange === -1) {
-          // Penalty for regression (requires Meta-Reasoning response)
-          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric}. Applying penalty.`);
-          // Use a smaller penalty factor (0.5 * adjustmentFactor) to encourage exploration
-          return currentScore * (1 - adjustmentFactor * 0.5);
+          // Penalty for regression (requires Meta-Reasoning response), penalized less severely
+          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric}. Applying reduced adaptive penalty (${(dynamicAdjustment * 0.5).toFixed(3)}).`);
+          return currentScore * (1 - dynamicAdjustment * 0.5);
       }
       
       return currentScore;
@@ -323,6 +339,7 @@ class FitnessEngine {
         const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
         // Use word boundary replacement to ensure metric key substitution is precise.
+        // Wraps value in parentheses to ensure order of operations integrity.
         calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
@@ -403,6 +420,43 @@ class FitnessEngine {
   }
   
   /**
+   * Meta-Reasoning: Determines if the current metrics indicate progression relative to history,
+   * used for targeted capability boosting.
+   */
+  _checkHistoricalSuccess(rawMetrics, historicalMetrics, profile) {
+      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
+          return false;
+      }
+      
+      const targetMetric = profile.target_metric;
+      const currentTargetValue = this.calculateDerivedMetric(rawMetrics, targetMetric);
+      
+      let historicalTargetValue;
+      try {
+           historicalTargetValue = this.calculateDerivedMetric(historicalMetrics, targetMetric);
+      } catch (e) {
+           return false;
+      }
+      
+      const improvementThreshold = 0.05; 
+      
+      let relativeDifference = 0.0;
+      if (historicalTargetValue > this.EPSILON) {
+          relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
+      }
+      
+      if (profile.optimization_goal === 'minimize') {
+          // Negative relativeDifference (reduction) means success
+          return relativeDifference < -improvementThreshold;
+      } else if (profile.optimization_goal === 'maximize') {
+          // Positive relativeDifference (increase) means success
+          return relativeDifference > improvementThreshold;
+      }
+      
+      return false; // Neutral goal doesn't define progression easily
+  }
+
+  /**
    * Helper to return default capabilities upon error.
    */
   _defaultCapabilityMapping() {
@@ -463,15 +517,16 @@ class FitnessEngine {
         coreScores["Creativity"] += normalizedScore * 1.2; 
     }
     
-    // Historical context check
-    if (Object.keys(historicalMetrics).length > 0) {
-        // Reward for engaging with memory and progression assessment
-        coreScores["Meta-Reasoning"] += normalizedScore * 0.5;
+    // 3. Historical Success Boost (New: Links Meta-Reasoning directly to progression)
+    const historicalProgressed = this._checkHistoricalSuccess(rawMetrics, historicalMetrics, profile);
+    if (historicalProgressed) {
+        coreScores["Meta-Reasoning"] += 1.0; // Significant boost for successful learning application
+        coreScores["Autonomy"] += 0.5;
+        coreScores["Creativity"] += 0.5; 
+    } else if (Object.keys(historicalMetrics).length > 0) {
+        // Minor reward for engaging with memory, even without progression
+        coreScores["Meta-Reasoning"] += 0.1;
     }
-    
-    // 3. Robustness Assessment (Based on inherent class success)
-    // Since this engine successfully loaded config and performed safe operations:
-    coreScores["JSON Parsing"] += (this.isOperational ? 0.5 : 0.0);
     
     // 4. Final normalization and clamping (0.0 to 10.0)
     for (const key in coreScores) {
@@ -482,14 +537,24 @@ class FitnessEngine {
     
     // 5. Map AGI Core Capabilities back to expected output keys
     return {
-        // Navigation: Focus on Autonomy and Architecture/Creativity
-        navigation: parseFloat(Math.min(10, coreScores["Autonomy"] * 0.4 + coreScores["Creativity"] * 0.3 + coreScores["Meta-Reasoning"] * 0.1).toFixed(2)),
+        // Navigation: Focus on Autonomy (self-direction) and Creativity (novel paths)
+        navigation: parseFloat(Math.min(10, 
+            coreScores["Autonomy"] * 0.45 + 
+            coreScores["Creativity"] * 0.35 + 
+            coreScores["Meta-Reasoning"] * 0.2
+        ).toFixed(2)),
         
         // Logic: Strategic decision making (Meta-Reasoning) and Fault Tolerance (Error Handling)
-        logic: parseFloat(Math.min(10, coreScores["Meta-Reasoning"] * 0.6 + coreScores["Error Handling"] * 0.4).toFixed(2)),
+        logic: parseFloat(Math.min(10, 
+            coreScores["Meta-Reasoning"] * 0.6 + 
+            coreScores["Error Handling"] * 0.4
+        ).toFixed(2)),
         
         // Memory: Data integrity and persistence (Error Handling, JSON Parsing)
-        memory: parseFloat(Math.min(10, coreScores["Error Handling"] * 0.5 + coreScores["JSON Parsing"] * 0.5).toFixed(2))
+        memory: parseFloat(Math.min(10, 
+            coreScores["Error Handling"] * 0.5 + 
+            coreScores["JSON Parsing"] * 0.5
+        ).toFixed(2))
     };
   }
 }
