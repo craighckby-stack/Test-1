@@ -15,10 +15,6 @@ class SchemaValidationError extends Error {
         this.name = 'SchemaValidationError';
         this.schemaName = schemaName;
         this.validationErrors = errors; // Raw Ajv errors for programmatic handling
-        
-        // Improvement for Meta-Reasoning: Log basic failure signature for pattern tracking
-        const firstErrorPath = errors[0]?.instancePath || errors[0]?.dataPath || 'N/A';
-        console.error(`[KERNEL_VALIDATION_FAILURE_TRACE]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${firstErrorPath}`);
     }
 }
 
@@ -30,6 +26,11 @@ class SchemaValidatorEngine {
     constructor() {
         this.validator = null;
         this.SchemaValidationError = SchemaValidationError;
+        
+        // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
+        this.failureHistory = []; 
+        this.MAX_HISTORY = 100; // Store the last 100 failures
+        
         // Initialize validator with imported specification
         this.initializeValidator(XEL_Specification.ComponentSchemas);
     }
@@ -74,6 +75,45 @@ class SchemaValidatorEngine {
     }
 
     /**
+     * Internal method to log validation failures for Meta-Reasoning analysis.
+     */
+    _trackFailure(schemaName, errors, isCritical) {
+        const timestamp = Date.now();
+        const summary = errors.map(e => ({
+            path: e.instancePath || e.dataPath || 'N/A',
+            keyword: e.keyword,
+            message: e.message
+        }));
+        
+        const failureEntry = {
+            timestamp,
+            schemaName,
+            isCritical, // Critical (throw) or Soft (tryValidate)
+            summary,
+            count: errors.length
+        };
+        
+        this.failureHistory.unshift(failureEntry);
+        // Maintain fixed size history
+        if (this.failureHistory.length > this.MAX_HISTORY) {
+            this.failureHistory.pop();
+        }
+        
+        // Console log only critical failures to maintain clean operational trace
+        if (isCritical) {
+             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${summary[0].path}`);
+        }
+    }
+
+    /**
+     * Provides the recent failure history to the Nexus-Database/kernel for strategy optimization (Meta-Reasoning).
+     * @returns {Array<object>} Recent validation failure records.
+     */
+    getFailureHistory() {
+        return this.failureHistory;
+    }
+
+    /**
      * Validates an object against a specific XEL component schema (Strict Mode).
      * @param {string} schemaName - The key in ComponentSchemas (e.g., 'TaskRequest').
      * @param {object} data - The object to validate (will be modified if removeAdditional is active).
@@ -89,7 +129,10 @@ class SchemaValidatorEngine {
         const valid = validateFn(data); // Data is potentially mutated here (clean up)
         
         if (!valid) {
-            // Error Handling: Throw custom error with integrated logging of failure pattern
+            // Meta-Reasoning: Track critical failure
+            this._trackFailure(schemaName, validateFn.errors, true); 
+            
+            // Error Handling: Throw custom error 
             throw new this.SchemaValidationError(schemaName, validateFn.errors);
         }
         
@@ -109,19 +152,20 @@ class SchemaValidatorEngine {
         if (!validateFn) return null; 
         
         // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
+        // Using structured clone or a robust utility is ideal, but JSON deep copy is used here for simplicity within file context.
         let dataCopy;
         try {
             dataCopy = JSON.parse(JSON.stringify(data));
         } catch (e) {
-            console.error(`[SCHEMA_ENGINE]: Failed to copy data for soft validation: ${e.message}`);
+            console.warn(`[SCHEMA_ENGINE]: Data serialization failed during tryValidate: ${e.message}`);
             return null; // Cannot proceed if data is not serializable
         }
         
         const valid = validateFn(dataCopy);
         
         if (!valid) {
-            // Log warning but do not throw, aiding fault tolerance (Error Handling)
-            // The SchemaValidationError constructor is not called here to avoid throwing.
+            // Meta-Reasoning: Track soft failure
+            this._trackFailure(schemaName, validateFn.errors, false);
             return null;
         }
         
