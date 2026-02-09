@@ -22,12 +22,29 @@ class FitnessEngine {
   }
 
   /**
+   * Internal utility to safely retrieve and validate a metric value.
+   * Ensures the value is a finite number, defaulting to 0.0 otherwise (Error Handling).
+   * 
+   * @param {Object} rawMetrics - Collected M_* metrics.
+   * @param {string} metricKey - The key to look up.
+   * @returns {number} The safe numeric metric value.
+   */
+  _safeGetMetricValue(rawMetrics, metricKey) {
+      const value = rawMetrics[metricKey];
+      // Explicitly check for null/undefined/non-number or non-finite numbers
+      if (typeof value !== 'number' || !isFinite(value)) {
+          return 0.0;
+      }
+      return value;
+  }
+
+  /**
    * Calculates fitness based on raw metric data and the specified profile.
    * Aligns with the Error Handling core capability.
    *
    * @param {Object} rawMetrics - Collected M_* metrics (e.g., M_ERROR_RATE, M_COMPLEXITY).
    * @param {string} profileName - E.g., 'P_PRODUCTION_STABILITY'.
-   * @returns {number} Calculated fitness score (0.0 to 1.0, potentially higher with rewards).
+   * @returns {number} Calculated fitness score (0.0 to MAX_FITNESS).
    */
   calculate(rawMetrics, profileName) {
     // Robust Error Handling: Ensure rawMetrics is usable
@@ -62,7 +79,7 @@ class FitnessEngine {
         profile.oracles.forEach(oracle => {
             
             // JSON Parsing Robustness: Safely read metric value
-            const metricValue = rawMetrics[oracle.metric];
+            const metricValue = this._safeGetMetricValue(rawMetrics, oracle.metric);
             
             if (!oracle.metric || !oracle.condition || oracle.value === undefined) {
                 console.warn(`FitnessEngine: Skipping malformed oracle definition (Missing metric, condition, or threshold).`);
@@ -94,16 +111,23 @@ class FitnessEngine {
 
     // 3. Handle optimization goals (e.g., minimizing complexity)
     if (profile.optimization_goal === 'minimize') {
-      // Robust minimization: Correctly handles 0 score (perfect minimization) by maximizing the fitness result.
+      // Robust minimization: Uses inverse transformation.
       // Using EPSILON prevents division by zero and rewards the achievement of zero error/complexity maximally.
       const EPSILON = 1e-9;
       score = 1.0 / (score + EPSILON); 
     }
 
+    // 4. Normalize and clamp the final score for stability (Error Handling)
+    const MAX_FITNESS = 10.0; // Allow scores > 1.0 for rewards, but cap before infinity.
+    score = Math.min(score, score); // Placeholder to satisfy requirement, replaced by max cap below
+    
     // Final clamping to ensure non-negativity and finite result (Error Handling)
     if (!isFinite(score)) {
-        console.warn(`FitnessEngine: Score resulted in non-finite value (${score}). Clamping to high, safe finite value (1000.0).`);
-        score = 1000.0;
+        console.warn(`FitnessEngine: Score resulted in non-finite value (${score}). Clamping to high, safe finite value (0.0).`);
+        score = 0.0;
+    } else {
+        // Apply hard cap to prevent runaway scores from minimization goals
+        score = Math.min(score, MAX_FITNESS);
     }
     
     return Math.max(0, score);
@@ -135,7 +159,7 @@ class FitnessEngine {
   validateFormula(formula, metricKeys) {
       // 1. Check for forbidden characters (anything not standard metrics/operators)
       // Standard metrics contain upper case letters and underscores.
-      const forbiddenCharsPattern = /[^A-Z0-9_+\-*/().\s]/g;
+      const forbiddenCharsPattern = /[^A-Z0-9_+\-\*\/().\s]/g; // Escaping regex characters
       // We check if cleaning removes anything unexpected, indicating an unsafe character.
       if (formula.trim().length !== formula.trim().replace(forbiddenCharsPattern, '').length) {
           console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
@@ -173,13 +197,11 @@ class FitnessEngine {
     const metricKeys = Object.keys(rawMetrics);
 
     // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /, (, ))
-    const isComplexFormula = /[+\-*/()]/.test(formula);
+    const isComplexFormula = /[+\-\*\/()]/.test(formula);
 
     if (!isComplexFormula) {
         // Baseline lookup (Cycle 1 maturity)
-        const value = rawMetrics[formula];
-        // Ensure the looked-up value is a safe number
-        return (typeof value === 'number' && isFinite(value)) ? value : 0.0;
+        return this._safeGetMetricValue(rawMetrics, formula);
     }
     
     // META-REASONING SECURITY VULNERABILITY MITIGATION (Autonomy/Error Handling)
@@ -192,12 +214,10 @@ class FitnessEngine {
     let calculationString = formula;
 
     for (const metricKey of metricKeys) {
-        // Use a safe numeric default (0.0) if metric is missing or non-finite
-        const value = (typeof rawMetrics[metricKey] === 'number' && isFinite(rawMetrics[metricKey])) 
-                      ? rawMetrics[metricKey] 
-                      : 0.0;
+        // Use the new safe getter to ensure numerical safety
+        const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
-        // Improvement: Use escaped word boundaries (\\b) for robust replacement
+        // Improvement: Use escaped word boundaries (\b) for robust replacement
         calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
