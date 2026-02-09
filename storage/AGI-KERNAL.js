@@ -65,8 +65,17 @@ export default function App() {
     const pulse = () => {
       runKernelCycle();
       
-      const multiplier = state.config.pulse_multiplier || 1.0;
-      const interval = calculatePulseInterval(BASE_PULSE_MS, multiplier);
+      // V7.5.0: Dynamic Multiplier Calculation based on Maturity (Autonomy integration)
+      const configuredMultiplier = state.config.pulse_multiplier || 1.0;
+      const evolutionLevel = state.evolution_level || 0; // Assume 0-100 scale for maturity
+      
+      // Maturity Factor: System speeds up slightly as evolution level increases (up to 10% faster)
+      // This enforces autonomous self-optimization of the cycle rate.
+      const maturityFactor = 1.0 + (evolutionLevel / 1000); 
+      
+      const combinedMultiplier = configuredMultiplier * maturityFactor;
+      
+      const interval = calculatePulseInterval(BASE_PULSE_MS, combinedMultiplier);
       
       // Schedule next pulse using setTimeout for adaptive timing
       cycleRef.current = setTimeout(pulse, interval);
@@ -81,7 +90,7 @@ export default function App() {
         clearTimeout(cycleRef.current);
       }
     };
-  }, [BASE_PULSE_MS, state.config.pulse_multiplier, user, state.kernel_ready]); 
+  }, [BASE_PULSE_MS, state.config.pulse_multiplier, state.evolution_level, user, state.kernel_ready]); 
 
   // Placeholder return
   return null; 
