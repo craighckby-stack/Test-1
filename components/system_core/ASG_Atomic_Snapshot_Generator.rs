@@ -32,7 +32,7 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
 }
 
 // Defines the output structure for the immutable state capture
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)] // Added Clone and Default for infrastructural flexibility
 pub struct RscmPackage {
     pub absolute_capture_ts_epoch_ns: u64,
     pub capture_latency_ns: u64,
@@ -46,7 +46,7 @@ pub struct RscmPackage {
 pub enum SnapshotError {
     PrivilegeRequired,
     MemoryCaptureFailed,
-    Timeout,
+    Timeout { actual_duration_ns: u64 }, // Enhanced error to include performance data
     IntegrityHashingFailed,
 }
 
@@ -85,7 +85,7 @@ hasher.update(&context_flags.to_le_bytes());
 
     if duration > MAX_SNAPSHOT_DURATION {
         // Failure to meet temporal constraint (5ms max)
-        return Err(SnapshotError::Timeout);
+        return Err(SnapshotError::Timeout { actual_duration_ns: latency_ns as u64 });
     }
 
     // 4. Final RSCM object creation
