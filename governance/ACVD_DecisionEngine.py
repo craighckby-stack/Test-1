@@ -10,20 +10,16 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.7 enhancement) introduces autonomous internal self-assessment 
-    by calculating an 'Operational Integrity Score' based on the accumulation of 
-    its own internal log queue errors, leveraging the dynamic governance weights. 
-    This significantly boosts Autonomy, Error Handling, and Meta-Reasoning capabilities.
-    
-    Improvements in Cycle 3 (v7.4.5): Implemented dynamic, weighted scoring system for Governance Health Score 
-    and added log flushing capabilities for Telemetry integration.
-    
-    Improvements in Cycle 4 (v7.4.6): Introduced `update_severity_weights` for autonomous governance optimization 
-    (Meta-Reasoning, Autonomy). Severity weights are now dynamically loaded from the schema config 
-    if available, ensuring configurability and adaptability.
+    This version (v7.4.8 enhancement) centralizes the penalty calculation logic into a 
+    dedicated helper method, standardizing the application of dynamic severity weights 
+    for both internal self-assessment and external proposal validation. This improves 
+    abstraction and code maintenance (Self-Modification, Meta-Reasoning).
     
     Improvements in Cycle 5 (v7.4.7): Implemented `perform_self_assessment` for internal monitoring and
     Operational Integrity Scoring, enhancing self-governance and Error Handling robustness.
+    
+    Improvements in Cycle 6 (v7.4.8): Refactored penalty calculation into `_get_penalty_weight` 
+    to ensure consistent application of severity weights and internal assessment modifiers.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -121,6 +117,21 @@ class ACVD_DecisionEngine:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
             raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
             
+    def _get_penalty_weight(self, issue_type: str, is_internal_assessment: bool = False) -> float:
+        """ 
+        Retrieves the severity weight for a given issue type, applying internal assessment 
+        reduction if specified. Centralizes penalty calculation logic.
+        """
+        # Ensure issue_type exists or use fallback
+        weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+        
+        if is_internal_assessment:
+            # Internal issues (like engine logging errors) are penalized slightly less severely 
+            # than external governance failures (proposal rejection), supporting graceful recovery.
+            return weight * 0.5
+        
+        return weight
+
     def perform_self_assessment(self) -> Dict[str, Any]:
         """
         Calculates the internal Operational Integrity Score based on accumulated internal logs 
@@ -137,7 +148,6 @@ class ACVD_DecisionEngine:
         }
 
         # Map internal log levels to defined issue types for weight application
-        # This allows the AGI kernel to use the same meta-reasoning weights for self-governance.
         LOG_LEVEL_MAP = {
             "CRITICAL": "CRITICAL",
             "ERROR": "STRUCTURAL_ERROR", 
@@ -154,12 +164,10 @@ class ACVD_DecisionEngine:
             elif level == 'ERROR':
                 assessment['errorLogCount'] += 1
 
-            # Apply penalty based on the log level severity
+            # Apply penalty based on the log level severity, using centralized penalty calculation
             if level in LOG_LEVEL_MAP:
                 issue_type = LOG_LEVEL_MAP[level]
-                # Internal issues are penalized slightly less severely than external proposal failures, 
-                # but still critically, to allow for graceful recovery.
-                weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT * 0.5) 
+                weight = self._get_penalty_weight(issue_type, is_internal_assessment=True)
                 negative_score_accumulation += weight
 
         assessment['weightedPenalty'] = negative_score_accumulation
@@ -230,8 +238,8 @@ class ACVD_DecisionEngine:
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Input proposal is not a valid dictionary.", "context": "Input Type"})
             report['status'] = 'FAIL'
-            # Use consistent fallback weight if issue type isn't defined
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            # Use centralized penalty calculation
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
             report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
             return report
             
@@ -247,7 +255,7 @@ class ACVD_DecisionEngine:
                 "context": f"Valid states: {', '.join(self.valid_states)}"
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
         # Optimization: Skip deep metrics checks unless explicitly PENDING_VALIDATION
         if current_state != 'PENDING_VALIDATION' and report['status'] != 'FAIL':
@@ -264,13 +272,13 @@ class ACVD_DecisionEngine:
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."})
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
         if not isinstance(safety_assessment, dict):
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."})
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
         # Early calculation if structural errors prevent reliable metric checking
         if report['status'] == 'FAIL':
@@ -293,7 +301,7 @@ class ACVD_DecisionEngine:
                 "metric": "regressionTestStatus"
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
         # 2c. Safety Score Check (Defensive extraction and Type checking)
         safety_score = None
@@ -319,7 +327,7 @@ class ACVD_DecisionEngine:
                     "metric": "confidenceScore",
                 })
                 report['status'] = 'FAIL'
-                negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+                negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
         
         if safety_score is not None and safety_score < self.safety_threshold:
             issue_type = "GOVERNANCE_VIOLATION"
@@ -331,7 +339,7 @@ class ACVD_DecisionEngine:
                 "value": safety_score
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
         
         # 3. Calculate Governance Health Score (Supports Meta-Reasoning/Strategic Decision-making)
         report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
