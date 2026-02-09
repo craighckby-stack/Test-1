@@ -1,1 +1,1 @@
-Added error handling and input validation for GitHub token, repo, branch, and path. Implemented API key encryption and secure storage. Expanded logic to handle multiple providers and models, with default models assigned based on provider selection.
+Expanded error handling to include retry mechanisms for API requests, added support for additional model providers, and implemented logging for improved debugging. Introduced redundancy checks to ensure reliable data storage and encryption.
