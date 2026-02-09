@@ -53,7 +53,7 @@ class FitnessEngine {
     
     // Validate initial score calculation (Error Handling)
     if (typeof score !== 'number' || isNaN(score) || !isFinite(score)) {
-        console.error(`FitnessEngine: Derived metric calculation resulted in non-safe number. Resetting score.`);
+        console.error(`FitnessEngine: Derived metric calculation resulted in non-safe number (${score}). Resetting score.`);
         score = 0.0;
     }
     
@@ -79,30 +79,33 @@ class FitnessEngine {
                 factor = parseFloat(oracle.reward_factor);
             }
 
-            if (!isNaN(factor) && factor >= 0 && factor <= 1) { 
+            // Clamping factor to [0, 1] internally for stability
+            factor = Math.max(0, Math.min(1, factor));
+
+            if (!isNaN(factor)) { 
                 if (!passes && oracle.violation_type === 'penalty') {
                     score *= Math.max(0, (1 - factor)); // Penalty, ensuring result remains non-negative
                 } else if (passes && oracle.violation_type === 'reward') {
                     score *= (1 + factor); // Reward
                 }
-            } else if (factor > 1) {
-                console.warn(`FitnessEngine: Warning: Oracle factor exceeds 1. Clamping internally.`);
             }
         });
     }
 
     // 3. Handle optimization goals (e.g., minimizing complexity)
     if (profile.optimization_goal === 'minimize') {
-      // Robust division: prevents division by zero resulting in Infinity/NaN (Error Handling)
-      const MIN_SAFE_SCORE = 1e-6;
-      if (score < MIN_SAFE_SCORE) {
-          score = 0;
-      } else {
-          score = 1.0 / score; // Reciprocal calculation for minimization
-      }
+      // Robust minimization: Correctly handles 0 score (perfect minimization) by maximizing the fitness result.
+      // Using EPSILON prevents division by zero and rewards the achievement of zero error/complexity maximally.
+      const EPSILON = 1e-9;
+      score = 1.0 / (score + EPSILON); 
     }
 
     // Final clamping to ensure non-negativity and finite result (Error Handling)
+    if (!isFinite(score)) {
+        console.warn(`FitnessEngine: Score resulted in non-finite value (${score}). Clamping to high, safe finite value (1000.0).`);
+        score = 1000.0;
+    }
+    
     return Math.max(0, score);
   }
 
@@ -119,8 +122,8 @@ class FitnessEngine {
 
     const formula = targetMetricIdOrFormula.trim();
     
-    // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /)
-    const isComplexFormula = /[+\-*/]/.test(formula);
+    // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /, (, ))
+    const isComplexFormula = /[+\-*/()]/.test(formula);
 
     if (!isComplexFormula) {
         // Baseline lookup (Cycle 1 maturity)
@@ -138,9 +141,9 @@ class FitnessEngine {
                       ? rawMetrics[metricKey] 
                       : 0.0;
         
-        // Replace metric placeholders with their corresponding numeric values
-        // Use boundary matching (\b) to ensure only full metric names are replaced.
-        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
+        // Improvement: Use escaped word boundaries (\\b) for robust replacement
+        // This ensures M_ERROR_RATE is not partially substituted in M_TOTAL_ERROR_RATE.
+        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
     try {
@@ -149,14 +152,15 @@ class FitnessEngine {
         const result = eval(calculationString);
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}.`);
+            // Enhanced error logging: show the resulting string that produced the non-safe result.
+            console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${calculationString}`);
             return 0.0;
         }
         return result;
 
     } catch (e) {
-        // Robust Error Handling during formula execution
-        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}`);
+        // Robust Error Handling during formula execution: log the problematic calculation string.
+        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Formula attempted: ${calculationString}`);
         return 0.0;
     }
   }
