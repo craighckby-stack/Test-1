@@ -1,4 +1,4 @@
-## SOVEREIGN AGI V94.1: ARCHITECTURAL COMPONENT REGISTRY (ACR)
+## AGI-KERNEL V7.X: ARCHITECTURAL COMPONENT REGISTRY (ACR)
 
 This registry formally catalogs mandatory, versioned operational interfaces and functional contracts, structured by their role within the Autonomous Evolutionary Cycle (AEC). All components are mandatory (M), read-only (R), or optional (O).
 
@@ -28,6 +28,7 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **GCO** | Governance Constraint Orchestrator | L0, L4 | `governance.orchestrate` | M | Central dispatcher; enforces L4 operational tolerance and state synchronization via CIP. |
 | **AIA** | Autonomous Interface Anchor | L0 | `system.state.entry` | M | Serves as the immutable entry/exit point for finalized evolution artifacts (AIA-ENTRY) and external requests. |
 | **IDSM** | Input/Draft State Manager | L0 | `input.state.manager` | M | Initializes context, loads input schema, and manages ephemeral draft state. |
+| **DVP** | Data Validation Processor | L0 | `data.validation.robust` | M | Ensures robust data extraction and fault tolerance against malformed or truncated responses (Supports JSON Parsing & Error Handling). |
 | **SCR** | System Configuration Registry | L0, L1 | `config.system.read` | R | Centralized, versioned storage for operational constants, policies, and environment parameters. |
 | **ACM** | Artifact Chain Manager | L2, L5 | `provenance.chain.log` | M | Validates and anchors the lineage (L5 audit) of all evolving artifacts utilizing CMD-104. |
 
@@ -35,7 +36,7 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 *Focus: Real-time risk assessment, compliance enforcement (L1/L4), and conflict resolution.*
 
 | Acronym | Component Name | GSEP Relevance | Interface Topic (API) | Role | Primary Function |
-|:---:|:---:|:---:|:---:|:---:|:---:|
+|:---:|:---:|:---:|:---:|:---:|
 | **CIL** | Compliance Integration Layer | L1 | `governance.policy.check` | M | Enforces governance policy alignment (L1 constraints) using CMD-103 outputs. |
 | **RSAM** | Risk State Assessment Module | L1 | `risk.state.query` | M | Conducts real-time risk evaluation; defines parameters for veto thresholds (CMD-103). |
 | **ATM** | Arbitration Trust Module | L4 | `arbitration.trust.index` | M | Generates the foundational Trust Score (CMD-101) for system components and input sources. |
@@ -45,11 +46,11 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 *Focus: Efficacy projection (L3), final commitment (L6), monitoring, and adaptive planning (L7).*
 
 | Acronym | Component Name | GSEP Relevance | Interface Topic (API) | Role | Primary Function |
-|:---:|:---:|:---:|:---:|:---:|:---:|
+|:---:|:---:|:---:|:---:|:---:|
 | **PSR** | Projection & Synthesis Registry | L3 | `synthesis.simulation.data` | M | Registers efficacy simulation results used for L3 (Effectiveness) threshold checks. |
 | **SDR** | System Diagnostic & Reporting | L3, L4 | `telemetry.raw.metrics` | M | Aggregate data point ingestion and distribution hub for TRP inputs required by CMD contracts. |
 | **AEL** | Audit Event Logger | L5 | `audit.event.immutable` | R | Captures and immutably logs all critical state transitions, decisions, and compliance failures. |
 | **RETV** | Real-Time Execution Vetting | L6 | `execution.runtime.vetting` | M | Monitors post-activation behavior against projected outcomes (Deployment Phase Vetting). |
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
+| **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 5 Core Kernel Capabilities (Supports Meta-Reasoning and L7 Evolution). |
 | **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Processes SDR/RETV data to autonomously design optimal subsequent architectural modification plans (L7 Evolution). |
-
