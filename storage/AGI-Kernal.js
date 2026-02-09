@@ -402,6 +402,67 @@ export class GSIMMapResolver {
 
 // === END: GSIM Map Resolver Graft ===
 
+// === START: Constraint Policy Types Graft (AGI-C-14) ===
+
+/** @typedef {Object} ConstraintReference
+ * @property {string} constraint_ref - Key referencing a constraint definition in the constraints map.
+ */
+
+/** @typedef {Object} InlineConstraint
+ * @property {string} type - The type of constraint (e.g., 'RATE_LIMIT', 'AUTH_SCOPE').
+ * @property {any} config - Configuration specific to the constraint.
+ */
+
+/** @typedef {ConstraintReference | InlineConstraint} ConstraintPolicy */
+
+// === END: Constraint Policy Types Graft ===
+
+// === START: Constraint Resolver Graft (AGI-C-15) ===
+
+/**
+ * ConstraintResolver V94.1
+ * Loads, validates, and dynamically resolves GAX constraints based on execution context.
+ */
+export class ConstraintResolver {
+  /**
+   * @param {Object} constraintConfig
+   * @param {Object<string, ConstraintPolicy[]>} constraintConfig.policies
+   * @param {Object<string, Object>} constraintConfig.constraints
+   */
+  constructor(constraintConfig) {
+    this.policies = constraintConfig.policies || {};
+    this.constraints = constraintConfig.constraints || {};
+    this.defaultPolicy = this.policies.DEFAULT_POLICY || [];
+  }
+
+  /**
+   * Resolves the constraints applicable to a specific service method.
+   * @param {string} serviceMethodKey e.g., 'ServiceA/HighVolumeWrite'
+   * @returns {Array<Object>}
+   */
+  resolve(serviceMethodKey) {
+    const policyKey = serviceMethodKey;
+
+    if (this.policies[policyKey]) {
+      // 1. Method-specific Policy
+      const appliedConstraints = this.policies[policyKey].map(ref => 
+        ref.constraint_ref ? this.constraints[ref.constraint_ref] : ref
+      );
+      return appliedConstraints.filter(c => c);
+    } 
+
+    // 2. Default Policy Fallback
+    const defaultApplied = this.defaultPolicy.map(ref => 
+      ref.constraint_ref ? this.constraints[ref.constraint_ref] : ref
+    );
+    return defaultApplied.filter(c => c);
+  }
+
+  // Future methods: loadFromCache(), validateSchema(), applyRuntimeOverrides()...
+}
+
+// === END: Constraint Resolver Graft ===
+
 // === START: Critical Paths Graft (AGI-C-08) ===
 
 /**
@@ -580,39 +641,4 @@ const protocolSchema = {
     definitions: {
         VectorPayload: { type: "object", properties: { vector: { type: "array" } }, required: [
 "vector"] },
-        ResponseFrame: { type: "object", properties: { status: { type: "string" } }, required: [
-"status"] }
-    }
-};
-
-const ajv = new Ajv({ schemas: [protocolSchema] });
-
-// Compile schemas from the definitions section for direct use
-const validatePayload = ajv.compile(protocolSchema.definitions.VectorPayload);
-const validateResponse = ajv.compile(protocolSchema.definitions.ResponseFrame);
-
-export function isValidPayload(data) {
-  const valid = validatePayload(data);
-  if (!valid) {
-    // console.error('Vector Payload Validation Failed:', validatePayload.errors);
-  }
-  return valid;
-}
-
-export function isValidResponse(data) {
-  const valid = validateResponse(data);
-  if (!valid) {
-    // console.error('Response Frame Validation Failed:', validateResponse.errors);
-  }
-  return valid;
-}
-
-// Utility function for retrieving required protocol constants
-export const VEC_PROTOCOL_ID = protocolSchema.protocol_id;
-
-// Mock the policy schema, as external JSON import is not possible here.
-const STDM_V99_POLICY = {
-    type: "object",
-    properties: {
-        componentId: { type: "string" },
-        version: { type: "string"}}}
+        ResponseFrame: { type: "object", properties: { status: { type: "string\
