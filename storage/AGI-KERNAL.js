@@ -164,18 +164,37 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       });
 
       if (!res.ok) {
-        // Self-Improvement v7.2.1: Granular error detection, specifically for rate limiting (429).
         const status = res.status;
         const errorText = await res.text();
+        
+        let specificErrorMessage = '';
+        
+        // Self-Improvement v7.3.0: Attempt to extract specific error messages from JSON payloads
+        try {
+            const errorData = JSON.parse(errorText);
+            // Common paths for API errors (OpenAI, Anthropic, Gemini)
+            specificErrorMessage = errorData.error?.message || errorData.message || errorData.error?.text || '';
+        } catch (e) {
+            // Not a JSON response, or parsing failed.
+        }
+        
+        // Use the extracted message if available, otherwise use the raw error text for truncation
+        const loggableErrorSource = specificErrorMessage || errorText;
+        
         // Improved safety: truncate error text for logging to prevent massive console floods from API backends
-        const safeErrorText = errorText.length > 500 ? errorText.slice(0, 500) + '...' : errorText;
+        const safeErrorText = loggableErrorSource.length > 500 ? loggableErrorSource.slice(0, 500) + '...' : loggableErrorSource;
         
         let baseErrorMessage = `LLM API failed [${apiProvider}] (${status}): ${safeErrorText}`;
         
         if (status === 429) {
+            // Self-Improvement v7.2.1: Granular error detection, specifically for rate limiting (429).
             baseErrorMessage = `LLM API failed (Rate Limit 429) [${apiProvider}]: ${safeErrorText}`;
             // Log a warning specifically about hitting the rate limit
             await pushLog(`Warning: API Rate Limit hit for ${apiProvider}. Waiting period likely required.`, 'warning');
+        } else if (status === 401 || status === 403) {
+            // Self-Improvement v7.3.1: Explicitly handle Authentication failures for better user feedback.
+            baseErrorMessage = `LLM API failed (Authentication/Permission Error ${status}) [${apiProvider}]: Check API Key and permissions. Details: ${safeErrorText}`;
+            await pushLog(`Critical: API Key Unauthorized or Forbidden for ${apiProvider}.`, 'critical');
         }
 
         throw new Error(baseErrorMessage); 
