@@ -4,6 +4,26 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 from pathlib import Path
 
+# --- Custom Governance Exceptions (Infrastructure/Robustness) ---
+class GovernanceError(Exception):
+    """Base exception for ACVD Governance violations."""
+    pass
+
+class StateTransitionError(GovernanceError):
+    """Raised when an illegal state transition is attempted."""
+    def __init__(self, previous_state, new_state, allowed_states, message="Illegal state transition"):
+        super().__init__(message)
+        self.previous_state = previous_state
+        self.new_state = new_state
+        self.allowed_states = allowed_states
+
+class ValidationFailureError(GovernanceError):
+    """Raised when an action is blocked due to validation failure."""
+    def __init__(self, message, report=None):
+        super().__init__(message)
+        self.validation_report = report
+
+
 def get_utc_timestamp() -> str:
     """Returns the current UTC timestamp formatted consistently for system logging."""
     return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
@@ -42,6 +62,7 @@ class ACVD_DecisionEngine:
        **proactive, actionable tuning suggestions** including proposed new weights, 
        supporting the AGI kernel's recursive self-improvement loop.
     3. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
+    4. Introducing custom, structured exceptions for governance violations (`GovernanceError` family).
     """
 
     # Use centralized defaults
@@ -208,6 +229,51 @@ class ACVD_DecisionEngine:
         
         return weight
     
+    def _apply_weight_heuristic(self, issue_type: str, penalty_value: float, total_impact: float, current_weight: float, total_current_weight: float) -> Dict[str, Any]:
+        """ 
+        (META-REASONING CORE) Encapsulates the dynamic weight tuning heuristic logic.
+        Adjusts weight based on observed penalty contribution versus expected distribution.
+        """
+        
+        suggestion_type = "MAINTAIN_STABILITY"
+        new_suggested_weight = current_weight
+        
+        if total_impact == 0.0 or total_current_weight == 0.0:
+            return {
+                "suggestion_type": suggestion_type,
+                "suggested_new_weight": current_weight
+            }
+
+        contribution_ratio = penalty_value / total_impact
+        current_weight_ratio = current_weight / total_current_weight
+
+        # Heuristic 1: Increase Penalty (Under-represented Risk)
+        # If observed penalty ratio is significantly higher (1.5x) than current weight ratio, increase the weight.
+        if contribution_ratio > current_weight_ratio * 1.5 and current_weight < 0.9: 
+            
+            # Calculate factor based on the gap to 1.0 (max weight), capped at 10% increase per cycle
+            increase_factor = min(0.1, contribution_ratio * 0.2) 
+            suggested_adjustment = (1.0 - current_weight) * increase_factor
+            
+            new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
+            suggestion_type = "INCREASE_PENALTY"
+
+        # Heuristic 2: Decrease Penalty (Over-represented Risk / Stable)
+        # If observed penalty ratio is significantly lower (0.5x) than current weight ratio, decrease the weight.
+        elif contribution_ratio < current_weight_ratio * 0.5 and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
+            
+            decrease_factor = 0.05
+            # Calculate factor based on the difference from the minimum fallback weight
+            suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decrease_factor
+            
+            new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
+            suggestion_type = "DECREASE_PENALTY"
+            
+        return {
+            "suggestion_type": suggestion_type,
+            "suggested_new_weight": new_suggested_weight
+        }
+    
     def _calculate_log_impact(self) -> Dict[str, Any]:
         """
         (META-REASONING) Calculates the accumulated internal log penalty contribution per issue type.
@@ -239,36 +305,15 @@ class ACVD_DecisionEngine:
                     percentage = (penalty_value / total_impact) * 100
                     current_weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
                     
-                    # --- Proactive Tuning Heuristic (Emergent Logic) ---
-                    suggested_adjustment = 0.0
-                    new_suggested_weight = current_weight
-                    suggestion_type = "MAINTAIN_STABILITY"
-                    
-                    # 1. Calculate ratios
-                    contribution_ratio = penalty_value / total_impact
-                    current_weight_ratio = current_weight / total_current_weight
-
-                    # 2. Heuristic for increasing penalty (Weight is under-representing observed risk)
-                    if contribution_ratio > current_weight_ratio * 1.5 and current_weight < 0.9: 
-                        # Observed penalty is 50% higher than expected based on current weight distribution
-                        
-                        # Calculate adjustment proportional to the gap between current weight and maximum (1.0)
-                        increase_factor = min(0.1, contribution_ratio * 0.2) # Max 10% increase per cycle
-                        
-                        suggested_adjustment = (1.0 - current_weight) * increase_factor
-                        new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
-                        suggestion_type = "INCREASE_PENALTY"
-
-                    # 3. Heuristic for decreasing penalty (Weight is over-penalizing low risk)
-                    elif contribution_ratio < current_weight_ratio * 0.5 and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
-                        # Observed penalty is less than 50% of expected based on current weight distribution
-                        
-                        decrease_factor = 0.05
-                        suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decrease_factor
-                        new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
-                        suggestion_type = "DECREASE_PENALTY"
-                        
-                    # ----------------------------------------------------
+                    # --- Apply Proactive Tuning Heuristic ---
+                    tuning_result = self._apply_weight_heuristic(
+                        issue_type, 
+                        penalty_value, 
+                        total_impact, 
+                        current_weight, 
+                        total_current_weight
+                    )
+                    # ----------------------------------------
                         
                     tuning_suggestions.append({
                         "issue_type": issue_type,
@@ -276,8 +321,8 @@ class ACVD_DecisionEngine:
                         "percentage_of_total_penalty": round(percentage, 2),
                         "current_weight": current_weight, 
                         "is_currently_critical": (issue_type == "CRITICAL" or current_weight >= 0.5), 
-                        "suggestion_type": suggestion_type,
-                        "suggested_new_weight": new_suggested_weight
+                        "suggestion_type": tuning_result['suggestion_type'],
+                        "suggested_new_weight": tuning_result['suggested_new_weight']
                     })
                     
         return {
@@ -555,6 +600,7 @@ class ACVD_DecisionEngine:
         """Records a state change in the decision history and updates the current state.
         
         Enforces governance compliance before transition, and includes robust input checks (Error Handling).
+        Uses custom exceptions for structured error signaling (Infrastructure Authority).
         """
         
         # Robustness: Check input types
@@ -581,8 +627,13 @@ class ACVD_DecisionEngine:
             # but for any defined state, the transition must be explicitly permitted.
             if previous_state != 'UNINITIALIZED' and new_state not in allowed_next_states:
                 self._log_status("CRITICAL", f"Illegal state transition attempted: {previous_state} -> {new_state}. Governance block.", "TRANSITION_PATH_VIOLATION")
-                # Use a specific exception type to allow recovery/rollback systems to differentiate this error
-                raise PermissionError(f"Illegal state transition attempted. {previous_state} cannot transition directly to {new_state}. Allowed paths: {', '.join(allowed_next_states)}")
+                # Use custom exception for structured error handling
+                raise StateTransitionError(
+                    previous_state, 
+                    new_state, 
+                    allowed_next_states, 
+                    f"Illegal state transition attempted. {previous_state} cannot transition directly to {new_state}."
+                )
 
         # 3. Governance Enforcement based on Validation Report (if provided)
         if validation_report and new_state == 'APPROVED':
@@ -594,7 +645,11 @@ class ACVD_DecisionEngine:
                 # Autonomy/Governance enforcement
                 first_issue_message = validation_report.get('issues', [{}])[0].get('message', 'Unknown failure.')
                 self._log_status("CRITICAL", f"Approval blocked due to validation failure: {first_issue_message}", "GOVERNANCE_BLOCK")
-                raise PermissionError(f"Cannot transition to 'APPROVED'. Proposal validation failed: {first_issue_message}. Consult lastValidationReport for details.")
+                # Use custom exception for structured error handling
+                raise ValidationFailureError(
+                    f"Cannot transition to 'APPROVED'. Proposal validation failed: {first_issue_message}",
+                    report=validation_report
+                )
         
         new_entry = {
             "decisionMaker": decision_maker,
