@@ -76,13 +76,17 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
 
     // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
-        .map_err(|_| SnapshotError::IntegrityHashingFailed)?;
+        .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // Hash sequence: Data, Trace, Context, Version
+    // Bundle fixed metadata for atomic hashing
+    let mut metadata_bundle = Vec::new();
+    metadata_bundle.extend_from_slice(&context_flags.to_le_bytes()); 
+    metadata_bundle.extend_from_slice(&RSCM_PACKAGE_VERSION.to_le_bytes());
+
+    // Hash sequence: 1. Volatile Data, 2. Stack Trace, 3. Fixed Metadata (Flags + Version)
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
-hasher.update(&context_flags.to_le_bytes()); 
-hasher.update(&RSCM_PACKAGE_VERSION.to_le_bytes()); // Ensure version is included in the hash computation
+    hasher.update(&metadata_bundle); 
     
     let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
