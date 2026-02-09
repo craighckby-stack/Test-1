@@ -1,4 +1,4 @@
-// Implementation of the ACE Fitness Evaluation Engine for AGI-KERNEL v7.4.2.
+// Implementation of the ACE Fitness Evaluation Engine for AGI-KERNEL v7.4.3.
 // This engine drives Maturity Progression and Capability Self-Assessment.
 
 /**
@@ -118,11 +118,43 @@ class FitnessEngine {
    * @returns {string} Sanitized formula string.
    */
   sanitizeFormula(formulaString) {
-    // Only allow numbers (and metrics already replaced by numbers), basic arithmetic, spaces, and parentheses.
-    // Using a broad negative match to strip anything unsafe.
-    let sanitized = formulaString.replace(/[^-+*/().\s\d]/g, '');
+    // Only allow numbers, basic arithmetic, spaces, and parentheses.
+    // Explicitly allowing 'e' or 'E' for scientific notation robustness (1e-9).
+    let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
     return sanitized;
   }
+  
+  /**
+   * Autonomy/Security: Pre-validates the formula to ensure it only references known
+   * metrics and safe arithmetic structure, before substitution and evaluation.
+   * 
+   * @param {string} formula - The original formula string (e.g., "M_ERR * 5").
+   * @param {string[]} metricKeys - Array of valid metric keys (e.g., ["M_ERR", "M_COMP"]).
+   * @returns {boolean} True if validation passes, false otherwise.
+   */
+  validateFormula(formula, metricKeys) {
+      // 1. Check for forbidden characters (anything not standard metrics/operators)
+      // Standard metrics contain upper case letters and underscores.
+      const forbiddenCharsPattern = /[^A-Z0-9_+\-*/().\s]/g;
+      // We check if cleaning removes anything unexpected, indicating an unsafe character.
+      if (formula.trim().length !== formula.trim().replace(forbiddenCharsPattern, '').length) {
+          console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
+          return false;
+      }
+      
+      // 2. Check if all "words" (potential metric IDs) are defined keys.
+      // Matches sequences of uppercase letters and underscores (standard metric naming).
+      const tokens = formula.match(/[A-Z_]+/g) || [];
+      const unknownMetrics = tokens.filter(token => !metricKeys.includes(token));
+      
+      if (unknownMetrics.length > 0) {
+          console.error(`FitnessEngine Security Alert: Formula references unknown metrics: ${unknownMetrics.join(', ')}`);
+          return false;
+      }
+      
+      return true;
+  }
+
 
   /**
    * Implements dynamic formula execution for Meta-Reasoning capability development.
@@ -137,6 +169,9 @@ class FitnessEngine {
 
     const formula = targetMetricIdOrFormula.trim();
     
+    // Get all valid metric keys for security validation
+    const metricKeys = Object.keys(rawMetrics);
+
     // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /, (, ))
     const isComplexFormula = /[+\-*/()]/.test(formula);
 
@@ -146,19 +181,24 @@ class FitnessEngine {
         // Ensure the looked-up value is a safe number
         return (typeof value === 'number' && isFinite(value)) ? value : 0.0;
     }
+    
+    // META-REASONING SECURITY VULNERABILITY MITIGATION (Autonomy/Error Handling)
+    if (!this.validateFormula(formula, metricKeys)) {
+        console.error("FitnessEngine: Formula validation failed. Aborting calculation.");
+        return 0.0;
+    }
 
     // Meta-Reasoning: Dynamic Formula Parsing and Execution
     let calculationString = formula;
 
-    for (const metricKey in rawMetrics) {
+    for (const metricKey of metricKeys) {
         // Use a safe numeric default (0.0) if metric is missing or non-finite
         const value = (typeof rawMetrics[metricKey] === 'number' && isFinite(rawMetrics[metricKey])) 
                       ? rawMetrics[metricKey] 
                       : 0.0;
         
-        // Improvement: Use escaped word boundaries (\b) for robust replacement
-        // This ensures M_ERROR_RATE is not partially substituted in M_TOTAL_ERROR_RATE.
-        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
+        // Improvement: Use escaped word boundaries (\\b) for robust replacement
+        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
     try {
@@ -166,7 +206,8 @@ class FitnessEngine {
         const safeCalculationString = this.sanitizeFormula(calculationString);
 
         // NOTE: Use of eval() is a deliberate architectural decision to enable
-        // autonomous formula generation (Meta-Reasoning).
+        // autonomous formula generation (Meta-Reasoning). The security risk is mitigated
+        // by pre-validation (validateFormula) and post-substitution sanitization.
         const result = eval(safeCalculationString);
         
         if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
