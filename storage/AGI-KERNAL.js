@@ -1,10 +1,10 @@
-  useEffect(() => {
+useEffect(() => {
     // Adaptive Heartbeat Activation (Self-Improvement v7.4.0)
     if (!user || state.kernel_ready !== true) return; 
 
-    // V7.8.1: Constraint Definition Consolidation (Readability & Consistency)
-    const MAX_EVOLUTION_LEVEL = 100; // Constraint based on system documentation
-    const MAX_PERFORMANCE_GAIN = 0.15; // Autonomous self-optimization target
+    // V7.9.0: Constraint Externalization Defaults (Preparation for Nexus integration)
+    const MAX_EVOLUTION_LEVEL = 100; // System Documentation Constraint
+    const MAX_PERFORMANCE_GAIN = 0.15; // ASO Target (Autonomous Self-Optimization)
 
     const pulse = () => {
       runKernelCycle();
@@ -13,14 +13,15 @@
       const configuredMultiplier = state.config.pulse_multiplier || 1.0;
       const evolutionLevel = state.evolution_level || 0; // Assume 0-100 scale for maturity
       
-      // V7.8.0: Integrity Cautious Default (Safety Posture Enhancement)
-      // High integrityScore (1.0) maintains speed; low score (0.0) forces cautious operation.
-      // Defaulting to 0.0 if score is undefined ensures operation defaults to the guaranteed safety floor (0.5)
-      const integrityScore = state.policy_integrity_score ?? 0.0; // Assumed 0.0 to 1.0
+      // V7.9.5: Integrity Score Clamping and Safety Floor Enforcement (DCCA Policy Compliance)
+      const rawIntegrityScore = state.policy_integrity_score ?? 0.0; 
       
-      // Safety Factor: Scales down overall speed gain based on integrity risk. 
-      // Ensures minimum operational multiplier of 0.5 relative to other factors.
-      const safetyFactor = Math.max(0.5, integrityScore); 
+      // 1. Ensure integrity score adheres to [0.0, 1.0] bounds for calculation stability
+      const clampedIntegrityScore = Math.min(1.0, Math.max(0.0, rawIntegrityScore)); 
+      
+      // Safety Factor: Ensures minimum operational multiplier of 0.5 (Safety Floor).
+      // Scales down overall speed gain based on integrity risk (aligned with DCCA)
+      const safetyFactor = Math.max(0.5, clampedIntegrityScore); 
       
       // Maturity Factor: System speeds up slightly as evolution level increases.
       // Calculation: 1.0 + (Level / MaxLevel * MaxGain)
