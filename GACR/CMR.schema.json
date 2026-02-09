@@ -1,47 +1,87 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v2.0.json",
-  "title": "Computational Model Registry Schema V2.0",
+  "$id": "https://gacr.agi/schemas/cmr_v2.1.json",
+  "title": "Computational Model Registry Schema V2.1 (AGI-KERNEL Integrated)",
   "type": "object",
   "properties": {
-    "manifest_id": {"type": "string", "pattern": "^CMR_V[0-9]+\\.[0-9]+$"},
+    "manifest_id": {"type": "string", "pattern": "^CMR_V[0-9]+\\.[0-9]+$", "description": "Version identifier for the schema manifest."},
     "owner": {"type": "string"},
     "description": {"type": "string"},
-    "integrity_hash": {"type": "string"},
+    "integrity_hash": {"type": "string", "description": "Cryptographic hash of the registry content for integrity checking."},
     "verification_protocol": {"type": "string"},
     "models": {
       "type": "array",
       "description": "List of certified computation models.",
       "items": {
         "type": "object",
-        "required": ["model_id", "path", "version", "status", "inputs_schema", "audit_metadata", "source_mdsm_link"],
+        "required": [
+          "model_id", 
+          "path", 
+          "version", 
+          "status", 
+          "inputs_schema", 
+          "audit_metadata", 
+          "source_mdsm_link",
+          "system_branch",
+          "capability_assessment"
+        ],
         "properties": {
           "model_id": {"type": "string"},
           "path": {"type": "string", "format": "uri-reference"},
           "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
-          "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired"]},
+          "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired", "Experimental"]},
+          
+          "system_branch": {
+             "type": "string",
+             "description": "The AGI-KERNEL branch that currently owns or certifies this model's deployment.",
+             "enum": ["main", "Nexus-Database", "System", "Testing"]
+          },
+          "kernel_maturity_required": {
+             "type": "integer",
+             "description": "Minimum kernel maturity percentage (0-100) required to safely execute this model.",
+             "minimum": 0,
+             "maximum": 100
+          },
+          "capability_assessment": {
+            "type": "object",
+            "description": "The model's self-assessed performance across core AGI capabilities (0-10 scale).",
+            "properties": {
+              "error_handling": {"type": "number", "minimum": 0, "maximum": 10},
+              "json_parsing": {"type": "number", "minimum": 0, "maximum": 10},
+              "meta_reasoning": {"type": "number", "minimum": 0, "maximum": 10},
+              "autonomy": {"type": "number", "minimum": 0, "maximum": 10},
+              "creativity": {"type": "number", "minimum": 0, "maximum": 10}
+            },
+            "required": ["error_handling", "json_parsing", "meta_reasoning", "autonomy", "creativity"]
+          },
+          
           "inputs_schema": {
             "type": "object",
             "description": "Detailed schema definition for required inputs, including constraints.",
             "additionalProperties": {
               "type": "object",
-              "required": ["type", "unit", "description"],
+              "required": ["type", "description"],
               "properties": {
-                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean"]},
-                "unit": {"type": "string"},
-                "min": {"type": ["number", "null"]},
-                "max": {"type": ["number", "null"]}
+                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean", "object", "array"]},
+                "unit": {"type": "string", "description": "Relevant unit of measurement (optional for complex types)."},
+                "min": {"type": ["number", "null"], "description": "Minimum value constraint."},
+                "max": {"type": ["number", "null"], "description": "Maximum value constraint."},
+                "required_fields": {"type": "array", "items": {"type": "string"}, "description": "Required fields if type is 'object'."}
               }
             }
           },
           "audit_metadata": {
             "type": "object",
-            "required": ["mgp_protocol", "approval_id", "certification_date"],
+            "required": ["mgp_protocol", "approval_id", "certification_date", "failure_modes"],
             "properties": {
                 "mgp_protocol": {"type": "string"},
                 "approval_id": {"type": "string"},
                 "approved_by": {"type": "string"},
-                "certification_date": {"type": "string", "format": "date-time"}
+                "certification_date": {"type": "string", "format": "date-time"},
+                "failure_modes": {
+                   "type": "string",
+                   "description": "Mandatory summary of expected failure modes and recommended recovery procedures (aiding Error Handling)."
+                }
             }
           },
           "source_mdsm_link": {"type": "string"}
