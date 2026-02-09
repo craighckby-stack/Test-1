@@ -99,8 +99,10 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         // NOTE: Gemini API key is passed via query param for v1 compatibility.
         url = `${finalGeminiUrl}?key=${apiKey}`;
         
-        // FIX: Gemini API v1 requires strict 'user'/'model' alternation. 
-        // We filter out the dedicated 'system' message.
+        const systemMessage = messages.find(msg => msg.role === 'system')?.content || "";
+
+        // FIX (v7.1.2): Gemini requires strict 'user'/'model' alternation in contents. 
+        // System instructions must be explicitly added to the config block.
         const geminiMessages = messages
           .filter(msg => msg.role !== 'system')
           .map(msg => ({
@@ -114,13 +116,21 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
             return { success: false, error: 'Gemini request empty after filtering.' };
         }
         
-        body = {
-          contents: geminiMessages,
-          config: {
+        const config = {
             temperature: temperature,
             maxOutputTokens: maxTokens,
-          }
         };
+
+        // Inject the system instruction if present (crucial for prompt fidelity)
+        if (systemMessage) {
+            config.systemInstruction = systemMessage;
+        }
+
+        body = {
+          contents: geminiMessages,
+          config: config
+        };
+
         parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
         break;
       }
