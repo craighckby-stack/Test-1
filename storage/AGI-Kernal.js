@@ -365,7 +365,74 @@ export class AxiomPolicyError extends Error {
     }
 }
 
-// --- END TARGET INTEGRATION ---
+// --- END TARGET INTEGRATION: Axiom Policy Error ---
+
+// --- START TARGET INTEGRATION: TelemetryService Definition ---
+
+/**
+ * TelemetryService (Integrated from Target)
+ * Dedicated service for auditable governance logging and metrics tracking.
+ */
+class TelemetryService {
+    /**
+     * @param {object} config - Configuration object, e.g., { logLevel: 'info', source: 'AEOR' }
+     */
+    constructor(config = {}) {
+        this.source = config.source || 'AEOR';
+        this.logLevel = config.logLevel || 'info'; 
+    }
+
+    _log(level, message, metadata = {}) {
+        const timestamp = new Date().toISOString();
+        const logEntry = {
+            timestamp,
+            level: level.toUpperCase(),
+            source: this.source,
+            message,
+            ...metadata
+        };
+        
+        // NOTE: In a production AIA system, this output would be asynchronously
+        // piped to a durable, cryptographically verifiable audit log (D-01 requirement).
+        
+        // Simplified console logging for demonstration:
+        const output = JSON.stringify(logEntry, null, 2);
+
+        if (level === 'fatal' || level === 'critical') {
+            console.error(output);
+        } else if (level === 'error') {
+            console.error(output);
+        } else if (level === 'warn') {
+            console.warn(output);
+        } else {
+            console.log(output);
+        }
+    }
+
+    fatal(message, metadata) {
+        this._log('fatal', message, metadata);
+    }
+    critical(message, metadata) {
+        this._log('critical', message, metadata);
+    }
+    error(message, metadata) {
+        this._log('error', message, metadata);
+    }
+    warn(message, metadata) {
+        this._log('warn', message, metadata);
+    }
+    info(message, metadata) {
+        this._log('info', message, metadata);
+    }
+    debug(message, metadata) {
+        this._log('debug', message, metadata);
+    }
+}
+
+// Instantiate the standardized governance logger for core Kernel use
+const CoreGovTelemetry = new TelemetryService({ source: 'AGI-KERNEL-V6-9', logLevel: 'info' });
+
+// --- END TARGET INTEGRATION: TelemetryService Definition ---
 
 /**
  * Creates a debounced function that delays invoking the wrapped function until after `wait` milliseconds
@@ -491,13 +558,13 @@ const RuleRegistry = {
     policyRules: []
 };
 
-// Mock GAX Telemetry Service
+// Adapt the existing GAXTelemetry interface to use the new structured CoreGovTelemetry instance
 const GAXTelemetry = {
-    system: (msg, data) => console.log(`[GAX:SYS] ${msg}`, data || ''),
-    debug: (msg, data) => console.log(`[GAX:DBG] ${msg}`, data || ''),
-    error: (msg, data) => console.error(`[GAX:ERR] ${msg}`, data || ''),
-    info: (msg, data) => console.info(`[GAX:INF] ${msg}`, data || ''),
-    critical: (msg, data) => console.error(`[GAX:CRIT] ${msg}`, data || ''),
+    system: (msg, data) => CoreGovTelemetry.info(msg, { context: 'SYSTEM', detail: data || {} }),
+    debug: (msg, data) => CoreGovTelemetry.debug(msg, data),
+    error: (msg, data) => CoreGovTelemetry.error(msg, data),
+    info: (msg, data) => CoreGovTelemetry.info(msg, data),
+    critical: (msg, data) => CoreGovTelemetry.critical(msg, data),
 };
 
 // Placeholder: Replace with actual KV persistence interface
@@ -795,13 +862,13 @@ const MockActionMap = {
 // Required Dependency Registry for TaskSequencerEngine
 class DependencyRegistry {
     getLogger(name) {
-        // Adapt GAXTelemetry to the expected Logger interface 
+        // Adapt GAXTelemetry (which now uses CoreGovTelemetry) to the expected Logger interface 
         return {
-            info: (msg, context) => GAXTelemetry.info(`[${name}] ${msg}`, context),
-            warn: (msg, context) => GAXTelemetry.warn(`[${name}] ${msg}`, context),
-            error: (msg, context) => GAXTelemetry.error(`[${name}] ${msg}`, context),
-            critical: (msg, context) => GAXTelemetry.critical(`[${name}] ${msg}`, context),
-            debug: (msg, context) => GAXTelemetry.debug(`[${name}] ${msg}`, context)
+            info: (msg, context) => GAXTelemetry.info(msg, { context: name, detail: context }),
+            warn: (msg, context) => GAXTelemetry.warn(msg, { context: name, detail: context }),
+            error: (msg, context) => GAXTelemetry.error(msg, { context: name, detail: context }),
+            critical: (msg, context) => GAXTelemetry.critical(msg, { context: name, detail: context }),
+            debug: (msg, context) => GAXTelemetry.debug(msg, { context: name, detail: context })
         };
     }
     getActionMap() {
@@ -953,11 +1020,4 @@ class RemediationMap {
                     newTarget: 0.90
                 },
                 'UNCATEGORIZED': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { brief: 'Unknown P01 reason' } }],
-                    newTarget: GOV_TARGETS.DEFAULT_R_INDEX_TARGET
-                }
-            },
-            [FAILURE_STAGES.M02_R_INDEX_READINESS]: {
-                'COMPONENT_INSTABILITY': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.STABILITY_FOCUS, data: { focus_area: 'CORE' } }],
-                    newTarget: GOV_TARGETS.DEFAULT_R_INDEX_TARGET +
+                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: {
