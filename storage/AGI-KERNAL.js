@@ -2,16 +2,16 @@
     // Adaptive Heartbeat Activation (Self-Improvement v7.4.0)
     if (!user || state.kernel_ready !== true) return; 
 
+    // V7.8.1: Constraint Definition Consolidation (Readability & Consistency)
+    const MAX_EVOLUTION_LEVEL = 100; // Constraint based on system documentation
+    const MAX_PERFORMANCE_GAIN = 0.15; // Autonomous self-optimization target
+
     const pulse = () => {
       runKernelCycle();
       
       // V7.5.0: Dynamic Multiplier Calculation based on Maturity (Autonomy integration)
       const configuredMultiplier = state.config.pulse_multiplier || 1.0;
       const evolutionLevel = state.evolution_level || 0; // Assume 0-100 scale for maturity
-      
-      // V7.7.0: Standardized Maturity Scaling and Autonomy Target Increase (15% max gain)
-      const MAX_EVOLUTION_LEVEL = 100; // Constraint based on system documentation
-      const MAX_PERFORMANCE_GAIN = 0.15; // Autonomous self-optimization target
       
       // V7.8.0: Integrity Cautious Default (Safety Posture Enhancement)
       // High integrityScore (1.0) maintains speed; low score (0.0) forces cautious operation.
