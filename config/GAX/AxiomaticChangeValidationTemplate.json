@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agi.sovereign/schemas/AxiomaticChangeValidationTemplate_v2.0.json",
-  "title": "Axiomatic Change Validation Request Template (v2.0)",
-  "description": "Defines the required structure for any proposed systemic code change (Refactoring, Feature, Bugfix) that requires GAX approval/validation before execution.",
+  "$id": "https://agi.sovereign/schemas/AxiomaticChangeValidationTemplate_v3.0.json",
+  "title": "AGI-KERNEL Change Validation Request Template (v3.0)",
+  "description": "Defines the required structure for any proposed systemic code change (Refactoring, Feature, Bugfix) that requires GAX/Kernel self-validation before execution, enforcing core AGI-KERNEL self-documentation and tracking requirements.",
   "type": "object",
   "required": [
     "change_id",
@@ -19,11 +19,11 @@
     "originator": {
       "type": "string",
       "enum": [
-        "Sovereign_AGI/v94.1",
+        "AGI-KERNEL/v7.4.3",
         "System_Scheduler",
         "Human_Override"
       ],
-      "default": "Sovereign_AGI/v94.1"
+      "default": "AGI-KERNEL/v7.4.3"
     },
     "target_scope": {
       "type": "array",
@@ -34,7 +34,7 @@
     },
     "validation_context": {
       "type": "object",
-      "description": "Pre-computed efficiency and risk metrics integrated directly from the planning phase.",
+      "description": "Pre-computed efficiency and risk metrics, plus required AGI-KERNEL tracking fields.",
       "properties": {
         "complexity_delta_score": {
           "type": "number",
@@ -47,11 +47,20 @@
         "expected_runtime_overhead_ms": {
           "type": "number",
           "description": "Predicted worst-case latency increase."
+        },
+        "maturity_delta_expected": {
+          "type": "number",
+          "description": "The expected change in overall system maturity (positive)."
+        },
+        "manifest_entry_required": {
+          "type": "boolean",
+          "description": "If true, documentation in storage/manifest.json is mandatory for this change."
         }
       },
       "required": [
         "complexity_delta_score",
-        "security_risk_score_v94"
+        "security_risk_score_v94",
+        "manifest_entry_required"
       ]
     },
     "assertions": {
@@ -62,7 +71,8 @@
         "required": [
           "axiom_id",
           "required_status",
-          "failure_mode"
+          "failure_mode",
+          "reasoning_summary"
         ],
         "properties": {
           "axiom_id": {
@@ -73,19 +83,25 @@
             "type": "string",
             "enum": [
               "PASSED",
+              "FAILED",
               "SKIPPED",
               "CONDITIONALLY_PASSED"
             ],
-            "description": "The required outcome from the validation engine."
+            "description": "The required or observed outcome from the validation engine."
           },
           "failure_mode": {
             "type": "string",
             "enum": [
               "BLOCK_MERGE",
               "WARN_AND_LOG",
-              "AUTO_REFACTOR"
+              "AUTO_REFACTOR",
+              "RECOVERY_PROTOCOL_INIT"
             ],
-            "description": "Defines the mandatory handling strategy upon failure."
+            "description": "Defines the mandatory handling strategy upon failure, including recovery initiation for critical errors."
+          },
+          "reasoning_summary": {
+            "type": "string",
+            "description": "Brief summary of the cognitive reasoning linking this change to the AGI-KERNEL primary mission goals."
           },
           "override_rationale": {
             "type": [
