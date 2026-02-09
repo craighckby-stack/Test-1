@@ -18,9 +18,18 @@ class MetricNexus {
     constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
         this.analytics = AnalyticsStore;
         this.auditor = PolicyAuditor;
-        // Ensure NexusInterface is always defined for safer checks later.
         this.nexus = NexusInterface || {}; 
         this.metricCache = {};
+        
+        // Integration Requirement Validation: Crucial for Cycles 6-15.
+        this.isNexusIntegrationActive = 
+            typeof this.nexus.logTrend === 'function' &&
+            typeof this.nexus.readTrends === 'function';
+
+        if (!this.isNexusIntegrationActive) {
+            // Log a warning if the Nexus dependency required for the CRITICAL DIRECTIVE is incomplete.
+            console.warn("MetricNexus [CRITICAL DIRECTIVE FAILURE]: NexusInterface lacks required methods (logTrend, readTrends). Persistence and historical strategy retrieval (Req 2 & 3) are inactive.");
+        }
     }
 
     /**
@@ -45,6 +54,7 @@ class MetricNexus {
         const pvm = this.getPolicyVolatility();
         
         // Applying the MQM formula based on risk factors (assuming inputs are 0.0 to 1.0, where 1.0 is high risk).
+        // Risk Score is normalized combination of Unknown Factors, Flux Trends, and Policy Volatility.
         const riskScore = (ufrm * 0.4) + (cftm * 0.3) + (pvm * 0.3); 
         
         // Normalize the metric to fit a 0-100 quality scale (100 being lowest risk/highest quality).
@@ -61,6 +71,7 @@ class MetricNexus {
      * @returns {number} (Risk Factor, typically 0.0 to 1.0)
      */
     getUFRM() {
+        // Use optional chaining for safe access to external dependencies
         const rawUfrm = this.analytics?.calculateResidualRisk?.() ?? 0;
         const ufrm = this._sanitizeMetric(rawUfrm);
         this.metricCache.UFRM = ufrm;
@@ -96,12 +107,12 @@ class MetricNexus {
      * @param {Object} metrics - The calculated metric snapshot.
      */
     async logMetricsToNexus(metrics) {
-        // Must check for core functionality existence before logging
-        if (typeof this.nexus.logTrend !== 'function') {
-            console.warn("MetricNexus [CRITICAL DIRECTIVE]: Nexus logging interface (logTrend) not available.");
-            return;
+        if (!this.isNexusIntegrationActive) {
+            // Nexus persistence is intentionally skipped if the interface failed validation.
+            return; 
         }
         try {
+            // Log under a specific key for easy retrieval later
             await this.nexus.logTrend('metrics_snapshot', { 
                 timestamp: Date.now(), 
                 ...metrics 
@@ -120,7 +131,7 @@ class MetricNexus {
      * @returns {Promise<Array<Object>>}
      */
     async getHistoricalTrends(limit = 10) {
-        if (typeof this.nexus.readTrends !== 'function') {
+        if (!this.isNexusIntegrationActive) {
             return [];
         }
         try {
