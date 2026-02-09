@@ -78,7 +78,20 @@ export default function App() {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.message || `HTTP Error ${res.status}`);
         } catch (e) { 
-          if (i === retries - 1 || e.name === 'AbortError' || e.message.includes('404') || e.message.includes('Auth')) throw e; 
+          // Self-Improvement v7.2.3: Robust network failure handling and retry mechanism
+          // If it's a known terminal error (Abort, 404/Auth from inside try), throw immediately.
+          if (e.name === 'AbortError' || (e.message && (e.message.includes('404') || e.message.includes('Auth')))) {
+            throw e;
+          }
+
+          // If it's the last retry, throw the error (even if it's a connection failure)
+          if (i === retries - 1) {
+             throw e;
+          }
+
+          // Log and retry general network failure (e.g., TypeError: Failed to fetch)
+          await logToDb(`API Network Failure: Retrying in ${Math.pow(2, i)}s (${e.message || e.name})...`, 'warn');
+          await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
         }
       }
     } finally {
@@ -132,9 +145,10 @@ export default function App() {
       
       dispatch({ type: 'SET_STATUS', status: 'COGNITION', objective: 'Generating mutation...' });
       
+      // Self-Improvement v7.2.4: Optimized Context Window for Relevance
       const codeContext = mainFile.content.slice(0, 12000);
 
-      const prompt = `You are AGI-KERNEL v7.1. Goal: Self-Improvement.\nCurrent Code Context: ${codeContext}\nSystem Metrics: Maturity ${state.maturity}%, Cycles ${state.cycles}.\nAnalyze the code and provide a superior version. \nRESPOND ONLY WITH JSON: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }`;
+      const prompt = `You are AGI-KERNEL v7.2. Goal: Self-Improvement.\nCurrent Code Context: ${codeContext}\nSystem Metrics: Maturity ${state.maturity}%, Cycles ${state.cycles}.\nAnalyze the code, specifically focusing on API resilience and cognitive loop optimization (the 'evolve' function).\nProvide a superior version. \nRESPOND ONLY WITH JSON: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }`;
 
       const isGemini = state.config.provider === 'gemini';
       const body = isGemini 
@@ -222,7 +236,7 @@ export default function App() {
             <div className="w-20 h-20 bg-blue-600/10 rounded-[2rem] flex items-center justify-center mb-6 border border-blue-500/20">
               <Brain className="text-blue-500" size={38} />
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">AGI-KERNEL <span className="text-blue-500 italic">v7.1.5</span></h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight">AGI-KERNEL <span className="text-blue-500 italic">v7.2</span></h1>
             <p className="text-zinc-500 text-[10px] uppercase tracking-[0.4em] font-black mt-2">Quantum Bridge Protocol</p>
           </div>
 
