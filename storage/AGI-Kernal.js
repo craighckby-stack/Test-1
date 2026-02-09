@@ -273,6 +273,29 @@ export function validateAhrsMessage(msg) {
 
 // --- END TARGET INTEGRATION: AHRS Protocol Structures ---
 
+// --- START KERNEL/TARGET INTEGRATION: Core Math Utilities ---
+
+/**
+ * ClampingUtility: Provides immutable mathematical utilities for value constraint adherence.
+ */
+export class ClampingUtility {
+    /**
+     * Ensures a value is strictly within a specified minimum and maximum boundary.
+     * @param {number} value - The input value.
+     * @param {number} min - The lower bound (inclusive).
+     * @param {number} max - The upper bound (inclusive).
+     * @returns {number} The clamped value.
+     */
+    static clamp(value, min, max) {
+        if (typeof value !== 'number') {
+            throw new TypeError("Clamping input must be a number.");
+        }
+        return Math.max(min, Math.min(max, value));
+    }
+}
+
+// --- END KERNEL/TARGET INTEGRATION: Core Math Utilities ---
+
 // --- START TARGET INTEGRATION: CNRE Validator (MEE Sub-Engine Governance) ---
 
 /**
