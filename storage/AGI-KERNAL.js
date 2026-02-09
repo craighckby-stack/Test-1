@@ -4,6 +4,7 @@ const generate = useCallback(async (objective, currentCode, deepContext, systemP
 
     let url = '';
     let body = {};
+    const headers = { 'Content-Type': 'application/json' }; // Initialize headers globally
     let parseResponse = (data) => data; // Function to extract the text response
 
     const messages = [];
@@ -33,8 +34,18 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
     });
 
     // --- Provider Specific Configuration ---
-    if (apiProvider === 'cerebras') {
-      url = CONFIG.CEREBRAS_API;
+    if (apiProvider === 'cerebras' || apiProvider === 'openai') {
+      // Standard OpenAI / Azure format, widely compatible with many LLM APIs
+      url = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : (CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions');
+      
+      // Centralize Bearer Token handling
+      if (apiKey) {
+         headers['Authorization'] = `Bearer ${apiKey}`;
+      } else {
+         await pushLog(`Configuration Error: API key missing for ${apiProvider}`, 'critical');
+         return { success: false, error: `API key missing for ${apiProvider}` };
+      }
+
       body = {
         model: model,
         messages: messages,
@@ -45,10 +56,12 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       parseResponse = (data) => data.choices?.[0]?.message?.content || null;
       
     } else if (apiProvider === 'gemini') {
+      // NOTE: Gemini API key is passed via query param for v1beta compatibility.
       url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
+      
       // Gemini API v1beta requires role transformation and 'parts' structure
       const geminiMessages = messages.map(msg => ({
-        role: msg.role === 'system' ? 'user' : msg.role, // Hack: Use 'user' for system prompts in Gemini v1beta
+        role: msg.role === 'system' ? 'user' : msg.role, // Map system prompts to user role for compatibility
         parts: [{ text: msg.content }]
       }));
       
@@ -61,33 +74,18 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       };
       parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
       
-    } else if (apiProvider === 'openai') {
-      // Standard OpenAI / Azure format, widely compatible with many LLM APIs
-      url = CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions';
-      body = {
-        model: model,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 4096,
-        stream: false
-      };
-      parseResponse = (data) => data.choices?.[0]?.message?.content || null;
-
     } else {
       await pushLog(`Configuration Error: Unknown API provider: ${apiProvider}`, 'critical');
       return { success: false, error: `Unknown API provider: ${apiProvider}` };
     }
 
+    // --- Execution ---
+    if (!url) {
+        await pushLog('LLM Generation Error: API endpoint URL is not configured.', 'critical');
+        return { success: false, error: 'API endpoint URL missing.' };
+    }
+
     try {
-      const headers = { 
-        'Content-Type': 'application/json' 
-      };
-
-      // Centralize Bearer Token handling for compatible providers
-      if (apiProvider === 'cerebras' || apiProvider === 'openai') {
-         headers['Authorization'] = `Bearer ${apiKey}`;
-      }
-
       const res = await persistentFetch(url, {
         method: 'POST',
         headers: headers,
@@ -96,7 +94,8 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 100)}`);
+        // Increased slice length for better error context
+        throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
       }
 
       const data = await res.json();
