@@ -208,7 +208,7 @@ class FitnessEngine {
       }
       
       const improvementThreshold = 0.05; // Requires 5% relative change to trigger adjustment
-      const adjustmentBaseFactor = 0.15; // Base factor for adaptive scaling
+      const MAX_ADJUSTMENT = 0.30; // Max 30% boost/penalty
 
       // 1. Calculate relative difference
       let relativeDifference = 0.0;
@@ -234,33 +234,32 @@ class FitnessEngine {
           }
       }
 
-      // 2. Calculate dynamic adjustment based on magnitude of change
-      let dynamicAdjustment = 0;
-      const rawFactor = Math.abs(relativeDifference);
-
-      if (rawFactor > improvementThreshold) {
-          // If the change is significant, the adjustment factor grows proportionally, clamped.
-          // Max effect at 30%
-          dynamicAdjustment = Math.min(0.30, rawFactor * adjustmentBaseFactor * 5); 
-      } else if (performanceChange !== 0) {
-          // If just crossing the threshold, use the base factor
-          dynamicAdjustment = adjustmentBaseFactor;
+      if (performanceChange === 0) {
+          // No significant change detected
+          return currentScore;
       }
-
-      // Ensure minimum effect if adjustment is calculated
-      dynamicAdjustment = Math.max(0.02, dynamicAdjustment);
+      
+      // 2. Calculate dynamic adjustment based on magnitude of change beyond the threshold
+      const rawFactor = Math.abs(relativeDifference);
+      
+      // Scale the adjustment proportionally up to MAX_ADJUSTMENT.
+      let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawFactor);
+      
+      // Ensure a minimum reward/penalty for successfully crossing the threshold (Autonomy stability)
+      dynamicAdjustment = Math.max(0.05, dynamicAdjustment);
       
       if (performanceChange === 1) {
           // Reward for learning and progression (Meta-Reasoning success)
-          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric}. Applying adaptive reward (${dynamicAdjustment.toFixed(3)}).`);
+          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying adaptive reward (${dynamicAdjustment.toFixed(3)}).`);
           return currentScore * (1 + dynamicAdjustment);
       } else if (performanceChange === -1) {
-          // Penalty for regression (requires Meta-Reasoning response), penalized less severely
-          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric}. Applying reduced adaptive penalty (${(dynamicAdjustment * 0.5).toFixed(3)}).`);
-          return currentScore * (1 - dynamicAdjustment * 0.5);
+          // Penalty for regression (penalized less severely, 50% factor applied to penalty magnitude)
+          const penaltyFactor = dynamicAdjustment * 0.5;
+          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying reduced adaptive penalty (${penaltyFactor.toFixed(3)}).`);
+          return currentScore * (1 - penaltyFactor);
       }
       
-      return currentScore;
+      return currentScore; // Should not be reached if performanceChange != 0
   }
 
   /**
@@ -335,25 +334,24 @@ class FitnessEngine {
           return false;
       }
       
-      // NEW IMPROVEMENT 4 (Error Handling/Autonomy): Check for invalid operator sequences
-      // Looks for two or more non-hyphen operators (or non-initial hyphens) in sequence, after removing metrics.
-      // Hyphens are tricky as they can be subtraction or unary negative.
+      // 4. Check for invalid operator sequences
       const formulaOperatorsOnly = formula.replace(/[A-Z0-9_().\s]/g, '');
-      // Check for operators that are not part of a valid unary sign sequence (e.g., ++, **, //, +-, /*)
-      const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; // Catches things like '++' or '*/' or '+-' (which is often ambiguous/bad style)
+      // Looks for two or more non-hyphen operators (or non-initial hyphens) in sequence, after removing metrics.
+      const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; 
       
       if (invalidOperatorSequence.test(formulaOperatorsOnly.replace(/\s/g, ''))) {
           console.error("FitnessEngine Security Alert: Formula failed invalid operator sequence check (structural integrity error).");
           return false;
       }
 
-      // NEW IMPROVEMENT 5 (Error Handling/Autonomy): Check for formulas starting or ending with disallowed operators
+      // 5. Check for formulas starting or ending with disallowed operators
       const trimFormula = formula.trim();
-      // A formula should generally not start or end with multiplication or division, even though substitution happens later.
       // We allow start with + or - for unary operations.
-      const disallowedStartEnd = /^[\*\/]|[\*\/]$/;
+      const disallowedStartEnd = /^[*\/]|[+\-*\/]$/; // Disallow starting with * or / OR ending with any operator
 
       if (disallowedStartEnd.test(trimFormula)) {
+          // Note: While substitution makes ending operators safe if they represent the end of a metric, 
+          // allowing operators at the end is bad practice for a formula definition.
           console.error("FitnessEngine Security Alert: Formula starts or ends with invalid operator.");
           return false;
       }
@@ -387,7 +385,7 @@ class FitnessEngine {
     
     // META-REASONING SECURITY VULNERABILITY MITIGATION (Autonomy/Error Handling)
     if (!this.validateFormula(formula, metricKeys)) {
-        console.error("FitnessEngine: Formula validation failed. Aborting calculation.");
+        console.error(`FitnessEngine: Formula validation failed for '${formula}'. Aborting calculation.`);
         return 0.0;
     }
 
@@ -416,9 +414,9 @@ class FitnessEngine {
              return 0.0;
         }
 
-        // Check if sanitization resulted in an empty or meaningless string
-        if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()') {
-             console.warn(`FitnessEngine: Sanitization resulted in an empty calculation string for formula: ${formula}. Returning 0.0.`);
+        // Check if sanitization resulted in an empty, meaningless, or operator-only string (Error Handling)
+        if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()' || /^[+\-*\/]*$/.test(safeCalculationString.trim())) {
+             console.warn(`FitnessEngine: Sanitization resulted in an empty or operator-only calculation string for formula: ${formula}. String: ${safeCalculationString}. Returning 0.0.`);
              return 0.0;
         }
 
@@ -606,7 +604,7 @@ class FitnessEngine {
     // 5. Map AGI Core Capabilities back to expected output keys (using fixed weights derived from internal core scores)
     return {
         // Navigation: Focus on self-directed paths (Autonomy) and novelty (Creativity)
-        navigation: parseFloat(Math.min(10, 
+        navigation: parseFloat(Math.min(10,
             coreScores["Autonomy"] * 0.45 + 
             coreScores["Creativity"] * 0.35 + 
             coreScores["Meta-Reasoning"] * 0.2
