@@ -164,10 +164,21 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       });
 
       if (!res.ok) {
+        // Self-Improvement v7.2.1: Granular error detection, specifically for rate limiting (429).
+        const status = res.status;
         const errorText = await res.text();
         // Improved safety: truncate error text for logging to prevent massive console floods from API backends
         const safeErrorText = errorText.length > 500 ? errorText.slice(0, 500) + '...' : errorText;
-        throw new Error(`LLM API failed [${apiProvider}] (${res.status}): ${safeErrorText}`); 
+        
+        let baseErrorMessage = `LLM API failed [${apiProvider}] (${status}): ${safeErrorText}`;
+        
+        if (status === 429) {
+            baseErrorMessage = `LLM API failed (Rate Limit 429) [${apiProvider}]: ${safeErrorText}`;
+            // Log a warning specifically about hitting the rate limit
+            await pushLog(`Warning: API Rate Limit hit for ${apiProvider}. Waiting period likely required.`, 'warning');
+        }
+
+        throw new Error(baseErrorMessage); 
       }
 
       const data = await res.json();
