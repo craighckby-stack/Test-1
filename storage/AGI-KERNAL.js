@@ -97,8 +97,15 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
            return { success: false, error: `API key missing for gemini` };
         }
         
+        // IMPROVEMENT: Ensure robust URL construction, as Gemini requires the model in the path.
+        // Use a robust default template, replacing the model placeholder.
+        const geminiBaseTemplate = CONFIG.GEMINI_API || 'https://generativelanguage.googleapis.com/v1/models/MODEL_NAME:generateContent';
+        
+        // Ensure the `model` specified in config replaces the placeholder in the URL template
+        const finalGeminiUrl = geminiBaseTemplate.replace('MODEL_NAME', model);
+        
         // NOTE: Gemini API key is passed via query param for v1 compatibility.
-        url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
+        url = `${finalGeminiUrl}?key=${apiKey}`;
         
         // FIX: Gemini API v1 requires strict 'user'/'model' alternation. 
         // We filter out the dedicated 'system' message (Message 1) because mapping it to 'user' causes 
@@ -148,7 +155,6 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
 
       if (!res.ok) {
         const errorText = await res.text();
-        // FIX: Corrected typo: 'new new Error' -> 'new Error'
         throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
       }
 
