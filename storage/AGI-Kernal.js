@@ -439,6 +439,74 @@ export { SpecificationLoader };
 
 // --- END: AGI Specification Loader Graft ---
 
+// --- START: AGI Utility Efficacy Monitor Graft ---
+
+/**
+ * UtilityEfficacyMonitor
+ * Monitors operational metrics against defined thresholds and initiates policy actions
+ * (escalation, failover) upon violation.
+ */
+class UtilityEfficacyMonitor {
+  constructor(specConfigPath) {
+    // Uses synchronous require as per TARGET specification, assuming configuration is local.
+    this.config = require(specConfigPath);
+    this.runtimeMetrics = {}; // Data store for live operational metrics
+    console.log(`Efficacy Monitor v94.1 initialized.`)
+  }
+
+  /**
+   * Checks current operational metrics against utility-specific compliance specifications.
+   * @param {string} domain The operational domain (e.g., 'network', 'storage').
+   * @param {string} utilityId The ID of the utility being monitored.
+   * @param {object} currentMetrics Key-value pairs of live metric data.
+   */
+  async checkUtilityCompliance(domain, utilityId, currentMetrics) {
+    const domainConfig = this.config.operational_domains[domain];
+    if (!domainConfig) return;
+
+    const utilitySpec = domainConfig.utilities[utilityId];
+    if (!utilitySpec) return;
+
+    for (const metricSpec of utilitySpec.metrics) {
+      const currentValue = currentMetrics[metricSpec.name];
+      let violation = false;
+
+      // [Detailed comparator logic here]
+      if (metricSpec.comparator === 'LESS_THAN' && currentValue >= metricSpec.threshold) {
+        violation = true;
+      }
+      // ... other comparators ...
+
+      if (violation) {
+        const policyId = metricSpec.failure_policy_id || this.config.default_policy_id;
+        this.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
+        
+        if (utilitySpec.failover && utilitySpec.failover.enabled) {
+          this.initiateFailover(utilitySpec.failover.target_utility_id);
+        }
+      }
+    }
+  }
+
+  /**
+   * Stub: Handles policy violation reporting and logging.
+   */
+  escalateViolation(utilityId, metricName, policyId, value) {
+    console.warn(`[Efficacy Monitor] VIOLATION detected for ${utilityId}/${metricName}. Policy: ${policyId}. Value: ${value}`);
+  }
+
+  /**
+   * Stub: Triggers the switch to a designated failover utility.
+   */
+  initiateFailover(targetUtilityId) {
+    console.error(`[Efficacy Monitor] Initiating failover to utility: ${targetUtilityId}`);
+  }
+}
+
+export { UtilityEfficacyMonitor };
+
+// --- END: AGI Utility Efficacy Monitor Graft ---
+
 // KERNEL Imports (React/Firebase)
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
@@ -565,4 +633,13 @@ export const MINIMAL_FALLBACK_SCHEMA = {
                 type: "object",
                 properties: {
                     source: { $ref: "#/$defs/VetoTriggerSource" },
-                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*"
+                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*" }
+                },
+                required: ["source", "description"],
+                additionalProperties: false
+            }
+        }
+    },
+    required: ["system_uuid", "compliance_level_mandate"],
+    additionalProperties: true
+};
