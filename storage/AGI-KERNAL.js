@@ -22,6 +22,7 @@ const generate = useCallback(async (objective, currentCode, deepContext, systemP
     }
 
     // 2. Contextual message (Code and Objective)
+    // Self-Improvement v7.4.0: Refine the user message structure to isolate and emphasize the CRITICAL JSON formatting instructions, improving output compliance.
     messages.push({
       role: 'user',
       content: `
@@ -35,7 +36,14 @@ Deep Context Scan (Project Context):
 ---
 ${deepContext}
 ---
-INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. Produce the necessary self-improvement output STRICTLY in the requested JSON format. Ensure all string values are properly escaped within the JSON. Do intentionally not include markdown formatting (like JSON) around the final output.
+
+---
+FORMATTING INSTRUCTION (CRITICAL):
+Produce the necessary self-improvement output STRICTLY in a single, parsable JSON object.
+Key Requirements:
+1. Do NOT wrap the JSON in markdown fences (e.g., \u0060\u0060\u0060json).
+2. Ensure all string values are properly escaped within the JSON.
+3. Your output MUST conform to the exact structure: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }.
       `
     });
 
