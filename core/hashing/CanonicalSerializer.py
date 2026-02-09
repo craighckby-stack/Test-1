@@ -15,6 +15,13 @@ try:
 except ImportError:
     DATACLASSES_AVAILABLE = False
 
+# AGI-KERNEL Improvement: Import enum for deterministic serialization of configuration types (Cycle 1)
+try:
+    import enum
+    ENUM_AVAILABLE = True
+except ImportError:
+    ENUM_AVAILABLE = False
+
 
 class CanonicalJSONEncoder(json.JSONEncoder):
     """
@@ -24,13 +31,24 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     This encoder prioritizes consistency and robustness for core AGI data structures.
     AGI-KERNEL Improvement: Added logic for serializing custom objects via 
     __dict__ or explicit 'to_canonical_dict' method for better integration 
-    with /agents and /emergent components. Also added explicit support for Python dataclasses.
+    with /agents and /emergent components. Also added explicit support for Python dataclasses and Enums.
     
     Cycle 1 Refinement: Enhanced the __dict__ fallback mechanism to filter out 
     private/internal attributes (starting with '_') to prevent non-deterministic 
-    hashing based on cache or transient internal state.
+    hashing based on cache or transient internal state. Explicitly added Enum support.
     """
     def default(self, obj):
+        # 0. Handle Enumerations (Crucial for deterministic configs/governance data)
+        if ENUM_AVAILABLE and isinstance(obj, enum.Enum):
+            # Prioritize the enum's value if available, otherwise use its name.
+            # This ensures consistent hashing for state defined by Enums.
+            try:
+                # Use value if defined, e.g., STATUS.SUCCESS = 1
+                return obj.value
+            except AttributeError:
+                # Fallback to name if value is complex or missing
+                return obj.name
+
         # 1. Handle non-native iterables deterministically
         if isinstance(obj, set):
             # Convert sets to sorted lists to ensure canonical order
@@ -54,7 +72,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return dict(obj)
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
-        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid')):
+        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum')):
             
             # 5a. Explicit dataclass serialization for structural integrity
             if DATACLASSES_AVAILABLE and is_dataclass(obj):
