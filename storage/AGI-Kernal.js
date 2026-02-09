@@ -1,9 +1,45 @@
 /** AGI-KERNAL RECOVERY v6.9.7 **/
-// KERNEL EVOLUTION: Grafting KTAM (Key & Trust Anchor Manager) and integrating cryptographic operations with structured error handling.
+// KERNEL EVOLUTION: Grafting KTAM (Key & Trust Anchor Manager) and integrating cryptographic operations with structured error handling, now including Consensus Error Codes.
+
+import * as crypto from 'crypto';
+import React, { useState } from 'react';
 
 // =================================================================================
-// FILE: src/errors/agca_errors.ts
+// FILE: src/errors/agca_errors.ts (TARGET Grafted)
 // =================================================================================
+
+/**
+ * ConsensusErrorCodes
+ * A centralized, immutable registry for all machine-readable error codes 
+ * used throughout the Sovereign AGI Consensus Stack.
+ * 
+ * Naming Convention: E_COMPONENT_FAILURETYPE
+ */
+export const ConsensusErrorCodes = {
+    // General Errors
+    E_UNKNOWN: 'E_UNKNOWN',
+    E_TIMEOUT: 'E_TIMEOUT',
+    E_INVALID_ARGUMENT: 'E_INVALID_ARGUMENT',
+    E_INVALID_STATE: 'E_INVALID_STATE',
+
+    // Attestation and Validation Errors
+    E_ATTESTATION_FAILED: 'E_ATTESTATION_FAILED',
+    E_SIG_INVALID: 'E_SIG_INVALID',
+    E_PROOF_MALFORMED: 'E_PROOF_MALFORMED',
+    
+    // Proposal and Block Processing Errors
+    E_TX_INVALID_FORMAT: 'E_TX_INVALID_FORMAT',
+    E_PROPOSAL_DUPLICATE: 'E_PROPOSAL_DUPLICATE',
+    E_BLOCK_EXECUTION_FAILURE: 'E_BLOCK_EXECUTION_FAILURE',
+
+    // Peer/Network Errors
+    E_PEER_UNREACHABLE: 'E_PEER_UNREACHABLE',
+    E_NON_VALIDATOR_VOTE: 'E_NON_VALIDATOR_VOTE',
+};
+
+// Freeze the object to prevent runtime modification, ensuring code integrity
+Object.freeze(ConsensusErrorCodes);
+
 
 /**
  * Defines structured errors for cryptographic and authorization failures within the AGCA Validation Service.
@@ -47,10 +83,8 @@ export class AGCA_AuthorizationError extends AGCA_ValidationError {
 
 
 // =================================================================================
-// FILE: src/crypto/ktam_manager.ts (TARGET Grafted)
+// FILE: src/crypto/ktam_manager.ts
 // =================================================================================
-
-import * as crypto from 'crypto';
 
 // Secure, ephemeral storage placeholder for key pairs
 const KEY_VAULT = new Map<string, crypto.KeyPairSyncResult<string, string>>(); 
@@ -176,6 +210,12 @@ export function validateRequest(request: ValidationRequest, policy: string, expe
 
 /** Example Node.js execution environment demonstrating structured error handling and KTAM usage. */
 export function runServerSimulation() {
+    // Check if Buffer is available (Node.js environment check)
+    if (typeof Buffer === 'undefined') {
+        console.log("Skipping Node.js simulation: Buffer not available (running in browser context).");
+        return;
+    }
+
     console.log("\n--- Node.js Backend Simulation (KTAM Integrated) ---");
     
     // Setup: Use KTAM to generate a valid signed payload for testing
@@ -220,10 +260,7 @@ export function runServerSimulation() {
 
 // =================================================================================
 // FILE: src/ui/ErrorDisplay.tsx (React UI Logic)
-// Note: Assuming React and TypeScript environment setup.
 // =================================================================================
-
-import React, { useState } from 'react';
 
 // Mock function simulating an API call that throws structured errors
 const mockApiCall = (scenario: number): void => {
@@ -349,7 +386,7 @@ const App = () => {
     return (
         <div style={{ padding: '20px' }}>
             <h1>AGI KERNEL EVOLUTION: KTAM Integration & Structured Error Handling</h1>
-            <p>The kernel now uses the Key Trust Anchor Manager (KTAM) for cryptographic operations, ensuring that signature verification failures are caught and reported using the specific <code>AGCA_SignatureVerificationError</code> class.</p>
+            <p>The kernel now uses the Key Trust Anchor Manager (KTAM) for cryptographic operations, ensuring that signature verification failures are caught and reported using the specific <code>AGCA_SignatureVerificationError</code> class. Consensus error codes are now centralized.</p>
             <ErrorDisplay />
         </div>
     );
