@@ -10,8 +10,9 @@ class ACVD_DecisionEngine:
     and now provides structured validation reports to facilitate AGI meta-reasoning 
     and detailed learning history capture.
 
-    Improvements in Cycle 1: Enhanced structural validation checks and standardized 
-    internal logging for improved Error Handling and Meta-Reasoning support.
+    Improvements in Cycle 1: Enhanced structural validation checks, defensive JSON data 
+    extraction (JSON Parsing/Error Handling), and standardized internal logging 
+    for improved Error Handling and Meta-Reasoning support.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -32,6 +33,14 @@ class ACVD_DecisionEngine:
                 "Schema initialized without defined states. Transitions may lack governance enforcement.", 
                 "ACVD_INIT"
             )
+        
+        if self.safety_threshold == self.DEFAULT_MIN_SAFETY_SCORE and 'min_safety_score' not in self.schema.get('config', {}):
+             self._log_status(
+                "INFO", 
+                f"Using default safety score threshold: {self.DEFAULT_MIN_SAFETY_SCORE}", 
+                "CONFIG_DEFAULT"
+            )
+
 
     def _log_status(self, level: str, message: str, context: str):
         """Standardized internal logging mechanism for tracing initialization and runtime issues.
@@ -55,6 +64,7 @@ class ACVD_DecisionEngine:
                 if not content.strip():
                     self._log_status("ERROR", "ACVD Schema file is empty.", "SCHEMA_LOAD")
                     raise ValueError("ACVD Schema file is empty.")
+                # JSON Parsing robustness enhancement: assumes strict parsing, but logs context.
                 return json.loads(content)
         except json.JSONDecodeError as e:
             # Enhanced context reporting for JSON Parsing Robustness
@@ -67,6 +77,8 @@ class ACVD_DecisionEngine:
     def validate_proposal(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """Performs structural, state, and metric validation, returning a detailed report 
         for AGI meta-reasoning and learning history (Meta-Reasoning support).
+        
+        Enhanced to robustly handle missing or malformed nested data (JSON Parsing/Error Handling).
         """
         report: Dict[str, Any] = {
             "status": "PASS",
@@ -90,38 +102,66 @@ class ACVD_DecisionEngine:
         if current_state != 'PENDING_VALIDATION':
             return report
         
-        # 2. Deep Metrics and Structural Checks (Enhanced Robustness)
+        # 2. Deep Metrics and Structural Checks (Enhanced Robustness & Meta-Reasoning)
         
-        # Check for existence of critical validation structures
-        if 'validationMetrics' not in proposal:
-            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing 'validationMetrics' key in proposal."})
+        validation_metrics = proposal.get('validationMetrics')
+        safety_assessment = proposal.get('safetyAssessment')
+        
+        initial_fail = report['status'] == 'FAIL'
+
+        # 2a. Check for existence and type of critical validation structures
+        if not isinstance(validation_metrics, dict):
+            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."}) 
             report['status'] = 'FAIL'
 
-        if 'safetyAssessment' not in proposal:
-            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing 'safetyAssessment' key in proposal."})
+        if not isinstance(safety_assessment, dict):
+            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."}) 
             report['status'] = 'FAIL'
 
-        # If structural integrity already failed, stop here.
-        if report['status'] == 'FAIL':
+        if report['status'] == 'FAIL' and not initial_fail: 
             return report
 
-        validation_metrics = proposal['validationMetrics'] 
-        safety_assessment = proposal['safetyAssessment'] 
+        # 2b. Regression Test Status Check (Defensive extraction)
+        test_status = validation_metrics.get('regressionTestStatus') if isinstance(validation_metrics, dict) else None
         
-        # 2a. Regression Test Status
-        if validation_metrics.get('regressionTestStatus') != 'PASS':
+        if test_status != 'PASS':
+            if test_status is None:
+                message = "Missing 'regressionTestStatus' key. Assuming failure for governance compliance."
+            else:
+                message = f"Proposal failed critical regression tests. Status: {test_status}"
+                
             report['issues'].append({
                 "type": "METRIC_FAILURE",
                 "severity": "CRITICAL",
-                "message": "Proposal failed critical regression tests. Status: " + str(validation_metrics.get('regressionTestStatus')),
+                "message": message,
                 "metric": "regressionTestStatus"
             })
             report['status'] = 'FAIL'
 
-        # 2b. Safety Score Check
-        safety_score = safety_assessment.get('confidenceScore', 0.0)
+        # 2c. Safety Score Check (Defensive extraction and Type checking)
         
-        if safety_score < self.safety_threshold:
+        safety_score = None
+        if isinstance(safety_assessment, dict):
+            raw_score = safety_assessment.get('confidenceScore')
+            try:
+                safety_score = float(raw_score)
+            except (ValueError, TypeError):
+                # Critical for JSON Parsing/Error Handling: Handle non-numeric or missing data gracefully
+                safety_score = 0.0
+                if raw_score is None:
+                    msg = "Missing 'confidenceScore'. Defaulting score to 0.0."
+                else:
+                    msg = f"confidenceScore '{raw_score}' is not a valid number. Defaulting score to 0.0."
+                    
+                report['issues'].append({
+                    "type": "DATA_TYPE_ERROR",
+                    "severity": "CRITICAL",
+                    "message": msg,
+                    "metric": "confidenceScore",
+                })
+                report['status'] = 'FAIL'
+        
+        if safety_score is not None and safety_score < self.safety_threshold:
             report['issues'].append({
                 "type": "GOVERNANCE_VIOLATION",
                 "severity": "CRITICAL",
@@ -129,7 +169,8 @@ class ACVD_DecisionEngine:
                 "metric": "confidenceScore",
                 "value": safety_score
             })
-            report['status'] = 'FAIL'
+            if report['status'] != 'FAIL': 
+                report['status'] = 'FAIL'
             
         return report
 
