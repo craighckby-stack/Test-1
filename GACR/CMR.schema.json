@@ -1,10 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://gacr.agi/schemas/cmr_v2.2.json",
-  "title": "Computational Model Registry Schema V2.2 (AGI-KERNEL Integrated)",
+  "$id": "https://gacr.agi/schemas/cmr_v2.3.json",
+  "title": "Computational Model Registry Schema V2.3 (AGI-KERNEL Integrated)",
   "type": "object",
   "properties": {
-    "manifest_id": {"type": "string", "pattern": "^CMR_V[0-9]+\\.[0-9]+$", "description": "Version identifier for the schema manifest.", "const": "CMR_V2.2"},
+    "manifest_id": {"$ref": "#/$defs/version_identifier", "const": "CMR_V2.3"},
     "owner": {"type": "string"},
     "description": {"type": "string"},
     "integrity_hash": {"type": "string", "description": "Cryptographic hash of the registry content for integrity checking."},
@@ -20,11 +20,13 @@
           "version", 
           "status", 
           "inputs_schema", 
+          "output_schema",
           "audit_metadata", 
           "source_mdsm_link",
           "system_branch",
           "capability_assessment",
-          "model_type"
+          "model_type",
+          "performance_metrics"
         ],
         "properties": {
           "model_id": {"type": "string"},
@@ -81,6 +83,33 @@
               }
             }
           },
+
+          "output_schema": { 
+            "type": "object",
+            "description": "Detailed schema definition for guaranteed outputs, enhancing JSON Parsing robustness.",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["type", "description"],
+              "properties": {
+                "type": {"type": "string", "enum": ["float", "integer", "string", "boolean", "object", "array"]},
+                "unit": {"type": "string", "description": "Relevant unit of measurement (optional)."},
+                "optional": {"type": "boolean", "default": false, "description": "If the output field is optional."}
+              }
+            }
+          },
+
+          "performance_metrics": {
+             "type": "object",
+             "description": "Runtime metrics tracking for use in Meta-Reasoning and Learning History analysis (Nexus-Database integration).",
+             "properties": {
+                "total_executions": {"type": "integer", "minimum": 0, "default": 0},
+                "successful_executions": {"type": "integer", "minimum": 0, "default": 0},
+                "average_latency_ms": {"type": "number", "minimum": 0.0, "default": 0.0},
+                "last_run_timestamp": {"type": "string", "format": "date-time"}
+             },
+             "required": ["total_executions", "successful_executions", "average_latency_ms"]
+          },
+          
           "audit_metadata": {
             "type": "object",
             "required": ["mgp_protocol", "approval_id", "certification_date", "failure_modes"],
@@ -108,6 +137,13 @@
           "source_mdsm_link": {"type": "string"}
         }
       }
+    }
+  },
+  "$defs": {
+    "version_identifier": {
+      "type": "string", 
+      "pattern": "^CMR_V[0-9]+\\.[0-9]+$", 
+      "description": "Version identifier for the schema manifest."
     }
   },
   "required": ["manifest_id", "owner", "description", "integrity_hash", "models", "verification_protocol"]
