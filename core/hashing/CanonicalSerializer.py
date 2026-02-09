@@ -11,6 +11,8 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     """
     Custom encoder to handle types not natively serializable by standard JSON,
     ensuring deterministic output for hashing purposes.
+    
+    This encoder prioritizes consistency and robustness for core AGI data structures.
     """
     def default(self, obj):
         # 1. Handle non-native iterables deterministically
@@ -26,7 +28,11 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         if isinstance(obj, (datetime, Decimal, UUID)):
             return str(obj)
 
-        # 3. Handle mappings that might not be dicts (e.g., OrderedDict if present)
+        # 3. Handle binary data by converting to canonical hex string (Crucial for artifact integrity)
+        if isinstance(obj, bytes):
+            return obj.hex()
+
+        # 4. Handle mappings that might not be dicts (e.g., OrderedDict if present)
         if isinstance(obj, collections.Mapping) and not isinstance(obj, dict):
             return dict(obj)
             
@@ -37,7 +43,8 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
     """Converts an arbitrary Python object into a canonical byte string for hashing.
 
     Canonical serialization ensures that the byte output is consistent across different
-    execution environments, specifically by enforcing sorted dictionary keys.
+    execution environments, specifically by enforcing sorted dictionary keys and
+    handling complex Python types deterministically (e.g., bytes, sets).
 
     Args:
         artifact: The data structure (typically a dictionary or list) to serialize.
@@ -46,8 +53,7 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         bytes: The deterministic byte representation.
 
     Raises:
-        ArtifactSerializationError: If the data structure contains non-serializable types
-            (e.g., functions, custom objects without proper serialization methods, cycles).
+        ArtifactSerializationError: If the data structure contains non-serializable types.
     """
     try:
         # Ensure consistent order using the custom encoder and standard canonical JSON settings
@@ -59,8 +65,13 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         )
         return serialized_string.encode('utf-8')
     except TypeError as e:
-        # When a TypeError occurs, provide the top-level type for better debugging context
+        # Improved error context: report the top-level type and suggest checking nested elements.
         offending_type = type(artifact)
-        raise ArtifactSerializationError(reason=str(e), data_type=str(offending_type)) from e
+        error_message = (
+            f"Failed to serialize artifact of type '{offending_type}'. "
+            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances). "
+            f"Original error: {e}"
+        )
+        raise ArtifactSerializationError(reason=error_message, data_type=str(offending_type)) from e
     except Exception as e:
         raise ArtifactSerializationError(reason=str(e)) from e
