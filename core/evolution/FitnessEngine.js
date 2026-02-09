@@ -17,6 +17,14 @@ class FitnessEngine {
       logic: { "Meta-Reasoning": 0.60, "Error Handling": 0.40 },
       memory: { "Error Handling": 0.50, "JSON Parsing": 0.50 }
   };
+    
+  // Formalized constants for system tuning and clarity (Logic/Error Handling)
+  static MAX_FITNESS = 10.0;
+  static FLOAT_TOLERANCE = 1e-9;
+  static EPSILON = 1e-9; 
+  static HISTORICAL_IMPROVEMENT_THRESHOLD = 0.05; // 5% relative change needed for adjustment
+  static HISTORICAL_MAX_ADJUSTMENT = 0.30; // Max 30% boost/penalty
+  static HISTORICAL_PENALTY_RATIO = 0.5; // Regression penalty is 50% of the reward magnitude
 
   constructor(metricsConfig) {
     if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
@@ -29,10 +37,6 @@ class FitnessEngine {
         this.isOperational = true;
     }
     
-    // Define a small tolerance for floating point comparisons to enhance robustness (Error Handling)
-    this.FLOAT_TOLERANCE = 1e-9;
-    this.EPSILON = 1e-9; // Used for inverse scaling stability and zero comparison
-
     // JSON Parsing: Deep structural validation check for profiles
     if (this.isOperational) {
         for (const profileName in this.config.profiles) {
@@ -94,8 +98,7 @@ class FitnessEngine {
    * @returns {number} Calculated fitness score (0.0 to MAX_FITNESS).
    */
   calculate(rawMetrics, profileName, historicalMetrics = {}) {
-    const MAX_FITNESS = 10.0;
-
+    
     // Robust Error Handling: Ensure rawMetrics is usable
     if (typeof rawMetrics !== 'object' || rawMetrics === null) {
         console.warn(`FitnessEngine: Invalid rawMetrics provided. Returning baseline score 0.`);
@@ -151,7 +154,7 @@ class FitnessEngine {
                 factor = Math.max(0, Math.min(1, parsedFactor)); 
             }
 
-            if (factor > this.FLOAT_TOLERANCE) { 
+            if (factor > FitnessEngine.FLOAT_TOLERANCE) { 
                 if (!passes && oracle.violation_type === 'penalty') {
                     score *= Math.max(0, (1 - factor)); // Penalty, ensuring result remains non-negative
                 } else if (passes && oracle.violation_type === 'reward') {
@@ -164,10 +167,10 @@ class FitnessEngine {
     // 3. Handle optimization goals (e.g., minimizing complexity)
     if (profile.optimization_goal === 'minimize') {
       // Robust minimization: Uses inverse transformation.
-      score = 10.0 / (score + this.EPSILON); // Multiplied by 10.0 to normalize inverse scaling
+      score = FitnessEngine.MAX_FITNESS / (score + FitnessEngine.EPSILON); // Multiplied by MAX_FITNESS to normalize inverse scaling
     } else if (profile.optimization_goal === 'maximize') {
-        // Scale up towards 10
-        score = Math.min(MAX_FITNESS, score);
+        // Scale up towards MAX_FITNESS
+        score = Math.min(FitnessEngine.MAX_FITNESS, score);
     }
     
     // 4. Apply Historical Context Adjustment (Meta-Reasoning Integration)
@@ -181,7 +184,7 @@ class FitnessEngine {
         score = 0.0;
     } else {
         // Apply hard cap to prevent runaway scores from minimization goals
-        score = Math.min(score, MAX_FITNESS);
+        score = Math.min(score, FitnessEngine.MAX_FITNESS);
     }
     
     return Math.max(0, score);
@@ -190,7 +193,7 @@ class FitnessEngine {
   /**
    * Meta-Reasoning: Adjusts the score based on comparison to historical performance (Nexus data).
    * Rewards improvement, penalizes regression relative to the history.
-   * The adjustment factor is now dynamic, proportional to the magnitude of change.
+   * The adjustment factor is now dynamic, proportional to the magnitude of change, utilizing formalized constants.
    */
   _applyHistoricalAdjustment(currentScore, rawMetrics, historicalMetrics, profile) {
       // Check for necessary context
@@ -211,17 +214,19 @@ class FitnessEngine {
            return currentScore;
       }
       
-      if (currentTargetValue < this.EPSILON && historicalTargetValue < this.EPSILON) {
+      if (currentTargetValue < FitnessEngine.EPSILON && historicalTargetValue < FitnessEngine.EPSILON) {
           // Both zero/near-zero, effectively no change if minimizing
           return currentScore;
       }
       
-      const improvementThreshold = 0.05; // Requires 5% relative change to trigger adjustment
-      const MAX_ADJUSTMENT = 0.30; // Max 30% boost/penalty
+      // Constants referenced from static properties
+      const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
+      const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
+      const PENALTY_RATIO = FitnessEngine.HISTORICAL_PENALTY_RATIO;
 
       // 1. Calculate relative difference
       let relativeDifference = 0.0;
-      if (historicalTargetValue > this.EPSILON) {
+      if (historicalTargetValue > FitnessEngine.EPSILON) {
           relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
       }
       
@@ -255,15 +260,15 @@ class FitnessEngine {
       let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawFactor);
       
       // Ensure a minimum reward/penalty for successfully crossing the threshold (Autonomy stability)
-      dynamicAdjustment = Math.max(0.05, dynamicAdjustment);
-      
+      dynamicAdjustment = Math.max(0.01, dynamicAdjustment); // Reduced minimum factor slightly
+
       if (performanceChange === 1) {
           // Reward for learning and progression (Meta-Reasoning success)
           console.log(`FitnessEngine: Historical improvement detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying adaptive reward (${dynamicAdjustment.toFixed(3)}).`);
           return currentScore * (1 + dynamicAdjustment);
       } else if (performanceChange === -1) {
-          // Penalty for regression (penalized less severely, 50% factor applied to penalty magnitude)
-          const penaltyFactor = dynamicAdjustment * 0.5;
+          // Penalty for regression (penalized less severely, using configurable PENALTY_RATIO)
+          const penaltyFactor = dynamicAdjustment * PENALTY_RATIO;
           console.warn(`FitnessEngine: Historical regression detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying reduced adaptive penalty (${penaltyFactor.toFixed(3)}).`);
           return currentScore * (1 - penaltyFactor);
       }
@@ -279,12 +284,13 @@ class FitnessEngine {
    * @returns {string} Sanitized formula string.
    */
   sanitizeFormula(formulaString) {
-    // Aggressive whitelisting/removal based on acceptable JS arithmetic tokens
+    // Aggressive whitelisting/removal based on acceptable JS arithmetic tokens, including E for scientific notation
     let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
     
     // Additional defense: basic check for obvious attempts to execute code post-sanitization
-    if (/[a-zA-Z]/.test(sanitized.replace(/[eE]/g, ''))) {
-        // If any non-scientific notation letter remains, suspicious characters are present.
+    // We allow 'e' and 'E' for scientific notation but nothing else.
+    if (/[a-df-zA-DF-Z]/.test(sanitized)) { 
+        // If any letter other than 'e' or 'E' remains, suspicious characters are present.
         console.error("FitnessEngine Security Alert: Post-substitution formula sanitization failed: suspicious characters remain.");
         return "0.0"; 
     }
@@ -321,10 +327,11 @@ class FitnessEngine {
    * metrics and safe arithmetic structure, before substitution and evaluation.
    */
   validateFormula(formula, metricKeys) {
-      // 1. Check for forbidden characters (anything not standard metrics/operators)
+      // 1. Check for forbidden characters (anything not standard metrics/operators/numbers)
+      // Allows A-Z, 0-9, _, +, -, *, /, ., (, ), and whitespace.
       const allowedPattern = /^[A-Z0-9_+\-*\/().\s]+$/; 
       if (!allowedPattern.test(formula)) {
-          console.error("FitnessEngine Security Alert: Formula failed forbidden character check.");
+          console.error("FitnessEngine Security Alert: Formula failed forbidden character check (contains unexpected characters).");
           return false;
       }
       
@@ -361,8 +368,8 @@ class FitnessEngine {
       }
       
       // 5. Check for invalid operator sequences
+      // Look for multiple non-unary operators in sequence.
       const formulaOperatorsOnly = formula.replace(/[A-Z0-9_().\s]/g, '');
-      // Looks for two or more non-hyphen operators (or non-initial hyphens) in sequence, after removing metrics.
       const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; 
       
       if (invalidOperatorSequence.test(formulaOperatorsOnly.replace(/\s/g, ''))) {
@@ -420,9 +427,9 @@ class FitnessEngine {
         // Use the new safe getter to ensure numerical safety
         const value = this._safeGetMetricValue(rawMetrics, metricKey);
         
-        // Use word boundary replacement to ensure metric key substitution is precise.
+        // IMPROVEMENT: Use double-escaped \b for word boundary in RegExp constructor (Security/Logic Fix).
         // Wraps value in parentheses to ensure order of operations integrity.
-        calculationString = calculationString.replace(new RegExp('\b' + metricKey + '\b', 'g'), `(${value})`);
+        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
     }
 
     let result;
@@ -472,6 +479,7 @@ class FitnessEngine {
     if (value === undefined || threshold === undefined) return false;
     
     const conditionOp = condition.trim();
+    const FLOAT_TOLERANCE = FitnessEngine.FLOAT_TOLERANCE;
     
     // Priority 1: If both can be numbers, use strict numerical comparison 
     const numValue = parseFloat(value);
@@ -484,16 +492,16 @@ class FitnessEngine {
       const thresh = numThreshold;
 
       switch (conditionOp) {
-        case '>': return val > thresh + this.FLOAT_TOLERANCE; // Check slightly above threshold
-        case '<': return val < thresh - this.FLOAT_TOLERANCE; // Check slightly below threshold
-        case '>=': return val > thresh - this.FLOAT_TOLERANCE;
-        case '<=': return val < thresh + this.FLOAT_TOLERANCE;
+        case '>': return val > thresh + FLOAT_TOLERANCE; // Check slightly above threshold
+        case '<': return val < thresh - FLOAT_TOLERANCE; // Check slightly below threshold
+        case '>=': return val > thresh - FLOAT_TOLERANCE;
+        case '<=': return val < thresh + FLOAT_TOLERANCE;
         case '==':
         case '===':
-          return Math.abs(val - thresh) < this.FLOAT_TOLERANCE; // Use tolerance for floating point numbers
+          return Math.abs(val - thresh) < FLOAT_TOLERANCE; // Use tolerance for floating point numbers
         case '!=':
         case '!==':
-          return Math.abs(val - thresh) >= this.FLOAT_TOLERANCE;
+          return Math.abs(val - thresh) >= FLOAT_TOLERANCE;
         default:
           break; // Fall through to non-numerical comparison if operator is non-standard
       }
@@ -533,10 +541,10 @@ class FitnessEngine {
            return false;
       }
       
-      const improvementThreshold = 0.05; 
+      const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
       
       let relativeDifference = 0.0;
-      if (historicalTargetValue > this.EPSILON) {
+      if (historicalTargetValue > FitnessEngine.EPSILON) {
           relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
       }
       
@@ -592,11 +600,18 @@ class FitnessEngine {
     // Updated weights to prioritize Error Handling and Autonomy for foundational stability.
     const overallImprovement = normalizedScore * 4.5; 
 
-    coreScores["Error Handling"] += overallImprovement * 0.5;
-    coreScores["Autonomy"] += overallImprovement * 0.4;
-    coreScores["Meta-Reasoning"] += overallImprovement * 0.4;
-    coreScores["JSON Parsing"] += overallImprovement * 0.3;
-    coreScores["Creativity"] += overallImprovement * 0.2;
+    // Logic improvement: Use standard array iteration/mapping for clarity
+    const scoreModifiers = {
+        "Error Handling": 0.5,
+        "Autonomy": 0.4,
+        "Meta-Reasoning": 0.4,
+        "JSON Parsing": 0.3,
+        "Creativity": 0.2
+    };
+
+    for (const cap in scoreModifiers) {
+        coreScores[cap] += overallImprovement * scoreModifiers[cap];
+    }
     
     // 2. Strategic Alignment Boost Assessment (Logic Improvement)
     const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
@@ -624,7 +639,8 @@ class FitnessEngine {
     // 3. Historical Success Boost (Links Meta-Reasoning directly to progression)
     const historicalProgressed = this._checkHistoricalSuccess(rawMetrics, historicalMetrics, profile);
     if (historicalProgressed) {
-        coreScores["Meta-Reasoning"] += 1.0; // Significant boost for successful learning application
+        // Increased focus on Meta-Reasoning when successful progression occurs
+        coreScores["Meta-Reasoning"] += 1.2; 
         coreScores["Autonomy"] += 0.5;
         coreScores["Creativity"] += 0.5; 
     } else if (Object.keys(historicalMetrics).length > 0) {
@@ -635,7 +651,7 @@ class FitnessEngine {
     // 4. Final normalization and clamping (0.0 to 10.0)
     for (const key in coreScores) {
         coreScores[key] = Math.min(10.0, coreScores[key]);
-        // Ensure minimum baseline reflects system stability
+        // Ensure minimum baseline reflects system stability (5.0 minimum)
         coreScores[key] = Math.max(5.0, coreScores[key]);
     }
     
@@ -648,7 +664,7 @@ class FitnessEngine {
         for (const internalCap in weights[agiCap]) {
             weightedSum += coreScores[internalCap] * weights[agiCap][internalCap];
         }
-        // Clamp and format the final score
+        // Clamp the final score to 10.0 and format precisely (Logic refinement)
         agiScores[agiCap] = parseFloat(Math.min(10, weightedSum).toFixed(2));
     }
     
