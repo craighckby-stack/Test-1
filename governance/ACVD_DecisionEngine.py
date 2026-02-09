@@ -10,13 +10,9 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.9 enhancement) introduces mandatory state transition path validation,
-    requiring the governance schema to define legal transitions (e.g., DRAFT -> PENDING_VALIDATION).
-    This feature enforces strategic coherence and strengthens multi-step planning capabilities
-    (Strategic Decision-making, Error Handling).
-    
-    Improvements in Cycle 6 (v7.4.8): Refactored penalty calculation into `_get_penalty_weight` 
-    to ensure consistent application of severity weights and internal assessment modifiers.
+    This version (v7.4.10 enhancement) introduces dedicated log summary capabilities 
+    to strengthen internal monitoring and telemetry infrastructure (Autonomy).
+    It retains the mandatory state transition path validation and penalty weighting.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -183,6 +179,27 @@ class ACVD_DecisionEngine:
         """Provides access to a copy of the internal log queue for external monitoring systems."""
         return self._log_queue[:] # Return a copy
         
+    def get_log_summary(self) -> Dict[str, int]:
+        """Provides a quick count summary of accumulated internal logs for monitoring systems.
+        (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
+        """
+        summary = {
+            "CRITICAL": 0,
+            "ERROR": 0,
+            "WARNING": 0,
+            "INFO": 0,
+            "DEBUG": 0,
+            "TOTAL": 0
+        }
+        
+        for log in self._log_queue:
+            level = log.get('level', 'UNKNOWN')
+            if level in summary:
+                summary[level] += 1
+            summary['TOTAL'] += 1
+            
+        return summary
+
     def flush_logs(self):
         """Clears the internal log queue after logs have been successfully consumed by the Telemetry System.
         (Supports Infrastructure Authority: Monitoring and Telemetry Systems)
