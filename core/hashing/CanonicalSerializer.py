@@ -4,6 +4,7 @@ import collections
 from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
+from pathlib import Path
 from .HashingErrors import ArtifactSerializationError
 
 
@@ -25,7 +26,8 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return list(obj)
 
         # 2. Handle common complex types by converting to deterministic strings
-        if isinstance(obj, (datetime, Decimal, UUID)):
+        # Added pathlib.Path handling for canonical file system references.
+        if isinstance(obj, (datetime, Decimal, UUID, Path)):
             return str(obj)
 
         # 3. Handle binary data by converting to canonical hex string (Crucial for artifact integrity)
@@ -44,7 +46,7 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
 
     Canonical serialization ensures that the byte output is consistent across different
     execution environments, specifically by enforcing sorted dictionary keys and
-    handling complex Python types deterministically (e.g., bytes, sets).
+    handling complex Python types deterministically (e.g., bytes, sets, file paths).
 
     Args:
         artifact: The data structure (typically a dictionary or list) to serialize.
@@ -65,13 +67,14 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         )
         return serialized_string.encode('utf-8')
     except TypeError as e:
-        # Improved error context: report the top-level type and suggest checking nested elements.
+        # Enhanced error context for improved Error Handling capability: report the top-level type and suggest checking nested elements.
         offending_type = type(artifact)
         error_message = (
             f"Failed to serialize artifact of type '{offending_type}'. "
-            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances). "
+            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects). "
             f"Original error: {e}"
         )
         raise ArtifactSerializationError(reason=error_message, data_type=str(offending_type)) from e
     except Exception as e:
-        raise ArtifactSerializationError(reason=str(e)) from e
+        # Ensures all unexpected exceptions are wrapped in the specific domain error type.
+        raise ArtifactSerializationError(reason=f"Unexpected serialization error: {e}") from e
