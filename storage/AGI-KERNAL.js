@@ -1,4 +1,4 @@
-const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "") => {
+const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "", temperature = 0.7, maxTokens = 4096) => {
     const { apiProvider, apiKey, model } = state.config;
     await pushLog(`Generating response via ${apiProvider} (${model})...`, 'info');
 
@@ -48,8 +48,8 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         body = {
           model: model,
           messages: messages,
-          temperature: 0.7,
-          max_tokens: 4096,
+          temperature: temperature,
+          max_tokens: maxTokens,
           stream: false
         };
         parseResponse = (data) => data.choices?.[0]?.message?.content || null;
@@ -79,8 +79,8 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         body = {
           model: model,
           messages: anthropicMessages,
-          max_tokens: 4096,
-          temperature: 0.7,
+          max_tokens: maxTokens,
+          temperature: temperature,
         };
         
         if (systemMessage) {
@@ -127,8 +127,8 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         body = {
           contents: geminiMessages,
           config: {
-            temperature: 0.7,
-            maxOutputTokens: 4096,
+            temperature: temperature,
+            maxOutputTokens: maxTokens,
           }
         };
         parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
@@ -155,7 +155,7 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
+        throw new Error(`LLM API failed [${apiProvider}] (${res.status}): ${errorText.slice(0, 200)}`); 
       }
 
       const data = await res.json();
