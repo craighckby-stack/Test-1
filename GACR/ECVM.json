@@ -1,1 +1,30 @@
-[object Object]
+{
+  "schema_version": "1.0",
+  "document_purpose": "Evolution Cycle and Validation Metrics (ECVM) Store",
+  "last_updated_cycle": 1,
+  "system_guidance": {
+    "description": "Configuration for monitoring self-improvement and stagnation protocols.",
+    "stagnation_cycles_max": 5,
+    "mutation_temperature_baseline": 1.0,
+    "low_maturity_threshold": 30
+  },
+  "capability_history": [
+    {
+      "cycle": 1,
+      "maturity": 5,
+      "Error Handling": 6,
+      "JSON Parsing": 7,
+      "Meta-Reasoning": 3,
+      "Autonomy": 4,
+      "Creativity": 5
+    }
+  ],
+  "recent_actions": [
+    {
+      "cycle": 1,
+      "target": "GACR/ECVM.json",
+      "action": "Infrastructure Initialization",
+      "status": "Success"
+    }
+  ]
+}
