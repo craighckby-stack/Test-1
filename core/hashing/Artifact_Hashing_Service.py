@@ -25,30 +25,34 @@ class ArtifactHashingService:
         Args:
             default_algorithm: Overrides the system-wide default hash algorithm.
         """
+        # Ensure algorithm availability early
         if not hashlib.algorithms_available or default_algorithm not in hashlib.algorithms_available:
              raise HashingInitializationError(f"Default algorithm '{default_algorithm}' is unavailable.")
+             
         self._default_algorithm = default_algorithm
-        self._standard_exclusions: Set[str] = HashingConfiguration.STANDARD_EXCLUSIONS
+        # Store standard exclusions as a frozen set for immutability and efficient lookups
+        self._standard_exclusions: Set[str] = frozenset(HashingConfiguration.STANDARD_EXCLUSIONS)
 
     @staticmethod
     def _filter_artifact_data(
         artifact_data: Dict[str, Any], 
-        exclusion_keys: Optional[Iterable[str]] = None
+        exclusion_keys: Set[str]
     ) -> Dict[str, Any]:
         """Creates a filtered copy of the artifact data, excluding specified keys.
 
         Note: This is an efficient, non-recursive, shallow key exclusion function.
+        If complex nested structure filtering is required, this component needs 
+        to be refactored into a future Emergent Capability (e.g., Path-Aware Hashing).
         """
         if not exclusion_keys:
             return artifact_data.copy()
-
-        exclusions = set(exclusion_keys)
         
-        filtered_data = {}
-        for key, value in artifact_data.items():
-            if key not in exclusions:
-                filtered_data[key] = value
-        return filtered_data
+        # Use dictionary comprehension for clear and concise filtering
+        return {
+            key: value 
+            for key, value in artifact_data.items() 
+            if key not in exclusion_keys
+        }
 
     @staticmethod
     def _serialize_artifact(artifact_data: Dict[str, Any]) -> bytes:
@@ -65,7 +69,8 @@ class ArtifactHashingService:
         except TypeError as e:
             raise ArtifactSerializationError(f"Artifact data contains unserializable types: {e}")
         except Exception as e:
-            raise RuntimeError(f"Unexpected serialization error during hashing: {e}")
+            # Catch general errors and wrap them to maintain consistent serialization error type
+            raise ArtifactSerializationError(f"Unexpected serialization error during hashing: {e}")
 
 
     def get_canonical_hash(
@@ -91,32 +96,34 @@ class ArtifactHashingService:
         hash_algo = algorithm if algorithm else self._default_algorithm
         
         try:
-            final_exclusions: Set[str] = set()
-
-            # Apply standard exclusions if requested
+            # 1. Determine final exclusion set
+            exclusions: Set[str] = set()
             if use_standard_exclusions:
-                final_exclusions.update(self._standard_exclusions)
+                # Start with standard exclusions (frozenset used here)
+                exclusions.update(self._standard_exclusions)
             
-            # Apply runtime exclusions
+            # Merge runtime exclusions if provided
             if exclusion_keys:
-                final_exclusions.update(set(exclusion_keys))
+                exclusions.update(exclusion_keys)
 
-            # 1. Pre-process/Filter data
-            processed_data = self._filter_artifact_data(artifact_data, final_exclusions)
+            # 2. Filter data
+            processed_data = self._filter_artifact_data(artifact_data, exclusions)
             
-            # 2. Serialize filtered data
+            # 3. Serialize filtered data
             serialized_data = self._serialize_artifact(processed_data)
             
-            # 3. Hash
+            # 4. Hash
             h = hashlib.new(hash_algo)
             h.update(serialized_data)
             return h.hexdigest()
         except ValueError:
             raise HashingInitializationError(f"Unsupported or invalid hashing algorithm specified: {hash_algo}")
         except (HashingInitializationError, ArtifactSerializationError, RuntimeError):
+            # Allow internal custom errors to propagate
             raise
         except Exception as e:
-            raise RuntimeError(f"Failed to generate canonical hash using {hash_algo}: {e}")
+            # Catch remaining general errors and wrap them
+            raise RuntimeError(f"Critical error generating canonical hash using {hash_algo}: {e}")
 
     def verify_artifact_integrity(
         self,
