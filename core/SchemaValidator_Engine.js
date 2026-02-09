@@ -14,7 +14,10 @@ class SchemaValidationError extends Error {
             ? tempAjv.errorsText(errors, { separator: '; ', dataVar: schemaName })
             : 'Validation context missing or malformed.';
         
-        super(`XEL Validation Failed [${schemaName}]: ${errorText}`);
+        // LOGIC IMPROVEMENT: Include the most critical error keyword in the top-level message
+        const criticalKeyword = errors && errors.length > 0 ? `[${errors[0].keyword}]` : '';
+        
+        super(`XEL Validation Failed [${schemaName}] ${criticalKeyword}: ${errorText}`);
         this.name = 'SchemaValidationError';
         this.schemaName = schemaName; 
         this.validationErrors = errors; // Raw Ajv errors for programmatic handling
@@ -26,6 +29,7 @@ class SchemaValidationError extends Error {
  * It is designed for robustness (Error Handling) and dynamic updates (Autonomy).
  * 
  * Improvement: Accepts external dependency (onValidationFailure) to integrate with Nexus/MQM (Integration Requirement).
+ * IMPROVEMENT: Accepts a component map to link schemas to specific AGI files/components for targeted Navigation refinement.
  */
 class SchemaValidatorEngine {
     /**
@@ -33,9 +37,15 @@ class SchemaValidatorEngine {
      * @param {object} [options.componentSchemas] - Schema definitions to override defaults.
      * @param {function} [options.onValidationFailure] - Callback function for Nexus/MQM logging. (mqmPayload, failureEntry)
      * @param {string} [options.kernelVersion='N/A'] - The current kernel version for dynamic reporting (Meta-Reasoning).
+     * @param {object} [options.schemaComponentMap] - Map of schemaName -> {componentPath: string, priority: number} for Navigation targeting. (NEW)
      */
     constructor(options = {}) {
-        const { componentSchemas, onValidationFailure, kernelVersion = 'N/A' } = options;
+        const { 
+            componentSchemas, 
+            onValidationFailure, 
+            kernelVersion = 'N/A', 
+            schemaComponentMap = {} // Accepting new input for Navigation context
+        } = options;
         
         this.validator = null;
         this.SchemaValidationError = SchemaValidationError;
@@ -43,6 +53,9 @@ class SchemaValidatorEngine {
         // Store dynamic runtime metadata
         this.kernelVersion = kernelVersion;
 
+        // NEW: Context for AGI Navigator System
+        this.schemaComponentMap = schemaComponentMap;
+        
         // INTEGRATION HOOK: Function provided by the kernel core (App.js -> logToDb/MQM)
         this.onValidationFailure = onValidationFailure || (() => {}); 
         
@@ -107,22 +120,29 @@ class SchemaValidatorEngine {
         switch (keyword) {
             case 'required':
             case 'additionalProperties':
-                // Failures in data completeness or structure adherence stress JSON Parsing/Abstraction limits.
-                return 'JSON Parsing';
+                // Data structure errors frequently impact the Logic component consuming the data.
+                return 'Logic';
             case 'type':
             case 'format':
             case 'maximum':
             case 'minimum':
-                // Failures related to data types/constraints stress underlying Logic/Implementation integrity.
-                return 'Logic';
+                // Failures related to data types/constraints stress underlying Logic/Implementation integrity, but often stem from bad input source (Navigation context).
+                return 'Navigation';
             case 'serialization_fail':
             case 'nonSerializable':
-                // Direct failure of data persistence/handling requires robust recovery logic.
-                return 'Error Handling';
+                // Direct failure of data persistence/handling requires robust recovery logic (Memory component handling persistence).
+                return 'Memory';
             case 'const':
             case 'enum':
-                // Failures in specific value constraints relate to decision boundaries.
-                return 'Meta-Reasoning';
+                // Failures in specific value constraints relate to decision boundaries (Meta-Reasoning/Governance).
+                return 'Governance';
+            case 'not':
+            case 'if':
+            case 'then':
+            case 'else':
+            case 'dependencies':
+                // Complex conditional errors suggest architectural problems or flawed integration patterns.
+                return 'Integration';
             default:
                 // General structural failures or unknown issues relate to foundational schema design/quality.
                 return 'Creativity'; 
@@ -206,18 +226,25 @@ class SchemaValidatorEngine {
      * Performs a rapid self-diagnostic analysis of recent validation failures.
      * Identifies the most stressed schema and the primary AGI capability impact.
      * This emergent tool supports AGI-Kernel's Navigation and Logic refinement (Meta-Learning).
-     * @returns {{mostStressedSchema: string, mostImpactedCapability: string, totalFailures: number, historyLength: number, analysisDate: number}}
+     * 
+     * ENHANCEMENT: Synthesizes actionable advice for the Navigator, linking schema failures 
+     * to known component paths using the injected schemaComponentMap.
+     * 
+     * @returns {{mostStressedSchema: string, mostImpactedCapability: string, totalFailures: number, historyLength: number, analysisDate: number, suggestedNavigatorTarget: {path: string, reason: string, increasedWeight: number} | null}}
      */
     analyzeFailureTrends() {
+        const baseAnalysis = {
+            mostStressedSchema: 'None',
+            mostImpactedCapability: 'None',
+            totalFailures: 0,
+            historyLength: 0,
+            analysisDate: Date.now(),
+            suggestedNavigatorTarget: null
+        };
+        
         const history = this.failureHistory;
         if (history.length === 0) {
-            return {
-                mostStressedSchema: 'None',
-                mostImpactedCapability: 'None',
-                totalFailures: 0,
-                historyLength: 0,
-                analysisDate: Date.now()
-            };
+            return baseAnalysis;
         }
 
         const schemaCounts = {};
@@ -245,13 +272,33 @@ class SchemaValidatorEngine {
         const mostStressedSchema = findMax(schemaCounts).key;
         const mostImpactedCapability = findMax(capabilityCounts).key;
         
-        return {
-            mostStressedSchema,
-            mostImpactedCapability,
-            totalFailures,
-            historyLength: history.length,
-            analysisDate: Date.now()
-        };
+        baseAnalysis.mostStressedSchema = mostStressedSchema;
+        baseAnalysis.mostImpactedCapability = mostImpactedCapability;
+        baseAnalysis.totalFailures = totalFailures;
+        baseAnalysis.historyLength = history.length;
+        
+        // --- Navigator Strategy Synthesis (Emergent Logic) ---
+        if (mostStressedSchema !== 'None' && this.schemaComponentMap[mostStressedSchema]) {
+            const mapEntry = this.schemaComponentMap[mostStressedSchema];
+            
+            // Suggest the primary component responsible for producing/consuming the failed schema
+            baseAnalysis.suggestedNavigatorTarget = {
+                path: mapEntry.componentPath,
+                reason: `Schema '${mostStressedSchema}' (linked to ${mostImpactedCapability} failure) is critically unstable. Investigate and refactor source component.`, 
+                // Calculate weight based on historical failure rate (higher failure => higher proposed weight increase)
+                increasedWeight: Math.min(0.25, totalFailures / this.MAX_HISTORY) * (mapEntry.priority || 1) // Cap weight increase at 25% for stability
+            };
+        } else if (mostStressedSchema !== 'None') {
+             // If component mapping is missing, suggest fixing the Schema Definition itself.
+             baseAnalysis.suggestedNavigatorTarget = {
+                path: `config/XEL_Specification.json`,
+                reason: `Schema '${mostStressedSchema}' is highly stressed but lacks a component map link. Analyze schema definition or update governance mapping.`, 
+                increasedWeight: 0.10
+            };
+        }
+
+
+        return baseAnalysis;
     }
 
     /**
@@ -295,6 +342,7 @@ class SchemaValidatorEngine {
         let dataCopy;
         try {
             // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
+            // Using JSON stringify/parse for broader compatibility and explicit serialization check.
             dataCopy = JSON.parse(JSON.stringify(data));
         } catch (e) {
             // Track failure of the copying process itself if data is non-serializable (Robust JSON Parsing)
