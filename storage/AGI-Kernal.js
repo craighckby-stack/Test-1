@@ -3,6 +3,18 @@ const KERNEL_SYNC_FS = require('fs');
 import FS_PROMISES from 'fs/promises';
 import path from 'path';
 
+// TARGET Imports
+import { validate } from 'fast-json-validator';
+// Mock the policy schema, as external JSON import is not possible here.
+const STDM_V99_POLICY = {
+    type: "object",
+    properties: {
+        componentId: { type: "string" },
+        version: { type: "string" }
+    },
+    required: ["componentId", "version"]
+};
+
 // Mock Logger implementation for SpecificationLoader dependency
 class Logger {
     constructor(source) { this.source = source; }
@@ -162,6 +174,41 @@ class ParameterCustodian {
         }
     }
 }
+
+// --- TARGET INTEGRATION: SchemaPolicyValidator (STDM Governance Enforcement) ---
+/**
+ * STDM V99 Policy Validator
+ * Ensures all component configurations and scaffolding adhere strictly to the
+ * Sovereign AGI Governance Standard Model before commitment or deployment.
+ */
+export class SchemaPolicyValidator {
+  private schema = STDM_V99_POLICY;
+
+  constructor() {
+    // Initialize the validator with the compiled governance schema
+    // In a real environment, this might dynamically fetch the latest version.
+  }
+
+  /**
+   * Validates a component's configuration object against the STDM V99 schema.
+   * @param config The configuration object to validate.
+   * @returns {boolean} True if compliant, throws error otherwise.
+   */
+  public enforceCompliance(config) {
+    const results = validate(this.schema, config);
+
+    if (!results.valid) {
+      console.error("Governance violation detected.", results.errors);
+      throw new Error(`STDM V99 Compliance failure for component config. Errors: ${JSON.stringify(results.errors)}`);
+    }
+    
+    // Check Immutability enforcement
+    // ... (logic for detecting attempts to modify fields listed in immutableFields)
+
+    return true;
+  }
+}
+
 
 // --- Grafted Type Definitions for GRCS Verification (GRCS_VerificationTypes) ---
 type LiabilityUnit = 'USD' | 'PPR' | 'N/A';
@@ -882,4 +929,10 @@ class CryptoService {
     async verifySignature(data, signature, keyId, authorityName) {
         // Mock verification: True unless explicit failure condition met
         if (data.includes("INVALID_SIGNATURE_PAYLOAD")) return false;
-        await new Promise(resolve => setTimeout(
+        await new Promise(resolve => setTimeout(resolve, 5));
+        return true; // Default success
+    }
+
+    // STUB: Calculates Merkle Root for integrity verification
+    calculateMerkleRoot(hashes) {
+        if (!hashes ||
