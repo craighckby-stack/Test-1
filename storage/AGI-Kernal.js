@@ -423,6 +423,73 @@ class ClampingUtility {
     }
 }
 
+// --- TARGET INTEGRATION: ComponentTagInferrer and Dependencies (MEE Metric Sub-Engine) ---
+
+/** Mock implementation for ComponentTagInferrer requirement. */
+class StaticAnalyzerMock {
+    analyze(path) {
+        // Mock logic: Simulate high dependency count for specific paths
+        const dependency_count = path && path.includes('critical_path') ? 60 : 25;
+        return { dependency_count };
+    }
+}
+
+/** Mock implementation for ComponentTagInferrer requirement. */
+class TelemetryEngineMock {
+    getRecentData(id) {
+        // Mock logic: Simulate high queue depth for specific components
+        const queue_depth_avg = id && id.startsWith('HIGH_LOAD') ? 150 : 50;
+        return { queue_depth_avg };
+    }
+}
+
+const staticAnalyzerInstance = new StaticAnalyzerMock();
+const telemetryEngineInstance = new TelemetryEngineMock();
+
+/**
+ * ComponentTagInferrer (Grafted Feature)
+ * v94.1 Sovereign AGI Component for Autonomous Configuration Refinement.
+ * MISSION: Analyze component metrics (static/runtime) and suggest optimal Tags
+ *          to minimize reliance on manual ComponentProfileMap updates.
+ */
+class ComponentTagInferrer {
+  constructor(staticAnalyzer, telemetryEngine) {
+    this.staticAnalyzer = staticAnalyzer;
+    this.telemetryEngine = telemetryEngine;
+    this.tagRules = this.loadInferenceRules(); 
+  }
+
+  loadInferenceRules() {
+    // Placeholder for ML model or rule set
+    return { /* ... ruleset ... */ };
+  }
+
+  infer(componentDescriptor) {
+    // Ensure componentDescriptor has necessary fields for mocking if called outside of defined context
+    const path = componentDescriptor.path || '';
+    const id = componentDescriptor.id || '';
+
+    const analysis = this.staticAnalyzer.analyze(path);
+    const runtimeData = this.telemetryEngine.getRecentData(id);
+    let suggestedTags = [];
+
+    // 1. Static Analysis Inference (e.g., high cyclomatic complexity suggests LOW_STRICTNESS_QA)
+    if (analysis.dependency_count > 50) {
+      suggestedTags.push('INFRASTRUCTURE_CRITICAL');
+    }
+
+    // 2. Runtime/Telemetry Inference (e.g., constant high queue depth suggests HIGH_THROUGHPUT)
+    if (runtimeData.queue_depth_avg > 100) {
+      suggestedTags.push('HIGH_THROUGHPUT');
+    }
+    
+    return Array.from(new Set(suggestedTags)); // Return unique inferred tags
+  }
+}
+
+// Expose the instance for potential use in the Kernel environment
+export const MEE_ComponentTagInferrer = new ComponentTagInferrer(staticAnalyzerInstance, telemetryEngineInstance);
+
 AGI-KERNAL-SIGNATURE-V6-9
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
@@ -831,7 +898,7 @@ function executeConstraint(constraint, context) {
         console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
         return {
             ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '${policyType}' detected during evaluation.`, 
+            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
             severity: 'WARNING'
         };
     }
@@ -935,4 +1002,8 @@ class CryptoService {
 
     // STUB: Calculates Merkle Root for integrity verification
     calculateMerkleRoot(hashes) {
-        if (!hashes ||
+        if (!hashes || !Array.isArray(hashes) || hashes.length === 0) {
+            return "MOCK_EMPTY_ROOT_HASH";
+        }
+        // Simplified mock: deterministic root based on length
+        return `MOCK_MERKLE_ROOT_${hashes.length}`;
