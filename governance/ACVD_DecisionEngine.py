@@ -10,24 +10,23 @@ def get_utc_timestamp() -> str:
 class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
-    This version (v7.4.5 enhancement) refines the Governance Health Score calculation using dynamic severity weighting 
-    (supporting Meta-Reasoning) and formalizes log queue management for the Telemetry System (Infrastructure).
-    
-    Improvements in Cycle 1: Enhanced structural validation checks, defensive JSON data 
-    extraction (JSON Parsing/Error Handling), and standardized internal logging 
-    for improved Error Handling and Meta-Reasoning support.
-    
-    Improvements in Cycle 2: Formalized internal logging queue, governance score calculation, 
-    and robust input validation in transition_state for enhanced fault tolerance (Autonomy/Meta-Reasoning).
+    This version (v7.4.6 enhancement) refines the Governance Health Score calculation by introducing 
+    dynamic, loadable severity weighting, allowing the AGI kernel to autonomously optimize 
+    its governance strategy based on Meta-Reasoning and learning history.
     
     Improvements in Cycle 3 (v7.4.5): Implemented dynamic, weighted scoring system for Governance Health Score 
     and added log flushing capabilities for Telemetry integration.
+    
+    Improvements in Cycle 4 (v7.4.6): Introduced `update_severity_weights` for autonomous governance optimization 
+    (Meta-Reasoning, Autonomy). Severity weights are now dynamically loaded from the schema config 
+    if available, ensuring configurability and adaptability.
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
+    DEFAULT_FALLBACK_WEIGHT = 0.30 # Used if an issue type is not defined in self.severity_weights
     
-    # Infrastructure: Weights for calculating Governance Health Score (Meta-Reasoning support)
-    SEVERITY_WEIGHTS = {
+    # Base weights, used if no configuration is found in the schema (static reference)
+    _BASE_SEVERITY_WEIGHTS = {
         "CRITICAL": 0.40, 
         "STRUCTURAL_ERROR": 0.50, 
         "GOVERNANCE_VIOLATION": 0.45,
@@ -48,9 +47,19 @@ class ACVD_DecisionEngine:
             self.schema = {}
             
         self.valid_states = self.schema.get('valid_states', []) 
-        self.safety_threshold = self.schema.get('config', {}).get(
+        
+        # Load configurable thresholds
+        config = self.schema.get('config', {})
+        
+        self.safety_threshold = config.get(
             'min_safety_score', 
             self.DEFAULT_MIN_SAFETY_SCORE
+        )
+        
+        # Load severity weights dynamically (supports Meta-Reasoning/Autonomy)
+        self.severity_weights = config.get(
+            'severity_weights',
+            self._BASE_SEVERITY_WEIGHTS
         )
         
         if not self.valid_states:
@@ -60,7 +69,7 @@ class ACVD_DecisionEngine:
                 "ACVD_INIT"
             )
         
-        if self.safety_threshold == self.DEFAULT_MIN_SAFETY_SCORE and 'min_safety_score' not in self.schema.get('config', {}).keys():
+        if self.safety_threshold == self.DEFAULT_MIN_SAFETY_SCORE and 'min_safety_score' not in config.keys():
              self._log_status(
                 "INFO", 
                 f"Using default safety score threshold: {self.DEFAULT_MIN_SAFETY_SCORE}", 
@@ -118,11 +127,35 @@ class ACVD_DecisionEngine:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
             raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
 
+    def update_severity_weights(self, new_weights: Dict[str, float]):
+        """Allows Meta-Reasoning component to dynamically update governance scoring strategy 
+        based on learning outcomes. (Supports Autonomy and Meta-Reasoning).
+        """
+        if not isinstance(new_weights, dict):
+            self._log_status("ERROR", "Cannot update weights: Input must be a dictionary.", "WEIGHT_UPDATE_FAIL")
+            return
+            
+        # Merge new weights, allowing updates or additions
+        updates_applied = 0
+        for key, value in new_weights.items():
+            # Validate input value is a sensible float/int between 0.0 and 1.0
+            if isinstance(value, (int, float)) and 0.0 <= value <= 1.0:
+                self.severity_weights[key] = float(value)
+                updates_applied += 1
+            else:
+                self._log_status("WARNING", f"Skipping invalid weight '{key}': value {value} must be float/int between 0.0 and 1.0.", "WEIGHT_UPDATE_SKIP")
+        
+        if updates_applied > 0:
+            self._log_status("INFO", f"Severity weights dynamically updated. {updates_applied} entries changed.", "WEIGHT_UPDATE_SUCCESS")
+        else:
+            self._log_status("DEBUG", "Severity weights update called, but no valid changes were applied.", "WEIGHT_UPDATE_NOOP")
+
+
     def validate_proposal(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """Performs structural, state, and metric validation, returning a detailed report 
         for AGI meta-reasoning and learning history (Meta-Reasoning support).
         
-        The governanceHealthScore is now calculated dynamically based on accumulated severity weights.
+        The governanceHealthScore is calculated dynamically based on accumulated severity weights.
         """
         report: Dict[str, Any] = {
             "status": "PASS",
@@ -135,10 +168,13 @@ class ACVD_DecisionEngine:
         
         # Robustness check on input type
         if not isinstance(proposal, dict):
-            # This is a total failure, instant 0.0 score based on structural integrity
-            report['issues'].append({"type": "STRUCTURAL_ERROR", "severity": "CRITICAL", "message": "Input proposal is not a valid dictionary.", "context": "Input Type"})
+            # This is a total failure, instant score reduction
+            issue_type = "STRUCTURAL_ERROR"
+            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Input proposal is not a valid dictionary.", "context": "Input Type"})
             report['status'] = 'FAIL'
-            report['governanceHealthScore'] = 0.0
+            # Use consistent fallback weight if issue type isn't defined
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
+            report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
             return report
             
         current_state = proposal.get('state')
@@ -153,7 +189,7 @@ class ACVD_DecisionEngine:
                 "context": f"Valid states: {', '.join(self.valid_states)}"
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.40)
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
 
         # Optimization: Skip deep metrics checks unless explicitly PENDING_VALIDATION
         if current_state != 'PENDING_VALIDATION' and report['status'] != 'FAIL':
@@ -169,18 +205,17 @@ class ACVD_DecisionEngine:
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."})
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.50)
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
 
         if not isinstance(safety_assessment, dict):
             issue_type = "STRUCTURAL_ERROR"
             report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."})
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.50)
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
 
         # Early calculation if structural errors prevent reliable metric checking
-        if negative_score_accumulation >= 0.5 and report['status'] == 'FAIL':
+        if report['status'] == 'FAIL':
              report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
-             return report
 
         # 2b. Regression Test Status Check (Defensive extraction)
         test_status = validation_metrics.get('regressionTestStatus') if isinstance(validation_metrics, dict) else None
@@ -199,7 +234,7 @@ class ACVD_DecisionEngine:
                 "metric": "regressionTestStatus"
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.35)
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
 
         # 2c. Safety Score Check (Defensive extraction and Type checking)
         safety_score = None
@@ -225,7 +260,7 @@ class ACVD_DecisionEngine:
                     "metric": "confidenceScore",
                 })
                 report['status'] = 'FAIL'
-                negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.30)
+                negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
         
         if safety_score is not None and safety_score < self.safety_threshold:
             issue_type = "GOVERNANCE_VIOLATION"
@@ -237,10 +272,9 @@ class ACVD_DecisionEngine:
                 "value": safety_score
             })
             report['status'] = 'FAIL'
-            negative_score_accumulation += self.SEVERITY_WEIGHTS.get(issue_type, 0.45)
+            negative_score_accumulation += self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
         
         # 3. Calculate Governance Health Score (Supports Meta-Reasoning/Strategic Decision-making)
-        # Score decreases based on accumulated negative weight, capping at 0.
         report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
 
         return report
