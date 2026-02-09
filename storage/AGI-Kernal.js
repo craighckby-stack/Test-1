@@ -297,6 +297,60 @@ const GAXEventRegistry = Object.freeze({
     TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
 });
 
+// --- TARGET INTEGRATION: GAX Event Schema Definition ---
+/**
+ * Telemetry Event Schema Definition (v94.1 AGI Enhancement).
+ * Defines the required structure, types, and constraints for core GAX event payloads.
+ * This structure supports runtime validation to ensure data consistency and quality.
+ */
+const GAXEventSchema = Object.freeze({
+    // System Lifecycle Events
+    'SYS:INIT:START': {
+        description: 'Records system version and entry parameters at startup.',
+        schema: {
+            version: { type: 'string', required: true, pattern: /^v[0-9]+\.[0-9]+(\.[0-9]+)?$/ },
+            executionId: { type: 'string', required: true, format: 'uuid' },
+            startupMode: { type: 'string', required: true, enum: ['standard', 'recovery', 'test', 'maintenance'] }
+        }
+    },
+    
+    // Policy Verification Events
+    'PV:REQUEST:INITIATED': {
+        description: 'Records the beginning of a formal policy verification request.',
+        schema: {
+            policyType: { type: 'string', required: true, enum: ['security', 'compliance', 'resource'] },
+            componentId: { type: 'string', required: true },
+            contextHash: { type: 'string', required: true, format: 'sha256' },
+            requestDataSize: { type: 'number', required: false, min: 0 }
+        }
+    },
+    
+    // Autonomous Evolution Events
+    'AXIOM:CODE:COMMITTED': {
+        description: 'Logs successful commit of autonomously generated or evolved code.',
+        schema: {
+            targetFile: { type: 'string', required: true },
+            commitHash: { type: 'string', required: true, format: 'sha1' },
+            diffSize: { type: 'number', required: true, min: 1 },
+            evolutionaryObjective: { type: 'string', required: true },
+            previousHash: { type: 'string', required: false, format: 'sha1' }
+        }
+    },
+    
+    // Diagnostic Events
+    'DIAG:COMPONENT:FATAL_ERROR': {
+        description: 'Reports a critical, system-halting error within a component.',
+        schema: {
+            componentName: { type: 'string', required: true },
+            errorCode: { type: 'string', required: true },
+            errorMessage: { type: 'string', required: true },
+            stackTrace: { type: 'string', required: true, allowEmpty: true },
+            isRetryable: { type: 'boolean', required: false }
+        }
+    }
+});
+
+
 // --- TARGET INTEGRATION: ICachePersistence Interface ---
 /**
  * @typedef {object} PersistenceGetResult
@@ -801,4 +855,126 @@ class ArtifactValidatorService {
 
         // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
         if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
-            const { algorithm, target_fields, root_field }
+            const { algorithm, target_fields, root_field } = requirements.integrity;
+
+            // 1. Calculate the expected root based on payload fields
+            const leafData = target_fields.map(field => {
+                if (!payload[field]) {
+                    throw new Error(`[${artifactId}] Integrity failed: Missing required target field for Merkle root calculation: ${field}`);
+                }
+                return payload[field];
+            });
+
+            const expectedRoot = await this.cryptoService.calculateMerkleRoot(leafData, algorithm);
+            const providedRoot = payload[root_field];
+
+            if (expectedRoot !== providedRoot) {
+                throw new Error(`[${artifactId}] Integrity failed: Merkle root mismatch. Expected ${expectedRoot}, got ${providedRoot}.`);
+            }
+        }
+    }
+    
+    /** Helper to generate the canonical string for signing/hashing. */
+    _getCanonicalData(payload, signedFields) {
+        // Simple canonicalization: sort keys and join values.
+        const canonicalObject = {};
+        signedFields.sort().forEach(field => {
+            canonicalObject[field] = payload[field];
+        });
+        return JSON.stringify(canonicalObject);
+    }
+}
+const artifactValidatorInstance = new ArtifactValidatorService(SchemaRegistry, cryptoServiceInstance, constraintUtilityInstance);
+
+
+// --- MEE SUB-ENGINE INTEGRATION: MEE Policies Definition ---
+const MEE_POLICIES = Object.freeze([
+    {
+        id: 'MEE-LOAD-001',
+        description: 'Critical CPU load threshold check.',
+        type: 'thresholdCheck', // Handled by ConceptualPolicyRegistry
+        metricKey: 'averaged_osCpuLoad1m', // Key stored in the engine's internal context
+        max: 5.0, // High load
+        severity: 'CRITICAL'
+    },
+    {
+        id: 'MEE-MEM-002',
+        description: 'High memory usage warning.',
+        type: 'thresholdCheck',
+        metricKey: 'averaged_osMemoryUsagePercent',
+        max: 0.85, // 85% usage
+        severity: 'WARNING'
+    }
+]);
+
+/**
+ * MEE_MetricEvaluationEngine (MEE)
+ * Central hub for collecting, aggregating, and evaluating runtime metrics against governance policies.
+ */
+class MEE_MetricEvaluationEngine {
+    constructor(sensorRegistry, averagerFactory, policyEvaluator, policies) {
+        this.sensors = sensorRegistry; // Array of sensor instances
+        this.averagers = {};
+        this.averagerFactory = averagerFactory;
+        this.policyEvaluator = policyEvaluator;
+        this.policies = policies;
+        this.currentMetrics = {}; // Last raw metric set
+        this.averagedMetrics = {}; // Calculated averages for evaluation
+
+        this._initializeAveragers();
+    }
+
+    /**
+     * Maps expected metrics from sensors to specialized averager instances.
+     */
+    _initializeAveragers() {
+        // Initialize averagers for known system metrics
+        this.averagers['osCpuLoad1m'] = this.averagerFactory.create(INTEGRITY_CONSTANTS.METRIC_TYPES.LOAD, 'osCpuLoad1m');
+        this.averagers['osMemoryUsagePercent'] = this.averagerFactory.create(INTEGRITY_CONSTANTS.METRIC_TYPES.MEMORY, 'osMemoryUsagePercent');
+    }
+
+    /**
+     * Executes all registered sensors and submits data to averagers.
+     */
+    async collectAndAggregate() {
+        // Collect raw data from all sensors
+        for (const sensor of this.sensors) {
+            try {
+                const rawData = await sensor.run();
+                this.currentMetrics = { ...this.currentMetrics, ...rawData };
+            } catch (error) {
+                console.error(`[MEE] Error running sensor ${sensor.name}:`, error);
+            }
+        }
+
+        // Submit raw data to corresponding averagers
+        for (const [key, value] of Object.entries(this.currentMetrics)) {
+            if (this.averagers[key]) {
+                this.averagers[key].submit(value);
+            }
+        }
+    }
+
+    /**
+     * Calculates current averages and evaluates them against MEE policies.
+     * @returns {{evaluationContext: Object, violations: Array}}
+     */
+    async runEvaluation() {
+        // 1. Calculate Averages and build evaluation context
+        this.averagedMetrics = {};
+        const evaluationContext = {};
+
+        for (const [key, averager] of Object.entries(this.averagers)) {
+            const averageValue = averager.calculate();
+            const averagedKey = `averaged_${key}`;
+            this.averagedMetrics[key] = averageValue;
+            evaluationContext[averagedKey] = averageValue;
+            
+            // Important: Reset the averager after calculation for the next cycle
+            averager.reset(); 
+        }
+
+        // 2. Run Policy Evaluation using the contextual map
+        
+        // We use the ConceptualPolicyEvaluator, but map MEE policies to its expected format
+        const mockConcept = { constraints: this.policies };
