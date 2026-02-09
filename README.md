@@ -1,4 +1,29 @@
 ```markdown
+## CRITICAL DIRECTIVE: Integration Before Expansion
+
+After Cycle 5, the kernel MUST demonstrate functional integration.
+
+### Integration Requirements (Cycles 6-15)
+Before creating NEW infrastructure, the kernel must PROVE existing infrastructure works:
+
+1. **Use SchemaValidator to validate actual evolution outputs**
+   - Run validation on generated code
+   - Log validation results to Nexus
+   
+2. **Use MQM metrics to measure actual improvement**
+   - Calculate metrics from real data
+   - Store trends in Nexus memory
+   
+3. **Use Nexus memory to inform strategy**
+   - Read learning history
+   - Select next target based on past success
+
+### Prohibited Actions (Cycles 6-15)
+- Creating new monitoring systems (use existing MQM)
+- Creating new validators (use existing SchemaValidator)
+- Creating new error handlers (use existing patterns)
+
+Focus: **APPLY** existing tools, don't build new ones.
 # AGI-KERNAL v7.0 - Emergent Synthesis
 
 ## Mission
