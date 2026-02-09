@@ -25,6 +25,35 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// --- TARGET INTEGRATION: Schema Validation Dependencies ---
+
+// Mock implementation for AJV's validate function structure
+const validate = (schema, data) => {
+    // Basic structural check mock (replace with actual AJV validation in runtime)
+    if (schema && data && typeof data === 'object' && data.header && data.data) {
+        // Check for required properties specified in the simplified mock schema
+        if (data.header.version && data.header.timestamp) {
+             return true;
+        }
+    }
+    // Mock error property for failure case
+    validate.errors = [{ keyword: 'mock', message: 'Mock validation failed or missing required fields' }];
+    return false;
+};
+
+// Mock Schema Import (Assuming CNRE_Envelope_V1.json is a standard JSON object)
+const CNRE_V1_Schema = {
+    $schema: "http://json-schema.org/draft-07/schema#",
+    type: "object",
+    properties: {
+        header: { type: "object", required: ["version", "timestamp"] },
+        data: { type: "object" }
+    },
+    required: ["header", "data"]
+};
+
+// --- END TARGET INTEGRATION: Schema Validation Dependencies ---
+
 // --- Absorbed Target Data Utilities (New Enums/Interfaces) ---
 
 /**
@@ -243,6 +272,35 @@ export function validateAhrsMessage(msg) {
 }
 
 // --- END TARGET INTEGRATION: AHRS Protocol Structures ---
+
+// --- START TARGET INTEGRATION: CNRE Validator (MEE Sub-Engine Governance) ---
+
+/**
+ * CNRE_Validator: Enforces structural compliance for all Cognitive Network Response Envelopes.
+ */
+export class CNRE_Validator {
+  // Using the mocked/defined schema import
+  private static V1_SCHEMA = CNRE_V1_Schema;
+
+  /**
+   * Validates an incoming object against the CNRE V1 specification.
+   * @param data The object to validate.
+   * @returns boolean true if valid, throws error if invalid.
+   */
+  public static validateV1(data) {
+    // NOTE: Uses the mocked 'validate' function defined globally
+    const valid = validate(CNRE_Validator.V1_SCHEMA, data);
+    if (!valid) {
+      // In a real system, handle specific errors from the validator instance
+      throw new Error(`CNRE V1 Validation Failed. Errors: ${JSON.stringify(validate.errors)}`);
+    }
+    return true;
+  }
+
+  // Future methods for V2, V3 migration checks, etc.
+}
+
+// --- END TARGET INTEGRATION: CNRE Validator ---
 
 // Existing Interfaces (refined)
 // @ts-ignore
@@ -922,102 +980,4 @@ class TaskSequencerEngine {
     }
 
     getMaxRetries(failureMode) {
-        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X$/) : null;
-        return match ? parseInt(match[1], 10) : 0;
-    }
-
-    async runTaskWithTimeout(task, context) {
-        if (!this.actionMap[task.action]) {
-            const errorMsg = `Action handler missing for: ${task.action}`;
-            this.logger.error(errorMsg);
-            throw new Error(errorMsg);
-        }
-        return await this.actionMap[task.action](task.parameters, context, task.timeout_ms);
-    }
-
-    handleFailureEscalation(mode, task, context) {
-        this.logger.critical(`PCRA Escalation: Mode ${mode} triggered by ${task.step_id}. Incident: ${context.id}`, { mode, task, context });
-        // In a real system, CRITICAL_SYSTEM_HALT mode would trigger PIAM sealing sequence.
-        if (mode === "CRITICAL_SYSTEM_HALT") {
-            this.logger.critical("FORCING CRITICAL SYSTEM HALT DUE TO PCRA ABORT.", { task: task.step_id });
-        }
-    }
-}
-
-// --- START TARGET INTEGRATION: Failure State Analysis Engine (FSAE) and Governance Constants ---
-
-/**
- * G-C01 Integration: Governance Constants
- */
-const FAILURE_STAGES = {
-    P01_TRUST_CALCULUS: 'P01_TRUST_CALCULUS',
-    M02_R_INDEX_READINESS: 'M02_R_INDEX_READINESS'
-};
-
-const MANDATE_ACTION_TYPES = {
-    MANUAL_REVIEW: 'MANUAL_REVIEW',
-    INCREASE_COVERAGE: 'INCREASE_COVERAGE',
-    STABILITY_FOCUS: 'STABILITY_FOCUS',
-    UNKNOWN_ACTION: 'UNKNOWN_ACTION',
-    RUN_DIAGNOSTIC: 'RUN_DIAGNOSTIC' // Added for remediation map compatibility
-};
-
-const GOV_TARGETS = {
-    DEFAULT_R_INDEX_TARGET: 0.85,
-    VETO_RETRY_TARGET: 0.10, // Very low target after a hard veto
-};
-
-/**
- * ATM Telemetry and Metrics System Mock (Required by FSAE)
- */
-class MetricsSystem {
-    // Adapter for GAX
-    logWarning(code, data) { GAXTelemetry.warn(`[ATM:WARN] ${code}`, data); }
-    logEvent(code, data) { GAXTelemetry.info(`[ATM:EVENT] ${code}`, data); }
-    
-    // Required by FSAE for P-01 analysis
-    diagnoseScoreDeficiency(trustWeightings) {
-        // Mock analysis: returns the component with the highest weight/deficit
-        const components = Object.keys(trustWeightings || {});
-        if (components.length === 0) {
-            return { majorDeficiencyComponent: null };
-        }
-        
-        // Simple mock logic: returns the component with the highest value (mock deficit)
-        const majorDeficiencyComponent = components.reduce((a, b) => 
-            (trustWeightings[a] > trustWeightings[b] ? a : b), components[0]
-        );
-
-        return { majorDeficiencyComponent, detailedAnalysis: 'Mock deficit detected' };
-    }
-}
-const metricsSystem = new MetricsSystem();
-
-/**
- * C15 Policy Engine and Remediation Map Mock (Required by FSAE)
- */
-class RemediationMap {
-    getRemediation(stage, reasonKey) {
-        const map = {
-            [FAILURE_STAGES.P01_TRUST_CALCULUS]: {
-                'VETOED': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { priority: 'IMMEDIATE' } }],
-                    newTarget: GOV_TARGETS.VETO_RETRY_TARGET
-                },
-                'MAJOR_TRUST_DEFICIT': {
-                    actions: [
-                        { type: MANDATE_ACTION_TYPES.INCREASE_COVERAGE, data: { baseIncrease: 20, gapMultiplier: 1.5, reason: 'High confidence gap' } },
-                        { type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { priority: 'HIGH' } }
-                    ],
-                    newTarget: null 
-                },
-                'TARGETED_TRUST_DEFICIT': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.INCREASE_COVERAGE, data: { baseIncrease: 10, gapMultiplier: 1.0 } }],
-                    newTarget: 0.75
-                },
-                'GENERAL_DEFICIT': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: { brief: 'Low score, non-critical' } }],
-                    newTarget: 0.90
-                },
-                'UNCATEGORIZED': {
-                    actions: [{ type: MANDATE_ACTION_TYPES.MANUAL_REVIEW, data: {
+        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X
