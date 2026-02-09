@@ -56,18 +56,53 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         break;
       }
 
+      case 'anthropic': {
+        if (!apiKey) {
+          await pushLog(`Configuration Error: API key missing for anthropic`, 'critical');
+          return { success: false, error: `API key missing for anthropic` };
+        }
+
+        url = CONFIG.ANTHROPIC_API || 'https://api.anthropic.com/v1/messages';
+        headers['x-api-key'] = apiKey;
+        headers['anthropic-version'] = '2023-06-01'; // Required API version header
+
+        // Anthropic requires a separate 'system' parameter and only 'user'/'assistant' roles in messages
+        const anthropicMessages = messages
+          .filter(msg => msg.role !== 'system')
+          .map(msg => ({
+              role: msg.role === 'user' ? 'user' : 'assistant',
+              content: msg.content
+          }));
+
+        const systemMessage = messages.find(msg => msg.role === 'system')?.content || "";
+
+        body = {
+          model: model,
+          messages: anthropicMessages,
+          max_tokens: 4096,
+          temperature: 0.7,
+        };
+        
+        if (systemMessage) {
+            body.system = systemMessage;
+        }
+
+        parseResponse = (data) => data.content?.[0]?.text || null;
+        break;
+      }
+
       case 'gemini': {
         if (!apiKey) {
            await pushLog(`Configuration Error: API key missing for gemini`, 'critical');
            return { success: false, error: `API key missing for gemini` };
         }
         
-        // NOTE: Gemini API key is passed via query param for v1beta compatibility.
+        // NOTE: Gemini API key is passed via query param for v1 compatibility.
         url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
         
-        // Gemini API v1beta requires role transformation and 'parts' structure
+        // Gemini API v1 requires role transformation and 'parts' structure. System role is mapped to 'user'.
         const geminiMessages = messages.map(msg => ({
-          role: msg.role === 'system' ? 'user' : msg.role, // Map system prompts to user role for compatibility
+          role: msg.role === 'system' ? 'user' : msg.role, 
           parts: [{ text: msg.content }]
         }));
         
@@ -103,7 +138,7 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
       if (!res.ok) {
         const errorText = await res.text();
         // Increased slice length for better error context
-        throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
+        throw new new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
       }
 
       const data = await res.json();
