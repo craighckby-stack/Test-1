@@ -2,13 +2,60 @@
  * @module SchemaValidator
  * @description Central utility for managing and executing type and schema validation 
  * against defined data primitives. This decouples schema enforcement from data handling logistics.
- * In a production environment, this module would integrate Zod, Joi, or similar high-performance library.
+ * Upgraded to support AGI-Kernel v7.4.3 mission objectives (Evolution Output, Nexus, MQM validation).
  */
 
 class SchemaValidator {
     constructor() {
-        // Placeholder for dynamically loading schema definitions (e.g., from /config/dataSchemas)
-        this.schemas = {}; 
+        this.schemas = this._defineCoreSchemas();
+    }
+
+    /**
+     * Defines the core structural requirements for the AGI kernel operations.
+     * This enforces expected JSON output from the primary evolution LLM and internal systems.
+     */
+    _defineCoreSchemas() {
+        return {
+            // 1. Schema for LLM Evolution Output (Must match App.js expectation)
+            EvolutionOutput: {
+                required: ['improvement_detected', 'rationale', 'code_update', 'maturity_rating', 'capabilities'],
+                types: {
+                    improvement_detected: 'boolean',
+                    rationale: 'string',
+                    code_update: 'string',
+                    maturity_rating: 'number',
+                },
+                nested: {
+                    capabilities: { // Ensures the required capability structure is present
+                        required: ['navigation', 'logic', 'memory'],
+                        types: { navigation: 'number', logic: 'number', memory: 'number' }
+                    }
+                }
+            },
+            
+            // 2. Schema for Nexus Database entries (Learning History)
+            NexusEntry: {
+                required: ['cycle', 'strategy', 'metrics', 'timestamp'],
+                types: {
+                    cycle: 'number',
+                    strategy: 'string',
+                    timestamp: 'number'
+                }
+            },
+            
+            // 3. Schema for MQM Metrics data
+            MQMMetrics: {
+                required: ['error_rate', 'latency_ms', 'improvement_score'],
+                types: {
+                    error_rate: 'number',
+                    latency_ms: 'number',
+                    improvement_score: 'number'
+                }
+            },
+            
+            // Default System Status (If needed for monitoring)
+            SystemStatus: { required: ['status', 'timestamp'], types: { status: 'string', timestamp: 'number' } }
+        };
     }
 
     /**
@@ -17,42 +64,121 @@ class SchemaValidator {
      * @returns {object|null} The schema definition object or null if not found.
      */
     getSchema(primitiveType) {
-        // Example dynamic schema retrieval logic
-        if (primitiveType === 'SystemStatus') {
-            return { required: ['status', 'timestamp'], type: 'object', strict: true };
-        }
-        // Add fallback or default logic
-        return null;
+        return this.schemas[primitiveType] || null;
     }
 
     /**
      * Validates a data payload against a known schema primitive.
      * @param {any} data - The decoded data payload.
      * @param {string} primitiveType - The expected schema type identifier.
-     * @returns {boolean} True if validation passes, false otherwise.
+     * @returns {{isValid: boolean, errors: string[]}} Validation result object, including detailed errors.
      */
     validate(data, primitiveType) {
         const schema = this.getSchema(primitiveType);
+        const errors = [];
 
         if (!schema) {
-            // If no schema is defined, treat it as structurally valid (or apply minimum integrity checks)
-            return data !== null && data !== undefined;
+            if (data === null || data === undefined) {
+                 errors.push(`Data is null/undefined, but no schema '${primitiveType}' found.`);
+            }
+            return { isValid: errors.length === 0, errors };
         }
 
-        // --- Production Validation Hook ---
-        // Placeholder for executing external library validation (e.g., Zod.safeParse(data)).
-        
-        // Simplified structural check based on placeholder schema:
-        if (schema.type === 'object' && typeof data === 'object' && data !== null) {
-            if (schema.required) {
-                // Ensure all required fields exist
-                return schema.required.every(prop => Object.prototype.hasOwnProperty.call(data, prop));
+        if (typeof data !== 'object' || data === null) {
+            errors.push(`Validation failed for '${primitiveType}': Data must be an object. Received: ${typeof data}`);
+            return { isValid: false, errors };
+        }
+
+        // 1. Required field check
+        if (schema.required) {
+            for (const prop of schema.required) {
+                if (!Object.prototype.hasOwnProperty.call(data, prop)) {
+                    errors.push(`Schema ${primitiveType}: Missing required property: ${prop}`);
+                }
             }
-            return true;
+        }
+
+        // 2. Type check
+        if (schema.types) {
+            for (const [prop, expectedType] of Object.entries(schema.types)) {
+                if (Object.prototype.hasOwnProperty.call(data, prop)) {
+                    const actualValue = data[prop];
+                    const actualType = typeof actualValue;
+                    
+                    // LLM tolerance check: sometimes numbers or booleans are returned as strings
+                    let typeValid = actualType === expectedType;
+                    if (!typeValid) {
+                         if (expectedType === 'number' && actualType === 'string' && !isNaN(parseFloat(actualValue))) {
+                            typeValid = true; // Soft coercion allowed
+                        } else if (expectedType === 'boolean' && actualType === 'string' && (actualValue === 'true' || actualValue === 'false')) {
+                            typeValid = true; // Soft coercion allowed
+                        }
+                    }
+
+                    if (!typeValid) {
+                        errors.push(`Schema ${primitiveType}: Type mismatch for property '${prop}'. Expected ${expectedType}, got ${actualType}`);
+                    }
+                }
+            }
+        }
+
+        // 3. Nested object check
+        if (schema.nested) {
+            for (const [prop, nestedSchema] of Object.entries(schema.nested)) {
+                if (data[prop]) {
+                    const nestedResult = this._validateNested(data[prop], nestedSchema, `${primitiveType}.${prop}`);
+                    if (!nestedResult.isValid) {
+                        errors.push(...nestedResult.errors);
+                    }
+                }
+            }
+        }
+
+        return { isValid: errors.length === 0, errors };
+    }
+    
+    _validateNested(data, schema, path) {
+        const errors = [];
+        
+        if (typeof data !== 'object' || data === null) {
+            errors.push(`Validation failed for nested object ${path}: Data must be an object.`);
+            return { isValid: false, errors };
+        }
+
+        // Required field check for nested
+        if (schema.required) {
+            for (const prop of schema.required) {
+                if (!Object.prototype.hasOwnProperty.call(data, prop)) {
+                    errors.push(`Schema ${path}: Missing required property: ${prop}`);
+                }
+            }
         }
         
-        // Fallback or primitive type check
-        return data !== null && data !== undefined;
+        // Type check for nested
+        if (schema.types) {
+            for (const [prop, expectedType] of Object.entries(schema.types)) {
+                 if (Object.prototype.hasOwnProperty.call(data, prop)) {
+                    const actualValue = data[prop];
+                    const actualType = typeof actualValue;
+
+                    let typeValid = actualType === expectedType;
+                    // Soft coercion checks (same as above)
+                    if (!typeValid) {
+                         if (expectedType === 'number' && actualType === 'string' && !isNaN(parseFloat(actualValue))) {
+                            typeValid = true;
+                        } else if (expectedType === 'boolean' && actualType === 'string' && (actualValue === 'true' || actualValue === 'false')) {
+                            typeValid = true;
+                        }
+                    }
+                    
+                    if (!typeValid) {
+                        errors.push(`Schema ${path}: Type mismatch for property '${prop}'. Expected ${expectedType}, got ${actualType}`);
+                    }
+                }
+            }
+        }
+        
+        return { isValid: errors.length === 0, errors };
     }
 }
 
