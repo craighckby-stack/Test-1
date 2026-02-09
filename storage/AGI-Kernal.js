@@ -1,11 +1,11 @@
 const os = require('os');
 
 AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
-import { initializeApp, getApp, getApps } from \'firebase/app\';
-import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
 
 /**
  * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
@@ -289,6 +289,236 @@ export const ConceptualPolicyEvaluator = {
     }
 };
 
+// --- TARGET INTEGRATION: Artifact Validation Dependencies (Grafted Feature) ---
+
+/**
+ * STUB: Schema Registry defining expected structures and crypto constraints for artifacts.
+ */
+const SchemaRegistry = {
+    artifact_definitions: {
+        // Example definition for a Protected Mutable Health (PMH) Lock V1 artifact
+        'PMH_LOCK_V1': {
+            schema: {
+                lock_id: { required: true, type: 'string' },
+                timestamp: { required: true, type: 'TIMESTAMP_ISO8601' },
+                payload_hash: { required: true, type: 'HASH_SHA256' },
+                signature_a: { required: true, type: 'string' },
+                signer_key_id: { required: true, type: 'string' },
+                merkle_root: { required: true, type: 'string' }
+            },
+            cryptographic_requirements: {
+                signed_fields: ['lock_id', 'timestamp', 'payload_hash'],
+                signing_authorities: [{
+                    key_identifier_field: 'signer_key_id',
+                    signature_field: 'signature_a',
+                    authority_name: 'Core_AGI_Authority'
+                }],
+                integrity: {
+                    algorithm: 'MERKLE_SHA256',
+                    target_fields: ['payload_hash'],
+                    root_field: 'merkle_root'
+                }
+            }
+        },
+        'GENERIC_TELEMETRY_V1': {
+            schema: { telemetry_data: { required: true, type: 'object' } },
+            cryptographic_requirements: null
+        }
+    }
+};
+
+/**
+ * STUB: Service for cryptographic operations (hashes, signatures, Merkle trees).
+ */
+class CryptoService {
+    async verifySignature(data, signature, keyId, authorityName) {
+        // Mock verification: True unless explicit failure condition met
+        if (data.includes("INVALID_SIGNATURE_PAYLOAD")) return false;
+        await new Promise(resolve => setTimeout(resolve, 1));
+        return true;
+    }
+
+    async calculateMerkleRoot(leavesData, algorithm) {
+        // Mock deterministic root generation
+        // The hash ensures deterministic mocking based on leaf content for successful validation.
+        const hash = leavesData.map(d => String(d).length).join('-');
+        return `MOCK_ROOT_${algorithm}_${hash}`;
+    }
+}
+const cryptoServiceInstance = new CryptoService();
+
+/**
+ * STUB: Utility for specialized type/format checks (e.g., ISO8601, specific hash formats).
+ */
+class ConstraintUtility {
+    validateField(field, value, constraints) {
+        if (constraints.type === 'string' && typeof value !== 'string') {
+            throw new Error(`Type mismatch for field ${field}: expected string.`);
+        }
+        if (constraints.type === 'object' && typeof value !== 'object') {
+             throw new Error(`Type mismatch for field ${field}: expected object.`);
+        }
+        if (constraints.type === 'TIMESTAMP_ISO8601') {
+            if (typeof value !== 'string' || isNaN(Date.parse(value))) {
+                throw new Error(`Format mismatch for field ${field}: not ISO8601.`);
+            }
+        }
+        // Simplified HASH_SHA256 check
+        if (constraints.type === 'HASH_SHA256' && (typeof value !== 'string' || value.length < 10)) {
+             throw new Error(`Format mismatch for field ${field}: invalid hash format.`);
+        }
+        return true;
+    }
+}
+const constraintUtilityInstance = new ConstraintUtility();
+
+
+/**
+ * ArtifactValidatorService - Ensures adherence to defined artifact schemas and cryptographic constraints.
+ * Ingests artifact payload and schema definition to perform verification. (Grafted TARGET Logic)
+ */
+class ArtifactValidatorService {
+
+    /**
+     * @param {object} schemaRegistry - The configuration object defining artifact schemas.
+     * @param {object} cryptoService - Dependency for cryptographic operations (signatures, hashes, merkle).
+     * @param {object} constraintUtility - Utility for specialized type/format checks.
+     */
+    constructor(schemaRegistry, cryptoService, constraintUtility) {
+        if (!schemaRegistry || !cryptoService || !constraintUtility) {
+            throw new Error("ArtifactValidatorService requires schemaRegistry, cryptoService, and constraintUtility dependencies.");
+        }
+        this.registry = schemaRegistry;
+        this.cryptoService = cryptoService;
+        this.constraintUtility = constraintUtility;
+    }
+
+    /**
+     * Validates an artifact against its registered schema and cryptographic rules.
+     * @param {string} artifactId The ID (e.g., 'PMH_LOCK_V1')
+     * @param {object} payload The artifact data
+     * @returns {Promise<boolean>} True if validation succeeds.
+     * @throws {Error} If validation fails at any stage.
+     */
+    async validate(artifactId, payload) {
+        const definition = this.registry.artifact_definitions[artifactId];
+        if (!definition) {
+            throw new Error(`Schema definition not found for artifact: ${artifactId}`);
+        }
+
+        // 1. Structural and Constraint Validation
+        this._validateStructure(definition.schema, payload, artifactId);
+
+        // 2. Cryptographic Integrity Validation
+        if (definition.cryptographic_requirements) {
+            await this._validateCryptography(definition.cryptographic_requirements, payload, artifactId);
+        }
+
+        return true;
+    }
+
+    /**
+     * Performs structural validation (presence, type, format checks) by delegating to the utility.
+     */
+    _validateStructure(schema, payload, artifactId) {
+        for (const [field, constraints] of Object.entries(schema)) {
+            const hasField = Object.prototype.hasOwnProperty.call(payload, field);
+
+            if (constraints.required && !hasField) {
+                throw new Error(`[${artifactId}] Validation failed: Missing required field "${field}"`);
+            }
+
+            if (hasField) {
+                // Delegate strong type/format checking (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
+                const value = payload[field];
+                this.constraintUtility.validateField(field, value, constraints);
+            }
+        }
+    }
+
+    /**
+     * Performs cryptographic validation (signatures, Merkle proofs) using the CryptoService.
+     */
+    async _validateCryptography(requirements, payload, artifactId) {
+        if (!requirements) {
+            return; // No cryptographic requirements specified
+        }
+
+        // Canonical data is the specific data block that was signed/hashed.
+        const dataToVerify = this._getCanonicalData(payload, requirements.signed_fields);
+
+        // --- 1. Signature Authority Verification ---
+        if (requirements.signing_authorities) {
+            for (const requirement of requirements.signing_authorities) {
+                const { key_identifier_field, signature_field, authority_name } = requirement;
+
+                const keyId = payload[key_identifier_field];
+                const signature = payload[signature_field];
+
+                if (!keyId || !signature) {
+                    throw new Error(`[${artifactId}] Cryptography failed: Missing key ID (${key_identifier_field}) or signature (${signature_field}) for authority ${authority_name}.`);
+                }
+
+                const isValid = await this.cryptoService.verifySignature(dataToVerify, signature, keyId, authority_name);
+
+                if (!isValid) {
+                    throw new Error(`[${artifactId}] Cryptography failed: Invalid signature detected for authority: ${authority_name}.`);
+                }
+            }
+        }
+
+        // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
+        if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
+            const { algorithm, target_fields, root_field } = requirements.integrity;
+            const claimedRoot = payload[root_field];
+
+            if (!claimedRoot) {
+                 throw new Error(`[${artifactId}] Integrity failed: Missing claimed Merkle Root (${root_field}).`);
+            }
+
+            // Collect data points whose hashes form the Merkle tree leaves.
+            const leavesData = target_fields.map(field => {
+                 if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+                    throw new Error(`[${artifactId}] Integrity failed: Merkle target field missing: ${field}`);
+                }
+                return payload[field];
+            });
+
+            const calculatedRoot = await this.cryptoService.calculateMerkleRoot(leavesData, algorithm);
+
+            if (calculatedRoot !== claimedRoot) {
+                 throw new Error(`[${artifactId}] Integrity failed: Calculated Merkle Root mismatch (Claimed: ${claimedRoot}, Calculated: ${calculatedRoot}).`);
+            }
+        }
+    }
+
+    /**
+     * Helper to prepare the canonicalized data payload used for cryptographic operations.
+     * Note: Proper implementation requires strict JCS (JSON Canonicalization Scheme).
+     */
+    _getCanonicalData(payload, signedFields) {
+        if (signedFields && Array.isArray(signedFields)) {
+            const dataSubset = {};
+            // Sort keys for canonicalization
+            signedFields.sort().forEach(field => {
+                if (Object.prototype.hasOwnProperty.call(payload, field)) {
+                    dataSubset[field] = payload[field];
+                }
+            });
+            return JSON.stringify(dataSubset);
+        }
+        return JSON.stringify(payload);
+    }
+}
+
+// Global instance of the Artifact Validator
+const artifactValidator = new ArtifactValidatorService(
+    SchemaRegistry, 
+    cryptoServiceInstance, 
+    constraintUtilityInstance
+);
+
+
 // --- KERNEL INTEGRATION: State Management and UI (Preserved Structure) ---
 
 /**
@@ -411,6 +641,38 @@ function AGI_Kernel() {
                 }
 
                 dispatch({ type: 'UPDATE_METRICS', payload: { ...evaluatedMetrics, governanceReport } });
+
+                // Step C: Test Artifact Validation (Grafted Feature Demonstration)
+                try {
+                    // Define mock artifact data to pass structural and crypto checks
+                    const payloadHash = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2';
+                    const leavesData = [payloadHash];
+                    
+                    const mockArtifact = {
+                        lock_id: 'L-12345',
+                        timestamp: new Date().toISOString(),
+                        payload_hash: payloadHash, 
+                        signer_key_id: 'KEY_AGI_MAIN_001',
+                        signature_a: 'MOCK_SIG_ABCDEF',
+                        merkle_root: await artifactValidator.cryptoService.calculateMerkleRoot(leavesData, 'MERKLE_SHA256')
+                    };
+                    
+                    await artifactValidator.validate('PMH_LOCK_V1', mockArtifact);
+                    dispatch({ type: 'LOG_MESSAGE', payload: `[ARTIFACT VALIDATION] Successfully validated PMH_LOCK_V1.` });
+
+                    // Simulate an intentional failure (e.g., hash mismatch)
+                    const badArtifact = { ...mockArtifact, payload_hash: 'INVALID_HASH_SIMULATION' };
+                    try {
+                        // Note: Merkle Root will now be based on invalid hash length, causing validation to fail.
+                        await artifactValidator.validate('PMH_LOCK_V1', badArtifact);
+                    } catch (e) {
+                         dispatch({ type: 'LOG_MESSAGE', payload: `[ARTIFACT VALIDATION] Detected intentional failure: ${e.message.substring(0, 50)}...` });
+                    }
+
+                } catch (e) {
+                    console.error("Artifact Validation Error during loop:", e);
+                    dispatch({ type: 'LOG_MESSAGE', payload: `Artifact Validation Runtime Error: ${e.message.substring(0, 50)}...` });
+                }
 
                 // Post metrics to Firebase (Kernel persistence requirement)
                 await addDoc(collection(db, "telemetry"), {
