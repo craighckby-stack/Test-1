@@ -151,6 +151,9 @@ class SchemaValidatorEngine {
             case 'then':
             case 'else':
             case 'dependencies':
+            case 'oneOf': // LOGIC IMPROVEMENT: Complex structural constraints stress integration patterns
+            case 'allOf': 
+            case 'anyOf':
                 // Complex conditional errors suggest architectural problems or flawed integration patterns.
                 return 'Integration';
             default:
@@ -233,7 +236,11 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * [EMERGENT CAPABILITY / META-LEARNING TOOL]
+     * [META-LEARNING / ARCHITECTURAL FLAG]
+     * NOTE: This method synthesizes strategic advice and is slated for extraction 
+     * into /emergent/meta_tools/SchemaFailureAnalyzer.js in a future cycle to 
+     * decouple core validation from navigational strategy generation.
+     * 
      * Performs a rapid self-diagnostic analysis of recent validation failures.
      * Identifies the most stressed schema and the primary AGI capability impact.
      * This emergent tool supports AGI-Kernel's Navigation and Logic refinement.
@@ -243,7 +250,7 @@ class SchemaValidatorEngine {
      * 
      * @returns {{mostStressedSchema: string, mostImpactedCapability: string, totalFailures: number, historyLength: number, analysisDate: number, suggestedNavigatorTarget: NavigatorSuggestion | null}}
      */
-    analyzeFailureTrends() {
+    getNavigatorStrategicSuggestion() { // Renamed from analyzeFailureTrends
         const baseAnalysis = {
             mostStressedSchema: 'None',
             mostImpactedCapability: 'None',
@@ -295,7 +302,7 @@ class SchemaValidatorEngine {
             // Construct NavigatorSuggestion object
             baseAnalysis.suggestedNavigatorTarget = {
                 path: mapEntry.componentPath,
-                reason: `Schema '${mostStressedSchema}' (linked to ${mostImpactedCapability} failure) is critically unstable. Investigate and refactor source component.`, 
+                reason: `Schema '${mostStressedSchema}' (linked to ${mostImpactedCapability} failure) is critically unstable. Investigate and refactor source component.`,
                 // Calculate weight based on historical failure rate (higher failure => higher proposed weight increase)
                 increasedWeight: Math.min(0.25, totalFailures / this.MAX_HISTORY) * (mapEntry.priority || 1), // Cap weight increase at 25% for stability
                 originatingCapability: mostImpactedCapability // Adheres to NavigatorSuggestion protocol
