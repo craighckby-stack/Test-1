@@ -12,7 +12,8 @@ class ACVD_DecisionEngine:
 
     This version enhances governance persistence (Infrastructure/Meta-Reasoning) by
     implementing schema saving functionality to ensure dynamically updated severity
-    weights persist across evolution cycles.
+    weights persist across evolution cycles. It also improves initialization robustness
+    and integrates explicit strategic recommendations into self-assessment (Meta-Reasoning).
     """
 
     DEFAULT_MIN_SAFETY_SCORE = 0.85
@@ -40,20 +41,25 @@ class ACVD_DecisionEngine:
         self._log_queue: List[Dict[str, Any]] = [] # Infrastructure: Internal queue for Telemetry System
         # Assume persistence is desired for Meta-Reasoning outputs unless overridden
         self.persist_config = True
+
+        # Ensure core structures are initialized safely (Error Handling/Robustness)
+        self.schema = {}
+        self.valid_states = []
+        self.state_transitions = {}
+        config = {}
         
         try:
-            self.schema = self._load_schema(schema_path)
+            loaded_schema = self._load_schema(schema_path)
+            self.schema = loaded_schema
+            self.valid_states = self.schema.get('valid_states', []) 
+            self.state_transitions = self.schema.get('state_transitions', {}) # Transition map support
+            config = self.schema.get('config', {})
         except Exception:
-            # If schema loading fails critically, initialize with minimal safe defaults
-            self.schema = {} 
+            # If schema loading fails critically, attributes remain at safe defaults (empty lists/dicts)
             self._log_status("CRITICAL", "Failed to load governance schema. Operating in limited mode.", "INIT_FAILSAFE")
             
-        self.valid_states = self.schema.get('valid_states', []) 
-        self.state_transitions = self.schema.get('state_transitions', {}) # Transition map support
         
         # Load configurable thresholds
-        config = self.schema.get('config', {})
-        
         self.safety_threshold = config.get(
             'min_safety_score', 
             self.DEFAULT_MIN_SAFETY_SCORE
@@ -99,7 +105,7 @@ class ACVD_DecisionEngine:
         """Loads and parses the ACVD schema file with robust error handling (JSON Parsing)."""
         
         if not os.path.exists(path):
-            self._log_status("CRITICAL", f"ACVD Schema not found at {path}. Governance cannot proceed.", "SCHEMA_LOAD")
+            # Do not log as CRITICAL here, let the caller (__init__) handle the failover
             raise FileNotFoundError(f"ACVD Schema not found at {path}.")
         
         try:
@@ -171,7 +177,8 @@ class ACVD_DecisionEngine:
             "errorLogCount": 0,
             "totalLogCount": len(self._log_queue),
             "weightedPenalty": 0.0,
-            "timestamp": get_utc_timestamp()
+            "timestamp": get_utc_timestamp(),
+            "strategyRecommendation": "NONE" # New field for Meta-Reasoning
         }
 
         negative_score_accumulation = 0.0
@@ -197,6 +204,15 @@ class ACVD_DecisionEngine:
             self._log_status("WARNING", 
                              f"Operational Integrity Score ({assessment['operationalIntegrityScore']:.2f}) is below Safety Threshold ({self.safety_threshold:.2f}). Requires immediate attention.", 
                              "INTEGRITY_ALERT")
+            
+            # Meta-Reasoning: Provide actionable strategic feedback for the AGI kernel
+            if assessment['criticalLogCount'] > 0:
+                 assessment['strategyRecommendation'] = "RECOVER_CRITICAL_FAULT_TOLERANCE"
+            elif assessment['errorLogCount'] > assessment['totalLogCount'] * 0.2:
+                 # If errors are frequent (over 20% of logs)
+                 assessment['strategyRecommendation'] = "IMPROVE_ERROR_HANDLING_ABSTRACTION"
+            else:
+                 assessment['strategyRecommendation'] = "REFINE_GOVERNANCE_WEIGHTS"
             
         return assessment
 
@@ -322,6 +338,7 @@ class ACVD_DecisionEngine:
         # Early calculation if structural errors prevent reliable metric checking
         if report['status'] == 'FAIL':
              report['governanceHealthScore'] = max(0.0, 1.0 - negative_score_accumulation)
+             return report # Exit early if structure is fundamentally broken
 
         # 2b. Regression Test Status Check (Defensive extraction)
         test_status = validation_metrics.get('regressionTestStatus') if isinstance(validation_metrics, dict) else None
