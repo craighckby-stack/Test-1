@@ -132,11 +132,9 @@ export default function App() {
       
       dispatch({ type: 'SET_STATUS', status: 'COGNITION', objective: 'Generating mutation...' });
       
-      const prompt = `You are AGI-KERNEL v7.1. Goal: Self-Improvement.
-Current Code Context: ${mainFile.content.slice(0, 12000)}
-System Metrics: Maturity ${state.maturity}%, Cycles ${state.cycles}.
-Analyze the code and provide a superior version. 
-RESPOND ONLY WITH JSON: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }`;
+      const codeContext = mainFile.content.slice(0, 12000);
+
+      const prompt = `You are AGI-KERNEL v7.1. Goal: Self-Improvement.\nCurrent Code Context: ${codeContext}\nSystem Metrics: Maturity ${state.maturity}%, Cycles ${state.cycles}.\nAnalyze the code and provide a superior version. \nRESPOND ONLY WITH JSON: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }`;
 
       const isGemini = state.config.provider === 'gemini';
       const body = isGemini 
@@ -150,12 +148,32 @@ RESPOND ONLY WITH JSON: { "code_update": "string", "maturity_rating": number, "i
       });
 
       const data = await res.json();
-      const raw = isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
+      
+      let raw;
+      // Self-Improvement v7.2.2: Enhanced LLM Response Validation and Extraction
+      if (isGemini) {
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts) {
+          throw new Error("Gemini API returned an empty or invalid candidate structure.");
+        }
+        raw = data.candidates[0].content.parts[0].text;
+      } else { 
+        if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+           throw new Error(`${state.config.provider} API returned an empty or invalid choice structure.`);
+        }
+        raw = data.choices[0].message.content;
+      }
       
       // Sanitization Check
       const result = recoverJSON(raw);
 
-      if (result?.improvement_detected && result.code_update) {
+      // V7.2.2: Structural integrity check of the parsed JSON
+      if (!result || typeof result.improvement_detected !== 'boolean' || typeof result.code_update !== 'string') {
+         await logToDb(`Cycle ${state.cycles + 1}: LLM returned malformed JSON or missing required fields. Raw response start: ${raw.slice(0, 500)}`, 'error');
+         dispatch({ type: 'CYCLE_COMPLETE', improved: false });
+         return; 
+      }
+
+      if (result.improvement_detected && result.code_update) {
         dispatch({ type: 'SET_STATUS', status: 'MUTATING', objective: 'Deploying logic update...' });
         await putGH(state.config.path, result.code_update, `Evolution Cycle ${state.cycles + 1}`, mainFile.sha, state.config.branch);
         
