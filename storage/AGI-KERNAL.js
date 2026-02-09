@@ -100,11 +100,22 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
         // NOTE: Gemini API key is passed via query param for v1 compatibility.
         url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
         
-        // Gemini API v1 requires role transformation and 'parts' structure. System role is mapped to 'user'.
-        const geminiMessages = messages.map(msg => ({
-          role: msg.role === 'system' ? 'user' : msg.role, 
-          parts: [{ text: msg.content }]
-        }));
+        // FIX: Gemini API v1 requires strict 'user'/'model' alternation. 
+        // We filter out the dedicated 'system' message (Message 1) because mapping it to 'user' causes 
+        // sequential user messages which fails the API. The core instruction is already included 
+        // within the main 'user' context message (Message 2).
+        const geminiMessages = messages
+          .filter(msg => msg.role !== 'system')
+          .map(msg => ({
+            // Ensure roles are strictly 'user' or 'model' (assistant)
+            role: msg.role === 'assistant' ? 'model' : 'user', 
+            parts: [{ text: msg.content }]
+          }));
+
+        if (geminiMessages.length === 0) {
+            await pushLog('Gemini request generation failed: No user content found after filtering.', 'error');
+            return { success: false, error: 'Gemini request empty after filtering.' };
+        }
         
         body = {
           contents: geminiMessages,
@@ -137,8 +148,8 @@ INSTRUCTION: Based on the Objective, analyze the Current Code and Deep Context. 
 
       if (!res.ok) {
         const errorText = await res.text();
-        // Increased slice length for better error context
-        throw new new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
+        // FIX: Corrected typo: 'new new Error' -> 'new Error'
+        throw new Error(`LLM API failed (${res.status}): ${errorText.slice(0, 200)}`); 
       }
 
       const data = await res.json();
