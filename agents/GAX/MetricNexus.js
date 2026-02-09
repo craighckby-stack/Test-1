@@ -11,10 +11,18 @@
  * 3. Store trends in Nexus memory (via logMetricsToNexus).
  * 4. Use Nexus memory to inform strategy (via getHistoricalTrends).
  * 
- * Dependencies MUST implement:
- * - AnalyticsStore: calculateResidualRisk(), getHistoricalVolatilityFactor()
- * - PolicyAuditor: calculatePolicyChangeRate()
- * - NexusInterface: logTrend(key, data), readTrends(key, limit)
+ * Dependencies MUST Implement the following Interfaces:
+ * 
+ * Interface: AnalyticsStore
+ *  - calculateResidualRisk(): number (0.0 to 1.0)
+ *  - getHistoricalVolatilityFactor(): number (0.0 to 1.0)
+ * 
+ * Interface: PolicyAuditor
+ *  - calculatePolicyChangeRate(): number (0.0 to 1.0)
+ * 
+ * Interface: NexusInterface (The Nexus client for persistent memory)
+ *  - logTrend(key: string, data: Object): Promise<void>
+ *  - readTrends(key: string, limit: number): Promise<Array<Object>>
  */
 
 const METRIC_CONSTANTS = {
@@ -29,7 +37,7 @@ const METRIC_CONSTANTS = {
 class MetricNexus {
     // Inject NexusInterface, AnalyticsStore, and PolicyAuditor.
     constructor(AnalyticsStore, PolicyAuditor, NexusInterface) {
-        // Ensure dependencies are robustly handled, defaulting to empty objects if null/undefined
+        // Ensure dependencies are robustly handled, defaulting to objects to prevent runtime errors
         this.analytics = AnalyticsStore || {};
         this.auditor = PolicyAuditor || {};
         this.nexus = NexusInterface || {}; 
@@ -41,7 +49,7 @@ class MetricNexus {
             typeof this.nexus.readTrends === 'function';
 
         if (!this.isNexusIntegrationActive) {
-            console.warn("[MN CRITICAL WARNING]: NexusInterface persistence required by Cycles 6-15 is inactive. Metrics will not be stored/retrieved historically.");
+            console.warn(`[MN CRITICAL WARNING]: NexusInterface persistence required by Cycles 6-15 is inactive. Missing required methods: logTrend or readTrends.`);
         }
     }
 
@@ -78,7 +86,7 @@ class MetricNexus {
             (pvm * METRIC_CONSTANTS.WEIGHT_PVM); 
         
         // Normalize the metric to fit a 0-100 quality scale (100 being lowest risk/highest quality).
-        // Ensure riskScore is capped at 1.0 before calculation.
+        // Cap riskScore at 1.0 before normalization.
         const eqm = Math.max(0, 100 - Math.min(1.0, riskScore) * 100); 
 
         const sanitizedEqm = this._sanitizeMetric(eqm);
@@ -131,7 +139,6 @@ class MetricNexus {
      */
     async logMetricsToNexus(metrics) {
         if (!this.isNexusIntegrationActive) {
-            // Nexus persistence is intentionally skipped if the interface failed validation.
             return; 
         }
         try {
@@ -142,6 +149,7 @@ class MetricNexus {
             });
         } catch (error) {
             // Use existing error handling pattern: log the fault but do not halt the evolution.
+            // Note: Error logging should ideally use a centralized kernel logging mechanism.
             console.error(`MetricNexus Persistence Failure: Failed to log trends to Nexus. Error: ${error.message}`);
         }
     }
@@ -173,15 +181,18 @@ class MetricNexus {
      */
     async calculateImprovementDelta() {
         // Retrieve the last two cycles (Current [0] and Previous [1]).
+        // The current cycle's metrics must have just been logged by getAllMetrics.
         const historicalTrends = await this.getHistoricalTrends(2); 
 
         if (historicalTrends.length < 2) {
+            // Not enough history to calculate a delta.
             return { delta: 0, previousEQM: null }; 
         }
 
         const currentMetrics = historicalTrends[0];
         const previousMetrics = historicalTrends[1];
 
+        // Ensure we are comparing the explicit MQM key
         const currentEQM = this._sanitizeMetric(currentMetrics.MQM_EQM);
         const previousEQM = this._sanitizeMetric(previousMetrics.MQM_EQM);
         
@@ -201,23 +212,23 @@ class MetricNexus {
      * @returns {Promise<Object>} Returns metrics including MQM_Delta.
      */
     async getAllMetrics() {
-        // 1. Calculate components
+        // 1. Calculate components and EQM
         const ufrm = this.getUFRM();
         const cftm = this.getCFTM();
         const pvm = this.getPolicyVolatility();
-        const mqmEqm = this.getEvolutionQualityMetric(); // Calculate EQM last
+        const mqmEqm = this.getEvolutionQualityMetric(); 
 
         const metrics = {
             UFRM: ufrm,
             CFTM: cftm,
             PVM: pvm,
-            MQM_EQM: mqmEqm // Explicit MQM usage
+            MQM_EQM: mqmEqm // Explicit MQM usage for logging
         };
         
-        // 2. Log trends (Integration Requirement 3)
+        // 2. Log current state (Crucial step for delta calculation)
         await this.logMetricsToNexus(metrics);
 
-        // 3. Calculate Improvement Delta (Integration Requirement 2)
+        // 3. Calculate Improvement Delta (Requires the log step above to be complete)
         const { delta, previousEQM } = await this.calculateImprovementDelta();
 
         return { 
