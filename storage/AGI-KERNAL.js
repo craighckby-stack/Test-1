@@ -1,287 +1,62 @@
-const generate = useCallback(async (objective, currentCode, deepContext, systemPrompt = "", temperature = 0.7, maxTokens = 4096) => {
-    const { apiProvider, apiKey, model } = state.config;
-    
-    // Self-Improvement v7.1.1: Centralize API key validation. Since all current supported providers
-    // require an API key, we fail fast here, cleaning up the provider-specific logic blocks.
-    if (!apiKey) {
-        await pushLog(`Configuration Error: API key missing for ${apiProvider}.`, 'critical');
-        return { success: false, error: `API key missing for ${apiProvider}` };
-    }
-
-    await pushLog(`Generating response via ${apiProvider} (${model})...`, 'info');
-
-    let url = '';
-    let body = {};
-    const headers = { 'Content-Type': 'application/json' };
-    let parseResponse = (data) => data;
-    const messages = [];
-
-    // Self-Improvement v7.8.0: Implement context size guard to prevent 400 errors from overflowing the model's token limit.
-    // Using character count as a proxy for token estimation (200k chars ~ 50k tokens, providing ample safety margin).
-    const MAX_CONTEXT_CHARS = 200000; 
-
-    let safeCurrentCode = currentCode;
-    let safeDeepContext = deepContext;
-    const totalContextLength = currentCode.length + deepContext.length;
-
-    if (totalContextLength > MAX_CONTEXT_CHARS) {
-        // Priority: Keep the Current Code intact, truncate Deep Context
-        const maxDeepContextLength = MAX_CONTEXT_CHARS - currentCode.length;
-        
-        if (maxDeepContextLength <= 0) {
-            // Current code is already too large or near the limit
-            safeDeepContext = `[Deep Context Truncated: Current code too large]`;
-            await pushLog(`Warning: Current Code context (${currentCode.length} chars) is nearing or exceeding MAX_CONTEXT_CHARS. Deep context aggressively truncated.`, 'warning');
-        } else {
-            safeDeepContext = deepContext.slice(0, maxDeepContextLength) + '... [CONTEXT TRUNCATED]';
-            await pushLog(`Warning: Context window overflow detected (${totalContextLength} > ${MAX_CONTEXT_CHARS}). Deep context truncated to ${maxDeepContextLength} characters.`, 'warning');
-        }
-    }
-
-    // 1. System message (Core directive)
-    if (systemPrompt) {
-      messages.push({ role: 'system', content: systemPrompt });
-    }
-
-    // 2. Contextual message (Code and Objective)
-    // Self-Improvement v7.4.0: Refine the user message structure to isolate and emphasize the CRITICAL JSON formatting instructions, improving output compliance.
-    messages.push({
-      role: 'user',
-      content: `
-AGI-KERNEL v7.1 Autonomous Synthesis Core Report.
-Objective: ${objective}
-Current Code Context (AGI-Kernel.js, truncated if necessary):
----
-${safeCurrentCode}
----
-Deep Context Scan (Project Context):
----
-${safeDeepContext}
----
-
----
-FORMATTING INSTRUCTION (CRITICAL):
-Produce the necessary self-improvement output STRICTLY in a single, parsable JSON object.
-Key Requirements:
-1. Do NOT wrap the JSON in markdown fences (e.g., \u0060\u0060\u0060json).
-2. Ensure all string values are properly escaped within the JSON.
-3. Your output MUST conform to the exact structure: { "code_update": "string", "maturity_rating": number, "improvement_detected": boolean, "capabilities": { "logic": 0-10, "autonomy": 0-10, "safety": 0-10 } }.
-      `
-    });
-
-    // --- Provider Specific Configuration (Using switch for cleaner structure) ---
-    switch (apiProvider) {
-      case 'cerebras':
-      case 'openai': {
-        // Standard OpenAI / Azure format, widely compatible
-        url = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : (CONFIG.OPENAI_API || 'https://api.openai.com/v1/chat/completions');
-        
-        // Authentication: API key is guaranteed to exist
-        headers['Authorization'] = `Bearer ${apiKey}`;
-
-        body = {
-          model: model,
-          messages: messages,
-          temperature: temperature,
-          max_tokens: maxTokens,
-          stream: false
-        };
-        parseResponse = (data) => data.choices?.[0]?.message?.content || null;
-        break;
-      }
-
-      case 'anthropic': {
-        url = CONFIG.ANTHROPIC_API || 'https://api.anthropic.com/v1/messages';
-        headers['x-api-key'] = apiKey;
-        headers['anthropic-version'] = '2023-06-01'; // Required API version header
-
-        // Anthropic requires a separate 'system' parameter and only 'user'/'assistant' roles in messages
-        const anthropicMessages = messages
-          .filter(msg => msg.role !== 'system')
-          .map(msg => ({
-              role: msg.role === 'user' ? 'user' : 'assistant',
-              content: msg.content
-          }));
-
-        const systemMessage = messages.find(msg => msg.role === 'system')?.content || "";
-
-        body = {
-          model: model,
-          messages: anthropicMessages,
-          max_tokens: maxTokens,
-          temperature: temperature,
-        };
-        
-        if (systemMessage) {
-            body.system = systemMessage;
-        }
-
-        parseResponse = (data) => data.content?.[0]?.text || null;
-        break;
-      }
-
-      case 'gemini': {
-        
-        // IMPROVEMENT: Ensure robust URL construction, as Gemini requires the model in the path.
-        const geminiBaseTemplate = CONFIG.GEMINI_API || 'https://generativelanguage.googleapis.com/v1/models/MODEL_NAME:generateContent';
-        const finalGeminiUrl = geminiBaseTemplate.replace('MODEL_NAME', model);
-        
-        // NOTE: Gemini API key is passed via query param for v1 compatibility.
-        url = `${finalGeminiUrl}?key=${apiKey}`;
-        
-        const systemMessage = messages.find(msg => msg.role === 'system')?.content || "";
-
-        // FIX (v7.1.2): Gemini requires strict 'user'/'model' alternation in contents. 
-        // System instructions must be explicitly added to the config block.
-        const geminiMessages = messages
-          .filter(msg => msg.role !== 'system')
-          .map(msg => ({
-            // Ensure roles are strictly 'user' or 'model' (assistant)
-            role: msg.role === 'assistant' ? 'model' : 'user', 
-            parts: [{ text: msg.content }]
-          }));
-
-        if (geminiMessages.length === 0) {
-            await pushLog('Gemini request generation failed: No user content found after filtering.', 'error');
-            return { success: false, error: 'Gemini request empty after filtering.' };
-        }
-        
-        const config = {
-            temperature: temperature,
-            maxOutputTokens: maxTokens,
-        };
-
-        // Inject the system instruction if present (crucial for prompt fidelity)
-        if (systemMessage) {
-            config.systemInstruction = systemMessage;
-        }
-
-        body = {
-          contents: geminiMessages,
-          config: config
-        };
-
-        parseResponse = (data) => data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-        break;
-      }
-
-      default:
-        await pushLog(`Configuration Error: Unknown API provider: ${apiProvider}`, 'critical');
-        return { success: false, error: `Unknown API provider: ${apiProvider}` };
-    }
-
-    // --- Execution ---
-    if (!url) {
-        await pushLog('LLM Generation Error: API endpoint URL is not configured.', 'critical');
-        return { success: false, error: 'API endpoint URL missing.' };
-    }
-
-    // Improvement: Add debug logging showing the constructed request before sending
-    try {
-        const bodySize = JSON.stringify(body).length;
-        // Sanitize API key from the URL for security logging if present (e.g., Gemini)
-        const sanitizedUrl = url.includes('key=') ? url.replace(/key=([^&]*)/, 'key=***') : url;
-        await pushLog(`[API Request Debug] Sending request to ${apiProvider}. URL: ${sanitizedUrl}. Body size: ${bodySize} bytes.`, 'debug');
-    } catch (e) {
-        // Fail silently if debug logging breaks
-    }
-
-    // Self-Improvement v7.5.0/v7.7.1: Introduce explicit timeout handling (60 seconds) using AbortController for network stability.
-    const TIMEOUT_MS = 60000;
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    const timeoutId = setTimeout(() => {
-        // Aborting triggers an 'AbortError' which will be caught below.
-        controller.abort(); 
-    }, TIMEOUT_MS);
-
-    try {
-      const res = await persistentFetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body),
-        signal: signal,
-      });
-
-      // Clear the timeout as soon as the fetch resolves (before checking res.ok)
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const status = res.status;
-        const errorText = await res.text();
-        
-        let specificErrorMessage = '';
-        
-        // Self-Improvement v7.3.0: Attempt to extract specific error messages from JSON payloads
-        try {
-            const errorData = JSON.parse(errorText);
-            // Common paths for API errors (OpenAI, Anthropic, Gemini)
-            specificErrorMessage = errorData.error?.message || errorData.message || errorData.error?.text || '';
-        } catch (e) {
-            // Not a JSON response, or parsing failed.
-        }
-        
-        // Use the extracted message if available, otherwise use the raw error text for truncation
-        const loggableErrorSource = specificErrorMessage || errorText;
-        
-        // Improved safety: truncate error text for logging to prevent massive console floods from API backends
-        const safeErrorText = loggableErrorSource.length > 500 ? loggableErrorSource.slice(0, 500) + '...' : loggableErrorSource;
-        
-        let baseErrorMessage = `LLM API failed [${apiProvider}] (${status}): ${safeErrorText}`;
-        
         if (status === 429) {
             // Self-Improvement v7.2.1: Granular error detection, specifically for rate limiting (429).
             baseErrorMessage = `LLM API failed (Rate Limit 429) [${apiProvider}]: ${safeErrorText}`;
-            await pushLog(baseErrorMessage, 'warning'); // Log as warning since rate limits are recoverable
-        } else if (status >= 400 && status < 500) {
-            // Client errors (Bad Request, Unauthorized, Invalid Token, etc.)
-            await pushLog(baseErrorMessage, 'error');
+            await pushLog(baseErrorMessage, 'warning'); 
         } else {
-            // Server errors (5xx)
+            // General failure (500, etc.)
             await pushLog(baseErrorMessage, 'critical');
         }
 
-        // Self-Improvement v7.9.0: Ensure standardized failure return regardless of status type.
-        const returnError = specificErrorMessage || `API call failed with status ${status}`;
-        return { success: false, error: returnError };
+        return { success: false, error: baseErrorMessage };
       }
 
-      // If response OK, proceed to parse
-      let data;
+      // --- Success Path ---
+      let apiData;
       try {
-        data = await res.json();
+          // Attempt to parse the API response JSON object first
+          // parseResponse functions expect the full API JSON object (data) to extract the content string.
+          apiData = await res.json();
       } catch (e) {
-        // This usually happens if the API sends back a non-JSON success message (rare but possible)
-        const rawText = await res.text();
-        await pushLog(`LLM API succeeded but response was unparseable JSON. Raw text: ${rawText.slice(0, 100)}...`, 'error');
-        return { success: false, error: `API response succeeded but content was invalid JSON.` };
-      }
-
-      const content = parseResponse(data);
-
-      if (!content) {
-        // Model returned success but content field was empty (e.g., filtered safety policy)
-        await pushLog('LLM returned content was null or empty.', 'warning');
-        return { success: false, error: 'LLM returned empty content.' };
-      }
-
-      await pushLog('LLM response received successfully.', 'debug');
-      return { success: true, content: content };
-
-    } catch (e) {
-      // Catch network errors, persistentFetch errors, and AbortErrors (Timeout)
-      clearTimeout(timeoutId);
-      
-      let errorMessage = e.message || 'Unknown network error during LLM generation.';
-      let logLevel = 'critical';
-
-      if (e.name === 'AbortError') {
-        errorMessage = `LLM API timed out after ${TIMEOUT_MS / 1000} seconds.`;
-        logLevel = 'warning'; // Timeouts are often transient
+          await pushLog('LLM Generation Error: Failed to parse API response body as JSON.', 'error');
+          return { success: false, error: 'Failed to parse API response body.' };
       }
       
-      await pushLog(`LLM Generation Failed (Exception): ${errorMessage}`, logLevel);
-      return { success: false, error: errorMessage };
+      let rawContent = parseResponse(apiData);
+
+      if (rawContent) {
+        // Self-Improvement v7.9.0: Robust JSON Sanitization. 
+        // Despite critical instructions, LLMs sometimes wrap the JSON in markdown fences (, ).
+        // Clean the output to ensure the downstream parser receives a pure JSON string, greatly enhancing reliability.
+        const sanitizeResponse = (text) => {
+          text = text.trim();
+          // Use a non-greedy regex match to find and strip surrounding fences (, , etc.)
+          // Captures content (group 2) between triple backticks, allowing for optional language tag (group 1).
+          const match = text.match(/^\s*`{3}(\w*\s*)?([\s\S]*?)`{3}\s*$/);
+          if (match) {
+             return match[2].trim(); 
+          }
+          return text;
+        };
+        
+        rawContent = sanitizeResponse(rawContent);
+        
+        await pushLog(`Successfully received content (Sanitized: ${rawContent.length} chars).`, 'debug');
+        return { success: true, content: rawContent };
+      }
+
+      // Handle successful API call but empty/unparsable content
+      await pushLog('LLM Generation Error: API returned success but content was empty or unparsable via provider logic.', 'error');
+      return { success: false, error: 'Empty content response from LLM.' };
+
+    } catch (error) {
+        clearTimeout(timeoutId); // Ensure timeout is cleared even on fetch rejection
+
+        if (error.name === 'AbortError') {
+            await pushLog(`LLM Generation Error: Request timed out after ${TIMEOUT_MS / 1000} seconds.`, 'critical');
+            return { success: false, error: 'Request Timeout.' };
+        }
+        
+        // Handle general network errors, DNS failures, connection resets, etc.
+        await pushLog(`LLM Generation Error: Network or request failure: ${error.message}`, 'critical');
+        return { success: false, error: `Network/Request failure: ${error.message}` };
     }
-});
