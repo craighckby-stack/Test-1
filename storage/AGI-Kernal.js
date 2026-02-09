@@ -1,5 +1,92 @@
 const os = require('os');
-const fs = require('fs');
+const KERNEL_SYNC_FS = require('fs');
+import FS_PROMISES from 'fs/promises';
+import path from 'path';
+
+// Mock Logger implementation for SpecificationLoader dependency
+class Logger {
+    constructor(source) { this.source = source; }
+    info(msg) { console.log(`[${this.source}][INFO] ${msg}`); }
+    warn(msg) { console.warn(`[${this.source}][WARN] ${msg}`); }
+    fatal(msg) { console.error(`[${this.source}][FATAL] ${msg}`); }
+    success(msg) { console.log(`[${this.source}][SUCCESS] ${msg}`); }
+}
+
+// --- TARGET INTEGRATION: SpecificationLoader (AGI-C-01) ---
+
+const DEFAULT_SPEC_PATH = path.resolve(process.cwd(), 'config/XEL_Specification.json');
+
+/**
+ * Specification Loader Service (Async): Manages the loading, parsing, and version control 
+ * of XEL Specifications.
+ * 
+ * Decouples I/O from component execution via asynchronous loading and uses explicit 
+ * initialization.
+ */
+class SpecificationLoader {
+    /**
+     * @param {{ specPath?: string }} config Configuration object.
+     */
+    constructor(config = {}) {
+        this.specPath = config.specPath || DEFAULT_SPEC_PATH;
+        this.specification = null;
+        this.logger = new Logger('SpecificationLoader');
+        this.isLoaded = false;
+    }
+
+    /**
+     * Initializes the loader by asynchronously reading and parsing the specification file.
+     * Must be awaited by the system bootstrapping process.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        if (this.isLoaded) {
+            this.logger.warn("Attempted multiple initialization calls.");
+            return;
+        }
+
+        this.logger.info(`Attempting to load specification from: ${this.specPath}`);
+        
+        try {
+            const data = await FS_PROMISES.readFile(this.specPath, 'utf8');
+            this.specification = JSON.parse(data);
+            this.isLoaded = true;
+            this.logger.success("XEL Specification loaded successfully.");
+        } catch (error) {
+            this.logger.fatal(`Failed to load XEL Specification: ${error.message}. Using fallback structure.`);
+            // Ensure robustness: Provide a safe, minimal fallback structure
+            this.specification = { ComponentSchemas: {} };
+            this.isLoaded = true; // Mark as loaded, even if with fallback
+            throw new Error(`SPEC_LOAD_FAILURE: Initialization failed: ${error.message}`); 
+        }
+    }
+
+    /**
+     * Retrieves the complete specification object (deep cloned for safety).
+     * @returns {object}
+     */
+    getSpecification() {
+        if (!this.isLoaded) {
+            throw new Error("Specifications not initialized. Call initialize() first.");
+        }
+        // Return a clone to protect the internal state from mutation
+        return JSON.parse(JSON.stringify(this.specification)); 
+    }
+
+    /**
+     * Retrieves the Component Schemas section of the specification.
+     * @returns {object}
+     */
+    getComponentSchemas() {
+        const spec = this.getSpecification(); 
+        if (!spec.ComponentSchemas) {
+             throw new Error("Specifications initialized but ComponentSchemas structure is missing.");
+        }
+        return spec.ComponentSchemas;
+    }
+}
+
+export const XELSpecificationLoader = SpecificationLoader;
 
 // --- Grafted Type Definitions for GRCS Verification (GRCS_VerificationTypes) ---
 type LiabilityUnit = 'USD' | 'PPR' | 'N/A';
@@ -182,7 +269,7 @@ export class CodebaseAccessor {
         }
         try {
             // TODO: Replace direct fs access with cached codebase state lookup
-            return fs.existsSync(filePath);
+            return KERNEL_SYNC_FS.existsSync(filePath);
         } catch (error) {
             // Logging unexpected error during file check is critical
             console.error(`[CodebaseAccessor] Failed to check existence of ${filePath}:`, error);
@@ -478,7 +565,7 @@ class BaseAverager {
             this.values.push(value);
         } else {
             console.warn(`[${this.name}] Invalid value submitted:`, value);
-        }
+        n}
     }
 
     calculate() {
@@ -929,52 +1016,4 @@ class MEE_MetricEvaluationEngine {
      */
     _initializeAveragers() {
         // Initialize averagers for known system metrics
-        this.averagers['osCpuLoad1m'] = this.averagerFactory.create(INTEGRITY_CONSTANTS.METRIC_TYPES.LOAD, 'osCpuLoad1m');
-        this.averagers['osMemoryUsagePercent'] = this.averagerFactory.create(INTEGRITY_CONSTANTS.METRIC_TYPES.MEMORY, 'osMemoryUsagePercent');
-    }
-
-    /**
-     * Executes all registered sensors and submits data to averagers.
-     */
-    async collectAndAggregate() {
-        // Collect raw data from all sensors
-        for (const sensor of this.sensors) {
-            try {
-                const rawData = await sensor.run();
-                this.currentMetrics = { ...this.currentMetrics, ...rawData };
-            } catch (error) {
-                console.error(`[MEE] Error running sensor ${sensor.name}:`, error);
-            }
-        }
-
-        // Submit raw data to corresponding averagers
-        for (const [key, value] of Object.entries(this.currentMetrics)) {
-            if (this.averagers[key]) {
-                this.averagers[key].submit(value);
-            }
-        }
-    }
-
-    /**
-     * Calculates current averages and evaluates them against MEE policies.
-     * @returns {{evaluationContext: Object, violations: Array}}
-     */
-    async runEvaluation() {
-        // 1. Calculate Averages and build evaluation context
-        this.averagedMetrics = {};
-        const evaluationContext = {};
-
-        for (const [key, averager] of Object.entries(this.averagers)) {
-            const averageValue = averager.calculate();
-            const averagedKey = `averaged_${key}`;
-            this.averagedMetrics[key] = averageValue;
-            evaluationContext[averagedKey] = averageValue;
-            
-            // Important: Reset the averager after calculation for the next cycle
-            averager.reset(); 
-        }
-
-        // 2. Run Policy Evaluation using the contextual map
-        
-        // We use the ConceptualPolicyEvaluator, but map MEE policies to its expected format
-        const mockConcept = { constraints: this.policies };
+        this.
