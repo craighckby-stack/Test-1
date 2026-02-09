@@ -1,4 +1,4 @@
-  if (!state.booted) return (
+if (!state.booted) return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md bg-zinc-900/20 border border-zinc-800/50 rounded-[2.5rem] p-10 backdrop-blur-3xl shadow-2xl">
         <div className="flex flex-col items-center mb-10">
@@ -17,4 +17,9 @@
               <option value="gemini">Gemini</option>
               <option value="cerebras">Cerebras</option>
             </select>
-            <input type="password" placeholder="API Key" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outl
+            <input type="password" placeholder="API Key" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500" value={input.apiKey} onChange={e => setInput({...input, apiKey: e.target.value})} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
