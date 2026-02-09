@@ -1,7 +1,10 @@
 /**
- * Sovereign AGI v94.1 JSON Canonicalization Utility
- * Ensures a consistent, deterministic string representation of JSON objects
- * suitable for cryptographic operations (signing, hashing).
+ * AGI-KERNEL v7.4.3 - JsonCanonicalizer Utility
+ * Purpose: Ensures a consistent, deterministic string representation of state objects
+ * suitable for persistent storage (Nexus-Database) and integrity checks.
+ *
+ * Improvement: Enhanced error handling for robust operation, particularly against
+ * circular references during state snapshotting.
  */
 const crypto = require('crypto');
 
@@ -9,22 +12,44 @@ class JsonCanonicalizer_Util {
     
     /**
      * Recursively sorts keys within an object to ensure deterministic JSON serialization.
-     * @param {Object} obj - The object or array to sort.
-     * @returns {Object} The deeply sorted structure.
+     * Implements circular reference detection to prevent recursion errors and crashes.
+     * @param {*} obj - The value to sort (Object, Array, or Scalar).
+     * @param {Set} seen - Internal set used for tracking circular references.
+     * @returns {*} The deeply sorted structure or original scalar.
      */
-    static _deepSortKeys(obj) {
-        if (Array.isArray(obj)) {
-            return obj.map(JsonCanonicalizer_Util._deepSortKeys);
+    static _deepSortKeys(obj, seen = new Set()) {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
         }
-        if (obj !== null && typeof obj === 'object') {
+        
+        // 1. Circular Reference Check
+        if (seen.has(obj)) {
+            // Use a safe string representation for circular references
+            return '[Circular Reference Detected]';
+        }
+        seen.add(obj);
+
+        if (Array.isArray(obj)) {
+            const result = obj.slice().map(item => JsonCanonicalizer_Util._deepSortKeys(item, seen));
+            seen.delete(obj);
+            return result;
+        }
+        
+        // 2. Handle standard objects
+        try {
             const sortedKeys = Object.keys(obj).sort();
             const newObj = {};
             for (const key of sortedKeys) {
-                newObj[key] = JsonCanonicalizer_Util._deepSortKeys(obj[key]);
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    newObj[key] = JsonCanonicalizer_Util._deepSortKeys(obj[key], seen);
+                }
             }
+            seen.delete(obj);
             return newObj;
+        } catch (e) {
+             // General object processing error handling
+             return `[Error processing object: ${e.message}]`;
         }
-        return obj;
     }
 
     /**
@@ -33,9 +58,16 @@ class JsonCanonicalizer_Util {
      * @returns {string} The canonical JSON string.
      */
     static canonicalize(data) {
-        const sortedData = JsonCanonicalizer_Util._deepSortKeys(data);
-        // Canonical format: Strict JSON, no spacing, ordered keys.
-        return JSON.stringify(sortedData);
+        if (data === undefined) return '{}';
+        try {
+            const sortedData = JsonCanonicalizer_Util._deepSortKeys(data);
+            // Canonical format: Strict JSON, no spacing, ordered keys.
+            return JSON.stringify(sortedData);
+        } catch (e) {
+            console.error("Canonicalization Error: Failed to stringify data.", e);
+            // Graceful failure: Return an error-indicated canonical string
+            return JSON.stringify({ error: "Canonicalization_Failure", message: e.message });
+        }
     }
     
     /**
@@ -44,7 +76,15 @@ class JsonCanonicalizer_Util {
      * @returns {string} The resulting SHA-256 hash (hex).
      */
     static hash(canonicalString) {
-        return crypto.createHash('sha256').update(canonicalString, 'utf8').digest('hex');
+        if (typeof canonicalString !== 'string') {
+            throw new Error("Input to hash must be a canonical string.");
+        }
+        try {
+            return crypto.createHash('sha256').update(canonicalString, 'utf8').digest('hex');
+        } catch (e) {
+            console.error("Hashing Error:", e);
+            return 'HASHING_FAILED';
+        }
     }
 }
 
