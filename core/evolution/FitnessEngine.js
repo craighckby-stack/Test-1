@@ -283,6 +283,30 @@ class FitnessEngine {
     
     return sanitized;
   }
+
+  /**
+   * Internal utility to check if parentheses in a formula string are correctly balanced.
+   * Crucial for robust formula validation (Error Handling/Autonomy).
+   *
+   * @param {string} formula - The raw metric calculation formula string.
+   * @returns {boolean} True if parentheses are balanced.
+   */
+  _checkParenthesisBalance(formula) {
+      let balance = 0;
+      for (let i = 0; i < formula.length; i++) {
+          const char = formula[i];
+          if (char === '(') {
+              balance++;
+          } else if (char === ')') {
+              balance--;
+          }
+          // Immediate check for negative balance (closing before opening)
+          if (balance < 0) {
+              return false;
+          }
+      }
+      return balance === 0;
+  }
   
   /**
    * Autonomy/Security: Pre-validates the formula to ensure it only references known
@@ -302,6 +326,12 @@ class FitnessEngine {
       
       if (unknownMetrics.length > 0) {
           console.error(`FitnessEngine Security Alert: Formula references unknown metrics: ${unknownMetrics.join(', ')}`);
+          return false;
+      }
+      
+      // 3. NEW IMPROVEMENT (Error Handling/Autonomy): Check parenthesis balance
+      if (!this._checkParenthesisBalance(formula)) {
+          console.error("FitnessEngine Security Alert: Formula failed parenthesis balance check (structural integrity error).");
           return false;
       }
       
