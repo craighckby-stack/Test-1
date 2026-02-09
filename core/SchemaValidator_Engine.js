@@ -13,7 +13,7 @@ class SchemaValidationError extends Error {
         
         super(`XEL Validation Failed [${schemaName}]: ${errorText}`);
         this.name = 'SchemaValidationError';
-        this.schemaName = schemaName;
+        this.schemaName = schemaName; 
         this.validationErrors = errors; // Raw Ajv errors for programmatic handling
     }
 }
@@ -64,7 +64,7 @@ class SchemaValidatorEngine {
         });
 
         // Add all schemas dynamically
-        if (componentSchemas) {
+        if (componentSchemas && typeof componentSchemas === 'object' && !Array.isArray(componentSchemas)) {
             Object.entries(componentSchemas).forEach(([name, schema]) => {
                 try {
                     // Check if schema is already defined to avoid strict mode errors on re-init
@@ -92,6 +92,7 @@ class SchemaValidatorEngine {
 
     /**
      * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
+     * This is the critical integration point for Requirements 2 (Log to Nexus) and 3 (Use MQM metrics).
      * @param {string} schemaName 
      * @param {Array<object>} errors 
      * @param {boolean} isCritical 
@@ -113,21 +114,25 @@ class SchemaValidatorEngine {
             count: errors.length
         };
         
-        // 2. Log to Internal History (Requirement 3: Nexus Inform Strategy)
+        // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
         this.failureHistory.unshift(failureEntry);
         if (this.failureHistory.length > this.MAX_HISTORY) {
             this.failureHistory.pop();
         }
         
-        // 3. Trigger External Nexus/MQM Logging (Requirement 1 & 2)
+        // 3. Trigger External Nexus/MQM Logging (Integration Points)
         const mqmPayload = {
-            metric_type: 'VALIDATION_FAILURE',
-            schema: schemaName,
+            metric_type: 'AGI_INTEGRATION_FAILURE',
+            source_component: 'SchemaValidatorEngine',
+            // Direct link to core AGI capabilities for strategy refinement
+            AGI_CAPABILITY_IMPACT: 'JSON Parsing/Error Handling', 
+            schema_name: schemaName,
             criticality: isCritical ? 'CRITICAL_THROW' : 'SOFT_RECOVERY',
             error_count: errors.length,
-            // Capture data structure context for pattern recognition
-            context_keys: dataSample ? Object.keys(dataSample).slice(0, 8).join(', ') : 'N/A',
-            first_error: summary[0] || {}
+            // Detailed error context for LLM output analysis
+            first_error_keyword: summary[0]?.keyword || 'N/A',
+            first_error_path: summary[0]?.path || 'N/A',
+            data_structure_keys: dataSample ? Object.keys(dataSample).slice(0, 8).join(', ') : 'N/A',
         };
         
         // APPLY existing tools: Use the injected function to log the metrics to Nexus/MQM system
@@ -135,7 +140,7 @@ class SchemaValidatorEngine {
 
         // 4. Console log only critical failures
         if (isCritical) {
-             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${summary[0].path}`);
+             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${errors.length}, KeyPath=${summary[0]?.path || 'N/A'}`);
         }
     }
 
@@ -190,16 +195,20 @@ class SchemaValidatorEngine {
             // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
             dataCopy = JSON.parse(JSON.stringify(data));
         } catch (e) {
-            console.warn(`[SCHEMA_ENGINE]: Data serialization failed during tryValidate: ${e.message}`);
-            // Track failure of the copying process itself if data is non-serializable
-            this._trackFailure(schemaName, [{keyword: 'serialization', message: 'Input data non-serializable'}], false, data);
+            // Track failure of the copying process itself if data is non-serializable (Robust JSON Parsing)
+            const serializationError = {
+                keyword: 'serialization_fail', 
+                message: `Input data non-serializable (${e.message})`,
+                instancePath: 'root'
+            };
+            this._trackFailure(schemaName, [serializationError], false, data);
             return null; 
         }
         
         const valid = validateFn(dataCopy);
         
         if (!valid) {
-            // Integration: Track soft failure, passing the original data structure context
+            // Integration: Track soft schema failure, passing the original data structure context
             this._trackFailure(schemaName, validateFn.errors, false, data);
             return null;
         }
