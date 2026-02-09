@@ -135,6 +135,113 @@ export const Crypto = new CryptoService();
 
 // --- END: AGI Crypto Service Graft ---
 
+// --- START: AGI Averaging Manager Graft (TARGET) ---
+
+/**
+ * AveragingManager: Optimized Recursive Averaging Service
+ * Implements Exponential Moving Average (EMA) for computationally efficient,
+ * recursively abstracted tracking of metrics (e.g., latency, resource utilization).
+ * This provides O(1) update complexity, crucial for high-frequency kernel operations.
+ */
+class AveragingManager {
+    // Map<metricKey, { currentAverage: number, alpha: number, initialized: boolean }>
+    metrics = new Map();
+    defaultAlpha;
+
+    /**
+     * @param {number} defaultAlpha - The default smoothing factor (0 < alpha <= 1). 
+     * A higher alpha means less smoothing (more responsive to recent data).
+     * Typical values derived from period N: alpha = 2 / (N + 1).
+     */
+    constructor(defaultAlpha = 0.1) {
+        if (defaultAlpha <= 0 || defaultAlpha > 1) {
+            throw new Error("Alpha must be between 0 (exclusive) and 1 (inclusive).");
+        }
+        this.defaultAlpha = defaultAlpha;
+    }
+
+    /**
+     * Initializes or resets a metric tracker.
+     * @param {string} key - Unique identifier for the metric.
+     * @param {number} [alpha] - Optional custom smoothing factor for this metric.
+     */
+    initializeMetric(key, alpha) {
+        const effectiveAlpha = alpha !== undefined ? alpha : this.defaultAlpha;
+        if (effectiveAlpha <= 0 || effectiveAlpha > 1) {
+             throw new Error(`Invalid alpha (${effectiveAlpha}) provided for metric ${key}.`);
+        }
+        this.metrics.set(key, {
+            currentAverage: 0,
+            alpha: effectiveAlpha,
+            initialized: false
+        });
+    }
+
+    /**
+     * Updates the Exponential Moving Average (EMA) for a given metric.
+     * This is the core recursive abstraction logic.
+     * 
+     * EMA_t = alpha * Value_t + (1 - alpha) * EMA_{t-1}
+     * 
+     * @param {string} key - Unique identifier for the metric.
+     * @param {number} newValue - The latest observed value.
+     * @returns {number} The newly calculated average.
+     */
+    updateAverage(key, newValue) {
+        const metric = this.metrics.get(key);
+
+        if (!metric) {
+            // Auto-initialize if not found, using default alpha
+            this.initializeMetric(key);
+            const newMetric = this.metrics.get(key);
+            if (!newMetric) throw new Error(`Failed to initialize metric ${key}`); // Should not happen
+            return this.updateAverage(key, newValue); // Recurse once to apply the value
+        }
+
+        const { currentAverage, alpha, initialized } = metric;
+
+        let newAverage;
+
+        if (!initialized) {
+            // Initial state: Use the first value as the starting average (no smoothing applied yet)
+            newAverage = newValue;
+            metric.initialized = true;
+        } else {
+            // Recursive EMA calculation (O(1) complexity)
+            newAverage = (alpha * newValue) + ((1 - alpha) * currentAverage);
+        }
+
+        metric.currentAverage = newAverage;
+        return newAverage;
+    }
+
+    /**
+     * Retrieves the current calculated average for a metric.
+     * @param {string} key - Unique identifier for the metric.
+     * @returns {number | null} The current average, or null if the metric is uninitialized.
+     */
+    getAverage(key) {
+        const metric = this.metrics.get(key);
+        if (metric && metric.initialized) {
+            return metric.currentAverage;
+        }
+        return null;
+    }
+
+    /**
+     * Checks if a metric has been initialized and received at least one update.
+     */
+    isInitialized(key) {
+        const metric = this.metrics.get(key);
+        return metric ? metric.initialized : false;
+    }
+}
+
+// Export a singleton instance for internal KERNEL use
+export const Averager = new AveragingManager(0.05); // Default alpha set low for high smoothing (N approx 39)
+
+// --- END: AGI Averaging Manager Graft (TARGET) ---
+
 // KERNEL Imports (React/Firebase)
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
@@ -239,41 +346,32 @@ export const MINIMAL_FALLBACK_SCHEMA = {
 // --- START: AGI Constraint Enforcement Graft (TARGET) ---
 
 export class ConstraintViolationError extends Error {
-  public constraintType: string;
+  constraintType;
   
-  constructor(message: string, constraintType: string) {
+  constructor(message, constraintType) {
     super(`Constraint violation detected: ${message}`);
     this.name = 'ConstraintViolationError';
     this.constraintType = constraintType;
   }
 }
 
-export interface ConstraintDefinition {
-  type: 'rate_limit' | 'payload_size' | 'timeout' | string; // Use known constraint types for better DX
-  value: number | string;
-  unit?: string;
-  appliesTo: 'service' | 'method' | 'field';
-}
-
 // Defines the optimized lookup structure: Map<"serviceName/methodName", ConstraintDefinition[]>
-export type IndexedConstraintMap = Map<string, ConstraintDefinition[]>; 
-
 export class GaxConstraintEnforcer {
   // The enforcer relies on a pre-indexed, strongly typed constraint map.
-  private indexedConstraints: IndexedConstraintMap;
+  indexedConstraints;
 
   /**
    * Initializes the enforcer with a pre-indexed map of constraints.
    * Indexing logic (inheritance, merging) must occur externally.
    */
-  constructor(indexedConstraints: IndexedConstraintMap) {
+  constructor(indexedConstraints) {
     this.indexedConstraints = indexedConstraints;
   }
 
   /**
    * Retrieves and enforces all relevant constraints for a specific API call.
    */
-  public enforce(serviceName: string, methodName: string, request: unknown): void {
+  enforce(serviceName, methodName, request) {
     const constraints = this.getEffectiveConstraints(serviceName, methodName);
 
     if (constraints.length === 0) {
@@ -289,7 +387,7 @@ export class GaxConstraintEnforcer {
           }
           break;
         case 'payload_size':
-          const limit = constraint.value as number;
+          const limit = constraint.value;
           // Note: checkPayloadSize returns TRUE if violation occurs.
           if (this.checkPayloadSize(request, limit, constraint.unit)) {
              throw new ConstraintViolationError(`Payload size (${limit} ${constraint.unit || 'bytes'}) exceeded limit`, constraint.type);
@@ -305,20 +403,20 @@ export class GaxConstraintEnforcer {
   /**
    * Calculates the effective constraints. O(1) lookup since constraints are pre-indexed by method.
    */
-  private getEffectiveConstraints(serviceName: string, methodName: string): ConstraintDefinition[] {
+  getEffectiveConstraints(serviceName, methodName) {
     const key = `${serviceName}/${methodName}`;
     return this.indexedConstraints.get(key) || [];
   }
 
   // --- Stub Implementations for Runtime Checks ---
 
-  private checkRateLimit(serviceName: string, methodName: string): boolean {
+  checkRateLimit(serviceName, methodName) {
     // TRUE if the call is allowed.
     // Requires external RateLimiter instance injection.
     return true; 
   }
   
-  private checkPayloadSize(request: unknown, limit: number, unit?: string): boolean {
+  checkPayloadSize(request, limit, unit) {
     // TRUE if the request violates the size limit.
     try {
       // Assuming Buffer is available in this Node-like environment context.
