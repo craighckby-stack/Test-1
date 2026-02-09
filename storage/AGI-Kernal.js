@@ -54,6 +54,65 @@ const CNRE_V1_Schema = {
 
 // --- END TARGET INTEGRATION: Schema Validation Dependencies ---
 
+// --- TARGET INTEGRATION: ASDM Error Translator V1.0 ---
+
+/**
+ * ASDM_ErrorTranslator V1.0
+ * Component responsible for converting standardized internal validation issues (StandardIssue)
+ * into finalized, human-readable error messages for consumption by external APIs or UI.
+ * This separation ensures the core ValidationResultProcessor remains focused purely on data transformation,
+ * delegating message presentation concerns here.
+ */
+
+/**
+ * @typedef {object} StandardIssue
+ * @property {string} schema - The key of the schema validated against.
+ * @property {string} field - The canonical path of the invalid data.
+ * @property {string} code - The type of validation failure (Ajv keyword).
+ * @property {string} message - The original generated error message (used as fallback).
+ */
+
+/**
+ * Takes a standardized issue and formats a highly contextual message.
+ * Placeholder for a future localization and template system.
+ * 
+ * @param {StandardIssue} issue 
+ * @param {string} [locale='en-US'] - Optional locale setting.
+ * @returns {string} The final, user-ready error message.
+ */
+export function translateIssueToUserMessage(issue, locale = 'en-US') {
+    const { field, code, message } = issue;
+
+    // In production, load messages from a configuration file mapped by schema/code.
+    
+    // Convert JSON Pointer path to dot notation for user readability
+    const cleanedField = field.startsWith('/') ? field.substring(1).replace(/\//g, '.') : field;
+
+    let userMessage = message;
+
+    switch (code) {
+        case 'required':
+            userMessage = `The field '${cleanedField}' is required and missing.`;
+            break;
+        case 'type':
+            // Assumes Ajv message contains necessary details about expected type
+            userMessage = `The value provided for '${cleanedField}' is the wrong data type. Details: ${message}`;
+            break;
+        default:
+            // Use the generic Ajv message as a default fallback
+            userMessage = `Field ${cleanedField} failed validation check '${code}'.`;
+    }
+
+    return userMessage;
+}
+
+export const ASDM_ErrorTranslator = {
+    translate: translateIssueToUserMessage
+};
+
+// --- END TARGET INTEGRATION: ASDM Error Translator V1.0 ---
+
+
 // --- Absorbed Target Data Utilities (New Enums/Interfaces) ---
 
 /**
@@ -640,420 +699,4 @@ const RuleRegistry = {
 };
 
 // Adapt the existing GAXTelemetry interface to use the new structured CoreGovTelemetry instance
-const GAXTelemetry = {
-    system: (msg, data) => CoreGovTelemetry.info(msg, { context: 'SYSTEM', detail: data || {} }),
-    debug: (msg, data) => CoreGovTelemetry.debug(msg, data),
-    error: (msg, data) => CoreGovTelemetry.error(msg, data),
-    info: (msg, data) => CoreGovTelemetry.info(msg, data),
-    critical: (msg, data) => CoreGovTelemetry.critical(msg, data),
-};
-
-// Placeholder: Replace with actual KV persistence interface
-const StorageService = {
-    getCRoTIndexHandle: () => ({
-        // Mock functions for persistence operations
-        lookup: async (key) => { 
-            // Simulate finding some anchors for testing
-            if (key.startsWith('0')) return ['tx_a1', 'tx_a2', 'tx_a3'];
-            return [];
-        },
-        append: async (key, value, metadata) => {
-            GAXTelemetry.debug('Storage_Append_Mock', { key, value, metadata });
-        },
-    })
-};
-
-/**
- * CRoTIndexClient
- * Handles the low-level data interaction for the PolicyHeuristicIndex, abstracting 
- * access to the CRoT Key-Value persistence layer. It manages data retrieval 
- * (lookup of anchors) and persistence (commit indexing).
- */
-class CRoTIndexClient {
-    
-    constructor() {
-        this.indexStore = StorageService.getCRoTIndexHandle();
-        GAXTelemetry.system('CRoT_IndexClient_Init');
-    }
-
-    /**
-     * Retrieves historical ACV transaction IDs (anchors) associated with a policy fingerprint.
-     * @param {string} fingerprint - SHA-256 policy structure hash.
-     * @returns {Promise<string[]>} Array of ACV transaction IDs.
-     */
-    async getAnchorsByFingerprint(fingerprint) {
-        try {
-            const anchors = await this.indexStore.lookup(fingerprint);
-            GAXTelemetry.debug('CRoT_IndexRead', { count: anchors.length, fingerprint: fingerprint.substring(0, 8) });
-            return anchors;
-        } catch (error) {
-            GAXTelemetry.error('CRoT_IndexRead_Failure', { error: error.message });
-            return [];
-        }
-    }
-
-    /**
-     * Commits a new successful ACV transaction ID against the policy fingerprint key.
-     * @param {string} fingerprint - The policy structure hash.
-     * @param {string} txId - The successful ACV transaction ID.
-     * @returns {Promise<void>} 
-     */
-    async indexCommit(fingerprint, txId) {
-        try {
-            await this.indexStore.append(fingerprint, txId, { timestamp: Date.now() });
-            GAXTelemetry.info('CRoT_IndexWrite_Success', { txId, fingerprint: fingerprint.substring(0, 8) });
-        } catch (error) {
-            GAXTelemetry.critical('CRoT_IndexWrite_Failure', { txId, error: error.message });
-            throw new Error(`CRoT Indexing failed for TX ID ${txId}.`);
-        }
-    }
-}
-
-const crotIndexClient = new CRoTIndexClient();
-
-// --- Mocks for MutationChainRegistrar Dependencies ---
-
-const MockAuditLogger = {
-    logEvent: (code, msg) => GAXTelemetry.info(`[AUDIT:${code}] ${msg}`),
-    logError: (code, msg) => GAXTelemetry.error(`[AUDIT:${code}] ${msg}`),
-    logCritical: (code, msg) => GAXTelemetry.critical(`[AUDIT:${code}] ${msg}`),
-};
-
-const calculateHash = (data) => {
-    // Simple mock hash generation for integrity check
-    const str = JSON.stringify(data);
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16).padStart(32, '0');
-};
-
-const MockIntegrityService = {
-    calculateStableHash: (data) => calculateHash(data), // Reusing existing hash utility
-    verifyArchitecturalSignature: (payload) => { 
-        // Mock: Always true for trusted governance payloads in this context
-        return true; 
-    }
-};
-
-const MockLedgerPersistence = {
-    loadChainHistory: async () => { 
-        // Mock: Load an empty history for initialization
-        return []; 
-    },
-    persistRecord: async (record) => {
-        GAXTelemetry.debug('LEDGER_PERSIST_MOCK', record.mutationId);
-        // Simulate successful persistence delay
-        await new Promise(resolve => setTimeout(resolve, 50));
-    }
-};
-
-const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-
-/**
- * @typedef {object} MutationRecord
- * @property {number} timestamp - Time of registration.
- * @property {string} mutationId - Version ID from the payload.
- * @property {string} architecturalHash - Hash of the A-01 manifest.
- * @property {string} p01Hash - Confirmation hash proving successful deployment (P-01).
- * @property {string} previousChainHash - Hash of the preceding chain record.
- * @property {string} selfHash - Hash of this entire record structure (linkage).
- */
-
-export class MutationChainRegistrar {
-    /**
-     * @param {object} dependencies 
-     * @param {AuditLogger} dependencies.auditLogger 
-     * @param {IntegrityService} dependencies.integrityService - Must provide verifyArchitecturalSignature.
-     * @param {LedgerPersistence} dependencies.ledgerPersistence - Assumed to use async I/O and 'persistRecord'.
-     */
-    constructor({ auditLogger, integrityService, ledgerPersistence }) {
-        if (!integrityService || !ledgerPersistence) {
-            throw new Error("MCR requires IntegrityService and LedgerPersistence dependencies.");
-        }
-
-        this.auditLogger = auditLogger; 
-        this.integrityService = integrityService; 
-        this.ledgerPersistence = ledgerPersistence;
-        
-        // The chain array is initialized empty, waiting for initialization routine.
-        this.chain = []; 
-        this.isInitialized = false;
-    }
-
-    /**
-     * Initializes the registrar by loading historical data asynchronously and verifying linkage.
-     * @returns {Promise<void>}...
-     */
-    async initialize() {
-        if (this.isInitialized) return;
-        
-        try {
-            this.chain = await this.ledgerPersistence.loadChainHistory();
-            
-            if (this.chain.length > 0) {
-                this.auditLogger.logEvent('MCR_LOAD', `Loaded ${this.chain.length} records from history. Last hash: ${this.getLatestChainHash().substring(0, 10)}...`);
-                
-                if (!this.verifyFullChainIntegrity()) {
-                     throw new Error("Loaded chain failed internal cryptographic linkage verification.");
-                }
-            } else {
-                this.auditLogger.logEvent('MCR_INIT', 'Initialized GENESIS chain.');
-            }
-            this.isInitialized = true;
-        } catch (error) {
-            this.auditLogger.logCritical('MCR_INIT_FAILURE', `Failed to initialize chain history: ${error.message}`);
-            // Must halt operations if chain history cannot be loaded/verified.
-            throw new Error(`Critical failure loading mutation chain history: ${error.message}`);
-        }
-    }
-
-    /**
-     * Validates the cryptographic linkage and self-hashes of every record in the loaded chain.
-     * @returns {boolean}
-     */
-    verifyFullChainIntegrity() {
-        if (this.chain.length === 0) return true;
-
-        for (let i = 0; i < this.chain.length; i++) {
-            const record = this.chain[i];
-            
-            // 1. Re-calculate and verify selfHash consistency
-            const calculatedSelfHash = this.integrityService.calculateStableHash({
-                timestamp: record.timestamp,
-                mutationId: record.mutationId,
-                architecturalHash: record.architecturalHash,
-                p01Hash: record.p01Hash,
-                previousChainHash: record.previousChainHash
-            });
-
-            if (calculatedSelfHash !== record.selfHash) {
-                this.auditLogger.logError('MCR_INTEGRITY_FAIL', `Self-hash mismatch detected at index ${i} (ID: ${record.mutationId}).`);
-                return false;
-            }
-
-            // 2. Verify previousChainHash linkage
-            const expectedPreviousHash = (i === 0) ? GENESIS_HASH : this.chain[i - 1].selfHash;
-            
-            if (record.previousChainHash !== expectedPreviousHash) {
-                this.auditLogger.logCritical('MCR_CHAIN_BREAK', `Chain linkage broken at index ${i}. Expected hash break.`);
-                return false;
-            }
-        }
-        this.auditLogger.logEvent('MCR_INTEGRITY_OK', 'Chain structure verified successfully.');
-        return true;
-    }
-
-    /**
-     * Registers a finalized (A-01 locked) payload into the evolutionary chain.
-     * @param {object} payload - The signed and versioned architectural manifest.
-     * @param {string} p01ConfirmationHash - The immutable hash from D-01 proving P-01 success.
-     * @returns {Promise<string>} The selfHash of the newly registered record.
-     */
-    async registerMutation(payload, p01ConfirmationHash) {
-        if (!this.isInitialized) {
-            throw new Error("MCR must be initialized before registering mutations.");
-        }
-
-        // --- Critical Security Check ---
-        // Must verify the payload's signature ensures the mutation originated from the trusted governance assembly.
-        if (!this.integrityService.verifyArchitecturalSignature(payload)) {
-            this.auditLogger.logError('MCR_FAILURE', `Payload signature verification failed for version ${payload.versionId || 'unknown'}.`);
-            throw new Error("MCR Registration Failure: Invalid cryptographic signature on A-01 manifest.");
-        }
-        
-        // 1. Structure the new record
-        const newRecordWithoutHash = {
-            timestamp: Date.now(),
-            mutationId: payload.versionId,
-            // Use the manifest hash for immutable architectural record
-            architecturalHash: this.integrityService.calculateStableHash(payload.manifest), 
-            p01Hash: p01ConfirmationHash, 
-            previousChainHash: this.getLatestChainHash()
-        };
-
-        // 2. Calculate the linkage hash (selfHash)
-        const selfHash = this.integrityService.calculateStableHash(newRecordWithoutHash);
-        
-        const newRecord = { ...newRecordWithoutHash, selfHash };
-        
-        // 3. Commit locally and asynchronously persist
-        this.chain.push(newRecord);
-        
-        try {
-            await this.ledgerPersistence.persistRecord(newRecord);
-        } catch (error) {
-             // If persistence fails, roll back the local change immediately to prevent state divergence
-            this.chain.pop(); 
-            this.auditLogger.logCritical('MCR_PERSISTENCE_FAIL', `Failed to persist record ${payload.versionId}. Chain integrity maintained via rollback.`);
-            throw new Error(`Persistence failure during MCR commit: ${error.message}`);
-        }
-
-        this.auditLogger.logEvent('MCR_COMMITMENT', `Mutation ${payload.versionId} committed. Hash: ${selfHash.substring(0, 10)}...`);
-        return selfHash;
-    }
-
-    /**
-     * Retrieves the selfHash of the most recent record.
-     * @returns {string}
-     */
-    getLatestChainHash() {
-        if (this.chain.length === 0) return GENESIS_HASH;
-        return this.chain[this.chain.length - 1].selfHash;
-    }
-
-    getChainLength() {
-        return this.chain.length;
-    }
-
-    getChain() {
-        // Return a copy to ensure external manipulation does not compromise the internal ledger.
-        return [...this.chain];
-    }
-}
-
-// --- Start Integration of PCRA Task Sequencer Engine (MEE Sub-Engine) ---
-
-// Required mock action map (Must be defined globally for MockDependencyRegistry)
-const MockActionMap = {
-    'system_check': async (params, context, timeout) => {
-        GAXTelemetry.debug(`[TSE Action] Running system_check with params: ${JSON.stringify(params)}`);
-        // Simulate potential failure
-        if (params.critical_threshold && context.severity > params.critical_threshold) {
-             throw new Error("System check failed due to high severity.");
-        }
-        await new Promise(resolve => setTimeout(resolve, timeout || 100));
-        return { success: true, action: 'system_check' };
-    },
-    'isolate_network': async (params, context, timeout) => {
-        GAXTelemetry.warn(`[TSE Action] Initiating isolation for incident: ${context.id}`);
-        await new Promise(resolve => setTimeout(resolve, timeout || 500));
-        return { result: 'network_segment_isolated', action: 'isolate_network' };
-    },
-    'run_diagnostic': async (params, context, timeout) => {
-        GAXTelemetry.info(`[TSE Action] Running full diagnostics on entity: ${params.entity}`);
-        await new Promise(resolve => setTimeout(resolve, timeout || 200));
-        return { status: 'DIAGNOSTIC_COMPLETE', action: 'run_diagnostic' };
-    }
-};
-
-// Required Dependency Registry for TaskSequencerEngine
-class DependencyRegistry {
-    getLogger(name) {
-        // Adapt GAXTelemetry (which now uses CoreGovTelemetry) to the expected Logger interface 
-        return {
-            info: (msg, context) => GAXTelemetry.info(msg, { context: name, detail: context }),
-            warn: (msg, context) => GAXTelemetry.warn(msg, { context: name, detail: context }),
-            error: (msg, context) => GAXTelemetry.error(msg, { context: name, detail: context }),
-            critical: (msg, context) => GAXTelemetry.critical(msg, { context: name, detail: context }),
-            debug: (msg, context) => GAXTelemetry.debug(msg, { context: name, detail: context })
-        };
-    }
-    getActionMap() {
-        return MockActionMap;
-    }
-}
-const dependencyRegistry = new DependencyRegistry();
-
-
-class TaskSequencerEngine {
-    constructor(dependencyRegistry) {
-        this.logger = dependencyRegistry.getLogger('PCRA_TSE');
-        this.actionMap = dependencyRegistry.getActionMap();
-    }
-
-    /**
-     * Executes a resolution strategy sequence defined by structured Task Objects.
-     * @param {Array<Object>} sequence - The execution_sequence array.
-     * @param {Object} incidentContext - Contextual data.
-     */
-    async executeStrategy(sequence, incidentContext) {
-        this.logger.debug(`Starting sequenced execution for incident: ${incidentContext.id}`);
-
-        for (const task of sequence) {
-            const maxRetries = this.getMaxRetries(task.on_failure);
-            let attempts = 0;
-            let successful = false;
-
-            while (attempts <= maxRetries && !successful) {
-                attempts++;
-                try {
-                    await this.runTaskWithTimeout(task, incidentContext);
-                    successful = true;
-                } catch (error) {
-                    this.logger.warn(`Task ${task.step_id} failed (Attempt ${attempts}/${maxRetries + 1}). Mode: ${task.on_failure}`, { error: error.message });
-
-                    if (attempts > maxRetries || task.on_failure === "FAIL_FAST") {
-                        this.handleFailureEscalation(task.on_failure, task, incidentContext);
-                        throw new Error(`Strategy aborted: Task ${task.step_id} failed permanently.`);
-                    }
-                    if (task.on_failure.startsWith("INITIATE_HUMAN")) {
-                        this.handleFailureEscalation(task.on_failure, task, incidentContext);
-                        return { status: "WAITING_OVERSIGHT", step: task.step_id };
-                    }
-                    // Exponential backoff or standardized wait
-                    await new Promise(resolve => setTimeout(resolve, Math.min(100 * attempts * 2, 5000)));
-                }
-            }
-        }
-        return { status: "SUCCESS" };
-    }
-
-    getMaxRetries(failureMode) {
-        const match = failureMode ? failureMode.match(/^RETRY_(\d+)X/) : null;
-        if (match) {
-            return parseInt(match[1], 10);
-        }
-        return failureMode === "RETRY_INF" ? Infinity : 0;
-    }
-
-    handleFailureEscalation(failureMode, task, incidentContext) {
-        this.logger.critical(`Escalation triggered by task ${task.step_id}. Mode: ${failureMode}`, { context: incidentContext });
-        // In a real kernel, this would involve calling the RemediationService or AlertingService.
-        // Mocking behavior:
-        if (failureMode.startsWith("INITIATE_HUMAN")) {
-            GAXTelemetry.critical("OVERSIGHT_REQUEST", { incident: incidentContext.id, task: task.step_id });
-        }
-    }
-    
-    async runTaskWithTimeout(task, incidentContext) {
-        if (!this.actionMap[task.action]) {
-            throw new Error(`Unknown action type: ${task.action}`);
-        }
-
-        const actionFunction = this.actionMap[task.action];
-        const timeout = task.timeout_ms || 30000;
-        
-        let timerId;
-        
-        const timeoutPromise = new Promise((_, reject) => {
-            timerId = setTimeout(() => {
-                reject(new Error(`Task ${task.step_id} timed out after ${timeout}ms.`));
-            }, timeout);
-            // Prevent timer from keeping the process alive unnecessarily
-            if (timerId.unref) timerId.unref(); 
-        });
-
-        const actionPromise = actionFunction(task.parameters || {}, incidentContext, task.delay_ms);
-
-        try {
-            const result = await Promise.race([actionPromise, timeoutPromise]);
-            clearTimeout(timerId);
-            this.logger.info(`Task ${task.step_id} completed successfully.`, result);
-            return result; // Return the result of the successful action
-        } catch (e) {
-            clearTimeout(timerId);
-            throw e; // Re-throw any failure (action failure or timeout)
-        }
-    }
-}
-
-// --- End Integration of PCRA Task Sequencer Engine ---
-
-// --- MEE Metric Evaluation Sub-Engine Integration: TrustMatrixManager ---
-
-// Adapter for TrustMatrixManager's persistence requirements
-const TrustMatrixPersistenceMock = (() => {
+const GAX
