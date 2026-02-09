@@ -20,6 +20,19 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 
 ---
 
+### CAPABILITY ALIGNMENT MAPPING (CAM)
+*Mapping of the 5 Core Kernel Capabilities to primary architectural components, validating structural support for AGI development.*
+
+| Capability Dimension | Primary Component(s) | Role in System |
+|:---:|:---:|:---:|
+| **Error Handling** | DVP (Data Validation Processor) | Robust fault tolerance and input schema enforcement. |
+| **JSON Parsing** | DVP (Data Validation Processor) | Data extraction from potentially malformed LLM outputs. |
+| **Meta-Reasoning** | LOE (Learning Optimization Engine) | Strategy adaptation and stagnation recovery protocols. |
+| **Autonomy** | ASP (Adaptive Synthesis Planner) | Autonomous strategic decision-making and architectural planning. |
+| **Creativity** | NSHG (Novelty Synthesis Hypothesis Generator) | Generates novel, non-incremental architectural proposals. |
+
+---
+
 ### PHASE 0: INITIATION & PROVENANCE (P-0)
 *Focus: Input validation, context loading, systemic anchoring, and immutable lineage establishment.*
 
@@ -56,4 +69,5 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
 | **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 5 Core Kernel Capabilities (Error Handling, JSON Parsing, Meta-Reasoning, Autonomy, Creativity). |
 | **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, including Stagnation Recovery Protocol and adaptive temperature modulation, based on CTM data. |
+| **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and integration patterns (Supports Creativity and Stagnation Recovery). |
 | **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Processes SDR/RETV data to autonomously design optimal subsequent architectural modification plans (L7 Evolution). |
