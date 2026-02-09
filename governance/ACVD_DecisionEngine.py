@@ -7,24 +7,15 @@ def get_utc_timestamp() -> str:
     """Returns the current UTC timestamp formatted consistently for system logging."""
     return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
-class ACVD_DecisionEngine:
-    """Manages state transitions and validation enforcement based on the ACVD schema.
-
-    This version enhances governance persistence (Infrastructure/Meta-Reasoning) by
-    implementing schema saving functionality to ensure dynamically updated severity
-    weights persist across evolution cycles. It also improves initialization robustness
-    and integrates explicit strategic recommendations into self-assessment (Meta-Reasoning).
-    
-    Improvements include atomic persistence via temporary files for fault tolerance
-    and abstraction of internal penalty calculation for tuning via Meta-Reasoning.
-    """
-
+# Define default governance configuration for consistency and centralization
+class ACVD_ConfigDefaults:
+    """Centralized definition of default governance configuration parameters."""
     DEFAULT_MIN_SAFETY_SCORE = 0.85
-    DEFAULT_FALLBACK_WEIGHT = 0.30 # Used if an issue type is not defined in self.severity_weights
-    DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 # Internal assessment issues are half penalty by default
+    DEFAULT_FALLBACK_WEIGHT = 0.30 
+    DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
     
     # Base weights, used if no configuration is found in the schema (static reference)
-    _BASE_SEVERITY_WEIGHTS = {
+    BASE_SEVERITY_WEIGHTS = {
         "CRITICAL": 0.40, 
         "STRUCTURAL_ERROR": 0.50, 
         "GOVERNANCE_VIOLATION": 0.45,
@@ -34,19 +25,37 @@ class ACVD_DecisionEngine:
     }
     
     # Defines how internal log levels map to governance issue types for penalty calculation (Abstraction)
-    _INTERNAL_ISSUE_MAP = {
+    INTERNAL_ISSUE_MAP = {
         "CRITICAL": "CRITICAL",
         "ERROR": "STRUCTURAL_ERROR", 
         "WARNING": "GOVERNANCE_VIOLATION" 
     }
 
+
+class ACVD_DecisionEngine:
+    """Manages state transitions and validation enforcement based on the ACVD schema.
+
+    This version enhances Meta-Reasoning and Autonomy by:
+    1. Centralizing configuration defaults for clarity.
+    2. Implementing dynamic log impact analysis (`_analyze_log_impact`) to provide 
+       actionable tuning suggestions based on accumulated internal penalties.
+    3. Improving `perform_self_assessment` to output structured tuning data 
+       instead of static strategy strings, supporting recursive self-improvement.
+    """
+
+    # Use centralized defaults
+    DEFAULT_MIN_SAFETY_SCORE = ACVD_ConfigDefaults.DEFAULT_MIN_SAFETY_SCORE
+    DEFAULT_FALLBACK_WEIGHT = ACVD_ConfigDefaults.DEFAULT_FALLBACK_WEIGHT
+    DEFAULT_INTERNAL_PENALTY_MULTIPLIER = ACVD_ConfigDefaults.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
+    _BASE_SEVERITY_WEIGHTS = ACVD_ConfigDefaults.BASE_SEVERITY_WEIGHTS
+    _INTERNAL_ISSUE_MAP = ACVD_ConfigDefaults.INTERNAL_ISSUE_MAP
+    
+    
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         self.schema_path = schema_path
         self._log_queue: List[Dict[str, Any]] = [] # Infrastructure: Internal queue for Telemetry System
-        # Assume persistence is desired for Meta-Reasoning outputs unless overridden
         self.persist_config = True
 
-        # Ensure core structures are initialized safely (Error Handling/Robustness)
         self.schema = {}
         self.valid_states = []
         self.state_transitions = {}
@@ -56,11 +65,12 @@ class ACVD_DecisionEngine:
             loaded_schema = self._load_schema(schema_path)
             self.schema = loaded_schema
             self.valid_states = self.schema.get('valid_states', []) 
-            self.state_transitions = self.schema.get('state_transitions', {}) # Transition map support
+            self.state_transitions = self.schema.get('state_transitions', {}) 
             config = self.schema.get('config', {})
         except Exception:
             # If schema loading fails critically, attributes remain at safe defaults (empty lists/dicts)
-            self._log_status("CRITICAL", "Failed to load governance schema. Operating in limited mode.", "INIT_FAILSAFE")
+            # Print fallback message since _log_status may rely on fully initialized attributes
+            print(f"[ACVD CRITICAL | INIT_FAILSAFE @ {get_utc_timestamp()}] Failed to load governance schema. Operating in limited mode.")
             
         
         # Load configurable thresholds
@@ -109,7 +119,10 @@ class ACVD_DecisionEngine:
         self._log_queue.append(log_entry)
         # Immediate console feedback for critical/error logs
         if level in ["CRITICAL", "ERROR", "WARNING"]:
-            print(f"[ACVD {level} | {context} @ {log_entry['timestamp']}] {message}")
+            try:
+                print(f"[ACVD {level} | {context} @ {log_entry['timestamp']}] {message}")
+            except Exception:
+                pass
 
     def _load_schema(self, path: str) -> Dict[str, Any]:
         """Loads and parses the ACVD schema file with robust error handling (JSON Parsing, Error Handling)."""
@@ -173,7 +186,10 @@ class ACVD_DecisionEngine:
         except Exception as e:
             # Clean up temp file if rename failed
             if os.path.exists(temp_path):
-                 os.remove(temp_path)
+                 try:
+                     os.remove(temp_path)
+                 except:
+                     pass # Ignore cleanup failure if main error is logged
             self._log_status("CRITICAL", f"Failed to persist schema to disk due to unexpected error: {e}", "SCHEMA_PERSIST_FAIL")
 
             
@@ -190,41 +206,79 @@ class ACVD_DecisionEngine:
             return weight * self.internal_penalty_multiplier
         
         return weight
+    
+    def _analyze_log_impact(self) -> Dict[str, Any]:
+        """
+        (META-REASONING) Analyzes the accumulated internal log queue to determine which 
+        governance issue types contributed the most penalty. 
+        Provides structured data for autonomous tuning suggestions.
+        """
+        impact = {issue_type: 0.0 for issue_type in self._BASE_SEVERITY_WEIGHTS.keys()}
+        
+        for log in self._log_queue:
+            level = log.get('level')
+            if level in self._INTERNAL_ISSUE_MAP:
+                issue_type = self._INTERNAL_ISSUE_MAP[level]
+                # Calculate the penalty contribution using the internal assessment weight
+                weight = self._get_penalty_weight(issue_type, is_internal_assessment=True)
+                impact[issue_type] += weight
+                
+        total_impact = sum(impact.values())
+        tuning_suggestions = []
+        
+        if total_impact > 0.0:
+            # Sort issue types by their total weighted penalty contribution (highest first)
+            sorted_impact = sorted(impact.items(), key=lambda item: item[1], reverse=True)
+            
+            # Identify the top 3 contributors for actionable insight
+            for issue_type, penalty_value in sorted_impact[:3]:
+                if penalty_value > 0.0:
+                    percentage = (penalty_value / total_impact) * 100
+                    tuning_suggestions.append({
+                        "issue_type": issue_type,
+                        "weighted_penalty_contribution": round(penalty_value, 4),
+                        "percentage_of_total_penalty": round(percentage, 2),
+                        "current_weight": self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT),
+                        "is_currently_critical": (issue_type == "CRITICAL" or penalty_value >= 0.5) # Heuristic for criticality
+                    })
+                    
+        return {
+            "total_weighted_impact": round(total_impact, 4),
+            "issue_contributions": tuning_suggestions
+        }
+
 
     def perform_self_assessment(self) -> Dict[str, Any]:
         """
         Calculates the internal Operational Integrity Score based on accumulated internal logs 
         since the last flush, leveraging governance severity weights.
         (Supports Autonomy and Monitoring Infrastructure for internal health checks.)
+        
+        Now includes structured tuning suggestions based on log impact analysis (Meta-Reasoning).
         """
+        
+        log_impact_analysis = self._analyze_log_impact()
+        negative_score_accumulation = log_impact_analysis['total_weighted_impact']
+        
         assessment = {
-            "operationalIntegrityScore": 1.0,
+            "operationalIntegrityScore": max(0.0, 1.0 - negative_score_accumulation),
             "criticalLogCount": 0,
             "errorLogCount": 0,
             "totalLogCount": len(self._log_queue),
-            "weightedPenalty": 0.0,
+            "weightedPenalty": negative_score_accumulation,
             "timestamp": get_utc_timestamp(),
-            "strategyRecommendation": "NONE" # New field for Meta-Reasoning
+            "tuningSuggestions": log_impact_analysis['issue_contributions'], # Structured data for Meta-Reasoning
+            "strategicGuidance": "NONE" # Simple string summary of required action
         }
-
-        negative_score_accumulation = 0.0
         
+        # Recalculate basic counts
         for log in self._log_queue:
             level = log.get('level')
-            
             if level == 'CRITICAL':
                 assessment['criticalLogCount'] += 1
             elif level == 'ERROR':
                 assessment['errorLogCount'] += 1
 
-            # Apply penalty based on the log level severity, using abstracted map
-            if level in self._INTERNAL_ISSUE_MAP:
-                issue_type = self._INTERNAL_ISSUE_MAP[level]
-                weight = self._get_penalty_weight(issue_type, is_internal_assessment=True)
-                negative_score_accumulation += weight
-
-        assessment['weightedPenalty'] = negative_score_accumulation
-        assessment['operationalIntegrityScore'] = max(0.0, 1.0 - negative_score_accumulation)
         
         if assessment['operationalIntegrityScore'] < self.safety_threshold:
             self._log_status("WARNING", 
@@ -233,12 +287,19 @@ class ACVD_DecisionEngine:
             
             # Meta-Reasoning: Provide actionable strategic feedback for the AGI kernel
             if assessment['criticalLogCount'] > 0:
-                 assessment['strategyRecommendation'] = "RECOVER_CRITICAL_FAULT_TOLERANCE"
-            elif assessment['errorLogCount'] > assessment['totalLogCount'] * 0.2:
-                 # If errors are frequent (over 20% of logs)
-                 assessment['strategyRecommendation'] = "IMPROVE_ERROR_HANDLING_ABSTRACTION"
+                 assessment['strategicGuidance'] = "RECOVER_CRITICAL_FAULT_TOLERANCE"
+            elif assessment['errorLogCount'] > assessment['totalLogCount'] * 0.2 and assessment['totalLogCount'] > 5:
+                 # If errors are frequent (over 20% of logs) and we have enough data
+                 assessment['strategicGuidance'] = "IMPROVE_ERROR_HANDLING_ABSTRACTION"
+            elif assessment['weightedPenalty'] > 0.1: # Significant penalty but not dominated by CRITICAL/ERROR counts
+                 assessment['strategicGuidance'] = "REFINE_GOVERNANCE_WEIGHTS_BASED_ON_TUNING_SUGGESTIONS"
             else:
-                 assessment['strategyRecommendation'] = "REFINE_GOVERNANCE_WEIGHTS"
+                 assessment['strategicGuidance'] = "INVESTIGATE_LOW_LEVEL_WARNINGS"
+        else:
+            if negative_score_accumulation > 0.0:
+                 assessment['strategicGuidance'] = "REVIEW_TUNING_SUGGESTIONS_FOR_PREVENTATIVE_OPTIMIZATION"
+            else:
+                 assessment['strategicGuidance'] = "SYSTEM_STABLE_CONTINUE_EXPLORATION"
             
         return assessment
 
@@ -279,7 +340,7 @@ class ACVD_DecisionEngine:
         """Allows Meta-Reasoning component to dynamically update governance scoring strategy 
         based on learning outcomes. (Supports Autonomy and Meta-Reasoning).
         
-        Crucially, this now persists the changes using _save_schema.
+        Crucially, this persists the changes using _save_schema.
         """
         if not isinstance(new_weights, dict):
             self._log_status("ERROR", "Cannot update weights: Input must be a dictionary.", "WEIGHT_UPDATE_FAIL")
@@ -288,7 +349,7 @@ class ACVD_DecisionEngine:
         # Merge new weights, allowing updates or additions
         updates_applied = 0
         for key, value in new_weights.items():
-            # Validate input value is a sensible float/int between 0.0 and 1.0
+            # Robust validation: Ensure input value is a sensible float/int between 0.0 and 1.0
             if isinstance(value, (int, float)) and 0.0 <= value <= 1.0:
                 self.severity_weights[key] = float(value)
                 updates_applied += 1
@@ -351,13 +412,13 @@ class ACVD_DecisionEngine:
         # 2a. Check for existence and type of critical validation structures
         if not isinstance(validation_metrics, dict):
             issue_type = "STRUCTURAL_ERROR"
-            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal."})
+            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'validationMetrics' key/structure in proposal.", "context": "Metrics Structure"})
             report['status'] = 'FAIL'
             negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
         if not isinstance(safety_assessment, dict):
             issue_type = "STRUCTURAL_ERROR"
-            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal."})
+            report['issues'].append({"type": issue_type, "severity": "CRITICAL", "message": "Missing or malformed 'safetyAssessment' key/structure in proposal.", "context": "Safety Structure"})
             report['status'] = 'FAIL'
             negative_score_accumulation += self._get_penalty_weight(issue_type, is_internal_assessment=False)
 
