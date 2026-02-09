@@ -36,7 +36,7 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 *Focus: Real-time risk assessment, compliance enforcement (L1/L4), and conflict resolution.*
 
 | Acronym | Component Name | GSEP Relevance | Interface Topic (API) | Role | Primary Function |
-|:---:|:---:|:---:|:---:|:---:|
+|:---:|:---:|:---:|:---:|:---:|:---:|
 | **CIL** | Compliance Integration Layer | L1 | `governance.policy.check` | M | Enforces governance policy alignment (L1 constraints) using CMD-103 outputs. |
 | **RSAM** | Risk State Assessment Module | L1 | `risk.state.query` | M | Conducts real-time risk evaluation; defines parameters for veto thresholds (CMD-103). |
 | **ATM** | Arbitration Trust Module | L4 | `arbitration.trust.index` | M | Generates the foundational Trust Score (CMD-101) for system components and input sources. |
@@ -46,11 +46,14 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 *Focus: Efficacy projection (L3), final commitment (L6), monitoring, and adaptive planning (L7).*
 
 | Acronym | Component Name | GSEP Relevance | Interface Topic (API) | Role | Primary Function |
-|:---:|:---:|:---:|:---:|:---:|
+|:---:|:---:|:---:|:---:|:---:|:---:|
 | **PSR** | Projection & Synthesis Registry | L3 | `synthesis.simulation.data` | M | Registers efficacy simulation results used for L3 (Effectiveness) threshold checks. |
 | **SDR** | System Diagnostic & Reporting | L3, L4 | `telemetry.raw.metrics` | M | Aggregate data point ingestion and distribution hub for TRP inputs required by CMD contracts. |
 | **AEL** | Audit Event Logger | L5 | `audit.event.immutable` | R | Captures and immutably logs all critical state transitions, decisions, and compliance failures. |
+| **SDE** | Self-Documentation Engine | L5 | `documentation.artifact.generate` | M | Ensures compliance with documentation standards and autonomously updates architecture guides and state descriptions (Manifest, README). |
 | **RETV** | Real-Time Execution Vetting | L6 | `execution.runtime.vetting` | M | Monitors post-activation behavior against projected outcomes (Deployment Phase Vetting). |
+| **TFM** | Testing Framework Manager | L6 | `validation.testing.harness` | M | Executes autonomous testing, validation, and vulnerability checks against new artifacts prior to L6 commitment. |
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
-| **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 5 Core Kernel Capabilities (Supports Meta-Reasoning and L7 Evolution). |
+| **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 5 Core Kernel Capabilities (Error Handling, JSON Parsing, Meta-Reasoning, Autonomy, Creativity). |
+| **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, including Stagnation Recovery Protocol and adaptive temperature modulation, based on CTM data. |
 | **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Processes SDR/RETV data to autonomously design optimal subsequent architectural modification plans (L7 Evolution). |
