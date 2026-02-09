@@ -234,18 +234,22 @@ Key Requirements:
       const structuredResult = recoverJSON(rawResponse);
 
       if (!structuredResult) {
-         await pushLog('Failed to recover structured JSON from LLM output. Returning raw text.', 'error');
-         return { success: false, raw: rawResponse, error: "JSON recovery failed." };
+         // Self-Improvement v7.6.0: Ensure explicit failure return path when structured JSON recovery fails, 
+         // providing the raw text for caller debugging and analysis, and fixing the previous truncated logging statement.
+         await pushLog('Failed to recover structured JSON from LLM output. Returning raw text for inspection.', 'error');
+         return { 
+            success: false, 
+            error: "Failed to parse structured JSON output. Raw text provided in 'rawResponse'.",
+            rawResponse: rawResponse 
+         };
       }
       
-      return { success: true, result: structuredResult, raw: rawResponse };
+      return { success: true, result: structuredResult };
       
-    } catch (e) {
-      // Self-Improvement v7.5.1: Distinguish between critical configuration/API errors and time-out network errors.
-      const isTimeout = e.message.includes('timed out');
-      const logLevel = isTimeout ? 'warning' : 'critical';
-
-      await pushLog(`LLM Generation Error (${isTimeout ? 'Timeout' : 'Fatal'}): ${e.message}`, logLevel);
-      return { success: false, error: e.message };
+    } catch (error) {
+      // Network errors, timeouts, or thrown errors from non-200 responses land here.
+      const errorMessage = error.message || 'An unknown network error occurred during generation.';
+      await pushLog(`LLM Generation Failed: ${errorMessage}`, 'critical');
+      return { success: false, error: errorMessage };
     }
-  }, [state.config, pushLog, persistentFetch])
+  }, [state.config, pushLog]);
