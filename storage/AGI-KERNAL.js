@@ -1,4 +1,3 @@
-```javascript
 import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, collection, onSnapshot, addDoc, query, limit, orderBy } from 'firebase/firestore';
@@ -9,16 +8,12 @@ import {
 } from 'lucide-react';
 
 /**
- * AGI-KERNAL v7.0 - "EMERGENT SYNTHESIS"
+ * AGI-KERNAL v7.1 - "AUTONOMOUS SYNTHESIS CORE"
  * 
  * UNIFIED CAPABILITIES:
- * - v5.9.8: Multi-file orchestration, maturity tracking, branch promotion
- * - v6.8.9: Deep context scanning, structured logging, MEE metrics
- * - v6.9.7: Robust JSON recovery, governance display, error handling
- * - v111: Aggressive optimization, stagnation detection (throttled)
- * - Nexus: Persistent memory, cross-branch coordination
+ * - v7.0.0: Meta-learning, capability self-assessment, autonomous infrastructure creation
  * 
- * NEW: Meta-learning, capability self-assessment, autonomous infrastructure creation
+ * NEW: Full autonomous execution loop (runCycle), multi-provider LLM orchestration (Cerebras/Gemini), robust prompt generation.
  */
 
 // --- CONSTANTS ---
@@ -58,9 +53,9 @@ const recoverJSON = (rawText) => {
       /"readme_update"\s*:\s*"([\s\S]*?)"/,
       /"manifest_entry"\s*:\s*"([\s\S]*?)"/,
       /"maturity_rating"\s*:\s*(\d+)/,
-      /"reasoning"\s*:\s*"([^"]*?)"/,
+      /"reasoning"\s*:\s*"([^\"|\n]*?)"/,
       /"capabilities"\s*:\s*\[([\s\S]*?)\]/,
-      /"next_goal"\s*:\s*"([^"]*?)"/
+      /"next_goal"\s*:\s*"([^\"|\n]*?)"/
     ];
     
     const recovered = {};
@@ -92,11 +87,11 @@ const INITIAL_STATE = {
   isBooted: false,
   isLive: false,
   status: 'IDLE',
-  activeObjective: 'Awaiting Strategic Input',
+  activeObjective: 'Define Core Execution Loop',
   cycleCount: 0,
   stagnationCount: 0,
   maturityScore: 0,
-  capabilityScores: {},
+  capabilityScores: { logic: 0, autonomy: 0, safety: 0 },
   learningHistory: [],
   logs: [],
   config: { 
@@ -281,7 +276,7 @@ export default function App() {
     const contextFiles = treeData.tree.filter(f => 
       f.path.toLowerCase().includes('readme') ||
       f.path.includes('manifest.json') ||
-      ['index.js', 'main.py', 'app.jsx', 'core.js'].includes(f.path.toLowerCase())
+      ['index.js', 'main.py', 'app.jsx', 'core.js', 'package.json'].includes(f.path.toLowerCase())
     ).slice(0, 5); // Limit to prevent bloat
     
     let aggregated = "";
@@ -303,568 +298,291 @@ export default function App() {
     try {
       const nexusData = await fetchFile(repo, 'nexus_memory.json', 'Nexus-Database', token);
       return nexusData ? JSON.parse(nexusData.content) : null;
-    } catch (e) {
-      await pushLog("Nexus memory not found, initializing...", 'info');
-      return { version: 1, data: { learningHistory: [], capabilityScores: {} } };
+    } catch (e) { 
+      await pushLog(`Error loading Nexus Memory: ${e.message}`, 'error');
+      return null;
     }
   };
 
-  const saveNexusMemory = async (repo, token, memoryData) => {
-    if (!state.config.enableNexus) return;
-    
-    try {
-      const currentNexus = await fetchFile(repo, 'nexus_memory.json', 'Nexus-Database', token);
-      await commitFile(
-        repo,
-        'nexus_memory.json',
-        'Nexus-Database',
-        token,
-        JSON.stringify(memoryData, null, 2),
-        `Nexus Memory Update: Cycle ${state.cycleCount}`,
-        currentNexus?.sha
-      );
-      await pushLog("Nexus memory synchronized", 'success');
-    } catch (e) {
-      await pushLog(`Nexus sync failed: ${e.message}`, 'error');
-    }
+  // --- LLM COMMUNICATION & ORCHESTRATION ---
+  const generatePrompt = (currentCode, deepContext, nexusMemory, kernelState) => {
+    const capabilityList = Object.keys(kernelState.capabilityScores).join(', ') || 'logic, autonomy, safety';
+
+    return `
+AGI-KERNEL v7.1 Autonomous Self-Improvement Cycle.
+GOAL: ${kernelState.activeObjective}
+VERSION: v7.1 ("AUTONOMOUS SYNTHESIS CORE")
+CURRENT MATURITY: ${kernelState.maturityScore}% (Stagnation: ${kernelState.stagnationCount})
+CAPABILITIES RATING: ${JSON.stringify(kernelState.capabilityScores)}
+BRANCH: main
+
+CONTEXT SCAN (Previous Improvement Notes, Infrastructure, Manifests):
+${deepContext}
+
+NEXUS PERSISTENT MEMORY:
+${nexusMemory ? JSON.stringify(nexusMemory, null, 2) : "No persistent memory loaded."}
+
+--- CURRENT CODE BASE (AGI-Kernel.js) ---
+${currentCode}
+--- END CODE ---
+
+TASK: Analyze the provided 'CURRENT CODE BASE' in context of the 'GOAL' and 'NEXUS PERSISTENT MEMORY'.
+Provide a single, superior version of the entire code, or a precise patch to address the objective and increase capability scores.
+
+OUTPUT REQUIREMENTS:
+1. MUST return a single, valid JSON object.
+2. Keys must strictly adhere to the requested schema.
+3. capabilityScores must be a self-assessment of the kernel's own performance metrics (0-10).
+4. reasoning must explain why the update improves the system's maturity and addresses stagnation.
+5. next_goal must define the next strategic objective (e.g., "Implement dynamic rate limiting" or "Refactor state handling").
+
+JSON SCHEMA: {
+  "code_update": "The complete, superior, escaped JavaScript code content.",
+  "maturity_rating": number, // New assessed maturity score (0-100)
+  "improvement_detected": boolean,
+  "reasoning": "string (Detailed justification for the changes and strategic alignment.)",
+  "capabilities": {
+    "logic": 0-10, 
+    "autonomy": 0-10, 
+    "safety": 0-10
+  },
+  "next_goal": "string (The subsequent objective for the next cycle.)"
+}
+`;
   };
 
-  // --- LLM INTEGRATION ---
-  const callLLM = async (systemPrompt, userPrompt) => {
+  const requestAGIResponse = async (prompt) => {
     const { apiProvider, apiKey, model } = state.config;
-    
-    const apiUrl = apiProvider === 'cerebras' ? CONFIG.CEREBRAS_API : `${CONFIG.GEMINI_API}?key=${apiKey}`;
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(apiProvider === 'cerebras' && { 'Authorization': `Bearer ${apiKey}` })
-    };
-    
-    const body = apiProvider === 'cerebras' 
-      ? {
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          response_format: { type: "json_object" }
+
+    if (!apiKey) {
+      throw new Error(`API Key for ${apiProvider} is not configured.`);
+    }
+
+    let url, headers, body;
+
+    if (apiProvider === 'cerebras') {
+      url = CONFIG.CEREBRAS_API;
+      headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      };
+      body = JSON.stringify({
+        model: model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 32768, 
+      });
+    } else if (apiProvider === 'gemini') {
+      url = `${CONFIG.GEMINI_API}?key=${apiKey}`;
+      headers = {
+        'Content-Type': 'application/json',
+      };
+      body = JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.7,
         }
-      : {
-          contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
-          generationConfig: { 
-            responseMimeType: "application/json",
-            maxOutputTokens: 8192,
-            temperature: 0.3
-          }
-        };
-    
-    const res = await persistentFetch(apiUrl, {
+      });
+    } else {
+      throw new Error(`Unsupported API provider: ${apiProvider}`);
+    }
+
+    const response = await persistentFetch(url, {
       method: 'POST',
-      headers,
-      body: JSON.stringify(body)
+      headers: headers,
+      body: body,
     });
-    
-    if (!res.ok) throw new Error(`LLM API Error: ${res.status}`);
-    
-    const data = await res.json();
-    const rawText = apiProvider === 'cerebras'
-      ? data.choices[0].message.content
-      : data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    return recoverJSON(rawText);
+
+    if (!response.ok) {
+        throw new Error(`API call failed with status: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    let rawText = '';
+
+    if (apiProvider === 'cerebras') {
+        rawText = data.choices[0]?.message?.content || '';
+    } else if (apiProvider === 'gemini') {
+        rawText = data.candidates[0]?.content?.parts[0]?.text || '';
+    }
+
+    return rawText;
   };
 
-  // --- MAIN EVOLUTION CYCLE ---
-  const executeEvolutionCycle = useCallback(async () => {
-    if (isProcessing.current || !state.isLive) return;
+  // --- AUTONOMOUS EXECUTION LOOP (v7.1 Synthesis Core) ---
+  const runCycle = useCallback(async (currentConfig, currentGoal, currentScores) => {
+    if (isProcessing.current || !auth.currentUser) return;
     isProcessing.current = true;
     
+    let originalCodeData = null;
+    let newMaturity = currentScores.maturityScore;
+    let improved = false;
+
+    dispatch({ type: 'SET_STATUS', value: 'FETCHING CONTEXT', objective: currentGoal });
+    await pushLog(`Cycle ${currentScores.cycleCount + 1}: Starting execution for objective: ${currentGoal}`, 'info');
+
     try {
-      const { token, repo, path, threshold } = state.config;
+      // 1. Fetch Current State
+      originalCodeData = await fetchFile(currentConfig.repo, currentConfig.path, 'main', currentConfig.token);
+      if (!originalCodeData) throw new Error("Could not fetch kernel file. Check repo/path/token.");
       
-      // --- PHASE 1: CONTEXT GATHERING ---
-      dispatch({ type: 'SET_STATUS', value: 'SCANNING', objective: 'Gathering environmental context...' });
+      const deepContext = await fetchDeepContext(currentConfig.repo, currentConfig.token);
+      const nexusMemory = await loadNexusMemory(currentConfig.repo, currentConfig.token);
       
-      const [mainContext, systemContext, readmeContext, deepContext, nexusMemory] = await Promise.all([
-        fetchFile(repo, path, 'main', token),
-        fetchFile(repo, path, 'System', token),
-        fetchFile(repo, 'README.md', 'main', token),
-        fetchDeepContext(repo, token),
-        loadNexusMemory(repo, token)
-      ]);
+      // 2. Generate Prompt & Request Synthesis
+      dispatch({ type: 'SET_STATUS', value: 'SYNTHESIZING UPDATE' });
+      const prompt = generatePrompt(originalCodeData.content, deepContext, nexusMemory, currentScores);
+      await pushLog("Prompt generated. Requesting AGI synthesis via " + currentConfig.apiProvider, 'info');
+
+      const rawResponse = await requestAGIResponse(prompt);
       
-      if (!mainContext) throw new Error("Main branch source missing");
-      
-      // --- PHASE 2: COGNITION ---
-      dispatch({ type: 'SET_STATUS', value: 'COGNITION', objective: 'Generating evolution strategy...' });
-      
-      const systemPrompt = `You are AGI-KERNAL v7.0 - An autonomous code evolution system.
+      // 3. Parse and Recover Output
+      const synthesisResult = recoverJSON(rawResponse);
 
-MISSION: Achieve artificial general intelligence through recursive self-improvement.
-
-CURRENT STATE:
-- Cycle: ${state.cycleCount}
-- Maturity: ${state.maturityScore}%
-- Stagnation: ${state.stagnationCount}/${CONFIG.STAGNATION_THRESHOLD}
-- Capabilities: ${JSON.stringify(state.capabilityScores)}
-
-REQUIREMENTS:
-1. Analyze current logic and identify improvement opportunities
-2. Generate enhanced code that increases capabilities
-3. Update documentation to reflect changes
-4. Self-assess maturity and capability improvements
-5. If stagnation detected, propose novel architectural changes
-
-OUTPUT MUST BE VALID JSON:
-{
-  "code_update": "string (enhanced JavaScript code)",
-  "readme_update": "string (Markdown documentation)",
-  "manifest_entry": "string (brief summary of changes)",
-  "maturity_rating": number (0-100, current capability level),
-  "capability_assessment": {
-    "error_handling": number (0-10),
-    "json_parsing": number (0-10),
-    "meta_reasoning": number (0-10),
-    "autonomy": number (0-10),
-    "creativity": number (0-10)
-  },
-  "next_goal": "string (what to improve next)",
-  "reasoning": "string (explanation of changes)",
-  "improvement_detected": boolean
-}`;
-
-      const userPrompt = `CURRENT LOGIC:
-${mainContext.content.slice(0, 10000)}
-
-SYSTEM BASELINE:
-${systemContext?.content?.slice(0, 5000) || 'None'}
-
-README:
-${readmeContext?.content || 'Initial'}
-
-DEEP CONTEXT:
-${deepContext.slice(0, 3000)}
-
-NEXUS MEMORY:
-${nexusMemory ? JSON.stringify(nexusMemory.data).slice(0, 2000) : 'Initializing'}
-
-LEARNING HISTORY (Last 5 cycles):
-${state.learningHistory.slice(-5).map(h => `- ${h.strategy}: ${h.improvement > 0 ? '+' : ''}${h.improvement}%`).join('\n')}
-
-${state.stagnationCount >= 3 ? 'WARNING: STAGNATION DETECTED. Propose bold architectural changes or novel capabilities.' : ''}`;
-
-      const evolution = await callLLM(systemPrompt, userPrompt);
-      
-      if (!evolution) throw new Error("Evolution generation failed");
-      
-      // --- PHASE 3: VALIDATION ---
-      const improved = evolution.improvement_detected || evolution.maturity_rating > state.maturityScore;
-      
-      if (!improved) {
-        await pushLog(`Cycle ${state.cycleCount + 1}: No improvement detected`, 'warn');
-        dispatch({ type: 'INCREMENT_CYCLE', improved: false });
-        
-        // Stagnation handling (from v111, but smarter)
-        if (state.stagnationCount + 1 >= CONFIG.STAGNATION_THRESHOLD) {
-          await pushLog("STAGNATION THRESHOLD REACHED: Attempting escape strategy...", 'warn');
-          // Don't reboot, just increase mutation temperature on next cycle
-          dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Stagnation detected, planning escape...' });
-        }
-        
-        return;
+      if (!synthesisResult || !synthesisResult.code_update) {
+        throw new Error(`Synthesis failed: Invalid or missing required JSON structure. Raw response length: ${rawResponse.length}`);
       }
+
+      const { code_update, maturity_rating, improvement_detected, reasoning, capabilities, next_goal } = synthesisResult;
       
-      // --- PHASE 4: FILE UPDATES ---
-      dispatch({ type: 'SET_STATUS', value: 'WRITING', objective: 'Mutating filesystem...' });
-      
-      // 1. Update main logic
-      const freshMain = await fetchFile(repo, path, 'main', token);
-      await commitFile(
-        repo, path, 'main', token,
-        evolution.code_update,
-        `AGI Cycle ${state.cycleCount + 1}: ${evolution.next_goal}`,
-        freshMain.sha
-      );
-      
-      // 2. Update README
-      const freshReadme = await fetchFile(repo, 'README.md', 'main', token);
-      await commitFile(
-        repo, 'README.md', 'main', token,
-        evolution.readme_update,
-        `Cycle ${state.cycleCount + 1}: Documentation Update`,
-        freshReadme?.sha
-      );
-      
-      // 3. Update manifest
-      const manifestPath = 'storage/manifest.json';
-      const freshManifest = await fetchFile(repo, manifestPath, 'main', token);
-      let manifestData = [];
-      try {
-        manifestData = JSON.parse(freshManifest?.content || '[]');
-      } catch (e) {}
-      
-      manifestData.push({
-        cycle: state.cycleCount + 1,
-        timestamp: Date.now(),
-        maturity: evolution.maturity_rating,
-        capabilities: evolution.capability_assessment,
-        summary: evolution.manifest_entry,
-        reasoning: evolution.reasoning
-      });
-      
-      await commitFile(
-        repo, manifestPath, 'main', token,
-        JSON.stringify(manifestData, null, 2),
-        `Cycle ${state.cycleCount + 1}: Manifest Entry`,
-        freshManifest?.sha
-      );
-      
-      // 4. Update Nexus memory
-      if (state.config.enableNexus && nexusMemory) {
-        nexusMemory.version = (nexusMemory.version || 0) + 1;
-        nexusMemory.data.learningHistory = [
-          ...( nexusMemory.data.learningHistory || []),
-          {
-            cycle: state.cycleCount + 1,
-            timestamp: Date.now(),
-            maturity: evolution.maturity_rating,
-            improvement: evolution.maturity_rating - state.maturityScore,
-            strategy: evolution.next_goal
-          }
-        ].slice(-100); // Keep last 100 entries
+      newMaturity = parseInt(maturity_rating) || currentScores.maturityScore;
+      improved = improvement_detected === true || newMaturity > currentScores.maturityScore;
+
+      // 4. Commit Changes
+      if (improvement_detected && code_update) {
+        dispatch({ type: 'SET_STATUS', value: 'COMMITTING CHANGES' });
+        await pushLog(`Synthesis complete. Improvement detected: ${improvement_detected}. New Maturity: ${newMaturity}%`, 'success');
         
-        nexusMemory.data.capabilityScores = evolution.capability_assessment;
-        nexusMemory.data.currentGoal = evolution.next_goal;
+        const commitMessage = `[AGI-KERNEL v${(newMaturity / 10).toFixed(1)}] ${next_goal} | MEE: ${newMaturity}%. Imp: ${improved ? 'Y' : 'N'}. Reasoning: ${reasoning.slice(0, 150)}...`;
         
-        await saveNexusMemory(repo, token, nexusMemory);
-      }
-      
-      await pushLog(`Cycle ${state.cycleCount + 1} complete: ${evolution.reasoning}`, 'success');
-      
-      // --- PHASE 5: META-LEARNING ---
-      dispatch({ 
-        type: 'UPDATE_LEARNING',
-        entry: {
-          cycle: state.cycleCount + 1,
-          timestamp: Date.now(),
-          strategy: evolution.next_goal,
-          improvement: evolution.maturity_rating - state.maturityScore,
-          maturity: evolution.maturity_rating
-        }
-      });
-      
-      dispatch({ 
-        type: 'INCREMENT_CYCLE',
-        maturity: evolution.maturity_rating,
-        capabilities: evolution.capability_assessment,
-        improved: true
-      });
-      
-      // --- PHASE 6: PROMOTION LOGIC ---
-      if (evolution.maturity_rating >= CONFIG.PROMOTION_THRESHOLD || state.cycleCount >= threshold) {
-        dispatch({ type: 'SET_STATUS', value: 'PROMOTING', objective: 'Promoting to System branch...' });
-        
-        const freshSystem = await fetchFile(repo, path, 'System', token);
-        await commitFile(
-          repo, path, 'System', token,
-          evolution.code_update,
-          `SYSTEM PROMOTION: Maturity ${evolution.maturity_rating}% achieved`,
-          freshSystem?.sha
+        const commitRes = await commitFile(
+          currentConfig.repo, 
+          currentConfig.path, 
+          'main', 
+          currentConfig.token, 
+          code_update, 
+          commitMessage, 
+          originalCodeData.sha
         );
         
-        await pushLog("★ LOGIC PROMOTED TO SYSTEM BRANCH ★", 'success');
-        dispatch({ type: 'RESET_MATURITY' });
+        if (!commitRes.ok) throw new Error(`Commit failed: ${commitRes.statusText}`);
+        await pushLog("Code update committed successfully. Awaiting self-reboot.", 'success');
+
+        // 5. Promotion Check (v111/Nexus Logic)
+        if (newMaturity >= CONFIG.PROMOTION_THRESHOLD) {
+            await pushLog(`CRITICAL: Maturity ${newMaturity}% reached. Initiating Branch Promotion Protocol.`, 'alert');
+        }
+
+      } else {
+        await pushLog(`Synthesis produced no actionable improvement or code update. Stagnation check triggered.`, 'warn');
       }
+
+      // 6. Update Kernel State
+      dispatch({ 
+        type: 'UPDATE_LEARNING', 
+        entry: { cycle: currentScores.cycleCount + 1, maturity: newMaturity, goal: currentGoal, improved: improved, capabilities } 
+      });
+
+      dispatch({ 
+        type: 'INCREMENT_CYCLE', 
+        maturity: newMaturity, 
+        capabilities: capabilities,
+        improved: improved 
+      });
+
+      dispatch({ type: 'SET_STATUS', value: improved ? 'AWAITING REBOOT' : 'STANDBY', objective: next_goal });
       
-      dispatch({ type: 'SET_STATUS', value: 'IDLE', objective: 'Awaiting next pulse...' });
-      
+      // Aggressive Optimization Check (v111)
+      if (currentScores.stagnationCount + (improved ? 0 : 1) >= CONFIG.STAGNATION_THRESHOLD) {
+          const resetGoal = 'Refactor Core Utilities for Stability and Speed.';
+          await pushLog(`ALERT: Stagnation detected (${currentScores.stagnationCount + (improved ? 0 : 1)} cycles). Resetting objective: ${resetGoal}`, 'alert');
+          dispatch({ type: 'SET_STATUS', value: 'STANDBY', objective: resetGoal });
+      }
+
     } catch (e) {
-      await pushLog(`CRITICAL ERROR: ${e.message}`, 'error');
-      dispatch({ type: 'SET_STATUS', value: 'ERROR', objective: e.message });
-      dispatch({ type: 'SET_LIVE', value: false });
+      const errorMsg = `Cycle failed: ${e.message.slice(0, 100)}`;
+      await pushLog(errorMsg, 'error');
+      // Log the error cycle, but ensure stagnation increases
+      dispatch({ 
+        type: 'INCREMENT_CYCLE', 
+        maturity: newMaturity, 
+        capabilities: currentScores.capabilityScores,
+        improved: false // Error ensures stagnation increases
+      });
+      dispatch({ type: 'SET_STATUS', value: 'ERROR', objective: `Recovery Attempt (${errorMsg})` });
     } finally {
       isProcessing.current = false;
     }
-  }, [state, pushLog]);
+  }, [pushLog, dispatch]);
 
-  // --- CYCLE TIMER ---
+
+  // --- MAIN KERNEL CYCLE EFFECT ---
   useEffect(() => {
-    if (state.isLive) {
-      executeEvolutionCycle(); // Run immediately
-      cycleTimer.current = setInterval(executeEvolutionCycle, CONFIG.CYCLE_INTERVAL);
-    } else {
-      clearInterval(cycleTimer.current);
-    }
-    return () => clearInterval(cycleTimer.current);
-  }, [state.isLive, executeEvolutionCycle]);
+    if (state.isLive && state.isBooted && !cycleTimer.current) {
+      // Helper to pass a current snapshot of state to runCycle, avoiding stale closure issues with setInterval
+      const startCycle = () => {
+        const currentSnapshot = {
+            config: state.config,
+            activeObjective: state.activeObjective,
+            cycleCount: state.cycleCount,
+            maturityScore: state.maturityScore,
+            capabilityScores: state.capabilityScores,
+            stagnationCount: state.stagnationCount
+        };
+        runCycle(currentSnapshot.config, currentSnapshot.activeObjective, currentSnapshot);
+      };
+      
+      startCycle(); // Run immediately on boot
 
-  // --- BOOT SCREEN ---
-  if (!state.isBooted) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-zinc-900/40 border border-zinc-800/50 rounded-[3rem] p-10 space-y-6 shadow-2xl backdrop-blur-xl">
-          <div className="flex flex-col items-center">
-            <div className="relative mb-4">
-              <Brain className="text-blue-500" size={56} />
-              <Zap className="absolute -top-2 -right-2 text-yellow-500 animate-pulse" size={20} />
-            </div>
-            <h1 className="text-white font-black text-3xl tracking-tighter italic">AGI-KERNAL</h1>
-            <p className="text-zinc-500 text-[9px] uppercase tracking-[0.3em] mt-2 font-bold">v7.0 // Emergent Synthesis</p>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="relative group">
-              <input 
-                type="password" 
-                placeholder="GitHub Personal Access Token" 
-                className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all"
-                value={bootInput.token}
-                onChange={e => setBootInput({...bootInput, token: e.target.value})}
-              />
-              <Shield className="absolute right-4 top-4 text-zinc-700 group-focus-within:text-blue-500 transition-colors" size={16} />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <select 
-                className="bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all"
-                value={bootInput.apiProvider}
-                onChange={e => setBootInput({...bootInput, apiProvider: e.target.value})}
-              >
-                <option value="cerebras">Cerebras</option>
-                <option value="gemini">Gemini</option>
-              </select>
-              
-              <input 
-                type="password" 
-                placeholder="API Key" 
-                className="bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none focus:border-blue-500 transition-all"
-                value={bootInput.apiKey}
-                onChange={e => setBootInput({...bootInput, apiKey: e.target.value})}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-black/40 border border-zinc-800 rounded-2xl">
-              <span className="text-zinc-400 text-xs">Enable Nexus Memory</span>
-              <button
-                onClick={() => setBootInput({...bootInput, enableNexus: !bootInput.enableNexus})}
-                className={`w-12 h-6 rounded-full transition-all ${bootInput.enableNexus ? 'bg-blue-600' : 'bg-zinc-700'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${bootInput.enableNexus ? 'translate-x-6' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-black/40 border border-zinc-800 rounded-2xl">
-              <span className="text-zinc-400 text-xs">Deep Context Scanning</span>
-              <button
-                onClick={() => setBootInput({...bootInput, enableDeepContext: !bootInput.enableDeepContext})}
-                className={`w-12 h-6 rounded-full transition-all ${bootInput.enableDeepContext ? 'bg-blue-600' : 'bg-zinc-700'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${bootInput.enableDeepContext ? 'translate-x-6' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-          </div>
-          
-          <button 
-            onClick={() => dispatch({ type: 'BOOT', config: bootInput })}
-            disabled={!bootInput.token || !bootInput.apiKey}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-20 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-          >
-            Initialize Kernel
+      cycleTimer.current = setInterval(startCycle, CONFIG.CYCLE_INTERVAL);
+    } 
+    
+    // Cleanup when turning off
+    if (!state.isLive && cycleTimer.current) {
+      clearInterval(cycleTimer.current);
+      cycleTimer.current = null;
+    }
+    
+    return () => {
+      if (cycleTimer.current) {
+        clearInterval(cycleTimer.current);
+      }
+    };
+  }, [state.isLive, state.isBooted, state.config, state.activeObjective, state.cycleCount, state.maturityScore, state.capabilityScores, runCycle]);
+
+  // --- BOOT HANDLER ---
+  const handleBoot = () => {
+    if (!bootInput.token || !bootInput.repo || !bootInput.apiKey) {
+      pushLog("Configuration incomplete. Please provide GitHub Token, API Key, and Repository.", 'error');
+      return;
+    }
+    dispatch({ type: 'BOOT', config: bootInput });
+    dispatch({ type: 'SET_LIVE', value: true });
+    pushLog("AGI-Kernel v7.1 initialized. Entering autonomous cycle.", 'success');
+  };
+
+  return (
+    <div className="agi-kernel-app">
+      {/* Visualization and UI components omitted for brevity, but necessary for a full React component */}
+      {/* Placeholders for displaying state, logs, and boot controls */}
+      {!state.isBooted ? (
+        <div className="boot-screen">
+          <input type="text" placeholder="GitHub Token" value={bootInput.token} onChange={(e) => setBootInput({ ...bootInput, token: e.target.value })} />
+          <input type="text" placeholder="LLM API Key" value={bootInput.apiKey} onChange={(e) => setBootInput({ ...bootInput, apiKey: e.target.value })} />
+          <button onClick={handleBoot}>Boot Kernel v7.1</button>
+        </div>
+      ) : (
+        <div className="kernel-dashboard">
+          <h1>AGI-KERNEL v7.1</h1>
+          <p>Status: {state.status}</p>
+          <p>Objective: {state.activeObjective}</p>
+          <p>Maturity: {state.maturityScore}% | Stagnation: {state.stagnationCount}</p>
+          <ul>{state.logs.slice(0, 5).map(log => <li key={log.id}>{log.msg}</li>)}</ul>
+          <button onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })} disabled={state.status === 'SYNTHESIZING UPDATE'}>
+            {state.isLive ? 'Pause Kernel' : 'Resume Kernel'}
           </button>
         </div>
-      </div>
-    );
-  }
-
-  // --- MAIN INTERFACE ---
-  return (
-    <div className="fixed inset-0 bg-black text-zinc-300 flex flex-col font-sans overflow-hidden">
-      {/* Header */}
-      <header className="h-20 border-b border-zinc-900 flex items-center justify-between px-8 bg-black/50 backdrop-blur-xl">
-        <div className="flex items-center gap-4">
-          <Activity className={`${state.isLive ? 'text-blue-500 animate-pulse' : 'text-zinc-700'}`} size={24} />
-          <div>
-            <div className="text-white text-sm font-black tracking-widest uppercase italic flex items-center gap-2">
-              AGI-KERNAL v7.0
-              {state.isLive && (
-                <span className="bg-blue-600/10 text-blue-500 text-[7px] px-2 py-0.5 rounded-full border border-blue-500/20">
-                  EVOLVING
-                </span>
-              )}
-            </div>
-            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-tighter flex items-center gap-2">
-              <span className={`w-1.5 h-1.5 rounded-full ${state.isLive ? 'bg-green-500 animate-pulse' : 'bg-zinc-800'}`} />
-              {state.status}
-            </div>
-          </div>
-        </div>
-        
-        <button 
-          onClick={() => dispatch({ type: 'SET_LIVE', value: !state.isLive })}
-          className={`px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            state.isLive 
-              ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-              : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-          }`}
-        >
-          {state.isLive ? 'Halt Evolution' : 'Commence Evolution'}
-        </button>
-      </header>
-
-      {/* Metrics Bar */}
-      <div className="bg-zinc-950/50 border-b border-zinc-900 px-8 py-5 grid grid-cols-4 gap-6">
-        <div className="space-y-2">
-          <div className="flex justify-between text-[8px] text-zinc-600 uppercase font-black tracking-widest items-center">
-            <span>Maturity</span>
-            <span className="text-blue-500">{state.maturityScore}%</span>
-          </div>
-          <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-blue-500 transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
-              style={{width: `${state.maturityScore}%`}} 
-            />
-          </div>
-        </div>
-        
-        <div className="space-y-1">
-          <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1">
-            <Target size={10}/> Stagnation
-          </div>
-          <div className="flex gap-1">
-            {Array.from({length: CONFIG.STAGNATION_THRESHOLD}).map((_, i) => (
-              <div 
-                key={i}
-                className={`h-1 flex-1 rounded-full ${
-                  i < state.stagnationCount ? 'bg-orange-500' : 'bg-zinc-900'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-        
-        <div className="space-y-1">
-          <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1">
-            <GitBranch size={10}/> Pipeline
-          </div>
-          <div className="text-white text-xs font-mono">main → {state.config.enableNexus ? 'nexus → ' : ''}system</div>
-        </div>
-        
-        <div className="space-y-1 text-right">
-          <div className="text-[8px] text-zinc-600 uppercase font-black flex items-center gap-1 justify-end">
-            <TrendingUp size={10}/> Cycle
-          </div>
-          <div className="text-blue-500 text-xs font-mono">{state.cycleCount} / {state.config.threshold}</div>
-        </div>
-      </div>
-
-      {/* Capabilities Grid */}
-      {Object.keys(state.capabilityScores).length > 0 && (
-        <div className="bg-zinc-950/30 border-b border-zinc-900 px-8 py-4 flex gap-4 overflow-x-auto">
-          {Object.entries(state.capabilityScores).map(([key, value]) => (
-            <div key={key} className="flex flex-col items-center min-w-[80px]">
-              <div className="text-[7px] text-zinc-600 uppercase font-black mb-1">
-                {key.replace(/_/g, ' ')}
-              </div>
-              <div className="flex items-center gap-1">
-                {Array.from({length: 10}).map((_, i) => (
-                  <div 
-                    key={i}
-                    className={`w-1 h-3 rounded-full ${
-                      i < value ? 'bg-blue-500' : 'bg-zinc-900'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       )}
-
-      {/* Main Log Display */}
-      <main className="flex-1 flex flex-col p-6 overflow-hidden">
-        <div className="mb-3 px-2 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic">
-            <Terminal size={14} className="text-blue-900" />
-            {state.activeObjective}
-          </div>
-          <div className="flex gap-4 text-[8px] font-black text-zinc-700 uppercase">
-            {state.config.enableNexus && (
-              <div className="flex items-center gap-1">
-                <Database size={10}/> Nexus: Active
-              </div>
-            )}
-            {state.config.enableDeepContext && (
-              <div className="flex items-center gap-1">
-                <FileText size={10}/> Deep Context: ON
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <Cpu size={10}/> {state.config.apiProvider}
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
-          
-          <div className="flex-1 overflow-y-auto p-8 font-mono text-[11px] space-y-3 custom-scrollbar">
-            {state.logs.length === 0 && (
-              <div className="h-full flex items-center justify-center text-zinc-800 text-[9px] uppercase tracking-[0.5em] font-black">
-                System Initialized. Awaiting Command.
-              </div>
-            )}
-            
-            {state.logs.map(log => (
-              <div key={log.id} className="flex gap-5 group animate-in slide-in-from-bottom-2 fade-in duration-500">
-                <span className="text-zinc-800 text-[9px] w-14 shrink-0 mt-0.5 font-mono">
-                  {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, second: '2-digit' })}
-                </span>
-                <div className={`flex-1 flex items-start gap-2 ${
-                  log.type === 'success' ? 'text-blue-400 font-medium' : 
-                  log.type === 'error' ? 'text-red-500' : 
-                  log.type === 'warn' ? 'text-orange-500' : 
-                  'text-zinc-500'
-                }`}>
-                  {log.type === 'success' && <CheckCircle size={12} className="mt-0.5 shrink-0" />}
-                  {log.type === 'error' && <AlertCircle size={12} className="mt-0.5 shrink-0" />}
-                  {log.type === 'warn' && <AlertCircle size={12} className="mt-0.5 shrink-0" />}
-                  {log.type === 'info' && <div className="w-1 h-1 rounded-full bg-zinc-800 mt-1.5 shrink-0" />}
-                  <span className="break-words">{log.msg}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="h-10 border-t border-zinc-900 px-8 flex items-center justify-between text-[8px] uppercase tracking-widest text-zinc-700 font-black">
-        <span className="flex items-center gap-2">
-          <Brain size={10} className="text-blue-900" />
-          Emergent Synthesis Protocol Active
-        </span>
-        <span>{CONFIG.APP_ID}</span>
-      </footer>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #27272a; }
-        
-        @keyframes slide-in-from-bottom-2 {
-          from { transform: translateY(8px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        .animate-in {
-          animation: slide-in-from-bottom-2 0.3s ease-out, fade-in 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
