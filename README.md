@@ -1,5 +1,10 @@
 ```markdown
-## CRITICAL DIRECTIVE: Integration Before Expansion
+## CRITICAL DIRECTIVE:
+
+update readme when any part is complete prune any redundent file create any file that enhances .
+
+
+Integration Before Expansion
 
 After Cycle 5, the kernel MUST demonstrate functional integration.
 
