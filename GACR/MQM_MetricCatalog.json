@@ -1,8 +1,8 @@
 {
   "$schema": "http://sgs-v97.5/schema/mqm_metrics",
   "metadata": {
-    "version": "1.1",
-    "last_updated": "AGI-KERNEL_v7.4.3_Cycle_1"
+    "version": "1.2",
+    "last_updated": "AGI-KERNEL_v7.4.3_Cycle_2"
   },
   "metric_definitions": [
     {
@@ -60,6 +60,13 @@
       "data_key": "novelty_index_score",
       "description": "Self-assessed index tracking the novelty and non-incrementality of solutions generated.",
       "unit": "Index Score"
+    },
+    {
+      "metric_id": "MQM_K06_MEMORY_UTILIZATION",
+      "source": "AGI_Kernel_NexusDatabase",
+      "data_key": "history_recall_ratio",
+      "description": "Ratio of learning history successfully integrated into current strategy selection (Contextual Recall). Supports Meta-Reasoning.",
+      "unit": "Ratio (0.0 - 1.0)"
     }
   ]
 }
