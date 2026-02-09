@@ -1,11 +1,11 @@
 const os = require('os');
 
 AGI-KERNAL-SIGNATURE-V6-9
-import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react';
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, addDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from 'lucide-react';
+import React, { useState, useEffect, useReducer, useRef, useCallback } from \'react\';
+import { initializeApp, getApp, getApps } from \'firebase/app\';
+import { getFirestore, collection, onSnapshot, addDoc } from \'firebase/firestore\';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from \'firebase/auth\';
+import { Activity, ShieldCheck, Zap, ScanText, AlertTriangle, KeyRound, Globe, Lock, ThermometerSnowflake, Binary, Cpu, GitMerge, Gauge } from \'lucide-react\';
 
 /**
  * AGI-KERNAL v6.9 - "MEE_INTEGRATION"
@@ -82,6 +82,68 @@ const GAXEventRegistry = Object.freeze({
     TEL_PUBLISH_FAILURE: 'TEL:PUBLISH:FAILURE',
     TEL_DATA_DROPPED: 'TEL:DATA:DROPPED'
 });
+
+// --- TARGET INTEGRATION: ICachePersistence Interface ---
+/**
+ * @typedef {object} PersistenceGetResult
+ * @property {any} value - The data value stored.
+ * @property {number} expiry - Unix timestamp in milliseconds for expiration.
+ */
+
+/**
+ * ICachePersistence Interface (v94.1)
+ * Defines the required structure for any pluggable cache backend (in-memory, Redis, DB).
+ * Implementing this allows the TrustCacheManager to abstract storage details, making
+ * the consensus module scalable and fault-tolerant in a cluster environment.
+ * All methods must be asynchronous and return Promises.
+ */
+class ICachePersistence {
+    
+    /**
+     * Retrieves a cache entry based on a key.
+     * @param {string} key - The unique cache key.
+     * @returns {Promise<PersistenceGetResult|null>} Returns the value and original expiration timestamp, or null if missing.
+     */
+    async get(key) {
+        throw new Error('ICachePersistence method `get` must be implemented by subclass.');
+    }
+
+    /**
+     * Stores a value with a specified Time-To-Live (TTL).
+     * @param {string} key - The unique cache key.
+     * @param {any} value - The data value to store (often serialized).
+     * @param {number} ttlMs - Total lifespan in milliseconds.
+     * @returns {Promise<void>}
+     */
+    async set(key, value, ttlMs) {
+        throw new Error('ICachePersistence method `set` must be implemented by subclass.');
+    }
+
+    /**
+     * Deletes an entry from the cache.
+     * @param {string} key - The unique cache key.
+     * @returns {Promise<boolean>} True if the key was deleted, false otherwise.
+     */
+    async delete(key) {
+        throw new Error('ICachePersistence method `delete` must be implemented by subclass.');
+    }
+    
+    /**
+     * Connects and initializes the underlying persistence system.
+     * @returns {Promise<void>}
+     */
+    async connect() {
+         // Default no-op for systems that don\'t require explicit connection.
+    }
+    
+    /**
+     * Shuts down or disconnects resources cleanly.
+     * @returns {Promise<void>}
+     */
+    async disconnect() {
+         // Default no-op.
+    }
+}
 
 // --- TARGET INTEGRATION: SystemLoadSensor (MEE Metric Source) ---
 
@@ -292,7 +354,7 @@ function executeConstraint(constraint, context) {
         console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
         return {
             ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
+            detail: `Unknown constraint type \'${policyType}\' detected during evaluation.`,
             severity: 'WARNING'
         };
     }
@@ -559,7 +621,7 @@ class ArtifactValidatorService {
             signedFields.sort().forEach(field => {
                 if (Object.prototype.hasOwnProperty.call(payload, field)) {
                     dataSubset[field] = payload[field];
-                }
+                } 
             });
             return JSON.stringify(dataSubset);
         }
@@ -757,8 +819,7 @@ const KernelGICM = {
             }
         },
         // Artifact Check
-        {
-            id: 'GICM-ART-003',
+        {n            id: 'GICM-ART-003',
             type: 'ARTIFACT',
             config: {
                 artifactId: 'PMH_LOCK_V1',
@@ -1034,6 +1095,3 @@ function AGI_Kernel() {
         </div>
     );
 }
-
-// NOTE: In a complete React environment, this component would be exported and rendered.
-// export default AGI_Kernel;
