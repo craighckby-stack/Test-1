@@ -8,6 +8,11 @@ import { validateSchema } from '../utility/schema_engine';
 import { calculateHash } from '../utility/hashing_utility';
 import * as executionEngine from './execution_engine';
 
+// Assuming HashIntegrityChecker plugin interface is available in the runtime environment
+declare const HashIntegrityChecker: {
+    execute: (args: { rawData: any, expectedHash: string, hashFunction: (data: any) => string }) => { success: boolean, reason?: string, computedHash?: string };
+};
+
 // Standardized list of proposal types that require an executable payload.
 const ACTIONABLE_PROPOSAL_TYPES = new Set([
   'PROTOCOL_UPGRADE',
@@ -20,7 +25,7 @@ const ACTIONABLE_PROPOSAL_TYPES = new Set([
  *
  * 1. Checks proposal type.
  * 2. Retrieves raw payload data.
- * 3. Verifies payload integrity via hash comparison.
+ * 3. Verifies payload integrity via hash comparison (using HashIntegrityChecker).
  * 4. Performs safe execution simulation.
  *
  * @param {object} proposal - The proposal object.
@@ -47,21 +52,19 @@ export async function validateProposalPayload(proposal) {
     return { valid: false, reason: `Executable payload data missing from storage for hash: ${expectedHash}.` };
   }
   
-  // 2. Hash Integrity Check
-  try {
-    const computedHash = calculateHash(rawPayload);
-    
-    if (computedHash !== expectedHash) {
-      // Use substring to avoid logging massive hashes in error messages, focusing on identification.
-      const safeExpected = expectedHash.substring(0, 16);
-      const safeComputed = computedHash.substring(0, 16);
-      return { 
-        valid: false, 
-        reason: `Payload integrity failed. Computed hash (${safeComputed}...) does not match expected hash (${safeExpected}...).` 
-      };
-    }
-  } catch (hashError) {
-     return { valid: false, reason: `Failed during hash computation: ${hashError.message}` };
+  // 2. Hash Integrity Check (Delegated to Plugin)
+  const integrityResult = HashIntegrityChecker.execute({
+    rawData: rawPayload,
+    expectedHash: expectedHash,
+    // Pass the required hashing utility function for the plugin to execute
+    hashFunction: calculateHash 
+  });
+
+  if (!integrityResult.success) {
+    return { 
+      valid: false, 
+      reason: integrityResult.reason || 'Payload integrity check failed (unknown reason).'
+    };
   }
 
   // 3. Perform Safe Execution Simulation
@@ -76,7 +79,6 @@ export async function validateProposalPayload(proposal) {
   }
 
   // 4. Semantic Validation: Ensure simulation output conforms to specifications.
-  // This step usually involves validating the final state change against an expected schema/assertion.
   
   return { 
     valid: true, 
