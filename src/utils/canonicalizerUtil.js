@@ -1,54 +1,23 @@
-/**
- * Recursively sorts object keys alphabetically to ensure deterministic serialization.
- * @param {any} data
- * @returns {any} A structure identical to data, but with sorted object keys.
- */
-function canonicalSortKeys(data) {
-    if (typeof data !== 'object' || data === null) {
-        return data;
-    }
 
-    if (Array.isArray(data)) {
-        return data.map(item => canonicalSortKeys(item));
-    }
-
-    const sortedKeys = Object.keys(data).sort();
-    
-    return sortedKeys.reduce((sortedObject, key) => {
-        sortedObject[key] = canonicalSortKeys(data[key]);
-        return sortedObject;
-    }, {});
-}
+declare const CanonicalSerializationUtility: {
+    execute: (args: { data: any }) => Buffer;
+};
 
 /**
  * Ensures consistent, canonical binary serialization of data for signing/hashing.
  * This is crucial for cryptographic determinism and integrity checks.
  * 
- * Process:
- * 1. Handle Buffers/Strings directly.
- * 2. Recursively sort object keys alphabetically (canonicalSortKeys).
- * 3. JSON.stringify the result.
- * 4. Encode as a UTF-8 Buffer.
+ * Delegates the heavy lifting (key sorting, stringification, encoding) to the CanonicalSerializationUtility plugin.
  * 
  * @param {any} data
  * @returns {Buffer} The serialized buffer (UTF-8 encoded string or raw Buffer).
  */
-export function toCanonicalBuffer(data) {
-    if (data instanceof Buffer) {
-        return data;
+export function toCanonicalBuffer(data: any): Buffer {
+    if (typeof CanonicalSerializationUtility === 'undefined') {
+        // Fallback or critical failure in plugin environment
+        throw new Error("CanonicalSerializationUtility is required for canonical serialization.");
     }
-    if (typeof data === 'string') {
-        return Buffer.from(data, 'utf8');
-    }
-
-    // Step 1: Recursively sort complex objects for determinism.
-    if (typeof data === 'object' && data !== null) {
-        const sortedData = canonicalSortKeys(data);
-        // Step 2: Stringify.
-        const str = JSON.stringify(sortedData);
-        return Buffer.from(str, 'utf8');
-    }
-
-    // Handle primitives
-    return Buffer.from(String(data), 'utf8');
+    
+    // The utility handles all required steps: sorting, stringification, and conversion to Buffer.
+    return CanonicalSerializationUtility.execute({ data });
 }
