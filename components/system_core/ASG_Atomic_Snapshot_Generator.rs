@@ -1,5 +1,6 @@
 use crate::core::security::CRoT; 
 use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
+use std::fmt;
 
 // --- Configuration Constants & Types ---
 pub const INTEGRITY_HASH_SIZE: usize = 64; // Standard size for high-assurance (e.g., SHA-512)
@@ -76,7 +77,7 @@ impl RscmPackage {
     // Controlled accessors for sensitive data
     pub fn integrity_hash(&self) -> &IntegrityHash { &self.integrity_hash }
     pub fn volatile_memory_dump(&self) -> &[u8] { &self.volatile_memory_dump }
-    pub fn stack_trace(&self) -> &str { &self.stack_trace }
+    pub fn stack_trace(&self) -> &str { self.stack_trace }
 }
 
 
@@ -88,6 +89,21 @@ pub enum SnapshotError {
     IntegrityHashingFailed,
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
 }
+
+// Implementation for standardized error handling (AGI Logic Improvement)
+impl fmt::Display for SnapshotError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SnapshotError::PrivilegeRequired => write!(f, "Privilege required to perform atomic snapshot."),
+            SnapshotError::MemoryCaptureFailed => write!(f, "Low-level memory capture failed."),
+            SnapshotError::Timeout { actual_duration_ns } => write!(f, "Snapshot exceeded temporal constraint (5ms). Actual latency: {} ns.", actual_duration_ns),
+            SnapshotError::IntegrityHashingFailed => write!(f, "Cryptographic integrity hashing failed."),
+            SnapshotError::HashingOutputMismatch { expected, actual } => write!(f, "Integrity hash size mismatch. Expected {} bytes, got {} bytes.", expected, actual),
+        }
+    }
+}
+
+impl std::error::Error for SnapshotError {}
 
 /// Generates an immutable, temporally constrained state snapshot (RSCM Package).
 /// Requires a specific implementation of SystemCaptureAPI for its environment.
@@ -113,17 +129,21 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // --- Integrity Hashing Protocol ---
+    // --- Integrity Hashing Protocol (Enhanced) ---
     // Note: The order of hashing inputs MUST remain fixed for integrity verification.
     // Hash sequence: 
     // 1. Volatile Data (Largest and most critical)
     // 2. Stack Trace (Execution context)
-    // 3. Context Flags (Security metadata)
-    // 4. Package Version (Structural integrity)
+    // 3. Absolute Capture Timestamp (Crucial temporal metadata)
+    // 4. Context Flags (Security metadata)
+    // 5. Package Version (Structural integrity)
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
     
-    // Direct hashing of fixed metadata components (eliminates temporary Vec allocation)
+    // IMPROVEMENT: Binding the absolute timestamp to the hash for integrity assurance
+    hasher.update(&absolute_ts.to_le_bytes());
+
+    // Direct hashing of fixed metadata components
     hasher.update(&context_flags.to_le_bytes()); 
     hasher.update(&RSCM_PACKAGE_VERSION.to_le_bytes());
     
