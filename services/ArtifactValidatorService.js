@@ -41,21 +41,27 @@ class ArtifactValidatorService {
     }
 
     /**
-     * Performs structural validation (presence, type, format checks) by delegating to the utility.
+     * Performs structural validation (presence, type, format checks) using the StructuralSchemaValidator tool.
+     * This abstracts the iteration logic away from the service.
      */
     _validateStructure(schema, payload, artifactId) {
-        for (const [field, constraints] of Object.entries(schema)) {
-            const hasField = Object.prototype.hasOwnProperty.call(payload, field);
+        const fieldValidator = (field, value, constraints) => {
+            // Delegate strong type/format checking (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
+            // This relies on the injected constraintUtility
+            this.constraintUtility.validateField(field, value, constraints);
+        };
 
-            if (constraints.required && !hasField) {
-                throw new Error(`[${artifactId}] Validation failed: Missing required field "${field}"`);
-            }
-
-            if (hasField) {
-                // Delegate strong type/format checking (e.g., HASH_SHA256, TIMESTAMP_ISO8601)
-                const value = payload[field];
-                this.constraintUtility.validateField(field, value, constraints);
-            }
+        try {
+            // Use the extracted structural validation tool
+            // CRITICAL: Assumes StructuralSchemaValidator is globally available via kernel injection.
+            StructuralSchemaValidator.execute({
+                schema,
+                payload,
+                fieldValidator
+            });
+        } catch (e) {
+            // Catch errors thrown by the validator and re-throw with Artifact ID context.
+            throw new Error(`[${artifactId}] Validation failed: ${e.message}`);
         }
     }
 
