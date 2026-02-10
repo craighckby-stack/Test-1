@@ -1,4 +1,8 @@
-# Policy Correction Logic Definition (PCLD) - GAX V96.5
+# Policy Correction Logic Definition (PCLD) - GAX V96.6
+
+PCLD_Version: 1.1
+Governing_Mission: AGI-KERNEL v7.4.4 Navigator Edition
+Creation_Timestamp: CYCLE_0_INITIALIZATION
 
 Protocol: PCSS (Policy Correction Analysis State)
 Input_Source: TEDS_TVCR (Traceability Event Registry)
@@ -12,21 +16,28 @@ Recalibration_Matrix:
   
   # 1.0 UTILITY MAXIMIZATION (UMA I) Failure Logic
   AXIOM_I_BREACH:
+    POLICY_ID: AXIOM.1.0.UMA_I
     TRIGGER_CONDITION: P-01_FAILED_UMA_I
     ANALYSIS_METRIC:
       - Variable: 'TEMM'
         Operator: '<'
         Threshold_Formula: 'UFRM + CFTM'
+    DERIVED_METRICS: # Explicit calculation of failure delta for formula input
+      - Name: 'TEMM_Delta'
+        Formula: 'UFRM + CFTM - TEMM'
     RECALIBRATION_ACTIONS:
       PRIORITY_1_MANDATE:
         # Immediate tightening of the Conservative Finality Margin (CFTM).
         - Component: ACVD
           Target_Key: UMA.CFTM_Margin_Factor
-          Modification_Formula: 'TEMM_Difference / UFRM_Baseline * 1.05' # Dynamic tightening based on delta
-          Description: 'Adjust CFTM factor to account for utility maximization shortfall.'
+          Modification_Engine: DynamicRatioOptimizer # Reference to standard engine for formula execution
+          Modification_Formula: 'TEMM_Delta / UFRM_Baseline * 1.05' # Dynamic tightening based on delta
+          Audit_Risk_Level: HIGH
+          Description: 'Adjust CFTM factor to account for utility maximization shortfall, using derived delta.'
 
   # 2.0 AXIOMATIC INTEGRITY (AI III) Failure Logic - Policy Veto
   AXIOM_III_PVLM_VETO:
+    POLICY_ID: AXIOM.3.0.PVLM_VETO
     TRIGGER_CONDITION: P-01_FAILED_AI_III_PVLM
     ANALYSIS_METRIC:
       - Variable: 'PVLM_Status'
@@ -37,14 +48,18 @@ Recalibration_Matrix:
         # Registration requires human review of the Policy Violation Logic Manifest (PVLM).
         - Component: PRM
           Action: 'REGISTER_VETO_EVENT'
+          Audit_Risk_Level: CRITICAL
           Description: 'Log non-compliant execution attempt. System must halt until PVLM status reset or manual PRM entry.'
       PRIORITY_2_TEDS_CAPTURE:
         - Component: TEDS_TVCR
           Action: 'MANDATE_DEEPER_FORENSICS'
-          Description: 'Increase Traceability Event Capture Depth by 5 stages.'
+          Capture_Depth_Stages: 5 # Parameterized depth
+          Audit_Risk_Level: MODERATE
+          Description: 'Increase Traceability Event Capture Depth.'
 
   # 3.0 CONTEXT ATTESTATION (CA II) Failure Logic
   AXIOM_II_ECVM_FAILURE:
+    POLICY_ID: AXIOM.2.0.ECVM_FAILURE
     TRIGGER_CONDITION: P-01_FAILED_CA_II
     ANALYSIS_METRIC:
       - Variable: 'ECVM_Status'
@@ -54,5 +69,7 @@ Recalibration_Matrix:
       PRIORITY_1_MANDATE:
         - Component: SGS_Protocol
           Target_Key: 'ECVM_Attestation_Retry_Budget'
+          Modification_Engine: SimpleAdditive
           Modification_Formula: '$CURRENT_VALUE + 3'
+          Audit_Risk_Level: LOW
           Description: 'Increase the allowed retries for ECVM verification on subsequent DSE cycles.'
