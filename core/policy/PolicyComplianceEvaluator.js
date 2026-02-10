@@ -7,6 +7,9 @@
 
 import { APM } from '../config/governance/APM-99.0_CORE.json';
 import { SystemActionDispatcher } from '../system/SystemActionDispatcher.js'; // Decouples action execution from evaluation
+// Assuming PolicyDeviationScorer is available via injection or import
+// @ts-ignore
+import { PolicyDeviationScorer } from '../tools/PolicyDeviationScorer.js'; 
 
 class PolicyComplianceEvaluator {
     /** @type {Object.<number, number>} Policy Code -> Weight */
@@ -18,11 +21,11 @@ class PolicyComplianceEvaluator {
     /** @type {Object} */
     trustConfig = {};
 
+    /** @type {PolicyDeviationScorer} */
+    #policyScorer;
+
     /** 
      * @type {Object.<number, string>} Maps Policy Code to expected metric key name. 
-     * NOTE: This map ensures policy evaluation can dynamically iterate over metrics 
-     * without hardcoding metric names in the calculation loop. This mapping should 
-     * eventually be externalized to the APM configuration itself (Future evolution task).
      */
     #policyMetricMap = {
         1: 'securityViolationRate',
@@ -41,6 +44,12 @@ class PolicyComplianceEvaluator {
         // 2. Initialize Core Policy Configuration
         this.reactionThresholds = matrix.ADH_ReactionMatrix.Thresholds;
         this.trustConfig = APM.TrustDefinitions.T_Adaptive_Thresholds;
+
+        // 3. Initialize deviation scorer plugin
+        this.#policyScorer = new PolicyDeviationScorer({
+            weightMap: this.weightMap,
+            policyMetricMap: this.#policyMetricMap
+        });
 
         // Dependency check (optional, but good practice)
         if (typeof SystemActionDispatcher === 'undefined') {
@@ -63,8 +72,8 @@ class PolicyComplianceEvaluator {
             return true;
         }
 
-        // B. Calculate Composite Deviation Score
-        const deviationScore = this.calculateWeightedDeviation(metrics);
+        // B. Calculate Composite Deviation Score using the dedicated scorer plugin
+        const deviationScore = this.#policyScorer.execute({ metrics });
 
         // C. Determine and Execute Reaction
         // Assumes reactionThresholds are sorted by Max_Sigma (descending) in configuration for optimal search efficiency.
@@ -77,34 +86,8 @@ class PolicyComplianceEvaluator {
         }
         return false;
     }
-
-    /**
-     * Calculates the system deviation score based on predefined weighted policies.
-     * Uses O(1) lookup via weightMap for critical performance, and dynamically iterates 
-     * over all currently configured policies.
-     * @param {Object} metrics - System metrics.
-     * @returns {number} The calculated deviation score.
-     */
-    calculateWeightedDeviation(metrics) {
-        let score = 0;
-        const policyCodes = Object.keys(this.weightMap).map(Number); // Ensure codes are numeric keys
-
-        for (const code of policyCodes) {
-            const metricKey = this.#policyMetricMap[code];
-            const weight = this.weightMap[code];
-            
-            if (metricKey && metrics[metricKey] !== undefined) {
-                // Contribution = Metric Value * Policy Weight
-                score += (metrics[metricKey] * weight);
-            }
-            // Note: If metricKey is missing from #policyMetricMap or metrics[metricKey] is missing, 
-            // that policy contribution is correctly zeroed out implicitly, maintaining robustness.
-        }
-        
-        return isFinite(score) && score >= 0 ? score : 0;
-    }
-
-    // executeMandatedAction has been removed and replaced by delegation to SystemActionDispatcher
+    
+    // calculateWeightedDeviation method has been extracted and removed.
 }
 
 export const PCE = new PolicyComplianceEvaluator();
