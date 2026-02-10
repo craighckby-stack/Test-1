@@ -110,7 +110,7 @@
         "action": "PROPOSE_MERGE_INTO_CORE_OR_AGENTS"
       }
     },
-    "POLICY_EXPLORATION_V4": {
+    "POLICY_EXPLORATION_V5": {
       "name": "Repository Diversity and Priority-Based Blacklist Management",
       "applies_to_system": "NAVIGATOR_SYSTEM",
       "repository_context": {
@@ -128,6 +128,7 @@
         "max_size": 50,
         "action_on_exceeded": "CLEAR_OLDEST_ENTRIES",
         "diversity_enforcement": true,
+        "explicit_diversity_rule": "NEVER_REPEAT_SAME_FILE_IN_CONSECUTIVE_CYCLES",
         "reset_strategy": "ADAPTIVE_RETURN_TO_CRITICAL_TARGETS",
         "file_evolution_update_logic": {
           "IF_IMPROVED": "REMOVE_FROM_BLACKLIST_ALLOW_REVISIT",
@@ -185,10 +186,10 @@
         "LOG_MAJOR_ARCHITECTURAL_CHANGES"
       ]
     },
-    "POLICY_METRICS_V1": {
-      "name": "Maturity and Capability Assessment Protocol",
+    "POLICY_METRICS_V2": {
+      "name": "Maturity and Capability Assessment Protocol (Goal-Oriented Tracking)",
       "applies_to_system": "SELF_ASSESSMENT_LOOP",
-      "description": "Governs the tracking and logging of AGI maturity progression and capability development scores.",
+      "description": "Governs the tracking and logging of AGI maturity progression and capability development scores and tracks explicit evolution goals.",
       "tracking_dimensions": [
         "MATURITY_SCORE_0_100",
         "NAVIGATION_SCORE_0_10",
@@ -215,7 +216,30 @@
         "SELF_DIRECTED_GOAL_DECOMPOSITION_EVIDENCE",
         "EMERGENT_PROBLEM_SOLVING_EVIDENCE",
         "META_LEARNING_OPTIMIZATION_EVIDENCE"
-      ]
+      ],
+      "evolution_goals_tracking": {
+        "immediate_goals_cycles_1_20": {
+          "maturity_target": 0.05,
+          "required_actions": [
+            "ESTABLISH_BASELINE_CAPABILITY_SCORES",
+            "DEMONSTRATE_STRATEGIC_FILE_SELECTION",
+            "BUILD_WORKING_BLACKLIST_SYSTEM",
+            "AVOID_REPETITIVE_TARGETING"
+          ],
+          "quantitative_targets": {
+            "unique_files_touched_min": 15,
+            "first_emergent_capability_status": "PENDING_CREATION"
+          }
+        },
+        "short_term_goals_cycles_20_50": {
+          "maturity_target": 0.20,
+          "navigation_score_target": 5.0,
+          "quantitative_targets": {
+            "unique_files_touched_min": 40,
+            "emergent_capabilities_min": 3
+          }
+        }
+      }
     }
   }
 }
