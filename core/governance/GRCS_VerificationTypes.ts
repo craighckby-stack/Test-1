@@ -2,11 +2,17 @@
  * Defines strong types used across the GRCS Verification component suite.
  */
 
+// --- Reusable Risk Definition Types (Extracted to Plugin: RiskProfileDefinition) ---
+
+export type LiabilityUnit = 'USD' | 'EUR' | 'PPR' | 'Unknown'; // PPR = Probability Percent.
+
 export interface FailureProfile {
     S02_Value: number; // Current calculated risk value (e.g., projected monetary liability or failure probability).
     S02_Tolerance: number; // The maximum tolerance limit derived from the active policy definition (must be >= S02_Value).
-    LiabilityUnit: 'USD' | 'EUR' | 'PPR' | 'Unknown'; // Unit of liability (PPR = Probability Percent).
+    LiabilityUnit: LiabilityUnit; // Unit of liability.
 }
+
+// --- GRCS Specific Types ---
 
 export interface CertifiedUtilityMetrics {
     MetricsSetID: string;
