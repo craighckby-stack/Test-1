@@ -1,4 +1,10 @@
-const { ValidationResult } = require('../interfaces/ConfigValidator'); // Assuming typedefs are exported or known globally
+const { ValidationResult } = require('../interfaces/ConfigValidator');
+
+/**
+ * @typedef {object} ValidationResult
+ * @property {boolean} isValid
+ * @property {Array<any>} errors
+ */
 
 /**
  * Manages the collection and concurrent execution of individual validation rules.
@@ -7,7 +13,12 @@ const { ValidationResult } = require('../interfaces/ConfigValidator'); // Assumi
  */
 class RuleEngineRegistry {
     constructor() {
+        /** @type {Array<Object>} */
         this.rules = [];
+        
+        // Assuming runtime access to the AGI-KERNEL plugin registry
+        // Note: In a real environment, this dependency would be injected.
+        this.aggregatorTool = global.AGI_KERNEL_TOOLS ? global.AGI_KERNEL_TOOLS.ConcurrentValidationAggregator : null;
     }
 
     /**
@@ -24,37 +35,41 @@ class RuleEngineRegistry {
     }
 
     /**
-     * Executes all registered rules concurrently against the configuration.
+     * Executes all registered rules concurrently against the configuration using the extracted tool.
      * @param {Object} config - The configuration object to validate.
-     * @returns {Promise<{isValid: boolean, errors: Array}>} Aggregated validation result.
+     * @returns {Promise<ValidationResult>} Aggregated validation result.
      */
     async runAll(config) {
-        if (this.rules.length === 0) {
-            return { isValid: true, errors: [] };
-        }
-
-        // Execute all rules in parallel
-        const validationPromises = this.rules.map(rule => rule.execute(config));
-
-        // Wait for all results and aggregate
-        const results = await Promise.all(validationPromises);
-
-        let allErrors = [];
-        let globalIsValid = true;
-
-        for (const result of results) {
-            // Ensure the result structure adheres to ValidationResult contract
-            if (result && result.isValid === false) {
-                globalIsValid = false;
-                // Aggregate errors, ensuring 'errors' is an array
-                allErrors = allErrors.concat(Array.isArray(result.errors) ? result.errors : []);
+        if (!this.aggregatorTool || typeof this.aggregatorTool.execute !== 'function') {
+            // Fallback: Execute original logic if plugin is unavailable (for robustness)
+            if (this.rules.length === 0) {
+                return { isValid: true, errors: [] };
             }
+    
+            // Execute all rules in parallel
+            const validationPromises = this.rules.map(rule => rule.execute(config));
+    
+            // Wait for all results and aggregate
+            const results = await Promise.all(validationPromises);
+    
+            let allErrors = [];
+            let globalIsValid = true;
+    
+            for (const result of results) {
+                if (result && result.isValid === false) {
+                    globalIsValid = false;
+                    allErrors = allErrors.concat(Array.isArray(result.errors) ? result.errors : []);
+                }
+            }
+    
+            return { isValid: globalIsValid, errors: allErrors };
         }
-
-        return {
-            isValid: globalIsValid,
-            errors: allErrors
-        };
+        
+        // Delegate the complex concurrent execution and aggregation logic to the plugin
+        return this.aggregatorTool.execute({
+            rules: this.rules,
+            config: config
+        });
     }
 }
 
