@@ -16,16 +16,25 @@ class TelemetryValidator {
      * @returns {Object} { isValid: boolean, errors: Array<string> }
      */
     static validate(eventName, payload) {
-        const schemaDefinition = GAXEventSchema[eventName];
+        const definition = GAXEventSchema[eventName];
         
-        if (!schemaDefinition) {
+        if (!definition) {
             return {
                 isValid: false,
                 errors: [`Unknown event name: ${eventName}`]
             };
         }
 
-        const schema = schemaDefinition.schema;
+        // Destructure the specific validation schema required by the DeclarativeEventSchemaValidator.
+        const { schema } = definition;
+
+        // Robustness check: Ensure the definition structure is not malformed.
+        if (!schema) {
+            return {
+                isValid: false,
+                errors: [`Internal Error: Definition for ${eventName} found, but 'schema' property is missing or null.`]
+            };
+        }
         
         // Delegate the core validation logic (required, type, enum, strictness) to the specialized, reusable tool.
         // Tool interface: .validate({ schema, payload }) -> { isValid, errors }
