@@ -1,24 +1,33 @@
 {
-  "manifest_id": "GTEM_V97.1",
-  "description": "Mandatory telemetry structure and transport constraints for GRTS protocol.",
+  "manifest_id": "GTEM_V7.5.0.1",
+  "description": "Critical telemetry structure and refined transport constraints aligned for Synergy Loop execution monitoring (GRTS v7.5.0).",
   "signature_required": true,
   "telemetry_format_specification": {
+    "schema_version_reference": "MDSM_V97.1",
     "required_fields": [
       "transition_id",
       "timestamp",
+      "kernel_cycle",
+      "current_maturity_percent",
       "S01_efficacy_metric",
       "S02_risk_metric",
-      "S03_veto_signal"
+      "E01_improvement_detected",
+      "S03_veto_signal",
+      "active_synergy_tools"
     ],
     "checksum_algorithm": "SHA3-256",
-    "encoding": "JSON_L"
+    "encoding": "JSON_L",
+    "encoding_variant": "Compact"
   },
   "transport_constraints": [
     {
       "endpoint_id": "CRTS_Telemetry_Sink_A",
       "protocol": "HTTPS/TLS_1_3",
-      "max_latency_ms": 500
+      "max_latency_ms": 400,
+      "max_payload_kb": 512,
+      "max_rate_per_minute": 120
     }
   ],
-  "cgv_schema_reference": "MDSM_V97.1"
+  "cgv_schema_reference": "MDSM_V97.1",
+  "security_level": "High_Integrity"
 }
