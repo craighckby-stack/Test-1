@@ -5,6 +5,11 @@
  */
 
 /**
+ * @typedef {object} IAsyncCacheGuard
+ * @property {function(string, Map<string, any>, Map<string, Promise<any>>, function(string): Promise<any>): Promise<any>} guard - Executes the guarded loading logic using provided maps.
+ */
+
+/**
  * ResolutionStrategyLoader
  * 
  * Utility responsible for dynamically loading, validating, and caching resolution strategy modules 
@@ -22,6 +27,8 @@ class ResolutionStrategyLoader {
     #resolveModule; 
     /** @type {object} - Injected logging utility (must expose 'error'). */
     #logger;
+    /** @type {IAsyncCacheGuard} - Plugin for guarded asynchronous loading. */
+    #cacheGuard; 
 
     /**
      * @param {object} definitionConfig - Configuration object containing resolution strategies.
@@ -29,13 +36,18 @@ class ResolutionStrategyLoader {
      * @param {object} dependencies - Core dependencies.
      * @param {function(string): Promise<object>} [dependencies.moduleResolver] - Custom module loading function (defaults to standard dynamic `import`).
      * @param {object} [dependencies.logger=console] - Logging utility (e.g., an instance of engine/utilities/Logger).
+     * @param {IAsyncCacheGuard} dependencies.asyncCacheGuard - The asynchronous caching and guarding utility.
      */
     constructor(definitionConfig, dependencies = {}) {
         if (!definitionConfig || typeof definitionConfig.resolutionStrategies !== 'object') {
             throw new Error('ResolutionStrategyLoader requires a valid definitionConfig with resolutionStrategies defined.');
         }
         
-        const { moduleResolver, logger = console } = dependencies;
+        const { moduleResolver, logger = console, asyncCacheGuard } = dependencies;
+
+        if (!asyncCacheGuard || typeof asyncCacheGuard.guard !== 'function') {
+            throw new Error('ResolutionStrategyLoader requires asyncCacheGuard utility in dependencies.');
+        }
 
         this.#strategies = definitionConfig.resolutionStrategies;
         this.#strategyCache = new Map();
@@ -46,6 +58,7 @@ class ResolutionStrategyLoader {
         
         // Inject or default the module loading function for improved testability and flexibility.
         this.#resolveModule = moduleResolver || ((path) => import(path));
+        this.#cacheGuard = asyncCacheGuard;
     }
 
     /**
@@ -57,35 +70,13 @@ class ResolutionStrategyLoader {
      * @throws {Error} If the strategy ID is not defined or loading fails.
      */
     async getStrategy(strategyId) {
-        // 1. Cache hit (fast path)
-        if (this.#strategyCache.has(strategyId)) {
-            return this.#strategyCache.get(strategyId);
-        }
-
-        // 2. Loading in progress (concurrency protection)
-        if (this.#loadingPromises.has(strategyId)) {
-            return this.#loadingPromises.get(strategyId);
-        }
-
-        // 3. Define the actual loading task
-        const loadingTask = this._executeLoadingTask(strategyId);
-
-        // 4. Store the promise before awaiting
-        this.#loadingPromises.set(strategyId, loadingTask);
-
-        try {
-            const strategyInstance = await loadingTask;
-            
-            // 5. Cache strategy instance on success
-            this.#strategyCache.set(strategyId, strategyInstance);
-            return strategyInstance;
-        } catch (e) {
-            // Error handling/logging is detailed inside _executeLoadingTask
-            throw e; 
-        } finally {
-            // 6. Ensure the loading promise is removed regardless of success or failure
-            this.#loadingPromises.delete(strategyId);
-        }
+        // Delegate concurrency control, caching, and promise cleanup to the plugin.
+        return this.#cacheGuard.guard(
+            strategyId,
+            this.#strategyCache, 
+            this.#loadingPromises, 
+            this._executeLoadingTask.bind(this) // Pass the actual loader logic
+        );
     }
 
     /**
