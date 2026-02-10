@@ -1,13 +1,39 @@
 /**
  * Component ID: SCR
  * System Configuration Registry (SCR) v94.1
- * 
+ *
  * Responsibility: Centralized, versioned registry for system-wide constants, thresholds, and learned weights.
  * Enforces strict immutability on retrieved configurations and prepares structure for governance and nesting.
  */
 
 // Simple deep clone utility for reliable configuration delivery
 const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+// --- Extracted Plugin Integration Simulation ---
+// Simulating access to the ObjectPathResolver tool (OPR).
+const ObjectPathResolverTool = {
+    get: (obj, path) => {
+        if (!obj || !path) return undefined;
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    },
+    set: (obj, path, value) => {
+        if (!obj || !path) return false;
+        const parts = path.split('.');
+        let current = obj;
+
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!current[part] || typeof current[part] !== 'object' || Array.isArray(current[part])) {
+                current[part] = {};
+            }
+            current = current[part];
+        }
+
+        current[parts[parts.length - 1]] = value;
+        return true;
+    }
+};
+// -----------------------------------------------
 
 class SystemConfigurationRegistry {
     constructor() {
@@ -44,27 +70,17 @@ class SystemConfigurationRegistry {
     }
 
     /**
-     * Internal utility to retrieve nested values using dot notation.
-     * @param {Object} obj The base object
-     * @param {string} path The dot-separated path (e.g., 'SEA.WEIGHTS.COUPLING_FACTOR')
-     * @returns {*}
-     */
-    _getNested(obj, path) {
-        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
-    }
-
-    /**
      * Retrieves a configuration setting. Supports dot notation (e.g., 'SEA.WEIGHTS.COUPLING_FACTOR').
      * Returns a deep clone (read-only reference) to protect internal state.
      * @param {string} key Configuration path
      */
     get(key) {
-        // Prioritize overrides
-        let value = this._getNested(this._overrides, key);
+        // Prioritize overrides using the ObjectPathResolverTool
+        let value = ObjectPathResolverTool.get(this._overrides, key);
 
         if (value === undefined) {
-             // Fallback to base configuration
-             value = this._getNested(this._config, key);
+             // Fallback to base configuration using the ObjectPathResolverTool
+             value = ObjectPathResolverTool.get(this._config, key);
         }
 
         if (value === undefined) {
@@ -86,27 +102,15 @@ class SystemConfigurationRegistry {
     set(path, value, accessContext = {}) {
         // HOOK: Governance Validation must occur here (e.g., ConfigurationGovernancePolicy.validateChange(path, value, accessContext))
         
-        if (this._getNested(this._config, path) === undefined && this._getNested(this._overrides, path) === undefined) {
+        // Check existence using the ObjectPathResolverTool
+        if (ObjectPathResolverTool.get(this._config, path) === undefined && ObjectPathResolverTool.get(this._overrides, path) === undefined) {
             console.error(`[SCR] Attempted to set path that does not exist or has no defined default: ${path}`);
             return false;
         }
 
-        const parts = path.split('.');
-        let current = this._overrides;
-
-        for (let i = 0; i < parts.length - 1; i++) {
-            const part = parts[i];
-            if (!current[part] || typeof current[part] !== 'object') {
-                current[part] = {};
-            }
-            current = current[part];
-        }
-
-        const leafKey = parts[parts.length - 1];
-        
+        // Use ObjectPathResolverTool.set to handle nested mutation and creation of intermediate objects
         // NOTE: Must trigger centralized system logging here (SCR_CHANGE, path, oldValue, newValue, timestamp)
-        current[leafKey] = value;
-        return true;
+        return ObjectPathResolverTool.set(this._overrides, path, value);
     }
     
     getCurrentConfiguration() {
