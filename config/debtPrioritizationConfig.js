@@ -5,25 +5,27 @@
  * NOTE: This configuration adheres to the MetricWeightConfigurationValidator schema,
  * ensuring weights are normalized and thresholds are within [0, 1].
  */
+const DEBT_PRIORITIZATION_CONFIG = {
+    // --- EDP Scoring Weights (W) - Must sum to 1.0 ---
 
-interface DebtPrioritizationConfig {
-    // EDP Scoring Weights (W) - Must sum to 1.0
-    IMPACT_WEIGHT: number;
-    COMPLEXITY_PENALTY: number;
+    /** High weight on potential performance improvements/savings. */
+    IMPACT_WEIGHT: 0.70,
 
-    // EDP Safety Thresholds (M-02 Pre-Processor) - Must be in [0.0, 1.0]
-    RISK_THRESHOLD: number;
-    MIN_PRIORITY_TO_INJECT: number;
-}
+    /** Penalty for complexity, favoring refactors that require moderate effort if impact is high. */
+    COMPLEXITY_PENALTY: 0.30,
 
-const DEBT_PRIORITIZATION_CONFIG: DebtPrioritizationConfig = {
-    // EDP Scoring Weights (W)
-    IMPACT_WEIGHT: 0.70,        // High weight on potential performance improvements/savings.
-    COMPLEXITY_PENALTY: 0.30,   // Low penalty, favoring refactors that require moderate effort if impact is high.
+    // --- EDP Safety Thresholds (M-02 Pre-Processor) - Must be in [0.0, 1.0] ---
 
-    // EDP Safety Thresholds (M-02 Pre-Processor)
-    RISK_THRESHOLD: 0.12,       // Maximum normalized risk (0.0 to 1.0) allowed for automated execution. Items exceeding this require manual review.
-    MIN_PRIORITY_TO_INJECT: 0.05 // Minimum calculated score required for a proposal to be forwarded to GSEP.
+    /** 
+     * Maximum normalized risk (0.0 to 1.0) allowed for automated execution. 
+     * Items exceeding this require manual review. 
+     */
+    RISK_THRESHOLD: 0.12,
+
+    /** 
+     * Minimum calculated score required for a proposal to be forwarded to the Global Strategic Execution Pipeline (GSEP). 
+     */
+    MIN_PRIORITY_TO_INJECT: 0.05,
 };
 
 module.exports = DEBT_PRIORITIZATION_CONFIG;
