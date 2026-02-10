@@ -5,18 +5,18 @@
  */
 import Logger from '../utility/Logger.js';
 import SchemaValidator from './SchemaValidator.js'; 
+// AGI-KERNEL: Utilizing extracted plugin for decoding
+import DataDecoderUtility from '../utility/DataDecoderUtility.js'; 
 
 class DataTransformer {
+    private logger: Logger;
+    private validator: typeof SchemaValidator;
+    private decoder: typeof DataDecoderUtility;
+
     constructor() {
         this.logger = Logger.module('DataTransformer');
-        this.validator = SchemaValidator; // Utilize the new validation module
-        
-        // Define decoding strategies centrally
-        this.decoders = {
-            'JSON': this._decodeJson,
-            'PLAINTEXT': this._decodePlaintext,
-            // Decoders can be dynamically registered later
-        };
+        this.validator = SchemaValidator; // Utilize the validation module
+        this.decoder = DataDecoderUtility; // Utilize the extracted decoding utility
     }
 
     /**
@@ -26,7 +26,7 @@ class DataTransformer {
      * @returns {any} The finalized, validated data payload.
      * @throws {Error} If security fails, decoding fails, or schema validation fails.
      */
-    transform(rawData, sourceConfig) {
+    transform(rawData: any, sourceConfig: { encoding_format: string, security_level: string, primitive_type: string, key?: string }): any {
         const { encoding_format, security_level, primitive_type } = sourceConfig;
         const configKey = sourceConfig.key || primitive_type; 
 
@@ -45,34 +45,21 @@ class DataTransformer {
     }
 
     /**
-     * Handles specific encoding formats using defined strategies.
+     * Handles specific encoding formats using the DataDecoderUtility plugin.
      * @private
      */
-    _decodeData(rawData, format, key) {
-        const handler = this.decoders[format.toUpperCase()];
-
-        if (!handler) {
-            this.logger.warn(`Unsupported encoding format detected (${format}) for ${key}. Passing raw data.`);
-            return rawData;
-        }
-
+    _decodeData(rawData: any, format: string, key: string): any {
         try {
-            // Call the handler, bound implicitly to the class instance if needed, though simple ones don't require 'this'
-            return handler(rawData);
+            // Use the extracted utility for data transformation
+            return this.decoder.execute({ rawData, format });
         } catch (error) {
-            this.logger.error(`Decoding failed for ${key} (Format: ${format}). Error: ${error.message}`);
+            // The decoder plugin throws if a supported format (like JSON) fails parsing.
+            const errorMessage = (error instanceof Error) ? error.message : String(error);
+
+            // Note: If the format is unsupported, the plugin returns rawData without throwing.
+            this.logger.error(`Decoding failed for ${key} (Format: ${format}). Error: ${errorMessage}`);
             throw new Error(`[DECODING_FAILURE] Failed to decode data for ${key}.`);
         }
-    }
-
-    // --- Specific Decoders ---
-
-    _decodeJson(rawData) {
-        return (typeof rawData === 'string') ? JSON.parse(rawData) : rawData;
-    }
-
-    _decodePlaintext(rawData) {
-        return rawData; 
     }
 
     // --- Core Checks ---
@@ -81,7 +68,7 @@ class DataTransformer {
      * Executes schema validation using the centralized Validator utility.
      * @private
      */
-    _validateSchema(data, primitiveType, key) {
+    _validateSchema(data: any, primitiveType: string, key: string): void {
         if (!this.validator.validate(data, primitiveType)) {
              this.logger.error(`[SCHEMA_MISMATCH] Validation failed for expected type: ${primitiveType} in source ${key}`);
              throw new Error(`[SCHEMA_VALIDATION_FAILURE] Data structure invalid for primitive type: ${primitiveType}.`);
@@ -92,8 +79,7 @@ class DataTransformer {
      * Executes security checks (e.g., signature verification, TLS integrity).
      * @private
      */
-    _verifySecurity(data, requiredLevel, key) {
-        // Logic hook retained, but renamed and contextualized.
+    _verifySecurity(data: any, requiredLevel: string, key: string): boolean {
         this.logger.debug(`Running security checks (Level: ${requiredLevel}) for ${key}`);
         return true; 
     }
