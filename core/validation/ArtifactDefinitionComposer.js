@@ -5,22 +5,14 @@
  * This utility delegates template management to the StructuralPatternRegistryTool.
  */
 
-// Defining the interface for clarity in TypeScript, assuming the injected object conforms.
-interface StructuralPatternRegistryTool {
-  registerPattern(name: string, definition: Object): void;
-  getPattern(name: string): Object | null;
-}
-
 class ArtifactDefinitionComposer {
 
-  private registry: StructuralPatternRegistryTool;
-
   /**
-   * @param {StructuralPatternRegistryTool} registry - The tool instance for managing structural templates.
+   * @param {Object} registry - The tool instance for managing structural templates. Must implement registerPattern and getPattern.
    */
-  constructor(registry: StructuralPatternRegistryTool) {
+  constructor(registry) {
     if (!registry || typeof registry.registerPattern !== 'function' || typeof registry.getPattern !== 'function') {
-      throw new Error("StructuralPatternRegistryTool dependency must be provided and implement required methods.");
+      throw new Error("StructuralPatternRegistryTool dependency must be provided and implement required methods: registerPattern(name, definition) and getPattern(name).");
     }
     this.registry = registry;
   }
@@ -31,7 +23,7 @@ class ArtifactDefinitionComposer {
    * @param {string} name - Template name (e.g., 'ReactComponent', 'NodeModule').
    * @param {Object} definition - The partial definition structure.
    */
-  registerTemplate(name: string, definition: Object): void {
+  registerTemplate(name, definition) {
     // Note: Warning logic retained here as it relates to the Composer's specific registration policy
     if (this.registry.getPattern(name)) {
       console.warn(`Template '${name}' is being overwritten.`);
@@ -45,7 +37,7 @@ class ArtifactDefinitionComposer {
    * @param {string} name - Template name.
    * @returns {Object|null}
    */
-  getTemplate(name: string): Object | null {
+  getTemplate(name) {
     return this.registry.getPattern(name);
   }
 
@@ -55,11 +47,11 @@ class ArtifactDefinitionComposer {
    * @param {Array<Object|string>} definitions - Array of definitions or template names to merge.
    * @returns {Object} The consolidated ArtifactStructuralDefinition.
    */
-  compose(definitions: Array<Object | string>): Object {
-    const finalDefinition: { [key: string]: any } = {};
+  compose(definitions) {
+    const finalDefinition = {};
 
     for (const item of definitions) {
-      let definitionToMerge: Object | null;
+      let definitionToMerge;
       
       if (typeof item === 'string') {
         definitionToMerge = this.getTemplate(item);
