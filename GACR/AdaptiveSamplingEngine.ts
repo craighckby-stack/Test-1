@@ -12,6 +12,7 @@
  *    emergent capability for reuse in future cycles (Pattern Recognition Success).
  * 3. Uses the 'ConstraintReducer' emergent capability to calculate the base required rate,
  *    necessitating the conversion of getSamplingRate() to an asynchronous function.
+ * 4. KERNEL V7 SYNERGY: Injected self-correcting telemetry hook to track restriction events.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -24,8 +25,17 @@ type AdaptiveSamplingConfig = AggregatorConfig['Processing']['AdaptiveSampling']
     TargetQueueDepthRatio?: number;
 };
 
-// Define the shape of a constraint used internally and externally (by the emergent tool)
+// Define the shape of a constraint used internally
 type Constraint = { current: number; target: number };
+
+// V7 Synergy requirement: Add name property for metric logging
+type NamedConstraint = Constraint & { name: string }; 
+
+// Define the expected return structure from the ConstraintReducer capability
+type ReductionResult = {
+    rate: number;
+    restrictingConstraint: NamedConstraint | null;
+};
 
 // Default targets for core constraints, used if config is missing
 const DEFAULT_TARGETS = {
@@ -34,7 +44,7 @@ const DEFAULT_TARGETS = {
     queueDepth: 0.70
 };
 
-// Assuming the existence of the EmergentCapabilityManager (ecm) in the global runtime environment.
+// Assuming KERNEL_SYNERGY_CAPABILITIES and KERNEL_HOOK exist in the global runtime environment for V7 integration.
 
 export class AdaptiveSamplingEngine {
     private config: AdaptiveSamplingConfig;
@@ -63,17 +73,20 @@ export class AdaptiveSamplingEngine {
             queueDepth: this.monitor.getQueueDepthRatio(),
         };
 
-        // Construct the constraints array, applying robust defaults
-        const constraints: Constraint[] = [
+        // Construct the named constraints array
+        const constraints: NamedConstraint[] = [
             { 
+                name: 'CPU',
                 current: metrics.cpu, 
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            {
+            { 
+                name: 'Memory',
                 current: metrics.memory, 
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            {
+            { 
+                name: 'QueueDepth',
                 current: metrics.queueDepth, 
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
             },
@@ -81,26 +94,51 @@ export class AdaptiveSamplingEngine {
             typeof c.current === 'number' && 
             typeof c.target === 'number' && 
             c.target > 0
-        ) as Constraint[]; 
-        
-        // --- START: Emergent Capability Integration ---
+        ) as NamedConstraint[]; 
         
         let requiredRate = 1.0;
+        let restrictingConstraint: NamedConstraint | null = null;
         
-        if (typeof ecm !== 'undefined' && ecm.has('ConstraintReducer')) {
-            // Use the invented ConstraintReducer tool for core reduction logic
-            requiredRate = await ecm.execute('ConstraintReducer', 'calculateDropFactor', [constraints]);
+        // --- START: KERNEL V7 Synergy Integration ---
+        
+        // Payload only includes necessary fields for the external capability
+        const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
+
+        if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.ConstraintReducer) {
+            
+            // Use the injected ConstraintReducer tool for core reduction logic
+            const reductionResult: ReductionResult = await KERNEL_SYNERGY_CAPABILITIES.ConstraintReducer.execute('calculateDropFactor', constraintsPayload);
+            requiredRate = reductionResult.rate;
+            restrictingConstraint = reductionResult.restrictingConstraint;
+            
         } else {
-            // Fallback implementation (original logic) if ecm or tool is unavailable
-            for (const { current, target } of constraints) {
-                if (current > target) {
-                    const dropFactor = target / current;
-                    requiredRate = Math.min(requiredRate, dropFactor);
+            // Fallback implementation (original logic modified to track the restrictor)
+            let minRate = 1.0;
+
+            for (const c of constraints) {
+                if (c.current > c.target) {
+                    const dropFactor = c.target / c.current;
+                    if (dropFactor < minRate) {
+                        minRate = dropFactor;
+                        restrictingConstraint = c;
+                    }
                 }
             }
+            requiredRate = minRate;
         }
         
-        // --- END: Emergent Capability Integration ---
+        // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook
+        // Log decision parameters if sampling is enforced (< 1.0) for self-correction modeling/optimization metrics.
+        if (requiredRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
+            KERNEL_HOOK.log('AdaptiveSamplingDecision', {
+                rateAdjustment: requiredRate,
+                constrainingFactor: restrictingConstraint.name,
+                currentUtilization: restrictingConstraint.current,
+                targetUtilization: restrictingConstraint.target
+            });
+        }
+        
+        // --- END: KERNEL V7 Synergy Integration ---
 
         // Apply global boundaries defined in the configuration
         requiredRate = Math.min(requiredRate, this.config.MaxSamplingRate);
