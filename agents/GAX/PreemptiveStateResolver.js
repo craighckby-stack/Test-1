@@ -1,13 +1,3 @@
-// agents/GAX/PreemptiveStateResolver.js
-
-// AGI-KERNEL Internal Dependency Resolution: Accessing external tools
-// Define placeholder type for kernel access if running in TS environment
-declare const AgiKernelTools: {
-    DynamicRiskThresholdCalculator: {
-        execute: (args: { UFRM_Base: number, CFTM_Base: number, riskModel: any }) => number;
-    }
-};
-
 /**
  * GATED EXECUTION PIPELINE (GSEP-C) Enhancement: Preemptive State Resolution (v94.1 Axiomatic Trajectory Mapping)
  *
@@ -23,9 +13,8 @@ class PreemptiveStateResolver {
     // Core internal handlers for state and modeling utilities
     #policyEngine;
     #metricsStore;
-    #riskModel;
     #simEngine;
-    #contextAccessors; // For fetching dynamic metrics like UFRM/CFTM
+    #riskCalculator; // Abstraction for R_TH calculation
 
     /**
      * @param {Object} Dependencies - Structured dependencies required for PSR operation.
@@ -37,21 +26,26 @@ class PreemptiveStateResolver {
             throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
         }
         
+        const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
+        
+        // Dependency validation
+        if (!GAX_Context.PolicyEngine || !riskModel || !GAX_Context.getUFRM || !GAX_Context.MetricsStore) {
+             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, MetricsStore, RiskModel, or Metric Accessors). This is a Kernel Context error.");
+        }
+
         // Explicit extraction of core components for better typing and encapsulation
         this.#policyEngine = GAX_Context.PolicyEngine;
         this.#metricsStore = GAX_Context.MetricsStore;
-        this.#riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         this.#simEngine = SimulationEngine;
         
-        // Store specific context accessors for UFRM/CFTM for localized dynamic fetching
-        this.#contextAccessors = {
+        // Initialize the abstracted risk calculator plugin
+        const riskAccessors = {
             getUFRM: GAX_Context.getUFRM,
             getCFTM: GAX_Context.getCFTM,
         };
-
-        if (!this.#policyEngine || !this.#riskModel || !this.#contextAccessors.getUFRM) {
-             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, RiskModel, or Metric Accessors).");
-        }
+        
+        // Use the newly defined plugin for standardizing R_TH calculation
+        this.#riskCalculator = new RiskThresholdCalculator(riskAccessors, riskModel);
     }
 
     /**
@@ -76,25 +70,6 @@ class PreemptiveStateResolver {
     }
 
     /**
-     * Private handler: Calculates the dynamically determined acceptable Risk Threshold (R_TH).
-     * Leverages UFRM, CFTM, and the RiskModel's volatility analysis using the DynamicRiskThresholdCalculator plugin.
-     * @returns {number} The calculated minimum acceptable TEMM score (R_TH).
-     */
-    #calculateDynamicRiskThreshold() {
-        const UFRM_Base = this.#contextAccessors.getUFRM();
-        const CFTM_Base = this.#contextAccessors.getCFTM();
-        
-        // CRITICAL: Utilize the extracted plugin for standardized risk calculation.
-        // The tool handles safety checks and fallbacks for missing data.
-        // Assuming AgiKernelTools is available in the target execution scope.
-        return AgiKernelTools.DynamicRiskThresholdCalculator.execute({
-            UFRM_Base: UFRM_Base,
-            CFTM_Base: CFTM_Base,
-            riskModel: this.#riskModel
-        });
-    }
-
-    /**
      * Generates the Axiomatic Trajectory Map (ATM).
      * @param {Object} inputManifest - The incoming workflow or transaction data.
      * @returns {Promise<Object>} ATM { predicted_TEMM: Number, predicted_ECVM: Boolean, R_TH: Number, Guaranteed_ADTM_Trigger: Boolean }
@@ -104,7 +79,8 @@ class PreemptiveStateResolver {
             throw new Error("[PSR] Input manifest required for ATM generation.");
         }
         
-        const R_TH = this.#calculateDynamicRiskThreshold();
+        // Use the delegated risk calculator instance
+        const R_TH = this.#riskCalculator.execute();
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
