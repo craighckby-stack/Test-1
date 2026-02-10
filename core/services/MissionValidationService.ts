@@ -1,7 +1,7 @@
-import Ajv, { JSONSchemaType, ValidateFunction, ErrorObject } from 'ajv';
-import addFormats from 'ajv-formats';
+import { ErrorObject } from 'ajv';
 import mecSchemaDefinition from '../../schemas/MECSchemaDefinition.json';
 import { EvolutionMission } from '../types/MissionTypes';
+import { ajvValidator } from '../plugins/SchemaValidatorPlugin';
 
 // CRITICAL: We rely on the AjvErrorFormatterTool plugin to handle the formatting of validation errors.
 declare const AjvErrorFormatterTool: {
@@ -22,20 +22,12 @@ export class MissionValidationError extends Error {
   }
 }
 
-// Initialize Ajv instance with necessary formats and strict mode for AGI protocols.
-const ajv = new Ajv({
-  coerceTypes: true,
-  strict: true, // High intelligence requires strict schema enforcement
-  allErrors: true // Collect all validation errors
-});
-addFormats(ajv);
-
 /**
  * Service responsible for rigorous structural and semantic validation of MEC configurations.
  * Ensures missions conform exactly to Sovereign AGI v94.1 protocols before execution.
  */
 export class MissionValidationService {
-  private readonly validator: ValidateFunction<EvolutionMission>;
+  private readonly validateMission: (data: unknown, identifier?: string) => EvolutionMission;
   private readonly schemaTitle: string;
 
   constructor() {
@@ -45,12 +37,16 @@ export class MissionValidationService {
 
     this.schemaTitle = (mecSchemaDefinition as any).title || 'MEC Schema Definition';
 
-    // Compile the definition immediately for performance and fail fast if schema is malformed
+    // Compile the definition using the centralized plugin instance
     try {
-        this.validator = ajv.compile(mecSchemaDefinition as JSONSchemaType<EvolutionMission>);
+        this.validateMission = ajvValidator.compile<EvolutionMission>(
+            mecSchemaDefinition as any,
+            this.schemaTitle
+        );
     } catch (e) {
-        console.error("AJV Schema Compilation Failed:", e);
-        throw new Error(`FATAL: Failed to compile schema ${this.schemaTitle}. Check definition file integrity.`);
+        // Catch fatal compilation failures originating from the plugin
+        console.error("AJV Schema Compilation Failed during Service initialization:", e);
+        throw e; 
     }
   }
 
@@ -61,28 +57,33 @@ export class MissionValidationService {
    * @throws {MissionValidationError} If validation fails.
    */
   public validate(missionConfig: unknown): EvolutionMission {
-    if (typeof missionConfig !== 'object' || missionConfig === null) {
-      throw new MissionValidationError('Mission configuration must be a non-null object.', []);
+    let validatedMission: EvolutionMission;
+    let missionId: string = 'N/A';
+    
+    // Attempt to extract mission ID early for logging purposes
+    if (typeof missionConfig === 'object' && missionConfig !== null && 'missionId' in missionConfig) {
+        missionId = (missionConfig as Partial<EvolutionMission>).missionId as string || 'N/A';
     }
 
-    // Ajv validates runtime type compatibility against the TS type (EvolutionMission)
-    const isValid = this.validator(missionConfig);
-
-    if (!isValid) {
-      const errors = this.validator.errors || [];
-      const potentialMission = missionConfig as Partial<EvolutionMission>;
-      
-      // Use the extracted plugin tool for standardized error formatting
-      const errorMessages = AjvErrorFormatterTool.format(errors);
-      
-      throw new MissionValidationError(
-        `${this.schemaTitle} Validation Failed (ID: ${potentialMission.missionId || 'N/A'}):
-${errorMessages}`,
-        errors
-      );
+    try {
+        // Delegate validation execution to the compiled plugin function
+        validatedMission = this.validateMission(missionConfig, missionId);
+    } catch (e) {
+        // The plugin throws a generic internal error (SchemaValidationError) with attached validationErrors.
+        const validationError = e as any;
+        
+        // Convert the generic internal error into the domain-specific MissionValidationError
+        if (validationError && validationError.message) {
+            throw new MissionValidationError(
+                validationError.message, 
+                validationError.validationErrors || []
+            );
+        }
+        
+        // Re-throw if it's an unexpected system error
+        throw e; 
     }
     
-    // Validation success implies missionConfig now matches EvolutionMission type
-    return missionConfig as EvolutionMission;
+    return validatedMission;
   }
 }
