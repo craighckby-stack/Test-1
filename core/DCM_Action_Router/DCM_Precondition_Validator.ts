@@ -1,49 +1,55 @@
 export class DCM_Precondition_Validator {
-    private check_library: Map<string, Function>;
+    private check_library: { [key: string]: Function };
+    private system_state_feed: SystemStateFeed; 
 
+    /**
+     * @param system_state_feed An object implementing SystemStateFeed interface to query current state.
+     */
     constructor(system_state_feed: SystemStateFeed) {
-        // Load atomic check functions (e.g., SYSTEM_LOAD_BELOW_75_PERCENT)
+        this.system_state_feed = system_state_feed; // Fix: Store the feed instance
+        // Load atomic check functions
         this.check_library = this.loadAtomicChecks(); 
     }
 
     /**
      * Executes all required checks and validates system state context for a given action.
+     * Delegates execution to the PreconditionExecutorUtility plugin.
      * @param preconditions The 'preconditions' object from the Action Registry.
      * @returns {success: boolean, failure_reasons: string[]}
      */
     public async validate(preconditions: any): Promise<{success: boolean, failure_reasons: string[]}> {
-        const reasons: string[] = [];
+        
+        // Type definitions assumed from the execution environment
+        declare const PreconditionExecutorUtility: any; 
 
-        // 1. Execute required atomic checks
-        for (const check_name of preconditions.required_checks || []) {
-            if (!this.check_library.has(check_name)) {
-                reasons.push(`Missing definition for required check: ${check_name}`);
-                continue;
-            }
-            if (!await this.check_library.get(check_name)()) {
-                reasons.push(`Atomic check failed: ${check_name}`);
-            }
+        if (typeof PreconditionExecutorUtility !== 'undefined' && PreconditionExecutorUtility.execute) {
+            return PreconditionExecutorUtility.execute({
+                preconditions: preconditions,
+                checkLibrary: this.check_library,
+                stateFeed: this.system_state_feed
+            });
+        } else {
+            // Fallback or Error reporting if tool is missing
+            return { success: false, failure_reasons: ["Precondition validation service unavailable."] };
         }
-
-        // 2. Validate system state context
-        const state_context = preconditions.state_context || {};
-        for (const key in state_context) {
-            if (system_state_feed.getCurrent(key) !== state_context[key]) {
-                reasons.push(`State check failed: ${key} (Expected: ${state_context[key]}, Got: ${system_state_feed.getCurrent(key)})`);
-            }
-        }
-
-        return {
-            success: reasons.length === 0,
-            failure_reasons: reasons
-        };
     }
     
-    private loadAtomicChecks(): Map<string, Function> {
-        // Placeholder implementation: actual definitions loaded from a dedicated library file
-        return new Map([
-            ['INPUT_STABILITY_CHECK', async () => true], // Implements input flow stability assessment
-            ['SYSTEM_LOAD_BELOW_75_PERCENT', async () => (os.loadavg()[0] / os.cpus().length) < 0.75] // Requires 'os' module integration
-        ]);
+    /**
+     * Loads the defined atomic checks into a dictionary map.
+     * Note: Assumes 'os' is available globally for system diagnostics in a Node.js context.
+     */
+    private loadAtomicChecks(): { [key: string]: Function } {
+        // Returns a standard JS object map for compatibility with the utility plugin
+        return {
+            'INPUT_STABILITY_CHECK': async () => true, 
+            'SYSTEM_LOAD_BELOW_75_PERCENT': async () => (os.loadavg()[0] / os.cpus().length) < 0.75 
+        };
     }
 }
+
+// Placeholder Interface for compilation context
+interface SystemStateFeed {
+    getCurrent(key: string): any;
+}
+
+declare const os: any; // External dependency simulation
