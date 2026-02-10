@@ -1,4 +1,5 @@
 import intentSchema from '../../governance/m01_intent_schema_v1.json'; 
+
 // Note: Ajv functionality is now abstracted into the CriticalSchemaValidatorUtility plugin.
 
 /**
@@ -11,11 +12,15 @@ declare const CriticalSchemaValidatorUtility: {
     isInitialized(): boolean;
 };
 
-const SCHEMA_ID = 'https://agi.sovereign/schemas/intent/v2';
+// Define the expected schema ID based on governance metadata.
+const INTENT_SCHEMA_ID = 'https://agi.sovereign/schemas/intent/v2';
 
-// Initialize the validator with required schemas upon module load.
-// This ensures the schema is loaded and compiled exactly once.
+/**
+ * Ensures the critical intent validation schema is loaded and compiled once upon module initialization.
+ * This is crucial for performance and availability checks.
+ */
 (function initializeValidator() {
+  // Check initialization status defensively.
   if (!CriticalSchemaValidatorUtility.isInitialized || !CriticalSchemaValidatorUtility.isInitialized()) {
     CriticalSchemaValidatorUtility.initialize({
       schemas: [intentSchema]
@@ -31,7 +36,7 @@ interface IntentPayload {
   priority: string;
   status: string;
   timestamp_created: string;
-  // ... other properties ...
+  // NOTE: Schema validation handles all other required properties.
 }
 
 /**
@@ -41,14 +46,18 @@ interface IntentPayload {
  */
 export function validateIntent(intent: any): intent is IntentPayload {
   
-  const validationResult = CriticalSchemaValidatorUtility.validate(SCHEMA_ID, intent);
+  const validationResult = CriticalSchemaValidatorUtility.validate(INTENT_SCHEMA_ID, intent);
   
   if (!validationResult.valid) {
-    console.error("Intent Validation Errors:", validationResult.errors);
+    const errors = validationResult.errors;
     
-    const errors = validationResult.errors ? JSON.stringify(validationResult.errors) : "Unknown validation failure.";
+    // Log detailed errors for debugging
+    console.error(`Intent validation failed against schema ${INTENT_SCHEMA_ID}.`, errors);
     
-    throw new Error(`Intent validation failed: ${errors}`);
+    // Throw a structured error message detailing the failure source and errors.
+    const errorDetails = errors ? JSON.stringify(errors, null, 2) : "Unknown schema validation failure.";
+    
+    throw new Error(`Intent validation failed: The submitted intent object did not conform to the required schema (${INTENT_SCHEMA_ID}). Details: ${errorDetails}`);
   }
   
   return true;
