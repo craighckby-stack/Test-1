@@ -12,6 +12,31 @@ const DEFAULT_THRESHOLDS = {
     io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.2 }
 };
 
+/** 
+ * Placeholder for the external ConfigurationMergeUtility factory function.
+ * Assumes availability through the kernel environment.
+ * @typedef {Object} ConfigMergerTool
+ * @property {function(Object): Object} execute - Executes the merge operation.
+ */
+
+/**
+ * @type {function(): ConfigMergerTool}
+ */
+const ConfigurationMergeUtility = (typeof global !== 'undefined' && global.ConfigurationMergeUtility) 
+    ? global.ConfigurationMergeUtility : 
+    () => ({ 
+        execute: ({ baseConfig, overrides }) => { 
+            // Fallback implementation, should rely on kernel provided tool
+            let merged = { ...baseConfig };
+            for (const key in overrides) {
+                if (overrides.hasOwnProperty(key)) {
+                    merged[key] = { ...(merged[key] || {}), ...overrides[key] };
+                }
+            }
+            return merged;
+        }
+    });
+
 class ResourceThresholdManager {
     /**
      * @param {Object} configService - Core service to load general application configuration.
@@ -27,15 +52,17 @@ class ResourceThresholdManager {
         this.environmentProfile = environmentProfile;
         this.adaptiveTuner = adaptiveTuner;
         
+        // Use the extracted utility for all merge operations
+        this.configMerger = ConfigurationMergeUtility();
+        
         /** @private {Object|null} Cache for the fully resolved configuration. */
         this.cachedConfig = null;
         
-        // Initialize and load base configurations synchronously upon instantiation.
         this._initializeConfiguration();
     }
 
     /**
-     * Centralized configuration loading and merging using the ConfigService.
+     * Centralized configuration loading and merging using the ConfigService and Merger Utility.
      * @private
      */
     _initializeConfiguration() {
@@ -45,21 +72,15 @@ class ResourceThresholdManager {
         // 2. Load Environment Overrides
         const overrides = this.configService.get(`resourceThresholds.profiles.${this.environmentProfile}`) || {};
 
-        // 3. Merge configurations
-        let staticConfig = { ...baseConfig };
-        
-        for (const [key, profileConfig] of Object.entries(overrides)) {
-            staticConfig[key] = {
-                ...staticConfig[key],
-                ...profileConfig
-            };
-        }
-        
-        this.baseConfiguration = staticConfig;
+        // 3. Merge configurations using the utility
+        this.baseConfiguration = this.configMerger.execute({
+            baseConfig: baseConfig,
+            overrides: overrides
+        });
     }
 
     /**
-     * Applies dynamic adjustments from the Adaptive Tuner, if present.
+     * Applies dynamic adjustments from the Adaptive Tuner, if present, using the Merger Utility.
      * @private
      * @param {Object} currentConfig - The statically merged configuration.
      * @returns {Object} The dynamically adjusted configuration.
@@ -71,19 +92,11 @@ class ResourceThresholdManager {
         
         const adjustments = this.adaptiveTuner.getAdjustments(currentConfig);
         
-        // Deep merge adjustments onto the current configuration
-        const dynamicallyTunedConfig = { ...currentConfig };
-        
-        for (const [metric, adjustment] of Object.entries(adjustments)) {
-            if (dynamicallyTunedConfig[metric]) {
-                dynamicallyTunedConfig[metric] = {
-                    ...dynamicallyTunedConfig[metric],
-                    ...adjustment
-                };
-            }
-        }
-        
-        return dynamicallyTunedConfig;
+        // Use the utility for merging adjustments
+        return this.configMerger.execute({
+            baseConfig: currentConfig,
+            overrides: adjustments
+        });
     }
 
     /**
