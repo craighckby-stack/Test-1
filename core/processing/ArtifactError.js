@@ -1,4 +1,4 @@
-const CanonicalErrorInitializer = require('CanonicalErrorInitializer');
+const { CanonicalBaseError } = require('CanonicalBaseError');
 
 /**
  * ArtifactError.js
@@ -6,12 +6,9 @@ const CanonicalErrorInitializer = require('CanonicalErrorInitializer');
  * programmatic error identification by the orchestrating layer.
  */
 
-class ArtifactBaseError extends Error {
-    constructor(message, details = {}) {
-        super(message);
-        // Use the CanonicalErrorInitializer to handle naming, details, and stack capture.
-        CanonicalErrorInitializer.initialize(this, this.constructor, details);
-    }
+class ArtifactBaseError extends CanonicalBaseError {
+    // Inherits standardized error initialization (naming, details, stack capture)
+    // from CanonicalBaseError, abstracting away the direct use of CanonicalErrorInitializer.
 }
 
 class ResolutionError extends ArtifactBaseError {
