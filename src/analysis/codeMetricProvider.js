@@ -9,10 +9,42 @@
 
 import fs from 'fs/promises';
 
+/**
+ * Defines the standard structure for code metrics returned by the provider.
+ */
+interface CodeMetrics {
+    cyclomaticComplexity: number;
+    maintainabilityIndex: number; // Normalized 0.0 to 1.0
+    couplingDegree: number; // Count of external imports/dependencies
+    linesOfCode: number;
+}
+
 export class CodeMetricProvider {
     constructor() {
         // Configuration for external parsers or internal AST handlers goes here.
-        // If we integrated tools like 'escomplex', they would be managed here.
+    }
+
+    /**
+     * Validates that the component path is a valid input (non-empty string).
+     * This encapsulates logic now handled by the BasicStringConstraintValidator utility.
+     * @param {string} componentPath - Full file path to the code component.
+     */
+    private _validateComponentPath(componentPath: string): void {
+        // Simulating invocation of BasicStringConstraintValidator plugin
+        const validator = { /* Internal representation of the plugin logic */
+            validate: (value: any, name: string) => {
+                if (typeof value !== 'string' || value.length === 0) {
+                    return { valid: false, message: `${name} must be provided and be a non-empty string.` };
+                }
+                return { valid: true };
+            }
+        };
+        
+        const result = validator.validate(componentPath, 'Component Path');
+        
+        if (!result.valid) {
+            throw new Error(result.message);
+        }
     }
 
     /**
@@ -20,31 +52,20 @@ export class CodeMetricProvider {
      * NOTE: This method must contain the actual AST traversal and complexity calculation logic.
      * 
      * @param {string} componentPath - Full file path to the code component.
-     * @returns {Promise<{
-     *     cyclomaticComplexity: number,
-     *     maintainabilityIndex: number, // Normalized 0.0 to 1.0
-     *     couplingDegree: number, // Count of external imports/dependencies
-     *     linesOfCode: number
-     * }>} Raw, calculated metrics.
+     * @returns {Promise<CodeMetrics>} Raw, calculated metrics.
      */
-    async analyzeCodeStructure(componentPath) {
-        if (typeof componentPath !== 'string' || componentPath.length === 0) {
-            throw new Error('Component path must be provided.');
-        }
+    async analyzeCodeStructure(componentPath: string): Promise<CodeMetrics> {
+        this._validateComponentPath(componentPath);
 
         try {
             const code = await fs.readFile(componentPath, 'utf-8');
             
             // --- Placeholder for REAL AST ANALYSIS LOGIC ---
-            // 1. Use a parser (e.g., Acorn/Babel) to get the AST.
-            // 2. Walk the AST to calculate cyclomatic complexity and coupling.
-            // 3. Apply standard formulas (e.g., SEI Maintainability Index calculation).
-
             // For V1, we return a simulation based on code length/file path:
             return this._simulateMetrics(code);
 
         } catch (error) {
-            console.error(`CMP: Error reading file ${componentPath}.`, error.message);
+            console.error(`CMP: Error reading file ${componentPath}.`, (error as Error).message);
             // Return failure state metrics indicating potential parsing error
             return {
                 cyclomaticComplexity: 999,
@@ -56,7 +77,7 @@ export class CodeMetricProvider {
     }
     
     /** Simple simulation helper based on complexity until full integration. */
-    _simulateMetrics(code) {
+    _simulateMetrics(code: string): Promise<CodeMetrics> {
         const loc = code.split('\n').length;
         const randomness = Math.sin(loc * 0.01) * 0.15 + 0.1;
         return Promise.resolve({
