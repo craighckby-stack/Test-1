@@ -1,9 +1,27 @@
-import Ajv from 'ajv';
-import intentSchema from '../../governance/m01_intent_schema_v1.json'; // Note: Must update path if file name changes
+import intentSchema from '../../governance/m01_intent_schema_v1.json'; 
+// Note: Ajv functionality is now abstracted into the CriticalSchemaValidatorUtility plugin.
 
-const ajv = new Ajv({
-  schemas: [intentSchema]
-});
+/**
+ * Conceptual import of the extracted plugin tool.
+ * In a kernel environment, this object is typically injected or resolved via a plugin registry.
+ */
+declare const CriticalSchemaValidatorUtility: {
+    initialize(config: { schemas: any[] }): boolean;
+    validate(schemaId: string, data: any): { valid: boolean, errors: any[] | null };
+    isInitialized(): boolean;
+};
+
+const SCHEMA_ID = 'https://agi.sovereign/schemas/intent/v2';
+
+// Initialize the validator with required schemas upon module load.
+// This ensures the schema is loaded and compiled exactly once.
+(function initializeValidator() {
+  if (!CriticalSchemaValidatorUtility.isInitialized || !CriticalSchemaValidatorUtility.isInitialized()) {
+    CriticalSchemaValidatorUtility.initialize({
+      schemas: [intentSchema]
+    });
+  }
+})();
 
 interface IntentPayload {
   intent_id: string;
@@ -17,19 +35,21 @@ interface IntentPayload {
 }
 
 /**
- * Validates an incoming Intent object against the V2 governance schema.
+ * Validates an incoming Intent object against the V2 governance schema using the Kernel's integrated validator.
  * @param intent The raw intent object.
  * @returns True if valid, throws an error with details if invalid.
  */
 export function validateIntent(intent: any): intent is IntentPayload {
-  const validate = ajv.getSchema('https://agi.sovereign/schemas/intent/v2');
-  if (!validate) {
-    throw new Error("Intent schema V2 not loaded into Ajv.");
+  
+  const validationResult = CriticalSchemaValidatorUtility.validate(SCHEMA_ID, intent);
+  
+  if (!validationResult.valid) {
+    console.error("Intent Validation Errors:", validationResult.errors);
+    
+    const errors = validationResult.errors ? JSON.stringify(validationResult.errors) : "Unknown validation failure.";
+    
+    throw new Error(`Intent validation failed: ${errors}`);
   }
-  const valid = validate(intent);
-  if (!valid) {
-    console.error("Intent Validation Errors:", validate.errors);
-    throw new Error(`Intent validation failed: ${JSON.stringify(validate.errors)}`);
-  }
+  
   return true;
 }
