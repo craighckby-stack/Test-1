@@ -10,8 +10,9 @@ class MutationPreProcessor {
     /**
      * @param {object} governanceConfig - Global governance configuration.
      * @param {RuleExecutorRegistry} ruleRegistry - Centralized registry for all executable checks.
+     * @param {object} [tools] - A map of registered tools/plugins (injected by Kernel).
      */
-    constructor(governanceConfig, ruleRegistry) {
+    constructor(governanceConfig, ruleRegistry, tools = {}) {
         if (!governanceConfig || !governanceConfig.rules) {
              throw new Error("MPP requires a valid governance configuration including compliance rules.");
         }
@@ -22,9 +23,15 @@ class MutationPreProcessor {
         this.config = governanceConfig;
         this.checkDefinitions = governanceConfig.rules;
         this.ruleRegistry = ruleRegistry;
+        this.tools = tools;
         
         // Define key thresholds
         this.PASS_THRESHOLD = governanceConfig.thresholds?.pass || 0.7;
+
+        if (!this.tools.PenaltyScoreCalculator || typeof this.tools.PenaltyScoreCalculator.execute !== 'function') {
+            console.warn("MPP: PenaltyScoreCalculator plugin not available. Scoring logic will fail if called.");
+            // Note: Robust environments may throw or use a fallback implementation here.
+        }
     }
 
     /**
@@ -34,34 +41,25 @@ class MutationPreProcessor {
      * @returns {Promise<{ R_INDEX: number, violations: Array<{ code: string, message: string, penalty: number }>, pass: boolean }>}
      */
     async preProcess(mutationPayload, context = {}) {
-        const results = [];
-        let totalWeightedPenalty = 0;
+        const checkResults = [];
 
-        // Iterate over defined rules using centralized configuration
+        // 1. Execute all checks
         for (const checkCode in this.checkDefinitions) {
             const ruleDefinition = this.checkDefinitions[checkCode];
             
-            // Execute the check via the registry, passing context and configuration.
             const checkResult = this._executeCheck(checkCode, ruleDefinition, mutationPayload, context);
-            results.push(checkResult);
-            
-            if (!checkResult.compliant) {
-                totalWeightedPenalty += ruleDefinition.penaltyWeight;
-            }
+            checkResults.push(checkResult);
         }
 
-        // Penalty should be capped to prevent configuration errors from yielding R_INDEX < 0
-        totalWeightedPenalty = Math.min(1.0, totalWeightedPenalty);
+        // 2. Score the results using the extracted utility (PenaltyScoreCalculator)
+        const scorer = this.tools.PenaltyScoreCalculator;
         
-        const R_INDEX = Math.min(1.0, Math.max(0, 1.0 - totalWeightedPenalty));
+        if (!scorer) {
+             // Critical failure simulation if the tool wasn't injected correctly
+             return { R_INDEX: 0.0, violations: [{ code: "SYS_ERR", message: "Scoring engine missing.", penalty: 1.0 }], pass: false };
+        }
 
-        const violations = results
-            .filter(r => !r.compliant)
-            .map(r => ({
-                code: r.code,
-                message: r.message,
-                penalty: r.weight 
-            }));
+        const { R_INDEX, violations } = scorer.execute(checkResults);
 
         return {
             R_INDEX: R_INDEX,
@@ -93,6 +91,7 @@ class MutationPreProcessor {
             // Delegate the logic execution. The registry handles the actual implementation based on checkCode.
             const checkPassed = this.ruleRegistry.execute(checkCode, payload, checkConfig, context);
 
+            // Output format compliant with PenaltyScoreCalculator input requirements
             return {
                 compliant: checkPassed,
                 code: checkCode,
