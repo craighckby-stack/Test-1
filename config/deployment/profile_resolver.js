@@ -16,25 +16,27 @@ const ACVD_DEFINITION_MAPPING = {
 };
 
 /**
- * Resolves a profile using the HierarchicalConfigResolver tool.
+ * Resolves a profile using the HierarchicalConfigResolver tool via the AGI kernel capabilities.
  *
  * @param {string} profileName The name of the profile to resolve.
  * @param {object} mapData The configuration map containing profiles and definitions.
  * @returns {object} The fully resolved profile configuration.
  */
 function resolveProfile(profileName, mapData) {
-    // Use the generic resolver tool provided by the AGI kernel.
-    // We assume HierarchicalConfigResolver is available in the execution context.
-    if (typeof HierarchicalConfigResolver === 'undefined') {
-        throw new Error('AGI Tool Dependency Error: HierarchicalConfigResolver is not available.');
+    // Ensure the required kernel capability is available.
+    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.Tool === 'undefined') {
+        throw new Error('AGI Tool Dependency Error: KERNEL_SYNERGY_CAPABILITIES.Tool is required.');
     }
     
+    const payload = {
+        profileName: profileName,
+        mapData: mapData,
+        keyResolutionMap: ACVD_DEFINITION_MAPPING
+    };
+    
     try {
-        return HierarchicalConfigResolver.execute({
-            profileName: profileName,
-            mapData: mapData,
-            keyResolutionMap: ACVD_DEFINITION_MAPPING
-        });
+        // Use the standardized kernel capability invocation method.
+        return KERNEL_SYNERGY_CAPABILITIES.Tool.execute('HierarchicalConfigResolver', payload);
     } catch (e) {
         // Re-throw the error, potentially wrapping it for context.
         if (e instanceof Error) {
