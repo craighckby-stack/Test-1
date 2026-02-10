@@ -1,21 +1,72 @@
+interface Rule {
+    rule_id: string;
+    applies_to: string;
+    condition: string; // The expression to evaluate
+    action: string;
+    severity: string;
+}
+
+interface Component {
+    component_id: string;
+    parameters: Record<string, any>;
+}
+
+interface Contract {
+    contract_id: string;
+    ruleset: Rule[];
+    components: Component[];
+}
+
+interface ExecutionContext extends Record<string, any> {}
+
+// Simplified Schema Definition for use with the validator tool
+const MEC_CONTRACT_SCHEMA = {
+    $schema: "http://json-schema.org/draft-07/schema#",
+    type: "object",
+    properties: {
+        contract_id: { type: "string" },
+        ruleset: { type: "array" },
+        components: { type: "array" }
+    },
+    required: ["contract_id", "ruleset", "components"]
+};
+
+
+// Assuming SchemaValidationService and SecureExpressionEvaluatorTool are accessible globally
+declare const SchemaValidationService: {
+    execute: (args: { data: any, schema: any }) => { isValid: boolean, errors: string[] };
+};
+declare const SecureExpressionEvaluatorTool: {
+    execute: (args: { expression: string, context: Record<string, any> }) => boolean;
+};
+
+
 class MECContractInterpreter {
-    constructor(contractJson) {
+    private contract: Contract;
+    private ruleIndex: Record<string, Rule> = {};
+    private componentIndex: Record<string, Component> = {};
+
+    constructor(contractJson: Contract) {
         this.contract = contractJson;
         this.validateSchema();
         this.indexRules();
     }
 
-    validateSchema() {
-        // Basic structural validation ensuring ruleset and components exist
-        if (!this.contract.contract_id || !Array.isArray(this.contract.ruleset) || !Array.isArray(this.contract.components)) {
-            throw new Error("MEC Contract failed structural validation.");
+    private validateSchema() {
+        // Replaced manual checks with SchemaValidationService
+        const validationResult = SchemaValidationService.execute({
+            data: this.contract,
+            schema: MEC_CONTRACT_SCHEMA
+        });
+
+        if (!validationResult.isValid) {
+            const errors = validationResult.errors.map(e => (typeof e === 'string' ? e : e.message || 'Unknown error')).join(', ');
+            throw new Error(`MEC Contract failed structural validation: ${errors}`);
         }
         console.log(`Contract ${this.contract.contract_id} loaded successfully.`);
     }
 
-    indexRules() {
-        this.ruleIndex = {};
-        this.componentIndex = {};
+    private indexRules() {
         this.contract.ruleset.forEach(rule => {
             this.ruleIndex[rule.rule_id] = rule;
         });
@@ -24,33 +75,32 @@ class MECContractInterpreter {
         });
     }
 
-    getRulesForComponent(componentId) {
+    public getRulesForComponent(componentId: string): Rule[] {
         return this.contract.ruleset.filter(rule => rule.applies_to === componentId);
     }
 
     /**
-     * Executes a rule based on an external execution context.
-     * NOTE: Secure sandboxing is mandatory for evaluating 'condition' strings in production.
+     * Executes a rule based on an external execution context, using a secure evaluation tool.
      */
-    executeRule(ruleId, executionContext) {
+    public executeRule(ruleId: string, executionContext: ExecutionContext): { status: string, message?: string, action?: string, severity?: string, details?: string } {
         const rule = this.ruleIndex[ruleId];
         if (!rule) return { status: 'ERROR', message: `Rule ${ruleId} not found.` };
 
         const component = this.componentIndex[rule.applies_to];
         if (!component) return { status: 'ERROR', message: `Component ${rule.applies_to} not defined.` };
 
-        const environment = { 
+        // Construct the isolated execution environment
+        const environment: Record<string, any> = { 
             ...executionContext, 
             parameters: component.parameters 
         };
 
         try {
-            // Use a secure evaluation method (e.g., dedicated DSL or VM2) here.
-            // Using eval() directly is highly insecure but demonstrates the required logic path.
-            const result = eval(`((env) => { 
-                const { parameters } = env; 
-                return ${rule.condition}; 
-            })(environment)`);
+            // CRITICAL: Replaced insecure eval() with the SecureExpressionEvaluatorTool plugin
+            const result = SecureExpressionEvaluatorTool.execute({
+                expression: rule.condition,
+                context: environment
+            });
 
             if (result) {
                 return { status: 'TRIGGERED', action: rule.action, severity: rule.severity };
@@ -58,8 +108,9 @@ class MECContractInterpreter {
             return { status: 'PASS' };
 
         } catch (e) {
-            console.error(`Error executing rule ${ruleId}:`, e);
-            return { status: 'ERROR', message: 'Evaluation failed', details: e.message };
+            const error = e as Error;
+            console.error(`Error executing rule ${ruleId}:`, error);
+            return { status: 'ERROR', message: 'Evaluation failed', details: error.message };
         }
     }
 }
