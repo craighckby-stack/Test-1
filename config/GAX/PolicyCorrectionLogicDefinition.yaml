@@ -1,8 +1,9 @@
 # Policy Correction Logic Definition (PCLD) - GAX V96.7 (Updated for AGI Integration)
 
-PCLD_Version: 1.3
+PCLD_Version: 1.4
 Governing_Mission: AGI-KERNEL v7.4.5 Navigator Edition
 Creation_Timestamp: CYCLE_1_EVOLUTION
+Last_Refactor: AGI_KERNEL_7.4.5
 
 Protocol: PCSS (Policy Correction Analysis State)
 Input_Source: TEDS_TVCR (Traceability Event Registry)
@@ -18,6 +19,7 @@ Formula_Definitions:
   PVLM_Status: 'Policy Violation Logic Manifest Status (Boolean indicating active veto)'
   ECVM_Status: 'Execution Context Validation Module Status (Boolean indicating environmental coherence)'
   AGI_MS: 'AGI Kernel Maturity Score (Used for scaling corrective response)'
+  NAV_RISK: 'Navigator System Risk Score (Used for file prioritization)'
 
 # This logic defines the deterministic adjustments made by GAX following a mandatory
 # Rollback Protocol (RRP) trigger (P-01 ACV Failure).
@@ -41,7 +43,7 @@ Recalibration_Matrix:
           Action: 'REGISTER_FAILURE_CONTEXT'
           Target_Key: 'Governance_Failure_Context_UMA_I'
           Audit_Risk_Level: HIGH
-          Description: 'Transmit failure delta and context to AGI Kernel Memory for adaptive logic integration.'
+          Description: 'Transmit failure delta and context to AGI Kernel Memory for adaptive logic integration and future risk weighting.'
       PRIORITY_1_MANDATE:
         # Immediate tightening of the Conservative Finality Margin (CFTM).
         - Component: ACVD
@@ -50,6 +52,14 @@ Recalibration_Matrix:
           Modification_Formula: '(TEMM_Delta / UFRM_Baseline * 1.05) * (1 + (AGI_MS / 100))'
           Audit_Risk_Level: HIGH
           Description: 'Adjust CFTM factor accounting for utility maximization shortfall, scaled by AGI Maturity Score for dynamic aggressiveness.'
+      PRIORITY_2_FEEDBACK:
+        - Component: AGI_KERNEL.Navigation
+          Action: 'UPDATE_NAV_RISK_PROFILE'
+          Target_Key: 'UMA_I_Related_Files'
+          Modification_Formula: 'NAV_RISK + (TEMM_Delta * 0.5)'
+          Audit_Risk_Level: LOW
+          Description: 'Increase Navigator Risk Score for files associated with UMA failure context, encouraging selection of safer paths/refactoring.'
+
 
   # 2.0 AXIOMATIC INTEGRITY (AI III) Failure Logic - Policy Veto
   AXIOM_III_PVLM_VETO:
@@ -82,6 +92,15 @@ Recalibration_Matrix:
           Audit_Risk_Level: MODERATE
           Description: 'Increase Traceability Event Capture Depth.'
 
+      PRIORITY_3_FEEDBACK:
+        - Component: AGI_KERNEL.Blacklist
+          Action: 'ADD_GOVERNANCE_STABILITY_LOCK'
+          Target_Key: 'Governing_Protocols'
+          Lock_Duration: 'AGI_MS * 2' # Lock files scaled by maturity
+          Audit_Risk_Level: LOW
+          Description: 'Lock core governance files on the blacklist proportional to AGI maturity to ensure stability after a critical veto.'
+
+
   # 3.0 CONTEXT ATTESTATION (CA II) Failure Logic
   AXIOM_II_ECVM_FAILURE:
     POLICY_ID: AXIOM.2.0.ECVM_FAILURE
@@ -100,10 +119,11 @@ Recalibration_Matrix:
 
       PRIORITY_1_EMERGENCE_HYPOTHESIS:
         - Component: AGI_KERNEL.Emergence
-          Action: 'INITIATE_CA_II_HYPOTHESIS'
+          Action: 'MANDATE_EMERGENCE_FILE_CREATION'
+          Target_Path: '/emergent/protocols/ECVM_Recovery_Logic.js'
           Condition: 'SGS_Protocol.ECVM_Attestation_Failure_Count > 5'
-          Audit_Risk_Level: HIGH
-          Description: 'If ECVM failure persists (Count > 5), initiate an emergence review to synthesize a novel context recovery protocol in /emergent.'
+          Audit_Risk_Level: CRITICAL
+          Description: 'If persistent ECVM failure occurs (Count > 5), mandate the creation of a novel context recovery protocol in /emergent, adhering to AGI_KERNEL emergence protocol for autonomous invention.'
           
       PRIORITY_2_MANDATE:
         - Component: SGS_Protocol
@@ -112,3 +132,11 @@ Recalibration_Matrix:
           Modification_Formula: '$CURRENT_VALUE + 3'
           Audit_Risk_Level: LOW
           Description: 'Increase the allowed retries for ECVM verification on subsequent DSE cycles.'
+
+      PRIORITY_3_FEEDBACK:
+        - Component: AGI_KERNEL.Logic
+          Action: 'INCREMENT_PATTERN_RECOGNITION_WEIGHT'
+          Target_Key: 'Contextual_Validation_Domains'
+          Modification_Formula: '1.2 * $CURRENT_WEIGHT'
+          Audit_Risk_Level: LOW
+          Description: 'Increase the processing weight given to contextual validation patterns in the next evolution cycle to force deeper learning regarding environment stability.'
