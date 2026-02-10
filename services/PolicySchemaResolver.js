@@ -13,48 +13,33 @@
  * @property {string | null} error - An error message if resolution failed.
  */
 
+/**
+ * @interface PolicySchemaExtractorTool
+ * @property {function(object): PolicyResolutionResult} resolve - Resolves schema components from a policy.
+ */
+
 class PolicySchemaResolver {
+  /**
+   * @private
+   * @type {PolicySchemaExtractorTool}
+   */
+  extractor;
 
   /**
-   * Resolves schema components from a full Artifact Indexing Policy object.
+   * @param {PolicySchemaExtractorTool} extractor 
+   */
+  constructor(extractor) {
+    this.extractor = extractor;
+  }
+
+  /**
+   * Resolves schema components from a full Artifact Indexing Policy object using the configured extractor tool.
    * @param {object} policy - The full AIP object.
    * @returns {PolicyResolutionResult}
    */
   resolveSchemaComponents(policy) {
-    if (!policy || typeof policy !== 'object') {
-      return { baseSchema: null, customSchemaFragment: null, coreSchemaRef: null, error: "Input policy must be an object." };
-    }
-
-    const refPath = policy.indexing_structure?.['$ref'];
-    const coreSchemaRef = refPath?.split('/')?.pop();
-    const customSchemaFragment = policy.custom_metadata_schema || null;
-
-    if (!coreSchemaRef) {
-      const missingRef = refPath ? `Invalid $ref path: ${refPath}` : "Missing 'indexing_structure.$ref'.";
-      return { 
-        baseSchema: null, 
-        customSchemaFragment,
-        coreSchemaRef: 'unknown',
-        error: missingRef
-      };
-    }
-
-    if (!policy.$defs || !policy.$defs[coreSchemaRef]) {
-      const errorMsg = `Base definition '${coreSchemaRef}' not found in policy $defs.`;
-      return { 
-        baseSchema: null, 
-        customSchemaFragment,
-        coreSchemaRef, 
-        error: errorMsg
-      };
-    }
-
-    return {
-      baseSchema: policy.$defs[coreSchemaRef],
-      customSchemaFragment,
-      coreSchemaRef,
-      error: null
-    };
+    // Delegate the entire structural extraction and initial validation process to the specialized tool.
+    return this.extractor.resolve(policy);
   }
 }
 
