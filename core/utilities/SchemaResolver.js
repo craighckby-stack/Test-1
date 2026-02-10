@@ -3,20 +3,22 @@
  * 
  * Utility class responsible for loading, resolving, and validating the
  * hierarchical TEDS field definitions (schema/teds_field_definitions.json).
- * It handles JSON Schema '$ref' resolution using the InternalReferenceResolverTool,
- * template merging, and applies layered metadata constraints before compiling the final runtime schema.
+ * It utilizes the TemplateDefinitionCompiler plugin for $ref resolution and template merging.
  */
 
+// Dependencies
 // We use 'require' here to abstract the dependency injection of the InternalReferenceResolverTool
 // based on standard Node.js module loading for compatibility with the original module structure.
 const InternalReferenceResolverTool = require('InternalReferenceResolverTool'); 
+// Assuming TemplateDefinitionCompiler is available via module loading in the refactored environment
+const TemplateDefinitionCompiler = require('TemplateDefinitionCompiler'); 
 
 class SchemaResolver {
   // TypeScript allowed in new_code
   private schema: any;
   private templates: any;
   private metadata: any;
-  private resolver: any;
+  private resolver: typeof InternalReferenceResolverTool;
 
   constructor(schemaData) {
     this.schema = schemaData;
@@ -31,17 +33,11 @@ class SchemaResolver {
   }
 
   /**
-   * Resolves an internal JSON Pointer reference using the dedicated utility tool.
-   * @param {string} refPath - The JSON Pointer path (e.g., '#/FieldTemplates/ID_UUID').
-   * @returns {any} A deep copy of the resolved object.
+   * Compiles a specific definition block (e.g., a form or record type) 
+   * by resolving all template references within its fields.
+   * @param {string} definitionKey - The key of the definition to compile.
+   * @returns {object} The compiled definition object.
    */
-  resolveReference(refPath) {
-    return this.resolver.resolve({
-      data: this.schema,
-      refPath: refPath
-    });
-  }
-
   compileDefinition(definitionKey) {
     const definition = this.schema.Definitions[definitionKey];
     if (!definition) {
@@ -53,13 +49,12 @@ class SchemaResolver {
     for (const fieldName in definition.fields) {
       let field = definition.fields[fieldName];
       
-      if (field['$ref']) {
-        // Use the new simplified reference resolution wrapper
-        const template = this.resolveReference(field['$ref']);
-        // Merge: template properties are base, field properties are overrides
-        field = { ...template, ...field };
-        delete field['$ref'];
-      }
+      // Use the abstracted plugin for reference resolution and template merging
+      field = TemplateDefinitionCompiler.resolveAndMerge(
+        field, 
+        this.resolver, 
+        this.schema
+      );
 
       // Apply global metadata constraints if necessary (future extension)
 
