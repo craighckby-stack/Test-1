@@ -1,26 +1,17 @@
-const fs = require('fs');
-
-/**
- * A utility function representing the logic extracted to ResilientPolicyLoader.
- * In a real environment, this logic would be provided by the PolicyProcessor plugin.
- * We define it here to maintain the runnable state of the source file, demonstrating delegation.
- */
-const processPolicyData = (rawData, defaultPolicy, policyPath) => {
-    // Note: The ResilientPolicyLoader plugin handles JSON.parse and Object.assign.
-    const loadedPolicy = JSON.parse(rawData);
-    return Object.assign({}, defaultPolicy, loadedPolicy);
-};
-
 /**
  * RuntimeIntegrityEnforcer
  * Reads governance/config/IntegrityPolicy.json and actively enforces its constraints
  * within the live execution environment (L0 Kernel).
+ * 
+ * Dependencies:
+ * - PolicyLoader: Handles file I/O, parsing, and resilient merging.
  */
 class RuntimeIntegrityEnforcer {
-    constructor(policyPath, kernelInterface, systemInterface) {
+    constructor(policyPath, kernelInterface, systemInterface, policyLoader) {
         this.policyPath = policyPath;
         this.Kernel = kernelInterface; // Dependency Injection for Kernel interaction
         this.System = systemInterface; // Dependency Injection for System control
+        this.PolicyLoader = policyLoader; // Dependency Injection for Policy loading
         this.monitoringInterval = null;
         
         // Define a robust, safe default structure for policy loading
@@ -36,6 +27,10 @@ class RuntimeIntegrityEnforcer {
             breachResponse: { protocol: 'LogOnly' }
         };
 
+        if (!this.PolicyLoader || typeof this.PolicyLoader.loadAndMergePolicy !== 'function') {
+            throw new Error("PolicyLoader interface (ResilientPolicyLoader) is required for RuntimeIntegrityEnforcer.");
+        }
+
         this.policy = this._loadPolicy(policyPath);
         this.isActive = this.policy && this.policy.status === 'Active';
     }
@@ -50,17 +45,12 @@ class RuntimeIntegrityEnforcer {
     }
 
     _loadPolicy(path) {
-        try {
-            const data = fs.readFileSync(path, 'utf8');
-            
-            // Delegation: Policy parsing and resilient merging is now handled by the external utility (ResilientPolicyLoader).
-            // This function replaces the inline JSON.parse and Object.assign logic.
-            return processPolicyData(data, this.defaultPolicy, path);
-            
-        } catch (error) {
-            this._log('error', `Failed to load or parse policy from ${path}. Using inactive defaults.`, { error: error.message });
-            return this.defaultPolicy;
-        }
+        // Delegation: Policy parsing and resilient merging is now handled by the PolicyLoader plugin.
+        return this.PolicyLoader.loadAndMergePolicy(
+            path, 
+            this.defaultPolicy, 
+            (level, message, data) => this._log(level, message, data) // Pass down the local logging method
+        );
     }
 
     initialize() {
