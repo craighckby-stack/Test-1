@@ -17,6 +17,16 @@ class FitnessEngine {
       logic: { "Meta-Reasoning": 0.60, "Error Handling": 0.40 },
       memory: { "Error Handling": 0.50, "JSON Parsing": 0.50 }
   };
+
+  // NEW: Defines how overall fitness improvement (above baseline 5.0) is distributed across internal capabilities.
+  static IMPROVEMENT_DISTRIBUTION_WEIGHTS = {
+      // Total sums to 1.0. Prioritizes Meta-Reasoning and Autonomy/Error Handling.
+      "Error Handling": 0.20,
+      "JSON Parsing": 0.10,
+      "Meta-Reasoning": 0.30,
+      "Autonomy": 0.25,
+      "Creativity": 0.15
+  };
     
   // Formalized constants for system tuning and clarity (Logic/Error Handling)
   static MAX_FITNESS = 10.0;
@@ -196,84 +206,97 @@ class FitnessEngine {
    * The adjustment factor is now dynamic, proportional to the magnitude of change, utilizing formalized constants.
    */
   _applyHistoricalAdjustment(currentScore, rawMetrics, historicalMetrics, profile) {
-      // Check for necessary context
-      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
+      
+      const { changeType, rawFactor } = this._calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile);
+
+      if (changeType === 'neutral') {
           return currentScore;
+      }
+      
+      const PENALTY_RATIO = FitnessEngine.HISTORICAL_PENALTY_RATIO;
+
+      if (changeType === 'reward') {
+          // Reward for learning and progression (Meta-Reasoning success)
+          console.log(`FitnessEngine: Historical improvement detected in ${profile.target_metric}. Applying adaptive reward (${rawFactor.toFixed(3)}).`);
+          return currentScore * (1 + rawFactor);
+      } else if (changeType === 'penalty') {
+          // Penalty for regression (penalized less severely, using configurable PENALTY_RATIO)
+          const penaltyFactor = rawFactor * PENALTY_RATIO;
+          console.warn(`FitnessEngine: Historical regression detected in ${profile.target_metric}. Applying reduced adaptive penalty (${penaltyFactor.toFixed(3)}).`);
+          return currentScore * (1 - penaltyFactor);
+      }
+      
+      return currentScore; 
+  }
+
+  /**
+   * Meta-Reasoning: Calculates the relative change factor based on historical data and optimization goal.
+   * Centralizes progression logic for consistency across score adjustment and capability assessment.
+   * @returns {{changeType: ('reward'|'penalty'|'neutral'), rawFactor: number}}
+   */
+  _calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile) {
+      const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
+      const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
+      
+      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
+          return { changeType: 'neutral', rawFactor: 0 };
       }
       
       const targetMetric = profile.target_metric;
       const currentTargetValue = this.calculateDerivedMetric(rawMetrics, targetMetric);
       
-      // Attempt to calculate historical target value (Handle formulas safely)
       let historicalTargetValue;
       try {
            // Use a copy of the target metric ID/formula against historical data
            historicalTargetValue = this.calculateDerivedMetric(historicalMetrics, targetMetric);
       } catch (e) {
-           console.warn("FitnessEngine: Could not derive historical metric value. Skipping historical adjustment.");
-           return currentScore;
+           console.warn("FitnessEngine: Could not derive historical metric value for comparison.");
+           return { changeType: 'neutral', rawFactor: 0 };
       }
       
       if (currentTargetValue < FitnessEngine.EPSILON && historicalTargetValue < FitnessEngine.EPSILON) {
           // Both zero/near-zero, effectively no change if minimizing
-          return currentScore;
+          return { changeType: 'neutral', rawFactor: 0 };
       }
       
-      // Constants referenced from static properties
-      const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
-      const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
-      const PENALTY_RATIO = FitnessEngine.HISTORICAL_PENALTY_RATIO;
-
       // 1. Calculate relative difference
       let relativeDifference = 0.0;
       if (historicalTargetValue > FitnessEngine.EPSILON) {
           relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
       }
       
-      let performanceChange = 0; // 0: neutral, 1: reward, -1: penalty
+      let performanceChange = 'neutral';
       
       if (profile.optimization_goal === 'minimize') {
           // Reduction in metric value is good (negative relativeDifference is desired)
           if (relativeDifference < -improvementThreshold) {
-              performanceChange = 1; // Reward
+              performanceChange = 'reward';
           } else if (relativeDifference > improvementThreshold) {
-              performanceChange = -1; // Penalty
+              performanceChange = 'penalty';
           }
       } else if (profile.optimization_goal === 'maximize') {
           // Increase in metric value is good (positive relativeDifference is desired)
           if (relativeDifference > improvementThreshold) {
-              performanceChange = 1; // Reward
+              performanceChange = 'reward';
           } else if (relativeDifference < -improvementThreshold) {
-              performanceChange = -1; // Penalty
+              performanceChange = 'penalty';
           }
       }
 
-      if (performanceChange === 0) {
-          // No significant change detected
-          return currentScore;
+      if (performanceChange === 'neutral') {
+          return { changeType: 'neutral', rawFactor: 0 };
       }
       
       // 2. Calculate dynamic adjustment based on magnitude of change beyond the threshold
-      const rawFactor = Math.abs(relativeDifference);
+      const rawMagnitude = Math.abs(relativeDifference);
       
       // Scale the adjustment proportionally up to MAX_ADJUSTMENT.
-      let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawFactor);
+      let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawMagnitude);
       
       // Ensure a minimum reward/penalty for successfully crossing the threshold (Autonomy stability)
-      dynamicAdjustment = Math.max(0.01, dynamicAdjustment); // Reduced minimum factor slightly
+      const finalFactor = Math.max(0.01, dynamicAdjustment);
 
-      if (performanceChange === 1) {
-          // Reward for learning and progression (Meta-Reasoning success)
-          console.log(`FitnessEngine: Historical improvement detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying adaptive reward (${dynamicAdjustment.toFixed(3)}).`);
-          return currentScore * (1 + dynamicAdjustment);
-      } else if (performanceChange === -1) {
-          // Penalty for regression (penalized less severely, using configurable PENALTY_RATIO)
-          const penaltyFactor = dynamicAdjustment * PENALTY_RATIO;
-          console.warn(`FitnessEngine: Historical regression detected in ${targetMetric} (Change: ${relativeDifference.toFixed(2)}). Applying reduced adaptive penalty (${penaltyFactor.toFixed(3)}).`);
-          return currentScore * (1 - penaltyFactor);
-      }
-      
-      return currentScore; // Should not be reached if performanceChange != 0
+      return { changeType: performanceChange, rawFactor: finalFactor };
   }
 
   /**
@@ -521,43 +544,6 @@ class FitnessEngine {
         return false;
     }
   }
-  
-  /**
-   * Meta-Reasoning: Determines if the current metrics indicate progression relative to history,
-   * used for targeted capability boosting.
-   */
-  _checkHistoricalSuccess(rawMetrics, historicalMetrics, profile) {
-      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
-          return false;
-      }
-      
-      const targetMetric = profile.target_metric;
-      const currentTargetValue = this.calculateDerivedMetric(rawMetrics, targetMetric);
-      
-      let historicalTargetValue;
-      try {
-           historicalTargetValue = this.calculateDerivedMetric(historicalMetrics, targetMetric);
-      } catch (e) {
-           return false;
-      }
-      
-      const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
-      
-      let relativeDifference = 0.0;
-      if (historicalTargetValue > FitnessEngine.EPSILON) {
-          relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
-      }
-      
-      if (profile.optimization_goal === 'minimize') {
-          // Negative relativeDifference (reduction) means success
-          return relativeDifference < -improvementThreshold;
-      } else if (profile.optimization_goal === 'maximize') {
-          // Positive relativeDifference (increase) means success
-          return relativeDifference > improvementThreshold;
-      }
-      
-      return false; // Neutral goal doesn't define progression easily
-  }
 
   /**
    * Helper to return default capabilities upon error.
@@ -587,75 +573,59 @@ class FitnessEngine {
     const profile = this.config.profiles[profileName];
     if (!profile) return this._defaultCapabilityMapping();
 
-    // Base scores reflect minimum operational competency (5.5)
-    let coreScores = {
-      "Error Handling": 5.5,
-      "JSON Parsing": 5.5,
-      "Meta-Reasoning": 5.5,
-      "Autonomy": 5.5,
-      "Creativity": 5.5,
-    };
-    
-    // 1. Contribution based on overall success (Max 4.5 points improvement)
-    // Updated weights to prioritize Error Handling and Autonomy for foundational stability.
-    const overallImprovement = normalizedScore * 4.5; 
+    // 1. Initialize Base Scores
+    // All internal capabilities start at 5.0 (Maturity 0 baseline)
+    let coreScores = {};
+    const BASELINE_SCORE = 5.0;
+    const improvementWeights = FitnessEngine.IMPROVEMENT_DISTRIBUTION_WEIGHTS;
 
-    // Logic improvement: Use standard array iteration/mapping for clarity
-    const scoreModifiers = {
-        "Error Handling": 0.5,
-        "Autonomy": 0.4,
-        "Meta-Reasoning": 0.4,
-        "JSON Parsing": 0.3,
-        "Creativity": 0.2
-    };
-
-    for (const cap in scoreModifiers) {
-        coreScores[cap] += overallImprovement * scoreModifiers[cap];
+    for (const cap in improvementWeights) {
+        coreScores[cap] = BASELINE_SCORE;
     }
     
-    // 2. Strategic Alignment Boost Assessment (Logic Improvement)
+    // 2. Distribute Improvement (Max 5.0 points total improvement)
+    const totalImprovement = normalizedScore * 5.0; 
+
+    for (const cap in improvementWeights) {
+        const weight = improvementWeights[cap];
+        // Distribute the score proportionally
+        coreScores[cap] += totalImprovement * weight;
+    }
+    
+    // 3. Strategic Alignment Boost Assessment
     const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
 
-    let alignmentBoost = {};
-    
     if (isComplexFormula) {
-        // High reward for successful dynamic calculation, crucial for AGI self-assessment
-        alignmentBoost["Meta-Reasoning"] = 1.5; 
-        alignmentBoost["Autonomy"] = 0.5;
+        // Reward for successful dynamic calculation (Meta-Reasoning capability)
+        coreScores["Meta-Reasoning"] += normalizedScore * 0.5; 
+        coreScores["Autonomy"] += normalizedScore * 0.2; // Autonomy required to handle complex definitions
     }
     
     if (profile.optimization_goal === 'minimize') {
         // High reward for identifying and solving challenging optimization problems (Creativity/Novelty)
-        alignmentBoost["Creativity"] = (alignmentBoost["Creativity"] || 0) + 1.2; 
+        coreScores["Creativity"] += normalizedScore * 0.4; 
     }
     
-    // Apply scaled alignment boosts, capped by the normalized overall success.
-    for (const cap in alignmentBoost) {
-        const scaledBoost = alignmentBoost[cap] * normalizedScore;
-        coreScores[cap] += scaledBoost;
-    }
+    // 4. Historical Success Boost (Meta-Reasoning / Memory)
+    const { changeType } = this._calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile);
     
-    
-    // 3. Historical Success Boost (Links Meta-Reasoning directly to progression)
-    const historicalProgressed = this._checkHistoricalSuccess(rawMetrics, historicalMetrics, profile);
-    if (historicalProgressed) {
-        // Increased focus on Meta-Reasoning when successful progression occurs
-        coreScores["Meta-Reasoning"] += 1.2; 
-        coreScores["Autonomy"] += 0.5;
-        coreScores["Creativity"] += 0.5; 
+    if (changeType === 'reward') {
+        // Significant bonus for demonstrating learning and progression against history
+        coreScores["Meta-Reasoning"] += 0.8; 
+        coreScores["Autonomy"] += 0.4;
     } else if (Object.keys(historicalMetrics).length > 0) {
-        // Minor reward for engaging with memory, even without progression
+        // Minor acknowledgement for engaging with historical memory
         coreScores["Meta-Reasoning"] += 0.1;
     }
     
-    // 4. Final normalization and clamping (0.0 to 10.0)
+    // 5. Final normalization and clamping (5.0 to 10.0)
     for (const key in coreScores) {
         coreScores[key] = Math.min(10.0, coreScores[key]);
-        // Ensure minimum baseline reflects system stability (5.0 minimum)
-        coreScores[key] = Math.max(5.0, coreScores[key]);
+        // Ensure minimum baseline reflects system stability
+        coreScores[key] = Math.max(BASELINE_SCORE, coreScores[key]);
     }
     
-    // 5. Map AGI Core Capabilities back to expected output keys using defined weights (Logic Improvement)
+    // 6. Map AGI Core Capabilities back to expected output keys using defined weights
     let agiScores = {};
     const weights = FitnessEngine.CAPABILITY_WEIGHTS;
 
