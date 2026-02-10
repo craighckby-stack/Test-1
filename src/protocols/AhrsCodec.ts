@@ -25,24 +25,19 @@ const FRAME_ID_LENGTH = 32; // Fixed bytes for frame_id string
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8');
 
-// Helper to write a numerical tuple into the DataView
-function writeTuple(view: DataView, offset: number, tuple: Vector3 | Quaternion): number {
-    for (const value of tuple) {
-        view.setFloat64(offset, value, true); // Little Endian
-        offset += 8; 
-    }
-    return offset; 
+/**
+ * Interface definition for the extracted binary serialization tool.
+ * NOTE: In a real environment, this tool would be imported or injected.
+ */
+interface IFloat64TupleCodec {
+    /** Writes a sequence of Float64 values (8 bytes each, Little Endian). Returns new offset. */
+    writeTuple(view: DataView, offset: number, tuple: number[]): number;
+    /** Reads a sequence of Float64 values (8 bytes each, Little Endian). Returns data and new offset. */
+    readTuple<T extends number[]>(view: DataView, offset: number, length: number): { data: T, nextOffset: number };
 }
 
-// Helper to read a numerical tuple from the DataView
-function readTuple<T extends number[]>(view: DataView, offset: number, length: number): { data: T, nextOffset: number } {
-    const data: number[] = [];
-    for (let i = 0; i < length; i++) {
-        data.push(view.getFloat64(offset, true)); // Little Endian
-        offset += 8;
-    }
-    return { data: data as T, nextOffset: offset };
-}
+// Assuming the AGI runtime provides the concrete implementation of this tool.
+declare const Float64TupleCodec: IFloat64TupleCodec;
 
 /**
  * Encodes an AhrsMessage into a fixed-size binary ArrayBuffer.
@@ -63,9 +58,10 @@ export function encodeAhrsMessage(msg: AhrsMessage): ArrayBuffer {
     offset += FRAME_ID_LENGTH; // Skip the reserved space
 
     // === Data ===
-    offset = writeTuple(view, offset, msg.data.orientation);
-    offset = writeTuple(view, offset, msg.data.angular_velocity);
-    offset = writeTuple(view, offset, msg.data.linear_acceleration);
+    // Use external codec for numerical tuples
+    offset = Float64TupleCodec.writeTuple(view, offset, msg.data.orientation);
+    offset = Float64TupleCodec.writeTuple(view, offset, msg.data.angular_velocity);
+    offset = Float64TupleCodec.writeTuple(view, offset, msg.data.linear_acceleration);
 
     // calibration_status (Uint8, 0 if missing)
     view.setUint8(offset, msg.data.calibration_status ?? 0); offset += 1;
@@ -99,11 +95,12 @@ export function decodeAhrsMessage(buffer: ArrayBuffer): AhrsMessage {
     offset += FRAME_ID_LENGTH;
 
     // === Data ===
-    const { data: orientation, nextOffset: o1 } = readTuple<Quaternion>(view, offset, 4);
+    // Use external codec for numerical tuples
+    const { data: orientation, nextOffset: o1 } = Float64TupleCodec.readTuple<Quaternion>(view, offset, 4);
     offset = o1;
-    const { data: angular_velocity, nextOffset: o2 } = readTuple<Vector3>(view, offset, 3);
+    const { data: angular_velocity, nextOffset: o2 } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3);
     offset = o2;
-    const { data: linear_acceleration, nextOffset: o3 } = readTuple<Vector3>(view, offset, 3);
+    const { data: linear_acceleration, nextOffset: o3 } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3);
     offset = o3;
 
     // calibration_status
