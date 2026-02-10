@@ -10,25 +10,20 @@
 
 import { D01_AuditLogger } from './decisionAuditLogger.js';
 import { C04_AutogenySandbox } from '../execution/autogenySandbox.js';
-// New core dependency for cryptographic integrity checks
-import { CryptographicUtil } from '../utils/cryptographicUtil.js'; 
+// Dependency Injection / Plugin usage for integrity management
+import { PayloadIntegrityStager } from '../plugins/PayloadIntegrityStager'; 
 
 export class ArchProposalManager {
     constructor() {
         /** @type {Map<string, StagingEntry>} */
         this.stagingArea = new Map();
         this.auditLogger = new D01_AuditLogger();
-    }
-
-    /**
-     * Internal secure hashing method, utilizing dedicated cryptographic utility.
-     * @param {Object} payload 
-     * @returns {string} The cryptographic hash (e.g., SHA-256).
-     * @private
-     */
-    _calculatePayloadHash(payload) {
-        // Use a dedicated, deterministic hashing function for payloads
-        return CryptographicUtil.hashObject(payload);
+        
+        // Runtime check for essential plugin functions
+        if (typeof PayloadIntegrityStager === 'undefined' || typeof PayloadIntegrityStager.createVerifiableEntry !== 'function') {
+            // In a real kernel environment, this error would be handled by DI failure.
+            console.warn("A-01 WARNING: PayloadIntegrityStager utility not properly initialized.");
+        }
     }
 
     /**
@@ -36,10 +31,20 @@ export class ArchProposalManager {
      * @property {string} status - 'PASS', 'FAIL', etc.
      * @property {string} rationale - Consensus justification.
      */
+    
+    /**
+     * @typedef {Object} StagingEntry 
+     * @property {string} proposalId
+     * @property {Object} payload - The mutation manifest.
+     * @property {DecisionEnvelope} decision
+     * @property {string} hash - Cryptographic hash of the payload.
+     * @property {number} timestamp
+     * @property {string} serialized - Internal serialized representation used for verification.
+     */
 
     /**
      * Stages a validated proposal payload upon successful OGT decision.
-     * Ensures payload immutability via Object.freeze and robust hashing.
+     * Ensures payload immutability via robust hashing and Object.freeze via the Stager utility.
      * 
      * @param {string} proposalId 
      * @param {Object} proposalPayload - The mutation manifest (code changes, config updates).
@@ -52,15 +57,19 @@ export class ArchProposalManager {
             return false;
         }
 
-        const transactionHash = this._calculatePayloadHash(proposalPayload);
+        // 1. Generate immutable, verifiable entry using the utility
+        // The utility handles hashing, freezing the payload, and serialization.
+        const verifiableEntry = PayloadIntegrityStager.createVerifiableEntry(proposalPayload);
+        const transactionHash = verifiableEntry.hash;
         
-        /** @typedef {Object} StagingEntry */
-        const stagingEntry = Object.freeze({ // Enforce entry immutability immediately
+        /** @type {StagingEntry} */
+        const stagingEntry = Object.freeze({ // Freeze the combined metadata
             proposalId,
-            payload: proposalPayload, 
+            payload: verifiableEntry.payload,
             decision: decisionEnvelope,
             hash: transactionHash,
-            timestamp: Date.now()
+            timestamp: verifiableEntry.timestamp,
+            serialized: verifiableEntry.serialized // Retain serialized data for efficient re-verification
         });
 
         this.stagingArea.set(proposalId, stagingEntry);
@@ -76,6 +85,7 @@ export class ArchProposalManager {
      * @returns {boolean} True if execution initiated successfully, false otherwise.
      */
     commitAndExecute(proposalId) {
+        /** @type {StagingEntry | undefined} */
         const stagedProposal = this.stagingArea.get(proposalId);
 
         if (!stagedProposal) {
@@ -83,10 +93,10 @@ export class ArchProposalManager {
             return false;
         }
         
-        // Final integrity check: Re-calculate and verify hash
-        const reCalculatedHash = this._calculatePayloadHash(stagedProposal.payload);
+        // Final integrity check: Delegate verification to the utility
+        const integrityCheckPassed = PayloadIntegrityStager.verifyIntegrity(stagedProposal);
         
-        if (reCalculatedHash !== stagedProposal.hash) {
+        if (!integrityCheckPassed) {
             this.auditLogger.logFatalError(`A-01: Data integrity failure for ${proposalId}. HASH MISMATCH detected between stage and commit. Execution aborted.`);
             return false;
         }
