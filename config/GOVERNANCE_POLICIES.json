@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V2.5",
+  "policy_schema_version": "V2.6",
   "policies": {
     "GOV_ENFORCEMENT_V10": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -93,9 +93,9 @@
         "/agents": 0.25,
         "/emergent": 0.20,
         "/governance": 0.15,
-        "support_infrastructure": {
+        "low_priority_grouping": {
           "weight": 0.10,
-          "coverage_directories": [
+          "low_priority_directories": [
             "/utils",
             "/config",
             "/data",
