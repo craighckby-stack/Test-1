@@ -13,6 +13,30 @@ import {
 // Promisify Key Generation - Kept local to its usage domain.
 const generateKeyPairAsync = util.promisify(crypto.generateKeyPair);
 
+// --- START Simulation of Plugin Hook ---
+// This function simulates the kernel's mechanism for executing external, abstracted tools.
+// We wrap the Node.js crypto call here to ensure runtime safety in the current Node environment,
+// while structurally delegating the logic to the extracted plugin interface.
+const __executePlugin = async (pluginName, args) => {
+    if (pluginName === 'CryptoIntegrityHasher') {
+        const { buffer, algorithm } = args;
+        
+        // Fallback shim using Node's crypto to fulfill the synchronous requirement of the Node environment
+        // until full environment migration is achieved.
+        return new Promise((resolve, reject) => {
+            try {
+                 // Use DEFAULT_HASH_ENCODING defined in cryptoConfig.js
+                 resolve(crypto.createHash(algorithm).update(buffer).digest(DEFAULT_HASH_ENCODING));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+    throw new Error(`Plugin ${pluginName} not found.`);
+};
+// --- END Simulation of Plugin Hook ---
+
+
 /**
  * Utility focusing on Asymmetric Cryptography (Digital Signatures - ECDSA).
  * Crucial for proving origin, non-repudiation, and verifying state integrity.
@@ -69,12 +93,18 @@ export class SignatureUtil {
     // --- Data Integrity Helper ---
     
     /**
-     * Calculates the deterministic hash of the provided data payload.
+     * Calculates the deterministic hash of the provided data payload using the CryptoIntegrityHasher tool.
+     * NOTE: This operation is now asynchronous due to delegation to the external plugin.
      * @param {any} data 
-     * @returns {string} The configured hash encoding (e.g., hex).
+     * @returns {Promise<string>} The configured hash encoding (e.g., hex).
      */
-    static hash(data) {
+    static async hash(data) {
         const buffer = toCanonicalBuffer(data);
-        return crypto.createHash(HASH_ALGORITHM).update(buffer).digest(DEFAULT_HASH_ENCODING);
+        
+        // Delegate hashing logic to the extracted plugin
+        return await __executePlugin('CryptoIntegrityHasher', {
+            buffer: buffer,
+            algorithm: HASH_ALGORITHM
+        });
     }
 }
