@@ -10,7 +10,11 @@ class ProtocolError extends Error {
         this.name = 'ProtocolError';
         this.statusCode = 500; // Internal Protocol Failure
         this.context = context;
-        Error.captureStackTrace(this, ProtocolError);
+        
+        // Standard practice for V8/Node.js to fix stack trace origin
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, ProtocolError);
+        }
     }
 }
 
