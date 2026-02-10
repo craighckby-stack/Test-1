@@ -17,31 +17,19 @@ class StrategicCostIndexer {
 
     /**
      * Calculates the Strategic Cost Index by applying strategic weights and runtime factors.
+     * Delegates core calculation to the specialized CostIndexingTool via KERNEL_SYNERGY_CAPABILITIES.
+     * 
      * @param {Object<string, number>} factors - Dynamic runtime adjustment factors (e.g., utilization, risk).
      * @returns {number} The calculated aggregated strategic cost index.
      */
     calculateIndex(factors = {}) {
-        let totalWeightedCost = 0;
-        let totalWeight = 0;
-
-        for (const [key, cost] of Object.entries(this.baseCosts)) {
-            // Default weight is 1.0 if not explicitly defined strategically
-            const weight = this.strategicWeights[key] || 1.0;
-            // Default factor is 1.0 if no dynamic adjustment is applied
-            const factor = factors[key] || 1.0;
-
-            // Cost = (Base Cost * Strategic Weight * Runtime Factor)
-            const adjustedCost = cost * weight * factor;
-            
-            totalWeightedCost += adjustedCost;
-            totalWeight += weight; 
-        }
-
-        // Prevent division by zero
-        if (totalWeight === 0) return 0;
-        
-        // Returns the average strategic index relative to the total weighted importance
-        return totalWeightedCost / totalWeight;
+        // Calls the external tool for high-efficiency calculation
+        return KERNEL_SYNERGY_CAPABILITIES.CostIndexingTool.execute(
+            'calculateStrategicCostIndex', 
+            this.baseCosts, 
+            this.strategicWeights, 
+            factors
+        );
     }
 
     /**
