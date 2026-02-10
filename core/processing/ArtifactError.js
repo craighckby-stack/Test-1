@@ -1,3 +1,5 @@
+const CanonicalErrorInitializer = require('CanonicalErrorInitializer');
+
 /**
  * ArtifactError.js
  * Custom error hierarchy for Artifact Processing pipeline failures, enabling 
@@ -7,12 +9,8 @@
 class ArtifactBaseError extends Error {
     constructor(message, details = {}) {
         super(message);
-        this.name = this.constructor.name;
-        this.details = details;
-        // Maintains proper stack trace in V8
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
+        // Use the CanonicalErrorInitializer to handle naming, details, and stack capture.
+        CanonicalErrorInitializer.initialize(this, this.constructor, details);
     }
 }
 
