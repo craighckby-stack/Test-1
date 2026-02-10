@@ -10,6 +10,9 @@ const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural 
 pub const DEFAULT_CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Default Confidentiality Flag
 const HASHING_PROTOCOL_ID: u8 = 0x01; // 0x01 signifies fixed-output SHA-512 based hash implemented via CRoT
 
+// AGI Integrity Enforcement: Canonical size check for metadata hashing
+const METADATA_CANONICAL_SIZE: usize = 31; 
+
 // AGI Architectural Improvement: Define configurable parameters for snapshot generation
 #[derive(Debug, Clone, Copy)]
 pub struct SnapshotConfiguration {
@@ -28,6 +31,25 @@ impl Default for SnapshotConfiguration {
             default_context_flags: DEFAULT_CONTEXT_FLAG_GSEP_C,
             minimum_resource_buffer_bytes: 1024 * 1024 * 10, // 10MB default buffer
         }
+    }
+}
+
+impl SnapshotConfiguration {
+    /// AGI Governance Check: Ensures the configuration meets baseline security/performance rules.
+    pub fn validate(&self) -> Result<(), SnapshotError> {
+        // Must have a temporal constraint boundary
+        if self.max_duration.as_nanos() == 0 {
+            return Err(SnapshotError::ConfigurationInvalid(
+                "max_duration must be positive (> 0ns)".to_string()
+            ));
+        }
+        // Ensure a minimum resource buffer is configured for resilience
+        if self.minimum_resource_buffer_bytes == 0 {
+             return Err(SnapshotError::ConfigurationInvalid(
+                "minimum_resource_buffer_bytes must be non-zero for resilience".to_string()
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -82,8 +104,9 @@ impl RscmPackageMetadata {
     /// Serializes the critical metadata fields into a canonical, ordered byte vector
     /// using little-endian encoding, ensuring deterministic input for the cryptographic hash.
     fn to_canonical_bytes(&self) -> Result<Vec<u8>, SnapshotError> {
-        // Calculate fixed size: 2(u16) + 8(u64) + 4(u32) + 1(u8) + 8(u64) + 8(u64) = 31 bytes
-        let mut bytes = Vec::with_capacity(31);
+        // Expected fixed size: 31 bytes (2+8+4+1+8+8)
+        let expected_size = METADATA_CANONICAL_SIZE;
+        let mut bytes = Vec::with_capacity(expected_size);
 
         // 1. Package Version (u16)
         bytes.extend_from_slice(&self.capture_version.to_le_bytes());
@@ -95,10 +118,10 @@ impl RscmPackageMetadata {
         bytes.extend_from_slice(&self.hashing_protocol_id.to_le_bytes());
         // 5. Volatile Data Size (u64)
         bytes.extend_from_slice(&self.volatile_data_size.to_le_bytes()); 
-        // 6. Capture Latency (u64) - NEW
+        // 6. Capture Latency (u64)
         bytes.extend_from_slice(&self.capture_latency_ns.to_le_bytes());
 
-        if bytes.len() != 31 {
+        if bytes.len() != expected_size {
              // Structural encoding failure
              return Err(SnapshotError::MetadataEncodingFailed); 
         }
@@ -168,7 +191,8 @@ impl RscmPackage {
 pub enum SnapshotError {
     PrivilegeRequired,
     MemoryCaptureFailed,
-    ResourceConstraintViolated(String), // New error for pre-flight check failure
+    ResourceConstraintViolated(String), // Error for pre-flight check failure
+    ConfigurationInvalid(String), // New error for self-validation failure
     Timeout { actual_duration_ns: u64, max_duration_ns: u64 }, // Enhanced error to include configured limit
     IntegrityHashingFailed,
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
@@ -183,6 +207,7 @@ impl fmt::Display for SnapshotError {
             SnapshotError::PrivilegeRequired => write!(f, "Privilege required to perform atomic snapshot."),
             SnapshotError::MemoryCaptureFailed => write!(f, "Low-level memory capture failed."),
             SnapshotError::ResourceConstraintViolated(msg) => write!(f, "Pre-flight resource check failed: {}", msg),
+            SnapshotError::ConfigurationInvalid(msg) => write!(f, "Snapshot configuration validation failed: {}", msg),
             SnapshotError::Timeout { actual_duration_ns, max_duration_ns } => write!(f, "Snapshot exceeded temporal constraint ({} ns max). Actual latency: {} ns.", max_duration_ns, actual_duration_ns),
             SnapshotError::IntegrityHashingFailed => write!(f, "Cryptographic integrity hashing failed."),
             SnapshotError::HashingOutputMismatch { expected, actual } => write!(f, "Integrity hash size mismatch. Expected {} bytes, got {} bytes.", expected, actual),
@@ -252,7 +277,10 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
 ) -> Result<RscmPackage, SnapshotError> {
     let start_time = Instant::now();
 
-    // 1. Privilege and resource pre-check
+    // AGI Governance Check: 1. Validate configuration parameters first
+    config.validate()?;
+
+    // 2. Privilege and resource pre-check
     if !T::check_privilege() {
         return Err(SnapshotError::PrivilegeRequired);
     }
@@ -263,7 +291,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
 
     let absolute_ts = T::get_current_epoch_ns();
     
-    // 2. Perform atomic read of key memory regions
+    // 3. Perform atomic read of key memory regions
     let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
     let trace = T::capture_execution_stack();
     let context_flags: u32 = runtime_context_flags; // Use provided flags
@@ -282,7 +310,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
         });
     }
 
-    // 3. Calculate Integrity Hash using the isolated, canonical protocol.
+    // 4. Calculate Integrity Hash using the isolated, canonical protocol.
     let integrity_hash = calculate_integrity_hash(
         &vm_dump,
         &trace,
@@ -292,7 +320,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
         latency_ns, // Pass measured latency for integrity binding
     )?;
     
-    // 4. Final RSCM object creation using the controlled constructor
+    // 5. Final RSCM object creation using the controlled constructor
     Ok(RscmPackage::new(
         absolute_ts,
         latency_ns,
