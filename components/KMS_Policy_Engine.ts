@@ -7,10 +7,15 @@
 
 import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
 import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
-import { PolicyConstraintValidatorTool } from '../plugins/ConstraintValidator'; // Abstracted plugin interface
 
-// Assuming the ConstraintValidator plugin instance is available via the kernel context
-declare const PolicyConstraintValidator: PolicyConstraintValidatorTool;
+// Assume standard Kernel capability interface for tool execution
+declare const KERNEL_SYNERGY_CAPABILITIES: any;
+
+// Inferred Tool Execution Result Structure
+interface ToolExecutionResult {
+  success: boolean;
+  failure?: { message: string };
+}
 
 /**
  * Custom error class for detailed policy validation failures.
@@ -28,8 +33,6 @@ export class PolicyValidationError extends Error {
  */
 class KMSPolicyEngine {
   private policies: PolicyStructure;
-  // Use the injected/declared validator tool
-  private validator: PolicyConstraintValidatorTool = PolicyConstraintValidator;
 
   constructor() {
     // Cast the imported JSON structure to the defined interface for safety
@@ -62,12 +65,16 @@ class KMSPolicyEngine {
    * 1. Checks if the requested operation is permitted by the profile using the validator plugin.
    */
   private checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
-    const result = this.validator.execute({
-      operation: 'validateInclusion',
-      value: operation,
-      allowedList: profile.allowed_usages,
-      identityId: identityId,
-      checkFailed: 'ForbiddenUsage',
+    const result: ToolExecutionResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute({
+      toolName: 'PolicyConstraintValidator',
+      methodName: 'execute',
+      args: {
+        operation: 'validateInclusion',
+        value: operation,
+        allowedList: profile.allowed_usages,
+        identityId: identityId,
+        checkFailed: 'ForbiddenUsage',
+      }
     });
 
     if (!result.success) {
@@ -85,13 +92,17 @@ class KMSPolicyEngine {
   private checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
     const globalTTL = this.policies.global_security_policies.signature_ttl_minutes;
 
-    const result = this.validator.execute({
-      operation: 'validateNumericBound',
-      value: signatureAgeMinutes,
-      // Note: We use 'constraint' here to mean the maximum allowed value (TTL)
-      constraint: globalTTL,
-      identityId: identityId,
-      checkFailed: 'SignatureTTL'
+    const result: ToolExecutionResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute({
+      toolName: 'PolicyConstraintValidator',
+      methodName: 'execute',
+      args: {
+        operation: 'validateNumericBound',
+        value: signatureAgeMinutes,
+        // Note: We use 'constraint' here to mean the maximum allowed value (TTL)
+        constraint: globalTTL,
+        identityId: identityId,
+        checkFailed: 'SignatureTTL'
+      }
     });
 
     if (!result.success) {
