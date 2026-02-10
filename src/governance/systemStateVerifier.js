@@ -12,47 +12,44 @@
 import * as crypto from 'crypto';
 // Import Logger as standard practice for a v94.1 component
 import { Logger } from '../utility/logger'; 
+// Note: CanonicalStateHasher is logically injected via constructor in modern kernel architectures
 
 export class SystemStateVerifier {
     
-    // Define the specific algorithm and protocol version for deterministic hashing
-    static HASH_ALGORITHM = 'sha256';
-    static STATE_PROTOCOL_VERSION = 'v1.0';
+    // HASH_ALGORITHM and STATE_PROTOCOL_VERSION are now defined within the CanonicalStateHasher plugin.
+
+    private hasher: any; // Type reference for CanonicalStateHasher
 
     /**
      * @param {object} dependencies
      * @param {object} dependencies.mutationChainRegistrar - MCR instance (for registration).
      * @param {object} dependencies.stateSnapshotRepository - SSR instance (for audit/persistence).
      * @param {object} dependencies.governanceContextService - GCS instance (for resolving C, H, P).
+     * @param {object} dependencies.canonicalStateHasher - The instantiated CanonicalStateHasher plugin instance.
      */
-    constructor({ mutationChainRegistrar, stateSnapshotRepository, governanceContextService }) {
+    constructor({ mutationChainRegistrar, stateSnapshotRepository, governanceContextService, canonicalStateHasher }: any) {
         this.mcr = mutationChainRegistrar;
         this.ssr = stateSnapshotRepository;
-        this.contextService = governanceContextService; // New Dependency
+        this.contextService = governanceContextService; 
+        this.hasher = canonicalStateHasher; // Dependency Injection
 
-        if (!this.mcr || !this.ssr || !this.contextService) {
-             throw new Error("[SSV] Missing core dependency initialization.");
+        if (!this.mcr || !this.ssr || !this.contextService || !this.hasher) {
+             throw new Error("[SSV] Missing core dependency initialization, including CanonicalStateHasher.");
         }
         this.logger = Logger.get('SSV');
     }
 
     /**
-     * Calculates the definitive System State Hash (SSH) based on structured context.
-     * Input structure is canonicalized before hashing, incorporating a protocol version.
+     * Helper to call the CanonicalStateHasher plugin.
      * @param {{configHash: string, codeHash: string, proposalID: string}} context
      * @returns {string}
      */
-    static calculateSystemStateHash(context) {
-        const { configHash, codeHash, proposalID } = context;
-
-        if (!configHash || !codeHash || !proposalID) {
-            throw new Error("[SSV:HashGen] Incomplete context provided for System State Hash calculation.");
-        }
-        
-        // Canonical structure: SHA256(v1.0|ConfigHash|CodebaseHash|ProposalID)
-        const combinedInput = `${SystemStateVerifier.STATE_PROTOCOL_VERSION}|${configHash}|${codeHash}|${proposalID}`;
-        
-        return crypto.createHash(SystemStateVerifier.HASH_ALGORITHM).update(combinedInput).digest('hex');
+    private calculateSystemStateHash(context: { configHash: string, codeHash: string, proposalID: string }): string {
+        // Execute the plugin, passing the necessary context and the 'crypto' library instance.
+        return this.hasher.execute({
+            context: context,
+            crypto: crypto // Explicitly inject the imported crypto module
+        });
     }
     
     /**
@@ -63,15 +60,15 @@ export class SystemStateVerifier {
      * @param {string} proposalID - The identifier for the mutation proposal being verified/locked.
      * @returns {Promise<string>} The verified system state hash.
      */
-    async verifyAndLockState(proposalID) {
+    async verifyAndLockState(proposalID: string): Promise<string> {
         if (!proposalID) {
              throw new Error("Proposal ID is required to lock system state.");
         }
         
         try {
-            // Step 1 & 2: Gather context and calculate definitive SSH
+            // Step 1 & 2: Gather context and calculate definitive SSH using the plugin
             const context = await this.contextService.resolveVerificationContext(proposalID);
-            const ssh = SystemStateVerifier.calculateSystemStateHash(context);
+            const ssh = this.calculateSystemStateHash(context);
 
             // Step 3: Snapshot Persistence (for audit trail)
             await this.ssr.saveSnapshot({ ...context, ssh, timestamp: Date.now() });
@@ -83,8 +80,8 @@ export class SystemStateVerifier {
     
             return ssh;
         } catch (error) {
-            this.logger.critical(`CRITICAL FAILURE during state verification for ${proposalID}: ${error.message}`, { error });
-            throw new Error(`State verification failed: ${error.message}`);
+            this.logger.critical(`CRITICAL FAILURE during state verification for ${proposalID}: ${error instanceof Error ? error.message : String(error)}`, { error });
+            throw new Error(`State verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
@@ -94,7 +91,7 @@ export class SystemStateVerifier {
      * @param {string | null} [expectedHash=null] - The hash registered during the lock phase (EPDP D).
      * @returns {Promise<boolean>}
      */
-    async validateCurrentStateAgainstHash(expectedHash = null) {
+    async validateCurrentStateAgainstHash(expectedHash: string | null = null): Promise<boolean> {
         
         try {
             // Step 1: Gather context based on live operational environment
@@ -109,8 +106,8 @@ export class SystemStateVerifier {
                 return false;
             }
 
-            // Step 2: Recalculate hash based on current live state
-            const liveRecalculatedHash = SystemStateVerifier.calculateSystemStateHash(context);
+            // Step 2: Recalculate hash based on current live state using the plugin
+            const liveRecalculatedHash = this.calculateSystemStateHash(context);
 
             if (liveRecalculatedHash === targetHash) {
                 this.logger.verified(`State Integrity verified successfully. Context ID: ${activeProposalID}`);
@@ -124,7 +121,7 @@ export class SystemStateVerifier {
             return false;
 
         } catch (error) {
-             this.logger.critical(`CRITICAL ERROR during state validation: ${error.message}`, { error });
+             this.logger.critical(`CRITICAL ERROR during state validation: ${error instanceof Error ? error.message : String(error)}`, { error });
              return false;
         }
     }
