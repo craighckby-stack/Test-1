@@ -6,14 +6,30 @@ use std::fmt;
 pub const INTEGRITY_HASH_SIZE: usize = 64; // Standard size for high-assurance (e.g., SHA-512)
 pub type IntegrityHash = [u8; INTEGRITY_HASH_SIZE];
 
-// Target maximum execution time for atomicity (5ms)
-const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
 const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural evolution
 pub const DEFAULT_CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Default Confidentiality Flag
-
-// AGI Improvement: Added explicit identifier for the cryptographic hash protocol used.
-// This aids external validation and architectural memory.
 const HASHING_PROTOCOL_ID: u8 = 0x01; // 0x01 signifies fixed-output SHA-512 based hash implemented via CRoT
+
+// AGI Architectural Improvement: Define configurable parameters for snapshot generation
+#[derive(Debug, Clone, Copy)]
+pub struct SnapshotConfiguration {
+    /// Maximum allowed duration for the snapshot process (temporal constraint).
+    pub max_duration: Duration,
+    /// Context flags to be applied to the package (used as default or baseline).
+    pub default_context_flags: u32,
+    /// Minimum free memory or resource buffer required for capture (u64 bytes) to pass pre-flight check.
+    pub minimum_resource_buffer_bytes: u64,
+}
+
+impl Default for SnapshotConfiguration {
+    fn default() -> Self {
+        SnapshotConfiguration {
+            max_duration: Duration::from_micros(5000), // 5ms default
+            default_context_flags: DEFAULT_CONTEXT_FLAG_GSEP_C,
+            minimum_resource_buffer_bytes: 1024 * 1024 * 10, // 10MB default buffer
+        }
+    }
+}
 
 // --- Trait Definitions for Dependency Injection ---
 
@@ -21,6 +37,15 @@ const HASHING_PROTOCOL_ID: u8 = 0x01; // 0x01 signifies fixed-output SHA-512 bas
 pub trait SystemCaptureAPI: Send + Sync + 'static {
     /// Checks for necessary execution privileges (e.g., kernel mode, specific capabilities).
     fn check_privilege() -> bool;
+    
+    // AGI Logic Improvement: Add pre-flight check for resource resilience.
+    /// Performs a quick check to ensure necessary memory/CPU resources are available 
+    /// based on the required configuration limits before starting the critical capture phase.
+    /// Default implementation returns Ok, concrete systems must provide implementation for resource checks.
+    fn pre_flight_check(config: &SnapshotConfiguration) -> Result<(), SnapshotError> {
+        let _ = config; 
+        Ok(())
+    }
     
     /// Retrieves a high-resolution system timestamp (Epoch nanoseconds). 
     /// Implementations should prioritize monotonic and high-speed clock reading.
@@ -143,7 +168,8 @@ impl RscmPackage {
 pub enum SnapshotError {
     PrivilegeRequired,
     MemoryCaptureFailed,
-    Timeout { actual_duration_ns: u64 }, // Enhanced error to include performance data
+    ResourceConstraintViolated(String), // New error for pre-flight check failure
+    Timeout { actual_duration_ns: u64, max_duration_ns: u64 }, // Enhanced error to include configured limit
     IntegrityHashingFailed,
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
     // AGI Improvement: Added error variant for structural mismatch, critical for integrity
@@ -156,7 +182,8 @@ impl fmt::Display for SnapshotError {
         match self {
             SnapshotError::PrivilegeRequired => write!(f, "Privilege required to perform atomic snapshot."),
             SnapshotError::MemoryCaptureFailed => write!(f, "Low-level memory capture failed."),
-            SnapshotError::Timeout { actual_duration_ns } => write!(f, "Snapshot exceeded temporal constraint (5ms). Actual latency: {} ns.", actual_duration_ns),
+            SnapshotError::ResourceConstraintViolated(msg) => write!(f, "Pre-flight resource check failed: {}", msg),
+            SnapshotError::Timeout { actual_duration_ns, max_duration_ns } => write!(f, "Snapshot exceeded temporal constraint ({} ns max). Actual latency: {} ns.", max_duration_ns, actual_duration_ns),
             SnapshotError::IntegrityHashingFailed => write!(f, "Cryptographic integrity hashing failed."),
             SnapshotError::HashingOutputMismatch { expected, actual } => write!(f, "Integrity hash size mismatch. Expected {} bytes, got {} bytes.", expected, actual),
             SnapshotError::MetadataEncodingFailed => write!(f, "Failed to encode critical metadata components for hashing."),
@@ -174,7 +201,7 @@ fn calculate_integrity_hash(
     absolute_ts: u64,
     volatile_data_size: u64,
     context_flags: u32,
-    capture_latency_ns: u64, // NEW: Binds temporal performance to integrity
+    capture_latency_ns: u64,
 ) -> Result<IntegrityHash, SnapshotError> {
     // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
@@ -218,16 +245,21 @@ fn calculate_integrity_hash(
 
 /// Generates an immutable, temporally constrained state snapshot (RSCM Package).
 /// Requires a specific implementation of SystemCaptureAPI for its environment.
-/// AGI Logic Improvement: Accepts runtime context flags for versatile usage.
+/// AGI Logic Improvement: Accepts runtime configuration for versatile usage and resource control.
 pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
+    config: &SnapshotConfiguration,
     runtime_context_flags: u32
 ) -> Result<RscmPackage, SnapshotError> {
     let start_time = Instant::now();
 
-    // 1. Privilege and time check
+    // 1. Privilege and resource pre-check
     if !T::check_privilege() {
         return Err(SnapshotError::PrivilegeRequired);
     }
+    
+    // AGI Logic Improvement: Resource Pre-check (Fail Fast)
+    T::pre_flight_check(config)
+        .map_err(|e| SnapshotError::ResourceConstraintViolated(e.to_string()))?;
 
     let absolute_ts = T::get_current_epoch_ns();
     
@@ -240,10 +272,14 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
     // Calculate duration immediately after capture for hashing.
     let duration = start_time.elapsed();
     let latency_ns = duration.as_nanos() as u64;
+    let max_duration_ns = config.max_duration.as_nanos() as u64;
 
-    if duration > MAX_SNAPSHOT_DURATION {
+    if duration > config.max_duration {
         // Failure to meet temporal constraint (5ms max)
-        return Err(SnapshotError::Timeout { actual_duration_ns: latency_ns });
+        return Err(SnapshotError::Timeout { 
+            actual_duration_ns: latency_ns,
+            max_duration_ns,
+        });
     }
 
     // 3. Calculate Integrity Hash using the isolated, canonical protocol.
