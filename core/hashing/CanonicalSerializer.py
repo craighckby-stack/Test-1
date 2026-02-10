@@ -48,7 +48,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     2. Enforced strict UTC conversion for timezone-aware datetimes to guarantee cross-environment hashing consistency.
     
     AGI-KERNEL Improvement (Cycle 6):
-    3. Introduced deterministic handling for non-finite floating-point numbers (NaN, Infinity), 
+    3. Introduced deterministic handling for non-finite floating-point numbers (NaN, Infinity),
        crucial for stable hashing of mathematical outputs from /agents and /metrics.
 
     AGI-KERNEL Improvement (Cycle 7):
@@ -57,6 +57,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     
     AGI-KERNEL Improvement (Cycle 9):
     6. Added canonical serialization for functions, methods, and class types using fully qualified import paths.
+
+    AGI-KERNEL Improvement (Cycle 10):
+    7. Implemented deterministic handling for I/O streams and file handles to prevent serialization crashes during state hashing.
     """
 
     def __init__(self, *args, **kwargs):
@@ -102,6 +105,20 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             except Exception:
                 # If introspection fails (e.g., highly custom C extensions), allow fall-through
                 pass
+
+        # 0d. AGI-KERNEL Improvement (Cycle 10): Handle I/O Streams/File Descriptors deterministically.
+        # Prevents TypeErrors when serializing agent states that temporarily hold open resources (e.g., locks, file handles).
+        if hasattr(obj, 'read') and hasattr(obj, 'close') and hasattr(obj, 'fileno'):
+            try:
+                # If the stream has a name (like a file path), use it as the canonical identifier
+                if hasattr(obj, 'name') and isinstance(obj.name, str):
+                    return {"__io_stream__": f"<FILE_HANDLE:{obj.name}>"}
+                else:
+                    # Use the class name as a fallback identifier
+                    return {"__io_stream__": f"<GENERIC_STREAM:{obj.__class__.__name__}>"}
+            except Exception:
+                # If introspection fails, return a safe, generic marker
+                return {"__io_stream__": "<UNIDENTIFIED_STREAM>"}
 
         # AGI-KERNEL Improvement (Cycle 6): Handle non-finite floats deterministically
         if isinstance(obj, float):
@@ -272,7 +289,7 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         offending_type = type(artifact)
         error_message = (
             f"Failed to serialize artifact of type '{offending_type}'. "
-            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects). "
+            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects, open I/O streams). "
             f"Original error: {e}"
         )
         raise ArtifactSerializationError(reason=error_message, data_type=str(offending_type)) from e
