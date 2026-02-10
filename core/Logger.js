@@ -1,39 +1,50 @@
 /**
  * Unified System Logger Utility
- * Provides structured, context-aware logging to replace scattered console.log/error calls.
+ * Provides structured, context-aware logging, leveraging StructuralLogFormatterUtility.
  */
+
+// Simulate access to the external logging utility function provided by the kernel.
+declare const StructuralLogFormatterUtility: { 
+    execute: (level: string, context: string, message: string, data?: any) => void 
+};
+
 export default class Logger {
+    private context: string;
+
     /**
      * @param {string} context - The module or service initiating the log (e.g., 'SpecificationLoader').
      */
-    constructor(context = 'System') {
+    constructor(context: string = 'System') {
         this.context = context;
-        // Configuration could be expanded here (e.g., defining output format, minimum level)
     }
 
-    _getTimestamp() {
-        return new Date().toISOString();
+    /**
+     * Handles core logging by delegating formatting and output to the external utility.
+     * Includes a simple fallback if the utility is not defined.
+     */
+    private _log(level: string, message: string, data?: any): void {
+        if (typeof StructuralLogFormatterUtility !== 'undefined' && StructuralLogFormatterUtility.execute) {
+            StructuralLogFormatterUtility.execute(level, this.context, message, data);
+        } else {
+            // Fallback logging
+            const entry = {
+                timestamp: new Date().toISOString(),
+                level: level.toUpperCase(),
+                context: this.context,
+                message: message
+            };
+            const output = data ? JSON.stringify(data) : '';
+            // Safe type casting for console method access
+            const logMethod = console[level.toLowerCase() as keyof Console] || console.log;
+            logMethod(`[${entry.timestamp}] [${entry.level}] (${entry.context}): ${entry.message} ${output}`.trim());
+        }
     }
 
-    _log(level, message, data) {
-        const entry = {
-            timestamp: this._getTimestamp(),
-            level: level.toUpperCase(),
-            context: this.context,
-            message: message
-        };
-        
-        const logMethod = console[level.toLowerCase()] || console.log;
-        const output = data ? JSON.stringify(data) : '';
-        
-        logMethod(`[${entry.timestamp}] [${entry.level}] (${entry.context}): ${entry.message} ${output}`.trim());
-    }
-
-    info(message, data) { this._log('INFO', message, data); }
-    warn(message, data) { this._log('WARN', message, data); }
-    error(message, data) { this._log('ERROR', message, data); }
+    info(message: string, data?: any): void { this._log('INFO', message, data); }
+    warn(message: string, data?: any): void { this._log('WARN', message, data); }
+    error(message: string, data?: any): void { this._log('ERROR', message, data); }
     
     // Specialized severe logging
-    fatal(message, data) { this._log('FATAL', message, data); }
-    success(message, data) { this._log('SUCCESS', message, data); }
+    fatal(message: string, data?: any): void { this._log('FATAL', message, data); }
+    success(message: string, data?: any): void { this._log('SUCCESS', message, data); }
 }
