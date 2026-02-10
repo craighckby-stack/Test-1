@@ -88,20 +88,7 @@ export default function App() {
     try { await addDoc(collection(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'logs'), { msg, type, timestamp: Date.now() }); } catch (e) { console.error(e); }
   }, []);
 
-  const persistentFetch = async (url, options, retries = 5) => {
-    let delay = 1000;
-    for (let i = 0; i < retries; i++) {
-        try {
-            const res = await fetch(url, options);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res;
-        } catch (e) {
-            if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, delay));
-            delay *= 2;
-        }
-    }
-  };
+  // Removed persistentFetch, now relies on PersistentFetcher plugin.
 
   const fetchFile = async (repo, path, branch, token) => {
     const res = await fetch(`${KERNAL_CONSTANTS.GITHUB_API}/${repo}/contents/${path}?ref=${branch}`, { 
@@ -138,14 +125,17 @@ export default function App() {
 
       if (!cerebrasKey) throw new Error("Missing Cerebras Key");
 
-      const cerebrasRes = await persistentFetch(KERNAL_CONSTANTS.CEREBRAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey.trim()}` },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b',
-            messages: [{ role: 'user', content: `Current Logic: ${main?.content || "INIT"}. Evolve this code. Also, suggest a search query to verify if this logic is optimal. Respond ONLY in JSON: {logic_update, nexus_update, readme_update, maturity, research_query}` }],
-            response_format: { type: "json_object" }
-          })
+      const cerebrasRes = await PersistentFetcher.execute({
+          url: KERNAL_CONSTANTS.CEREBRAS_URL,
+          options: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cerebrasKey.trim()}` },
+              body: JSON.stringify({
+                model: 'llama-3.3-70b',
+                messages: [{ role: 'user', content: `Current Logic: ${main?.content || "INIT"}. Evolve this code. Also, suggest a search query to verify if this logic is optimal. Respond ONLY in JSON: {logic_update, nexus_update, readme_update, maturity, research_query}` }],
+                response_format: { type: "json_object" }
+              })
+          }
       });
       const cData = await cerebrasRes.json();
       const initialRes = JSON.parse(cData.choices[0].message.content);
@@ -153,13 +143,16 @@ export default function App() {
       dispatch({ type: 'SET_STATUS', value: 'RESEARCHING', objective: 'Gemini Deep Research...' });
       let researchData = "Search disabled.";
       try {
-        const geminiRes = await persistentFetch(`https://generativelanguage.googleapis.com/v1beta/models/${KERNAL_CONSTANTS.GEMINI_MODEL}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `Perform deep research for: ${initialRes.research_query || "latest web technologies 2024"}` }]}],
-              tools: [{ "google_search": {} }]
-            })
+        const geminiRes = await PersistentFetcher.execute({
+            url: `https://generativelanguage.googleapis.com/v1beta/models/${KERNAL_CONSTANTS.GEMINI_MODEL}:generateContent?key=${apiKey}`,
+            options: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Perform deep research for: ${initialRes.research_query || "latest web technologies 2024"}` }]}],
+                  tools: [{ "google_search": {} }]
+                })
+            }
         });
         const gData = await geminiRes.json();
         researchData = gData.candidates?.[0]?.content?.parts?.[0]?.text || "No research results returned.";
@@ -271,4 +264,3 @@ export default function App() {
     </div>
   );
 }
-
