@@ -16,6 +16,8 @@
  * @property {string} description - Semantic explanation of the metric.
  */
 
+// NOTE: Assuming the existence of a kernel-provided WeightedSchemaValidator tool for weight summation.
+
 // --- Constants ---
 
 export const TRUST_POLARITY = /** @type {{POSITIVE: TrustPolarityValue, NEGATIVE: TrustPolarityValue}} */ ({
@@ -55,6 +57,35 @@ const SCHEMA_DEFINITION = {
 
 // --- Validation and Export ---
 
+// Define a conceptual tool interface for execution environment compatibility
+const WeightedSchemaValidator = globalThis.WeightedSchemaValidator || {
+    execute: (args) => {
+        const { schema, weightKey, targetSum = 1.0, tolerance = 1e-9 } = args;
+        let currentSum = 0;
+        const items = Object.values(schema);
+
+        for (const item of items) {
+            if (item && typeof item === 'object' && typeof item[weightKey] === 'number') {
+                currentSum += item[weightKey];
+            } else {
+                return { isValid: false, error: `Item missing or invalid weight property '${weightKey}'.` };
+            }
+        }
+
+        const difference = Math.abs(currentSum - targetSum);
+        const isValid = difference < tolerance;
+
+        if (!isValid) {
+            return {
+                isValid: false,
+                error: `Metric weights must sum exactly to ${targetSum}. Current sum: ${currentSum}.`
+            };
+        }
+
+        return { isValid: true, totalWeight: currentSum };
+    }
+};
+
 /**
  * Validates the schema integrity, primarily ensuring weights sum correctly and polarities are valid.
  * Throws an error on configuration failure.
@@ -62,20 +93,28 @@ const SCHEMA_DEFINITION = {
  * @returns {string[]} Metric names
  */
 function validateSchemaAndGetNames(schema) {
-    const totalWeight = Object.values(schema).reduce((sum, item) => sum + item.weight, 0);
-    const WEIGHT_TOLERANCE = 1e-9; // Sufficient precision for floating point sum check
+    const WEIGHT_TOLERANCE = 1e-9; 
 
-    if (Math.abs(totalWeight - 1.0) > WEIGHT_TOLERANCE) {
-        throw new Error(
-            `[TC-SCHEMA ERROR] Initialization Failure: Metric weights must sum exactly to 1.0. Current sum: ${totalWeight}`
-        );
+    // 1. Validate Weight Summation using the dedicated tool
+    const validationResult = WeightedSchemaValidator.execute({
+        schema: schema,
+        weightKey: 'weight',
+        targetSum: 1.0,
+        tolerance: WEIGHT_TOLERANCE,
+    });
+
+    if (!validationResult.isValid) {
+        throw new Error(`[TC-SCHEMA ERROR] Initialization Failure: ${validationResult.error}`);
     }
     
-    // Check if all defined polarities are valid constants
+    // 2. Validate Polarity
+    const validPolarities = new Set([POSITIVE, NEGATIVE]);
     for (const key in schema) {
-        const p = schema[key].polarity;
-        if (p !== POSITIVE && p !== NEGATIVE) {
-             throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${p}`);
+        if (Object.prototype.hasOwnProperty.call(schema, key)) {
+            const item = schema[key];
+            if (!validPolarities.has(item.polarity)) {
+                 throw new Error(`[TC-SCHEMA ERROR] Invalid polarity value for metric '${key}': ${item.polarity}`);
+            }
         }
     }
 
