@@ -1,7 +1,7 @@
 {
-  "schema_version": "v94.1",
+  "schema_version": "v94.2",
   "description": "Defines the baseline qualitative (Policy) and quantitative (Constraint) invariants enforced by the GAX Axiomatics Agent during GSEP-C Stages. This structure separates static constraints from dynamic state manifests (MPAM, PVLM).",
-  "constraint_vector_id": "CVD-2024Q3-02-REVISED",
+  "constraint_vector_id": "CVD-2024Q3-02-REVISED-AGI_ALIGNED",
   "policy_prohibitions": [
     {
       "id": "P001",
@@ -18,6 +18,14 @@
       "severity": "FATAL",
       "scope": "RUNTIME_ENVIRONMENT",
       "action_on_breach": "HARD_VETO"
+    },
+    {
+      "id": "P003",
+      "type": "AGI_AUTONOMY",
+      "rule": "Modification or deletion of files within the /emergent directory requires explicit kernel approval (Architectural Veto). This protects novel discoveries.",
+      "severity": "HIGH",
+      "scope": "EMERGENT_SYSTEM",
+      "action_on_breach": "ARCHITECTURAL_VETO"
     }
   ],
   "quantitative_constraints": [
@@ -42,6 +50,17 @@
       "time_window_sec": 600,
       "comparison_margin": "BASELINE_DELTA",
       "action_on_breach": "HARD_VETO"
+    },
+    {
+      "constraint_id": "QC103",
+      "constraint_type": "EXPLORATION_DIVERSITY",
+      "target_artifact": "NavigatorSystem.BlacklistRatio",
+      "comparison_operator": "MIN_THRESHOLD",
+      "threshold_value": 0.05,
+      "threshold_units": "ratio",
+      "time_window_sec": 3600,
+      "comparison_margin": "FLEXIBLE_GOAL",
+      "action_on_breach": "TRIGGER_STAGNATION_REVIEW"
     }
   ]
 }
