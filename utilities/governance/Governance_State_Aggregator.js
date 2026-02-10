@@ -4,12 +4,18 @@
  * calculates derived governance metrics (e.g., system-wide average compliance), and orchestrates snapshot storage.
  */
 
-import { validateState } from '../validation/SchemaValidator';
+import DeclarativeConstraintValidator from 'tools/DeclarativeConstraintValidator';
+import GovernanceMetricDerivator from 'tools/GovernanceMetricDerivator';
 import GovernanceManifestSchema from '../../schema/governance/Governance_State_Manifest.schema.json';
+
+const COMPONENT_STATE_SCHEMA = GovernanceManifestSchema.definitions.ComponentState;
 
 class GovernanceStateAggregator {
   constructor() {
     this.latestState = {};
+    // Assume tools are injected or imported globally in the execution environment
+    this.validator = DeclarativeConstraintValidator; 
+    this.metricDerivator = GovernanceMetricDerivator;
   }
 
   /**
@@ -18,7 +24,9 @@ class GovernanceStateAggregator {
    * @param {object} componentState - The reported state data.
    */
   processUpdate(componentId, componentState) {
-    if (!validateState(componentState, GovernanceManifestSchema.definitions.ComponentState)) {
+    
+    // Use the DeclarativeConstraintValidator tool for schema validation
+    if (!this.validator.validate(componentState, COMPONENT_STATE_SCHEMA)) {
       console.error(`[Governance] Invalid state received from ${componentId}`);
       // Handle logging/alerting for failed compliance reporting
       return false;
@@ -35,17 +43,10 @@ class GovernanceStateAggregator {
   _recalculateManifest() {
     const componentStates = Object.values(this.latestState);
     
-    // 1. Calculate average policy compliance score
-    const totalCompliance = componentStates.reduce((sum, state) => sum + state.policyCompliance, 0);
-    const avgCompliance = componentStates.length > 0 ? totalCompliance / componentStates.length : 100;
-
-    // 2. Determine overall system status
-    let overallStatus = 'OPTIMAL';
-    if (componentStates.some(c => c.health === 'HALTED' || c.health === 'CRITICAL_FAILURE')) {
-      overallStatus = 'CRITICAL_FAILURE';
-    } else if (avgCompliance < 90) {
-      overallStatus = 'DEGRADED';
-    }
+    // Use the GovernanceMetricDerivator tool for complex metric derivation
+    const { avgCompliance, overallStatus } = this.metricDerivator.execute({
+        componentStates: componentStates
+    });
 
     // Construct the final, compliant manifest object
     this.fullManifest = {
@@ -54,10 +55,13 @@ class GovernanceStateAggregator {
       systemVersion: 'v94.1', // Placeholder: Should fetch dynamically
       timestamp: new Date().toISOString(),
       status: overallStatus,
+      derivedMetrics: {
+          averageCompliance: avgCompliance
+      },
       components: this.latestState
     };
     
-    console.log(`[Governance] Manifest updated. Status: ${overallStatus}`);
+    console.log(`[Governance] Manifest updated. Status: ${overallStatus} (Avg Compliance: ${avgCompliance.toFixed(2)}%)`);
     // In production, this would trigger storage and alert mechanisms.
   }
 
