@@ -1,15 +1,45 @@
+// Assuming dependency injection or module system provides the utility.
+// Note: In a production kernel, the tool below would be imported/injected.
+
+interface PathResolverTool {
+    execute(args: { obj: any, path: string, defaultValue?: any }): any;
+}
+
+// Placeholder definition for the injected utility interface
+const ObjectPathResolverUtility: PathResolverTool = {
+    execute: (args) => {
+        // Fallback logic, the actual execution is handled by the kernel loading the plugin
+        const parts = args.path.split('.');
+        let current = args.obj;
+
+        for (const part of parts) {
+            if (current && typeof current === 'object' && current[part] !== undefined) {
+                current = current[part];
+            } else {
+                return args.defaultValue;
+            }
+        }
+        return current;
+    }
+};
+
 /**
  * Configuration Loader for Sovereign AGI v94.1
  * Provides standardized, centralized access to global configuration parameters.
  * This utility ensures governance parameters, like default schema versions, are managed flexibly.
  */
 class ConfigurationLoader {
+    private config: Record<string, any>;
+    private pathResolver: PathResolverTool; 
+
     constructor() {
+        // Inject the reusable path resolution tool
+        this.pathResolver = ObjectPathResolverUtility;
         // Load configuration from all sources (e.g., environment variables, static files, defaults)
         this.config = this._loadDefaultConfig(); 
     }
 
-    _loadDefaultConfig() {
+    private _loadDefaultConfig(): Record<string, any> {
         // Defines critical governance defaults for module initialization.
         return {
             governance: {
@@ -26,22 +56,17 @@ class ConfigurationLoader {
 
     /**
      * Retrieves a configuration value using a dot-notated path (e.g., 'governance.mpseSchemaVersion').
+     * Utilizes the ObjectPathResolverUtility for robust path resolution.
      * @param {string} path - The configuration key path.
-     * @param {*} [defaultValue=undefined] - The value to return if the path is not found.
-     * @returns {*} The configuration value.
+     * @param {any} [defaultValue=undefined] - The value to return if the path is not found.
+     * @returns {any} The configuration value.
      */
-    get(path, defaultValue) {
-        const parts = path.split('.');
-        let current = this.config;
-
-        for (const part of parts) {
-            if (current && typeof current === 'object' && part in current) {
-                current = current[part];
-            } else {
-                return defaultValue;
-            }
-        }
-        return current;
+    get(path: string, defaultValue?: any): any {
+        return this.pathResolver.execute({
+            obj: this.config,
+            path: path,
+            defaultValue: defaultValue
+        });
     }
 }
 
