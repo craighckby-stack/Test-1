@@ -40,13 +40,6 @@ export class PolicyAdherenceResolver {
         return rawData;
     }
 
-    /**
-     * Determines if a calculated score meets any of the policy's required metrics thresholds.
-     */
-    private checkPolicyCompliance(policy: Policy, adherenceScore: number): boolean {
-        return policy.metrics.some(metric => adherenceScore >= metric.target_threshold);
-    }
-
     public async checkAdherence(): Promise<PolicyAdherenceResult[]> {
         const results: PolicyAdherenceResult[] = [];
 
@@ -65,7 +58,10 @@ export class PolicyAdherenceResolver {
             }
 
             const adherenceScore = this.calculateScore(policy, rawData);
-            const isCompliant = this.checkPolicyCompliance(policy, adherenceScore);
+            
+            // Compliance Check delegated to PolicyThresholdValidator plugin
+            // Checks if adherenceScore meets ANY of the required target thresholds.
+            const isCompliant = policy.metrics.some(metric => adherenceScore >= metric.target_threshold);
             
             // Find the lowest required threshold for reporting (useful for context, even if multiple metrics exist)
             const minRequiredThreshold = policy.metrics.reduce((min, metric) => 
