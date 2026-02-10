@@ -22,10 +22,10 @@ export interface ChronoIdGenerator {
 
   /**
    * Extracts the creation timestamp from a generated ID.
-   * 
+   *
    * Implementation must handle the decoding specific to the underlying 
    * algorithm (e.g., ULID decoding of the first 48 bits).
-   * 
+   *
    * @param chronoId The Chronology ID.
    * @returns The associated Unix epoch timestamp (milliseconds).
    */
@@ -35,7 +35,7 @@ export interface ChronoIdGenerator {
    * Validates if the given string adheres to the expected ChronoId format and 
    * encoding (e.g., Crockford Base32 for ULID). 
    * This ensures runtime integrity before database lookups or serialization.
-   * 
+   *
    * @param value The string to validate.
    * @returns True if valid, false otherwise.
    */
