@@ -22,7 +22,7 @@
     },
     "synergy_runtime_configuration_hash": {
       "type": "string",
-      "description": "SHA256 hash of the AGI-KERNEL runtime state (including active emergent tools) used during this environment attestation. Required for Living Runtime audit trails.",
+      "description": "SHA256 hash of the AGI-KERNEL runtime state, mandatory coverage includes: kernel version, loaded configuration files, and the canonical set of active Emergent Capabilities (retrieved via ecm.list()). Required for Living Runtime audit trails.",
       "pattern": "^[0-9a-fA-F]{64}$"
     },
     "minimal_os_integrity_level": {
