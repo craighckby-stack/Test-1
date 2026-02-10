@@ -6,8 +6,8 @@ const ContentValidatorRegistry = require('./ContentValidatorRegistry');
  * This service decouples validation execution from validator registration, ensuring robust
  * and parallel quality assurance for the AGI kernel's large codebase operations.
  *
- * Improvement Note (Cycle 0): Introduced controlled concurrency to manage resource utilization
- * when validating large batches of artifacts simultaneously, critical for a codebase of 2,300+ files.
+ * Improvement Note (Cycle 0): Replaced complex Promise.race concurrency control with a stable worker pool pattern
+ * to improve resource management, efficiency, and clarity when validating large batches.
  */
 class ArtifactValidationService {
     /**
@@ -119,6 +119,7 @@ class ArtifactValidationService {
 
     /**
      * Executes defined validation profiles against provided content/artifacts, respecting concurrency limits.
+     * Uses a robust worker pool pattern for controlled parallel execution.
      * 
      * @param {Array<Object>} artifacts - List of artifact descriptors.
      * @returns {Promise<Array<Object>>} Validation results including execution metadata and details.
@@ -129,35 +130,28 @@ class ArtifactValidationService {
             throw new Error('ArtifactValidationService: Artifacts must be provided as an array.');
         }
 
+        const taskQueue = artifacts.map((artifact, index) => ({ artifact, index }));
         const results = [];
-        const runningPromises = [];
-        let index = 0;
+        const runningWorkers = [];
 
-        // Implementation of controlled concurrency using promise queue
-        for (const artifact of artifacts) {
-            const promise = this._runSingleValidation(artifact, index++);
-            
-            // Add promise to the running list
-            runningPromises.push(promise);
-
-            // Once the promise resolves, remove it from the running list and add result to final list
-            const completedPromise = promise.then(result => {
-                // Remove the resolved promise from the running list
-                // Note: Index lookup is safe here since promise identity is preserved.
-                runningPromises.splice(runningPromises.indexOf(promise), 1);
+        // Worker function: continuously pulls tasks from the front of the queue until empty
+        const worker = async () => {
+            let task;
+            while ((task = taskQueue.shift())) {
+                const result = await this._runSingleValidation(task.artifact, task.index);
                 results.push(result);
-            });
-
-            // If we hit the concurrency limit, wait for the *next* promise to complete before continuing the loop
-            if (runningPromises.length >= this.concurrencyLimit) {
-                // Wait for the soonest promise to resolve to free up a slot
-                await Promise.race(runningPromises);
             }
+        };
+
+        // Initialize workers up to the concurrency limit or total number of tasks
+        const workerCount = Math.min(this.concurrencyLimit, taskQueue.length);
+        for (let i = 0; i < workerCount; i++) {
+            runningWorkers.push(worker());
         }
 
-        // Wait for all remaining validations to finish
-        if (runningPromises.length > 0) {
-            await Promise.all(runningPromises);
+        // Wait for all active workers to complete their assigned tasks
+        if (runningWorkers.length > 0) {
+            await Promise.all(runningWorkers);
         }
 
         return results;
