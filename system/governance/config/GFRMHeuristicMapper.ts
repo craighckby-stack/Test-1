@@ -10,19 +10,25 @@ export type RiskHeuristicFunction = (
     thresholds: GFRMSpec['t1_thresholds']
 ) => { contribution: number, triggered: boolean, context: any };
 
+// CRITICAL: We declare the external dependency on the new plugin's interface.
+declare const RuleFunctionRegistryTool: {
+    register: (id: string, func: RiskHeuristicFunction) => boolean;
+    get: (id: string) => RiskHeuristicFunction | undefined;
+};
+
 /**
  * The GFRM Heuristic Mapper is responsible for bridging abstract rule definitions (IDs, Weights)
  * in the GFRMSpec with the concrete, executable AGI risk evaluation logic (RiskHeuristicFunction).
- * This utility abstracts complex business logic away from the RuleEvaluationService.
+ * This utility abstracts complex business logic away from the RuleEvaluationService, relying on 
+ * the RuleFunctionRegistryTool for function mapping storage.
  */
 export class GFRMHeuristicMapper {
-    // Static map storing the compiled evaluation functions keyed by rule ID.
-    private static heuristicMap: Map<string, RiskHeuristicFunction> = new Map();
+    // Note: The static heuristicMap is removed, replaced by the plugin interface.
 
     // Static initialization block for registering core heuristics.
     static {
         // Example 1: Context Drift Evaluation
-        GFRMHeuristicMapper.heuristicMap.set('CTX_DRIFT_01', (audit, weight, thresholds) => {
+        RuleFunctionRegistryTool.register('CTX_DRIFT_01', (audit, weight, thresholds) => {
             const index = audit.context_metrics.drift_index;
             // Assumes 'max_drift_index_moderate' is defined in thresholds
             if (index > thresholds.max_drift_index_moderate) {
@@ -33,7 +39,7 @@ export class GFRMHeuristicMapper {
         });
 
         // Example 2: External API Latency Anomaly
-        GFRMHeuristicMapper.heuristicMap.set('EXEC_LATENCY_02', (audit, weight, thresholds) => {
+        RuleFunctionRegistryTool.register('EXEC_LATENCY_02', (audit, weight, thresholds) => {
             const currentLatency = audit.runtime_metrics.latency_ms;
             if (currentLatency > thresholds.avg_latency_ms * 1.5) {
                 // Assign 50% of the rule weight for moderate deviation
@@ -55,7 +61,8 @@ export class GFRMHeuristicMapper {
         // Iterate over all tiers defined in the spec
         for (const tierRules of Object.values(spec.governance_tiers)) {
             for (const rule of tierRules) {
-                const func = GFRMHeuristicMapper.heuristicMap.get(rule.id);
+                // Use the tool's getter instead of direct map access
+                const func = RuleFunctionRegistryTool.get(rule.id);
                 if (func) {
                     executableRules.push({
                         ruleId: rule.id,
