@@ -2,19 +2,23 @@
  * Protocol Component Version Resolver (Sovereign AGI v94.1)
  * Manages the canonical list of compatible component versions for the current protocol runtime.
  * This utility is crucial for ensuring that requested CHR dependencies meet the current system's architectural constraints.
+ * 
+ * Dependency: SemVerCompatibilityChecker plugin.
  */
 class VersionResolver {
     /**
      * @param {Object} protocolConfig - The global configuration defining baseline system dependencies.
+     * @param {Object} toolRunner - Mechanism to execute AGI kernel tools/plugins (e.g., { executeTool: (name, args) => result }).
      */
-    constructor(protocolConfig) {
+    constructor(protocolConfig, toolRunner) {
         // Expected format: { component_name: { current_version: 'x.y.z', allowed_range: '^x.0.0' }, ... }
         this.baselineVersions = protocolConfig.system_dependencies || {};
+        this.toolRunner = toolRunner;
     }
 
     /**
      * Checks if a requested component version lock is compatible with the current runtime protocol's baseline.
-     * Note: Requires a dedicated semver library (e.g., 'semver') in a real implementation.
+     * Uses the SemVerCompatibilityChecker plugin for robust semantic version evaluation.
      * 
      * @param {string} componentName 
      * @param {string} requestedVersionLock Semantic version string or range (e.g., "^1.2.0").
@@ -28,15 +32,25 @@ class VersionResolver {
             return true; 
         }
 
-        // --- Placeholder for actual semver logic ---
-        // In production, this would use a library like `semver.satisfies(baseline.current_version, requestedVersionLock)`
+        const currentVersion = baseline.current_version;
+
+        // CRITICAL: Use the extracted plugin for robust semver checking.
         
-        // Example high-level check: disallow versions targeting future protocols.
-        if (requestedVersionLock.includes('^95') || requestedVersionLock.includes('^96')) {
-            return false; 
+        if (typeof this.toolRunner !== 'object' || typeof this.toolRunner.executeTool !== 'function') {
+            console.error("ToolRunner unavailable. Cannot perform robust version compatibility check.");
+            // Fallback: only allow exact matches if the tool cannot run.
+            return currentVersion === requestedVersionLock;
         }
-        
-        return true;
+
+        try {
+            return this.toolRunner.executeTool('SemVerCompatibilityChecker', {
+                targetVersion: currentVersion,
+                requestedRange: requestedVersionLock
+            });
+        } catch (e) {
+            console.error(`Error executing SemVerCompatibilityChecker for ${componentName}:`, e);
+            return false; // Fail safe on execution error
+        }
     }
 
     /**
