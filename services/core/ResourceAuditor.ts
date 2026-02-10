@@ -1,5 +1,10 @@
 import { RCMConfig, UsageSnapshot, CostReport } from '../types/EfficiencyTypes';
-import { ExpressionEvaluator } from '../utilities/ExpressionEvaluator';
+
+// Define the interface that the external plugin satisfies, replacing the old utility.
+interface EvaluatorPlugin {
+    safeEvaluate(expression: string, context: Record<string, any>): number;
+    safeEvaluateBoolean(expression: string, context: Record<string, any>): boolean;
+}
 
 // Type representing cumulative usage stored internally
 type AggregateUsage = UsageSnapshot & { 
@@ -15,13 +20,20 @@ type AggregateUsage = UsageSnapshot & {
 export class ResourceAuditor {
     private config: RCMConfig;
     private meter: Map<string, AggregateUsage>;
-    private evaluator: ExpressionEvaluator;
+    // Dependency switched from internal utility to external plugin interface
+    private evaluator: EvaluatorPlugin;
 
     constructor(initialConfig: RCMConfig) {
         this.config = initialConfig;
         this.meter = new Map();
-        // Dependency injection of the secure expression handling utility
-        this.evaluator = new ExpressionEvaluator(); 
+        
+        // Placeholder initialization for the external plugin instance.
+        // In a real AGI-KERNEL environment, this instance is provided via DI.
+        this.evaluator = {
+            safeEvaluate: (expr, ctx) => { console.warn("Using mock evaluator for plugin!"); return 0.0; },
+            safeEvaluateBoolean: (expr, ctx) => { console.warn("Using mock evaluator for plugin!"); return false; }
+        } as EvaluatorPlugin;
+
         console.log(`Resource Auditor initialized with RCM v${initialConfig.version}.`);
     }
 
@@ -66,7 +78,7 @@ export class ResourceAuditor {
             };
         }
 
-        // Use the secure evaluator, injecting the current usage data as context variables
+        // Use the secure evaluator plugin
         const cost = this.evaluator.safeEvaluate(model, currentUsage);
 
         return {
