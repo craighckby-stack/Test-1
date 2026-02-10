@@ -15,95 +15,76 @@ const ERROR_CODES = {
  * GSEP Alignment: Stage 5 / Maintenance
  * 
  * Purpose: Ensures schema coherence and integrity validation for all governance log streams
- * before ingestion by analytic engines (GMRE, SEA, EDP). Refactored to utilize a decoupled 
- * schema configuration (governanceLogSchema) for runtime adaptability and cleaner logic flow.
+ * before ingestion by analytic engines (GMRE, SEA, EDP). Refactored to utilize the 
+ * StructuredDataValidator plugin for decoupled validation and coercion logic.
  */
 
 class LogNormalizationModule {
+    private schemaDefinition: any;
+    // In a kernel environment, this would be injected or retrieved via a service.
+    // We treat it as an external dependency defined by the plugin response.
+    private validator: any; 
+
     constructor() {
         // Load externalized, immutable schema definition
         this.schemaDefinition = GOVERNANCE_SCHEMA; 
-        this.requiredKeys = Object.keys(this.schemaDefinition);
+        
+        // Initialize the validator plugin (kernel injection placeholder)
+        // NOTE: The actual plugin instance will be provided by the AGI-KERNEL.
+        this.validator = null; // Placeholder for injection/retrieval
     }
 
-    // --- Private Utility Methods for Clarity ---
-
-    _checkExistence(key, rawLogEntry, definition) {
-        if (definition.required && !(key in rawLogEntry)) {
-            throw new NormalizationError(
-                `Missing required field: ${key}`,
-                rawLogEntry, key, ERROR_CODES.MISSING_FIELD
-            );
+    /** 
+     * Utility to map plugin error codes to module-specific error codes.
+     */
+    private _mapErrorCode(pluginCode: string): string {
+        switch (pluginCode) {
+            case 'VALIDATOR_100': return ERROR_CODES.MISSING_FIELD;
+            case 'VALIDATOR_200': return ERROR_CODES.CONSTRAINT_FAIL;
+            case 'VALIDATOR_300': return ERROR_CODES.COERCION_FAIL;
+            default: return ERROR_CODES.RUNTIME_ERROR;
         }
     }
-
-    _applyCoercion(key, value, rawLogEntry, definition) {
-        if (definition.coercer && value !== undefined) {
-            try {
-                return definition.coercer(value);
-            } catch (e) {
-                throw new NormalizationError(
-                    `Coercion failed for field: ${key}. Input: ${rawLogEntry[key]}. Error: ${e.message}`,
-                    rawLogEntry, key, definition.error_code || ERROR_CODES.COERCION_FAIL
-                );
-            }
-        }
-        return value;
-    }
-
-    _validateIntegrity(key, value, rawLogEntry, definition) {
-        // Skip validation if the field was optional and missing
-        if (definition.validator && value !== undefined && !definition.validator(value)) {
-            const message = definition.error 
-                ? `Constraint failed: ${definition.error}` 
-                : `Integrity check failed for value: ${value}`;
-
-            throw new NormalizationError(
-                message,
-                rawLogEntry, key, definition.error_code || ERROR_CODES.CONSTRAINT_FAIL
-            );
-        }
-    }
-
 
     /**
      * Normalizes and validates a raw log entry based on the externalized schema definition.
+     * Delegates execution to the StructuredDataValidator plugin.
      * @param {Object} rawLogEntry - The raw data.
      * @returns {Object} A clean, validated log object.
      * @throws {NormalizationError} If the log entry violates the mandated schema or constraints.
      */
-    normalize(rawLogEntry) {
-        if (typeof rawLogEntry !== 'object' || rawLogEntry === null) {
+    normalize(rawLogEntry: any): object {
+        if (!this.validator) {
              throw new NormalizationError(
-                "Input must be a non-null object.",
-                rawLogEntry, 'input', ERROR_CODES.CONSTRAINT_FAIL 
+                "LogNormalizationModule requires initialization of StructuredDataValidator plugin.",
+                rawLogEntry, 'system', ERROR_CODES.RUNTIME_ERROR
+            ); 
+        }
+        
+        try {
+            // 1. Execute external validation and coercion using the plugin
+            return this.validator.execute({
+                rawLogEntry: rawLogEntry,
+                schemaDefinition: this.schemaDefinition
+            });
+
+        } catch (error: any) {
+            // 2. Map plugin errors (ValidationError) back to the domain-specific NormalizationError
+            if (error.name === 'ValidationError') { 
+                 throw new NormalizationError(
+                    error.message,
+                    error.rawEntry,
+                    error.field,
+                    this._mapErrorCode(error.code) 
+                );
+            }
+            
+            // 3. Catch unexpected runtime errors
+            throw new NormalizationError(
+                `Unexpected LNM runtime error: ${error.message}`,
+                rawLogEntry, 'runtime', ERROR_CODES.RUNTIME_ERROR
             );
         }
-        
-        const normalized = {};
-
-        for (const key of this.requiredKeys) {
-            const definition = this.schemaDefinition[key];
-
-            // 1. Existence Check
-            this._checkExistence(key, rawLogEntry, definition);
-            
-            let value = rawLogEntry[key];
-
-            if (value !== undefined) {
-                // 2. Coercion
-                value = this._applyCoercion(key, value, rawLogEntry, definition);
-
-                // 3. Constraint/Integrity Validation
-                this._validateIntegrity(key, value, rawLogEntry, definition);
-            }
-            
-            if (value !== undefined) {
-                normalized[key] = value;
-            }
-        }
-        
-        return normalized;
     }
 
     /**
@@ -112,9 +93,9 @@ class LogNormalizationModule {
      * @param {Array<Object>} logArray - Batch of raw log entries.
      * @returns {{success: Array<Object>, failures: Array<Object>}} Partitioned results.
      */
-    processBatch(logArray) {
+    processBatch(logArray: Array<any>): { success: Array<object>, failures: Array<object> } {
         if (!Array.isArray(logArray)) {
-             return { success: [], failures: [{
+             return { success: [], failures: [{ 
                 rawEntry: logArray, 
                 error: { message: "Batch input must be an array.", code: ERROR_CODES.RUNTIME_ERROR, name: 'TypeError' }
             }]};
@@ -145,7 +126,7 @@ class LogNormalizationModule {
                     results.failures.push({
                         rawEntry: rawLogEntry,
                         error: {
-                            message: `Unexpected LNM runtime error during normalization: ${error.message}`,
+                            message: `Unexpected LNM runtime error during batch processing: ${error.message}`,
                             code: ERROR_CODES.RUNTIME_ERROR,
                             name: 'InternalRuntimeError'
                         }
