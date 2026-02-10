@@ -1,9 +1,9 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "document_purpose": "Evolution Cycle and Validation Metrics (ECVM) Store",
-  "last_updated_cycle": 1,
+  "last_updated_cycle": 2,
   "system_guidance": {
-    "description": "Configuration for monitoring self-improvement and stagnation protocols, tailored for Navigator Edition 7.4.4.",
+    "description": "Configuration for monitoring self-improvement and stagnation protocols, tailored for Navigator Edition 7.4.4. Structure refined for enhanced Memory and Navigation tracking (v1.2).",
     "repository_scale": 2300,
     "stagnation_cycles_max": 5,
     "mutation_temperature_baseline": 1.0,
@@ -17,26 +17,56 @@
     }
   },
   "navigator_state": {
+    "stagnation_counter": 0,
     "current_blacklist_size": 0,
     "max_blacklist_target": 50,
     "files_touched_unique": 1,
-    "emergence_count": 0
+    "emergence_count": 0,
+    "current_blacklist": [],
+    "recent_target_status": "Improved"
+  },
+  "directory_exploration_summary": {
+    "note": "Tracks file indexing and coverage for Diversity Enforcement across priority areas.",
+    "/core": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/agents": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/emergent": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/governance": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/architecture": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/orchestration": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/data": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0},
+    "/utils": {"files_indexed": 0, "files_touched": 0, "last_touch_cycle": 0}
   },
   "capability_history": [
     {
       "cycle": 1,
-      "maturity": 5,
+      "maturity": 0,
       "Navigation": 2,
       "Logic": 3,
-      "Memory": 2
+      "Memory": 2,
+      "stagnation_check": "Pass"
+    },
+    {
+      "cycle": 2,
+      "maturity": 0,
+      "Navigation": 3,
+      "Logic": 4,
+      "Memory": 3,
+      "stagnation_check": "N/A - Infrastructure Update"
     }
   ],
+  "emergence_log": [],
   "recent_actions": [
     {
       "cycle": 1,
       "target": "GACR/ECVM.json",
       "action": "Metric Standardization and Navigator State Initialization",
       "status": "Refined"
+    },
+    {
+      "cycle": 2,
+      "target": "GACR/ECVM.json",
+      "action": "Metric Infrastructure Optimization (Adding Stagnation, Blacklist, and Exploration Tracking)",
+      "status": "Improved"
     }
   ]
 }
