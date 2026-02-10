@@ -111,6 +111,18 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         # AGI-KERNEL Improvement (Cycle 1): Handle Deques, common in /agents for history tracking.
         if isinstance(obj, collections.deque):
             return list(obj)
+            
+        # AGI-KERNEL Improvement (Cycle 8): Handle generic Iterators/Generators deterministically (Logic/Navigation).
+        # This is crucial for serializing streaming data or results from map/filter operations used in /data.
+        # Check for iterable property, excluding common built-in sequences that are already handled.
+        if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, collections.Mapping, list, tuple, set, frozenset, collections.deque)):
+            try:
+                # Explicitly materialize to a list. This consumes the generator/iterator but guarantees
+                # a deterministic, hashable sequence result required for canonical serialization.
+                return list(obj)
+            except TypeError:
+                # If iteration fails (e.g., custom object with __iter__ that errors), pass and let base handle it.
+                pass
 
         # 2. Handle common complex types by converting to deterministic strings
         if isinstance(obj, datetime):
