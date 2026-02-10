@@ -35,19 +35,27 @@ def get_utc_timestamp() -> str:
 # Define default governance configuration for consistency and centralization
 class ACVD_ConfigDefaults:
     """Centralized definition of default governance configuration parameters."""
-    SCHEMA_VERSION = "1.1.2" # Updated version due to persistence control integration and enhanced guidance
+    SCHEMA_VERSION = "1.1.3" # Version increment for heuristic persistence/abstraction
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
     DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # Threshold for tuning proposal stability
     DEFAULT_MAX_LOG_QUEUE_SIZE = 500 # Limit log queue size for performance/memory robustness
-    DEFAULT_PERSIST_CONFIG = True # NEW: Control persistence of dynamic changes (Memory/Infrastructure)
+    DEFAULT_PERSIST_CONFIG = True # Control persistence of dynamic changes (Memory/Infrastructure)
     
-    # New Heuristic Parameters (Logic/Memory/Stability)
+    # Heuristic Parameters (Logic/Memory/Stability)
     DEFAULT_HEURISTIC_INCREASE_THRESHOLD = 1.6 # Deviation threshold for increasing weight (1.6x observed/expected ratio)
     DEFAULT_HEURISTIC_DECREASE_THRESHOLD = 0.4 # Deviation threshold for decreasing weight (0.4x observed/expected ratio)
     DEFAULT_MAX_ADJUSTMENT_RATE = 0.10 # Max proportional adjustment in one cycle (10% of remaining gap)
     DEFAULT_HEURISTIC_RESPONSIVENESS = 0.15 # Defines how aggressively the model adjusts weights based on deviation.
+    
+    # NEW: Structured Heuristic Config defaults for easier dynamic loading/persisting (Memory/Autonomy)
+    HEURISTIC_CONFIG_DEFAULTS = {
+        'heuristic_increase_threshold': DEFAULT_HEURISTIC_INCREASE_THRESHOLD,
+        'heuristic_decrease_threshold': DEFAULT_HEURISTIC_DECREASE_THRESHOLD,
+        'max_adjustment_rate': DEFAULT_MAX_ADJUSTMENT_RATE,
+        'heuristic_responsiveness': DEFAULT_HEURISTIC_RESPONSIVENESS
+    }
     
     # Base weights, used if no configuration is found in the schema (static reference)
     BASE_SEVERITY_WEIGHTS = {
@@ -71,14 +79,12 @@ class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
     This version enhances Meta-Reasoning and Autonomy by:
-    1. Implementing configurable persistence control (`persist_config`), allowing the kernel to autonomously
-       decide if learned heuristic weights should be saved (Infrastructure Authority).
-    2. Refining the `perform_self_assessment` strategic guidance to better prioritize tuning actions
-       based on current operational health (Logic/Autonomy).
-    3. Maintaining robust error handling and log queue management.
+    1. Implementing configurable persistence control (`persist_config`).
+    2. Making the dynamic weight tuning heuristics configurable and persistable, enhancing Memory retention.
+    3. Introducing an atomic log consumption method (`get_and_clear_logs`) for robust Telemetry integration.
     """
 
-    # Use centralized defaults
+    # Use centralized defaults for non-dynamic constants
     DEFAULT_MIN_SAFETY_SCORE = ACVD_ConfigDefaults.DEFAULT_MIN_SAFETY_SCORE
     DEFAULT_FALLBACK_WEIGHT = ACVD_ConfigDefaults.DEFAULT_FALLBACK_WEIGHT
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = ACVD_ConfigDefaults.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
@@ -86,12 +92,6 @@ class ACVD_DecisionEngine:
     DEFAULT_MAX_LOG_QUEUE_SIZE = ACVD_ConfigDefaults.DEFAULT_MAX_LOG_QUEUE_SIZE
     _BASE_SEVERITY_WEIGHTS = ACVD_ConfigDefaults.BASE_SEVERITY_WEIGHTS
     _INTERNAL_ISSUE_MAP = ACVD_ConfigDefaults.INTERNAL_ISSUE_MAP
-    
-    # Heuristic tuning constants (derived from defaults)
-    _HEURISTIC_INCREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_INCREASE_THRESHOLD
-    _HEURISTIC_DECREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_DECREASE_THRESHOLD
-    _MAX_ADJUSTMENT_RATE = ACVD_ConfigDefaults.DEFAULT_MAX_ADJUSTMENT_RATE
-    _HEURISTIC_RESPONSIVENESS = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_RESPONSIVENESS
     
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         # Use Path objects internally for robust file handling
@@ -110,6 +110,9 @@ class ACVD_DecisionEngine:
         self.internal_penalty_multiplier: float = self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
         self.max_log_queue_size: int = self.DEFAULT_MAX_LOG_QUEUE_SIZE
         self.persist_config: bool = ACVD_ConfigDefaults.DEFAULT_PERSIST_CONFIG # Initialize persistence control
+        
+        # Heuristic configuration storage (NEW: Memory/Autonomy)
+        self._heuristic_config: Dict[str, float] = ACVD_ConfigDefaults.HEURISTIC_CONFIG_DEFAULTS.copy()
         
         self._load_configuration()
         
@@ -153,7 +156,6 @@ class ACVD_DecisionEngine:
         )
         
         # Load severity weights dynamically (supports Meta-Reasoning/Autonomy)
-        # Use .copy() to ensure BASE_SEVERITY_WEIGHTS are included if not all are defined in schema config
         self.severity_weights = self._BASE_SEVERITY_WEIGHTS.copy()
         self.severity_weights.update(config.get(
             'severity_weights',
@@ -172,7 +174,25 @@ class ACVD_DecisionEngine:
             self.DEFAULT_MAX_LOG_QUEUE_SIZE
         )
         
-        # Load persistence control (NEW: Infrastructure Authority)
+        # Load Heuristic configuration (NEW: Memory/Autonomy)
+        self._heuristic_config['heuristic_increase_threshold'] = config.get(
+            'heuristic_increase_threshold',
+            ACVD_ConfigDefaults.DEFAULT_HEURISTIC_INCREASE_THRESHOLD
+        )
+        self._heuristic_config['heuristic_decrease_threshold'] = config.get(
+            'heuristic_decrease_threshold',
+            ACVD_ConfigDefaults.DEFAULT_HEURISTIC_DECREASE_THRESHOLD
+        )
+        self._heuristic_config['max_adjustment_rate'] = config.get(
+            'max_adjustment_rate',
+            ACVD_ConfigDefaults.DEFAULT_MAX_ADJUSTMENT_RATE
+        )
+        self._heuristic_config['heuristic_responsiveness'] = config.get(
+            'heuristic_responsiveness',
+            ACVD_ConfigDefaults.DEFAULT_HEURISTIC_RESPONSIVENESS
+        )
+        
+        # Load persistence control (Infrastructure Authority)
         self.persist_config = config.get(
             'persist_config',
             ACVD_ConfigDefaults.DEFAULT_PERSIST_CONFIG
@@ -232,7 +252,7 @@ class ACVD_DecisionEngine:
             raise ConfigurationError(f"Unexpected error loading ACVD schema: {e}")
             
     def _save_schema(self):
-        """Persists the current schema (including dynamically updated severity weights)
+        """Persists the current schema (including dynamically updated severity weights and heuristics)
         using an atomic write pattern (temp file) to ensure fault tolerance (Pathlib integration).
         """
         if not self.persist_config:
@@ -252,7 +272,11 @@ class ACVD_DecisionEngine:
         save_data['config']['min_safety_score'] = self.safety_threshold
         save_data['config']['internal_penalty_multiplier'] = self.internal_penalty_multiplier
         
-        # Persist infrastructure constraints (Including new persistence flag)
+        # Persist Heuristic Tuning parameters (NEW: Memory/Autonomy Persistence)
+        for key, value in self._heuristic_config.items():
+            save_data['config'][key] = value
+        
+        # Persist infrastructure constraints
         save_data['config']['max_log_queue_size'] = self.max_log_queue_size
         save_data['config']['persist_config'] = self.persist_config # Persist control flag
 
@@ -295,7 +319,7 @@ class ACVD_DecisionEngine:
     def _apply_weight_heuristic(self, issue_type: str, penalty_value: float, total_impact: float, current_weight: float, total_current_weight: float) -> Dict[str, Any]:
         """ 
         (META-REASONING CORE) Dynamic weight tuning heuristic logic with improved dampening, responsiveness, and memory retention.
-        The adjustment is proportional to the deviation between observed risk and expected weight ratio, controlled by responsiveness factor.
+        Now uses configurable parameters loaded from schema via self._heuristic_config. (Memory/Autonomy)
         """
         
         suggestion_type = "MAINTAIN_STABILITY"
@@ -312,33 +336,39 @@ class ACVD_DecisionEngine:
         expected_ratio = current_weight / total_current_weight # Expected ratio based on current weights
         
         deviation = contribution_ratio / expected_ratio if expected_ratio > 0 else 0.0
+        
+        # Reference dynamic heuristic configuration
+        H_INC_THRESH = self._heuristic_config['heuristic_increase_threshold']
+        H_DEC_THRESH = self._heuristic_config['heuristic_decrease_threshold']
+        MAX_ADJ_RATE = self._heuristic_config['max_adjustment_rate']
+        H_RESPONSIVENESS = self._heuristic_config['heuristic_responsiveness']
 
         # Heuristic 1: Increase Penalty (Under-represented Risk)
-        if deviation > self._HEURISTIC_INCREASE_THRESHOLD and current_weight < 1.0:
+        if deviation > H_INC_THRESH and current_weight < 1.0:
             
             # Calculate the proportional distance to maximum weight (1.0)
             adjustment_gap = 1.0 - current_weight
             
             # Factor in the deviation magnitude above the threshold
-            deviation_magnitude_factor = (deviation - self._HEURISTIC_INCREASE_THRESHOLD) / self._HEURISTIC_INCREASE_THRESHOLD # Normalize to threshold context
+            deviation_magnitude_factor = (deviation - H_INC_THRESH) / H_INC_THRESH # Normalize to threshold context
             
             # Adjustment is proportional to the gap, smoothed by responsiveness and deviation
-            proportional_adjustment = adjustment_gap * self._HEURISTIC_RESPONSIVENESS * deviation_magnitude_factor
+            proportional_adjustment = adjustment_gap * H_RESPONSIVENESS * deviation_magnitude_factor
             
             # Limit total adjustment by MAX_ADJUSTMENT_RATE
-            suggested_adjustment = min(adjustment_gap * self._MAX_ADJUSTMENT_RATE, proportional_adjustment)
+            suggested_adjustment = min(adjustment_gap * MAX_ADJ_RATE, proportional_adjustment)
             
             new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
             suggestion_type = "INCREASE_PENALTY"
 
         # Heuristic 2: Decrease Penalty (Over-represented Risk / Stable)
-        elif deviation < self._HEURISTIC_DECREASE_THRESHOLD and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
+        elif deviation < H_DEC_THRESH and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
             
             # Calculate the proportional distance to the fallback weight
             adjustment_gap = current_weight - self.DEFAULT_FALLBACK_WEIGHT
             
             # Decrease is proportional to the gap, smoothed by responsiveness (Memory retention pattern)
-            suggested_adjustment = adjustment_gap * self._HEURISTIC_RESPONSIVENESS
+            suggested_adjustment = adjustment_gap * H_RESPONSIVENESS
             
             new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
             suggestion_type = "DECREASE_PENALTY"
@@ -501,8 +531,20 @@ class ACVD_DecisionEngine:
 
 
     def get_logs(self) -> List[Dict[str, Any]]:
-        """Provides access to a copy of the internal log queue for external monitoring systems."""
+        """Provides access to a copy of the internal log queue for external monitoring systems. (Non-destructive)."""
         return self._log_queue[:] # Return a copy
+        
+    def get_and_clear_logs(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves a copy of all accumulated logs and then flushes the internal queue.
+        This provides atomic consumption for external Telemetry and Monitoring systems, 
+        guaranteeing log integrity before clearance. (Infrastructure Authority)
+        """
+        logs_to_return = self._log_queue[:]
+        if self._log_queue:
+            self._log_queue.clear()
+            self._log_status("DEBUG", f"Internal log queue successfully retrieved and cleared ({len(logs_to_return)} entries).", "LOG_CONSUMPTION_FLUSH")
+        return logs_to_return
         
     def get_log_summary(self) -> Dict[str, int]:
         """Provides a quick count summary of accumulated internal logs for monitoring systems.
