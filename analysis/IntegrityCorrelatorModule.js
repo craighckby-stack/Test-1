@@ -4,6 +4,14 @@
  * against historical constraint violation models (UFRM/CFTM) to determine root cause and policy magnitude.
  */
 
+// Assuming PolicyMagnitudeDerivationTool is available globally or injected via the kernel context.
+declare var PolicyMagnitudeDerivationTool: {
+    execute: (args: { temporalSkewMagnitude: number, axiomBreachesCount: number }) => {
+        requiredThresholdIncrease: number; 
+        logicError: { code: string, description: string, severity: string };
+    }
+};
+
 class IntegrityCorrelatorModule {
     /**
      * @param {Object} teds - Temporal data series.
@@ -30,21 +38,19 @@ class IntegrityCorrelatorModule {
         // Step 2: Constraint Validation against PCSS (Integrity Check)
         const axiomBreaches = this._validateAxiomBreaches();
 
-        // Step 3: Derive Mandatory Policy Correction based on composite severity.
-        // Simplified derivation: severity = f(Skew Magnitude, Number of Breaches)
-        const requiredIncrease = (temporalSkewMagnitude * 1.5 + axiomBreaches.length * 0.05);
+        // Step 3: Derive Mandatory Policy Correction based on composite severity using the dedicated tool.
+        const derivationResult = PolicyMagnitudeDerivationTool.execute({
+            temporalSkewMagnitude: temporalSkewMagnitude,
+            axiomBreachesCount: axiomBreaches.length
+        });
 
         // Simulate heavy computation (e.g., calling an external ML service)
         await new Promise(resolve => setTimeout(resolve, 10)); 
 
         return {
             failedAxioms: axiomBreaches,
-            requiredThresholdIncrease: Math.min(requiredIncrease, 0.3), // Cap adjustment for stability
-            logicErrors: [{
-                code: `ICM-E-CORE-${(requiredIncrease * 100).toFixed(0)}`,
-                description: `Deep analysis confirmed systemic correlation leading to ACVD failure. Severity Score: ${requiredIncrease.toFixed(4)}.`, 
-                severity: requiredIncrease > 0.1 ? 'CRITICAL' : 'HIGH'
-            }]
+            requiredThresholdIncrease: derivationResult.requiredThresholdIncrease,
+            logicErrors: [derivationResult.logicError]
         };
     }
     
