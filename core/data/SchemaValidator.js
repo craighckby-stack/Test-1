@@ -2,7 +2,7 @@
  * @module SchemaValidator
  * @description Central utility for managing and executing type and schema validation 
  * against defined data primitives. This decouples schema enforcement from data handling logistics.
- * Upgraded to support AGI-Kernel v7.4.3 mission objectives (Evolution Output, Nexus, MQM validation), 
+ * Upgraded to support AGI-Kernel v7.4.4 core capability tracking (Navigation, Logic, Memory),
  * including boundary checks and nested schema references.
  */
 
@@ -30,21 +30,17 @@ class SchemaValidator {
                     maturity_rating: { min: 0, max: 100 }
                 },
                 nested: {
-                    capabilities: { // Ensures the required capability structure is present, matching README 7.0 definitions.
-                        required: ['error_handling', 'json_parsing', 'meta_reasoning', 'autonomy', 'creativity'],
+                    capabilities: { // Ensures the required capability structure matches the AGI-KERNEL v7.4.4 core metrics.
+                        required: ['navigation', 'logic', 'memory'],
                         types: {
-                            error_handling: 'number',
-                            json_parsing: 'number',
-                            meta_reasoning: 'number',
-                            autonomy: 'number',
-                            creativity: 'number'
+                            navigation: 'number',
+                            logic: 'number',
+                            memory: 'number'
                         },
                         boundaries: { // Capabilities are scored 0-10
-                            error_handling: { min: 0, max: 10 }, 
-                            json_parsing: { min: 0, max: 10 }, 
-                            meta_reasoning: { min: 0, max: 10 },
-                            autonomy: { min: 0, max: 10 },
-                            creativity: { min: 0, max: 10 }
+                            navigation: { min: 0, max: 10 }, 
+                            logic: { min: 0, max: 10 }, 
+                            memory: { min: 0, max: 10 }
                         }
                     }
                 }
