@@ -25,14 +25,14 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 
 | Capability Dimension | Primary Component(s) | Role in System |
 |:---:|:---:|:---:|
-| **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection, blacklist management, and repository diversity enforcement. |
-| **Logic** | LOE (Learning Optimization Engine), ASP | Code comprehension, improvement quality, and strategic pattern application efficacy. |
-| **Memory** | PRL (Pattern Retention Layer), AEL | Learning retention, historical pattern synthesis, and dependency tracking. |
+| **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection across 2,300+ files, blacklist mechanism management, and repository diversity enforcement. |
+| **Logic** | LOE (Learning Optimization Engine), ASP | Code comprehension, recursive improvement quality, architectural optimization, and pattern synthesis efficacy. |
+| **Memory** | PRL (Pattern Retention Layer), AEL | Learning retention, historical pattern synthesis, cross-domain transfer learning, and dependency tracking. |
 | **Error Handling** | DVP (Data Validation Processor) | Robust fault tolerance and input schema enforcement. |
 | **JSON Parsing** | DVP (Data Validation Processor) | Data extraction from potentially malformed LLM outputs. |
-| **Meta-Reasoning** | LOE (Learning Optimization Engine) | Strategy adaptation and stagnation recovery protocols. |
-| **Autonomy** | ASP (Adaptive Synthesis Planner) | Autonomous strategic decision-making and architectural planning. |
-| **Creativity** | NSHG (Novelty Synthesis Hypothesis Generator) | Generates novel, non-incremental architectural proposals. |
+| **Meta-Reasoning** | LOE (Learning Optimization Engine) | Strategy adaptation, self-diagnosis, and initiation of stagnation recovery protocols. |
+| **Autonomy** | ASP (Adaptive Synthesis Planner) | Autonomous strategic decision-making and architectural planning based on maturity goals. |
+| **Creativity** | NSHG (Novelty Synthesis Hypothesis Generator) | Generates novel, non-incremental emergent architectural proposals and cross-domain integrations. |
 
 ---
 
@@ -71,9 +71,9 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **TFM** | Testing Framework Manager | L6 | `validation.testing.harness` | M | Executes autonomous testing, validation, and vulnerability checks against new artifacts prior to L6 commitment. |
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
 | **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 3 Core Kernel Capabilities (Navigation, Logic, Memory) and 5 architectural support dimensions. |
-| **PRL** | Pattern Retention Layer | L7 | `memory.pattern.retrieval` | O | Stores and retrieves learned code patterns and historical architecture decisions, supporting the Memory capability. |
-| **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects, validates, and formalizes novel solutions and pattern synthesis for commitment to the authorized `/emergent` directory. |
-| **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the 2,300+ file repository, managing blacklist and enforcing diversity enforcement (Supports Navigation). |
-| **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, including Stagnation Recovery Protocol and adaptive temperature modulation, based on CTM data (Supports Logic and Meta-Reasoning). |
-| **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and integration patterns (Supports Creativity and Stagnation Recovery). |
-| **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Processes SDR/RETV data to autonomously design optimal subsequent architectural modification plans (L7 Evolution). |
+| **PRL** | Pattern Retention Layer | L7 | `memory.pattern.retrieval` | O | Stores learned patterns, evolutionary history, and cross-domain synthesis results to support Memory and transfer learning. |
+| **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects novel solutions (cross-domain synthesis), validates uniqueness, and executes the Emergence Protocol (file creation, documentation, tagging) for the authorized `/emergent` directory. |
+| **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the 2,300+ file repository, manages the Blacklist Mechanism, and enforces diversity based on mission priority weighting. |
+| **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, monitors stagnation via CTM, and initiates Stagnation Recovery protocols (Supports Logic and Meta-Reasoning). |
+| **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and creative integration patterns, fueling the Emergence Validation pipeline. |
+| **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Designs optimal multi-cycle architectural modification plans (L7 Evolution), integrates learning history from PRL, and aligns roadmap with Maturity Progression goals. |
