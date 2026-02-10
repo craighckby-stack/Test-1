@@ -4,9 +4,14 @@ interface CheckResult {
 }
 
 interface OICConfig {
-  checks: Array<any>;
-  failure_policies: Array<any>;
+  checks: Array<{ id: string, action_policy_id: string }>;
+  failure_policies: Array<{ policy_id: string, type: string, signal: string, log_level: string, throttle_ms?: number }>;
 }
+
+// Declare the external dependency provided by the AGI-KERNEL plugin system
+declare const policyResolver: {
+  resolve: (checkId: string, config: OICConfig) => any | null;
+};
 
 class OICPolicyEngine {
   private config: OICConfig;
@@ -19,14 +24,13 @@ class OICPolicyEngine {
   public evaluate(results: CheckResult[]): void {
     for (const result of results) {
       if (result.status === 'FAIL') {
-        const checkDefinition = this.config.checks.find(c => c.id === result.id);
-        if (checkDefinition) {
-          const policy = this.config.failure_policies.find(p => p.policy_id === checkDefinition.action_policy_id);
-          if (policy) {
-            this.dispatchPolicy(policy, result);
-          } else {
-            console.error(`OIC Policy Engine: Missing policy definition for ID: ${checkDefinition.action_policy_id}`);
-          }
+        // Use the extracted utility for policy lookup (Check ID -> Check Definition -> Policy ID -> Policy)
+        const policy = policyResolver.resolve(result.id, this.config);
+
+        if (policy) {
+          this.dispatchPolicy(policy, result);
+        } else {
+          console.error(`OIC Policy Engine: Failed to resolve actionable policy for failed check ID: ${result.id}. Configuration inconsistency detected.`);
         }
       }
     }
@@ -38,7 +42,10 @@ class OICPolicyEngine {
     switch (policy.type) {
       case 'HARD_STOP':
         // Emergency system shutdown/signal logic
-        process.emit(policy.signal, { severity: policy.log_level });
+        // Note: process.emit is platform-specific (Node.js)
+        if (typeof process !== 'undefined' && process.emit) {
+             process.emit(policy.signal, { severity: policy.log_level });
+        }
         break;
       case 'ALERT_AND_THROTTLE':
         // Notification and rate limiting implementation
@@ -48,6 +55,8 @@ class OICPolicyEngine {
         // Standard logging using specified log_level
         this.logEvent(policy.signal, policy.log_level);
         break;
+      default:
+        console.warn(`[OIC] Unknown policy type encountered: ${policy.type} for check ${result.id}`);
     }
   }
 
