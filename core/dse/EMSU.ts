@@ -13,26 +13,16 @@
 
 import { AASS } from './AASS';
 import { ConfigurationRegistry } from '../registry/ConfigurationRegistry';
-
-// Define the interface for the injected utility based on the plugin structure
-interface ManifestSealResult {
-    manifestHash: string;
-    ems_signature: string;
-    canonicalPayload: string;
-}
-
-interface ManifestSealingUtility {
-    execute: (args: { payload: object, hasherFn: (data: string) => string, signerFn: (hash: string, context: string) => Promise<string>, sealContext: string }) => Promise<ManifestSealResult>;
-}
+import { ISealingUtility } from './interfaces/ISealingUtility'; // Assuming standard import path for the abstracted utility
 
 
 export class EMSU {
     private configRegistry: ConfigurationRegistry;
-    private manifestSealingUtility: ManifestSealingUtility;
+    private manifestSealer: ISealingUtility; // Renamed for clarity and uses the abstracted interface
 
-    constructor(registry: ConfigurationRegistry, manifestSealingUtility: ManifestSealingUtility) {
+    constructor(registry: ConfigurationRegistry, manifestSealer: ISealingUtility) {
         this.configRegistry = registry;
-        this.manifestSealingUtility = manifestSealingUtility;
+        this.manifestSealer = manifestSealer;
     }
 
     /**
@@ -55,7 +45,7 @@ export class EMSU {
         // 3. Utilize ManifestSealingUtility for canonicalization, hashing, and signing.
         // This enforces a standardized integrity flow (GAX III inputs -> Manifest -> Seal).
         
-        const sealResult = await this.manifestSealingUtility.execute({
+        const sealResult = await this.manifestSealer.execute({ // Use abstracted instance
             payload: manifestPayload,
             // AASS provides the necessary cryptographic primitives
             hasherFn: AASS.generateHash, 
