@@ -1,4 +1,16 @@
 {
+  "BLACKLIST_MANAGEMENT_ACTIONS": {
+    "description": "Total count of successful blacklist modifications (additions if stable, removals if improved) during the cycle, reflecting adherence to the File Selection Protocol (Step 5).",
+    "type": "COUNTER",
+    "unit": "COUNT",
+    "aggregation_strategy": "SUM",
+    "criticality": "P2",
+    "tags": [
+      "navigation",
+      "blacklist",
+      "strategy"
+    ]
+  },
   "CAPABILITY_LOGIC_SCORE": {
     "description": "Self-assessed score (0-10) for code comprehension and improvement quality.",
     "type": "GAUGE",
