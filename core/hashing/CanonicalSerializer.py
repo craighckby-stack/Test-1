@@ -22,6 +22,19 @@ try:
 except ImportError:
     ENUM_AVAILABLE = False
 
+# AGI-KERNEL Improvement (Cycle 3): Anticipatory imports for future data handling determinism (Logic/Memory Capability)
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+
 
 class CanonicalJSONEncoder(json.JSONEncoder):
     """
@@ -43,6 +56,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     hashing output even for complex or flawed object graphs, preventing potential 
     recursion errors in core/agent structures.
     
+    AGI-KERNEL Improvement (Cycle 3): Added anticipatory support for NumPy and Pandas types 
+    to ensure deterministic hashing when AGI capabilities expand into the /data domain. 
+    Refined Path serialization for cross-platform consistency using `as_posix()`.
+    
     AGI-KERNEL Improvement (Cycle 1 - Current): Enforced strict ISO 8601 formatting for datetimes 
     to ensure canonical representation across environment locales.
     """
@@ -53,7 +70,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         self._visited = set()
 
     def default(self, obj):
-        # 0. Handle Enumerations (Crucial for deterministic configs/governance data)
+        
+        # 0a. Handle Data Science Types deterministically (Anticipatory AGI Logic)
+        if NUMPY_AVAILABLE and isinstance(obj, np.ndarray):
+            # Convert NumPy arrays to standard lists for deterministic hashing.
+            return obj.tolist()
+        
+        if PANDAS_AVAILABLE and isinstance(obj, pd.Timestamp):
+            # Convert Pandas timestamps to canonical ISO format.
+            return obj.isoformat()
+        
+        # 0b. Handle Enumerations (Crucial for deterministic configs/governance data)
         if ENUM_AVAILABLE and isinstance(obj, enum.Enum):
             # Prioritize the enum's value if available, otherwise use its name.
             # This ensures consistent hashing for state defined by Enums.
@@ -89,8 +116,15 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return obj.isoformat()
 
         # Standard string conversion for other canonical types
-        if isinstance(obj, (Decimal, UUID, Path)):
+        if isinstance(obj, Decimal):
             return str(obj)
+        
+        if isinstance(obj, UUID):
+            return str(obj)
+            
+        if isinstance(obj, Path):
+            # Cycle 3 Refinement: Use as_posix() to ensure consistent path separators across OS platforms for hashing integrity.
+            return obj.as_posix()
 
         # 3. Handle binary data by converting to canonical hex string (Crucial for artifact integrity)
         if isinstance(obj, bytes):
