@@ -19,22 +19,21 @@ const {
 } = require('../../governance/constants/MetricConstants'); 
 
 /**
- * Helper function to retrieve the threshold value consistently, prioritizing specific metadata,
- * falling back to governance defaults, and finally a hardcoded system default.
+ * Interface definition for the utility function derived from the ThresholdResolver plugin.
+ * This function resolves thresholds based on a three-tiered fallback strategy 
+ * (metadata > config > hard default).
  * 
- * @param {object} metadata - Check metadata, potentially containing requiredResources.
- * @param {GovernanceConfig} governanceConfig - Global governance settings.
- * @param {string} metadataKey - Key in metadata.requiredResources (e.g., 'cpuThreshold').
- * @param {string} configKey - Key in governanceConfig (e.g., 'defaultCpuThreshold').
- * @param {number} hardDefault - Fallback value if no configuration is found.
- * @returns {number}
+ * NOTE: The implementation of this utility (formerly _getThreshold) is now handled
+ * externally by the ThresholdResolver plugin.
  */
-const _getThreshold = (metadata, governanceConfig, metadataKey, configKey, hardDefault) => {
-    // Use safe navigation and nullish coalescing to ensure a valid numeric fallback.
-    return metadata.requiredResources?.[metadataKey] 
-        ?? governanceConfig?.[configKey] 
-        ?? hardDefault;
-};
+declare const resolveThreshold: (
+    metadata: any,
+    governanceConfig: any,
+    metadataKey: string,
+    configKey: string,
+    hardDefault: number
+) => number;
+
 
 // --- Standard Resource Check Implementations ---
 
@@ -44,7 +43,8 @@ const _getThreshold = (metadata, governanceConfig, metadataKey, configKey, hardD
  * @type {ResourceCheckFunction}
  */
 const cpuUtilizationCheck = async (monitor, governanceConfig, metadata) => {
-    const required = _getThreshold(metadata, governanceConfig, 
+    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
+    const required = resolveThreshold(metadata, governanceConfig, 
         'cpuThreshold', 'defaultCpuThreshold', 75); 
 
     // Assume monitor.getSystemMetrics() is used.
@@ -71,7 +71,8 @@ const cpuUtilizationCheck = async (monitor, governanceConfig, metadata) => {
  * @type {ResourceCheckFunction}
  */
 const memoryAvailableCheck = async (monitor, governanceConfig, metadata) => {
-    const requiredPercentage = _getThreshold(metadata, governanceConfig, 
+    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
+    const requiredPercentage = resolveThreshold(metadata, governanceConfig, 
         'memoryPercentageMin', 'defaultMemoryMinPercentage', 20);
 
     const metrics = await monitor.getSystemMetrics();
@@ -99,7 +100,8 @@ const memoryAvailableCheck = async (monitor, governanceConfig, metadata) => {
 const clockSkewCheck = async (monitor, governanceConfig, metadata) => {
     const ONE_SECOND_MS_DEFAULT = 1000;
     
-    const maxSkewMs = _getThreshold(metadata, governanceConfig, 
+    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
+    const maxSkewMs = resolveThreshold(metadata, governanceConfig, 
         'maxClockSkewMs', 'defaultMaxClockSkewMs', ONE_SECOND_MS_DEFAULT); 
 
     const metrics = await monitor.getTimeSyncMetrics(); 
