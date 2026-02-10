@@ -9,32 +9,9 @@ const TelemetryTransport = require('./TelemetryTransport');
 const TelemetrySampler = require('./TelemetrySampler');   
 
 // AGI-KERNEL PLUGIN INTEGRATION:
-// Assume TelemetryPreconditionValidator is injected/available via the runtime context.
-const TelemetryPreconditionValidator = {
-    execute: (args) => {
-        // NOTE: This object mocks the interface and logic of the injected plugin 
-        // for demonstration purposes in the source file, using Node constructs.
-        
-        // Check 1: Initialization status (must be fully ready)
-        if (!args.isInitialized) {
-            return { 
-                isValid: false, 
-                faultName: 'DIAG_UNINITIALIZED', 
-                details: { attemptedEvent: args.eventName, initialized: args.isInitialized } 
-            }; 
-        }
-
-        // Check 2: Event Registration
-        if (!Object.values(args.eventRegistry).includes(args.eventName)) {
-            return { 
-                isValid: false, 
-                faultName: 'DIAG_CONFIGURATION_FAULT',
-                details: { message: `Attempted to publish unregistered event: ${args.eventName}` }
-            };
-        }
-        return { isValid: true, faultName: null };
-    }
-};
+// EventPreflightValidator is used to enforce critical prerequisites (initialization, registration).
+// Assuming EventPreflightValidator is injected/available via the runtime context.
+const EventPreflightValidator = require('AGI-CORE/plugins/EventPreflightValidator');
 
 class TelemetryService {
     constructor() {
@@ -90,8 +67,8 @@ class TelemetryService {
         
         const fullyInitialized = this.isInitialized && !!this.transport && !!this.sampler;
 
-        // 0. Precondition Check using the extracted Validator
-        const validationResult = TelemetryPreconditionValidator.execute({
+        // 0. Precondition Check using the abstracted Validator
+        const validationResult = EventPreflightValidator.execute({
             eventName: eventName,
             isInitialized: fullyInitialized,
             eventRegistry: GAXEventRegistry 
