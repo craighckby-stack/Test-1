@@ -5,7 +5,13 @@
  * 
  * Naming Convention: E_COMPONENT_FAILURETYPE
  */
-const ConsensusErrorCodes = {
+
+// Assuming ImmutableConstantRegistryUtility is available via the AGI kernel
+declare const ImmutableConstantRegistryUtility: {
+    defineAndFreeze: (registry: Record<string, string>) => Readonly<Record<string, string>>;
+};
+
+const ConsensusErrorCodesDefinition = {
     // General Errors
     E_UNKNOWN: 'E_UNKNOWN',
     E_TIMEOUT: 'E_TIMEOUT',
@@ -27,7 +33,7 @@ const ConsensusErrorCodes = {
     E_NON_VALIDATOR_VOTE: 'E_NON_VALIDATOR_VOTE',
 };
 
-// Freeze the object to prevent runtime modification, ensuring code integrity
-Object.freeze(ConsensusErrorCodes);
+// Use the utility to define the final, immutable registry.
+const ConsensusErrorCodes = ImmutableConstantRegistryUtility.defineAndFreeze(ConsensusErrorCodesDefinition);
 
 module.exports = { ConsensusErrorCodes };
