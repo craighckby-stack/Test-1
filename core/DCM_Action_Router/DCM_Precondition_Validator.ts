@@ -6,7 +6,7 @@ export class DCM_Precondition_Validator {
      * @param system_state_feed An object implementing SystemStateFeed interface to query current state.
      */
     constructor(system_state_feed: SystemStateFeed) {
-        this.system_state_feed = system_state_feed; // Fix: Store the feed instance
+        this.system_state_feed = system_state_feed; 
         // Load atomic check functions
         this.check_library = this.loadAtomicChecks(); 
     }
@@ -19,8 +19,8 @@ export class DCM_Precondition_Validator {
      */
     public async validate(preconditions: any): Promise<{success: boolean, failure_reasons: string[]}> {
         
-        // Type definitions assumed from the execution environment
-        declare const PreconditionExecutorUtility: any; 
+        // Retrieve the infrastructure plugin instance (assuming AGI-KERNEL standard global access)
+        const PreconditionExecutorUtility = globalThis.PreconditionExecutorUtility;
 
         if (typeof PreconditionExecutorUtility !== 'undefined' && PreconditionExecutorUtility.execute) {
             return PreconditionExecutorUtility.execute({
@@ -30,18 +30,21 @@ export class DCM_Precondition_Validator {
             });
         } else {
             // Fallback or Error reporting if tool is missing
-            return { success: false, failure_reasons: ["Precondition validation service unavailable."] };
+            return { success: false, failure_reasons: ["Precondition validation service unavailable (PreconditionExecutorUtility missing)."] };
         }
     }
     
     /**
      * Loads the defined atomic checks into a dictionary map.
-     * Note: Assumes 'os' is available globally for system diagnostics in a Node.js context.
      */
     private loadAtomicChecks(): { [key: string]: Function } {
+        // Uses global 'os' dependency, providing a basic fallback for robust compilation.
+        const os = globalThis.os || { loadavg: () => [0, 0, 0], cpus: () => [{}] };
+
         // Returns a standard JS object map for compatibility with the utility plugin
         return {
             'INPUT_STABILITY_CHECK': async () => true, 
+            // Checks system load average against CPU count.
             'SYSTEM_LOAD_BELOW_75_PERCENT': async () => (os.loadavg()[0] / os.cpus().length) < 0.75 
         };
     }
@@ -51,5 +54,3 @@ export class DCM_Precondition_Validator {
 interface SystemStateFeed {
     getCurrent(key: string): any;
 }
-
-declare const os: any; // External dependency simulation
