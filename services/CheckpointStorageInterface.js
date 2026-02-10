@@ -1,44 +1,40 @@
 // Define the abstract interface for checkpoint management
-class CheckpointStorageInterface {
+abstract class CheckpointStorageInterface {
+
+    protected config: object;
 
     /**
      * Initializes the storage mechanism based on config.
-     * @param {object} config - The checkpoint configuration.
+     * @param config - The checkpoint configuration.
      */
-    constructor(config) {
+    constructor(config: object) {
         if (new.target === CheckpointStorageInterface) {
-            throw new TypeError("Cannot construct CheckpointStorageInterface instances directly.");
+            throw new TypeError("Cannot construct CheckpointStorageInterface instances directly. Must be subclassed.");
         }
         this.config = config;
     }
 
     /**
      * Saves the evolutionary state object.
-     * @param {string} runId - The current evolution run ID.
-     * @param {object} state - The full state object to serialize.
-     * @param {object} metadata - Metadata about the state.
-     * @returns {Promise<string>} Path or URL to the saved checkpoint.
+     * @param runId - The current evolution run ID.
+     * @param state - The full state object to serialize.
+     * @param metadata - Metadata about the state.
+     * @returns A Promise resolving to the identifier (Path or URL) of the saved checkpoint.
      */
-    async saveCheckpoint(runId, state, metadata) {
-        throw new Error("Method 'saveCheckpoint()' must be implemented.");
-    }
+    public abstract saveCheckpoint(runId: string, state: object, metadata: object): Promise<string>;
 
     /**
      * Loads the latest or specific checkpoint.
-     * @param {string} [checkpointId] - Optional specific ID/path to load.
-     * @returns {Promise<object>} The loaded state object.
+     * @param checkpointId - Optional specific ID/path to load.
+     * @returns A Promise resolving to the loaded state object.
      */
-    async loadCheckpoint(checkpointId) {
-        throw new Error("Method 'loadCheckpoint()' must be implemented.");
-    }
+    public abstract loadCheckpoint(checkpointId?: string): Promise<object>;
 
     /**
-     * Cleans up old checkpoints based on max_retained_versions policy.
-     * @param {string} runId - The current evolution run ID.
+     * Cleans up old checkpoints based on retention policy defined in the config.
+     * @param runId - The current evolution run ID.
      */
-    async cleanUp(runId) {
-        throw new Error("Method 'cleanUp()' must be implemented.");
-    }
+    public abstract cleanUp(runId: string): Promise<void>;
 }
 
 module.exports = CheckpointStorageInterface;
