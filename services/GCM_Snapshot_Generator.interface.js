@@ -6,7 +6,8 @@
 class GCM_Snapshot_Generator {
 
     /**
-     * Creates a deterministic hash of the current configuration set.
+     * Creates a deterministic hash of the current configuration set. 
+     * Implementation MUST utilize the CanonicalConfigurationHasher plugin to ensure stability.
      * @param {Object} configPayload - The structured configuration data.
      * @returns {string} SHA-512 Hash.
      */
