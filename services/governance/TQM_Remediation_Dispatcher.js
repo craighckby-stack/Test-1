@@ -8,32 +8,50 @@ import { RPCClient } from '../platform/RPCClient';
 import { QueueManager } from '../platform/QueueManager';
 import { GovernanceAuditService } from './GovernanceAuditService';
 
+// Define the interface for the extracted routing tool
+interface ICommandRouter {
+    register(protocolKey: string, handlerFn: Function): void;
+    route(protocolKey: string, ...args: any[]): Promise<any>;
+}
+
+// NOTE: ProtocolRouterFactory is assumed to be available from the kernel environment
+declare const ProtocolRouterFactory: { execute: () => ICommandRouter };
+
 export class TQM_Remediation_Dispatcher {
     
-    #policiesMap;
-    #rpcClient;
-    #queueManager;
-    #auditService;
+    #policiesMap: Map<string, any>;
+    #rpcClient: RPCClient;
+    #queueManager: QueueManager;
+    #auditService: GovernanceAuditService;
+    #commandRouter: ICommandRouter; // New field for protocol routing
 
     /**
      * @param {object} [dependencies] - Optional dependencies container for robust DI.
      * @param {RPCClient} [dependencies.rpcClient]
      * @param {QueueManager} [dependencies.queueManager]
      * @param {GovernanceAuditService} [dependencies.auditService]
+     * @param {ICommandRouter} [dependencies.commandRouter] - For injection during testing.
      */
-    constructor(dependencies = {}) {
-        const { rpcClient, queueManager, auditService } = dependencies;
+    constructor(dependencies: any = {}) {
+        const { rpcClient, queueManager, auditService, commandRouter } = dependencies;
         
         // 1. Configuration Safety Check and Mapping
         if (!policies || !Array.isArray(policies.remedial_policies)) {
             throw new Error("Invalid TQM configuration: remedial_policies array is missing or malformed.");
         }
-        this.#policiesMap = new Map(policies.remedial_policies.map(p => [p.id, p]));
+        this.#policiesMap = new Map(policies.remedial_policies.map((p: any) => [p.id, p]));
         
         // 2. Dependency Initialization using encapsulation
         this.#rpcClient = rpcClient || new RPCClient();
         this.#queueManager = queueManager || new QueueManager();
         this.#auditService = auditService || new GovernanceAuditService();
+
+        // 3. Command Router Initialization and Registration
+        this.#commandRouter = commandRouter || ProtocolRouterFactory.execute();
+        
+        // Register handlers, ensuring 'this' context is preserved
+        this.#commandRouter.register('RPC', this.#handleRpcExecution.bind(this));
+        this.#commandRouter.register('QUEUE', this.#handleQueueExecution.bind(this));
     }
 
     /**
@@ -41,7 +59,7 @@ export class TQM_Remediation_Dispatcher {
      * @param {string} policyId 
      * @returns {object} The policy object.
      */
-    #getPolicyOrThrow(policyId) {
+    #getPolicyOrThrow(policyId: string): any {
         const policy = this.#policiesMap.get(policyId);
         if (!policy) {
             this.#auditService.log(policyId, 'LOOKUP_FAILURE', { message: `Policy ID ${policyId} not found.` });
@@ -56,7 +74,7 @@ export class TQM_Remediation_Dispatcher {
      * @param {object} payload - The finalized execution payload.
      * @returns {Promise<any>}
      */
-    async #handleRpcExecution(execution, payload) {
+    async #handleRpcExecution(execution: any, payload: any): Promise<any> {
         const isSynchronous = execution.synchronous ?? true;
         
         return this.#rpcClient.send(
@@ -71,10 +89,10 @@ export class TQM_Remediation_Dispatcher {
      * Executes the QUEUE protocol command.
      * @param {object} execution - Policy execution details.
      * @param {object} payload - The finalized execution payload.
-     * @param {string} severity - Severity level for prioritization.
+     * @param {string} severity - Severity level for prioritization. (Matches router signature)
      * @returns {Promise<any>}
      */
-    async #handleQueueExecution(execution, payload, severity) {
+    async #handleQueueExecution(execution: any, payload: any, severity: string): Promise<any> {
         return this.#queueManager.publish(
             execution.target, 
             payload,
@@ -88,7 +106,7 @@ export class TQM_Remediation_Dispatcher {
      * @param {object} dynamicContext - Runtime data to merge into the execution payload.
      * @returns {Promise<any>} The result of the dispatch operation.
      */
-    async executePolicy(policyId, dynamicContext = {}) {
+    async executePolicy(policyId: string, dynamicContext: any = {}): Promise<any> {
         const policy = this.#getPolicyOrThrow(policyId);
         const { execution, severity } = policy;
         
@@ -101,34 +119,29 @@ export class TQM_Remediation_Dispatcher {
         };
 
         try {
-            let result;
-            
-            switch (execution.protocol) {
-                case 'RPC':
-                    result = await this.#handleRpcExecution(execution, finalPayload);
-                    break;
-                case 'QUEUE':
-                    result = await this.#handleQueueExecution(execution, finalPayload, severity);
-                    break;
-                default:
-                    const errorMsg = `Unsupported execution protocol: ${execution.protocol}.`;
-                    this.#auditService.logExecution(policyId, 'FAILURE', finalPayload, { error: errorMsg });
-                    throw new Error(errorMsg);
-            }
+            // Delegate routing and execution to the command router
+            const result = await this.#commandRouter.route(
+                execution.protocol,
+                execution, 
+                finalPayload, 
+                severity
+            );
 
             this.#auditService.logExecution(policyId, 'SUCCESS', finalPayload, result);
             return result;
 
         } catch (error) {
-            console.error(`[TQM Dispatcher] Execution failed for ${policyId}:`, error);
+            const errorInstance = error instanceof Error ? error : new Error(String(error));
+            
+            console.error(`[TQM Dispatcher] Execution failed for ${policyId}:`, errorInstance);
             
             // Log failure before re-throwing
             this.#auditService.logExecution(policyId, 'FAILURE', finalPayload, { 
-                error: error.message, 
-                stack: error.stack 
+                error: errorInstance.message, 
+                stack: errorInstance.stack 
             });
             
-            throw error; 
+            throw errorInstance; 
         }
     }
 }
