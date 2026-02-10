@@ -15,6 +15,7 @@ import { retirementMetricsService } from './retirementMetricsService.js';
 import { trustCalculusEngine } from './trustCalculusEngine.js';
 import { lifecycleActuator } from './componentLifecycleActuator.js';
 import { governanceStateRegistry } from './governanceStateRegistry.js'; // NEW: Essential for idempotency and state tracking
+import { adjudicationHelper } from '../utils/adjudicationHelper.js'; // NEW: Extracted Adjudication Logic
 
 // --- Constants ---
 const POLICY_ID_DEPRECATION = 'C-15';
@@ -101,6 +102,7 @@ export class ObsolescenceReviewEngine {
 
     /**
      * Internal governance function to adjudicate the decision based on score, constraints, and external signals.
+     * Utilizes AdjudicationHelper for core score/threshold/veto comparison logic.
      * @param {string} componentId
      * @param {number} retirementScore
      * @param {object} metricData
@@ -110,15 +112,16 @@ export class ObsolescenceReviewEngine {
         const requiredThreshold = this.#retirementThreshold;
         const globalVeto = policyEngine.getGlobalVetoSignal(); // High-level, immediate veto check
         
-        let pass = (retirementScore >= requiredThreshold) && (!globalVeto);
-        let failureReason = '';
+        // Use extracted Adjudication Logic
+        const adjudicationResult = adjudicationHelper.execute({
+            score: retirementScore,
+            threshold: requiredThreshold,
+            globalVeto: globalVeto,
+            action: RETIREMENT_ACTION_TYPE
+        });
 
-        if (globalVeto) {
-            pass = false;
-            failureReason = 'Policy mandated global veto is currently active.';
-        } else if (retirementScore < requiredThreshold) {
-            failureReason = `Trust score (${retirementScore.toFixed(4)}) is below required threshold (${requiredThreshold.toFixed(4)}).`;
-        }
+        const pass = adjudicationResult.pass;
+        const failureReason = adjudicationResult.reason;
 
         const report = {
             pass: pass,
@@ -128,7 +131,7 @@ export class ObsolescenceReviewEngine {
             metricsUsed: metricData,
             vetoActive: globalVeto,
             action: RETIREMENT_ACTION_TYPE,
-            reason: pass ? 'Governance thresholds met and no veto issued.' : failureReason
+            reason: failureReason
         };
 
         if (pass) {
