@@ -22,6 +22,9 @@ pub struct SnapshotConfiguration {
     pub default_context_flags: u32,
     /// Minimum free memory or resource buffer required for capture (u64 bytes) to pass pre-flight check.
     pub minimum_resource_buffer_bytes: u64,
+    /// AGI Governance: Maximum size (bytes) allowed for the volatile memory dump payload. 
+    /// Ensures snapshots remain 'atomic' and rapid.
+    pub max_volatile_data_bytes: u64,
 }
 
 impl Default for SnapshotConfiguration {
@@ -30,6 +33,7 @@ impl Default for SnapshotConfiguration {
             max_duration: Duration::from_micros(5000), // 5ms default
             default_context_flags: DEFAULT_CONTEXT_FLAG_GSEP_C,
             minimum_resource_buffer_bytes: 1024 * 1024 * 10, // 10MB default buffer
+            max_volatile_data_bytes: 1024 * 1024 * 50, // 50MB max default payload
         }
     }
 }
@@ -47,6 +51,12 @@ impl SnapshotConfiguration {
         if self.minimum_resource_buffer_bytes == 0 {
              return Err(SnapshotError::ConfigurationInvalid(
                 "minimum_resource_buffer_bytes must be non-zero for resilience".to_string()
+            ));
+        }
+        // AGI Governance Check: Ensure the volatile data limit is reasonable
+        if self.max_volatile_data_bytes == 0 {
+             return Err(SnapshotError::ConfigurationInvalid(
+                "max_volatile_data_bytes must be positive to prevent excessive capture size".to_string()
             ));
         }
         Ok(())
@@ -198,6 +208,8 @@ pub enum SnapshotError {
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
     // AGI Improvement: Added error variant for structural mismatch, critical for integrity
     MetadataEncodingFailed,
+    // AGI Logic Improvement: New error variant for exceeding size limits
+    VolatileDataSizeExceeded { actual: u64, limit: u64 },
 }
 
 // Implementation for standardized error handling (AGI Logic Improvement)
@@ -212,6 +224,7 @@ impl fmt::Display for SnapshotError {
             SnapshotError::IntegrityHashingFailed => write!(f, "Cryptographic integrity hashing failed."),
             SnapshotError::HashingOutputMismatch { expected, actual } => write!(f, "Integrity hash size mismatch. Expected {} bytes, got {} bytes.", expected, actual),
             SnapshotError::MetadataEncodingFailed => write!(f, "Failed to encode critical metadata components for hashing."),
+            SnapshotError::VolatileDataSizeExceeded { actual, limit } => write!(f, "Volatile memory capture size exceeded limit ({} bytes max). Actual size: {} bytes.", limit, actual),
         }
     }
 }
@@ -293,9 +306,19 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
     
     // 3. Perform atomic read of key memory regions
     let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
+    
+    let volatile_data_size = vm_dump.len() as u64; // Capture size for metadata integrity
+
+    // AGI Logic Improvement: Post-capture size constraint enforcement (New Check)
+    if volatile_data_size > config.max_volatile_data_bytes {
+         return Err(SnapshotError::VolatileDataSizeExceeded {
+            actual: volatile_data_size,
+            limit: config.max_volatile_data_bytes,
+        });
+    }
+
     let trace = T::capture_execution_stack();
     let context_flags: u32 = runtime_context_flags; // Use provided flags
-    let volatile_data_size = vm_dump.len() as u64; // Capture size for metadata integrity
 
     // Calculate duration immediately after capture for hashing.
     let duration = start_time.elapsed();
