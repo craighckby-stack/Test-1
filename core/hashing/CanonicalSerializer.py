@@ -73,6 +73,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
     AGI-KERNEL Improvement (Cycle 12):
     9. Added deterministic handling for weak references (`weakref.ReferenceType`), critical for stable hashing of complex, memory-managed agent states.
+
+    AGI-KERNEL Improvement (Cycle 13):
+    10. Implemented consolidated handling for custom object attributes, supporting structures defined using 
+        Python's `__slots__` (common in high-performance agent code) alongside standard `__dict__`.
+    11. Introduced explicit `__object__` tagging for custom class instances in the serialized output, 
+        enhancing canonical structure consistency and pattern recognition for the kernel.
     """
 
     def __init__(self, *args, **kwargs):
@@ -274,19 +280,35 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             if hasattr(obj, 'to_canonical_dict'):
                 return obj.to_canonical_dict()
             
-            # Fallback to serializing public attributes
+            # 5c. Generalized attribute serialization (Handling __dict__ and __slots__)
+            attributes = {}
+            
+            # Gather attributes from __dict__
             if hasattr(obj, '__dict__'):
-                # Cycle 1 Improvement: Filter out internal/private attributes and callables
-                # AGI-KERNEL Improvement (Cycle 7): Also filter out None values for hashing stability and compactness.
-                # NOTE: Callables are now explicitly handled in 0c, but still filtered here to prevent accidental serialization.
+                attributes.update(obj.__dict__)
+
+            # Gather attributes from __slots__ (if present, often mutually exclusive with __dict__)
+            if hasattr(obj, '__slots__'):
+                for slot in obj.__slots__:
+                    try:
+                        # Use getattr safely as slots might be defined but not initialized
+                        attributes[slot] = getattr(obj, slot)
+                    except AttributeError:
+                        pass # Skip uninitialized slots
+            
+            # Process gathered attributes if any were found
+            if attributes:
+                # AGI-KERNEL Improvement (Cycle 13): Consolidate attribute collection for __dict__ and __slots__.
+                # Filter out internal/private attributes, callables, and None values for canonical consistency.
                 safe_dict = {
-                    k: v for k, v in obj.__dict__.items()
+                    k: v for k, v in attributes.items()
                     if not k.startswith('_') and not callable(v) and v is not None
                 }
                 
-                # Only return the dictionary if it contains actual serializable data
                 if safe_dict:
-                    return safe_dict
+                    # AGI-KERNEL Improvement (Cycle 13): Explicitly tag the structure with the class name 
+                    # for clear demarcation between custom objects and standard dictionaries in the canonical output.
+                    return {"__object__": obj.__class__.__name__, **safe_dict}
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
