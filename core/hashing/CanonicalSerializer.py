@@ -82,15 +82,50 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         
     AGI-KERNEL Improvement (Cycle 14):
     12. Introduced support for an explicit object serialization protocol (`__canonical_state__` method). 
-        If present, this method is prioritized over generic introspection of `__dict__` and `__slots__`, 
+        If present, this method is prioritized over generic introspection of `__dict__` and `__slots__`,
         giving agent developers fine-grained control over which internal state attributes are included 
         in the canonical hash, improving determinism and potentially performance for complex objects.
+
+    AGI-KERNEL Improvement (Cycle 15, Emergence: Pattern Synthesis):
+    13. Implemented a Key Canonicalization Layer (`_canonicalize_key`) to ensure non-string dictionary keys
+        (like tuples or objects) are serialized into deterministic JSON strings before being used as map keys,
+        fixing a critical determinism flaw in complex state structures.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Cycle 2: Initialize set to track IDs of custom objects currently being serialized
         self._visited = set()
+
+    def _canonicalize_key(self, key):
+        """
+        Helper to serialize complex, non-string dictionary keys deterministically.
+        Routes the key through the full canonicalization process to ensure stability.
+        """
+        try:
+            # 1. Recursively process the key using the standard default method.
+            processed_key = self.default(key)
+        except Exception:
+            # Fallback if processing the key fails unexpectedly
+            return str(key)
+        
+        # If the processed key is a scalar (string, number, boolean, None), use its simple string form.
+        if isinstance(processed_key, (str, int, float, bool, type(None))):
+            return str(processed_key)
+
+        # 2. If the processed key is a complex structure (list, dict), fully canonicalize it 
+        # by dumping it into a JSON string using tight separators and sorted keys.
+        try:
+            # Use standard json.dumps since processed_key should now only contain native Python types.
+            return json.dumps(
+                processed_key, 
+                sort_keys=True,
+                separators=(',', ':') 
+            )
+        except TypeError:
+            # Safety fallback for unexpected structures
+            return str(key)
+
 
     def default(self, obj):
         
@@ -248,17 +283,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return bytes(obj).hex()
 
         # 4. Handle mappings (dictionaries, ordered dicts, etc.)
-        # AGI-KERNEL Improvement (Cycle 5): Ensure all mapping keys are strings for JSON compliance,
-        # handling non-string keys deterministically (e.g., tuple or number keys).
         if isinstance(obj, collections.Mapping):
             new_dict = {}
             for k, v in obj.items():
                 if isinstance(k, str):
-                    new_dict[k] = v
+                    canonical_k = k
                 else:
-                    # Convert non-string keys to their canonical string representation
-                    # This guarantees JSON compliance and deterministic key representations.
-                    new_dict[str(k)] = v
+                    # AGI-KERNEL Improvement (Cycle 15): Key Canonicalization Layer
+                    # Ensures stable string representation for complex keys (e.g., tuples, custom objects)
+                    canonical_k = self._canonicalize_key(k)
+                    
+                new_dict[canonical_k] = v
             return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
@@ -280,6 +315,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 try:
                     canonical_state = obj.__canonical_state__()
                     if isinstance(canonical_state, collections.Mapping):
+                        self._visited.discard(obj_id) 
                         return {"__object__": obj.__class__.__name__, **canonical_state}
                 except Exception:
                     # Fall through if the explicit protocol implementation fails or returns non-mapping
@@ -287,6 +323,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
             # Prioritize explicit interface if defined by the object itself (kept for legacy to_canonical_dict)
             if hasattr(obj, 'to_canonical_dict'):
+                self._visited.discard(obj_id)
                 return obj.to_canonical_dict()
             
             # 5a. Explicit dataclass serialization for structural integrity
@@ -295,6 +332,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # AGI-KERNEL Improvement (Cycle 7): Apply NULL filtering to dataclasses for hashing determinism.
                 raw_dict = asdict(obj)
                 # Filter out None values to ensure canonical output stability
+                self._visited.discard(obj_id)
                 return {k: v for k, v in raw_dict.items() if v is not None}
 
             # 5c. Generalized attribute serialization (Handling __dict__ and __slots__)
@@ -325,7 +363,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 if safe_dict:
                     # AGI-KERNEL Improvement (Cycle 13): Explicitly tag the structure with the class name 
                     # for clear demarcation between custom objects and standard dictionaries in the canonical output.
+                    self._visited.discard(obj_id)
                     return {"__object__": obj.__class__.__name__, **safe_dict}
+            
+            # If object was visited but none of the standard serialization paths yielded results, we discard the visit status
+            # and proceed to base class failure.
+            self._visited.discard(obj_id)
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
