@@ -34,16 +34,51 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
 }
 
 // Defines the output structure for the immutable state capture
-#[derive(Debug, Clone, Default)] // Added Clone and Default for infrastructural flexibility
+#[derive(Debug, Clone)] // Removed Default derivation for integrity enforcement
 pub struct RscmPackage {
-    pub capture_version: u16, // New field to track package structural version
-    pub absolute_capture_ts_epoch_ns: u64,
-    pub capture_latency_ns: u64,
-    pub integrity_hash: IntegrityHash, // Changed from String to fixed-size array
-    pub volatile_memory_dump: Vec<u8>,
-    pub stack_trace: String,
-    pub context_flags: u32,
+    // Made fields private to enforce controlled access and immutability
+    capture_version: u16, 
+    absolute_capture_ts_epoch_ns: u64,
+    capture_latency_ns: u64,
+    integrity_hash: IntegrityHash, 
+    volatile_memory_dump: Vec<u8>,
+    stack_trace: String,
+    context_flags: u32,
 }
+
+impl RscmPackage {
+    // Constructor used exclusively by the generator function
+    fn new(
+        absolute_ts: u64,
+        latency_ns: u64,
+        hash: IntegrityHash,
+        vm_dump: Vec<u8>,
+        trace: String,
+        context_flags: u32,
+    ) -> Self {
+        RscmPackage {
+            capture_version: RSCM_PACKAGE_VERSION,
+            absolute_capture_ts_epoch_ns: absolute_ts,
+            capture_latency_ns: latency_ns,
+            integrity_hash: hash,
+            volatile_memory_dump: vm_dump,
+            stack_trace: trace,
+            context_flags,
+        }
+    }
+
+    // Public accessors for reading critical metadata
+    pub fn capture_version(&self) -> u16 { self.capture_version }
+    pub fn absolute_capture_ts_epoch_ns(&self) -> u64 { self.absolute_capture_ts_epoch_ns }
+    pub fn capture_latency_ns(&self) -> u64 { self.capture_latency_ns }
+    pub fn context_flags(&self) -> u32 { self.context_flags }
+    
+    // Controlled accessors for sensitive data
+    pub fn integrity_hash(&self) -> &IntegrityHash { &self.integrity_hash }
+    pub fn volatile_memory_dump(&self) -> &[u8] { &self.volatile_memory_dump }
+    pub fn stack_trace(&self) -> &str { &self.stack_trace }
+}
+
 
 #[derive(Debug)]
 pub enum SnapshotError {
@@ -78,7 +113,13 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // Hash sequence: 1. Volatile Data, 2. Stack Trace, 3. Fixed Metadata (Flags + Version)
+    // --- Integrity Hashing Protocol ---
+    // Note: The order of hashing inputs MUST remain fixed for integrity verification.
+    // Hash sequence: 
+    // 1. Volatile Data (Largest and most critical)
+    // 2. Stack Trace (Execution context)
+    // 3. Context Flags (Security metadata)
+    // 4. Package Version (Structural integrity)
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
     
@@ -107,14 +148,13 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         return Err(SnapshotError::Timeout { actual_duration_ns: latency_ns as u64 });
     }
 
-    // 4. Final RSCM object creation
-    Ok(RscmPackage {
-        capture_version: RSCM_PACKAGE_VERSION,
-        absolute_capture_ts_epoch_ns: absolute_ts,
-        capture_latency_ns: latency_ns as u64,
+    // 4. Final RSCM object creation using the controlled constructor
+    Ok(RscmPackage::new(
+        absolute_ts,
+        latency_ns as u64,
         integrity_hash,
-        volatile_memory_dump: vm_dump,
-        stack_trace: trace,
+        vm_dump,
+        trace,
         context_flags,
-    })
+    ))
 }
