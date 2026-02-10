@@ -14,16 +14,22 @@ const RESOLUTION_STATUS = {
     RESOLVED: 'RESOLVED',
     REJECTED: 'REJECTED', // Added specific rejection status for clarity
     ERROR: 'ERROR',
-    POLICY_NOT_FOUND: 'POLICY_NOT_FOUND' 
+    POLICY_NOT_FOUND: 'POLICY_NOT_FOUND'
 };
+
+/**
+ * @typedef {object} PolicyAccessorInterface
+ * @property {(proposalType: string) => string | null} getPolicy
+ */
 
 class ClaraResolver {
     /**
      * @param {object} governanceConfig - The parsed governance matrix structure.
      * @param {object} policyEngine - An instance of the PolicyEngine utility (Scaffolded component).
-     * @param {object} logger - System logging utility.
+     * @param {object} [logger] - System logging utility.
+     * @param {PolicyAccessorInterface} [configAccessor] - Instance of GovernanceMapAccessor or similar utility.
      */
-    constructor(governanceConfig, policyEngine, logger = console) {
+    constructor(governanceConfig, policyEngine, logger = console, configAccessor) {
         if (!governanceConfig || !governanceConfig.governance_matrix) {
             throw new Error("ClaraResolver initialization error: requires valid governance configuration.");
         }
@@ -35,16 +41,35 @@ class ClaraResolver {
         this.policyEngine = policyEngine;
         this.logger = logger;
         this.policies = CLARA_POLICIES; 
+        
+        // Dependency injection or internal instantiation of the policy lookup utility.
+        // If configAccessor is not provided, we rely on the GovernanceMapAccessorFactory (if available)
+        // or fall back to a local implementation.
+        if (configAccessor && typeof configAccessor.getPolicy === 'function') {
+            this.configAccessor = configAccessor;
+        } else if (typeof GovernanceMapAccessorFactory !== 'undefined' && GovernanceMapAccessorFactory.create) {
+            // Assumes global factory access based on AGI-KERNEL standards
+            this.configAccessor = GovernanceMapAccessorFactory.create(this.governanceMatrix);
+        } else {
+             // Local fallback mechanism (mirrors the original _getPolicy logic)
+            this.configAccessor = {
+                getPolicy: (proposalType) => {
+                     const matrixEntry = this.governanceMatrix[proposalType];
+                     return matrixEntry ? matrixEntry.conflict_policy : null;
+                }
+            };
+        }
     }
 
     /**
      * Retrieves the conflict policy defined for a specific proposal type.
+     * Delegates lookup logic to the standardized configAccessor.
      * @param {string} proposalType
      * @returns {string | null} The policy name or null if not found.
      */
     _getPolicy(proposalType) {
-        const matrixEntry = this.governanceMatrix[proposalType];
-        return matrixEntry ? matrixEntry.conflict_policy : null;
+        // Use the injected/instantiated accessor
+        return this.configAccessor.getPolicy(proposalType);
     }
 
     /**
@@ -61,10 +86,10 @@ class ClaraResolver {
         if (!policyName) {
             this.logger.warn(`CLARA: Missing governance matrix entry for proposal type: ${proposal.type}`);
             return { 
-                status: RESOLUTION_STATUS.ERROR, 
+                status: RESOLUTION_STATUS.POLICY_NOT_FOUND, 
                 policy_applied: 'N/A',
                 details: { reason: 'Missing governance matrix entry', type: proposal.type } 
-            };
+            }; 
         }
 
         let resolutionResult;
@@ -106,8 +131,6 @@ class ClaraResolver {
         // Use consistent formatting for easier log parsing
         this.logger.info(`[CLARA] ID: ${id} | Policy: ${policy} | Outcome: ${outcome}`, { details });
     }
-    
-    // Removed the internal _handleWeightedDelegation and _handleImmediateMitigation stubs.
 }
 
 // Expose policies and status codes for external checks
