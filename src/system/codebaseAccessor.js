@@ -3,7 +3,7 @@
  * This abstracts away Node.js 'fs' dependencies and centralizes codebase checks,
  * allowing the core logic to remain platform-agnostic and testable (AGI-C-06).
  */
-import * as fs from 'fs';
+import { SynchronousFileIntegrityCheckerTool } from '../tools/SynchronousFileIntegrityCheckerTool';
 
 export class CodebaseAccessor {
 
@@ -14,15 +14,18 @@ export class CodebaseAccessor {
      * @returns {boolean} True if the file exists.
      */
     static fileExists(filePath) {
+        // Basic input validation
         if (!filePath || typeof filePath !== 'string') {
             return false;
         }
+        
         try {
-            // TODO: Replace direct fs access with cached codebase state lookup
-            return fs.existsSync(filePath);
+            // Delegate the platform-specific check to the dedicated utility tool.
+            // This abstracts away direct 'fs' dependency.
+            return SynchronousFileIntegrityCheckerTool.checkExists(filePath);
         } catch (error) {
             // Logging unexpected error during file check is critical
-            console.error(`[CodebaseAccessor] Failed to check existence of ${filePath}:`, error);
+            console.error(`[CodebaseAccessor] Failed to check existence of ${filePath} using SynchronousFileIntegrityCheckerTool:`, error);
             return false;
         }
     }
