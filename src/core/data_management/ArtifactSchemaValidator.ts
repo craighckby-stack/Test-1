@@ -1,13 +1,23 @@
 // src/core/data_management/ArtifactSchemaValidator.ts
 
 import { readFileSync } from 'fs';
-import Ajv from 'ajv';
 
-// Using Ajv for rapid runtime schema validation
-const ajv = new Ajv({ 
-    coerceTypes: true, // Optionally attempt type coercion
-    allowUnionTypes: true 
-});
+// Placeholder for the external Schema Validation Tool Interface
+// These interfaces define the contract with the vanilla JS plugin.
+interface ValidationResult {
+    isValid: boolean;
+    errors: Array<{ message: string, dataPath?: string }>;
+    errorText?: string;
+}
+
+interface SchemaValidationTool {
+    compileAndCacheSchema(schemaRef: string, schemaContent: unknown): string;
+    validateData(schemaRef: string, data: unknown): ValidationResult;
+}
+
+// We assume the SchemaCompilationAndValidationService plugin is executed and available in the global scope.
+const schemaValidationTool: SchemaValidationTool = (globalThis as any).SchemaCompilationAndValidationService;
+
 
 /**
  * Manages dynamic loading and validation of external schemas referenced by 
@@ -17,39 +27,56 @@ const ajv = new Ajv({
  * to the defined governance and operational contracts at runtime.
  */
 export class ArtifactSchemaValidator {
-    private loadedSchemas: Map<string, Ajv.ValidateFunction>;
+    // Tracks which schemas have been loaded from disk and compiled by the service.
+    private loadedSchemaRefs: Set<string>; 
     private schemaBasePath: string;
 
     constructor(schemaBasePath: string = './config/schemas') {
-        this.loadedSchemas = new Map();
+        if (!schemaValidationTool) {
+            throw new Error("SchemaCompilationAndValidationService plugin is required but not found in the execution environment.");
+        }
+        this.loadedSchemaRefs = new Set();
         // Ensure the path ends with a separator
         this.schemaBasePath = schemaBasePath.endsWith('/') ? schemaBasePath : `${schemaBasePath}/`;
     }
 
     /**
-     * Loads and compiles a schema from the file system based on its reference path.
-     * Caches the compiled validator function for performance.
+     * Loads, parses, and compiles a schema from the file system based on its reference path.
+     * Caches the compilation result via the Schema Validation Tool.
      * @param schemaRef The path defined in the artifact registry (e.g., 'CORE_TRANSACTION_EVENT.json')
-     * @returns Ajv validation function.
      */
-    private loadSchema(schemaRef: string): Ajv.ValidateFunction {
-        if (this.loadedSchemas.has(schemaRef)) {
-            return this.loadedSchemas.get(schemaRef)!;
+    private ensureSchemaIsCompiled(schemaRef: string): void {
+        if (this.loadedSchemaRefs.has(schemaRef)) {
+            return;
         }
 
         const fullPath = `${this.schemaBasePath}${schemaRef}`;
         console.debug(`[ArtifactSchemaValidator] Attempting to load schema from: ${fullPath}`);
 
         try {
-            const schemaContent = readFileSync(fullPath, 'utf-8');
-            const schema = JSON.parse(schemaContent);
-            // Compilation ensures the schema itself is valid and ready for use
-            const validate = ajv.compile(schema);
-            this.loadedSchemas.set(schemaRef, validate);
-            return validate;
+            const schemaContentString = readFileSync(fullPath, 'utf-8');
+            const schema = JSON.parse(schemaContentString);
+            
+            // Delegate compilation and caching to the external tool
+            schemaValidationTool.compileAndCacheSchema(schemaRef, schema);
+            
+            this.loadedSchemaRefs.add(schemaRef);
+
         } catch (error) {
-            console.error(`Error loading or parsing schema at ${fullPath}:`, error);
-            throw new Error(`Failed to initialize validator for schemaRef: ${schemaRef}. Ensure file exists and is valid JSON Schema.`);
+            let errorMessage = `Failed to initialize validator for schemaRef: ${schemaRef}.`;
+            
+            if (error instanceof Error) {
+                if (error.message.includes('ENOENT')) {
+                    errorMessage += " Ensure file exists.";
+                } else if (error.message.includes('JSON')) {
+                    errorMessage += " Ensure file contains valid JSON Schema.";
+                } else {
+                    errorMessage += ` Internal tool error: ${error.message}`;
+                }
+            }
+            console.error(`Error processing schema at ${fullPath}:`, error);
+           
+            throw new Error(errorMessage);
         }
     }
 
@@ -61,12 +88,15 @@ export class ArtifactSchemaValidator {
      * @throws Error if validation fails.
      */
     public validateArtifact(data: unknown, schemaRef: string): boolean {
-        const validate = this.loadSchema(schemaRef);
-        const isValid = validate(data);
+        // 1. Ensure schema is loaded and compiled
+        this.ensureSchemaIsCompiled(schemaRef);
 
-        if (!isValid) {
-            // Providing clear error details from Ajv
-            const errorDetails = ajv.errorsText(validate.errors, { dataVar: 'data' });
+        // 2. Delegate validation to the external tool
+        const validationResult = schemaValidationTool.validateData(schemaRef, data);
+
+        if (!validationResult.isValid) {
+            // Providing clear error details from the tool
+            const errorDetails = validationResult.errorText || `Unknown validation error with ${validationResult.errors.length} issues.`
             throw new Error(`Data artifact validation failed for schema '${schemaRef}'. Details: ${errorDetails}`);
         }
 
