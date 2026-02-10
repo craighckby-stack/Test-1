@@ -1,9 +1,10 @@
 {
-  "schema_version": "AIM_V3.0_SYNERGY",
+  "schema_version": "AIM_V3.1_SYNERGY_NORMALIZED",
   "metadata": {
-    "description": "Agent Integrity Monitoring Manifest (V3.0). Standardized constraints, incorporating semantic unit parsing for improved readability and governance tracking.",
+    "description": "Agent Integrity Monitoring Manifest (V3.1). Standardized constraints, converted semantic units to MB/integers, and integrated dynamic constraint resolution identifiers for AGI governance.",
     "governance_scope": "AGI-KERNEL_CORE",
-    "last_updated": "CYCLE_1"
+    "last_updated": "CYCLE_1",
+    "normalization_tool_used": "AIMConstraintNormalizer_V1"
   },
   "integrity_profiles": {
     "SGS_AGENT": {
@@ -12,7 +13,8 @@
       "constraints": {
         "resource_limits": {
           "cpu_limit_percentage": 75,
-          "memory_limit": "4GB"
+          "memory_limit_mb": 4096,
+          "process_priority": 90
         },
         "security_policy": {
           "enforcement_active": true,
@@ -29,8 +31,9 @@
           "paths_immutable": [
             "/opt/sgs/gacr/"
           ],
-          "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4...",
-          "runtime_logging_enabled": true
+          "integrity_check_ref_id": "CORE_MANIFEST_V7.5_HASH",
+          "runtime_logging_enabled": true,
+          "synergy_compliance_required": true
         }
       }
     },
@@ -40,7 +43,8 @@
       "constraints": {
         "resource_limits": {
           "cpu_limit_percentage": 10,
-          "memory_limit": "500MB"
+          "memory_limit_mb": 500,
+          "process_priority": 50
         },
         "security_policy": {
           "enforcement_active": true,
@@ -52,7 +56,9 @@
             "/opt/gax/policy_data/"
           ],
           "network_mode": "POLICY_FETCH_ONLY",
-          "runtime_logging_enabled": false
+          "runtime_logging_enabled": false,
+          "integrity_check_ref_id": "CORE_MANIFEST_V7.5_HASH",
+          "synergy_compliance_required": false
         }
       }
     },
@@ -61,12 +67,16 @@
       "integrity_level": "MINIMAL_EXECUTION",
       "constraints": {
         "resource_limits": {
-          "memory_limit": "128MB"
+          "cpu_limit_percentage": 5,
+          "memory_limit_mb": 128,
+          "process_priority": 20
         },
         "security_policy": {
           "enforcement_active": true,
           "network_mode": "NONE",
-          "time_sync_source_critical": "CRITICAL_NTP_A"
+          "time_sync_source_critical": "CRITICAL_NTP_A",
+          "integrity_check_ref_id": "CORE_MANIFEST_V7.5_HASH",
+          "synergy_compliance_required": false
         }
       }
     }
