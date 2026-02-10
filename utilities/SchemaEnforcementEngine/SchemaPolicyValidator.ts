@@ -1,5 +1,15 @@
-import { validate } from 'fast-json-validator';
 import { STDM_V99_POLICY } from '../../config/governance/STDM_V99.0_PolicySchema.json';
+
+// Define the interface for the utility tool's expected output
+interface ValidationResult {
+    valid: boolean;
+    errors: { path: string, message: string }[] | null;
+}
+
+// Declare the globally available tool interface
+declare const PolicySchemaValidatorTool: {
+  execute(args: { schema: any, config: any }): ValidationResult;
+};
 
 /**
  * STDM V99 Policy Validator
@@ -20,9 +30,21 @@ export class SchemaPolicyValidator {
    * @returns {boolean} True if compliant, throws error otherwise.
    */
   public enforceCompliance(config: any): boolean {
-    const results = validate(this.schema, config);
+    
+    let results: ValidationResult;
+    try {
+        // Delegate validation to the reusable tool
+        results = PolicySchemaValidatorTool.execute({
+            schema: this.schema,
+            config: config,
+        });
+    } catch (e) {
+        // Handle execution errors from the tool itself (e.g., missing arguments)
+        throw new Error(`Policy validation execution failed: ${e.message}`);
+    }
 
     if (!results.valid) {
+      // Replicate original error handling and logging logic
       console.error("Governance violation detected.", results.errors);
       throw new Error(`STDM V99 Compliance failure for component config. Errors: ${JSON.stringify(results.errors)}`);
     }
