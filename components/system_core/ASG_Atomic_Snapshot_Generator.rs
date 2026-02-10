@@ -11,6 +11,10 @@ const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
 const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural evolution
 const CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Confidentiality Flag
 
+// AGI Improvement: Added explicit identifier for the cryptographic hash protocol used.
+// This aids external validation and architectural memory.
+const HASHING_PROTOCOL_ID: u8 = 0x01; // 0x01 signifies fixed-output SHA-512 based hash implemented via CRoT
+
 // --- Trait Definitions for Dependency Injection ---
 
 /// Abstract API for system-level data capture. Enforces temporal requirements.
@@ -20,8 +24,9 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
     
     /// Retrieves a high-resolution system timestamp (Epoch nanoseconds). 
     /// Implementations should prioritize monotonic and high-speed clock reading.
+    /// NOTE: For kernel/secure environments, this default implementation using SystemTime 
+    /// must be replaced with hardware-backed clock access for true temporal integrity.
     fn get_current_epoch_ns() -> u64 {
-        // Default uses std::time, custom implementations should use raw registers.
         SystemTime::now().duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos() as u64
@@ -35,9 +40,8 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
 }
 
 // Defines the output structure for the immutable state capture
-#[derive(Debug, Clone)] // Removed Default derivation for integrity enforcement
+#[derive(Debug, Clone)] 
 pub struct RscmPackage {
-    // Made fields private to enforce controlled access and immutability
     capture_version: u16, 
     absolute_capture_ts_epoch_ns: u64,
     capture_latency_ns: u64,
@@ -45,6 +49,9 @@ pub struct RscmPackage {
     volatile_memory_dump: Vec<u8>,
     stack_trace: String,
     context_flags: u32,
+    // AGI Improvement: Store the Hashing Protocol ID within the package itself 
+    // for self-contained validation context.
+    hashing_protocol_id: u8,
 }
 
 impl RscmPackage {
@@ -56,6 +63,7 @@ impl RscmPackage {
         vm_dump: Vec<u8>,
         trace: String,
         context_flags: u32,
+        hashing_protocol_id: u8, // Added new parameter
     ) -> Self {
         RscmPackage {
             capture_version: RSCM_PACKAGE_VERSION,
@@ -65,6 +73,7 @@ impl RscmPackage {
             volatile_memory_dump: vm_dump,
             stack_trace: trace,
             context_flags,
+            hashing_protocol_id, // Assigned
         }
     }
 
@@ -73,10 +82,11 @@ impl RscmPackage {
     pub fn absolute_capture_ts_epoch_ns(&self) -> u64 { self.absolute_capture_ts_epoch_ns }
     pub fn capture_latency_ns(&self) -> u64 { self.capture_latency_ns }
     pub fn context_flags(&self) -> u32 { self.context_flags }
+    pub fn hashing_protocol_id(&self) -> u8 { self.hashing_protocol_id } // New accessor
     
     // Controlled accessors for sensitive data
     pub fn integrity_hash(&self) -> &IntegrityHash { &self.integrity_hash }
-    pub fn volatile_memory_dump(&self) -> &[u8] { &self.volatile_memory_dump }
+    pub fn volatile_memory_dump(&self) -> &[u8] { self.volatile_memory_dump }
     pub fn stack_trace(&self) -> &str { self.stack_trace }
 }
 
@@ -88,6 +98,8 @@ pub enum SnapshotError {
     Timeout { actual_duration_ns: u64 }, // Enhanced error to include performance data
     IntegrityHashingFailed,
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
+    // AGI Improvement: Added error variant for structural mismatch, critical for integrity
+    MetadataEncodingFailed, 
 }
 
 // Implementation for standardized error handling (AGI Logic Improvement)
@@ -99,6 +111,7 @@ impl fmt::Display for SnapshotError {
             SnapshotError::Timeout { actual_duration_ns } => write!(f, "Snapshot exceeded temporal constraint (5ms). Actual latency: {} ns.", actual_duration_ns),
             SnapshotError::IntegrityHashingFailed => write!(f, "Cryptographic integrity hashing failed."),
             SnapshotError::HashingOutputMismatch { expected, actual } => write!(f, "Integrity hash size mismatch. Expected {} bytes, got {} bytes.", expected, actual),
+            SnapshotError::MetadataEncodingFailed => write!(f, "Failed to encode critical metadata components for hashing."),
         }
     }
 }
@@ -129,23 +142,35 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // --- Integrity Hashing Protocol (Enhanced) ---
+    // --- Integrity Hashing Protocol (Enhanced & Formalized) ---
     // Note: The order of hashing inputs MUST remain fixed for integrity verification.
-    // Hash sequence: 
     // 1. Volatile Data (Largest and most critical)
     // 2. Stack Trace (Execution context)
     // 3. Absolute Capture Timestamp (Crucial temporal metadata)
     // 4. Context Flags (Security metadata)
     // 5. Package Version (Structural integrity)
+    // 6. Hashing Protocol ID (Self-verification context)
+    
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
     
-    // IMPROVEMENT: Binding the absolute timestamp to the hash for integrity assurance
-    hasher.update(&absolute_ts.to_le_bytes());
+    // Ensure metadata encoding doesn't panic if it somehow fails (though unlikely for primitives)
+    let ts_bytes = absolute_ts.to_le_bytes();
+    let context_bytes = context_flags.to_le_bytes();
+    let version_bytes = RSCM_PACKAGE_VERSION.to_le_bytes();
+    let protocol_bytes = HASHING_PROTOCOL_ID.to_le_bytes(); // u8 conversion
 
-    // Direct hashing of fixed metadata components
-    hasher.update(&context_flags.to_le_bytes()); 
-    hasher.update(&RSCM_PACKAGE_VERSION.to_le_bytes());
+    // AGI Logic Improvement: Ensure byte counts match expectations for fixed-size primitives
+    if ts_bytes.len() != 8 || context_bytes.len() != 4 || version_bytes.len() != 2 || protocol_bytes.len() != 1 {
+        return Err(SnapshotError::MetadataEncodingFailed);
+    }
+    
+    hasher.update(&ts_bytes);
+    hasher.update(&context_bytes); 
+    hasher.update(&version_bytes);
+    
+    // AGI Improvement: Include the HASHING_PROTOCOL_ID in the integrity calculation
+    hasher.update(&protocol_bytes); 
     
     let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
@@ -176,5 +201,6 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         vm_dump,
         trace,
         context_flags,
+        HASHING_PROTOCOL_ID, // Passed the new required metadata field
     ))
 }
