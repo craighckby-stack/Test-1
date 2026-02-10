@@ -1,42 +1,51 @@
 /**
- * SchemaValidator Utility (Ajv Wrapper)
- * V97.0.0: High-performance JSON Schema compiler.
+ * SchemaValidator Utility Proxy
+ * Delegates validation and compilation tasks to the HighPerformanceSchemaCompilerTool.
+ * V97.1.0: Refactored to use dedicated Kernel Tool.
  */
-const Ajv = require('ajv').default;
 
+// Conceptual access to the kernel tool interface. In a production environment,
+// this reference would be securely injected or resolved via a service locator.
+const SchemaCompilerTool = globalThis.AGI_KERNEL_TOOLS?.HighPerformanceSchemaCompilerTool || {
+    // Provide graceful fallbacks if the tool is not yet loaded/available
+    compile: (s) => { throw new Error("HighPerformanceSchemaCompilerTool is unavailable."); },
+    validate: (s, d) => ({
+        isValid: false,
+        errors: [{ message: "HighPerformanceSchemaCompilerTool is unavailable.", keyword: 'system' }]
+    })
+};
+
+/**
+ * Proxy class for Schema Validation operations.
+ */
 class SchemaValidator {
     constructor() {
-        // Configure Ajv for strict, production-ready schema validation
-        this.ajv = new Ajv({
-            allErrors: true,
-            strict: true,
-            coerceTypes: false,
-            removeAdditional: 'failing',
-            // Add format implementations if complex types like 'uuid' or 'date-time' are expected
-        });
+        // Initialization is lightweight as the heavy lifting is delegated.
     }
 
     /**
      * Compiles a JSON Schema into a reusable, high-performance validation function.
+     * Delegates to the HighPerformanceSchemaCompilerTool.
      * @param {object} schema - The JSON Schema definition.
-     * @returns {Ajv.ValidateFunction} The compiled validation function.
-     * @throws {Error} If schema compilation fails.
+     * @returns {Function} The compiled validation function.
+     * @throws {Error} If schema compilation fails or tool is missing.
      */
     compile(schema) {
-        if (!schema || typeof schema !== 'object') {
-            throw new Error('Invalid schema provided for compilation.');
+        if (typeof SchemaCompilerTool.compile !== 'function') {
+             throw new Error("HighPerformanceSchemaCompilerTool compile function is missing.");
         }
-        return this.ajv.compile(schema);
+        return SchemaCompilerTool.compile(schema);
     }
 
     /**
-     * Helper method to directly validate data against a raw schema (less efficient than using compiled function).
-     * Primarily for testing or single-use cases.
+     * Helper method to directly validate data against a raw schema.
+     * Delegates to the HighPerformanceSchemaCompilerTool.
      */
     validate(schema, data) {
-        const validateFn = this.compile(schema);
-        const isValid = validateFn(data);
-        return { isValid, errors: validateFn.errors };
+        if (typeof SchemaCompilerTool.validate !== 'function') {
+            return { isValid: false, errors: [{ message: "HighPerformanceSchemaCompilerTool validate function is missing.", keyword: 'system' }] };
+        }
+        return SchemaCompilerTool.validate(schema, data);
     }
 }
 
