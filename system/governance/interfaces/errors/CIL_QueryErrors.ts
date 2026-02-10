@@ -3,38 +3,53 @@
  * Description: Defines structured exception handling classes for the CIL_BlockQuery_Interface.
  */
 
+declare const StructuredErrorDetailFormatter: {
+    formatMismatchMessage(expectedHash: string, actualHash: string): string;
+    formatNotFoundMessage(queryId: string): string;
+    formatIntegrityMessage(blockNumber: number): string;
+    formatViolationMessage(blockNumber: number, detail: string): string;
+};
+
 export class CILQueryError extends Error {
     constructor(message: string) {
         super(message);
         this.name = 'CILQueryError';
+        // Ensures correct prototype chain for 'instanceof' checks in complex environments
         Object.setPrototypeOf(this, CILQueryError.prototype);
     }
 }
 
 export class CILNotFoundError extends CILQueryError {
-    constructor(queryId: string, message = `CIL Block not found for identifier: ${queryId}`) {
-        super(message);
+    constructor(queryId: string, message?: string) {
+        const defaultMessage = StructuredErrorDetailFormatter.formatNotFoundMessage(queryId);
+        super(message || defaultMessage);
         this.name = 'CILNotFoundError';
     }
 }
 
 export class CILIntegrityError extends CILQueryError {
-    constructor(blockNumber: number, message = `CIL Block integrity check failed for block ${blockNumber}`) {
-        super(message);
+    constructor(blockNumber: number, message?: string) {
+        const defaultMessage = StructuredErrorDetailFormatter.formatIntegrityMessage(blockNumber);
+        super(message || defaultMessage);
         this.name = 'CILIntegrityError';
     }
 }
 
 export class CILMismatchError extends CILQueryError {
-    constructor(expectedHash: string, actualHash: string, message = `Hash mismatch detected. Expected ${expectedHash.substring(0, 10)}...`) {
-        super(message);
+    constructor(expectedHash: string, actualHash: string, message?: string) {
+        // Delegate complex message formatting, including hash truncation, to the utility tool.
+        const defaultMessage = StructuredErrorDetailFormatter.formatMismatchMessage(expectedHash, actualHash);
+        super(message || defaultMessage);
         this.name = 'CILMismatchError';
     }
 }
 
 export class CILBlockIntegrityViolation extends CILIntegrityError {
     constructor(blockNumber: number, detail: string) {
-        super(blockNumber, `Integrity violation detected in block ${blockNumber}. Details: ${detail}`);
+        // Generate the specific violation message using the formatter.
+        const specificMessage = StructuredErrorDetailFormatter.formatViolationMessage(blockNumber, detail);
+        // Pass the block number and the specific message up to CILIntegrityError
+        super(blockNumber, specificMessage);
         this.name = 'CILBlockIntegrityViolation';
     }
 }
