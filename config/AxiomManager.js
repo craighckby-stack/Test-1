@@ -5,28 +5,18 @@ class AxiomManager {
      */
     constructor(axioms) {
         this.axioms = axioms || [];
+        this.lastResult = null;
     }
 
     /**
      * Executes the abstracted and optimized computational process 
-     * by delegating the complex, recursive calculation to the specialized kernel tool.
+     * by delegating the complex, recursive calculation to the specialized kernel invoker.
+     * (Requires AxiomKernelInvoker to be available in scope)
      * @returns {object} The optimized and abstracted result set.
      */
     processRecursively() {
-        if (!this.axioms || this.axioms.length === 0) {
-            return { abstractionLevel: 0, optimizedResults: [] };
-        }
-
-        const payload = {
-            axiomSet: this.axioms
-        };
-
-        // KERNEL_SYNERGY_CAPABILITIES handles the execution of the high-efficiency AxiomCalculator plugin
-        const result = KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
-            "AxiomCalculator",
-            "calculateAbstraction",
-            payload
-        );
+        // Delegate complex computational logic to the specialized invoker plugin
+        const result = AxiomKernelInvoker.calculate(this.axioms);
 
         console.log(`[AxiomManager]: Abstraction complete. Level: ${result.abstractionLevel}`);
         this.lastResult = result.optimizedResults;
