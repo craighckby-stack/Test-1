@@ -2,6 +2,19 @@ import { GAXConstraintSet, TxContext, ConstraintViolation, ConstraintValidationR
 import rawConstraints from '../../../registry/protocol/gax_constraint_set.json';
 import { ConstraintValidator } from './ConstraintValidator';
 
+// Conceptual Plugin Import/Usage Definition
+// This utility abstracts the limit check and violation object creation.
+declare const LimitCheckAndViolationCreator: {
+    execute: (args: {
+        contextValue: number;
+        limitConfig: { limit: number, failure_mode: 'REJECT' | 'WARN' };
+        constraintName: string;
+        messageGenerator: (used: number, limit: number) => string;
+        details?: object;
+    }) => ConstraintViolation | null;
+};
+
+
 /**
  * Manages, validates, and enforces all system constraints (GAX).
  * Decouples constraint logic from transaction execution flow and provides generalization for checking limits.
@@ -51,29 +64,8 @@ export class ConstraintEnforcer {
     }
 
     /**
-     * Generic utility to check a context value against a defined limit configuration.
-     * @private
-     */
-    private _checkLimit(
-        contextValue: number,
-        config: { limit: number, failure_mode: 'REJECT' | 'WARN' },
-        constraintName: string,
-        messageTemplate: (used: number, limit: number) => string,
-        details: object = {}
-    ): ConstraintViolation | null {
-        if (contextValue > config.limit) {
-            return {
-                constraint: constraintName,
-                level: config.failure_mode,
-                message: messageTemplate(contextValue, config.limit),
-                details: { ...details, used: contextValue, limit: config.limit, action: config.failure_mode }
-            };
-        }
-        return null;
-    }
-
-    /**
      * Handles all constraints defined under the 'global_execution_limits' section.
+     * Delegates limit checking and violation object generation to the dedicated utility plugin.
      * @private
      */
     private _checkGlobalExecutionLimits(txContext: TxContext): ConstraintViolation[] {
@@ -82,25 +74,29 @@ export class ConstraintEnforcer {
 
         // Check 1: Max Gas Units
         const gasUsed = txContext.resources?.gas || 0;
-        let violation = this._checkLimit(
-            gasUsed,
-            limits.max_gas_units_per_tx,
-            'MAX_GAS_UNITS',
-            (used, limit) => `Tx exceeded max gas limit: ${limit}. Used: ${used}.`
-        );
-        if (violation) violations.push(violation);
+        
+        const gasViolation = LimitCheckAndViolationCreator.execute({
+            contextValue: gasUsed,
+            limitConfig: limits.max_gas_units_per_tx,
+            constraintName: 'MAX_GAS_UNITS',
+            messageGenerator: (used, limit) => `Tx exceeded max gas limit: ${limit}. Used: ${used}.`
+        });
+        
+        if (gasViolation) violations.push(gasViolation);
 
         // Check 2: Max Payload Size
         const payloadSize = txContext.payload_size || 0;
-        violation = this._checkLimit(
-            payloadSize,
-            limits.max_payload_bytes,
-            'MAX_PAYLOAD_SIZE',
-            (size, limit) => `Tx payload size (${size}B) exceeded limit: ${limit}B.`
-        );
-        if (violation) violations.push(violation);
+        
+        const sizeViolation = LimitCheckAndViolationCreator.execute({
+            contextValue: payloadSize,
+            limitConfig: limits.max_payload_bytes,
+            constraintName: 'MAX_PAYLOAD_SIZE',
+            messageGenerator: (size, limit) => `Tx payload size (${size}B) exceeded limit: ${limit}B.`
+        });
+        
+        if (sizeViolation) violations.push(sizeViolation);
 
-        // Check N: Future limits can be added easily here, using the common _checkLimit pattern.
+        // Check N: Future limits can be added easily here, using the common plugin pattern.
 
         return violations;
     }
