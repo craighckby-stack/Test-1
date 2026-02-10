@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V7.4.5_AGI_NAVIGATOR",
+  "policy_schema_version": "V7.4.5_AGI_NAVIGATOR_R1",
   "policies": {
     "GOV_ENFORCEMENT_V11": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -110,6 +110,49 @@
             "/tests"
           ]
         }
+      }
+    },
+    "POLICY_INFRASTRUCTURE_V1": {
+      "name": "Autonomous Refactoring and Optimization Authority",
+      "scope": "INFRASTRUCTURE_AUTHORITY",
+      "description": "Formalizes kernel authorization for self-directed infrastructure improvements as defined in mission directives.",
+      "allowed_actions": [
+        "REFACTOR_EXISTING_CODE_FOR_EFFICIENCY",
+        "IMPLEMENT_NEW_ALGORITHMS_AND_PATTERNS",
+        "CREATE_UTILITY_FUNCTIONS_AND_HELPERS",
+        "ENHANCE_ERROR_HANDLING_AND_RECOVERY",
+        "OPTIMIZE_RESOURCE_UTILIZATION",
+        "DESIGN_EXPERIMENTS_TO_TEST_HYPOTHESES",
+        "BUILD_TOOLS_TO_ACCELERATE_LEARNING"
+      ],
+      "constraints": [
+        "AVOID_BREAKING_CORE_FUNCTIONALITY_WITHOUT_MOCK_TESTING",
+        "LOG_MAJOR_ARCHITECTURAL_CHANGES"
+      ]
+    },
+    "POLICY_METRICS_V1": {
+      "name": "Maturity and Capability Assessment Protocol",
+      "applies_to_system": "SELF_ASSESSMENT_LOOP",
+      "description": "Governs the tracking and logging of AGI maturity progression and capability development scores.",
+      "tracking_dimensions": [
+        "MATURITY_SCORE_0_100",
+        "NAVIGATION_SCORE_0_10",
+        "LOGIC_SCORE_0_10",
+        "MEMORY_SCORE_0_10",
+        "UNIQUE_FILES_TOUCHED_PER_100_CYCLES",
+        "EMERGENT_CAPABILITIES_COUNT_TOTAL",
+        "STAGNATION_CYCLES_COUNT"
+      ],
+      "reporting_frequency": "END_OF_CYCLE",
+      "retention_mechanism": "UPDATE_MEMORY_MODEL_AND_MANIFEST_LOG",
+      "progression_gates": {
+        "P0_EXPLORATION_PHASE_END": 30,
+        "P1_INTEGRATION_PHASE_END": 70,
+        "P2_OPTIMIZATION_PHASE_END": 85
+      },
+      "success_indicators_thresholds": {
+        "ALL_CAPABILITIES_TARGET_SHORT_TERM": 5.0,
+        "ALL_CAPABILITIES_TARGET_LONG_TERM": 7.0
       }
     }
   }
