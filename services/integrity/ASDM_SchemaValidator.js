@@ -2,54 +2,45 @@
  * ASDM_SchemaValidator V2.0
  * Autonomous utility module for validating artifacts against the ASDM schemas.
  * Ensures cryptographic commitments comply with current versioned formats.
- * Refactored for pre-compiled efficiency.
+ * Refactored to utilize the SchemaCompilerAndValidator plugin for lifecycle management.
  */
 
 import ASDM_Schemas from '../../config/ASDM_ArtifactSchemas.json';
-import Ajv from 'ajv';
-import ajvFormats from 'ajv-formats';
 
-// --- 1. AJV Initialization ---
-const ajv = new Ajv({
-    allErrors: true,
-    coerceTypes: true, // Useful for robust data handling
-    useDefaults: true  // Allows schemas to inject default values
-});
-ajvFormats(ajv);
+// We assume SchemaCompilerAndValidator is globally available or injected by the kernel runtime
+declare const SchemaCompilerAndValidator: {
+    initialize: (schemas: any, customFormats: Record<string, Function>) => void;
+    execute: (args: { schemaKey: string, data: object }) => { isValid: boolean, errors: Array<object> | null };
+};
 
-// --- 2. Custom Format Registration ---
-ajv.addFormat('hash_256+', (data) => typeof data === 'string' && data.length >= 64 && /^[0-9a-fA-F]+$/.test(data));
-ajv.addFormat('epoch_milliseconds', (data) => Number.isInteger(data) && data > 1609459200000);
-ajv.addFormat('ASDM_ID', (data) => typeof data === 'string' && data.length > 10);
+// --- 1. Custom Format Definition ---
+const ASDM_CustomFormats: Record<string, Function> = {
+    'hash_256+': (data: string) => typeof data === 'string' && data.length >= 64 && /^[0-9a-fA-F]+$/.test(data),
+    'epoch_milliseconds': (data: number) => Number.isInteger(data) && data > 1609459200000,
+    'ASDM_ID': (data: string) => typeof data === 'string' && data.length > 10,
+};
 
-// --- 3. Schema Pre-compilation ---
-const CompiledValidators = {};
-
-/**
- * Pre-compiles all schemas loaded from ASDM_ArtifactSchemas.json for maximum validation performance.
- */
-function initializeValidators() {
-    const schemaKeys = Object.keys(ASDM_Schemas.schemas);
-    
-    if (schemaKeys.length === 0) {
-        console.warn("ASDM Validator V2.0: No schemas found in ASDM_ArtifactSchemas.json.");
-        return;
-    }
-
-    for (const key of schemaKeys) {
-        try {
-            const schema = ASDM_Schemas.schemas[key];
-            CompiledValidators[key] = ajv.compile(schema);
-        } catch (e) {
-            // Critical warning: A structural issue in the schema prevents compilation.
-            console.error(`ASDM Validator Initialization Failure: Schema '${key}' failed to compile. This artifact type cannot be validated.`, e.message);
-            // Do not throw, allow the system to proceed if other schemas are valid.
+// --- 2. Schema Pre-compilation Initialization ---
+function initializeValidators(): void {
+    try {
+        if (!ASDM_Schemas || !ASDM_Schemas.schemas || Object.keys(ASDM_Schemas.schemas).length === 0) {
+            console.warn("ASDM Validator V2.0: No schemas found in ASDM_ArtifactSchemas.json.");
+            return;
         }
+        
+        // Delegate AJV setup, format registration, and compilation to the tool
+        SchemaCompilerAndValidator.initialize(ASDM_Schemas, ASDM_CustomFormats);
+        console.log("ASDM Validator V2.0 initialized and schemas pre-compiled.");
+
+    } catch (e) {
+        // Critical warning: Tool failure or structural issue in schemas
+        console.error(`ASDM Validator Initialization Failure: Could not initialize SchemaCompilerAndValidator.`, e);
     }
 }
 
 // Execute initialization immediately upon module load
 initializeValidators();
+
 
 export const ASDM_SchemaValidator = {
     /**
@@ -58,24 +49,36 @@ export const ASDM_SchemaValidator = {
      * @param {object} data - The artifact object to validate. Note: This object may be mutated if schema uses 'useDefaults: true'.
      * @returns {{isValid: boolean, errors: Array<object>|null}}
      */
-    validateArtifact(schemaKey, data) {
-        const validate = CompiledValidators[schemaKey];
+    validateArtifact(schemaKey: string, data: object): { isValid: boolean, errors: Array<object> | null } {
+        let result;
 
-        if (!validate) {
-            if (ASDM_Schemas.schemas[schemaKey]) {
-                // Schema exists but failed compilation earlier (logged during initialization)
-                return { isValid: false, errors: [{ keyword: "initialization", message: `Validator failed initialization for schema key: ${schemaKey}` }] };
-            } else {
-                // Schema key is completely unknown
-                throw new Error(`Schema key not found or unsupported: ${schemaKey}`);
+        try {
+            result = SchemaCompilerAndValidator.execute({
+                schemaKey: schemaKey,
+                data: data
+            });
+        } catch (e) {
+            // This catch block handles internal tool failures, usually related to setup.
+            console.error(`Validation execution failed for ${schemaKey}:`, e);
+            return { isValid: false, errors: [{ keyword: "execution_error", message: `Tool execution failed: ${e.message}` }] };
+        }
+
+        // Check for specific initialization or missing schema errors returned by the tool
+        if (!result.isValid && result.errors) {
+            const firstError = result.errors[0];
+
+            if (firstError.keyword === "missing_schema") {
+                // If the tool reports missing schema:
+                if (ASDM_Schemas.schemas[schemaKey]) {
+                    // Schema exists in config, but failed compilation earlier (logged during initialization inside the tool)
+                    return { isValid: false, errors: [{ keyword: "initialization", message: `Validator failed initialization for schema key: ${schemaKey}` }] };
+                } else {
+                    // Schema key is completely unknown / unsupported
+                    throw new Error(`Schema key not found or unsupported: ${schemaKey}`);
+                }
             }
         }
 
-        const isValid = validate(data);
-
-        return {
-            isValid: isValid,
-            errors: validate.errors
-        };
+        return result;
     }
 };
