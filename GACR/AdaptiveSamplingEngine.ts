@@ -5,11 +5,9 @@
  * defined in TelemetryAggregatorConfig. It dynamically calculates the necessary 
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth),
  * ensuring stability by enforcing the most restrictive limit.
- * 
- * AGI KERNEL V8.5.1 IMPROVEMENT (Enhanced Resilience & Grounding):
- * 1. Maintained robust local reduction fallback mechanism (_localCalculateRate).
- * 2. Implemented explicit source tracking ('Reducer' vs. 'LocalFallback') for decision logging.
- * 3. Enhanced metric validation using `isFinite` for improved numerical stability.
+ *
+ * Refactoring Note: The synchronous local rate calculation logic has been abstracted
+ * into the `ConstraintRateReducer` plugin and is now injected/defaulted for the fallback path.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -36,11 +34,42 @@ type ReductionResult = {
     restrictingConstraint: NamedConstraint | null;
 };
 
+// Interface matching the abstracted ConstraintRateReducer plugin
+interface IConstraintRateReducer {
+    reduce(constraints: NamedConstraint[]): ReductionResult;
+}
+
 // Default targets for core constraints, used if config is missing
 const DEFAULT_TARGETS = {
     cpu: 0.80, 
     memory: 0.85, 
     queueDepth: 0.70
+};
+
+// Robust local fallback implementation (using the abstracted logic)
+const defaultLocalReducer: IConstraintRateReducer = {
+    /**
+     * Calculates the required sampling rate by finding the ratio (target / current) 
+     * for the most restrictive resource.
+     */
+    reduce: (constraints: NamedConstraint[]): ReductionResult => {
+        let requiredRate = 1.0;
+        let restrictingConstraint: NamedConstraint | null = null;
+
+        for (const constraint of constraints) {
+            // Rate Ratio calculation: target / current utilization. 
+            const rateRatio = constraint.target / constraint.current;
+            
+            // The effective throttling rate cannot exceed 1.0 (no boosting).
+            const rateToApply = Math.min(1.0, rateRatio);
+
+            if (rateToApply < requiredRate) {
+                requiredRate = rateToApply;
+                restrictingConstraint = constraint;
+            }
+        }
+        return { rate: requiredRate, restrictingConstraint };
+    }
 };
 
 // --- KERNEL V7 SYNERGY: Global declarations for plugin access ---
@@ -54,14 +83,21 @@ declare const KERNEL_HOOK: {
 export class AdaptiveSamplingEngine {
     private readonly config: AdaptiveSamplingConfig;
     private readonly monitor: ResourceMonitor;
+    private readonly localReducer: IConstraintRateReducer; // Handles the local fallback logic
 
     /**
-     * Constructor using dependency injection for ResourceMonitor.
+     * Constructor using dependency injection for ResourceMonitor and ConstraintRateReducer (fallback logic).
      */
-    constructor(config: AdaptiveSamplingConfig, monitor?: ResourceMonitor) {
+    constructor(
+        config: AdaptiveSamplingConfig, 
+        monitor?: ResourceMonitor,
+        rateReducer?: IConstraintRateReducer // New dependency injection point
+    ) {
         this.config = config;
         // Ensure ResourceMonitor is initialized, using provided instance or creating a default one.
         this.monitor = monitor ?? new ResourceMonitor(); 
+        // Use injected reducer or the robust default implementation.
+        this.localReducer = rateReducer ?? defaultLocalReducer;
     }
 
     /**
@@ -82,12 +118,12 @@ export class AdaptiveSamplingEngine {
                 current: metrics.cpu,
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            {
+            {S
                 name: 'Memory',
                 current: metrics.memory,
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            {
+            {S
                 name: 'QueueDepth',
                 current: metrics.queueDepth,
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
@@ -114,31 +150,6 @@ export class AdaptiveSamplingEngine {
 
         // Ensure fixed precision (4 decimal places)
         return Math.round(finalRate * 10000) / 10000;
-    }
-
-    /**
-     * Internal fallback method (Enhanced Resilience): Calculates the required rate based 
-     * on local constraints by finding the ratio (target / current) for the most 
-     * restrictive resource.
-     */
-    private _localCalculateRate(constraints: NamedConstraint[]): ReductionResult {
-        let requiredRate = 1.0;
-        let restrictingConstraint: NamedConstraint | null = null;
-
-        for (const constraint of constraints) {
-            // Rate Ratio calculation: target / current utilization. If current > target, ratio < 1.
-            const rateRatio = constraint.target / constraint.current;
-            
-            // The effective throttling rate cannot exceed 1.0 (no boosting).
-            const rateToApply = Math.min(1.0, rateRatio);
-
-            if (rateToApply < requiredRate) {
-                requiredRate = rateToApply;
-                restrictingConstraint = constraint;
-            }
-        }
-
-        return { rate: requiredRate, restrictingConstraint };
     }
 
     /**
@@ -173,7 +184,9 @@ export class AdaptiveSamplingEngine {
             // Enhanced Resilience Path: Fallback if plugin execution fails
             const errorMsg = e instanceof Error ? e.message : String(e);
             console.warn(`[ASE] ConstraintReducer failed or unavailable. Falling back to local calculation. Error: ${errorMsg}`);
-            reductionResult = this._localCalculateRate(constraints);
+            
+            // Refactored: Use the injected/default local reducer utility (ConstraintRateReducer logic)
+            reductionResult = this.localReducer.reduce(constraints);
             calculationSource = 'LocalFallback';
         }
         
