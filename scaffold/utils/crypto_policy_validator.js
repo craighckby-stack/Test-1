@@ -1,62 +1,59 @@
 const policy = require('../policies/config/crypto_policy.json');
 
 /**
- * CryptoPolicyValidator V1.0
- * Ensures runtime configuration compliance against the Sovereign AGI crypto policy.
+ * CryptoPolicyValidator V2.0 (Facade)
+ * Ensures runtime configuration compliance against the Sovereign AGI crypto policy by delegating to the CanonicalCryptoPolicyValidator tool.
  */
 class CryptoPolicyValidator {
 
-    constructor(policyConfig) {
+    private policy: any; // Using 'any' for policy structure
+
+    // In a production environment, this tool would be injected or accessed via a Kernel service.
+    // We use a placeholder type definition for clarity.
+    private readonly policyValidatorTool: any; 
+
+    constructor(policyConfig: any) {
         this.policy = policyConfig;
+        // Assume access to the plugin interface
+        // NOTE: Replace with actual dependency injection or service locator in runtime environment.
+        this.policyValidatorTool = global.plugins.CanonicalCryptoPolicyValidator;
     }
 
     /**
      * Validates if a provided hash algorithm meets current standards.
-     * @param {string} algorithmName - e.g., 'SHA-256'
-     * @param {number} digestSizeBits - e.g., 256
+     * @param algorithmName - e.g., 'SHA-256'
+     * @param digestSizeBits - e.g., 256
      */
-    isHashCompliant(algorithmName, digestSizeBits) {
-        const h = this.policy.hashingPolicy;
-        
-        if (digestSizeBits < h.minDigestLengthBits) {
-            return { compliant: false, reason: `Digest length (${digestSizeBits}) is below required minimum (${h.minDigestLengthBits}).` };
+    isHashCompliant(algorithmName: string, digestSizeBits: number): { compliant: boolean, reason: string } {
+        if (!this.policyValidatorTool || !this.policyValidatorTool.isHashCompliant) {
+            console.error("CanonicalCryptoPolicyValidator plugin not available.");
+            return { compliant: false, reason: 'Policy validation tool unavailable.' };
         }
 
-        const algoUpper = algorithmName.toUpperCase().replace('-', '_');
-        
-        if (h.deprecationStatus[algoUpper]?.status === 'DEPRECATED') {
-            return { compliant: false, reason: `${algorithmName} is fully deprecated and forbidden.` };
-        }
-
-        if (!h.approvedAlgorithms.includes(algoUpper)) {
-            // Allow soft deprecated algorithms if they are specifically exempted/necessary temporarily
-            if (h.deprecationStatus[algoUpper]?.status !== 'SOFT_DEPRECATION') {
-                 return { compliant: false, reason: `${algorithmName} is not in the approved list.` };
-            }
-        }
-
-        return { compliant: true, reason: 'Compliant.' };
+        return this.policyValidatorTool.isHashCompliant({
+            policy: this.policy,
+            algorithmName,
+            digestSizeBits
+        });
     }
 
     /**
      * Validates symmetric cipher configuration (e.g., used for data transport).
      */
-    isSymmetricCipherCompliant(algorithm, keySizeBits) {
-        const s = this.policy.symmetricPolicy;
-
-        if (s.forbidden.includes(algorithm.toUpperCase())) {
-            return { compliant: false, reason: `${algorithm} is explicitly forbidden.` };
-        }
-        if (keySizeBits < s.minKeySizeBits) {
-            return { compliant: false, reason: `Key size (${keySizeBits}) is insufficient.` };
+    isSymmetricCipherCompliant(algorithm: string, keySizeBits: number): { compliant: boolean, reason: string } {
+        if (!this.policyValidatorTool || !this.policyValidatorTool.isSymmetricCipherCompliant) {
+            console.error("CanonicalCryptoPolicyValidator plugin not available.");
+            return { compliant: false, reason: 'Policy validation tool unavailable.' };
         }
 
-        // Additional checks needed for mode validation (GCM, Chacha20)
-        // ...
-        return { compliant: true, reason: 'Compliant.' };
+        return this.policyValidatorTool.isSymmetricCipherCompliant({
+            policy: this.policy,
+            algorithm,
+            keySizeBits
+        });
     }
 
-    // Implement additional methods for signingPolicy, keyManagement, etc.
+    // Implement additional methods for signingPolicy, keyManagement, etc., delegating to the tool.
 }
 
 module.exports = new CryptoPolicyValidator(policy);
