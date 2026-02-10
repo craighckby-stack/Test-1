@@ -45,10 +45,8 @@ class ArtifactHashingService:
         the kernel has initiated the development of the 'DeepExclusionFilter' emergent capability: 
         /emergent/hashing/DeepExclusionFilter.py
         """
-        if not exclusion_keys:
-            return artifact_data.copy()
-        
-        # Use dictionary comprehension for clear and concise filtering
+        # The dictionary comprehension handles the case where exclusion_keys is empty,
+        # providing a clear, concise way to filter or copy the dictionary.
         return {
             key: value 
             for key, value in artifact_data.items() 
@@ -159,6 +157,12 @@ class ArtifactHashingService:
             
             # Use constant time comparison for security
             return hashlib.compare_digest(calculated_hash, expected_hash)
+        except ArtifactSerializationError:
+            # Data processing failure (unserializable data) means integrity cannot be confirmed.
+            return False
+        except HashingInitializationError:
+            # Critical configuration errors (like unsupported algorithms) must propagate to callers.
+            raise
         except Exception:
-            # If hashing fails during verification, return False as integrity cannot be confirmed.
+            # Catch all other unexpected operational errors during verification
             return False
