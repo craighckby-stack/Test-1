@@ -10,19 +10,20 @@ import { SystemActionDispatcher } from '../system/SystemActionDispatcher.js'; //
 // Assuming PolicyDeviationScorer is available via injection or import
 // @ts-ignore
 import { PolicyDeviationScorer } from '../tools/PolicyDeviationScorer.js'; 
+import { ThresholdReactionMatcher } from '../plugins/ThresholdReactionMatcher.js'; 
 
 class PolicyComplianceEvaluator {
     /** @type {Object.<number, number>} Policy Code -> Weight */
     weightMap = {};
     
-    /** @type {Array<Object>} */
-    reactionThresholds = [];
-
     /** @type {Object} */
     trustConfig = {};
 
     /** @type {PolicyDeviationScorer} */
     #policyScorer;
+
+    /** @type {ThresholdReactionMatcher} */
+    #reactionMatcher;
 
     /** 
      * @type {Object.<number, string>} Maps Policy Code to expected metric key name. 
@@ -42,7 +43,6 @@ class PolicyComplianceEvaluator {
         }, {});
 
         // 2. Initialize Core Policy Configuration
-        this.reactionThresholds = matrix.ADH_ReactionMatrix.Thresholds;
         this.trustConfig = APM.TrustDefinitions.T_Adaptive_Thresholds;
 
         // 3. Initialize deviation scorer plugin
@@ -50,6 +50,9 @@ class PolicyComplianceEvaluator {
             weightMap: this.weightMap,
             policyMetricMap: this.#policyMetricMap
         });
+
+        // 4. Initialize reaction matcher plugin, abstracting the threshold lookup logic
+        this.#reactionMatcher = new ThresholdReactionMatcher(matrix.ADH_ReactionMatrix.Thresholds);
 
         // Dependency check (optional, but good practice)
         if (typeof SystemActionDispatcher === 'undefined') {
@@ -75,9 +78,8 @@ class PolicyComplianceEvaluator {
         // B. Calculate Composite Deviation Score using the dedicated scorer plugin
         const deviationScore = this.#policyScorer.execute({ metrics });
 
-        // C. Determine and Execute Reaction
-        // Assumes reactionThresholds are sorted by Max_Sigma (descending) in configuration for optimal search efficiency.
-        const reaction = this.reactionThresholds.find(t => deviationScore >= t.Max_Sigma);
+        // C. Determine and Execute Reaction using the abstracted matcher
+        const reaction = this.#reactionMatcher.match(deviationScore);
 
         if (reaction) {
             console.warn(`[PCE Deviation] Score: ${deviationScore.toFixed(3)}. Policy Mandate: ${reaction.Action}`);
@@ -86,8 +88,6 @@ class PolicyComplianceEvaluator {
         }
         return false;
     }
-    
-    // calculateWeightedDeviation method has been extracted and removed.
 }
 
 export const PCE = new PolicyComplianceEvaluator();
