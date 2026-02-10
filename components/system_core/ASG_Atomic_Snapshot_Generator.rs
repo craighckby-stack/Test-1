@@ -9,7 +9,7 @@ pub type IntegrityHash = [u8; INTEGRITY_HASH_SIZE];
 // Target maximum execution time for atomicity (5ms)
 const MAX_SNAPSHOT_DURATION: Duration = Duration::from_micros(5000);
 const RSCM_PACKAGE_VERSION: u16 = 1; // Initial version for tracking structural evolution
-const CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Confidentiality Flag
+pub const DEFAULT_CONTEXT_FLAG_GSEP_C: u32 = 0x42; // General System Execution Policy - Default Confidentiality Flag
 
 // AGI Improvement: Added explicit identifier for the cryptographic hash protocol used.
 // This aids external validation and architectural memory.
@@ -49,14 +49,16 @@ struct RscmPackageMetadata {
     hashing_protocol_id: u8,
     // AGI Improvement: Anchor the size of the volatile data for structural integrity check
     volatile_data_size: u64,
+    // AGI Logic/Integrity Improvement: Bind latency directly to the hash input
+    capture_latency_ns: u64,
 }
 
 impl RscmPackageMetadata {
     /// Serializes the critical metadata fields into a canonical, ordered byte vector
     /// using little-endian encoding, ensuring deterministic input for the cryptographic hash.
     fn to_canonical_bytes(&self) -> Result<Vec<u8>, SnapshotError> {
-        // Calculate fixed size: 2(u16) + 8(u64) + 4(u32) + 1(u8) + 8(u64) = 23 bytes
-        let mut bytes = Vec::with_capacity(23);
+        // Calculate fixed size: 2(u16) + 8(u64) + 4(u32) + 1(u8) + 8(u64) + 8(u64) = 31 bytes
+        let mut bytes = Vec::with_capacity(31);
 
         // 1. Package Version (u16)
         bytes.extend_from_slice(&self.capture_version.to_le_bytes());
@@ -68,8 +70,10 @@ impl RscmPackageMetadata {
         bytes.extend_from_slice(&self.hashing_protocol_id.to_le_bytes());
         // 5. Volatile Data Size (u64)
         bytes.extend_from_slice(&self.volatile_data_size.to_le_bytes()); 
+        // 6. Capture Latency (u64) - NEW
+        bytes.extend_from_slice(&self.capture_latency_ns.to_le_bytes());
 
-        if bytes.len() != 23 {
+        if bytes.len() != 31 {
              // Structural encoding failure
              return Err(SnapshotError::MetadataEncodingFailed); 
         }
@@ -170,6 +174,7 @@ fn calculate_integrity_hash(
     absolute_ts: u64,
     volatile_data_size: u64,
     context_flags: u32,
+    capture_latency_ns: u64, // NEW: Binds temporal performance to integrity
 ) -> Result<IntegrityHash, SnapshotError> {
     // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
@@ -188,6 +193,7 @@ fn calculate_integrity_hash(
         context_flags,
         hashing_protocol_id: HASHING_PROTOCOL_ID,
         volatile_data_size, 
+        capture_latency_ns, // Bound to metadata
     };
 
     // Serialize metadata into guaranteed byte order for hashing.
@@ -212,8 +218,10 @@ fn calculate_integrity_hash(
 
 /// Generates an immutable, temporally constrained state snapshot (RSCM Package).
 /// Requires a specific implementation of SystemCaptureAPI for its environment.
-/// Note: Assumes CRoT implements AtomicHasherFactory for fixed-output hashing.
-pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, SnapshotError> {
+/// AGI Logic Improvement: Accepts runtime context flags for versatile usage.
+pub fn generate_rscm_snapshot<T: SystemCaptureAPI>(
+    runtime_context_flags: u32
+) -> Result<RscmPackage, SnapshotError> {
     let start_time = Instant::now();
 
     // 1. Privilege and time check
@@ -226,8 +234,17 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     // 2. Perform atomic read of key memory regions
     let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
     let trace = T::capture_execution_stack();
-    let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
+    let context_flags: u32 = runtime_context_flags; // Use provided flags
     let volatile_data_size = vm_dump.len() as u64; // Capture size for metadata integrity
+
+    // Calculate duration immediately after capture for hashing.
+    let duration = start_time.elapsed();
+    let latency_ns = duration.as_nanos() as u64;
+
+    if duration > MAX_SNAPSHOT_DURATION {
+        // Failure to meet temporal constraint (5ms max)
+        return Err(SnapshotError::Timeout { actual_duration_ns: latency_ns });
+    }
 
     // 3. Calculate Integrity Hash using the isolated, canonical protocol.
     let integrity_hash = calculate_integrity_hash(
@@ -236,20 +253,13 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         absolute_ts,
         volatile_data_size,
         context_flags,
+        latency_ns, // Pass measured latency for integrity binding
     )?;
     
-    let duration = start_time.elapsed();
-    let latency_ns = duration.as_nanos();
-
-    if duration > MAX_SNAPSHOT_DURATION {
-        // Failure to meet temporal constraint (5ms max)
-        return Err(SnapshotError::Timeout { actual_duration_ns: latency_ns as u64 });
-    }
-
     // 4. Final RSCM object creation using the controlled constructor
     Ok(RscmPackage::new(
         absolute_ts,
-        latency_ns as u64,
+        latency_ns,
         integrity_hash,
         vm_dump,
         trace,
