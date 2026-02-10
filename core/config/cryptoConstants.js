@@ -9,22 +9,25 @@
  * through the CanonicalCryptoConfigUtility plugin.
  */
 
-const DEFAULT_HASH_ALGORITHM = 'sha256';
-const DEFAULT_STRING_ENCODING = 'utf8';
-
 /**
  * A standard list of supported hash algorithms for integrity checks. 
  * This list reflects current secure standards enforced by the AGI protocol.
- * @type {string[]}
+ * Frozen for immutability.
+ * @type {ReadonlyArray<string>}
  */
-const SUPPORTED_INTEGRITY_ALGORITHMS = [
+const SUPPORTED_INTEGRITY_ALGORITHMS = Object.freeze([
     'sha256',
     'sha512',
     'blake2b512'
-];
+]);
 
-module.exports = {
-    DEFAULT_HASH_ALGORITHM,
-    DEFAULT_STRING_ENCODING,
-    SUPPORTED_INTEGRITY_ALGORITHMS
-};
+/**
+ * Immutable object encapsulating all cryptographic constants.
+ */
+const CryptoConstants = Object.freeze({
+    DEFAULT_HASH_ALGORITHM: 'sha256',
+    DEFAULT_STRING_ENCODING: 'utf8',
+    SUPPORTED_INTEGRITY_ALGORITHMS: SUPPORTED_INTEGRITY_ALGORITHMS
+});
+
+module.exports = CryptoConstants;
