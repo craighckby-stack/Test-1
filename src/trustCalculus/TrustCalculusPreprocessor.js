@@ -6,30 +6,22 @@
  */
 import { METRIC_CONFIGURATIONS } from '../governance/retirementMetricWeights.js';
 
-// Placeholder utility functions for complex normalization strategies
-const Normalizers = {
-    /** Scales input Rv linearly between 0 and 1 based on defined bounds. */
-    linear_minmax: (Rv, min, max) => (Rv - min) / (max - min),
-    
-    /** Applies a logarithmic transform to handle high-variance risk metrics. */
-    logarithmic: (Rv) => Math.log1p(Rv) / Math.log1p(1000), // Example scaling divisor
-
-    /** Requires historical context (not implemented here) to determine rank/percentile. */
-    percentile_rank: (Rv, historicalContext) => { 
-        // In a production system, this would query historical data.
-        // Placeholder returns 0.5 if not found, or throws error if necessary context is absent.
-        console.warn(`Percentile normalization requested for ${Rv}. Context missing.`);
-        return 0.5; 
+// Assume AGI-KERNEL provides plugin interface for metric calculation.
+declare const AGI: {
+    plugins: {
+        MetricContributionCalculator: {
+            execute: (args: { rawValue: number, config: any, historicalContext?: any }) => number;
+        }
     }
-};
+}
 
 /**
  * Processes a bundle of raw metrics into weighted Trust Score contributions.
  * @param {Object<string, number>} rawMetrics - Map of metric names to raw values.
  * @returns {Object<string, number>} Map of metric names to their weighted contributions.
  */
-export function calculateTrustContributions(rawMetrics) {
-    const contributions = {};
+export function calculateTrustContributions(rawMetrics: Record<string, number>): Record<string, number> {
+    const contributions: Record<string, number> = {};
 
     for (const [metricName, config] of Object.entries(METRIC_CONFIGURATIONS)) {
         const rawValue = rawMetrics[metricName];
@@ -39,27 +31,21 @@ export function calculateTrustContributions(rawMetrics) {
             continue;
         }
 
-        const { weight, influence, normalization } = config;
-        let normalizedValue;
-
-        // 1. Normalization Step
-        const normalizeFn = Normalizers[normalization.strategy];
-        if (normalizeFn) {
-            const [min = 0, max = 1] = normalization.bounds || [0, 1];
-            normalizedValue = normalizeFn(rawValue, min, max);
-        } else {
-            console.error(`Unknown normalization strategy: ${normalization.strategy}`);
-            normalizedValue = 0;
+        try {
+            // Delegate normalization, weighting, and influence application to the dedicated utility plugin.
+            const contribution = AGI.plugins.MetricContributionCalculator.execute({
+                rawValue,
+                config,
+                // historicalContext might be required for 'percentile_rank' strategy
+                historicalContext: undefined 
+            });
+            
+            contributions[metricName] = contribution;
+            
+        } catch (error) {
+            console.error(`Error calculating contribution for ${metricName}:`, error);
+            contributions[metricName] = 0;
         }
-
-        // Ensure the normalized value is clipped to [0, 1] for stable calculus
-        normalizedValue = Math.min(1, Math.max(0, normalizedValue));
-
-        // 2. Weighting and Influence Application Step
-        const direction = influence === 'negative' ? -1 : 1;
-        const contribution = normalizedValue * weight * direction;
-        
-        contributions[metricName] = contribution;
     }
 
     return contributions;
