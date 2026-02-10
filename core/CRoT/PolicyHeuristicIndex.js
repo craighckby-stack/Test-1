@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const DeepNormalizer = require('../../utils/object/DeepNormalizer'); 
+// const DeepNormalizer = require('../../utils/object/DeepNormalizer'); // Replaced by DeepStableSerializer plugin
+const { executePlugin } = require('../../kernel-utils/plugin-executor'); // Standard access to AGI tools
 const GAXTelemetry = require('../../core/Telemetry/GAXTelemetryService.js');
 const { ICRoTIndexClient } = require('./CRoTIndexClientInterface'); // Dependency Injection Type Enforcement
 
@@ -36,7 +37,8 @@ class PolicyHeuristicIndex {
      * @returns {string} SHA-256 hash of the normalized JSON string (64 characters).
      */
     static generateFingerprint(policyDelta) {
-        const normalizedData = DeepNormalizer.stableStringify(policyDelta);
+        // Use the extracted DeepStableSerializer plugin for consistent normalization
+        const normalizedData = executePlugin('DeepStableSerializer', policyDelta);
         
         return crypto.createHash('sha256')
                      .update(normalizedData)
