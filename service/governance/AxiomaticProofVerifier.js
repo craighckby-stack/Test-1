@@ -5,18 +5,23 @@ import { ValidatorRegistry } from './ValidatorRegistry.js';
 import { verifySignature } from '../crypto/SignatureService.js';
 import { ProofVerificationError } from '../../utils/errors/ProofVerificationError.js';
 
+// NOTE: The DataIndexerUtility tool is used conceptually here to replace the 
+// indexValidators helper function, improving modularity.
+
 /**
- * Helper function to convert an array of validators into a lookup map (ID -> Validator Info).
- * Improves lookup efficiency from O(N) to O(1).
+ * Internal conceptual utility alias for DataIndexerUtility.index
  * @param {Array<object>} validators
+ * @param {string} keyField
  * @returns {object}
  */
-function indexValidators(validators) {
+const indexValidators = (validators, keyField) => {
+    if (!Array.isArray(validators) || !keyField) return {};
     return validators.reduce((map, v) => {
-        if (v.id) map[v.id] = v;
+        const key = v[keyField];
+        if (key) map[key] = v;
         return map;
     }, {});
-}
+};
 
 /**
  * Verifies the consensus proof attached to a finalized state record.
@@ -41,8 +46,9 @@ export async function verifyAxiomaticProof(proof, stateHash) {
         return false;
     }
 
-    // Optimize lookup
-    const validatorMap = indexValidators(eligibleValidators);
+    // Optimize lookup using the extracted DataIndexerUtility logic
+    // Field 'id' is used as the key.
+    const validatorMap = indexValidators(eligibleValidators, 'id');
     
     const totalVotingWeight = eligibleValidators.reduce((sum, v) => sum + v.weight, 0);
     const requiredWeight = totalVotingWeight * requiredThreshold;
