@@ -7,6 +7,10 @@
 // Import centralized governance schemas. Proposed location via scaffolding.
 const INTENT_SCHEMAS = require('./config/intentSchemas'); 
 
+// CRITICAL ASSUMPTION: TraceableIdGenerator plugin is available in the environment.
+// This type declaration is for documentation/TypeScript compatibility and should be removed if targetting pure JS environments without type checking.
+// declare const TraceableIdGenerator: { execute: (args: { prefix: string, uniqueIdGenerator: () => string }) => string; }
+
 class PolicyIntentFactory {
     /**
      * @param {Object} uuidGenerator - A compliant UUID generation utility (e.g., v4).
@@ -35,7 +39,6 @@ class PolicyIntentFactory {
 
     /**
      * Generically creates a standardized, high-security mutation intent package (M-XX series).
-     * This replaces hardcoded specific methods (like createM01Intent) with a scalable approach.
      *
      * @param {string} typeId - The registered intent code (e.g., 'M01').
      * @param {MutationIntentPayload} rawRequest - The core operational payload.
@@ -44,8 +47,13 @@ class PolicyIntentFactory {
     createIntent(typeId, rawRequest) {
         const metadata = this._getIntentMetadata(typeId);
         
-        // Standard UUID generation prefixed by Intent Code for traceability
-        const intentId = `${typeId}-${this.uuidGenerator.v4()}`;
+        // Use the TraceableIdGenerator plugin for standardized, traceable ID creation.
+        // This abstracts away the complex ID composition logic.
+        // Note: Bind is used to ensure the UUID generator function maintains its 'this' context.
+        const intentId = TraceableIdGenerator.execute({
+            prefix: typeId,
+            uniqueIdGenerator: this.uuidGenerator.v4.bind(this.uuidGenerator)
+        });
 
         // Construct the compliant package based on centralized governance configuration
         return {
@@ -59,8 +67,6 @@ class PolicyIntentFactory {
             securityMetadata: metadata.security
         };
     }
-
-    // Removed defunct specialized methods (e.g., createM01Intent) in favor of createIntent(M01, ...)
 }
 
 module.exports = PolicyIntentFactory;
