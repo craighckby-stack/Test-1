@@ -4,8 +4,8 @@
  * into concrete values defined in the 'definitions' section, applying inheritance logic.
  */
 
-const fs = require('fs');
-const path = require('path');
+// Assuming the KernelToolAdapter provides executeKernelTool
+const { executeKernelTool } = require('./KernelToolAdapter'); 
 
 // Specific mapping of ACVD keys to definition containers.
 const ACVD_DEFINITION_MAPPING = {
@@ -15,6 +15,8 @@ const ACVD_DEFINITION_MAPPING = {
     deploymentStrategyKey: 'deploymentStrategies'
 };
 
+const RESOLVER_TOOL_NAME = 'HierarchicalConfigResolver';
+
 /**
  * Resolves a profile using the HierarchicalConfigResolver tool via the AGI kernel capabilities.
  *
@@ -23,10 +25,6 @@ const ACVD_DEFINITION_MAPPING = {
  * @returns {object} The fully resolved profile configuration.
  */
 function resolveProfile(profileName, mapData) {
-    // Ensure the required kernel capability is available.
-    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.Tool === 'undefined') {
-        throw new Error('AGI Tool Dependency Error: KERNEL_SYNERGY_CAPABILITIES.Tool is required.');
-    }
     
     const payload = {
         profileName: profileName,
@@ -34,20 +32,8 @@ function resolveProfile(profileName, mapData) {
         keyResolutionMap: ACVD_DEFINITION_MAPPING
     };
     
-    try {
-        // Use the standardized kernel capability invocation method.
-        return KERNEL_SYNERGY_CAPABILITIES.Tool.execute('HierarchicalConfigResolver', payload);
-    } catch (e) {
-        // Re-throw the error, potentially wrapping it for context.
-        if (e instanceof Error) {
-             throw e;
-        }
-        throw new Error(`Profile resolution failed for '${profileName}': ${e}`);
-    }
+    // Use the abstracted kernel capability invocation method.
+    return executeKernelTool(RESOLVER_TOOL_NAME, payload);
 }
-
-// Example usage (assuming map file is loaded externally):
-// const mapData = JSON.parse(fs.readFileSync(path.join(__dirname, 'acvd_profile_map.json'), 'utf8'));
-// const productionConfig = resolveProfile('production', mapData);
 
 module.exports = { resolveProfile };
