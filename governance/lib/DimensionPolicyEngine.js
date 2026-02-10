@@ -1,6 +1,7 @@
 // governance/lib/DimensionPolicyEngine.js
 
-const MetricOperator = require('../utils/MetricOperator'); 
+// Removed: const MetricOperator = require('../utils/MetricOperator'); 
+const DEFAULT_OPERATOR = 'GT';
 
 /**
  * Purpose: Evaluates real-time metrics against defined dimensional thresholds and executes prescribed governance actions.
@@ -20,17 +21,19 @@ class DimensionPolicyEngine {
      * @param {object} dependencies.configSource - Source to load dimensional policies.
      * @param {object} dependencies.actionExecutor - Component responsible for executing remediation actions.
      * @param {object} dependencies.logger - Structured logging utility.
+     * @param {object} dependencies.metricThresholdValidator - Extracted tool for metric comparison logic.
      * @param {object} [dependencies.metricsClient] - Client for fetching metrics (optional if metrics are provided externally).
      */
-    constructor({ configSource, actionExecutor, logger, metricsClient }) {
-        if (!configSource || !actionExecutor || !logger) {
-            throw new Error("DimensionPolicyEngine requires configSource, actionExecutor, and logger dependencies.");
+    constructor({ configSource, actionExecutor, logger, metricsClient, metricThresholdValidator }) {
+        if (!configSource || !actionExecutor || !logger || !metricThresholdValidator) {
+            throw new Error("DimensionPolicyEngine requires configSource, actionExecutor, logger, and metricThresholdValidator dependencies.");
         }
 
         this.config = configSource.loadConfig('dim_operational_config');
         this.actions = actionExecutor;
         this.logger = logger;
         this.metrics = metricsClient;
+        this.validator = metricThresholdValidator;
 
         if (!Array.isArray(this.config.dimension_definitions) || this.config.dimension_definitions.length === 0) {
             this.logger.warn('DimensionPolicyEngine initialized but no dimension policies were loaded.');
@@ -44,14 +47,16 @@ class DimensionPolicyEngine {
      * @returns {boolean}
      */
     checkDimensionBreach(metricValue, definition) {
-        const { breach_threshold, operator = MetricOperator.GT } = definition;
+        // Use local default operator, as MetricOperator dependency was removed.
+        const { breach_threshold, operator = DEFAULT_OPERATOR } = definition;
 
         if (typeof metricValue !== 'number' || isNaN(metricValue)) {
             this.logger.error('Attempted breach check with non-numeric metric value.', { key: definition.dim_key, value: metricValue });
             return false;
         }
         
-        return MetricOperator.validate(metricValue, operator, breach_threshold);
+        // Use the injected validator tool
+        return this.validator.validate(metricValue, operator, breach_threshold);
     }
 
     /**
@@ -81,7 +86,7 @@ class DimensionPolicyEngine {
                     dimension: dimKey,
                     value: metricValue,
                     threshold: definition.breach_threshold,
-                    operator: definition.operator || MetricOperator.GT,
+                    operator: definition.operator || DEFAULT_OPERATOR,
                     action: definition.governance_action
                 });
                 
