@@ -3,6 +3,24 @@ import { RollbackPlanGenerator } from './RollbackPlanGenerator';
 import { MigrationCostModeler } from './MigrationCostModeler';
 
 /**
+ * Conceptual interface for the extracted DeterministicHasher plugin.
+ * In production, this would be an explicit import or dependency injection.
+ */
+const DeterministicHasher = {
+    /**
+     * Executes the hashing logic provided by the external plugin.
+     * @param {object} data 
+     * @returns {string}
+     */
+    execute: (data) => {
+        // This placeholder mimics the required static execution contract.
+        // The actual stable hashing logic runs within the plugin environment.
+        const inputString = JSON.stringify({ m: data.metrics, c: data.entitiesAffected ? data.entitiesAffected.length : 0 });
+        return `AH-PLUGIN-HASH(${inputString.length})`; 
+    }
+};
+
+/**
  * Schema Migration Simulation Engine (SMSE) V3.0 - Sovereign Edition
  * Dedicated computational engine for high-fidelity differential analysis and 
  * stateless transactional simulation of schema transitions.
@@ -32,7 +50,7 @@ export class SchemaMigrationSimulationEngine {
      * Performs an exhaustive, semantic comparison between two schema definitions.
      * @param {object} currentSchema - The actively deployed schema definition structure.
      * @param {object} proposedSchema - The target schema definition structure.
-     * @returns {Promise<{ 
+     * @returns {Promise<{
      *   complexityScore: number, 
      *   breakingChangesCount: number, 
      *   dataTransformationRequired: boolean, 
@@ -49,12 +67,15 @@ export class SchemaMigrationSimulationEngine {
             change => change.requiresDataMapping
         );
 
+        // Use the extracted plugin to generate a deterministic hash for the analysis result.
+        const analysisHash = DeterministicHasher.execute(analysisResult);
+
         return {
             complexityScore: analysisResult.metrics.complexity, 
             breakingChangesCount: analysisResult.metrics.breakingChanges, 
             dataTransformationRequired: transformationNeeded,
             changedEntities: analysisResult.entitiesAffected,
-            analysisHash: this._generateHash(analysisResult),
+            analysisHash: analysisHash,
             detailedMetrics: analysisResult.metrics // Expose full metrics for downstream cost modeling
         };
     }
@@ -131,10 +152,5 @@ export class SchemaMigrationSimulationEngine {
         };
     }
     
-    _generateHash(data) {
-        // Simplified but deterministic hash function.
-        const inputString = JSON.stringify({ m: data.metrics, c: data.entitiesAffected.length });
-        // Placeholder for a real crypto hash (e.g., SHA256)
-        return `AH-${inputString.length}-${new Date().getSeconds()}`
-    }
+    // _generateHash removed, now handled by DeterministicHasher plugin.
 }
