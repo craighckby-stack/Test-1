@@ -1,30 +1,58 @@
 const GovConstants = require('./governanceConstants');
 
+interface IRSAMService { registerPolicyIntent(intent: any): Promise<void>; }
+interface SystemRouter { prioritizeRoute(destination: string, payload: any): Promise<{ path: string }>; route(destination: string, payload: any): Promise<{ path: string }>; }
+interface PolicyIntentFactory { createM01Intent(payload: any): any; }
+interface IntentSchemaValidator { validateMutationIntent(payload: any): any; }
+interface MutationIntentPayload { targets: Array<{ componentID: string }>; }
+
+interface IDeepPropertyInclusionChecker {
+    execute(haystackArray: any[], needleList: string[], propertyPath: string): boolean;
+}
+
 /**
  * Component: Governance Constraint Orchestrator (GCO)
- * ID: GCO-v94.3 (Minor iteration for refined constraint handling)
+ * ID: GCO-v94.4 (Update incorporating reusable deep property inclusion checker)
  * Alignment: GSEP Stage 0/1 Intermediary.
  * Focus: Integrity barrier ensuring all policy-level modifications adhere strictly to the GSEP lifecycle and require
  *        immediate RSAM pre-attestation using the M-01 intent standard for critical targets.
  */
 class GovernanceConstraintOrchestrator {
+    private rsam: IRSAMService;
+    private router: SystemRouter;
+    private intentFactory: PolicyIntentFactory;
+    private validator: IntentSchemaValidator | null;
+    private criticalityChecker: IDeepPropertyInclusionChecker;
+    private CRITICAL_TARGETS_LIST: string[];
+    private GSEP_STAGES_MAP: { [key: string]: string };
+    private STAGE_0_VETTING: string;
+    private STAGE_1_SCOPE: string;
     
     /**
      * @param {IRSAMService} rsam - Risk & Security Attestation Manager
      * @param {SystemRouter} router - System router for GSEP stage progression
      * @param {PolicyIntentFactory} intentFactory - Specialized factory for M-01 package creation
+     * @param {IDeepPropertyInclusionChecker} criticalityChecker - Plugin for deep list comparison
      * @param {IntentSchemaValidator} [validator] - Optional payload validator utility (Recommended)
      */
-    constructor(rsam, router, intentFactory, validator = null) {
+    constructor(
+        rsam: IRSAMService, 
+        router: SystemRouter, 
+        intentFactory: PolicyIntentFactory, 
+        criticalityChecker: IDeepPropertyInclusionChecker,
+        validator: IntentSchemaValidator | null = null
+    ) {
         // Step 0: Robust dependency enforcement
         if (!rsam) throw new Error("GCO Dependency Error: Missing RSAM Service.");
         if (!router) throw new Error("GCO Dependency Error: Missing System Router.");
         if (!intentFactory) throw new Error("GCO Dependency Error: Missing Policy Intent Factory.");
+        if (!criticalityChecker) throw new Error("GCO Dependency Error: Missing Criticality Checker Plugin.");
 
         this.rsam = rsam; 
         this.router = router; 
         this.intentFactory = intentFactory;
-        this.validator = validator; // Use validator if provided
+        this.validator = validator; 
+        this.criticalityChecker = criticalityChecker;
 
         // Cache critical constants for faster lookup
         this.CRITICAL_TARGETS_LIST = GovConstants.CRITICAL_GOV_TARGETS || [];
@@ -46,7 +74,7 @@ class GovernanceConstraintOrchestrator {
      * @returns {MutationIntentPayload} Validated and standardized payload
      * @throws {Error} if payload is fundamentally invalid
      */
-    _standardizeAndValidatePayload(rawRequest) {
+    private _standardizeAndValidatePayload(rawRequest: MutationIntentPayload): MutationIntentPayload {
         if (this.validator) {
             // Leverage dedicated validator if available
             return this.validator.validateMutationIntent(rawRequest);
@@ -66,17 +94,16 @@ class GovernanceConstraintOrchestrator {
 
     /**
      * Step 1: Detect if the mutation intent targets critical governance policies using component IDs.
+     * Utilizes the injected DeepPropertyInclusionChecker plugin.
      * @param {MutationIntentPayload} request - Assumed standardized payload.
      * @returns {boolean} True if critical targets are affected.
      */
-    _isTargetingCriticalPolicy(request) {
-        // Using cached list for efficient array check
-        if (this.CRITICAL_TARGETS_LIST.length === 0) {
-            return false; // Cannot check constraints if no targets defined
-        }
-
-        return request.targets.some(target => 
-            target && target.componentID && this.CRITICAL_TARGETS_LIST.includes(target.componentID)
+    private _isTargetingCriticalPolicy(request: MutationIntentPayload): boolean {
+        // Delegate the complex comparison logic to the reusable plugin
+        return this.criticalityChecker.execute(
+            request.targets,
+            this.CRITICAL_TARGETS_LIST,
+            'componentID' // Search path within the target object
         );
     }
     
@@ -85,9 +112,9 @@ class GovernanceConstraintOrchestrator {
      * M-01 Intent Creation -> RSAM Pre-Attestation -> Prioritized Routing (Stage 1).
      * @param {MutationIntentPayload} validatedRequest 
      * @returns {Promise<Object>} Standardized critical routing decision.
-     * @throws {Error} if routing fails or attestation fails (RSAM handles internal retry logic, GCO handles routing failure)
+     * @throws {Error} if routing fails or attestation fails
      */
-    async _processCriticalRoute(validatedRequest) {
+    private async _processCriticalRoute(validatedRequest: MutationIntentPayload): Promise<object> {
          if (!this.STAGE_1_SCOPE) {
              throw new Error("GCO Critical Route Error: GSEP Stage 1 (Scope) destination is undefined.");
          }
@@ -117,7 +144,7 @@ class GovernanceConstraintOrchestrator {
      * @param {MutationIntentPayload} rawRequest - The input request containing targets and proposed changes.
      * @returns {Promise<Object>} Standardized routing decision payload.
      */
-    async evaluateAndRoute(rawRequest) {
+    public async evaluateAndRoute(rawRequest: MutationIntentPayload): Promise<object> {
         try {
             // Robustness: Input validation and standardization (v94.3 improvement)
             const validatedRequest = this._standardizeAndValidatePayload(rawRequest);
@@ -143,7 +170,7 @@ class GovernanceConstraintOrchestrator {
             };
         } catch (error) {
             // Centralized error handling for GCO constraints
-            throw new Error(`GCO Constraint Orchestration Failure: ${error.message}`);
+            throw new Error(`GCO Constraint Orchestration Failure: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
