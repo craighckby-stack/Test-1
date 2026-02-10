@@ -14,14 +14,26 @@
  * -> M-01 Mutation Intent Package targeting updates to governance files (e.g., config/GSEP_protocol.json).
  */
 class GovernanceModelRefinementEngine {
-    constructor(d01, sea, fba, config) {
+    /**
+     * @param {object} d01 - D-01 Decision Audit Logs provider.
+     * @param {object} sea - Structural Entropy Analysis provider.
+     * @param {object} fba - Feature Behavior Analysis provider.
+     * @param {object} config - GMRE configuration thresholds.
+     * @param {object} intentGenerator - Utility for generating standardized M-01 Intents.
+     */
+    constructor(d01, sea, fba, config, intentGenerator) {
         if (!config || !config.thresholds) {
             throw new Error("GMRE requires robust configuration thresholds.");
         }
+        if (!intentGenerator || typeof intentGenerator.generate !== 'function') {
+             throw new Error("GMRE requires a valid M01IntentGenerator instance.");
+        }
+
         this.d01 = d01;
         this.sea = sea; // Structural Entropy Analysis
         this.fba = fba; // Feature Behavior Analysis
         this.config = config.thresholds;
+        this.intentGenerator = intentGenerator; // Dependency Injection
     }
 
     /**
@@ -52,7 +64,7 @@ class GovernanceModelRefinementEngine {
             // Use entropy to prioritize fixes where policy failure is linked to structural debt
             const priority = entropyScore > 0.6 ? urgency * HIGH_ENTROPY_MODIFIER : urgency;
 
-            return this.generateIntent(
+            return this.intentGenerator.generate(
                 'Refine Policy Engine Rules',
                 'C-15',
                 `High S-03 veto incidence (${metrics.P01_S03_Vetoes.toFixed(3)}). SEA Score: ${entropyScore.toFixed(2)}`,
@@ -70,7 +82,7 @@ class GovernanceModelRefinementEngine {
             // Higher entropy score pushes priority higher, suggesting structural fixes are intertwined with performance.
             const priority = priorityBase + (entropyScore * this.config.SEA_Latency_Correlation_Weight);
 
-            return this.generateIntent(
+            return this.intentGenerator.generate(
                 'Optimize P-01 Component Latency',
                 'ATM/C-11',
                 `Stage 3 latency (${metrics.Stage3_Latency}ms) consistently exceeding threshold. Requires integration review.`,
@@ -78,19 +90,6 @@ class GovernanceModelRefinementEngine {
             );
         }
         return null;
-    }
-
-    generateIntent(title, targetComponent, justification, priority) {
-        // Generates structured M-01 Intent for SRM consumption.
-        return {
-            intent_id: `GMRE-${Date.now()}`,
-            scope: 'Governance_Core',
-            target: targetComponent,
-            priority: priority || 0.95, 
-            title: title,
-            justification: justification,
-            source_engine: 'GMRE'
-        };
     }
 }
 
