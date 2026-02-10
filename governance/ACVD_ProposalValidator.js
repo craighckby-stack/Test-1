@@ -2,6 +2,22 @@ import Ajv from 'ajv';
 import acvdSchema from './ACVD_schema.json';
 import logger from '../utility/logger.js';
 
+// --- AGI Plugin Integration: SchemaErrorAnalyzer ---
+// Defines the interface for the externally managed error analysis tool
+interface IErrorAnalyzer {
+    analyze: (errors: any[]) => { summary: any[], counts: { [key: string]: number }, severityCounts: { [key: string]: number } };
+}
+
+// Simulated lookup/injection of the tool instance (AGI Kernel dependency injection point).
+// Note: This fallback must match the expected output structure if injection fails.
+const errorAnalyzer: IErrorAnalyzer = (globalThis as any).SchemaErrorAnalyzer || {
+    analyze: (errors) => { 
+        return { summary: [], counts: {}, severityCounts: { CRITICAL: 0, MAJOR: 0, MINOR: 0 } };
+    }
+};
+// ----------------------------------------------------
+
+
 // Configure Ajv for robust error collection and strict compliance, essential for AGI governance quality control.
 const ajv = new Ajv({
     allErrors: true,       // Collect all errors for comprehensive learning retention (Memory)
@@ -9,9 +25,9 @@ const ajv = new Ajv({
     strict: true           // Ensures schema compliance is strict, preventing silent errors (Logic/Robustness)
 });
 
-let validate;
+let validate: Ajv.ValidateFunction;
 let initialized = false;
-let initErrorDetails = null; // Store context if schema compilation fails
+let initErrorDetails: { keyword: string, message: string, errorContext: string } | null = null; // Store context if schema compilation fails
 
 try {
     validate = ajv.compile(acvdSchema);
@@ -22,67 +38,10 @@ try {
     initErrorDetails = {
         keyword: 'system_init_failure', 
         message: 'Validator failed to compile ACVD schema.', 
-        errorContext: error.message
+        errorContext: error instanceof Error ? error.message : String(error)
     };
     // Fallback: Ensure validate is a safe function that always fails validation contextually
     validate = () => false; 
-}
-
-/**
- * Classifies the severity of an AJV error based on the keyword. 
- * Used for AGI self-correction prioritization and pattern recognition (Logic).
- * @param {string} keyword - The AJV error keyword (e.g., 'required', 'type').
- * @returns {('CRITICAL'|'MAJOR'|'MINOR')} Severity level.
- */
-function classifyErrorSeverity(keyword) {
-    switch (keyword) {
-        case 'required':
-        case 'additionalProperties':
-        case 'dependencies':
-        case 'not':
-        case 'oneOf':
-            return 'CRITICAL'; // Structural breakage, requires immediate architectural fix
-        case 'type':
-        case 'format':
-        case 'minimum':
-        case 'maximum':
-            return 'MAJOR'; // Data integrity or functional mismatch
-        default:
-            return 'MINOR'; // Informational or contextual
-    }
-}
-
-/**
- * Parses, summarizes, and categorizes AJV errors, calculating severity counts for 
- * streamlined logging and advanced AGI self-correction analysis (Memory/Logic enhancement).
- * @param {Array<object>} errors - Raw AJV error objects (validate.errors).
- * @returns {{summary: Array<object>, counts: object, severityCounts: object}} Simplified error summary, keyword counts, and severity counts.
- */
-function summarizeErrors(errors) {
-    if (!errors) return { summary: [], counts: {}, severityCounts: { CRITICAL: 0, MAJOR: 0, MINOR: 0 } };
-    
-    const counts = {};
-    const severityCounts = { CRITICAL: 0, MAJOR: 0, MINOR: 0 };
-    
-    const summary = errors.map(err => {
-        const keyword = err.keyword || 'unknown';
-        const severity = classifyErrorSeverity(keyword);
-
-        // Count occurrences
-        counts[keyword] = (counts[keyword] || 0) + 1;
-        severityCounts[severity] = (severityCounts[severity] || 0) + 1;
-        
-        // Use instancePath for Ajv v8+ compatibility
-        return {
-            dataPath: err.instancePath,
-            keyword: keyword,
-            message: err.message,
-            params: err.params,
-            severity: severity // Added for AGI prioritization (Logic)
-        };
-    });
-    
-    return { summary: summary, counts: counts, severityCounts: severityCounts };
 }
 
 /**
@@ -91,21 +50,21 @@ function summarizeErrors(errors) {
  * @param {object} proposal - The proposed change object.
  * @returns {{isValid: boolean, rawErrors: array|null, errorSummary: array|null, errorCounts: object|null, errorSeverityCounts: object|null}} The validation result.
  */
-export function validateProposal(proposal) {
-    const proposalId = proposal?.proposalId || 'N/A';
+export function validateProposal(proposal: object) {
+    const proposalId = (proposal as any)?.proposalId || 'N/A';
 
     if (!initialized) {
         logger.error(`Validator uninitialized due to schema error. Rejecting proposal ID ${proposalId}. Context stored in initErrorDetails.`);
         
-        // Return structured initialization failure context
+        // Return structured initialization failure context, manually formatted to match tool output structure
         return {
             isValid: false,
             rawErrors: [initErrorDetails],
             errorSummary: [{
                 dataPath: '',
-                keyword: initErrorDetails.keyword,
-                message: initErrorDetails.message,
-                params: { context: initErrorDetails.errorContext },
+                keyword: initErrorDetails!.keyword,
+                message: initErrorDetails!.message,
+                params: { context: initErrorDetails!.errorContext },
                 severity: 'CRITICAL'
             }],
             errorCounts: { system_init_failure: 1 },
@@ -116,10 +75,11 @@ export function validateProposal(proposal) {
     const isValid = validate(proposal);
 
     if (!isValid) {
-        const { summary, counts, severityCounts } = summarizeErrors(validate.errors);
+        // Use the SchemaErrorAnalyzer plugin for structured analysis
+        const { summary, counts, severityCounts } = errorAnalyzer.analyze(validate.errors!);
         
         // Determine log level based on detected severity (Logic enhancement)
-        let logLevel = 'warn';
+        let logLevel: 'warn' | 'error' = 'warn';
         if (severityCounts.CRITICAL > 0) {
             logLevel = 'error'; // Upgrade log level if critical structural failure occurs
         }
