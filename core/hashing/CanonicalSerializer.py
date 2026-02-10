@@ -122,6 +122,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         that the structural semantics (e.g., immutability vs. mutability) are preserved in the canonical
         representation, which is critical for the kernel's ability to perform advanced pattern recognition
         and structural learning across the codebase.
+        
+    AGI-KERNEL Improvement (Cycle 21, Logic/Governance):
+    20. Added explicit, deterministic serialization for Python `BaseException` objects (including standard exceptions and warnings). This ensures that error states logged by `/governance` or stored in agent history are hashed consistently by stripping non-deterministic elements (like tracebacks or memory references) and only including the exception type and constructor arguments.
     """
 
     def __init__(self, *args, **kwargs):
@@ -231,6 +234,19 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Reference is live. Serialize the target object itself recursively.
                 # The recursion mechanism handles potential circularity.
                 return self.default(target)
+
+        # AGI-KERNEL Improvement (Cycle 21, Logic/Governance): Handle Exceptions and Warnings deterministically.
+        # Must come before generic object handling to strip non-deterministic traceback data.
+        if isinstance(obj, BaseException):
+            qual_name = getattr(type(obj), '__qualname__', getattr(type(obj), '__name__', 'UnknownException'))
+            module_name = getattr(type(obj), '__module__', 'builtins')
+
+            # Exceptions (and Warnings, which subclass Exception) serialize based only on type and arguments.
+            return {
+                "__exception__": True,
+                "type": f"{module_name}.{qual_name}",
+                "args": list(obj.args)
+            }
 
         # AGI-KERNEL Improvement (Cycle 17): Handle Python constants Ellipsis and NotImplemented
         if obj is Ellipsis:
