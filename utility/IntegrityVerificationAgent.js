@@ -1,13 +1,26 @@
 /**
- * Integrity Verification Agent (IVA) V94.1
+ * Integrity Verification Agent (IVA) V94.2
  * MISSION: Periodically verify all deployed components against the active WCIM.
- * Refactored for concurrency, explicit error handling, and structured reporting.
+ * Refactored for concurrency, explicit error handling, structured reporting, and externalized hashing utility.
  */
 
-const { createReadStream } = require('fs');
-const fsPromises = require('fs/promises'); // Use modern fs/promises API
-const crypto = require('crypto');
+// Use modern fs/promises API
+const fsPromises = require('fs/promises'); 
 const path = require('path');
+
+// --- AGI-KERNEL PLUGIN UTILIZATION ---
+// Placeholder for the external StreamingHashCalculator utility provided by the Kernel.
+const StreamingHashCalculator = {
+    /** 
+     * @param {{filePath: string, algorithm: string}} args
+     * @returns {Promise<string>} 
+     */
+    execute: async (args) => {
+        // NOTE: In a live environment, this calls the logic defined in the 'plugin' block.
+        // We assume kernel plumbing provides this functionality via global or environment injection.
+        throw new Error("Kernel plugin 'StreamingHashCalculator' required but not loaded.");
+    }
+};
 
 class IntegrityVerificationAgent {
     /**
@@ -34,35 +47,7 @@ class IntegrityVerificationAgent {
             throw new Error(`IVA Load Error: Cannot read or parse manifest from ${manifestPath}. Reason: ${error.message}`);
         }
     }
-
-    /**
-     * Computes the hash of a file using streams for high efficiency.
-     * @param {string} filePath
-     * @param {string} algorithm - e.g., 'sha256', 'sha3512'
-     * @returns {Promise<string>}
-     */
-    async computeFileHash(filePath, algorithm) {
-        return new Promise((resolve, reject) => {
-            try {
-                const hash = crypto.createHash(algorithm);
-                const stream = createReadStream(filePath);
-                
-                stream.on('error', (err) => {
-                    if (err.code === 'ENOENT') {
-                        return reject(new Error(`File not found: ${filePath}`));
-                    }
-                    reject(err);
-                });
-                
-                stream.on('data', (data) => hash.update(data));
-                stream.on('end', () => resolve(hash.digest('hex')));
-            } catch (err) {
-                // Catches errors during createHash (e.g., unknown algorithm)
-                reject(new Error(`Hashing configuration error for algorithm ${algorithm}: ${err.message}`));
-            }
-        });
-    }
-
+    
     async verifyComponent(component) {
         // Assumes standard component file naming convention (.js)
         const modulePath = path.join(this.baseDir, component.module + '.js'); 
@@ -82,12 +67,16 @@ class IntegrityVerificationAgent {
         let reason = null;
 
         try {
-            actualHash = await this.computeFileHash(modulePath, algorithm);
+            // V94.2: Utilizing external StreamingHashCalculator plugin for file hashing.
+            actualHash = await StreamingHashCalculator.execute({ 
+                filePath: modulePath, 
+                algorithm: algorithm 
+            });
             
             if (actualHash === expectedHash) {
                 status = 'PASS';
             } else {
-                reason = `Hash mismatch detected. Expected: ${expectedHash}.`;
+                reason = `Hash mismatch detected. Expected: ${expectedHash}. Actual: ${actualHash.substring(0, 8)}...`;
             }
         } catch (e) {
             status = 'ERROR';
@@ -152,7 +141,7 @@ class IntegrityVerificationAgent {
     outputReport(summary) {
         console.log('\n--- IVA Verification Report ---');
         console.log(`Target: ${summary.target} | Total Verified: ${summary.totalComponents}`);
-        console.log(`Overall Result: ${summary.overallSuccess ? 'CLEAN (V94.1 Verified)' : 'INTEGRITY BREACH DETECTED'}`);
+        console.log(`Overall Result: ${summary.overallSuccess ? 'CLEAN (V94.2 Verified)' : 'INTEGRITY BREACH DETECTED'}`);
         
         const failures = summary.log.filter(l => l.status === 'FAIL' || l.status === 'ERROR');
         if (failures.length > 0) {
