@@ -7,14 +7,66 @@
  * to defined, declarative governance action policies.
  */
 
-const {
+// Note: Assuming governanceConstants is defined in a standard TS/ES way for integration.
+import {
     FAILURE_STAGES,
     MANDATE_ACTION_TYPES,
     GOV_TARGETS
-} = require('./governanceConstants'); // G-C01 Integration
+} from './governanceConstants'; // G-C01 Integration
+
+// === TYPE DEFINITIONS ===
+
+interface MandateAction {
+    type: string;
+    [key: string]: any;
+}
+
+interface FailureReport {
+    stage: string;
+    reason: any; // TrustCalculusReason | RIndexReason
+    payloadHash: string;
+}
+
+interface Mandate {
+    targetProposal: string;
+    requiredActions: MandateAction[];
+    refinementMandates: string[];
+    newRIndexTarget: number;
+}
+
+interface PolicyAction {
+    type: string;
+    data: Record<string, any>;
+}
+
+interface RemediationPolicy {
+    actions: PolicyAction[];
+    newTarget?: number;
+}
+
+interface RemediationMap {
+    getRemediation(stage: string, reasonKey: string): RemediationPolicy | undefined;
+}
+
+interface PolicyEngine {
+    getFailureRemediationMap(): RemediationMap;
+}
+
+interface MetricsSystem {
+    logWarning(code: string, data: Record<string, any>): void;
+    logEvent(code: string, data: Record<string, any>): void;
+    diagnoseScoreDeficiency(trustWeightings: any): { majorDeficiencyComponent: string | null };
+}
+
 
 class FailureStateAnalysisEngine {
-    constructor(policyEngine, metricsSystem) {
+    private policyEngine: PolicyEngine;
+    private metricsSystem: MetricsSystem;
+    private RemediationMap: RemediationMap;
+    private defaultTarget: number;
+    private vetoTarget: number;
+
+    constructor(policyEngine: PolicyEngine, metricsSystem: MetricsSystem) {
         // Renamed internally for clarity and context, mapping to standard acronyms
         this.policyEngine = policyEngine; // C15 Policy Engine
         this.metricsSystem = metricsSystem; // ATM Telemetry and Metrics System
@@ -31,7 +83,7 @@ class FailureStateAnalysisEngine {
     /**
      * Helper to create structured, validated mandate actions.
      */
-    _createMandateAction(type, data = {}) {
+    private _createMandateAction(type: string, data: Record<string, any> = {}): MandateAction {
         if (!Object.values(MANDATE_ACTION_TYPES).includes(type)) {
             this.metricsSystem.logWarning('FSAE_INVALID_ACTION_TYPE', { attemptedType: type });
             type = MANDATE_ACTION_TYPES.UNKNOWN_ACTION;
@@ -43,7 +95,7 @@ class FailureStateAnalysisEngine {
      * Uses the declarative RemediationMap to determine mandated actions and injects
      * dynamic runtime data (e.g., score deficits, failed components) into policy actions.
      */
-    _getMandateFromPolicy(stage, reasonKey, runtimeData = {}) {
+    private _getMandateFromPolicy(stage: string, reasonKey: string, runtimeData: Record<string, any> = {}): MandateAction[] {
         const policy = this.RemediationMap.getRemediation(stage, reasonKey);
         
         if (!policy || !policy.actions) {
@@ -60,10 +112,11 @@ class FailureStateAnalysisEngine {
             // --- Runtime Data Injection & Dynamic Parameter Calculation ---
             if (action.type === MANDATE_ACTION_TYPES.INCREASE_COVERAGE) {
                 // Use policy defined multipliers and minimums to calculate the required delta
-                const baseIncrease = mandatedData.baseIncrease || 10;
+                const baseIncrease = mandatedData.baseIncrease || 10; // Default increase if policy doesn't specify
                 const gapMultiplier = mandatedData.gapMultiplier || 1.0;
                 
-                if (runtimeData.scoreGap !== undefined) {
+                if (runtimeData.scoreGap !== undefined && typeof runtimeData.scoreGap === 'number') {
+                    // Ensure calculation results in an integer delta for coverage 
                     mandatedData.requiredCoverageDelta = Math.max(
                         baseIncrease, 
                         Math.ceil(runtimeData.scoreGap * 100 * gapMultiplier)
@@ -80,10 +133,10 @@ class FailureStateAnalysisEngine {
         });
     }
 
-    analyze(failureReport) {
+    public analyze(failureReport: FailureReport): Mandate {
         const { stage, reason, payloadHash } = failureReport;
 
-        let mandate = {
+        let mandate: Mandate = {
             targetProposal: payloadHash,
             requiredActions: [], 
             refinementMandates: [], 
@@ -108,9 +161,8 @@ class FailureStateAnalysisEngine {
 
     /**
      * Handles failures stemming from insufficient Trust Calculus (P-01) scores.
-     * Now maps runtime state to declarative policy keys.
      */
-    _analyzeTrustCalculusFailure(reason, mandate) {
+    private _analyzeTrustCalculusFailure(reason: any, mandate: Mandate): void {
         const { vetoState, requiredConfidence, actualScore, trustWeightings } = reason;
 
         // 1. Veto Handling (CRITICAL BLOCK)
@@ -132,7 +184,7 @@ class FailureStateAnalysisEngine {
             const analysis = this.metricsSystem.diagnoseScoreDeficiency(trustWeightings);
             const component = analysis.majorDeficiencyComponent;
 
-            let reasonKey;
+            let reasonKey: string;
             
             // Define policy lookup keys based on severity and source targeting
             if (scoreGap >= 0.10) { 
@@ -154,15 +206,15 @@ class FailureStateAnalysisEngine {
             
             const deficitPolicy = this.RemediationMap.getRemediation(FAILURE_STAGES.P01_TRUST_CALCULUS, reasonKey);
             // Use policy target or calculate fallback target
-            mandate.newRIndexTarget = deficitPolicy.newTarget || Math.min(1.0, requiredConfidence + scoreGap * 0.15);
+            // Fallback calculation: Increase R-Index target slightly more than the deficit
+            mandate.newRIndexTarget = deficitPolicy?.newTarget || Math.min(1.0, requiredConfidence + scoreGap * 0.15);
         }
     }
 
     /**
      * Handles failures stemming from low Readiness Index (M-02) checks.
-     * Now maps runtime state to declarative policy keys.
      */
-    _analyzeRIndexFailure(reason, mandate) {
+    private _analyzeRIndexFailure(reason: any, mandate: Mandate): void {
         const { failedComponents } = reason;
 
         const reasonKey = failedComponents && failedComponents.length > 0 
@@ -178,11 +230,11 @@ class FailureStateAnalysisEngine {
         );
 
         const stabilityPolicy = this.RemediationMap.getRemediation(FAILURE_STAGES.M02_R_INDEX_READINESS, reasonKey);
-        // Use policy target or fallback target
-        mandate.newRIndexTarget = stabilityPolicy.newTarget || (this.defaultTarget + 0.10);
+        // Use policy target or fallback target (default target + buffer)
+        mandate.newRIndexTarget = stabilityPolicy?.newTarget || (this.defaultTarget + 0.10);
     }
 
-    logMandate(mandate) {
+    private logMandate(mandate: Mandate): void {
         // D-01 Audit Logger integration utilizing ATM
         this.metricsSystem.logEvent('FSAE_MANDATE_ISSUED', {
             target: mandate.targetProposal,
@@ -192,4 +244,4 @@ class FailureStateAnalysisEngine {
     }
 }
 
-module.exports = FailureStateAnalysisEngine;
+export default FailureStateAnalysisEngine;
