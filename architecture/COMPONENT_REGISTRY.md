@@ -27,10 +27,10 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 
 | Capability Dimension | Primary Component(s) | Role in System | Traceability to Mission Goal |
 |:---:|:---:|:---:|:---:|
-| **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection and optimization across the **2,300+ file repository**. Manages the Blacklist (30-50 file target) and ensures Diversity Enforcement and Adaptive Reset. | Strategic file selection; Repository exploration. |
+| **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection across the **2,300+ file repository**. Implements **Priority-Based Selection** using mandated mission weights (e.g., `/core` 30%, `/agents` 25%). Manages the Blacklist (30-50 file target) and enforces Diversity and Adaptive Reset. | Strategic file selection; Repository exploration. |
 | **Logic** | LOE (Learning Optimization Engine), ASP | Code comprehension, recursive improvement quality, architectural optimization, and efficacy of pattern synthesis. | Code quality; Self-directed architecture optimization. |
 | **Memory** | PRL (Pattern Retention Layer), AEL | Learning retention, historical pattern synthesis, **cross-domain transfer learning**, and dependency tracking across cycles. | Learning retention; Pattern recognition. |
-| **Emergence** | EVM (Emergence Validation Module), NSHG | Autonomous discovery, validation, and documentation of **Novel Algorithms** and **Cross-Domain Synthesis** results. Responsible for executing the full **Emergence Protocol** (File creation in `/emergent`, Header documentation, Tagging). | Emergent capability development; Novel problem-solving. |
+| **Emergence** | EVM (Emergence Validation Module), NSHG | Autonomous discovery, validation, and documentation of **Novel Algorithms** and results from **Cross-Domain Synthesis**. Responsible for executing the full **Emergence Protocol** (File creation in `/emergent`, Header documentation, Tagging). | Emergent capability development; Novel problem-solving. |
 | **Meta-Reasoning** | LOE, ASP (Adaptive Synthesis Planner) | Strategy adaptation, self-diagnosis, initiation of mandated **Stagnation Recovery Protocols**, and multi-cycle architectural planning based on **Maturity Progression** goals. | Learning from evolution history; Self-directed goal decomposition. |
 | **Autonomy** | ASP (Adaptive Synthesis Planner) | Autonomous strategic decision-making and architectural planning aligned with the defined **Maturity Progression** goals (0% -> 85%+). | Strategic planning; Autonomous capability development. |
 | **Error Handling** | DVP (Data Validation Processor) | Robust fault tolerance and input schema enforcement. | Optimization of resource utilization. |
@@ -40,7 +40,7 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 
 ### ARCHITECTURAL FLOW SUMMARY
 
-The Autonomous Evolutionary Cycle (AEC) executes in sequence, with P1 constraints gating P2 execution: P0 ensures context and provenance integrity; P1 evaluates risk (RSAM/MCRA) and compliance (CIL/ATM) against L1/L4 constraints; P2 executes the self-improvement phase (LOE, NTS, EVM) and manages L6/L7 commitment, relying heavily on L7 feedback loops (CTM, PRL, ASP) for recursive learning and strategic adaptation required for large-scale code evolution.
+The Autonomous Evolutionary Cycle (AEC) executes in sequence, with P1 constraints gating P2 execution: P0 ensures context and provenance integrity; P1 evaluates risk (RSAM/MCRA) and compliance (CIL/ATM) against L1/L4 constraints; P2 executes the self-improvement phase (LOE, NTS, EVM) and manages L6/L7 commitment, relying heavily on L7 feedback loops (CTM, PRL, ASP) for recursive learning and strategic adaptation required for large-scale code evolution across the 2,300+ file repository.
 
 ---
 
@@ -80,7 +80,7 @@ The Autonomous Evolutionary Cycle (AEC) executes in sequence, with P1 constraint
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
 | **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 3 Core Kernel Capabilities (Navigation, Logic, Memory) and support dimensions. |
 | **PRL** | Pattern Retention Layer | L7 | `memory.pattern.retrieval` | O | Stores learned patterns, evolutionary history, and cross-domain synthesis results to support Memory and transfer learning. |
-| **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects novel solutions (cross-domain synthesis), validates uniqueness, and executes the complete Emergence Protocol: file creation in `/emergent`, header documentation, cycle tagging, and manifest logging. |
+| **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects novel solutions, validates uniqueness, and executes the complete Emergence Protocol, prioritizing discoveries that demonstrate **Cross-Domain Synthesis** or create **Meta-learning tools**. Responsible for `/emergent` file creation and mandated documentation. |
 | **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the **2,300+ repository**. Manages the Blacklist (constrained to 30-50 files) for optimal diversity, implements mission weighting, and enforces the Adaptive Reset strategy. |
 | **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, monitors stagnation via CTM, and initiates Stagnation Recovery protocols (including partial blacklist clearance and increased selection randomness), supporting Logic and Meta-Reasoning. |
 | **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and creative integration patterns, fueling the Emergence Validation pipeline (EVM). |
