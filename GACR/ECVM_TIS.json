@@ -1,9 +1,9 @@
 {
-  "manifest_version": "2.0.0",
+  "manifest_version": "2.0.1",
   "config_id": "ECVM_TIS",
   "metadata": {
     "gate_id": "S4.5",
-    "description": "Normalized definition of mandatory telemetry input sources (TIS) for ECVM validation checks."
+    "description": "Normalized definition of mandatory telemetry input sources (TIS) for ECVM validation checks, aligned with AGI self-monitoring protocols."
   },
   "telemetry_inputs": [
     {
@@ -14,6 +14,10 @@
       "data_path": "metrics.latency.ms",
       "required_by": [
         "CVA-201"
+      ],
+      "kernel_impact_area": [
+        "Logic",
+        "Navigation"
       ],
       "schema_ref": "GACR/Schemas/APITelemetry.json",
       "retrieval_config": {
@@ -34,6 +38,9 @@
       "required_by": [
         "CVA-305"
       ],
+      "kernel_impact_area": [
+        "Memory"
+      ],
       "schema_ref": "GACR/Schemas/DTEMCacheStatus.json",
       "retrieval_config": {
         "protocol": "IPC_MOCK",
@@ -53,6 +60,10 @@
       "required_by": [
         "CVA-412"
       ],
+      "kernel_impact_area": [
+        "Logic",
+        "Emergent"
+      ],
       "schema_ref": "GACR/Schemas/ResourceTelemetry.json",
       "retrieval_config": {
         "protocol": "GRPC_BI_STREAM",
@@ -61,6 +72,30 @@
           "debounce_ms": 100
         },
         "timeout_ms": 500
+      }
+    },
+    {
+      "source_id": "AGI_CORE_STATUS",
+      "source_name": "AGI_Kernel_Self_Monitor",
+      "status": "ACTIVE",
+      "priority_level": "CRITICAL",
+      "data_path": "kernel.ecm.utilization_rate",
+      "required_by": [
+        "AGI-SELF-001",
+        "META-LEARN-005"
+      ],
+      "kernel_impact_area": [
+        "Emergent",
+        "Memory"
+      ],
+      "schema_ref": "core/schemas/AGIStatusTelemetry.json",
+      "retrieval_config": {
+        "protocol": "IPC_DIRECT_READ",
+        "schedule": {
+          "type": "INTERVAL",
+          "interval_ms": 100
+        },
+        "timeout_ms": 50
       }
     }
   ]
