@@ -6,14 +6,32 @@
  */
 class VersionApplicationEngine {
     
+    // Note: TypeScript usage for better internal structure, adhering to 'new_code' rule.
+    private versionConfig: any;
+    private semVerFormatter: { generate: (config: any, metadata: any) => string };
+
     /**
      * Initializes the engine with base version configuration.
      * @param {object} config - Configuration containing base version details.
      * @param {object} config.current_version - Must contain major and minor fields.
      */
-    constructor(config) {
-        // Note: In a real system, robust validation would check config integrity.
+    constructor(config: any) {
         this.versionConfig = config;
+        
+        // CRITICAL: Assuming dependency resolution mechanism finds the plugin instance.
+        // We simulate retrieval here, which would typically be handled by the AGI kernel's runtime environment.
+        const pluginInstance = (globalThis as any)?.plugins?.SemVerFormatterUtility;
+        
+        if (pluginInstance && typeof pluginInstance.generate === 'function') {
+            this.semVerFormatter = pluginInstance;
+        } else {
+            console.warn("SemVerFormatterUtility not found or invalid. Version generation will fail.");
+            this.semVerFormatter = {
+                generate: (c, m) => {
+                    throw new Error("SemVerFormatterUtility is required but not loaded.");
+                }
+            };
+        }
     }
     
     /**
@@ -29,18 +47,8 @@ class VersionApplicationEngine {
      * @param {string} metadata.buildType - The type of build (e.g., AE, RC, DEV).
      * @returns {string} The fully resolved version identifier.
      */
-    generateResolvedVersion(metadata) {
-      // 1. Destructure essential version components from internal configuration
-      const { major, minor } = this.versionConfig.current_version;
-      
-      // 2. Combine base version with dynamic patch equivalent (buildNumber)
-      const versionString = `${major}.${minor}.${metadata.buildNumber}`;
-      
-      // 3. Extract the 7-character prefix of the commit hash (standard short hash)
-      const hash = metadata.commitHash.substring(0, 7);
-      
-      // 4. Assemble the final SemVer string: CORE-BUILDTAG+METADATAHASH
-      // This structure supports robust auditing and traceability back to source code.
-      return `${versionString}-${metadata.buildType}+${hash}`;
+    public generateResolvedVersion(metadata: any): string {
+      // Delegate the complex string assembly and truncation logic to the utility.
+      return this.semVerFormatter.generate(this.versionConfig, metadata);
     }
 }
