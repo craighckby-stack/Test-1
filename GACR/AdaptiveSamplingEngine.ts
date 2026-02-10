@@ -6,11 +6,10 @@
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth),
  * ensuring stability by enforcing the most restrictive limit.
  * 
- * AGI KERNEL V8.5.1 IMPROVEMENT (Enhanced Resilience):
- * 1. Implemented a robust local reduction fallback mechanism (_localCalculateRate) 
- *    to ensure throttling based on observed constraints continues even if the external 
- *    ConstraintReducer capability fails.
- * 2. Maintained improved internal modularity and V7 Synergy hook usage.
+ * AGI KERNEL V8.5.1 IMPROVEMENT (Enhanced Resilience & Grounding):
+ * 1. Maintained robust local reduction fallback mechanism (_localCalculateRate).
+ * 2. Implemented explicit source tracking ('Reducer' vs. 'LocalFallback') for decision logging.
+ * 3. Enhanced metric validation using `isFinite` for improved numerical stability.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -53,8 +52,8 @@ declare const KERNEL_HOOK: {
 };
 
 export class AdaptiveSamplingEngine {
-    private config: AdaptiveSamplingConfig;
-    private monitor: ResourceMonitor;
+    private readonly config: AdaptiveSamplingConfig;
+    private readonly monitor: ResourceMonitor;
 
     /**
      * Constructor using dependency injection for ResourceMonitor.
@@ -70,6 +69,7 @@ export class AdaptiveSamplingEngine {
      * into validated NamedConstraint objects for consumption by the reducer.
      */
     private _getConstraints(): NamedConstraint[] {
+        // Collect raw metrics
         const metrics = {
             cpu: this.monitor.getCpuUtilization(),
             memory: this.monitor.getMemoryUtilization(), 
@@ -94,11 +94,10 @@ export class AdaptiveSamplingEngine {
             },
         ];
         
-        // Filter: Ensure current metrics are valid numbers and targets are non-zero positive,
-        // preventing corrupted input into calculation logic (e.g., NaN or Division by Zero).
+        // Grounding Filter: Ensure current metrics are finite numbers and targets are non-zero positive,
+        // preventing calculation errors (Division by Zero, NaN/Infinity propagation).
         return rawConstraints.filter(c => 
-            typeof c.current === 'number' && 
-            !isNaN(c.current) && // Explicit check for NaN robustness
+            isFinite(c.current) && 
             c.target > 0
         ) as NamedConstraint[];
     }
@@ -107,11 +106,11 @@ export class AdaptiveSamplingEngine {
      * Applies configured Max/Min sampling rate boundaries and precision formatting.
      */
     private _applyBoundaries(rate: number): number {
-        let finalRate = rate;
+        const { MaxSamplingRate, MinSamplingRate } = this.config;
         
         // Apply global boundaries defined in the configuration
-        finalRate = Math.min(finalRate, this.config.MaxSamplingRate);
-        finalRate = Math.max(finalRate, this.config.MinSamplingRate);
+        let finalRate = Math.min(rate, MaxSamplingRate);
+        finalRate = Math.max(finalRate, MinSamplingRate);
 
         // Ensure fixed precision (4 decimal places)
         return Math.round(finalRate * 10000) / 10000;
@@ -158,19 +157,24 @@ export class AdaptiveSamplingEngine {
         }
 
         let reductionResult: ReductionResult;
+        let calculationSource: 'Reducer' | 'LocalFallback';
         
-        // --- START: KERNEL V7 Synergy Integration: Using formalized ConstraintReducer Plugin ---
+        // --- START: KERNEL V7 Synergy Integration ---
         
-        const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
+        // Prepare payload for external system contract
+        const constraintsPayload = constraints.map(c => ({ name: c.name, current: c.current, target: c.target }));
 
         try {
             // Primary Path: Execute the optimized ConstraintReducer capability
             reductionResult = await ConstraintReducer.execute(constraintsPayload);
+            calculationSource = 'Reducer';
 
         } catch (e) {
             // Enhanced Resilience Path: Fallback if plugin execution fails
-            console.warn(`[ASE] ConstraintReducer failed. Falling back to local calculation. Error: ${e instanceof Error ? e.message : String(e)}`);
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            console.warn(`[ASE] ConstraintReducer failed or unavailable. Falling back to local calculation. Error: ${errorMsg}`);
             reductionResult = this._localCalculateRate(constraints);
+            calculationSource = 'LocalFallback';
         }
         
         const { rate: requiredRate, restrictingConstraint } = reductionResult;
@@ -182,7 +186,8 @@ export class AdaptiveSamplingEngine {
                 rateAdjustment: requiredRate,
                 constrainingFactor: restrictingConstraint.name,
                 currentUtilization: restrictingConstraint.current,
-                targetUtilization: restrictingConstraint.target
+                targetUtilization: restrictingConstraint.target,
+                source: calculationSource // Explicit source tracking for resilience analysis
             });
         }
         
