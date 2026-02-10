@@ -29,39 +29,67 @@ try {
 }
 
 /**
- * Parses, summarizes, and categorizes AJV errors for streamlined logging and advanced AGI self-correction analysis (Memory enhancement).
- * Focuses on extracting path, keyword, message, and providing error type counts for pattern recognition.
+ * Classifies the severity of an AJV error based on the keyword. 
+ * Used for AGI self-correction prioritization and pattern recognition (Logic).
+ * @param {string} keyword - The AJV error keyword (e.g., 'required', 'type').
+ * @returns {('CRITICAL'|'MAJOR'|'MINOR')} Severity level.
+ */
+function classifyErrorSeverity(keyword) {
+    switch (keyword) {
+        case 'required':
+        case 'additionalProperties':
+        case 'dependencies':
+        case 'not':
+        case 'oneOf':
+            return 'CRITICAL'; // Structural breakage, requires immediate architectural fix
+        case 'type':
+        case 'format':
+        case 'minimum':
+        case 'maximum':
+            return 'MAJOR'; // Data integrity or functional mismatch
+        default:
+            return 'MINOR'; // Informational or contextual
+    }
+}
+
+/**
+ * Parses, summarizes, and categorizes AJV errors, calculating severity counts for 
+ * streamlined logging and advanced AGI self-correction analysis (Memory/Logic enhancement).
  * @param {Array<object>} errors - Raw AJV error objects (validate.errors).
- * @returns {{summary: Array<object>, counts: object}} Simplified error summary and keyword counts.
+ * @returns {{summary: Array<object>, counts: object, severityCounts: object}} Simplified error summary, keyword counts, and severity counts.
  */
 function summarizeErrors(errors) {
-    if (!errors) return { summary: [], counts: {} };
+    if (!errors) return { summary: [], counts: {}, severityCounts: { CRITICAL: 0, MAJOR: 0, MINOR: 0 } };
     
     const counts = {};
+    const severityCounts = { CRITICAL: 0, MAJOR: 0, MINOR: 0 };
     
     const summary = errors.map(err => {
         const keyword = err.keyword || 'unknown';
-        
-        // Count the occurrence of each keyword (e.g., 'required', 'type')
+        const severity = classifyErrorSeverity(keyword);
+
+        // Count occurrences
         counts[keyword] = (counts[keyword] || 0) + 1;
+        severityCounts[severity] = (severityCounts[severity] || 0) + 1;
         
         // Use instancePath for Ajv v8+ compatibility
         return {
             dataPath: err.instancePath,
             keyword: keyword,
             message: err.message,
-            params: err.params
+            params: err.params,
+            severity: severity // Added for AGI prioritization (Logic)
         };
     });
     
-    return { summary: summary, counts: counts };
+    return { summary: summary, counts: counts, severityCounts: severityCounts };
 }
 
 /**
  * Validates an AGI-generated code evolution proposal against the ACVD governance schema.
  * Returns detailed and summarized errors for optimized AGI learning retention (Memory and Logic).
  * @param {object} proposal - The proposed change object.
- * @returns {{isValid: boolean, rawErrors: array|null, errorSummary: array|null, errorCounts: object|null}} The validation result.
+ * @returns {{isValid: boolean, rawErrors: array|null, errorSummary: array|null, errorCounts: object|null, errorSeverityCounts: object|null}} The validation result.
  */
 export function validateProposal(proposal) {
     const proposalId = proposal?.proposalId || 'N/A';
@@ -77,28 +105,41 @@ export function validateProposal(proposal) {
                 dataPath: '',
                 keyword: initErrorDetails.keyword,
                 message: initErrorDetails.message,
-                params: { context: initErrorDetails.errorContext }
+                params: { context: initErrorDetails.errorContext },
+                severity: 'CRITICAL'
             }],
-            errorCounts: { system_init_failure: 1 }
+            errorCounts: { system_init_failure: 1 },
+            errorSeverityCounts: { CRITICAL: 1, MAJOR: 0, MINOR: 0 }
         };
     }
 
     const isValid = validate(proposal);
 
     if (!isValid) {
-        const { summary, counts } = summarizeErrors(validate.errors);
+        const { summary, counts, severityCounts } = summarizeErrors(validate.errors);
+        
+        // Determine log level based on detected severity (Logic enhancement)
+        let logLevel = 'warn';
+        if (severityCounts.CRITICAL > 0) {
+            logLevel = 'error'; // Upgrade log level if critical structural failure occurs
+        }
 
-        // Enhanced structured warning for better pattern recognition and learning retention
-        logger.warn(`ACVD Proposal Validation Failed: ${summary.length} errors found. Proposal ID: ${proposalId}`, {
-            errorCounts: counts, // High-level error categorization for rapid pattern matching (Logic)
-            errorSummary: summary // Detailed path info (Memory)
-        });
+        // Enhanced structured logging for better pattern recognition and learning retention
+        logger[logLevel](
+            `ACVD Proposal Validation Failed: ${summary.length} errors found (${severityCounts.CRITICAL} CRITICAL). Proposal ID: ${proposalId}`,
+            {
+                errorCounts: counts, 
+                errorSummary: summary, 
+                errorSeverityCounts: severityCounts
+            }
+        );
 
         return {
             isValid: false,
             rawErrors: validate.errors,
             errorSummary: summary, 
-            errorCounts: counts 
+            errorCounts: counts,
+            errorSeverityCounts: severityCounts
         };
     }
     
@@ -107,6 +148,7 @@ export function validateProposal(proposal) {
         isValid: true,
         rawErrors: null,
         errorSummary: null,
-        errorCounts: null
+        errorCounts: null,
+        errorSeverityCounts: null
     };
 }
