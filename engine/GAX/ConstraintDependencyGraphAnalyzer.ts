@@ -5,6 +5,16 @@
 
 import { ConstraintResolutionEngineDefinition } from "./types";
 
+// START: Structured Diagnostic Types for robust error reporting
+export type DiagnosticType = 'CYCLE' | 'DUPLICATE_ID' | 'MISSING_DEPENDENCY';
+
+export interface GraphDiagnostic {
+  severity: 'error' | 'warning';
+  type: DiagnosticType;
+  message: string;
+}
+// END: Structured Diagnostic Types
+
 export class ConstraintDependencyGraphAnalyzer {
   private definition: ConstraintResolutionEngineDefinition;
 
@@ -14,27 +24,42 @@ export class ConstraintDependencyGraphAnalyzer {
 
   /**
    * Analyzes the dependency graph for cycles and reports structural configuration issues.
-   * @returns An array of diagnostic messages (cycles, duplicates, or missing dependencies).
+   * @returns An array of structured diagnostic messages (cycles, duplicates, or missing dependencies).
    */
-  public analyzeForCycles(): string[] {
+  public analyzeForCycles(): GraphDiagnostic[] {
     const phases = this.definition.resolutionPhases;
-    const phaseIdSet: Set<string> = new Set(phases.map(p => p.phaseId));
+    const phaseIdSet: Set<string> = new Set();
     const adj: Map<string, string[]> = new Map();
-    const diagnostics: string[] = [];
+    const diagnostics: GraphDiagnostic[] = [];
 
-    // 1. Initial build and validation for existence and duplicates
+    // 1. Initial build and validation for duplicates
     for (const phase of phases) {
-      if (adj.has(phase.phaseId)) {
-          diagnostics.push(`Configuration Error: Duplicate phase ID detected: ${phase.phaseId}`);
+      const phaseId = phase.phaseId;
+
+      if (phaseIdSet.has(phaseId)) {
+        diagnostics.push({
+          severity: 'error',
+          type: 'DUPLICATE_ID',
+          message: `Configuration Error: Duplicate phase ID detected: ${phaseId}`,
+        });
+        continue; 
       }
-      adj.set(phase.phaseId, phase.dependencies);
       
-      // 1b. Validate dependencies point to existing phases
-      for (const dependentId of phase.dependencies) {
-        if (!phaseIdSet.has(dependentId)) {
-            diagnostics.push(`Configuration Warning: Phase '${phase.phaseId}' depends on non-existent phase: '${dependentId}'`);
+      phaseIdSet.add(phaseId);
+      adj.set(phaseId, phase.dependencies);
+    }
+    
+    // 1b. Validate dependencies point to existing phases (Needs full phaseIdSet)
+    for (const phase of phases) {
+        for (const dependentId of phase.dependencies) {
+            if (!phaseIdSet.has(dependentId)) {
+                diagnostics.push({
+                    severity: 'warning',
+                    type: 'MISSING_DEPENDENCY',
+                    message: `Configuration Warning: Phase '${phase.phaseId}' depends on non-existent phase: '${dependentId}'`,
+                });
+            }
         }
-      }
     }
 
     // 2. Cycle Detection using DFS
@@ -43,7 +68,7 @@ export class ConstraintDependencyGraphAnalyzer {
     
     // DFS implementation using path tracing for detailed cycle reporting
     const dfs = (phaseId: string, currentPath: string[]) => {
-      // Skip if phaseId wasn't properly defined
+      // Skip if phaseId wasn't properly defined (e.g., if it was a duplicate)
       if (!adj.has(phaseId)) return; 
 
       visited.add(phaseId);
@@ -51,27 +76,30 @@ export class ConstraintDependencyGraphAnalyzer {
       const nextPath = [...currentPath, phaseId];
 
       for (const dependentId of adj.get(phaseId) || []) {
-        // Ensure the dependentId is part of the graph before trying to traverse 
-        if (!adj.has(dependentId)) continue; 
+        // Only attempt traversal if the dependent ID actually exists in our defined graph nodes.
+        if (!phaseIdSet.has(dependentId)) continue; 
 
         if (!visited.has(dependentId)) {
           dfs(dependentId, nextPath);
         } else if (recursionStack.has(dependentId)) {
           // Cycle detected. dependentId is the point where the cycle closes.
           const cycleStartIndex = nextPath.indexOf(dependentId);
-          // The path starts at the cycle closing point up to the current node (phaseId)
           const cyclePath = nextPath.slice(cycleStartIndex); 
           
-          diagnostics.push(`Cycle detected: ${cyclePath.join(' -> ')} -> ${dependentId}`);
+          diagnostics.push({
+            severity: 'error',
+            type: 'CYCLE',
+            message: `Cycle detected: ${cyclePath.join(' -> ')} -> ${dependentId}`,
+          });
         }
       }
       recursionStack.delete(phaseId);
     };
 
-    for (const phase of phases) {
-      if (!visited.has(phase.phaseId)) {
-        // Start DFS for this connected component
-        dfs(phase.phaseId, []);
+    // Only iterate over the phases that were successfully added to the map (i.e., not duplicates)
+    for (const phaseId of phaseIdSet) {
+      if (!visited.has(phaseId)) {
+        dfs(phaseId, []);
       }
     }
 
@@ -81,15 +109,18 @@ export class ConstraintDependencyGraphAnalyzer {
   public validateDefinition(): void {
     const diagnostics = this.analyzeForCycles();
     
-    const errors = diagnostics.filter(d => d.includes("Cycle detected") || d.includes("Duplicate phase ID"));
-    const warnings = diagnostics.filter(d => d.includes("Warning"));
+    // Use structured data for filtering instead of brittle string checks
+    const errors = diagnostics.filter(d => d.severity === 'error');
+    const warnings = diagnostics.filter(d => d.severity === 'warning');
 
     if (errors.length > 0) {
-      throw new Error(`Configuration Error: Structural issues found in resolution phases: ${errors.join('; ')}`);
+      const errorMessages = errors.map(e => e.message).join('; ');
+      throw new Error(`Configuration Error: Structural issues found in resolution phases: ${errorMessages}`);
     }
 
     if (warnings.length > 0) {
-        console.warn(`Configuration Warnings during validation: ${warnings.join('; ')}`);
+        const warningMessages = warnings.map(w => w.message).join('; ');
+        console.warn(`Configuration Warnings during validation: ${warningMessages}`);
     }
 
     console.log("Constraint definition graph validated successfully.");
