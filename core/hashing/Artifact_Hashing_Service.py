@@ -34,15 +34,16 @@ class ArtifactHashingService:
         self._standard_exclusions: Set[str] = frozenset(HashingConfiguration.STANDARD_EXCLUSIONS)
 
     @staticmethod
-    def _filter_artifact_data(
+    def _shallow_filter_artifact_data(
         artifact_data: Dict[str, Any], 
         exclusion_keys: Set[str]
     ) -> Dict[str, Any]:
-        """Creates a filtered copy of the artifact data, excluding specified keys.
+        """Creates a filtered copy of the artifact data, excluding specified root keys.
 
-        Note: This is an efficient, non-recursive, shallow key exclusion function.
-        If complex nested structure filtering is required, this component needs 
-        to be refactored into a future Emergent Capability (e.g., Path-Aware Hashing).
+        NOTE ON SCOPE: This function provides fast, shallow filtering.
+        For complex artifacts requiring deep, path-aware exclusion (e.g., 'nested.field.id'),
+        the kernel has initiated the development of the 'DeepExclusionFilter' emergent capability: 
+        /emergent/hashing/DeepExclusionFilter.py
         """
         if not exclusion_keys:
             return artifact_data.copy()
@@ -107,7 +108,8 @@ class ArtifactHashingService:
                 exclusions.update(exclusion_keys)
 
             # 2. Filter data
-            processed_data = self._filter_artifact_data(artifact_data, exclusions)
+            # Using the optimized shallow filter for root-level exclusions.
+            processed_data = self._shallow_filter_artifact_data(artifact_data, exclusions)
             
             # 3. Serialize filtered data
             serialized_data = self._serialize_artifact(processed_data)
