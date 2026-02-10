@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V7.4.5_AGI_NAVIGATOR_R2_ENHANCED",
+  "policy_schema_version": "V7.4.5_AGI_NAVIGATOR_R3_COMPLIANT",
   "policies": {
     "GOV_ENFORCEMENT_V11": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -55,7 +55,7 @@
         "UPDATE_MEMORY_MODEL_WITH_FAILURE_CONTEXT"
       ]
     },
-    "POLICY_EMERGENCE_V5": {
+    "POLICY_EMERGENCE_V6": {
       "name": "Emergent Capability Vetting and Documentation Protocol (Navigator Edition)",
       "applies_to_directory": "/emergent",
       "initial_status": "SANDBOXED_UNTRUSTED",
@@ -96,7 +96,7 @@
           "trigger": "EVIDENCES_META_COGNITIVE_AWARENESS",
           "required_vetting_level": "LEVEL_2_STRICT",
           "priority_for_integration": "HIGH",
-          "impact_description": "Tools designed to improve the kernel's own learning efficiency or evolution process."
+          "impact_description": "Tools designed to improve the kernel's own learning efficiency, evolution process, or demonstrate meta-cognitive awareness of system operation."
         },
         "cross_domain_synthesis": {
           "trigger": "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED",
@@ -110,7 +110,7 @@
         "action": "PROPOSE_MERGE_INTO_CORE_OR_AGENTS"
       }
     },
-    "POLICY_EXPLORATION_V3": {
+    "POLICY_EXPLORATION_V4": {
       "name": "Repository Diversity and Priority-Based Blacklist Management",
       "applies_to_system": "NAVIGATOR_SYSTEM",
       "repository_context": {
@@ -123,7 +123,11 @@
         "max_size": 50,
         "action_on_exceeded": "CLEAR_OLDEST_ENTRIES",
         "diversity_enforcement": true,
-        "reset_strategy": "ADAPTIVE_RETURN_TO_CRITICAL_TARGETS"
+        "reset_strategy": "ADAPTIVE_RETURN_TO_CRITICAL_TARGETS",
+        "file_evolution_update_logic": {
+          "IF_IMPROVED": "REMOVE_FROM_BLACKLIST_ALLOW_REVISIT",
+          "IF_STABLE_NO_IMPROVEMENT": "ADD_TO_BLACKLIST_SKIP_FOR_NOW"
+        }
       },
       "adaptive_reset_mechanism": {
         "trigger": "BLACKLIST_FILLS_TO_MAX_SIZE_OR_NO_UNVISITED_HIGH_PRIORITY",
