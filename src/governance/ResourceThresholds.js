@@ -1,4 +1,4 @@
-// src/governance/ResourceThresholds.js
+// src/governance/ResourceThresholds.ts
 
 /**
  * RESOURCE THRESHOLDS CONFIGURATION (RTC)
@@ -9,6 +9,9 @@
  * Decouples static numerical thresholds from the dynamic check logic
  * within the ResourceCheckRegistry (RCR).
  */
+
+// Assuming ThresholdLookupValidator is available via injection or declaration.
+decore const ThresholdLookupValidator: { execute: (args: { config: Readonly<Record<string, number>>, key: string, version: string }) => number };
 
 const V1_THRESHOLDS = Object.freeze({
     // Core Operational Baselines
@@ -22,6 +25,9 @@ const V1_THRESHOLDS = Object.freeze({
 });
 
 class ResourceThresholds {
+    private version: string;
+    private config: Readonly<Record<string, number>>;
+
     /**
      * @param {string} [version='V1'] - The governance threshold version to enforce.
      */
@@ -34,41 +40,42 @@ class ResourceThresholds {
      * Loads the specific threshold configuration version.
      * @private
      * @param {string} version 
-     * @returns {Object}
+     * @returns {Readonly<Record<string, number>>}
      */
-    _loadVersion(version) {
+    private _loadVersion(version: string): Readonly<Record<string, number>> {
         switch (version.toUpperCase()) {
             case 'V1':
-                return V1_THRESHOLDS;
+                return V1_THRESHOLDS as Readonly<Record<string, number>>; // Safe cast
             default:
                 console.warn(`RTC Warning: Unknown threshold version '${version}'. Falling back to V1.`);
-                return V1_THRESHOLDS;
+                return V1_THRESHOLDS as Readonly<Record<string, number>>; // Safe cast
         }
     }
 
     /**
-     * Retrieves a specific threshold value.
-     * Enforces strict key validation.
+     * Retrieves a specific threshold value using the ThresholdLookupValidator plugin.
+     * Enforces strict key validation via the plugin.
      * @param {string} key - The threshold identifier (e.g., 'CPU_CORE_BASELINE').
-     * @returns {number | undefined} The numerical threshold value.
+     * @returns {number} The numerical threshold value.
+     * @throws {Error} If the key is missing in the current version.
      */
-    get(key) {
-        const value = this.config[key];
-        if (typeof value === 'undefined') {
-             // Explicit failure for missing required keys improves RCR reliability.
-             throw new Error(`RTC Error: Required threshold '${key}' not defined in version ${this.version}.`);
-        }
-        return value;
+    public get(key: string): number {
+        // Delegate the strict access and validation logic (mandatory presence check) to the specialized plugin.
+        return ThresholdLookupValidator.execute({
+            config: this.config,
+            key: key,
+            version: this.version
+        });
     }
 
     /**
      * Reloads thresholds, potentially allowing for dynamic runtime reconfiguration.
      * @param {string} version 
      */
-    reload(version) {
+    public reload(version: string): void {
         this.version = version;
         this.config = this._loadVersion(version);
     }
 }
 
-module.exports = ResourceThresholds;
+export = ResourceThresholds;
