@@ -19,14 +19,13 @@ export interface AGCA_Validation_Service {
    * Step 1: Checks if the embedded hash matches the calculated hash of the canonical configuration data.
    * Ensures data integrity (proof of non-tampering).
    *
-   * NOTE: Implementation must ensure consistent canonical serialization of dataPayload prior to hashing.
-   * (Requires use of CanonicalPayloadGenerator tool).
-   * @param dataPayload The raw configuration data object (the content being hashed/verified).
+   * NOTE: Implementation must ensure consistent canonical serialization of configurationData prior to hashing.
+   * @param configurationData The raw configuration data object (the content being hashed/verified).
    * @param expectedHash The hash_sha256 value from the asset's metadata.
    * @returns Promise<boolean> True if hashes match.
    */
   verifyHashIntegrity(
-    dataPayload: AGCA_PCTM_V1_ConfigurationData,
+    configurationData: AGCA_PCTM_V1_ConfigurationData,
     expectedHash: string
   ): Promise<boolean>;
 
@@ -35,15 +34,15 @@ export interface AGCA_Validation_Service {
    * Ensures authenticity (proof of origin).
    * Requires secure interaction with the Global Key Management (GKM) system.
    *
-   * NOTE: Implementation must re-derive the signed canonical payload (usually the serialized dataPayload)
-   * before signature verification. (Requires use of CanonicalPayloadGenerator tool).
-   * @param dataPayload The content that was originally signed (used to rebuild the signing payload).
+   * NOTE: Implementation must re-derive the signed canonical payload (usually the serialized configurationData)
+   * before signature verification.
+   * @param configurationData The content that was originally signed (used to rebuild the signing payload).
    * @param signature The gkm_signature value (e.g., base64 or similar encoded signature blob).
    * @param keyReference The gkm_key_reference URI identifying the public key.
    * @returns Promise<boolean> True if the signature is valid.
    */
   verifyCryptographicSignature(
-    dataPayload: AGCA_PCTM_V1_ConfigurationData,
+    configurationData: AGCA_PCTM_V1_ConfigurationData,
     signature: string,
     keyReference: string
   ): Promise<boolean>;
