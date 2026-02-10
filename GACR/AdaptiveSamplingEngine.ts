@@ -6,10 +6,11 @@
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth),
  * ensuring stability by enforcing the most restrictive limit.
  * 
- * AGI KERNEL V8.5.0 IMPROVEMENT:
- * 1. Improved internal modularity by extracting constraint definition and boundary application into private methods.
- * 2. Enhanced robustness by explicitly checking for empty constraint sets before attempting reduction.
- * 3. Maintained dependency injection and V7 Synergy hook usage.
+ * AGI KERNEL V8.5.1 IMPROVEMENT (Enhanced Resilience):
+ * 1. Implemented a robust local reduction fallback mechanism (_localCalculateRate) 
+ *    to ensure throttling based on observed constraints continues even if the external 
+ *    ConstraintReducer capability fails.
+ * 2. Maintained improved internal modularity and V7 Synergy hook usage.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -77,12 +78,12 @@ export class AdaptiveSamplingEngine {
                 current: metrics.cpu, 
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            { 
+            {
                 name: 'Memory',
                 current: metrics.memory, 
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            { 
+            {
                 name: 'QueueDepth',
                 current: metrics.queueDepth, 
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
@@ -113,6 +114,31 @@ export class AdaptiveSamplingEngine {
     }
 
     /**
+     * Internal fallback method: Calculates the required rate based on local constraints
+     * by finding the ratio (target / current) for the most restrictive resource.
+     * This acts as a protective measure if the complex external ConstraintReducer fails.
+     */
+    private _localCalculateRate(constraints: NamedConstraint[]): ReductionResult {
+        let requiredRate = 1.0;
+        let restrictingConstraint: NamedConstraint | null = null;
+
+        for (const constraint of constraints) {
+            // Calculate the ratio needed to bring current utilization down to target utilization.
+            // If current is significantly higher than target, this ratio enforces throttling.
+            const rateRatio = constraint.target / constraint.current;
+            
+            const rateToApply = Math.min(1.0, rateRatio);
+
+            if (rateToApply < requiredRate) {
+                requiredRate = rateToApply;
+                restrictingConstraint = constraint;
+            }
+        }
+
+        return { rate: requiredRate, restrictingConstraint };
+    }
+
+    /**
      * Calculates the current required sampling rate (0.0 to 1.0) based on the most severe constraint.
      */
     public async getSamplingRate(): Promise<number> {
@@ -136,13 +162,17 @@ export class AdaptiveSamplingEngine {
         const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
 
         try {
-            // Execute the optimized ConstraintReducer capability
+            // Execute the optimized ConstraintReducer capability (Primary Path)
             const reductionResult: ReductionResult = await ConstraintReducer.execute(constraintsPayload);
             requiredRate = reductionResult.rate;
             restrictingConstraint = reductionResult.restrictingConstraint;
+
         } catch (e) {
-            // Fallback if plugin execution fails (e.g., environment error)
-            console.error("Failed to execute ConstraintReducer capability, defaulting to full sampling:", e);
+            // Fallback if plugin execution fails (Enhanced Resilience Path)
+            console.warn("ConstraintReducer capability failed. Falling back to local adaptive calculation:", e);
+            const fallbackResult = this._localCalculateRate(constraints);
+            requiredRate = fallbackResult.rate;
+            restrictingConstraint = fallbackResult.restrictingConstraint;
         }
         
         // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook
