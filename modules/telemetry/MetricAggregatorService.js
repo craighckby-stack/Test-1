@@ -6,17 +6,27 @@
  */
 const EventEmitter = require('events');
 
+/**
+ * MetricDataStandardizer instance (assuming injection or accessible global)
+ * @typedef {object} MetricDataStandardizerInstance
+ * @property {function(object): object} standardize - Function to coerce and standardize raw data.
+ */
+
 class MetricAggregatorService extends EventEmitter {
     /**
      * @param {object} config - Configuration defining metric sources, sampling intervals, and normalization rules.
      * @param {function} logger - Logging utility.
+     * @param {MetricDataStandardizerInstance} [metricStandardizer] - Tool for data normalization.
      */
-    constructor(config, logger = console) {
+    constructor(config, logger = console, metricStandardizer = null) {
         super();
         this.config = config;
         this.logger = logger;
         this.aggregatedMetrics = {};
         this.sources = this._initializeSources(config.sources);
+        
+        // Dependency Injection for the standardization tool
+        this.metricStandardizer = metricStandardizer;
 
         // Interval to push aggregated data to downstream components (e.g., PhaseEvaluatorEngine)
         this.pushIntervalMs = config.pushIntervalMs || 5000;
@@ -41,19 +51,22 @@ class MetricAggregatorService extends EventEmitter {
     }
 
     /**
-     * Applies unit conversion, filtering, and required aggregation/smoothing.
+     * Applies unit conversion, filtering, and required aggregation/smoothing using the external tool.
      * @param {string} source
      * @param {object} data
      * @returns {object} Clean, numerical metrics.
      */
     _normalize(source, data) {
-        // v94.1 Implementation detail: Apply configured rules for standardization
+        if (this.metricStandardizer && typeof this.metricStandardizer.standardize === 'function') {
+            // Use the injected external tool
+            return this.metricStandardizer.standardize(data, this.config.normalizationRules);
+        }
+
+        // Fallback implementation matching the original stub if no tool is provided
+        this.logger.warn('MetricDataStandardizer not provided. Using basic parseFloat fallback.');
         const processed = {};
         for (const key in data) {
-            // Example: Convert percentage strings to floats, handle units (ms to s)
-            const value = data[key];
-            // For this stub, we assume data is generally clean enough
-            processed[key] = parseFloat(value);
+            processed[key] = parseFloat(data[key]);
         }
         return processed;
     }
