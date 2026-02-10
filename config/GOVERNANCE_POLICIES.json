@@ -139,13 +139,16 @@
         ]
       },
       "priority_weight_enforcement": {
-        "/core": 0.30,
-        "/agents": 0.25,
-        "/emergent": 0.20,
-        "/governance": 0.15,
-        "low_priority_grouping": {
-          "weight": 0.10,
-          "low_priority_directories": [
+        "description": "Weights file selection based on MISSION objectives (Total 1.0)",
+        "high_priority_targets": {
+          "/core": 0.30,
+          "/agents": 0.25,
+          "/emergent": 0.20,
+          "/governance": 0.15
+        },
+        "low_priority_targets": {
+          "combined_weight": 0.10,
+          "directories": [
             "/utils",
             "/config",
             "/data",
