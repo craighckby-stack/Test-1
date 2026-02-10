@@ -1,37 +1,46 @@
-import Ajv from 'ajv';
+import fs from 'fs/promises';
+import { Logger } from '../utils/Logger.js';
+import { SchemaValidationEngine } from '../utils/SchemaValidationEngine.js'; // Assumed import for the extracted tool
 import {
     AJV_BASE_CONFIG,
     MINIMAL_FALLBACK_SCHEMA,
     DEFAULT_GOVERNANCE_SCHEMA_PATH
 } from './schema/PolicySchemaDefinitions.js';
-import fs from 'fs/promises';
-import { Logger } from '../utils/Logger.js'; // Assumes existence of a centralized Logger utility
 
 /**
  * Manages the loading, compilation, and validation of governance policies
- * against defined JSON schemas using AJV. This centralizes high-assurance
- * validation logic.
+ * against defined JSON schemas using a dedicated validation engine.
+ * This centralizes high-assurance validation logic and decouples it from schema management.
  */
 export class PolicyValidatorService {
     /**
      * @param {object} [dependencies] - Configuration dependencies for injection.
      * @param {Logger} [dependencies.logger] - Logger instance.
      * @param {string} [dependencies.defaultSchemaPath] - Override for primary schema path.
+     * @param {SchemaValidationEngine} [dependencies.schemaEngine] - Pre-initialized validation engine.
      */
-    constructor({ 
+    constructor({
         logger = new Logger('PolicyValidator'),
-        defaultSchemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH 
+        defaultSchemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH,
+        schemaEngine = new SchemaValidationEngine(AJV_BASE_CONFIG)
     } = {}) {
         this.log = logger;
         this.schemaPath = defaultSchemaPath;
 
-        // Initialize AJV instance with strict base configuration
-        this.ajv = new Ajv(AJV_BASE_CONFIG);
+        // The validation engine handles AJV specifics (compilation, caching)
+        this.schemaEngine = schemaEngine;
+
+        // Define standardized IDs for easier management
+        this.primarySchemaId = null;
+        this.fallbackSchemaId = 'minimal-fallback-schema';
 
         // Pre-compile fallback schema immediately for emergency use
-        this.fallbackValidator = this.ajv.compile(MINIMAL_FALLBACK_SCHEMA);
-        
-        this.primaryValidator = null; 
+        try {
+            this.schemaEngine.compileSchema(MINIMAL_FALLBACK_SCHEMA, this.fallbackSchemaId);
+        } catch (e) {
+            this.log.error('Failed to compile fallback schema:', e.message);
+        }
+
         this.initialized = false;
     }
 
@@ -50,23 +59,18 @@ export class PolicyValidatorService {
         try {
             const schemaContent = await fs.readFile(this.schemaPath, 'utf-8');
             const primarySchema = JSON.parse(schemaContent);
-            
-            const schemaId = primarySchema.$id || 'main-governance-schema';
-            primarySchema.$id = schemaId;
 
-            this.ajv.addSchema(primarySchema);
-            const compiledValidator = this.ajv.getSchema(schemaId);
-            
-            if (!compiledValidator) {
-                throw new Error("AJV compilation failure after schema definition.");
-            }
-            
-            this.primaryValidator = compiledValidator;
+            const schemaId = primarySchema.$id || 'main-governance-schema';
+            this.primarySchemaId = schemaId;
+
+            // Delegation: Use the engine to compile and register the primary schema
+            this.schemaEngine.compileSchema(primarySchema, schemaId);
+
             this.log.info(`Primary governance schema loaded successfully from ${this.schemaPath}`);
-            
+
         } catch (error) {
             const pathMsg = `Path: ${this.schemaPath}`;
-            
+
             if (error.code === 'ENOENT') {
                  this.log.warn(`Primary schema file not found. ${pathMsg}. Falling back.`);
             } else if (error instanceof SyntaxError) {
@@ -74,8 +78,9 @@ export class PolicyValidatorService {
             } else {
                  this.log.error(`Could not initialize primary schema. ${pathMsg}. Falling back. Error: ${error.message}`);
             }
-            
-            this.primaryValidator = this.fallbackValidator;
+
+            // Set the active schema ID to the fallback ID
+            this.primarySchemaId = this.fallbackSchemaId;
         } finally {
              this.initialized = true;
         }
@@ -84,21 +89,19 @@ export class PolicyValidatorService {
     /**
      * Validates a configuration object against the currently loaded primary schema (or fallback).
      * @param {object} config - The configuration object to validate.
-     * @returns {{isValid: boolean, errors: Array<import('ajv').ErrorObject>}} Validation result.
+     * @returns {{isValid: boolean, errors: Array<object>}} Validation result.
      * @throws {Error} If initializeValidator() has not been called.
      */
     validate(config) {
         if (!this.initialized) {
             throw new Error("Validator service must be initialized using initializeValidator() before calling validate().");
         }
-        
-        const validator = this.primaryValidator || this.fallbackValidator;
-        
-        const isValid = validator(config);
-        
-        return {
-            isValid,
-            errors: validator.errors || []
-        };
+
+        const activeSchemaId = this.primarySchemaId || this.fallbackSchemaId;
+
+        // Delegation: Use the engine to execute validation
+        const result = this.schemaEngine.validate(activeSchemaId, config);
+
+        return result;
     }
 }
