@@ -15,6 +15,8 @@ const DEFAULT_CONFIG: VerifierConfiguration = {
     standardRiskCeiling: 500000, // Maximum allowed S02_Value for standard operational profiles (in LiabilityUnit).
 };
 
+// Helper to access external plugin environment (Simulated Global Access)
+declare const ThresholdValidator: { execute: (args: any) => { passed: boolean, reason: string } };
 
 /**
  * GRCS_Verifier (v94.1)
@@ -122,19 +124,32 @@ export class GRCS_Verifier {
     private static checkRiskThreshold(profile: FailureProfile): VerificationResult['auditTrail'][0] {
         const ceiling = this.config.standardRiskCeiling;
         
-        if (profile.LiabilityUnit !== 'USD' && profile.LiabilityUnit !== 'PPR') {
-             return {
-                step: 'Risk_Threshold',
-                success: false,
-                reason: `Unsupported LiabilityUnit detected: ${profile.LiabilityUnit}. Cannot verify risk threshold against configured ceiling.`,
-            };
-        }
+        // --- PLUGIN CALL: ThresholdValidator ---
+        // Utilizing the extracted ThresholdValidator plugin for centralized limit checking and unit validation.
+        const plugin = (globalThis as any).ThresholdValidator || { execute: () => ({ passed: false, reason: 'ThresholdValidator missing or failed initialization.' }) };
+        
+        const validationResult = plugin.execute({
+            value: profile.S02_Value,
+            ceiling: ceiling,
+            unit: profile.LiabilityUnit,
+            allowedUnits: ['USD', 'PPR']
+        });
+        // ----------------------------------------
 
-        if (profile.S02_Value >= ceiling) {
+        if (!validationResult.passed) {
+            let finalReason = validationResult.reason;
+            
+            // Reformat generic plugin output into specific GRCS error messages for audit trail clarity.
+            if (validationResult.reason.includes('Unsupported Unit')) {
+                 finalReason = `Unsupported LiabilityUnit detected: ${profile.LiabilityUnit}. Cannot verify risk threshold against configured ceiling.`;
+            } else if (validationResult.reason.includes('exceeds configured ceiling')) {
+                 finalReason = `CRITICAL RISK: S02_Value (${profile.S02_Value} ${profile.LiabilityUnit}) exceeds operational ceiling of ${ceiling} ${profile.LiabilityUnit}.`;
+            }
+            
             return {
                 step: 'Risk_Threshold',
                 success: false,
-                reason: `CRITICAL RISK: S02_Value (${profile.S02_Value} ${profile.LiabilityUnit}) exceeds operational ceiling of ${ceiling} ${profile.LiabilityUnit}.`,
+                reason: finalReason,
                 details: `Ceiling Source: ${this.config === DEFAULT_CONFIG ? 'DEFAULT' : 'CUSTOM'}`
             };
         }
