@@ -5,8 +5,6 @@
  */
 
 import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'; // Assuming JSON loading capability
-// Assuming RuleExecutionEngine is imported from a standard module path
-// import { RuleExecutionEngine } from '../Services/RuleExecutionEngine';
 
 /**
  * @typedef {Object} ConstraintDefinition
@@ -23,14 +21,12 @@ import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'
  * @property {(string|null)} [details] - Explanation of the failure, if applicable.
  */
 
-// Placeholder definition for RuleExecutionEngine usage, assuming it's imported.
-// In a real refactor, this class would be imported.
-const RuleExecutionEngine = globalThis.RuleExecutionEngine || class MockRuleEngine { constructor() { this.executors = new Map(); } registerRule() {} executeRule(type, ...args) { const executor = this.executors.get(type); return executor ? executor(...args) : null; } };
+// Assuming KERNEL_SYNERGY_CAPABILITIES is globally available for Tool execution
 
 export class ConstraintAdherenceValidator {
 
     /**
-     * Initializes the validator and sets up the rule execution engine.
+     * Initializes the validator.
      * @param {Array<ConstraintDefinition>} [taxonomy] - The array of constraints, usually loaded from a schema.
      */
     constructor(taxonomy = ConstraintTaxonomy && ConstraintTaxonomy.constraintTypes ? ConstraintTaxonomy.constraintTypes : []) {
@@ -42,8 +38,7 @@ export class ConstraintAdherenceValidator {
 
         this.taxonomyMap = new Map(taxonomy.map(c => [c.code, c]));
         
-        /** @type {RuleExecutionEngine} */
-        this.ruleEngine = new RuleExecutionEngine();
+        // Dependency on RuleExecutionEngine removed.
     }
 
     /**
@@ -84,8 +79,7 @@ export class ConstraintAdherenceValidator {
 
     /**
      * Executes the specific technical check for a constraint against a configuration
-     * by looking up the appropriate rule executor based on constraintDef.check_type.
-     * If no rule is found, it defaults to non-adherence for safety.
+     * by delegating to the KERNEL_SYNERGY_CAPABILITIES ConstraintExecutor Tool.
      * @param {ConstraintDefinition} constraintDef - The definition of the constraint to check.
      * @param {Object} configuration - The system configuration.
      * @returns {ValidationResult} Adherence status.
@@ -97,17 +91,20 @@ export class ConstraintAdherenceValidator {
              return { isMet: false, details: 'Constraint definition is missing required "check_type" for validation execution.' };
         }
 
-        // Delegation to the Rule Execution Engine
-        const result = this.ruleEngine.executeRule(checkType, constraintDef, configuration);
+        // Delegation to the ConstraintExecutor Tool via the KERNEL
+        const result = KERNEL_SYNERGY_CAPABILITIES.Tool.execute('ConstraintExecutor', 'executeCheck', {
+            constraintDef: constraintDef,
+            configuration: configuration
+        });
 
-        if (result !== null) {
+        if (result && result.isMet !== undefined) {
             return result;
         }
 
-        // Defaulting to failure if no specific executor is found ensures system safety.
+        // Defaulting to failure if execution fails or returns an unrecognized structure
         return { 
             isMet: false, 
-            details: `No runtime rule executor found for check type '${checkType}'. Constraint cannot be validated.`
+            details: `Tool 'ConstraintExecutor' failed or returned an invalid structure for check type '${checkType}'.`
         };
     }
 
