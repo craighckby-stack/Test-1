@@ -11,6 +11,13 @@ declare const SafeFormulaEvaluatorInstance: {
 };
 
 /**
+ * Placeholder for the dynamically loaded DeclarativeConditionEvaluatorTool plugin instance.
+ */
+declare const DeclarativeConditionEvaluatorToolInstance: {
+    checkCondition: (metricValue: number, condition: string, targetValue: number) => boolean;
+};
+
+/**
  * @class FitnessEngine
  * Consumes config/metrics_and_oracles_v2.json and calculates the fitness score
  * for a new codebase generation based on collected runtime and static metrics.
@@ -39,7 +46,7 @@ class FitnessEngine {
     
   // Formalized constants for system tuning and clarity (Logic/Error Handling)
   static MAX_FITNESS = 10.0;
-  static FLOAT_TOLERANCE = 1e-9;
+  // Removed FLOAT_TOLERANCE: now managed by DeclarativeConditionEvaluatorTool
   static EPSILON = 1e-9; 
   static HISTORICAL_IMPROVEMENT_THRESHOLD = 0.05; // 5% relative change needed for adjustment
   static HISTORICAL_MAX_ADJUSTMENT = 0.30; // Max 30% boost/penalty
@@ -51,6 +58,7 @@ class FitnessEngine {
   static MAX_FORMULA_LENGTH = 512; 
 
   private formulaEvaluator: typeof SafeFormulaEvaluatorInstance;
+  private conditionEvaluator: typeof DeclarativeConditionEvaluatorToolInstance;
 
   constructor(metricsConfig: any) {
     if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
@@ -63,8 +71,9 @@ class FitnessEngine {
         this.isOperational = true;
     }
 
-    // Assume SafeFormulaEvaluatorInstance is globally available after plugin load
+    // Assume SafeFormulaEvaluatorInstance and DeclarativeConditionEvaluatorToolInstance are globally available after plugin load
     this.formulaEvaluator = SafeFormulaEvaluatorInstance;
+    this.conditionEvaluator = DeclarativeConditionEvaluatorToolInstance;
     
     // JSON Parsing: Deep structural validation check for profiles
     if (this.isOperational) {
@@ -129,7 +138,7 @@ class FitnessEngine {
     if (!formulaString) return 0.0;
 
     // 1. Check if the formula is just a direct key lookup (optimization)
-    if (!formulaString.match(/[+\-\*/()]/)) {
+    if (!formulaString.match(/[+\-\*()/]/)) {
         return this._safeGetMetricValue(rawMetrics, formulaString);
     }
 
@@ -137,35 +146,7 @@ class FitnessEngine {
     return this.formulaEvaluator.evaluate(formulaString, rawMetrics as Record<string, number>);
   }
   
-  /**
-   * Logic/Error Handling: Checks if a numeric value meets a specified condition (e.g., >= 5).
-   * 
-   * @param {number} metricValue 
-   * @param {string} condition - Operator string (e.g., '>', '<=', '==').
-   * @param {number} targetValue - Value to compare against.
-   * @returns {boolean} True if the condition is met.
-   */
-  checkCondition(metricValue: number, condition: string, targetValue: number): boolean {
-    // Ensure inputs are numbers (Robustness check)
-    if (typeof metricValue !== 'number' || typeof targetValue !== 'number' || !isFinite(metricValue) || !isFinite(targetValue)) {
-        console.warn(`Condition check received non-numeric input: ${metricValue} ${condition} ${targetValue}`);
-        return false;
-    }
-
-    switch (condition.trim()) {
-        case '>': return metricValue > targetValue;
-        case '>=': return metricValue >= targetValue;
-        case '<': return metricValue < targetValue;
-        case '<=': return metricValue <= targetValue;
-        case '==': 
-        case '===': return Math.abs(metricValue - targetValue) < FitnessEngine.FLOAT_TOLERANCE; // Use tolerance for floats
-        case '!=':
-        case '!==': return Math.abs(metricValue - targetValue) >= FitnessEngine.FLOAT_TOLERANCE;
-        default:
-            console.error(`Unknown condition operator: ${condition}`);
-            return false;
-    }
-  }
+  // checkCondition REMOVED: Logic moved to DeclarativeConditionEvaluatorTool
 
   /**
    * Calculates fitness based on raw metric data, history, and the specified profile.
@@ -217,7 +198,9 @@ class FitnessEngine {
             }
             
             const metricValue = this._safeGetMetricValue(rawMetrics, oracle.metric);
-            const passes = this.checkCondition(metricValue, oracle.condition, oracle.value);
+            
+            // --- USE PLUGIN HERE ---
+            const passes = this.conditionEvaluator.checkCondition(metricValue, oracle.condition, oracle.value);
             
             let factor = 0;
             let factorKey = oracle.violation_type === 'penalty' ? 'penalty_factor' : 'reward_factor';
@@ -233,7 +216,7 @@ class FitnessEngine {
                 factor = Math.max(0, Math.min(1, parsedFactor)); 
             }
 
-            if (factor > FitnessEngine.FLOAT_TOLERANCE) { 
+            if (factor > FitnessEngine.EPSILON) { 
                 if (!passes && oracle.violation_type === 'penalty') {
                     score *= Math.max(0, (1 - factor)); // Penalty, ensuring result remains non-negative
                 } else if (passes && oracle.violation_type === 'reward') {
@@ -307,69 +290,54 @@ class FitnessEngine {
   _calculateHistoricalChangeFactor(rawMetrics: Record<string, any>, historicalMetrics: Record<string, any>, profile: any): { changeType: 'reward' | 'penalty' | 'neutral', rawFactor: number } {
       const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
       const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
-      const ABSOLUTE_THRESHOLD = FitnessEngine.ABSOLUTE_CHANGE_THRESHOLD;
-      
-      if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
+
+      // 1. Get current and historical target metric values
+      const targetMetricFormula = profile.target_metric;
+      const currentMetricValue = this.calculateDerivedMetric(rawMetrics, targetMetricFormula);
+      const historicalMetricValue = this.calculateDerivedMetric(historicalMetrics, targetMetricFormula);
+
+      if (historicalMetricValue === 0 && currentMetricValue === 0) {
           return { changeType: 'neutral', rawFactor: 0 };
       }
-      
-      const targetMetric = profile.target_metric;
-      const currentTargetValue = this.calculateDerivedMetric(rawMetrics, targetMetric);
-      
-      let historicalTargetValue;
-      try {
-           // Use a copy of the target metric ID/formula against historical data
-           historicalTargetValue = this.calculateDerivedMetric(historicalMetrics, targetMetric);
-      } catch (e) {
-           console.warn("FitnessEngine: Could not derive historical metric value for comparison.");
-           return { changeType: 'neutral', rawFactor: 0 };
-      }
-      
-      const absoluteDifference = currentTargetValue - historicalTargetValue;
-      let performanceChange: 'reward' | 'penalty' | 'neutral' = 'neutral';
-      let rawMagnitude = 0.0;
 
-      // Determine if historical comparison should use relative or absolute threshold
-      const useAbsoluteThreshold = Math.abs(historicalTargetValue) < FitnessEngine.MIN_ABSOLUTE_HISTORY;
+      // 2. Calculate raw change factor
+      let relativeChange;
+      let absoluteChange = Math.abs(currentMetricValue - historicalMetricValue);
       
-      let changeMet = false;
-
-      if (useAbsoluteThreshold) {
-          // If baseline is tiny, rely on absolute difference (Logic Stability)
-          if (Math.abs(absoluteDifference) > ABSOLUTE_THRESHOLD) {
-              changeMet = true;
-              rawMagnitude = Math.abs(absoluteDifference / ABSOLUTE_THRESHOLD); // Scale based on how far it exceeded the absolute threshold
+      if (Math.abs(historicalMetricValue) < FitnessEngine.MIN_ABSOLUTE_HISTORY) {
+          // Robustness for near-zero baseline
+          if (absoluteChange < FitnessEngine.ABSOLUTE_CHANGE_THRESHOLD) {
+              return { changeType: 'neutral', rawFactor: 0 };
           }
+          // If baseline is near zero but absolute change is significant, estimate change factor.
+          // Scale absolute change to be proportional, assuming a standard unit of '5.0' for full adjustment potential.
+          relativeChange = Math.sign(currentMetricValue - historicalMetricValue) * Math.min(1.0, absoluteChange / 5.0);
       } else {
-          // If baseline is stable, rely on relative difference
-          let relativeDifference = absoluteDifference / historicalTargetValue;
-          if (Math.abs(relativeDifference) > improvementThreshold) {
-              changeMet = true;
-              rawMagnitude = Math.abs(relativeDifference);
-          }
+          relativeChange = (currentMetricValue - historicalMetricValue) / historicalMetricValue;
       }
 
-      if (changeMet) {
-          // Determine reward/penalty based on optimization goal
-          if (profile.optimization_goal === 'minimize') {
-              if (absoluteDifference < 0) performanceChange = 'reward'; 
-              else if (absoluteDifference > 0) performanceChange = 'penalty'; 
-          } else if (profile.optimization_goal === 'maximize') {
-              if (absoluteDifference > 0) performanceChange = 'reward';
-              else if (absoluteDifference < 0) performanceChange = 'penalty';
-          }
-      }
+      // 3. Determine reward/penalty based on optimization goal
+      let effectiveChange = relativeChange; 
       
-      if (performanceChange === 'neutral') {
-          return { changeType: 'neutral', rawFactor: 0 };
-      }
-      
-      // Scale the adjustment proportionally up to MAX_ADJUSTMENT.
-      let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawMagnitude);
-      
-      // Ensure a minimum reward/penalty for successfully crossing the threshold (Autonomy stability)
-      const finalFactor = Math.max(0.01, dynamicAdjustment);
+      // If minimizing, a negative change (decrease) is good (positive effective change)
+      if (profile.optimization_goal === 'minimize') {
+          effectiveChange = -relativeChange;
+      } 
 
-      return { changeType: performanceChange, rawFactor: finalFactor };
+      let changeType: 'reward' | 'penalty' | 'neutral' = 'neutral';
+      let rawFactor = 0;
+
+      if (effectiveChange > improvementThreshold) {
+          changeType = 'reward';
+          rawFactor = effectiveChange;
+      } else if (effectiveChange < -improvementThreshold) {
+          changeType = 'penalty';
+          rawFactor = Math.abs(effectiveChange);
+      }
+      
+      // 4. Apply maximum clamping
+      rawFactor = Math.min(rawFactor, MAX_ADJUSTMENT);
+
+      return { changeType, rawFactor };
   }
 }
