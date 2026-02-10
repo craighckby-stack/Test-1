@@ -1,27 +1,28 @@
-import * as fs from 'fs/promises';
 import { TEDSContract } from './ContractSchemaValidator'; 
+
+// Assumed declaration for the injected AGI-KERNEL plugin
+declare const AsynchronousJsonFileLoaderUtility: {
+    execute: (args: { path: string }) => Promise<any>;
+};
 
 /**
  * ContractLoader handles asynchronous reading and parsing of contract definitions,
- * decoupling the Validator service from direct file system interaction.
+ * decoupling the Validator service from direct file system interaction by utilizing
+ * the AsynchronousJsonFileLoaderUtility plugin.
  */
 export class ContractLoader {
 
     /**
-     * Reads a contract file asynchronously from the local file system.
+     * Reads a contract file asynchronously from the local file system using the utility plugin.
      * @param path The path to the JSON contract file.
      * @returns A promise resolving to the parsed TEDSContract object.
      */
     public static async loadFromFile(path: string): Promise<TEDSContract> {
-        try {
-            const contractContent = await fs.readFile(path, { encoding: 'utf-8' });
-            return JSON.parse(contractContent) as TEDSContract;
-        } catch (e) {
-            const err = e instanceof Error ? e : new Error(String(e));
-            throw new Error(
-                `Failed to load or parse contract file located at ${path}: ${err.message}`
-            );
-        }
+        // Delegate file reading and parsing entirely to the external utility
+        const parsedContract = await AsynchronousJsonFileLoaderUtility.execute({ path });
+        
+        // Type assertion necessary as the utility is generic
+        return parsedContract as TEDSContract;
     }
 
     // Future methods could include: 
