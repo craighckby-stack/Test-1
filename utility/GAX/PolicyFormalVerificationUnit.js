@@ -32,25 +32,26 @@ const Defaults = Object.freeze({
 });
 
 /**
+ * Helper function to construct the standardized VerificationResult object, 
+ * extracted from internal class logic (now handled by ExecutionResultFormatter plugin).
+ */
+const _formatVerificationResult = (verificationId, timestampStart, details) => {
+    const timestampEnd = Date.now();
+    return {
+        isVerified: details.isVerified,
+        verificationId: verificationId,
+        timestamp: timestampEnd,
+        resultCategory: details.category,
+        detailedReport: details.report || 'No detailed report provided.',
+        failureConstraints: details.constraints || null,
+        durationMs: timestampEnd - timestampStart
+    };
+};
+
+/**
  * PolicyVerificationOrchestrator class: Centralized control for policy validation flow.
  */
 class PolicyVerificationOrchestrator {
-
-    /**
-     * Helper to construct the standardized VerificationResult object.
-     */
-    _buildResult(verificationId, timestampStart, details) {
-        const timestampEnd = Date.now();
-        return {
-            isVerified: details.isVerified,
-            verificationId: verificationId,
-            timestamp: timestampEnd,
-            resultCategory: details.category,
-            detailedReport: details.report || 'No detailed report provided.',
-            failureConstraints: details.constraints || null,
-            durationMs: timestampEnd - timestampStart
-        };
-    }
 
     /**
      * Step 1 & 2: Load Config and Validate Policy Schema.
@@ -139,7 +140,7 @@ class PolicyVerificationOrchestrator {
 
         const truncatedReport = errorMessage.substring(0, 150) + (errorMessage.length > 150 ? '...' : '');
 
-        return this._buildResult(verificationId, timestampStart, {
+        return _formatVerificationResult(verificationId, timestampStart, {
             isVerified: false,
             category: category,
             report: `Execution failed (${errorName}): ${truncatedReport}`,
@@ -185,7 +186,7 @@ class PolicyVerificationOrchestrator {
 
             // Step 5: Process Engine Output
             if (simulationResult.isConsistent) {
-                const result = this._buildResult(verificationId, timestampStart, {
+                const result = _formatVerificationResult(verificationId, timestampStart, {
                     isVerified: true,
                     category: 'SUCCESS',
                     report: `Axiomatic consistency proven against ${historicalConstraints.length} anchors.`
@@ -194,7 +195,7 @@ class PolicyVerificationOrchestrator {
                 return result;
             } else {
                 // Consistency Failure
-                const result = this._buildResult(verificationId, timestampStart, {
+                const result = _formatVerificationResult(verificationId, timestampStart, {
                     isVerified: false,
                     category: Defaults.FAILURE_CATEGORY_AXIOMATIC,
                     report: simulationResult.failureReason || "Axiomatic consistency violation detected.",
