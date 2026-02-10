@@ -1,6 +1,6 @@
 // Sovereign AGI Metric Engine Collector (v94.2) - Refactored
 // Responsible for dynamic metric sourcing and calculation execution via Strategy Pattern, 
-// now integrating dedicated logging and post-processing services.
+// now integrating dedicated logging, post-processing services, and dedicated template validation.
 
 /**
  * MetricEngineCollector
@@ -13,28 +13,17 @@ class MetricEngineCollector {
      * @param {object} dependencies.handlers - Map of calculation methods to execution services.
      * @param {object} dependencies.logger - Standardized system logger.
      * @param {object} dependencies.postProcessor - Service for validation, transformation, and threshold checks.
+     * @param {object} dependencies.templateValidator - Extracted tool for validating metric templates and handlers.
      */
-    constructor({ repository, handlers, logger, postProcessor }) {
-        if (!repository || !handlers || !logger || !postProcessor) {
-            throw new Error("MetricEngineCollector initialization requires repository, handlers, logger, and postProcessor map.");
+    constructor({ repository, handlers, logger, postProcessor, templateValidator }) {
+        if (!repository || !handlers || !logger || !postProcessor || !templateValidator) {
+            throw new Error("MetricEngineCollector initialization requires repository, handlers, logger, postProcessor, and templateValidator.");
         }
         this.repository = repository;
         this.handlers = handlers; // Strategy map
         this.logger = logger;
         this.postProcessor = postProcessor;
-    }
-
-    /**
-     * Retrieves the metric template safely.
-     * @param {string} metricId
-     * @returns {object|null}
-     */
-    _getTemplate(metricId) {
-        // Use a defined repository getter method if available for abstraction, fallback to direct access.
-        if (this.repository.getMetricTemplate) {
-            return this.repository.getMetricTemplate(metricId);
-        }
-        return this.repository.metrics ? this.repository.metrics[metricId] : null;
+        this.templateValidator = templateValidator; // New dependency
     }
 
     /**
@@ -44,40 +33,44 @@ class MetricEngineCollector {
 The calculated and standardized metric result (or structured failure status).
      */
     async collectMetric(metricId) {
-        const template = this._getTemplate(metricId);
+        
+        // Step 1: Validate metric template and handler using the dedicated tool
+        const validationResult = this.templateValidator.execute({
+            metricId: metricId,
+            repository: this.repository,
+            handlers: this.handlers
+        });
 
-        if (!template) {
-            this.logger.warn(`Metric ID ${metricId} not found in repository.`);
-            return this.postProcessor.createFailureResponse(metricId, 'TemplateNotFound');
-        }
-        if (template.status !== 'ACTIVE') {
-            this.logger.debug(`Metric ID ${metricId} is inactive.`);
-            // Return a structured, inert response if skipped
-            return { metricId, status: 'SKIPPED', timestamp: Date.now(), value: null };
+        if (!validationResult.valid) {
+            this.logger.warn(`Metric ID ${metricId} validation failure: ${validationResult.reason}.`);
+            
+            // Handle SKIPPED status separately as it's not a true failure state requiring postProcessor failure response
+            if (validationResult.reason === 'InactiveStatus') {
+                // Return a structured, inert response if skipped
+                return { metricId, status: 'SKIPPED', timestamp: Date.now(), value: null };
+            }
+            
+            // For TemplateNotFound and HandlerNotConfigured errors
+            return this.postProcessor.createFailureResponse(metricId, validationResult.reason);
         }
 
+        const { template, handler } = validationResult;
         const method = template.calculation_method;
-        const handler = this.handlers[method];
-
-        if (!handler) {
-            this.logger.error(`Metric ID ${metricId}: Unsupported handler method: ${method}`);
-            return this.postProcessor.createFailureResponse(metricId, 'HandlerNotConfigured');
-        }
 
         try {
             this.logger.info(`Executing metric ${metricId} via method: ${method}`);
             
-            // Step 1: Execute the strategy handler
+            // Step 2: Execute the strategy handler
             const rawResult = await handler.execute(template);
             
-            // Step 2: Delegate to PostProcessor for validation, transformation, and threshold checking
+            // Step 3: Delegate to PostProcessor for validation, transformation, and threshold checking
             return this.postProcessor.process(template, rawResult);
             
         } catch (error) {
-            this.logger.error(`Failure collecting metric ${metricId} (Method: ${method}):`, error.stack);
+            this.logger.error(`Failure collecting metric ${metricId} (Method: ${method}):`, error instanceof Error ? error.stack : String(error));
             
-            // Step 3: Use postProcessor to standardize internal execution failures
-            return this.postProcessor.createFailureResponse(metricId, 'ExecutionError', error.message);
+            // Step 4: Use postProcessor to standardize internal execution failures
+            return this.postProcessor.createFailureResponse(metricId, 'ExecutionError', error instanceof Error ? error.message : 'Unknown execution error');
         }
     }
 }
