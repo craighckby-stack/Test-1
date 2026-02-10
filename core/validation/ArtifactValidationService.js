@@ -10,6 +10,8 @@ const { process: runInParallel } = require('@agi/TaskConcurrencyProcessor');
  *
  * Improvement Note (Cycle 1): Extracted concurrency control logic into a dedicated TaskConcurrencyProcessor tool
  * (aliased as runInParallel) to simplify the validation orchestration pipeline and improve modularity.
+ * Improvement Note (Cycle 2): Extracted result standardization into a dedicated private helper (`_standardizeResult`)
+ * to clean up and DRY out the core validation logic (`_runSingleValidation`).
  */
 class ArtifactValidationService {
     /**
@@ -19,6 +21,36 @@ class ArtifactValidationService {
         // Uses the globally managed singleton registry instance
         this.registry = ContentValidatorRegistry;
         this.concurrencyLimit = Math.max(1, concurrencyLimit); // Ensure limit is at least 1
+    }
+
+    /**
+     * Internal helper to standardize validation output structure.
+     * @param {Object} params - Parameters including metadata and result state.
+     * @returns {Object} The standardized validation result object.
+     */
+    _standardizeResult({
+        id,
+        validatorName,
+        filePath,
+        startTime,
+        success,
+        message,
+        details = [],
+        error = null,
+        severity = 'ERROR'
+    }) {
+        return {
+            id,
+            validatorName,
+            success,
+            filePath,
+            severity,
+            details,
+            message,
+            // Ensure error is normalized (message string or null)
+            error: error ? (error.stack || error.message || String(error)) : null,
+            executionTimeMs: Date.now() - startTime
+        };
     }
 
     /**
@@ -38,52 +70,39 @@ class ArtifactValidationService {
             filePath = 'unknown'
         } = artifact;
 
-        // Helper to standardize output structure
-        const createResult = (success, message, details = [], error = null, severity = 'ERROR') => ({
-            id,
-            validatorName,
-            success,
-            filePath,
-            severity,
-            details,
-            message,
-            error,
-            executionTimeMs: Date.now() - startTime
-        });
+        // Base parameters used for all result standardization calls
+        const baseParams = { id, validatorName, filePath, startTime };
         
         // --- Input and Metadata Checks ---
 
         if (!validatorName) {
-             return createResult(
-                false, 
-                `Validation skipped: Artifact ${id} is missing 'validatorName'.`,
-                [],
-                null,
-                'CRITICAL_INPUT'
-            );
+             return this._standardizeResult({
+                ...baseParams,
+                success: false, 
+                message: `Validation skipped: Artifact ${id} is missing 'validatorName'.`,
+                severity: 'CRITICAL_INPUT'
+            });
         }
         
         // Check for missing or null content before engaging validators
         if (content === undefined || content === null) {
-             return createResult(
-                false, 
-                `Validation skipped: Artifact ${id} has undefined or null content.`,
-                [],
-                null,
-                'CRITICAL_INPUT'
-            );
+             return this._standardizeResult({
+                ...baseParams,
+                success: false, 
+                message: `Validation skipped: Artifact ${id} has undefined or null content.`,
+                severity: 'CRITICAL_INPUT'
+            });
         }
 
         const validator = this.registry.getValidator(validatorName);
 
         if (!validator) {
-            return createResult(
-                false,
-                `Validation skipped: Validator '${validatorName}' not registered.`,
-                [],
-                null,
-                'CRITICAL_SETUP'
-            );
+            return this._standardizeResult({
+                ...baseParams,
+                success: false,
+                message: `Validation skipped: Validator '${validatorName}' not registered.`,
+                severity: 'CRITICAL_SETUP'
+            });
         }
 
         // --- Execution ---
@@ -97,24 +116,25 @@ class ArtifactValidationService {
             // Normalize severity: use validator's severity if provided, otherwise infer.
             const finalSeverity = validationResult.severity || (validationResult.success ? 'INFO' : 'ERROR');
 
-            return createResult(
-                !!validationResult.success,
-                validationResult.message || (validationResult.success ? 'Validation successful.' : 'Validation failed.'),
-                details,
-                validationResult.error ? validationResult.error.message : null,
-                finalSeverity
-            );
+            return this._standardizeResult({
+                ...baseParams,
+                success: !!validationResult.success,
+                message: validationResult.message || (validationResult.success ? 'Validation successful.' : 'Validation failed.'),
+                details: details,
+                error: validationResult.error,
+                severity: finalSeverity
+            });
 
         } catch (error) {
             // Handle unexpected execution exceptions (e.g., code crash in self-generated validator)
             // CRITICAL_RUNTIME alerts the AGI kernel to an internal system stability issue.
-            return createResult(
-                false, 
-                `Validation failed due to internal execution error in '${validatorName}'.`,
-                [], 
-                error.stack || error.message, 
-                'CRITICAL_RUNTIME'
-            );
+            return this._standardizeResult({
+                ...baseParams,
+                success: false, 
+                message: `Validation failed due to internal execution error in '${validatorName}'.`,
+                error: error, 
+                severity: 'CRITICAL_RUNTIME'
+            });
         }
     }
 
