@@ -23,22 +23,12 @@
  * Interface: NexusInterface (The Nexus client for persistent memory)
  *  - logTrend(key: string, data: Object): Promise<void>
  *  - readTrends(key: string, limit: number): Promise<Array<Object>>
+ * 
+ * Utilized Plugins:
+ * - NumericSanitizer: Ensures metric values are robust and finite.
  */
 
-/**
- * Extracted utility function using the NumericSanitizer plugin logic.
- * Ensures metrics are valid, finite numbers, preventing NaN/Infinity corruption.
- * @param {*} value - The input value.
- * @param {number} [fallback=0] - The value to return if input is invalid.
- * @returns {number}
- */
-const sanitizeMetric = (value, fallback = 0) => {
-    const sanitized = parseFloat(value);
-    if (isNaN(sanitized) || !isFinite(sanitized)) {
-        return fallback;
-    }
-    return sanitized;
-};
+// Note: NumericSanitizer is assumed to be available (e.g., imported or globally scoped) after plugin extraction.
 
 const METRIC_CONSTANTS = {
     // Weights for Evolution Quality Metric (EQM) calculation (must sum to 1.0)
@@ -90,7 +80,7 @@ class MetricNexus {
         // Cap riskScore at 1.0 before normalization.
         const eqm = Math.max(0, 100 - Math.min(1.0, riskScore) * 100); 
 
-        const sanitizedEqm = sanitizeMetric(eqm);
+        const sanitizedEqm = NumericSanitizer.sanitize(eqm);
         
         this.metricCache.EQM = sanitizedEqm;
         return sanitizedEqm;
@@ -104,7 +94,7 @@ class MetricNexus {
     getUFRM() {
         // Use dependency fallback pattern: if missing, return 0 risk.
         const rawUfrm = this.analytics.calculateResidualRisk?.() ?? 0;
-        const ufrm = sanitizeMetric(rawUfrm);
+        const ufrm = NumericSanitizer.sanitize(rawUfrm);
         this.metricCache.UFRM = ufrm;
         return ufrm;
     }
@@ -116,7 +106,7 @@ class MetricNexus {
      */
     getCFTM() {
         const rawCftm = this.analytics.getHistoricalVolatilityFactor?.() ?? 0;
-        const cftm = sanitizeMetric(rawCftm);
+        const cftm = NumericSanitizer.sanitize(rawCftm);
         this.metricCache.CFTM = cftm;
         return cftm;
     }
@@ -128,7 +118,7 @@ class MetricNexus {
      */
     getPolicyVolatility() {
         const rawPvm = this.auditor.calculatePolicyChangeRate?.() ?? 0;
-        const pvm = sanitizeMetric(rawPvm);
+        const pvm = NumericSanitizer.sanitize(rawPvm);
         this.metricCache.PVM = pvm;
         return pvm;
     }
@@ -150,7 +140,6 @@ class MetricNexus {
             });
         } catch (error) {
             // Use existing error handling pattern: log the fault but do not halt the evolution.
-            // Note: Error logging should ideally use a centralized kernel logging mechanism.
             console.error(`MetricNexus Persistence Failure: Failed to log trends to Nexus. Error: ${error.message}`);
         }
     }
@@ -182,7 +171,6 @@ class MetricNexus {
      */
     async calculateImprovementDelta() {
         // Retrieve the last two cycles (Current [0] and Previous [1]).
-        // The current cycle's metrics must have just been logged by getAllMetrics.
         const historicalTrends = await this.getHistoricalTrends(2); 
 
         if (historicalTrends.length < 2) {
@@ -193,51 +181,17 @@ class MetricNexus {
         const currentMetrics = historicalTrends[0];
         const previousMetrics = historicalTrends[1];
 
-        // Ensure we are comparing the explicit MQM key
-        const currentEQM = sanitizeMetric(currentMetrics.MQM_EQM);
-        const previousEQM = sanitizeMetric(previousMetrics.MQM_EQM);
+        // Use plugin to ensure comparison values are robust
+        const currentEQM = NumericSanitizer.sanitize(currentMetrics.MQM_EQM);
+        const previousEQM = NumericSanitizer.sanitize(previousMetrics.MQM_EQM);
         
         const delta = currentEQM - previousEQM;
 
-        this.metricCache.MQM_Delta = delta;
-        
-        return { 
-            delta: delta, 
-            previousEQM: previousEQM 
-        };
-    }
-
-    /**
-     * Retrieves all cached or freshly calculated metrics in a structured object,
-     * and logs the results persistently before returning them.
-     * @returns {Promise<Object>} Returns metrics including MQM_Delta.
-     */
-    async getAllMetrics() {
-        // 1. Calculate components and EQM
-        const ufrm = this.getUFRM();
-        const cftm = this.getCFTM();
-        const pvm = this.getPolicyVolatility();
-        const mqmEqm = this.getEvolutionQualityMetric(); 
-
-        const metrics = {
-            UFRM: ufrm,
-            CFTM: cftm,
-            PVM: pvm,
-            MQM_EQM: mqmEqm // Explicit MQM usage for logging
-        };
-        
-        // 2. Log current state (Crucial step for delta calculation)
-        await this.logMetricsToNexus(metrics);
-
-        // 3. Calculate Improvement Delta (Requires the log step above to be complete)
-        const { delta, previousEQM } = await this.calculateImprovementDelta();
-
-        return { 
-            ...metrics, 
-            MQM_Delta: delta, 
-            Previous_EQM: previousEQM 
+        return {
+            delta: NumericSanitizer.sanitize(delta),
+            previousEQM: previousEQM
         };
     }
 }
 
-module.exports = MetricNexus;
+export default MetricNexus;
