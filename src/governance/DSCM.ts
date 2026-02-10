@@ -8,6 +8,13 @@ import { MICM_Input } from './MICM';
 import { IHasher } from '../system/interfaces/IHasher'; // Injected dependency
 
 /**
+ * Interface for executing Kernel plugins.
+ */
+interface IPluginExecutor {
+    execute(interfaceName: string, args: any): any;
+}
+
+/**
  * Interface representing the key calculation context locked down at time of decision boundary.
  */
 interface CalculationContext { 
@@ -31,14 +38,16 @@ export class DecisionalStateCheckpointManager {
 
     private checkpointHistory: DSCM_StateSnapshot[] = [];
     private readonly hasher: IHasher;
+    private readonly pluginExecutor: IPluginExecutor; 
     
     /**
-     * Initializes the DSCM, requiring an injected Hashing Utility.
-     * Replaces static dependency on AIA_Ledger with IHasher interface.
-     * @param hasher Utility conforming to IHasher (e.g., AIA_Ledger abstraction).
+     * Initializes the DSCM, requiring an injected Hashing Utility and Plugin Executor.
+     * @param hasher Utility conforming to IHasher.
+     * @param pluginExecutor Utility conforming to IPluginExecutor for core utilities.
      */
-    constructor(hasher: IHasher) {
+    constructor(hasher: IHasher, pluginExecutor: IPluginExecutor) {
         this.hasher = hasher;
+        this.pluginExecutor = pluginExecutor;
     }
 
     /**
@@ -48,8 +57,7 @@ export class DecisionalStateCheckpointManager {
      * @param telemetryHash Telemetry/Sensor input attestation hash (from TIAR).
      * @returns The generated DSCM state snapshot object.
      */
-    public createCheckpoint(input: MICM_Input, telemetryHash: string): DSCM_StateSnapshot {
-        
+    public createCheckpoint(input: MICM_Input, telemetryHash: string): DSCM_StateSnapshot {    
         // 1. Lock down input data integrity
         const checksum_micm = this.hasher.hash(input);
 
@@ -108,14 +116,15 @@ export class DecisionalStateCheckpointManager {
     /**
      * Clears local history based on a minimum required timestamp (ISO 8601 string).
      * Snapshots committed to D-01 or successfully resolved by F-01 should be pruned locally.
+     * Now delegates time comparison and filtering to the ISOChronologyFilter plugin.
      * @param cutoffIsoDate UTC ISO 8601 timestamp string defining the cutoff point.
      */
     public purgeStaleSnapshots(cutoffIsoDate: string): void {
-        const cutoffTime = new Date(cutoffIsoDate).getTime();
-
-        this.checkpointHistory = this.checkpointHistory.filter(s => {
-            const snapshotTime = new Date(s.timestamp_utc).getTime();
-            return snapshotTime > cutoffTime;
-        });
+        
+        this.checkpointHistory = this.pluginExecutor.execute('ISOChronologyFilter', {
+            data: this.checkpointHistory,
+            timestampKey: 'timestamp_utc',
+            cutoffIsoDate: cutoffIsoDate
+        }) as DSCM_StateSnapshot[];
     }
 }
