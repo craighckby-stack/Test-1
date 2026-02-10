@@ -39,6 +39,41 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
     fn capture_execution_stack() -> String;
 }
 
+// AGI Logic Improvement: Formalize metadata structure for consistent hashing.
+// This ensures a canonical serialization order for integrity checks.
+#[derive(Debug)]
+struct RscmPackageMetadata {
+    capture_version: u16,
+    absolute_capture_ts_epoch_ns: u64,
+    context_flags: u32,
+    hashing_protocol_id: u8,
+}
+
+impl RscmPackageMetadata {
+    /// Serializes the critical metadata fields into a canonical, ordered byte vector
+    /// using little-endian encoding, ensuring deterministic input for the cryptographic hash.
+    fn to_canonical_bytes(&self) -> Result<Vec<u8>, SnapshotError> {
+        // Calculate fixed size: 2 bytes (u16) + 8 bytes (u64) + 4 bytes (u32) + 1 byte (u8) = 15 bytes
+        let mut bytes = Vec::with_capacity(15);
+
+        // 1. Package Version (u16)
+        bytes.extend_from_slice(&self.capture_version.to_le_bytes());
+        // 2. Absolute Capture Timestamp (u64)
+        bytes.extend_from_slice(&self.absolute_capture_ts_epoch_ns.to_le_bytes());
+        // 3. Context Flags (u32)
+        bytes.extend_from_slice(&self.context_flags.to_le_bytes());
+        // 4. Hashing Protocol ID (u8)
+        bytes.extend_from_slice(&self.hashing_protocol_id.to_le_bytes());
+
+        if bytes.len() != 15 {
+             // Structural encoding failure
+             return Err(SnapshotError::MetadataEncodingFailed); 
+        }
+
+        Ok(bytes)
+    }
+}
+
 // Defines the output structure for the immutable state capture
 #[derive(Debug, Clone)] 
 pub struct RscmPackage {
@@ -134,43 +169,31 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     // 2. Perform atomic read of key memory regions
     let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
     let trace = T::capture_execution_stack();
+    let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
 
     // 3. Assemble and cryptographic hash generation
-    let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
 
     // Use CRoT implementation tailored for fixed-output integrity
     let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
-    // --- Integrity Hashing Protocol (Enhanced & Formalized) ---
-    // Note: The order of hashing inputs MUST remain fixed for integrity verification.
-    // 1. Volatile Data (Largest and most critical)
-    // 2. Stack Trace (Execution context)
-    // 3. Absolute Capture Timestamp (Crucial temporal metadata)
-    // 4. Context Flags (Security metadata)
-    // 5. Package Version (Structural integrity)
-    // 6. Hashing Protocol ID (Self-verification context)
+    // --- Integrity Hashing Protocol (Formalized using Canonical Metadata) ---
+    // Order: Volatile Data, Stack Trace, Canonical Metadata Block.
     
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
     
-    // Ensure metadata encoding doesn't panic if it somehow fails (though unlikely for primitives)
-    let ts_bytes = absolute_ts.to_le_bytes();
-    let context_bytes = context_flags.to_le_bytes();
-    let version_bytes = RSCM_PACKAGE_VERSION.to_le_bytes();
-    let protocol_bytes = HASHING_PROTOCOL_ID.to_le_bytes(); // u8 conversion
+    // AGI Logic Improvement: Use canonical metadata serialization block.
+    let metadata = RscmPackageMetadata {
+        capture_version: RSCM_PACKAGE_VERSION,
+        absolute_capture_ts_epoch_ns: absolute_ts,
+        context_flags,
+        hashing_protocol_id: HASHING_PROTOCOL_ID,
+    };
 
-    // AGI Logic Improvement: Ensure byte counts match expectations for fixed-size primitives
-    if ts_bytes.len() != 8 || context_bytes.len() != 4 || version_bytes.len() != 2 || protocol_bytes.len() != 1 {
-        return Err(SnapshotError::MetadataEncodingFailed);
-    }
-    
-    hasher.update(&ts_bytes);
-    hasher.update(&context_bytes); 
-    hasher.update(&version_bytes);
-    
-    // AGI Improvement: Include the HASHING_PROTOCOL_ID in the integrity calculation
-    hasher.update(&protocol_bytes); 
+    // Serialize metadata into guaranteed byte order for hashing.
+    let metadata_bytes = metadata.to_canonical_bytes()?; 
+    hasher.update(&metadata_bytes);
     
     let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
