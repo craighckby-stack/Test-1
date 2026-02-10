@@ -1,7 +1,7 @@
 {
   "registry_name": "CoreTrustAnchorDefinitionMap",
-  "version": "V3.0.0_Harden",
-  "description": "Defines the root cryptographic public key material, linked governance profiles, and operational verification service locations for specified Trust Anchor IDs.",
+  "version": "V3.0.1_Lifecycle_Harden",
+  "description": "Defines the root cryptographic public key material, linked governance profiles, operational verification service locations, and lifecycle management parameters for specified Trust Anchor IDs.",
   "trust_anchors": {
     "TRUST_ROOT_AGENT_L1": {
       "status": "Active",
@@ -10,18 +10,29 @@
         "effective_from": "2023-01-01T00:00:00Z",
         "expires_on": "2024-01-01T00:00:00Z"
       },
+      "lifecycle_policy": {
+        "expiration_action": "NotifyAndRotate",
+        "rotation_interval_days": 365,
+        "criticality_level": "High"
+      },
       "material": {
         "material_type": "X509_Root_Cert",
         "key_identifier": {
           "algorithm": "SHA256",
           "digest": "L1_A1B2C3D4..."
         },
+        "format": "PEM_Truncated",
         "storage_reference": "kms://sovereign/pkgs/L1_Root_2023",
         "public_key_pem_excerpt": "-----BEGIN PUBLIC KEY...[truncated]..."
       },
       "verification_endpoints": [
         { "mechanism": "CRL", "uri": "https://crl.sovereign.ai/L1.crl", "ttl_seconds": 86400 },
         { "mechanism": "OCSP", "uri": "https://ocsp.sovereign.ai/L1", "ttl_seconds": 3600 }
+      ],
+      "dependency_tags": [
+        "/core/auth",
+        "/agents/initialization",
+        "/governance/compliance"
       ]
     },
     "TRUST_ROOT_MASTER_COMMIT": {
@@ -30,6 +41,10 @@
       "governance": {
         "effective_from": "2022-10-01T00:00:00Z",
         "expires_on": "9999-12-31T23:59:59Z"
+      },
+      "lifecycle_policy": {
+        "expiration_action": "None",
+        "criticality_level": "Extreme"
       },
       "material": {
         "material_type": "Hardware_Root_Key",
@@ -42,6 +57,10 @@
       },
       "verification_endpoints": [
         { "mechanism": "Attestation_Log", "uri": "https://transparency.sovereign.ai/log/master_commit", "ttl_seconds": 600 }
+      ],
+      "dependency_tags": [
+        "/orchestration/commit_validation",
+        "/core/integrity_check"
       ]
     }
   }
