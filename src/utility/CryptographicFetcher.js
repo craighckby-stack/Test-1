@@ -9,11 +9,12 @@ class CryptographicFetcher {
      * @param {Object} config
      * @param {Object} config.httpService - Low-level HTTP client (e.g., Axios instance).
      * @param {Object} config.KeyRing - Access to necessary public keys/signature verification utilities.
+     * @param {Object} config.SignedPayloadValidatorUtility - Injected tool for verification.
      */
-    constructor({ httpService, KeyRing }) {
+    constructor({ httpService, KeyRing, SignedPayloadValidatorUtility }) {
         this.http = httpService;
         this.KeyRing = KeyRing;
-        // Assume KeyRing.verify(payload, signature) exists
+        this.SignedPayloadValidatorUtility = SignedPayloadValidatorUtility; // Assume injected
     }
 
     /**
@@ -25,26 +26,15 @@ class CryptographicFetcher {
         const response = await this.http.get(url);
         const rawData = response.data;
         
-        if (!rawData || !rawData.payload || !rawData.signature || !rawData.tag) {
-            throw new Error("Fetcher failed: Response missing critical structure (payload, signature, or tag).");
-        }
+        // Delegate structural validation, cryptographic verification, and parsing to the utility
+        const verifiedData = await this.SignedPayloadValidatorUtility.execute({
+            rawData: rawData,
+            // Ensure the verify function is bound correctly if needed, or rely on its standard async API
+            verifyFunction: (payload, signature) => this.KeyRing.verify(payload, signature) 
+        });
 
-        // 1. Cryptographic Verification
-        const isVerified = await this.KeyRing.verify(rawData.payload, rawData.signature);
-        
-        if (!isVerified) {
-            throw new Error("Fetcher failed: Policy signature verification failed. Data integrity compromised.");
-        }
-
-        // 2. Parse payload
-        const mandates = JSON.parse(rawData.payload);
-
-        // Return verified data structure for ExternalPolicyIndex consumption
-        return {
-            mandates: mandates,
-            tag: rawData.tag,
-            sourceTimestamp: rawData.timestamp || Date.now() 
-        };
+        // Return verified data structure
+        return verifiedData;
     }
 }
 
