@@ -1,43 +1,17 @@
 // src/governance/AdaptiveConstantManager.js
 
-// --- Utility Functions for Robust Configuration Management ---
-const isObject = (item) => {
-    return (item && typeof item === 'object' && !Array.isArray(item));
-};
-
-/**
- * Recursively merges source into target, crucial for updating nested configurations
- * without overwriting entire policy blocks.
- */
-const deepMerge = (target, source) => {
-    const output = Object.assign({}, target);
-    if (isObject(target) && isObject(source)) {
-        Object.keys(source).forEach(key => {
-            if (isObject(source[key])) {
-                // Ensure target has the key or initialize it
-                if (!(key in target) || typeof target[key] === 'undefined') {
-                    Object.assign(output, { [key]: source[key] });
-                } else {
-                    output[key] = deepMerge(target[key], source[key]);
-                }
-            } else {
-                Object.assign(output, { [key]: source[key] });
-            }
-        });
-    }
-    return output;
-};
-// -----------------------------------------------------------
-
 // Manages and merges static governance constants with dynamic, runtime-adjusted overlays.
 // This service ensures that system constants can be tuned by external or self-tuning agents
 // based on real-time performance data, providing maximum operational efficiency without restarts.
+
+// NOTE: deepMerge is now provided by the ConfigurationMerger plugin (extracted utility).
 
 const STATIC_CONSTANTS = require('../../config/governance_constants_v2.json');
 
 class AdaptiveConstantManager {
     constructor() {
         // Initialize config with a deep copy of static constants
+        // deepMerge is assumed to be available via plugin interface.
         this.currentConfig = deepMerge({}, STATIC_CONSTANTS);
         this.fetchIntervalId = null; 
 
