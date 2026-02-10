@@ -3,12 +3,12 @@
  * This JSON schema defines the mandatory structure and expected types 
  * for the governance constants loaded by the DynamicPolicyCache.
  * 
- * NOTE: In a complete system, this would be processed by a dedicated validator (e.g., Zod or AJV).
+ * NOTE: The structure has been corrected to comply with standard JSON Schema (using $id and properties).
  */
 
 const ACVDIntegritySchema = {
     type: 'object',
-    id: 'ACVD_V94_1_PolicyConfig',
+    $id: 'ACVD_V94_1_PolicyConfig', // Standard JSON Schema identifier
     required: ['policy_thresholds', 'attestation_requirements'],
     properties: {
         policy_thresholds: {
@@ -18,7 +18,7 @@ const ACVDIntegritySchema = {
                 integrity_veto_bounds: {
                     type: 'object',
                     required: ['max_pvlm_failures', 'max_mpam_failures'],
-                    schema: {
+                    properties: { // Corrected from 'schema'
                         max_pvlm_failures: { type: 'number', minimum: 0 },
                         max_mpam_failures: { type: 'number', minimum: 0 }
                     }
@@ -26,7 +26,7 @@ const ACVDIntegritySchema = {
                 utility_maximization: {
                     type: 'object',
                     required: ['UFRM'],
-                    schema: {
+                    properties: { // Corrected from 'schema'
                         UFRM: { type: 'number' }
                     }
                 }
@@ -35,7 +35,7 @@ const ACVDIntegritySchema = {
         attestation_requirements: {
             type: 'object',
             required: ['ecvm_required'],
-            schema: {
+            properties: { // Corrected from 'schema'
                 ecvm_required: { type: 'boolean' }
             }
         }
