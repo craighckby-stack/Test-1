@@ -17,8 +17,13 @@
     },
     "required_platform_measurement": {
       "type": "string",
-      "description": "The cryptographically attested boot/attestation measurement (e.g., PCRs or Hypervisor hash). Must be SHA384 hex.",
+      "description": "The cryptographically attested boot/attestation measurement (e.g., PCRs or Hypervisor hash). Must be SHA384 hex (96 characters).",
       "pattern": "^[0-9a-fA-F]{96}$"
+    },
+    "synergy_runtime_configuration_hash": {
+      "type": "string",
+      "description": "SHA256 hash of the AGI-KERNEL runtime state (including active emergent tools) used during this environment attestation. Required for Living Runtime audit trails.",
+      "pattern": "^[0-9a-fA-F]{64}$"
     },
     "minimal_os_integrity_level": {
       "type": "integer",
@@ -35,7 +40,8 @@
           "TDX",
           "AMD-SEV",
           "TrustZone",
-          "VT-x/EPT"
+          "VT-x/EPT",
+          "MTE"
         ]
       },
       "description": "List of mandatory security/isolation features.",
@@ -51,9 +57,10 @@
           "enum": [
             "Strict",
             "Hardened",
-            "Isolated"
+            "Isolated",
+            "Hardware_Enforced"
           ],
-          "description": "The required memory protection policy enforced by the hypervisor."
+          "description": "The required memory protection policy enforced by the hypervisor. Added Hardware_Enforced for clarity on CRoT boundary."
         },
         "vCPU_pinning_requirement": {
           "type": "boolean",
@@ -72,13 +79,15 @@
     },
     "attestation_signature": {
       "type": "string",
-      "description": "CRoT signature verifying the integrity and origin of the HETM manifest payload."
+      "description": "CRoT signature verifying the integrity and origin of the HETM manifest payload. Must be 192 hex characters (e.g., ECDSA P-384).",
+      "pattern": "^[0-9a-fA-F]{192}$"
     }
   },
   "required": [
     "manifest_id",
     "version",
     "required_platform_measurement",
+    "synergy_runtime_configuration_hash",
     "minimal_os_integrity_level",
     "required_enclave_features",
     "triumvirate_segmentation_rules",
