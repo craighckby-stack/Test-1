@@ -1,5 +1,5 @@
 /**
- * AGI-KERNEL v7.8.0 Navigator Edition - Core Schema Validator Utility
+ * AGI-KERNEL v7.9.2 Navigator Edition - Core Schema Validator Utility
  * Provides standardized, high-performance schema validation essential for data integrity 
  * across sensitive service boundaries.
  * 
@@ -8,37 +8,48 @@
 
 class SchemaValidator_Util {
 
+  // Define critical default schemas statically for clean separation from initialization logic
+  static #defaultSchemas = {
+    'FailureTraceLog': {
+      timestamp: { type: 'string', required: true },
+      component: { type: 'string', required: true },
+      trace_id: { type: 'string', required: true, description: 'Unique ID for error correlation' },
+      error_details: { 
+          type: 'object', 
+          required: true,
+          // Nested schema to enforce structure of internal error payloads
+          subSchema: {
+              code: { type: 'number', required: true },
+              message: { type: 'string', required: true },
+              is_recoverable: { type: 'boolean', required: false }
+          }
+      }
+    }
+    // Future schemas: 'TelemetryEvent', 'ConfigurationUpdate'
+  };
+
   constructor() {
     // CRITICAL: Access the StructuralSchemaValidator plugin injected into the runtime environment.
-    // Assumes 'plugins' global object holds registered tools.
     if (typeof plugins === 'undefined' || !plugins.StructuralSchemaValidator) {
-        throw new Error("CRITICAL: StructuralSchemaValidator plugin missing.");
+        throw new Error("CRITICAL: StructuralSchemaValidator plugin missing. Cannot initialize SchemaValidator_Util.");
     }
     this.validatorPlugin = plugins.StructuralSchemaValidator;
     
-    // Centralized schema definitions for critical data flows
-    const defaultSchemas = {
-      'FailureTraceLog': {
-        timestamp: { type: 'string', required: true },
-        component: { type: 'string', required: true },
-        trace_id: { type: 'string', required: true, description: 'Unique ID for error correlation' },
-        error_details: { 
-            type: 'object', 
-            required: true,
-            // Nested schema to enforce structure of internal error payloads
-            subSchema: {
-                code: { type: 'number', required: true },
-                message: { type: 'string', required: true },
-                is_recoverable: { type: 'boolean', required: false }
-            }
-        }
-      },
-      // Future schemas: 'TelemetryEvent', 'ConfigurationUpdate'
-    };
-    
     // Register default schemas immediately upon initialization
-    for (const schemaName in defaultSchemas) {
-        this.registerSchema(schemaName, defaultSchemas[schemaName]);
+    this.#initializeDefaultSchemas();
+  }
+
+  /**
+   * Registers all predefined core schemas with the underlying validation engine.
+   * @private
+   */
+  #initializeDefaultSchemas() {
+    const schemasToRegister = SchemaValidator_Util.#defaultSchemas;
+    
+    for (const schemaName in schemasToRegister) {
+        if (Object.hasOwnProperty.call(schemasToRegister, schemaName)) {
+            this.registerSchema(schemaName, schemasToRegister[schemaName]);
+        }
     }
   }
   
