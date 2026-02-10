@@ -3,7 +3,7 @@ import typing
 import collections
 from decimal import Decimal
 from uuid import UUID
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from pathlib import Path
 from .HashingErrors import ArtifactSerializationError
 
@@ -42,28 +42,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     ensuring deterministic output for hashing purposes.
     
     This encoder prioritizes consistency and robustness for core AGI data structures.
-    AGI-KERNEL Improvement: Added logic for serializing custom objects via 
-    __dict__ or explicit 'to_canonical_dict' method for better integration 
-    with /agents and /emergent components. Also added explicit support for Python dataclasses and Enums.
     
-    Cycle 1 Refinement: Enhanced the __dict__ fallback mechanism to filter out 
-    private/internal attributes (starting with '_') and non-data callable attributes 
-    to prevent non-deterministic hashing based on cache, transient internal state, 
-    or unexpected methods. Explicitly added Enum support, and added explicit handling for collections.deque.
-
-    AGI-KERNEL Improvement (Cycle 2): Added mechanism for explicit circular reference 
-    detection within custom object serialization paths to guarantee deterministic 
-    hashing output even for complex or flawed object graphs, preventing potential 
-    recursion errors in core/agent structures.
-    
-    AGI-KERNEL Improvement (Cycle 3): Added anticipatory support for NumPy and Pandas types 
-    to ensure deterministic hashing when AGI capabilities expand into the /data domain. 
-    Refined Path serialization for cross-platform consistency using `as_posix()`.
-    
-    AGI-KERNEL Improvement (Cycle 4): Added explicit handling for NamedTuples (converting to dicts for canonical field preservation) and Python's `complex` numbers, ensuring deterministic hashing for structural records and advanced mathematical artifacts used in emerging agent models.
-    
-    AGI-KERNEL Improvement (Cycle 1 - Current): Enforced strict ISO 8601 formatting for datetimes 
-    to ensure canonical representation across environment locales.
+    AGI-KERNEL Improvement (Cycle 5):
+    1. Added explicit handling for non-string dictionary keys, converting them canonically to strings.
+    2. Enforced strict UTC conversion for timezone-aware datetimes to guarantee cross-environment hashing consistency.
     """
 
     def __init__(self, *args, **kwargs):
@@ -85,12 +67,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         # 0b. Handle Enumerations (Crucial for deterministic configs/governance data)
         if ENUM_AVAILABLE and isinstance(obj, enum.Enum):
             # Prioritize the enum's value if available, otherwise use its name.
-            # This ensures consistent hashing for state defined by Enums.
             try:
-                # Use value if defined, e.g., STATUS.SUCCESS = 1
                 return obj.value
             except AttributeError:
-                # Fallback to name if value is complex or missing
                 return obj.name
 
         # AGI-KERNEL Improvement (Cycle 4): Handle complex numbers required by /metrics and advanced /agents math models.
@@ -115,11 +94,19 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return list(obj)
 
         # 2. Handle common complex types by converting to deterministic strings
-        # AGI-KERNEL Logic Improvement: Handle datetimes/dates with explicit ISO 8601 formatting.
         if isinstance(obj, datetime):
-            # Naive datetimes are assumed UTC for canonical consistency, appended with 'Z'
-            if obj.tzinfo is None or obj.tzinfo.utcoffset(obj) is None:
+            # AGI-KERNEL Improvement (Cycle 5): Enforce UTC conversion for aware datetimes and standardize output format.
+            if obj.tzinfo is not None and obj.tzinfo.utcoffset(obj) is not None:
+                # Convert to UTC and remove tzinfo for clean ISO serialization
+                obj = obj.astimezone(timezone.utc).replace(tzinfo=None)
+                # Append 'Z' to explicitly mark canonical UTC time
                 return obj.isoformat() + 'Z'
+            
+            # If naive, assume UTC for canonical consistency in core systems and mark 'Z'
+            if obj.tzinfo is None:
+                return obj.isoformat() + 'Z'
+            
+            # Fallback for other tz-aware datetimes (should be rare/specific offsets)
             return obj.isoformat()
             
         if isinstance(obj, date):
@@ -140,9 +127,19 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         if isinstance(obj, bytes):
             return obj.hex()
 
-        # 4. Handle mappings that might not be dicts (e.g., OrderedDict if present)
-        if isinstance(obj, collections.Mapping) and not isinstance(obj, dict):
-            return dict(obj)
+        # 4. Handle mappings (dictionaries, ordered dicts, etc.)
+        # AGI-KERNEL Improvement (Cycle 5): Ensure all mapping keys are strings for JSON compliance, 
+        # handling non-string keys deterministically (e.g., tuple or number keys).
+        if isinstance(obj, collections.Mapping):
+            new_dict = {}
+            for k, v in obj.items():
+                if isinstance(k, str):
+                    new_dict[k] = v
+                else:
+                    # Convert non-string keys to their canonical string representation
+                    # This guarantees JSON compliance and deterministic key representations.
+                    new_dict[str(k)] = v
+            return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
         if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum')):
@@ -151,8 +148,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
             # Cycle 2 Improvement: Detect circularity in custom graphs
             if obj_id in self._visited:
-                # Return a deterministic marker string instead of failing, 
-                # ensuring the hash captures the self-referential structure predictably.
+                # Return a deterministic marker string instead of failing
                 return f"<CANONICAL_CIRCULAR_REF:{obj_id}>"
 
             # Add ID before attempting serialization
@@ -169,8 +165,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
             # Fallback to serializing public attributes
             if hasattr(obj, '__dict__'):
-                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_' 
-                # and non-data callable attributes (functions/methods)
+                # Cycle 1 Improvement: Filter out internal/private attributes and callables
                 safe_dict = {
                     k: v for k, v in obj.__dict__.items()
                     if not k.startswith('_') and not callable(v)
