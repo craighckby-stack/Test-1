@@ -5,30 +5,51 @@
  * to ensure accurate learning (ATM recalibration and SIC updates).
  * This component is the formalized link between critique and execution/learning.
  */
+
+interface FeedbackRecord {
+    timestamp: number;
+    proposalId: string;
+    success: boolean;
+    riskScore_MCRA: number;
+    confidenceScore_ATM: number;
+    agentWeightDeltas: any; 
+}
+
+interface OutcomeData {
+    proposalId: string;
+    success: boolean;
+    mcraScore: number;
+    finalAtmScore: number;
+    agentWeights: any;
+}
+
+// Assumed global availability of the extracted tool for validation and normalization.
+declare const FeedbackSchemaNormalizerTool: {
+    execute(data: OutcomeData): { error?: string, record?: FeedbackRecord };
+}
+
 class FeedbackLoopAggregator {
+    private consensusLog: FeedbackRecord[];
+
     constructor() {
         this.consensusLog = [];
     }
 
     /**
      * Captures and validates the outcome of a single proposal validation cycle.
+     * Validation and normalization logic is delegated to FeedbackSchemaNormalizerTool.
      * @param {Object} outcomeData - Contains proposal ID, success status, applied MCRA threshold, final weighted ATM score, and resulting architecture delta.
      */
-    captureConsensusOutcome(outcomeData) {
-        if (!outcomeData || typeof outcomeData.success === 'undefined') {
-            console.error("Invalid outcome data provided to Aggregator.");
+    captureConsensusOutcome(outcomeData: OutcomeData): void {
+        
+        const normalizationResult = FeedbackSchemaNormalizerTool.execute(outcomeData);
+
+        if (normalizationResult.error || !normalizationResult.record) {
+            console.error(`Invalid outcome data provided to Aggregator. Error: ${normalizationResult.error || 'Normalization failed.'}`);
             return;
         }
         
-        // Structure the data for efficient ATM recalibration and SIC pattern analysis
-        const record = {
-            timestamp: Date.now(),
-            proposalId: outcomeData.proposalId,
-            success: outcomeData.success,
-            riskScore_MCRA: outcomeData.mcraScore,
-            confidenceScore_ATM: outcomeData.finalAtmScore,
-            agentWeightDeltas: outcomeData.agentWeights // Used for immediate recalibration
-        };
+        const record = normalizationResult.record;
         
         this.consensusLog.push(record);
         this.processForLearning(record);
@@ -36,14 +57,14 @@ class FeedbackLoopAggregator {
     
     /**
      * Immediately feeds the structured record into the ATM and SIC systems.
-     * @param {Object} record - The validated feedback record.
+     * @param {FeedbackRecord} record - The validated feedback record.
      */
-    processForLearning(record) {
+    processForLearning(record: FeedbackRecord): void {
         // 1. Trigger ATM System Update (recalibration based on record.success)
         // 2. Trigger SIC Analysis (check if success criteria meets abstraction threshold)
     }
 
-    getHistoricalMetrics() {
+    getHistoricalMetrics(): FeedbackRecord[] {
         return this.consensusLog;
     }
 }
