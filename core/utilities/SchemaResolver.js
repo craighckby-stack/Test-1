@@ -3,27 +3,43 @@
  * 
  * Utility class responsible for loading, resolving, and validating the
  * hierarchical TEDS field definitions (schema/teds_field_definitions.json).
- * It handles JSON Schema `$ref` resolution, template merging, and applies
- * layered metadata constraints before compiling the final runtime schema.
+ * It handles JSON Schema '$ref' resolution using the InternalReferenceResolverTool,
+ * template merging, and applies layered metadata constraints before compiling the final runtime schema.
  */
+
+// We use 'require' here to abstract the dependency injection of the InternalReferenceResolverTool
+// based on standard Node.js module loading for compatibility with the original module structure.
+const InternalReferenceResolverTool = require('InternalReferenceResolverTool'); 
+
 class SchemaResolver {
+  // TypeScript allowed in new_code
+  private schema: any;
+  private templates: any;
+  private metadata: any;
+  private resolver: any;
+
   constructor(schemaData) {
     this.schema = schemaData;
     this.templates = schemaData.FieldTemplates;
     this.metadata = schemaData.Metadata;
+
+    // Validate tool availability (simulated injection)
+    if (typeof InternalReferenceResolverTool.resolve !== 'function') {
+        throw new Error("InternalReferenceResolverTool not correctly initialized or available.");
+    }
+    this.resolver = InternalReferenceResolverTool;
   }
 
+  /**
+   * Resolves an internal JSON Pointer reference using the dedicated utility tool.
+   * @param {string} refPath - The JSON Pointer path (e.g., '#/FieldTemplates/ID_UUID').
+   * @returns {any} A deep copy of the resolved object.
+   */
   resolveReference(refPath) {
-    // Basic implementation of path resolution (e.g., '#/FieldTemplates/ID_UUID')
-    let current = this.schema;
-    const parts = refPath.replace(/^#\//, '').split('/');
-    for (const part of parts) {
-      if (!current || !current[part]) {
-        throw new Error(`Schema resolution failed for reference: ${refPath}`);
-      }
-      current = current[part];
-    }
-    return JSON.parse(JSON.stringify(current)); // Deep copy
+    return this.resolver.resolve({
+      data: this.schema,
+      refPath: refPath
+    });
   }
 
   compileDefinition(definitionKey) {
@@ -38,6 +54,7 @@ class SchemaResolver {
       let field = definition.fields[fieldName];
       
       if (field['$ref']) {
+        // Use the new simplified reference resolution wrapper
         const template = this.resolveReference(field['$ref']);
         // Merge: template properties are base, field properties are overrides
         field = { ...template, ...field };
@@ -45,7 +62,6 @@ class SchemaResolver {
       }
 
       // Apply global metadata constraints if necessary (future extension)
-      // Example: Injecting 'storage_type' from Metadata based on resolved template type.
 
       compiledFields[fieldName] = field;
     }
