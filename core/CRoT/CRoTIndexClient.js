@@ -3,26 +3,15 @@ const GAXTelemetry = require('../Telemetry/GAXTelemetryService');
 /**
  * CRoTIndexClient
  * Handles the low-level data interaction for the PolicyHeuristicIndex, abstracting 
- * access to the CRoT Key-Value persistence layer. It manages data retrieval 
- * (lookup of anchors) and persistence (commit indexing).
- * 
- * NOTE: The storage implementation (indexStore) must support the following methods:
- *   - lookup(key): async -> Promise<string[]>
- *   - append(key, value, metadata): async -> Promise<void>
+ * access via the KERNEL's CRoTIndexStorage capability.
  */
 class CRoTIndexClient {
     
     /**
-     * @param {object} storageHandle - The persistent storage layer handle, 
-     *                                 expected to provide index operations (lookup, append).
+     * Constructor no longer requires a storageHandle dependency, relying on the KERNEL Tool.
      */
-    constructor(storageHandle) {
-        if (!storageHandle || typeof storageHandle.lookup !== 'function' || typeof storageHandle.append !== 'function') {
-            GAXTelemetry.critical('CRoT_IndexClient_DependencyMissing', { detail: 'Valid storage handle required for index operations.' });
-            throw new Error("CRoTIndexClient requires a valid storage handle supporting lookup and append.");
-        }
-        this.indexStore = storageHandle;
-        GAXTelemetry.system('CRoT_IndexClient_Init');
+    constructor() {
+        GAXTelemetry.system('CRoT_IndexClient_Init_KernelMode');
     }
 
     /**
@@ -33,10 +22,14 @@ class CRoTIndexClient {
     async getAnchorsByFingerprint(fingerprint) {
         if (!fingerprint) return [];
         try {
-            // NOTE: Actual implementation involves querying the underlying KV store efficiently.
-            const anchors = await this.indexStore.lookup(fingerprint);
-            GAXTelemetry.debug('CRoT_IndexRead', { count: anchors.length, fingerprint: fingerprint.substring(0, 8) });
-            return anchors;
+            // Use KERNEL Tool capability for storage lookup
+            const anchors = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('CRoTIndexStorage', 'lookup', fingerprint);
+            
+            // Ensure anchors is an array for safety
+            const result = Array.isArray(anchors) ? anchors : (anchors ? [anchors] : []);
+            
+            GAXTelemetry.debug('CRoT_IndexRead', { count: result.length, fingerprint: fingerprint.substring(0, 8) });
+            return result;
         } catch (error) {
             GAXTelemetry.error('CRoT_IndexRead_Failure', { error: error.message, fingerprint: fingerprint ? fingerprint.substring(0, 8) : 'N/A' });
             return [];
@@ -55,8 +48,10 @@ class CRoTIndexClient {
             return;
         }
         try {
-            // Append the new anchor (txId) to the index entry for the given fingerprint.
-            await this.indexStore.append(fingerprint, txId, { timestamp: Date.now() });
+            // Use KERNEL Tool capability for storage append
+            // Arguments: (interface, method, key, value, metadata)
+            await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('CRoTIndexStorage', 'append', fingerprint, txId, { timestamp: Date.now() });
+            
             GAXTelemetry.info('CRoT_IndexWrite_Success', { txId, fingerprint: fingerprint.substring(0, 8) });
         } catch (error) {
             GAXTelemetry.critical('CRoT_IndexWrite_Failure', { txId, error: error.message, fingerprint: fingerprint.substring(0, 8) });
