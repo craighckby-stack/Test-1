@@ -21,6 +21,9 @@ const REQUIRED_ANALYSIS_KEYS = ['teds', 'pcss'];
  * @property {Object} constraints - Active policy constraints at time T.
  */
 
+// Assume DeepStateUtility plugin is available via module context or static injection.
+declare const DeepStateUtility: { deepClone: (obj: any) => any };
+
 class PolicyCorrectionEngine {
     static ENGINE_ORIGIN = 'PCE-v94.2/AutonomousRefactor';
     static DEFAULT_UFRM_INCREMENT = 0.01; // Minimum policy adjustment if analysis is inconclusive
@@ -92,8 +95,9 @@ class PolicyCorrectionEngine {
              throw new Error("Invalid current ACVD provided: Missing or invalid version metadata.");
         }
         
-        // Deep clone the ACVD to ensure immutability enforcement standard
-        const candidateACVD = JSON.parse(JSON.stringify(currentACVD));
+        // IMPROVEMENT: Replacing fragile JSON (de)serialization with robust Deep Cloning plugin (DeepStateUtility).
+        // Deep clone the ACVD to ensure immutability enforcement standard and preserve complex types.
+        const candidateACVD = DeepStateUtility.deepClone(currentACVD); 
         
         const mandatedIncrease = violationReport.requiredThresholdIncrease > 0 
             ? violationReport.requiredThresholdIncrease 
