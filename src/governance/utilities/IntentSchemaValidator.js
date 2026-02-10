@@ -10,6 +10,10 @@
 const IntentSchemas = require('../config/intentSchemas');
 // const IntentPayloadValidator = require('./IntentPayloadValidator'); // Dependency proposed for deep content validation
 
+// Conceptual reference to the extracted plugin utility
+// In an AGI-Kernel environment, this plugin would be injected or globally accessible.
+// declare const IntentPackageIntegrityTool: { execute: (args: { pkg: any, schemas: any }) => any };
+
 class IntentSchemaValidator {
 
     /**
@@ -34,51 +38,19 @@ class IntentSchemaValidator {
     /**
      * Performs comprehensive validation on a raw incoming intent package structure and content header.
      *
+     * NOTE: Basic structural integrity, schema existence, and type coherence checks are delegated to
+     * the IntentPackageIntegrityTool plugin for centralized error handling and compliance.
+     *
      * @param {object} pkg - The raw intent package to validate.
      * @returns {ValidationResult} Detailed validation result.
      */
     static validateIntentPackage(pkg) {
-        const result = {
-            isValid: true,
-            errors: []
-        };
-
-        // 1. Basic Structure Check
-        if (!pkg || typeof pkg !== 'object') {
-            result.errors.push({ code: 'E_INV_PK_01', message: "Package is missing or not an object." });
-            result.isValid = false;
-            return result;
-        }
-        if (!pkg.intentId || typeof pkg.intentId !== 'string') {
-            result.errors.push({ code: 'E_INV_PK_02', message: "Intent ID (intentId) is missing or invalid." });
-            result.isValid = false;
-            // Cannot proceed without intentId
-            return result;
-        }
-
-        // 2. Schema Existence Check
-        const schema = this.getSchema(pkg.intentId);
-        result.schema = schema;
-
-        if (!schema) {
-            result.errors.push({ code: 'E_INV_SCH_01', message: `Unknown intent ID '${pkg.intentId}'. Validation halted.` });
-            result.isValid = false;
-            return result;
-        }
-
-        // 3. Type Coherence Check
-        if (!pkg.intentType || pkg.intentType !== schema.type) {
-            result.errors.push({ 
-                code: 'E_INV_TYP_01', 
-                message: `Intent type mismatch for ${pkg.intentId}.`,
-                detail: { expected: schema.type, received: pkg.intentType }
-            });
-            result.isValid = false;
-        }
-
-        // NOTE: Deep payload validation (against schema.payloadSchema) should be handled by a dedicated utility (e.g., IntentPayloadValidator).
-        
-        return result;
+        // Delegating core structural validation to the extracted tool.
+        // We pass the package and the configuration registry (IntentSchemas) to the plugin.
+        return IntentPackageIntegrityTool.execute({ 
+            pkg: pkg, 
+            schemas: IntentSchemas 
+        });
     }
 
     /**
