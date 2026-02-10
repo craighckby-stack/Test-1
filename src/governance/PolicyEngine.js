@@ -4,11 +4,26 @@
  * Refactored for modularity, explicit configuration handling, and efficiency.
  */
 
+// Interface simulation for the external plugin call
+interface IWeightedScoreAccumulator {
+    execute(proposalScores: Record<string, number>, weightingMatrix: Record<string, number>): { score: number };
+}
+
+// NOTE: In a real environment, this dependency would be injected or accessed 
+// via a Kernel API. For demonstration, we assume an external mechanism exists.
+declare const WeightedScoreAccumulator: IWeightedScoreAccumulator;
+
+
 class PolicyEngine {
+    private rulesets: any;
+    private phases: any;
+    private weightingMatrix: Record<string, number>;
+    private defaultThreshold: number;
+
     /**
      * @param {Object} rcdmConfig - The Root Configuration Data Model (RCDM).
      */
-    constructor(rcdmConfig) {
+    constructor(rcdmConfig: any) {
         if (!rcdmConfig || !rcdmConfig.rulesets || !rcdmConfig.phases) {
             throw new Error("[PolicyEngine] Requires valid RCDM configuration with rulesets and phases.");
         }
@@ -27,7 +42,7 @@ class PolicyEngine {
      * @param {Object} context - The current operational context.
      * @returns {Object} The configuration object for the active phase.
      */
-    getCurrentPhase(context) {
+    getCurrentPhase(context: any): any {
         const phaseId = context.current_task_type || 'evolution';
         const phase = this.phases[phaseId];
         
@@ -41,17 +56,19 @@ class PolicyEngine {
     /**
      * Executes the evaluation based on the 'weighted_consensus' ruleset type.
      */
-    _evaluateWeightedConsensus(phase, context, proposalScoreMap) {
+    _evaluateWeightedConsensus(phase: any, context: any, proposalScoreMap: Record<string, number>) {
         const ruleset = this.rulesets[phase.ruleset_id];
-        let finalScore = 0;
         
         // Use the ruleset's specific threshold, falling back to engine default
         const threshold = ruleset.threshold || this.defaultThreshold;
 
-        for (const [actor, score] of Object.entries(proposalScoreMap)) {
-            // Use pre-loaded weighting matrix. Default to 0 if actor is not weighted.
-            finalScore += score * (this.weightingMatrix[actor] || 0);
-        }
+        // --- PLUGIN CALL INTEGRATION ---
+        // Offload the complex score calculation (aggregation loop) to the external plugin
+        const { score: finalScore } = WeightedScoreAccumulator.execute(
+            proposalScoreMap, 
+            this.weightingMatrix
+        );
+        // --- END PLUGIN CALL ---
         
         // Dynamic Adjustment Logic (Mitigation Trigger)
         if (finalScore < threshold) {
@@ -75,7 +92,7 @@ class PolicyEngine {
     /**
      * Placeholder for future ruleset types.
      */
-    _evaluateMetricCompliance(phase, context, proposalScoreMap) {
+    _evaluateMetricCompliance(phase: any, context: any, proposalScoreMap: Record<string, number>) {
         return { decision: false, reason: 'Metric compliance ruleset type not yet implemented.' };
     }
 
@@ -85,7 +102,7 @@ class PolicyEngine {
      * @param {Object<string, number>} proposalScoreMap - Actor scores for the proposal.
      * @returns {{decision: boolean, finalScore?: number, reason: string}}
      */
-    evaluateProposal(context, proposalScoreMap) {
+    evaluateProposal(context: any, proposalScoreMap: Record<string, number>) {
         const phase = this.getCurrentPhase(context);
         const rulesetId = phase.ruleset_id;
         const ruleset = this.rulesets[rulesetId];
