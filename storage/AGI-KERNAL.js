@@ -16,8 +16,8 @@ import {
  * 3. Deep Grafting: Extract patterns from all repo files.
  * 4. Integrity Guard: Prevents truncation/self-erasure.
  * 5. Global Context: Prioritizes README directives.
- * 6. Granular Error Handling: 429 backoff & timeout recovery.
- * 7. HTTP Resilience: Dedicated plugin for robust API interaction.
+ * 6. Granular Error Handling: 429 backoff & timeout recovery (via ResilientHttpClient).
+ * 7. HTTP Resilience: Dedicated ResilientHttpClient plugin for robust API interaction.
  */
 
 // --- CONFIGURATION ---
@@ -33,14 +33,9 @@ const CONFIG = {
 };
 
 // --- UTILITIES ---
-const safeUtoa = (str) => btoa(unescape(encodeURIComponent(str)));
-const safeAtou = (str) => {
-  if (!str) return "";
-  try { return decodeURIComponent(escape(atob(str.replace(/\s/g, '')))); } catch (e) { return atob(str); }
-};
+// Removed: safeUtoa and safeAtou. Using CanonicalCryptoUtility for encoding/decoding.
 
-// Removed: sanitizeResponse and recoverJSON (moved to plugin)
-// Removed: apiCall (moved to plugin)
+// Removed: API call wrappers. Using global ResilientHttpClient directly.
 
 // --- STATE MANAGEMENT ---
 const INITIAL_STATE = {
@@ -57,7 +52,7 @@ const INITIAL_STATE = {
   config: { token: '', repo: '', path: '', branch: 'main', provider: 'gemini', apiKey: '', model: 'gemini-2.5-flash-preview-09-2025' }
 };
 
-function kernelReducer(state, action) {
+function kernelReducer(state: typeof INITIAL_STATE, action: any) {
   switch (action.type) {
     case 'BOOT': return { ...state, booted: true, config: { ...state.config, ...action.payload } };
     case 'TOGGLE_LIVE': return { ...state, live: !state.live, status: !state.live ? 'INIT' : 'HALTED' };
@@ -78,14 +73,14 @@ function kernelReducer(state, action) {
 
 export default function App() {
   const [state, dispatch] = useReducer(kernelReducer, INITIAL_STATE);
-  const [services, setServices] = useState({ auth: null, db: null });
-  const [initError, setInitError] = useState(null);
-  const [user, setUser] = useState(null);
+  const [services, setServices] = useState<any>({ auth: null, db: null });
+  const [initError, setInitError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [input, setInput] = useState({ ...INITIAL_STATE.config });
   
-  const cycleRef = useRef(null);
+  const cycleRef = useRef<NodeJS.Timeout | null>(null);
   const busy = useRef(false);
-  const logEndRef = useRef(null);
+  const logEndRef = useRef<HTMLDivElement>(null);
   const genesisContent = useRef("");
   const stateRef = useRef(state);
 
@@ -116,7 +111,7 @@ export default function App() {
       } else {
         throw new Error("Firebase Config Missing in Environment");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Boot Error:", e);
       setInitError(e.message);
     }
@@ -139,7 +134,7 @@ export default function App() {
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [state.logs]);
 
   // --- CORE LOGIC ---
-  const logToDb = useCallback(async (msg, type = 'info') => {
+  const logToDb = useCallback(async (msg: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') => {
     if (!user || !services.db) return;
     try {
       await addDoc(collection(services.db, 'artifacts', CONFIG.APP_ID, 'users', user.uid, 'history'), {
@@ -148,67 +143,81 @@ export default function App() {
     } catch (e) { console.error("Log failed:", e); }
   }, [user, services.db]);
 
-  // Wrapper for the ResilientHttpClient fetch utility
-  const _apiCall = async (url, options, retries = 3) => {
-    // @ts-ignore: Assume ResilientHttpClient is available globally
+  const getGH = async (path: string, branch: string) => {
+    // @ts-ignore: ResilientHttpClient is globally available
     if (typeof ResilientHttpClient === 'undefined') {
         throw new Error("ResilientHttpClient plugin is missing.");
     }
     
-    // @ts-ignore
-    return await ResilientHttpClient.execute({
-        type: 'fetch',
-        url,
-        options,
-        retries,
-        timeoutMs: CONFIG.TIMEOUT_MS
+    // @ts-ignore: CanonicalCryptoUtility is globally available
+    const Crypto = CanonicalCryptoUtility;
+    
+    // Use ResilientHttpClient for the network call
+    const res = await ResilientHttpClient.execute({
+      type: 'fetch',
+      url: `${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}?ref=${branch}&t=${Date.now()}`,
+      options: { 
+        headers: { 'Authorization': `token ${stateRef.current.config.token}` } 
+      },
+      retries: 3,
+      timeoutMs: CONFIG.TIMEOUT_MS
     });
+    
+    const data = await res.json();
+    
+    // Use CanonicalCryptoUtility for decoding
+    return { content: Crypto.decodeBase64URLSafe(data.content), sha: data.sha };
   };
 
-  // Wrapper for the ResilientHttpClient LLM parsing utility
-  const _recoverJSON = (rawText) => {
+  const getRepoTree = async (branch: string) => {
     // @ts-ignore
-    if (typeof ResilientHttpClient === 'undefined') {
-        console.warn("ResilientHttpClient plugin is missing, using unsafe fallback parsing.");
-        try { return JSON.parse(rawText); } catch { return null; }
-    }
-    // @ts-ignore
-    return ResilientHttpClient.execute({
-        type: 'parse_llm',
-        rawText
-    });
-  };
-
-  const getGH = async (path, branch) => {
-    const res = await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}?ref=${branch}&t=${Date.now()}`, {
-      headers: { 'Authorization': `token ${stateRef.current.config.token}` }
+    const res = await ResilientHttpClient.execute({
+      type: 'fetch',
+      url: `${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/git/trees/${branch}?recursive=1`,
+      options: {
+        headers: { 'Authorization': `token ${stateRef.current.config.token}` }
+      },
+      retries: 3,
+      timeoutMs: CONFIG.TIMEOUT_MS
     });
     const data = await res.json();
-    return { content: safeAtou(data.content), sha: data.sha };
+    return data.tree.filter((f: { type: string }) => f.type === 'blob');
   };
 
-  const getRepoTree = async (branch) => {
-    const res = await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/git/trees/${branch}?recursive=1`, {
-      headers: { 'Authorization': `token ${stateRef.current.config.token}` }
-    });
-    const data = await res.json();
-    return data.tree.filter(f => f.type === 'blob');
-  };
-
-  const putGH = async (path, content, message, sha, branch) => {
+  const putGH = async (path: string, content: string, message: string, sha: string, branch: string) => {
     // Integrity Guard: Prevent truncation
     if (content.length < genesisContent.current.length * 0.4) {
       throw new Error("Integrity Guard: Update Rejected (Truncation Detected)");
     }
-    return await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `token ${stateRef.current.config.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, content: safeUtoa(content), sha, branch })
+    
+    // @ts-ignore
+    const Crypto = CanonicalCryptoUtility;
+    // Use CanonicalCryptoUtility for encoding
+    const encodedContent = Crypto.encodeBase64URLSafe(content);
+
+    // @ts-ignore
+    return await ResilientHttpClient.execute({
+      type: 'fetch',
+      url: `${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}`,
+      options: {
+        method: 'PUT',
+        headers: { 'Authorization': `token ${stateRef.current.config.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, content: encodedContent, sha, branch })
+      },
+      retries: 3,
+      timeoutMs: CONFIG.TIMEOUT_MS
     });
   };
 
   // --- EVOLUTION LOOP ---
   const evolve = useCallback(async () => {
+    // @ts-ignore
+    if (typeof ResilientHttpClient === 'undefined') {
+        await logToDb("Critical Error: ResilientHttpClient missing, halting evolution.", 'error');
+        dispatch({ type: 'TOGGLE_LIVE' });
+        return;
+    }
+
     if (busy.current || !stateRef.current.live) return;
     busy.current = true;
     
@@ -218,7 +227,7 @@ export default function App() {
       // 1. GLOBAL CONTEXT (README)
       dispatch({ type: 'SET_STATUS', status: 'MISSION', objective: 'Analyzing Mission Directives...' });
       let readme = "No README.";
-      try { const r = await getGH('README.md', cur.config.branch); readme = r.content; } catch (e) {}
+      try { const r = await getGH('README.md', cur.config.branch); readme = r.content; } catch (e) {} // Silent failure on readme read
 
       // 2. CROSS-BRANCH SCANNING
       const branches = [cur.config.branch, 'Nexus-Database', 'System'];
@@ -227,12 +236,12 @@ export default function App() {
         dispatch({ type: 'SET_STATUS', status: 'SCANNING', objective: `Scanning Branch: ${b}...` });
         try {
           const tree = await getRepoTree(b);
-          const files = tree.filter(f => f.path.match(/(README|manifest|nexus|App|Kernel)\.(md|json|js|jsx)/i)).slice(0, 3);
+          const files = tree.filter((f: { path: string }) => f.path.match(/(README|manifest|nexus|App|Kernel)\.(md|json|js|jsx)/i)).slice(0, 3);
           for (const f of files) {
             const d = await getGH(f.path, b);
             branchContext += `[BRANCH:${b} FILE:${f.path}]\n${d.content.slice(0, 2000)}\n\n`;
           }
-        } catch (e) {}
+        } catch (e) {} // Silent failure on branch scan
       }
 
       // 3. TARGET ACQUISITION
@@ -249,15 +258,26 @@ export default function App() {
         ? { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }
         : { model: cur.config.model, messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } };
 
-      const res = await _apiCall(isGemini ? `${CONFIG.GEMINI_API}?key=${cur.config.apiKey}` : CONFIG.CEREBRAS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(!isGemini && { 'Authorization': `Bearer ${cur.config.apiKey}` }) },
-        body: JSON.stringify(body)
+      // Use ResilientHttpClient for the LLM call
+      // @ts-ignore
+      const res = await ResilientHttpClient.execute({
+        type: 'fetch',
+        url: isGemini ? `${CONFIG.GEMINI_API}?key=${cur.config.apiKey}` : CONFIG.CEREBRAS_API,
+        options: {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(!isGemini && { 'Authorization': `Bearer ${cur.config.apiKey}` }) },
+          body: JSON.stringify(body)
+        },
+        retries: 3,
+        timeoutMs: CONFIG.TIMEOUT_MS
       });
 
       const data = await res.json();
       const raw = isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
-      const result = _recoverJSON(raw);
+      
+      // Use ResilientHttpClient for parsing the potentially messy LLM output
+      // @ts-ignore
+      const result = ResilientHttpClient.execute({ type: 'parse_llm', rawText: raw });
 
       if (result?.improvement_detected && result.code_update && result.code_update.length > 500) {
         dispatch({ type: 'SET_STATUS', status: 'MUTATING', objective: 'Committing Evolution...' });
@@ -269,7 +289,7 @@ export default function App() {
         dispatch({ type: 'CYCLE_COMPLETE', improved: false });
       }
 
-    } catch (e) {
+    } catch (e: any) {
       await logToDb(`Error: ${e.message}`, 'error');
       dispatch({ type: 'SET_STATUS', status: 'ERROR', objective: e.message });
       if (e.message.includes('401') || e.message.includes('404')) dispatch({ type: 'TOGGLE_LIVE' });
