@@ -4,12 +4,45 @@
  * of protocol verification, interpreting complex directives like 'RetryStep'
  * and 'HaltExecution' defined in the protocol definition schema.
  */
+
+// --- SIMULATED DEPENDENCY ACCESS ---
+// Assumes the FailurePolicyHandler plugin is loaded and available for instantiation/access.
+// This block simulates the execution structure defined in the plugin below.
+const __failurePolicyHandlerInstance = {
+    execute: (args) => {
+        const step = args.step;
+        const currentIndex = args.currentIndex;
+        const action = step.on_failure || 'HaltExecution';
+        let newState = 'RUNNING';
+        let nextIndex = currentIndex;
+        
+        switch (action) {
+            case 'HaltExecution':
+                newState = 'HALTED';
+                break;
+            case 'ContinueWarning':
+                nextIndex = currentIndex + 1;
+                break;
+            case 'RetryStep':
+                // nextIndex remains currentIndex
+                break;
+            default:
+                newState = 'HALTED';
+        }
+        return { newState, nextIndex };
+    }
+};
+// ------------------------------------
+
 class ProtocolExecutionFSM {
   constructor(protocolDefinition) {
     this.protocol = protocolDefinition;
     this.steps = protocolDefinition.required_steps;
     this.currentState = 'READY';
     this.currentStepIndex = 0;
+    
+    // Reference the extracted utility
+    this.failurePolicyHandler = __failurePolicyHandlerInstance; 
   }
 
   async executeProtocol() {
@@ -21,8 +54,18 @@ class ProtocolExecutionFSM {
       const result = await this._runStep(step);
 
       if (!result.success) {
-        await this._handleFailure(step, result);
+        // Delegate failure policy logic to the extracted utility
+        const policyResult = this.failurePolicyHandler.execute({
+            step: step,
+            result: result, // Pass result for potential logging/reporting within the utility
+            currentIndex: this.currentStepIndex
+        });
+
+        this.currentState = policyResult.newState;
+        this.currentStepIndex = policyResult.nextIndex;
+        
         if (this.currentState === 'HALTED') break;
+        
       } else {
         this.currentStepIndex++;
       }
@@ -41,28 +84,6 @@ class ProtocolExecutionFSM {
     };
   }
 
-  async _handleFailure(step, result) {
-    const action = step.on_failure || 'HaltExecution'; // Default if not specified
-
-    switch (action) {
-      case 'HaltExecution':
-        console.error(`Failure: ${step.step_id}. Action: HALT.`);
-        this.currentState = 'HALTED';
-        break;
-      case 'ContinueWarning':
-        console.warn(`Failure: ${step.step_id}. Action: WARNING and CONTINUE.`);
-        this.currentStepIndex++; // Move to next step despite failure
-        break;
-      case 'RetryStep':
-        // Implements basic retry logic (could be improved with count)
-        console.warn(`Failure: ${step.step_id}. Action: RETRY.`);
-        // We do not increment index, forcing re-execution of the current step
-        // A sophisticated implementation would track retry count here.
-        break;
-      default:
-        console.error(`Unknown failure action: ${action}. Halting.`);
-        this.currentState = 'HALTED';
-    }
-  }
+  // _handleFailure removed: Logic extracted to FailurePolicyHandler plugin.
 }
 module.exports = ProtocolExecutionFSM;
