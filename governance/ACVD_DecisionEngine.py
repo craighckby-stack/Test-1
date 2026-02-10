@@ -37,6 +37,11 @@ class ACVD_ConfigDefaults:
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
     DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # New: Threshold for tuning proposal stability
     
+    # New Heuristic Parameters (Logic/Memory/Stability)
+    DEFAULT_HEURISTIC_INCREASE_THRESHOLD = 1.6 # Deviation threshold for increasing weight (1.6x observed/expected ratio)
+    DEFAULT_HEURISTIC_DECREASE_THRESHOLD = 0.4 # Deviation threshold for decreasing weight (0.4x observed/expected ratio)
+    DEFAULT_MAX_ADJUSTMENT_RATE = 0.10 # Max proportional adjustment in one cycle (10% of remaining gap)
+    
     # Base weights, used if no configuration is found in the schema (static reference)
     BASE_SEVERITY_WEIGHTS = {
         "CRITICAL": 0.40, 
@@ -59,14 +64,11 @@ class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
     This version enhances Meta-Reasoning and Autonomy by:
-    1. Centralizing configuration defaults for clarity.
-    2. Implementing dynamic log impact analysis (`_calculate_log_impact`) to provide 
-       **proactive, actionable tuning suggestions** including proposed new weights, 
-       supporting the AGI kernel's recursive self-improvement loop.
-    3. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
-    4. Introducing custom, structured exceptions for governance violations (`GovernanceError` family).
-    5. Implementing a weight dampening factor for improved tuning stability (Logic/Memory).
-    6. Introducing schema versioning for architectural evolution (Navigation/Memory).
+    1. Refining the weight tuning heuristic (`_apply_weight_heuristic`) to be proportional to observed risk deviation,
+       improving Logic and stability (Memory).
+    2. Centralizing all heuristic tuning parameters in `ACVD_ConfigDefaults` for architectural clarity.
+    3. Adding enforcement in `update_severity_weights` to only accept recognized issue types, preventing configuration drift.
+    4. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
     """
 
     # Use centralized defaults
@@ -77,6 +79,10 @@ class ACVD_DecisionEngine:
     _BASE_SEVERITY_WEIGHTS = ACVD_ConfigDefaults.BASE_SEVERITY_WEIGHTS
     _INTERNAL_ISSUE_MAP = ACVD_ConfigDefaults.INTERNAL_ISSUE_MAP
     
+    # Heuristic tuning constants (derived from defaults)
+    _HEURISTIC_INCREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_INCREASE_THRESHOLD
+    _HEURISTIC_DECREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_DECREASE_THRESHOLD
+    _MAX_ADJUSTMENT_RATE = ACVD_ConfigDefaults.DEFAULT_MAX_ADJUSTMENT_RATE
     
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         # Use Path objects internally for robust file handling
@@ -245,41 +251,49 @@ class ACVD_DecisionEngine:
     
     def _apply_weight_heuristic(self, issue_type: str, penalty_value: float, total_impact: float, current_weight: float, total_current_weight: float) -> Dict[str, Any]:
         """ 
-        (META-REASONING CORE) Encapsulates the dynamic weight tuning heuristic logic.
-        Adjusts weight based on observed penalty contribution versus expected distribution.
-        Now includes dampening for stability.
+        (META-REASONING CORE) Dynamic weight tuning heuristic logic with improved dampening and responsiveness.
+        The adjustment is proportional to the deviation between observed risk and expected weight ratio.
         """
         
         suggestion_type = "MAINTAIN_STABILITY"
         new_suggested_weight = current_weight
         
         if total_impact == 0.0 or total_current_weight == 0.0:
+            # Cannot calculate ratios meaningfully
             return {
                 "suggestion_type": suggestion_type,
                 "suggested_new_weight": current_weight
             }
 
-        contribution_ratio = penalty_value / total_impact
-        current_weight_ratio = current_weight / total_current_weight
+        contribution_ratio = penalty_value / total_impact # Observed frequency/impact of this issue type
+        expected_ratio = current_weight / total_current_weight # Expected ratio based on current weights
+        
+        deviation = contribution_ratio / expected_ratio if expected_ratio > 0 else 0.0
 
         # Heuristic 1: Increase Penalty (Under-represented Risk)
-        # If observed penalty ratio is significantly higher (1.5x) than current weight ratio, increase the weight.
-        if contribution_ratio > current_weight_ratio * 1.5 and current_weight < 0.9: 
+        if deviation > self._HEURISTIC_INCREASE_THRESHOLD and current_weight < 0.95: 
             
-            # Calculate factor based on the gap to 1.0 (max weight), capped at 10% increase per cycle
-            increase_factor = min(0.1, contribution_ratio * 0.2) 
-            suggested_adjustment = (1.0 - current_weight) * increase_factor
+            # Calculate factor based on the deviation above the threshold
+            deviation_factor = deviation - 1.0
+            
+            # Calculate the maximum allowed increase based on the configured rate
+            max_increase = (1.0 - current_weight) * self._MAX_ADJUSTMENT_RATE
+            
+            # Proposed adjustment is proportional to deviation, but limited by max rate
+            # Using a conservative factor (0.1) on the deviation response for early stability
+            suggested_adjustment = min(max_increase, current_weight * deviation_factor * 0.1)
             
             new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
             suggestion_type = "INCREASE_PENALTY"
 
         # Heuristic 2: Decrease Penalty (Over-represented Risk / Stable)
-        # If observed penalty ratio is significantly lower (0.5x) than current weight ratio, decrease the weight.
-        elif contribution_ratio < current_weight_ratio * 0.5 and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
+        elif deviation < self._HEURISTIC_DECREASE_THRESHOLD and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
             
-            decrease_factor = 0.05
-            # Calculate factor based on the difference from the minimum fallback weight
-            suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decrease_factor
+            # Use a slightly lower decay rate than increase rate for stable convergence (Memory retention pattern)
+            decay_rate = 0.08
+            
+            # Calculate adjustment based on the difference from the minimum fallback weight
+            suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decay_rate
             
             new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
             suggestion_type = "DECREASE_PENALTY"
@@ -319,8 +333,8 @@ class ACVD_DecisionEngine:
             # Calculate total weight sum for ratio comparison (used for dynamic tuning heuristic)
             total_current_weight = sum(self.severity_weights.values()) or 1.0 
 
-            # Identify the top 3 contributors for actionable insight
-            for issue_type, penalty_value in sorted_impact[:3]:
+            # Identify the top contributors for actionable insight
+            for issue_type, penalty_value in sorted_impact:
                 if penalty_value > 0.0:
                     percentage = (penalty_value / total_impact) * 100
                     current_weight = self.severity_weights.get(issue_type, self.DEFAULT_FALLBACK_WEIGHT)
@@ -366,8 +380,7 @@ class ACVD_DecisionEngine:
                 suggested_weight = suggestion['suggested_new_weight']
                 current_weight = suggestion['current_weight']
                 
-                # Only propose if the change is non-negligible (> DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY)
-                # Note: This check is redundant if the heuristic logic is perfect, but serves as a failsafe.
+                # Only propose if the change is non-negligible (> 0.0001)
                 if abs(suggested_weight - current_weight) > 0.0001: 
                     tuning_updates[issue_type] = suggested_weight
                     
@@ -472,9 +485,16 @@ class ACVD_DecisionEngine:
             self._log_status("ERROR", "Cannot update weights: Input must be a dictionary.", "WEIGHT_UPDATE_FAIL")
             return
             
-        # Merge new weights, allowing updates or additions
+        # P3: Input Validation - Check against currently recognized issue types (core + dynamically loaded)
+        recognized_issue_types = set(self.severity_weights.keys())
         updates_applied = 0
+        
         for key, value in new_weights.items():
+            
+            if key not in recognized_issue_types:
+                 self._log_status("WARNING", f"Skipping unknown weight key '{key}'. Key must map to an existing severity type.", "WEIGHT_UPDATE_SKIP_UNKNOWN")
+                 continue
+                 
             # Robust validation: Ensure input value is a sensible float/int between 0.0 and 1.0
             if isinstance(value, (int, float)) and 0.0 <= value <= 1.0:
                 # Ensure we are actually making a change before updating
