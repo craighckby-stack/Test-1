@@ -8,6 +8,34 @@ const GAXEventRegistry = require('./GAXEventRegistry');
 const TelemetryTransport = require('./TelemetryTransport'); 
 const TelemetrySampler = require('./TelemetrySampler');   
 
+// AGI-KERNEL PLUGIN INTEGRATION:
+// Assume TelemetryPreconditionValidator is injected/available via the runtime context.
+const TelemetryPreconditionValidator = {
+    execute: (args) => {
+        // NOTE: This object mocks the interface and logic of the injected plugin 
+        // for demonstration purposes in the source file, using Node constructs.
+        
+        // Check 1: Initialization status (must be fully ready)
+        if (!args.isInitialized) {
+            return { 
+                isValid: false, 
+                faultName: 'DIAG_UNINITIALIZED', 
+                details: { attemptedEvent: args.eventName, initialized: args.isInitialized } 
+            }; 
+        }
+
+        // Check 2: Event Registration
+        if (!Object.values(args.eventRegistry).includes(args.eventName)) {
+            return { 
+                isValid: false, 
+                faultName: 'DIAG_CONFIGURATION_FAULT',
+                details: { message: `Attempted to publish unregistered event: ${args.eventName}` }
+            };
+        }
+        return { isValid: true, faultName: null };
+    }
+};
+
 class TelemetryService {
     constructor() {
         this.isInitialized = false;
@@ -59,17 +87,21 @@ class TelemetryService {
      * @param {object} payload - Contextual data related to the event
      */
     async publish(eventName, payload = {}) {
-        if (!this.isInitialized || !this.transport || !this.sampler) {
-            // Assuming GAXEventRegistry.DIAG_UNINITIALIZED exists.
-            this._handleInternalFault('DIAG_UNINITIALIZED', 
-                { attemptedEvent: eventName, initialized: this.isInitialized });
-            return;
-        }
+        
+        const fullyInitialized = this.isInitialized && !!this.transport && !!this.sampler;
 
-        // 1. Validation and early exit for unregistered events
-        if (!Object.values(GAXEventRegistry).includes(eventName)) {
-            // Assuming GAXEventRegistry.DIAG_CONFIGURATION_FAULT exists.
-            this._handleInternalFault('DIAG_CONFIGURATION_FAULT', { message: `Attempted to publish unregistered event: ${eventName}` });
+        // 0. Precondition Check using the extracted Validator
+        const validationResult = TelemetryPreconditionValidator.execute({
+            eventName: eventName,
+            isInitialized: fullyInitialized,
+            eventRegistry: GAXEventRegistry 
+        });
+
+        if (!validationResult.isValid) {
+            this._handleInternalFault(
+                validationResult.faultName, 
+                validationResult.details || { attemptedEvent: eventName }
+            );
             return;
         }
 
