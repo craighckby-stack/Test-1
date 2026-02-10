@@ -46,9 +46,28 @@ class ResourceCheckRegistry {
         /** @type {Map<string, ResourceCheckFunction>} */
         this.checks = new Map();
         this.STATUS = CHECK_STATUS;
-        // The execution wrapper is resolved internally, assuming kernel injection or global availability.
-        this.executionWrapper = (typeof globalThis !== 'undefined' && globalThis.AGI_KERNEL_UTILITIES?.AsyncExecutionWrapper) 
-                                || this._internalRunnerFallback();
+        
+        // RCR-I01: The execution wrapper is now formalized as AsyncCheckExecutionWrapper.
+        // Rely on kernel injection. If missing, use a failure stub.
+        this.asyncExecutionWrapper = (typeof globalThis !== 'undefined' && globalThis.AGI_KERNEL_UTILITIES?.AsyncCheckExecutionWrapper) 
+                                     || this._noOpRunner();
+    }
+
+    /**
+     * @private Fallback for missing dependency. Forces kernel environment setup compliance.
+     */
+    _noOpRunner() {
+        console.error("RCR-E02: Required dependency AsyncCheckExecutionWrapper not found. Execution will fail.");
+        return {
+            execute: async (fn, id, args, STATUS) => {
+                return { 
+                    check: id, 
+                    status: STATUS.ERROR,
+                    success: false,
+                    details: { message: `RCR Fatal: Cannot execute check ${id}. AsyncCheckExecutionWrapper dependency missing.` }
+                };
+            }
+        };
     }
 
     /**
@@ -79,7 +98,7 @@ class ResourceCheckRegistry {
     /**
      * Executes all registered checks concurrently, providing necessary context.
      * The complexity of standardized error handling and result formatting is delegated
-     * to the injected executionWrapper.
+     * to the injected executionWrapper (AsyncCheckExecutionWrapper).
      * 
      * @param {Object} monitor - System monitoring dependency.
      * @param {Object} governanceConfig - Baseline configuration.
@@ -93,7 +112,7 @@ class ResourceCheckRegistry {
         for (const [id, checkFn] of this.checks.entries()) {
             
             // Delegation of execution, error handling, and result standardization to the specialized wrapper plugin
-            const runnerPromise = this.executionWrapper.execute(
+            const runnerPromise = this.asyncExecutionWrapper.execute(
                 checkFn, 
                 id, 
                 args,
@@ -104,41 +123,6 @@ class ResourceCheckRegistry {
         
         // Execute all checks concurrently and wait for all results
         return Promise.all(checkPromises);
-    }
-
-    /** 
-     * @private Fallback implementation mirroring the structure of the extracted tool.
-     * Ensures the RCR remains functional if dependency resolution fails, but logs a warning.
-     */
-    _internalRunnerFallback() {
-        const STATUS = this.STATUS;
-        console.warn("RCR-W02: AsyncExecutionWrapper not resolved. Using internal fallback logic.");
-        return {
-            execute: async (fn, id, args) => {
-                const executionResult = { check: id, status: STATUS.ERROR, success: false, details: {} };
-                try {
-                    /** @type {CheckResult} */
-                    const checkResult = await fn(...args);
-                    
-                    // Standardize successful/failed check result
-                    executionResult.success = !!checkResult.success;
-                    executionResult.status = checkResult.success ? STATUS.PASS : STATUS.FAIL;
-                    executionResult.details = checkResult.details || {};
-                    
-                    return executionResult;
-
-                } catch (error) {
-                    // Handle critical error during check execution
-                    executionResult.details = { 
-                        errorType: error.name,
-                        message: `Critical RCR (Fallback) execution error in ${id}: ${error.message}`, 
-                        stack: error.stack
-                    };
-                    // status remains ERROR, success remains false.
-                    return executionResult;
-                }
-            }
-        };
     }
 }
 
