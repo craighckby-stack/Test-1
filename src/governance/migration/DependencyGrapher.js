@@ -62,34 +62,12 @@ export class DependencyGrapher {
     static calculateCascadeRisk(graph, affectedEntities) {
         if (affectedEntities.size === 0) return 0.0;
         
-        let maxChainLength = 0;
-        const allDependentNodes = new Set();
-
-        for (const affectedEntity of affectedEntities) {
-            // Perform Breadth-First Search (BFS) starting from the affected entity
-            // to find all cascading dependents.
-            const queue = [{ node: affectedEntity, depth: 0 }];
-            const visited = new Set();
-
-            while (queue.length > 0) {
-                const { node, depth } = queue.shift();
-                
-                if (visited.has(node)) continue;
-                visited.add(node);
-
-                maxChainLength = Math.max(maxChainLength, depth);
-                if (node !== affectedEntity) {
-                    allDependentNodes.add(node);
-                }
-
-                if (graph[node]) {
-                    for (const dependent of graph[node]) {
-                        queue.push({ node: dependent, depth: depth + 1 });
-                    }
-                }
-            }
-        }
+        // AGI_CALL: GraphReachabilityAnalyzer.analyze(graph, affectedEntities)
+        const analysisResult = GraphReachabilityAnalyzer.analyze(graph, affectedEntities);
         
+        const allDependentNodes = analysisResult.dependentNodes;
+        const maxChainLength = analysisResult.maxDepth;
+
         const totalEntities = Object.keys(graph).length || 1;
         
         // Risk factor based on scope (normalized count of entities depending on the affected ones) 
