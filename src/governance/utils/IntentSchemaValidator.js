@@ -3,12 +3,17 @@
  * ID: ISV-v94.3
  * Focus: Ensures that incoming mutation intent payloads adhere strictly to required internal schemas
  *        before being processed by high-risk orchestrators like GCO.
+ * 
+ * Uses DeclarativeSchemaEnforcer (DSE) for structural integrity validation.
  */
+
+/* global DeclarativeSchemaEnforcer */
+
 class IntentSchemaValidator {
 
     /**
      * Defines the required schema structure for a standard MutationIntentPayload.
-     * @returns {Object} Schema definition (Simplified for internal utility representation).
+     * @returns {Object} Schema definition using DSE DSL.
      */
     static getRequiredSchema() {
         return {
@@ -31,27 +36,26 @@ class IntentSchemaValidator {
             throw new Error("ISV Validation Failure: Payload must be a valid object.");
         }
 
-        // Example Check 1: Mandatory Fields
-        if (!rawPayload.source || typeof rawPayload.source !== 'string') {
-            throw new Error("ISV Validation Failure: 'source' field is missing or invalid.");
-        }
+        const schema = IntentSchemaValidator.getRequiredSchema();
 
-        // Example Check 2: Targets must be an array
-        if (!Array.isArray(rawPayload.targets)) {
-            console.warn("ISV Warning: 'targets' field corrected to empty array.");
-            rawPayload.targets = [];
+        // Delegate validation and normalization to the external, hardened tool (DSE)
+        if (typeof DeclarativeSchemaEnforcer === 'undefined' || typeof DeclarativeSchemaEnforcer.validate !== 'function') {
+             throw new Error("System Error: DeclarativeSchemaEnforcer plugin is not initialized.");
         }
         
-        // Example Check 3: Targets Structure (Ensure componentID is present for GCO)
-        for (const target of rawPayload.targets) {
-            if (!target || typeof target !== 'object' || !target.componentID) {
-                throw new Error(`ISV Validation Failure: Target descriptor is missing critical 'componentID'. Invalid target: ${JSON.stringify(target)}`);
-            }
+        const validationResult = DeclarativeSchemaEnforcer.validate({
+            rawPayload: rawPayload,
+            schema: schema
+        });
+
+        if (!validationResult.success) {
+            // Aggregating errors for a single failure point
+            const errorMsg = validationResult.errors.join('; ');
+            throw new Error(`ISV Validation Failure: Structural constraints violated. Errors: ${errorMsg}`);
         }
 
-        // Future improvement: Add deep type checking based on getRequiredSchema()
-
-        return rawPayload;
+        // Return the validated and normalized payload provided by the tool
+        return validationResult.payload;
     }
 }
 
