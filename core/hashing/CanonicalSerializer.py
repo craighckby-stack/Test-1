@@ -103,6 +103,11 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         even when deep, cyclic graphs are encountered across different execution runs.
     16. Added explicit, canonical serialization handling for the Python constants `Ellipsis` 
         and `NotImplemented` commonly used in configuration schemas and agent functional prototypes.
+
+    AGI-KERNEL Improvement (Cycle 18, Logic/Architecture):
+    17. Implemented intrinsic content extraction for custom classes that subclass built-in containers (list, dict).
+        This ensures that the canonical state of objects like specialized agent history lists or state dictionaries
+        is captured alongside their custom attributes, preventing loss of container content and guaranteeing stable hashing.
     """
 
     def __init__(self, *args, **kwargs):
@@ -315,6 +320,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                     canonical_k = self._canonicalize_key(k)
                     
                 new_dict[canonical_k] = v
+            # Note: This returns a regular dict, which will be sorted by the outer json.dumps
             return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
@@ -358,6 +364,23 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             # 5c. Generalized attribute serialization (Handling __dict__, __slots__, and @property)
             attributes = {}
             
+            # AGI-KERNEL Improvement (Cycle 18): Capture Intrinsic State for Container Subclasses
+            # If the custom object inherits from a built-in container, extract its contents first.
+            if isinstance(obj, list):
+                # For list/tuple subclasses, serialize the underlying list content
+                attributes["__list_content__"] = list(obj)
+            elif isinstance(obj, dict):
+                # For dict subclasses, serialize the underlying dict content, ensuring keys are canonicalized.
+                content_dict = {}
+                for k, v in obj.items():
+                    if isinstance(k, str):
+                        canonical_k = k
+                    else:
+                        # Use the explicit key canonicalization layer (Cycle 15)
+                        canonical_k = self._canonicalize_key(k)
+                    content_dict[canonical_k] = v
+                attributes["__dict_content__"] = content_dict
+
             # Gather attributes from __dict__ (standard instance data)
             if hasattr(obj, '__dict__'):
                 attributes.update(obj.__dict__)
@@ -392,19 +415,25 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
             # Process gathered attributes if any were found
             if attributes:
-                # AGI-KERNEL Improvement (Cycle 13): Consolidate attribute collection for __dict__ and __slots__.
-                # Filter out internal/private attributes, callables, and None values for canonical consistency.
-                safe_dict = {
-                    k: v for k, v in attributes.items()
-                    if not k.startswith('_') and not callable(v) and v is not None
-                }
+                final_dict = {}
                 
-                if safe_dict:
-                    # AGI-KERNEL Improvement (Cycle 13): Explicitly tag the structure with the class name 
-                    # for clear demarcation between custom objects and standard dictionaries in the canonical output.
-                    return {"__object__": obj.__class__.__name__, **safe_dict}
+                for k, v in attributes.items():
+                    # Check for canonical content markers (must be preserved even though they start with underscore)
+                    is_canonical_content = k in ("__list_content__", "__dict_content__")
+                    
+                    # Apply general filtering rules (not None, not callable)
+                    if v is not None and not callable(v):
+                        # Allow canonical content markers or public attributes (not starting with _)
+                        if is_canonical_content or not k.startswith('_'):
+                            final_dict[k] = v
+
+                if final_dict:
+                    # AGI-KERNEL Improvement (Cycle 13/18): Tag the structure with class name 
+                    return {"__object__": obj.__class__.__name__, **final_dict}
             
-            # If object was tracked but failed structural introspection, we allow the base class to raise the TypeError.
+            # If the object was tracked but yielded no serializable state (e.g., empty object with no slots/dict/content),
+            # we still must return the tag to avoid losing its presence in the structure.
+            return {"__object__": obj.__class__.__name__}
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
