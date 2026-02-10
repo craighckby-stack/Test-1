@@ -4,9 +4,18 @@ import path from 'path';
  * ConfigService: Centralized Configuration and Environment Management
  * Role: Defines global application constants, manages environment variables,
  * and provides standardized path resolution using the native 'path' module.
+ *
+ * NOTE: Assumes EnvTypeDecoder is globally available via the AGI Kernel.
  */
 class ConfigService {
+    // Conceptual reference to the utility extracted as a plugin
+    private envTypeDecoder: { execute: (value: string) => any };
+
     constructor() {
+        // Initialize the conceptual tool (assuming global injection or access)
+        // @ts-ignore
+        this.envTypeDecoder = typeof EnvTypeDecoder !== 'undefined' ? EnvTypeDecoder : { execute: (v: any) => v };
+
         // Environment initialization
         this.NODE_ENV = process.env.NODE_ENV || 'development';
         this.IS_PRODUCTION = this.NODE_ENV === 'production';
@@ -22,52 +31,37 @@ class ConfigService {
     /**
      * Retrieves the current environment string.
      */
-    getEnvironment() {
+    getEnvironment(): string {
         return this.NODE_ENV;
     }
 
     /**
      * Standardizes critical application paths.
-     * @param {string} filename The name of the config file (e.g., 'governance').
-     * @param {string} [extension='.yaml'] The expected file extension.
-     * @returns {string} The full path to the configuration file.
+     * @param filename The name of the config file (e.g., 'governance').
+     * @param extension The expected file extension.
+     * @returns The full path to the configuration file.
      */
-    getConfigPath(filename, extension = '.yaml') {
-        // Note: Assumes config files are within src/config/ for AGI standard configuration
+    getConfigPath(filename: string, extension: string = '.yaml'): string {
         return path.join(this.CONFIG_DIR, `${filename}${extension}`);
     }
 
     /**
-     * Converts a string value from process.env into its native type (boolean, number, string).
-     * @param {string} value The environment variable string value.
-     * @returns {*} The parsed value.
-     */
-    _parseEnvValue(value) {
-        if (typeof value !== 'string') return value;
-        if (value.toLowerCase() === 'true') return true;
-        if (value.toLowerCase() === 'false') return false;
-        
-        // Check if numeric, avoiding parsing empty strings as 0
-        if (!isNaN(Number(value)) && value.trim() !== '') return Number(value);
-        return value;
-    }
-
-    /**
      * Gets a variable based on environment preference or default, with type parsing.
-     * @param {string} key The environment variable key.
-     * @param {*} defaultValue The fallback value.
-     * @returns {string|number|boolean|*} The retrieved and parsed value.
+     * @param key The environment variable key.
+     * @param defaultValue The fallback value.
+     * @returns The retrieved and parsed value (string|number|boolean|*).
      */
-    getEnv(key, defaultValue) {
+    getEnv(key: string, defaultValue: any): any {
         const envValue = process.env[key];
 
         if (envValue !== undefined) {
-            return this._parseEnvValue(envValue);
+            // Use the extracted utility for parsing the string value
+            return this.envTypeDecoder.execute(envValue);
         }
 
         // Ensure the default value is also run through parsing if it is a string representation
         if (typeof defaultValue === 'string') {
-             return this._parseEnvValue(defaultValue);
+             return this.envTypeDecoder.execute(defaultValue);
         }
 
         return defaultValue;
@@ -76,7 +70,8 @@ class ConfigService {
     /**
      * Helper to get a strictly typed boolean environment variable.
      */
-    getBool(key, defaultValue = false) {
+    getBool(key: string, defaultValue: boolean = false): boolean {
+        // We use strict comparison to true, ensuring type safety after parsing
         return this.getEnv(key, defaultValue) === true;
     }
 }
