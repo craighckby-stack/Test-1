@@ -1,4 +1,6 @@
 const ContentValidatorRegistry = require('./ContentValidatorRegistry');
+// Conceptual dependency on the extracted utility for concurrency control
+const { process: runInParallel } = require('@agi/TaskConcurrencyProcessor');
 
 /**
  * ArtifactValidationService.js
@@ -6,8 +8,8 @@ const ContentValidatorRegistry = require('./ContentValidatorRegistry');
  * This service decouples validation execution from validator registration, ensuring robust
  * and parallel quality assurance for the AGI kernel's large codebase operations.
  *
- * Improvement Note (Cycle 0): Replaced complex Promise.race concurrency control with a stable worker pool pattern
- * to improve resource management, efficiency, and clarity when validating large batches.
+ * Improvement Note (Cycle 1): Extracted concurrency control logic into a dedicated TaskConcurrencyProcessor tool
+ * (aliased as runInParallel) to simplify the validation orchestration pipeline and improve modularity.
  */
 class ArtifactValidationService {
     /**
@@ -119,7 +121,7 @@ class ArtifactValidationService {
 
     /**
      * Executes defined validation profiles against provided content/artifacts, respecting concurrency limits.
-     * Uses a robust worker pool pattern for controlled parallel execution.
+     * Delegates concurrency management to the TaskConcurrencyProcessor tool.
      * 
      * @param {Array<Object>} artifacts - List of artifact descriptors.
      * @returns {Promise<Array<Object>>} Validation results including execution metadata and details.
@@ -130,30 +132,15 @@ class ArtifactValidationService {
             throw new Error('ArtifactValidationService: Artifacts must be provided as an array.');
         }
 
-        const taskQueue = artifacts.map((artifact, index) => ({ artifact, index }));
-        const results = [];
-        const runningWorkers = [];
+        // Define the processing function, which maintains context via 'this'
+        // This function matches the required signature (data_item, index) => Promise<result>
+        const processorFn = (artifact, index) => this._runSingleValidation(artifact, index);
 
-        // Worker function: continuously pulls tasks from the front of the queue until empty
-        const worker = async () => {
-            let task;
-            while ((task = taskQueue.shift())) {
-                const result = await this._runSingleValidation(task.artifact, task.index);
-                results.push(result);
-            }
-        };
-
-        // Initialize workers up to the concurrency limit or total number of tasks
-        const workerCount = Math.min(this.concurrencyLimit, taskQueue.length);
-        for (let i = 0; i < workerCount; i++) {
-            runningWorkers.push(worker());
-        }
-
-        // Wait for all active workers to complete their assigned tasks
-        if (runningWorkers.length > 0) {
-            await Promise.all(runningWorkers);
-        }
-
-        return results;
+        // Utilize the extracted utility for controlled parallel execution
+        return runInParallel(
+            artifacts,
+            processorFn,
+            this.concurrencyLimit
+        );
     }
 }
