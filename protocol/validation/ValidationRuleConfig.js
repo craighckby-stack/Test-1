@@ -15,10 +15,29 @@ const RuleType = {
 };
 
 /**
+ * @typedef {Object} ValidationRule
+ * @property {string} id - Unique identifier for the rule (e.g., 'spec.memoryLimitCoherence').
+ * @property {string} type - The category of the rule (must be a value from RuleType).
+ * @property {string} severity - The impact level (must be a value from RuleSeverity).
+ * @property {string} description - Human-readable explanation of the rule.
+ * @property {string} targetPath - The path within the input structure the rule applies to (dot notation).
+ * @property {string} handlerId - Identifier used by the Validation Execution Engine to locate the handler function/method.
+ */
+
+/**
  * Sovereign AGI Validation Rule Configuration Registry.
  * Defines standard rule structures used for initialization by Validators.
  * Rules must specify an `id`, `type`, `severity`, and the `handlerId` used 
  * by the validation execution engine for lookup and injection.
+ */
+
+/**
+ * @type {{ 
+ *   RuleSeverity: typeof RuleSeverity,
+ *   RuleType: typeof RuleType,
+ *   chrSpecRules: ValidationRule[],
+ *   policyRules: ValidationRule[]
+ * }}
  */
 module.exports = {
     RuleSeverity,
@@ -28,6 +47,7 @@ module.exports = {
      * Rules applied to the CHR Generation Specification (`spec`).
      * The `handlerId` should map directly to an exported function/class method
      * in the system's RuleHandler registry.
+     * @type {ValidationRule[]}
      */
     chrSpecRules: [
         {
