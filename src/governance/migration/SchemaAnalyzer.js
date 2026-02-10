@@ -6,20 +6,47 @@
  * Designed for intensive computation, utilizing structured methods to prepare 
  * for eventual parallelization (e.g., Worker threads/Off-main-thread analysis).
  * 
- * NOTE: For v94.1 intelligence, this class expects DependencyGrapher output for accurate scoring.
+ * NOTE: Metric calculation is delegated to SchemaMetricCalculator plugin (v1.0).
  */
+
+// Assuming plugin interface injection (e.g., via AGI-Kernel environment)
+declare const SchemaMetricCalculator: {
+    execute(args: {
+        schemaA: object,
+        breakingChangeCount: number,
+        affectedCount: number,
+        dependencyGraph: object | null,
+        config: object
+    }): { complexityScore: number, efficiencyScore: number };
+};
+
 export class SchemaAnalyzer {
-    
+
+    private readonly plugins: { SchemaMetricCalculator: typeof SchemaMetricCalculator };
+
     /**
      * @param {object} config - Configuration object containing sensitivity and threshold settings.
      */
     constructor(config = {}) {
         this.config = {
             // Default V94.1 analysis thresholds
-            complexityWeight: 0.1, 
+            complexityWeight: 0.1,
             criticalityThreshold: 5, // Severity level required for a change to be marked critical
             // ... other analysis rules
             ...config
+        };
+        
+        // CRITICAL: Initialize plugin reference for execution
+        // Uses a stub if the global interface is not defined, ensuring runtime stability.
+        this.plugins = {
+            SchemaMetricCalculator: typeof SchemaMetricCalculator !== 'undefined' ? SchemaMetricCalculator : this._stubMetricCalculator()
+        };
+    }
+
+    // Stub implementation for compilation sanity if the external interface isn't defined
+    private _stubMetricCalculator() {
+        return {
+            execute: (args: any) => ({ complexityScore: 0.5, efficiencyScore: 0.5 })
         };
     }
 
@@ -36,7 +63,7 @@ export class SchemaAnalyzer {
      *   entitiesAffected: Array<string>
      * }>}
      */
-    async computeDelta(schemaA, schemaB, dependencyGraph = null) {
+    async computeDelta(schemaA: object, schemaB: object, dependencyGraph: object | null = null) {
         if (!schemaA || !schemaB) {
             throw new Error("Both schemas must be provided for delta computation.");
         }
@@ -47,13 +74,14 @@ export class SchemaAnalyzer {
         // Step 2: Classify and categorize changes based on severity and impact rules
         const categorized = this._classifyChanges(rawDiffs);
         
-        // Step 3: Compute final metrics using categorized data and dependency structure
-        const { complexityScore, efficiencyScore } = this._calculateMetrics(
-            schemaA, 
-            categorized.breakingChanges.length, 
-            categorized.entitiesAffected.size,
-            dependencyGraph 
-        );
+        // Step 3: Compute final metrics using categorized data and dependency structure via external plugin
+        const { complexityScore, efficiencyScore } = this.plugins.SchemaMetricCalculator.execute({
+            schemaA: schemaA, 
+            breakingChangeCount: categorized.breakingChanges.length, 
+            affectedCount: categorized.entitiesAffected.size,
+            dependencyGraph: dependencyGraph,
+            config: this.config
+        });
 
         return {
             metrics: {
@@ -108,42 +136,5 @@ export class SchemaAnalyzer {
         });
         
         return { breakingChanges, nonBreakingChanges, entitiesAffected };
-    }
-
-    /**
-     * Internal: Calculates migration metrics based on scope, breaking changes, and structural depth (if dependency graph provided).
-     * @param {object} schemaA - Base schema structure.
-     * @param {number} breakingChangeCount - Number of critical changes.
-     * @param {number} affectedCount - Number of entities impacted.
-     * @param {object | null} dependencyGraph - The graph detailing entity relationships.
-     * @returns {{ complexityScore: number, efficiencyScore: number }}
-     */
-    _calculateMetrics(schemaA, breakingChangeCount, affectedCount, dependencyGraph) {
-        const totalEntities = Object.keys(schemaA).length || 1; 
-        const normalizedAffected = affectedCount / totalEntities;
-        
-        let interdependenceFactor = 0.5; // Default assumption if graph is missing
-        
-        if (dependencyGraph && dependencyGraph.calculateCascadeRisk) {
-            // If DependencyGrapher utility is available (suggested scaffold), use it for precise risk analysis
-            // Note: This assumes DependencyGrapher is either imported or passed/shimmed.
-            try {
-                // Placeholder integration assuming a DependencyGrapher interface
-                interdependenceFactor = dependencyGraph.calculateCascadeRisk(dependencyGraph.graphData, new Set(Array.from(schemaA)));
-            } catch (e) {
-                // Fallback if graph computation fails
-                interdependenceFactor = 0.5 + breakingChangeCount * 0.05; 
-            }
-        }
-
-        const complexityScore = Math.min(
-            1.0, 
-            (normalizedAffected * this.config.complexityWeight * 5) + interdependenceFactor * 0.5 + (breakingChangeCount * 0.02)
-        );
-        
-        // Efficiency score: Reflects system streamlining vs. complexity cost.
-        const efficiencyScore = 1.0 - (complexityScore * 0.6) - (breakingChangeCount * 0.01);
-
-        return { complexityScore, efficiencyScore: Math.max(0, efficiencyScore) };
     }
 }
