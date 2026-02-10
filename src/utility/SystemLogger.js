@@ -2,18 +2,12 @@
  * System Logger Utility (v94.1)
  * Provides structured, tiered logging (INFO, WARN, CRITICAL, DEBUG) 
  * for high-intelligence autonomous processes, replacing direct console calls.
+ * This implementation delegates core logic (filtering, formatting, output) 
+ * to the TieredSystemLoggerUtility plugin for robustness and configurability.
  */
 
-const LOG_LEVELS = {
-    CRITICAL: 50,
-    ERROR: 40,
-    WARN: 30,
-    INFO: 20,
-    DEBUG: 10,
-};
-
-// Default operational level. Should be configurable via GOVERNANCE_SETTINGS.
-const CURRENT_LOG_LEVEL = LOG_LEVELS.INFO;
+// NOTE: TieredSystemLoggerUtility is assumed to be available via the AGI-KERNEL plugin infrastructure.
+const TieredSystemLoggerUtility = require('../plugins/TieredSystemLoggerUtility'); // Placeholder path
 
 class SystemLogger {
     /**
@@ -24,21 +18,28 @@ class SystemLogger {
         this.component = component;
     }
 
+    /**
+     * Internal method to delegate logging execution to the utility plugin.
+     * @param {string} level 
+     * @param {string} message 
+     * @param {object} [data={}] 
+     */
     _log(level, message, data = {}) {
-        if (LOG_LEVELS[level] < CURRENT_LOG_LEVEL) {
-            return; // Skip logging below configured level
-        }
+        TieredSystemLoggerUtility.execute({
+            component: this.component,
+            level: level,
+            message: message,
+            data: data
+        });
+    }
 
-        const timestamp = new Date().toISOString();
-        const output = `[${level}] [${timestamp}] [${this.component}] ${message}`;
-
-        // Use appropriate console method based on severity
-        if (LOG_LEVELS[level] >= LOG_LEVELS.ERROR) {
-            console.error(output, data);
-        } else if (LOG_LEVELS[level] >= LOG_LEVELS.WARN) {
-            console.warn(output, data);
-        } else {
-            console.log(output, data);
+    /**
+     * Set the global logging threshold for all SystemLogger instances via the utility plugin.
+     * @param {string} level - E.g., 'INFO', 'DEBUG', 'CRITICAL'.
+     */
+    static setLevel(level) {
+        if (TieredSystemLoggerUtility.setLevel) {
+            TieredSystemLoggerUtility.setLevel(level);
         }
     }
 
