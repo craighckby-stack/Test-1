@@ -12,40 +12,62 @@ class RuntimeIntegrityEnforcer {
         this.System = systemInterface; // Dependency Injection for System control
         this.monitoringInterval = null;
         
+        // Define a robust, safe default structure for policy loading
+        this.defaultPolicy = {
+            status: 'Inactive',
+            coreIntegrityRules: {
+                runtimeConstraints: {
+                    prohibitedSystemCalls: [],
+                    resourceDeviationThreshold: {},
+                    monitoringIntervalMs: 60000
+                }
+            },
+            breachResponse: { protocol: 'LogOnly' }
+        };
+
         this.policy = this._loadPolicy(policyPath);
         this.isActive = this.policy && this.policy.status === 'Active';
+    }
+
+    _log(level, message, data = {}) {
+        if (this.Kernel && this.Kernel.log && typeof this.Kernel.log[level] === 'function') {
+            this.Kernel.log[level](message, data);
+        } else {
+            // Fallback for initialization errors or missing dependency
+            console[level === 'error' ? 'error' : 'log'](`[Integrity] ${message}`, data);
+        }
     }
 
     _loadPolicy(path) {
         try {
             const data = fs.readFileSync(path, 'utf8');
-            return JSON.parse(data);
+            const loadedPolicy = JSON.parse(data);
+            
+            // Use Object.assign to merge loaded policy onto the default structure,
+            // ensuring all required keys exist, improving resilience.
+            return Object.assign({}, this.defaultPolicy, loadedPolicy);
+            
         } catch (error) {
-            console.error(`[Integrity] ERROR: Failed to load policy from ${path}. Using inactive defaults.`, error.message);
-            // Return a safe, inactive default policy
-            return {
-                status: 'Inactive',
-                coreIntegrityRules: { runtimeConstraints: { prohibitedSystemCalls: [], resourceDeviationThreshold: {}, monitoringIntervalMs: 60000 } },
-                breachResponse: { protocol: 'LogOnly' }
-            };
+            this._log('error', `Failed to load policy from ${path}. Using inactive defaults.`, { error: error.message });
+            return this.defaultPolicy;
         }
     }
 
     initialize() {
         if (!this.isActive) return;
         if (!this.Kernel || !this.System) {
-             console.error("[Integrity] Initialization failed: Missing Kernel or System interface. Deactivating.");
+             this._log('error', "Initialization failed: Missing Kernel or System interface. Deactivating.");
              this.isActive = false;
              return;
         }
 
-        console.log(`[Integrity] Initializing runtime enforcement protocols.`);
+        this._log('info', `Initializing runtime enforcement protocols.`);
         this._setupSystemCallInterception();
         this._startResourceMonitoringLoop();
     }
     
     reloadPolicy() {
-        console.log('[Integrity] Attempting to reload policy dynamically.');
+        this._log('info', 'Attempting to reload policy dynamically.');
         // Clear existing monitoring before reconfiguration
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
@@ -62,12 +84,19 @@ class RuntimeIntegrityEnforcer {
     }
 
     _setupSystemCallInterception() {
-        if (!this.isActive || !this.Kernel.SystemCallInterceptor) return; 
+        // Ensure we have active status and the necessary interceptor interface
+        if (!this.isActive || !this.Kernel.SystemCallInterceptor) {
+             if (this.isActive) this._log('warn', 'SystemCallInterceptor not available on Kernel interface.');
+             return; 
+        }
         
+        // Constraints are guaranteed to exist due to robust policy loading in _loadPolicy
         const constraints = this.policy.coreIntegrityRules.runtimeConstraints;
         const prohibitedCalls = constraints.prohibitedSystemCalls || [];
         
         if (prohibitedCalls.length === 0) return;
+
+        this._log('info', `Registering interception for ${prohibitedCalls.length} system calls.`);
 
         // Hook into kernel system call interface to block list entries
         this.Kernel.SystemCallInterceptor.registerHandler(call => {
@@ -82,9 +111,10 @@ class RuntimeIntegrityEnforcer {
     _startResourceMonitoringLoop() {
         if (!this.isActive) return;
         const constraints = this.policy.coreIntegrityRules.runtimeConstraints;
-        const intervalMs = constraints.monitoringIntervalMs || 5000; 
+        // constraints.monitoringIntervalMs is guaranteed to be set or defaulted
+        const intervalMs = constraints.monitoringIntervalMs; 
 
-        console.log(`[Integrity] Starting resource monitoring loop every ${intervalMs}ms.`);
+        this._log('info', `Starting resource monitoring loop every ${intervalMs}ms.`);
         
         // Implementation details for continuous CPU/Memory usage tracking and deviation checks.
         this.monitoringInterval = setInterval(() => {
@@ -103,8 +133,8 @@ class RuntimeIntegrityEnforcer {
     }
 
     triggerBreach(reason) {
-        console.error(`INTEGRITY BREACH DETECTED: ${reason}`);
-        const protocol = this.policy.breachResponse ? this.policy.breachResponse.protocol : "LogOnly";
+        this._log('error', `INTEGRITY BREACH DETECTED: ${reason}`, { breach_protocol: this.policy.breachResponse.protocol });
+        const protocol = this.policy.breachResponse.protocol;
         
         // Crucial: Stop monitoring after a breach to prevent recursive triggering
         if (this.monitoringInterval) {
