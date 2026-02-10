@@ -3,57 +3,55 @@
  * Dedicated utility component responsible for robust and safe parsing and execution
  * of complex governance policy condition expressions (DSL).
  *
- * Note: A production implementation should use a safe sandbox evaluator or a proven
- * expression parser library to mitigate injection risks.
+ * NOTE: The highly unsafe direct execution via eval/new Function has been replaced 
+ * by delegation to the SecurePolicyEvaluatorTool plugin for safety and sandboxing.
  */
+
+interface SecurePolicyEvaluatorTool {
+    execute(args: { conditionExpression: string, context: Record<string, any> }): boolean;
+}
 
 interface PolicyConditionEvaluator {
     evaluate(conditionExpression: string, context: Record<string, any>): boolean;
 }
 
+// Placeholder for runtime plugin access (assuming injection or centralized registry lookup)
+declare const PluginRegistry: {
+    getTool: (name: "SecurePolicyEvaluatorTool") => SecurePolicyEvaluatorTool | undefined
+};
+
+let SECURE_EVALUATOR: SecurePolicyEvaluatorTool | undefined;
+
+// Attempt to retrieve the secure tool once upon file load/initialization
+if (typeof PluginRegistry !== 'undefined') {
+    // @ts-ignore
+    SECURE_EVALUATOR = PluginRegistry.getTool("SecurePolicyEvaluatorTool");
+}
+
 export class BasicPolicyConditionEvaluator implements PolicyConditionEvaluator {
 
     /**
-     * Evaluates a complex conditional expression against a context of data points.
-     * Example conditions: 
-     *   'IsCriticalFailure(A1_Domain) OR TotalCriticalFailures > 5'
+     * Evaluates a complex conditional expression against a context of data points 
+     * by delegating the process to the sandboxed SecurePolicyEvaluatorTool.
      *
      * @param conditionExpression The policy rule string.
-     * @param context Pre-mapped data (e.g., {'IsCriticalFailure(A1_Domain)': true, 'TotalCriticalFailures': 3})
+     * @param context Pre-mapped data.
      */
     public evaluate(conditionExpression: string, context: Record<string, any>): boolean {
-        // Implementation Placeholder: 
-        // In a complex system (v94.1), this would involve a robust expression library 
-        // (like js-expression-evaluator or a custom secure tokenizer/parser) to handle operator 
-        // precedence, function calls, and variable lookup.
-
-        // Current highly simplified model for internal execution demonstration:
-
-        // 1. Substitution Phase: Replace context functions/variables with their boolean/numeric values
-        let evaluatedExpression = conditionExpression;
-
-        for (const [key, value] of Object.entries(context)) {
-            // Escape keys for regex safety (optional, but good practice)
-            const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\$&');
-            const regex = new RegExp(escapedKey, 'g');
-
-            // Replace the function/variable name with its literal value representation
-            evaluatedExpression = evaluatedExpression.replace(regex, value.toString());
+        
+        if (!SECURE_EVALUATOR) {
+            console.error("SecurePolicyEvaluatorTool is not available. Policy evaluation aborted.");
+            return false;
         }
 
-        // 2. Execution Phase (VERY UNSAFE in real world, demonstrating concept only)
-        // WARNING: Using eval() is inherently risky. This must be replaced by a secure parser.
         try {
-            // Note: Replace logical words with symbols for basic evaluation if using eval
-            const finalExpression = evaluatedExpression
-                .replace(/\bAND\b/g, '&&')
-                .replace(/\bOR\b/g, '||');
-
-            // Safely encapsulate the evaluation if possible, or use a strict parsing engine.
-            // For placeholder simplicity, we rely on the host runtime context safety:
-            return new Function(`return ${finalExpression}`)();
+            // Delegate the substitution, keyword transformation, and safe execution.
+            return SECURE_EVALUATOR.execute({
+                conditionExpression: conditionExpression,
+                context: context
+            });
         } catch (e) {
-            console.error(`Error evaluating condition '${conditionExpression}':`, e);
+            console.error(`Error delegating evaluation for condition '${conditionExpression}':`, e);
             return false; // Default fail-safe behavior
         }
     }
