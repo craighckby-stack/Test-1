@@ -44,28 +44,25 @@ class TelemetryLogger {
 
     /**
      * Internal generic logging function.
-     * Ensures fast exit if log level threshold is not met.
+     * Uses StructuralLogFormatterTool for filtering and record creation, ensuring fast exit if threshold is not met.
      * Persistence handling is delegated to a non-blocking internal method.
      */
     async log(level, eventCode, payload = {}) {
-        const upperLevel = level.toUpperCase();
-        const levelNumeric = LogLevels[upperLevel];
+        // Use the extracted tool to handle filtering and formatting
+        const record = StructuralLogFormatterTool.execute({
+            level: level,
+            eventCode: eventCode,
+            payload: payload,
+            serviceId: this.serviceId,
+            currentLogLevel: this.currentLogLevel,
+            LogLevels: LogLevels // Pass the constant map for lookup
+        });
 
-        if (levelNumeric === undefined || levelNumeric < this.currentLogLevel) {
-            return;
+        if (!record) {
+            return; // Log level filtered out
         }
 
-        const record = {
-            timestamp: Date.now(), // Epoch MS
-            timestampISO: new Date().toISOString(),
-            level: upperLevel,
-            levelNumeric: levelNumeric,
-            component: this.serviceId,
-            eventCode: eventCode,
-            data: payload
-        };
-
-        // Non-blocking call to the persistence layer. THIS IS THE KEY EFFICIENCY UPGRADE.
+        // Non-blocking call to the persistence layer.
         this._persistRecord(record);
     }
 
