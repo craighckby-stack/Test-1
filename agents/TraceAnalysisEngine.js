@@ -25,8 +25,8 @@ class TraceAnalysisEngine {
     // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
     // This ensures standardized priority scoring and goal definition based on reusable policy.
     for (const trace of highRiskStructuralChanges) {
-        // Assumes TraceRiskAnalyzer is available globally or injected.
-        const finding = TraceRiskAnalyzer.analyze(trace); 
+        // Refactored to use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
+        const finding = await KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer.execute('analyze', trace); 
         if (finding) {
             highRiskFindings.push(finding);
         }
