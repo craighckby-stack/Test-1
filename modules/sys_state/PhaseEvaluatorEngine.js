@@ -10,17 +10,23 @@ const EventEmitter = require('events'); // Core module for emitting phase change
 
 // Constants for robust logic evaluation
 const DEFAULT_STATE = 'IDLE';
-const LOGIC_TYPE = {
-    ALL: 'ALL',
-    ANY: 'ANY'
-};
 
 class PhaseEvaluatorEngine extends EventEmitter {
+    
+    // Tool dependency definition for AGI-Kernel
+    private plugins: { ConstraintEvaluator: any }; 
+    private config: any;
+    private logger: any;
+    private currentState: string;
+    private metricCache: Record<string, any>;
+    private timerManager: any;
+    private lastUpdateTime: number;
+
     /**
      * @param {object} config - System configuration defining phases, thresholds, transitions, and optional initialState.
      * @param {function} logger - Logging utility.
      */
-    constructor(config, logger = console) {
+    constructor(config: any, logger = console) {
         super(); // Initialize EventEmitter
         
         if (!config || !config.phases) {
@@ -37,24 +43,27 @@ class PhaseEvaluatorEngine extends EventEmitter {
         this.metricCache = {}; // Stores last aggregated metric values
         this.timerManager = new HysteresisTimerManager(logger); 
         this.lastUpdateTime = Date.now();
-
-        // Optimized operator function map for rule checking
-        this._ruleOperators = {
-            '>': (a, b) => a > b,
-            '<': (a, b) => a < b,
-            '>=': (a, b) => a >= b,
-            '<=': (a, b) => a <= b,
-            '==': (a, b) => a == b,
-            '!=': (a, b) => a != b
+        
+        // Initialize tool reference (handled by AGI kernel internally)
+        this.plugins = {
+            ConstraintEvaluator: null, // Placeholder for external tool integration
         };
     }
+    
+    // AGI-Kernel injection point: Must be defined for extracted tools usage
+    public injectPlugin(name: string, instance: any) {
+        if (this.plugins.hasOwnProperty(name)) {
+            this.plugins[name] = instance;
+        }
+    }
+
 
     /**
      * Receives pre-processed, aggregated, and normalized metrics.
      * This expects clean data, offloading raw telemetry processing to an upstream service.
      * @param {object} processedMetrics - Incoming aggregated and normalized metrics.
      */
-    updateMetrics(processedMetrics) {
+    updateMetrics(processedMetrics: Record<string, any>) {
         // Step 1: Cache processed metrics efficiently
         Object.assign(this.metricCache, processedMetrics);
         this.lastUpdateTime = Date.now();
@@ -79,15 +88,15 @@ class PhaseEvaluatorEngine extends EventEmitter {
         // Optimization: Early exit if no transitions defined
         if (!currentPhaseConfig.transitions) return;
 
-        let pendingTransition = null;
+        let pendingTransition: string | null = null;
         let highestPriority = -Infinity; 
 
         // Iterate through all defined transitions for the current state
         for (const targetPhaseName in currentPhaseConfig.transitions) {
             const transitionDefinition = currentPhaseConfig.transitions[targetPhaseName];
             
-            // Check if the metric conditions are instantly met
-            const meetsInstantCondition = this.checkConditionSet(transitionDefinition.trigger);
+            // USE PLUGIN: Check if the metric conditions are instantly met
+            const meetsInstantCondition = this._checkConditionsUsingPlugin(transitionDefinition.trigger);
             
             const transitionId = `${currentState}_TO_${targetPhaseName}`;
 
@@ -116,59 +125,28 @@ class PhaseEvaluatorEngine extends EventEmitter {
     }
 
     /**
-     * Determines if a complex set of conditions (e.g., AND/OR rules) is met.
-     * Handles undefined/empty rulesets gracefully.
+     * Helper to wrap the ConstraintEvaluator plugin execution.
      * @param {object} conditionSet 
      * @returns {boolean}
      */
-    checkConditionSet(conditionSet) {
-        if (!conditionSet || !Array.isArray(conditionSet.rules) || conditionSet.rules.length === 0) {
-            return false; 
-        }
-
-        // Normalize logic type or default to ALL
-        const logic = conditionSet.logic ? conditionSet.logic.toUpperCase() : LOGIC_TYPE.ALL;
-        const evaluationResults = conditionSet.rules.map(rule => this._checkSingleRule(rule));
-        
-        if (logic === LOGIC_TYPE.ANY) {
-            return evaluationResults.some(res => res);
-        } else { 
-            return evaluationResults.every(res => res);
-        }
-    }
-
-    /**
-     * Evaluates a single metric rule comparison using a lookup map for speed and strict type checking.
-     * Forces numeric conversion to ensure valid comparison for operators like > and <.
-     * @param {object} rule 
-     * @returns {boolean}
-     */
-    _checkSingleRule(rule) {
-        const metricValue = this.metricCache[rule.metric];
-        const targetValue = rule.value;
-        const operatorFunc = this._ruleOperators[rule.operator];
-
-        if (metricValue === undefined || targetValue === undefined || !operatorFunc) {
-            return false;
-        }
-        
-        const v1 = parseFloat(metricValue);
-        const v2 = parseFloat(targetValue);
-        
-        // Ensure both values are valid numbers before comparison
-        if (isNaN(v1) || isNaN(v2)) {
-            this.logger.warn(`Non-numeric data detected for rule '${rule.metric} ${rule.operator} ${rule.value}'. Skipping comparison.`);
+    private _checkConditionsUsingPlugin(conditionSet: any): boolean {
+        if (!this.plugins.ConstraintEvaluator) {
+            // Fallback warning if plugin wasn't injected correctly
+            this.logger.warn("ConstraintEvaluator plugin not initialized. Condition checking skipped.");
             return false;
         }
 
-        return operatorFunc(v1, v2);
+        return this.plugins.ConstraintEvaluator.execute({
+            metricCache: this.metricCache,
+            conditionSet: conditionSet
+        });
     }
 
     /**
      * Executes the state change, cleans up timers, and emits the transition event.
      * @param {string} newPhase
      */
-    _commitTransition(newPhase) {
+    _commitTransition(newPhase: string) {
         const oldPhase = this.currentState;
 
         this.logger.info(`[Phase] Transition committed: ${oldPhase} -> ${newPhase}`);
@@ -186,7 +164,7 @@ class PhaseEvaluatorEngine extends EventEmitter {
         });
     }
 
-    getCurrentPhase() {
+    getCurrentPhase(): string {
         return this.currentState;
     }
 }
