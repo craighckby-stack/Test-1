@@ -2,36 +2,39 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// We declare the tool interface which encapsulates the environment loading logic.
+// This tool is defined below in the 'plugin' section.
+declare const EnvironmentConfigLoader: {
+    execute: (args: { path: typeof path, fs: typeof fs, dotenv: typeof dotenv, env: NodeJS.ProcessEnv, cwd: string }) => { loaded: boolean, messages: string[] };
+};
+
 /**
  * loadEnvironment
- * Scans for .env files (.env.development, .env, etc.) and loads them into process.env.
- * This ensures that ConfigurationService can correctly access environment variables 
- * during local development before they are potentially injected by a runtime environment.
- * 
- * NOTE: This utility assumes 'dotenv' is a dependency for production standard use.
+ * Delegates environment loading to the dedicated EnvironmentConfigLoader tool.
+ * This ensures standardized handling of .env file precedence (specific before general).
  */
 export function loadEnvironment(): void {
-    const nodeEnv = process.env.NODE_ENV || 'development';
-    const specificEnvPath = path.resolve(process.cwd(), `.env.${nodeEnv}`);
-    const defaultEnvPath = path.resolve(process.cwd(), '.env');
-
-    let loaded = false;
-
-    // 1. Load environment-specific file (e.g., .env.test)
-    if (fs.existsSync(specificEnvPath)) {
-        dotenv.config({ path: specificEnvPath });
-        console.log(`[Config Loader] Loaded environment variables from: ${specificEnvPath}`);
-        loaded = true;
-    }
-
-    // 2. Load general .env file (if not already loaded via specific path and if it exists)
-    if (!loaded && fs.existsSync(defaultEnvPath)) {
-        dotenv.config({ path: defaultEnvPath });
-        console.log(`[Config Loader] Loaded environment variables from: ${defaultEnvPath}`);
-        loaded = true;
-    }
+    // Pass necessary Node APIs (path, fs, dotenv) to the vanilla JS plugin execution environment
+    try {
+        const result = EnvironmentConfigLoader.execute({
+            path,
+            fs,
+            dotenv,
+            env: process.env,
+            cwd: process.cwd()
+        });
     
-    if (!loaded && nodeEnv !== 'production') {
-        console.warn("[Config Loader] No .env file found. Relying solely on shell environment variables or defaults.");
+        result.messages.forEach(msg => {
+            // The plugin prefixes warnings with 'Warning: '
+            if (msg.startsWith('Warning:')) {
+                console.warn(`[Config Loader] ${msg.substring(9).trim()}`);
+            } else {
+                console.log(`[Config Loader] ${msg}`);
+            }
+        });
+
+    } catch (e) {
+        // Fallback or critical error handling if the plugin fails to execute
+        console.error("[Config Loader] Critical error during environment loading using plugin:", e);
     }
 }
