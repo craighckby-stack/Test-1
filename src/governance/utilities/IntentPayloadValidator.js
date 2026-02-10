@@ -1,55 +1,66 @@
 /**
  * Utility: Intent Payload Validator
- * ID: GU-IPV-v94.1
+ * ID: GU-IPV-v94.2
  * Mandate: Provides strict content validation for Intent Package payloads using
- * industry-standard JSON Schema definitions (e.g., draft-07/2020-12).
- * This utility ensures 'strict compliance checks' extend into the payload content itself.
- * NOTE: This implementation abstracts reliance on external libraries (like 'ajv') for core validation engine logic.
+ * industry-standard JSON Schema definitions. This utility now delegates core
+ * validation logic to the high-performance SchemaValidationEngineTool.
  */
 
-// NOTE: In a production Sovereign AGI environment, this module would integrate or embed a robust JSON Schema engine.
+// NOTE: SchemaValidationEngineTool is assumed to be injected or imported from the kernel's toolset.
+
+interface ValidationResult {
+    isValid: boolean;
+    errors?: Array<object>;
+}
+
+// Conceptual interface for the extracted tool
+declare class SchemaValidationEngineTool {
+    execute(args: { payload: object, schema: object }): ValidationResult;
+}
 
 class IntentPayloadValidator {
 
     /**
-     * @typedef {object} ValidationResult
-     * @property {boolean} isValid - True if validation passed.
-     * @property {Array<object>} [errors] - Detailed list of validation errors.
-     */
-
-    /**
      * Performs deep structural and content validation on a payload object against a defined JSON schema.
+     * This logic is delegated to the high-performance SchemaValidationEngineTool.
      * @param {object} payload - The content object to validate.
-     * @param {object} schema - The JSON schema definition (typically retrieved via IntentSchemaValidator.getPayloadSchema).
+     * @param {object} schema - The JSON schema definition.
      * @returns {ValidationResult}
      */
-    static validate(payload, schema) {
+    static validate(payload: object, schema: object): ValidationResult {
         
         if (!schema || !payload) {
              return { isValid: false, errors: [{ message: "Payload or schema missing.", code: "E_PAYLOAD_MISSING" }] };
         }
         
-        // --- [Sovereign AGI Internal Validation Engine Logic Placeholder]
-        // Placeholder implementation for external dependencies (like AJV or internal compiled validator)
+        try {
+            // CRITICAL: Delegation of complex validation logic to the kernel tool.
+            // Instantiation pattern relies on kernel environment dependency injection.
+            const validationEngine = new (window as any).SchemaValidationEngineTool(); 
+            
+            const result = validationEngine.execute({ payload, schema });
+
+            if (!result.isValid) {
+                // Errors are propagated directly from the tool output.
+                return { isValid: false, errors: result.errors };
+            }
+
+        } catch (error) {
+            console.error("[GU-IPV] Schema Validation Engine failed:", error);
+            return { isValid: false, errors: [{ message: "Internal validation engine failure.", code: "E_ENGINE_FAILURE", detail: String(error) }] };
+        }
         
-        // Example: Run compiled schema validation against payload
-        // const validationFunction = this._getCompiledSchema(schema);
-        // if (!validationFunction(payload)) {
-        //     return { isValid: false, errors: this._formatErrors(validationFunction.errors) };
-        // }
-        
-        // Assuming success for placeholder until concrete validator integrated:
         return { isValid: true };
     }
 
     /**
      * Placeholder for compiling and caching schemas for runtime efficiency.
+     * NOTE: Actual compilation/caching logic should ideally reside within the validation engine tool.
      * @param {string} schemaId 
      * @param {object} schemaDefinition
      */
-    static compileSchema(schemaId, schemaDefinition) {
-        // Implementation required to cache compiled validation functions.
-        // console.log(`[GU-IPV] Schema compilation invoked for: ${schemaId}`);
+    static compileSchema(schemaId: string, schemaDefinition: object): void {
+        // Delegation or no-op based on engine architecture.
     }
 
 }
