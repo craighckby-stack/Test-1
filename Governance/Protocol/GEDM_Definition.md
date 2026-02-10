@@ -14,7 +14,7 @@ GEDM accepts attested configuration and state references, yielding a codified st
 GEDM accepts precisely three attested, non-mutable inputs from the Stage Coordinator.
 
 | Identifier | Type | Role | Constraint | Integrity Level |
-|---|---|---|---|---|
+|---|---|---|---|---| 
 | Stage Index ($N$) | Int/UID | Target execution index. | Positive Integer. | Attested |
 | GDECM ($C$) | Manifest Object | Artifact dependency ruleset. | Schema-Validated, Immutable Hash. | Attested |
 | CISM Reference ($M$) | State Pointer | Immutable pointer to the Certified State Map. | Chain-Hashed Lock. | **Immutable** |
@@ -41,3 +41,25 @@ $$\text{R200} \iff \forall D_i \in C : \text{ValidatePresence}(D_i, M) \land \te
 GEDM is stateless, ephemeral, and atomic. Its successful execution validates the transition boundary; its failure triggers the most critical system halt procedure.
 
 **Halt Protocol (R417):** Upon signal R417 (PREREQUISITE_FAILED), the system must immediately abort all pending execution cycles related to $S_N$. A compulsory, hash-locked **Protocol Halt Manifest (PHM)** must be generated. The PHM details: the failure type (GEDM_FAILURE: F_STATE_INCOHERENCE), the violating dependency $D_i$, the CISM reference $M$, and the stage index $N$. This artifact secures the immutable record of why resource expenditure was prevented.
+
+### 4.1 PROTOCOL HALT MANIFEST (PHM) SCHEMA
+
+To ensure auditability and immutability, the PHM must conform to the following JSON structure and be cryptographically signed by the asserting module.
+
+```json
+{
+  "timestamp_utc": "ISO 8601",
+  "gedm_version": "V94.1",
+  "halt_protocol_code": "R417",
+  "failure_type": "F_STATE_INCOHERENCE",
+  "stage_index_N": "[Int/UID]",
+  "cism_reference_M": "[Chain-Hashed Lock Pointer]",
+  "violating_dependency": {
+    "dependency_id": "[D_i Identifier]",
+    "path_requested": "[D_i.Path]",
+    "integrity_hash_expected": "[D_i.IntegrityHash]",
+    "failure_mode": "PRESENCE_FAILURE | INTEGRITY_FAILURE"
+  },
+  "attestation_signature": "[Cryptographic Signature of entire payload]"
+}
+```
