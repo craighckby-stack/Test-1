@@ -10,45 +10,17 @@
 
 const AttestationFailureRecord = require('./AttestationFailureRecord');
 
-/**
- * Internal utility function to wrap and standardize asynchronous check execution.
- * Ensures consistent result formatting and handles internal check failures gracefully.
- * @param {string} name - The identifier for the check.
- * @param {function(): Promise<{success: boolean, details: object}>} promiseFn - The asynchronous function executing the check logic.
- * @returns {Promise<object>} Structured result object.
- */
-const runCheck = async (name, promiseFn) => {
-    try {
-        // Execute the check provided by the registry
-        const result = await promiseFn();
-        
-        // Ensure result adheres to expected structure { success: boolean, details: object }
-        const success = typeof result.success === 'boolean' ? result.success : false; 
-        
-        return {
-            check: name,
-            status: success ? 'PASS' : 'FAIL',
-            details: result.details || {},
-            success: success
-        };
-    } catch (error) {
-        // Catch errors originating from the check implementation or Monitor resolution
-        return {
-            check: name,
-            status: 'ERROR',
-            details: { message: `CRITICAL error during check execution: ${error.message}`, stack: error.stack },
-            success: false
-        };
-    }
-};
+// NOTE: The runCheck utility has been extracted into the ResilientTaskExecutor plugin.
+// The class uses dependency injection to access the standardized execution utility.
 
 class ResourceAttestationModule {
     /**
      * @param {object} config - The baseline configuration and thresholds.
      * @param {object} environmentMonitor - The telemetry source for real-time resource data.
      * @param {object} checkRegistry - The centralized source of all defined resource checks.
+     * @param {object} [taskExecutor] - Dependency injection for the ResilientTaskExecutor utility.
      */
-    constructor(config, environmentMonitor, checkRegistry) {
+    constructor(config, environmentMonitor, checkRegistry, taskExecutor = null) {
         if (!config || !environmentMonitor || !checkRegistry) {
             // Updated failure record to reflect new dependency requirement
             throw new AttestationFailureRecord('RAM_INIT_001', 'Initialization failed: Missing config, environment monitor, or CheckRegistry dependency.');
@@ -57,12 +29,19 @@ class ResourceAttestationModule {
         this.environmentMonitor = environmentMonitor;
         this.checkRegistry = checkRegistry;
         
+        // Attempt to resolve dependency, preferring explicit injection
+        this.taskExecutor = taskExecutor || (typeof ResilientTaskExecutor !== 'undefined' ? ResilientTaskExecutor : null);
+
+        if (!this.taskExecutor) {
+             console.error("RAM-G01 Initialization Warning: ResilientTaskExecutor dependency missing.");
+             // Note: In a production kernel environment, this should be guaranteed available.
+        }
+
         console.log('RAM-G01 initialized. Using Check Registry for flexible attestations.');
     }
 
     /**
      * Executes environmental checks necessary for stable mutation execution.
-     * Must pass prior to Architectural Staging Lock (EPDP D).
      *
      * @typedef {object} AttestationReport
      * @property {boolean} success - True if all checks passed.
@@ -72,6 +51,10 @@ class ResourceAttestationModule {
      * @returns {Promise<AttestationReport>} Structured report detailing check outcomes.
      */
     async executePreExecutionCheck(payloadMetadata) {
+        if (!this.taskExecutor) {
+             throw new AttestationFailureRecord('RAM_EXEC_002', 'Cannot execute checks: ResilientTaskExecutor is unavailable.');
+        }
+        
         const requiredResources = payloadMetadata.requiredResources || {};
         const checksToRun = this.checkRegistry.getChecks(); 
 
@@ -82,9 +65,13 @@ class ResourceAttestationModule {
 
         console.log(`RAM-G01: Initiating concurrent attestation of ${checksToRun.length} resources (Payload: ${payloadMetadata.id || 'N/A'}).`);
 
-        // 1. Map checks from the registry into executable promises wrapped by runCheck
+        // 1. Map checks into executable promises wrapped by the ResilientTaskExecutor.
+        // The Executor handles standardization of success/failure/error outcomes.
         const checkPromises = checksToRun.map(check => 
-            runCheck(check.id, () => check.execute(requiredResources, this.environmentMonitor, this.baselineConfig))
+            this.taskExecutor.execute(
+                check.id, 
+                () => check.execute(requiredResources, this.environmentMonitor, this.baselineConfig)
+            )
         );
 
         // 2. Execute all checks simultaneously.
@@ -98,7 +85,7 @@ class ResourceAttestationModule {
 
         checkResults.forEach(result => {
             report.results.push({
-                check: result.check,
+                check: result.id, // Using 'id' provided by the executor
                 status: result.status,
                 details: result.details
             });
