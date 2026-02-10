@@ -4,22 +4,43 @@
  */
 
 import { GsimEnforcementMap, EnforcementRule } from '../types/gsim_types';
-import { ChecksumVerifier } from '@core/integrity/checksum_verifier';
+
+/**
+ * Define the interface for the extracted tool for type checking.
+ * In a full kernel environment, this interface would be globally defined.
+ */
+interface IPayloadIntegrityVerifier {
+    verify(args: { payload: any, expectedChecksum: string }): Promise<{ isValid: boolean, calculatedChecksum: string | null }>;
+}
+
+interface GSIMResolverTools {
+    payloadIntegrityVerifier: IPayloadIntegrityVerifier;
+}
 
 export class GSIMMapResolver {
+    private integrityVerifier: IPayloadIntegrityVerifier;
+
+    constructor(tools: GSIMResolverTools) {
+        this.integrityVerifier = tools.payloadIntegrityVerifier;
+    }
 
     /**
-     * 1. Validates the integrity of the map data against the declared checksum.
+     * 1. Validates the integrity of the map data against the declared checksum (using tool).
      * 2. Pre-resolves and caches required external dependencies based on type.
      * @param mapData The parsed GSIM enforcement map.
      */
     public async resolve(mapData: GsimEnforcementMap): Promise<EnforcementRule[]> {
         console.log(`[GSIM] Attempting resolution for map ID: ${mapData.map_id}`);
 
-        // 1. Integrity Verification
-        const calculatedHash = ChecksumVerifier.generate(mapData.enforcement_map);
-        if (calculatedHash !== mapData.metadata.checksum) {
-            throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch.`);
+        // 1. Integrity Verification (Now using the abstracted tool)
+        const verificationResult = await this.integrityVerifier.verify({
+            payload: mapData.enforcement_map,
+            expectedChecksum: mapData.metadata.checksum
+        });
+
+        if (!verificationResult.isValid) {
+            const calculated = verificationResult.calculatedChecksum || 'N/A';
+            throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch. Expected: ${mapData.metadata.checksum}, Calculated: ${calculated}.`);
         }
 
         // 2. Dependency Resolution Loop
