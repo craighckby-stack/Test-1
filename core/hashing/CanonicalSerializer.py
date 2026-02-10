@@ -153,6 +153,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         state (like caching mechanisms or runtime locks) from the canonical hash, dramatically increasing 
         the stability of hashing for existing, complex objects throughout the 2,300+ codebase that 
         have not yet implemented the `__canonical_attributes__` white-list protocol.
+
+    AGI-KERNEL Improvement (Cycle 25, Logic/Data Integrity):
+    25. Implemented dedicated, canonical serialization for `collections.defaultdict` (capturing `default_factory`)
+        and `collections.Counter` (capturing content and type tag). This ensures structural semantics are
+        preserved in the hash, which is critical for deterministic hashing of high-level agent configuration
+        and metrics data structures.
     """
 
     def __init__(self, *args, **kwargs):
@@ -401,6 +407,47 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return bytes(obj).hex()
 
         # 4. Handle mappings (dictionaries, ordered dicts, etc.)
+        
+        # AGI-KERNEL Improvement (Cycle 25, Logic/Data Integrity): Explicitly handle defaultdict.
+        if isinstance(obj, collections.defaultdict):
+            factory = obj.default_factory
+            
+            # Recursively canonicalize the factory.
+            canonical_factory = self.default(factory) if factory else None
+            
+            # Ensure contents are serialized as a regular dictionary (handling complex keys internally).
+            content_dict = {}
+            for k, v in obj.items():
+                if isinstance(k, str):
+                    canonical_k = k
+                else:
+                    canonical_k = self._canonicalize_key(k)
+                content_dict[canonical_k] = v
+
+            return {
+                "__defaultdict__": True,
+                "default_factory": canonical_factory,
+                "content": content_dict
+            }
+            
+        # AGI-KERNEL Improvement (Cycle 25, Logic/Data Integrity): Explicitly handle Counter.
+        if isinstance(obj, collections.Counter):
+            # Counter items must be serialized to preserve integer counts and semantics.
+            
+            # Use the standard dictionary processing logic but wrap the result
+            new_dict = {}
+            for k, v in obj.items():
+                if isinstance(k, str):
+                    canonical_k = k
+                else:
+                    canonical_k = self._canonicalize_key(k)
+                new_dict[canonical_k] = v
+                
+            return {
+                "__counter__": True,
+                "content": new_dict
+            }
+
         if isinstance(obj, collections.Mapping):
             new_dict = {}
             for k, v in obj.items():
