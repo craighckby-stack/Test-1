@@ -31,11 +31,12 @@ def get_utc_timestamp() -> str:
 # Define default governance configuration for consistency and centralization
 class ACVD_ConfigDefaults:
     """Centralized definition of default governance configuration parameters."""
-    SCHEMA_VERSION = "1.1.0" # New: Schema version tracking for architecture scalability
+    SCHEMA_VERSION = "1.1.0"
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
-    DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # New: Threshold for tuning proposal stability
+    DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # Threshold for tuning proposal stability
+    DEFAULT_MAX_LOG_QUEUE_SIZE = 500 # New: Limit log queue size for performance/memory robustness
     
     # New Heuristic Parameters (Logic/Memory/Stability)
     DEFAULT_HEURISTIC_INCREASE_THRESHOLD = 1.6 # Deviation threshold for increasing weight (1.6x observed/expected ratio)
@@ -69,6 +70,7 @@ class ACVD_DecisionEngine:
     2. Centralizing all heuristic tuning parameters in `ACVD_ConfigDefaults` for architectural clarity.
     3. Adding enforcement in `update_severity_weights` to only accept recognized issue types, preventing configuration drift.
     4. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
+    5. **New:** Implementing maximum log queue size limits for memory management and infrastructure robustness.
     """
 
     # Use centralized defaults
@@ -76,6 +78,7 @@ class ACVD_DecisionEngine:
     DEFAULT_FALLBACK_WEIGHT = ACVD_ConfigDefaults.DEFAULT_FALLBACK_WEIGHT
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = ACVD_ConfigDefaults.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
     DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = ACVD_ConfigDefaults.DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY
+    DEFAULT_MAX_LOG_QUEUE_SIZE = ACVD_ConfigDefaults.DEFAULT_MAX_LOG_QUEUE_SIZE
     _BASE_SEVERITY_WEIGHTS = ACVD_ConfigDefaults.BASE_SEVERITY_WEIGHTS
     _INTERNAL_ISSUE_MAP = ACVD_ConfigDefaults.INTERNAL_ISSUE_MAP
     
@@ -100,6 +103,7 @@ class ACVD_DecisionEngine:
         self.safety_threshold: float = self.DEFAULT_MIN_SAFETY_SCORE
         self.severity_weights: Dict[str, float] = self._BASE_SEVERITY_WEIGHTS.copy()
         self.internal_penalty_multiplier: float = self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
+        self.max_log_queue_size: int = self.DEFAULT_MAX_LOG_QUEUE_SIZE # Default log size limit
         
         self._load_configuration()
         
@@ -151,10 +155,16 @@ class ACVD_DecisionEngine:
             'internal_penalty_multiplier',
             self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
         )
+        
+        # Load max log queue size (New: Infrastructure/Robustness)
+        self.max_log_queue_size = config.get(
+            'max_log_queue_size',
+            self.DEFAULT_MAX_LOG_QUEUE_SIZE
+        )
 
     def _log_status(self, level: str, message: str, context: str, details: Dict[str, Any] = None):
         """Standardized internal logging mechanism, queueing structured logs for Telemetry System integration.
-        Enhanced to include structured details for richer meta-reasoning data.
+        Enhanced to include structured details for richer meta-reasoning data and enforces queue size limit.
         """
         log_entry = {
             "timestamp": get_utc_timestamp(),
@@ -163,7 +173,16 @@ class ACVD_DecisionEngine:
             "context": context,
             "details": details if details is not None else {} # Structured details for richer Meta-Reasoning
         }
+        
+        # 1. Append new log
         self._log_queue.append(log_entry)
+
+        # 2. Enforce queue size limit (Robustness/Infrastructure)
+        if len(self._log_queue) > self.max_log_queue_size:
+            removed_count = len(self._log_queue) - self.max_log_queue_size
+            # Prune oldest logs (removes from the start of the list)
+            self._log_queue = self._log_queue[removed_count:]
+            
         # Immediate console feedback for critical/error logs
         if level in ["CRITICAL", "ERROR", "WARNING"]:
             try:
@@ -196,7 +215,9 @@ class ACVD_DecisionEngine:
             
     def _save_schema(self):
         """Persists the current schema (including dynamically updated severity weights)
-        using an atomic write pattern (temp file) to ensure fault tolerance (Pathlib integration)."""
+        using an atomic write pattern (temp file) to ensure fault tolerance (Pathlib integration).
+        Also persists configuration constraints like log queue limits.
+        """
         if not self.persist_config:
             self._log_status("DEBUG", "Schema persistence disabled by configuration.", "SCHEMA_PERSIST_SKIP")
             return
@@ -209,9 +230,13 @@ class ACVD_DecisionEngine:
         if 'config' not in save_data:
             save_data['config'] = {}
             
+        # Persist dynamic weights and thresholds
         save_data['config']['severity_weights'] = self.severity_weights
         save_data['config']['min_safety_score'] = self.safety_threshold
         save_data['config']['internal_penalty_multiplier'] = self.internal_penalty_multiplier
+        
+        # Persist infrastructure constraints (New)
+        save_data['config']['max_log_queue_size'] = self.max_log_queue_size
 
         temp_path = self.schema_path.with_suffix('.json.tmp')
         
@@ -315,6 +340,7 @@ class ACVD_DecisionEngine:
         """
         impact = {issue_type: 0.0 for issue_type in self._BASE_SEVERITY_WEIGHTS.keys()}
         
+        # Note: We iterate over the potentially limited log queue.
         for log in self._log_queue:
             level = log.get('level')
             if level in self._INTERNAL_ISSUE_MAP:
