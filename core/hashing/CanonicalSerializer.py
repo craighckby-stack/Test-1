@@ -36,7 +36,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     Cycle 1 Refinement: Enhanced the __dict__ fallback mechanism to filter out 
     private/internal attributes (starting with '_') and non-data callable attributes 
     to prevent non-deterministic hashing based on cache, transient internal state, 
-    or unexpected methods. Explicitly added Enum support.
+    or unexpected methods. Explicitly added Enum support, and added explicit handling for collections.deque.
     """
     def default(self, obj):
         # 0. Handle Enumerations (Crucial for deterministic configs/governance data)
@@ -57,6 +57,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         
         # Tuples are treated as lists for consistency
         if isinstance(obj, tuple):
+            return list(obj)
+
+        # AGI-KERNEL Improvement (Cycle 1): Handle Deques, common in /agents for history tracking.
+        if isinstance(obj, collections.deque):
             return list(obj)
 
         # 2. Handle common complex types by converting to deterministic strings
@@ -86,7 +90,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
             # Fallback to serializing public attributes
             if hasattr(obj, '__dict__'):
-                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_'
+                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_' 
                 # and non-data callable attributes (functions/methods)
                 # to improve determinism and prevent hashing transient state.
                 safe_dict = {
