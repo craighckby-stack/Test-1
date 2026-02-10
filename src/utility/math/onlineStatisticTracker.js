@@ -2,42 +2,47 @@
  * @fileoverview Implements an online algorithm (Welford's method) for calculating
  * mean, variance, and standard deviation incrementally without storing all data points.
  * Provides O(1) performance per update.
+ *
+ * This class now acts as a wrapper delegating all functionality to the 
+ * OnlineStatisticTrackerTool registered in the AGI kernel.
  */
+
+// NOTE: We assume 'OnlineStatisticTrackerTool' is accessible in the execution context 
+// (e.g., via module resolution or global kernel access) to satisfy the delegation requirement.
+
+/**
+ * @type {{create: () => any, reset: () => void, update: (v: number) => void, getMean: () => number, getVariance: () => number, getStandardDeviation: () => number, getCount: () => number}}
+ * @ignore
+ */
+// @ts-ignore
+const OnlineStatisticTrackerTool = require('OnlineStatisticTrackerTool');
+
 class OnlineStatisticTracker {
+    /**
+     * @type {object}
+     * @private
+     * The instance managed by the core tool implementation.
+     */
+    _tracker;
+
     constructor() {
-        this.reset();
+        this._tracker = OnlineStatisticTrackerTool.create();
     }
 
     /**
      * Resets all accumulated statistics.
      */
     reset() {
-        this.count = 0;
-        this.mean = 0;
-        this.M2 = 0; // Sum of squares of differences from the current mean
+        this._tracker.reset();
     }
 
     /**
      * Updates the running statistics with a new data point.
      * @param {number} newValue - The new observation.
-     * @throws {Error} If newValue is not a valid finite number.
+     * @throws {Error} If newValue is not a valid finite number (validation handled by the core tool).
      */
     update(newValue) {
-        if (typeof newValue !== 'number' || isNaN(newValue) || !isFinite(newValue)) {
-            throw new Error(`OnlineStatisticTracker: Input value must be a valid finite number. Received: ${newValue}`);
-        }
-
-        this.count++;
-        
-        // Welford's Algorithm Step 1: calculate difference from old mean
-        const delta = newValue - this.mean;
-        
-        // Welford's Algorithm Step 2: update mean
-        this.mean += delta / this.count;
-        
-        // Welford's Algorithm Step 3: calculate difference from new mean and update M2
-        const delta2 = newValue - this.mean;
-        this.M2 += delta * delta2;
+        this._tracker.update(newValue);
     }
 
     /**
@@ -45,7 +50,7 @@ class OnlineStatisticTracker {
      * @returns {number}
      */
     getMean() {
-        return this.mean;
+        return this._tracker.getMean();
     }
 
     /**
@@ -53,11 +58,7 @@ class OnlineStatisticTracker {
      * @returns {number}
      */
     getVariance() {
-        if (this.count < 2) {
-            return 0;
-        }
-        // Sample variance: M2 / (n - 1)
-        return this.M2 / (this.count - 1); 
+        return this._tracker.getVariance();
     }
 
     /**
@@ -65,7 +66,7 @@ class OnlineStatisticTracker {
      * @returns {number}
      */
     getStandardDeviation() {
-        return Math.sqrt(this.getVariance());
+        return this._tracker.getStandardDeviation();
     }
 
     /**
@@ -73,7 +74,7 @@ class OnlineStatisticTracker {
      * @returns {number}
      */
     getCount() {
-        return this.count;
+        return this._tracker.getCount();
     }
 }
 
