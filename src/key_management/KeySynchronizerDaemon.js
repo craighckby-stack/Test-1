@@ -1,22 +1,27 @@
 /**
  * KeySynchronizerDaemon.js
- * Purpose: Handles synchronization of key material across configured providers, 
+ * Purpose: Handles synchronization of key material across configured providers,
  *          enforcing policies defined in key_orchestrator_config.json.
  */
 
 const { KeyOrchestratorConfig } = require('./config/security/key_management/KeyOrchestratorConfig');
 const KMSProvider = require('../providers/KMSProviderInterface');
 
+// AGI-KERNEL Plugin Integration
+const { RotationScheduleEvaluatorTool } = require('../../core/tools/RotationScheduleEvaluator');
+
 class KeySynchronizerDaemon {
     constructor(config = KeyOrchestratorConfig) {
         this.config = config;
+        // Ensure governance structure exists for policy lookup
+        this.governance = config.governance || {};
         this.providers = this.initializeProviders(config.providers);
-        this.governance = config.governance;
     }
 
     initializeProviders(providerConfigs) {
         // Logic to instantiate concrete KMSProvider implementations (AWS, Azure, GCP)
         // ...
+        return [];
     }
 
     async executeSyncCycle() {
@@ -31,14 +36,28 @@ class KeySynchronizerDaemon {
         }
     }
 
+    /**
+     * Uses the RotationScheduleEvaluatorTool to check if rotation interval has elapsed.
+     * Assumes keyGroup contains 'last_rotated_timestamp'.
+     */
     isRotationDue(keyGroup) {
-        // Check rotation schedule against last rotation time.
-        // If rotation is due based on 'governance.*_rotation_interval_days' lookup.
-        return false; // Placeholder
+        const intervalKey = keyGroup.rotation_interval_policy_key || 'max_key_rotation_interval_days';
+
+        const rotationDue = RotationScheduleEvaluatorTool.execute({
+            governanceConfig: this.governance,
+            lastRotatedTimestamp: keyGroup.last_rotated_timestamp,
+            intervalKey: intervalKey
+        });
+
+        if (rotationDue) {
+            console.log(`[POLICY] Rotation due for Group: ${keyGroup.id}. Last rotated: ${keyGroup.last_rotated_timestamp}`);
+        }
+
+        return rotationDue;
     }
 
     async coordinateRotation(keyGroup) {
-        console.log(`	> Coordinating rotation for Group: ${keyGroup.id}`);
+        console.log(`\t> Coordinating rotation for Group: ${keyGroup.id}`);
         // 1. Generate new primary key in the Active provider.
         // 2. Wrap the key using config.transport_security.wrapping_algorithm.
         // 3. Unwrap and import the wrapped material into Passive/Backup providers.
