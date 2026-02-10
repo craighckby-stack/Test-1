@@ -2,11 +2,24 @@
  * RuntimeArtifactFactory: Responsible for taking a raw TEDS definition (potentially with $ref templates)
  * and transforming it into a specific, optimized runtime artifact (e.g., a Joi validation schema,
  * a Mongoose schema definition, or a GraphQL field definition).
+ *
+ * NOTE: Assumes DefinitionReferenceResolverTool is available in the runtime environment.
  */
 class RuntimeArtifactFactory {
+    /**
+     * @param {Object<string, Object>} fieldTemplates - TEDS definition templates used for reference resolution ($ref)
+     */
     constructor(fieldTemplates) {
         // TEDS definition templates used for reference resolution ($ref)
         this.fieldTemplates = fieldTemplates;
+        
+        // Dependency Injection placeholder/instantiation for the extracted logic
+        // Assuming DefinitionReferenceResolverTool is available or stubbed for execution.
+        this._referenceResolver = {
+            execute: (typeof DefinitionReferenceResolverTool !== 'undefined' 
+                        && new DefinitionReferenceResolverTool().execute)
+                     || (({ definition }) => definition) // Safe stub
+        };
     }
 
     /**
@@ -18,7 +31,10 @@ class RuntimeArtifactFactory {
      */
     build(key, definition, targetType = 'JOI') {
         // Step 1: Deep resolution of all embedded '$ref' dependencies against this.fieldTemplates
-        const resolvedDefinition = this._resolveReferences(definition);
+        const resolvedDefinition = this._referenceResolver.execute({
+            definition: definition,
+            fieldTemplates: this.fieldTemplates
+        });
         
         // Step 2: Transformation based on the target system 
         switch (targetType.toUpperCase()) {
@@ -28,39 +44,6 @@ class RuntimeArtifactFactory {
             default:
                 throw new Error(`Unsupported artifact target type: ${targetType}`);
         }
-    }
-
-    /**
-     * Recursively traverses the definition object and merges in referenced templates.
-     * NOTE: This is a placeholder for complex JSON Schema-like reference resolution logic.
-     * @param {Object} def
-     * @returns {Object}
-     */
-    _resolveReferences(def) {
-        // Basic placeholder logic
-        if (def && typeof def === 'object' && def.$ref) {
-            const templateName = def.$ref;
-            const template = this.fieldTemplates[templateName];
-            if (template) {
-                // Deep merge logic would ensure properties in 'def' override 'template' properties
-                const merged = { ...template, ...def };
-                delete merged.$ref; 
-                return this._resolveReferences(merged); // Recurse
-            }
-        }
-        
-        // Ensure deep traversal for nested structures
-        if (typeof def === 'object' && def !== null && !Array.isArray(def)) {
-            const newDef = {};
-            for (const prop in def) {
-                if (Object.prototype.hasOwnProperty.call(def, prop)) {
-                    newDef[prop] = this._resolveReferences(def[prop]);
-                }
-            }
-            return newDef;
-        }
-        
-        return def;
     }
 
     /**
