@@ -14,6 +14,11 @@
 /** @typedef {'positive'|'negative'} InfluenceDirection */
 /** @typedef {'linear_minmax' | 'logarithmic' | 'percentile_rank' | 'constant'} NormalizationStrategy */
 
+// Assuming the plugin interface is available for use
+declare const MetricConfigurationUtility: {
+    execute: (configs: any, operation: 'validate' | 'getMetricWeights') => any;
+};
+
 export const GOVERNANCE_CATEGORIES = {
     SAFETY: "Metrics promoting component stability and high confidence in retention.",
     RISK: "Metrics indicating potential downstream failure or exposure.",
@@ -83,8 +88,9 @@ export const METRIC_CONFIGURATIONS = {
 /**
  * Legacy/Flat Export: Provided for immediate compatibility with systems 
  * expecting a simple key-value weight map (RMS/CORE input pre-v94 integration).
+ * Uses the MetricConfigurationUtility plugin to safely extract weights.
  */
-export const METRIC_WEIGHTS = Object.entries(METRIC_CONFIGURATIONS).reduce((acc, [key, value]) => {
-    acc[key] = value.weight;
-    return acc;
-}, {});
+export const METRIC_WEIGHTS: Record<string, number> = MetricConfigurationUtility.execute(
+    METRIC_CONFIGURATIONS, 
+    'getMetricWeights'
+);
