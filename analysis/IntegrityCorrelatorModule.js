@@ -4,25 +4,23 @@
  * against historical constraint violation models (UFRM/CFTM) to determine root cause and policy magnitude.
  */
 
-// Assuming PolicyMagnitudeDerivationTool is available globally or injected via the kernel context.
-declare var PolicyMagnitudeDerivationTool: {
-    execute: (args: { temporalSkewMagnitude: number, axiomBreachesCount: number }) => {
-        requiredThresholdIncrease: number; 
-        logicError: { code: string, description: string, severity: string };
-    }
-};
-
 class IntegrityCorrelatorModule {
     /**
      * @param {Object} teds - Temporal data series.
      * @param {Object} pcss - System state snapshot.
      * @param {Object} constraintModels - Current active constraint configuration.
+     * @param {Object} policyDeriver - Instance of the PolicyMagnitudeDeriver plugin.
      */
-    constructor(teds, pcss, constraintModels = {}) {
+    constructor(teds, pcss, constraintModels = {}, policyDeriver) {
         this.teds = teds;
         this.pcss = pcss;
         this.constraintModels = constraintModels;
+        this.policyDeriver = policyDeriver;
         this.CORRELATION_THRESHOLD = 0.85; // Sensitivity threshold for high-severity findings
+
+        if (!policyDeriver || typeof policyDeriver.derive !== 'function') {
+            throw new Error("IntegrityCorrelatorModule requires a valid PolicyMagnitudeDeriver instance.");
+        }
     }
 
     /**
@@ -38,11 +36,11 @@ class IntegrityCorrelatorModule {
         // Step 2: Constraint Validation against PCSS (Integrity Check)
         const axiomBreaches = this._validateAxiomBreaches();
 
-        // Step 3: Derive Mandatory Policy Correction based on composite severity using the dedicated tool.
-        const derivationResult = PolicyMagnitudeDerivationTool.execute({
-            temporalSkewMagnitude: temporalSkewMagnitude,
-            axiomBreachesCount: axiomBreaches.length
-        });
+        // Step 3: Derive Mandatory Policy Correction based on composite severity using the injected plugin.
+        const derivationResult = this.policyDeriver.derive(
+            temporalSkewMagnitude,
+            axiomBreaches.length
+        );
 
         // Simulate heavy computation (e.g., calling an external ML service)
         await new Promise(resolve => setTimeout(resolve, 10)); 
