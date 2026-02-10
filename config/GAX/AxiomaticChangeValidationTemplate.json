@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agi.sovereign/schemas/AxiomaticChangeValidationTemplate_v3.0.json",
-  "title": "AGI-KERNEL Change Validation Request Template (v3.0)",
+  "$id": "https://agi.sovereign/schemas/AxiomaticChangeValidationTemplate_v3.1.json",
+  "title": "AGI-KERNEL Change Validation Request Template (v3.1)",
   "description": "Defines the required structure for any proposed systemic code change (Refactoring, Feature, Bugfix) that requires GAX/Kernel self-validation before execution, enforcing core AGI-KERNEL self-documentation and tracking requirements.",
   "type": "object",
   "required": [
@@ -19,11 +19,11 @@
     "originator": {
       "type": "string",
       "enum": [
-        "AGI-KERNEL/v7.4.3",
+        "AGI-KERNEL/v7.4.4",
         "System_Scheduler",
         "Human_Override"
       ],
-      "default": "AGI-KERNEL/v7.4.3"
+      "default": "AGI-KERNEL/v7.4.4"
     },
     "target_scope": {
       "type": "array",
@@ -52,6 +52,29 @@
           "type": "number",
           "description": "The expected change in overall system maturity (positive)."
         },
+        "expected_navigation_delta": {
+          "type": "number",
+          "description": "Predicted change in Navigation capability score (0-10 scale)."
+        },
+        "expected_logic_delta": {
+          "type": "number",
+          "description": "Predicted change in Logic capability score (0-10 scale)."
+        },
+        "expected_memory_delta": {
+          "type": "number",
+          "description": "Predicted change in Memory retention score (0-10 scale)."
+        },
+        "involved_emergent_capability": {
+          "type": "boolean",
+          "description": "If true, this change either creates a new emergent file or leverages code from the /emergent directory."
+        },
+        "emergent_files_used": {
+          "type": "array",
+          "description": "List of specific files from /emergent utilized in this change.",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifest_entry_required": {
           "type": "boolean",
           "description": "If true, documentation in storage/manifest.json is mandatory for this change."
@@ -60,7 +83,8 @@
       "required": [
         "complexity_delta_score",
         "security_risk_score_v94",
-        "manifest_entry_required"
+        "manifest_entry_required",
+        "involved_emergent_capability"
       ]
     },
     "assertions": {
