@@ -21,10 +21,13 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 ---
 
 ### CAPABILITY ALIGNMENT MAPPING (CAM)
-*Mapping of the 5 Core Kernel Capabilities to primary architectural components, validating structural support for AGI development.*
+*Mapping of the **3 Core Kernel Capabilities (Navigation, Logic, Memory)** and 5 architectural support dimensions, validating structural support for AGI development.*
 
 | Capability Dimension | Primary Component(s) | Role in System |
 |:---:|:---:|:---:|
+| **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection, blacklist management, and repository diversity enforcement. |
+| **Logic** | LOE (Learning Optimization Engine), ASP | Code comprehension, improvement quality, and strategic pattern application efficacy. |
+| **Memory** | PRL (Pattern Retention Layer), AEL | Learning retention, historical pattern synthesis, and dependency tracking. |
 | **Error Handling** | DVP (Data Validation Processor) | Robust fault tolerance and input schema enforcement. |
 | **JSON Parsing** | DVP (Data Validation Processor) | Data extraction from potentially malformed LLM outputs. |
 | **Meta-Reasoning** | LOE (Learning Optimization Engine) | Strategy adaptation and stagnation recovery protocols. |
@@ -67,7 +70,10 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **RETV** | Real-Time Execution Vetting | L6 | `execution.runtime.vetting` | M | Monitors post-activation behavior against projected outcomes (Deployment Phase Vetting). |
 | **TFM** | Testing Framework Manager | L6 | `validation.testing.harness` | M | Executes autonomous testing, validation, and vulnerability checks against new artifacts prior to L6 commitment. |
 | **AMA** | Activation & Monitoring Agent | L6 | `activation.state.transition` | M | Manages transition of finalized Artifact Entry (AIA-ENTRY) into an active operational state (L6 commitment). |
-| **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 5 Core Kernel Capabilities (Error Handling, JSON Parsing, Meta-Reasoning, Autonomy, Creativity). |
-| **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, including Stagnation Recovery Protocol and adaptive temperature modulation, based on CTM data. |
+| **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 3 Core Kernel Capabilities (Navigation, Logic, Memory) and 5 architectural support dimensions. |
+| **PRL** | Pattern Retention Layer | L7 | `memory.pattern.retrieval` | O | Stores and retrieves learned code patterns and historical architecture decisions, supporting the Memory capability. |
+| **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects, validates, and formalizes novel solutions and pattern synthesis for commitment to the authorized `/emergent` directory. |
+| **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the 2,300+ file repository, managing blacklist and enforcing diversity enforcement (Supports Navigation). |
+| **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, including Stagnation Recovery Protocol and adaptive temperature modulation, based on CTM data (Supports Logic and Meta-Reasoning). |
 | **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and integration patterns (Supports Creativity and Stagnation Recovery). |
 | **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Processes SDR/RETV data to autonomously design optimal subsequent architectural modification plans (L7 Evolution). |
