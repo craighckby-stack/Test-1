@@ -39,6 +39,22 @@ interface PolicyConditionEvaluator {
     evaluate(conditionExpression: string, context: Record<string, any>): boolean;
 }
 
+// --- Tool Access Interface (for the extracted plugin) ---
+/**
+ * Assumed interface for the extracted PolicyRuleMatcher plugin.
+ * This tool executes the core iteration loop against provided policies.
+ */
+interface PolicyRuleMatcherTool {
+    execute(args: {
+        policies: RejectionPolicy[];
+        context: Record<string, any>;
+        evaluator: (condition: string, context: Record<string, any>) => boolean;
+        defaultAction?: string;
+    }): string;
+}
+
+declare const PolicyRuleMatcherTool: PolicyRuleMatcherTool;
+
 export class TelemetryPolicyExecutor {
     private policies: GovernancePolicies;
     private evaluator: PolicyConditionEvaluator;
@@ -59,15 +75,18 @@ export class TelemetryPolicyExecutor {
         // 1. Prepare a structured context from results
         const context = this.createEvaluationContext(results);
 
-        // 2. Iterate through policies and check conditions
-        for (const policy of this.policies.rejection_policies) {
-            if (this.checkCondition(policy.condition, context)) {
-                return policy.action;
-            }
-        }
+        // 2. Delegate policy matching to the external PolicyRuleMatcher tool.
+        // We pass the PolicyConditionEvaluator's bound method as the required evaluator callback.
+        const evaluatorCallback = (condition: string, ctx: Record<string, any>): boolean => {
+            return this.evaluator.evaluate(condition, ctx);
+        };
 
-        // 3. Fallback
-        return this.policies.default_fallback_protocol || 'DEFAULT_PASS';
+        return PolicyRuleMatcherTool.execute({
+            policies: this.policies.rejection_policies,
+            context: context,
+            evaluator: evaluatorCallback,
+            defaultAction: this.policies.default_fallback_protocol || 'DEFAULT_PASS'
+        });
     }
 
     /**
@@ -91,12 +110,7 @@ export class TelemetryPolicyExecutor {
         return context;
     }
 
-    /**
-     * Delegates condition execution to the PolicyConditionEvaluator.
-     * This ensures policy evaluation logic remains outside the policy execution workflow (SoC).
-     */
-    private checkCondition(condition: string, context: Record<string, any>): boolean {
-        return this.evaluator.evaluate(condition, context);
-    }
+    // checkCondition method removed as its logic is now provided directly as a callback
+    // to the PolicyRuleMatcher tool.
 
 }
