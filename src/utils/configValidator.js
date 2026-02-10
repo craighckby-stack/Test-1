@@ -4,8 +4,13 @@
  * and operational constraints (e.g., value ranges, types). Essential for applying configuration
  * loaded from untrusted or external dynamic sources.
  *
- * Refactor Logic: Modularized validation checks for clarity and enhanced traceability.
+ * Refactor Logic: Validation logic delegated to ConfigurationConstraintValidator plugin.
  */
+
+// Assuming ConfigurationConstraintValidator is available globally or via module loader
+declare const ConfigurationConstraintValidator: {
+    execute: (args: { config: Record<string, any>, constraints: Record<string, any> }) => string[]
+};
 
 const CONFIG_CONSTRAINTS = {
     GHM_SMOOTHING_ALPHA: { type: 'number', min: 0.0, max: 1.0, required: true, description: "Alpha smoothing factor for metrics aggregation." },
@@ -16,73 +21,20 @@ const CONFIG_CONSTRAINTS = {
 };
 
 /**
- * Internal validator utilities.
- */
-const Validators = {
-    /** Checks if a required value is present. Returns true if present, false otherwise. */
-    validatePresence: (value, key, constraint, errors) => {
-        if (constraint.required && (value === undefined || value === null)) {
-            errors.push(`[${key}] Missing required setting.`);
-            return false;
-        }
-        return true;
-    },
-
-    /** Checks if the value matches the expected type. */
-    validateType: (value, key, constraint, errors) => {
-        // Skip type check if the value is missing (already reported by validatePresence)
-        if (value === undefined || value === null) return;
-        
-        // Handle NaN specifically, as typeof NaN is 'number'
-        if (constraint.type === 'number' && typeof value === 'number' && isNaN(value)) {
-             errors.push(`[${key}] Value cannot be NaN.`);
-             return;
-        }
-
-        if (typeof value !== constraint.type) {
-            errors.push(`[${key}] Expected type ${constraint.type}, got ${typeof value}.`);
-        }
-    },
-
-    /** Checks if the numeric value falls within min/max bounds. */
-    validateRange: (value, key, constraint, errors) => {
-        if (typeof value !== 'number') return; // Only apply range checks to verified numbers
-
-        if (constraint.min !== undefined && value < constraint.min) {
-            errors.push(`[${key}] Value ${value} is below minimum constraint ${constraint.min}.`);
-        }
-
-        if (constraint.max !== undefined && value > constraint.max) {
-            errors.push(`[${key}] Value ${value} is above maximum constraint ${constraint.max}.`);
-        }
-    }
-};
-
-/**
  * Validates the provided configuration object against predefined constraints.
  * Throws a comprehensive error if any constraint is violated.
  * @param {object} config - The merged configuration object to validate.
  * @throws {Error} if validation fails.
  */
-function validateConfig(config) {
-    const errors = [];
-
-    for (const key in CONFIG_CONSTRAINTS) {
-        const constraint = CONFIG_CONSTRAINTS[key];
-        const value = config[key];
-
-        // 1. Check Presence (Mandatory step)
-        const isPresent = Validators.validatePresence(value, key, constraint, errors);
-        
-        if (isPresent) {
-            // 2. Check Type
-            Validators.validateType(value, key, constraint, errors);
-            
-            // 3. Check Range/Bounds
-            Validators.validateRange(value, key, constraint, errors);
-        }
-        // Note: Additional custom structural checks would be inserted here.
+function validateConfig(config: Record<string, any>): boolean {
+    if (typeof ConfigurationConstraintValidator === 'undefined' || typeof ConfigurationConstraintValidator.execute !== 'function') {
+        throw new Error("Critical AGI dependency missing: ConfigurationConstraintValidator plugin is required for config validation.");
     }
+    
+    const errors = ConfigurationConstraintValidator.execute({
+        config: config,
+        constraints: CONFIG_CONSTRAINTS
+    });
 
     if (errors.length > 0) {
         throw new Error(`⚠️ Invalid Governance Configuration Detected (Total Errors: ${errors.length}):\n  > ${errors.join('\n  > ')}`);
