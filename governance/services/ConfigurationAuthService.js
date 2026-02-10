@@ -8,18 +8,24 @@
 
 import { SystemFiles } from 'core/system/filesystem';
 import { CRoTCrypto } from 'core/crypto/CRoT';
+// import { ContentIntegrityVerifier } from 'governance/tools/ContentIntegrityVerifier'; // Implicit Tool Import
 
 // This path defines the structure where we expect to find the checksum manifest for policies
 const POLICY_MANIFEST_PATH = 'governance/config/PolicyManifest.json';
 
+// Placeholder for the external tool reference defined in the plugin block
+declare const ContentIntegrityVerifier: {
+    execute: (args: { rawContent: string, calculatedHash: string, expectedHash: string, policyName: string }) => object;
+};
+
 export class ConfigurationAuthService {
     
-    static _manifestCache = null;
+    static _manifestCache: object | null = null;
 
     /**
      * Loads and validates the central Policy Manifest which dictates required integrity checks.
      */
-    static async loadPolicyManifest() {
+    static async loadPolicyManifest(): Promise<object> {
         if (ConfigurationAuthService._manifestCache) {
             return ConfigurationAuthService._manifestCache;
         }
@@ -29,7 +35,7 @@ export class ConfigurationAuthService {
             // FUTURE: Add self-integrity check on the manifest itself (signed by AGI core key).
             return ConfigurationAuthService._manifestCache;
         } catch (e) {
-            throw new Error(`ConfigurationAuthService: Failed to load Policy Manifest from ${POLICY_MANIFEST_PATH}. ${e.message}`);
+            throw new Error(`ConfigurationAuthService: Failed to load Policy Manifest from ${POLICY_MANIFEST_PATH}. ${(e as Error).message}`);
         }
     }
 
@@ -39,9 +45,9 @@ export class ConfigurationAuthService {
      * @param {string} filePath - Absolute path to the configuration file (E.g., governance/config/IntegrityPolicy.json)
      * @returns {Promise<object>} The parsed and verified policy content.
      */
-    static async getVerifiedPolicy(policyName, filePath) {
+    static async getVerifiedPolicy(policyName: string, filePath: string): Promise<object> {
         const manifest = await ConfigurationAuthService.loadPolicyManifest();
-        const requiredCheck = manifest.policies?.[policyName];
+        const requiredCheck = (manifest as any).policies?.[policyName];
 
         if (!requiredCheck) {
             throw new Error(`Policy 'POLICY_NOT_MANDATED': Policy ${policyName} is not listed in the PolicyManifest for verification.`);
@@ -56,14 +62,17 @@ export class ConfigurationAuthService {
             const rawContent = await SystemFiles.read(filePath);
             const calculatedHash = await CRoTCrypto.hash(rawContent, requiredCheck.hash_type);
             
-            if (calculatedHash !== requiredCheck.expected_hash) {
-                throw new Error(`Integrity Check Failed for ${policyName}: Content hash mismatch. Detected modification.`);
-            }
-
-            return JSON.parse(rawContent);
+            // Delegate integrity verification and JSON parsing to the ContentIntegrityVerifier tool
+            return ContentIntegrityVerifier.execute({
+                rawContent: rawContent,
+                calculatedHash: calculatedHash,
+                expectedHash: requiredCheck.expected_hash,
+                policyName: policyName
+            });
 
         } catch (e) {
-            throw new Error(`Authentication Failure for Policy ${policyName} at ${filePath}. Details: ${e.message}`);
+            // Catches SystemFiles/CRoT errors, or errors thrown by ContentIntegrityVerifier (INTEGRITY_VIOLATION/PARSING_ERROR)
+            throw new Error(`Authentication Failure for Policy ${policyName} at ${filePath}. Details: ${(e as Error).message}`);
         }
     }
 }
