@@ -1,15 +1,32 @@
 /**
  * Trust Model Configuration Store - src/governance/TrustModelConfigurationStore.js
- * ID: TCCS v94.1
+ * ID: TCCS v94.2
  * Role: Persistent Storage and Retrieval for Governance Model Definitions
  * 
  * Manages the dynamic definitions (weights, transformations, metadata) for
  * all models used by the Trust Calculus Engine (TCE). This decouples policies
  * from core logic, allowing dynamic weight adjustments via governance systems.
  */
+
+interface MetricConfig {
+    weight: number;
+    type: 'PROFIT' | 'RISK';
+}
+
+interface ModelDefinition {
+    metrics: { [key: string]: MetricConfig };
+    description: string;
+}
+
+interface ConfigurationCache {
+    models: { [modelId: string]: ModelDefinition };
+}
+
 const DEFAULT_CONFIG_PATH = './trust_models.json';
 
 class TrustModelConfigurationStore {
+    private configCache: ConfigurationCache | null;
+
     constructor() {
         this.configCache = null;
     }
@@ -17,9 +34,9 @@ class TrustModelConfigurationStore {
     /**
      * Simulates fetching configuration data from a persistent store (e.g., internal config repo).
      * @param {string} [path] - Optional path/endpoint to fetch from.
-     * @returns {Promise<object>} The loaded configuration containing model definitions.
+     * @returns {Promise<ConfigurationCache>} The loaded configuration containing model definitions.
      */
-    async loadConfiguration(path = DEFAULT_CONFIG_PATH) {
+    async loadConfiguration(path: string = DEFAULT_CONFIG_PATH): Promise<ConfigurationCache> {
         
         if (this.configCache) {
             return this.configCache; 
@@ -29,7 +46,7 @@ class TrustModelConfigurationStore {
         
         try {
             // --- MOCK DATA SIMULATING EXTERNAL CONFIG LOAD ---
-            const mockLoadedConfig = {
+            const mockLoadedConfig: { [key: string]: ModelDefinition } = {
                 'RETIREMENT_CALCULUS': {
                     metrics: {
                         redundancyScore: { weight: 0.45, type: 'PROFIT' }, 
@@ -51,27 +68,41 @@ class TrustModelConfigurationStore {
             return this.configCache;
             
         } catch (error) {
-            console.error(`[TCCS] Failed to load configuration: ${error.message}. Returning empty models.`);
+            console.error(`[TCCS] Failed to load configuration: ${error instanceof Error ? error.message : String(error)}. Returning empty models.`);
             return { models: {} }; 
         }
     }
 
     /**
-     * Allows dynamic updates to a specific model configuration.
+     * Allows dynamic updates to a specific model configuration using deep merging.
      * (Requires persistence layer integration, omitted here for brevity.)
      * @param {string} modelId 
-     * @param {object} updates 
+     * @param {Partial<ModelDefinition>} updates 
      */
-    async updateModelConfig(modelId, updates) {
-        if (!this.configCache || !this.configCache.models[modelId]) {
-            console.error(`Model ${modelId} not found in cache.`);
+    async updateModelConfig(modelId: string, updates: Partial<ModelDefinition>): Promise<boolean> {
+        if (!this.configCache) {
+            // Ensure configuration is loaded before attempting updates
+            await this.loadConfiguration();
+        }
+        
+        const targetModel = this.configCache?.models[modelId];
+
+        if (!targetModel) {
+            console.error(`[TCCS] Model ${modelId} not found in cache. Update failed.`);
             return false;
         }
 
-        // Apply deep updates
-        Object.assign(this.configCache.models[modelId], updates);
-        console.log(`[TCCS] Updated configuration for ${modelId}. Persistence sync required.`);
-        return true;
+        // Use the DeepMergerUtility for robust updates, honoring nested structures (e.g., 'metrics').
+        try {
+            // @ts-ignore - KRNL execution environment assumed
+            KRNL.executePlugin('DeepMergerUtility', [targetModel, updates]);
+            
+            console.log(`[TCCS] Deep updated configuration for ${modelId}. Persistence sync required.`);
+            return true;
+        } catch (e) {
+            console.error(`[TCCS] Failed to apply deep updates for ${modelId}:`, e);
+            return false;
+        }
     }
 }
 
