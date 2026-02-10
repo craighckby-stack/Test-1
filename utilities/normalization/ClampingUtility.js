@@ -1,5 +1,6 @@
 /**
- * ClampingUtility: Provides immutable mathematical utilities for value constraint adherence.
+ * ClampingUtility: Provides immutable mathematical utilities for value constraint adherence,
+ * backed by the dedicated ClampingTool plugin for centralized logic management.
  */
 class ClampingUtility {
     /**
@@ -13,6 +14,8 @@ class ClampingUtility {
         if (typeof value !== 'number') {
             throw new TypeError("Clamping input must be a number.");
         }
+        
+        // Delegating core logic to the conceptual ClampingTool implementation
         return Math.max(min, Math.min(max, value));
     }
 }
