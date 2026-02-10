@@ -2,6 +2,13 @@ import { IndexingPolicy } from '../config/schemas/ArtifactIndexingPolicy.json';
 import { FileWatcher } from '../core/FileSystemWatcher';
 import { VectorDB } from '../data/VectorDatabase';
 
+// Interface definition for the extracted tool (simulating kernel/DI access)
+interface PathPolicyRuleMatcherTool {
+    execute(args: { path: string, rules: IndexingPolicy['policies'] }): IndexingPolicy['policies'][number] | null;
+}
+
+declare const PathPolicyRuleMatcher: PathPolicyRuleMatcherTool;
+
 /**
  * ArtifactIndexingService
  * Responsible for watching filesystem changes, prioritizing indexing jobs
@@ -14,11 +21,15 @@ export class ArtifactIndexingService {
     private vectorDb: VectorDB;
     
     constructor(policyConfig: IndexingPolicy, vectorDb: VectorDB) {
+        // CRITICAL: Policy must be sorted before use by the PathPolicyRuleMatcherTool
         this.policy = this.sortPolicy(policyConfig);
         this.vectorDb = vectorDb;
         this.watcher = new FileWatcher();
     }
 
+    /**
+     * Sorts policies by priority (descending) so the rule matcher finds specific rules first.
+     */
     private sortPolicy(policy: IndexingPolicy): IndexingPolicy {
         // Sort policies by priority (descending) so specific rules are checked first
         policy.policies.sort((a, b) => b.priority - a.priority);
@@ -34,7 +45,12 @@ export class ArtifactIndexingService {
     }
 
     private async handleArtifactChange(path: string, event: 'added' | 'changed' | 'deleted') {
-        const applicableRule = this.policy.policies.find(rule => new RegExp(rule.pathPattern).test(path));
+        
+        // Use the dedicated tool to find the highest priority matching rule
+        const applicableRule = PathPolicyRuleMatcher.execute({
+            path: path,
+            rules: this.policy.policies
+        });
         
         if (!applicableRule) {
             console.log(`[Indexing] Path ${path} matches default policy: ${this.policy.defaultPolicy}`);
