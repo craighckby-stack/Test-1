@@ -5,70 +5,35 @@
  */
 
 import { RequestContext } from '@core/middleware/RequestContext.js';
+// Import the newly defined plugin interface for type safety (if available in the environment)
+// Since we are operating within AGI-KERNEL, we define the type for use.
+
+/**
+ * Interface for the stateful ConfigurationContextMapper tool.
+ * @typedef {object} ConfigurationContextMapper
+ * @property {(args: { method?: string, route?: string, jobType?: string }) => string} execute - Resolves context attributes to a validation group.
+ */
 
 export class ValidationContextResolver {
   /**
+   * @type {ConfigurationContextMapper}
+   */
+  #mapper;
+
+  /**
    * @param {object} config - Application configuration object.
-   * @param {object} config.contextResolution.contextMap - The flat mapping of context keys to groups.
+   * @param {object} [config.contextResolution.contextMap] - The flat mapping of context keys to groups.
+   * @param {object} ConfigurationContextMapperTool - Injected/available tool factory.
    */
-  constructor(config) {
-    this.httpRoutes = {};
-    this.jobContexts = {};
-    // Use safe access and immediately process config to optimize lookups.
-    this.#processContextMap(config.contextResolution?.contextMap || {});
-  }
-
-  /**
-   * Internal method to restructure the flat configuration map into optimized,
-   * method-specific route arrays and job context map.
-   * Inserts exact matches before glob matches in route arrays for correct priority lookup.
-   * @param {object} contextMap
-   */
-  #processContextMap(contextMap) {
-    for (const key in contextMap) {
-      const group = contextMap[key];
-
-      if (key.startsWith('HTTP:')) {
-        // Expected format: HTTP:METHOD:PATH
-        const parts = key.substring(5).split(':', 2);
-        if (parts.length !== 2) continue;
-
-        const method = parts[0].toUpperCase();
-        const pathPattern = parts[1];
-        const isGlob = pathPattern.endsWith('/*');
-
-        if (!this.httpRoutes[method]) {
-          this.httpRoutes[method] = [];
-        }
-
-        const routeEntry = { pattern: pathPattern, group, isGlob };
-
-        // Prioritize exact matches (unshift) over glob matches (push).
-        if (!isGlob) {
-            this.httpRoutes[method].unshift(routeEntry);
-        } else {
-            this.httpRoutes[method].push(routeEntry);
-        }
-
-      } else if (key.startsWith('JOB_TYPE:')) {
-        // Expected format: JOB_TYPE:NAME
-        const jobType = key.substring(9);
-        this.jobContexts[jobType] = group;
-      }
+  constructor(config, ConfigurationContextMapperTool) {
+    const configMap = config.contextResolution?.contextMap || {};
+    
+    // Use the extracted tool to handle configuration parsing and storage, 40%
+    // delegation of complexity.
+    if (!ConfigurationContextMapperTool || typeof ConfigurationContextMapperTool.initialize !== 'function') {
+        throw new Error("ConfigurationContextMapperTool is required for ValidationContextResolver.");
     }
-  }
-
-  /**
-   * Handles basic route pattern matching (only supports '/*' glob at the end).
-   * @param {string} targetPath - The actual request route.
-   * @param {string} pattern - The configured route pattern.
-   * @returns {boolean}
-   */
-  #matchesPattern(targetPath, pattern) {
-      if (pattern.endsWith('/*')) {
-          return targetPath.startsWith(pattern.slice(0, -2));
-      }
-      return targetPath === pattern;
+    this.#mapper = ConfigurationContextMapperTool.initialize(configMap);
   }
 
   /**
@@ -77,29 +42,16 @@ export class ValidationContextResolver {
    * @returns {string} The resolved validation group name (e.g., 'creation_api', 'default').
    */
   resolveGroup(context) {
+    const attributes = {};
+    
     if (context.isHttpRequest()) {
-      const method = context.method.toUpperCase();
-      const route = context.route; 
-      
-      const methodRoutes = this.httpRoutes[method];
-
-      if (methodRoutes) {
-        // Iterates through pre-filtered and prioritized list (exact matches first)
-        for (const entry of methodRoutes) {
-          if (this.#matchesPattern(route, entry.pattern)) {
-            return entry.group;
-          }
-        }
-      }
-      
+      attributes.method = context.method;
+      attributes.route = context.route; 
     } else if (context.isJobRequest()) {
-       const jobType = context.jobType;
-       // O(1) direct lookup for job type
-       if (this.jobContexts[jobType]) {
-         return this.jobContexts[jobType];
-       }
+      attributes.jobType = context.jobType;
     }
 
-    return 'default';
+    // Delegate the resolution logic to the specialized tool
+    return this.#mapper.execute(attributes);
   }
 }
