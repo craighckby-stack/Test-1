@@ -3,6 +3,8 @@ import { XEL_Specification } from '../config/XEL_Specification.json';
 import Ajv from 'ajv'; 
 // IMPORTING EMERGENT CAPABILITY: Decouples navigation strategy synthesis from core validation
 import { SchemaFailureAnalyzer } from '../emergent/meta_tools/SchemaFailureAnalyzer.js'; 
+// IMPORTING PLUGIN: Abstracts error keyword analysis for Meta-Reasoning
+import { ErrorCapabilityMapper } from '../plugins/ErrorCapabilityMapper.js'; 
 
 /**
  * Custom error class for structured, machine-readable validation failures.
@@ -74,36 +76,14 @@ class SchemaValidatorEngine {
         this.onValidationFailure = onValidationFailure || (() => {}); 
 
         // LOGIC REFACTOR: Keyword-to-Capability mapping is outsourced to ErrorCapabilityMapper plugin.
-        // We provide a robust internal fallback for initialization.
-        this._runtimeMapper = runtimeMapper || ((keyword) => {
-            switch (keyword) {
-                case 'required':
-                case 'additionalProperties':
-                    return 'Logic';
-                case 'type':
-                case 'format':
-                case 'maximum':
-                case 'minimum':
-                    return 'Navigation';
-                case 'serialization_fail':
-                case 'nonSerializable':
-                    return 'Memory';
-                case 'const':
-                case 'enum':
-                    return 'Governance';
-                case 'not':
-                case 'if':
-                case 'then':
-                case 'else':
-                case 'dependencies':
-                case 'oneOf': 
-                case 'allOf': 
-                case 'anyOf':
-                    return 'Integration';
-                default:
-                    return 'Creativity'; 
-            }
-        });
+        // The large internal fallback switch has been removed and replaced by the dedicated plugin.
+        if (runtimeMapper) {
+            this._runtimeMapper = runtimeMapper;
+        } else {
+            this.capabilityMapper = new ErrorCapabilityMapper();
+            // Bind the method to ensure 'this' context works correctly within the mapper instance
+            this._runtimeMapper = this.capabilityMapper.mapKeywordToCapability.bind(this.capabilityMapper);
+        }
 
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
         this.failureHistory = []; 
@@ -176,142 +156,4 @@ class SchemaValidatorEngine {
         const capabilityImpact = this._runtimeMapper(firstErrorKeyword);
 
         const failureEntry = {
-            timestamp: Date.now(),
-            schemaName,
-            isCritical, 
-            summary,
-            count: summary.length,
-            capabilityImpact: capabilityImpact // CRITICAL: Stored for the Emergent Analyzer to use
-        };
-        
-        // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
-        this.failureHistory.unshift(failureEntry);
-        if (this.failureHistory.length > this.MAX_HISTORY) {
-            this.failureHistory.pop();
-        }
-        
-        // 3. Trigger External Nexus/MQM Logging (Integration Points)
-        const mqmPayload = {
-            metric_type: 'AGI_INTEGRATION_FAILURE',
-            kernel_version: this.kernelVersion, // Dynamic versioning
-            source_component: 'SchemaValidatorEngine',
-            // Dynamic link to core AGI capabilities for strategy refinement
-            AGI_CAPABILITY_IMPACT: capabilityImpact, 
-            schema_name: schemaName,
-            criticality: isCritical ? 'CRITICAL_THROW' : 'SOFT_RECOVERY',
-            error_count: summary.length,
-            // Detailed error context for LLM output analysis
-            first_error_keyword: firstErrorKeyword,
-            first_error_path: summary[0]?.path || 'N/A',
-            data_structure_keys: dataSample ? Object.keys(dataSample).slice(0, 8).join(', ') : 'N/A',
-        };
-        
-        // APPLY existing tools: Use the injected function to log the metrics to Nexus/MQM system
-        try {
-            this.onValidationFailure(mqmPayload, failureEntry);
-        } catch (e) {
-            console.warn(`[MQM_LOG_FAIL]: Failed to execute onValidationFailure hook for ${schemaName}:`, e.message);
-        }
-
-        // 4. Console log only critical failures
-        if (isCritical) {
-             console.error(`[KERNEL_VALIDATION_CRITICAL]: Schema=${schemaName}, Errors=${summary.length}, KeyPath=${summary[0]?.path || 'N/A'}`);
-        }
-    }
-
-    /**
-     * Provides the recent failure history to the Nexus-Database/kernel for strategy optimization (Memory).
-     * @returns {Array<object>} Recent validation failure records.
-     */
-    getFailureHistory() {
-        return this.failureHistory;
-    }
-
-    /**
-     * [NAVIGATION ADVICE PROXY]
-     * Uses the emergent SchemaFailureAnalyzer to generate strategic advice 
-     * for the Navigator System based on current validation failure trends.
-     * This method fulfills the requirement for Meta-Learning and strategic targeting.
-     * 
-     * @returns {object} Analysis result containing navigation suggestion.
-     */
-    getNavigationAdvice() { 
-        return this.analyzer.getNavigatorStrategicSuggestion(this.failureHistory, this.MAX_HISTORY);
-    }
-
-    /**
-     * Validates an object against a specific XEL component schema (Strict Mode).
-     * @param {string} schemaName - The key in ComponentSchemas (e.g., 'TaskRequest').
-     * @param {object} data - The object to validate (will be modified if removeAdditional is active).
-     * @throws {SchemaValidationError} If validation fails.
-     */
-    validate(schemaName, data) {
-        const validateFn = this.validator.getSchema(schemaName);
-        
-        if (!validateFn) {
-            throw new Error(`Configuration Error: Schema '${schemaName}' not registered in the Validator.`);
-        }
-        
-        const valid = validateFn(data); // Data is potentially mutated here (clean up)
-        
-        if (!valid) {
-            // Integration: Track critical failure, passing the original data structure context
-            this._trackFailure(schemaName, validateFn.errors, true, data); 
-            
-            // Error Handling: Throw custom error 
-            throw new this.SchemaValidationError(schemaName, validateFn.errors);
-        }
-        
-        // Return the validated and cleaned data structure
-        return data;
-    }
-    
-    /**
-     * Performs a soft validation, returning the validated data or null on failure.
-     * Useful for robust JSON Parsing recovery logic where a hard crash is undesirable.
-     * @param {string} schemaName 
-     * @param {object} data 
-     * @returns {object|null} Validated and cleaned data if successful, null otherwise.
-     */
-    tryValidate(schemaName, data) {
-        const validateFn = this.validator.getSchema(schemaName);
-        if (!validateFn) return null; 
-        
-        let dataCopy;
-        try {
-            // Deep copy needed for try mode, as Ajv mutates the input object when removeAdditional is used.
-            // Using JSON stringify/parse for broader compatibility and explicit serialization check.
-            dataCopy = JSON.parse(JSON.stringify(data));
-        } catch (e) {
-            // Track failure of the copying process itself if data is non-serializable (Robust JSON Parsing)
-            const serializationError = {
-                keyword: 'serialization_fail', 
-                message: `Input data non-serializable (${e.message})`,
-                instancePath: 'root'
-            };
-            this._trackFailure(schemaName, [serializationError], false, data);
-            return null; 
-        }
-        
-        const valid = validateFn(dataCopy);
-        
-        if (!valid) {
-            // Integration: Track soft schema failure, passing the original data structure context
-            this._trackFailure(schemaName, validateFn.errors, false, data);
-            return null;
-        }
-        
-        return dataCopy;
-    }
-    
-    /**
-     * Returns the custom structured error class for external use/catching.
-     * @returns {SchemaValidationError}
-     */
-    getValidationErrorClass() {
-        return this.SchemaValidationError;
-    }
-}
-
-// We rely on the integrating kernel (App.js) to instantiate SchemaValidatorEngine with necessary hooks.
-export { SchemaValidatorEngine, SchemaValidationError };
+            timestamp: Date.
