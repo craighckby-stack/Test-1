@@ -1,3 +1,17 @@
+/**
+ * Helper function mirroring the WeightedScorerUtility plugin logic.
+ * This function encapsulates the reusable weighted sum calculation.
+ * @param {Array<{ value: number, weight: number }>} inputs 
+ * @returns {number}
+ */
+const calculateWeightedScore = (inputs) => {
+    return inputs.reduce((sum, item) => {
+        const value = item.value || 0;
+        const weight = item.weight || 0;
+        return sum + (value * weight);
+    }, 0);
+};
+
 const SEA_CONSTANTS = {
     WEIGHTS: {
         COUPLING_FACTOR: 0.45, // Slightly prioritizing connectivity strain
@@ -31,20 +45,28 @@ class SystemicEntropyAuditor {
     /**
      * Normalizes inputs and calculates the Entropy Debt Index (EDI).
      * EDI focuses on persistent architectural strain across key dimensions.
+     * Uses the extracted calculateWeightedScore utility (WeightedScorerUtility).
      * 
      * @param {Object} postMutationMetrics Normalized architectural metrics (e.g., couplingFactor, complexityStrain, overheadStrain).
      * @returns {number} EDI Score (0=Low Debt, 1=Critical Debt).
      */
     calculateEntropyDebt(postMutationMetrics) {
         const W = this.config.WEIGHTS; 
-        // Map legacy 'lineIncrease' if specialized complexity metrics are absent.
-        const complexityStrain = postMutationMetrics.cyclomaticComplexityStrain || postMutationMetrics.lineIncrease || 0;
-
-        const { couplingFactor = 0, governanceOverheadStrain = 0 } = postMutationMetrics;
         
-        return (couplingFactor * W.COUPLING_FACTOR) + 
-               (complexityStrain * W.COMPLEXITY_STRAIN) + 
-               (governanceOverheadStrain * W.GOVERNANCE_OVERHEAD);
+        // Prepare inputs
+        const complexityStrain = postMutationMetrics.cyclomaticComplexityStrain || postMutationMetrics.lineIncrease || 0;
+        const couplingFactor = postMutationMetrics.couplingFactor || 0;
+        const governanceOverheadStrain = postMutationMetrics.governanceOverheadStrain || 0;
+
+        // Structure data for the WeightedScorerUtility (delegation)
+        const inputs = [
+            { value: couplingFactor, weight: W.COUPLING_FACTOR },
+            { value: complexityStrain, weight: W.COMPLEXITY_STRAIN },
+            { value: governanceOverheadStrain, weight: W.GOVERNANCE_OVERHEAD }
+        ];
+        
+        // Delegate calculation to the reusable scoring logic
+        return calculateWeightedScore(inputs);
     }
 
     /**
