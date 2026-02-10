@@ -2,7 +2,7 @@
  * src/maintenance/efficiencyDebtPrioritizer.js
  * Component ID: EDP (Efficiency Debt Prioritizer)
  * Role: Quantifies and prioritizes low-risk, high-impact maintenance tasks (Efficiency Debt)
- * using a highly configurable, metric-weighted scoring function.
+ * using a highly configurable, metric-weighted scoring function, leveraging the RobustWeightedScorer plugin.
  */
 
 class EfficiencyDebtPrioritizer {
@@ -48,19 +48,20 @@ class EfficiencyDebtPrioritizer {
 
     /**
      * Calculates the overall priority score by summing weighted normalized metrics.
+     * This logic is extracted into the RobustWeightedScorer plugin.
+     * We use this static method as the access point for the external utility logic.
      * Score = ∑ (Metric_N * Weight_N)
-     * Assumes all input metrics are pre-normalized (0.0 to 1.0) by an upstream utility.
      * @param {Object} metrics - Key-value pair of normalized metrics.
+     * @param {Object} weights - Configuration weights.
      * @returns {number} Priority score (higher is better; can be negative).
      */
-    _calculatePriorityScore(metrics) {
+    static calculateScore(metrics, weights) {
         let score = 0;
-        const weights = this.config.WEIGHTS;
         
         for (const [metricKey, weight] of Object.entries(weights)) {
-            // Fallback strategy: If a metric is missing, assume 0 impact (0.0) or maximum penalty (1.0).
-            // This improves robustness against incomplete upstream data.
+            // RobustWeightedScorer logic: handles missing metrics by defaulting to least favorable value.
             const isPenaltyMetric = weight < 0;
+            // Default to 1.0 (max penalty) if negative weight and metric missing; 0.0 otherwise.
             const defaultValue = isPenaltyMetric ? 1.0 : 0.0;
             
             const metricValue = metrics[metricKey] || defaultValue;
@@ -84,6 +85,7 @@ class EfficiencyDebtPrioritizer {
             return [];
         }
 
+        const weights = this.config.WEIGHTS;
         const scoredDebts = debtArtifacts
             // Stage M-02: Strict Risk Threshold Filter (low risk first)
             .filter(debt => (debt.risk_level || 1.0) <= this.config.RISK_THRESHOLD)
@@ -92,8 +94,8 @@ class EfficiencyDebtPrioritizer {
                 
                 return {
                     ...debt,
-                    // Dynamically calculate priority using all configured weights
-                    priority: this._calculatePriorityScore(metrics),
+                    // Use the centralized (plugin-derived) scoring function
+                    priority: EfficiencyDebtPrioritizer.calculateScore(metrics, weights),
                     impactScore: metrics.savings_potential || 0.0 // Retain a key impact score for quick reference
                 };
             });
