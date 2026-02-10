@@ -2,7 +2,7 @@
  * @module DataSourceRouter
  * @description Centralized data access utility employing the Strategy pattern (Service Locator + Strategy).
  * It routes requests using definitions from configured primitives, enforcing caching,
- * transformation, and security constraints. Employs lazy loading for handler strategies.
+ * transformation, and security constraints. Employs a dedicated StrategyResolver for handler management.
  */
 
 // Infrastructure and Utilities
@@ -10,7 +10,8 @@ import { DataSourcePrimitives } from '../../config/DataSourcePrimitives.json';
 import CacheManager from './CacheManager.js';
 import Logger from '../utility/Logger.js'; 
 import DataTransformer from './DataTransformer.js';
-import { RetrievalError, HandlerInstantiationError } from '../utility/DataError.js'; // Proposed Utility
+import { RetrievalError, HandlerInstantiationError } from '../utility/DataError.js';
+import StrategyResolver from '../utility/StrategyResolver.js';
 
 // Strategy Configuration Map
 import DataSourceHandlersMap from './DataSourceHandlersMap.js'; 
@@ -26,40 +27,9 @@ class DataSourceRouter {
         this.cacheManager = dependencies.CacheManager || CacheManager;
         this.dataTransformer = dependencies.DataTransformer || DataTransformer;
         
-        // Strategy Cache: Stores instantiated handler objects (Singleton strategy per type).
-        this.handlerInstances = {};
-    }
-
-    /**
-     * Retrieves or lazily instantiates a Handler based on its key, ensuring singleton behavior per type.
-     * @param {string} handlerKey - The key defined in DataSourceHandlersMap.
-     * @returns {object} The instantiated Handler object.
-     * @private
-     */
-    _getHandler(handlerKey) {
-        if (this.handlerInstances[handlerKey]) {
-            return this.handlerInstances[handlerKey];
-        }
-        
-        const HandlerClass = DataSourceHandlersMap[handlerKey];
-
-        if (!HandlerClass) {
-            this.logger.error(`Unsupported strategy specified: ${handlerKey}`);
-            throw new RetrievalError(
-                `Unsupported retrieval method: ${handlerKey}. Check DataSourceHandlersMap.`,
-                'CONFIGURATION_MISSING'
-            );
-        }
-        
-        try {
-            // Lazy instantiation
-            const handlerInstance = new HandlerClass();
-            this.handlerInstances[handlerKey] = handlerInstance;
-            return handlerInstance;
-        } catch (e) {
-            this.logger.error(`Failed to instantiate handler ${handlerKey}:`, e);
-            throw new HandlerInstantiationError(`Handler configuration error for ${handlerKey}. Details: ${e.message}`);
-        }
+        // Initialize Strategy Resolver
+        const resolverDependencies = { Logger: this.logger };
+        this.strategyResolver = new StrategyResolver(DataSourceHandlersMap, resolverDependencies);
     }
 
     /**
@@ -86,7 +56,25 @@ class DataSourceRouter {
         }
 
         // 2. Determine and Instantiate Retrieval Strategy (Handler)
-        const handler = this._getHandler(retrieval_method);
+        let handler;
+        try {
+            handler = this.strategyResolver.resolve(retrieval_method);
+        } catch (e) {
+            // Map generic StrategyResolver errors to specific domain errors
+            this.logger.error(`Strategy resolution failed for ${retrieval_method}:`, e);
+            
+            if (e.message.includes('Unsupported strategy')) {
+                throw new RetrievalError(
+                    `Unsupported retrieval method: ${retrieval_method}. Check DataSourceHandlersMap.`,
+                    'CONFIGURATION_MISSING'
+                );
+            } else if (e.message.includes('instantiation error')) {
+                throw new HandlerInstantiationError(`Handler configuration error for ${retrieval_method}. Details: ${e.message}`);
+            } else {
+                 // Re-throw unexpected errors
+                throw e;
+            }
+        }
 
         this.logger.info(`Fetching data for ${key} using strategy: ${retrieval_method}`);
 
