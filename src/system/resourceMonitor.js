@@ -4,13 +4,11 @@
  * This utility acts as the foundation for *predictive* governance monitoring.
  */
 
-const v8 = require('v8');
-const os = require('os');
+// Global dependencies (v8, os) and module-level state (startTime, eventLoopLastCheck) removed,
+// as metric calculation is delegated to the stateful NodeProcessMetricsCollector plugin.
 
-// Determine event loop latency monitoring method
-// NOTE: This example uses standard process time diff; advanced implementations might use external tools like 'event-loop-lag'.
-const startTime = process.hrtime();
-let eventLoopLastCheck = startTime;
+// CRITICAL ASSUMPTION: NodeProcessMetricsCollector (the plugin instance) is available globally
+// via AGI-KERNEL Plugin System, as it manages time deltas and calculation.
 
 /**
  * @typedef {object} ResourceMetrics
@@ -30,36 +28,13 @@ class SystemResourceMonitor {
      * @returns {ResourceMetrics}
      */
     static getMetrics() {
-        const memoryUsage = process.memoryUsage();
-        const processCpu = process.cpuUsage();
+        // Ensure the stateful plugin instance is available.
+        if (typeof NodeProcessMetricsCollector === 'undefined' || typeof NodeProcessMetricsCollector.execute !== 'function') {
+            throw new Error("NodeProcessMetricsCollector plugin must be loaded and available.");
+        }
 
-        // 1. Calculate relative CPU usage since the process started (or since last explicit check, if tracking)
-        // In a complex monitor, we track periodic delta; here we use overall process lifetime.
-        // NOTE: Actual Node.js process.cpuUsage() returns microseconds user/system time.
-        const elapsedNs = (process.hrtime(startTime)[0] * 1e9) + process.hrtime(startTime)[1];
-        const totalCpuMicroseconds = processCpu.user + processCpu.system;
-        
-        // Calculate CPU usage as a ratio of CPU time consumed / Wall clock time elapsed.
-        // We divide by 10,000 to convert nanoseconds wall time to microseconds wall time.
-        const cpuUsageRatio = totalCpuMicroseconds / (elapsedNs / 1000); 
-
-        // 2. Estimate Event Loop Latency
-        const diff = process.hrtime(eventLoopLastCheck);
-        // Convert [seconds, nanoseconds] to milliseconds
-        const eventLoopLatencyMs = (diff[0] * 1000 + diff[1] / 1e6);
-        eventLoopLastCheck = process.hrtime();
-        
-        return {
-            timestamp: Date.now(),
-            heapTotal: memoryUsage.heapTotal,
-            heapUsed: memoryUsage.heapUsed,
-            externalMem: memoryUsage.external,
-            rss: memoryUsage.rss,
-            // Cap CPU at 100% per core
-            cpuUsage: Math.min(1.0, cpuUsageRatio / os.cpus().length),
-            // Only return a reasonable latency estimate. This value is highly variable.
-            eventLoopLatencyMs: parseFloat(eventLoopLatencyMs.toFixed(3))
-        };
+        // Delegate all metric calculation and state management to the specialized plugin instance.
+        return NodeProcessMetricsCollector.execute();
     }
 
     /**
@@ -73,7 +48,7 @@ class SystemResourceMonitor {
         const heapUtilization = metrics.heapUsed / metrics.heapTotal;
         
         if (heapUtilization > 0.95) {
-             throw new Error(`Critical Memory Utilization: ${heapUtilization.toFixed(2)}`);
+             throw new Error(`Critical Memory Utilization: Heap Utilization ${heapUtilization.toFixed(2)}`);
         }
     }
 }
