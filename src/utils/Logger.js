@@ -1,45 +1,47 @@
 /**
- * A standardized, context-aware logging utility.
- * Replace this with a robust external library (e.g., winston, pino) if system constraints allow.
+ * A standardized, context-aware logging utility, delegated to the CanonicalLogUtility plugin.
+ * Replace this with a robust external library (e.g., winston, pino) if system constraints allow, or if the plugin environment is restricted.
  */
 export class Logger {
+    /**
+     * @type {{error: function, warn: function, info: function, debug: function}}
+     */
+    #delegate;
+
     /**
      * @param {string} context - The component/service name for logging context.
      */
     constructor(context = 'APP') {
-        this.context = `[${context}]`;
-        this.level = process.env.LOG_LEVEL || 'info'; 
-        this.levels = {
-            error: 0,
-            warn: 1,
-            info: 2,
-            debug: 3
-        };
-    }
-
-    _log(level, ...args) {
-        if (this.levels[level] <= this.levels[this.level]) {
-            const timestamp = new Date().toISOString();
-            // Use console appropriate function (log for debug, otherwise error/warn/info)
-            const consoleFn = (level === 'debug') ? 'log' : level;
-            
-            console[consoleFn](`${timestamp} ${this.context} ${level.toUpperCase()}:`, ...args);
+        // Note: In an AGI-Kernel environment, CanonicalLogUtility would be available
+        // via injection or a global resolver (e.g., window.AGI_PLUGINS.CanonicalLogUtility).
+        // We call the standard plugin execution method.
+        if (typeof CanonicalLogUtility !== 'undefined') {
+             this.#delegate = CanonicalLogUtility.execute({ context });
+        } else {
+            // Fallback for environments where plugins are not yet loaded
+            const ctx = `[${context}]`;
+            this.#delegate = {
+                error: (...args) => console.error(`${ctx} ERROR:`, ...args),
+                warn: (...args) => console.warn(`${ctx} WARN:`, ...args),
+                info: (...args) => console.info(`${ctx} INFO:`, ...args),
+                debug: (...args) => console.log(`${ctx} DEBUG:`, ...args)
+            };
         }
     }
 
     error(...args) {
-        this._log('error', ...args);
+        this.#delegate.error(...args);
     }
 
     warn(...args) {
-        this._log('warn', ...args);
+        this.#delegate.warn(...args);
     }
 
     info(...args) {
-        this._log('info', ...args);
+        this.#delegate.info(...args);
     }
 
     debug(...args) {
-        this._log('debug', ...args);
+        this.#delegate.debug(...args);
     }
 }
