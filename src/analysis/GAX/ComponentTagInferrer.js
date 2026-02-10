@@ -6,33 +6,53 @@
  */
 
 class ComponentTagInferrer {
-  constructor(staticAnalyzer, telemetryEngine) {
+  /**
+   * @param {Object} staticAnalyzer
+   * @param {Object} telemetryEngine
+   * @param {TagInferenceEngine} tagInferenceEngine - Injected reusable tool
+   */
+  constructor(staticAnalyzer, telemetryEngine, tagInferenceEngine) {
     this.staticAnalyzer = staticAnalyzer;
     this.telemetryEngine = telemetryEngine;
-    this.tagRules = this.loadInferenceRules(); // Placeholder for ML model or rule set
+    this.tagInferenceEngine = tagInferenceEngine;
+    this.tagRules = this.loadInferenceRules(); // Load structured rules for the engine
   }
 
   loadInferenceRules() {
-    // In reality, this loads complex inference logic (e.g., if latency < 1ms AND iops > 10000 -> TAG=HIGH_THROUGHPUT)
-    return { /* ... ruleset ... */ };
+    // Rules are defined structurally to be executed by the TagInferenceEngine plugin.
+    // Structure: { source: 'static'|'runtime', field: string, operator: string, value: any, tag: string }
+    return [
+      // 1. Static Analysis Inference (e.g., high dependency count suggests criticality)
+      {
+        source: 'static',
+        field: 'dependency_count',
+        operator: '>',
+        value: 50,
+        tag: 'INFRASTRUCTURE_CRITICAL'
+      },
+      // 2. Runtime/Telemetry Inference (e.g., constant high queue depth suggests high throughput)
+      {
+        source: 'runtime',
+        field: 'queue_depth_avg',
+        operator: '>',
+        value: 100,
+        tag: 'HIGH_THROUGHPUT'
+      }
+    ];
   }
 
   infer(componentDescriptor) {
     const analysis = this.staticAnalyzer.analyze(componentDescriptor.path);
     const runtimeData = this.telemetryEngine.getRecentData(componentDescriptor.id);
-    let suggestedTags = [];
 
-    // 1. Static Analysis Inference (e.g., high cyclomatic complexity suggests LOW_STRICTNESS_QA)
-    if (analysis.dependency_count > 50) {
-      suggestedTags.push('INFRASTRUCTURE_CRITICAL');
-    }
-
-    // 2. Runtime/Telemetry Inference (e.g., constant high queue depth suggests HIGH_THROUGHPUT)
-    if (runtimeData.queue_depth_avg > 100) {
-      suggestedTags.push('HIGH_THROUGHPUT');
-    }
+    // Use the external engine to apply all rules simultaneously
+    const suggestedTags = this.tagInferenceEngine.execute({
+      rules: this.tagRules,
+      staticData: analysis,
+      runtimeData: runtimeData
+    });
     
-    return Array.from(new Set(suggestedTags)); // Return unique inferred tags
+    return suggestedTags;
   }
 }
 
