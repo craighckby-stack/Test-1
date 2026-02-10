@@ -1,33 +1,44 @@
-const Ajv = require('ajv');
-const schema = require('../config/TEDS_Schema.json');
-const ajv = new Ajv({ allErrors: true, formats: { 'date-time': true } });
+import { SchemaValidationEngineTool } from '@plugins/SchemaValidationEngineTool';
+import { CanonicalSerializationUtility } from '@plugins/CanonicalSerializationUtility';
+import { SchemaErrorFormatterTool } from '@plugins/SchemaErrorFormatterTool';
 
-const validate = ajv.compile(schema);
+// NOTE: Schema path assumed to be relative to module root
+const TEDS_Schema = require('../config/TEDS_Schema.json');
+
+// Initialize Tools (assuming dependency injection handles instantiation)
+const validationEngine = new SchemaValidationEngineTool();
+const canonicalizer = new CanonicalSerializationUtility();
+const errorFormatter = new SchemaErrorFormatterTool();
 
 /**
  * Validates a TEDS artifact against the structural schema.
  * @param {object} tedsData The TEDS payload to validate.
- * @returns {boolean|string[]} True if valid, or array of errors.
+ * @returns {boolean|string[]} True if valid, or array of errors (formatted).
  */
 function validateTEDS(tedsData) {
-  const valid = validate(tedsData);
-  if (!valid) {
-    return validate.errors.map(err => {
-      return `${err.dataPath}: ${err.message}`;
-    });
+  // Assume validationEngine handles schema compilation and validation (using Ajv or similar behind the scenes)
+  const validationResult = validationEngine.validate(tedsData, TEDS_Schema);
+
+  if (!validationResult.valid) {
+    // Use the error formatter to get the desired output format: 
+    // "${err.dataPath}: ${err.message}"
+    // Assuming SchemaErrorFormatterTool exposes a standard Ajv error formatting function.
+    return errorFormatter.formatErrors(validationResult.errors, { format: '{dataPath}: {message}' });
   }
   return true;
 }
 
 /**
  * Canonicalizes the TEDS artifact structure prior to cryptographic signing.
- * NOTE: Canonicalization logic must exactly match the CRoT implementation.
+ * The original implementation used a shallow sort which is non-robust. We replace it with 
+ * the CanonicalSerializationUtility to ensure deep, strict, and reproducible serialization 
+ * required for cryptographic integrity checks.
  * @param {object} tedsData The TEDS payload.
  * @returns {string} The canonicalized string representation for hashing.
  */
 function canonicalize(tedsData) {
-    // Standard practice uses RFC 8785, or a strict sorted JSON stringify.
-    return JSON.stringify(tedsData, Object.keys(tedsData).sort()); 
+    // Use the robust utility for cryptographic canonicalization (e.g., RFC 8785 compliant serialization)
+    return canonicalizer.serialize(tedsData, { standard: 'strict_json' }); 
 }
 
 module.exports = {
