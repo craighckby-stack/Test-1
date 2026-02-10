@@ -4,24 +4,13 @@
  * Mandate: Provide Canonical JSON serialization and Deep Freezing capabilities.
  */
 
-const recursiveSortKeys = (obj) => {
-    if (typeof obj !== 'object' || obj === null) {
-        return obj;
-    }
+// NOTE: The recursiveSortKeys logic has been extracted into the CanonicalSerializationUtility plugin.
 
-    if (Array.isArray(obj)) {
-        // Recursively sort elements within arrays if they are objects
-        return obj.map(recursiveSortKeys);
-    }
-
-    // Handle plain objects: sort keys and recurse
-    const sorted = {};
-    Object.keys(obj).sort().forEach(key => {
-        sorted[key] = recursiveSortKeys(obj[key]);
-    });
-    return sorted;
-};
-
+/**
+ * Recursively freezes an object and all nested objects.
+ * @param {Object} obj
+ * @returns {Object}
+ */
 const internalDeepFreeze = (obj) => {
     // Must be an object that is not null
     if (obj === null || typeof obj !== 'object') {
@@ -48,13 +37,17 @@ class ObjectUtils {
     /**
      * Ensures deterministic serialization of data by recursively sorting all object keys.
      * This produces Canonical JSON string output necessary for consistent content hashing.
+     * Now delegates to the CanonicalSerializationUtility plugin.
      * @param {Object} data 
      * @returns {string} Canonical JSON string.
      */
     canonicalStringify(data) {
-        const sortedData = recursiveSortKeys(data);
-        // Note: JSON.stringify handles recursive references correctly if the object is graph-like
-        return JSON.stringify(sortedData);
+        // CRITICAL: Delegate to the dedicated plugin.
+        // Assuming CanonicalSerializationUtility is accessible in the runtime environment.
+        if (typeof CanonicalSerializationUtility === 'undefined' || typeof CanonicalSerializationUtility.execute !== 'function') {
+             throw new Error("Required plugin 'CanonicalSerializationUtility' is unavailable or improperly initialized.");
+        }
+        return CanonicalSerializationUtility.execute({ data: data });
     }
 
     /**
