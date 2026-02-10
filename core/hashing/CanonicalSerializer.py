@@ -95,12 +95,22 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     14. Added introspection for public properties (`@property` decorators) in custom classes. This ensures 
         that derived or calculated state essential for an object's identity is included in the canonical hash, 
         preventing unstable hashing of high-complexity agent models or configuration objects.
+
+    AGI-KERNEL Improvement (Cycle 17, Logic/Memory):
+    15. Fixed a critical determinism flaw in circular reference handling. Instead of using the 
+        non-deterministic Python object ID (`id()`) in the output, the encoder now maps object 
+        IDs to a serialization-local, canonical integer index (0, 1, 2, ...), ensuring hash stability 
+        even when deep, cyclic graphs are encountered across different execution runs.
+    16. Added explicit, canonical serialization handling for the Python constants `Ellipsis` 
+        and `NotImplemented` commonly used in configuration schemas and agent functional prototypes.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Cycle 2: Initialize set to track IDs of custom objects currently being serialized
-        self._visited = set()
+        # AGI-KERNEL Improvement (Cycle 17): Initialization for Deterministic Circularity Tracking.
+        # Maps Python object id() to a canonical integer index (0, 1, 2, ...) unique to this serialization run.
+        self._canonical_id_map = {}
+        self._next_canonical_id = 0
 
     def _canonicalize_key(self, key):
         """
@@ -202,6 +212,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Reference is live. Serialize the target object itself recursively.
                 # The recursion mechanism handles potential circularity.
                 return self.default(target)
+
+        # AGI-KERNEL Improvement (Cycle 17): Handle Python constants Ellipsis and NotImplemented
+        if obj is Ellipsis:
+            return {"__constant__": "Ellipsis"}
+        if obj is NotImplemented:
+            return {"__constant__": "NotImplemented"}
 
         # AGI-KERNEL Improvement (Cycle 6): Handle non-finite floats deterministically
         if isinstance(obj, float):
@@ -306,13 +322,15 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
             obj_id = id(obj)
 
-            # Cycle 2 Improvement: Detect circularity in custom graphs
-            if obj_id in self._visited:
-                # Return a deterministic marker string instead of failing
-                return f"<CANONICAL_CIRCULAR_REF:{obj_id}>"
+            # AGI-KERNEL Improvement (Cycle 17): Critical Fix for Non-Deterministic Circular References.
+            if obj_id in self._canonical_id_map:
+                # Circularity detected. Use the serialization-local canonical index.
+                canonical_ref_id = self._canonical_id_map[obj_id]
+                return f"<CANONICAL_CIRCULAR_REF:{canonical_ref_id}>"
 
-            # Add ID before attempting serialization
-            self._visited.add(obj_id)
+            # Assign a new canonical ID and track it before attempting serialization
+            self._canonical_id_map[obj_id] = self._next_canonical_id
+            self._next_canonical_id += 1
 
             # AGI-KERNEL Improvement (Cycle 14): Prioritize explicit canonical state protocol (__canonical_state__)
             # This allows objects (e.g., agents) to define their hashable state, overriding generic introspection.
@@ -320,7 +338,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 try:
                     canonical_state = obj.__canonical_state__()
                     if isinstance(canonical_state, collections.Mapping):
-                        self._visited.discard(obj_id) 
                         return {"__object__": obj.__class__.__name__, **canonical_state}
                 except Exception:
                     # Fall through if the explicit protocol implementation fails or returns non-mapping
@@ -328,7 +345,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
             # Prioritize explicit interface if defined by the object itself (kept for legacy to_canonical_dict)
             if hasattr(obj, 'to_canonical_dict'):
-                self._visited.discard(obj_id)
                 return obj.to_canonical_dict()
             
             # 5a. Explicit dataclass serialization for structural integrity
@@ -337,7 +353,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # AGI-KERNEL Improvement (Cycle 7): Apply NULL filtering to dataclasses for hashing determinism.
                 raw_dict = asdict(obj)
                 # Filter out None values to ensure canonical output stability
-                self._visited.discard(obj_id)
                 return {k: v for k, v in raw_dict.items() if v is not None}
 
             # 5c. Generalized attribute serialization (Handling __dict__, __slots__, and @property)
@@ -387,12 +402,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 if safe_dict:
                     # AGI-KERNEL Improvement (Cycle 13): Explicitly tag the structure with the class name 
                     # for clear demarcation between custom objects and standard dictionaries in the canonical output.
-                    self._visited.discard(obj_id)
                     return {"__object__": obj.__class__.__name__, **safe_dict}
             
-            # If object was visited but none of the standard serialization paths yielded results, we discard the visit status
-            # and proceed to base class failure.
-            self._visited.discard(obj_id)
+            # If object was tracked but failed structural introspection, we allow the base class to raise the TypeError.
             
         # Let the base class default raise the TypeError for truly unsupported types
         return super().default(obj)
