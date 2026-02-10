@@ -44,7 +44,13 @@ const DEFAULT_TARGETS = {
     queueDepth: 0.70
 };
 
-// Assuming KERNEL_SYNERGY_CAPABILITIES and KERNEL_HOOK exist in the global runtime environment for V7 integration.
+// --- KERNEL V7 SYNERGY: Global declarations for plugin access ---
+declare const ConstraintReducer: {
+    execute: (constraints: any[]) => Promise<ReductionResult>;
+};
+declare const KERNEL_HOOK: {
+    log(eventName: string, data: any): void;
+};
 
 export class AdaptiveSamplingEngine {
     private config: AdaptiveSamplingConfig;
@@ -99,32 +105,21 @@ export class AdaptiveSamplingEngine {
         let requiredRate = 1.0;
         let restrictingConstraint: NamedConstraint | null = null;
         
-        // --- START: KERNEL V7 Synergy Integration ---
+        // --- START: KERNEL V7 Synergy Integration: Using formalized ConstraintReducer Plugin ---
         
         // Payload only includes necessary fields for the external capability
         const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
 
-        if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.ConstraintReducer) {
-            
-            // Use the injected ConstraintReducer tool for core reduction logic
-            const reductionResult: ReductionResult = await KERNEL_SYNERGY_CAPABILITIES.ConstraintReducer.execute('calculateDropFactor', constraintsPayload);
+        // CRITICAL REFACTOR: Removed complex global check and local fallback. 
+        // We now rely purely on the formalized, optimized ConstraintReducer capability.
+        try {
+            // Execute the plugin defined below
+            const reductionResult: ReductionResult = await ConstraintReducer.execute(constraintsPayload);
             requiredRate = reductionResult.rate;
             restrictingConstraint = reductionResult.restrictingConstraint;
-            
-        } else {
-            // Fallback implementation (original logic modified to track the restrictor)
-            let minRate = 1.0;
-
-            for (const c of constraints) {
-                if (c.current > c.target) {
-                    const dropFactor = c.target / c.current;
-                    if (dropFactor < minRate) {
-                        minRate = dropFactor;
-                        restrictingConstraint = c;
-                    }
-                }
-            }
-            requiredRate = minRate;
+        } catch (e) {
+            // Fallback if plugin execution fails (e.g., environment error), using default 1.0 rate.
+            console.error("Failed to execute ConstraintReducer capability, defaulting to full sampling:", e);
         }
         
         // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook
