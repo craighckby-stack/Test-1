@@ -125,6 +125,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         
     AGI-KERNEL Improvement (Cycle 21, Logic/Governance):
     20. Added explicit, deterministic serialization for Python `BaseException` objects (including standard exceptions and warnings). This ensures that error states logged by `/governance` or stored in agent history are hashed consistently by stripping non-deterministic elements (like tracebacks or memory references) and only including the exception type and constructor arguments.
+    
+    AGI-KERNEL Improvement (Cycle 22, Emergence: Schema Stability Protocol):
+    21. Added dedicated, canonical serialization for `typing.TypeVar` objects. This extracts only the declarative attributes (name, bound, constraints, variance) to ensure schemas and abstract type definitions hash deterministically, regardless of runtime memory location or internal non-deterministic state.
     """
 
     def __init__(self, *args, **kwargs):
@@ -183,8 +186,21 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             except AttributeError:
                 return obj.name
 
-        # 0c. AGI-KERNEL Improvement (Cycle 9/11): Deterministic Serialization for Callables (Functions, Methods) and Classes
+        # 0c. AGI-KERNEL Improvement (Cycle 9/11/22): Deterministic Serialization for Callables (Functions, Methods) and Classes
         # This is crucial for stable hashing of configurations or agent states that reference dynamically loaded behaviors.
+
+        # AGI-KERNEL Improvement (Cycle 22, Emergence: Schema Stability Protocol): TypeVar Handling
+        if isinstance(obj, typing.TypeVar):
+            return {
+                "__typevar__": True,
+                "name": obj.__name__,
+                "bound": self.default(obj.__bound__) if obj.__bound__ is not None else None,
+                "constraints": self.default(obj.__constraints__),
+                "covariant": obj.__covariant__,
+                "contravariant": obj.__contravariant__,
+                "extra": list(obj.__extra__) if hasattr(obj, '__extra__') else []
+            }
+            
         if callable(obj):
             try:
                 module_name = getattr(obj, '__module__', None)
