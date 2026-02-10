@@ -2,6 +2,15 @@
 // This engine drives Maturity Progression and Capability Self-Assessment.
 
 /**
+ * Placeholder for the dynamically loaded SafeFormulaEvaluator plugin instance.
+ * In the actual kernel environment, this would be injected or retrieved from the registry.
+ */
+declare const SafeFormulaEvaluatorInstance: {
+    evaluate: (formula: string, context: Record<string, number>) => number;
+    sanitize: (formula: string) => string;
+};
+
+/**
  * @class FitnessEngine
  * Consumes config/metrics_and_oracles_v2.json and calculates the fitness score
  * for a new codebase generation based on collected runtime and static metrics.
@@ -38,9 +47,12 @@ class FitnessEngine {
   // NEW: Constants for robust historical comparison when metrics are near zero (Logic/Memory)
   static MIN_ABSOLUTE_HISTORY = 1e-4; // Minimum non-zero denominator for relative change stability
   static ABSOLUTE_CHANGE_THRESHOLD = 0.5; // Absolute change required if baseline is near zero
-  static MAX_FORMULA_LENGTH = 512; // Maximum allowed length for dynamic metric formulas (Autonomy/Security)
+  // NOTE: MAX_FORMULA_LENGTH logic is now enforced within the SafeFormulaEvaluator plugin.
+  static MAX_FORMULA_LENGTH = 512; 
 
-  constructor(metricsConfig) {
+  private formulaEvaluator: typeof SafeFormulaEvaluatorInstance;
+
+  constructor(metricsConfig: any) {
     if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
         // Robust data extraction/JSON Parsing check
         console.error("FitnessEngine: Invalid or missing metrics configuration provided. Profiles object missing.");
@@ -50,6 +62,9 @@ class FitnessEngine {
         this.config = metricsConfig;
         this.isOperational = true;
     }
+
+    // Assume SafeFormulaEvaluatorInstance is globally available after plugin load
+    this.formulaEvaluator = SafeFormulaEvaluatorInstance;
     
     // JSON Parsing: Deep structural validation check for profiles
     if (this.isOperational) {
@@ -82,7 +97,7 @@ class FitnessEngine {
    * @param {string} metricKey - The key to look up.
    * @returns {number} The safe numeric metric value.
    */
-  _safeGetMetricValue(rawMetrics, metricKey) {
+  _safeGetMetricValue(rawMetrics: Record<string, any>, metricKey: string): number {
       const exists = rawMetrics && rawMetrics.hasOwnProperty(metricKey);
       
       if (!exists) {
@@ -101,6 +116,56 @@ class FitnessEngine {
       }
       return value;
   }
+  
+  /**
+   * Autonomy/Security: Evaluates a dynamic metric formula using the SafeFormulaEvaluator plugin.
+   * Replaces the internal, potentially error-prone evaluation logic.
+   * 
+   * @param {Record<string, number>} rawMetrics - Collected M_* metrics.
+   * @param {string} formulaString - The metric ID or dynamic calculation string.
+   * @returns {number} The calculated metric value, or 0.0 on error.
+   */
+  calculateDerivedMetric(rawMetrics: Record<string, any>, formulaString: string): number {
+    if (!formulaString) return 0.0;
+
+    // 1. Check if the formula is just a direct key lookup (optimization)
+    if (!formulaString.match(/[+\-\*/()]/)) {
+        return this._safeGetMetricValue(rawMetrics, formulaString);
+    }
+
+    // 2. Use the extracted plugin for complex evaluation (Autonomy/Logic)
+    return this.formulaEvaluator.evaluate(formulaString, rawMetrics as Record<string, number>);
+  }
+  
+  /**
+   * Logic/Error Handling: Checks if a numeric value meets a specified condition (e.g., >= 5).
+   * 
+   * @param {number} metricValue 
+   * @param {string} condition - Operator string (e.g., '>', '<=', '==').
+   * @param {number} targetValue - Value to compare against.
+   * @returns {boolean} True if the condition is met.
+   */
+  checkCondition(metricValue: number, condition: string, targetValue: number): boolean {
+    // Ensure inputs are numbers (Robustness check)
+    if (typeof metricValue !== 'number' || typeof targetValue !== 'number' || !isFinite(metricValue) || !isFinite(targetValue)) {
+        console.warn(`Condition check received non-numeric input: ${metricValue} ${condition} ${targetValue}`);
+        return false;
+    }
+
+    switch (condition.trim()) {
+        case '>': return metricValue > targetValue;
+        case '>=': return metricValue >= targetValue;
+        case '<': return metricValue < targetValue;
+        case '<=': return metricValue <= targetValue;
+        case '==': 
+        case '===': return Math.abs(metricValue - targetValue) < FitnessEngine.FLOAT_TOLERANCE; // Use tolerance for floats
+        case '!=':
+        case '!==': return Math.abs(metricValue - targetValue) >= FitnessEngine.FLOAT_TOLERANCE;
+        default:
+            console.error(`Unknown condition operator: ${condition}`);
+            return false;
+    }
+  }
 
   /**
    * Calculates fitness based on raw metric data, history, and the specified profile.
@@ -111,7 +176,7 @@ class FitnessEngine {
    * @param {Object} [historicalMetrics={}] - Historical metrics (e.g., previous cycle averages from Nexus).
    * @returns {number} Calculated fitness score (0.0 to MAX_FITNESS).
    */
-  calculate(rawMetrics, profileName, historicalMetrics = {}) {
+  calculate(rawMetrics: Record<string, any>, profileName: string, historicalMetrics: Record<string, any> = {}): number {
     
     // Robust Error Handling: Ensure rawMetrics is usable
     if (typeof rawMetrics !== 'object' || rawMetrics === null) {
@@ -142,7 +207,7 @@ class FitnessEngine {
     
     // 2. Apply Oracle modifications (penalties/rewards)
     if (Array.isArray(profile.oracles)) {
-        profile.oracles.forEach(oracle => {
+        profile.oracles.forEach((oracle: any) => {
             
             // JSON Parsing Robustness: Safely read metric value and validate oracle type
             if (!oracle.metric || !oracle.condition || oracle.value === undefined || 
@@ -209,7 +274,7 @@ class FitnessEngine {
    * Rewards improvement, penalizes regression relative to the history.
    * The adjustment factor is now dynamic, proportional to the magnitude of change, utilizing formalized constants.
    */
-  _applyHistoricalAdjustment(currentScore, rawMetrics, historicalMetrics, profile) {
+  _applyHistoricalAdjustment(currentScore: number, rawMetrics: Record<string, any>, historicalMetrics: Record<string, any>, profile: any): number {
       
       const { changeType, rawFactor } = this._calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile);
 
@@ -239,7 +304,7 @@ class FitnessEngine {
    * IMPROVEMENT: Added robustness for near-zero historical values (Memory/Logic Stability).
    * @returns {{changeType: ('reward'|'penalty'|'neutral'), rawFactor: number}}
    */
-  _calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile) {
+  _calculateHistoricalChangeFactor(rawMetrics: Record<string, any>, historicalMetrics: Record<string, any>, profile: any): { changeType: 'reward' | 'penalty' | 'neutral', rawFactor: number } {
       const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
       const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
       const ABSOLUTE_THRESHOLD = FitnessEngine.ABSOLUTE_CHANGE_THRESHOLD;
@@ -261,7 +326,7 @@ class FitnessEngine {
       }
       
       const absoluteDifference = currentTargetValue - historicalTargetValue;
-      let performanceChange = 'neutral';
+      let performanceChange: 'reward' | 'penalty' | 'neutral' = 'neutral';
       let rawMagnitude = 0.0;
 
       // Determine if historical comparison should use relative or absolute threshold
@@ -307,354 +372,4 @@ class FitnessEngine {
 
       return { changeType: performanceChange, rawFactor: finalFactor };
   }
-
-  /**
-   * Autonomy/Error Handling: Sanitizes the dynamic calculation string before evaluation.
-   * Only allows basic arithmetic operators, parentheses, decimals, and numbers.
-   *
-   * @param {string} formulaString - The string after metric substitution.
-   * @returns {string} Sanitized formula string.
-   */
-  sanitizeFormula(formulaString) {
-    // Aggressive whitelisting/removal based on acceptable JS arithmetic tokens, including E for scientific notation
-    let sanitized = formulaString.replace(/[^-+*/().\s\dEe]/g, '');
-    
-    // Additional defense: basic check for obvious attempts to execute code post-sanitization
-    // We allow 'e' and 'E' for scientific notation but nothing else.
-    if (/[a-df-zA-DF-Z]/.test(sanitized)) { 
-        // If any letter other than 'e' or 'E' remains, suspicious characters are present.
-        console.error("FitnessEngine Security Alert: Post-substitution formula sanitization failed: suspicious characters remain.");
-        return "0.0"; 
-    }
-    
-    return sanitized;
-  }
-
-  /**
-   * Internal utility to check if parentheses in a formula string are correctly balanced.
-   * Crucial for robust formula validation (Error Handling/Autonomy).
-   *
-   * @param {string} formula - The raw metric calculation formula string.
-   * @returns {boolean} True if parentheses are balanced.
-   */
-  _checkParenthesisBalance(formula) {
-      let balance = 0;
-      for (let i = 0; i < formula.length; i++) {
-          const char = formula[i];
-          if (char === '(') {
-              balance++;
-          } else if (char === ')') {
-              balance--;
-          }
-          // Immediate check for negative balance (closing before opening)
-          if (balance < 0) {
-              return false;
-          }
-      }
-      return balance === 0;
-  }
-  
-  /**
-   * Autonomy/Security: Pre-validates the formula to ensure it only references known
-   * metrics and safe arithmetic structure, before substitution and evaluation.
-   */
-  validateFormula(formula, metricKeys) {
-      // 1. Check for forbidden characters (anything not standard metrics/operators/numbers)
-      // Allows A-Z, 0-9, _, +, -, *, /, ., (, ), and whitespace.
-      const allowedPattern = /^[A-Z0-9_+\-*\/().\s]+$/; 
-      if (!allowedPattern.test(formula)) {
-          console.error("FitnessEngine Security Alert: Formula failed forbidden character check (contains unexpected characters).");
-          return false;
-      }
-      
-      // 2. Check if all "words" (potential metric IDs) are defined keys.
-      const tokens = formula.match(/[A-Z_]+/g) || [];
-      const unknownMetrics = tokens.filter(token => !metricKeys.includes(token));
-      
-      if (unknownMetrics.length > 0) {
-          console.error(`FitnessEngine Security Alert: Formula references unknown metrics: ${unknownMetrics.join(', ')}`);
-          return false;
-      }
-      
-      // Normalize formula by removing spaces for structural checks
-      const trimmedFormula = formula.replace(/\s/g, '');
-      const metricIdPattern = /[A-Z_]+/; // Pattern for a metric ID
-
-      // NEW SECURITY IMPROVEMENT (Error Handling/Autonomy):
-      // 3a. Check for metric followed immediately by open parenthesis without operator (e.g., M_A(M_B+2))
-      if (trimmedFormula.match(new RegExp(metricIdPattern.source + '\('))) {
-          console.error("FitnessEngine Security Alert: Metric followed immediately by open parenthesis (missing operator).");
-          return false;
-      }
-
-      // 3b. Check for close parenthesis followed immediately by metric without operator (e.g., (M_B+2)M_A)
-      if (trimmedFormula.match(new RegExp('\)' + metricIdPattern.source))) {
-          console.error("FitnessEngine Security Alert: Close parenthesis followed immediately by metric (missing operator).");
-          return false;
-      }
-      
-      // 4. Check parenthesis balance (Error Handling/Autonomy)
-      if (!this._checkParenthesisBalance(formula)) {
-          console.error("FitnessEngine Security Alert: Formula failed parenthesis balance check (structural integrity error).");
-          return false;
-      }
-      
-      // 5. Check for invalid operator sequences
-      // Look for multiple non-unary operators in sequence.
-      const formulaOperatorsOnly = formula.replace(/[A-Z0-9_().\s]/g, '');
-      const invalidOperatorSequence = /[+\/\*]{2,}|[+\-*\/][*\/]|[*\/][+\-*\/]/; 
-      
-      if (invalidOperatorSequence.test(formulaOperatorsOnly.replace(/\s/g, ''))) {
-          console.error("FitnessEngine Security Alert: Formula failed invalid operator sequence check (structural integrity error).");
-          return false;
-      }
-
-      // 6. Check for formulas starting or ending with disallowed operators
-      const trimFormula = formula.trim();
-      // We allow start with + or - for unary operations.
-      const disallowedStartEnd = /^[*\/]|[+\-*\/]$/; // Disallow starting with * or / OR ending with any operator
-
-      if (disallowedStartEnd.test(trimFormula)) {
-          console.error("FitnessEngine Security Alert: Formula starts or ends with invalid operator.");
-          return false;
-      }
-      
-      return true;
-  }
-
-
-  /**
-   * Implements dynamic formula execution for Meta-Reasoning capability development.
-   *
-   * @param {Object} rawMetrics - Collected M_* metrics.
-   * @param {string} targetMetricIdOrFormula - The target ID or dynamic calculation string.
-   * @returns {number} The calculated metric value.
-   */
-  calculateDerivedMetric(rawMetrics, targetMetricIdOrFormula) {
-    if (!targetMetricIdOrFormula || !rawMetrics) return 0.0;
-
-    const formula = targetMetricIdOrFormula.trim();
-    
-    // NEW IMPROVEMENT (Autonomy/Security): Check formula length to prevent resource exhaustion from malformed input
-    if (formula.length > FitnessEngine.MAX_FORMULA_LENGTH) {
-        console.error(`FitnessEngine Security Alert: Formula length (${formula.length}) exceeds maximum allowed length (${FitnessEngine.MAX_FORMULA_LENGTH}). Aborting calculation.`);
-        return 0.0;
-    }
-
-    // Get all valid metric keys for security validation
-    const metricKeys = Object.keys(rawMetrics);
-
-    // Check if it's a simple lookup (M_XXX) or a complex formula (+, *, /, (, ))
-    const isComplexFormula = /[+\-*\/()]/.test(formula);
-
-    if (!isComplexFormula) {
-        // Baseline lookup
-        return this._safeGetMetricValue(rawMetrics, formula);
-    }
-    
-    // META-REASONING SECURITY VULNERABILITY MITIGATION (Autonomy/Error Handling)
-    if (!this.validateFormula(formula, metricKeys)) {
-        console.error(`FitnessEngine: Formula validation failed for '${formula}'. Aborting calculation.`);
-        return 0.0;
-    }
-
-    // Meta-Reasoning: Dynamic Formula Parsing and Execution
-    let calculationString = formula;
-
-    for (const metricKey of metricKeys) {
-        // Use the new safe getter to ensure numerical safety
-        const value = this._safeGetMetricValue(rawMetrics, metricKey);
-        
-        // IMPROVEMENT: Use double-escaped \b for word boundary in RegExp constructor (Security/Logic Fix).
-        // Wraps value in parentheses to ensure order of operations integrity.
-        calculationString = calculationString.replace(new RegExp('\\b' + metricKey + '\\b', 'g'), `(${value})`);
-    }
-
-    let result;
-    try {
-        // Step 1: Sanitize the resulting calculation string before execution for enhanced security and stability.
-        const safeCalculationString = this.sanitizeFormula(calculationString);
-        
-        // NEW IMPROVEMENT (Error Handling): Pre-check for Division by Zero in the substituted numeric string
-        // Searches for / followed immediately by a literal 0 (optionally surrounded by parentheses/decimals/whitespace)
-        const divisionByZeroCheck = /\/(\s*\(?\s*0(\.0*)?\s*\)?)/g;
-        if (divisionByZeroCheck.test(safeCalculationString)) {
-             console.error(`FitnessEngine Critical Error: Detected potential division by zero after substitution: ${safeCalculationString}. Aborting calculation.`);
-             return 0.0;
-        }
-
-        // Check if sanitization resulted in an empty, meaningless, or operator-only string (Error Handling)
-        if (safeCalculationString.trim().length === 0 || safeCalculationString.trim() === '()' || /^[+\-*\/]*$/.test(safeCalculationString.trim())) {
-             console.warn(`FitnessEngine: Sanitization resulted in an empty or operator-only calculation string for formula: ${formula}. String: ${safeCalculationString}. Returning 0.0.`);
-             return 0.0;
-        }
-
-        // SECURITY IMPROVEMENT: Use Function constructor for isolated execution.
-        result = (new Function('return ' + safeCalculationString))();
-        
-        if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-            // Robust Error Handling: Check for Infinity specifically (Error Handling/Logic)
-            if (result === Infinity || result === -Infinity) {
-                 console.error(`FitnessEngine Critical Error: Formula execution resulted in Infinity (likely undetected division by zero or overflow) for formula: ${formula}.`);
-            } else {
-                 console.error(`FitnessEngine: Formula execution resulted in non-safe number for formula: ${formula}. Resulting string: ${safeCalculationString}.`);
-            }
-            return 0.0;
-        }
-        return result;
-
-    } catch (e) {
-        // Robust Error Handling during formula execution
-        console.error(`FitnessEngine: Failed to evaluate derived metric formula: ${e.message}. Attempted string: ${calculationString}`);
-        return 0.0;
-    }
-  }
-
-  /**
-   * Detailed conditional evaluation logic. Enhanced for safer numerical comparison using tolerance.
-   */
-  checkCondition(value, condition, threshold) {
-    if (value === undefined || threshold === undefined) return false;
-    
-    const conditionOp = condition.trim();
-    const FLOAT_TOLERANCE = FitnessEngine.FLOAT_TOLERANCE;
-    
-    // Priority 1: If both can be numbers, use strict numerical comparison 
-    const numValue = parseFloat(value);
-    const numThreshold = parseFloat(threshold);
-    
-    const isNumComparison = !isNaN(numValue) && !isNaN(numThreshold);
-
-    if (isNumComparison) {
-      const val = numValue;
-      const thresh = numThreshold;
-
-      switch (conditionOp) {
-        case '>': return val > thresh + FLOAT_TOLERANCE; // Check slightly above threshold
-        case '<': return val < thresh - FLOAT_TOLERANCE; // Check slightly below threshold
-        case '>=': return val > thresh - FLOAT_TOLERANCE;
-        case '<=': return val < thresh + FLOAT_TOLERANCE;
-        case '==':
-        case '===':
-          return Math.abs(val - thresh) < FLOAT_TOLERANCE; // Use tolerance for floating point numbers
-        case '!=':
-        case '!==' :
-          return Math.abs(val - thresh) >= FLOAT_TOLERANCE;
-        default:
-          break; // Fall through to non-numerical comparison if operator is non-standard
-      }
-    }
-    
-    // Fallback: Non-numerical comparison using strict equality
-    switch (conditionOp) {
-      case '==':
-      case '===':
-        return value === threshold;
-      case '!=':
-      case '!==' :
-        return value !== threshold;
-      default:
-        // Graceful failure for unknown conditions (Error Handling)
-        console.warn(`FitnessEngine: Unknown or unsupported condition operator: ${condition} for comparison.`);
-        return false;
-    }
-  }
-
-  /**
-   * Helper to return default capabilities upon error.
-   */
-  _defaultCapabilityMapping() {
-      return {
-        navigation: 5.0, 
-        logic: 5.0, 
-        memory: 5.0
-      };
-  }
-
-  /**
-   * Meta-Reasoning: Dynamically maps the final fitness score (0-10) to the kernel's core capabilities (0-10),
-   * based on the specific profile used and the complexity of the calculation.
-   *
-   * @param {number} fitnessScore - The result of calculate().
-   * @param {string} profileName - The profile used for calculation.
-   * @param {Object} rawMetrics - Metrics used in current cycle.
-   * @param {Object} historicalMetrics - Metrics used for historical comparison.
-   * @returns {Object<string, number>} Capability scores.
-   */
-  assessCapabilities(fitnessScore, profileName, rawMetrics = {}, historicalMetrics = {}) {
-    const clampedScore = Math.max(0, Math.min(10, fitnessScore));
-    const normalizedScore = clampedScore / 10.0; // 0.0 to 1.0
-
-    const profile = this.config.profiles[profileName];
-    if (!profile) return this._defaultCapabilityMapping();
-
-    // 1. Initialize Base Scores
-    // All internal capabilities start at 5.0 (Maturity 0 baseline)
-    let coreScores = {};
-    const BASELINE_SCORE = 5.0;
-    const improvementWeights = FitnessEngine.IMPROVEMENT_DISTRIBUTION_WEIGHTS;
-
-    for (const cap in improvementWeights) {
-        coreScores[cap] = BASELINE_SCORE;
-    }
-    
-    // 2. Distribute Improvement (Max 5.0 points total improvement)
-    const totalImprovement = normalizedScore * 5.0; 
-
-    for (const cap in improvementWeights) {
-        const weight = improvementWeights[cap];
-        // Distribute the score proportionally
-        coreScores[cap] += totalImprovement * weight;
-    }
-    
-    // 3. Strategic Alignment Boost Assessment
-    const isComplexFormula = /[+\-*\/()]/.test(profile.target_metric);
-
-    if (isComplexFormula) {
-        // Reward for successful dynamic calculation (Meta-Reasoning capability)
-        coreScores["Meta-Reasoning"] += normalizedScore * 0.5; 
-        coreScores["Autonomy"] += normalizedScore * 0.2; // Autonomy required to handle complex definitions
-    }
-    
-    if (profile.optimization_goal === 'minimize') {
-        // High reward for identifying and solving challenging optimization problems (Creativity/Novelty)
-        coreScores["Creativity"] += normalizedScore * 0.4; 
-    }
-    
-    // 4. Historical Success Boost (Meta-Reasoning / Memory)
-    const { changeType } = this._calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile);
-    
-    if (changeType === 'reward') {
-        // Significant bonus for demonstrating learning and progression against history
-        coreScores["Meta-Reasoning"] += 0.8; 
-        coreScores["Autonomy"] += 0.4;
-    } else if (Object.keys(historicalMetrics).length > 0) {
-        // Minor acknowledgement for engaging with historical memory
-        coreScores["Meta-Reasoning"] += 0.1;
-    }
-    
-    // 5. Final normalization and clamping (5.0 to 10.0)
-    for (const key in coreScores) {
-        coreScores[key] = Math.min(10.0, coreScores[key]);
-        // Ensure minimum baseline reflects system stability
-        coreScores[key] = Math.max(BASELINE_SCORE, coreScores[key]);
-    }
-    
-    // 6. Map AGI Core Capabilities back to expected output keys using defined weights
-    let agiScores = {};
-    const weights = FitnessEngine.CAPABILITY_WEIGHTS;
-
-    for (const agiCap in weights) {
-        let weightedSum = 0;
-        for (const internalCap in weights[agiCap]) {
-            weightedSum += coreScores[internalCap] * weights[agiCap][internalCap];
-        }
-        // Clamp the final score to 10.0 and format precisely (Logic refinement)
-        agiScores[agiCap] = parseFloat(Math.min(10, weightedSum).toFixed(2));
-    }
-    
-    return agiScores;
-  }
 }
-
-module.exports = FitnessEngine;
