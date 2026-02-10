@@ -34,8 +34,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     with /agents and /emergent components. Also added explicit support for Python dataclasses and Enums.
     
     Cycle 1 Refinement: Enhanced the __dict__ fallback mechanism to filter out 
-    private/internal attributes (starting with '_') to prevent non-deterministic 
-    hashing based on cache or transient internal state. Explicitly added Enum support.
+    private/internal attributes (starting with '_') and non-data callable attributes 
+    to prevent non-deterministic hashing based on cache, transient internal state, 
+    or unexpected methods. Explicitly added Enum support.
     """
     def default(self, obj):
         # 0. Handle Enumerations (Crucial for deterministic configs/governance data)
@@ -85,11 +86,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             
             # Fallback to serializing public attributes
             if hasattr(obj, '__dict__'):
-                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_' 
+                # Cycle 1 Improvement: Filter out internal/private attributes starting with '_'
+                # and non-data callable attributes (functions/methods)
                 # to improve determinism and prevent hashing transient state.
                 safe_dict = {
                     k: v for k, v in obj.__dict__.items()
-                    if not k.startswith('_')
+                    if not k.startswith('_') and not callable(v)
                 }
                 
                 # Only return the dictionary if it contains actual serializable data
