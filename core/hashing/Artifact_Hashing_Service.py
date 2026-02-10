@@ -40,10 +40,9 @@ class ArtifactHashingService:
     ) -> Dict[str, Any]:
         """Creates a filtered copy of the artifact data, excluding specified root keys.
 
-        NOTE ON SCOPE: This function provides fast, shallow filtering.
-        For complex artifacts requiring deep, path-aware exclusion (e.g., 'nested.field.id'),
-        the kernel has initiated the development of the 'DeepExclusionFilter' emergent capability: 
-        /emergent/hashing/DeepExclusionFilter.py
+        NOTE: This is a shallow filter, only supporting root-level key exclusions.
+        Future cycles must integrate the /emergent/hashing/DeepExclusionFilter.py 
+        for path-aware exclusion necessary for full AGI state management.
         """
         # The dictionary comprehension handles the case where exclusion_keys is empty,
         # providing a clear, concise way to filter or copy the dictionary.
@@ -71,6 +70,17 @@ class ArtifactHashingService:
             # Catch general errors and wrap them to maintain consistent serialization error type
             raise ArtifactSerializationError(f"Unexpected serialization error during hashing: {e}")
 
+    def _calculate_digest(self, data: bytes, algorithm: str) -> str:
+        """Internal helper to safely calculate the hash digest.
+        Handles algorithm validation and mapping native errors to kernel-defined errors.
+        """
+        try:
+            h = hashlib.new(algorithm)
+            h.update(data)
+            return h.hexdigest()
+        except ValueError:
+            # Occurs if hashlib.new(hash_algo) fails, indicating an invalid algorithm
+            raise HashingInitializationError(f"Unsupported or invalid hashing algorithm specified: {algorithm}")
 
     def get_canonical_hash(
         self,
@@ -95,15 +105,16 @@ class ArtifactHashingService:
         hash_algo = algorithm if algorithm else self._default_algorithm
         
         try:
-            # 1. Determine final exclusion set using clear set operations
-            # Convert optional runtime exclusions to a set if present, otherwise an empty set.
-            runtime_exclusions: Set[str] = set(exclusion_keys) if exclusion_keys else set()
+            # 1. Determine final exclusion set using update() for efficiency and clarity
+            exclusions: Set[str] = set()
             
             if use_standard_exclusions:
-                # Use set.union() for clean merging of immutable standard exclusions and runtime exclusions
-                exclusions = self._standard_exclusions.union(runtime_exclusions)
-            else:
-                exclusions = runtime_exclusions
+                # Start with the efficient frozen set of standard exclusions
+                exclusions.update(self._standard_exclusions)
+                
+            if exclusion_keys:
+                # Safely incorporate runtime exclusions (handles lists, tuples, sets, etc.)
+                exclusions.update(exclusion_keys)
 
             # 2. Filter data
             # Using the optimized shallow filter for root-level exclusions.
@@ -112,18 +123,14 @@ class ArtifactHashingService:
             # 3. Serialize filtered data
             serialized_data = self._serialize_artifact(processed_data)
             
-            # 4. Hash
-            h = hashlib.new(hash_algo)
-            h.update(serialized_data)
-            return h.hexdigest()
-        except ValueError:
-            # Occurs if hashlib.new(hash_algo) fails, indicating an invalid algorithm
-            raise HashingInitializationError(f"Unsupported or invalid hashing algorithm specified: {hash_algo}")
+            # 4. Hash using internal helper
+            return self._calculate_digest(serialized_data, hash_algo)
+            
         except (HashingInitializationError, ArtifactSerializationError):
-            # Allow internal custom errors to propagate
+            # Allow internal custom errors to propagate (raised in helpers)
             raise
         except Exception as e:
-            # Catch remaining general operational errors
+            # Catch remaining general operational errors (e.g., input iterable issues)
             raise RuntimeError(f"Critical operational error generating canonical hash using {hash_algo}: {e}")
 
     def verify_artifact_integrity(
