@@ -1,7 +1,7 @@
 {
   "$schema": "http://sgs-v97.5/schema/mqm_metrics",
   "metadata": {
-    "version": "1.3",
+    "version": "1.4",
     "last_updated": "AGI-KERNEL_v7.5.0_Cycle_1"
   },
   "metric_definitions": [
@@ -94,6 +94,16 @@
       "constraint_type": "MIN",
       "target_value": 0.95,
       "priority_weight": 0.9
+    },
+    {
+      "metric_id": "MQM_K07_EMERGENT_CAPABILITIES",
+      "source": "AGI_Kernel_EmergentCapabilityManager",
+      "data_key": "active_tool_count",
+      "description": "The count of actively registered emergent capabilities available for use in the Synergy Loop. Directly tracks core mission success.",
+      "unit": "Count",
+      "constraint_type": "MIN",
+      "target_value": 10,
+      "priority_weight": 1.0
     }
   ]
 }
