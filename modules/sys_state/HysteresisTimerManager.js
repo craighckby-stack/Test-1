@@ -2,16 +2,44 @@
  * HysteresisTimerManager.js
  * Manages the temporal tracking required for phase transitions based on continuous conditions.
  * Ensures transitions only happen if a condition holds true for a specified duration (hysteresis).
+ * Leverages the HysteresisDurationTracker plugin for core timing logic.
  */
+
 class HysteresisTimerManager {
-    constructor(logger = console) {
-        /**
-         * Storage for running timers.
-         * Key: Condition ID (e.g., 'NORMAL_TO_DEGRADED')
-         * Value: { startTime: timestamp, requiredDuration: ms }
-         */
-        this.timers = new Map();
+    private tracker: any; // HysteresisDurationTracker instance
+    private logger: Console;
+
+    constructor(logger: Console = console) {
         this.logger = logger;
+
+        // --- Dependency Initialization (Simulated Plugin Instance) ---
+        // In a real AGI-KERNEL environment, this would be injected or loaded from a central registry.
+        const HysteresisDurationTrackerFactory = (function() {
+            class HysteresisDurationTracker {
+                constructor() { this.timers = new Map(); }
+                check(id, requiredDurationMs, now = Date.now()) {
+                    if (requiredDurationMs === 0) return true;
+                    let timer = this.timers.get(id);
+                    if (!timer) {
+                        this.timers.set(id, { startTime: now, requiredDuration: requiredDurationMs });
+                        return false; 
+                    }
+                    if (now - timer.startTime >= requiredDurationMs) return true; 
+                    return false;
+                }
+                reset(id) { return this.timers.delete(id); }
+                resetAll() {
+                    const count = this.timers.size;
+                    this.timers.clear();
+                    return count;
+                }
+                hasTimer(id) { return this.timers.has(id); }
+                getTimerCount() { return this.timers.size; }
+            }
+            return new HysteresisDurationTracker();
+        })();
+        this.tracker = HysteresisDurationTrackerFactory;
+        // ------------------------------------------------------------
     }
 
     /**
@@ -22,52 +50,45 @@ class HysteresisTimerManager {
      * @param {number} requiredDurationMs - The minimum time (in milliseconds) the condition must hold.
      * @returns {boolean} True if the timer has expired (condition met).
      */
-    checkAndStartTimer(id, requiredDurationMs) {
-        const now = Date.now();
-        let timer = this.timers.get(id);
+    checkAndStartTimer(id: string, requiredDurationMs: number): boolean {
+        const timerWasRunning = this.tracker.hasTimer(id);
+
+        // Delegate core logic to the plugin
+        const conditionMet = this.tracker.check(id, requiredDurationMs);
 
         if (requiredDurationMs <= 0) {
             return true; // Immediate transition
         }
 
-        if (!timer) {
-            // Condition just started meeting requirements. Initialize timer.
-            this.timers.set(id, {
-                startTime: now,
-                requiredDuration: requiredDurationMs
-            });
+        if (!timerWasRunning && !conditionMet) {
+            // Timer was just started by the check function
             this.logger.debug(`[Timer: ${id}] Started Hysteresis (Target: ${requiredDurationMs}ms)`);
-            return false; 
         }
-
-        // Timer is running. Check if expired.
-        if (now - timer.startTime >= requiredDurationMs) {
-            return true; 
-        }
-
-        // Timer still counting down
-        return false;
+        
+        return conditionMet;
     }
 
     /**
      * Resets a specific timer, effectively canceling a pending transition.
      * @param {string} id - The ID of the timer to reset.
      */
-    resetTimer(id) {
-        if (this.timers.has(id)) {
+    resetTimer(id: string): void {
+        const wasReset = this.tracker.reset(id);
+        if (wasReset) {
             this.logger.debug(`[Timer: ${id}] Condition failed, resetting countdown.`);
-            this.timers.delete(id);
         }
     }
 
     /**
      * Resets all running timers (typically upon a successful phase transition).
      */
-    resetAll() {
-        if (this.timers.size > 0) {
-             this.logger.debug(`[Timer Manager] Resetting ${this.timers.size} timers due to phase context change.`);
+    resetAll(): void {
+        const count = this.tracker.getTimerCount();
+        this.tracker.resetAll();
+        
+        if (count > 0) {
+             this.logger.debug(`[Timer Manager] Resetting ${count} timers due to phase context change.`);
         }
-        this.timers.clear();
     }
 }
 
