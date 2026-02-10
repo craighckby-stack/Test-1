@@ -3,11 +3,16 @@
  * Loads and encapsulates ACVD constraints for optimized, low-latency axiomatic checks.
  */
 
+// Assume PolicyVetoCheckerTool is imported or accessible via the runtime environment
+declare const PolicyVetoCheckerTool: {
+    execute: (args: { metrics: { pvlm_failure_count: number, mpam_failure_count: number }, bounds: { max_pvlm_failures: number, max_mpam_failures: number } }) => boolean;
+};
+
 class DynamicPolicyCache {
     // Private fields ensure policy stability (immutability post-init)
-    #VetoBounds;
-    #UtilityBounds;
-    #ContextRequired;
+    #VetoBounds: { max_pvlm_failures: number, max_mpam_failures: number };
+    #UtilityBounds: { UFRM: number };
+    #ContextRequired: boolean;
 
     /**
      * Initializes the DPC with pre-validated ACVD configuration.
@@ -15,7 +20,7 @@ class DynamicPolicyCache {
      * @param {Object} config.policy_thresholds - Contains governance bounds.
      * @param {Object} config.attestation_requirements - Contains EVCM requirements.
      */
-    constructor({ policy_thresholds, attestation_requirements }) {
+    constructor({ policy_thresholds, attestation_requirements }: any) {
         // Input validation is streamlined, expecting schema validation to happen upstream (see scaffold).
         if (!policy_thresholds || !attestation_requirements) {
             throw new Error("[DPC] Initialization requires valid policy and attestation configurations.");
@@ -40,27 +45,19 @@ class DynamicPolicyCache {
      * @param {Object} metrics - Runtime metrics { pvlm_failure_count, mpam_failure_count }.
      * @returns {boolean} True if the system state is valid and non-vetoable.
      */
-    checkIntegrityVeto({ pvlm_failure_count, mpam_failure_count }) {
-        // Optimization: Use destructured metrics parameter for clean access.
-
-        // PVLM Breach Check (Veto)
-        if (pvlm_failure_count > this.#VetoBounds.max_pvlm_failures) {
-            return false;
-        }
-        
-        // MPAM Breach Check (Veto)
-        if (mpam_failure_count > this.#VetoBounds.max_mpam_failures) {
-            return false;
-        }
-
-        return true;
+    checkIntegrityVeto(metrics: { pvlm_failure_count: number, mpam_failure_count: number }): boolean {
+        // Delegate the core comparison logic to the reusable PolicyVetoChecker tool.
+        return PolicyVetoCheckerTool.execute({
+            metrics: metrics,
+            bounds: this.#VetoBounds
+        });
     }
 
     /**
      * Retrieves the Utility Function Runtime Metric (UFRM) bound.
      * @returns {number} The current UFRM bound.
      */
-    getUFRMBound() {
+    getUFRMBound(): number {
         return this.#UtilityBounds.UFRM;
     }
 
@@ -68,7 +65,7 @@ class DynamicPolicyCache {
      * Checks if Extended Context Validation Module (ECVM) is required.
      * @returns {boolean}
      */
-    isContextValidationRequired() {
+    isContextValidationRequired(): boolean {
         return this.#ContextRequired;
     }
 }
