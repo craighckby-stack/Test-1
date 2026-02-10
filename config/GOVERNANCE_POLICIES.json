@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V2.2",
+  "policy_schema_version": "V2.3",
   "policies": {
     "GOV_ENFORCEMENT_V9": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -31,7 +31,9 @@
             "CLEAR_PORTION_OF_BLACKLIST",
             "REVIEW_EMERGENT_INTEGRATION",
             "INCREASE_SELECTION_RANDOMNESS",
-            "TARGET_UNEXPLORED_AREAS"
+            "TARGET_UNEXPLORED_AREAS",
+            "PROPOSE_BOLD_ARCHITECTURAL_CHANGES",
+            "ATTEMPT_CROSS_DOMAIN_PATTERN_SYNTHESIS"
           ]
         }
       }
@@ -45,14 +47,19 @@
         "ANALYZE_ROOT_CAUSE"
       ]
     },
-    "POLICY_EMERGENCE_V1": {
-      "name": "Emergent Capability Vetting Protocol",
+    "POLICY_EMERGENCE_V2": {
+      "name": "Emergent Capability Vetting and Documentation Protocol",
       "applies_to_directory": "/emergent",
       "initial_status": "SANDBOXED_UNTRUSTED",
       "vetting_requirements": [
         "UNIT_TEST_COVERAGE_MIN_70%",
         "NO_EXTERNAL_CALLS_UNTIL_TRUSTED",
         "PASS_3_SUCCESSIVE_CYCLES_WITHOUT_INTERFERENCE"
+      ],
+      "documentation_requirements": [
+        "REQUIRED_HEADER_COMMENT_FOR_ORIGIN_AND_PURPOSE",
+        "MANIFEST_ENTRY_DESCRIBING_NOVELTY",
+        "CYCLE_LOG_TAG_WITH_EMERGENCE_DETECTED_TRUE"
       ],
       "integration_path": {
         "maturity_threshold_for_integration": 30,
@@ -72,7 +79,7 @@
         "/agents": 0.25,
         "/emergent": 0.20,
         "/governance": 0.15,
-        "/utils_config_data": 0.10
+        "/support_infrastructure": 0.10
       }
     }
   }
