@@ -14,11 +14,25 @@
 import { AASS } from './AASS';
 import { ConfigurationRegistry } from '../registry/ConfigurationRegistry';
 
+// Define the interface for the injected utility based on the plugin structure
+interface ManifestSealResult {
+    manifestHash: string;
+    ems_signature: string;
+    canonicalPayload: string;
+}
+
+interface ManifestSealingUtility {
+    execute: (args: { payload: object, hasherFn: (data: string) => string, signerFn: (hash: string, context: string) => Promise<string>, sealContext: string }) => Promise<ManifestSealResult>;
+}
+
+
 export class EMSU {
     private configRegistry: ConfigurationRegistry;
+    private manifestSealingUtility: ManifestSealingUtility;
 
-    constructor(registry: ConfigurationRegistry) {
+    constructor(registry: ConfigurationRegistry, manifestSealingUtility: ManifestSealingUtility) {
         this.configRegistry = registry;
+        this.manifestSealingUtility = manifestSealingUtility;
     }
 
     /**
@@ -38,11 +52,19 @@ export class EMSU {
             governance_hashes: { acvmHash, policyHash }
         };
 
-        const manifestJSON = JSON.stringify(manifestPayload);
-        const manifestHash = AASS.generateHash(manifestJSON);
+        // 3. Utilize ManifestSealingUtility for canonicalization, hashing, and signing.
+        // This enforces a standardized integrity flow (GAX III inputs -> Manifest -> Seal).
+        
+        const sealResult = await this.manifestSealingUtility.execute({
+            payload: manifestPayload,
+            // AASS provides the necessary cryptographic primitives
+            hasherFn: AASS.generateHash, 
+            signerFn: AASS.sign, 
+            sealContext: 'EpochManifestSeal'
+        });
 
-        // 3. Cryptographically seal the manifest (GAX III enforcement)
-        const ems_signature = await AASS.sign(manifestHash, 'EpochManifestSeal');
+        const manifestHash = sealResult.manifestHash;
+        const ems_signature = sealResult.ems_signature;
         
         // 4. Construct Sequence Authorization Token (SAT)
         const SAT = `${manifestHash}:${ems_signature}`;
