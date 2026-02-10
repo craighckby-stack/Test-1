@@ -1,12 +1,13 @@
+import { SecureMathEvaluator } from '../plugins/SecureMathEvaluator.js';
+
 /**
  * Sovereign AGI - Secure Expression Evaluator
  * Safely parses and executes mathematical and logical formulas provided by CRCM or other configuration sources.
- * This utility must prevent arbitrary code execution by replacing native 'eval()' with an AST parser or a dedicated secure VM.
+ * This utility delegates execution to a strictly sandboxed Math Evaluator plugin to prevent arbitrary code execution.
  */
 class SecureExpressionEvaluator {
     constructor() {
-        // Placeholder for initialization of secure parsing mechanisms (e.g., mathjs or custom AST parser configuration)
-        this.allowedFunctions = ['MAX', 'MIN', 'ABS', 'ROUND', 'LOG'];
+        // Configuration now managed by the SecureMathEvaluator plugin.
     }
 
     /**
@@ -20,22 +21,12 @@ class SecureExpressionEvaluator {
             // Step 1: Replace Context variables (e.g., Context.TCS -> 50)
             let executableFormula = formula.replace(/Context\.([^\s\)]+)/g, (match, p1) => {
                 const value = context[p1];
+                // Ensure substituted value is a safe number, defaults to 0 if missing or invalid.
                 return (typeof value === 'number' && !isNaN(value)) ? value : 0;
             });
 
-            // Step 2: Secure Execution Placeholder
-            // WARNING: The following implementation uses the Function constructor, which is NOT fully safe against complex injection.
-            // This must be replaced by a dedicated AST parser or sandboxed VM (e.g., Node's 'vm' module) in a production environment.
-            const contextProxy = {
-                MAX: Math.max,
-                MIN: Math.min,
-                ABS: Math.abs,
-                ROUND: Math.round
-            };
-            
-            // Construct function to isolate execution scope
-            const evaluator = new Function('ctx', `with(ctx) { return (${executableFormula}); }`);
-            return evaluator(contextProxy);
+            // Step 2: Delegate secure execution to the sandboxed plugin
+            return SecureMathEvaluator.execute(executableFormula);
 
         } catch (e) {
             console.error(`Secure Expression Evaluation failed for formula "${formula}": ${e.message}`);
