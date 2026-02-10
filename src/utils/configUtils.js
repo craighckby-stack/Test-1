@@ -10,55 +10,26 @@
  * @param {object} obj - The object to freeze.
  * @returns {object} The frozen object.
  */
-const deepFreeze = (obj) => {
+const deepFreeze = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null || Object.isFrozen(obj)) return obj;
     Object.keys(obj).forEach(key => deepFreeze(obj[key]));
     return Object.freeze(obj);
 };
 
-// --- UTILITY 2: Primitive Type Coercion ---
+// --- UTILITY 2: External Primitive Type Coercion Hook ---
 
-/**
- * Safely coerces a string value to the required primitive type (int, float, bool, string).
- */
-const coercePrimitiveValue = (value, type, defaultValue) => {
-    if (value === undefined || value === null) {
-        return defaultValue;
-    }
-
-    const val = String(value).trim();
-    if (val === '') {
-        return defaultValue;
-    }
-
-    switch (type.toLowerCase()) {
-        case 'int':
-            const i = parseInt(val, 10);
-            return isNaN(i) ? defaultValue : i;
-        case 'float':
-            const f = parseFloat(val);
-            return isNaN(f) ? defaultValue : f;
-        case 'bool':
-            // Robust boolean checking
-            const lowerVal = val.toLowerCase();
-            if (['true', '1', 't', 'y', 'yes'].includes(lowerVal)) {
-                return true;
-            }
-            if (['false', '0', 'f', 'n', 'no'].includes(lowerVal)) {
-                return false;
-            }
-            return defaultValue;
-        default:
-            return val; // String
-    }
-};
+// Assume EnvironmentTypeCoercer plugin execution function is available/imported.
+interface EnvironmentCoercerPlugin {
+    execute: (args: { value: any, type: string, defaultValue: any }) => any;
+}
+declare const EnvironmentTypeCoercer: EnvironmentCoercerPlugin;
 
 // --- UTILITY 3: Safe JSON Coercion and Deep Immutability ---
 
 /**
  * Handles ENV string parsing for complex JSON objects and enforces deep immutability.
  */
-const safeJsonCoercer = (envString, defaultValue) => {
+const safeJsonCoercer = (envString: string | undefined, defaultValue: any): any => {
     let coercedValue = defaultValue;
 
     if (envString) {
@@ -81,15 +52,21 @@ const safeJsonCoercer = (envString, defaultValue) => {
 
 /**
  * Core function to load configuration based on a schema and an environment source.
- * @param {object} schema - The configuration schema (defines default, env key, and type).
- * @param {object} envSource - The object providing environment variables (usually process.env).
- * @returns {object} The finalized, deep-immutable configuration object.
  */
-const loadConfigFromSchema = (schema, envSource) => {
-    const settings = {};
+interface ConfigSchemaItem {
+    env: string;
+    type: 'int' | 'float' | 'bool' | 'string' | 'object';
+    default: any;
+}
+
+const loadConfigFromSchema = (
+    schema: Record<string, ConfigSchemaItem>,
+    envSource: Record<string, string | undefined>
+): Record<string, any> => {
+    const settings: Record<string, any> = {};
 
     for (const key in schema) {
-        if (!schema.hasOwnProperty(key)) continue;
+        if (!Object.prototype.hasOwnProperty.call(schema, key)) continue;
 
         const item = schema[key];
         const envValue = envSource[item.env];
@@ -97,7 +74,12 @@ const loadConfigFromSchema = (schema, envSource) => {
         if (item.type === 'object') {
             settings[key] = safeJsonCoercer(envValue, item.default);
         } else {
-            settings[key] = coercePrimitiveValue(envValue, item.type, item.default);
+            // Use the external EnvironmentTypeCoercer plugin
+            settings[key] = EnvironmentTypeCoercer.execute({
+                value: envValue,
+                type: item.type,
+                defaultValue: item.default
+            });
         }
     }
 
@@ -105,7 +87,8 @@ const loadConfigFromSchema = (schema, envSource) => {
     return Object.freeze(settings);
 };
 
-module.exports = {
+// Use modern export syntax compatible with TypeScript structure
+export {
     loadConfigFromSchema,
-    deepFreeze, 
+    deepFreeze,
 };
