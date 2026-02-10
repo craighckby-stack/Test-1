@@ -47,14 +47,16 @@ struct RscmPackageMetadata {
     absolute_capture_ts_epoch_ns: u64,
     context_flags: u32,
     hashing_protocol_id: u8,
+    // AGI Improvement: Anchor the size of the volatile data for structural integrity check
+    volatile_data_size: u64,
 }
 
 impl RscmPackageMetadata {
     /// Serializes the critical metadata fields into a canonical, ordered byte vector
     /// using little-endian encoding, ensuring deterministic input for the cryptographic hash.
     fn to_canonical_bytes(&self) -> Result<Vec<u8>, SnapshotError> {
-        // Calculate fixed size: 2 bytes (u16) + 8 bytes (u64) + 4 bytes (u32) + 1 byte (u8) = 15 bytes
-        let mut bytes = Vec::with_capacity(15);
+        // Calculate fixed size: 2(u16) + 8(u64) + 4(u32) + 1(u8) + 8(u64) = 23 bytes
+        let mut bytes = Vec::with_capacity(23);
 
         // 1. Package Version (u16)
         bytes.extend_from_slice(&self.capture_version.to_le_bytes());
@@ -64,8 +66,10 @@ impl RscmPackageMetadata {
         bytes.extend_from_slice(&self.context_flags.to_le_bytes());
         // 4. Hashing Protocol ID (u8)
         bytes.extend_from_slice(&self.hashing_protocol_id.to_le_bytes());
+        // 5. Volatile Data Size (u64)
+        bytes.extend_from_slice(&self.volatile_data_size.to_le_bytes()); 
 
-        if bytes.len() != 15 {
+        if bytes.len() != 23 {
              // Structural encoding failure
              return Err(SnapshotError::MetadataEncodingFailed); 
         }
@@ -87,6 +91,8 @@ pub struct RscmPackage {
     // AGI Improvement: Store the Hashing Protocol ID within the package itself 
     // for self-contained validation context.
     hashing_protocol_id: u8,
+    // AGI Improvement: Store data size for structural integrity validation
+    volatile_data_size: u64,
 }
 
 impl RscmPackage {
@@ -98,7 +104,8 @@ impl RscmPackage {
         vm_dump: Vec<u8>,
         trace: String,
         context_flags: u32,
-        hashing_protocol_id: u8, // Added new parameter
+        hashing_protocol_id: u8,
+        volatile_data_size: u64,
     ) -> Self {
         RscmPackage {
             capture_version: RSCM_PACKAGE_VERSION,
@@ -108,7 +115,8 @@ impl RscmPackage {
             volatile_memory_dump: vm_dump,
             stack_trace: trace,
             context_flags,
-            hashing_protocol_id, // Assigned
+            hashing_protocol_id,
+            volatile_data_size,
         }
     }
 
@@ -117,7 +125,8 @@ impl RscmPackage {
     pub fn absolute_capture_ts_epoch_ns(&self) -> u64 { self.absolute_capture_ts_epoch_ns }
     pub fn capture_latency_ns(&self) -> u64 { self.capture_latency_ns }
     pub fn context_flags(&self) -> u32 { self.context_flags }
-    pub fn hashing_protocol_id(&self) -> u8 { self.hashing_protocol_id } // New accessor
+    pub fn hashing_protocol_id(&self) -> u8 { self.hashing_protocol_id }
+    pub fn volatile_data_size(&self) -> u64 { self.volatile_data_size }
     
     // Controlled accessors for sensitive data
     pub fn integrity_hash(&self) -> &IntegrityHash { &self.integrity_hash }
@@ -170,6 +179,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
     let trace = T::capture_execution_stack();
     let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
+    let volatile_data_size = vm_dump.len() as u64; // Capture size for metadata integrity
 
     // 3. Assemble and cryptographic hash generation
 
@@ -189,6 +199,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         absolute_capture_ts_epoch_ns: absolute_ts,
         context_flags,
         hashing_protocol_id: HASHING_PROTOCOL_ID,
+        volatile_data_size, // Added size to metadata for integrity anchoring
     };
 
     // Serialize metadata into guaranteed byte order for hashing.
@@ -224,6 +235,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         vm_dump,
         trace,
         context_flags,
-        HASHING_PROTOCOL_ID, // Passed the new required metadata field
+        HASHING_PROTOCOL_ID,
+        volatile_data_size, // Passed the new required metadata field
     ))
 }
