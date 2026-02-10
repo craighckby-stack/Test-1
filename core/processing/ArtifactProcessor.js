@@ -5,13 +5,15 @@ const {
   HookExecutionError,
   ArtifactBaseError 
 } = require('./ArtifactError'); 
+// NOTE: ContextualLogger dependency is assumed to be resolved (e.g., required from a utility path).
 
 /**
  * ArtifactProcessor.js
  * Orchestrates the lifecycle of an ArtifactStructuralDefinition:
  * Dependency resolution, hook execution, generation, and structural validation.
  * 
- * Refactor V94.1: Introduces strict error typing and standardized logging for higher efficiency and reliability in pipeline orchestration.
+ * Refactor V94.2: Abstracted internal logging into a dedicated ContextualLogger plugin 
+ * for standardized output and cleaner component separation.
  */
 class ArtifactProcessor {
   /**
@@ -35,27 +37,20 @@ class ArtifactProcessor {
     }
 
     this.definition = definition;
+    this.artifactId = definition.id || 'N/A';
+
+    // Use the ContextualLogger plugin for standardized logging
+    const BaseLogger = services.logger || console;
+    // Assumes ContextualLogger is available in scope (e.g., via require or injection)
+    this.logger = new ContextualLogger(`ArtifactProcessor:${this.artifactId}`, BaseLogger);
+    
     this._validator = services.validator;
     // Standardize defaults to no-op methods returning expected structures
     this._resolver = services.resolver || { resolve: async () => ({ inputs: {} }) };
     this._hookExecutor = services.hookExecutor || { execute: async () => {} };
     this._generator = services.generator;
-    this._logger = services.logger || console; 
     
-    this.artifactId = definition.id || 'N/A';
-  }
-
-  /**
-   * Internal logging utility, ensuring consistency and context.
-   */
-  _log(level, message, details) {
-    const fullMessage = `[ArtifactProcessor:${this.artifactId}] ${message}`;
-    if (this._logger[level]) {
-        this._logger[level](fullMessage, details || '');
-    } else if (level === 'error') {
-        // Ensure console fallback for critical errors
-        console.error(fullMessage, details || '');
-    }
+    // Removed: this._logger
   }
 
   /**
@@ -64,11 +59,11 @@ class ArtifactProcessor {
   async _executeHooks(hookName, context) {
     const hookRef = this.definition.pipeline?.hooks?.[hookName];
     if (hookRef) {
-      this._log('info', `Executing hook: ${hookName}`);
+      this.logger.info(`Executing hook: ${hookName}`);
       try {
         await this._hookExecutor.execute(hookRef, context);
       } catch (error) {
-        this._log('error', `Failed to execute hook ${hookName}.`, error);
+        this.logger.error(`Failed to execute hook ${hookName}.`, error);
         // Throw structured hook error, allowing strict management of pipeline flow.
         throw new HookExecutionError(`Hook ${hookName} failed`, hookName);
       }
@@ -79,11 +74,12 @@ class ArtifactProcessor {
    * Step 1: Fetches necessary dependencies required for generation.
    */
   async _stepResolveDependencies() {
-    this._log('info', `Resolving dependencies.`);
+    this.logger.info(`Resolving dependencies.`);
     const dependencyList = this.definition.dependencies || [];
     try {
         return await this._resolver.resolve(dependencyList);
     } catch (error) {
+        this.logger.error(`Dependency resolution failed for artifact ${this.artifactId}.`, error);
         throw new ResolutionError(`Dependency resolution failed.`, dependencyList);
     }
   }
@@ -92,7 +88,7 @@ class ArtifactProcessor {
    * Step 3: Validates the structure of the generated artifact.
    */
   async _stepValidate(runtimeArtifact) {
-    this._log('info', 'Starting structural validation.');
+    this.logger.info('Starting structural validation.');
     return this._validator.validate(this.definition.structure, runtimeArtifact);
   }
 
@@ -102,7 +98,7 @@ class ArtifactProcessor {
    * @returns {Promise<RuntimeArtifact>} The fully processed and validated artifact structure.
    */
   async generate() {
-    this._log('info', `Starting pipeline.`);
+    this.logger.info(`Starting pipeline.`);
 
     // Centralized context for sharing state between steps and hooks
     const context = { 
@@ -120,7 +116,7 @@ class ArtifactProcessor {
         await this._executeHooks('preGen', context);
 
         // 3. Primary Generation Logic
-        this._log('info', 'Executing generation.');
+        this.logger.info('Executing generation.');
         const generationPayload = {
             structure: this.definition.structure,
             inputs: context.inputs
@@ -139,7 +135,7 @@ class ArtifactProcessor {
 
         if (!context.validationResult.success) {
             const validationErrors = context.validationResult.errors || [];
-            this._log('warn', `Generation succeeded, but failed structural validation.`);
+            this.logger.warn(`Generation succeeded, but failed structural validation.`);
             
             // Structured Error Throw
             throw new ValidationError(`Structural validation failed`, validationErrors);
@@ -148,7 +144,7 @@ class ArtifactProcessor {
         // 6. Post-Generation Success Hook
         await this._executeHooks('postGenSuccess', context.generatedArtifact);
 
-        this._log('info', `Pipeline completed successfully.`);
+        this.logger.info(`Pipeline completed successfully.`);
         return context.generatedArtifact;
         
     } catch (error) {
@@ -158,7 +154,7 @@ class ArtifactProcessor {
         } 
         
         // Catch unexpected infrastructure/generation failures and type them.
-        this._log('error', `Critical generation failure occurred.`, error);
+        this.logger.error(`Critical generation failure occurred.`, error);
         throw new GenerationError(`Unexpected failure during generation step.`, this.definition.pipeline?.generatorRef);
     }
   }
