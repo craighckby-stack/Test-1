@@ -11,20 +11,27 @@ const logger = require('../utils/Logger');
 // Custom error handling for governance domain failures
 const { ActionValidationError, ExecutorNotFoundError } = require('./errors/GovernanceErrors'); 
 
+// Note: In a real environment, the DeclarativeConstraintValidator would be typed/imported.
+
 class MitigationActionRouter {
 
   /**
    * @param {Map<string, IActionExecutor>} executorRegistry - Map of executor names to service instances.
+   * @param {object} validatorTool - Instance conforming to DeclarativeConstraintValidator interface.
    */
-  constructor(executorRegistry) {
+  constructor(executorRegistry, validatorTool) {
     if (!(executorRegistry instanceof Map)) {
         throw new TypeError("MitigationActionRouter requires a Map instance for executorRegistry.");
+    }
+    if (!validatorTool || typeof validatorTool.execute !== 'function') {
+        throw new TypeError("MitigationActionRouter requires a valid validatorTool instance with an 'execute' method.");
     }
 
     // Configure Ajv for detailed error reporting and default value population
     this.ajv = new Ajv({ allErrors: true, useDefaults: true });
     this.validator = this.ajv.compile(actionSchema);
     this.executorRegistry = executorRegistry; 
+    this.validatorTool = validatorTool; 
     logger.debug('MitigationActionRouter initialized, Schema Validator compiled.');
   }
 
@@ -35,14 +42,21 @@ class MitigationActionRouter {
    */
   async routeAction(actionPayload) {
     
-    // 1. Validation
-    if (!this.validator(actionPayload)) {
-      const errors = this.validator.errors;
+    // 1. Validation using DeclarativeConstraintValidator
+    const validationResult = this.validatorTool.execute({
+        validatorFn: this.validator,
+        payload: actionPayload
+    });
+
+    if (!validationResult.valid) {
+      const errors = validationResult.errors;
       logger.error('Mitigation action validation failed.', { errors, payload: actionPayload });
       throw new ActionValidationError('Invalid mitigation action payload provided.', errors);
     }
+    
+    const validatedPayload = validationResult.standardizedPayload;
 
-    const { executor, actionId, actionType, priority } = actionPayload;
+    const { executor, actionId, actionType, priority } = validatedPayload;
 
     // 2. Executor Resolution
     const service = this.executorRegistry.get(executor);
@@ -55,8 +69,8 @@ class MitigationActionRouter {
     logger.info(`Routing Action ${actionId} [P:${priority}, T:${actionType}] to Executor: ${executor}`);
     
     try {
-        // Execute the action (requires service implements IActionExecutor interface)
-        await service.execute(actionPayload);
+        // Execute the action using the validated (and potentially defaulted) payload
+        await service.execute(validatedPayload);
     } catch (error) {
         logger.error(`Failed to execute action ${actionId} via ${executor}. Propagating failure.`, { error, actionId });
         // Preserve specialized error type from the executor
