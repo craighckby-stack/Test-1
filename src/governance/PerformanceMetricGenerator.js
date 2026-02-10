@@ -3,9 +3,31 @@
  * Purpose: Calculates a standardized performance metric [0.0, 1.0] by applying weighted penalties
  * to deviations from optimal audit metrics (1.0). This metric feeds into the Trust Matrix.
  * 
- * The calculation is based on weighted subtractions from a perfect score (1.0), ensuring
- * clear governance control over the impact of non-compliance and inefficiency.
+ * Uses StructuralSchemaValidatorTool for input validation and the emergent 
+ * WeightedDeviationScorer plugin for metric calculation.
  */
+
+// Define the shape of audit data for type safety
+interface AuditData {
+    complianceScore: number;
+    violationCount: number;
+    efficiencyScore: number;
+}
+
+// Type declarations for assumed global tool interfaces (simulating imports)
+declare const StructuralSchemaValidatorTool: {
+    validate: (data: any, schema: any) => { isValid: boolean, errors: string[] };
+};
+
+declare const WeightedDeviationScorer: {
+    execute: (args: {
+        baseScore?: number,
+        weightedDeviations?: { score: number, weight: number }[],
+        fixedPenalties?: { count: number, penaltyPerCount: number }[]
+    }) => number;
+};
+
+
 class PerformanceMetricGenerator {
     
     /**
@@ -24,71 +46,72 @@ class PerformanceMetricGenerator {
     };
 
     /**
-     * @param {Object} [config={}] - Optional configuration overrides for weight distribution.
+     * Defines the expected structure and constraints for audit data input validation.
      */
-    constructor(config = {}) {
-        this.weights = { ...PerformanceMetricGenerator.DEFAULT_WEIGHTS, ...config };
-    }
+    static AUDIT_DATA_SCHEMA = {
+        complianceScore: { type: 'number', min: 0.0, max: 1.0, required: true },
+        efficiencyScore: { type: 'number', min: 0.0, max: 1.0, required: true },
+        // violationCount must be a non-negative integer
+        violationCount: { type: 'number', min: 0, integer: true, required: true } 
+    };
+
+    private weights: typeof PerformanceMetricGenerator.DEFAULT_WEIGHTS;
 
     /**
-     * Validates input audit data required for metric generation.
-     * @private
-     * @param {Object} data - Audit data.
+     * @param {Object} [config={}] - Optional configuration overrides for weight distribution.
      */
-    _validateAuditData(data) {
-        const { complianceScore, violationCount, efficiencyScore } = data;
-
-        if (typeof complianceScore !== 'number' || complianceScore < 0 || complianceScore > 1) {
-            throw new Error("Invalid complianceScore: Must be between 0.0 and 1.0.");
-        }
-        if (typeof efficiencyScore !== 'number' || efficiencyScore < 0 || efficiencyScore > 1) {
-            throw new Error("Invalid efficiencyScore: Must be between 0.0 and 1.0.");
-        }
-        if (typeof violationCount !== 'number' || violationCount < 0 || !Number.isInteger(violationCount)) {
-            throw new Error("Invalid violationCount: Must be a non-negative integer.");
-        }
+    constructor(config: Partial<typeof PerformanceMetricGenerator.DEFAULT_WEIGHTS> = {}) {
+        this.weights = { ...PerformanceMetricGenerator.DEFAULT_WEIGHTS, ...config };
     }
 
     /**
      * Synthesizes a unified trust metric based on recent operational performance data.
      * 
      * @param {string} actorId - The ID of the component being audited.
-     * @param {Object} auditData - Aggregated and normalized data points for a specific actor.
-     * @param {number} [auditData.complianceScore=1.0] - Ratio of successful policy checks (0 to 1).
-     * @param {number} [auditData.violationCount=0] - Number of serious policy violations committed.
-     * @param {number} [auditData.efficiencyScore=1.0] - Normalized operational metric (0 to 1).
+     * @param {Partial<AuditData>} auditData - Aggregated and normalized data points for a specific actor.
      * @returns {number} The calculated performance metric between 0.0 and 1.0.
      */
-    generateMetric(actorId, auditData) {
+    generateMetric(actorId: string, auditData: Partial<AuditData>): number {
         
-        const {
-            complianceScore = 1.0,
-            violationCount = 0,
-            efficiencyScore = 1.0
-        } = auditData;
+        // 1. Apply defaults
+        const defaultedData: AuditData = {
+            complianceScore: auditData.complianceScore ?? 1.0,
+            violationCount: auditData.violationCount ?? 0,
+            efficiencyScore: auditData.efficiencyScore ?? 1.0,
+        };
 
-        this._validateAuditData({ complianceScore, violationCount, efficiencyScore });
+        // 2. Validation using StructuralSchemaValidatorTool
+        const validationResult = StructuralSchemaValidatorTool.validate(defaultedData, PerformanceMetricGenerator.AUDIT_DATA_SCHEMA);
         
-        // Start at optimal score (1.0)
-        let currentScore = 1.0;
+        if (!validationResult.isValid) {
+            throw new Error(`Audit Data Validation Failed for actor ${actorId}: ${validationResult.errors.join('; ')}`);
+        }
+        
+        const { complianceScore, violationCount, efficiencyScore } = defaultedData;
 
-        // --- Weighted Deviation Penalties ---
+        // 3. Calculation using the WeightedDeviationScorer plugin
+        
+        const scoringArguments = {
+            baseScore: 1.0,
+            weightedDeviations: [
+                { 
+                    score: complianceScore, 
+                    weight: this.weights.COMPLIANCE_DEVIATION_WEIGHT 
+                },
+                { 
+                    score: efficiencyScore, 
+                    weight: this.weights.EFFICIENCY_DEVIATION_WEIGHT 
+                }
+            ],
+            fixedPenalties: [
+                {
+                    count: violationCount,
+                    penaltyPerCount: this.weights.POLICY_VIOLATION_PENALTY
+                }
+            ]
+        };
 
-        // 1. Compliance Deviation (Deviation = 1.0 - score)
-        const complianceDeviation = 1.0 - complianceScore;
-        currentScore -= complianceDeviation * this.weights.COMPLIANCE_DEVIATION_WEIGHT;
-
-        // 2. Efficiency Deviation
-        const efficiencyDeviation = 1.0 - efficiencyScore;
-        currentScore -= efficiencyDeviation * this.weights.EFFICIENCY_DEVIATION_WEIGHT;
-
-        // --- Discrete Event Penalties ---
-
-        // 3. Violation Penalties (Hard deduction per instance)
-        currentScore -= violationCount * this.weights.POLICY_VIOLATION_PENALTY;
-
-        // Final clamping and normalization required for TrustMatrixManager input
-        return Math.max(0.0, Math.min(1.0, currentScore));
+        return WeightedDeviationScorer.execute(scoringArguments);
     }
 }
 
