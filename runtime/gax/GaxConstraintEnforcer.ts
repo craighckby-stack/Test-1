@@ -1,3 +1,5 @@
+declare const PayloadSizeChecker: { execute: (args: { request: unknown, limit: number, unit?: string }) => boolean; };
+
 export class ConstraintViolationError extends Error {
   public constraintType: string;
   
@@ -79,13 +81,13 @@ export class GaxConstraintEnforcer {
   
   private checkPayloadSize(request: unknown, limit: number, unit?: string): boolean {
     // TRUE if the request violates the size limit.
+    // Leverages the external PayloadSizeChecker tool.
     try {
-      const bytes = Buffer.byteLength(JSON.stringify(request), 'utf8');
-      // TODO: Add unit conversion logic (KB, MB, GB)
-      return bytes > limit; 
+      return PayloadSizeChecker.execute({ request, limit, unit }); 
     } catch (e) {
-      // Handle serialization errors gracefully
-      return true; // Assume violation if size cannot be determined safely
+      // Handle tool execution failure (e.g., serialization error inside tool)
+      // Treat failure to check as a violation for robust enforcement.
+      return true; 
     }
   }
 }
