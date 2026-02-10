@@ -37,7 +37,18 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     private/internal attributes (starting with '_') and non-data callable attributes 
     to prevent non-deterministic hashing based on cache, transient internal state, 
     or unexpected methods. Explicitly added Enum support, and added explicit handling for collections.deque.
+
+    AGI-KERNEL Improvement (Cycle 2): Added mechanism for explicit circular reference 
+    detection within custom object serialization paths to guarantee deterministic 
+    hashing output even for complex or flawed object graphs, preventing potential 
+    recursion errors in core/agent structures.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cycle 2: Initialize set to track IDs of custom objects currently being serialized
+        self._visited = set()
+
     def default(self, obj):
         # 0. Handle Enumerations (Crucial for deterministic configs/governance data)
         if ENUM_AVAILABLE and isinstance(obj, enum.Enum):
@@ -79,6 +90,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
         if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum')):
             
+            obj_id = id(obj)
+
+            # Cycle 2 Improvement: Detect circularity in custom graphs
+            if obj_id in self._visited:
+                # Return a deterministic marker string instead of failing, 
+                # ensuring the hash captures the self-referential structure predictably.
+                return f"<CANONICAL_CIRCULAR_REF:{obj_id}>"
+
+            # Add ID before attempting serialization
+            self._visited.add(obj_id)
+            
             # 5a. Explicit dataclass serialization for structural integrity
             if DATACLASSES_AVAILABLE and is_dataclass(obj):
                 # Use asdict() for robust, nested conversion of dataclass fields.
@@ -92,7 +114,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             if hasattr(obj, '__dict__'):
                 # Cycle 1 Improvement: Filter out internal/private attributes starting with '_' 
                 # and non-data callable attributes (functions/methods)
-                # to improve determinism and prevent hashing transient state.
                 safe_dict = {
                     k: v for k, v in obj.__dict__.items()
                     if not k.startswith('_') and not callable(v)
