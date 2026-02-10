@@ -1,1 +1,13 @@
-[object Object]
+{
+  "system_id": "AGI-KERNEL_v7.5.0_Synergy",
+  "last_cycle_updated": 0,
+  "maturity_snapshot": 0.0,
+  "runtime_registry_status": "Active",
+  "core_capabilities_baseline": {
+    "navigation": 1,
+    "logic": 1,
+    "memory": 1,
+    "synergy": 1
+  },
+  "active_emergent_capabilities": []
+}
