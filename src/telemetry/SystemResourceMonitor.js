@@ -1,8 +1,12 @@
 // src/telemetry/SystemResourceMonitor.js
 // Utility for high-speed local environment resource tracking.
 // Dependencies: 'os' module (Node.js built-in)
+// Tool Dependency: MetricProcessingUtility (MPU)
 
 const os = require('os');
+
+// Assuming MetricProcessingUtility is available globally or injected via context
+const MPU = global.MetricProcessingUtility; 
 
 class SystemResourceMonitor {
     constructor(config = {}) {
@@ -21,8 +25,7 @@ class SystemResourceMonitor {
      * Must be called frequently (e.g., every 100ms) by a central tick system.
      */
     sampleResources() {
-        // Note: Detailed CPU sampling requires calculating diffs over two samples, 
-        // but this simplified version calculates instantaneous load based on aggregated system metrics.
+        // 1. CPU Load Calculation
         const cpus = os.cpus();
         let totalIdle = 0;
         let totalTick = 0;
@@ -37,19 +40,36 @@ class SystemResourceMonitor {
         const idleRatio = totalIdle / totalTick;
         const instantaneousLoad = 1.0 - idleRatio;
 
-        // Simple smoothing for CPU load
+        // Use extracted MetricProcessingUtility for Exponential Moving Average smoothing
         const alpha = this.config.cpuLoadAlpha;
-        this.currentCpuLoad = this.currentCpuLoad * (1 - alpha) + instantaneousLoad * alpha;
+        if (MPU) {
+            this.currentCpuLoad = MPU.smoothEMA(
+                this.currentCpuLoad, 
+                instantaneousLoad, 
+                alpha
+            );
+        } else {
+            // Fallback if MPU is unavailable
+            this.currentCpuLoad = this.currentCpuLoad * (1 - alpha) + instantaneousLoad * alpha;
+        }
 
         // 2. Memory Pressure Calculation
         const freeMemory = os.freemem();
         const totalMemory = os.totalmem();
         const usedMemoryRatio = (totalMemory - freeMemory) / totalMemory;
 
-        // Scale memory pressure index, clipping at 1.0
-        this.memoryPressureIndex = Math.min(1.0,
-            usedMemoryRatio / this.config.maxMemoryUtilization
-        );
+        // Use extracted MetricProcessingUtility for normalization/scaling
+        if (MPU) {
+            this.memoryPressureIndex = MPU.normalizeRatio(
+                usedMemoryRatio,
+                this.config.maxMemoryUtilization
+            );
+        } else {
+            // Fallback if MPU is unavailable
+            this.memoryPressureIndex = Math.min(1.0,
+                usedMemoryRatio / this.config.maxMemoryUtilization
+            );
+        }
     }
 
     /**
