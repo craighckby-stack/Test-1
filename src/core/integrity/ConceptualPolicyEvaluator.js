@@ -7,42 +7,19 @@
 
 import { ConceptualPolicyRegistry } from './ConceptualPolicyRegistry.js';
 
+// NOTE: executeConstraint logic has been extracted into the PolicyExecutionEngine plugin.
+// We assume the PolicyExecutionEngine utility is available in the execution context.
+
 /**
  * Executes a single conceptual constraint by looking up the appropriate handler.
- * @typedef {{ruleId: string, detail: string, severity: string}}	Violation
- * @param {Object} constraint The policy definition.
- * @param {Object} context The operational context.
- * @returns {Violation | null} The violation object if triggered, or null.
+ * @typedef {{ruleId: string, detail: string, severity: string}} Violation
  */
-function executeConstraint(constraint, context) {
-    const policyType = constraint.type;
-    
-    // Look up the dedicated handler function from the registry
-    const handler = ConceptualPolicyRegistry[policyType];
 
-    if (!handler) {
-        console.warn(`[Policy Evaluator] Unknown constraint type encountered: ${policyType}. Skipping.`);
-        return {
-            ruleId: 'EVAL-001',
-            detail: `Unknown constraint type '${policyType}' detected during evaluation.`,
-            severity: 'WARNING'
-        };
-    }
-
-    try {
-        // Handlers return the violation object or null if compliant.
-        const result = handler(constraint, context);
-        return result || null;
-
-    } catch (e) {
-        console.error(`[Policy Evaluator] Error executing constraint ${constraint.id || policyType}:`, e);
-        return {
-            ruleId: 'EVAL-002',
-            detail: `Runtime error during execution of constraint ${constraint.id || policyType}: ${e.message}`,
-            severity: 'CRITICAL'
-        };
-    }
-}
+/**
+ * Interface definition for the required Policy Execution Utility (provided by AGI kernel plugins)
+ * @typedef {{execute: (args: { constraint: Object, context: Object, registry: Object }) => (Violation | null)}} PolicyExecutionEngineInterface
+ */
+declare const PolicyExecutionEngine: PolicyExecutionEngineInterface;
 
 
 export const ConceptualPolicyEvaluator = {
@@ -59,7 +36,14 @@ export const ConceptualPolicyEvaluator = {
         // Execution logic is now purely declarative dispatch.
         if (concept.constraints && Array.isArray(concept.constraints)) {
             for (const constraint of concept.constraints) {
-                const violation = executeConstraint(constraint, context);
+                
+                // CRITICAL: Delegating execution, error handling, and violation formatting to the plugin.
+                const violation = PolicyExecutionEngine.execute({
+                    constraint: constraint,
+                    context: context,
+                    registry: ConceptualPolicyRegistry // Pass the handler lookup table
+                });
+
                 if (violation) {
                     violations.push(violation);
                 }
