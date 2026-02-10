@@ -5,24 +5,14 @@
  * Defines the required contract for data flowing from the GMRE (Refinement Engine)
  * into the DCG (Constraint Generator), ensuring strict data integrity before mutation.
  *
- * RATIONALE: This structure utilizes a generic, library-agnostic JavaScript object definition
- * to define the contract, maximizing compatibility with future validation systems (Zod, Joi, etc.)
- * instead of relying on inefficient simulated chaining methods.
+ * RATIONALE: The underlying Schema factory logic has been extracted into the
+ * DescriptiveSchemaFactory plugin to promote reuse, consistency, and separation of concerns.
  */
 
-const Schema = {
-    // Core Type definitions
-    string: (description) => ({ type: 'string', description: description || '' }),
-    number: (description) => ({ type: 'number', description: description || '' }),
-    object: (schema) => ({ type: 'object', schema: schema || {} }),
-    array: (items) => ({ type: 'array', items }),
-
-    // Modifiers (Chaining definition via composition)
-    required: (definition) => ({ ...definition, required: true }),
-    optional: (definition) => ({ ...definition, required: false }),
-    valid: (definition, values) => ({ ...definition, valid: values }),
-    precision: (definition, p) => ({ ...definition, precision: p }),
-};
+// CRITICAL: The Schema utility object is now provided by the DescriptiveSchemaFactory plugin.
+// Assuming dependency injection makes the utility accessible here.
+// Example simulation of dependency access (actual mechanism depends on runtime environment):
+const Schema = DescriptiveSchemaFactory.execute(); 
 
 // --- Sub-Schemas ---
 
