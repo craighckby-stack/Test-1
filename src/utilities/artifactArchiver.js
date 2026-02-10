@@ -1,8 +1,15 @@
-const fs = require('fs').promises;
-const path = require('path');
+declare const ArtifactArchiverUtility: {
+    execute: (args: {
+        proposalId: string;
+        quarantinePath: string;
+        stagingPath: string;
+        fileExtension?: string;
+    }) => Promise<{ success: boolean; destinationPath?: string; reason?: string }>;
+};
+
 
 /**
- * Executes a robust, potentially atomic move of a file artifact.
+ * Executes a robust, potentially atomic move of a file artifact using the Kernel's utility.
  * This is crucial for maintaining integrity during governance workflows 
  * by ensuring payloads are reliably moved from temporary staging 
  * to permanent quarantine/archive storage.
@@ -16,29 +23,38 @@ const path = require('path');
  * @returns {Promise<boolean>} Resolves to true if the move was successful, false if the file didn't exist (ENOENT).
  * @throws {Error} Throws if the move fails for reasons other than ENOENT (e.g., permissions, disk I/O).
  */
-async function archiveArtifact(proposalId, quarantinePath, stagingPath, fileExtension = '.json') {
+async function archiveArtifact(proposalId: string, quarantinePath: string, stagingPath: string, fileExtension = '.json'): Promise<boolean> {
     if (!proposalId || !quarantinePath || !stagingPath) {
         throw new Error("Archiving requires proposalId, quarantinePath, and stagingPath to be provided.");
     }
 
-    const sourceFileName = `${proposalId}${fileExtension}`;
-    const sourcePath = path.join(stagingPath, sourceFileName);
-    const destinationPath = path.join(quarantinePath, sourceFileName);
-
-    // 1. Ensure quarantine directory exists
-    await fs.mkdir(quarantinePath, { recursive: true });
-
-    // 2. Perform the atomic move (rename) operation.
     try {
-        await fs.rename(sourcePath, destinationPath);
-        return true;
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            // Artifact missing at source. Return false, allowing the caller to decide if this is critical.
+        const result = await ArtifactArchiverUtility.execute({
+            proposalId,
+            quarantinePath,
+            stagingPath,
+            fileExtension,
+        });
+
+        if (result.success) {
+            return true;
+        }
+
+        if (result.reason === 'ENOENT') {
+            // Artifact missing at source.
             return false;
         }
-        // Re-throw critical system failures
-        throw new Error(`Archiving failed for artifact ${proposalId}: ${error.message}`);
+
+        // Fallback for unexpected structured error from utility
+        throw new Error(`Archiving failed for artifact ${proposalId}: Unexpected non-ENOENT failure.`);
+
+    } catch (error) {
+        // Catch critical errors thrown by the utility (permissions, disk I/O, etc.)
+        if (error instanceof Error) {
+            throw error;
+        }
+        // Fallback for non-Error type throws
+        throw new Error(`Critical failure during archive process for ${proposalId}.`);
     }
 }
 
