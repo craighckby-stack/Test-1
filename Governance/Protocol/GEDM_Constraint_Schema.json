@@ -2,21 +2,33 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://governance.agi/gedm/constraint-schema-v1.json",
   "title": "GEDM Dependency Constraint Object (Di)",
-  "description": "Defines a mandatory artifact required for GSEP stage execution.",
+  "description": "Defines a mandatory artifact required for GSEP stage execution. Enhanced for architectural clarity and strict integrity enforcement.",
   "type": "object",
-  "required": ["artifact_id", "version", "path", "integrity_check"],
+  "required": ["artifact_id", "version", "path", "integrity_check", "context_role"],
   "properties": {
     "artifact_id": {
       "type": "string",
-      "description": "Canonical identifier of the required dependency (e.g., 'Model.VetoPolicy.v3')."
+      "description": "Canonical identifier of the required dependency (e.g., 'Model.VetoPolicy.v3'). Should follow the naming convention [Domain].[Component].[Type].",
+      "pattern": "^[A-Za-z0-9_]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+$"
     },
     "version": {
       "type": "string",
-      "description": "Semantic version of the required artifact."
+      "description": "Semantic version of the required artifact (e.g., 1.0.5 or 2.0.0-beta).",
+      "pattern": "^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
     },
     "path": {
       "type": "string",
-      "description": "CISM access path pointer to the artifact's location/data."
+      "description": "CISM access path pointer (URI or internal identifier) to the artifact's location/data."
+    },
+    "path_type": {
+      "type": "string",
+      "enum": ["CISM_RESOLVE", "LOCAL_ABSOLUTE", "INTERNAL_REFERENCE"],
+      "default": "CISM_RESOLVE",
+      "description": "Specifies how the path should be interpreted by the Dependency Manager."
+    },
+    "context_role": {
+      "type": "string",
+      "description": "Defines the functional role this artifact plays in the execution stage (e.g., 'PrimaryInputData', 'ValidationAlgorithm', 'PolicyEngineConfig')."
     },
     "integrity_check": {
       "type": "object",
@@ -25,19 +37,20 @@
       "properties": {
         "method": {
           "type": "string",
-          "enum": ["SHA256", "PGP_Signature", "TimeLock_Hash"],
-          "description": "Cryptographic integrity validation method."
+          "enum": ["SHA256", "PGP_Signature", "TimeLock_Hash", "KERNEL_VAULT_KEY"],
+          "description": "Cryptographic integrity validation method. Added KERNEL_VAULT_KEY for enhanced internal security protocols."
         },
         "expected_hash": {
           "type": "string",
-          "description": "The certified, expected value for the specified integrity check."
+          "description": "The certified, expected value for the specified integrity check (e.g., hash value or Key ID for PGP)."
         }
       }
     },
     "optional": {
       "type": "boolean",
       "default": false,
-      "description": "If true, a DEPENDENCY_FAIL is not triggered by absence, only integrity mismatch."
+      "description": "If true, a DEPENDENCY_FAIL is not triggered by absence, only integrity mismatch or version incompatibility."
     }
-  }
+  },
+  "additionalProperties": false
 }
