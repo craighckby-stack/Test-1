@@ -5,14 +5,29 @@
  * for cryptographic hashing across all Sovereign AGI governance modules (M-xx).
  * This configuration directly maps to the C-05 Schema requirements.
  */
-export const CANONICAL_SERIALIZATION_CONSTANTS = Object.freeze({
+
+interface NumericConstraint {
+  FORMAT: "Full Decimal Representation";
+  PRECISION_GUARD: "IEEE 754 Doubles Only (No NaN/Infinity)";
+}
+
+interface CanonicalizationConstants {
+  STANDARD_IDENTIFIER: "JCS-Strict-RFC8785-Profile";
+  KEY_ORDERING: "Lexicographical: UTF-8 Binary Comparison";
+  ENCODING: "UTF-8";
+  WHITESPACE_POLICY: "Compact (No Non-Significant Whitespace)";
+  NUMERIC_CONSTRAINT: Readonly<NumericConstraint>;
+  DIGEST_ALGORITHM: "SHA3-256";
+}
+
+export const CANONICAL_SERIALIZATION_CONSTANTS: Readonly<CanonicalizationConstants> = Object.freeze({
   STANDARD_IDENTIFIER: "JCS-Strict-RFC8785-Profile",
   KEY_ORDERING: "Lexicographical: UTF-8 Binary Comparison",
   ENCODING: "UTF-8",
   WHITESPACE_POLICY: "Compact (No Non-Significant Whitespace)",
-  NUMERIC_CONSTRAINT: {
+  NUMERIC_CONSTRAINT: Object.freeze({
     FORMAT: "Full Decimal Representation",
     PRECISION_GUARD: "IEEE 754 Doubles Only (No NaN/Infinity)",
-  },
+  }),
   DIGEST_ALGORITHM: "SHA3-256",
 });
