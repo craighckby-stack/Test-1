@@ -60,6 +60,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
     AGI-KERNEL Improvement (Cycle 10):
     7. Implemented deterministic handling for I/O streams and file handles to prevent serialization crashes during state hashing.
+
+    AGI-KERNEL Improvement (Cycle 11):
+    8. Added explicit handling for Python typing annotations (e.g., Union, List[T]) to ensure stable hashing of configuration schemas.
     """
 
     def __init__(self, *args, **kwargs):
@@ -86,16 +89,23 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             except AttributeError:
                 return obj.name
 
-        # 0c. AGI-KERNEL Improvement (Cycle 9): Deterministic Serialization for Callables (Functions, Methods) and Classes
+        # 0c. AGI-KERNEL Improvement (Cycle 9/11): Deterministic Serialization for Callables (Functions, Methods) and Classes
         # This is crucial for stable hashing of configurations or agent states that reference dynamically loaded behaviors.
         if callable(obj):
             try:
+                module_name = getattr(obj, '__module__', None)
+
+                # AGI-KERNEL Improvement (Cycle 11): Explicitly handle structural type hints (e.g., Union, List[T])
+                # Essential for stable hashing of schema, configuration, and function metadata.
+                if module_name and module_name.startswith('typing'):
+                    # Use the standard string representation, which is canonical for most typing objects
+                    return {"__type_annotation__": str(obj)}
+
                 # Distinguish between instances and the class type itself
                 is_class = isinstance(obj, type)
                 marker = "__class__" if is_class else "__callable__"
 
                 # Use fully qualified path (module and name) as canonical identifier
-                module_name = getattr(obj, '__module__', None)
                 qual_name = getattr(obj, '__qualname__', getattr(obj, '__name__', None))
                 
                 # Only serialize if we can get a non-built-in, recognizable path
@@ -289,7 +299,7 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         offending_type = type(artifact)
         error_message = (
             f"Failed to serialize artifact of type '{offending_type}'. "
-            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects, open I/O streams). "
+            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects, open I/O streams, or complex typing annotations). "
             f"Original error: {e}"
         )
         raise ArtifactSerializationError(reason=error_message, data_type=str(offending_type)) from e
