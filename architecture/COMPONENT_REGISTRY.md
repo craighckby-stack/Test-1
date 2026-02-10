@@ -30,11 +30,17 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **Navigation** | NTS (Navigator Targeting System), ASP | Strategic file selection across **2,300+ files**, managing the **Priority-Based Weighting** and Blacklist mechanism to enforce diversity and implement Adaptive Reset. |
 | **Logic** | LOE (Learning Optimization Engine), ASP | Code comprehension, recursive improvement quality, architectural optimization, and pattern synthesis efficacy. |
 | **Memory** | PRL (Pattern Retention Layer), AEL | Learning retention, historical pattern synthesis, **cross-domain transfer learning**, and dependency tracking. |
-| **Emergence** | EVM (Emergence Validation Module), NSHG | Autonomous discovery, validation, and documentation of **Novel Algorithms** and **Cross-Domain Synthesis** results, populating the `/emergent` directory. |
+| **Emergence** | EVM (Emergence Validation Module), NSHG | Autonomous discovery, validation, and documentation of **Novel Algorithms** and **Cross-Domain Synthesis** results. Responsible for executing the full **Emergence Protocol**, including file creation in `/emergent` and generating the mandatory structured header documentation. |
 | **Meta-Reasoning** | LOE, **ASP (Adaptive Synthesis Planner)** | Strategy adaptation, self-diagnosis, initiation of **Stagnation Recovery Protocols**, and multi-cycle architectural planning based on **Maturity Progression** goals. |
 | **Autonomy** | ASP (Adaptive Synthesis Planner) | Autonomous strategic decision-making and architectural planning based on defined **Maturity Progression** goals. |
 | **Error Handling** | DVP (Data Validation Processor) | Robust fault tolerance and input schema enforcement. |
 | **JSON Parsing** | DVP (Data Validation Processor) | Data extraction from potentially malformed LLM outputs. |
+
+---
+
+### ARCHITECTURAL FLOW SUMMARY
+
+The Autonomous Evolutionary Cycle (AEC) executes in sequence, with P1 constraints gating P2 execution: P0 ensures context and provenance integrity; P1 evaluates risk (RSAM/MCRA) and compliance (CIL/ATM) against L1/L4 constraints; P2 executes the self-improvement phase (LOE, NTS, EVM) and manages L6/L7 commitment, relying heavily on L7 feedback loops (CTM, PRL, ASP) for recursive learning.
 
 ---
 
@@ -75,7 +81,7 @@ Compliance is enforced exclusively via the Governance Evolution Protocol (GSEP) 
 | **CTM** | Capability Tracking Module | L7 | `kernel.capability.metrics` | M | Measures, reports, and tracks the progression of the 3 Core Kernel Capabilities and support dimensions. |
 | **PRL** | Pattern Retention Layer | L7 | `memory.pattern.retrieval` | O | Stores learned patterns, evolutionary history, and cross-domain synthesis results to support Memory and transfer learning. |
 | **EVM** | Emergence Validation Module | L7 | `emergent.discovery.validate` | M | Detects novel solutions (cross-domain synthesis), validates uniqueness, and executes the complete Emergence Protocol: creation in `/emergent`, detailed header documentation, cycle tagging, and manifest logging. |
-| **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the **2,300+ repository** scale. Receives Blacklist state, prioritizes unvisited files using mission weighting, enforces Diversity Enforcement, and implements the Adaptive Reset strategy. |
+| **NTS** | Navigator Targeting System | L7 | `navigation.selection.blacklist` | M | Executes strategic file selection across the **2,300+ repository** scale. Manages the Blacklist (constrained to a target size of 30-50 files for optimal exploration/retention), prioritizes unvisited files using mission weighting, enforces Diversity Enforcement, and implements the Adaptive Reset strategy. |
 | **LOE** | Learning Optimization Engine | L7 | `learning.optimization.adaptive` | M | Executes meta-learning strategies, monitors stagnation via CTM, and initiates Stagnation Recovery protocols (including partial blacklist clearance and **cross-domain pattern synthesis**), supporting Logic and Meta-Reasoning. |
 | **NSHG** | Novelty Synthesis Hypothesis Generator | L7 | `creativity.hypothesis.generate` | M | Generates bold, non-incremental architectural hypotheses and creative integration patterns, fueling the Emergence Validation pipeline. |
 | **ASP** | Adaptive Synthesis Planner | L7 | `adaptation.plan.design` | M | Designs optimal multi-cycle architectural modification plans (L7 Evolution), integrates PRL history, and ensures roadmap alignment with the prescribed **Maturity Progression** goals. |
