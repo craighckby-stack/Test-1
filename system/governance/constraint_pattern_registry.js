@@ -1,37 +1,22 @@
+// system/governance/constraint_pattern_registry.js
+
 /**
- * Constraint Pattern Registry
+ * Constraint Pattern Registry Wrapper
  * Version 1.0 - Sovereign AGI v94.1
- * Centralizes and manages complex structural patterns (e.g., AST selector logic, security risks) 
- * used by the ConstraintEnforcementEngine.
+ * Accesses the underlying ConstraintPatternRegistryUtility kernel tool for managing 
+ * complex structural constraint patterns.
  */
 
-const PATTERN_DEFINITIONS = {
-    'UNSAFE_EVAL': {
-        description: 'Usage of the built-in eval() function.',
-        severity: 'CRITICAL',
-        ast_query: 'CallExpression[callee.name="eval"]', 
-        metric_required: 'syntax.ast'
-    },
-    'ASYNC_BLOCKER_IO': {
-        description: 'Detection of synchronous I/O operations (e.g., readFileSync) outside initialization context.',
-        severity: 'MAJOR',
-        ast_query: 'CallExpression[callee.property.name="Sync"]', 
-        metric_required: 'syntax.ast'
-    },
-    'GLOBAL_MUTATION': {
-        description: 'Direct assignment to global or process variables outside expected context.',
-        severity: 'MAJOR',
-        ast_query: 'AssignmentExpression[left.object.name="global"], AssignmentExpression[left.object.name="process"]', 
-        metric_required: 'syntax.ast'
-    }
-};
+// CRITICAL: We rely on the core kernel environment to inject the ConstraintPatternRegistryUtility tool.
+// @ts-ignore: Assume injection of utility tool
+const ConstraintPatternRegistryUtility = globalThis.AGI_PLUGINS?.ConstraintPatternRegistryUtility;
 
 export class ConstraintPatternRegistry {
-    /**
-     * @param {Object} [initialPatterns] - Optional map of initial patterns.
-     */
-    constructor(initialPatterns = PATTERN_DEFINITIONS) {
-        this.patterns = initialPatterns;
+    constructor() {
+        if (typeof ConstraintPatternRegistryUtility?.getPattern !== 'function') {
+            // In a real kernel environment, this error indicates a missing dependency injection.
+            console.error("FATAL: ConstraintPatternRegistryUtility kernel tool is unavailable.");
+        }
     }
 
     /**
@@ -40,7 +25,9 @@ export class ConstraintPatternRegistry {
      * @returns {Object|null}
      */
     getPattern(patternId) {
-        return this.patterns[patternId] || null;
+        if (!ConstraintPatternRegistryUtility) return null;
+        // The utility requires an argument object for standard invocation
+        return ConstraintPatternRegistryUtility.getPattern({ patternId });
     }
 
     /**
@@ -49,14 +36,13 @@ export class ConstraintPatternRegistry {
      * @param {Object} definition
      */
     registerPattern(patternId, definition) {
-        if (!patternId || !definition) {
-             throw new Error("Pattern ID and definition are required for registration.");
-        }
-        if (this.patterns[patternId]) {
-            console.warn(`Pattern ID ${patternId} already registered. Overwriting.`);
-        }
-        this.patterns[patternId] = definition;
+        if (!ConstraintPatternRegistryUtility) return false;
+        // The utility handles validation and registration
+        return ConstraintPatternRegistryUtility.registerPattern({ patternId, definition });
     }
 }
 
+/**
+ * Export the primary singleton instance accessing the underlying utility.
+ */
 export const PatternRegistry = new ConstraintPatternRegistry();
