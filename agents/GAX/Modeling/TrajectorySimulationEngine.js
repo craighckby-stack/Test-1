@@ -14,6 +14,9 @@ const PREDICTION_RESULT_SCHEMA = {
  * Contextual State Record (CSR) and Axiomatic Constraint Verification Data (ACVD).
  * 
  * It utilizes an injected Statistical Model Handler to predict TEMM and ECVM scores.
+ * 
+ * It relies on an injected Validator (e.g., SimpleStructureValidator) for comprehensive
+ * input/output schema enforcement.
  */
 class TrajectorySimulationEngine {
     /**
@@ -43,7 +46,7 @@ class TrajectorySimulationEngine {
         // Detailed logic for feature engineering (e.g., transaction complexity, data volume, historical entity risk)
         try {
             // ACVD interaction is assumed to be async due to potential database or service calls
-            // We assume inputManifest.entityId exists due to upstream validation in runSimulation
+            // entityId is guaranteed to exist due to upstream check in runSimulation
             const historyRisk = await this.ACVD.getHistoricalRisk(inputManifest.entityId);
 
             return {
@@ -67,33 +70,33 @@ class TrajectorySimulationEngine {
         let entityId = 'unknown';
 
         try {
-            // 1. Input Validation using injected Validator (preferred)
+            // 1. Critical Minimal Input Check: Ensure entityId exists for logging and feature extraction.
+            if (!inputManifest || typeof inputManifest.entityId !== 'string') {
+                 throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
+            }
+            entityId = inputManifest.entityId;
+
+            // 2. Comprehensive Input Validation using injected Validator (preferred)
             if (this.validator) {
                 const inputValidation = this.validator.validate(inputManifest, MANIFEST_SCHEMA);
                 if (!inputValidation.isValid) {
-                    throw new Error(`Invalid Manifest: ${inputValidation.errors.join('; ')}`);
+                    throw new Error(`Comprehensive Input Validation Failed: ${inputValidation.errors.join('; ')}`);
                 }
-                entityId = inputManifest.entityId;
-            } else if (!inputManifest || typeof inputManifest.entityId !== 'string') {
-                 // Fallback to manual check if validator is unavailable
-                 throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
-            } else {
-                entityId = inputManifest.entityId;
-            }
+            } 
 
             const features = await this.#extractFeatures(inputManifest);
 
             // Execute asynchronous model inference
             const results = await this.model.predict(features);
 
-            // 2. Output Validation using injected Validator (preferred)
+            // 3. Output Validation
             if (this.validator) {
                 const outputValidation = this.validator.validate(results, PREDICTION_RESULT_SCHEMA);
                 if (!outputValidation.isValid) {
-                    throw new Error(`Model output format invalid. Expected {temm: number, ecvm: boolean}. Errors: ${outputValidation.errors.join('; ')}`);
+                    throw new Error(`Model output format invalid (Comprehensive Check). Expected {temm: number, ecvm: boolean}. Errors: ${outputValidation.errors.join('; ')}`);
                 }
             } else if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
-                 // Fallback to original manual check
+                 // Fallback to manual check if validator is absent
                  throw new Error("Model output format invalid: Expected {temm: number, ecvm: boolean}.");
             }
 
