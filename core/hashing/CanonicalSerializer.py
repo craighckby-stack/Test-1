@@ -42,6 +42,20 @@ try:
 except ImportError:
     WEAKREF_AVAILABLE = False
 
+# AGI-KERNEL Improvement (Cycle 23): Import types for handling SimpleNamespace objects.
+try:
+    import types
+    TYPES_AVAILABLE = True
+except ImportError:
+    TYPES_AVAILABLE = False
+
+# AGI-KERNEL Improvement (Cycle 23): Import ctypes for handling C structure data stability in high-performance agents.
+try:
+    import ctypes
+    CTYPES_AVAILABLE = True
+except ImportError:
+    CTYPES_AVAILABLE = False
+
 
 class CanonicalJSONEncoder(json.JSONEncoder):
     """
@@ -128,6 +142,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     
     AGI-KERNEL Improvement (Cycle 22, Emergence: Schema Stability Protocol):
     21. Added dedicated, canonical serialization for `typing.TypeVar` objects. This extracts only the declarative attributes (name, bound, constraints, variance) to ensure schemas and abstract type definitions hash deterministically, regardless of runtime memory location or internal non-deterministic state.
+
+    AGI-KERNEL Improvement (Cycle 23, Logic/Configuration):
+    22. Added canonical serialization for `types.SimpleNamespace` objects, treating them as standard attribute dictionaries, ensuring stable hashing for dynamic configuration objects used extensively in `/config`.
+    23. Implemented deterministic handling for `ctypes.Structure` and `ctypes.Union` types (via anticipatory import). This prevents non-deterministic memory pointers/layouts from affecting the canonical hash, crucial for stable state tracking in high-performance FFI-using agents.
     """
 
     def __init__(self, *args, **kwargs):
@@ -201,6 +219,24 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 "extra": list(obj.__extra__) if hasattr(obj, '__extra__') else []
             }
             
+        # 0d. AGI-KERNEL Improvement (Cycle 23, Architecture/Agents): Handle ctypes structures deterministically.
+        if CTYPES_AVAILABLE and isinstance(obj, (ctypes.Structure, ctypes.Union)):
+            canonical_struct = {
+                "__ctypes_struct__": obj.__class__.__name__
+            }
+            # Only serialize defined fields, avoiding pointers or non-deterministic internal state.
+            if hasattr(obj, '_fields_'):
+                for field_name, field_type in obj._fields_:
+                    try:
+                        value = getattr(obj, field_name)
+                        # Recursively serialize the field value
+                        canonical_struct[field_name] = self.default(value)
+                    except AttributeError:
+                        # Skip if field access fails
+                        continue
+            
+            return canonical_struct
+
         if callable(obj):
             try:
                 module_name = getattr(obj, '__module__', None)
@@ -226,7 +262,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # If introspection fails (e.g., highly custom C extensions), allow fall-through
                 pass
 
-        # 0d. AGI-KERNEL Improvement (Cycle 10): Handle I/O Streams/File Descriptors deterministically.
+        # 0e. AGI-KERNEL Improvement (Cycle 10): Handle I/O Streams/File Descriptors deterministically.
         # Prevents TypeErrors when serializing agent states that temporarily hold open resources (e.g., locks, file handles).
         if hasattr(obj, 'read') and hasattr(obj, 'close') and hasattr(obj, 'fileno'):
             try:
@@ -240,7 +276,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # If introspection fails, return a safe, generic marker
                 return {"__io_stream__": "<UNIDENTIFIED_STREAM>"}
 
-        # 0e. AGI-KERNEL Improvement (Cycle 12): Handle Weak References deterministically.
+        # 0f. AGI-KERNEL Improvement (Cycle 12): Handle Weak References deterministically.
         if WEAKREF_AVAILABLE and isinstance(obj, weakref.ReferenceType):
             target = obj()
             if target is None:
@@ -250,6 +286,11 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Reference is live. Serialize the target object itself recursively.
                 # The recursion mechanism handles potential circularity.
                 return self.default(target)
+
+        # 0g. AGI-KERNEL Improvement (Cycle 23, Logic/Configuration): Handle SimpleNamespace objects.
+        if TYPES_AVAILABLE and isinstance(obj, types.SimpleNamespace):
+            # Treat SimpleNamespace as a standard dictionary mapping its attributes
+            return dict(obj.__dict__)
 
         # AGI-KERNEL Improvement (Cycle 21, Logic/Governance): Handle Exceptions and Warnings deterministically.
         # Must come before generic object handling to strip non-deterministic traceback data.
@@ -377,7 +418,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
-        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum', 'numpy', 'pandas', 'weakref')):
+        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum', 'numpy', 'pandas', 'weakref', 'ctypes', 'types')):
             
             obj_id = id(obj)
 
