@@ -1,38 +1,16 @@
 /**
  * @file KMS_Policy_Engine.ts
- * @description Centralized policy enforcement component for cryptographic operations, 
- * responsible for validating signature integrity, usage compliance, and lifecycle state 
+ * @description Centralized policy enforcement component for cryptographic operations,
+ * responsible for validating signature integrity, usage compliance, and lifecycle state
  * against defined policies.
  */
 
 import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
 import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
+import { PolicyConstraintValidatorTool } from '../plugins/ConstraintValidator'; // Abstracted plugin interface
 
-// --- PLUGIN INTERFACE MOCK ---
-interface PluginResult {
-    success: boolean;
-    failure?: {
-        message: string;
-        checkType: string;
-        value: any;
-        constraint: any;
-    };
-}
-
-interface PolicyConstraintValidatorTool {
-    execute(args: {
-        operation: 'validateNumericBound' | 'validateInclusion';
-        value: any;
-        constraint?: any; // Used for NumericBound (max value)
-        allowedList?: any[]; // Used for Inclusion
-        identityId: string;
-        checkFailed: string;
-    }): PluginResult;
-}
-
-// Assuming the plugin is globally accessible via the kernel context
+// Assuming the ConstraintValidator plugin instance is available via the kernel context
 declare const PolicyConstraintValidator: PolicyConstraintValidatorTool;
-// -----------------------------
 
 /**
  * Custom error class for detailed policy validation failures.
@@ -50,6 +28,7 @@ export class PolicyValidationError extends Error {
  */
 class KMSPolicyEngine {
   private policies: PolicyStructure;
+  // Use the injected/declared validator tool
   private validator: PolicyConstraintValidatorTool = PolicyConstraintValidator;
 
   constructor() {
@@ -105,10 +84,11 @@ class KMSPolicyEngine {
    */
   private checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
     const globalTTL = this.policies.global_security_policies.signature_ttl_minutes;
-    
+
     const result = this.validator.execute({
       operation: 'validateNumericBound',
       value: signatureAgeMinutes,
+      // Note: We use 'constraint' here to mean the maximum allowed value (TTL)
       constraint: globalTTL,
       identityId: identityId,
       checkFailed: 'SignatureTTL'
@@ -132,10 +112,10 @@ class KMSPolicyEngine {
     if (geoConfig.enforce_geospatial_lock && !geoCoordinate) {
         throw new PolicyValidationError('Geospatial verification missing when required.', identityId, 'GeospatialLock');
     }
-    // NOTE: Full GeoFence enforcement logic (e.g., checking coordinates against 'allowed_countries') 
+    // NOTE: Full GeoFence enforcement logic (e.g., checking coordinates against 'allowed_countries')
     // would be handled by an external GeoIP utility and integrated here.
   }
-  
+
   /**
    * Validates a KeyRequest against all applicable policies.
    * Throws PolicyValidationError on first failure.
