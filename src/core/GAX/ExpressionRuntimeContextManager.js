@@ -1,6 +1,7 @@
 /**
- * GAX Expression Runtime Context Manager (V94.1)
+ * GAX Expression Runtime Context Manager (V94.2)
  * Manages execution resource consumption and ensures adherence to GAX_Expr_Core_v2 EngineLimits.
+ * Now utilizes CapacityLimitedCacheUtility for memoization management.
  */
 class ExpressionRuntimeContextManager {
   constructor(config) {
@@ -8,8 +9,13 @@ class ExpressionRuntimeContextManager {
     this.complexity = 0;
     this.depth = 0;
     this.startTime = Date.now();
-    // Runtime cache for intermediate results to respect memoizationLimit
-    this.memoCache = new Map();
+    
+    // Runtime cache managed by the extracted utility
+    // Assumes CapacityLimitedCacheUtility is globally available or required.
+    if (typeof CapacityLimitedCacheUtility === 'undefined' || !CapacityLimitedCacheUtility.create) {
+        throw new Error("Dependency Injection Error: CapacityLimitedCacheUtility plugin not available.");
+    }
+    this.memoCacheManager = CapacityLimitedCacheUtility.create(this.limits.memoizationLimit);
   }
 
   checkResourceLimits(nodeType) {
@@ -39,17 +45,8 @@ class ExpressionRuntimeContextManager {
 
   // Method for safe lookup/storage with memoization limit enforcement
   memoize(key, computation) {
-    if (this.memoCache.size >= this.limits.memoizationLimit) {
-        // Eviction strategy (e.g., LFU/LRU or simple FIFO for stability)
-        const oldestKey = this.memoCache.keys().next().value;
-        this.memoCache.delete(oldestKey);
-    }
-    if (!this.memoCache.has(key)) {
-      const result = computation();
-      this.memoCache.set(key, result);
-      return result;
-    }
-    return this.memoCache.get(key);
+    // Delegate the entire memoization logic (lookup, computation, set, eviction) to the utility.
+    return CapacityLimitedCacheUtility.memoize(this.memoCacheManager, key, computation);
   }
 }
 
