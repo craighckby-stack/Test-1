@@ -51,8 +51,8 @@ class IntegrityHasher {
     }
 
     /**
-     * Calculates the hash of a content stream asynchronously.
-     * This uses the standard 'data'/'end' stream pattern optimized for memory efficiency.
+     * Calculates the hash of a content stream asynchronously using async iterators.
+     * This provides a cleaner syntax than manually handling stream events.
      * 
      * @param {Readable} stream - The readable stream containing the content.
      * @returns {Promise<string>} Resolves with the hash digest in hex format.
@@ -65,25 +65,16 @@ class IntegrityHasher {
         
         const hash = crypto.createHash(this.algorithm);
 
-        return new Promise((resolve, reject) => {
-            stream.on('data', (chunk) => {
-                try {
-                    hash.update(chunk);
-                } catch (e) {
-                    // If hash update fails (e.g., invalid chunk), reject and destroy stream.
-                    reject(e);
-                    stream.destroy(); 
-                }
-            });
-
-            stream.on('end', () => {
-                resolve(hash.digest('hex'));
-            });
-
-            stream.on('error', (err) => {
-                reject(err);
-            });
-        });
+        try {
+            // Use async iteration to process the stream chunks
+            for await (const chunk of stream) {
+                hash.update(chunk);
+            }
+            return hash.digest('hex');
+        } catch (e) {
+            // Re-throw any stream processing error (e.g., read failure)
+            throw e;
+        }
     }
 
     /**
