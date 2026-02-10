@@ -3,6 +3,11 @@ import addFormats from 'ajv-formats';
 import mecSchemaDefinition from '../../schemas/MECSchemaDefinition.json';
 import { EvolutionMission } from '../types/MissionTypes';
 
+// CRITICAL: We rely on the AjvErrorFormatterTool plugin to handle the formatting of validation errors.
+declare const AjvErrorFormatterTool: {
+    format: (errors: ErrorObject[]) => string;
+};
+
 /**
  * Custom Error Class for standardized Mission Validation Failures.
  * Includes detailed AJV error objects for internal debugging.
@@ -16,15 +21,6 @@ export class MissionValidationError extends Error {
     this.validationErrors = errors;
   }
 }
-
-/**
- * Helper function to transform raw AJV errors into a human-readable, diagnostic string.
- */
-const formatAjvErrors = (errors: ErrorObject[]): string => {
-  return errors.map(err => 
-    `[${err.keyword}] Error at path '${err.instancePath || '/'}': ${err.message}${err.params ? ` (Params: ${JSON.stringify(err.params)})` : ''}`
-  ).join('\n');
-};
 
 // Initialize Ajv instance with necessary formats and strict mode for AGI protocols.
 const ajv = new Ajv({
@@ -76,7 +72,8 @@ export class MissionValidationService {
       const errors = this.validator.errors || [];
       const potentialMission = missionConfig as Partial<EvolutionMission>;
       
-      const errorMessages = formatAjvErrors(errors);
+      // Use the extracted plugin tool for standardized error formatting
+      const errorMessages = AjvErrorFormatterTool.format(errors);
       
       throw new MissionValidationError(
         `${this.schemaTitle} Validation Failed (ID: ${potentialMission.missionId || 'N/A'}):
@@ -86,7 +83,6 @@ ${errorMessages}`,
     }
     
     // Validation success implies missionConfig now matches EvolutionMission type
-    // Success logging removed for cleaner service responsibility.
     return missionConfig as EvolutionMission;
   }
 }
