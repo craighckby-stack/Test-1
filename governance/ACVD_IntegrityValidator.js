@@ -1,6 +1,14 @@
 import { SchemaValidator, HashService } from './utilities/services'; 
 
 /**
+ * Interface for the ValidationPipelineRunner plugin.
+ */
+interface ValidationPipelineRunner {
+  run(syncTasks: Array<{ id: string, fn: () => object[], critical: boolean }>, asyncTasks: Array<{ id: string, fn: () => Promise<object[]> }>, errorName?: string): Promise<boolean>;
+  createCompositeError(errors: object[], summary: string, errorName?: string): Error;
+}
+
+/**
  * ACVD_IntegrityValidator is responsible for ensuring that an Autonomous Code Versioning Document
  * (ACVD) is valid against its schema, consistent with the system's operational context, and
  * verifiable against the resulting filesystem state (post-change).
@@ -9,35 +17,26 @@ import { SchemaValidator, HashService } from './utilities/services';
  * matches the ACVD's recorded 'hash_after' values.
  */
 class ACVD_IntegrityValidator {
+  private schemaValidator: SchemaValidator;
+  private hashService: HashService;
+  private acvdSchema: object;
+  private validationRunner: ValidationPipelineRunner;
   
   /**
    * @param {object} dependencies 
    * @param {SchemaValidator} dependencies.schemaValidator Instance of a robust schema validation utility.
    * @param {HashService} dependencies.hashService Instance of the hashing utility (must provide calculateSHA256 and hashFile).
    * @param {object} dependencies.acvdSchema The parsed ACVD JSON schema object definition.
+   * @param {ValidationPipelineRunner} dependencies.validationRunner Tool for running structured validation sequences.
    */
-  constructor({ schemaValidator, hashService, acvdSchema }) {
-    if (!schemaValidator || !hashService || !acvdSchema) {
-      throw new Error("ACVD_IntegrityValidator: Missing required dependency injection (schemaValidator, hashService, acvdSchema).");
+  constructor({ schemaValidator, hashService, acvdSchema, validationRunner }) {
+    if (!schemaValidator || !hashService || !acvdSchema || !validationRunner) {
+      throw new Error("ACVD_IntegrityValidator: Missing required dependency injection (schemaValidator, hashService, acvdSchema, validationRunner).");
     }
     this.schemaValidator = schemaValidator;
     this.hashService = hashService;
     this.acvdSchema = acvdSchema;
-  }
-
-  /**
-   * Creates a structured, composite error containing all validation failures.
-   * This supports structured logging and meta-reasoning capabilities.
-   * @private
-   * @param {Array<object>} errors - Array of structured error objects (e.g., from validation steps).
-   * @param {string} summary - High-level error summary.
-   * @returns {Error} Composite error object with structured details.
-   */
-  _createCompositeError(errors, summary) {
-    const error = new Error(summary);
-    error.name = "ACVDIntegrityError";
-    error.details = errors;
-    return error;
+    this.validationRunner = validationRunner;
   }
 
   /**
@@ -46,7 +45,7 @@ class ACVD_IntegrityValidator {
    * @param {object} acvdRecord 
    * @returns {Array<object>} Array of structured error objects, or empty array if valid.
    */
-  _validateStructure(acvdRecord) {
+  _validateStructure(acvdRecord): object[] {
     const validationResult = this.schemaValidator.validate(acvdRecord, this.acvdSchema);
     if (!validationResult.valid) {
       return validationResult.errors.map(e => ({
@@ -67,7 +66,7 @@ class ACVD_IntegrityValidator {
    * @param {object} systemContext 
    * @returns {Array<object>} Array of structured error objects, or empty array if valid.
    */
-  _validateContextHash(acvdRecord, systemContext) {
+  _validateContextHash(acvdRecord, systemContext): object[] {
     // Note: HashService must ensure deterministic serialization of systemContext.
     const calculatedContextHash = this.hashService.calculateSHA256(systemContext);
     if (calculatedContextHash !== acvdRecord.context_hash) {
@@ -90,7 +89,7 @@ class ACVD_IntegrityValidator {
    * @param {Array<object>} artifactChanges 
    * @returns {Promise<Array<object>>} Promise resolving to an array of structured error objects.
    */
-  async _validatePostChangeHashes(artifactChanges) {
+  async _validatePostChangeHashes(artifactChanges): Promise<object[]> {
     // Only check artifacts that should exist and have a recorded hash_after value.
     const targets = artifactChanges.filter(artifact => 
       (artifact.operation === 'CREATE' || artifact.operation === 'UPDATE') && artifact.hash_after
@@ -115,7 +114,6 @@ class ACVD_IntegrityValidator {
           return null; // Success
         } catch (e) {
           // Failure to read file indicates a serious integrity issue post-change (e.g., file missing or permission error).
-          // This should trigger an immediate rollback/alert.
           return { 
             type: 'ARTIFACT_INTEGRITY_FAIL', 
             code: 'FILESYSTEM_ACCESS_ERROR',
@@ -141,29 +139,34 @@ class ACVD_IntegrityValidator {
    * @returns {Promise<boolean>} True if all checks pass.
    * @throws {ACVDIntegrityError} Throws if any check fails.
    */
-  async validate(acvdRecord, systemContext) {
-    let integrityErrors = [];
-
-    // 1. Synchronous Schema Validation
-    integrityErrors.push(...this._validateStructure(acvdRecord));
-
-    // Halt immediately if schema is invalid, as further checks rely on valid structure
-    if (integrityErrors.length > 0) {
-      throw this._createCompositeError(integrityErrors, "Critical ACVD structural failure detected. Cannot proceed with content validation.");
-    }
-
-    // 2. Synchronous Context Hash Verification
-    integrityErrors.push(...this._validateContextHash(acvdRecord, systemContext));
-
-    // 3. Asynchronous, concurrent Artifact Hash Verification against the filesystem
-    integrityErrors.push(...await this._validatePostChangeHashes(acvdRecord.artifact_changes));
+  async validate(acvdRecord, systemContext): Promise<boolean> {
     
-    if (integrityErrors.length > 0) {
-      // Use a custom summary for easy parsing by the kernel's monitoring systems
-      const summary = `ACVD failed integrity check. Errors detected: ${integrityErrors.length}. First Code: ${integrityErrors[0].code}.`;
-      throw this._createCompositeError(integrityErrors, summary);
-    }
+    const syncTasks = [
+        { 
+            id: 'SCHEMA_VALIDATION', 
+            fn: () => this._validateStructure(acvdRecord), 
+            critical: true 
+        },
+        { 
+            id: 'CONTEXT_HASH_VERIFICATION', 
+            fn: () => this._validateContextHash(acvdRecord, systemContext), 
+            critical: false 
+        }
+    ];
 
-    return true; // Integrity passed
+    const asyncTasks = [
+        { 
+            id: 'POST_CHANGE_HASH_VERIFICATION', 
+            fn: () => this._validatePostChangeHashes(acvdRecord.artifact_changes) 
+        }
+    ];
+
+    try {
+        await this.validationRunner.run(syncTasks, asyncTasks, "ACVDIntegrityError");
+        return true; 
+    } catch (e) {
+        // The runner ensures 'e' is the structured composite error.
+        throw e;
+    }
   }
 }
