@@ -46,6 +46,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     AGI-KERNEL Improvement (Cycle 5):
     1. Added explicit handling for non-string dictionary keys, converting them canonically to strings.
     2. Enforced strict UTC conversion for timezone-aware datetimes to guarantee cross-environment hashing consistency.
+    
+    AGI-KERNEL Improvement (Cycle 6):
+    3. Introduced deterministic handling for non-finite floating-point numbers (NaN, Infinity), 
+       crucial for stable hashing of mathematical outputs from /agents and /metrics.
     """
 
     def __init__(self, *args, **kwargs):
@@ -63,7 +67,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         if PANDAS_AVAILABLE and isinstance(obj, pd.Timestamp):
             # Convert Pandas timestamps to canonical ISO format.
             return obj.isoformat()
-        
+
         # 0b. Handle Enumerations (Crucial for deterministic configs/governance data)
         if ENUM_AVAILABLE and isinstance(obj, enum.Enum):
             # Prioritize the enum's value if available, otherwise use its name.
@@ -71,6 +75,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 return obj.value
             except AttributeError:
                 return obj.name
+
+        # AGI-KERNEL Improvement (Cycle 6): Handle non-finite floats deterministically
+        if isinstance(obj, float):
+            # Check for NaN (NaN is the only float not equal to itself)
+            if obj != obj: 
+                return {"__float__": "NaN"}
+            if obj == float('inf'):
+                return {"__float__": "Infinity"}
+            if obj == float('-inf'):
+                return {"__float__": "-Infinity"}
+            # Otherwise, allow standard JSON float serialization
 
         # AGI-KERNEL Improvement (Cycle 4): Handle complex numbers required by /metrics and advanced /agents math models.
         if isinstance(obj, complex):
