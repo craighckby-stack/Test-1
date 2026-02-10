@@ -2,19 +2,20 @@
  * core/exceptions/ProtocolError.js
  * 
  * Custom error class for failures related to adherence to the Sovereign Manifest Protocol 
- * or core architectural contracts (e.g., required input compliance).
+ * or core architectural contracts.
+ * Inherits standardized error handling from BaseApplicationError.
  */
-class ProtocolError extends Error {
+const BaseApplicationError = require('./BaseApplicationError');
+
+class ProtocolError extends BaseApplicationError {
+    /**
+     * @param {string} message - Human-readable error message.
+     * @param {object} [context={}] - Optional metadata relevant to the error occurrence.
+     */
     constructor(message, context = {}) {
-        super(message);
-        this.name = 'ProtocolError';
-        this.statusCode = 500; // Internal Protocol Failure
-        this.context = context;
-        
-        // Standard practice for V8/Node.js to fix stack trace origin
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, ProtocolError);
-        }
+        // Protocol failures are typically Internal Server Errors (500).
+        // The status code and stack trace setup are handled by BaseApplicationError.
+        super(message, 500, context);
     }
 }
 
