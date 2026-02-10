@@ -6,24 +6,27 @@
 
 import { createHash } from 'crypto';
 
+// --- AGI Kernel Plugin Interface Proxy ---
+// Helper to invoke the extracted utility tool.
+// NOTE: In the AGI-KERNEL runtime, this function is mapped to the compiled plugin execution.
+function runCanonicalIntegrityHasher(data, createHashFn) {
+  // Simulate access to the CanonicalIntegrityHasher tool
+  const HashingTool = AGI_KERNEL.getPlugin('CanonicalIntegrityHasher');
+  
+  return HashingTool.execute({ data: data, createHashFn: createHashFn });
+}
+// ------------------------------------------
+
 /**
- * Generates a standard SHA-256 hash for an input artifact or data structure.
+ * Generates a standard SHA-256 hash for an input artifact or data structure using
+ * the CanonicalIntegrityHasher tool, ensuring canonical serialization for objects.
+ * 
  * @param {string|Buffer|object} data - The data payload to hash.
  * @returns {string} The SHA-256 hash in lowercase hex format.
  */
 export function calculateArtifactHash(data) {
-  const hasher = createHash('sha256');
-  let input;
-
-  if (typeof data === 'object' && data !== null && !Buffer.isBuffer(data)) {
-    // Ensure consistent hashing for objects (canonical JSON serialization)
-    input = JSON.stringify(data, Object.keys(data).sort());
-  } else {
-    input = data;
-  }
-
-  hasher.update(input);
-  return hasher.digest('hex');
+  // Delegation to the CanonicalIntegrityHasher plugin, passing 'createHash' as a required dependency.
+  return runCanonicalIntegrityHasher(data, createHash);
 }
 
 /**
