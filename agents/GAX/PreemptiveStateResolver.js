@@ -8,13 +8,38 @@
  * PSR calculates the predicted TEMM (Temporal Metric) and ECVM (Execution Constraint Viability Metric)
  * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
  */
+
+// NOTE: Assumes KERNEL_SYNERGY_CAPABILITIES is globally available in the runtime context.
+const KERNEL_SYNERGY_CAPABILITIES = global.KERNEL_SYNERGY_CAPABILITIES || {
+    Tool: {
+        execute: (toolName, params) => { 
+            console.error(`Tool execution placeholder for: ${toolName}`);
+            // In a live kernel, this would synchronously or asynchronously return the result.
+            // Since the logic for RiskThresholdCalculator is now external, this placeholder 
+            // assumes success and a mock return if the plugin isn't actually loaded here.
+            if (toolName === 'RiskThresholdCalculator') {
+                const { UFRM, CFTM, riskModel } = params;
+                const weightA = riskModel?.weightA ?? 0.4;
+                const weightB = riskModel?.weightB ?? 0.6;
+                const bias = riskModel?.bias ?? 0.05;
+                const R_TH = (UFRM * weightA) + (CFTM * weightB) + bias;
+                return Math.min(10.0, Math.max(0.1, R_TH));
+            }
+            throw new Error(`Tool ${toolName} not found.`);
+        }
+    }
+};
+
 class PreemptiveStateResolver {
     
     // Core internal handlers for state and modeling utilities
     #policyEngine;
     #metricsStore;
     #simEngine;
-    #riskCalculator; // Abstraction for R_TH calculation
+    
+    // Inputs needed for external R_TH calculation via the kernel tool
+    #riskAccessors;
+    #riskModel;
 
     /**
      * @param {Object} Dependencies - Structured dependencies required for PSR operation.
@@ -28,9 +53,9 @@ class PreemptiveStateResolver {
         
         const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         
-        // Dependency validation
-        if (!GAX_Context.PolicyEngine || !riskModel || !GAX_Context.getUFRM || !GAX_Context.MetricsStore) {
-             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, MetricsStore, RiskModel, or Metric Accessors). This is a Kernel Context error.");
+        // Dependency validation: Ensure all accessors needed for both internal use and external tool execution are present.
+        if (!GAX_Context.PolicyEngine || !riskModel || !GAX_Context.getUFRM || !GAX_Context.getCFTM || !GAX_Context.MetricsStore) {
+             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, MetricsStore, RiskModel, UFRM, CFTM accessors). This is a Kernel Context error.");
         }
 
         // Explicit extraction of core components for better typing and encapsulation
@@ -38,14 +63,12 @@ class PreemptiveStateResolver {
         this.#metricsStore = GAX_Context.MetricsStore;
         this.#simEngine = SimulationEngine;
         
-        // Initialize the abstracted risk calculator plugin
-        const riskAccessors = {
+        // Store accessors and model for later use by the external tool
+        this.#riskAccessors = {
             getUFRM: GAX_Context.getUFRM,
             getCFTM: GAX_Context.getCFTM,
         };
-        
-        // Use the newly defined plugin for standardizing R_TH calculation
-        this.#riskCalculator = new RiskThresholdCalculator(riskAccessors, riskModel);
+        this.#riskModel = riskModel;
     }
 
     /**
@@ -79,8 +102,18 @@ class PreemptiveStateResolver {
             throw new Error("[PSR] Input manifest required for ATM generation.");
         }
         
-        // Use the delegated risk calculator instance
-        const R_TH = this.#riskCalculator.execute();
+        // Resolve metrics locally before passing data to the kernel tool
+        const UFRM = this.#riskAccessors.getUFRM();
+        const CFTM = this.#riskAccessors.getCFTM();
+        
+        const riskParams = {
+            UFRM: UFRM,
+            CFTM: CFTM,
+            riskModel: this.#riskModel
+        };
+        
+        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool
+        const R_TH = KERNEL_SYNERGY_CAPABILITIES.Tool.execute('RiskThresholdCalculator', riskParams);
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
@@ -95,6 +128,7 @@ class PreemptiveStateResolver {
 
         // Stage 2: Detailed Trajectory Modeling
         console.log("PSR: Starting predictive model simulation (P1/P2 overlap).");
+        // NOTE: SimulationEngine#runSimulation is assumed to be complex and remains local.
         const { predictedTEMM, predictedECVM } = await this.#simEngine.runSimulation(inputManifest);
         
         // Stage 3: Failure Guarantee Check (S04 precursor evaluation)
