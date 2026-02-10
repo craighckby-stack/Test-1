@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V2.3",
+  "policy_schema_version": "V2.4",
   "policies": {
     "GOV_ENFORCEMENT_V9": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -61,6 +61,12 @@
         "MANIFEST_ENTRY_DESCRIBING_NOVELTY",
         "CYCLE_LOG_TAG_WITH_EMERGENCE_DETECTED_TRUE"
       ],
+      "quality_indicators": [
+        "SOLVES_UNEXPLICIT_PROBLEMS",
+        "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED",
+        "ACCELERATES_FUTURE_LEARNING_CAPABILITY",
+        "REUSABLE_ACROSS_MULTIPLE_CONTEXTS"
+      ],
       "integration_path": {
         "maturity_threshold_for_integration": 30,
         "action": "PROPOSE_MERGE_INTO_CORE"
@@ -79,7 +85,18 @@
         "/agents": 0.25,
         "/emergent": 0.20,
         "/governance": 0.15,
-        "/support_infrastructure": 0.10
+        "support_infrastructure": {
+          "weight": 0.10,
+          "coverage_directories": [
+            "/utils",
+            "/config",
+            "/data",
+            "/protocols",
+            "/metrics",
+            "/architecture",
+            "/orchestration"
+          ]
+        }
       }
     }
   }
