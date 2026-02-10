@@ -1,42 +1,33 @@
 /**
  * CoreHashEngine.ts
- * Provides canonical JSON serialization and SHA-256 hashing for GSC proposals.
+ * Delegates canonical JSON serialization and SHA-256 hashing for GSC proposals 
+ * to the specialized CanonicalIntegrityHashUtility plugin.
  * This utility is critical for generating reproducible 'integrity_checksum' values.
  */
 
-import { createHash } from 'crypto';
-
-// Defines fields that must be excluded or reset before hashing the proposal itself.
-const EXCLUDED_FIELDS = ['integrity_checksum', 'signatures', 'verification_data'];
-
-/**
- * Canonicalizes the JSON object for deterministic hashing (required for consensus).
- * Standard method: Lexicographically sorted keys, no whitespace.
- * @param obj The proposal object.
- * @returns Canonicalized JSON string.
- */
-function canonicalize(obj: object): string {
-    // Note: A robust implementation would use a dependency like 'fast-json-stable-stringify'
-    // For scaffolding, we simulate the required structure.
-    
-    // Deep clone and clean object first
-    const workingObject = JSON.parse(JSON.stringify(obj));
-
-    EXCLUDED_FIELDS.forEach(field => {
-        delete workingObject[field];
-    });
-    
-    // Use standard sort-key stringify for canonical output
-    // Implementation must guarantee byte-for-byte reproducibility across runtime environments.
-    return JSON.stringify(workingObject, Object.keys(workingObject).sort());
-}
+// Defines the interface for the extracted utility plugin
+declare const CanonicalIntegrityHashUtility: {
+    /**
+     * Calculates the integrity checksum for a given object after canonicalizing it 
+     * and excluding integrity-related fields.
+     * @param proposal The raw object.
+     * @returns The SHA-256 integrity hash string.
+     */
+    calculateProposalChecksum(proposal: object): string;
+};
 
 /**
- * Calculates the integrity checksum for a given GSC proposal.
+ * Calculates the integrity checksum for a given GSC proposal by delegating 
+ * to the specialized utility which handles canonicalization and field exclusion.
+ *
  * @param proposal The raw GSC proposal object.
  * @returns The SHA-256 integrity hash string.
  */
 export function calculateProposalChecksum(proposal: object): string {
-    const canonicalData = canonicalize(proposal);
-    return createHash('sha256').update(canonicalData, 'utf8').digest('hex');
+    if (typeof CanonicalIntegrityHashUtility === 'object' && typeof CanonicalIntegrityHashUtility.calculateProposalChecksum === 'function') {
+        return CanonicalIntegrityHashUtility.calculateProposalChecksum(proposal);
+    }
+    
+    // This state indicates a critical failure in dependency injection or plugin loading.
+    throw new Error("CanonicalIntegrityHashUtility is not available in the runtime environment.");
 }
