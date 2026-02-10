@@ -16,6 +16,8 @@ class AtomicTransactionVerifier {
         this.crypto = crypto;
         this.storage = storage;
         this.telemetry = telemetry;
+        // Assume PLUGINS is globally available or resolved via injection mechanism
+        this.integrityVerifier = PLUGINS.IntegrityVerificationUtility; 
     }
 
     /**
@@ -36,18 +38,34 @@ class AtomicTransactionVerifier {
             return { isVerified: false, reason: "Missing critical execution trace artifact." };
         }
 
-        // 2. Re-calculate hash of the C-04 trace log
-        const calculatedTraceHash = this.crypto.hashArtifact(traceArtifact.traceLog);
+        // --- 2. Re-calculate and verify hash of the C-04 trace log using plugin ---
+        
+        // Bind the specific crypto function for injection into the utility
+        const hashArtifactFn = this.crypto.hashArtifact.bind(this.crypto); 
+        
+        const hashCheckResult = this.integrityVerifier.execute('verifyHashConsistency', [
+            traceArtifact.traceLog,
+            auditContext.expectedTraceHash,
+            hashArtifactFn
+        ]);
 
-        // We assume the MCR/C04 interface stored the expected hash (e.g., in traceArtifact.expectedHash)
-        if (calculatedTraceHash !== auditContext.expectedTraceHash) {
-             this.telemetry.error(`MTV Integrity Breach: C04 Execution Trace hash mismatch for ${deploymentID}.`);
+        if (!hashCheckResult.isConsistent) {
+             this.telemetry.error(`MTV Integrity Breach: C04 Execution Trace hash mismatch for ${deploymentID}. Reason: ${hashCheckResult.reason}`);
              return { isVerified: false, reason: "C04 Execution Trace hash mismatch." };
         }
+        
+        // --- 3. Verify SEA/FBA Audit Data Integrity (Signature check) using plugin ---
 
-        // 3. Verify SEA/FBA Audit Data Integrity (ensuring audit metrics are cryptographically attested)
-        if (!this.crypto.verifySignature(auditContext.metrics, auditContext.auditSignature)) {
-             this.telemetry.error(`MTV Integrity Breach: Audit data signature failed verification for ${deploymentID}.`);
+        const verifySignatureFn = this.crypto.verifySignature.bind(this.crypto);
+
+        const signatureCheckResult = this.integrityVerifier.execute('verifySignatureIntegrity', [
+            auditContext.metrics, 
+            auditContext.auditSignature,
+            verifySignatureFn
+        ]);
+
+        if (!signatureCheckResult.isValid) {
+             this.telemetry.error(`MTV Integrity Breach: Audit data signature failed verification for ${deploymentID}. Reason: ${signatureCheckResult.reason}`);
             return { isVerified: false, reason: "SEA/FBA Audit data signature verification failed." };
         }
 
