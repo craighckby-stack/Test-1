@@ -1,17 +1,10 @@
 import { SecureExpressionEvaluator } from '../utils/SecureExpressionEvaluator';
 
-// Define constants for robust type checking and future refactoring
-const CONTROL_TYPES = {
-    CONSTRAINT_POLICY: 'CONSTRAINT_POLICY',
-    PRIORITY_WEIGHT: 'PRIORITY_WEIGHT'
-};
-const DEFAULT_WEIGHT_AGGREGATION = 'MAX';
-
 /**
  * @class ConflictResolutionEngine
  * Manages the evaluation of competing operational requests against the CRCM (Conflict Resolution Constraint Model).
  * Utilizes a SecureExpressionEvaluator to safely execute complex weighting formulas.
- * Improvement: Logic simplified by delegating constraint checking and weight aggregation to ConflictModelEvaluator plugin.
+ * Delegation: Domain-specific control evaluation is handled by the ConflictModelEvaluator plugin.
  */
 class ConflictResolutionEngine {
   /**
@@ -28,6 +21,9 @@ class ConflictResolutionEngine {
     this.domainMap = this._buildDomainMap(crcm.domains);
     // Bind the evaluator function for easy passing to the plugin
     this._evaluatorFn = this.evaluator.evaluate.bind(this.evaluator);
+    
+    // Assume ConflictModelEvaluator is globally available or imported via AGI Kernel plugin system
+    this.ConflictModelEvaluator = typeof ConflictModelEvaluator !== 'undefined' ? ConflictModelEvaluator : null;
   }
 
   /**
@@ -57,13 +53,14 @@ class ConflictResolutionEngine {
    * @returns {{winningRequest: Object|null, resolutionWeight: number, resolutionMetadata: Object}}
    */
   resolveConflict(competingRequests, currentContext) {
-    // NOTE: ConflictModelEvaluator is an active plugin utilized here.
-
     if (!Array.isArray(competingRequests) || competingRequests.length === 0) {
         return { winningRequest: null, resolutionWeight: -Infinity, resolutionMetadata: { reason: "No competing requests provided." } };
     }
     if (!currentContext || typeof currentContext !== 'object') {
         console.warn("Context missing or invalid in ConflictResolutionEngine.");
+    }
+    if (!this.ConflictModelEvaluator || typeof this.ConflictModelEvaluator.execute !== 'function') {
+        throw new Error("ConflictModelEvaluator plugin is required but not available.");
     }
     
     let winningRequest = null;
@@ -77,10 +74,11 @@ class ConflictResolutionEngine {
       if (!domain || !Array.isArray(domain.controls)) continue;
 
       const applicableControls = domain.controls;
-      const aggregationMethod = domain.aggregation_method || DEFAULT_WEIGHT_AGGREGATION;
+      // Note: Default aggregation method handled internally by the plugin if not specified.
+      const aggregationMethod = domain.aggregation_method;
 
       // Delegate scoring and constraint checking to the ConflictModelEvaluator plugin
-      const evaluationResult = ConflictModelEvaluator.execute({
+      const evaluationResult = this.ConflictModelEvaluator.execute({
           controls: applicableControls,
           context: currentContext,
           aggregationMethod: aggregationMethod,
@@ -95,11 +93,11 @@ class ConflictResolutionEngine {
         winningRequest = request;
         resolutionMetadata = { 
             appliedControls: appliedControls,
-            domainAggregation: aggregationMethod,
+            domainAggregation: aggregationMethod || 'MAX', 
             violationDetails: null // Clear previous violations
         };
       } else if (!isViable) {
-        // Capture rejection metadata for debugging/learning, even if it didn't win
+        // Capture rejection metadata for debugging/learning
         if (!resolutionMetadata.rejectedRequests) resolutionMetadata.rejectedRequests = [];
         resolutionMetadata.rejectedRequests.push({ 
             requestId: request.id || 'unknown',
