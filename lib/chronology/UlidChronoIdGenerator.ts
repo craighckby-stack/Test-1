@@ -1,23 +1,27 @@
+import { ulid } from 'ulid';
 import { ChronoId, ChronoIdGenerator } from "./ChronoIdGenerator";
-// Assuming the 'ulid' package is installed and used across the system.
-import { ulid, decodeTime } from 'ulid';
+
+// Declare the external plugin interface for compile-time TypeScript compatibility
+declare const UlidChronoUtility: {
+    execute: (args: { action: 'validate' | 'decodeTime', value: string }) => number | boolean | null;
+};
 
 /**
  * A concrete implementation of ChronoIdGenerator utilizing the ULID specification.
  * 
  * ULIDs are ideal because they are lexicographically sortable, highly random 
  * in the latter half, and use the URL-safe Crockford Base32 encoding.
+ * 
+ * Note: Validation and Time Decoding are delegated to the UlidChronoUtility plugin
+ * for canonical enforcement and standardization.
  */
 export class UlidChronoIdGenerator implements ChronoIdGenerator {
-
-    // Regular expression for basic ULID format validation: 26 chars, Base32 alphabet.
-    private readonly ULID_REGEX = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
     /**
      * Generates a new ULID string.
      */
     public generateId(): ChronoId {
-        // ULID libraries handle collision protection and time management automatically.
+        // Generation relies on the robust external 'ulid' library for secure randomness.
         return ulid() as ChronoId;
     }
 
@@ -27,21 +31,18 @@ export class UlidChronoIdGenerator implements ChronoIdGenerator {
      * @returns The associated Unix epoch timestamp (milliseconds).
      */
     public extractTimestamp(chronoId: ChronoId): number {
-        // decodeTime is a utility specific to reading the ULID time component.
-        return decodeTime(chronoId);
+        const timestamp = UlidChronoUtility.execute({ action: 'decodeTime', value: chronoId });
+        // The plugin returns the number directly (or NaN if invalid), cast needed for typing.
+        return timestamp as number;
     }
 
     /**
-     * Validates the input string against ULID structure and length.
+     * Validates the input string against ULID structure and length using the canonical utility.
      * @param value The string to validate.
      * @returns True if the string looks like a valid ULID.
      */
     public isValid(value: string): value is ChronoId {
-        if (typeof value !== 'string' || value.length !== 26) {
-            return false;
-        }
-        
-        // Check against the valid ULID character set and length constraint.
-        return this.ULID_REGEX.test(value);
+        const result = UlidChronoUtility.execute({ action: 'validate', value: value });
+        return result === true;
     }
 }
