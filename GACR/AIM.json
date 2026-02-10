@@ -1,10 +1,22 @@
 {
   "schema_version": "AIM_V3.1_SYNERGY_NORMALIZED",
   "metadata": {
-    "description": "Agent Integrity Monitoring Manifest (V3.1). Standardized constraints, converted semantic units to MB/integers, and integrated dynamic constraint resolution identifiers for AGI governance. Hardcoded dependencies replaced with standard kernel references ($REF:).",
+    "description": "Agent Integrity Monitoring Manifest (V3.1). Standardized constraints, converted semantic units to MB/integers, and integrated dynamic constraint resolution identifiers for AGI governance. Introduced explicit Synergy Governance model for alignment.",
     "governance_scope": "AGI-KERNEL_CORE",
-    "last_updated": "CYCLE_0",
+    "last_updated": "CYCLE_1_EVOLUTION",
     "normalization_tool_used": "AIMConstraintNormalizer_V1"
+  },
+  "synergy_governance": {
+    "compliance_definition": {
+      "synergy_compliance_required": "Must be True for self-modifying agents and core kernel modules. Enables dynamic resource allocation.",
+      "integrity_check_ref_id": "Must match $REF:KERNEL_INTEGRITY_HASH.",
+      "alignment_priority": 9.5
+    },
+    "required_metrics": [
+      "cycle_execution_time",
+      "emergent_tool_utilization_rate",
+      "maturity_score"
+    ]
   },
   "integrity_profiles": {
     "SGS_AGENT": {
