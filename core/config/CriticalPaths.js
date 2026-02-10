@@ -1,3 +1,5 @@
+import { EnvVarResolver } from "#plugins/EnvVarResolver";
+
 /**
  * core/config/CriticalPaths.js
  * 
@@ -7,23 +9,10 @@
  */
 
 /**
- * Delegates to BootstrapConfigResolverUtility (conceptual plugin) to resolve 
- * configuration values, prioritizing environment variables.
- * @param envVar The environment variable key.
- * @param defaultValue The default value.
- * @returns The resolved value.
+ * Uses the abstracted EnvVarResolver utility to resolve configuration values,
+ * prioritizing environment variables.
  */
-function resolveCriticalPath(envVar: string, defaultValue: string | null): string | null {
-    // Direct access required for early bootstrap phase, simulating call to BootstrapConfigResolverUtility
-    if (typeof process !== 'undefined' && process.env && process.env[envVar]) {
-        const value = process.env[envVar];
-        // Ensure the environment variable is not just an empty string
-        if (value !== null && value !== undefined && value.trim() !== '') {
-            return value;
-        }
-    }
-    return defaultValue;
-}
+const resolveCriticalPath = EnvVarResolver.resolve;
 
 export const CriticalPaths = {
     // Path used by IsolatedFailureReporter for synchronous, append-only security logging.
@@ -41,11 +30,15 @@ export const CriticalPaths = {
 
 // --- Initialization ---
 // This configuration must be loaded very early during the system bootstrap.
-// The system startup should ensure these environment variables/paths are set and accessible.
 
 if (CriticalPaths.ISOLATED_FAILURE_LOG) {
-    // Using dynamic require due to early bootstrap context.
-    const { IsolatedFailureReporter } = require('../system/IsolatedFailureReporter');
-    // Asserting type since we checked for null above.
-    IsolatedFailureReporter.setLogPath(CriticalPaths.ISOLATED_FAILURE_LOG as string);
+    // WARNING: Using dynamic require due to early bootstrap context necessity.
+    // This initialization step must occur before the main module system is fully ready.
+    try {
+        const { IsolatedFailureReporter } = require('../system/IsolatedFailureReporter');
+        // Asserting type since we checked for null above.
+        IsolatedFailureReporter.setLogPath(CriticalPaths.ISOLATED_FAILURE_LOG as string);
+    } catch (e) {
+        // Failure to load the reporter here is non-critical if handled by subsequent boot stages.
+    }
 }
