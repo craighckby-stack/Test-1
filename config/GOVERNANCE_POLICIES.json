@@ -1,5 +1,5 @@
 {
-  "policy_schema_version": "V2.1",
+  "policy_schema_version": "V2.2",
   "policies": {
     "GOV_ENFORCEMENT_V9": {
       "name": "Sovereign AGI Baseline Enforcement",
@@ -23,6 +23,16 @@
           "action": "SYSTEM_HARD_HALT",
           "quarantine_context": true,
           "trigger_condition": "SAFETY_VIOLATION_OR_LOOP"
+        },
+        "STAGNATION": {
+          "action": "INITIATE_STAGNATION_RECOVERY_PROTOCOL",
+          "trigger_condition": "NO_IMPROVEMENT_5_CONSECUTIVE_CYCLES",
+          "protocol_steps": [
+            "CLEAR_PORTION_OF_BLACKLIST",
+            "REVIEW_EMERGENT_INTEGRATION",
+            "INCREASE_SELECTION_RANDOMNESS",
+            "TARGET_UNEXPLORED_AREAS"
+          ]
         }
       }
     },
@@ -47,6 +57,22 @@
       "integration_path": {
         "maturity_threshold_for_integration": 30,
         "action": "PROPOSE_MERGE_INTO_CORE"
+      }
+    },
+    "POLICY_EXPLORATION_V1": {
+      "name": "Repository Diversity and Blacklist Management",
+      "applies_to_system": "NAVIGATOR_SYSTEM",
+      "blacklist_management": {
+        "max_size": 50,
+        "action_on_exceeded": "CLEAR_OLDEST_ENTRIES",
+        "diversity_enforcement": true
+      },
+      "priority_weight_enforcement": {
+        "/core": 0.30,
+        "/agents": 0.25,
+        "/emergent": 0.20,
+        "/governance": 0.15,
+        "/utils_config_data": 0.10
       }
     }
   }
