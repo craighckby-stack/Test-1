@@ -9,6 +9,37 @@ import {
 } from './governance.interfaces'; // Import scaffolded types
 
 /**
+ * Utility function that simulates the execution of the AuditActionExtractor plugin.
+ * Extracts required mitigation actions from checks that failed but were not critical.
+ */
+function extractConditionalActions(
+    gatingChecks: GatingIntegrityAuditReport['gatingChecks'],
+    FAIL_STATUS: AuditStatus,
+    CRITICAL_SEVERITY: CheckSeverity
+): string[] {
+    
+    const requiredActions: string[] = [];
+
+    for (const check of gatingChecks) {
+        // Criteria for conditional actions:
+        // 1. Status is FAIL
+        // 2. Severity is NOT CRITICAL (if critical, it would be a full FAIL status)
+        // 3. actionRequired exists and has content
+        if (
+            check.status === FAIL_STATUS &&
+            check.severity !== CRITICAL_SEVERITY &&
+            Array.isArray(check.actionRequired) &&
+            check.actionRequired.length > 0
+        ) {
+            requiredActions.push(...check.actionRequired);
+        }
+    }
+
+    // Deduplication
+    return Array.from(new Set(requiredActions));
+}
+
+/**
  * GateDecisionHandler
  * Centralized component responsible for consuming the Gating Integrity Audit Report
  * and translating its PASS/FAIL/CONDITIONAL status into mandatory operational commands (e.g., halt CI/CD, trigger alerts, generate tickets).
@@ -96,14 +127,12 @@ export class GateDecisionHandler {
     private async handleConditionalPass(report: GatingIntegrityAuditReport): Promise<void> {
         const entityId = report.entity.identifier;
         
-        const requiredActions = report.gatingChecks
-            .filter(c => 
-                c.status === AuditStatus.FAIL && 
-                c.severity !== CheckSeverity.CRITICAL && // Must not be critical, otherwise it would be a FAIL
-                c.actionRequired && 
-                c.actionRequired.length > 0
-            )
-            .flatMap(c => c.actionRequired!);
+        // Use the extracted utility logic (simulating the plugin call) to gather required actions
+        const requiredActions = extractConditionalActions(
+            report.gatingChecks,
+            AuditStatus.FAIL,
+            CheckSeverity.CRITICAL
+        );
 
         if (requiredActions.length > 0) {
             
