@@ -1,3 +1,14 @@
+interface ComplianceRecordCanonicalizerTool {
+    execute(args: { 
+        breach: any; 
+        snapshot: any;
+        timestamp?: number;
+        severity?: string;
+    }): any; // Returns the canonical record object or { error: string }
+}
+
+declare const ComplianceRecordCanonicalizer: ComplianceRecordCanonicalizerTool | undefined;
+
 import { FloorBreach } from './RiskFloorComplianceUtility';
 import { PersistenceService } from '../../infrastructure/persistence/PersistenceService';
 import { TelemetrySnapshot } from '../telemetry/TelemetryService';
@@ -21,18 +32,24 @@ export class ComplianceReportingService {
      * @param snapshot The telemetry context at the time of the breach.
      */
     public async logBreach(breach: FloorBreach, snapshot: TelemetrySnapshot): Promise<void> {
-        const record = {
-            timestamp: Date.now(),
-            floorName: breach.floorName,
-            protocolId: breach.protocolId,
-            metricKey: breach.metricKey,
-            contextSnapshotId: snapshot.id, // Assuming snapshots have IDs
-            data: {
-                current: breach.currentValue,
-                threshold: breach.threshold,
-            },
-            severity: 'CRITICAL' // Placeholder
-        };
+        let record: any;
+
+        if (ComplianceRecordCanonicalizer && ComplianceRecordCanonicalizer.execute) {
+            // CRITICAL: Use the extracted reusable tool for canonicalization
+            record = ComplianceRecordCanonicalizer.execute({
+                breach: breach,
+                snapshot: snapshot
+            });
+
+            if (record && record.error) {
+                console.error(`[ComplianceAudit]: Canonicalization failed: ${record.error}`);
+                return;
+            }
+        } else {
+            // Fallback warning if the tool is unexpectedly missing
+            console.warn("[ComplianceAudit]: ComplianceRecordCanonicalizer tool unavailable. Logging aborted.");
+            return;
+        }
         
         console.log(`[ComplianceAudit]: Logging persistent breach record for ${breach.floorName}`);
         // Example persistence call
