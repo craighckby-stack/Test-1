@@ -54,6 +54,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     AGI-KERNEL Improvement (Cycle 7):
     4. Implemented null-value filtering for custom objects/dataclasses to ensure hash stability.
     5. Added deterministic handling for buffer types (bytearray, memoryview).
+    
+    AGI-KERNEL Improvement (Cycle 9):
+    6. Added canonical serialization for functions, methods, and class types using fully qualified import paths.
     """
 
     def __init__(self, *args, **kwargs):
@@ -79,6 +82,26 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 return obj.value
             except AttributeError:
                 return obj.name
+
+        # 0c. AGI-KERNEL Improvement (Cycle 9): Deterministic Serialization for Callables (Functions, Methods) and Classes
+        # This is crucial for stable hashing of configurations or agent states that reference dynamically loaded behaviors.
+        if callable(obj):
+            try:
+                # Distinguish between instances and the class type itself
+                is_class = isinstance(obj, type)
+                marker = "__class__" if is_class else "__callable__"
+
+                # Use fully qualified path (module and name) as canonical identifier
+                module_name = getattr(obj, '__module__', None)
+                qual_name = getattr(obj, '__qualname__', getattr(obj, '__name__', None))
+                
+                # Only serialize if we can get a non-built-in, recognizable path
+                if module_name and qual_name and not module_name.startswith(('builtins', 'typing')):
+                    return {marker: f"{module_name}.{qual_name}"}
+                
+            except Exception:
+                # If introspection fails (e.g., highly custom C extensions), allow fall-through
+                pass
 
         # AGI-KERNEL Improvement (Cycle 6): Handle non-finite floats deterministically
         if isinstance(obj, float):
@@ -206,6 +229,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             if hasattr(obj, '__dict__'):
                 # Cycle 1 Improvement: Filter out internal/private attributes and callables
                 # AGI-KERNEL Improvement (Cycle 7): Also filter out None values for hashing stability and compactness.
+                # NOTE: Callables are now explicitly handled in 0c, but still filtered here to prevent accidental serialization.
                 safe_dict = {
                     k: v for k, v in obj.__dict__.items()
                     if not k.startswith('_') and not callable(v) and v is not None
