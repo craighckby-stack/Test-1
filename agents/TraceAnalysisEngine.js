@@ -5,10 +5,12 @@ class TraceAnalysisEngine {
 
   /**
    * Identifies patterns in the traceability logs to generate prioritized self-improvement goals.
+   * This function now utilizes the TraceRiskAnalyzer tool for policy enforcement and scoring.
    * @returns {Array<MissionDefinition>}
    */
   async generateOptimizationMissions() {
-    // 1. Find operations with high hallucinationRisk (> 0.5) AND architecturalImpact=true.
+    // 1. Find operations that meet high-risk criteria defined by policy (i.e., those scored by the TraceRiskAnalyzer).
+    // NOTE: The DB query filters the superset of data based on the criteria required by the analyzer.
     const highRiskStructuralChanges = await this.db.query({
       'evolutionOutcome.integrityAssessment.hallucinationRisk': { $gt: 0.5 },
       'evolutionOutcome.architecturalImpact': true
@@ -18,12 +20,24 @@ class TraceAnalysisEngine {
     const bottleneckFiles = await this.db.aggregate([/* Aggregation pipeline to find bottlenecks */]);
     
     const missions = [];
+    const highRiskFindings = [];
 
-    if (highRiskStructuralChanges.length > 0) {
+    // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
+    // This ensures standardized priority scoring and goal definition based on reusable policy.
+    for (const trace of highRiskStructuralChanges) {
+        // Assumes TraceRiskAnalyzer is available globally or injected.
+        const finding = TraceRiskAnalyzer.analyze(trace); 
+        if (finding) {
+            highRiskFindings.push(finding);
+        }
+    }
+
+    if (highRiskFindings.length > 0) {
+      // Aggregate findings into a single high-priority mission
       missions.push({
-        priority: 0.95, 
-        goal: 'Review and stabilize high-risk structural modifications.',
-        targets: highRiskStructuralChanges.map(t => t.traceId)
+        priority: highRiskFindings[0].priority, 
+        goal: highRiskFindings[0].goal,
+        targets: highRiskFindings.map(f => f.traceId)
       });
     }
     
