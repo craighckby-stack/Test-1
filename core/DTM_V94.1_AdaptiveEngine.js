@@ -21,22 +21,36 @@ class DTM_AdaptiveEngine {
   }
 
   /**
-   * Calculates the overall normalized trust score for a proposed modification.
+   * Fetches rolling average of past successful self-modifications (0.0 to 1.0).
    */
-  calculateTrustScore(proposedModificationPayload: { metrics: { depth: number } }): number {
-    const historicalConfidence = this.getHistoricalConfidence(); // V1: [0.0, 1.0]
+  private getHistoricalConfidence(): number {
+    return this.telemetry.fetchAvgSuccessRate();
+  }
+
+  /**
+   * Prepares the specific, normalized, and inverted factors used for DTM scoring.
+   */
+  private _prepareScoringInputs(payload: { metrics: { depth: number } }): Record<string, number> {
+    const historicalConfidence = this.getHistoricalConfidence();
+    const impactPrediction = this.telemetry.getImpactPrediction(payload);
     
-    // Mapped inputs for the weighted scorer
-    const inputs = {
+    return {
       // Historical track record (favor stability)
       historicalConfidence: historicalConfidence, 
       
       // Structural complexity mitigation (1 - depth/max_depth). Lower depth = higher score contribution.
-      structuralDepthContribution: 1.0 - (proposedModificationPayload.metrics.depth / this.DEPTH_NORMALIZER),
+      structuralDepthContribution: 1.0 - (payload.metrics.depth / this.DEPTH_NORMALIZER),
       
       // Impact mitigation (1 - severity). Lower severity = higher score contribution.
-      impactMitigation: 1.0 - this.telemetry.getImpactPrediction(proposedModificationPayload)
+      impactMitigation: 1.0 - impactPrediction
     };
+  }
+
+  /**
+   * Calculates the overall normalized trust score for a proposed modification.
+   */
+  calculateTrustScore(proposedModificationPayload: { metrics: { depth: number } }): number {
+    const inputs = this._prepareScoringInputs(proposedModificationPayload);
 
     const weights = {
       historicalConfidence: 0.5,
@@ -62,13 +76,6 @@ class DTM_AdaptiveEngine {
       entropyFactor, 
       this.ENTROPY_SENSITIVITY
     );
-  }
-
-  /**
-   * Placeholder for fetching rolling average of past successful self-modifications (0.0 to 1.0).
-   */
-  getHistoricalConfidence(): number {
-    return this.telemetry.fetchAvgSuccessRate();
   }
 }
 
