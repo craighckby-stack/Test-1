@@ -4,6 +4,18 @@ import { CONCEPT_REGISTRY } from './conceptRegistry.js';
 import { CodebaseAccessor } from '../system/codebaseAccessor.js';
 import { ValidatorMessages } from './validatorMessages.js';
 
+// --- Utility Plugin Access Simulation ---
+// Define the expected structure of the Integrity Verification Utility
+interface IntegrityVerificationUtilityPlugin {
+    execute(args: {
+        path: string;
+        fileExistsAsync?: (path: string) => Promise<boolean>;
+        fileExists?: (path: string) => boolean;
+    }): Promise<{ exists: boolean, reason: string }>;
+}
+// Placeholder for accessing the plugin instance. Assumes kernel injection or global access.
+const IntegrityCheckPlugin: IntegrityVerificationUtilityPlugin = {} as any;
+
 /**
  * @typedef {Object} ValidationResult
  * @property {boolean} valid - True if the validation succeeded.
@@ -24,7 +36,7 @@ export class ConceptValidator {
      * @param {string} conceptId - The ID to validate (e.g., 'AGI-C-04').
      * @returns {boolean}
      */
-    static isValidConceptId(conceptId) {
+    static isValidConceptId(conceptId: string): boolean {
         if (typeof conceptId !== 'string' || !conceptId) {
              return false;
         }
@@ -37,7 +49,7 @@ export class ConceptValidator {
      * @param {string} conceptId - The ID of the concept.
      * @returns {Promise<ValidationResult>}
      */
-    static async validateImplementation(conceptId) {
+    static async validateImplementation(conceptId: string): Promise<ValidationResult> {
         if (!ConceptValidator.isValidConceptId(conceptId)) {
             return { 
                 valid: false, 
@@ -60,16 +72,19 @@ export class ConceptValidator {
 
         // Case 2: Concrete Implementation Path Defined. Check existence.
         
-        // Attempt asynchronous check for efficiency; fallback to synchronous if necessary.
-        const fileExists = CodebaseAccessor.fileExistsAsync 
-            ? await CodebaseAccessor.fileExistsAsync(path)
-            : CodebaseAccessor.fileExists(path);
+        // Use the IntegrityCheckPlugin to handle robust async/sync resource existence verification
+        const integrityCheck = await IntegrityCheckPlugin.execute({
+            path,
+            fileExistsAsync: CodebaseAccessor.fileExistsAsync,
+            fileExists: CodebaseAccessor.fileExists
+        });
 
-        if (!fileExists) {
+        if (!integrityCheck.exists) {
             return {
                 valid: false,
                 path,
-                reason: ValidatorMessages.MISSING_IMPLEMENTATION(path)
+                // Include the reason provided by the utility for better debugging
+                reason: ValidatorMessages.MISSING_IMPLEMENTATION(path) + ` (${integrityCheck.reason})`
             };
         }
 
