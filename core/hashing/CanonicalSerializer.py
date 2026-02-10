@@ -35,6 +35,13 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
+# AGI-KERNEL Improvement (Cycle 12): Import weakref for deterministic handling of memory-managed objects.
+try:
+    import weakref
+    WEAKREF_AVAILABLE = True
+except ImportError:
+    WEAKREF_AVAILABLE = False
+
 
 class CanonicalJSONEncoder(json.JSONEncoder):
     """
@@ -63,6 +70,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
     AGI-KERNEL Improvement (Cycle 11):
     8. Added explicit handling for Python typing annotations (e.g., Union, List[T]) to ensure stable hashing of configuration schemas.
+
+    AGI-KERNEL Improvement (Cycle 12):
+    9. Added deterministic handling for weak references (`weakref.ReferenceType`), critical for stable hashing of complex, memory-managed agent states.
     """
 
     def __init__(self, *args, **kwargs):
@@ -130,6 +140,17 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # If introspection fails, return a safe, generic marker
                 return {"__io_stream__": "<UNIDENTIFIED_STREAM>"}
 
+        # 0e. AGI-KERNEL Improvement (Cycle 12): Handle Weak References deterministically.
+        if WEAKREF_AVAILABLE and isinstance(obj, weakref.ReferenceType):
+            target = obj()
+            if target is None:
+                # Reference is dead. Use a canonical null marker.
+                return {"__weakref__": "<DEAD_REFERENCE>"}
+            else:
+                # Reference is live. Serialize the target object itself recursively.
+                # The recursion mechanism handles potential circularity.
+                return self.default(target)
+
         # AGI-KERNEL Improvement (Cycle 6): Handle non-finite floats deterministically
         if isinstance(obj, float):
             # Check for NaN (NaN is the only float not equal to itself)
@@ -184,6 +205,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 return obj.isoformat() + 'Z'
             
             # If naive, assume UTC for canonical consistency in core systems and mark 'Z'
+            # NOTE: Assuming naive datetimes are UTC is a high-risk assumption for external data, but maintained for core system hash stability.
             if obj.tzinfo is None:
                 return obj.isoformat() + 'Z'
             
@@ -228,7 +250,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
-        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum', 'numpy', 'pandas')):
+        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum', 'numpy', 'pandas', 'weakref')):
             
             obj_id = id(obj)
 
@@ -299,7 +321,7 @@ def serialize_for_hashing(artifact: typing.Any) -> bytes:
         offending_type = type(artifact)
         error_message = (
             f"Failed to serialize artifact of type '{offending_type}'. "
-            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects, open I/O streams, or complex typing annotations). "
+            f"Check nested elements for non-JSON serializable types (e.g., functions, class instances, unhandled objects, open I/O streams, complex typing annotations, or unexpected weak references). "
             f"Original error: {e}"
         )
         raise ArtifactSerializationError(reason=error_message, data_type=str(offending_type)) from e
