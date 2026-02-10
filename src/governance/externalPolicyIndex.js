@@ -3,14 +3,17 @@
  * Role: Provides a robust, read-only, synchronous interface to access verified, immutable external policies (compliance, mandates, kill-switches).
  * Mechanism: Manages periodic, cryptographically verified updates in the background to ensure high availability and minimal latency for Veto checks.
  * 
- * Refactoring Rationale (v94.1):
- * 1. Reliability: Replaced setInterval with self-scheduling setTimeout for the refresh cycle. This ensures that the cache renewal interval begins only *after* the previous fetch and processing cycle has completed, preventing queue buildup if latency spikes.
- * 2. Clarity: Renamed 'policyCache' to 'activePolicy' to better reflect its role as the critical, synchronous state required for veto checks.
- * 3. State Management: Introduced 'isInFailsafeMode' to explicitly track the system state following a critical initial loading failure, aiding diagnostics.
+ * Refactoring Rationale (v94.2):
+ * 1. Abstraction: Extracted robust, self-scheduling periodic task logic into the RobustScheduler plugin.
+ * 2. Simplicity: Removed internal handling of timeouts (_scheduleNextRefresh, _clearRefreshHandle).
  */
 class ExternalPolicyIndex {
     // Defines the deterministic fail-safe policy applied on critical initialization failure.
     static FAILSAFE_POLICY = Object.freeze({ globalFreeze: true, rationale: "EPI Initialization Failure" });
+
+    /** @type {RobustScheduler} */
+    // @ts-ignore: This field is initialized using AGI_KERNEL plugin during construction.
+    private scheduler;
 
     /**
      * @param {Object} config
@@ -31,43 +34,16 @@ class ExternalPolicyIndex {
 
         this.activePolicy = {}; // The critical synchronous state storage
         this.lastFetchTime = 0;
-        this.refreshTimeoutHandle = null; // Changed from interval to timeout handle
         
         // Concurrency Control: Ensures only one update process runs at a time.
         this.isFetching = false;
         this.isInitialized = false;
         this.isInFailsafeMode = false; // New state flag
         this.policySourceTag = 'UNLOADED'; // Track version/tag of the policies loaded
-    }
 
-    /**
-     * Clears the refresh timeout handle.
-     */
-    _clearRefreshHandle() {
-        if (this.refreshTimeoutHandle) {
-            clearTimeout(this.refreshTimeoutHandle);
-            this.refreshTimeoutHandle = null;
-        }
-    }
-
-    /**
-     * Schedules the next policy refresh using setTimeout (self-scheduling logic).
-     */
-    _scheduleNextRefresh() {
-        this._clearRefreshHandle();
-        
-        this.refreshTimeoutHandle = setTimeout(() => {
-            // Use .then() to schedule the next run regardless of the outcome of the fetch attempt
-            this._fetchAndSetPolicies(false)
-                .finally(() => {
-                    // Only reschedule if the system is still expected to be active
-                    if (this.isInitialized) {
-                        this._scheduleNextRefresh();
-                    }
-                });
-        }, this.cacheDurationMs);
-        
-        this.logger.debug(`E-01 Next refresh scheduled in ${this.cacheDurationMs / 1000}s.`);
+        // Initialize the plugin instance for background scheduling
+        // @ts-ignore: Assume AGI_KERNEL exists in runtime environment
+        this.scheduler = AGI_KERNEL.plugins.RobustScheduler.create(); 
     }
 
     /**
@@ -75,7 +51,7 @@ class ExternalPolicyIndex {
      */
     stop() {
         if (this.isInitialized) {
-            this._clearRefreshHandle();
+            this.scheduler.stop();
             this.isInitialized = false;
             this.logger.info('E-01 Index refresh mechanism stopped.');
         }
@@ -97,8 +73,13 @@ class ExternalPolicyIndex {
             this.logger.error("E-01 Initialization warning: Policy state remains empty after load attempt.");
         }
         
-        // Set up the periodic background refresh task (critical step 2) using self-scheduling
-        this._scheduleNextRefresh();
+        // Set up the periodic background refresh task using the Robust Scheduler
+        this.scheduler.start(
+            // Task function: perform background fetch, suppressing initialLoad criticality
+            () => this._fetchAndSetPolicies(false), 
+            this.cacheDurationMs,
+            this.logger
+        );
 
         this.isInitialized = true;
         this.logger.info(`E-01 Index initialized (Tag: ${this.policySourceTag}).` + 
