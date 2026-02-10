@@ -1,44 +1,28 @@
 /**
+ * Interface for the Canonical Serialization Utility provided by the kernel/plugins.
+ */
+interface ICanonicalSerializationUtility {
+    /**
+     * Converts data into a deterministic string representation suitable for hashing
+     * by recursively sorting object keys.
+     * @param data The structure to serialize canonically.
+     * @returns A deterministic JSON string.
+     */
+    canonicalSerialize(data: unknown): string;
+}
+
+// Assume the plugin is available via a standardized access mechanism (e.g., global KernelPlugins)
+declare const KernelPlugins: {
+    CanonicalSerializationUtility: ICanonicalSerializationUtility;
+};
+
+/**
  * Utility responsible for converting JavaScript objects into a canonical (deterministic)
  * string representation, essential for cryptographic hashing and integrity checks.
  * 
- * Implementations must ensure that object key insertion order does not affect the final
- * string output (e.g., by recursively sorting keys).
- */
-
-/**
- * Converts data into a deterministic string representation suitable for hashing.
- * 
- * NOTE: A production implementation should use optimized external libraries (like
- * 'fast-json-stable-stringify') or highly rigorous recursive sorting to handle
- * complex types (Maps, Sets) and prevent serialization bugs.
- * 
- * @param data The structure to serialize canonically.
- * @returns A deterministic JSON string.
+ * This implementation delegates the core logic to the high-integrity CanonicalSerializationUtility plugin.
  */
 export function canonicalSerialize(data: unknown): string {
-    const sortKeys = (obj: any): any => {
-        if (typeof obj !== 'object' || obj === null) {
-            return obj;
-        }
-
-        if (Array.isArray(obj)) {
-            return obj.map(sortKeys);
-        }
-
-        // Create a new object with keys sorted lexicographically
-        const sortedKeys = Object.keys(obj).sort();
-        const newObj: { [key: string]: any } = {};
-
-        for (const key of sortedKeys) {
-            newObj[key] = sortKeys(obj[key]);
-        }
-        return newObj;
-    };
-
-    // Recursively sort the keys before standard stringification
-    const sortedData = sortKeys(data);
-    
-    // Standard JSON.stringify converts the sorted structure into the canonical string
-    return JSON.stringify(sortedData);
+    // Delegate execution to the optimized and tested plugin utility
+    return KernelPlugins.CanonicalSerializationUtility.canonicalSerialize(data);
 }
