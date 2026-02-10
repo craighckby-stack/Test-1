@@ -46,38 +46,39 @@ const DEFAULT_TARGETS = {
     queueDepth: 0.70
 };
 
-// Robust local fallback implementation (using the abstracted logic)
-const defaultLocalReducer: IConstraintRateReducer = {
-    /**
-     * Calculates the required sampling rate by finding the ratio (target / current) 
-     * for the most restrictive resource.
-     */
-    reduce: (constraints: NamedConstraint[]): ReductionResult => {
-        let requiredRate = 1.0;
-        let restrictingConstraint: NamedConstraint | null = null;
-
-        for (const constraint of constraints) {
-            // Rate Ratio calculation: target / current utilization. 
-            const rateRatio = constraint.target / constraint.current;
-            
-            // The effective throttling rate cannot exceed 1.0 (no boosting).
-            const rateToApply = Math.min(1.0, rateRatio);
-
-            if (rateToApply < requiredRate) {
-                requiredRate = rateToApply;
-                restrictingConstraint = constraint;
-            }
-        }
-        return { rate: requiredRate, restrictingConstraint };
-    }
-};
-
 // --- KERNEL V7 SYNERGY: Global declarations for plugin access ---
-declare const ConstraintReducer: {
-    execute: (constraints: { name: string, current: number, target: number }[]) => Promise<ReductionResult>;
+declare const KERNEL_SYNERGY_CAPABILITIES: {
+    Tool: {
+        execute: (toolName: string, params: any) => Promise<any>;
+    };
+    Plugin: {
+        register: (plugin: any) => void;
+    };
 };
+
 declare const KERNEL_HOOK: {
     log(eventName: string, data: any): void;
+};
+
+// Declaration for the synchronous local plugin extracted below
+declare const ConstraintRateReducer: IConstraintRateReducer;
+
+// Robust local fallback implementation (delegates to the extracted synchronous plugin)
+const defaultLocalReducer: IConstraintRateReducer = {
+    /**
+     * Delegates calculation to the globally registered synchronous ConstraintRateReducer plugin.
+     * Returns 1.0 (no throttling) if the plugin is unavailable.
+     */
+    reduce: (constraints: NamedConstraint[]): ReductionResult => {
+        if (typeof ConstraintRateReducer !== 'undefined' && typeof ConstraintRateReducer.reduce === 'function') {
+            // Cast constraints as the synchronous plugin works with raw JS objects
+            return ConstraintRateReducer.reduce(constraints as any);
+        }
+        
+        // Safe fallback if synchronous plugin environment failed entirely
+        console.error("[ASE] Synchronous Rate Reducer missing. Returning 1.0.");
+        return { rate: 1.0, restrictingConstraint: null };
+    }
 };
 
 export class AdaptiveSamplingEngine {
@@ -118,12 +119,12 @@ export class AdaptiveSamplingEngine {
                 current: metrics.cpu,
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            {S
+            {
                 name: 'Memory',
                 current: metrics.memory,
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            {S
+            {
                 name: 'QueueDepth',
                 current: metrics.queueDepth,
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
@@ -176,8 +177,8 @@ export class AdaptiveSamplingEngine {
         const constraintsPayload = constraints.map(c => ({ name: c.name, current: c.current, target: c.target }));
 
         try {
-            // Primary Path: Execute the optimized ConstraintReducer capability
-            reductionResult = await ConstraintReducer.execute(constraintsPayload);
+            // Primary Path: Execute the optimized ConstraintReducer capability via KERNEL_SYNERGY
+            reductionResult = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('ConstraintReducer', constraintsPayload) as ReductionResult;
             calculationSource = 'Reducer';
 
         } catch (e) {
