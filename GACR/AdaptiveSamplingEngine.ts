@@ -16,12 +16,14 @@
 import { ResourceMonitor } from './ResourceMonitor';
 import { AggregatorConfig } from '../GACR/TelemetryAggregatorConfig';
 
-// Define configuration extensions, using safe defaults if not provided centrally.
-type AdaptiveSamplingConfig = AggregatorConfig['Processing']['AdaptiveSampling'] & {
+// Define configuration extensions for resource targets.
+interface TargetUtilizationConfig {
     TargetCPUUtilization?: number;
     TargetMemoryUtilization?: number;
     TargetQueueDepthRatio?: number;
-};
+}
+
+type AdaptiveSamplingConfig = AggregatorConfig['Processing']['AdaptiveSampling'] & TargetUtilizationConfig;
 
 // Define the shape of a constraint used internally
 type Constraint = { current: number; target: number };
@@ -59,11 +61,13 @@ export class AdaptiveSamplingEngine {
      */
     constructor(config: AdaptiveSamplingConfig, monitor?: ResourceMonitor) {
         this.config = config;
+        // Ensure ResourceMonitor is initialized, using provided instance or creating a default one.
         this.monitor = monitor ?? new ResourceMonitor(); 
     }
 
     /**
-     * Helper to collect metrics and format them into NamedConstraint objects.
+     * Helper to collect metrics from the ResourceMonitor and format them 
+     * into validated NamedConstraint objects for consumption by the reducer.
      */
     private _getConstraints(): NamedConstraint[] {
         const metrics = {
@@ -72,29 +76,29 @@ export class AdaptiveSamplingEngine {
             queueDepth: this.monitor.getQueueDepthRatio(),
         };
 
-        const constraints: NamedConstraint[] = [
+        const rawConstraints: NamedConstraint[] = [
             { 
                 name: 'CPU',
-                current: metrics.cpu, 
+                current: metrics.cpu,
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
             {
                 name: 'Memory',
-                current: metrics.memory, 
+                current: metrics.memory,
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
             {
                 name: 'QueueDepth',
-                current: metrics.queueDepth, 
+                current: metrics.queueDepth,
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
             },
         ];
         
-        // Filter out constraints where metrics are not valid numbers or targets are zero/missing,
-        // preventing division by zero or nonsensical calculations in the reducer.
-        return constraints.filter(c => 
+        // Filter: Ensure current metrics are valid numbers and targets are non-zero positive,
+        // preventing corrupted input into calculation logic (e.g., NaN or Division by Zero).
+        return rawConstraints.filter(c => 
             typeof c.current === 'number' && 
-            typeof c.target === 'number' && 
+            !isNaN(c.current) && // Explicit check for NaN robustness
             c.target > 0
         ) as NamedConstraint[];
     }
@@ -114,19 +118,19 @@ export class AdaptiveSamplingEngine {
     }
 
     /**
-     * Internal fallback method: Calculates the required rate based on local constraints
-     * by finding the ratio (target / current) for the most restrictive resource.
-     * This acts as a protective measure if the complex external ConstraintReducer fails.
+     * Internal fallback method (Enhanced Resilience): Calculates the required rate based 
+     * on local constraints by finding the ratio (target / current) for the most 
+     * restrictive resource.
      */
     private _localCalculateRate(constraints: NamedConstraint[]): ReductionResult {
         let requiredRate = 1.0;
         let restrictingConstraint: NamedConstraint | null = null;
 
         for (const constraint of constraints) {
-            // Calculate the ratio needed to bring current utilization down to target utilization.
-            // If current is significantly higher than target, this ratio enforces throttling.
+            // Rate Ratio calculation: target / current utilization. If current > target, ratio < 1.
             const rateRatio = constraint.target / constraint.current;
             
+            // The effective throttling rate cannot exceed 1.0 (no boosting).
             const rateToApply = Math.min(1.0, rateRatio);
 
             if (rateToApply < requiredRate) {
@@ -153,30 +157,26 @@ export class AdaptiveSamplingEngine {
              return this._applyBoundaries(1.0);
         }
 
-        let requiredRate = 1.0;
-        let restrictingConstraint: NamedConstraint | null = null;
+        let reductionResult: ReductionResult;
         
         // --- START: KERNEL V7 Synergy Integration: Using formalized ConstraintReducer Plugin ---
         
-        // Payload only includes necessary fields for the external capability
         const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
 
         try {
-            // Execute the optimized ConstraintReducer capability (Primary Path)
-            const reductionResult: ReductionResult = await ConstraintReducer.execute(constraintsPayload);
-            requiredRate = reductionResult.rate;
-            restrictingConstraint = reductionResult.restrictingConstraint;
+            // Primary Path: Execute the optimized ConstraintReducer capability
+            reductionResult = await ConstraintReducer.execute(constraintsPayload);
 
         } catch (e) {
-            // Fallback if plugin execution fails (Enhanced Resilience Path)
-            console.warn("ConstraintReducer capability failed. Falling back to local adaptive calculation:", e);
-            const fallbackResult = this._localCalculateRate(constraints);
-            requiredRate = fallbackResult.rate;
-            restrictingConstraint = fallbackResult.restrictingConstraint;
+            // Enhanced Resilience Path: Fallback if plugin execution fails
+            console.warn(`[ASE] ConstraintReducer failed. Falling back to local calculation. Error: ${e instanceof Error ? e.message : String(e)}`);
+            reductionResult = this._localCalculateRate(constraints);
         }
         
-        // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook
-        // Log decision parameters if sampling is enforced (< 1.0) 
+        const { rate: requiredRate, restrictingConstraint } = reductionResult;
+
+        // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook Logging
+        // Log decision parameters if sampling is enforced (< 1.0) and the hook is available.
         if (requiredRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
             KERNEL_HOOK.log('AdaptiveSamplingDecision', {
                 rateAdjustment: requiredRate,
