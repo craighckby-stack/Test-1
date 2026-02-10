@@ -1,6 +1,6 @@
 // Sovereign AGI v7.4.4 - RIMP Integrity Verifier Engine
 // This module utilizes the prioritized baseline snapshot to perform intelligent, tiered integrity checks.
-// Refactored for scalability and better asynchronous dependency management (Cycle 0).
+// Refactored for scalability and better asynchronous dependency management (Cycle 1: Hash Abstraction).
 
 const RIMP_STATUS = {
     MODIFIED: 'MODIFIED',
@@ -11,13 +11,17 @@ const RIMP_STATUS = {
 class IntegrityVerifierEngine {
     /**
      * @param {Object} baselineConfig - Configuration including components, priority, and algorithm.
-     * @param {Object} environmentServices - Simulated environment services (fs, crypto, logger).
+     * @param {Object} environmentServices - Simulated environment services (fs, crypto, logger, integrityHasher).
      */
     constructor(baselineConfig, environmentServices = {}) {
         this.baseline = baselineConfig;
         this.hashAlgorithm = baselineConfig.algorithm || 'SHA256';
         this.verifierId = baselineConfig.snapshotId;
         
+        // Dependency Injection for external tools
+        // The 'SimulatedIntegrityHasher' (or actual Crypto/FS utility) is injected here.
+        this.integrityHasher = environmentServices.integrityHasher || null;
+
         // Prepare for integration with standardized logging
         this.logger = environmentServices.logger || console; 
         
@@ -25,6 +29,10 @@ class IntegrityVerifierEngine {
         this.componentKeys = Object.keys(baselineConfig.components).sort((a, b) => 
             baselineConfig.components[b].priority - baselineConfig.components[a].priority
         );
+
+        if (!this.integrityHasher) {
+             this._log('WARNING: Integrity Hash calculation tool not provided. Scan will proceed but requires external injection for functionality.', 'warn');
+        }
 
         this._log(`Initialized RIMP Engine ${this.verifierId} using ${this.hashAlgorithm}.`);
     }
@@ -46,6 +54,11 @@ class IntegrityVerifierEngine {
      * @returns {Promise<Object>} Results map.
      */
     async executeScan(maxPriority, differential = false) {
+        if (!this.integrityHasher) {
+             this._log('Cannot execute scan: Integrity Hash calculation tool is missing.', 'error');
+             throw new Error('Missing IntegrityHasher dependency.');
+        }
+
         this._log(`Starting Integrity Scan (Max P: ${maxPriority}, Differential: ${differential})`);
         const results = {};
         
@@ -57,8 +70,11 @@ class IntegrityVerifierEngine {
                 for (const [path, expectedHash] of Object.entries(component.hashes)) {
                     let currentHash;
                     try {
-                        // Calculate hash using the dedicated async method
-                        currentHash = await this._calculateFileHash(path); 
+                        // Call the injected external hasher tool
+                        currentHash = await this.integrityHasher.execute({
+                            path: path,
+                            algorithm: this.hashAlgorithm
+                        }); 
                     } catch (error) {
                         results[path] = { status: RIMP_STATUS.ERROR, detail: error.message };
                         this._log(`Error reading file ${path}: ${error.message}`, 'error');
@@ -82,28 +98,7 @@ class IntegrityVerifierEngine {
         return results;
     }
 
-    /**
-     * Placeholder function for actual file hash calculation.
-     * NOTE: This needs real crypto/fs implementation in a production environment.
-     * Here, it simulates an asynchronous operation that calculates a hash based on the input path and configured algorithm.
-     * @param {string} path - File path.
-     * @returns {Promise<string>} The calculated hash string.
-     */
-    async _calculateFileHash(path) {
-        // Simulation: Ensures the hash calculation logic acknowledges the configured algorithm
-        await new Promise(resolve => setTimeout(resolve, 5)); // Simulate IO delay
-        
-        // Improved simulation: generates a hash that is deterministic based on the path 
-        // to provide consistent results for integrity checks unless the simulation is explicitly changed.
-        const pathSeed = path.split('').map(c => c.charCodeAt(0)).reduce((a, b) => a + b, 0);
-        
-        // This simulates a fixed-length hash output based on the hash algorithm type
-        // SHA256 usually generates 64 hex characters. SHA512 generates 128.
-        const hashLength = this.hashAlgorithm.includes('512') ? 128 : 64; 
-        
-        // Returning a simulated hex hash (using path seed for basic determinism).
-        return (pathSeed * 987654321).toString(16).repeat(Math.ceil(hashLength / 16)).substring(0, hashLength);
-    }
+    // _calculateFileHash has been abstracted into the SimulatedIntegrityHasher plugin.
 }
 
 module.exports = IntegrityVerifierEngine;
