@@ -1,9 +1,24 @@
-import Ajv from 'ajv';
 import intentSchema from '../../governance/m01_intent_schema_v1.json';
 import { IntentPayload } from '../types/intent_types';
 
-const ajv = new Ajv({ allErrors: true });
-const validateIntent = ajv.compile(intentSchema);
+// --- Tool Interface Simulation ---
+
+interface ValidationResult {
+    isValid: boolean;
+    errors: any[] | null;
+}
+
+interface SchemaPayloadValidatorTool {
+    initialize(schema: any): void;
+    execute(payload: any): ValidationResult;
+}
+
+// CRITICAL: We simulate the injection and instantiation of the defined plugin.
+declare const SchemaPayloadValidator: { new(): SchemaPayloadValidatorTool };
+const intentValidatorInstance: SchemaPayloadValidatorTool = new SchemaPayloadValidator();
+
+// Initialize the tool with the specific intent schema
+intentValidatorInstance.initialize(intentSchema);
 
 /**
  * Validates an incoming payload against the standard Intent Schema V1.
@@ -11,8 +26,10 @@ const validateIntent = ajv.compile(intentSchema);
  * @param intent The intent object to process.
  */
 export function validateAndRouteIntent(intent: IntentPayload): void {
-    if (!validateIntent(intent)) {
-        const errors = validateIntent.errors;
+    const validationResult = intentValidatorInstance.execute(intent);
+    
+    if (!validationResult.isValid) {
+        const errors = validationResult.errors;
         console.error('Intent Validation Failed:', errors);
         throw new Error(`Invalid Intent Structure: ${JSON.stringify(errors)}`);
     }
