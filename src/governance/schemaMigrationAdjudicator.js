@@ -6,7 +6,37 @@ import { MCR } from './mutationChainRegistrar.js';
 import { MPSE } from './mutationPayloadSpecEngine.js'; 
 import { SMSE } from './schemaMigrationSimulationEngine.js'; 
 import { D_01 } from '../core/decisionAuditLogger.js';
-import { GPE } from './governancePolicyEngine.js'; // NEW: Governance Policy Engine
+import { GPE } from './governancePolicyEngine.js';
+
+// Placeholder import for the extracted utility
+// This assumes 'WeightedScoreAggregator' is available, replacing internal logic.
+// NOTE: In a real environment, this would be imported from a utility module.
+
+/**
+ * Utility object that performs the weighted score aggregation. 
+ * Assuming this utility is available or imported from a core module.
+ */
+const WeightedScoreAggregator = (globalThis as any).WeightedScoreAggregator || {
+    /**
+     * Calculates a weighted sum of scores based on corresponding weights.
+     * @param {Object<string, number>} scores - Map of score names to values.
+     * @param {Object<string, number>} weights - Map of weight names to values.
+     * @returns {number} The aggregated weighted score.
+     */
+    calculate: (scores: { [key: string]: number }, weights: { [key: string]: number }): number => {
+        let totalScore = 0;
+        const keys = Object.keys(weights);
+        for (const key of keys) {
+            const score = scores[key];
+            const weight = weights[key];
+
+            if (typeof score === 'number' && typeof weight === 'number') {
+                totalScore += score * weight;
+            }
+        }
+        return totalScore;
+    }
+};
 
 /**
  * The SMA validates proposed schema changes within the M-02 payload against the
@@ -66,11 +96,14 @@ export class SchemaMigrationAdjudicator {
         const migrationIntegrityResult = await SMSE.simulateMigrationPath(diffAnalysis, proposedSchema);
 
         // --- 3. Final Adjudication Score Calculation ---
-        const compatibilityScore = this._calculateCompatibilityScore(
-            contractCompliance.score,
-            migrationIntegrityResult.integrity,
-            WEIGHTS
-        );
+        
+        const scoresToAggregate = {
+            CONTRACT_COMPLIANCE: contractCompliance.score,
+            MIGRATION_INTEGRITY: migrationIntegrityResult.integrity,
+        };
+
+        // Use the externalized utility for calculating the weighted score
+        const compatibilityScore = WeightedScoreAggregator.calculate(scoresToAggregate, WEIGHTS);
 
         // --- 4. Decision & Validation ---
         // Must meet MINIMUM_ACCEPTANCE to proceed, and VALIDATION threshold for full confidence.
@@ -91,19 +124,6 @@ export class SchemaMigrationAdjudicator {
         };
     }
     
-    /**
-     * Utility method to standardize score aggregation based on dynamic weights.
-     * @private
-     * @param {number} contractScore
-     * @param {number} integrityScore
-     * @param {object} weights - Dynamic weight map.
-     * @returns {number}
-     */
-    _calculateCompatibilityScore(contractScore, integrityScore, weights) {
-        return (contractScore * weights.CONTRACT_COMPLIANCE) +
-               (integrityScore * weights.MIGRATION_INTEGRITY);
-    }
-
     /**
      * Standardizes the immediate veto response structure.
      * @private
