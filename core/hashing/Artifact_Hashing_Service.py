@@ -95,15 +95,15 @@ class ArtifactHashingService:
         hash_algo = algorithm if algorithm else self._default_algorithm
         
         try:
-            # 1. Determine final exclusion set
-            exclusions: Set[str] = set()
-            if use_standard_exclusions:
-                # Start with standard exclusions (frozenset used here)
-                exclusions.update(self._standard_exclusions)
+            # 1. Determine final exclusion set using clear set operations
+            # Convert optional runtime exclusions to a set if present, otherwise an empty set.
+            runtime_exclusions: Set[str] = set(exclusion_keys) if exclusion_keys else set()
             
-            # Merge runtime exclusions if provided
-            if exclusion_keys:
-                exclusions.update(exclusion_keys)
+            if use_standard_exclusions:
+                # Use set.union() for clean merging of immutable standard exclusions and runtime exclusions
+                exclusions = self._standard_exclusions.union(runtime_exclusions)
+            else:
+                exclusions = runtime_exclusions
 
             # 2. Filter data
             # Using the optimized shallow filter for root-level exclusions.
@@ -117,13 +117,14 @@ class ArtifactHashingService:
             h.update(serialized_data)
             return h.hexdigest()
         except ValueError:
+            # Occurs if hashlib.new(hash_algo) fails, indicating an invalid algorithm
             raise HashingInitializationError(f"Unsupported or invalid hashing algorithm specified: {hash_algo}")
-        except (HashingInitializationError, ArtifactSerializationError, RuntimeError):
+        except (HashingInitializationError, ArtifactSerializationError):
             # Allow internal custom errors to propagate
             raise
         except Exception as e:
-            # Catch remaining general errors and wrap them
-            raise RuntimeError(f"Critical error generating canonical hash using {hash_algo}: {e}")
+            # Catch remaining general operational errors
+            raise RuntimeError(f"Critical operational error generating canonical hash using {hash_algo}: {e}")
 
     def verify_artifact_integrity(
         self,
