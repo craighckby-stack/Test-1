@@ -1,15 +1,21 @@
 {
-  "schema_version": "AIM_V2.0",
-  "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
+  "schema_version": "AIM_V3.0_SYNERGY",
+  "metadata": {
+    "description": "Agent Integrity Monitoring Manifest (V3.0). Standardized constraints, incorporating semantic unit parsing for improved readability and governance tracking.",
+    "governance_scope": "AGI-KERNEL_CORE",
+    "last_updated": "CYCLE_1"
+  },
   "integrity_profiles": {
     "SGS_AGENT": {
       "monitoring_slo_id": "GATM_P_SGS_SLO",
+      "integrity_level": "MISSION_CRITICAL",
       "constraints": {
         "resource_limits": {
           "cpu_limit_percentage": 75,
-          "memory_limit_bytes": 4194304000
+          "memory_limit": "4GB"
         },
         "security_policy": {
+          "enforcement_active": true,
           "syscalls_allowed": [
             "read",
             "write",
@@ -23,18 +29,21 @@
           "paths_immutable": [
             "/opt/sgs/gacr/"
           ],
-          "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4..."
+          "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4...",
+          "runtime_logging_enabled": true
         }
       }
     },
     "GAX_AGENT": {
       "monitoring_slo_id": "GATM_P_GAX_SLO",
+      "integrity_level": "DATA_ISOLATION",
       "constraints": {
         "resource_limits": {
           "cpu_limit_percentage": 10,
-          "memory_limit_bytes": 524288000
+          "memory_limit": "500MB"
         },
         "security_policy": {
+          "enforcement_active": true,
           "syscalls_allowed": [
             "read",
             "exit"
@@ -42,17 +51,20 @@
           "file_access_root_paths": [
             "/opt/gax/policy_data/"
           ],
-          "network_mode": "POLICY_FETCH_ONLY"
+          "network_mode": "POLICY_FETCH_ONLY",
+          "runtime_logging_enabled": false
         }
       }
     },
     "CRoT_AGENT": {
       "monitoring_slo_id": "GATM_P_CRoT_SLO",
+      "integrity_level": "MINIMAL_EXECUTION",
       "constraints": {
         "resource_limits": {
-          "memory_limit_bytes": 131072000
+          "memory_limit": "128MB"
         },
         "security_policy": {
+          "enforcement_active": true,
           "network_mode": "NONE",
           "time_sync_source_critical": "CRITICAL_NTP_A"
         }
