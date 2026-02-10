@@ -18,7 +18,7 @@ class MutationChainRegistrar {
     /**
      * @param {object} dependencies 
      * @param {AuditLogger} dependencies.auditLogger 
-     * @param {IntegrityService} dependencies.integrityService - Must provide verifyArchitecturalSignature.
+     * @param {IntegrityService} dependencies.integrityService - Must provide verifyArchitecturalSignature and calculateStableHash.
      * @param {LedgerPersistence} dependencies.ledgerPersistence - Assumed to use async I/O and 'persistRecord'.
      */
     constructor({ auditLogger, integrityService, ledgerPersistence }) {
@@ -64,36 +64,26 @@ class MutationChainRegistrar {
 
     /**
      * Validates the cryptographic linkage and self-hashes of every record in the loaded chain.
+     * Utilizes the CryptographicChainVerifier plugin.
      * @returns {boolean}
      */
     verifyFullChainIntegrity() {
         if (this.chain.length === 0) return true;
 
-        for (let i = 0; i < this.chain.length; i++) {
-            const record = this.chain[i];
-            
-            // 1. Re-calculate and verify selfHash consistency
-            const calculatedSelfHash = this.integrityService.calculateStableHash({
-                timestamp: record.timestamp,
-                mutationId: record.mutationId,
-                architecturalHash: record.architecturalHash,
-                p01Hash: record.p01Hash,
-                previousChainHash: record.previousChainHash
-            });
+        // The hasher function (calculateStableHash) relies on the IntegrityService context, so we bind it.
+        const hasher = this.integrityService.calculateStableHash.bind(this.integrityService);
 
-            if (calculatedSelfHash !== record.selfHash) {
-                this.auditLogger.logError('MCR_INTEGRITY_FAIL', `Self-hash mismatch detected at index ${i} (ID: ${record.mutationId}).`);
-                return false;
-            }
+        const verificationResult = AGI.CryptographicChainVerifier.execute({
+            chain: this.chain,
+            hasher: hasher,
+            genesisHash: GENESIS_HASH
+        });
 
-            // 2. Verify previousChainHash linkage
-            const expectedPreviousHash = (i === 0) ? GENESIS_HASH : this.chain[i - 1].selfHash;
-            
-            if (record.previousChainHash !== expectedPreviousHash) {
-                this.auditLogger.logCritical('MCR_CHAIN_BREAK', `Chain linkage broken at index ${i}. Expected hash break.`);
-                return false;
-            }
+        if (!verificationResult.success) {
+            this.auditLogger.logError('MCR_INTEGRITY_FAIL', `Chain verification failed: ${verificationResult.reason}`);
+            return false;
         }
+
         this.auditLogger.logEvent('MCR_INTEGRITY_OK', 'Chain structure verified successfully.');
         return true;
     }
