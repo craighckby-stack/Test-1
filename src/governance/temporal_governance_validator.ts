@@ -1,11 +1,35 @@
 import { PESMSchema } from './policy_evolution_schema';
 
+// NOTE: We assume 'TemporalWindowIntegrityValidatorTool' is globally available or injected
+// as provided in the AGI-KERNEL plugin registry.
+
+interface ITemporalWindowValidatorResult {
+    success: boolean;
+    error?: string;
+}
+
+// Mock function signature for the external plugin call (for TypeScript visibility)
+declare function TemporalWindowIntegrityValidatorTool(args: {
+    stagingTimestamp: number | string;
+    vetoWindowEnd: number | string;
+    durationMs: number;
+    requestFinalization?: boolean;
+    toleranceMs?: number;
+}): ITemporalWindowValidatorResult;
+
 /**
- * Validates the temporal requirements defined in the PESM schema, 
- * specifically enforcing the HIL-T Veto Check period.
+ * Validates the temporal requirements defined in the PESM schema,
+ * specifically enforcing the HIL-T Veto Check period using the external
+ * TemporalWindowIntegrityValidatorTool.
  */
 export class TemporalGovernanceValidator {
     private static readonly VETO_DURATION_MS = 72 * 60 * 60 * 1000; // 72 hours
+    
+    private readonly validatorTool: (args: any) => ITemporalWindowValidatorResult;
+
+    constructor(tool: (args: any) => ITemporalWindowValidatorResult = TemporalWindowIntegrityValidatorTool as any) {
+        this.validatorTool = tool;
+    }
 
     /**
      * Ensures the vetoWindowEnd is correctly set based on stagingTimestamp and verifies
@@ -15,22 +39,31 @@ export class TemporalGovernanceValidator {
      */
     public validate(manifest: PESMSchema, requestFinalization: boolean = false): boolean | Error {
         const { stagingMetadata } = manifest;
-        const stagingTime = new Date(stagingMetadata.stagingTimestamp).getTime();
-        const intendedVetoEnd = stagingTime + TemporalGovernanceValidator.VETO_DURATION_MS;
-        const providedVetoEnd = new Date(stagingMetadata.vetoWindowEnd).getTime();
 
-        // 1. Check Veto Window Calculation Integrity
-        if (Math.abs(intendedVetoEnd - providedVetoEnd) > 1000) { // Allow 1s clock drift margin
-            throw new Error("PESM Integrity Failure: Provided 'vetoWindowEnd' does not accurately reflect 72 hours from 'stagingTimestamp'.");
-        }
+        const result = this.validatorTool({
+            stagingTimestamp: stagingMetadata.stagingTimestamp,
+            vetoWindowEnd: stagingMetadata.vetoWindowEnd,
+            durationMs: TemporalGovernanceValidator.VETO_DURATION_MS,
+            requestFinalization: requestFinalization,
+            toleranceMs: 1000 // 1 second margin
+        });
 
-        // 2. Check Finalization Readiness
-        if (requestFinalization) {
-            const currentTime = Date.now();
-            if (currentTime < providedVetoEnd) {
-                const remaining = (providedVetoEnd - currentTime) / 3600000;
-                throw new Error(`Deployment blocked. Mandatory HIL-T Veto Check period still active. Remaining: ${remaining.toFixed(2)} hours.`);
+        if (!result.success) {
+            // Map the generic plugin error message back to the domain-specific context
+            let errorMessage = result.error || "Temporal validation failed.";
+
+            if (errorMessage.includes("Temporal Integrity Failure")) {
+                // Mapping 1: PESM Integrity Check
+                errorMessage = errorMessage.replace("Temporal Integrity Failure", "PESM Integrity Failure");
+            } else if (errorMessage.includes("Enforcement blocked")) {
+                // Mapping 2: HIL-T Specific Enforcement
+                const remainingMatch = errorMessage.match(/Remaining: ([\d.]+) hours\./);
+                const remainingHours = remainingMatch ? remainingMatch[1] : "unknown";
+
+                errorMessage = `Deployment blocked. Mandatory HIL-T Veto Check period still active. Remaining: ${remainingHours} hours.`;
             }
+            
+            throw new Error(errorMessage);
         }
 
         return true;
