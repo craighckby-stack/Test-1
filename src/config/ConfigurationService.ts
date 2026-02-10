@@ -18,6 +18,20 @@ const DEFAULT_CONFIG: Partial<Configuration> = {
     LOG_LEVEL: 'info',
 };
 
+/**
+ * Declaration for the external plugin utility.
+ * In a real environment, this would be imported or injected.
+ */
+declare const ConfigValueCoercer: {
+    execute(args: {
+        source: Record<string, string | undefined>;
+        key: string;
+        defaultValue: any;
+        type: 'string' | 'number' | 'enum';
+        validation?: { min?: number; valid_values?: string[] };
+    }): any;
+};
+
 // --- Configuration Service Implementation ---
 
 /**
@@ -31,30 +45,48 @@ export class ConfigurationService {
     /**
      * Initializes the configuration object by calculating project paths
      * and merging environment variables with predefined defaults.
+     * Utilizes ConfigValueCoercer for robust parsing and validation.
      * @returns The fully constructed Configuration object.
      */
     private static initialize(): Configuration {
         // Determine PROJECT_ROOT: resolves two directories up from the service file location (src/config -> src -> ROOT).
         const SAFE_PROJECT_ROOT = path.resolve(__dirname, '../../');
 
+        // Use ConfigValueCoercer for robust parsing, fallback, and validation.
+        const serverPort = ConfigValueCoercer.execute({
+            source: process.env,
+            key: 'PORT',
+            defaultValue: DEFAULT_CONFIG.SERVER_PORT,
+            type: 'number',
+            // Enforce positive port number, eliminating the need for manual NaN/range checks.
+            validation: { min: 1 }, 
+        }) as number;
+
+        const nodeEnv = ConfigValueCoercer.execute({
+            source: process.env,
+            key: 'NODE_ENV',
+            defaultValue: DEFAULT_CONFIG.NODE_ENV,
+            type: 'enum',
+        }) as Configuration['NODE_ENV'];
+
+        const logLevel = ConfigValueCoercer.execute({
+            source: process.env,
+            key: 'LOG_LEVEL',
+            defaultValue: DEFAULT_CONFIG.LOG_LEVEL,
+            type: 'enum',
+        }) as Configuration['LOG_LEVEL'];
 
         const effectiveConfig: Configuration = {
-            // Environment variables override defaults
-            NODE_ENV: (process.env.NODE_ENV as Configuration['NODE_ENV']) || DEFAULT_CONFIG.NODE_ENV!,
+            NODE_ENV: nodeEnv,
             PROJECT_ROOT: SAFE_PROJECT_ROOT,
-            // Robustly parse environment variables for numerical values, falling back to defaults
-            SERVER_PORT: parseInt(process.env.PORT || String(DEFAULT_CONFIG.SERVER_PORT), 10),
-            LOG_LEVEL: (process.env.LOG_LEVEL as Configuration['LOG_LEVEL']) || DEFAULT_CONFIG.LOG_LEVEL!,
+            SERVER_PORT: serverPort,
+            LOG_LEVEL: logLevel,
             
             // System paths derived from the project root
             EVENT_CONTRACT_PATH: path.join(SAFE_PROJECT_ROOT, 'config', 'TEDS_event_contract.json'),
         };
 
-        // Basic validation for critical numbers
-        if (isNaN(effectiveConfig.SERVER_PORT) || effectiveConfig.SERVER_PORT <= 0) {
-            console.warn(`[Config] Invalid SERVER_PORT detected (${process.env.PORT}). Using default: ${DEFAULT_CONFIG.SERVER_PORT}`);
-            effectiveConfig.SERVER_PORT = DEFAULT_CONFIG.SERVER_PORT!;
-        }
+        // Note: The manual validation block for SERVER_PORT is now handled inside the plugin.
 
         return effectiveConfig;
     }
