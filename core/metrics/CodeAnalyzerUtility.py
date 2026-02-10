@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import re
 from typing import Protocol
 
@@ -6,48 +6,67 @@ from typing import Protocol
 # but provides a mock implementation based on regex parsing for immediate functionality.
 
 class AbstractCodeAnalyzer(Protocol):
-    def read_file(self, path: str) -> str: ...
-    def analyze_cc(self, code: str) -> float: ...
+    def read_file(self, path: Path) -> str: ...
+    def analyze_decision_points(self, code: str) -> float: ...
     def get_loc(self, code: str) -> int: ...
     def count_assertions(self, code: str) -> int: ...
 
 
 class CodeAnalyzerUtility:
-    """A concrete implementation of AbstractCodeAnalyzer using basic IO and regex analysis."""
+    """A concrete implementation of AbstractCodeAnalyzer using basic IO and regex analysis.
+    Focuses on robust fundamental metrics useful for AGI self-improvement tracking.
+    """
 
-    def read_file(self, path: str) -> str:
-        """Reads file content."""
-        if not os.path.exists(path):
-            # This error should ideally be caught by the evaluator caller, but fail fast here.
-            raise FileNotFoundError(f"File not found: {path}")
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
+    def read_file(self, path: Path) -> str:
+        """Reads file content robustly, handling basic IO and encoding errors.
+        Accepts pathlib.Path object.
+        """
+        try:
+            return path.read_text(encoding='utf-8')
+        except FileNotFoundError as e:
+            # Re-raise standard system error if the path doesn't exist
+            raise e
+        except Exception as e:
+            # Catch potential encoding, permission, or other IO issues
+            raise IOError(f"Error reading file {path}: {e}")
 
     def get_loc(self, code: str) -> int:
-        """Calculates Lines of Code (excluding blank lines/comments)."""
+        """Calculates Non-Comment, Non-Blank Lines of Code (NCNB LOC)."""
         lines = code.split('\n')
         count = 0
         for line in lines:
             stripped = line.strip()
-            if stripped and not stripped.startswith(('#', '//', '"""', "'''")):
+            # Exclusion criteria for Python comments and docstrings
+            if stripped and not (
+                stripped.startswith('#') or 
+                stripped.startswith('"""') or 
+                stripped.startswith("'''")
+            ):
                 count += 1
         return count
 
     def count_assertions(self, code: str) -> int:
-        """Counts common assertion keywords (assert, self.assertX, expect)."""
-        # Use re.findall to catch all instances
-        assert_pattern = re.compile(r'(\s|^)assert\s|\.assert[A-Z_a-z]+[\(]|\bexpect[\(]', re.MULTILINE)
+        """Counts common assertion keywords (assert, self.assertX, expect), including raises as complexity indicators."""
+        # Use re.findall to catch all instances, slightly expanding detection to include 'raise'
+        assert_pattern = re.compile(
+            r'\bassert\b|\.assert[A-Z_a-z]+[\(]|\bexpect[\(]|\braise\b',
+            re.MULTILINE
+        )
         matches = assert_pattern.findall(code)
         return len(matches)
 
-    def analyze_cc(self, code: str) -> float:
+    def analyze_decision_points(self, code: str) -> float:
         """
-        Simulated Cyclomatic Complexity calculation based on function/conditional keywords.
-        This needs replacement with a dedicated library integration (e.g., radon/lizard).
+        Simulated Complexity based on control flow decision points.
+        This serves as a temporary proxy metric until proper AST-based analysis 
+        is integrated.
         """
-        # Markers that increase CC: if, for, while, except, def, elif, and, or
-        cc_markers = re.findall(r'\b(if|for|while|except|def|elif|and|or)\b', code)
+        # Markers that increase complexity: if, for, while, try, except, elif, and, or, return
+        flow_markers = re.findall(
+            r'\b(if|for|while|try|except|elif)\b|\band\b|\bor\b|\breturn\b',
+            code
+        )
         
         # Base complexity (1) plus markers found
-        simulated_cc = 1 + len(cc_markers)
-        return float(simulated_cc)
+        simulated_complexity = 1 + len(flow_markers)
+        return float(simulated_complexity)
