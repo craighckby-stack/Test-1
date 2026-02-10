@@ -1,35 +1,133 @@
 {
-  "schema_version": "ES_V1.0",
-  "description": "Schema definition for all valid Enforcement System (ES) action types and their required parameters, used to validate VSEC configurations against SGS capabilities.",
-  "action_types": {
-    "LOGGING": {
-      "mandatory_params": ["level", "retention_days"],
-      "level_enum": ["INFO", "WARN", "ERROR", "CRITICAL"]
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agikernel.com/schemas/ES_V7.5.0",
+  "title": "Enforcement System (ES) Action Configuration (Synergy Enabled)",
+  "description": "Schema definition for all valid Enforcement System actions, standardized for use by SchemaConstraintNormalizer and incorporating dynamic Invocation of Emergent Capabilities (ECM).",
+  "type": "object",
+  "required": ["action_type", "parameters"],
+  "properties": {
+    "action_type": {
+      "type": "string",
+      "description": "The specific enforcement action to be executed."
     },
-    "ISOLATION": {
-      "mandatory_params": ["mode"],
-      "mode_enum": ["NETWORK_SOFT", "SYSTEM_HARD", "HARDWARE_LEVEL"],
-      "optional_params": ["quarantine_level", "duration_sec"]
-    },
-    "TERMINATE": {
-      "mandatory_params": ["mode"],
-      "mode_enum": ["GRACEFUL", "IMMEDIATE", "REBOOT_SECURE"]
-    },
-    "NOTIFY": {
-      "mandatory_params": ["target", "priority"],
-      "target_enum": ["SGS_CORE", "GLOBAL_AUDIT"],
-      "priority_enum": ["HIGH", "EMERGENCY"]
-    },
-    "THROTTLE": {
-      "mandatory_params": ["rate_limit_pct"],
-      "optional_params": ["targets"]
-    },
-    "KERNEL_TRAP": {
-      "mandatory_params": ["signal", "reason_code"]
-    },
-    "FALLBACK_ACTION": {
-      "mandatory_params": ["template"],
-      "description": "Reference to a defined enforcement_template."
+    "parameters": {
+      "type": "object",
+      "description": "Key-value pairs defining required and optional parameters for the action."
     }
-  }
+  },
+  "oneOf": [
+    {
+      "title": "LOGGING",
+      "properties": {
+        "action_type": {"const": "LOGGING"},
+        "parameters": {
+          "type": "object",
+          "required": ["level", "retention_days"],
+          "properties": {
+            "level": {"type": "string", "enum": ["INFO", "WARN", "ERROR", "CRITICAL", "AUDIT_VITAL"]},
+            "retention_days": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    },
+    {
+      "title": "ISOLATION",
+      "properties": {
+        "action_type": {"const": "ISOLATION"},
+        "parameters": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {"type": "string", "enum": ["NETWORK_SOFT", "SYSTEM_HARD", "HARDWARE_LEVEL", "MEMORY_SANDBOX"]},
+            "quarantine_level": {"type": "string", "description": "Severity of quarantine measures."},
+            "duration_sec": {"type": "integer"}
+          }
+        }
+      }
+    },
+    {
+      "title": "TERMINATE",
+      "properties": {
+        "action_type": {"const": "TERMINATE"},
+        "parameters": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {"type": "string", "enum": ["GRACEFUL", "IMMEDIATE", "REBOOT_SECURE", "SELF_REPAIR_HALT"]}
+          }
+        }
+      }
+    },
+    {
+      "title": "NOTIFY",
+      "properties": {
+        "action_type": {"const": "NOTIFY"},
+        "parameters": {
+          "type": "object",
+          "required": ["target", "priority"],
+          "properties": {
+            "target": {"type": "string", "enum": ["SGS_CORE", "GLOBAL_AUDIT", "TELEMETRY_SOURCE_MANAGER"]},
+            "priority": {"type": "string", "enum": ["HIGH", "EMERGENCY", "SYSTEM_VITAL"]}
+          }
+        }
+      }
+    },
+    {
+      "title": "THROTTLE",
+      "properties": {
+        "action_type": {"const": "THROTTLE"},
+        "parameters": {
+          "type": "object",
+          "required": ["rate_limit_pct"],
+          "properties": {
+            "rate_limit_pct": {"type": "number", "minimum": 0, "maximum": 100},
+            "targets": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    {
+      "title": "KERNEL_TRAP",
+      "properties": {
+        "action_type": {"const": "KERNEL_TRAP"},
+        "parameters": {
+          "type": "object",
+          "required": ["signal", "reason_code"],
+          "properties": {
+            "signal": {"type": "integer"},
+            "reason_code": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "title": "FALLBACK_ACTION",
+      "properties": {
+        "action_type": {"const": "FALLBACK_ACTION"},
+        "parameters": {
+          "type": "object",
+          "required": ["template_id"],
+          "properties": {
+            "template_id": {"type": "string", "description": "ID referencing a predefined enforcement template structure."},
+            "context_override": {"type": "object"}
+          }
+        }
+      }
+    },
+    {
+      "title": "INVOKE_EMERGENT",
+      "description": "Executes a capability registered in the Synergy Runtime Registry (Firestore).",
+      "properties": {
+        "action_type": {"const": "INVOKE_EMERGENT"},
+        "parameters": {
+          "type": "object",
+          "required": ["interfaceName", "payload"],
+          "properties": {
+            "interfaceName": {"type": "string", "description": "The registered interface name (e.g., AdvancedPatternSynthesizer)."},
+            "payload": {"type": ["object", "array", "null"], "description": "Data payload passed as arguments to the emergent function."}
+          }
+        }
+      }
+    }
+  ]
 }
