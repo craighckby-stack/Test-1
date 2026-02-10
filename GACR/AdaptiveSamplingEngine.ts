@@ -6,13 +6,10 @@
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth),
  * ensuring stability by enforcing the most restrictive limit.
  * 
- * AGI KERNEL V7.5.0 IMPROVEMENT: 
- * 1. Implemented Dependency Injection for ResourceMonitor to improve testability.
- * 2. Extracted the core multi-constraint normalization logic into the 'ConstraintReducer' 
- *    emergent capability for reuse in future cycles (Pattern Recognition Success).
- * 3. Uses the 'ConstraintReducer' emergent capability to calculate the base required rate,
- *    necessitating the conversion of getSamplingRate() to an asynchronous function.
- * 4. KERNEL V7 SYNERGY: Injected self-correcting telemetry hook to track restriction events.
+ * AGI KERNEL V8.5.0 IMPROVEMENT:
+ * 1. Improved internal modularity by extracting constraint definition and boundary application into private methods.
+ * 2. Enhanced robustness by explicitly checking for empty constraint sets before attempting reduction.
+ * 3. Maintained dependency injection and V7 Synergy hook usage.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -46,7 +43,7 @@ const DEFAULT_TARGETS = {
 
 // --- KERNEL V7 SYNERGY: Global declarations for plugin access ---
 declare const ConstraintReducer: {
-    execute: (constraints: any[]) => Promise<ReductionResult>;
+    execute: (constraints: { name: string, current: number, target: number }[]) => Promise<ReductionResult>;
 };
 declare const KERNEL_HOOK: {
     log(eventName: string, data: any): void;
@@ -65,21 +62,15 @@ export class AdaptiveSamplingEngine {
     }
 
     /**
-     * Calculates the current required sampling rate (0.0 to 1.0) based on the most severe constraint.
+     * Helper to collect metrics and format them into NamedConstraint objects.
      */
-    public async getSamplingRate(): Promise<number> {
-        if (!this.config.Enabled) {
-            return 1.0;
-        }
-
-        // Collect all metrics 
+    private _getConstraints(): NamedConstraint[] {
         const metrics = {
             cpu: this.monitor.getCpuUtilization(),
             memory: this.monitor.getMemoryUtilization(), 
             queueDepth: this.monitor.getQueueDepthRatio(),
         };
 
-        // Construct the named constraints array
         const constraints: NamedConstraint[] = [
             { 
                 name: 'CPU',
@@ -96,12 +87,46 @@ export class AdaptiveSamplingEngine {
                 current: metrics.queueDepth, 
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
             },
-        ].filter(c => 
+        ];
+        
+        // Filter out constraints where metrics are not valid numbers or targets are zero/missing,
+        // preventing division by zero or nonsensical calculations in the reducer.
+        return constraints.filter(c => 
             typeof c.current === 'number' && 
             typeof c.target === 'number' && 
             c.target > 0
-        ) as NamedConstraint[]; 
+        ) as NamedConstraint[];
+    }
+
+    /**
+     * Applies configured Max/Min sampling rate boundaries and precision formatting.
+     */
+    private _applyBoundaries(rate: number): number {
+        let finalRate = rate;
         
+        // Apply global boundaries defined in the configuration
+        finalRate = Math.min(finalRate, this.config.MaxSamplingRate);
+        finalRate = Math.max(finalRate, this.config.MinSamplingRate);
+
+        // Ensure fixed precision (4 decimal places)
+        return Math.round(finalRate * 10000) / 10000;
+    }
+
+    /**
+     * Calculates the current required sampling rate (0.0 to 1.0) based on the most severe constraint.
+     */
+    public async getSamplingRate(): Promise<number> {
+        if (!this.config.Enabled) {
+            return 1.0;
+        }
+
+        const constraints = this._getConstraints();
+        
+        // If no valid constraints were found (e.g., monitor failure), default to full sampling
+        if (constraints.length === 0) {
+             return this._applyBoundaries(1.0);
+        }
+
         let requiredRate = 1.0;
         let restrictingConstraint: NamedConstraint | null = null;
         
@@ -110,20 +135,18 @@ export class AdaptiveSamplingEngine {
         // Payload only includes necessary fields for the external capability
         const constraintsPayload = constraints.map(({ name, current, target }) => ({ name, current, target }));
 
-        // CRITICAL REFACTOR: Removed complex global check and local fallback. 
-        // We now rely purely on the formalized, optimized ConstraintReducer capability.
         try {
-            // Execute the plugin defined below
+            // Execute the optimized ConstraintReducer capability
             const reductionResult: ReductionResult = await ConstraintReducer.execute(constraintsPayload);
             requiredRate = reductionResult.rate;
             restrictingConstraint = reductionResult.restrictingConstraint;
         } catch (e) {
-            // Fallback if plugin execution fails (e.g., environment error), using default 1.0 rate.
+            // Fallback if plugin execution fails (e.g., environment error)
             console.error("Failed to execute ConstraintReducer capability, defaulting to full sampling:", e);
         }
         
         // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook
-        // Log decision parameters if sampling is enforced (< 1.0) for self-correction modeling/optimization metrics.
+        // Log decision parameters if sampling is enforced (< 1.0) 
         if (requiredRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
             KERNEL_HOOK.log('AdaptiveSamplingDecision', {
                 rateAdjustment: requiredRate,
@@ -135,11 +158,6 @@ export class AdaptiveSamplingEngine {
         
         // --- END: KERNEL V7 Synergy Integration ---
 
-        // Apply global boundaries defined in the configuration
-        requiredRate = Math.min(requiredRate, this.config.MaxSamplingRate);
-        requiredRate = Math.max(requiredRate, this.config.MinSamplingRate);
-
-        // Ensure fixed precision (4 decimal places)
-        return Math.round(requiredRate * 10000) / 10000;
+        return this._applyBoundaries(requiredRate);
     }
 }
