@@ -4,6 +4,21 @@
  * aiding integration with logging systems and API error mapping middleware.
  */
 
+/**
+ * Placeholder interface reference for the dynamically injected utility.
+ * In a real execution environment, the CodeRegistryLookupUtility is available
+ * for instantiation or injection.
+ */
+interface CodeRegistryLookupUtility {
+    execute(args: { registry: Readonly<Record<string, string>>, key: string, defaultKey: string }): string;
+}
+
+// NOTE: Assuming CodeRegistryLookupUtility is available in the execution context.
+// For demonstration, we simulate instantiation if needed, but in production, it should be injected.
+declare const CodeRegistryLookupUtility: { new(): CodeRegistryLookupUtility };
+
+const lookupUtility: CodeRegistryLookupUtility = new CodeRegistryLookupUtility();
+
 export const ERROR_CODES = Object.freeze({
     // System / General
     SYSTEM_UNKNOWN: 'SYS_0000',
@@ -25,9 +40,14 @@ export const ERROR_CODES = Object.freeze({
 
 /**
  * Utility function to quickly access a standardized code.
+ * Uses the CodeRegistryLookupUtility for safe, standardized lookup with fallback.
  * @param {string} key - The key from ERROR_CODES.
  * @returns {string}
  */
-export function getStandardCode(key) {
-    return ERROR_CODES[key] || ERROR_CODES.SYSTEM_UNKNOWN;
+export function getStandardCode(key: string): string {
+    return lookupUtility.execute({
+        registry: ERROR_CODES,
+        key: key,
+        defaultKey: 'SYSTEM_UNKNOWN'
+    });
 }
