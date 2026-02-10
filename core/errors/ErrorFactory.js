@@ -1,12 +1,10 @@
 import { AuditorError } from '../errors/AuditorError.js';
 
-// Access the AGI Kernel Tool for standardized error generation
-declare const CanonicalErrorGenerator: {
-    create(message: string, code?: string, context?: { cause?: Error | null, [key: string]: any }): Error;
-};
+// Access the abstracted standard error generation logic via the plugin.
+// We assume StandardErrorGeneratorPlugin is available globally or imported.
 
 /**
- * ErrorFactory v1.0.0
+ * ErrorFactory v1.0.1
  * Standardized factory for creating consistent, structured application errors.
  */
 class ErrorFactory {
@@ -24,15 +22,15 @@ class ErrorFactory {
 
     /**
      * Creates a generic operational error (e.g., database timeout).
-     * Now delegates structural creation to the CanonicalErrorGenerator tool.
+     * Now delegates structural creation to the StandardErrorGeneratorPlugin.
      * @param {string} message 
      * @param {string} [code='OPERATIONAL_ERROR']
      * @param {Error | null} [cause=null]
      * @returns {Error}
      */
     static createOperationalError(message: string, code: string = 'OPERATIONAL_ERROR', cause: Error | null = null): Error {
-        // Delegate the standardized structuring and creation to the reusable tool.
-        return CanonicalErrorGenerator.create(message, code, { cause });
+        // Delegate the standardized structuring and creation to the reusable plugin.
+        return StandardErrorGeneratorPlugin.createOperationalError(message, code, cause);
     }
 
     // ... other standardized error creation methods (e.g., createUnauthorizedError)
