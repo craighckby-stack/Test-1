@@ -1,14 +1,16 @@
 {
   "ValidationEngineConfig": {
-    "version": "3.0.0",
+    "version": "3.1.0",
     "metadata": {
-      "description": "Configuration for the GAX Constraint Validation Engine, focused on performance and dynamic context resolution."
+      "description": "Configuration for the GAX Constraint Validation Engine, focused on performance, dynamic context resolution, and integration with emergent capabilities."
     },
     "core": {
       "defaultMode": "Strict",
       "fallbackStrictness": "FailFast",
       "enableValidationGroups": true,
-      "lazyLoadModules": true
+      "lazyLoadModules": true,
+      "adaptiveRuleLoading": true,
+      "failureThresholdForAdaptiveBlacklist": 50
     },
     "performance": {
       "ruleCompilationStrategy": "JIT",
@@ -20,15 +22,18 @@
       },
       "precompiledSchemas": [
         "User",
-        "Product"
+        "Product",
+        "AgentBehaviorModel"
       ]
     },
     "schemaSources": {
       "sourceDirectory": "./rules/schemas",
+      "emergentSourceDirectory": "../emergent/validation_patterns",
       "defaultFileFormat": "yaml",
       "ruleAdapters": [
         "GAX_JoiAdapter",
-        "GAX_ZodAdapter"
+        "GAX_ZodAdapter",
+        "GAX_EmergentAdapter"
       ]
     },
     "customValidators": [
@@ -36,6 +41,11 @@
         "name": "DatabaseExistenceCheck",
         "path": "@GAX/validators/DatabaseIntegrityValidator.js",
         "loadPriority": 100
+      },
+      {
+        "name": "EmergentPatternSynthesizer",
+        "path": "@emergent/validators/PatternSynthesizer.js",
+        "loadPriority": 50
       }
     ],
     "contextResolution": {
@@ -43,8 +53,15 @@
       "resolverPath": "@core/context/ValidationContextResolver.js",
       "contextMap": {
         "HTTP_POST:/api/v1/*": "creation_api",
-        "JOB_TYPE:BILLING_CYCLE": "batch_processing"
+        "JOB_TYPE:BILLING_CYCLE": "batch_processing",
+        "INTERNAL:AGI_CORE_UPDATE": "system_governance"
       }
+    },
+    "metricsAndObservability": {
+      "enabled": true,
+      "loggingLevel": "High",
+      "integrationTarget": "Prometheus",
+      "logFailedValidationsOnly": true
     }
   }
 }
