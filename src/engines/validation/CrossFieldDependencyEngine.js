@@ -1,6 +1,10 @@
 const { ValidationError } = require('../../utils/ValidationError');
 
 /**
+ * NOTE: Assumes ObjectPathResolver plugin is available in the execution context.
+ */
+
+/**
  * Manages the evaluation of dependency constraints (e.g., A requires B, C mutually exclusive with D).
  * This engine focuses solely on relationships between fields, not single-field data type validation.
  */
@@ -59,8 +63,9 @@ class CrossFieldDependencyEngine {
     const errors = [];
     const { presenceOf, requiredTargets } = ruleDefinition;
 
-    // 1. Check Condition (simplification: if 'presenceOf' exists, check if that field is present)
-    const dependencyValue = CrossFieldDependencyEngine._resolvePath(dataContext, presenceOf);
+    // 1. Check Condition 
+    // Use ObjectPathResolver plugin for safe path resolution
+    const dependencyValue = ObjectPathResolver.resolve(dataContext, presenceOf);
 
     // Check passes if the dependency field is present (assuming simple presence check for efficiency)
     if (dependencyValue !== undefined && dependencyValue !== null) { 
@@ -68,7 +73,8 @@ class CrossFieldDependencyEngine {
       
       // 2. Evaluate Targets
       targets.forEach(targetFieldPath => {
-        const targetValue = CrossFieldDependencyEngine._resolvePath(dataContext, targetFieldPath);
+        // Use ObjectPathResolver plugin for safe path resolution
+        const targetValue = ObjectPathResolver.resolve(dataContext, targetFieldPath);
         if (targetValue === undefined || targetValue === null) {
           errors.push(new ValidationError(
             targetFieldPath, 
@@ -91,16 +97,7 @@ class CrossFieldDependencyEngine {
       return [];
   }
   
-  /**
-   * Utility to safely retrieve a value from a nested object using a dot path.
-   * @param {Object} data - The root data object.
-   * @param {string} path - The dot-separated path.
-   * @returns {*} The value, or undefined if not found.
-   */
-  static _resolvePath(data, path) {
-    return path.split('.').reduce((obj, key) => 
-      (obj && obj[key] !== undefined) ? obj[key] : undefined, data);
-  }
+  // _resolvePath utility removed and replaced by ObjectPathResolver plugin call.
 }
 
 module.exports = CrossFieldDependencyEngine;
