@@ -22,13 +22,14 @@ class IntegrityQuarantine {
      * @param {object} dependencies.auditLogger - The Decision Audit Logger instance (expected to support structured logging).
      * @param {object} dependencies.fba - The Feedback Loop Aggregator instance.
      * @param {object} dependencies.artifactArchiver - A robust utility for moving/copying payloads.
+     * @param {object} dependencies.integrityBreachDetector - Tool for risk threshold comparison and payload generation.
      * @param {object} config - Configuration parameters.
      * @param {number} config.failureThreshold - Threshold derived from risk parameters (e.g., 0.8).
      * @param {string} config.quarantinePath - Archive location for failed payloads.
      */
-    constructor({ auditLogger, fba, artifactArchiver }, config) {
-        if (!auditLogger || !fba || !artifactArchiver) {
-            throw new Error("IntegrityQuarantine requires auditLogger, fba, and artifactArchiver dependencies.");
+    constructor({ auditLogger, fba, artifactArchiver, integrityBreachDetector }, config) {
+        if (!auditLogger || !fba || !artifactArchiver || !integrityBreachDetector) {
+            throw new Error("IntegrityQuarantine requires auditLogger, fba, artifactArchiver, and integrityBreachDetector dependencies.");
         }
         if (!config || typeof config.failureThreshold !== 'number' || typeof config.quarantinePath !== 'string') {
              throw new Error("IntegrityQuarantine requires valid config { failureThreshold, quarantinePath }.");
@@ -37,17 +38,8 @@ class IntegrityQuarantine {
         this.auditLogger = auditLogger;
         this.fba = fba;
         this.artifactArchiver = artifactArchiver;
+        this.integrityBreachDetector = integrityBreachDetector;
         this.config = config; 
-    }
-
-    /**
-     * Internal method to check if the calculated risk triggers a mandatory quarantine.
-     * @private
-     * @param {number} riskScore
-     * @returns {boolean}
-     */
-    _isBreach(riskScore) {
-        return riskScore > this.config.failureThreshold;
     }
 
     /**
@@ -73,27 +65,26 @@ class IntegrityQuarantine {
         // 1. Calculate aggregated failure risk
         const aggregateRisk = await this.fba.calculatePostExecutionRisk(executionMetrics);
 
-        if (this._isBreach(aggregateRisk)) {
+        // 2. Determine breach status and generate structured audit payload using the dedicated tool
+        const decision = this.integrityBreachDetector.execute({
+            proposalId,
+            riskScore: aggregateRisk,
+            failureThreshold: this.config.failureThreshold,
+            executionMetrics
+        });
+
+        if (decision.isBreach) {
             
             this._notifyBreach(proposalId, aggregateRisk);
             
-            // 2. Trigger mandatory structured audit log
-            const auditEntry = {
-                proposalId,
-                type: RISK_KEYS.STATUS.BREACH,
-                status: RISK_KEYS.STATUS.QUARANTINED,
-                [RISK_KEYS.SCORE]: aggregateRisk,
-                [RISK_KEYS.THRESHOLD]: this.config.failureThreshold,
-                context: executionMetrics, 
-                timestamp: new Date().toISOString()
-            };
-            // Using a structured logging method for clarity and standardization
-            await this.auditLogger.logStructuredEvent(auditEntry); 
+            // 3. Trigger mandatory structured audit log
+            // The audit payload is generated internally by the detector plugin
+            await this.auditLogger.logStructuredEvent(decision.auditPayload); 
 
-            // 3. Move the failed payload (A-01 artifact) to quarantine
+            // 4. Move the failed payload (A-01 artifact) to quarantine
             await this._enforceQuarantine(proposalId);
 
-            // 4. Signal failure
+            // 5. Signal failure
             return false;
         }
 
