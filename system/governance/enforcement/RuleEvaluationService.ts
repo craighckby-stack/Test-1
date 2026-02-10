@@ -87,39 +87,20 @@ export class RuleEvaluationService implements IRuleEvaluationService {
 
     /**
      * T1 Evaluation: Calculates a quantitative operational risk score (0-100) and the drivers.
-     * This method applies weighted rules defined in the governance tiers using a linear weighted summation model.
+     * This method applies weighted rules defined in the governance tiers using the external WeightedRiskScorer.
      */
     public async evaluateT1Risk(process: ProcessAudit): Promise<T1RiskReport> {
-        let weightedScoreAccumulator = 0;
-        const triggeredRules: T1RiskReport['triggeredRules'] = [];
+        const relevantRules = this.ruleset.governance_tiers?.Tier_A || [];
 
-        // --- Placeholder for Rule Execution Engine Integration ---
-        // NOTE: In a refactored architecture, this would iterate over executable rules provided by the GFRMHeuristicMapper.
-        
-        // Simulated Iteration using ruleset directly:
-        if (this.ruleset.governance_tiers) {
-            // Simplified model: Iterate through rules defined in 'Tier_A' for demonstration
-            const relevantRules = this.ruleset.governance_tiers.Tier_A || [];
-            
-            for (const rule of relevantRules) {
-                if (rule.id === 'CTX_DRIFT_01' && process.context_metrics.drift_index > 0.7) {
-                    const contribution = process.context_metrics.drift_index * rule.weight;
-                    weightedScoreAccumulator += contribution;
-                    triggeredRules.push({
-                        ruleId: rule.id,
-                        weightApplied: contribution,
-                        contextValue: process.context_metrics.drift_index
-                    });
-                }
-            }
-        }
-
-        // Normalize accumulated score against 100
-        const normalizedScore = Math.min(100, Math.max(0, Math.round(weightedScoreAccumulator)));
+        // Use the kernel plugin to execute the weighted risk calculation.
+        const results = (globalThis as any).WeightedRiskScorer.execute({
+            rules: relevantRules,
+            processData: process
+        });
 
         return {
-            riskScore: normalizedScore,
-            triggeredRules: triggeredRules,
+            riskScore: results.riskScore,
+            triggeredRules: results.triggeredRules,
             analysisTimestamp: Date.now()
         };
     }
