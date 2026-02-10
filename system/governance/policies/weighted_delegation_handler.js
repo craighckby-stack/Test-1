@@ -6,13 +6,20 @@
 
 const RESOLUTION_STATUS = require('../../utils/resolution_constants').RESOLUTION_STATUS; // Assuming utility constants
 
+// Default threshold if not provided via policy configuration
+const DEFAULT_POLICY_THRESHOLD = 0.70;
+
 class WeightedDelegationHandler {
     /**
-     * @param {object} dependencies - Required external services (e.g., SubsystemAuthorityRegistry, TrustScoreAggregator).
+     * @param {object} dependencies - Required external services (e.g., SubsystemAuthorityRegistry, TrustScoreAggregator, ConsensusPolicyDecisionMaker).
      */
     constructor(dependencies) {
         this.authorityRegistry = dependencies.authorityRegistry;
         this.trustAggregator = dependencies.trustAggregator;
+        // Assume the plugin is injected
+        this.decisionMaker = dependencies.ConsensusPolicyDecisionMaker;
+        // Policy threshold should be configurable, defaulting if not found.
+        this.threshold = dependencies.policyConfig?.threshold ?? DEFAULT_POLICY_THRESHOLD;
     }
 
     /**
@@ -29,17 +36,12 @@ class WeightedDelegationHandler {
         // 1. Calculate weighted trust score based on authority delegation matrix.
         const finalScore = this.trustAggregator.aggregate(delegatedVotes);
 
-        if (finalScore.consensus > 0.70) {
-            return { 
-                status: RESOLUTION_STATUS.RESOLVED, 
-                details: { consensusScore: finalScore.consensus, decision: 'ACCEPT_HIGH_WEIGHT' } 
-            };
-        }
-
-        return { 
-            status: RESOLUTION_STATUS.RESOLVED, // Conflict resolved via policy, but outcome is likely 'REJECTED' or 'MODIFIED'
-            details: { consensusScore: finalScore.consensus, decision: 'REJECTED_LOW_WEIGHT', required_threshold: 0.70 } 
-        };
+        // 2. Delegate threshold checking and result formatting to the dedicated utility.
+        return this.decisionMaker.execute({
+            consensusScore: finalScore.consensus,
+            requiredThreshold: this.threshold,
+            resolutionConstants: RESOLUTION_STATUS
+        });
     }
 }
 
