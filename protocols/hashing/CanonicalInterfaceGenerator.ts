@@ -6,38 +6,49 @@
  * This utility is required to satisfy the `interfaceHash` mandate in GSR_Contract.json.
  */
 
-import { createHash } from 'crypto';
+// We assume two necessary kernel tools are available globally or injected:
+// 1. IDLCanonicalizerUtility (newly extracted)
+// 2. IntegrityHashingUtility (existing, assumed global access)
 
-/**
- * Creates a canonicalized string representation of the interface definition.
- * Steps: Remove comments, sort keys lexicographically, remove excess whitespace/newlines.
- * @param rawInterfaceDefinition - The source code or IDL string defining the module interface.
- * @returns Canonical string ready for hashing.
- */
-function canonicalize(rawInterfaceDefinition: string): string {
-    // 1. Strip comments (basic regex assumption)
-    let canonical = rawInterfaceDefinition.replace(/\/\/.*|\/\*[^]*?\*\//g, '');
-    
-    // 2. Remove non-essential whitespace/newlines
-    canonical = canonical.replace(/\s+/g, ' ').trim();
-    
-    // NOTE: For complex systems (like GraphQL or Protobuf schemas), a dedicated parser would be used
-    // to ensure deep lexical sorting, but this provides the minimal deterministic transformation.
-    
-    return canonical;
-}
+declare const IDLCanonicalizerUtility: {
+    execute(args: { definition: string }): string;
+};
+
+declare const IntegrityHashingUtility: {
+    execute(args: { data: string; algorithm: 'sha256' | 'sha512' }): string;
+};
 
 /**
  * Generates the mandatory Interface Hash for GSR registration.
+ * This function delegates canonicalization and hashing to specialized kernel plugins.
+ * 
  * @param rawInterfaceDefinition - The source code or IDL string.
  * @returns SHA-256 hash string (64 characters).
  */
 export function generateInterfaceHash(rawInterfaceDefinition: string): string {
-    const canonicalString = canonicalize(rawInterfaceDefinition);
-    return createHash('sha256').update(canonicalString).digest('hex');
+    // Step 1: Canonicalize the definition using the specialized utility
+    const canonicalString = IDLCanonicalizerUtility.execute({ 
+        definition: rawInterfaceDefinition 
+    });
+    
+    // Step 2: Hash the canonical string using the central hashing utility
+    const interfaceHash = IntegrityHashingUtility.execute({
+        data: canonicalString,
+        algorithm: 'sha256'
+    });
+
+    return interfaceHash;
 }
 
-// Example utility for generating the contract configuration checksum itself.
+/**
+ * Example utility for generating the contract configuration checksum itself.
+ * @param contractJsonContent - The content to hash.
+ * @returns SHA-256 hash string (64 characters).
+ */
 export function generateContractChecksum(contractJsonContent: string): string {
-    return createHash('sha256').update(contractJsonContent).digest('hex');
+    // Hash the raw contract JSON content using the central hashing utility.
+    return IntegrityHashingUtility.execute({
+        data: contractJsonContent,
+        algorithm: 'sha256'
+    });
 }
