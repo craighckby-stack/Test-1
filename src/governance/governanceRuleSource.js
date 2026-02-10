@@ -26,24 +26,40 @@
  */
 class GovernanceRuleSource {
     #registry;
-    #currentRuleSetVersion;
+    #currentRuleSetVersion: string;
     /** @type {GovernanceRuleSchema} */
-    #immutableRuleset;
+    #immutableRuleset: GovernanceRuleSchema;
 
     /**
-     * Centralized utility for creating a defensively immutable copy (Deep Clone).
-     * Currently relies on JSON serialization, suitable for simple schema objects.
-     * @param {Object} obj
-     * @returns {Object}
+     * Executes the DefensiveCopyTool plugin to create a deep copy.
+     * Assumes the tool is accessible via the registry's tool execution layer.
+     * @private
+     * @template T
+     * @param {T} obj
+     * @returns {T}
      */
-    static #deepClone(obj) {
-        // Note: For larger objects or those containing non-JSON types (e.g., Dates, Functions),
-        // a dedicated utility (like a Structured Clone implementation) should be used.
-        return JSON.parse(JSON.stringify(obj));
+    #cloneRuleData<T>(obj: T): T {
+        // In a deployed AGI-KERNEL system, this would execute the defined plugin.
+        // We simulate the execution call using structural knowledge of the plugin interface.
+        const tool = this.#registry?.tools?.DefensiveCopyTool;
+        
+        if (tool && typeof tool.execute === 'function') {
+             // CRITICAL: We rely on the DefensiveCopyTool for maintaining rule immutability.
+             return (tool.execute({ obj: obj }) as T);
+        }
+
+        // Defensive Fallback (ONLY if tool injection fails, which is a critical system error)
+        console.warn("GRS::TOOL_MISSING - DefensiveCopyTool missing. Falling back to native JSON clone.");
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        } catch (e) {
+            console.error("GRS::CLONE_FAILURE - Critical fallback cloning failure.", e);
+            return obj;
+        }
     }
 
     /**
-     * @param {Object} registry - Provides access to necessary services.
+     * @param {Object} registry - Provides access to necessary services (including tools).
      */
     constructor(registry) {
         if (!registry) {
@@ -118,10 +134,10 @@ class GovernanceRuleSource {
 
     /**
      * Returns a deep clone of the mandatory GSEP policies.
-     * @returns {VetoRule[]}
+     * @returns {VetoRule[]} 
      */
     getMandatoryVetoPolicies() {
-        return GovernanceRuleSource.#deepClone(this.#immutableRuleset.GSEP_VETO_RULES);
+        return this.#cloneRuleData(this.#immutableRuleset.GSEP_VETO_RULES);
     }
 
     /**
@@ -129,7 +145,7 @@ class GovernanceRuleSource {
      * @returns {P01Constants}
      */
     getP01Constants() {
-        return GovernanceRuleSource.#deepClone(this.#immutableRuleset.P01_CRITICALITY);
+        return this.#cloneRuleData(this.#immutableRuleset.P01_CRITICALITY);
     }
 
     /**
@@ -142,7 +158,7 @@ class GovernanceRuleSource {
         if (ruleBlock === undefined) {
             throw new Error(`GRS::RULE_NOT_FOUND - Unknown rule block requested: ${key}`);
         }
-        return GovernanceRuleSource.#deepClone(ruleBlock);
+        return this.#cloneRuleData(ruleBlock);
     }
 
     /**
