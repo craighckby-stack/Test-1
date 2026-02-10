@@ -7,52 +7,41 @@
 const fs = require('fs');
 const path = require('path');
 
+// Specific mapping of ACVD keys to definition containers.
+const ACVD_DEFINITION_MAPPING = {
+    targetInfrastructureKey: 'infrastructureTargets',
+    verificationPipelineKey: 'verificationPipelines',
+    preflightCheckKey: 'preflightChecks',
+    deploymentStrategyKey: 'deploymentStrategies'
+};
+
+/**
+ * Resolves a profile using the HierarchicalConfigResolver tool.
+ *
+ * @param {string} profileName The name of the profile to resolve.
+ * @param {object} mapData The configuration map containing profiles and definitions.
+ * @returns {object} The fully resolved profile configuration.
+ */
 function resolveProfile(profileName, mapData) {
-    if (!mapData.profiles || !mapData.definitions) {
-        throw new Error('Invalid ACVD profile map structure.');
+    // Use the generic resolver tool provided by the AGI kernel.
+    // We assume HierarchicalConfigResolver is available in the execution context.
+    if (typeof HierarchicalConfigResolver === 'undefined') {
+        throw new Error('AGI Tool Dependency Error: HierarchicalConfigResolver is not available.');
     }
-
-    let profile = mapData.profiles[profileName];
-    if (!profile) {
-        throw new Error(`Profile ${profileName} not found.`);
-    }
-
-    // Handle inheritance
-    if (profile.inherits) {
-        if (!mapData.profiles[profile.inherits]) {
-            throw new Error(`Inherited profile ${profile.inherits} not found.`);
+    
+    try {
+        return HierarchicalConfigResolver.execute({
+            profileName: profileName,
+            mapData: mapData,
+            keyResolutionMap: ACVD_DEFINITION_MAPPING
+        });
+    } catch (e) {
+        // Re-throw the error, potentially wrapping it for context.
+        if (e instanceof Error) {
+             throw e;
         }
-        const baseProfile = resolveProfile(profile.inherits, mapData);
-        // Merge base properties, allowing current profile to override
-        profile = { ...baseProfile, ...profile };
-        delete profile.inherits; // Clean up inheritance marker
+        throw new Error(`Profile resolution failed for '${profileName}': ${e}`);
     }
-
-    // Resolve definition keys
-    const resolvedProfile = { ...profile };
-    const definitions = mapData.definitions;
-
-    // Iterate over definition types and resolve associated keys
-    const definitionKeys = {
-        targetInfrastructureKey: definitions.infrastructureTargets,
-        verificationPipelineKey: definitions.verificationPipelines,
-        preflightCheckKey: definitions.preflightChecks,
-        deploymentStrategyKey: definitions.deploymentStrategies
-    };
-
-    for (const [key, mapping] of Object.entries(definitionKeys)) {
-        if (resolvedProfile[key]) {
-            const definitionValue = mapping[resolvedProfile[key]];
-            if (!definitionValue) {
-                throw new Error(`Definition key ${resolvedProfile[key]} for ${key} not found.`);
-            }
-            // Replace the key identifier with the concrete value/array
-            resolvedProfile[key.replace('Key', '')] = definitionValue;
-            delete resolvedProfile[key];
-        }
-    }
-
-    return resolvedProfile;
 }
 
 // Example usage (assuming map file is loaded externally):
