@@ -16,6 +16,20 @@ class ProposalHistoryIndex {
         this.maxHistorySize = config.maxHistorySize || 5000;
         this.decayFactor = config.decayFactor || 0.05; // Used for weighted long-term stats
 
+        // Initialize EMA Calculator Plugin (requires global EMA_Calculator class)
+        if (typeof EMA_Calculator === 'function') {
+            this.emaCalculator = new EMA_Calculator(this.decayFactor);
+        } else {
+            // Fallback implementation if plugin environment fails
+            this.emaCalculator = {
+                calculate: (oldValue, newValue) => {
+                    // EMA formula: EMA_t = (Value_t * alpha) + (EMA_{t-1} * (1 - alpha))
+                    const alpha = this.decayFactor;
+                    return (newValue * alpha) + (oldValue * (1 - alpha));
+                }
+            };
+        }
+
         // Index 1: Primary data store by proposal ID (O(1) access)
         this.proposalsById = new Map();
 
@@ -81,12 +95,12 @@ class ProposalHistoryIndex {
             stats.successCount++;
             // Treat success as a perfect score (1.0) for EMA if no CIW score is present
             const rateValue = normalizedEvent.actual_score_ciw !== undefined ? normalizedEvent.actual_score_ciw : 1.0;
-            stats.weightedAverageRate = this._applyEMA(stats.weightedAverageRate, rateValue);
+            stats.weightedAverageRate = this.emaCalculator.calculate(stats.weightedAverageRate, rateValue);
         } else {
             stats.failureCount++;
             this.totalFailureCount++;
             // Treat failure as zero for EMA
-            stats.weightedAverageRate = this._applyEMA(stats.weightedAverageRate, 0);
+            stats.weightedAverageRate = this.emaCalculator.calculate(stats.weightedAverageRate, 0);
         }
 
         // Update recent CIW scores (essential for quick, un-decayed metric)
@@ -133,17 +147,6 @@ class ProposalHistoryIndex {
                 }
             }
         }
-    }
-
-    /**
-     * Applies Exponential Moving Average (EMA) for smooth metric decay.
-     * @param {number} oldValue - The previous EMA value.
-     * @param {number} newValue - The new incoming value (CIW score or 0/1).
-     * @returns {number}
-     */
-    _applyEMA(oldValue, newValue) {
-        // EMA formula: EMA_t = (Value_t * alpha) + (EMA_{t-1} * (1 - alpha))
-        return (newValue * this.decayFactor) + (oldValue * (1 - this.decayFactor));
     }
 
     /** Increments topology count (private helper) */
