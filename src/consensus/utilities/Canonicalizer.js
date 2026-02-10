@@ -1,5 +1,19 @@
 const crypto = require('crypto');
 
+// Define the assumed interface for the external Canonicalization Tool
+interface CanonicalizerTool {
+    generate(data: unknown): string;
+}
+
+// NOTE: We assume the AGI kernel environment exposes the defined plugin
+// 'CanonicalPayloadGenerator' logic through a known access mechanism (e.g., global utility map).
+const CanonicalizerUtility: CanonicalizerTool = (global as any).CanonicalPayloadGenerator || {
+    generate: (data: unknown) => {
+        // Fallback/Error: The utility must be initialized by the kernel
+        throw new Error("CanonicalPayloadGenerator utility not initialized or available.");
+    }
+};
+
 /**
  * Utility for ensuring deterministic state serialization and secure hashing.
  * Essential for cryptographic integrity checks across distributed sovereign nodes.
@@ -8,45 +22,14 @@ const crypto = require('crypto');
 class Canonicalizer {
 
     /**
-     * Helper function to recursively traverse an object and sort its keys.
-     * This ensures deterministic ordering before JSON serialization, 
-     * which is significantly more performant than using the JSON.stringify replacer 
-     * for deep objects.
-     * @param {*} value
-     * @returns {*} Sorted object or original value.
-     */
-    static #sortKeys(value) {
-        if (!value || typeof value !== 'object') {
-            return value;
-        }
-
-        if (Array.isArray(value)) {
-            // Recurse into array elements, arrays themselves maintain insertion order.
-            return value.map(Canonicalizer.#sortKeys);
-        }
-
-        // Handle standard objects: sort keys alphabetically and recurse
-        const sortedKeys = Object.keys(value).sort();
-        const sortedObject = {};
-
-        for (const key of sortedKeys) {
-            sortedObject[key] = Canonicalizer.#sortKeys(value[key]);
-        }
-        return sortedObject;
-    }
-
-    /**
      * Converts a complex object into a deterministically ordered JSON string 
-     * suitable for hashing/signing.
-     * @param {object} data 
+     * suitable for hashing/signing, utilizing the specialized CanonicalPayloadGenerator tool.
+     * 
+     * @param {unknown} data 
      * @returns {string} Canonical JSON string.
      */
-    static canonicalize(data) {
-        // 1. Recursively sort the keys of the input data structure.
-        const sortedData = Canonicalizer.#sortKeys(data);
-        
-        // 2. Stringify the pre-sorted structure. No replacer needed.
-        return JSON.stringify(sortedData);
+    static canonicalize(data: unknown): string {
+        return CanonicalizerUtility.generate(data);
     }
 
     /**
@@ -56,7 +39,7 @@ class Canonicalizer {
      * @param {string} algorithm - Hashing algorithm (Default: SHA-256).
      * @returns {string} Hexadecimal hash digest.
      */
-    static hash(canonicalData, algorithm = 'sha256') {
+    static hash(canonicalData: string, algorithm: string = 'sha256'): string {
         if (typeof canonicalData !== 'string') {
              throw new Error("Input to hash must be a canonical string.");
         }
