@@ -22,9 +22,10 @@ try {
 }
 
 /**
- * Parses and summarizes AJV errors for easier logging and AGI self-correction analysis (Memory enhancement).
- * @param {Array<object>} errors - Raw AJV error objects.
- * @returns {Array<object>} Simplified error summary.
+ * Parses and summarizes AJV errors for streamlined logging and AGI self-correction analysis (Memory enhancement).
+ * Focuses on extracting path, keyword, and message for pattern recognition.
+ * @param {Array<object>} errors - Raw AJV error objects (validate.errors).
+ * @returns {Array<{dataPath: string, keyword: string, message: string, params: object}>} Simplified error summary.
  */
 function summarizeErrors(errors) {
     if (!errors) return [];
@@ -40,15 +41,18 @@ function summarizeErrors(errors) {
 
 /**
  * Validates an AGI-generated code evolution proposal against the ACVD governance schema.
+ * Returns detailed and summarized errors for optimized AGI learning retention.
  * @param {object} proposal - The proposed change object.
- * @returns {{isValid: boolean, errors: array}} Raw AJV errors are returned for maximum compatibility.
+ * @returns {{isValid: boolean, rawErrors: array|null, errorSummary: array|null}} The validation result.
  */
 export function validateProposal(proposal) {
     if (!initialized) {
         logger.error('Validator uninitialized due to schema error. Rejecting proposal.');
+        const initError = { keyword: 'system', message: 'Validator failed to initialize. Check ACVD schema configuration.' };
         return {
             isValid: false,
-            errors: [{ keyword: 'system', message: 'Validator failed to initialize. Check ACVD schema configuration.' }]
+            rawErrors: [initError],
+            errorSummary: [{ keyword: 'system', message: 'Initialization failure.' }] // Simplified message for summary
         };
     }
 
@@ -66,13 +70,15 @@ export function validateProposal(proposal) {
 
         return {
             isValid: false,
-            errors: validate.errors
+            rawErrors: validate.errors, // Keep raw errors for deep context
+            errorSummary: errorSummary  // Add structured summary for Memory/Logic agents
         };
     }
     
     logger.info(`ACVD Proposal ${proposalId} validated successfully.`);
     return {
         isValid: true,
-        errors: null
+        rawErrors: null,
+        errorSummary: null
     };
 }
