@@ -9,13 +9,17 @@ class OversightParameterRegistry {
      * @param {SystemStateVerifier} ssv - Ensures data integrity using cryptographic checks.
      * @param {Object} config - Configuration object containing governance constraints.
      * @param {string[]} config.criticalKeys - List of governance keys that require GSEP validation.
+     * @param {KeyConstraintEvaluator} kce - The constraint evaluation plugin instance.
      */
-    constructor(mcr, ssv, config) {
+    constructor(mcr, ssv, config, kce) {
         this.mcr = mcr;
         this.ssv = ssv;
+        this.kce = kce; // Inject Key Constraint Evaluator
 
-        // Use a Set for highly efficient lookups (O(1)) of critical keys.
-        this.criticalKeys = new Set(config.criticalKeys || []);
+        // Store configuration array for use by the stateless plugin
+        this.criticalKeysConfig = config.criticalKeys || [];
+        
+        // NOTE: The original logic for critical key checks is now delegated to this.kce.
         this.parameters = new Map();
         this.currentStateHash = null;
     }
@@ -51,11 +55,13 @@ class OversightParameterRegistry {
      */
     get(key, defaultValue = undefined) {
         if (!this.parameters.has(key)) {
-            if (this.criticalKeys.has(key)) {
-                // Critical key requested but missing in the loaded state. High alert.
-                console.error(`OPR_INTEGRITY_ALERT: Critical key '${key}' missing in state ${this.currentStateHash}.
-                                This indicates a potentially corrupted or incomplete state load. Falling back to default.`);
-            }
+            // Use the plugin to check if the missing key is critical and log an alert.
+            this.kce.execute({
+                action: 'MISSING_INTEGRITY_CHECK',
+                key: key,
+                criticalKeys: this.criticalKeysConfig,
+                currentStateHash: this.currentStateHash
+            });
             return defaultValue;
         }
         return this.parameters.get(key);
@@ -69,9 +75,12 @@ class OversightParameterRegistry {
      * @param {*} value - Proposed new value.
      */
     proposeUpdate(key, value) {
-        if (!this.criticalKeys.has(key)) {
-            throw new Error(`OPR_PROPOSAL_ERROR: Key ${key} is not registered as a governance-critical parameter requiring GSEP validation.`);
-        }
+        // Use the plugin to perform the constraint check. Throws if not critical.
+        this.kce.execute({
+            action: 'PROPOSAL_CHECK',
+            key: key,
+            criticalKeys: this.criticalKeysConfig
+        });
 
         // MCR handles GSEP consensus and subsequent chain commitment.
         this.mcr.proposeParameterChange(this.currentStateHash, key, value);
