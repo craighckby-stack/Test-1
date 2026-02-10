@@ -117,7 +117,12 @@
         "scale": "2300+",
         "units": "files",
         "projected_full_coverage_days": 190,
-        "strategy_focus": "HIGH_IMPACT_FIRST_BROAD_EXPLORATION_SECOND"
+        "exploration_strategy": "HIGH_IMPACT_FIRST_BROAD_EXPLORATION_SECOND",
+        "priority_directories_tracked": [
+            "/core", "/agents", "/emergent", "/governance", "/architecture",
+            "/orchestration", "/data", "/utils", "/protocols", "/metrics",
+            "/config", "/tests"
+        ]
       },
       "blacklist_management": {
         "max_size": 50,
