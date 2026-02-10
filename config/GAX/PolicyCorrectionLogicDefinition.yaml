@@ -1,13 +1,22 @@
-# Policy Correction Logic Definition (PCLD) - GAX V96.6
+# Policy Correction Logic Definition (PCLD) - GAX V96.7 (Updated for AGI Integration)
 
-PCLD_Version: 1.1
-Governing_Mission: AGI-KERNEL v7.4.4 Navigator Edition
-Creation_Timestamp: CYCLE_0_INITIALIZATION
+PCLD_Version: 1.2
+Governing_Mission: AGI-KERNEL v7.4.5 Navigator Edition
+Creation_Timestamp: CYCLE_1_EVOLUTION
 
 Protocol: PCSS (Policy Correction Analysis State)
 Input_Source: TEDS_TVCR (Traceability Event Registry)
 Target_Output: PRM (Policy Recalibration Manifest)
 Custodian: GAX Agent
+
+# --- System Definition Block ---
+# Variables used in analysis metrics and modification formulas.
+Formula_Definitions:
+  TEMM: 'Total Expected Margin Measurement (Indicator of system safety buffer)'
+  UFRM: 'Utility Function Reference Metric (Baseline performance target)'
+  CFTM: 'Conservative Finality Margin (Safety factor applied to targets)'
+  PVLM_Status: 'Policy Violation Logic Manifest Status (Boolean indicating active veto)'
+  ECVM_Status: 'Execution Context Validation Module Status (Boolean indicating environmental coherence)'
 
 # This logic defines the deterministic adjustments made by GAX following a mandatory
 # Rollback Protocol (RRP) trigger (P-01 ACV Failure).
@@ -30,8 +39,8 @@ Recalibration_Matrix:
         # Immediate tightening of the Conservative Finality Margin (CFTM).
         - Component: ACVD
           Target_Key: UMA.CFTM_Margin_Factor
-          Modification_Engine: DynamicRatioOptimizer # Reference to standard engine for formula execution
-          Modification_Formula: 'TEMM_Delta / UFRM_Baseline * 1.05' # Dynamic tightening based on delta
+          Modification_Engine: DynamicRatioOptimizer
+          Modification_Formula: 'TEMM_Delta / UFRM_Baseline * 1.05'
           Audit_Risk_Level: HIGH
           Description: 'Adjust CFTM factor to account for utility maximization shortfall, using derived delta.'
 
@@ -44,16 +53,25 @@ Recalibration_Matrix:
         Operator: '=='
         Value: 'TRUE'
     RECALIBRATION_ACTIONS:
+      # CRITICAL: Integrate failure context directly into Kernel Memory for pattern avoidance.
+      PRIORITY_0_KERNEL_INTEGRATION:
+        - Component: AGI_KERNEL.Memory
+          Action: 'REGISTER_FAILURE_PATTERN'
+          Target_Key: 'Governance_Failure_Pattern_AI_III'
+          Audit_Risk_Level: CRITICAL
+          Description: 'Transmit failure trace to AGI Kernel memory buffer to update internal logic/navigation models, enforcing learning from catastrophic policy violations.'
+
       PRIORITY_1_MANDATE:
         # Registration requires human review of the Policy Violation Logic Manifest (PVLM).
         - Component: PRM
           Action: 'REGISTER_VETO_EVENT'
           Audit_Risk_Level: CRITICAL
           Description: 'Log non-compliant execution attempt. System must halt until PVLM status reset or manual PRM entry.'
+      
       PRIORITY_2_TEDS_CAPTURE:
         - Component: TEDS_TVCR
           Action: 'MANDATE_DEEPER_FORENSICS'
-          Capture_Depth_Stages: 5 # Parameterized depth
+          Capture_Depth_Stages: 5
           Audit_Risk_Level: MODERATE
           Description: 'Increase Traceability Event Capture Depth.'
 
