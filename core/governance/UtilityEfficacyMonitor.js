@@ -6,18 +6,30 @@ declare const AGI_KERNEL: {
 };
 
 /**
- * Interface for the MetricThresholdComparator plugin
+ * Interface for the MetricThresholdComparator plugin (Pre-existing dependency)
  * @interface MetricThresholdComparator
  */
 interface MetricThresholdComparator {
     /**
      * Evaluates if a violation has occurred based on metric specification and current value.
-     * A violation occurs when the current value fails to meet the specified threshold requirement.
-     * @param metricSpec - Configuration including comparator and threshold.
-     * @param currentValue - The observed metric value.
-     * @returns True if a violation occurred, false otherwise.
      */
     evaluateViolation(metricSpec: { comparator: string, threshold: number }, currentValue: number): boolean;
+}
+
+/**
+ * Interface for the CompliancePolicyExecutor plugin (New dependency)
+ * @interface CompliancePolicyExecutor
+ */
+interface CompliancePolicyExecutor {
+    /**
+     * Triggers the policy execution for a detected violation (e.g., logging, alerting, policy engine call).
+     */
+    escalateViolation(utilityId: string, metricName: string, policyId: string, currentValue: number): Promise<void>;
+    
+    /**
+     * Initiates a state transition or switchover to a target utility.
+     */
+    initiateFailover(targetUtilityId: string): Promise<void>;
 }
 
 // Define configuration shape (simplified)
@@ -53,9 +65,11 @@ class UtilityEfficacyMonitor {
   private config: Config;
   private runtimeMetrics: Record<string, any>;
   private thresholdComparator: MetricThresholdComparator;
+  private policyExecutor: CompliancePolicyExecutor;
 
   constructor(specConfigPath: string) {
     this.thresholdComparator = AGI_KERNEL.getPlugin('MetricThresholdComparator');
+    this.policyExecutor = AGI_KERNEL.getPlugin('CompliancePolicyExecutor');
     
     // NOTE: Using require() suggests Node.js context.
     this.config = require(specConfigPath) as Config;
@@ -87,24 +101,15 @@ class UtilityEfficacyMonitor {
 
       if (violation) {
         const policyId = metricSpec.failure_policy_id || this.config.default_policy_id;
-        this.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
+        
+        // Delegation 1: Escalate violation using the executor plugin
+        await this.policyExecutor.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
         
         if (utilitySpec.failover && utilitySpec.failover.enabled) {
-          this.initiateFailover(utilitySpec.failover.target_utility_id);
+          // Delegation 2: Initiate failover using the executor plugin
+          await this.policyExecutor.initiateFailover(utilitySpec.failover.target_utility_id);
         }
       }
     }
-  }
-
-  // Placeholder for escalation logic
-  private escalateViolation(utilityId: string, metricName: string, policyId: string, currentValue: number): void {
-      console.error(`[Efficacy Violation] Utility: ${utilityId}, Metric: ${metricName}, Value: ${currentValue}, Policy: ${policyId}`);
-      // Implementation logic for triggering policies/alerts
-  }
-  
-  // Placeholder for failover logic
-  private initiateFailover(targetUtilityId: string): void {
-      console.warn(`[Failover] Initiating failover sequence to: ${targetUtilityId}`);
-      // Implementation logic for state transition/switchover
   }
 }
