@@ -1,5 +1,13 @@
 // agents/GAX/PreemptiveStateResolver.js
 
+// AGI-KERNEL Internal Dependency Resolution: Accessing external tools
+// Define placeholder type for kernel access if running in TS environment
+declare const AgiKernelTools: {
+    DynamicRiskThresholdCalculator: {
+        execute: (args: { UFRM_Base: number, CFTM_Base: number, riskModel: any }) => number;
+    }
+};
+
 /**
  * GATED EXECUTION PIPELINE (GSEP-C) Enhancement: Preemptive State Resolution (v94.1 Axiomatic Trajectory Mapping)
  *
@@ -69,24 +77,21 @@ class PreemptiveStateResolver {
 
     /**
      * Private handler: Calculates the dynamically determined acceptable Risk Threshold (R_TH).
-     * Leverages UFRM, CFTM, and the RiskModel's volatility analysis.
+     * Leverages UFRM, CFTM, and the RiskModel's volatility analysis using the DynamicRiskThresholdCalculator plugin.
      * @returns {number} The calculated minimum acceptable TEMM score (R_TH).
      */
     #calculateDynamicRiskThreshold() {
         const UFRM_Base = this.#contextAccessors.getUFRM();
         const CFTM_Base = this.#contextAccessors.getCFTM();
         
-        if (UFRM_Base === undefined || CFTM_Base === undefined) {
-             console.warn("[PSR Risk] UFRM or CFTM data missing. Calculation incomplete.");
-             // AGI v94.1 Safety: If core metrics are unavailable, rely on a conservative baseline fallback.
-             return 10.0; // Assume higher required threshold for uncertainty
-        }
-
-        // Derive the required volatility adjustment factor using the dedicated model
-        const volatilityAdjustment = this.#riskModel.calculateVolatilityAdjustment(UFRM_Base, CFTM_Base);
-        
-        // R_TH = (UFRM + CFTM) * Dynamic Volatility Multiplier
-        return (UFRM_Base + CFTM_Base) * (1 + volatilityAdjustment);
+        // CRITICAL: Utilize the extracted plugin for standardized risk calculation.
+        // The tool handles safety checks and fallbacks for missing data.
+        // Assuming AgiKernelTools is available in the target execution scope.
+        return AgiKernelTools.DynamicRiskThresholdCalculator.execute({
+            UFRM_Base: UFRM_Base,
+            CFTM_Base: CFTM_Base,
+            riskModel: this.#riskModel
+        });
     }
 
     /**
