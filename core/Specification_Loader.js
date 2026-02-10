@@ -1,15 +1,14 @@
-import fs from 'fs/promises';
 import path from 'path';
 import Logger from './Logger.js';
+// Import the newly abstracted asynchronous data loader utility
+import ImmutableAsyncDataStore from './ImmutableAsyncDataStore.js'; 
 
 const DEFAULT_SPEC_PATH = path.resolve(process.cwd(), 'config/XEL_Specification.json');
+const FALLBACK_SPEC = { ComponentSchemas: {} };
 
 /**
- * Specification Loader Service (Async): Manages the loading, parsing, and version control 
- * of XEL Specifications.
- * 
- * Decouples I/O from component execution via asynchronous loading and uses explicit 
- * initialization.
+ * Specification Loader Service: Manages the loading, parsing, and version control 
+ * of XEL Specifications, leveraging an asynchronous data store for I/O separation.
  */
 class SpecificationLoader {
     /**
@@ -17,9 +16,10 @@ class SpecificationLoader {
      */
     constructor(config = {}) {
         this.specPath = config.specPath || DEFAULT_SPEC_PATH;
-        this.specification = null;
         this.logger = new Logger('SpecificationLoader');
-        this.isLoaded = false;
+        
+        // Use the abstracted store for I/O and state management
+        this.store = new ImmutableAsyncDataStore(this.specPath, this.logger);
     }
 
     /**
@@ -28,23 +28,14 @@ class SpecificationLoader {
      * @returns {Promise<void>}
      */
     async initialize() {
-        if (this.isLoaded) {
-            this.logger.warn("Attempted multiple initialization calls.");
-            return;
-        }
-
-        this.logger.info(`Attempting to load specification from: ${this.specPath}`);
+        this.logger.info(`Attempting initialization of specification store: ${this.specPath}`);
         
         try {
-            const data = await fs.readFile(this.specPath, 'utf8');
-            this.specification = JSON.parse(data);
-            this.isLoaded = true;
-            this.logger.success("XEL Specification loaded successfully.");
+            // Pass the domain-specific fallback structure to the underlying store
+            await this.store.initialize(FALLBACK_SPEC);
+            this.logger.success("XEL Specification initialized successfully.");
         } catch (error) {
-            this.logger.fatal(`Failed to load XEL Specification: ${error.message}. Using fallback structure.`);
-            // Ensure robustness: Provide a safe, minimal fallback structure
-            this.specification = { ComponentSchemas: {} };
-            this.isLoaded = true; // Mark as loaded, even if with fallback
+            // Catch the DATA_STORE_LOAD_FAILURE and re-throw a domain-specific failure message 
             throw new Error(`SPEC_LOAD_FAILURE: Initialization failed: ${error.message}`); 
         }
     }
@@ -54,11 +45,8 @@ class SpecificationLoader {
      * @returns {object}
      */
     getSpecification() {
-        if (!this.isLoaded) {
-            throw new Error("Specifications not initialized. Call initialize() first.");
-        }
-        // Return a clone to protect the internal state from mutation
-        return JSON.parse(JSON.stringify(this.specification)); 
+        // Delegate data retrieval to the store
+        return this.store.getData();
     }
 
     /**
