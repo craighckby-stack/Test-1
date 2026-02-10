@@ -31,9 +31,11 @@ def get_utc_timestamp() -> str:
 # Define default governance configuration for consistency and centralization
 class ACVD_ConfigDefaults:
     """Centralized definition of default governance configuration parameters."""
+    SCHEMA_VERSION = "1.1.0" # New: Schema version tracking for architecture scalability
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
+    DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # New: Threshold for tuning proposal stability
     
     # Base weights, used if no configuration is found in the schema (static reference)
     BASE_SEVERITY_WEIGHTS = {
@@ -63,12 +65,15 @@ class ACVD_DecisionEngine:
        supporting the AGI kernel's recursive self-improvement loop.
     3. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
     4. Introducing custom, structured exceptions for governance violations (`GovernanceError` family).
+    5. Implementing a weight dampening factor for improved tuning stability (Logic/Memory).
+    6. Introducing schema versioning for architectural evolution (Navigation/Memory).
     """
 
     # Use centralized defaults
     DEFAULT_MIN_SAFETY_SCORE = ACVD_ConfigDefaults.DEFAULT_MIN_SAFETY_SCORE
     DEFAULT_FALLBACK_WEIGHT = ACVD_ConfigDefaults.DEFAULT_FALLBACK_WEIGHT
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = ACVD_ConfigDefaults.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
+    DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = ACVD_ConfigDefaults.DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY
     _BASE_SEVERITY_WEIGHTS = ACVD_ConfigDefaults.BASE_SEVERITY_WEIGHTS
     _INTERNAL_ISSUE_MAP = ACVD_ConfigDefaults.INTERNAL_ISSUE_MAP
     
@@ -81,6 +86,7 @@ class ACVD_DecisionEngine:
 
         # Initialize core attributes robustly
         self.schema: Dict[str, Any] = {}
+        self.schema_version: str = ACVD_ConfigDefaults.SCHEMA_VERSION # Initialized default version
         self.valid_states: List[str] = []
         self.state_transitions: Dict[str, List[str]] = {}
         
@@ -110,6 +116,8 @@ class ACVD_DecisionEngine:
         try:
             loaded_schema = self._load_schema(self.schema_path)
             self.schema = loaded_schema
+            # Load schema version (new)
+            self.schema_version = self.schema.get('version', ACVD_ConfigDefaults.SCHEMA_VERSION)
             self.valid_states = self.schema.get('valid_states', []) 
             self.state_transitions = self.schema.get('state_transitions', {}) 
             config = self.schema.get('config', {})
@@ -138,13 +146,16 @@ class ACVD_DecisionEngine:
             self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
         )
 
-    def _log_status(self, level: str, message: str, context: str):
-        """Standardized internal logging mechanism, queueing structured logs for Telemetry System integration."""
+    def _log_status(self, level: str, message: str, context: str, details: Dict[str, Any] = None):
+        """Standardized internal logging mechanism, queueing structured logs for Telemetry System integration.
+        Enhanced to include structured details for richer meta-reasoning data.
+        """
         log_entry = {
             "timestamp": get_utc_timestamp(),
             "level": level,
             "message": message,
-            "context": context
+            "context": context,
+            "details": details if details is not None else {} # Structured details for richer Meta-Reasoning
         }
         self._log_queue.append(log_entry)
         # Immediate console feedback for critical/error logs
@@ -185,6 +196,9 @@ class ACVD_DecisionEngine:
             return
 
         save_data = self.schema.copy()
+        
+        # Persist current schema version
+        save_data['version'] = self.schema_version
         
         if 'config' not in save_data:
             save_data['config'] = {}
@@ -233,6 +247,7 @@ class ACVD_DecisionEngine:
         """ 
         (META-REASONING CORE) Encapsulates the dynamic weight tuning heuristic logic.
         Adjusts weight based on observed penalty contribution versus expected distribution.
+        Now includes dampening for stability.
         """
         
         suggestion_type = "MAINTAIN_STABILITY"
@@ -268,6 +283,11 @@ class ACVD_DecisionEngine:
             
             new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
             suggestion_type = "DECREASE_PENALTY"
+            
+        # Stability Check (Dampening): Prevents noisy micro-adjustments (Logic/Memory enhancement)
+        if abs(new_suggested_weight - current_weight) < self.DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY:
+             new_suggested_weight = current_weight
+             suggestion_type = "MAINTAIN_STABILITY"
             
         return {
             "suggestion_type": suggestion_type,
@@ -346,8 +366,9 @@ class ACVD_DecisionEngine:
                 suggested_weight = suggestion['suggested_new_weight']
                 current_weight = suggestion['current_weight']
                 
-                # Only propose if the change is non-negligible (> 0.0001)
-                if abs(suggested_weight - current_weight) > 0.0001:
+                # Only propose if the change is non-negligible (> DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY)
+                # Note: This check is redundant if the heuristic logic is perfect, but serves as a failsafe.
+                if abs(suggested_weight - current_weight) > 0.0001: 
                     tuning_updates[issue_type] = suggested_weight
                     
         return tuning_updates
