@@ -1,6 +1,34 @@
 const crypto = require('crypto');
 
 /**
+ * Utility function to calculate SHA-256 hash and compare. 
+ * Used as the default implementation if no hasher utility is injected.
+ * 
+ * @param {string} content - The content string to hash.
+ * @param {string} [expectedHash] - The expected hash string for comparison.
+ * @returns {{hash: string, match: boolean|undefined, expected: string|undefined}}
+ */
+function defaultHasher(content, expectedHash) {
+    if (typeof content !== 'string') {
+        throw new Error('Content must be a string.');
+    }
+    // Ensure crypto is available if we use the default path
+    if (!crypto || typeof crypto.createHash !== 'function') {
+        throw new Error("Cryptography operations failed: Node's 'crypto' module not functional.");
+    }
+    
+    const currentHash = crypto.createHash('sha256').update(content).digest('hex');
+    
+    const result = {
+        hash: currentHash,
+        match: expectedHash ? (currentHash === expectedHash) : undefined,
+        expected: expectedHash
+    };
+    return result;
+}
+
+
+/**
  * Custom Error for integrity breaches caught by the ConfigIntegrityMonitor.
  */
 class CIMIntegrityError extends Error {
@@ -17,20 +45,23 @@ class CIMIntegrityError extends Error {
  * Role: Enforcement Layer for Configuration Trustworthiness
  * Mandate: Monitors critical configuration content (usually via cryptographic hashes or signatures)
  *          and throws a CIMIntegrityError immediately upon detection of tampering or corruption.
- * NOTE: This component is assumed to interact with a secure HashStore to retrieve baseline integrity checks.
+ * NOTE: This component now relies on an injected or default hasher utility for cryptographic operations.
  */
 class ConfigIntegrityMonitor {
     
     /**
      * @param {object} hashStore - Persistence layer for expected hashes/signatures.
      * @param {object} auditLogger - D-01 Audit interface.
+     * @param {object} [hasherUtility] - An object implementing a `execute({content, expectedHash})` method for hashing.
      */
-    constructor(hashStore, auditLogger) {
+    constructor(hashStore, auditLogger, hasherUtility = { execute: (args) => defaultHasher(args.content, args.expectedHash) }) {
         if (!hashStore || !auditLogger) {
             throw new Error("CIM requires HashStore and AuditLogger.");
         }
         this.hashStore = hashStore;
         this.auditLogger = auditLogger;
+        // Inject the cryptographic utility
+        this.hasher = hasherUtility;
     }
 
     /**
@@ -42,19 +73,17 @@ class ConfigIntegrityMonitor {
      */
     checkIntegrity(filePath, content) {
         // 1. Fetch expected hash for filePath from HashStore.
-        // Assumes hashStore.getExpectedHash is synchronous or data is pre-loaded.
         const expectedHash = this.hashStore.getExpectedHash(filePath);
         
         if (!expectedHash) {
             this.auditLogger.logWarning("INTEGRITY_SKIP", `No expected hash found for ${filePath}. Skipping verification.`);
-            // Depending on policy, this could be a failure, but for now, we pass if verification is impossible.
             return true;
         }
 
-        // 2. Calculate current content hash (using standard SHA-256 for critical configs)
-        const currentHash = crypto.createHash('sha256').update(content).digest('hex');
+        // 2. Calculate current content hash and compare using the injected hasher utility.
+        const { hash: currentHash, match } = this.hasher.execute({ content, expectedHash });
 
-        if (currentHash !== expectedHash) {
+        if (match === false) {
             this.auditLogger.logCritical(
                 "INTEGRITY_BREACH", 
                 `Configuration integrity failed for ${filePath}. Hash mismatch detected.`,
