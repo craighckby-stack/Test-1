@@ -4,20 +4,43 @@ import VettingConfig from '../../config/governance/TelemetryVettingSpec.json';
 
 // Placeholder for an internal logging utility (assumes existence or falls back to console)
 const internalLogger = { 
-    warn: (message) => console.warn(`[VETTING ENFORCER] ${message}`),
-    debug: (message) => process.env.NODE_ENV !== 'production' && console.log(`[VETTING ENFORCER DEBUG] ${message}`)
+    warn: (message: string) => console.warn(`[VETTING ENFORCER] ${message}`),
+    debug: (message: string) => process.env.NODE_ENV !== 'production' && console.log(`[VETTING ENFORCER DEBUG] ${message}`)
 };
+
+// Assuming the AGI Kernel makes the extracted plugin available
+// This interface defines the expected structure for AGI tool usage
+interface VettingTransformerArgs {
+    action: string;
+    payload: object;
+    rule: object;
+    hasher: (data: string, algorithm: string) => string;
+}
+interface TelemetryVettingTransformerPlugin {
+    execute(args: VettingTransformerArgs): object;
+}
+
+// Global reference provided by the AGI Kernel (or similar mechanism)
+// eslint-disable-next-line @typescript-eslint/naming-convention
+declare const TelemetryVettingTransformer: TelemetryVettingTransformerPlugin;
+
 
 /**
  * Manages the autonomous enforcement of telemetry hygiene and governance rules.
  * This ensures data integrity, privacy compliance (e.g., dropping IPs), and sampling.
  */
 export class TelemetryVettingPipelineEnforcer {
+    private vettingRules: Record<string, any>;
+    private defaultAction: string;
+    private globalSamplingRate: number;
+    private crypto: CryptoService;
+    private logger: typeof internalLogger;
+
     /**
      * @param {object} config - The telemetry vetting specification configuration.
      * @param {CryptoService} cryptoService - Dependency for secure data transformation (e.g., hashing).
      */
-    constructor(config = VettingConfig, cryptoService = new CryptoService()) {
+    constructor(config: any = VettingConfig, cryptoService = new CryptoService()) {
         if (!config.metrics || !config.defaultPolicy) {
             throw new Error("TelemetryVettingSpec is improperly configured. Missing 'metrics' or 'defaultPolicy'.");
         }
@@ -26,6 +49,10 @@ export class TelemetryVettingPipelineEnforcer {
         this.globalSamplingRate = config.samplingRateGlobal || 1.0;
         this.crypto = cryptoService;
         this.logger = internalLogger;
+
+        if (typeof TelemetryVettingTransformer === 'undefined') {
+             this.logger.warn("TelemetryVettingTransformer plugin not loaded. Hashing and specific transformations may fail.");
+        }
     }
 
     /**
@@ -34,7 +61,7 @@ export class TelemetryVettingPipelineEnforcer {
      * @returns {{ rule: object, action: string, samplingRate: number }}
      * @private
      */
-    _getRuleAndAction(metricKey) {
+    private _getRuleAndAction(metricKey: string): { rule: any, action: string, samplingRate: number } {
         const rule = this.vettingRules[metricKey] || {};
         const action = rule.action || this.defaultAction;
         const samplingRate = rule.sample_rate_override !== undefined
@@ -45,37 +72,30 @@ export class TelemetryVettingPipelineEnforcer {
     }
 
     /**
-     * Executes necessary data transformation based on the defined action.
+     * Executes necessary data transformation using the extracted TelemetryVettingTransformer plugin.
      * @param {string} action
      * @param {object} payload
      * @param {object} rule - Specific rule details.
      * @returns {object} The transformed payload.
      * @private
      */
-    _applyTransformation(action, payload, rule) {
-        let processedPayload = { ...payload };
-
-        switch (action) {
-            case 'AGGREGATE_DAILY_IP_DROP':
-                // Anonymization: Remove PII (IP) and generalize timestamp
-                delete processedPayload.ip_address;
-                processedPayload.day_key = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-                break;
-
-            case 'PASS_THROUGH_HASHED_SESSION':
-                // Pseudo-anonymization: Hash session ID using the specified algorithm
-                if (processedPayload.sessionId) {
-                    const algorithm = rule.hashingAlgorithm || 'SHA256';
-                    processedPayload.sessionId = this.crypto.hash(processedPayload.sessionId, algorithm);
-                }
-                break;
-
-            case 'PASS_THROUGH':
-            default:
-                // No modification needed
-                break;
+    private _applyTransformation(action: string, payload: object, rule: object): object {
+        if (typeof TelemetryVettingTransformer === 'undefined' || !TelemetryVettingTransformer.execute) {
+            // Safety fallback if plugin is unavailable
+            this.logger.warn(`Vetting transformation requested for action ${action}, but TelemetryVettingTransformer is unavailable.`);
+            return payload; 
         }
-        return processedPayload;
+
+        // We pass the hashing function (from CryptoService) directly to the plugin 
+        // to decouple the CryptoService dependency from the transformation logic itself.
+        const hasher = (data: string, algorithm: string) => this.crypto.hash(data, algorithm);
+
+        return TelemetryVettingTransformer.execute({
+            action,
+            payload,
+            rule,
+            hasher
+        });
     }
 
     /**
@@ -84,7 +104,7 @@ export class TelemetryVettingPipelineEnforcer {
      * @param {object} payload The raw event payload
      * @returns {object | null} The processed payload, or null if dropped/sampled out.
      */
-    enforce(metricKey, payload) {
+    public enforce(metricKey: string, payload: object): object | null {
         const { rule, action, samplingRate } = this._getRuleAndAction(metricKey);
 
         if (action === 'DROP_IMMEDIATELY') {
@@ -111,6 +131,6 @@ const TelemetryEnforcerInstance = new TelemetryVettingPipelineEnforcer();
  * @param {object} payload The raw event payload
  * @returns {object | null} The processed payload.
  */
-export function enforceTelemetryRules(metricKey, payload) {
+export function enforceTelemetryRules(metricKey: string, payload: object): object | null {
     return TelemetryEnforcerInstance.enforce(metricKey, payload);
 }
