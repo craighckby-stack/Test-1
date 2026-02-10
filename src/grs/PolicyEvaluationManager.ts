@@ -1,6 +1,11 @@
 import { GovernancePolicy, RuleDefinition } from '@config/governancePolicySchema';
 import { RuntimeContext } from '@core/types';
 
+// Defining the shape of the required tool for typing purposes
+interface IPolicyFilterTool {
+    execute(args: { policies: GovernancePolicy[], scope: string, triggerType: RuleDefinition['triggerType'] }): GovernancePolicy[];
+}
+
 /**
  * PolicyEvaluationManager
  * Manages the parsing, metric ingestion, and execution of structured JESL-based
@@ -11,9 +16,11 @@ export class PolicyEvaluationManager {
     private policyCache: Map<string, GovernancePolicy> = new Map();
     // Assume JESLEvaluator handles the actual string parsing and execution.
     private JESLEvaluator: any; 
+    private policyFilter: IPolicyFilterTool; // Tool for filtering policies
 
-    constructor(evaluatorInstance: any) {
+    constructor(evaluatorInstance: any, policyFilter: IPolicyFilterTool) {
         this.JESLEvaluator = evaluatorInstance;
+        this.policyFilter = policyFilter;
     }
 
     /**
@@ -32,10 +39,13 @@ export class PolicyEvaluationManager {
      * Retrieves all active policies relevant to a specific execution scope and trigger.
      */
     private getRelevantPolicies(scope: string, trigger: RuleDefinition['triggerType']): GovernancePolicy[] {
-        const relevant = Array.from(this.policyCache.values()).filter(p =>
-            p.targetScope.includes(scope) && p.ruleDefinition.triggerType === trigger
-        );
-        return relevant;
+        const policiesArray = Array.from(this.policyCache.values());
+        
+        return this.policyFilter.execute({
+            policies: policiesArray,
+            scope: scope,
+            triggerType: trigger
+        });
     }
 
     /**
