@@ -2,14 +2,10 @@
  * agents/GAX/Modeling/PredictiveModelStub.js
  *
  * Provides the explicit asynchronous interface required by the Trajectory Simulation Engine (TSE).
- * Now delegates specific stub calculation logic to the abstracted PredictionStubEngine plugin.
+ * Now delegates specific stub calculation logic to the KERNEL Tooling system.
  */
 
-// We declare the interface for the abstracted synchronous stub engine.
-declare const PredictionStubEngine: {
-    execute: (features: PredictionFeatures) => PredictionResult
-};
-
+// Define interfaces for clarity (assuming TypeScript environment or JSDoc style interfaces)
 interface PredictionFeatures {
     complexity_score: number;
     history_risk: number;
@@ -42,8 +38,13 @@ class PredictiveModelStub {
              throw new Error("Model weights failed to load or were unloaded.");
         }
 
-        // Delegate the core stub calculation logic to the utility plugin
-        const result = PredictionStubEngine.execute(features);
+        // Delegate the core stub calculation logic to the KERNEL Tooling system
+        // Tool: 'PredictiveStubEngine', Method: 'execute', Arguments: [features]
+        const result: PredictionResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
+            'PredictiveStubEngine', 
+            'execute', 
+            [features]
+        );
         
         return result;
     }
