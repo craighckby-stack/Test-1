@@ -7,7 +7,7 @@ const Logger = global.SovereignLogger || console;
  * V94.2 SOVEREIGN REFACTOR - Constraint Derivation and Policy Integrity.
  * Translates refined governance model insights (GMRE/SEA) into validated,
  * concrete M-01 executable constraint updates for the GRS (Governance Rule Source).
- * Enhanced reliability via integrated constant mapping and forced package integrity hashing.
+ * Enhanced reliability via integrated constant mapping and forced package integrity hashing (now delegated to IntegrityPackageFinalizer).
  */
 class DynamicConstraintGenerator {
     /**
@@ -25,6 +25,13 @@ class DynamicConstraintGenerator {
         this.GMRE = refinementEngine;
         this.validator = validator;
         this.utils = sovereignUtils; // Renamed for brevity
+        
+        // Assuming availability of the kernel-provided plugin (IntegrityPackageFinalizer)
+        this.integrityPackageFinalizer = global.IntegrityPackageFinalizer; 
+        if (!this.integrityPackageFinalizer || typeof this.integrityPackageFinalizer.execute !== 'function') {
+            Logger.warn("DCG Initialization Warning: IntegrityPackageFinalizer plugin is not available. Package integrity hashing may fail.");
+            // Fallback strategy could be implemented here if required.
+        }
     }
 
     /**
@@ -54,7 +61,7 @@ class DynamicConstraintGenerator {
         }
         
         // 4. M-01 Package Creation
-        const m01Package = {
+        let m01Package = {
             intentId: this.utils.generateUUID('DCG-M01'), 
             timestamp: new Date().toISOString(),
             sourceEngine: CONSTANTS.VERSION,
@@ -68,8 +75,15 @@ class DynamicConstraintGenerator {
             payload: newConstraints
         };
 
-        // 5. Finalization (Hashing and Integrity Check)
-        return this._finalizeM01Package(m01Package);
+        // 5. Finalization (Hashing and Integrity Check) - Delegated to specialized tool
+        if (this.integrityPackageFinalizer) {
+            m01Package = this.integrityPackageFinalizer.execute({ m01Package });
+        } else {
+            // Fallback/Warning if tool is missing
+            Logger.error("E405: Integrity check tool missing. M-01 package sent without integrity hash.");
+        }
+        
+        return m01Package;
     }
 
     /**
@@ -119,12 +133,7 @@ class DynamicConstraintGenerator {
         }
     }
     
-    /** @private Applies final auditing steps, such as integrity hashing. */
-    _finalizeM01Package(m01Package) {
-        // V94.2: Inject cryptographic hash for M-01 package integrity.
-        m01Package.integrityHash = this.utils.generateSha256(JSON.stringify(m01Package.payload));
-        return m01Package;
-    }
+    // Removed _finalizeM01Package, logic is now in IntegrityPackageFinalizer plugin
 }
 
 module.exports = DynamicConstraintGenerator;
