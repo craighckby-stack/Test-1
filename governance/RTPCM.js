@@ -13,24 +13,20 @@ class RTPCM {
      * @param {LedgerService} deps.ledger - D-01/MCR dependency for audited transaction logging.
      * @param {ConfigValidator} deps.validator - The Governance Rule Configuration Module (GRCM) validation utility.
      * @param {HashUtility} deps.hasher - Utility for generating cryptographic hashes of configuration states.
-     * @param {Object} deps.integrityService - Utility providing canonicalStringify and deepFreeze (now mandatory).
+     * @param {Object} deps.integrityServiceTool - Utility providing canonicalStringify and deepFreeze (via execute method).
      * @param {Object} [initialConfig={}] - Optional initial configuration settings.
      */
-    constructor({ ledger, validator, hasher, integrityService }, initialConfig = {}) {
-        if (!ledger || !validator || !hasher || !integrityService) {
-            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityService) must be provided.");
+    constructor({ ledger, validator, hasher, integrityServiceTool }, initialConfig = {}) {
+        if (!ledger || !validator || !hasher || !integrityServiceTool) {
+            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityServiceTool) must be provided.");
         }
         
-        // Critical safety checks for structural fidelity utilities.
-        if (typeof integrityService.canonicalStringify !== 'function' || typeof integrityService.deepFreeze !== 'function') {
-             throw new Error("RTPCM Initialization Error: integrityService must implement canonicalStringify and deepFreeze methods.");
-        }
-
         // Dependencies
         this._ledger = ledger;
         this._validator = validator;
         this._hasher = hasher;
-        this._integrityService = integrityService; // Renamed from _objectUtils
+        // Using the extracted tool for deep immutability and canonicalization
+        this._integrityServiceTool = integrityServiceTool;
 
         // Internal State Management for Version Control and History
         this._configRegistry = new Map();   // Stores { versionId: deepFrozenConfig }
@@ -66,7 +62,10 @@ class RTPCM {
      */
     calculateHash(config) {
         try {
-            const serializedConfig = this._integrityService.canonicalStringify(config);
+            const serializedConfig = this._integrityServiceTool.execute({
+                operation: 'stringify',
+                data: config
+            });
             return this._hasher.digest(serializedConfig);
         } catch (error) {
             throw new Error(`RTPCM Hashing Integrity Failure: Cannot perform canonical serialization. Error: ${error.message}`);
@@ -96,7 +95,10 @@ class RTPCM {
         }
 
         // 1. Enforce Deep Immutability using the guaranteed service.
-        const frozenConfig = this._integrityService.deepFreeze(newConfig);
+        const frozenConfig = this._integrityServiceTool.execute({
+            operation: 'freeze',
+            data: newConfig
+        });
 
         this._configRegistry.set(configHash, frozenConfig);
         
@@ -154,7 +156,10 @@ class RTPCM {
      */
     getActivationTimeline() {
         // Deep freeze the array copy to prevent external mutation of the history records.
-        return this._integrityService.deepFreeze([...this._activationTimeline]);
+        return this._integrityServiceTool.execute({
+            operation: 'freeze',
+            data: [...this._activationTimeline]
+        });
     }
 
     /**
