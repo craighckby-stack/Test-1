@@ -1,42 +1,29 @@
 /**
  * Hashing Utility Service
  * Provides standardized, cryptographic hashing capabilities necessary for 
- * integrity verification across the governance and transaction layers.
+ * integrity verification across the governance and transaction layers, leveraging
+ * the Canonical Crypto Utility for deterministic serialization and hashing.
  */
 
-import { createHash } from 'crypto'; // Assumes Node.js crypto module is available
+import { CanonicalCryptoUtility } from '@agi-kernel/plugins'; // Use the established plugin interface
 
 /**
  * Generates a SHA256 hash of the input data.
- * Supports complex objects by serializing them first.
- * 
- * NOTE: In browser/edge environments, replace 'crypto' import with Web Crypto API implementation.
+ * Supports complex objects by stably serializing them first.
  * 
  * @param {*} data - The input data (string or object) to be hashed.
  * @param {string} [algorithm='sha256'] - The hashing algorithm to use.
  * @returns {string} The hexadecimal hash digest.
  */
 export function calculateHash(data, algorithm = 'sha256') {
-    let input;
+    // Delegate the complex logic (serialization + hashing) to the reusable plugin
+    
+    // Note: The specific implementation details (Node.js crypto vs Web Crypto) are now abstracted
+    // within the CanonicalCryptoUtility plugin.
 
-    if (typeof data !== 'string') {
-        // Ensure complex objects are stably serialized (sort keys) for deterministic hashing.
-        // Note: For truly robust systems, a specialized JSON canonicalization library is recommended.
-        try {
-            input = JSON.stringify(data, Object.keys(data).sort());
-        } catch (e) {
-            throw new Error("Cannot serialize data for hashing: " + e.message);
-        }
-    } else {
-        input = data;
+    if (!CanonicalCryptoUtility || typeof CanonicalCryptoUtility.calculateHash !== 'function') {
+        throw new Error("CanonicalCryptoUtility plugin is required but unavailable or improperly initialized.");
     }
 
-    try {
-        return createHash(algorithm)
-            .update(input, 'utf8')
-            .digest('hex');
-    } catch (e) {
-        // Catch if algorithm is unsupported or environment lacks crypto
-        throw new Error(`Hashing failed with algorithm ${algorithm}: ${e.message}`);
-    }
+    return CanonicalCryptoUtility.calculateHash(data, algorithm);
 }
