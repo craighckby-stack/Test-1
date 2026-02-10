@@ -1,28 +1,31 @@
+import { loadConfig } from '../core/ConfigLoader';
+
 /**
  * MetricProfileSelector
  * Selects the appropriate Metric Weighting Profile based on the current Mandate's CSR assessment.
  * Leverages system/config/MetricWeights.json.
+ *
+ * NOTE: The threshold evaluation is delegated to the ThresholdBasedProfileSelectorTool.
  */
 
-import { loadConfig } from '../core/ConfigLoader';
-
-const CSR_THRESHOLDS = {
-    RISK: 0.6,
-    COMPLEXITY: 0.7,
-    SCOPE: 0.5
+// NOTE: ThresholdBasedProfileSelectorTool is assumed to be available via injection or global scope.
+declare const ThresholdBasedProfileSelectorTool: {
+    select(csrAssessment: { risk: number, complexity: number, scope: number }): string;
 };
 
+/**
+ * Selects the profile based on the CSR assessment.
+ * @param {object} csrAssessment - Assessment containing risk, complexity, and scope scores.
+ * @returns {Promise<string>} The selected profile name.
+ */
 export async function selectProfile(csrAssessment) {
-    const metricWeights = await loadConfig('MetricWeights');
-    const { risk, complexity, scope } = csrAssessment;
-
-    if (risk >= CSR_THRESHOLDS.RISK) {
-        return 'High_Risk_Control';
-    }
-    if (complexity >= CSR_THRESHOLDS.COMPLEXITY || scope >= CSR_THRESHOLDS.SCOPE) {
-        return 'High_Complexity_Focus';
+    // Load configuration context, as mandated by the module description.
+    await loadConfig('MetricWeights'); 
+    
+    // Delegate the complex threshold logic to the specialized plugin.
+    if (typeof ThresholdBasedProfileSelectorTool !== 'undefined' && ThresholdBasedProfileSelectorTool.select) {
+        return ThresholdBasedProfileSelectorTool.select(csrAssessment);
     }
 
-    // Fallback to default profile
-    return 'Default_Standard';
+    throw new Error("Threshold based profile selector tool is unavailable.");
 }
