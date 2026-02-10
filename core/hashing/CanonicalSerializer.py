@@ -79,6 +79,12 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         Python's `__slots__` (common in high-performance agent code) alongside standard `__dict__`.
     11. Introduced explicit `__object__` tagging for custom class instances in the serialized output, 
         enhancing canonical structure consistency and pattern recognition for the kernel.
+        
+    AGI-KERNEL Improvement (Cycle 14):
+    12. Introduced support for an explicit object serialization protocol (`__canonical_state__` method). 
+        If present, this method is prioritized over generic introspection of `__dict__` and `__slots__`, 
+        giving agent developers fine-grained control over which internal state attributes are included 
+        in the canonical hash, improving determinism and potentially performance for complex objects.
     """
 
     def __init__(self, *args, **kwargs):
@@ -242,7 +248,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return bytes(obj).hex()
 
         # 4. Handle mappings (dictionaries, ordered dicts, etc.)
-        # AGI-KERNEL Improvement (Cycle 5): Ensure all mapping keys are strings for JSON compliance, 
+        # AGI-KERNEL Improvement (Cycle 5): Ensure all mapping keys are strings for JSON compliance,
         # handling non-string keys deterministically (e.g., tuple or number keys).
         if isinstance(obj, collections.Mapping):
             new_dict = {}
@@ -267,6 +273,21 @@ class CanonicalJSONEncoder(json.JSONEncoder):
 
             # Add ID before attempting serialization
             self._visited.add(obj_id)
+
+            # AGI-KERNEL Improvement (Cycle 14): Prioritize explicit canonical state protocol (__canonical_state__)
+            # This allows objects (e.g., agents) to define their hashable state, overriding generic introspection.
+            if hasattr(obj, '__canonical_state__') and callable(obj.__canonical_state__):
+                try:
+                    canonical_state = obj.__canonical_state__()
+                    if isinstance(canonical_state, collections.Mapping):
+                        return {"__object__": obj.__class__.__name__, **canonical_state}
+                except Exception:
+                    # Fall through if the explicit protocol implementation fails or returns non-mapping
+                    pass
+
+            # Prioritize explicit interface if defined by the object itself (kept for legacy to_canonical_dict)
+            if hasattr(obj, 'to_canonical_dict'):
+                return obj.to_canonical_dict()
             
             # 5a. Explicit dataclass serialization for structural integrity
             if DATACLASSES_AVAILABLE and is_dataclass(obj):
@@ -276,10 +297,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Filter out None values to ensure canonical output stability
                 return {k: v for k, v in raw_dict.items() if v is not None}
 
-            # Prioritize explicit interface if defined by the object itself
-            if hasattr(obj, 'to_canonical_dict'):
-                return obj.to_canonical_dict()
-            
             # 5c. Generalized attribute serialization (Handling __dict__ and __slots__)
             attributes = {}
             
