@@ -5,7 +5,23 @@
 
 import { RCDM_CONFIG } from './RCDM.json';
 
+// Define the interface for the injected tool for TypeScript compatibility
+interface IRCDMPhaseTransitionValidator {
+    execute(args: { rcdmConfig: any, newPhaseId: string }): { success: boolean, rulesetId: string | null, error: string | null };
+}
+
+// Assume the plugin is globally accessible or injected via dependency inversion
+declare const RCDMPhaseTransitionValidatorTool: IRCDMPhaseTransitionValidator;
+
 class GovernanceStateTracker {
+    private currentState: {
+        phase: string;
+        ruleset: string | null;
+        active_proposals: Record<string, any>;
+        metrics_cache: Record<string, any>;
+    };
+    private rcdmValidator: IRCDMPhaseTransitionValidator;
+
     constructor() {
         this.currentState = {
             phase: 'initialization',
@@ -13,20 +29,29 @@ class GovernanceStateTracker {
             active_proposals: {},
             metrics_cache: {}
         };
+        // Initialize the validator tool
+        this.rcdmValidator = RCDMPhaseTransitionValidatorTool;
     }
 
-    updatePhase(newPhaseId) {
-        const phaseDefinition = RCDM_CONFIG.phases[newPhaseId];
-        if (phaseDefinition) {
+    updatePhase(newPhaseId: string): boolean {
+        // Delegate configuration lookup and validation to the extracted utility
+        const validationResult = this.rcdmValidator.execute({
+            rcdmConfig: RCDM_CONFIG,
+            newPhaseId: newPhaseId
+        });
+        
+        if (validationResult.success && validationResult.rulesetId) {
             this.currentState.phase = newPhaseId;
-            this.currentState.ruleset = phaseDefinition.ruleset_id;
-            console.log(`Transitioned to Phase: ${newPhaseId}`);
+            this.currentState.ruleset = validationResult.rulesetId;
+            console.log(`Transitioned to Phase: ${newPhaseId}. Ruleset: ${validationResult.rulesetId}`);
             return true;
         }
+        
+        console.error(`Failed to transition phase to '${newPhaseId}'. Error: ${validationResult.error || 'Unknown validation failure.'}`);
         return false;
     }
 
-    recordProposalVote(proposalId, actorId, score) {
+    recordProposalVote(proposalId: string, actorId: string, score: number) {
         // Logic to track individual actor scores and apply ruleset weighting (from RCDM) to calculate consensus.
         // If consensus is met, trigger dynamic_transition check.
     }
