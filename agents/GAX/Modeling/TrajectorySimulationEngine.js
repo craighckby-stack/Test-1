@@ -1,4 +1,12 @@
-// GAX Modeling Component: Trajectory Simulation Engine
+// Defining Schemas outside the class for clarity
+const MANIFEST_SCHEMA = {
+    entityId: { type: 'string', required: true }
+};
+
+const PREDICTION_RESULT_SCHEMA = {
+    temm: { type: 'number', required: true },
+    ecvm: { type: 'boolean', required: true }
+};
 
 /**
  * The Trajectory Simulation Engine (TSE) is responsible for running high-fidelity,
@@ -12,14 +20,17 @@ class TrajectorySimulationEngine {
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
      * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
      * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
+     * @param {Object} [Validator] - Optional schema validation service instance (e.g., SimpleStructureValidator).
      */
-    constructor(ACVD_Store, Configuration, ModelHandler) {
+    constructor(ACVD_Store, Configuration, ModelHandler, Validator = null) {
         if (!ModelHandler || typeof ModelHandler.predict !== 'function') {
             throw new Error("TSE Initialization Error: A valid ModelHandler implementing an asynchronous 'predict' method is required.");
         }
         this.ACVD = ACVD_Store;
         this.config = Configuration;
         this.model = ModelHandler;
+        // Inject the validator for structural integrity checks
+        this.validator = Validator;
     }
 
     /**
@@ -32,6 +43,7 @@ class TrajectorySimulationEngine {
         // Detailed logic for feature engineering (e.g., transaction complexity, data volume, historical entity risk)
         try {
             // ACVD interaction is assumed to be async due to potential database or service calls
+            // We assume inputManifest.entityId exists due to upstream validation in runSimulation
             const historyRisk = await this.ACVD.getHistoricalRisk(inputManifest.entityId);
 
             return {
@@ -42,7 +54,6 @@ class TrajectorySimulationEngine {
             };
         } catch (error) {
             console.error("TSE Feature Extraction Failed: Could not retrieve necessary ACVD data.", error);
-            // In a real system, this would throw a specific SimulationError
             throw new Error("Feature extraction failed."); 
         }
     }
@@ -53,17 +64,36 @@ class TrajectorySimulationEngine {
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
      */
     async runSimulation(inputManifest) {
-        if (!inputManifest || !inputManifest.entityId) {
-             throw new Error("Invalid Manifest: 'entityId' is required for simulation.");
-        }
+        let entityId = 'unknown';
 
         try {
+            // 1. Input Validation using injected Validator (preferred)
+            if (this.validator) {
+                const inputValidation = this.validator.validate(inputManifest, MANIFEST_SCHEMA);
+                if (!inputValidation.isValid) {
+                    throw new Error(`Invalid Manifest: ${inputValidation.errors.join('; ')}`);
+                }
+                entityId = inputManifest.entityId;
+            } else if (!inputManifest || typeof inputManifest.entityId !== 'string') {
+                 // Fallback to manual check if validator is unavailable
+                 throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
+            } else {
+                entityId = inputManifest.entityId;
+            }
+
             const features = await this.#extractFeatures(inputManifest);
 
             // Execute asynchronous model inference
             const results = await this.model.predict(features);
 
-            if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
+            // 2. Output Validation using injected Validator (preferred)
+            if (this.validator) {
+                const outputValidation = this.validator.validate(results, PREDICTION_RESULT_SCHEMA);
+                if (!outputValidation.isValid) {
+                    throw new Error(`Model output format invalid. Expected {temm: number, ecvm: boolean}. Errors: ${outputValidation.errors.join('; ')}`);
+                }
+            } else if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
+                 // Fallback to original manual check
                  throw new Error("Model output format invalid: Expected {temm: number, ecvm: boolean}.");
             }
 
@@ -73,10 +103,15 @@ class TrajectorySimulationEngine {
             };
         } catch (error) {
             // Propagate specialized errors or wrap general exceptions
-            console.error(`TSE Simulation Failed for ${inputManifest.entityId}:`, error);
-            throw new Error(`Trajectory simulation failed due to prediction system error. ${error.message}`);
+            console.error(`TSE Simulation Failed for ${entityId}:`, error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(`Trajectory simulation failed due to prediction system error. ${errorMessage}`);
         }
     }
 }
+
+// Export constants and the class
+TrajectorySimulationEngine.MANIFEST_SCHEMA = MANIFEST_SCHEMA;
+TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA = PREDICTION_RESULT_SCHEMA;
 
 module.exports = TrajectorySimulationEngine;
