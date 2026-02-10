@@ -59,6 +59,19 @@
       "innovation"
     ]
   },
+  "EMERGENCE_QUALITY_SCORE": {
+    "description": "Self-assessed score (0-10) reflecting the quality, novelty, and cross-domain synthesis complexity of recent emergent capabilities.",
+    "type": "GAUGE",
+    "unit": "SCORE",
+    "aggregation_strategy": "LAST",
+    "criticality": "P1",
+    "tags": [
+      "agi",
+      "emergence",
+      "quality",
+      "novelty"
+    ]
+  },
   "EVOLUTION_CYCLES_COMPLETED": {
     "description": "Total number of successful self-modification cycles committed.",
     "type": "COUNTER",
@@ -148,6 +161,18 @@
       "evolution",
       "stability",
       "recovery"
+    ]
+  },
+  "STRATEGIC_PRIORITY_COMPLIANCE_SCORE": {
+    "description": "Self-assessed score (0-10) measuring adherence to the mission-defined directory exploration weights (e.g., /core 30%, /emergent 20%) over recent cycles.",
+    "type": "GAUGE",
+    "unit": "SCORE",
+    "aggregation_strategy": "LAST",
+    "criticality": "P1",
+    "tags": [
+      "navigation",
+      "strategy",
+      "governance"
     ]
   },
   "TASK_SUCCESS_RATE_PCT": {
