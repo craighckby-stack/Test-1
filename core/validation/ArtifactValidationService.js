@@ -17,7 +17,7 @@ class ArtifactValidationService {
      * Artifacts must specify the required validator name.
      * 
      * @param {Array<Object>} artifacts - List of artifact descriptors.
-     *   Example: [{ id: 'core-logic-1', content: '...', validatorName: 'jsLinter', config: {} }]
+     *   Example: [{ id: 'core-logic-1', content: '...', validatorName: 'jsLinter', config: {}, filePath: 'core/system.js' }]
      * @returns {Promise<Array<Object>>} Validation results including execution metadata and details.
      */
     async validateArtifacts(artifacts) {
@@ -29,71 +29,91 @@ class ArtifactValidationService {
         const validationPromises = artifacts.map(async (artifact, index) => {
             const startTime = Date.now();
             
-            // Ensure artifact has necessary identifying properties for robust error reporting
-            const { id = `artifact-${index}`, content, validatorName, config = {} } = artifact;
+            const { 
+                id = `artifact-${index}`, 
+                content, 
+                validatorName, 
+                config = {},
+                filePath = 'unknown' // Added context for AGI learning
+            } = artifact;
+
+            // Helper to standardize output structure
+            const createResult = (success, message, details = [], error = null, severity = 'ERROR') => ({
+                id,
+                validatorName,
+                success,
+                filePath,
+                severity,
+                details,
+                message,
+                error,
+                executionTimeMs: Date.now() - startTime
+            });
             
             // --- Input and Metadata Checks ---
 
             if (!validatorName) {
-                 return {
-                    id,
-                    validatorName: 'MISSING',
-                    success: false,
-                    executionTimeMs: Date.now() - startTime,
-                    message: `Validation skipped: Artifact ${id} is missing 'validatorName'.`,
-                    details: []
-                };
+                 return createResult(
+                    false, 
+                    `Validation skipped: Artifact ${id} is missing 'validatorName'.`,
+                    [],
+                    null,
+                    'CRITICAL_INPUT'
+                );
             }
             
             // Check for missing or null content before engaging validators
             if (content === undefined || content === null) {
-                 return {
-                    id,
-                    validatorName,
-                    success: false,
-                    executionTimeMs: Date.now() - startTime,
-                    message: `Validation skipped: Artifact ${id} has undefined or null content.`,
-                    details: []
-                };
+                 return createResult(
+                    false, 
+                    `Validation skipped: Artifact ${id} has undefined or null content.`,
+                    [],
+                    null,
+                    'CRITICAL_INPUT'
+                );
             }
 
             const validator = this.registry.getValidator(validatorName);
 
             if (!validator) {
-                return {
-                    id,
-                    validatorName,
-                    success: false,
-                    executionTimeMs: Date.now() - startTime,
-                    message: `Validation skipped: Validator '${validatorName}' not registered.`,
-                    details: []
-                };
+                return createResult(
+                    false,
+                    `Validation skipped: Validator '${validatorName}' not registered.`,
+                    [],
+                    null,
+                    'CRITICAL_SETUP'
+                );
             }
 
             // --- Execution ---
             try {
-                // The validator must return an object: { success: boolean, details: Array<Object>, error: Error | null }
+                // The validator must return an object: 
+                // { success: boolean, details: Array<Object>, error: Error | null, severity: string (optional) }
                 const validationResult = await validator.validate(content, config);
                 
-                return {
-                    id,
-                    validatorName,
-                    success: !!validationResult.success,
-                    details: validationResult.details || [],
-                    error: validationResult.error ? validationResult.error.message : null, // Extract message for JSON serialization
-                    executionTimeMs: Date.now() - startTime
-                };
+                const details = validationResult.details || [];
+                
+                // Normalize severity: use validator's severity if provided, otherwise infer.
+                const finalSeverity = validationResult.severity || (validationResult.success ? 'INFO' : 'ERROR');
+
+                return createResult(
+                    !!validationResult.success,
+                    validationResult.message || (validationResult.success ? 'Validation successful.' : 'Validation failed.'),
+                    details,
+                    validationResult.error ? validationResult.error.message : null,
+                    finalSeverity
+                );
+
             } catch (error) {
                 // Handle unexpected execution exceptions (e.g., code crash in self-generated validator)
-                return {
-                    id,
-                    validatorName,
-                    success: false,
-                    details: [], 
-                    message: `Validation failed due to internal execution error in '${validatorName}'.`,
-                    error: error.message, 
-                    executionTimeMs: Date.now() - startTime
-                };
+                // CRITICAL_RUNTIME alerts the AGI kernel to an internal system stability issue.
+                return createResult(
+                    false, 
+                    `Validation failed due to internal execution error in '${validatorName}'.`,
+                    [], 
+                    error.stack || error.message, 
+                    'CRITICAL_RUNTIME'
+                );
             }
         });
 
