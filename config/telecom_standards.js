@@ -1,20 +1,10 @@
 /**
- * Centralized configuration for telecommunication standards and limits.
- * Allows easy modification of carrier limits (e.g., segment sizes) without touching business logic.
+ * Example usage: Loading and accessing the configuration via the KERNEL tool system.
  */
 
-module.exports = {
-    SMS: {
-        GSM_7BIT: {
-            LIMITS: { single: 160, multi: 153 },
-            BASIC_CHARS_REGEX: /[A-Za-z0-9\s!"#\$%&'\(\)\*\+,\-\.\/:;<=>\?@£¥èéùìòÇØøÅåΔΓΛΩΠΨΣΘΞÆæßÉñÑ¿¡\r\n]/g,
-            EXTENDED_CHARS: ['\f', '^', '{', '}', '\\', '[', '~', ']', '|', '€'],
-        },
-        UCS2_16BIT: {
-            LIMITS: { single: 70, multi: 67 }
-        }
-    },
-    // Future extensions for MMS, push notifications, etc.
-    MMS: {},
-    PUSH_NOTIFICATION: {}
-};
+const telecommConfig = KERNEL_SYNERGY_CAPABILITIES.Tool.execute("TelecommConfig", "getConfiguration", { path: "" });
+
+// Accessing a specific limit
+const gsmSingleLimit = telecommConfig.SMS.GSM_7BIT.LIMITS.single;
+
+console.log(`Current GSM 7-bit single segment limit: ${gsmSingleLimit}`);
