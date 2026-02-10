@@ -11,7 +11,7 @@ const DEFAULT_WEIGHT_AGGREGATION = 'MAX';
  * @class ConflictResolutionEngine
  * Manages the evaluation of competing operational requests against the CRCM (Conflict Resolution Constraint Model).
  * Utilizes a SecureExpressionEvaluator to safely execute complex weighting formulas.
- * Improvement: Now supports configurable weight aggregation (SUM or MAX) per domain and provides enhanced violation reporting.
+ * Improvement: Logic simplified by delegating constraint checking and weight aggregation to ConflictModelEvaluator plugin.
  */
 class ConflictResolutionEngine {
   /**
@@ -26,6 +26,8 @@ class ConflictResolutionEngine {
     this.evaluator = evaluator;
     // Pre-process CRCM for O(1) domain lookup, storing the full domain object.
     this.domainMap = this._buildDomainMap(crcm.domains);
+    // Bind the evaluator function for easy passing to the plugin
+    this._evaluatorFn = this.evaluator.evaluate.bind(this.evaluator);
   }
 
   /**
@@ -47,21 +49,6 @@ class ConflictResolutionEngine {
   }
 
   /**
-   * Applies priority weight based on the defined aggregation method for the domain.
-   * @param {number} currentWeight
-   * @param {number} calculatedValue
-   * @param {string} aggregationMethod
-   * @returns {number} The updated weight.
-   */
-  _applyPriorityWeight(currentWeight, calculatedValue, aggregationMethod) {
-      if (aggregationMethod === 'SUM') {
-          return currentWeight + calculatedValue;
-      }
-      // Defaults to MAX aggregation
-      return Math.max(currentWeight, calculatedValue);
-  }
-
-  /**
    * Evaluates competing requests against CRCM constraints and calculates resolution weight.
    * Finds the single request with the highest calculated priority weight that meets all constraints.
    * 
@@ -70,6 +57,8 @@ class ConflictResolutionEngine {
    * @returns {{winningRequest: Object|null, resolutionWeight: number, resolutionMetadata: Object}}
    */
   resolveConflict(competingRequests, currentContext) {
+    // NOTE: ConflictModelEvaluator is an active plugin utilized here.
+
     if (!Array.isArray(competingRequests) || competingRequests.length === 0) {
         return { winningRequest: null, resolutionWeight: -Infinity, resolutionMetadata: { reason: "No competing requests provided." } };
     }
@@ -90,47 +79,19 @@ class ConflictResolutionEngine {
       const applicableControls = domain.controls;
       const aggregationMethod = domain.aggregation_method || DEFAULT_WEIGHT_AGGREGATION;
 
-      let currentRequestWeight = 0;
-      let violationDetails = null;
-      let appliedControls = [];
-      let isViable = true;
-
-      for (const control of applicableControls) {
-        if (typeof control.weight_formula !== 'string') continue;
-        
-        let calculatedValue;
-        try {
-            // Use the injected secure evaluator
-            calculatedValue = this.evaluator.evaluate(control.weight_formula, currentContext);
-        } catch (e) {
-            // Error in evaluation means the control cannot be trusted/applied, treat as non-viable or log failure.
-            console.error(`Evaluation error for control ${control.id}: ${e.message}`);
-            calculatedValue = 0; 
-        }
-
-        appliedControls.push({ controlId: control.id, type: control.control_type, value: calculatedValue });
-
-        // 1. Check for VETO constraints (CONSTRAINT_POLICY)
-        // A value of 0 indicates failure/violation.
-        if (control.control_type === CONTROL_TYPES.CONSTRAINT_POLICY && calculatedValue === 0) {
-          isViable = false;
-          violationDetails = {
-            constraintId: control.id,
-            reason: `VETO constraint failed: Formula evaluated to 0.`
-          };
-          currentRequestWeight = -Infinity; // Immediate veto
-          break; 
-        }
-
-        // 2. Determine Priority Weight
-        if (control.control_type === CONTROL_TYPES.PRIORITY_WEIGHT) {
-            currentRequestWeight = this._applyPriorityWeight(currentRequestWeight, calculatedValue, aggregationMethod);
-        }
-      }
+      // Delegate scoring and constraint checking to the ConflictModelEvaluator plugin
+      const evaluationResult = ConflictModelEvaluator.execute({
+          controls: applicableControls,
+          context: currentContext,
+          aggregationMethod: aggregationMethod,
+          evaluatorFn: this._evaluatorFn // Pass the secure evaluator function bound in the constructor
+      });
+      
+      const { score, isViable, violationDetails, appliedControls } = evaluationResult;
 
       // If the request survived constraints and has a higher weight, it wins
-      if (isViable && currentRequestWeight > highestWeight) {
-        highestWeight = currentRequestWeight;
+      if (isViable && score > highestWeight) {
+        highestWeight = score;
         winningRequest = request;
         resolutionMetadata = { 
             appliedControls: appliedControls,
@@ -140,7 +101,6 @@ class ConflictResolutionEngine {
       } else if (!isViable) {
         // Capture rejection metadata for debugging/learning, even if it didn't win
         if (!resolutionMetadata.rejectedRequests) resolutionMetadata.rejectedRequests = [];
-        // Assuming requests have IDs for traceability
         resolutionMetadata.rejectedRequests.push({ 
             requestId: request.id || 'unknown',
             domainId: domainId,
@@ -149,12 +109,10 @@ class ConflictResolutionEngine {
       }
     }
     
-    // Ensure final metadata is clean if a winner was found
+    // Cleanup metadata if a winner was found
     if (winningRequest && resolutionMetadata.rejectedRequests) {
-        // Remove transient tracking data if a definitive winner was found
         delete resolutionMetadata.rejectedRequests;
     }
-
 
     return {
       winningRequest: winningRequest,
