@@ -2,29 +2,42 @@
  * Sovereign AGI - Data Trust Protocol Client (DTEM V3.0)
  * Handles lookup and execution of Trust Policies defined in config/security/data_trust_endpoints_v3.json
  */
+
+// Assuming ToolExecutor is available globally or imported for accessing kernel plugins
+declare const ToolExecutor: any;
+
 class ProvenanceTrustClient {
+    private streamMatcherTool: any;
+
     constructor(configLoader, pvsConnector) {
         this.config = configLoader.load('data_trust_endpoints_v3');
         this.pvsConnector = pvsConnector; // Provenance Verification Service connection instance
         this.policies = this.config.trust_policies;
         this.streams = this.config.data_streams;
         this.defaults = this.config.global_policy_defaults;
+
+        // Initialize the tool reference
+        this.streamMatcherTool = ToolExecutor.get('ConfigStreamMatcher');
     }
 
     /**
-     * Matches an incoming endpoint URL to a defined data stream configuration.
+     * Matches an incoming endpoint URL to a defined data stream configuration 
+     * using the robust ConfigStreamMatcher plugin (supporting glob patterns).
      * @param {string} url - The URL or identifier of the ingress point.
      * @returns {Object | null} The stream configuration or null.
      */
     findStreamConfiguration(url) {
-        // Implementation note: This should use a robust pattern matching library
-        for (const stream of this.streams) {
-            // Simplified matching: In production, use regex or Glob patterns
-            if (url.startsWith(stream.endpoint_pattern.replace('*', ''))) {
-                return stream;
-            }
+        if (!this.streamMatcherTool) {
+            // Fallback or error if tool is unavailable
+            console.error("ConfigStreamMatcher tool not initialized.");
+            return null;
         }
-        return null;
+
+        return this.streamMatcherTool.execute({
+            target: url,
+            patterns: this.streams,
+            patternKey: 'endpoint_pattern'
+        });
     }
 
     /**
