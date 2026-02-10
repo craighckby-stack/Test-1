@@ -4,9 +4,28 @@
  * encountered by security or integrity components (e.g., ParameterAuditor).
  * It provides structured context, standard serialization, and factory methods.
  */
+
+// AGI-KERNEL Integration: Declare the specialized serialization utility for standardized error formatting.
+declare const StructuredErrorSerializerTool: {
+    execute(error: any): { 
+        name: string; 
+        code: string; 
+        message: string; 
+        details: any; 
+        stack?: string; 
+        cause?: any 
+    };
+};
+
 class AuditorError extends Error {
     /** The standard name for this error type. */
-    name = 'AuditorError';
+    name: 'AuditorError' = 'AuditorError';
+
+    /** Machine-readable error code. */
+    code: string;
+
+    /** Structured context details. */
+    details: object;
 
     /** A version identifier for serialization tracking. */
     static VERSION = 'v2.1.0';
@@ -18,7 +37,7 @@ class AuditorError extends Error {
      * @param {object} [options.details={}] - Structured context, e.g., { parameterName, failedValue, constraints }.
      * @param {Error} [options.cause] - The underlying error that caused this AuditorError (for error wrapping).
      */
-    constructor(message, options = {}) {
+    constructor(message: string, options: { code?: string, details?: object, cause?: Error | any } = {}) {
         // Error cause handling is standard practice in modern JS/TS error systems
         super(message, { cause: options.cause });
 
@@ -39,7 +58,7 @@ class AuditorError extends Error {
      * @param {object} [context={}] - Additional details.
      * @returns {AuditorError}
      */
-    static requiredField(fieldName, context = {}) {
+    static requiredField(fieldName: string, context: object = {}): AuditorError {
         return new AuditorError(
             `Required field missing or invalid: ${fieldName}`,
             {
@@ -55,7 +74,7 @@ class AuditorError extends Error {
      * @param {object} constraints - The constraints that failed (e.g., { minLength: 5 }).
      * @returns {AuditorError}
      */
-    static constraintViolation(message, constraints) {
+    static constraintViolation(message: string, constraints: object): AuditorError {
         return new AuditorError(message, {
             code: 'AUDIT_CONSTRAINT_VIOLATION',
             details: { constraints }
@@ -64,9 +83,16 @@ class AuditorError extends Error {
 
     /**
      * Returns a structured representation of the error, useful for standardized logging and API responses.
+     * This uses the AGI-KERNEL serialization utility for standardized output format and handling of nested causes.
      */
-    toJSON() {
-        const output = {
+    toJSON(): object {
+        if (typeof StructuredErrorSerializerTool?.execute === 'function') {
+            // Use the kernel utility for robust and standardized serialization
+            return StructuredErrorSerializerTool.execute(this);
+        }
+
+        // Fallback implementation if the serialization tool is not available
+        const output: Record<string, any> = {
             name: this.name,
             code: this.code,
             message: this.message,
@@ -74,10 +100,10 @@ class AuditorError extends Error {
             stack: this.stack
         };
         
-        // Serialize the cause if present and serializable
+        // Fallback cause serialization
         if (this.cause) {
-            output.cause = this.cause instanceof Error && typeof this.cause.toJSON === 'function'
-                ? this.cause.toJSON()
+            output.cause = this.cause instanceof Error && typeof (this.cause as any).toJSON === 'function'
+                ? (this.cause as any).toJSON()
                 : String(this.cause);
         }
 
