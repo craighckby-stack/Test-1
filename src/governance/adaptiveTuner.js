@@ -4,12 +4,14 @@
  * Function: Monitors historical telemetry and real-time operational metrics using standardized evaluation
  *           to provide dynamic, controlled adjustments to system governance configurations (like RTM).
  * GSEP Alignment: Stage 4 Autonomous Optimization (T-02 Dynamic Parameter Adjustment)
- * Rationale: Increased generality, parameterized adjustment control, separation of mathematical evaluation logic, 
+ * Rationale: Increased generality, parameterized adjustment control, separation of mathematical evaluation logic,
  *            and implementation of adjustment damping based on volatility and hard limits.
  */
 
-// Placeholder dependency for robust mathematical analysis
-// This assumes the StatisticalEvaluator scaffold (proposed below) is implemented.
+// AGI-KERNEL PLUGIN INJECTION: AdaptiveParameterTuner handles the bounded, damped adjustment calculation.
+declare const AdaptiveParameterTuner: { execute: (args: any) => number | null }; 
+
+// Placeholder dependency for robust mathematical analysis. This function is passed to the plugin.
 const { calculateVolatility } = require('./tuningEngine/StatisticalEvaluator'); 
 
 class AdaptiveTuner {
@@ -56,6 +58,7 @@ class AdaptiveTuner {
 
     /**
      * Evaluates a single metric using recent history, calculating proportional adjustment needed and applying safety limits.
+     * This logic is delegated to the AdaptiveParameterTuner plugin.
      * @private
      * @param {string} metricKey - Key of the metric (e.g., 'cpu_util').
      * @param {number} currentValue - The current threshold value for this metric.
@@ -66,37 +69,27 @@ class AdaptiveTuner {
         const params = this.tuningProfile.metrics[metricKey];
         if (!params || !currentValue) return null;
 
-        const { weight, baseline_target, min_limit, max_limit } = params;
-
-        // 1. Stability Check (requires StatisticalEvaluator for accurate calculation)
-        // We use a simplified simulation if the evaluator is unavailable.
-        const volatility = (typeof calculateVolatility === 'function') 
-            ? calculateVolatility(recentHistory.raw_data) 
-            : (recentHistory.stdev || 0);
-            
-        // Volatility dampener: Reduce aggressiveness if metric history is highly unstable
-        const volatilityDampener = Math.max(0.2, 1.0 - volatility * 2); 
-
-        // 2. Performance Gap Analysis: Deviation from the desired baseline target
-        const deviation = recentHistory.averageUtilization - baseline_target;
+        // Prepare arguments for the external tuning tool
+        const adjustmentArgs = {
+            currentValue: currentValue,
+            history: recentHistory,
+            metricParams: params,
+            globalProfile: {
+                MAX_ADJUSTMENT_FACTOR: this.tuningProfile.MAX_ADJUSTMENT_FACTOR,
+                MIN_THRESHOLD_DRIFT_PERCENT: this.tuningProfile.MIN_THRESHOLD_DRIFT_PERCENT
+            },
+            // Pass the imported statistical function for advanced volatility calculation
+            volatilityFn: calculateVolatility
+        };
         
-        // Calculate raw adjustment magnitude. Uses Math.tanh for bounded response curve based on deviation.
-        // Negative deviation means average utilization is too low (need to increase threshold, positive adjustment).
-        let proportionalAdjustment = -Math.tanh(deviation * 3) * weight * this.tuningProfile.MAX_ADJUSTMENT_FACTOR * volatilityDampener;
-
-        // 3. Propose new value and enforce bounds
-        const proposedNewValue = currentValue * (1 + proportionalAdjustment);
-
-        // Clamp the proposed value within system safety limits (min/max_limit)
-        const boundedNewValue = Math.max(min_limit, Math.min(max_limit, proposedNewValue));
-        
-        const actualProportionalChange = (boundedNewValue - currentValue) / currentValue;
-
-        if (Math.abs(actualProportionalChange) < this.tuningProfile.MIN_THRESHOLD_DRIFT_PERCENT) {
-            return null; // Change too small to enact, prevents noise drift
+        // Delegate calculation to the specialized tuning plugin
+        if (typeof AdaptiveParameterTuner !== 'undefined' && AdaptiveParameterTuner.execute) {
+            return AdaptiveParameterTuner.execute(adjustmentArgs);
+        } else {
+             // CRITICAL: Handle missing plugin if necessary, though AGI-KERNEL guarantees injection
+             console.warn("AdaptiveParameterTuner not available. Cannot calculate adjustments.");
+             return null;
         }
-
-        return boundedNewValue;
     }
 
     /**
