@@ -1,45 +1,72 @@
+declare const ThresholdViolationChecker: {
+    execute: (args: { telemetryData: object, constraints: object }) => Array<any>
+};
+
 class MCRA_Risk_Metric_Normalizer {
+  
+  /**
+   * Helper function for calculating the composite risk severity based on fixed MCRA weights.
+   * @param {object} data - Raw time-series input metrics.
+   * @returns {number} Normalized severity score (0-1.0).
+   */
+  private static _calculateSeverity(data: any): number { 
+    // Fixed weighting scheme: errors (0.4), latency_p99 (0.3), cpu_utilization (0.3)
+    const errors = data.errors || 0;
+    const latency_p99 = data.latency_p99 || 0;
+    const cpu_utilization = data.cpu_utilization || 0;
+
+    return Math.min(1.0, errors * 0.4 + latency_p99 * 0.3 + cpu_utilization * 0.3);
+  }
+
+  /**
+   * Generates a truncated base64 ID from the raw telemetry payload.
+   * Uses Buffer, assuming a Node/Kernel execution environment.
+   * @param {object} rawTelemetry - Raw time-series input metrics.
+   * @returns {string} Truncated context ID.
+   */
+  private static _generateContextId(rawTelemetry: object): string {
+    if (typeof Buffer === 'undefined' || !Buffer.from) {
+        return 'ID_GENERATION_UNAVAILABLE';
+    }
+    try {
+        // Simplified ID generation
+        return Buffer.from(JSON.stringify(rawTelemetry)).toString('base64').substring(0, 16);
+    } catch (e) {
+        console.error("Failed to generate context ID:", e);
+        return 'ID_GENERATION_FAILED';
+    }
+  }
+
+
   /**
    * Standardizes raw system telemetry into risk profiles suitable for the MCRA Arbiter.
    * @param {object} rawTelemetry - Raw time-series input metrics.
    * @param {object} constraintSet - Current operative constraints.
    * @returns {{risk_profile: object, constraint_violations: Array}}
    */
-  static process(rawTelemetry, constraintSet) {
-    let severity = this._calculateSeverity(rawTelemetry);
-    let violations = this._checkViolations(rawTelemetry, constraintSet);
+  static process(rawTelemetry: object, constraintSet: object): { risk_profile: object, constraint_violations: Array<any> } {
     
-    // High-intelligence function mapping complex telemetry to normalized score (0-1.0)
-    function _calculateSeverity(data) { 
-      // Implementation logic: weighted average of standard deviations from target metrics
-      return Math.min(1.0, data.errors * 0.4 + data.latency_p99 * 0.3 + data.cpu_utilization * 0.3);
-    }
-
-    function _checkViolations(data, constraints) {
-      // Implementation logic: iterative check against constraint thresholds
-      const detected = [];
-      for (const [id, limit] of Object.entries(constraints)) {
-        // Example check: Assume limit defines {metric, type, boundary}
-        const currentValue = data[limit.metric];
-        if (currentValue && currentValue > limit.boundary) {
-          detected.push({
-            constraint_id: id,
-            metric_value: currentValue,
-            threshold_type: limit.type
-          });
-        }
-      }
-      return detected;
-    }
+    // 1. Calculate Severity
+    const severity = MCRA_Risk_Metric_Normalizer._calculateSeverity(rawTelemetry);
+    
+    // 2. Check Violations using the extracted Threshold Violation Checker
+    const violations = ThresholdViolationChecker.execute({ 
+        telemetryData: rawTelemetry, 
+        constraints: constraintSet 
+    });
+    
+    // 3. Generate Context ID
+    const contextSnapshotId = MCRA_Risk_Metric_Normalizer._generateContextId(rawTelemetry);
 
     return {
       risk_profile: {
         severity_score: severity,
         risk_category: violations.length > 2 ? "COMPLEX_OVERLOAD" : (violations.length > 0 ? "CONSTRAINT_BREACH" : "NOMINAL"),
-        context_snapshot_id: Buffer.from(JSON.stringify(rawTelemetry)).toString('base64').substring(0, 16) // Simplified ID generation
+        context_snapshot_id: contextSnapshotId
       },
       constraint_violations: violations
     };
   }
 }
+
 module.exports = MCRA_Risk_Metric_Normalizer;
