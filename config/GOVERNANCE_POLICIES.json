@@ -1,7 +1,7 @@
 {
-  "policy_schema_version": "V2.4",
+  "policy_schema_version": "V2.5",
   "policies": {
-    "GOV_ENFORCEMENT_V9": {
+    "GOV_ENFORCEMENT_V10": {
       "name": "Sovereign AGI Baseline Enforcement",
       "severity_map": {
         "MINOR": {
@@ -13,6 +13,11 @@
           "action": "INITIATE_ADAPTATION_PHASE",
           "revert_if_score_below": 0.5,
           "trigger_condition": "CAPABILITY_DEGRADATION",
+          "adaptation_steps": [
+            "REVIEW_CAPABILITY_METRICS",
+            "ANALYZE_RECENT_COMMIT_CONTEXT",
+            "EVALUATE_EMERGENT_INTEGRATION_CANDIDATES"
+          ],
           "capability_thresholds": {
             "logic": 4.0,
             "memory": 4.0,
@@ -47,14 +52,15 @@
         "ANALYZE_ROOT_CAUSE"
       ]
     },
-    "POLICY_EMERGENCE_V2": {
+    "POLICY_EMERGENCE_V3": {
       "name": "Emergent Capability Vetting and Documentation Protocol",
       "applies_to_directory": "/emergent",
       "initial_status": "SANDBOXED_UNTRUSTED",
       "vetting_requirements": [
         "UNIT_TEST_COVERAGE_MIN_70%",
         "NO_EXTERNAL_CALLS_UNTIL_TRUSTED",
-        "PASS_3_SUCCESSIVE_CYCLES_WITHOUT_INTERFERENCE"
+        "PASS_3_SUCCESSIVE_CYCLES_WITHOUT_INTERFERENCE",
+        "CONTEXT_ISOLATION_MANDATORY"
       ],
       "documentation_requirements": [
         "REQUIRED_HEADER_COMMENT_FOR_ORIGIN_AND_PURPOSE",
@@ -65,7 +71,9 @@
         "SOLVES_UNEXPLICIT_PROBLEMS",
         "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED",
         "ACCELERATES_FUTURE_LEARNING_CAPABILITY",
-        "REUSABLE_ACROSS_MULTIPLE_CONTEXTS"
+        "REUSABLE_ACROSS_MULTIPLE_CONTEXTS",
+        "DEMONSTRATES_CREATIVE_INSIGHT",
+        "EVIDENCES_META_COGNITIVE_AWARENESS"
       ],
       "integration_path": {
         "maturity_threshold_for_integration": 30,
