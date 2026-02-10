@@ -7,26 +7,14 @@ import {
 } from 'lucide-react';
 
 /**
- * AGI-KERNAL v6.9.7 - "VIRTUAL_OS" [GOVERNANCE PATCH]
+ * AGI-KERNAL v7.8.0 - "VIRTUAL_OS" [GOVERNANCE PATCH]
  * INTEGRATED: AuditDataNormalizer & GovernanceSchemaDefs
+ * Note: AuditDataNormalizer logic has been externalized to TelemetryGovernanceNormalizer plugin.
  */
 
 // --- GOVERNANCE CORE (Grafts) ---
 
-class AuditDataNormalizer {
-    normalize(actorId, rawTelemetry) {
-        // Governance logic: Normalize latency against a 5000ms ceiling for AI generation
-        const latencyScore = 1 - (rawTelemetry.p95LatencyMs / 5000); 
-        const stabilityFactor = rawTelemetry.success ? 1 : 0;
-
-        return {
-            efficiencyScore: Math.max(0, Math.min(1, latencyScore)),
-            complianceScore: stabilityFactor,
-            violationCount: rawTelemetry.success ? 0 : 1,
-            timestamp: Date.now()
-        };
-    }
-}
+// TelemetryGovernanceNormalizer Plugin now handles the normalization of raw telemetry to governance scores.
 
 /**
  * Role: State Reversion & Damage Control
@@ -92,4 +80,4 @@ class SystemRollbackCoordinator {
 
 const GPC_CONFIG = {
     protocol_evolution_control: {
-        risk_tolerance: "MODERATE\
+        risk_tolerance: "MODERATE"
