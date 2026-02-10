@@ -60,6 +60,8 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     to ensure deterministic hashing when AGI capabilities expand into the /data domain. 
     Refined Path serialization for cross-platform consistency using `as_posix()`.
     
+    AGI-KERNEL Improvement (Cycle 4): Added explicit handling for NamedTuples (converting to dicts for canonical field preservation) and Python's `complex` numbers, ensuring deterministic hashing for structural records and advanced mathematical artifacts used in emerging agent models.
+    
     AGI-KERNEL Improvement (Cycle 1 - Current): Enforced strict ISO 8601 formatting for datetimes 
     to ensure canonical representation across environment locales.
     """
@@ -91,13 +93,21 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Fallback to name if value is complex or missing
                 return obj.name
 
+        # AGI-KERNEL Improvement (Cycle 4): Handle complex numbers required by /metrics and advanced /agents math models.
+        if isinstance(obj, complex):
+            # Represent complex numbers explicitly as an object for canonical hashing.
+            return {"__complex__": True, "real": obj.real, "imag": obj.imag}
+
         # 1. Handle non-native iterables deterministically
-        if isinstance(obj, set):
-            # Convert sets to sorted lists to ensure canonical order
+        if isinstance(obj, set) or isinstance(obj, frozenset):
+            # Convert sets/frozensets to sorted lists to ensure canonical order
             return sorted(list(obj))
         
-        # Tuples are treated as lists for consistency
         if isinstance(obj, tuple):
+            # AGI-KERNEL Improvement (Cycle 4): Explicitly handle NamedTuples to preserve field meaning.
+            if hasattr(obj, '_asdict') and callable(obj._asdict):
+                return obj._asdict()
+            # Standard tuples (non-named) are treated as lists for consistency
             return list(obj)
 
         # AGI-KERNEL Improvement (Cycle 1): Handle Deques, common in /agents for history tracking.
