@@ -12,9 +12,9 @@
  */
 
 /**
- * @typedef {object} PolicyDelta
+ * @typedef {Object<string, *>} PolicyDelta
  * A map representing changes to be applied to the current Policy State.
- * Keys are policy paths, values are the desired state updates.
+ * Keys are policy paths (string), values are the desired state updates (any).
  */
 
 /**
@@ -26,4 +26,15 @@
  * @property {number} executionTimeMs - Time taken for verification.
  */
 
-module.exports = {}; // Export nothing, intended for JSDoc documentation and structural consistency checking.
+/**
+ * Explicitly exporting placeholders for the types defined above.
+ * This allows modules to import this file for consistency checks and runtime dependency detection.
+ */
+module.exports = {
+  /** @type {Constraint} */
+  Constraint: {},
+  /** @type {PolicyDelta} */
+  PolicyDelta: {},
+  /** @type {VerificationResult} */
+  VerificationResult: {}
+};
