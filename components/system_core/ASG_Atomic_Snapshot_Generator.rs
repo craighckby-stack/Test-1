@@ -130,8 +130,8 @@ impl RscmPackage {
     
     // Controlled accessors for sensitive data
     pub fn integrity_hash(&self) -> &IntegrityHash { &self.integrity_hash }
-    pub fn volatile_memory_dump(&self) -> &[u8] { self.volatile_memory_dump }
-    pub fn stack_trace(&self) -> &str { self.stack_trace }
+    pub fn volatile_memory_dump(&self) -> &[u8] { self.volatile_memory_dump.as_ref() }
+    pub fn stack_trace(&self) -> &str { self.stack_trace.as_ref() }
 }
 
 
@@ -143,7 +143,7 @@ pub enum SnapshotError {
     IntegrityHashingFailed,
     HashingOutputMismatch { expected: usize, actual: usize }, // Enhanced error for verification
     // AGI Improvement: Added error variant for structural mismatch, critical for integrity
-    MetadataEncodingFailed, 
+    MetadataEncodingFailed,
 }
 
 // Implementation for standardized error handling (AGI Logic Improvement)
@@ -161,6 +161,54 @@ impl fmt::Display for SnapshotError {
 }
 
 impl std::error::Error for SnapshotError {}
+
+/// AGI Logic Improvement: Isolated complex cryptographic protocol sequence into a helper.
+/// This enforces auditability and improves the logical clarity of the main generator function.
+fn calculate_integrity_hash(
+    vm_dump: &[u8],
+    trace: &str,
+    absolute_ts: u64,
+    volatile_data_size: u64,
+    context_flags: u32,
+) -> Result<IntegrityHash, SnapshotError> {
+    // Use CRoT implementation tailored for fixed-output integrity
+    let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
+        .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
+
+    // --- Integrity Hashing Protocol (Formalized using Canonical Metadata) ---
+    // Order: Volatile Data, Stack Trace, Canonical Metadata Block.
+    
+    hasher.update(vm_dump);
+    hasher.update(trace.as_bytes());
+    
+    // Construct canonical metadata structure.
+    let metadata = RscmPackageMetadata {
+        capture_version: RSCM_PACKAGE_VERSION,
+        absolute_capture_ts_epoch_ns: absolute_ts,
+        context_flags,
+        hashing_protocol_id: HASHING_PROTOCOL_ID,
+        volatile_data_size, 
+    };
+
+    // Serialize metadata into guaranteed byte order for hashing.
+    let metadata_bytes = metadata.to_canonical_bytes()?; 
+    hasher.update(&metadata_bytes);
+    
+    let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
+
+    // Validate hash integrity size
+    if raw_hash.len() != INTEGRITY_HASH_SIZE {
+        return Err(SnapshotError::HashingOutputMismatch { 
+            expected: INTEGRITY_HASH_SIZE, 
+            actual: raw_hash.len() 
+        });
+    }
+
+    let mut integrity_hash: IntegrityHash = [0; INTEGRITY_HASH_SIZE];
+    integrity_hash.copy_from_slice(&raw_hash);
+    
+    Ok(integrity_hash)
+}
 
 /// Generates an immutable, temporally constrained state snapshot (RSCM Package).
 /// Requires a specific implementation of SystemCaptureAPI for its environment.
@@ -181,43 +229,14 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     let context_flags: u32 = CONTEXT_FLAG_GSEP_C; 
     let volatile_data_size = vm_dump.len() as u64; // Capture size for metadata integrity
 
-    // 3. Assemble and cryptographic hash generation
-
-    // Use CRoT implementation tailored for fixed-output integrity
-    let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
-        .map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
-
-    // --- Integrity Hashing Protocol (Formalized using Canonical Metadata) ---
-    // Order: Volatile Data, Stack Trace, Canonical Metadata Block.
-    
-    hasher.update(&vm_dump);
-    hasher.update(trace.as_bytes());
-    
-    // AGI Logic Improvement: Use canonical metadata serialization block.
-    let metadata = RscmPackageMetadata {
-        capture_version: RSCM_PACKAGE_VERSION,
-        absolute_capture_ts_epoch_ns: absolute_ts,
+    // 3. Calculate Integrity Hash using the isolated, canonical protocol.
+    let integrity_hash = calculate_integrity_hash(
+        &vm_dump,
+        &trace,
+        absolute_ts,
+        volatile_data_size,
         context_flags,
-        hashing_protocol_id: HASHING_PROTOCOL_ID,
-        volatile_data_size, // Added size to metadata for integrity anchoring
-    };
-
-    // Serialize metadata into guaranteed byte order for hashing.
-    let metadata_bytes = metadata.to_canonical_bytes()?; 
-    hasher.update(&metadata_bytes);
-    
-    let raw_hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
-
-    // 3.1. Validate hash integrity size
-    if raw_hash.len() != INTEGRITY_HASH_SIZE {
-        return Err(SnapshotError::HashingOutputMismatch { 
-            expected: INTEGRITY_HASH_SIZE, 
-            actual: raw_hash.len() 
-        });
-    }
-
-    let mut integrity_hash: IntegrityHash = [0; INTEGRITY_HASH_SIZE];
-    integrity_hash.copy_from_slice(&raw_hash);
+    )?;
     
     let duration = start_time.elapsed();
     let latency_ns = duration.as_nanos();
@@ -236,6 +255,6 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
         trace,
         context_flags,
         HASHING_PROTOCOL_ID,
-        volatile_data_size, // Passed the new required metadata field
+        volatile_data_size,
     ))
 }
