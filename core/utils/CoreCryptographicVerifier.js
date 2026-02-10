@@ -1,7 +1,7 @@
 // core/utils/CoreCryptographicVerifier.js
 
-import { createHash } from 'crypto';
 import { MerkleProofVerifierTool } from '@/plugins/MerkleProofVerifierTool';
+import { IntegrityHashingUtility } from '@/plugins/IntegrityHashingUtility';
 
 /**
  * CoreCryptographicVerifier
@@ -13,14 +13,13 @@ export class CoreCryptographicVerifier {
 
     /**
      * Standardized SHA-256 Hashing for internal primitives.
-     * Retained for compatibility, but core logic should delegate to IntegrityHashingUtility.
+     * Delegates hashing responsibility to the centralized IntegrityHashingUtility.
+     *
      * @param {string|Buffer} data
      * @returns {string} Hex encoded hash
      */
     static hash(data: string | Buffer): string {
-        // Note: For advanced systems, this should eventually delegate to IntegrityHashingUtility
-        // if that utility guarantees synchronous behavior and performance parity.
-        return createHash('sha256').update(data).digest('hex');
+        return IntegrityHashingUtility.calculateSha256(data);
     }
 
     /**
