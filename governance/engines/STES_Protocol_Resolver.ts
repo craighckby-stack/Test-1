@@ -1,6 +1,18 @@
 import { STESSpecification } from '../protocols/STES_specification.json';
 import { ResolverHooks } from './ResolverHooks';
 
+// Assuming SpecificationStateTransitionResolver is available in the execution environment.
+// We use a mock interface declaration for type checking purposes.
+declare const SpecificationStateTransitionResolver: {
+    execute(args: {
+        spec: any;
+        hooks: any;
+        currentState: string;
+        trigger: string;
+        payload: any;
+    }): string;
+};
+
 /**
  * STES_Protocol_Resolver
  * Reads the STES specification and enforces governance protocols at runtime.
@@ -29,22 +41,18 @@ export class STES_Protocol_Resolver {
 
     /** Determines and executes the state transition based on the current state and trigger. */
     public executeTransition(currentState: string, trigger: string, payload: any): string {
-        const transition = this.spec.state_machine.transitions.find(
-            t => t.from === currentState && t.trigger === trigger
-        );
-
-        if (!transition) {
-            throw new Error(`Invalid transition or trigger for state ${currentState}.`);
+        // Delegate complex transition lookup and hook execution to the specialized tool
+        
+        if (typeof SpecificationStateTransitionResolver === 'undefined') {
+            throw new Error("SpecificationStateTransitionResolver tool not available.");
         }
 
-        // 1. Resolve method call (e.g., check_metric_drift_threshold)
-        ResolverHooks[transition.resolver_method](payload);
-
-        // 2. Execute enforcement hook
-        if (transition.enforcement_hook) {
-            ResolverHooks[transition.enforcement_hook](payload);
-        }
-
-        return transition.to;
+        return SpecificationStateTransitionResolver.execute({
+            spec: this.spec,
+            hooks: ResolverHooks,
+            currentState: currentState,
+            trigger: trigger,
+            payload: payload
+        });
     }
 }
