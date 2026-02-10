@@ -9,56 +9,27 @@
  */
 
 const fsPromises = require('fs/promises');
-const fs = require('fs'); // Required for streaming hash calculation
 const crypto = require('crypto');
 const path = require('path');
+
+// AGI Kernel Interface for Plugins (assuming access to AGI_PLUGINS)
+const DeterministicHasher = AGI_PLUGINS.DeterministicHasher;
 
 const CHR_PATH = path.join(__dirname, '../../protocol/chr_schema.json');
 const CONFIG_ROOT = path.join(__dirname, '../../');
 
 /**
- * Ensures deterministic hashing by stringifying objects with top-level sorted keys.
- * This is crucial for verifying self-integrity signatures across different environments.
- * @param {object} obj - The object to stringify.
- * @returns {string} Canonical JSON string.
+ * Calculates the hash of raw data using a specified algorithm.
+ * This helper is used specifically for the CHR self-integrity check (non-streaming data).
+ * @param {string} data - The raw string data.
+ * @param {string} algorithm - Hashing algorithm.
+ * @returns {string} The calculated hash in hex format.
  */
-function canonicalStringify(obj) {
-    // Ensure consistent key order for deterministic hashing
-    const sortedKeys = Object.keys(obj).sort();
-    
-    const sortedObject = sortedKeys.reduce((acc, key) => {
-        acc[key] = obj[key];
-        return acc;
-    }, {});
-
-    return JSON.stringify(sortedObject);
-}
-
-/**
- * Calculates the hash of a file using streams for high memory efficiency.
- * @param {string} filePath - Absolute path to the file.
- * @param {string} algorithm - Hashing algorithm (e.g., SHA3-512).
- * @returns {Promise<string>} The calculated hash in hex format.
- */
-async function calculateFileHash(filePath, algorithm) {
+function calculateDataHash(data, algorithm) {
     const normAlgorithm = algorithm.replace(/-/g, '').toLowerCase();
-    
-    return new Promise((resolve, reject) => {
-        const readStream = fs.createReadStream(filePath);
-        const hash = crypto.createHash(normAlgorithm);
-
-        readStream.on('error', (err) => {
-            // Pass errors (e.g., ENOENT - file not found) up to the caller
-            reject(err);
-        });
-
-        // Pipe the file stream into the hash stream
-        readStream.pipe(hash);
-
-        hash.on('finish', () => {
-            resolve(hash.digest('hex'));
-        });
-    });
+    return crypto.createHash(normAlgorithm)
+        .update(data)
+        .digest('hex');
 }
 
 /**
@@ -89,18 +60,18 @@ async function verifyConfigurationHashes() {
          return { success: false, metrics: { total: 0, failed: 1, detailed_results: [] } };
     }
     
-    const selfHashAlgorithm = integrity_signature.algorithm.replace(/-/g, '').toLowerCase();
+    const selfHashAlgorithm = integrity_signature.algorithm;
     const expectedSelfSignature = integrity_signature.signature;
     
-    // Use canonical stringification to ensure deterministic hashing of the payload
-    const verificationPayloadString = canonicalStringify({ 
-        registry, // Include registry explicitely as its order is critical
-        ...chrVerificationPayload 
+    // Use Canonical Stringify Plugin for deterministic hashing of the payload
+    const verificationPayloadString = DeterministicHasher.execute('canonicalStringify', {
+        obj: { 
+            registry, 
+            ...chrVerificationPayload 
+        }
     });
         
-    const calculatedSelfSignature = crypto.createHash(selfHashAlgorithm)
-        .update(verificationPayloadString)
-        .digest('hex');
+    const calculatedSelfSignature = calculateDataHash(verificationPayloadString, selfHashAlgorithm);
         
     if (calculatedSelfSignature !== expectedSelfSignature) {
         console.error(`[CHR L5 CORE_CRITICAL] CHR File Integrity Failed: Tampering Suspected.`);
@@ -117,7 +88,11 @@ async function verifyConfigurationHashes() {
         const { hash_value, algorithm } = item.integrity_metric;
         
         try {
-            const calculatedHash = await calculateFileHash(absolutePath, algorithm);
+            // Use Streaming Hash Plugin
+            const calculatedHash = await DeterministicHasher.execute('calculateFileHash', {
+                filePath: absolutePath,
+                algorithm: algorithm
+            });
             
             if (calculatedHash !== hash_value) {
                 console.error(`[CHR MISMATCH | ${item.criticality_level}] File: ${item.file_path}`);
@@ -129,8 +104,9 @@ async function verifyConfigurationHashes() {
                 results.push({ path: item.file_path, status: 'OK' });
             }
         } catch (e) {
-            console.error(`[CHR FILE ERROR | ${item.criticality_level}] Could not read/hash config file: ${item.file_path}. Code: ${e.code}`);
-            results.push({ path: item.file_path, status: 'MISSING', level: item.criticality_level, reason: e.code });
+            const reason = e.code || 'UNKNOWN_IO_ERROR';
+            console.error(`[CHR FILE ERROR | ${item.criticality_level}] Could not read/hash config file: ${item.file_path}. Code: ${reason}`);
+            results.push({ path: item.file_path, status: 'MISSING', level: item.criticality_level, reason: reason });
             integrityFailed = true;
             failedCount++;
         }
@@ -154,5 +130,6 @@ async function verifyConfigurationHashes() {
 
 module.exports = { 
     verifyConfigurationHashes,
-    calculateFileHash 
+    // Wrapper to maintain exported interface for streaming hash calculation
+    calculateFileHash: (filePath, algorithm) => DeterministicHasher.execute('calculateFileHash', { filePath, algorithm })
 };
