@@ -11,6 +11,53 @@ import {
 } from './types';
 import { RuleEvaluationService } from './RuleEvaluationService';
 
+// --- START: Extracted Tool Logic Integration ---
+
+/**
+ * Executes a configuration-driven threshold check.
+ * This helper implements the logic of the ConfigurableThresholdChecker plugin
+ * (extracted to handle safe configuration navigation and comparison).
+ */
+function checkConfigurableThreshold(
+    config: any,
+    score: number,
+    configPath: string[],
+    defaultThreshold: number,
+    comparison: string = '>='
+): { violation: boolean, threshold: number } {
+    let threshold = defaultThreshold;
+    
+    try {
+        let current = config;
+        // Safely traverse the configuration object
+        for (const key of configPath) {
+            if (current && typeof current === 'object' && key in current) {
+                current = current[key];
+            } else {
+                current = undefined; // Path broken, use default
+                break;
+            }
+        }
+        if (typeof current === 'number' && !isNaN(current)) {
+            threshold = current;
+        }
+    } catch (e) {
+        // Error during access, fall back to default
+    }
+
+    let violation = false;
+    
+    // Apply comparison (assuming '>=' based on original requirement)
+    if (comparison === '>=') {
+        violation = score >= threshold;
+    }
+    
+    return { violation, threshold };
+}
+
+// --- END: Extracted Tool Logic Integration ---
+
+
 /**
  * ComplianceEngine
  * Drives the enforcement process by utilizing the IRuleEvaluationService 
@@ -47,11 +94,16 @@ class ComplianceEngine {
         // T1 Check: Operational Risk Assessment
         const riskScore = await this.evaluator.calculateRisk(process);
 
-        const tier1Config = this.ruleset.governance_tiers?.tier_1_operational_risk;
-        // Default tolerance set high if config missing (fail-safe)
-        const riskThreshold = tier1Config?.risk_tolerance_threshold || 50;
+        // ABSTRACTION: Utilize the ConfigurableThresholdChecker logic for T1 evaluation
+        const thresholdCheck = checkConfigurableThreshold(
+            this.ruleset,
+            riskScore,
+            ['governance_tiers', 'tier_1_operational_risk', 'risk_tolerance_threshold'],
+            50, // Default tolerance set high if config missing (fail-safe)
+            '>='
+        );
 
-        if (riskScore >= riskThreshold) {
+        if (thresholdCheck.violation) {
              return this.createOutcome(
                 false,
                 'HIGH',
