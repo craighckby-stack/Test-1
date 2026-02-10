@@ -3,6 +3,12 @@ interface SignatureObject {
   value: string; // Hex string
 }
 
+// Define the interface for the utility proxy object
+declare const CanonicalSignatureUtility: {
+    sign(manifestContent: string, privateKey: string, algorithm: SignatureObject['algorithm']): SignatureObject;
+    verify(manifestContent: string, signature: SignatureObject, publicKey: string): boolean;
+};
+
 /**
  * Defines the interface for signing and verifying the integrity
  * of the entire ESVS Manifest content prior to distribution.
@@ -26,4 +32,37 @@ export interface ManifestSigner {
    * @returns True if verification succeeds.
    */
   verify(manifestContent: string, signature: SignatureObject, publicKey: string): Promise<boolean>;
+}
+
+/**
+ * Concrete implementation of ManifestSigner utilizing the CanonicalSignatureUtility plugin.
+ */
+export class DefaultManifestSigner implements ManifestSigner {
+    
+    /**
+     * Creates a detached signature for a normalized manifest content using the CanonicalSignatureUtility.
+     */
+    public async sign(
+        manifestContent: string, 
+        privateKey: string, 
+        algorithm: SignatureObject['algorithm']
+    ): Promise<SignatureObject> {
+        // The underlying plugin handles the complex cryptographic operation.
+        // We wrap the (potentially synchronous) plugin call in a Promise to meet the interface requirement.
+        const signature = CanonicalSignatureUtility.sign(manifestContent, privateKey, algorithm);
+        return signature;
+    }
+
+    /**
+     * Verifies the detached signature against the manifest content using the CanonicalSignatureUtility.
+     */
+    public async verify(
+        manifestContent: string, 
+        signature: SignatureObject, 
+        publicKey: string
+    ): Promise<boolean> {
+        // The underlying plugin handles the complex cryptographic verification.
+        const isValid = CanonicalSignatureUtility.verify(manifestContent, signature, publicKey);
+        return isValid;
+    }
 }
