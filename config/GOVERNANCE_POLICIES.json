@@ -85,7 +85,7 @@
       ],
       "quality_indicators": [
         "SOLVES_UNEXPLICIT_PROBLEMS",
-        "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED",
+        "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED_FROM_3+_SOURCES",
         "ACCELERATES_FUTURE_LEARNING_CAPABILITY",
         "REUSABLE_ACROSS_MULTIPLE_CONTEXTS",
         "DEMONSTRATES_CREATIVE_INSIGHT",
@@ -99,7 +99,7 @@
           "impact_description": "Tools designed to improve the kernel's own learning efficiency, evolution process, or demonstrate meta-cognitive awareness of system operation."
         },
         "cross_domain_synthesis": {
-          "trigger": "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED",
+          "trigger": "CROSS_DOMAIN_PATTERN_SYNTHESIS_REQUIRED_FROM_3+_SOURCES",
           "required_vetting_level": "LEVEL_1_STANDARD",
           "priority_for_integration": "MEDIUM",
           "impact_description": "Solutions combining patterns from three or more disparate source files."
@@ -211,11 +211,13 @@
         "ALL_CAPABILITIES_TARGET_SHORT_TERM": 5.0,
         "ALL_CAPABILITIES_TARGET_LONG_TERM": 7.0
       },
-      "qualitative_assessment_targets": [
-        "TRANSFER_LEARNING_DEMONSTRATED",
-        "SELF_DIRECTED_GOAL_DECOMPOSITION_EVIDENCE",
-        "EMERGENT_PROBLEM_SOLVING_EVIDENCE",
-        "META_LEARNING_OPTIMIZATION_EVIDENCE"
+      "agi_capability_indicators": [
+        "TRANSFER_LEARNING_ACROSS_DOMAINS",
+        "SELF_DIRECTED_GOAL_DECOMPOSITION",
+        "STRATEGIC_PLANNING_OVER_MULTIPLE_CYCLES",
+        "PATTERN_RECOGNITION_ACROSS_UNRELATED_FILES",
+        "EMERGENT_PROBLEM_SOLVING_APPROACHES",
+        "META_LEARNING_OPTIMIZATION"
       ],
       "evolution_goals_tracking": {
         "immediate_goals_cycles_1_20": {
