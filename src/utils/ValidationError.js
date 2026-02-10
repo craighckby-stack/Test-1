@@ -1,23 +1,53 @@
 /**
- * Standardized class for representing a single validation error.
- * Ensures consistency across different validation engines (CrossField, TypeCheck, Schema, etc.).
+ * Interface defining the standardized validation error structure.
  */
-class ValidationError {
-  /**
-   * @param {string} field - The dot-separated path of the field causing the error (e.g., 'user.email').
-   * @param {string} message - Human-readable error message.
-   * @param {string} code - Machine-readable error code (e.g., 'dependency.required', 'type.invalid').
-   */
-  constructor(field, message, code) {
-    this.field = field;
-    this.message = message;
-    this.code = code;
-    this.severity = 'error'; // Default severity
-  }
-
-  toString() {
-    return `${this.code} on ${this.field}: ${this.message}`;
-  }
+export interface IValidationError {
+    field: string;
+    message: string;
+    code: string;
+    severity: 'error' | 'warning' | 'info';
+    toString(): string;
 }
 
-module.exports = { ValidationError };
+/**
+ * Standardized class for representing a single validation error.
+ * Ensures consistency across different validation engines (CrossField, TypeCheck, Schema, etc.).
+ * Implements the IValidationError interface for type consistency.
+ */
+class ValidationError implements IValidationError {
+    public readonly field: string;
+    public readonly message: string;
+    public readonly code: string;
+    public readonly severity: 'error' | 'warning' | 'info';
+
+    /**
+     * @param field - The dot-separated path of the field causing the error (e.g., 'user.email').
+     * @param message - Human-readable error message.
+     * @param code - Machine-readable error code (e.g., 'dependency.required', 'type.invalid').
+     * @param severity - Optional severity level ('error', 'warning', 'info'). Defaults to 'error'.
+     */
+    constructor(
+        field: string,
+        message: string,
+        code: string,
+        severity: 'error' | 'warning' | 'info' = 'error'
+    ) {
+        if (!field || !message || !code) {
+             // Enforce mandatory fields for a canonical error object
+             throw new Error("ValidationError must have field, message, and code defined.");
+        }
+        this.field = field;
+        this.message = message;
+        this.code = code;
+        this.severity = severity;
+    }
+
+    /**
+     * Returns a standardized string representation of the error.
+     */
+    toString(): string {
+        return `[${this.severity.toUpperCase()}] ${this.code} on ${this.field}: ${this.message}`;
+    }
+}
+
+export { ValidationError };
