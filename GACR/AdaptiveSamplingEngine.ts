@@ -10,6 +10,8 @@
  * 1. Implemented Dependency Injection for ResourceMonitor to improve testability.
  * 2. Extracted the core multi-constraint normalization logic into the 'ConstraintReducer' 
  *    emergent capability for reuse in future cycles (Pattern Recognition Success).
+ * 3. Uses the 'ConstraintReducer' emergent capability to calculate the base required rate,
+ *    necessitating the conversion of getSamplingRate() to an asynchronous function.
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -32,6 +34,8 @@ const DEFAULT_TARGETS = {
     queueDepth: 0.70
 };
 
+// Assuming the existence of the EmergentCapabilityManager (ecm) in the global runtime environment.
+
 export class AdaptiveSamplingEngine {
     private config: AdaptiveSamplingConfig;
     private monitor: ResourceMonitor;
@@ -47,7 +51,7 @@ export class AdaptiveSamplingEngine {
     /**
      * Calculates the current required sampling rate (0.0 to 1.0) based on the most severe constraint.
      */
-    public getSamplingRate(): number {
+    public async getSamplingRate(): Promise<number> {
         if (!this.config.Enabled) {
             return 1.0;
         }
@@ -79,17 +83,24 @@ export class AdaptiveSamplingEngine {
             c.target > 0
         ) as Constraint[]; 
         
-        // The logic below implements the core pattern recognized and extracted as 'ConstraintReducer'
+        // --- START: Emergent Capability Integration ---
+        
         let requiredRate = 1.0;
-
-        // Iterate through constraints, enforcing the most restrictive proportional drop factor
-        for (const { current, target } of constraints) {
-            if (current > target) {
-                // Rate = Target / Current ensures proportional reduction based on overshoot
-                const dropFactor = target / current;
-                requiredRate = Math.min(requiredRate, dropFactor);
+        
+        if (typeof ecm !== 'undefined' && ecm.has('ConstraintReducer')) {
+            // Use the invented ConstraintReducer tool for core reduction logic
+            requiredRate = await ecm.execute('ConstraintReducer', 'calculateDropFactor', [constraints]);
+        } else {
+            // Fallback implementation (original logic) if ecm or tool is unavailable
+            for (const { current, target } of constraints) {
+                if (current > target) {
+                    const dropFactor = target / current;
+                    requiredRate = Math.min(requiredRate, dropFactor);
+                }
             }
         }
+        
+        // --- END: Emergent Capability Integration ---
 
         // Apply global boundaries defined in the configuration
         requiredRate = Math.min(requiredRate, this.config.MaxSamplingRate);
