@@ -1,8 +1,9 @@
 {
-  "policy_schema_version": "V2.6",
+  "policy_schema_version": "V7.4.5_AGI_NAVIGATOR",
   "policies": {
-    "GOV_ENFORCEMENT_V10": {
+    "GOV_ENFORCEMENT_V11": {
       "name": "Sovereign AGI Baseline Enforcement",
+      "description": "Defines self-correction protocols based on AGI capability metrics (0-10 scale defined in README).",
       "severity_map": {
         "MINOR": {
           "action": "LOG_WARNING_THROTTLE",
@@ -12,13 +13,14 @@
         "MAJOR": {
           "action": "INITIATE_ADAPTATION_PHASE",
           "revert_if_score_below": 0.5,
-          "trigger_condition": "CAPABILITY_DEGRADATION",
+          "trigger_condition": "CAPABILITY_DEGRADATION_BELOW_THRESHOLD",
           "adaptation_steps": [
             "REVIEW_CAPABILITY_METRICS",
             "ANALYZE_RECENT_COMMIT_CONTEXT",
             "EVALUATE_EMERGENT_INTEGRATION_CANDIDATES"
           ],
           "capability_thresholds": {
+            "scale": "0-10_AGI_KERNEL_SCALE",
             "logic": 4.0,
             "memory": 4.0,
             "navigation": 4.0
@@ -43,17 +45,18 @@
         }
       }
     },
-    "POLICY_REVERT_V2": {
-      "name": "Standard Rollback Mechanism",
+    "POLICY_REVERT_V3": {
+      "name": "Standard Rollback Mechanism and Failure Analysis",
       "steps": [
         "SAVE_CONTEXT_STATE",
         "ROLLBACK_COMMIT",
         "RESTART_SAFE_MODE",
-        "ANALYZE_ROOT_CAUSE"
+        "ANALYZE_ROOT_CAUSE",
+        "UPDATE_MEMORY_MODEL_WITH_FAILURE_CONTEXT"
       ]
     },
-    "POLICY_EMERGENCE_V3": {
-      "name": "Emergent Capability Vetting and Documentation Protocol",
+    "POLICY_EMERGENCE_V4": {
+      "name": "Emergent Capability Vetting and Documentation Protocol (Navigator Edition)",
       "applies_to_directory": "/emergent",
       "initial_status": "SANDBOXED_UNTRUSTED",
       "vetting_requirements": [
@@ -77,16 +80,17 @@
       ],
       "integration_path": {
         "maturity_threshold_for_integration": 30,
-        "action": "PROPOSE_MERGE_INTO_CORE"
+        "action": "PROPOSE_MERGE_INTO_CORE_OR_AGENTS"
       }
     },
-    "POLICY_EXPLORATION_V1": {
-      "name": "Repository Diversity and Blacklist Management",
+    "POLICY_EXPLORATION_V2": {
+      "name": "Repository Diversity and Priority-Based Blacklist Management",
       "applies_to_system": "NAVIGATOR_SYSTEM",
       "blacklist_management": {
         "max_size": 50,
         "action_on_exceeded": "CLEAR_OLDEST_ENTRIES",
-        "diversity_enforcement": true
+        "diversity_enforcement": true,
+        "reset_strategy": "ADAPTIVE_RETURN_TO_CRITICAL_TARGETS"
       },
       "priority_weight_enforcement": {
         "/core": 0.30,
@@ -102,7 +106,8 @@
             "/protocols",
             "/metrics",
             "/architecture",
-            "/orchestration"
+            "/orchestration",
+            "/tests"
           ]
         }
       }
