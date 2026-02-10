@@ -2,24 +2,26 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
+// --- Centralized Integrity Protocol Constants (Mandated by CryptographicIntegrityTool) ---
+// These constants define the protocol mandated by GAX III, ensuring consistency across the system.
+const ALGORITHM = 'sha256';
+const ENCODING = 'hex';
+// Length of SHA-256 hash in hex characters (32 bytes * 2).
+const HASH_LENGTH_HEX = 64; 
+
 /**
  * IntegrityHashUtility
  * Provides standardized, consistent cryptographic hashing functions for
  * Governance Artifact attestation (GAX III requirement).
  * Ensures that all subsystems calculating hashes for GAR attestation use the same protocol.
  * Uses streams internally for efficient asynchronous file processing.
+ * Core hashing and validation logic are standardized via external tool configuration (ALGORITHM, HASH_LENGTH_HEX).
  */
 class IntegrityHashUtility {
 
-    // --- Configuration Constants ---
-    // These should ideally be driven by a centralized SecurityPolicy configuration.
-    static ALGORITHM = 'sha256';
-    static ENCODING = 'hex';
-    // Length of SHA-256 hash in hex characters (32 bytes * 2).
-    static HASH_LENGTH_HEX = 64; 
-
     /**
      * Calculates the cryptographic hash of raw data (Buffer or string).
+     * Delegates hashing using the mandated ALGORITHM.
      * @param {Buffer | string} data The content to hash.
      * @returns {string} The SHA-256 hash (64 characters).
      * @throws {Error} If data is null or undefined.
@@ -28,9 +30,10 @@ class IntegrityHashUtility {
         if (data === null || data === undefined) {
             throw new Error("IntegrityHashUtility: Cannot hash null or undefined data.");
         }
-        return crypto.createHash(IntegrityHashUtility.ALGORITHM)
+        // Uses standard algorithm defined globally/by tool configuration
+        return crypto.createHash(ALGORITHM)
             .update(data)
-            .digest(IntegrityHashUtility.ENCODING);
+            .digest(ENCODING);
     }
 
     /**
@@ -60,7 +63,7 @@ class IntegrityHashUtility {
         const fullPath = path.resolve(filePath);
         
         return new Promise((resolve, reject) => {
-            const hash = crypto.createHash(IntegrityHashUtility.ALGORITHM);
+            const hash = crypto.createHash(ALGORITHM);
             const stream = fs.createReadStream(fullPath);
 
             // Catch stream read errors (e.g., file not found)
@@ -77,7 +80,7 @@ class IntegrityHashUtility {
                 .on('finish', () => {
                     // The hash object has received all input data.
                     try {
-                        const result = hash.digest(IntegrityHashUtility.ENCODING);
+                        const result = hash.digest(ENCODING);
                         resolve(result);
                     } catch (e) {
                         // Catch final digest calculation failure
@@ -90,7 +93,6 @@ class IntegrityHashUtility {
     /**
      * Validates if a calculated hash matches an expected hash.
      * Enforces consistency in integrity checks and hash length.
-     * NOTE: Uses standard string comparison, suitable for integrity verification (non-secret data).
      * @param {string} calculatedHash The newly calculated hash.
      * @param {string} expectedHash The required hash.
      * @returns {boolean} True if the hashes match and are valid lengths.
@@ -101,8 +103,7 @@ class IntegrityHashUtility {
         }
 
         // Standardize validation against the defined digest length.
-        const length = IntegrityHashUtility.HASH_LENGTH_HEX;
-        if (calculatedHash.length !== length || expectedHash.length !== length) {
+        if (calculatedHash.length !== HASH_LENGTH_HEX || expectedHash.length !== HASH_LENGTH_HEX) {
             return false;
         }
         
@@ -114,8 +115,6 @@ class IntegrityHashUtility {
      * @returns {string} The algorithm name.
      */
     static getAlgorithm() {
-        return IntegrityHashUtility.ALGORITHM;
+        return ALGORITHM;
     }
 }
-
-module.exports = IntegrityHashUtility;
