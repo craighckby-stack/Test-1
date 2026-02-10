@@ -39,12 +39,24 @@ export const ACVDSchema = z.object({
     constraints: z.array(ACVDConstraintSchema).min(1).describe("Detailed, rigorous constraint vectors applied to specific subsystems.")
 }).strict().describe("Axiomatic Constraint Vector Definition (ACVD) Root Schema.");
 
+
+// Declaration of the assumed kernel tool interface
+interface StructuralSchemaValidatorTool {
+    execute(args: { data: unknown, schemaReference: z.ZodSchema<any> }): any;
+}
+
+declare const StructuralSchemaValidator: StructuralSchemaValidatorTool;
+
 /**
- * Validates a candidate ACVD object against the defined schema using Zod.
+ * Validates a candidate ACVD object against the defined schema using the kernel's validation service.
  * @param {unknown} candidate - The object to validate.
  * @returns {typeof ACVDSchema._output} The validated and parsed object.
- * @throws {z.ZodError} If validation fails.
+ * @throws {Error} If validation fails (via the StructuralSchemaValidator).
  */
-export function validateACVDStructure(candidate) {
-    return ACVDSchema.parse(candidate);
+export function validateACVDStructure(candidate: unknown): typeof ACVDSchema._output {
+    // Delegation to the kernel plugin for standardized, high-performance validation.
+    return StructuralSchemaValidator.execute({
+        data: candidate,
+        schemaReference: ACVDSchema
+    });
 }
