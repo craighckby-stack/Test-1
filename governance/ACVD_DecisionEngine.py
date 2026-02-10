@@ -9,6 +9,10 @@ class GovernanceError(Exception):
     """Base exception for ACVD Governance violations."""
     pass
 
+class ConfigurationError(GovernanceError):
+    """Raised when configuration loading fails due to file or parsing issues."""
+    pass
+
 class StateTransitionError(GovernanceError):
     """Raised when an illegal state transition is attempted."""
     def __init__(self, previous_state, new_state, allowed_states, message="Illegal state transition"):
@@ -31,17 +35,18 @@ def get_utc_timestamp() -> str:
 # Define default governance configuration for consistency and centralization
 class ACVD_ConfigDefaults:
     """Centralized definition of default governance configuration parameters."""
-    SCHEMA_VERSION = "1.1.0"
+    SCHEMA_VERSION = "1.1.1" # Updated version due to heuristic refinement
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
     DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # Threshold for tuning proposal stability
-    DEFAULT_MAX_LOG_QUEUE_SIZE = 500 # New: Limit log queue size for performance/memory robustness
+    DEFAULT_MAX_LOG_QUEUE_SIZE = 500 # Limit log queue size for performance/memory robustness
     
     # New Heuristic Parameters (Logic/Memory/Stability)
     DEFAULT_HEURISTIC_INCREASE_THRESHOLD = 1.6 # Deviation threshold for increasing weight (1.6x observed/expected ratio)
     DEFAULT_HEURISTIC_DECREASE_THRESHOLD = 0.4 # Deviation threshold for decreasing weight (0.4x observed/expected ratio)
     DEFAULT_MAX_ADJUSTMENT_RATE = 0.10 # Max proportional adjustment in one cycle (10% of remaining gap)
+    DEFAULT_HEURISTIC_RESPONSIVENESS = 0.15 # NEW: Defines how aggressively the model adjusts weights based on deviation.
     
     # Base weights, used if no configuration is found in the schema (static reference)
     BASE_SEVERITY_WEIGHTS = {
@@ -65,12 +70,11 @@ class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
     This version enhances Meta-Reasoning and Autonomy by:
-    1. Refining the weight tuning heuristic (`_apply_weight_heuristic`) to be proportional to observed risk deviation,
-       improving Logic and stability (Memory).
-    2. Centralizing all heuristic tuning parameters in `ACVD_ConfigDefaults` for architectural clarity.
-    3. Adding enforcement in `update_severity_weights` to only accept recognized issue types, preventing configuration drift.
-    4. Transitioning file handling to use `pathlib.Path` for improved robustness and architecture logic.
-    5. **New:** Implementing maximum log queue size limits for memory management and infrastructure robustness.
+    1. Refining the weight tuning heuristic (`_apply_weight_heuristic`) to use a centralized responsiveness factor, 
+       making autonomous learning rates more stable and configurable (Logic/Memory).
+    2. Implementing the custom `ConfigurationError` to standardize exception handling during schema loading,
+       improving governance infrastructure robustness (Logic/Infrastructure).
+    3. Replacing generic exceptions with custom `GovernanceError` derivatives in critical decision pathways.
     """
 
     # Use centralized defaults
@@ -86,6 +90,7 @@ class ACVD_DecisionEngine:
     _HEURISTIC_INCREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_INCREASE_THRESHOLD
     _HEURISTIC_DECREASE_THRESHOLD = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_DECREASE_THRESHOLD
     _MAX_ADJUSTMENT_RATE = ACVD_ConfigDefaults.DEFAULT_MAX_ADJUSTMENT_RATE
+    _HEURISTIC_RESPONSIVENESS = ACVD_ConfigDefaults.DEFAULT_HEURISTIC_RESPONSIVENESS
     
     def __init__(self, schema_path: str = 'governance/ACVD_schema.json'):
         # Use Path objects internally for robust file handling
@@ -131,10 +136,14 @@ class ACVD_DecisionEngine:
             self.valid_states = self.schema.get('valid_states', []) 
             self.state_transitions = self.schema.get('state_transitions', {}) 
             config = self.schema.get('config', {})
-        except Exception:
+        except ConfigurationError:
             # If schema loading fails critically, use default attributes initialized in __init__
             print(f"[ACVD CRITICAL | INIT_FAILSAFE @ {get_utc_timestamp()}] Failed to load governance schema. Operating in limited mode.")
             config = {} # Ensure config is empty for safe loading below
+        except Exception:
+            # Catch unexpected exceptions during initial load
+            print(f"[ACVD CRITICAL | INIT_UNEXPECTED_FAIL @ {get_utc_timestamp()}] Unexpected error during schema load. Operating in limited mode.")
+            config = {}
             
         # Load configurable thresholds
         self.safety_threshold = config.get(
@@ -191,27 +200,29 @@ class ACVD_DecisionEngine:
                 pass
 
     def _load_schema(self, path: Path) -> Dict[str, Any]:
-        """Loads and parses the ACVD schema file with robust error handling (Pathlib integration)."""
+        """Loads and parses the ACVD schema file with robust error handling (Pathlib integration).
+        Uses custom ConfigurationError for structured error signaling.
+        """
         
         if not path.exists():
-            raise FileNotFoundError(f"ACVD Schema not found at {path}.")
+            raise ConfigurationError(f"ACVD Schema not found at {path}.")
         
         try:
             content = path.read_text(encoding='utf-8')
             if not content.strip():
                 self._log_status("ERROR", "ACVD Schema file is empty.", "SCHEMA_LOAD")
-                raise ValueError("ACVD Schema file is empty.")
+                raise ConfigurationError("ACVD Schema file is empty.")
             
             return json.loads(content)
         except json.JSONDecodeError as e:
             self._log_status("CRITICAL", f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected.", "JSON_PARSE_ERROR")
-            raise ValueError(f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected: {e}")
+            raise ConfigurationError(f"Failed to parse ACVD Schema JSON at {path}. Malformed structure detected: {e}")
         except PermissionError:
             self._log_status("CRITICAL", f"Permission denied accessing ACVD Schema file at {path}.", "FILE_PERMISSION_ERROR")
-            raise PermissionError(f"Permission denied accessing ACVD Schema file at {path}.")
+            raise ConfigurationError(f"Permission denied accessing ACVD Schema file at {path}.")
         except Exception as e:
             self._log_status("CRITICAL", f"Unexpected error loading ACVD schema: {e}", "RUNTIME_ERROR")
-            raise RuntimeError(f"Unexpected error loading ACVD schema: {e}")
+            raise ConfigurationError(f"Unexpected error loading ACVD schema: {e}")
             
     def _save_schema(self):
         """Persists the current schema (including dynamically updated severity weights)
@@ -276,8 +287,8 @@ class ACVD_DecisionEngine:
     
     def _apply_weight_heuristic(self, issue_type: str, penalty_value: float, total_impact: float, current_weight: float, total_current_weight: float) -> Dict[str, Any]:
         """ 
-        (META-REASONING CORE) Dynamic weight tuning heuristic logic with improved dampening and responsiveness.
-        The adjustment is proportional to the deviation between observed risk and expected weight ratio.
+        (META-REASONING CORE) Dynamic weight tuning heuristic logic with improved dampening, responsiveness, and memory retention.
+        The adjustment is proportional to the deviation between observed risk and expected weight ratio, controlled by responsiveness factor.
         """
         
         suggestion_type = "MAINTAIN_STABILITY"
@@ -296,17 +307,19 @@ class ACVD_DecisionEngine:
         deviation = contribution_ratio / expected_ratio if expected_ratio > 0 else 0.0
 
         # Heuristic 1: Increase Penalty (Under-represented Risk)
-        if deviation > self._HEURISTIC_INCREASE_THRESHOLD and current_weight < 0.95: 
+        if deviation > self._HEURISTIC_INCREASE_THRESHOLD and current_weight < 1.0:
             
-            # Calculate factor based on the deviation above the threshold
-            deviation_factor = deviation - 1.0
+            # Calculate the proportional distance to maximum weight (1.0)
+            adjustment_gap = 1.0 - current_weight
             
-            # Calculate the maximum allowed increase based on the configured rate
-            max_increase = (1.0 - current_weight) * self._MAX_ADJUSTMENT_RATE
+            # Factor in the deviation magnitude above the threshold
+            deviation_magnitude_factor = (deviation - self._HEURISTIC_INCREASE_THRESHOLD) / self._HEURISTIC_INCREASE_THRESHOLD # Normalize to threshold context
             
-            # Proposed adjustment is proportional to deviation, but limited by max rate
-            # Using a conservative factor (0.1) on the deviation response for early stability
-            suggested_adjustment = min(max_increase, current_weight * deviation_factor * 0.1)
+            # Adjustment is proportional to the gap, smoothed by responsiveness and deviation
+            proportional_adjustment = adjustment_gap * self._HEURISTIC_RESPONSIVENESS * deviation_magnitude_factor
+            
+            # Limit total adjustment by MAX_ADJUSTMENT_RATE
+            suggested_adjustment = min(adjustment_gap * self._MAX_ADJUSTMENT_RATE, proportional_adjustment)
             
             new_suggested_weight = round(min(1.0, current_weight + suggested_adjustment), 4)
             suggestion_type = "INCREASE_PENALTY"
@@ -314,11 +327,11 @@ class ACVD_DecisionEngine:
         # Heuristic 2: Decrease Penalty (Over-represented Risk / Stable)
         elif deviation < self._HEURISTIC_DECREASE_THRESHOLD and current_weight > self.DEFAULT_FALLBACK_WEIGHT: 
             
-            # Use a slightly lower decay rate than increase rate for stable convergence (Memory retention pattern)
-            decay_rate = 0.08
+            # Calculate the proportional distance to the fallback weight
+            adjustment_gap = current_weight - self.DEFAULT_FALLBACK_WEIGHT
             
-            # Calculate adjustment based on the difference from the minimum fallback weight
-            suggested_adjustment = (current_weight - self.DEFAULT_FALLBACK_WEIGHT) * decay_rate
+            # Decrease is proportional to the gap, smoothed by responsiveness (Memory retention pattern)
+            suggested_adjustment = adjustment_gap * self._HEURISTIC_RESPONSIVENESS
             
             new_suggested_weight = round(max(self.DEFAULT_FALLBACK_WEIGHT, current_weight - suggested_adjustment), 4)
             suggestion_type = "DECREASE_PENALTY"
@@ -348,6 +361,9 @@ class ACVD_DecisionEngine:
                 # Calculate the penalty contribution using the internal assessment weight
                 weight = self._get_penalty_weight(issue_type, is_internal_assessment=True)
                 impact[issue_type] += weight
+            # Defensive: Handle logs with missing level or unmapped levels
+            elif level and level not in self._INTERNAL_ISSUE_MAP:
+                self._log_status('DEBUG', f"Log entry with unmapped level '{level}' skipped in impact calculation.", 'LOG_MAPPING_SKIP')
                 
         total_impact = sum(impact.values())
         tuning_suggestions = []
@@ -509,6 +525,7 @@ class ACVD_DecisionEngine:
         """
         if not isinstance(new_weights, dict):
             self._log_status("ERROR", "Cannot update weights: Input must be a dictionary.", "WEIGHT_UPDATE_FAIL")
+            # Use generic TypeError exception here, as this is an internal API integrity check, not governance enforcement
             return
             
         # P3: Input Validation - Check against currently recognized issue types (core + dynamically loaded)
@@ -673,20 +690,26 @@ class ACVD_DecisionEngine:
         # Robustness: Check input types
         if not isinstance(proposal, dict):
             self._log_status("ERROR", "Transition failed: Proposal input is not a dictionary.", "TRANSITION_INPUT_FAIL")
-            raise TypeError("Proposal must be a dictionary.")
+            raise GovernanceError("Proposal must be a dictionary.") # Use GovernanceError
 
         if not isinstance(new_state, str) or not new_state:
             self._log_status("ERROR", "Transition failed: New state is invalid.", "TRANSITION_INPUT_FAIL")
-            raise ValueError("Target state must be a non-empty string.")
+            raise GovernanceError("Target state must be a non-empty string.") # Use GovernanceError
             
         previous_state = proposal.get('state', 'UNINITIALIZED')
 
         # 1. State Validity Check
         if self.valid_states and new_state not in self.valid_states:
              self._log_status("ERROR", f"Invalid target state attempted: {new_state}", "TRANSITION_GOVERNANCE")
-             raise ValueError(f"Invalid target state: {new_state}. Must be one of {', '.join(self.valid_states)}")
+             # Use custom StateTransitionError as this is a defined governance rule violation
+             raise StateTransitionError(
+                 previous_state, 
+                 new_state, 
+                 self.valid_states, 
+                 f"Invalid target state: {new_state}. Must be one of {', '.join(self.valid_states)}"
+             )
              
-        # 2. Transition Path Check (NEW)
+        # 2. Transition Path Check
         if self.state_transitions:
             allowed_next_states = self.state_transitions.get(previous_state, [])
             
@@ -706,7 +729,7 @@ class ACVD_DecisionEngine:
         if validation_report and new_state == 'APPROVED':
             if not isinstance(validation_report, dict):
                  self._log_status("ERROR", "Validation report is not a dictionary, cannot proceed with approval.", "TRANSITION_GOVERNANCE")
-                 raise TypeError("Validation report must be a dictionary if provided.")
+                 raise GovernanceError("Validation report must be a dictionary if provided.") # Use GovernanceError
                  
             if validation_report.get('status') == 'FAIL':
                 # Autonomy/Governance enforcement
