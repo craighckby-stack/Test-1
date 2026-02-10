@@ -46,6 +46,9 @@ class ResourceCheckRegistry {
         /** @type {Map<string, ResourceCheckFunction>} */
         this.checks = new Map();
         this.STATUS = CHECK_STATUS;
+        // The execution wrapper is resolved internally, assuming kernel injection or global availability.
+        this.executionWrapper = (typeof globalThis !== 'undefined' && globalThis.AGI_KERNEL_UTILITIES?.AsyncExecutionWrapper) 
+                                || this._internalRunnerFallback();
     }
 
     /**
@@ -75,6 +78,9 @@ class ResourceCheckRegistry {
 
     /**
      * Executes all registered checks concurrently, providing necessary context.
+     * The complexity of standardized error handling and result formatting is delegated
+     * to the injected executionWrapper.
+     * 
      * @param {Object} monitor - System monitoring dependency.
      * @param {Object} governanceConfig - Baseline configuration.
      * @param {Object} payloadMetadata - Mutation-specific requirements.
@@ -82,45 +88,57 @@ class ResourceCheckRegistry {
      */
     runAllChecks(monitor, governanceConfig, payloadMetadata) {
         const checkPromises = [];
+        const args = [monitor, governanceConfig, payloadMetadata];
 
         for (const [id, checkFn] of this.checks.entries()) {
             
-            // Runner wraps the check function for standardized error handling and result formatting.
-            const runner = async () => {
-                const executionResult = {
-                    check: id,
-                    status: this.STATUS.ERROR, // Default status is ERROR until successfully resolved
-                    success: false,
-                    details: {},
-                };
+            // Delegation of execution, error handling, and result standardization to the specialized wrapper plugin
+            const runnerPromise = this.executionWrapper.execute(
+                checkFn, 
+                id, 
+                args,
+                this.STATUS
+            );
+            checkPromises.push(runnerPromise);
+        }
+        
+        // Execute all checks concurrently and wait for all results
+        return Promise.all(checkPromises);
+    }
 
+    /** 
+     * @private Fallback implementation mirroring the structure of the extracted tool.
+     * Ensures the RCR remains functional if dependency resolution fails, but logs a warning.
+     */
+    _internalRunnerFallback() {
+        const STATUS = this.STATUS;
+        console.warn("RCR-W02: AsyncExecutionWrapper not resolved. Using internal fallback logic.");
+        return {
+            execute: async (fn, id, args) => {
+                const executionResult = { check: id, status: STATUS.ERROR, success: false, details: {} };
                 try {
                     /** @type {CheckResult} */
-                    const checkResult = await checkFn(monitor, governanceConfig, payloadMetadata);
+                    const checkResult = await fn(...args);
                     
                     // Standardize successful/failed check result
                     executionResult.success = !!checkResult.success;
-                    executionResult.status = checkResult.success ? this.STATUS.PASS : this.STATUS.FAIL;
+                    executionResult.status = checkResult.success ? STATUS.PASS : STATUS.FAIL;
                     executionResult.details = checkResult.details || {};
                     
                     return executionResult;
 
                 } catch (error) {
-                    // Handle critical error during check execution (e.g., internal bug, dependency failure)
+                    // Handle critical error during check execution
                     executionResult.details = { 
                         errorType: error.name,
-                        message: `Critical RCR execution error in ${id}: ${error.message}`, 
+                        message: `Critical RCR (Fallback) execution error in ${id}: ${error.message}`, 
                         stack: error.stack
                     };
                     // status remains ERROR, success remains false.
                     return executionResult;
                 }
-            };
-            checkPromises.push(runner());
-        }
-        
-        // Execute all checks concurrently and wait for all results
-        return Promise.all(checkPromises);
+            }
+        };
     }
 }
 
