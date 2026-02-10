@@ -2,11 +2,12 @@
  * agents/GAX/Modeling/PredictiveModelStub.js
  *
  * Provides the explicit asynchronous interface required by the Trajectory Simulation Engine (TSE).
- * Now delegates specific stub calculation logic to StatisticalModelStubUtility.
+ * Now delegates specific stub calculation logic to the abstracted PredictionStubEngine plugin.
  */
 
-declare const StatisticalModelStubUtility: {
-    execute: (features: { complexity_score: number, history_risk: number, current_load_factor: number }) => { temm: number, ecvm: boolean }
+// We declare the interface for the abstracted synchronous stub engine.
+declare const PredictionStubEngine: {
+    execute: (features: PredictionFeatures) => PredictionResult
 };
 
 interface PredictionFeatures {
@@ -42,7 +43,7 @@ class PredictiveModelStub {
         }
 
         // Delegate the core stub calculation logic to the utility plugin
-        const result = StatisticalModelStubUtility.execute(features);
+        const result = PredictionStubEngine.execute(features);
         
         return result;
     }
