@@ -93,7 +93,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         
     AGI-KERNEL Improvement (Cycle 16, Logic):
     14. Added introspection for public properties (`@property` decorators) in custom classes. This ensures 
-        that derived or calculated state essential for an object's identity is included in the canonical hash, 
+        that derived or calculated state essential for an object's identity is included in the canonical hash,
         preventing unstable hashing of high-complexity agent models or configuration objects.
 
     AGI-KERNEL Improvement (Cycle 17, Logic/Memory):
@@ -115,8 +115,13 @@ class CanonicalJSONEncoder(json.JSONEncoder):
         which fields, slots, or properties are required for canonical hashing. This drastically improves
         determinism and performance by replacing wide, brittle introspection with a targeted registry,
         preventing non-deterministic internal state (e.g., function references, pointers, non-essential caches)
-        from being accidentally included in the canonical hash. This is a synthesis of generic introspection
-        and explicit state control protocols.
+        from being accidentally included in the canonical hash.
+
+    AGI-KERNEL Improvement (Cycle 20, Logic/Memory):
+    19. Implemented explicit canonical tagging for immutable containers (`tuple`, `frozenset`). This ensures
+        that the structural semantics (e.g., immutability vs. mutability) are preserved in the canonical
+        representation, which is critical for the kernel's ability to perform advanced pattern recognition
+        and structural learning across the codebase.
     """
 
     def __init__(self, *args, **kwargs):
@@ -250,16 +255,23 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return {"__complex__": True, "real": obj.real, "imag": obj.imag}
 
         # 1. Handle non-native iterables deterministically
-        if isinstance(obj, set) or isinstance(obj, frozenset):
-            # Convert sets/frozensets to sorted lists to ensure canonical order
-            return sorted(list(obj))
         
+        # AGI-KERNEL Improvement (Cycle 20, Logic/Memory): Explicitly tag immutable containers (frozenset, tuple)
+        # to preserve structural semantics in the canonical hash, aiding pattern recognition systems.
+        if isinstance(obj, frozenset):
+            # Convert frozensets to sorted lists and tag
+            return {"__frozenset__": sorted(list(obj))}
+            
+        if isinstance(obj, set):
+            # Convert standard sets to sorted lists for canonical order
+            return sorted(list(obj))
+
         if isinstance(obj, tuple):
             # AGI-KERNEL Improvement (Cycle 4): Explicitly handle NamedTuples to preserve field meaning.
             if hasattr(obj, '_asdict') and callable(obj._asdict):
                 return obj._asdict()
-            # Standard tuples (non-named) are treated as lists for consistency
-            return list(obj)
+            # Standard tuples are tagged (Cycle 20)
+            return {"__tuple__": list(obj)}
 
         # AGI-KERNEL Improvement (Cycle 1): Handle Deques, common in /agents for history tracking.
         if isinstance(obj, collections.deque):
@@ -352,7 +364,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 try:
                     canonical_state = obj.__canonical_state__()
                     if isinstance(canonical_state, collections.Mapping):
-                        return {"__object__": obj.__class__.__name__, **canonical_state}
+                        return {"__object": obj.__class__.__name__, **canonical_state}
                 except Exception:
                     # Fall through if the explicit protocol implementation fails or returns non-mapping
                     pass
