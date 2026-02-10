@@ -4,7 +4,7 @@
  *
  * Provides versioned, immutable storage and validation endpoints for key GSEP artifacts (M-01 Intent, M-02 Payload).
  * Ensures structural governance compliance required by ASR, CIM, and MPSE *before* computational heavy lifting
- * by leveraging pre-compiled JSON Schemas (via Ajv).
+ * by leveraging pre-compiled JSON Schemas via the ValidatorCompilerRegistry plugin.
  *
  * Architectural Contracts:
  * 1. Store and retrieve cryptographically hashed schemas.
@@ -12,7 +12,8 @@
  * 3. Offer highly descriptive validation failure reports using standard Ajv error formatting.
  */
 const artifactSchemas = require('./madr/schema_manifest.json');
-const SchemaValidator = require('../utils/schemaValidator'); // New Dependency
+// Dependency renamed to reflect its role as the underlying Ajv/SSV Compiler Engine required by VCR.
+const CompilerEngine = require('../utils/schemaValidator'); 
 
 /**
  * Custom Error Definitions for Governance Layer
@@ -33,6 +34,35 @@ class ValidationFailureError extends GovernanceError {
     }
 }
 
+/**
+ * AGI-KERNEL Plugin Proxy: ValidatorCompilerRegistry (VCR)
+ * This class serves as a functional proxy for the extracted VCR plugin, which manages
+ * the lifecycle of schema compilation and storage based on a composite key.
+ * It requires an external compiler instance (e.g., StructuralSchemaValidator/Ajv wrapper).
+ */
+class ValidatorCompilerRegistryProxy {
+    constructor(compiler) {
+        this.compiler = compiler;
+        this.compiledValidators = {};
+    }
+    register(key, schema) {
+        if (!schema || typeof schema !== 'object') throw new Error(`Registry Error: Invalid schema provided for key: ${key}`);
+        try {
+            // Use the external compiler engine to compile the schema
+            this.compiledValidators[key] = this.compiler.compile(schema);
+        } catch (e) {
+            throw new Error(`Registry Compilation Error for ${key}: ${e.message}`);
+        }
+    }
+    getValidator(key) {
+        const validatorFn = this.compiledValidators[key];
+        if (!validatorFn) {
+            throw new Error('Registry Lookup Error: Validator not found for key: ' + key);
+        }
+        return validatorFn;
+    }
+}
+
 
 class MutationArtifactDefinitionRepository {
     /**
@@ -40,9 +70,12 @@ class MutationArtifactDefinitionRepository {
      */
     constructor(schemas = artifactSchemas) {
         this.schemas = schemas;
-        // V97.0: Validator must be injected or internally initialized.
-        this.validator = new SchemaValidator();
-        this.compiledValidators = {};
+        
+        // 1. Initialize the Compiler Engine (VCR dependency)
+        const compilerInstance = new CompilerEngine(); 
+
+        // 2. Initialize the ValidatorCompilerRegistry (VCR) plugin using the engine
+        this.validatorRegistry = new ValidatorCompilerRegistryProxy(compilerInstance);
 
         // V97.0: Compile all required schemas upon initialization for peak runtime efficiency (ASR Stage 1 requirement).
         this._compileAllSchemas();
@@ -54,7 +87,9 @@ class MutationArtifactDefinitionRepository {
                 for (const version in this.schemas[artifactId]) {
                     const schema = this.schemas[artifactId][version];
                     const key = `${artifactId}:${version}`;
-                    this.compiledValidators[key] = this.validator.compile(schema);
+                    
+                    // Use VCR plugin: register performs compilation and storage.
+                    this.validatorRegistry.register(key, schema);
                 }
             }
         } catch (e) {
@@ -83,17 +118,25 @@ class MutationArtifactDefinitionRepository {
 
     /**
      * Internal method to retrieve the pre-compiled validator function.
+     * Uses the ValidatorCompilerRegistry (VCR).
      * @private
      */
     _getValidator(artifactId, version = 'latest') {
         const key = `${artifactId}:${version}`;
-        const validatorFn = this.compiledValidators[key];
-        if (!validatorFn) {
-            // Use getSchema for standardized error reporting if pre-compilation failed or key mismatch occurred.
+
+        try {
+            // VCR retrieves the compiled Ajv function
+            return this.validatorRegistry.getValidator(key);
+        } catch (e) {
+            // 1. Check if the schema definition exists first (G-001/G-002 check)
             this.getSchema(artifactId, version);
-            throw new GovernanceError(`MADR Internal Error (G-003): Validator function not compiled for ${key}. Internal state mismatch.`);
+            
+            // 2. If schema exists but validator is missing, it's an internal state failure (G-003)
+            if (e.message.includes('Registry Lookup Error')) {
+                throw new GovernanceError(`MADR Internal Error (G-003): Validator function not compiled for ${key}. Internal state mismatch.`);
+            }
+            throw e;
         }
-        return validatorFn;
     }
 
 
@@ -106,10 +149,12 @@ class MutationArtifactDefinitionRepository {
      * @throws {ValidationFailureError} If validation fails.
      */
     validate(artifactId, payload, version = 'latest') {
+        // 1. Get the compiled Ajv function
         const validateFn = this._getValidator(artifactId, version);
 
+        // 2. Execute the function (Ajv standard)
         if (!validateFn(payload)) {
-            // Validator function stores detailed errors on its property (standard Ajv behavior)
+            // Ajv stores detailed errors on its property
             const errors = validateFn.errors || [];
             const context = {
                 artifactId: artifactId,
