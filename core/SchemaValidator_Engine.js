@@ -50,13 +50,15 @@ class SchemaValidatorEngine {
      * @param {function} [options.onValidationFailure] - Callback function for Nexus/MQM logging. (mqmPayload, failureEntry)
      * @param {string} [options.kernelVersion='N/A'] - The current kernel version for dynamic reporting (Meta-Reasoning).
      * @param {object} [options.schemaComponentMap] - Map of schemaName -> {componentPath: string, priority: number} for Navigation targeting.
+     * @param {function} [options.runtimeMapper] - Injectable function for mapping keywords to capabilities (overrides fallback).
      */
     constructor(options = {}) {
         const { 
             componentSchemas, 
             onValidationFailure, 
             kernelVersion = 'N/A', 
-            schemaComponentMap = {} 
+            schemaComponentMap = {},
+            runtimeMapper
         } = options;
         
         this.validator = null;
@@ -70,7 +72,39 @@ class SchemaValidatorEngine {
         
         // INTEGRATION HOOK: Function provided by the kernel core
         this.onValidationFailure = onValidationFailure || (() => {}); 
-        
+
+        // LOGIC REFACTOR: Keyword-to-Capability mapping is outsourced to ErrorCapabilityMapper plugin.
+        // We provide a robust internal fallback for initialization.
+        this._runtimeMapper = runtimeMapper || ((keyword) => {
+            switch (keyword) {
+                case 'required':
+                case 'additionalProperties':
+                    return 'Logic';
+                case 'type':
+                case 'format':
+                case 'maximum':
+                case 'minimum':
+                    return 'Navigation';
+                case 'serialization_fail':
+                case 'nonSerializable':
+                    return 'Memory';
+                case 'const':
+                case 'enum':
+                    return 'Governance';
+                case 'not':
+                case 'if':
+                case 'then':
+                case 'else':
+                case 'dependencies':
+                case 'oneOf': 
+                case 'allOf': 
+                case 'anyOf':
+                    return 'Integration';
+                default:
+                    return 'Creativity'; 
+            }
+        });
+
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
         this.failureHistory = []; 
         this.MAX_HISTORY = 100; // Store the last 100 failures
@@ -125,48 +159,6 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * Maps the type of validation error (Ajv keyword) to the primary AGI capability under stress.
-     * This enhances meta-reasoning by providing strategic context to the Nexus-Database.
-     * @param {string} keyword - Ajv error keyword (e.g., 'required', 'type', 'serialization_fail').
-     * @returns {string} Primary AGI capability dimension.
-     */
-    _mapErrorToCapability(keyword) {
-        switch (keyword) {
-            case 'required':
-            case 'additionalProperties':
-                // Data structure errors frequently impact the Logic component consuming the data.
-                return 'Logic';
-            case 'type':
-            case 'format':
-            case 'maximum':
-            case 'minimum':
-                // Failures related to data types/constraints stress underlying Logic/Implementation integrity, but often stem from bad input source (Navigation context).
-                return 'Navigation';
-            case 'serialization_fail':
-            case 'nonSerializable':
-                // Direct failure of data persistence/handling requires robust recovery logic (Memory component handling persistence).
-                return 'Memory';
-            case 'const':
-            case 'enum':
-                // Failures in specific value constraints relate to decision boundaries (Meta-Reasoning/Governance).
-                return 'Governance';
-            case 'not':
-            case 'if':
-            case 'then':
-            case 'else':
-            case 'dependencies':
-            case 'oneOf': 
-            case 'allOf': 
-            case 'anyOf':
-                // Complex conditional errors suggest architectural problems or flawed integration patterns.
-                return 'Integration';
-            default:
-                // General structural failures or unknown issues relate to foundational schema design/quality.
-                return 'Creativity'; 
-        }
-    }
-
-    /**
      * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
      */
     _trackFailure(schemaName, errors, isCritical, dataSample) {
@@ -179,7 +171,9 @@ class SchemaValidatorEngine {
         
         // Determine Capability Impact dynamically (Meta-Reasoning)
         const firstErrorKeyword = summary[0]?.keyword || 'N/A';
-        const capabilityImpact = this._mapErrorToCapability(firstErrorKeyword);
+        
+        // REFACTORED: Use the injected/fallback mapper (ErrorCapabilityMapper plugin logic)
+        const capabilityImpact = this._runtimeMapper(firstErrorKeyword);
 
         const failureEntry = {
             timestamp: Date.now(),
