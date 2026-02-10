@@ -90,6 +90,11 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     13. Implemented a Key Canonicalization Layer (`_canonicalize_key`) to ensure non-string dictionary keys
         (like tuples or objects) are serialized into deterministic JSON strings before being used as map keys,
         fixing a critical determinism flaw in complex state structures.
+        
+    AGI-KERNEL Improvement (Cycle 16, Logic):
+    14. Added introspection for public properties (`@property` decorators) in custom classes. This ensures 
+        that derived or calculated state essential for an object's identity is included in the canonical hash, 
+        preventing unstable hashing of high-complexity agent models or configuration objects.
     """
 
     def __init__(self, *args, **kwargs):
@@ -335,14 +340,14 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 self._visited.discard(obj_id)
                 return {k: v for k, v in raw_dict.items() if v is not None}
 
-            # 5c. Generalized attribute serialization (Handling __dict__ and __slots__)
+            # 5c. Generalized attribute serialization (Handling __dict__, __slots__, and @property)
             attributes = {}
             
-            # Gather attributes from __dict__
+            # Gather attributes from __dict__ (standard instance data)
             if hasattr(obj, '__dict__'):
                 attributes.update(obj.__dict__)
 
-            # Gather attributes from __slots__ (if present, often mutually exclusive with __dict__)
+            # Gather attributes from __slots__ 
             if hasattr(obj, '__slots__'):
                 for slot in obj.__slots__:
                     try:
@@ -350,7 +355,26 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                         attributes[slot] = getattr(obj, slot)
                     except AttributeError:
                         pass # Skip uninitialized slots
-            
+
+            # AGI-KERNEL Improvement (Cycle 16): Include public properties (descriptors)
+            klass = type(obj)
+            for k in dir(obj):
+                # Only look for keys not already present and not starting with an underscore
+                if k not in attributes and not k.startswith('_'):
+                    if hasattr(klass, k):
+                        attr = getattr(klass, k)
+                        # Check if it's a property descriptor defined on the class
+                        if isinstance(attr, property):
+                            try:
+                                # Access the property value on the instance
+                                value = getattr(obj, k)
+                                # Ensure the retrieved value is not a callable (i.e., not a method mistakenly captured)
+                                if not callable(value):
+                                    attributes[k] = value
+                            except AttributeError:
+                                # Skip properties that fail to compute (e.g., due to required initialization)
+                                pass
+
             # Process gathered attributes if any were found
             if attributes:
                 # AGI-KERNEL Improvement (Cycle 13): Consolidate attribute collection for __dict__ and __slots__.
