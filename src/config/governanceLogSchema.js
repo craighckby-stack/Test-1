@@ -4,20 +4,49 @@
  * 
  * Defines required structure, type coercion, and validation rules for all 
  * Sovereign AGI operational log streams before ingestion. Decoupled from LNM core logic.
+ * 
+ * Note: Coercers and Validators requiring complex logic are sourced from the SchemaFieldValidatorUtility (SDFU).
  */
-module.exports = {
-    timestamp: { 
-        required: true, 
-        coercer: (val) => { 
+
+// Placeholder requirement for the utility interface, assumed to be loaded by the kernel environment.
+// In a full implementation, SDFU would be registered with the SchemaValidationEngine.
+const SDFU = {
+    utils: {
+        coerceToISOString: (val) => { 
             const date = new Date(val); 
             if (isNaN(date.getTime())) { 
-                // Throwing inside coercer triggers LNM_300 handling
                 throw new Error("Invalid date input.");
             }
             return date.toISOString(); 
-        }, 
-        validator: (val) => val.includes('T') && !isNaN(Date.parse(val)),
-        error_code: 'LNM_401' // Specific timestamp error
+        },
+        validateISOString: (val) => typeof val === 'string' && val.includes('T') && !isNaN(Date.parse(val)),
+        coerceToFlooredInteger: (val) => {
+            const num = Number(val);
+            if (isNaN(num)) throw new Error("Value must be numeric.");
+            return Math.floor(num);
+        },
+        validateHexadecimal: (val, minLength) => typeof String(val) === 'string' && String(val).length >= minLength && /^[0-9a-fA-F]+$/.test(String(val)),
+        safeJSONCoercer: (val) => {
+            if (typeof val === 'string') {
+                try {
+                    return JSON.parse(val);
+                } catch (e) {
+                    return val; 
+                }
+            }
+            return val;
+        }
+    }
+};
+
+module.exports = {
+    timestamp: { 
+        required: true, 
+        // Using plugin utility for robust date coercion
+        coercer: (val) => SDFU.utils.coerceToISOString(val), 
+        // Using plugin utility for ISO format validation
+        validator: (val) => SDFU.utils.validateISOString(val),
+        error_code: 'LNM_401' 
     },
     component_id: { 
         required: true, 
@@ -33,35 +62,25 @@ module.exports = {
     }, 
     gsep_stage: { 
         required: true, 
-        coercer: (val) => { 
-            const num = Number(val);
-            if (isNaN(num)) throw new Error("Stage must be numeric.");
-            return Math.floor(num);
-        }, 
-        validator: (val) => val >= 1 && val <= 5, 
+        // Using plugin utility for robust numeric coercion and flooring
+        coercer: (val) => SDFU.utils.coerceToFlooredInteger(val), 
+        validator: (val) => typeof val === 'number' && val >= 1 && val <= 5, 
         error_code: 'LNM_404', 
         error: 'GSEP stage index out of bounds (1-5)'
     },
     input_hash: { 
         required: true, 
         coercer: String, 
-        validator: (val) => typeof val === 'string' && val.length >= 10 && /^[0-9a-fA-F]+$/.test(val),
+        // Using plugin utility for combined hex format and length validation
+        validator: (val) => SDFU.utils.validateHexadecimal(val, 10),
         error_code: 'LNM_405',
         error: 'Input hash must be a minimum 10-character hexadecimal string.'
     },
     // Optional fields maintain strict type checks if present
     metadata: {
         required: false,
-        coercer: (val) => { 
-            if (typeof val === 'string') {
-                try {
-                    return JSON.parse(val);
-                } catch {
-                    return val; // If string is not JSON, pass raw string
-                }
-            }
-            return val;
-        },
+        // Using plugin utility for safe JSON coercion
+        coercer: (val) => SDFU.utils.safeJSONCoercer(val),
         validator: (val) => typeof val === 'object' && val !== null,
         error_code: 'LNM_406'
     }
