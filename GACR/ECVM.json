@@ -1,30 +1,42 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "document_purpose": "Evolution Cycle and Validation Metrics (ECVM) Store",
   "last_updated_cycle": 1,
   "system_guidance": {
-    "description": "Configuration for monitoring self-improvement and stagnation protocols.",
+    "description": "Configuration for monitoring self-improvement and stagnation protocols, tailored for Navigator Edition 7.4.4.",
+    "repository_scale": 2300,
     "stagnation_cycles_max": 5,
     "mutation_temperature_baseline": 1.0,
-    "low_maturity_threshold": 30
+    "low_maturity_threshold": 30,
+    "file_priority_weights": {
+      "/core": 30,
+      "/agents": 25,
+      "/emergent": 20,
+      "/governance": 15,
+      "support_infrastructure": 10
+    }
+  },
+  "navigator_state": {
+    "current_blacklist_size": 0,
+    "max_blacklist_target": 50,
+    "files_touched_unique": 1,
+    "emergence_count": 0
   },
   "capability_history": [
     {
       "cycle": 1,
       "maturity": 5,
-      "Error Handling": 6,
-      "JSON Parsing": 7,
-      "Meta-Reasoning": 3,
-      "Autonomy": 4,
-      "Creativity": 5
+      "Navigation": 2,
+      "Logic": 3,
+      "Memory": 2
     }
   ],
   "recent_actions": [
     {
       "cycle": 1,
       "target": "GACR/ECVM.json",
-      "action": "Infrastructure Initialization",
-      "status": "Success"
+      "action": "Metric Standardization and Navigator State Initialization",
+      "status": "Refined"
     }
   ]
 }
