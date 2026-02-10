@@ -3,7 +3,7 @@
  * Improves internal error handling and differentiation (AGI Goal: Error Handling)
  */
 class PathResolutionError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(message);
     this.name = "PathResolutionError";
   }
@@ -18,12 +18,24 @@ const RuleTypes = {
   VALUE_MATCH: 'valueMatch',
 };
 
+// Define an interface for the expected plugin behavior for local clarity (TS only)
+interface IJsonPathResolver {
+    execute(args: { artifact: any, path: string }): any;
+}
+
+// Global hook placeholder for the plugin access (simulating environment injection)
+declare const JsonPathResolver: IJsonPathResolver;
+
 
 class GAX_PreFlightConstraintEngine {
-  constructor(constraintDefinition) {
+  constructor(constraintDefinition: { mandatory_constraints: any[], required_types: Record<string, string> }) {
     this.constraints = constraintDefinition.mandatory_constraints;
     this.typeMap = constraintDefinition.required_types;
   }
+  
+  private constraints: any[];
+  private typeMap: Record<string, string>;
+
 
   /**
    * Checks the type of a value against the expected type, handling complex types like array and object.
@@ -31,7 +43,7 @@ class GAX_PreFlightConstraintEngine {
    * @param {string} expectedType The type string ('string', 'number', 'array', 'object', 'null').
    * @returns {boolean}
    */
-  _checkType(value, expectedType) {
+  _checkType(value: any, expectedType: string): boolean {
     if (value === undefined) return false; 
     
     // Explicitly handle null: null is only valid if expected type is 'object' or 'null'
@@ -51,7 +63,7 @@ class GAX_PreFlightConstraintEngine {
    * @param {object} rule The rule definition (type, expected, required, etc.).
    * @returns {boolean}
    */
-  _executeRule(value, rule) {
+  _executeRule(value: any, rule: any): boolean {
     const isDefined = value !== undefined && value !== null;
 
     if (rule.type === RuleTypes.PRESENCE) {
@@ -80,55 +92,36 @@ class GAX_PreFlightConstraintEngine {
   }
 
   /**
-   * Robust implementation of reliable JSON path traversal, now supporting dot notation 
-   * and array indexing (e.g., 'data.list[0].id'). (AGI Goal: Logic Improvement)
+   * Accessor for reliable JSON path traversal, leveraging the external JsonPathResolver plugin.
    * Throws PathResolutionError if any part of the path is missing or undefined/null.
    * @param {object} artifact The data structure to traverse.
    * @param {string} path Dot-notation path (e.g., 'data.user.id').
    * @returns {*} The value at the path.
    */
-  _getValueAtPath(artifact, path) {
+  _getValueAtPath(artifact: object, path: string): any {
+    // AGI-KERNEL Plugin integration: Replace internal logic with external tool call.
     if (!path || !artifact) return undefined;
     
-    // 1. Normalize path: Replace [N] with .N, e.g., 'a.b[0].c' -> 'a.b.0.c'
-    const normalizedPath = path.replace(/\.(\d+)\]/g, '.$1').replace(/\[(\d+)\]/g, '.$1');
-    
-    // 2. Split path into segments
-    const pathParts = normalizedPath.split('.').filter(p => p.length > 0);
-    let current = artifact;
-
-    for (const part of pathParts) {
-      if (current === undefined || current === null) {
-        // If we hit null/undefined mid-path, resolution failed.
-        throw new PathResolutionError(`Path segment '${part}' not found: intermediate node is null or undefined.`); 
-      }
-      
-      const index = parseInt(part, 10);
-      const isIndex = !isNaN(index) && String(index) === part;
-      
-      if (isIndex && Array.isArray(current)) {
-        // Handle array access
-        if (index < 0 || index >= current.length) {
-            throw new PathResolutionError(`Array index ${index} out of bounds for path segment '${part}'.`);
+    try {
+        // @ts-ignore: Assume global presence of JsonPathResolver injected by runtime.
+        return JsonPathResolver.execute({ artifact, path });
+    } catch (e: any) {
+        // Ensure that any error thrown by the plugin which is a resolution failure 
+        // is re-thrown as the locally defined PathResolutionError, allowing `instanceof` checks 
+        // in the `validate` method to function correctly across module boundaries.
+        if (e.name === "PathResolutionError") {
+            throw new PathResolutionError(e.message);
         }
-        current = current[index];
-      } else if (typeof current === 'object' && part in current) {
-        // Handle property access
-        current = current[part];
-      } else {
-        // Fallback for missing property or trying to traverse a primitive
-        throw new PathResolutionError(`Path segment '${part}' not found in current node or node is a primitive.`); 
-      }
+        throw e;
     }
-    return current;
   }
 
-  async validate(targetArtifact) {
-    const results = [];
+  async validate(targetArtifact: object): Promise<boolean> {
+    const results: any[] = [];
     
     // Helper function to capture validation failures consistently (AGI Goal: Refactoring)
-    const recordFailure = (constraintId, path, reason, type = 'FAILED') => {
-        const failure = { path, status: type, reason };
+    const recordFailure = (constraintId: string | null, path: string, reason: string, type: string = 'FAILED') => {
+        const failure: any = { path, status: type, reason };
         if (constraintId) failure.constraint = constraintId;
         results.push(failure);
     };
@@ -136,7 +129,7 @@ class GAX_PreFlightConstraintEngine {
     // 1. Mandatory Constraint Execution (Structural and Value Rules)
     for (const constraint of this.constraints) {
       const { targetPath: path, rule, constraintId } = constraint;
-      let value = undefined;
+      let value: any = undefined;
 
       try {
         value = this._getValueAtPath(targetArtifact, path);
@@ -153,13 +146,13 @@ class GAX_PreFlightConstraintEngine {
             // Path not found. This only fails validation if a mandatory presence rule is defined.
             if (rule.type === RuleTypes.PRESENCE && rule.required === true) {
                  // Crucial structural failure: Path must exist, but doesn't.
-                 recordFailure(constraintId, path, `Mandatory field is missing or path structure is invalid: ${e.message}`);
+                 recordFailure(constraintId, path, `Mandatory field is missing or path structure is invalid: ${(e as Error).message}`);
             }
             // Otherwise, if path resolution fails for a non-mandatory field, we treat it as skipped (passes).
             
         } else {
             // Unexpected structural errors (e.g., trying to index a primitive)
-            recordFailure(constraintId, path, `Internal path resolution failure: ${e.message}`, 'ERROR');
+            recordFailure(constraintId, path, `Internal path resolution failure: ${(e as Error).message}`, 'ERROR');
         }
       }
     }
@@ -173,7 +166,7 @@ class GAX_PreFlightConstraintEngine {
             
         if (!typeOK) {
             // Determine actual type for better reporting
-            let actualType;
+            let actualType: string;
             if (value === null) actualType = 'null';
             else if (value === undefined) actualType = 'undefined/missing'; 
             else actualType = Array.isArray(value) ? 'array' : typeof value;
@@ -184,16 +177,16 @@ class GAX_PreFlightConstraintEngine {
       } catch (e) {
         if (e instanceof PathResolutionError) {
              // If PathNotFound occurs for a type check defined in typeMap, it's always a failure.
-             recordFailure(null, path, `Required path for type check was not found in artifact: ${e.message}`);
+             recordFailure(null, path, `Required path for type check was not found in artifact: ${(e as Error).message}`);
         } else {
-             recordFailure(null, path, `Type validation error: ${e.message}`, 'ERROR');
+             recordFailure(null, path, `Type validation error: ${(e as Error).message}`, 'ERROR');
         }
       }
     }
 
     if (results.length > 0) {
       // Throw an error with the structured results array attached for robust downstream processing
-      const error = new Error(`GAX Pre-Flight Validation Failed: ${results.length} critical issues detected.`);
+      const error: any = new Error(`GAX Pre-Flight Validation Failed: ${results.length} critical issues detected.`);
       error.results = results; 
       throw error;
     }
@@ -201,4 +194,5 @@ class GAX_PreFlightConstraintEngine {
   }
 }
 
+// @ts-ignore: Required for module system compatibility
 module.exports = GAX_PreFlightConstraintEngine;
