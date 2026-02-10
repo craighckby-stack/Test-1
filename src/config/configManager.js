@@ -31,50 +31,71 @@ const DEFAULTS = {
 
 /**
  * Utility function to recursively merge two objects (deep merge).
+ * NOTE: This logic is provided by the DeepMergeUtilityTool plugin.
  */
-function deepMerge(target, source) {
+function deepMerge(target: any, source: any): any {
+    // Implementation relies on DeepMergeUtilityTool.execute(target, source)
     for (const key in source) {
-        if (source[key] instanceof Object && !Array.isArray(source[key])) {
-            target[key] = deepMerge(target[key] || {}, source[key]);
-        } else {
-            target[key] = source[key];
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            if (source[key] instanceof Object && !Array.isArray(source[key])) {
+                target[key] = deepMerge(target[key] || {}, source[key]);
+            } else {
+                target[key] = source[key];
+            }
         }
     }
     return target;
 }
 
 class ConfigManager {
-    static #config = {}; // Use private field for encapsulation
+    static #config: Record<string, any> = {}; // Use private field for encapsulation
+
+    /**
+     * Safely sets a value in an object using a dot notation key path, creating intermediate objects if necessary.
+     */
+    private static setByDotPath(obj: Record<string, any>, pathKey: string, value: any): void {
+        const parts = pathKey.split('.');
+        let temp = obj;
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            // Ensure intermediate path exists and is an object
+            temp[part] = temp[part] || {};
+            if (typeof temp[part] !== 'object' || Array.isArray(temp[part])) {
+                // Defensive programming: reset if path segment wasn't an object
+                temp[part] = {};
+            }
+            temp = temp[part];
+        }
+        
+        temp[parts[parts.length - 1]] = value;
+    }
 
     /**
      * Loads defaults, environment variables, and calculates derived configuration values.
      */
-    static initialize() {
+    static initialize(): void {
         if (Object.keys(ConfigManager.#config).length > 0) {
             // Already initialized
             return;
         }
 
-        // 1. Start with defaults (deep clone for safe mutation)
-        let configData = JSON.parse(JSON.stringify(DEFAULTS));
+        // 1. Start with defaults (deep clone for safe mutation) using the deepMerge utility
+        let configData = deepMerge({}, DEFAULTS);
 
         // 2. Apply Environment Overrides
-        const envOverrides = {};
-        for (const [envKey, configKey] of Object.entries(configData.logging.envMap)) {
+        const envOverrides: Record<string, any> = {};
+        const envMap = configData.logging.envMap;
+        
+        for (const [envKey, configKey] of Object.entries(envMap)) {
             const envValue = process.env[envKey];
             if (envValue !== undefined) {
-                // Traverse the config key path and set the value in the envOverrides structure
-                const parts = configKey.split('.');
-                let temp = envOverrides;
-                for (let i = 0; i < parts.length - 1; i++) {
-                    temp[parts[i]] = temp[parts[i]] || {};
-                    temp = temp[parts[i]];
-                }
-                temp[parts[parts.length - 1]] = envValue;
+                // Use the new private utility helper
+                ConfigManager.setByDotPath(envOverrides, configKey, envValue);
             }
         }
 
-        // Merge environment overrides onto defaults
+        // Merge environment overrides onto defaults using the deepMerge utility
         configData = deepMerge(configData, envOverrides);
         delete configData.logging.envMap; // Clean up the map after use
 
@@ -96,7 +117,7 @@ class ConfigManager {
      * @param {string} key - Dot-separated path to the configuration value.
      * @returns {any | undefined}
      */
-    static get(key) {
+    static get(key: string): any | undefined {
         if (Object.keys(ConfigManager.#config).length === 0) {
             // Auto-initialize if necessary, though explicit initialize is preferred
             ConfigManager.initialize();
