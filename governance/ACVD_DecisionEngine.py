@@ -35,18 +35,19 @@ def get_utc_timestamp() -> str:
 # Define default governance configuration for consistency and centralization
 class ACVD_ConfigDefaults:
     """Centralized definition of default governance configuration parameters."""
-    SCHEMA_VERSION = "1.1.1" # Updated version due to heuristic refinement
+    SCHEMA_VERSION = "1.1.2" # Updated version due to persistence control integration and enhanced guidance
     DEFAULT_MIN_SAFETY_SCORE = 0.85
     DEFAULT_FALLBACK_WEIGHT = 0.30 
     DEFAULT_INTERNAL_PENALTY_MULTIPLIER = 0.5 
     DEFAULT_WEIGHT_ADJUSTMENT_SENSITIVITY = 0.005 # Threshold for tuning proposal stability
     DEFAULT_MAX_LOG_QUEUE_SIZE = 500 # Limit log queue size for performance/memory robustness
+    DEFAULT_PERSIST_CONFIG = True # NEW: Control persistence of dynamic changes (Memory/Infrastructure)
     
     # New Heuristic Parameters (Logic/Memory/Stability)
     DEFAULT_HEURISTIC_INCREASE_THRESHOLD = 1.6 # Deviation threshold for increasing weight (1.6x observed/expected ratio)
     DEFAULT_HEURISTIC_DECREASE_THRESHOLD = 0.4 # Deviation threshold for decreasing weight (0.4x observed/expected ratio)
     DEFAULT_MAX_ADJUSTMENT_RATE = 0.10 # Max proportional adjustment in one cycle (10% of remaining gap)
-    DEFAULT_HEURISTIC_RESPONSIVENESS = 0.15 # NEW: Defines how aggressively the model adjusts weights based on deviation.
+    DEFAULT_HEURISTIC_RESPONSIVENESS = 0.15 # Defines how aggressively the model adjusts weights based on deviation.
     
     # Base weights, used if no configuration is found in the schema (static reference)
     BASE_SEVERITY_WEIGHTS = {
@@ -70,11 +71,11 @@ class ACVD_DecisionEngine:
     """Manages state transitions and validation enforcement based on the ACVD schema.
 
     This version enhances Meta-Reasoning and Autonomy by:
-    1. Refining the weight tuning heuristic (`_apply_weight_heuristic`) to use a centralized responsiveness factor, 
-       making autonomous learning rates more stable and configurable (Logic/Memory).
-    2. Implementing the custom `ConfigurationError` to standardize exception handling during schema loading,
-       improving governance infrastructure robustness (Logic/Infrastructure).
-    3. Replacing generic exceptions with custom `GovernanceError` derivatives in critical decision pathways.
+    1. Implementing configurable persistence control (`persist_config`), allowing the kernel to autonomously
+       decide if learned heuristic weights should be saved (Infrastructure Authority).
+    2. Refining the `perform_self_assessment` strategic guidance to better prioritize tuning actions
+       based on current operational health (Logic/Autonomy).
+    3. Maintaining robust error handling and log queue management.
     """
 
     # Use centralized defaults
@@ -96,7 +97,6 @@ class ACVD_DecisionEngine:
         # Use Path objects internally for robust file handling
         self.schema_path = Path(schema_path)
         self._log_queue: List[Dict[str, Any]] = [] # Infrastructure: Internal queue for Telemetry System
-        self.persist_config = True
 
         # Initialize core attributes robustly
         self.schema: Dict[str, Any] = {}
@@ -104,11 +104,12 @@ class ACVD_DecisionEngine:
         self.valid_states: List[str] = []
         self.state_transitions: Dict[str, List[str]] = {}
         
-        # Initialize configurable attributes
+        # Initialize configurable attributes (defaulted prior to loading)
         self.safety_threshold: float = self.DEFAULT_MIN_SAFETY_SCORE
         self.severity_weights: Dict[str, float] = self._BASE_SEVERITY_WEIGHTS.copy()
         self.internal_penalty_multiplier: float = self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
-        self.max_log_queue_size: int = self.DEFAULT_MAX_LOG_QUEUE_SIZE # Default log size limit
+        self.max_log_queue_size: int = self.DEFAULT_MAX_LOG_QUEUE_SIZE
+        self.persist_config: bool = ACVD_ConfigDefaults.DEFAULT_PERSIST_CONFIG # Initialize persistence control
         
         self._load_configuration()
         
@@ -165,10 +166,16 @@ class ACVD_DecisionEngine:
             self.DEFAULT_INTERNAL_PENALTY_MULTIPLIER
         )
         
-        # Load max log queue size (New: Infrastructure/Robustness)
+        # Load max log queue size (Infrastructure/Robustness)
         self.max_log_queue_size = config.get(
             'max_log_queue_size',
             self.DEFAULT_MAX_LOG_QUEUE_SIZE
+        )
+        
+        # Load persistence control (NEW: Infrastructure Authority)
+        self.persist_config = config.get(
+            'persist_config',
+            ACVD_ConfigDefaults.DEFAULT_PERSIST_CONFIG
         )
 
     def _log_status(self, level: str, message: str, context: str, details: Dict[str, Any] = None):
@@ -227,7 +234,6 @@ class ACVD_DecisionEngine:
     def _save_schema(self):
         """Persists the current schema (including dynamically updated severity weights)
         using an atomic write pattern (temp file) to ensure fault tolerance (Pathlib integration).
-        Also persists configuration constraints like log queue limits.
         """
         if not self.persist_config:
             self._log_status("DEBUG", "Schema persistence disabled by configuration.", "SCHEMA_PERSIST_SKIP")
@@ -246,8 +252,9 @@ class ACVD_DecisionEngine:
         save_data['config']['min_safety_score'] = self.safety_threshold
         save_data['config']['internal_penalty_multiplier'] = self.internal_penalty_multiplier
         
-        # Persist infrastructure constraints (New)
+        # Persist infrastructure constraints (Including new persistence flag)
         save_data['config']['max_log_queue_size'] = self.max_log_queue_size
+        save_data['config']['persist_config'] = self.persist_config # Persist control flag
 
         temp_path = self.schema_path.with_suffix('.json.tmp')
         
@@ -431,6 +438,7 @@ class ACVD_DecisionEngine:
     def perform_self_assessment(self) -> Dict[str, Any]:
         """
         Calculates the internal Operational Integrity Score and includes structured tuning data.
+        (Enhanced Strategic Guidance)
         """
         
         log_impact_analysis = self._calculate_log_impact()
@@ -448,6 +456,7 @@ class ACVD_DecisionEngine:
         }
         
         tuning_proposals = self.propose_autonomous_tuning()
+        is_safe = assessment['operationalIntegrityScore'] >= self.safety_threshold
         
         # Recalculate basic counts
         for log in self._log_queue:
@@ -458,16 +467,17 @@ class ACVD_DecisionEngine:
                 assessment['errorLogCount'] += 1
 
         
-        if assessment['operationalIntegrityScore'] < self.safety_threshold:
+        if not is_safe:
             self._log_status("WARNING", 
                              f"Operational Integrity Score ({assessment['operationalIntegrityScore']:.2f}) is below Safety Threshold ({self.safety_threshold:.2f}). Requires immediate attention.", 
                              "INTEGRITY_ALERT")
             
-            # Meta-Reasoning: Provide actionable strategic feedback for the AGI kernel
+            # Meta-Reasoning: Provide actionable strategic feedback for the AGI kernel (Recovery Mode)
             if assessment['criticalLogCount'] > 0:
                  assessment['strategicGuidance'] = "RECOVER_CRITICAL_FAULT_TOLERANCE"
             elif tuning_proposals:
-                 assessment['strategicGuidance'] = "APPLY_AUTONOMOUS_GOVERNANCE_TUNING"
+                 # If unsafe, tuning is part of immediate stabilization
+                 assessment['strategicGuidance'] = "APPLY_AUTONOMOUS_GOVERNANCE_TUNING_DURING_RECOVERY" 
             elif assessment['errorLogCount'] > assessment['totalLogCount'] * 0.2 and assessment['totalLogCount'] > 5:
                  assessment['strategicGuidance'] = "IMPROVE_ERROR_HANDLING_ABSTRACTION"
             elif assessment['weightedPenalty'] > 0.1: 
@@ -475,8 +485,13 @@ class ACVD_DecisionEngine:
             else:
                  assessment['strategicGuidance'] = "INVESTIGATE_LOW_LEVEL_WARNINGS"
         else:
+            # System Stable Logic (Preventative Optimization Mode)
             if tuning_proposals:
-                 assessment['strategicGuidance'] = "REVIEW_AND_APPLY_PREVENTATIVE_TUNING"
+                 # If the system is safe but accumulating substantial low-level risk (penalty > 0.05), prioritize tuning
+                 if negative_score_accumulation > 0.05:
+                     assessment['strategicGuidance'] = "APPLY_PREVENTATIVE_AUTONOMOUS_TUNING_HIGH_PRIORITY"
+                 else:
+                     assessment['strategicGuidance'] = "REVIEW_AND_APPLY_PREVENTATIVE_TUNING"
             elif negative_score_accumulation > 0.0:
                  assessment['strategicGuidance'] = "REVIEW_TUNING_SUGGESTIONS_FOR_PREVENTATIVE_OPTIMIZATION"
             else:
