@@ -35,6 +35,10 @@ class FitnessEngine {
   static HISTORICAL_IMPROVEMENT_THRESHOLD = 0.05; // 5% relative change needed for adjustment
   static HISTORICAL_MAX_ADJUSTMENT = 0.30; // Max 30% boost/penalty
   static HISTORICAL_PENALTY_RATIO = 0.5; // Regression penalty is 50% of the reward magnitude
+  // NEW: Constants for robust historical comparison when metrics are near zero (Logic/Memory)
+  static MIN_ABSOLUTE_HISTORY = 1e-4; // Minimum non-zero denominator for relative change stability
+  static ABSOLUTE_CHANGE_THRESHOLD = 0.5; // Absolute change required if baseline is near zero
+  static MAX_FORMULA_LENGTH = 512; // Maximum allowed length for dynamic metric formulas (Autonomy/Security)
 
   constructor(metricsConfig) {
     if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
@@ -232,11 +236,13 @@ class FitnessEngine {
   /**
    * Meta-Reasoning: Calculates the relative change factor based on historical data and optimization goal.
    * Centralizes progression logic for consistency across score adjustment and capability assessment.
+   * IMPROVEMENT: Added robustness for near-zero historical values (Memory/Logic Stability).
    * @returns {{changeType: ('reward'|'penalty'|'neutral'), rawFactor: number}}
    */
   _calculateHistoricalChangeFactor(rawMetrics, historicalMetrics, profile) {
       const improvementThreshold = FitnessEngine.HISTORICAL_IMPROVEMENT_THRESHOLD; 
       const MAX_ADJUSTMENT = FitnessEngine.HISTORICAL_MAX_ADJUSTMENT; 
+      const ABSOLUTE_THRESHOLD = FitnessEngine.ABSOLUTE_CHANGE_THRESHOLD;
       
       if (Object.keys(historicalMetrics).length === 0 || !profile || !rawMetrics) {
           return { changeType: 'neutral', rawFactor: 0 };
@@ -254,41 +260,44 @@ class FitnessEngine {
            return { changeType: 'neutral', rawFactor: 0 };
       }
       
-      if (currentTargetValue < FitnessEngine.EPSILON && historicalTargetValue < FitnessEngine.EPSILON) {
-          // Both zero/near-zero, effectively no change if minimizing
-          return { changeType: 'neutral', rawFactor: 0 };
-      }
-      
-      // 1. Calculate relative difference
-      let relativeDifference = 0.0;
-      if (historicalTargetValue > FitnessEngine.EPSILON) {
-          relativeDifference = (currentTargetValue - historicalTargetValue) / historicalTargetValue;
-      }
-      
+      const absoluteDifference = currentTargetValue - historicalTargetValue;
       let performanceChange = 'neutral';
+      let rawMagnitude = 0.0;
+
+      // Determine if historical comparison should use relative or absolute threshold
+      const useAbsoluteThreshold = Math.abs(historicalTargetValue) < FitnessEngine.MIN_ABSOLUTE_HISTORY;
       
-      if (profile.optimization_goal === 'minimize') {
-          // Reduction in metric value is good (negative relativeDifference is desired)
-          if (relativeDifference < -improvementThreshold) {
-              performanceChange = 'reward';
-          } else if (relativeDifference > improvementThreshold) {
-              performanceChange = 'penalty';
+      let changeMet = false;
+
+      if (useAbsoluteThreshold) {
+          // If baseline is tiny, rely on absolute difference (Logic Stability)
+          if (Math.abs(absoluteDifference) > ABSOLUTE_THRESHOLD) {
+              changeMet = true;
+              rawMagnitude = Math.abs(absoluteDifference / ABSOLUTE_THRESHOLD); // Scale based on how far it exceeded the absolute threshold
           }
-      } else if (profile.optimization_goal === 'maximize') {
-          // Increase in metric value is good (positive relativeDifference is desired)
-          if (relativeDifference > improvementThreshold) {
-              performanceChange = 'reward';
-          } else if (relativeDifference < -improvementThreshold) {
-              performanceChange = 'penalty';
+      } else {
+          // If baseline is stable, rely on relative difference
+          let relativeDifference = absoluteDifference / historicalTargetValue;
+          if (Math.abs(relativeDifference) > improvementThreshold) {
+              changeMet = true;
+              rawMagnitude = Math.abs(relativeDifference);
           }
       }
 
+      if (changeMet) {
+          // Determine reward/penalty based on optimization goal
+          if (profile.optimization_goal === 'minimize') {
+              if (absoluteDifference < 0) performanceChange = 'reward'; 
+              else if (absoluteDifference > 0) performanceChange = 'penalty'; 
+          } else if (profile.optimization_goal === 'maximize') {
+              if (absoluteDifference > 0) performanceChange = 'reward';
+              else if (absoluteDifference < 0) performanceChange = 'penalty';
+          }
+      }
+      
       if (performanceChange === 'neutral') {
           return { changeType: 'neutral', rawFactor: 0 };
       }
-      
-      // 2. Calculate dynamic adjustment based on magnitude of change beyond the threshold
-      const rawMagnitude = Math.abs(relativeDifference);
       
       // Scale the adjustment proportionally up to MAX_ADJUSTMENT.
       let dynamicAdjustment = Math.min(MAX_ADJUSTMENT, rawMagnitude);
@@ -426,6 +435,12 @@ class FitnessEngine {
 
     const formula = targetMetricIdOrFormula.trim();
     
+    // NEW IMPROVEMENT (Autonomy/Security): Check formula length to prevent resource exhaustion from malformed input
+    if (formula.length > FitnessEngine.MAX_FORMULA_LENGTH) {
+        console.error(`FitnessEngine Security Alert: Formula length (${formula.length}) exceeds maximum allowed length (${FitnessEngine.MAX_FORMULA_LENGTH}). Aborting calculation.`);
+        return 0.0;
+    }
+
     // Get all valid metric keys for security validation
     const metricKeys = Object.keys(rawMetrics);
 
@@ -523,7 +538,7 @@ class FitnessEngine {
         case '===':
           return Math.abs(val - thresh) < FLOAT_TOLERANCE; // Use tolerance for floating point numbers
         case '!=':
-        case '!==':
+        case '!==' :
           return Math.abs(val - thresh) >= FLOAT_TOLERANCE;
         default:
           break; // Fall through to non-numerical comparison if operator is non-standard
@@ -536,7 +551,7 @@ class FitnessEngine {
       case '===':
         return value === threshold;
       case '!=':
-      case '!==':
+      case '!==' :
         return value !== threshold;
       default:
         // Graceful failure for unknown conditions (Error Handling)
