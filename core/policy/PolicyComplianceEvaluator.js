@@ -18,6 +18,17 @@ class PolicyComplianceEvaluator {
     /** @type {Object} */
     trustConfig = {};
 
+    /** 
+     * @type {Object.<number, string>} Maps Policy Code to expected metric key name. 
+     * NOTE: This map ensures policy evaluation can dynamically iterate over metrics 
+     * without hardcoding metric names in the calculation loop. This mapping should 
+     * eventually be externalized to the APM configuration itself (Future evolution task).
+     */
+    #policyMetricMap = {
+        1: 'securityViolationRate',
+        2: 'efficiencyLossSigma',
+    };
+
     constructor() {
         const matrix = APM.AdaptiveDeviationHandling;
 
@@ -33,7 +44,8 @@ class PolicyComplianceEvaluator {
 
         // Dependency check (optional, but good practice)
         if (typeof SystemActionDispatcher === 'undefined') {
-             console.error("PCE requires SystemActionDispatcher for compliance enforcement.");
+             // Use throwing error here for mission-critical dependency
+             throw new Error("PCE requires SystemActionDispatcher for compliance enforcement.");
         }
     }
 
@@ -68,20 +80,28 @@ class PolicyComplianceEvaluator {
 
     /**
      * Calculates the system deviation score based on predefined weighted policies.
-     * Uses O(1) lookup via weightMap for critical performance.
+     * Uses O(1) lookup via weightMap for critical performance, and dynamically iterates 
+     * over all currently configured policies.
      * @param {Object} metrics - System metrics.
      * @returns {number} The calculated deviation score.
      */
     calculateWeightedDeviation(metrics) {
         let score = 0;
+        const policyCodes = Object.keys(this.weightMap).map(Number); // Ensure codes are numeric keys
 
-        // Policy Code 1: Security Rate
-        score += (metrics.securityViolationRate * (this.weightMap[1] || 0)); 
-        // Policy Code 2: Efficiency Loss
-        score += (metrics.efficiencyLossSigma * (this.weightMap[2] || 0));
-        // Add other core metrics here...
+        for (const code of policyCodes) {
+            const metricKey = this.#policyMetricMap[code];
+            const weight = this.weightMap[code];
+            
+            if (metricKey && metrics[metricKey] !== undefined) {
+                // Contribution = Metric Value * Policy Weight
+                score += (metrics[metricKey] * weight);
+            }
+            // Note: If metricKey is missing from #policyMetricMap or metrics[metricKey] is missing, 
+            // that policy contribution is correctly zeroed out implicitly, maintaining robustness.
+        }
         
-        return score;
+        return isFinite(score) && score >= 0 ? score : 0;
     }
 
     // executeMandatedAction has been removed and replaced by delegation to SystemActionDispatcher
