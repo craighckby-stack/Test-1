@@ -2,6 +2,7 @@
  * Integrity Correlator Module (ICM)
  * Mission: High-throughput analysis correlating TEDS and PCSS data 
  * against historical constraint violation models (UFRM/CFTM) to determine root cause and policy magnitude.
+ * NOTE: Policy derivation is now handled by the KERNEL-bound PolicyMagnitudeDeriver tool.
  */
 
 class IntegrityCorrelatorModule {
@@ -9,17 +10,16 @@ class IntegrityCorrelatorModule {
      * @param {Object} teds - Temporal data series.
      * @param {Object} pcss - System state snapshot.
      * @param {Object} constraintModels - Current active constraint configuration.
-     * @param {Object} policyDeriver - Instance of the PolicyMagnitudeDeriver plugin.
      */
-    constructor(teds, pcss, constraintModels = {}, policyDeriver) {
+    constructor(teds, pcss, constraintModels = {}) {
         this.teds = teds;
         this.pcss = pcss;
         this.constraintModels = constraintModels;
-        this.policyDeriver = policyDeriver;
         this.CORRELATION_THRESHOLD = 0.85; // Sensitivity threshold for high-severity findings
-
-        if (!policyDeriver || typeof policyDeriver.derive !== 'function') {
-            throw new Error("IntegrityCorrelatorModule requires a valid PolicyMagnitudeDeriver instance.");
+        
+        // Ensure KERNEL access is globally available
+        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.Tool === 'undefined') {
+             throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES is required for tool execution.");
         }
     }
 
@@ -36,10 +36,11 @@ class IntegrityCorrelatorModule {
         // Step 2: Constraint Validation against PCSS (Integrity Check)
         const axiomBreaches = this._validateAxiomBreaches();
 
-        // Step 3: Derive Mandatory Policy Correction based on composite severity using the injected plugin.
-        const derivationResult = this.policyDeriver.derive(
-            temporalSkewMagnitude,
-            axiomBreaches.length
+        // Step 3: Derive Mandatory Policy Correction based on composite severity using the KERNEL Tool.
+        const derivationResult = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
+            'PolicyMagnitudeDeriver', 
+            'derive', 
+            [temporalSkewMagnitude, axiomBreaches.length]
         );
 
         // Simulate heavy computation (e.g., calling an external ML service)
