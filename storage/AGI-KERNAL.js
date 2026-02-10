@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 /**
- * AGI-KERNEL v7.2.0 - "RESILIENT SYNTHESIS"
+ * AGI-KERNEL v7.8.0 - "RESILIENT SYNTHESIS"
  * * VERIFIED CAPABILITIES:
  * 1. Failsafe Boot: Lazy Firebase init to prevent white-screen crashes.
  * 2. Cross-Branch Cognition: Scans main, Nexus-Database, and System.
@@ -17,12 +17,13 @@ import {
  * 4. Integrity Guard: Prevents truncation/self-erasure.
  * 5. Global Context: Prioritizes README directives.
  * 6. Granular Error Handling: 429 backoff & timeout recovery.
+ * 7. HTTP Resilience: Dedicated plugin for robust API interaction.
  */
 
 // --- CONFIGURATION ---
 const CONFIG = {
   // Safe access to global variables
-  APP_ID: (typeof window !== 'undefined' && window.__app_id) ? window.__app_id : 'agi-kernel-v7-2',
+  APP_ID: (typeof window !== 'undefined' && window.__app_id) ? window.__app_id : 'agi-kernel-v7-8',
   GITHUB_API: "https://api.github.com/repos",
   CEREBRAS_API: "https://api.cerebras.ai/v1/chat/completions",
   GEMINI_API: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent",
@@ -38,31 +39,8 @@ const safeAtou = (str) => {
   try { return decodeURIComponent(escape(atob(str.replace(/\s/g, '')))); } catch (e) { return atob(str); }
 };
 
-const sanitizeResponse = (text) => {
-  if (!text) return "";
-  return text.trim().replace(/^```(json|javascript|jsx|react)/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
-};
-
-const recoverJSON = (rawText) => {
-  if (!rawText) return null;
-  const sanitized = sanitizeResponse(rawText);
-  try { return JSON.parse(sanitized); } catch (e) {
-    const recovered = {};
-    const extract = (key, regex, isBool = false, isInt = false) => {
-      const match = sanitized.match(regex);
-      if (match) {
-        let val = match[1];
-        if (isBool) recovered[key] = val.toLowerCase() === 'true';
-        else if (isInt) recovered[key] = parseInt(val);
-        else recovered[key] = val;
-      }
-    };
-    extract('code_update', /"code_update"\s*:\s*"([\s\S]*?)"(?=[,}])/);
-    extract('maturity_rating', /"maturity_rating"\s*:\s*(\d+)/, false, true);
-    extract('improvement_detected', /"improvement_detected"\s*:\s*(true|false)/, true);
-    return Object.keys(recovered).length > 0 ? recovered : null;
-  }
-};
+// Removed: sanitizeResponse and recoverJSON (moved to plugin)
+// Removed: apiCall (moved to plugin)
 
 // --- STATE MANAGEMENT ---
 const INITIAL_STATE = {
@@ -170,26 +148,39 @@ export default function App() {
     } catch (e) { console.error("Log failed:", e); }
   }, [user, services.db]);
 
-  const apiCall = async (url, options, retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
-      try {
-        const res = await fetch(url, { ...options, signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (res.ok) return res;
-        if (res.status === 429) { await new Promise(r => setTimeout(r, 5000)); continue; }
-        throw new Error(`HTTP ${res.status}`);
-      } catch (e) {
-        clearTimeout(timeoutId);
-        if (i === retries - 1) throw e;
-      }
+  // Wrapper for the ResilientHttpClient fetch utility
+  const _apiCall = async (url, options, retries = 3) => {
+    // @ts-ignore: Assume ResilientHttpClient is available globally
+    if (typeof ResilientHttpClient === 'undefined') {
+        throw new Error("ResilientHttpClient plugin is missing.");
     }
-    throw new Error("API Connection Failed");
+    
+    // @ts-ignore
+    return await ResilientHttpClient.execute({
+        type: 'fetch',
+        url,
+        options,
+        retries,
+        timeoutMs: CONFIG.TIMEOUT_MS
+    });
+  };
+
+  // Wrapper for the ResilientHttpClient LLM parsing utility
+  const _recoverJSON = (rawText) => {
+    // @ts-ignore
+    if (typeof ResilientHttpClient === 'undefined') {
+        console.warn("ResilientHttpClient plugin is missing, using unsafe fallback parsing.");
+        try { return JSON.parse(rawText); } catch { return null; }
+    }
+    // @ts-ignore
+    return ResilientHttpClient.execute({
+        type: 'parse_llm',
+        rawText
+    });
   };
 
   const getGH = async (path, branch) => {
-    const res = await apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}?ref=${branch}&t=${Date.now()}`, {
+    const res = await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}?ref=${branch}&t=${Date.now()}`, {
       headers: { 'Authorization': `token ${stateRef.current.config.token}` }
     });
     const data = await res.json();
@@ -197,7 +188,7 @@ export default function App() {
   };
 
   const getRepoTree = async (branch) => {
-    const res = await apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/git/trees/${branch}?recursive=1`, {
+    const res = await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/git/trees/${branch}?recursive=1`, {
       headers: { 'Authorization': `token ${stateRef.current.config.token}` }
     });
     const data = await res.json();
@@ -209,7 +200,7 @@ export default function App() {
     if (content.length < genesisContent.current.length * 0.4) {
       throw new Error("Integrity Guard: Update Rejected (Truncation Detected)");
     }
-    return await apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}`, {
+    return await _apiCall(`${CONFIG.GITHUB_API}/${stateRef.current.config.repo}/contents/${path}`, {
       method: 'PUT',
       headers: { 'Authorization': `token ${stateRef.current.config.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, content: safeUtoa(content), sha, branch })
@@ -251,23 +242,14 @@ export default function App() {
       // 4. SYNTHESIS & MUTATION
       dispatch({ type: 'SET_STATUS', status: 'COGNITION', objective: 'Synthesizing Evolution...' });
       
-      const prompt = `You are AGI-KERNEL v7.2.0.
-MISSION (README): ${readme.slice(0, 2000)}
-CROSS-BRANCH MEMORY: ${branchContext}
-TARGET CODE: ${target.content}
-
-TASK: 
-1. Use Cross-Branch Memory to identify patterns.
-2. Evolve TARGET CODE to increase maturity (${cur.maturity}%).
-3. DO NOT REMOVE CORE LOGIC. DO NOT TRUNCATE.
-4. Return JSON: { "code_update": "FULL_CODE", "maturity_rating": 0-100, "improvement_detected": bool, "capabilities": {...} }`;
+      const prompt = `You are AGI-KERNEL v7.8.0.\nMISSION (README): ${readme.slice(0, 2000)}\nCROSS-BRANCH MEMORY: ${branchContext}\nTARGET CODE: ${target.content}\n\nTASK: \n1. Use Cross-Branch Memory to identify patterns.\n2. Evolve TARGET CODE to increase maturity (${cur.maturity}%).\n3. DO NOT REMOVE CORE LOGIC. DO NOT TRUNCATE.\n4. Return JSON: { "code_update": "FULL_CODE", "maturity_rating": 0-100, "improvement_detected": bool, "capabilities": {...} }`;
 
       const isGemini = cur.config.provider === 'gemini';
       const body = isGemini 
         ? { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }
         : { model: cur.config.model, messages: [{ role: 'user', content: prompt }], response_format: { type: "json_object" } };
 
-      const res = await apiCall(isGemini ? `${CONFIG.GEMINI_API}?key=${cur.config.apiKey}` : CONFIG.CEREBRAS_API, {
+      const res = await _apiCall(isGemini ? `${CONFIG.GEMINI_API}?key=${cur.config.apiKey}` : CONFIG.CEREBRAS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(!isGemini && { 'Authorization': `Bearer ${cur.config.apiKey}` }) },
         body: JSON.stringify(body)
@@ -275,7 +257,7 @@ TASK:
 
       const data = await res.json();
       const raw = isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content;
-      const result = recoverJSON(raw);
+      const result = _recoverJSON(raw);
 
       if (result?.improvement_detected && result.code_update && result.code_update.length > 500) {
         dispatch({ type: 'SET_STATUS', status: 'MUTATING', objective: 'Committing Evolution...' });
@@ -316,92 +298,11 @@ TASK:
   if (!state.booted) return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md bg-zinc-900/20 border border-zinc-800/50 rounded-[2.5rem] p-10 backdrop-blur-3xl shadow-2xl">
-        <div className="flex flex-col items-center mb-10"><Brain className="text-blue-500 mb-6 animate-pulse" size={48} /><h1 className="text-3xl font-bold text-white tracking-tighter italic">AGI-KERNEL <span className="text-blue-500">v7.2.0</span></h1></div>
+        <div className="flex flex-col items-center mb-10"><Brain className="text-blue-500 mb-6 animate-pulse" size={48} /><h1 className="text-3xl font-bold text-white tracking-tighter italic">AGI-KERNEL <span className="text-blue-500">v7.8.0</span></h1></div>
         <div className="space-y-4">
           <input type="password" placeholder="GitHub Token" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={input.token} onChange={e => setInput({...input, token: e.target.value})} />
           <input type="text" placeholder="Repo (user/repo)" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={input.repo} onChange={e => setInput({...input, repo: e.target.value})} />
           <input type="text" placeholder="Path (e.g. storage/kernel.js)" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={input.path} onChange={e => setInput({...input, path: e.target.value})} />
           <div className="grid grid-cols-2 gap-4">
             <select className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs" value={input.provider} onChange={e => setInput({...input, provider: e.target.value})}><option value="gemini">Gemini</option><option value="cerebras">Cerebras</option></select>
-            <input type="password" placeholder="API Key" className="w-full bg-black/40 border border-zinc-800 p-4 rounded-2xl text-white text-xs outline-none" value={input.apiKey} onChange={e => setInput({...input, apiKey: e.target.value})} />
-          </div>
-          <button onClick={() => dispatch({ type: 'BOOT', payload: input })} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all">Initialize System</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="fixed inset-0 bg-[#050505] text-zinc-300 flex flex-col font-sans select-none overflow-hidden">
-      <header className="h-16 border-b border-zinc-900/50 flex items-center justify-between px-6 bg-black/60 backdrop-blur-md z-20">
-        <div className="flex items-center gap-4"><Brain size={18} className="text-blue-500" /><h2 className="text-white text-xs font-black uppercase tracking-widest">Resilient Kernel v7.2.0</h2></div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-800/50"><span className={`w-1.5 h-1.5 rounded-full ${state.live ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} /><span className="text-[8px] font-mono text-zinc-500 uppercase">{state.status}</span></div>
-          <button onClick={() => dispatch({ type: 'TOGGLE_LIVE' })} className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${state.live ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white'}`}>{state.live ? 'HALT' : 'ENGAGE'}</button>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto custom-scrollbar pb-64">
-        <div className="max-w-5xl mx-auto p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-zinc-900/30 p-8 rounded-[2rem] border border-zinc-800/50">
-              <div className="flex justify-between items-center mb-6 text-zinc-500 uppercase text-[9px] font-bold tracking-[0.2em]">Maturity <TrendingUp size={14} /></div>
-              <div className="text-4xl font-mono text-white mb-4 italic">{state.maturity}%</div>
-              <div className="h-1 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-1000" style={{width: `${state.maturity}%`}} /></div>
-            </div>
-            <div className="bg-zinc-900/30 p-8 rounded-[2rem] border border-zinc-800/50">
-              <div className="flex justify-between items-center mb-6 text-zinc-500 uppercase text-[9px] font-bold tracking-[0.2em]">Cycles <Activity size={14} /></div>
-              <div className="text-4xl font-mono text-white">{state.cycles}</div>
-            </div>
-            <div className="bg-zinc-900/30 p-8 rounded-[2rem] border border-zinc-800/50">
-              <div className="flex justify-between items-center mb-6 text-zinc-500 uppercase text-[9px] font-bold tracking-[0.2em]">Cross-Branch <Network size={14} /></div>
-              <div className="text-xl font-mono text-blue-400 truncate tracking-tight uppercase">Nexus + System</div>
-            </div>
-            <div className="bg-zinc-900/30 p-8 rounded-[2rem] border border-zinc-800/50">
-              <div className="flex justify-between items-center mb-6 text-zinc-500 uppercase text-[9px] font-bold tracking-[0.2em]">Integrity <ShieldAlert size={14} /></div>
-              <div className="text-xl font-mono text-green-400 tracking-widest uppercase">SECURE</div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/20 p-10 rounded-[3rem] border border-zinc-900/50">
-            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] mb-10 flex items-center gap-3"><Layers size={14} className="text-blue-500" /> Synthesis Matrix</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-              {Object.entries(state.capabilities).map(([k, v]) => (
-                <div key={k} className="space-y-4">
-                  <div className="flex justify-between text-[10px] uppercase font-black tracking-widest text-zinc-400"><span>{k.replace('_', ' ')}</span><span>{v} / 10</span></div>
-                  <div className="flex gap-1">{[...Array(10)].map((_, i) => (<div key={i} className={`h-1 flex-1 rounded-full ${i < v ? 'bg-blue-500' : 'bg-zinc-800/40'}`} />))}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-8 border-2 border-zinc-900 border-dashed rounded-[2rem] bg-zinc-950/30 text-center font-mono text-[10px]">
-            <span className="text-zinc-600 block mb-2 uppercase tracking-[0.5em] font-black">Current Objective</span>
-            <span className="text-blue-500 uppercase tracking-widest">{state.objective}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="h-64 bg-black/95 border-t border-zinc-800/50 backdrop-blur-xl z-10 flex flex-col overflow-hidden">
-        <div className="h-10 border-b border-zinc-800/50 flex items-center justify-between px-6 bg-zinc-950/80">
-          <div className="flex items-center gap-3 font-black text-[9px] uppercase tracking-widest text-zinc-500"><Terminal size={12} className="text-blue-500" /> Evolution Stream {state.logError && <span className="text-red-500 ml-4 animate-pulse">! {state.logError}</span>}</div>
-          <div className="text-[9px] font-mono text-zinc-700">{state.logs.length} EVENTS</div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-2 custom-scrollbar">
-          {state.logs.map((l) => (
-            <div key={l.id} className="flex gap-6 border-b border-zinc-900/30 pb-2">
-              <span className="text-zinc-800 shrink-0">{new Date(l.timestamp).toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' })}</span>
-              <div className={`flex-1 flex items-start gap-3 ${l.type === 'success' ? 'text-blue-400' : l.type === 'error' ? 'text-red-400' : l.type === 'warn' ? 'text-orange-400' : 'text-zinc-600'}`}>
-                <span className="break-words opacity-80">{l.msg}</span>
-              </div>
-            </div>
-          ))}
-          <div ref={logEndRef} />
-        </div>
-      </div>
-      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 3px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #18181b; border-radius: 10px; }`}</style>
-    </div>
-  );
-}
-
-
+            <input type="password" placeholder="API Key" className="
