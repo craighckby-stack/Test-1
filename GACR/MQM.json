@@ -1,15 +1,15 @@
 {
   "$schema": "http://sgs-v97.5/schema/mqm",
   "metadata": {
-    "version": "3.0-STRUCTURAL_ALIGNMENT",
+    "version": "3.1-ADAPTIVE_MONITORING_PREP",
     "owner": "GAX/MQM_Core",
-    "description": "Defines core Model Quality Management policies and remediation protocols."
+    "description": "Defines core Model Quality Management policies and remediation protocols, enhanced for adaptive monitoring."
   },
   "policies": {
-    "version_tag": "ARES_MQM_V3.0_SA",
+    "version_tag": "ARES_MQM_V3.1_AM",
     "enforcement_tiers": {
       "CRITICAL_P1": {
-        "description": "High business impact models. Fast quarantine, extremely low tolerance (SLR/SLO aligned).",
+        "description": "High business impact models. Fast quarantine, extremely low tolerance (SLR/SLO aligned). Now includes adaptive metrics.",
         "failure_criteria": {
           "max_consecutive_reruns": 2,
           "window_hrs": 12
@@ -24,11 +24,17 @@
             "metric_id": "MQM_S04_MODEL_DRIFT_COUNT",
             "type": "ABSOLUTE_COUNT_MAX",
             "limit": 1
+          },
+          {
+            "metric_id": "MQM_S05_PREDICTION_QUALITY",
+            "type": "ADAPTIVE_ZSCORE",
+            "zscore_limit": 3.0,
+            "baseline_source": "/data/baselines/P1_Adaptive_Metrics.json"
           }
         ]
       },
       "STANDARD_P2": {
-        "description": "Default operational models. Standard tolerance and recovery window.",
+        "description": "Default operational models. Standard tolerance and recovery window. Now includes adaptive metrics.",
         "failure_criteria": {
           "max_consecutive_reruns": 4,
           "window_hrs": 72
@@ -43,6 +49,12 @@
             "metric_id": "MQM_S04_MODEL_DRIFT_COUNT",
             "type": "ABSOLUTE_COUNT_MAX",
             "limit": 3
+          },
+          {
+            "metric_id": "MQM_S05_PREDICTION_QUALITY",
+            "type": "ADAPTIVE_ZSCORE",
+            "zscore_limit": 4.5,
+            "baseline_source": "/data/baselines/P2_Adaptive_Metrics.json"
           }
         ]
       }
