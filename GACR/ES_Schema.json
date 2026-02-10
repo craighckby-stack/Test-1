@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://agikernel.com/schemas/ES_V7.5.0",
   "title": "Enforcement System (ES) Action Configuration (Synergy Enabled)",
-  "description": "Schema definition for all valid Enforcement System actions, standardized for use by SchemaConstraintNormalizer and incorporating dynamic Invocation of Emergent Capabilities (ECM).",
+  "description": "Schema definition for all valid Enforcement System actions, standardized for use by SchemaConstraintNormalizer and incorporating dynamic Invocation of Emergent Capabilities (ECM). The structure for INVOKE_EMERGENT has been improved to mandate explicit method and argument array usage for enhanced safety and clarity.",
   "type": "object",
   "required": ["action_type", "parameters"],
   "properties": {
@@ -108,7 +108,7 @@
           "type": "object",
           "required": ["template_id"],
           "properties": {
-            "template_id": {"type": "string", "description": "ID referencing a predefined enforcement template structure."},
+            "template_id": {"type": "string", "description": "ID referencing a predefined enforcement template structure."}, 
             "context_override": {"type": "object"}
           }
         }
@@ -116,15 +116,16 @@
     },
     {
       "title": "INVOKE_EMERGENT",
-      "description": "Executes a capability registered in the Synergy Runtime Registry (Firestore).",
+      "description": "Executes a capability registered in the Synergy Runtime Registry (Firebase). Improved structure mandates methodName and an argument array for safety and strict compatibility with the ECM execution protocol.",
       "properties": {
         "action_type": {"const": "INVOKE_EMERGENT"},
         "parameters": {
           "type": "object",
-          "required": ["interfaceName", "payload"],
+          "required": ["interfaceName", "methodName", "args"],
           "properties": {
-            "interfaceName": {"type": "string", "description": "The registered interface name (e.g., AdvancedPatternSynthesizer)."},
-            "payload": {"type": ["object", "array", "null"], "description": "Data payload passed as arguments to the emergent function."}
+            "interfaceName": {"type": "string", "description": "The registered interface name (e.g., ArchitecturalSelector)."},
+            "methodName": {"type": "string", "description": "The specific asynchronous method within the interface to execute (e.g., 'prioritize')."},
+            "args": {"type": "array", "description": "An array of arguments passed to the emergent method.", "items": {"type": ["object", "array", "string", "number", "boolean", "null"]}}
           }
         }
       }
