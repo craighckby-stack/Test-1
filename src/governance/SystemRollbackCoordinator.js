@@ -10,12 +10,12 @@ class SystemRollbackCoordinator {
      * @param {object} dependencies
      * @param {object} dependencies.stateManager - Access to global system state definitions and reversion utilities.
      * @param {object} dependencies.systemLogger - General system operation logger.
+     * @param {object} dependencies.idempotencyGuard - Tool for ensuring only one operation runs per unique ID.
      */
-    constructor({ stateManager, systemLogger }) {
+    constructor({ stateManager, systemLogger, idempotencyGuard }) {
         this.stateManager = stateManager;
         this.systemLogger = systemLogger;
-        // Ensure only one rollback is active per proposal, if processing is asynchronous
-        this.activeRollbacks = new Set();
+        this.idempotencyGuard = idempotencyGuard; 
     }
 
     /**
@@ -26,17 +26,16 @@ class SystemRollbackCoordinator {
      * @returns {Promise<boolean>} True if rollback was successfully initiated or completed.
      */
     async initiateRollback(proposalId, failureContext) {
-        if (this.activeRollbacks.has(proposalId)) {
+        // Use the IdempotencyGuard to ensure only one rollback runs concurrently for this proposalId
+        if (!this.idempotencyGuard.acquire(proposalId)) {
             this.systemLogger.warn(`Rollback already in progress for ${proposalId}. Skipping initiation.`);
             return true;
         }
 
         this.systemLogger.critical(`[ROLLBACK REQUIRED] Initiating state reversion due to integrity failure: ${proposalId}`);
-        this.activeRollbacks.add(proposalId);
 
         try {
             // 1. Analyze the scope of changes introduced by the failed proposal
-            // Assumes stateManager can determine required revert actions.
             const scope = await this.stateManager.analyzeImpact(proposalId, failureContext);
             
             // 2. Execute reversion sequence (e.g., revert DB transactions, restore configurations)
@@ -55,7 +54,8 @@ class SystemRollbackCoordinator {
             this.systemLogger.fatal(`Unrecoverable error during rollback coordination for ${proposalId}: ${error.message}`);
             return false;
         } finally {
-            this.activeRollbacks.delete(proposalId);
+            // Release the lock regardless of outcome
+            this.idempotencyGuard.release(proposalId);
         }
     }
 }
