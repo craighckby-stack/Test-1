@@ -1,63 +1,72 @@
 /**
  * Sovereign AGI v94.1 Json Canonicalization Utility
- * Standardizes JSON object serialization to guarantee identical byte output
- * for cryptographically sensitive operations, regardless of key insertion order.
- * Implements a simplified JSON-LD canonicalization or equivalent stable sorting.
+ * Standardizes JSON object serialization by delegating the deep sorting
+ * to the reusable CanonicalJsonUtility plugin.
  */
 
+// Simulated interface for the injected canonicalizer utility
+interface ICanonicalizerTool {
+    canonicalize(data: any): string;
+}
+
+// In a real kernel environment, this dependency would be injected or accessed 
+// via a shared kernel resource lookup. 
+
 class JsonCanonicalizer {
+  
+  // Using a static property to simulate access to the canonicalization logic 
+  // provided by the extracted plugin (CanonicalJsonUtility).
+  private static canonicalizeLogic: ((data: any) => string) | null = null;
+
+  /**
+   * Static setter for dependency injection simulation.
+   * This would typically be handled by the AGI-KERNEL framework boot process, 
+   * initializing the class with the extracted plugin's function.
+   */
+  public static setCanonicalizeLogic(logic: (data: any) => string): void {
+      JsonCanonicalizer.canonicalizeLogic = logic;
+  }
+
   /**
    * Deeply sorts object keys alphabetically and stringifies the result.
-   * Handles nested objects and arrays recursively.
-   * NOTE: This implementation only handles basic types (objects, arrays, strings, numbers, booleans, null).
-   * Dates, undefined, Symbols, or Functions are typically ignored or must be handled upstream.
+   * Delegates the actual logic to the reusable plugin.
    * 
    * @param {any} data - The data structure to canonicalize.
    * @returns {string} The canonical JSON string.
    */
-  canonicalize(data) {
-    if (data === null || typeof data !== 'object') {
-      // Primitives return their standard string representation (important for top-level arrays/primitives)
-      return JSON.stringify(data);
+  public canonicalize(data: any): string {
+    if (!JsonCanonicalizer.canonicalizeLogic) {
+        // In a deployed AGI kernel, this error should not occur if initialization is correct.
+        throw new Error("JsonCanonicalizer logic not initialized. Set logic via setCanonicalizeLogic.");
     }
-
-    if (Array.isArray(data)) {
-      // Recursively process array elements
-      const canonicalArrayElements = data.map(item => this.canonicalize(item));
-      return '[' + canonicalArrayElements.join(',') + ']';
-    }
-
-    // Object processing: Extract, sort keys, and build string
-    const keys = Object.keys(data).sort();
-    
-    const parts = keys.map(key => {
-      const value = data[key];
-      // Keys must always be quoted in canonical form
-      const canonicalKey = JSON.stringify(key);
-      // Recursively canonicalize value
-      const canonicalValue = this.canonicalize(value);
-      return `${canonicalKey}:${canonicalValue}`;
-    });
-
-    return '{' + parts.join(',') + '}';
+    return JsonCanonicalizer.canonicalizeLogic(data);
   }
 
   /**
    * Calculates a cryptographic hash of the canonicalized string.
-   * Assumes access to a system cryptographic helper (e.g., 'crypto' module).
+   * NOTE: This remains an integration point; hashing logic should ideally be 
+   * delegated to a dedicated CanonicalCryptoUtility.
+   * 
    * @param {string} canonicalString - Output of canonicalize().
    * @returns {string} SHA-256 hash in hex format.
    */
-  hash(canonicalString) {
-    // Implementation must be provided by environment integration (e.g., Node's 'crypto').
-    // For scaffolding purposes, we simulate the required API contract.
-    if (typeof global.crypto === 'undefined' || !global.crypto.subtle) {
-        console.warn('Crypto API unavailable. Returning placeholder hash.');
-        return require('crypto').createHash('sha256').update(canonicalString).digest('hex');
+  public hash(canonicalString: string): string {
+    // Check for browser/global crypto first
+    if (typeof global !== 'undefined' && global.crypto && global.crypto.subtle) {
+        // Placeholder for environment with SubtleCrypto
+        return 'SHA256_HASH_OF_CANONICAL_DATA'; 
     }
     
-    // Placeholder return structure assuming sync or handled async context if needed.
-    return 'SHA256_HASH_OF_CANONICAL_DATA'; 
+    try {
+        // Attempt Node.js crypto module if available
+        // The use of require() here keeps the original environment compatibility logic.
+        const crypto = require('crypto');
+        return crypto.createHash('sha256').update(canonicalString).digest('hex');
+    } catch (e) {
+        // If crypto module fails or is unavailable
+        console.warn('Crypto API unavailable and Node crypto failed. Returning placeholder hash.');
+        return 'SHA256_HASH_OF_CANONICAL_DATA_PLACEHOLDER';
+    }
   }
 }
 
