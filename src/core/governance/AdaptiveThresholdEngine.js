@@ -1,11 +1,39 @@
 // Requires Governance Policy (GP) and Telemetry Data (TD)
+
+interface FormulaEvaluator {
+  execute(args: { formula: string, variables: Record<string, any> }): number;
+}
+
+interface PolicyConfig {
+  policy_definitions: Record<string, PolicyDefinition>;
+}
+
+interface PolicyDefinition {
+  adaptation_formula: string;
+  base_threshold: number;
+  required_input_sensor: string;
+}
+
+interface TelemetryProvider {
+  getSensorData(key: string): Promise<number>;
+}
+
 export class AdaptiveThresholdEngine {
-  constructor(config, telemetryProvider) {
+  private config: Record<string, PolicyDefinition>;
+  private telemetry: TelemetryProvider;
+  private formulaEvaluator: FormulaEvaluator;
+
+  constructor(config: PolicyConfig, telemetryProvider: TelemetryProvider, formulaEvaluator: FormulaEvaluator) {
     this.config = config.policy_definitions;
     this.telemetry = telemetryProvider;
+    this.formulaEvaluator = formulaEvaluator;
   }
 
-  async getEffectiveThreshold(policyName) {
+  /**
+   * Calculates the effective threshold by evaluating the policy's adaptation formula
+   * using the base threshold and real-time sensor data.
+   */
+  async getEffectiveThreshold(policyName: string): Promise<number> {
     const policy = this.config[policyName];
     if (!policy) throw new Error(`Policy ${policyName} not found.`);
 
@@ -15,18 +43,12 @@ export class AdaptiveThresholdEngine {
 
     let sensorValue = await this.telemetry.getSensorData(sensorKey);
 
-    // Inject variables into the formula string for evaluation
-    let evaluatedFormula = formula
-      .replace(/base_threshold/g, baseThreshold)
-      .replace(new RegExp(sensorKey, 'g'), sensorValue);
+    const variables = {
+      base_threshold: baseThreshold,
+      [sensorKey]: sensorValue
+    };
 
-    // WARNING: Dynamic formula execution requires sandboxing/strict validation for security.
-    // Placeholder implementation:
-    return this._evaluate(evaluatedFormula);
-  }
-
-  _evaluate(formula) {
-    // Implementation uses native evaluation for concept demonstration
-    return eval(formula);
+    // Use the dedicated PolicyFormulaEvaluatorUtility for safe variable substitution and evaluation
+    return this.formulaEvaluator.execute({ formula, variables });
   }
 }
