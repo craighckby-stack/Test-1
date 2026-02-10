@@ -3,7 +3,25 @@
  * Enforces state changes and command execution against the defined State Machine Contract (SMC).
  * Adheres strictly to the Principle of Least Transition (PoLT) and Governance Thresholds.
  */
+
+// Assuming RoleThresholdScorer plugin is globally available after initialization
+declare const RoleThresholdScorer: {
+    execute: (args: {
+        requiredRolesSet: Set<string>;
+        providedRoles: string[];
+        requiredThreshold: number;
+    }) => {
+        score: number;
+        required: number;
+        met: boolean;
+        error?: string;
+    };
+};
+
 class SMCTransitionEnforcer {
+
+    private _protocolSpecs: Record<string, { allowed_commands: Set<string>, next_states: Set<string> }>;
+    private _authSpecs: { required_roles: Set<string>, exempt_transitions: Set<string>, required_threshold: number };
 
     /**
      * Standardized machine-readable status codes.
@@ -23,7 +41,7 @@ class SMCTransitionEnforcer {
      * Initializes the enforcer, pre-processing the specification into efficient Set structures (O(1) lookups).
      * @param {object} spec - The State Machine Contract specification (must contain protocol_map and authorization_model).
      */
-    constructor(spec) {
+    constructor(spec: any) {
         if (!spec || !spec.protocol_map || !spec.authorization_model) {
             throw new Error("SMC Enforcer requires a valid specification object containing protocol_map and authorization_model.");
         }
@@ -37,8 +55,8 @@ class SMCTransitionEnforcer {
      * @param {object} rawMap
      * @returns {object}
      */
-    _processProtocolMap(rawMap) {
-        const processedMap = {};
+    private _processProtocolMap(rawMap: any): Record<string, { allowed_commands: Set<string>, next_states: Set<string> }> {
+        const processedMap: Record<string, { allowed_commands: Set<string>, next_states: Set<string> }> = {};
         for (const state in rawMap) {
             processedMap[state] = {
                 allowed_commands: new Set(rawMap[state].allowed_commands || []),
@@ -53,7 +71,11 @@ class SMCTransitionEnforcer {
      * @param {object} authModel
      * @returns {object}
      */
-    _processAuthorizationModel(authModel) {
+    private _processAuthorizationModel(authModel: any): {
+        required_roles: Set<string>;
+        exempt_transitions: Set<string>;
+        required_threshold: number;
+    } {
         return {
             required_roles: new Set(authModel.required_roles || []),
             exempt_transitions: new Set(authModel.exempt_transitions || []),
@@ -74,7 +96,7 @@ class SMCTransitionEnforcer {
      * @param {object} [request.credentials] - Authorization credentials/signatures (must include 'roles' array).
      * @returns {{valid: boolean, reason: string, code: string}} Validation result.
      */
-    validateTransition(request) {
+    validateTransition(request: { current: string, target?: string, command: string, credentials?: any }): { valid: boolean, reason: string, code: string } {
         const { current, target, command, credentials } = request;
         const { StatusCodes } = SMCTransitionEnforcer;
 
@@ -110,12 +132,13 @@ class SMCTransitionEnforcer {
 
     /**
      * Checks credentials against the required roles and governance threshold set in the specification.
+     * This method now delegates the threshold counting logic to the RoleThresholdScorer plugin.
      * @param {string} current
      * @param {string} target
      * @param {object} credentials
      * @returns {{valid: boolean, reason: string, code: string}} Result of authorization check.
      */
-    _validateAuthorization(current, target, credentials) {
+    private _validateAuthorization(current: string, target: string, credentials: any): { valid: boolean, reason: string, code: string } {
         const { StatusCodes } = SMCTransitionEnforcer;
         const { required_roles, exempt_transitions, required_threshold } = this._authSpecs;
 
@@ -128,24 +151,24 @@ class SMCTransitionEnforcer {
 
         // 4b. Credentials Format Check
         if (!credentials || !Array.isArray(credentials.roles)) {
-             // NOTE: In v94.1+, this path often means the Governance Validator Service failed to return roles.
              return this._fail(StatusCodes.AUTH_ERROR, "Required credentials ('roles' array) missing for threshold transition.");
         }
-
-        const providedRoles = credentials.roles;
-        let matchedRolesCount = 0;
         
-        for (const role of providedRoles) {
-            if (required_roles.has(role)) {
-                matchedRolesCount++;
-            }
+        // 4c. Threshold Enforcement using the external RoleThresholdScorer plugin (O(N) iteration over provided roles)
+        const scoringResult = RoleThresholdScorer.execute({
+            requiredRolesSet: required_roles,
+            providedRoles: credentials.roles,
+            requiredThreshold: required_threshold
+        });
+
+        if (scoringResult.error) {
+             return this._fail(StatusCodes.AUTH_ERROR, `Scoring Error: ${scoringResult.error}`);
         }
 
-        // 4c. Threshold Enforcement
-        if (matchedRolesCount < required_threshold) {
+        if (!scoringResult.met) {
             return this._fail(
                 StatusCodes.AUTH_INSUFFICIENT, 
-                `Governance threshold failed: Requires ${required_threshold} roles, only ${matchedRolesCount} were matched.`
+                `Governance threshold failed: Requires ${scoringResult.required} roles, only ${scoringResult.score} were matched.`
             );
         }
 
@@ -159,7 +182,7 @@ class SMCTransitionEnforcer {
      * @param {string} reason
      * @returns {{valid: boolean, reason: string, code: string}}
      */
-    _success(code, reason) {
+    private _success(code: string, reason: string): { valid: boolean, reason: string, code: string } {
         return { valid: true, reason: reason, code: code };
     }
 
@@ -169,7 +192,7 @@ class SMCTransitionEnforcer {
      * @param {string} reason - Human readable reason.
      * @returns {{valid: boolean, reason: string, code: string}}
      */
-    _fail(code, reason) {
+    private _fail(code: string, reason: string): { valid: boolean, reason: string, code: string } {
         return { valid: false, reason: `SMC_FAIL (${code}): ${reason}`, code: code };
     }
 }
