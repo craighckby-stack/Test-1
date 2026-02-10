@@ -2,7 +2,20 @@
  * @fileoverview Custom error class for failures encountered during Payload Specification Engine validation.
  * Represents a structured operational failure due to invalid input schema or governance rules violation.
  * This error is designed to be safe for transmission and easy for structured logging.
+ *
+ * This version leverages the CanonicalErrorFormatterUtility for standardized, safe serialization.
  */
+
+// Define the assumed interface for the plugin tool
+interface ICanonicalErrorFormatterUtility {
+    serialize(error: PayloadSchemaError): object;
+}
+
+// Global accessor for the kernel plugin, assuming it's available.
+// In a real environment, this would be dependency injected or imported.
+// @ts-ignore
+const CanonicalErrorFormatterUtility: ICanonicalErrorFormatterUtility = typeof __PLUGINS__ !== 'undefined' ? __PLUGINS__.CanonicalErrorFormatterUtility : null;
+
 
 class PayloadSchemaError extends Error {
     // Standard HTTP status code for client payload validation errors.
@@ -10,12 +23,23 @@ class PayloadSchemaError extends Error {
     // Internal standardized code for auditing.
     static ERROR_CODE = 'GOV_MPSE_BREACH'; 
 
+    /** @type {boolean} */
+    public isOperational: boolean;
+    /** @type {number} */
+    public status: number;
+    /** @type {string} */
+    public code: string;
+    /** @type {Object} */
+    public failedPayload: object;
+    /** @type {(Object|Array)} */
+    public validationDetails: object | any[];
+
     /**
      * @param {string} message - A user-readable explanation of the error.
      * @param {Object} [payload={}] - The full or relevant part of the input payload that caused the failure. Sensitive data should be sanitized before storing.
      * @param {(Object|Array)} [validationDetails={}] - Structured data detailing specific validation failures (e.g., Joi/Zod output, array of field errors).
      */
-    constructor(message, payload = {}, validationDetails = {}) {
+    constructor(message: string, payload: object = {}, validationDetails: object | any[] = {}) {
         super(message);
 
         // --- Core Error Identification ---
@@ -38,10 +62,16 @@ class PayloadSchemaError extends Error {
 
     /**
      * Provides a standard representation of the error suitable for JSON serialization (e.g., API response bodies or structured logs).
-     * Deliberately excludes the full 'failedPayload' and raw stack trace for security and conciseness in external serialization.
+     * Delegates serialization rules to the CanonicalErrorFormatterUtility to ensure consistency and safety.
      * @returns {Object} Serializable error representation.
      */
-    toJSON() {
+    toJSON(): object {
+        // Use the extracted utility to ensure canonical formatting and security exclusions.
+        if (CanonicalErrorFormatterUtility && typeof CanonicalErrorFormatterUtility.serialize === 'function') {
+            return CanonicalErrorFormatterUtility.serialize(this);
+        }
+        
+        // Fallback for environments without the plugin initialized
         return {
             name: this.name,
             code: this.code,
