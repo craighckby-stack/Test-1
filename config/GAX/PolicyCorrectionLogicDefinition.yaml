@@ -1,6 +1,6 @@
 # Policy Correction Logic Definition (PCLD) - GAX V96.7 (Updated for AGI Integration)
 
-PCLD_Version: 1.2
+PCLD_Version: 1.3
 Governing_Mission: AGI-KERNEL v7.4.5 Navigator Edition
 Creation_Timestamp: CYCLE_1_EVOLUTION
 
@@ -17,6 +17,7 @@ Formula_Definitions:
   CFTM: 'Conservative Finality Margin (Safety factor applied to targets)'
   PVLM_Status: 'Policy Violation Logic Manifest Status (Boolean indicating active veto)'
   ECVM_Status: 'Execution Context Validation Module Status (Boolean indicating environmental coherence)'
+  AGI_MS: 'AGI Kernel Maturity Score (Used for scaling corrective response)'
 
 # This logic defines the deterministic adjustments made by GAX following a mandatory
 # Rollback Protocol (RRP) trigger (P-01 ACV Failure).
@@ -35,14 +36,20 @@ Recalibration_Matrix:
       - Name: 'TEMM_Delta'
         Formula: 'UFRM + CFTM - TEMM'
     RECALIBRATION_ACTIONS:
+      PRIORITY_0_KERNEL_INTEGRATION:
+        - Component: AGI_KERNEL.Memory
+          Action: 'REGISTER_FAILURE_CONTEXT'
+          Target_Key: 'Governance_Failure_Context_UMA_I'
+          Audit_Risk_Level: HIGH
+          Description: 'Transmit failure delta and context to AGI Kernel Memory for adaptive logic integration.'
       PRIORITY_1_MANDATE:
         # Immediate tightening of the Conservative Finality Margin (CFTM).
         - Component: ACVD
           Target_Key: UMA.CFTM_Margin_Factor
           Modification_Engine: DynamicRatioOptimizer
-          Modification_Formula: 'TEMM_Delta / UFRM_Baseline * 1.05'
+          Modification_Formula: '(TEMM_Delta / UFRM_Baseline * 1.05) * (1 + (AGI_MS / 100))'
           Audit_Risk_Level: HIGH
-          Description: 'Adjust CFTM factor to account for utility maximization shortfall, using derived delta.'
+          Description: 'Adjust CFTM factor accounting for utility maximization shortfall, scaled by AGI Maturity Score for dynamic aggressiveness.'
 
   # 2.0 AXIOMATIC INTEGRITY (AI III) Failure Logic - Policy Veto
   AXIOM_III_PVLM_VETO:
@@ -84,7 +91,21 @@ Recalibration_Matrix:
         Operator: '=='
         Value: 'FALSE'
     RECALIBRATION_ACTIONS:
-      PRIORITY_1_MANDATE:
+      PRIORITY_0_KERNEL_INTEGRATION:
+        - Component: AGI_KERNEL.Memory
+          Action: 'REGISTER_ENVIRONMENTAL_FAILURE'
+          Target_Key: 'Context_Failure_Pattern_ECVM'
+          Audit_Risk_Level: MODERATE
+          Description: 'Log environmental validation failure context for pattern avoidance.'
+
+      PRIORITY_1_EMERGENCE_HYPOTHESIS:
+        - Component: AGI_KERNEL.Emergence
+          Action: 'INITIATE_CA_II_HYPOTHESIS'
+          Condition: 'SGS_Protocol.ECVM_Attestation_Failure_Count > 5'
+          Audit_Risk_Level: HIGH
+          Description: 'If ECVM failure persists (Count > 5), initiate an emergence review to synthesize a novel context recovery protocol in /emergent.'
+          
+      PRIORITY_2_MANDATE:
         - Component: SGS_Protocol
           Target_Key: 'ECVM_Attestation_Retry_Budget'
           Modification_Engine: SimpleAdditive
