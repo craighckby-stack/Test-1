@@ -25,6 +25,21 @@
  *  - readTrends(key: string, limit: number): Promise<Array<Object>>
  */
 
+/**
+ * Extracted utility function using the NumericSanitizer plugin logic.
+ * Ensures metrics are valid, finite numbers, preventing NaN/Infinity corruption.
+ * @param {*} value - The input value.
+ * @param {number} [fallback=0] - The value to return if input is invalid.
+ * @returns {number}
+ */
+const sanitizeMetric = (value, fallback = 0) => {
+    const sanitized = parseFloat(value);
+    if (isNaN(sanitized) || !isFinite(sanitized)) {
+        return fallback;
+    }
+    return sanitized;
+};
+
 const METRIC_CONSTANTS = {
     // Weights for Evolution Quality Metric (EQM) calculation (must sum to 1.0)
     WEIGHT_UFRM: 0.4,
@@ -54,20 +69,6 @@ class MetricNexus {
     }
 
     /**
-     * Internal validator to ensure metrics are valid numbers (robustness improvement).
-     * @param {*} value 
-     * @returns {number}
-     */
-    _sanitizeMetric(value) {
-        const sanitized = parseFloat(value);
-        // Returns 0 if NaN or Infinity, ensuring numerical stability for MQM calculation.
-        if (isNaN(sanitized) || !isFinite(sanitized)) {
-            return 0;
-        }
-        return sanitized;
-    }
-
-    /**
      * Calculates the Evolution Quality Metric (EQM), the primary MQM indicator.
      * EQM is a weighted fusion of risk and trend metrics, crucial for autonomous self-assessment.
      * Fulfills Integration Requirement 2 (Use MQM metrics).
@@ -89,7 +90,7 @@ class MetricNexus {
         // Cap riskScore at 1.0 before normalization.
         const eqm = Math.max(0, 100 - Math.min(1.0, riskScore) * 100); 
 
-        const sanitizedEqm = this._sanitizeMetric(eqm);
+        const sanitizedEqm = sanitizeMetric(eqm);
         
         this.metricCache.EQM = sanitizedEqm;
         return sanitizedEqm;
@@ -103,7 +104,7 @@ class MetricNexus {
     getUFRM() {
         // Use dependency fallback pattern: if missing, return 0 risk.
         const rawUfrm = this.analytics.calculateResidualRisk?.() ?? 0;
-        const ufrm = this._sanitizeMetric(rawUfrm);
+        const ufrm = sanitizeMetric(rawUfrm);
         this.metricCache.UFRM = ufrm;
         return ufrm;
     }
@@ -115,7 +116,7 @@ class MetricNexus {
      */
     getCFTM() {
         const rawCftm = this.analytics.getHistoricalVolatilityFactor?.() ?? 0;
-        const cftm = this._sanitizeMetric(rawCftm);
+        const cftm = sanitizeMetric(rawCftm);
         this.metricCache.CFTM = cftm;
         return cftm;
     }
@@ -127,7 +128,7 @@ class MetricNexus {
      */
     getPolicyVolatility() {
         const rawPvm = this.auditor.calculatePolicyChangeRate?.() ?? 0;
-        const pvm = this._sanitizeMetric(rawPvm);
+        const pvm = sanitizeMetric(rawPvm);
         this.metricCache.PVM = pvm;
         return pvm;
     }
@@ -193,8 +194,8 @@ class MetricNexus {
         const previousMetrics = historicalTrends[1];
 
         // Ensure we are comparing the explicit MQM key
-        const currentEQM = this._sanitizeMetric(currentMetrics.MQM_EQM);
-        const previousEQM = this._sanitizeMetric(previousMetrics.MQM_EQM);
+        const currentEQM = sanitizeMetric(currentMetrics.MQM_EQM);
+        const previousEQM = sanitizeMetric(previousMetrics.MQM_EQM);
         
         const delta = currentEQM - previousEQM;
 
