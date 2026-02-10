@@ -3,33 +3,34 @@
  * Provides dynamic, centrally managed configuration parameters 
  * for governance components (like SMA) and thresholds required 
  * for architectural mutation decisions.
- * 
- * NOTE: In advanced sovereign implementations, this data would be fetched 
- * from a persistent, versioned policy store or ledger.
+ *
+ * NOTE: Configuration defaults are externalized to the PolicyDefaultConfigurationRetriever utility.
  */
 
-export const DEFAULT_SMA_PARAMS = {
-    // Score aggregation weights (Must sum to 1.0)
-    WEIGHTS: { 
-        CONTRACT_COMPLIANCE: 0.4, 
-        MIGRATION_INTEGRITY: 0.6 
-    },
-    // Acceptance thresholds
-    THRESHOLDS: { 
-        MINIMUM_ACCEPTANCE: 0.75, // Required for any acceptance by SMA
-        VALIDATION: 0.9          // Required for fully validated, non-waived acceptance
-    }
+// Assuming PolicyDefaultConfigurationRetriever is globally available
+declare const PolicyDefaultConfigurationRetriever: {
+    getSMAParams: () => {
+        WEIGHTS: { [key: string]: number };
+        THRESHOLDS: { [key: string]: number };
+    };
 };
-
 
 export class GovernancePolicyEngine {
     /**
      * Fetches current configuration parameters relevant to the Schema Migration Adjudicator.
+     * Delegates retrieval to the Policy Configuration Utility for centralized management 
+     * and potential dynamic lookup/normalization.
+     * 
      * @returns {object} Current governance parameters for SMA.
      */
     static getSMAParams() {
-        // Returns the static default config. Future versions would implement dynamic lookup.
-        return DEFAULT_SMA_PARAMS;
+        if (typeof PolicyDefaultConfigurationRetriever !== 'undefined' && 
+            PolicyDefaultConfigurationRetriever.getSMAParams) {
+            return PolicyDefaultConfigurationRetriever.getSMAParams();
+        }
+        
+        // CRITICAL: Dependency failure. Throw error as governance policies are non-optional.
+        throw new Error("GPE Critical Error: Required PolicyDefaultConfigurationRetriever utility is unavailable.");
     }
     
     // Other methods for fetching global policy flags, state limits, etc.
