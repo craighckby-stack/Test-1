@@ -108,6 +108,15 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     17. Implemented intrinsic content extraction for custom classes that subclass built-in containers (list, dict).
         This ensures that the canonical state of objects like specialized agent history lists or state dictionaries
         is captured alongside their custom attributes, preventing loss of container content and guaranteeing stable hashing.
+        
+    AGI-KERNEL Improvement (Cycle 19, Emergence: Architectural Protocol Synthesis):
+    18. Introduced the `__canonical_attributes__` class protocol. This declarative approach allows complex
+        objects (especially high-performance agents with caching/dynamic attributes) to explicitly list
+        which fields, slots, or properties are required for canonical hashing. This drastically improves
+        determinism and performance by replacing wide, brittle introspection with a targeted registry,
+        preventing non-deterministic internal state (e.g., function references, pointers, non-essential caches)
+        from being accidentally included in the canonical hash. This is a synthesis of generic introspection
+        and explicit state control protocols.
     """
 
     def __init__(self, *args, **kwargs):
@@ -339,7 +348,6 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             self._next_canonical_id += 1
 
             # AGI-KERNEL Improvement (Cycle 14): Prioritize explicit canonical state protocol (__canonical_state__)
-            # This allows objects (e.g., agents) to define their hashable state, overriding generic introspection.
             if hasattr(obj, '__canonical_state__') and callable(obj.__canonical_state__):
                 try:
                     canonical_state = obj.__canonical_state__()
@@ -361,14 +369,42 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                 # Filter out None values to ensure canonical output stability
                 return {k: v for k, v in raw_dict.items() if v is not None}
 
-            # 5c. Generalized attribute serialization (Handling __dict__, __slots__, and @property)
+            # 5c. Generalized attribute serialization (Handling __dict__, __slots__, @property, and new protocol)
             attributes = {}
+            klass = type(obj)
+            
+            # AGI-KERNEL Improvement (Cycle 19): Architectural Protocol Synthesis
+            canonical_attrs = getattr(klass, '__canonical_attributes__', None)
+            
+            source_keys = set()
+            
+            if canonical_attrs and isinstance(canonical_attrs, (list, tuple)):
+                # 1. Use the explicit protocol if defined: trust the developer specified list of canonical keys.
+                source_keys.update(canonical_attrs)
+            else:
+                # 2. Fallback to comprehensive introspection (pre-Cycle 19 behavior)
+                
+                # Gather keys from __dict__
+                if hasattr(obj, '__dict__'):
+                    source_keys.update(obj.__dict__.keys())
+
+                # Gather keys from __slots__ 
+                if hasattr(obj, '__slots__'):
+                    source_keys.update(obj.__slots__)
+                
+                # Gather keys from public properties
+                for k in dir(obj):
+                    if not k.startswith('_') and hasattr(klass, k):
+                        attr = getattr(klass, k)
+                        if isinstance(attr, property):
+                             source_keys.add(k)
             
             # AGI-KERNEL Improvement (Cycle 18): Capture Intrinsic State for Container Subclasses
-            # If the custom object inherits from a built-in container, extract its contents first.
+            is_container_subclass = False
             if isinstance(obj, list):
                 # For list/tuple subclasses, serialize the underlying list content
                 attributes["__list_content__"] = list(obj)
+                is_container_subclass = True
             elif isinstance(obj, dict):
                 # For dict subclasses, serialize the underlying dict content, ensuring keys are canonicalized.
                 content_dict = {}
@@ -380,51 +416,39 @@ class CanonicalJSONEncoder(json.JSONEncoder):
                         canonical_k = self._canonicalize_key(k)
                     content_dict[canonical_k] = v
                 attributes["__dict_content__"] = content_dict
+                is_container_subclass = True
 
-            # Gather attributes from __dict__ (standard instance data)
-            if hasattr(obj, '__dict__'):
-                attributes.update(obj.__dict__)
 
-            # Gather attributes from __slots__ 
-            if hasattr(obj, '__slots__'):
-                for slot in obj.__slots__:
-                    try:
-                        # Use getattr safely as slots might be defined but not initialized
-                        attributes[slot] = getattr(obj, slot)
-                    except AttributeError:
-                        pass # Skip uninitialized slots
+            # Iterate over the determined source keys
+            for k in source_keys:
+                # Check if the key starts with '_' and we are NOT using the explicit canonical_attrs protocol
+                if not canonical_attrs and k.startswith('_'):
+                    continue
 
-            # AGI-KERNEL Improvement (Cycle 16): Include public properties (descriptors)
-            klass = type(obj)
-            for k in dir(obj):
-                # Only look for keys not already present and not starting with an underscore
-                if k not in attributes and not k.startswith('_'):
-                    if hasattr(klass, k):
-                        attr = getattr(klass, k)
-                        # Check if it's a property descriptor defined on the class
-                        if isinstance(attr, property):
-                            try:
-                                # Access the property value on the instance
-                                value = getattr(obj, k)
-                                # Ensure the retrieved value is not a callable (i.e., not a method mistakenly captured)
-                                if not callable(value):
-                                    attributes[k] = value
-                            except AttributeError:
-                                # Skip properties that fail to compute (e.g., due to required initialization)
-                                pass
+                try:
+                    value = getattr(obj, k)
+                    
+                    if value is not None and not callable(value):
+                        # Ensure we don't accidentally overwrite container markers if the user used the same key name
+                        if k not in attributes:
+                             attributes[k] = value
+                             
+                except AttributeError:
+                    # Skip attributes that fail to retrieve
+                    pass
 
-            # Process gathered attributes if any were found
+
+            # Process gathered attributes (including container content markers)
             if attributes:
                 final_dict = {}
                 
                 for k, v in attributes.items():
-                    # Check for canonical content markers (must be preserved even though they start with underscore)
+                    # Check for canonical content markers (must be preserved)
                     is_canonical_content = k in ("__list_content__", "__dict_content__")
                     
-                    # Apply general filtering rules (not None, not callable)
                     if v is not None and not callable(v):
-                        # Allow canonical content markers or public attributes (not starting with _)
-                        if is_canonical_content or not k.startswith('_'):
+                        
+                        if is_canonical_content or canonical_attrs or not k.startswith('_'):
                             final_dict[k] = v
 
                 if final_dict:
