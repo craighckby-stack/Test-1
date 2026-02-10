@@ -1,31 +1,73 @@
+declare const WeightedScorerUtility: {
+  calculate: (metrics: Record<string, number>, weights: Record<string, number>, clamp: boolean) => number;
+};
+
+declare const AdaptiveThresholdAdjuster: {
+  calculateAdjustment: (baseline: number, environmentalFactor: number, sensitivityMultiplier: number) => number;
+};
+
+
 /**
  * Dynamic Trust Model (DTM) Engine V94.1
  * Responsible for calculating real-time risk scores based on policy metrics.
  */
-
 class DTM_AdaptiveEngine {
-  constructor(telemetryFeed) {
+  private telemetry: any;
+  private readonly ENTROPY_SENSITIVITY = 0.05;
+  private readonly DEPTH_NORMALIZER = 100.0; // Assuming depth max is 100
+
+  constructor(telemetryFeed: any) {
     this.telemetry = telemetryFeed;
   }
 
-  calculateTrustScore(proposedModificationPayload) {
-    const impactSeverity = this.telemetry.getImpactPrediction(proposedModificationPayload);
-    const structuralDepth = proposedModificationPayload.metrics.depth;
+  /**
+   * Calculates the overall normalized trust score for a proposed modification.
+   */
+  calculateTrustScore(proposedModificationPayload: { metrics: { depth: number } }): number {
+    const historicalConfidence = this.getHistoricalConfidence(); // V1: [0.0, 1.0]
     
-    // Weighted formula: favors stability (telemetry) over modification frequency
-    let score = (0.5 * this.getHistoricalConfidence()) + (0.3 * (1 - structuralDepth / 100)) + (0.2 * (1 - impactSeverity));
+    // Mapped inputs for the weighted scorer
+    const inputs = {
+      // Historical track record (favor stability)
+      historicalConfidence: historicalConfidence, 
+      
+      // Structural complexity mitigation (1 - depth/max_depth). Lower depth = higher score contribution.
+      structuralDepthContribution: 1.0 - (proposedModificationPayload.metrics.depth / this.DEPTH_NORMALIZER),
+      
+      // Impact mitigation (1 - severity). Lower severity = higher score contribution.
+      impactMitigation: 1.0 - this.telemetry.getImpactPrediction(proposedModificationPayload)
+    };
+
+    const weights = {
+      historicalConfidence: 0.5,
+      structuralDepthContribution: 0.3,
+      impactMitigation: 0.2
+    };
+
+    // Use the WeightedScorerUtility plugin to calculate the normalized weighted sum and clamp the result.
+    const score = WeightedScorerUtility.calculate(inputs, weights, true);
     
-    return Math.min(1.0, Math.max(0.0, score));
+    return score;
   }
 
-  MinTrustRequired(baseline) {
-    // Adjusts required trust upward based on current environmental entropy/system load
+  /**
+   * Calculates the minimum required trust, adjusting upward based on system entropy.
+   */
+  MinTrustRequired(baseline: number): number {
     const entropyFactor = this.telemetry.getEnvironmentalEntropy();
-    return Math.max(baseline, baseline + (entropyFactor * 0.05));
+    
+    // Use the AdaptiveThresholdAdjuster tool to manage dynamic threshold calculation
+    return AdaptiveThresholdAdjuster.calculateAdjustment(
+      baseline, 
+      entropyFactor, 
+      this.ENTROPY_SENSITIVITY
+    );
   }
 
-  getHistoricalConfidence() {
-    // Placeholder for fetching rolling average of past successful self-modifications
+  /**
+   * Placeholder for fetching rolling average of past successful self-modifications (0.0 to 1.0).
+   */
+  getHistoricalConfidence(): number {
     return this.telemetry.fetchAvgSuccessRate();
   }
 }
