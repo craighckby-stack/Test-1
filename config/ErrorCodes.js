@@ -4,20 +4,8 @@
  * aiding integration with logging systems and API error mapping middleware.
  */
 
-/**
- * Placeholder interface reference for the dynamically injected utility.
- * In a real execution environment, the CodeRegistryLookupUtility is available
- * for instantiation or injection.
- */
-interface CodeRegistryLookupUtility {
-    execute(args: { registry: Readonly<Record<string, string>>, key: string, defaultKey: string }): string;
-}
-
-// NOTE: Assuming CodeRegistryLookupUtility is available in the execution context.
-// For demonstration, we simulate instantiation if needed, but in production, it should be injected.
-declare const CodeRegistryLookupUtility: { new(): CodeRegistryLookupUtility };
-
-const lookupUtility: CodeRegistryLookupUtility = new CodeRegistryLookupUtility();
+// NOTE: The former CodeRegistryLookupUtility logic has been extracted into the 
+// 'RegistryLookupTool' plugin and is now accessed via KERNEL_SYNERGY_CAPABILITIES.
 
 export const ERROR_CODES = Object.freeze({
     // System / General
@@ -40,14 +28,18 @@ export const ERROR_CODES = Object.freeze({
 
 /**
  * Utility function to quickly access a standardized code.
- * Uses the CodeRegistryLookupUtility for safe, standardized lookup with fallback.
+ * Uses the RegistryLookupTool via KERNEL_SYNERGY_CAPABILITIES for safe, 
+ * standardized lookup with fallback.
  * @param {string} key - The key from ERROR_CODES.
  * @returns {string}
  */
 export function getStandardCode(key: string): string {
-    return lookupUtility.execute({
-        registry: ERROR_CODES,
-        key: key,
-        defaultKey: 'SYSTEM_UNKNOWN'
+    return KERNEL_SYNERGY_CAPABILITIES.Tool.execute({
+        toolName: 'RegistryLookupTool',
+        args: {
+            registry: ERROR_CODES,
+            key: key,
+            defaultKey: 'SYSTEM_UNKNOWN'
+        }
     });
 }
