@@ -19,6 +19,7 @@ class ArtifactIndexer {
      * @param {object} dependencies.configProvider - Configuration service for accessing AGI version and protocol constants.
      * @param {object} dependencies.validator - Schema validator utility (e.g., Ajv).
      * @param {object} dependencies.logger - Structured logging service.
+     * @param {object} dependencies.manifestConstructorUtility - Extracted utility for building compliant manifests.
      */
     constructor({
         contentStorage,
@@ -27,14 +28,16 @@ class ArtifactIndexer {
         idGenerator,
         configProvider,
         validator,
-        logger
+        logger,
+        manifestConstructorUtility
     }) {
         this.contentStorage = contentStorage;
         this.manifestStore = manifestStore;
         this.hasher = hasher;
         this.idGenerator = idGenerator;
         this.validator = validator;
-        this.logger = logger; // Proper logger injection
+        this.logger = logger; 
+        this.manifestConstructorUtility = manifestConstructorUtility;
 
         // Retrieve critical protocol constants from config, ensuring single source of truth.
         this.agiVersion = configProvider.getAGIVersion();
@@ -60,8 +63,16 @@ class ArtifactIndexer {
         // 2. Persist content to the dedicated Content Storage. Verifiability is enforced via hash.
         const location = await this.contentStorage.store(content, integrity.hash);
 
-        // 3. Construct the manifest using standardized protocol and AGI versions.
-        const manifest = this._constructManifest(baseMetadata, integrity, location, artifactSize);
+        // 3. Construct the manifest using standardized protocol and AGI versions via the utility.
+        const manifest = this.manifestConstructorUtility.execute({
+            baseMetadata,
+            integrity,
+            location,
+            size: artifactSize,
+            protocolVersion: this.protocolVersion,
+            agiVersion: this.agiVersion,
+            idGenerator: this.idGenerator
+        });
         
         // 3b. Enforce adherence to the Sovereign Protocol Schema (INTELLIGENCE STEP).
         if (!this.validator.validate(manifest)) { 
@@ -91,28 +102,6 @@ class ArtifactIndexer {
     _calculateHash(content) {
         const hash = this.hasher.calculate(content);
         return { algorithm: this.hasher.getAlgorithmName(), hash };
-    }
-
-    /**
-     * Constructs the canonical manifest object, populating metadata required by the protocol.
-     */
-    _constructManifest(baseMetadata, integrity, location, size) {
-        const timestamp = Date.now();
-        // Use canonical UUID generator for unique index IDs.
-        const id = this.idGenerator.generateUUIDv7(); 
-
-        return { 
-            id: id, 
-            protocol_version: this.protocolVersion, 
-            agi_version: this.agiVersion,
-            timestamp: timestamp, 
-            metadata: baseMetadata,
-            content_details: {
-                size: size,
-                location: location,
-                integrity: integrity 
-            }
-        };
     }
 
     /**
