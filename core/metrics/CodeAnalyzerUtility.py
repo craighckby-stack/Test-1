@@ -1,10 +1,11 @@
 from pathlib import Path
 import re
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 # NOTE: This utility should ideally integrate with established tools like radon or lizard
 # but provides a mock implementation based on regex parsing for immediate functionality.
 
+@runtime_checkable
 class AbstractCodeAnalyzer(Protocol):
     def read_file(self, path: Path) -> str: ...
     def analyze_decision_points(self, code: str) -> float: ...
@@ -31,18 +32,34 @@ class CodeAnalyzerUtility:
             raise IOError(f"Error reading file {path}: {e}")
 
     def get_loc(self, code: str) -> int:
-        """Calculates Non-Comment, Non-Blank Lines of Code (NCNB LOC)."""
+        """Calculates Non-Comment, Non-Blank Lines of Code (NCNB LOC), robustly
+        excluding comments and multi-line docstrings using a basic state tracker.
+        """
         lines = code.split('\n')
         count = 0
+        in_docstring = False
+
         for line in lines:
             stripped = line.strip()
-            # Exclusion criteria for Python comments and docstrings
-            if stripped and not (
-                stripped.startswith('#') or 
-                stripped.startswith('"""') or 
-                stripped.startswith("'''")
-            ):
-                count += 1
+
+            if not stripped:
+                continue
+
+            # Check for docstring state transition
+            if stripped.startswith('"""') or stripped.startswith("'''"):
+                # If it's a single line docstring, we skip the line and continue.
+                if (stripped.count('"""') >= 2 or stripped.count("'''") >= 2) and len(stripped) > 3:
+                    continue
+                
+                # Toggle multi-line state
+                in_docstring = not in_docstring
+                continue
+
+            if in_docstring or stripped.startswith('#'):
+                continue
+            
+            count += 1
+            
         return count
 
     def count_assertions(self, code: str) -> int:
@@ -57,13 +74,14 @@ class CodeAnalyzerUtility:
 
     def analyze_decision_points(self, code: str) -> float:
         """
-        Simulated Complexity based on control flow decision points.
-        This serves as a temporary proxy metric until proper AST-based analysis 
-        is integrated.
+        Calculates Simulated Complexity based strictly on core control flow structures 
+        (if, for, while, try, except, elif). This serves as a clearer proxy metric 
+        than the original implementation.
         """
-        # Markers that increase complexity: if, for, while, try, except, elif, and, or, return
+        # Markers that increase complexity: if, for, while, try, except, elif
+        # Excludes logical operators ('and', 'or') and flow control ('return') for better complexity simulation.
         flow_markers = re.findall(
-            r'\b(if|for|while|try|except|elif)\b|\band\b|\bor\b|\breturn\b',
+            r'\b(if|for|while|try|except|elif)\b',
             code
         )
         
