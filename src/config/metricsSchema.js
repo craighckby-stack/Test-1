@@ -47,50 +47,26 @@ export const FAILURE_TOPOLOGY_TAGS = Object.freeze({
 
 /**
  * Executes deep validation against the PROPOSAL_SCHEMA_DEFINITION.
- * This performs basic field existence and type checks based on the metadata.
+ * NOTE: The implementation logic is now delegated to the StructuralSchemaValidatorTool plugin.
  * 
  * @param {object} event The event object to validate.
  * @returns {object} Validation result { isValid: boolean, missingFields: string[], typeErrors: string[] }.
  */
-export function validateProposalEventSchema(event) {
-    const result = {
-        isValid: true,
+export function validateProposalEventSchema(event: any): { isValid: boolean, missingFields: string[], typeErrors: string[] } {
+    // In a dependency-injected environment, this would call:
+    // StructuralSchemaValidatorTool.execute({ data: event, schema: PROPOSAL_SCHEMA_DEFINITION });
+    
+    // Simulated delegation using the expected tool interface
+    if (typeof global !== 'undefined' && (global as any).StructuralSchemaValidatorTool) {
+        return (global as any).StructuralSchemaValidatorTool.execute({ data: event, schema: PROPOSAL_SCHEMA_DEFINITION });
+    }
+    
+    // Fallback stub for API compatibility (should not execute in production AGI environment)
+    return {
+        isValid: false,
         missingFields: [],
-        typeErrors: []
+        typeErrors: ["Validation utility not initialized."]
     };
-
-    if (!event || typeof event !== 'object') {
-        result.isValid = false;
-        result.typeErrors.push('Input must be a valid object.');
-        return result;
-    }
-
-    for (const [key, definition] of Object.entries(PROPOSAL_SCHEMA_DEFINITION)) {
-        const value = event[key];
-        const exists = value !== undefined && value !== null;
-
-        if (definition.required && !exists) {
-            result.missingFields.push(key);
-            result.isValid = false;
-            continue;
-        }
-
-        if (exists) {
-            // Basic Type Checking
-            if (definition.type === 'string' && typeof value !== 'string') {
-                result.typeErrors.push(`${key} requires type string, received ${typeof value}.`);
-                result.isValid = false;
-            } else if (definition.type === 'number' && typeof value !== 'number') {
-                result.typeErrors.push(`${key} requires type number, received ${typeof value}.`);
-                result.isValid = false;
-            } else if (definition.type === 'enum' && !definition.enum.includes(value)) {
-                 result.typeErrors.push(`${key} value is not a valid enum member.`);
-                 result.isValid = false;
-            }
-        }
-    }
-
-    return result;
 }
 
 // Group all primary exports for comprehensive access
