@@ -8,7 +8,18 @@
  */
 
 import { TedsObject } from '../types/TedsTypes'; // Placeholder type definition
-import { stableStringify } from '@sovereign/common/utils/json/stableStringify'; // Specific path updated for clarity and proposed scaffolding
+// Using AGI-KERNEL Plugin: CanonicalSerializationUtility
+
+// --- Plugin Access Simulation ---
+/**
+ * Interface proxy for the CanonicalSerializationUtility plugin.
+ * This utility provides deterministic (stable, key-sorted) JSON stringification.
+ */
+declare const CanonicalSerializationUtility: {
+    canonicalize: (payload: any) => string;
+};
+// ---------------------------------
+
 
 /**
  * Canonicalizes the TEDS payload, prepares it for hashing, and strictly excludes the signature field.
@@ -24,7 +35,8 @@ export function canonicalizeTEDS(tedsObject: TedsObject): string {
     const payloadForSigning = { ...tedsObject };
 
     const attestation = payloadForSigning.attestation;
-    const signaturePresent = attestation && attestation.signature_payload !== undefined;
+    // Check if attestation exists and if signature_payload is present within it.
+    const signaturePresent = attestation && typeof attestation === 'object' && attestation.signature_payload !== undefined;
 
     if (signaturePresent) {
         // Vulnerability Mitigation:
@@ -32,13 +44,13 @@ export function canonicalizeTEDS(tedsObject: TedsObject): string {
         // we risk mutating the reference in the original object. We must deep clone the
         // attestation object itself before performing the deletion.
         
-        payloadForSigning.attestation = { ...attestation };
+        payloadForSigning.attestation = { ...(attestation as object) };
 
         // Mandatory exclusion: The signature payload must not be included in the content being signed.
         delete payloadForSigning.attestation.signature_payload;
     }
 
-    // We rely on a proven utility (`stableStringify`) that guarantees sorted key ordering
+    // We use the CanonicalSerializationUtility plugin to guarantee sorted key ordering
     // and minimal/no whitespace (i.e., minimal JSON representation).
-    return stableStringify(payloadForSigning);
+    return CanonicalSerializationUtility.canonicalize(payloadForSigning);
 }
