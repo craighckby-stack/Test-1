@@ -1,4 +1,42 @@
 /**
+ * Manages the delegation of runtime validation checks to the concrete 
+ * RuntimeConstraintValidator implementation (assumed to be available globally 
+ * or via implicit injection).
+ */
+class ExecutionValidatorIntegrationHost {
+    /**
+     * Internal method to retrieve the concrete validator implementation.
+     * Assumes global/implicit availability of RuntimeConstraintValidator.
+     * @returns {object|null} The validator instance or null.
+     */
+    _getValidator() {
+        // Checking for global or implicitly available dependency
+        if (typeof RuntimeConstraintValidator !== 'undefined' && typeof RuntimeConstraintValidator.validate === 'function') {
+            return RuntimeConstraintValidator;
+        }
+        return null;
+    }
+
+    /**
+     * Validates the execution environment constraints by delegating to the concrete validator.
+     * @param {object} constraints - ExecutionEnvironmentConstraints from SEM_config
+     * @returns {boolean} True if environment meets constraints.
+     */
+    validate(constraints) {
+        const validator = this._getValidator();
+        
+        if (!validator) {
+            console.error("CRITICAL ERROR: RuntimeConstraintValidator plugin is not available.");
+            return false;
+        }
+
+        return validator.validate(constraints);
+    }
+}
+
+const RuntimeValidatorHost = new ExecutionValidatorIntegrationHost();
+
+/**
  * Validates the local host environment against the strict resource constraints
  * defined in the SEM configuration prior to sandbox initialization.
  * 
@@ -9,12 +47,5 @@
  * @returns {boolean} True if environment meets constraints.
  */
 export function validateRuntime(constraints) {
-    // Assuming the plugin is available via dependency injection or global context
-    if (typeof RuntimeConstraintValidator === 'undefined' || !RuntimeConstraintValidator.validate) {
-        console.error("CRITICAL ERROR: RuntimeConstraintValidator plugin is not available.");
-        // Fallback: assume failure if the core validation tool is missing.
-        return false;
-    }
-
-    return RuntimeConstraintValidator.validate(constraints);
+    return RuntimeValidatorHost.validate(constraints);
 }
