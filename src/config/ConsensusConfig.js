@@ -1,3 +1,7 @@
+declare const DeepConfigFreezerUtility: {
+    freeze: (config: any) => any;
+};
+
 /**
  * Centralized configuration for consensus-critical parameters.
  * This configuration dictates network standards, cryptographic primitives,
@@ -38,9 +42,8 @@ const ConsensusConfig = {
     EPOCH_LENGTH_BLOCKS: 1024,
 };
 
-// Ensure nested properties are immutable
-Object.freeze(ConsensusConfig.HASH);
-Object.freeze(ConsensusConfig.SIGNATURE);
+// Use the DeepConfigFreezerUtility to recursively ensure the entire
+// configuration object and all its nested properties are immutable.
+const ImmutableConsensusConfig = DeepConfigFreezerUtility.freeze(ConsensusConfig);
 
-// Ensure the main configuration object cannot be modified at runtime
-module.exports = Object.freeze(ConsensusConfig);
+module.exports = ImmutableConsensusConfig;
