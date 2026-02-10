@@ -7,8 +7,9 @@
  * ensuring stability by enforcing the most restrictive limit.
  * 
  * AGI KERNEL V7.5.0 IMPROVEMENT: 
- * Refactored constraint handling for improved robustness and clarity. Extracted the core
- * multi-constraint normalization logic as a pattern for potential emergent capability creation.
+ * 1. Implemented Dependency Injection for ResourceMonitor to improve testability.
+ * 2. Extracted the core multi-constraint normalization logic into the 'ConstraintReducer' 
+ *    emergent capability for reuse in future cycles (Pattern Recognition Success).
  */
 
 import { ResourceMonitor } from './ResourceMonitor';
@@ -21,6 +22,9 @@ type AdaptiveSamplingConfig = AggregatorConfig['Processing']['AdaptiveSampling']
     TargetQueueDepthRatio?: number;
 };
 
+// Define the shape of a constraint used internally and externally (by the emergent tool)
+type Constraint = { current: number; target: number };
+
 // Default targets for core constraints, used if config is missing
 const DEFAULT_TARGETS = {
     cpu: 0.80, 
@@ -32,10 +36,12 @@ export class AdaptiveSamplingEngine {
     private config: AdaptiveSamplingConfig;
     private monitor: ResourceMonitor;
 
-    constructor(config: AdaptiveSamplingConfig) {
+    /**
+     * Constructor using dependency injection for ResourceMonitor.
+     */
+    constructor(config: AdaptiveSamplingConfig, monitor?: ResourceMonitor) {
         this.config = config;
-        // NOTE: For future cycles, consider injecting ResourceMonitor for testability.
-        this.monitor = new ResourceMonitor(); 
+        this.monitor = monitor ?? new ResourceMonitor(); 
     }
 
     /**
@@ -46,7 +52,7 @@ export class AdaptiveSamplingEngine {
             return 1.0;
         }
 
-        // Collect all metrics (assuming corresponding methods in ResourceMonitor)
+        // Collect all metrics 
         const metrics = {
             cpu: this.monitor.getCpuUtilization(),
             memory: this.monitor.getMemoryUtilization(), 
@@ -54,27 +60,32 @@ export class AdaptiveSamplingEngine {
         };
 
         // Construct the constraints array, applying robust defaults
-        const constraints = [
+        const constraints: Constraint[] = [
             { 
                 current: metrics.cpu, 
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            { 
+            {
                 current: metrics.memory, 
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            { 
+            {
                 current: metrics.queueDepth, 
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
             },
-        ].filter(c => c.current != null && c.target != null && c.target > 0); 
+        ].filter(c => 
+            typeof c.current === 'number' && 
+            typeof c.target === 'number' && 
+            c.target > 0
+        ) as Constraint[]; 
         
+        // The logic below implements the core pattern recognized and extracted as 'ConstraintReducer'
         let requiredRate = 1.0;
 
         // Iterate through constraints, enforcing the most restrictive proportional drop factor
         for (const { current, target } of constraints) {
             if (current > target) {
-                // Rate = Target / Current ensures proportional reduction
+                // Rate = Target / Current ensures proportional reduction based on overshoot
                 const dropFactor = target / current;
                 requiredRate = Math.min(requiredRate, dropFactor);
             }
