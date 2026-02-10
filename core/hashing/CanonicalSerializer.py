@@ -50,6 +50,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     AGI-KERNEL Improvement (Cycle 6):
     3. Introduced deterministic handling for non-finite floating-point numbers (NaN, Infinity), 
        crucial for stable hashing of mathematical outputs from /agents and /metrics.
+
+    AGI-KERNEL Improvement (Cycle 7):
+    4. Implemented null-value filtering for custom objects/dataclasses to ensure hash stability.
+    5. Added deterministic handling for buffer types (bytearray, memoryview).
     """
 
     def __init__(self, *args, **kwargs):
@@ -138,9 +142,14 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             # Cycle 3 Refinement: Use as_posix() to ensure consistent path separators across OS platforms for hashing integrity.
             return obj.as_posix()
 
-        # 3. Handle binary data by converting to canonical hex string (Crucial for artifact integrity)
+        # 3. Handle binary data and buffer types (Crucial for artifact integrity)
         if isinstance(obj, bytes):
             return obj.hex()
+        
+        # AGI-KERNEL Improvement (Cycle 7): Handle memoryview and bytearray buffers deterministically.
+        if isinstance(obj, (bytearray, memoryview)):
+            # Convert buffers to bytes first, then use hex representation for canonical string
+            return bytes(obj).hex()
 
         # 4. Handle mappings (dictionaries, ordered dicts, etc.)
         # AGI-KERNEL Improvement (Cycle 5): Ensure all mapping keys are strings for JSON compliance, 
@@ -157,7 +166,7 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return new_dict
             
         # 5. AGI Logic: Handle custom class instances that don't belong to standard libraries
-        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum')):
+        if not type(obj).__module__.startswith(('builtins', 'collections', 'typing', 'datetime', 'decimal', 'pathlib', 'uuid', 'enum', 'numpy', 'pandas')):
             
             obj_id = id(obj)
 
@@ -172,7 +181,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             # 5a. Explicit dataclass serialization for structural integrity
             if DATACLASSES_AVAILABLE and is_dataclass(obj):
                 # Use asdict() for robust, nested conversion of dataclass fields.
-                return asdict(obj)
+                # AGI-KERNEL Improvement (Cycle 7): Apply NULL filtering to dataclasses for hashing determinism.
+                raw_dict = asdict(obj)
+                # Filter out None values to ensure canonical output stability
+                return {k: v for k, v in raw_dict.items() if v is not None}
 
             # Prioritize explicit interface if defined by the object itself
             if hasattr(obj, 'to_canonical_dict'):
@@ -181,9 +193,10 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             # Fallback to serializing public attributes
             if hasattr(obj, '__dict__'):
                 # Cycle 1 Improvement: Filter out internal/private attributes and callables
+                # AGI-KERNEL Improvement (Cycle 7): Also filter out None values for hashing stability and compactness.
                 safe_dict = {
                     k: v for k, v in obj.__dict__.items()
-                    if not k.startswith('_') and not callable(v)
+                    if not k.startswith('_') and not callable(v) and v is not None
                 }
                 
                 # Only return the dictionary if it contains actual serializable data
