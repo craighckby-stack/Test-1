@@ -8,6 +8,32 @@
 import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
 import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
 
+// --- PLUGIN INTERFACE MOCK ---
+interface PluginResult {
+    success: boolean;
+    failure?: {
+        message: string;
+        checkType: string;
+        value: any;
+        constraint: any;
+    };
+}
+
+interface PolicyConstraintValidatorTool {
+    execute(args: {
+        operation: 'validateNumericBound' | 'validateInclusion';
+        value: any;
+        constraint?: any; // Used for NumericBound (max value)
+        allowedList?: any[]; // Used for Inclusion
+        identityId: string;
+        checkFailed: string;
+    }): PluginResult;
+}
+
+// Assuming the plugin is globally accessible via the kernel context
+declare const PolicyConstraintValidator: PolicyConstraintValidatorTool;
+// -----------------------------
+
 /**
  * Custom error class for detailed policy validation failures.
  */
@@ -24,6 +50,7 @@ export class PolicyValidationError extends Error {
  */
 class KMSPolicyEngine {
   private policies: PolicyStructure;
+  private validator: PolicyConstraintValidatorTool = PolicyConstraintValidator;
 
   constructor() {
     // Cast the imported JSON structure to the defined interface for safety
@@ -53,12 +80,20 @@ class KMSPolicyEngine {
   }
 
   /**
-   * 1. Checks if the requested operation is permitted by the profile.
+   * 1. Checks if the requested operation is permitted by the profile using the validator plugin.
    */
   private checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
-    if (!profile.allowed_usages.includes(operation)) {
+    const result = this.validator.execute({
+      operation: 'validateInclusion',
+      value: operation,
+      allowedList: profile.allowed_usages,
+      identityId: identityId,
+      checkFailed: 'ForbiddenUsage',
+    });
+
+    if (!result.success) {
       throw new PolicyValidationError(
-        `Operation ${operation} forbidden for profile ${profile.description}.`,
+        `Operation ${operation} forbidden for profile ${profile.description}. Detail: ${result.failure!.message}`,
         identityId,
         'ForbiddenUsage'
       );
@@ -66,13 +101,23 @@ class KMSPolicyEngine {
   }
 
   /**
-   * 2. Checks if the signature age exceeds the globally defined Time-To-Live (TTL).
+   * 2. Checks if the signature age exceeds the globally defined Time-To-Live (TTL) using the validator plugin.
    */
   private checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
     const globalTTL = this.policies.global_security_policies.signature_ttl_minutes;
-    if (signatureAgeMinutes > globalTTL) {
+    
+    const result = this.validator.execute({
+      operation: 'validateNumericBound',
+      value: signatureAgeMinutes,
+      constraint: globalTTL,
+      identityId: identityId,
+      checkFailed: 'SignatureTTL'
+    });
+
+    if (!result.success) {
+      // The plugin message already contains details like value and max
       throw new PolicyValidationError(
-        `Signature expired (Age: ${signatureAgeMinutes}m). Max TTL: ${globalTTL}m.`,
+        `Signature expired. Detail: ${result.failure!.message}`,
         identityId,
         'SignatureTTL'
       );
