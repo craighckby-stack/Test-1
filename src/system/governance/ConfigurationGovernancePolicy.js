@@ -17,10 +17,12 @@ class ConfigurationGovernancePolicy {
     /**
      * @param {SystemLog} logger The centralized system logging utility.
      * @param {SystemConfigurationRegistry} scr Reference to the SCR for current value lookup.
+     * @param {RelativeChangeValidatorTool} relativeChangeValidator Instance of the deviation validator tool.
      */
-    constructor(logger, scr) {
+    constructor(logger, scr, relativeChangeValidator) {
         this.logger = logger;
         this.scr = scr;
+        this.relativeChangeValidator = relativeChangeValidator;
     }
 
     /**
@@ -31,7 +33,7 @@ class ConfigurationGovernancePolicy {
      * @returns {boolean} True if the change is permissible.
      */
     validateChange(path, newValue, context) {
-        // 1. Authentication/Authorization Check
+        // 1. Authorization Check
         const requiredLevel = GOVERNANCE_LEVELS.C13; // Simple placeholder logic: requires highest level for all dynamic changes.
         const currentLevel = GOVERNANCE_LEVELS[context.componentId] || GOVERNANCE_LEVELS.DEFAULT;
 
@@ -46,10 +48,12 @@ class ConfigurationGovernancePolicy {
         if (typeof currentValue === 'number' && typeof newValue === 'number') {
             // Assumes GOVERNANCE_CONFIG.MAX_CHANGE_DEVIATION is accessible via SCR
             const maxDeviation = this.scr.get('GOVERNANCE_CONFIG.MAX_CHANGE_DEVIATION'); 
-            const deviation = Math.abs((newValue - currentValue) / currentValue);
+            
+            // Use the extracted tool for deviation validation
+            const validationResult = this.relativeChangeValidator.execute(currentValue, newValue, maxDeviation);
 
-            if (deviation > maxDeviation) {
-                this.logger.critical(`[CGP] CHANGE REJECTED: ${path} deviation (${deviation.toFixed(2)}) exceeds maximum allowed (${maxDeviation}). Prevented self-correction instability.`);
+            if (!validationResult.isValid) {
+                this.logger.critical(`[CGP] CHANGE REJECTED: ${path} deviation (${validationResult.deviation.toFixed(2)}) exceeds maximum allowed (${maxDeviation}). Prevented self-correction instability.`);
                 return false; 
             }
         }
