@@ -5,7 +5,9 @@
  */
 
 // NOTE: The former CodeRegistryLookupUtility logic has been extracted into the 
-// 'RegistryLookupTool' plugin and is now accessed via KERNEL_SYNERGY_CAPABILITIES.
+// 'RegistryLookupTool' plugin for use in complex, dynamic lookup scenarios.
+// However, for this static configuration file, the lookup logic is implemented locally
+// to ensure immediate availability and remove reliance on external kernel capabilities.
 
 export const ERROR_CODES = Object.freeze({
     // System / General
@@ -28,18 +30,19 @@ export const ERROR_CODES = Object.freeze({
 
 /**
  * Utility function to quickly access a standardized code.
- * Uses the RegistryLookupTool via KERNEL_SYNERGY_CAPABILITIES for safe, 
- * standardized lookup with fallback.
- * @param {string} key - The key from ERROR_CODES.
+ * Provides safe lookup with a mandatory fallback to SYSTEM_UNKNOWN if the key is not found.
+ * @param {string} key - The key from ERROR_CODES (e.g., 'AUDIT_GENERIC').
  * @returns {string}
  */
 export function getStandardCode(key: string): string {
-    return KERNEL_SYNERGY_CAPABILITIES.Tool.execute({
-        toolName: 'RegistryLookupTool',
-        args: {
-            registry: ERROR_CODES,
-            key: key,
-            defaultKey: 'SYSTEM_UNKNOWN'
-        }
-    });
+    // Cast key to the expected type for type safety when accessing the frozen object.
+    const code = ERROR_CODES[key as keyof typeof ERROR_CODES];
+    
+    // Check if the value exists in the registry. (Object.freeze prevents prototype pollution checks.)
+    if (code) {
+        return code;
+    }
+
+    // Fallback to the mandatory default code.
+    return ERROR_CODES.SYSTEM_UNKNOWN;
 }
