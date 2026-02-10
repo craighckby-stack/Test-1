@@ -1,8 +1,14 @@
 /**
  * @module BasicRenderer
  * Dedicated utility for handling basic variable substitution (templating).
- * This separates rendering concerns from SMS constraints logic (Single Responsibility Principle).
+ * This separates rendering concerns from SMS constraints logic (Single Responsibility Principle)
+ * by delegating the work to the BasicTemplateRendererUtility plugin.
  */
+
+// Conceptual access to the extracted utility plugin
+// In a real environment, this import/access method would be dictated by the host kernel.
+// We simulate the delegation call pattern here.
+const BasicTemplateRendererUtility = require('@@plugin:BasicTemplateRendererUtility');
 
 /**
  * Performs basic substitution of variables wrapped in {{ double brackets }}.
@@ -13,19 +19,21 @@
  * @returns {string} The rendered output string.
  */
 function renderTemplate(template, data = {}) {
-    if (!data || Object.keys(data).length === 0) {
+    try {
+        if (!BasicTemplateRendererUtility || typeof BasicTemplateRendererUtility.execute !== 'function') {
+            throw new Error("BasicTemplateRendererUtility plugin not available or improperly structured.");
+        }
+        
+        // Delegate execution to the dedicated utility
+        return BasicTemplateRendererUtility.execute({
+            template: template,
+            data: data
+        });
+    } catch (error) {
+        // Log error and fall back to returning the original template if rendering fails
+        console.error("Template rendering delegation failed:", error);
         return template;
     }
-
-    return Object.entries(data).reduce((output, [key, value]) => {
-        // Ensure null/undefined values are rendered as empty strings
-        const replacement = String(value ?? '');
-        
-        // Matches {{key}}, {{ key }}, {{key }} (case-sensitive)
-        const regex = new RegExp(`{{\s*${key}\s*}}`, 'g');
-        
-        return output.replace(regex, replacement);
-    }, template);
 }
 
 module.exports = {
