@@ -1,64 +1,70 @@
 /**
  * TelemetryTransport
- * Handles event queueing, batch creation, flushing, and asynchronous delivery.
+ * Handles asynchronous delivery using the TimedBatchProcessorUtility for queue management.
  */
 
+declare const _TP: {
+    TimedBatchProcessorUtility: {
+        create: (config: any) => {
+            queueItem: (item: any) => void;
+            stop: () => Promise<void>;
+        }
+    }
+};
+
 class TelemetryTransport {
-    constructor(config) {
+    private endpoint: string;
+    private batchProcessor: ReturnType<typeof _TP.TimedBatchProcessorUtility.create>;
+
+    constructor(config: { endpoint: string, batchSize?: number, flushInterval?: number }) {
         this.endpoint = config.endpoint;
-        this.batchSize = config.batchSize || 50;
-        this.flushInterval = config.flushInterval || 5000; // ms
-        this.queue = [];
-        this._setupFlushTimer();
-    }
 
-    _setupFlushTimer() {
-        // Set up a periodic timer to flush the queue, even if batch size isn't met.
-        this.timer = setInterval(() => {
-            if (this.queue.length > 0) {
-                this.flush();
+        // 1. Define the transport handler (the logic previously in flush())
+        const transportFlushHandler = async (batchToSend: any[]) => {
+            if (batchToSend.length === 0) return;
+
+            try {
+                // Perform HTTP POST request
+                const response = await fetch(this.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(batchToSend)
+                });
+
+                if (!response.ok) {
+                    console.error(`Telemetry Transport: Failed to send batch (${response.status})`, response.statusText);
+                }
+
+            } catch (error) {
+                if (error instanceof Error) {
+                    console.error('Telemetry Transport Network Error:', error.message);
+                } else {
+                    console.error('Telemetry Transport Unknown Network Error:', error);
+                }
             }
-        }, this.flushInterval);
+        };
+
+        // 2. Initialize the batch processor tool, delegating scheduling and queue management
+        // The processor starts itself upon creation and processes batches using the handler.
+        this.batchProcessor = _TP.TimedBatchProcessorUtility.create({
+            batchSize: config.batchSize,
+            flushInterval: config.flushInterval,
+            flushHandler: transportFlushHandler
+        });
     }
 
-    queueEvent(packet) {
-        this.queue.push(packet);
-        if (this.queue.length >= this.batchSize) {
-            this.flush();
-        }
+    queueEvent(packet: any): void {
+        this.batchProcessor.queueItem(packet);
+        // The processor automatically triggers flush based on size or time.
     }
 
-    async flush() {
-        if (this.queue.length === 0) return;
-
-        // Grab current queue and reset the internal queue
-        const batchToSend = this.queue;
-        this.queue = [];
-
-        try {
-            // Simulate HTTP POST request
-            const response = await fetch(this.endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(batchToSend)
-            });
-
-            if (!response.ok) {
-                // Handle transient network errors or 4xx/5xx responses
-                console.error(`Telemetry Transport: Failed to send batch (${response.status})`, response.statusText);
-                // NOTE: Implement sophisticated retry logic (e.g., exponential backoff) if required by robustness spec.
-            }
-
-        } catch (error) {
-            console.error('Telemetry Transport Network Error:', error.message);
-        }
-    }
-
-    shutdown() {
-        clearInterval(this.timer);
-        if (this.queue.length > 0) {
-            this.flush(); // Attempt final synchronous flush
-        }
+    /**
+     * Shuts down the transport, clears the interval, and attempts a final flush
+     * of any remaining queued items.
+     */
+    async shutdown(): Promise<void> {
+        // Delegate shutdown logic to the processor utility
+        await this.batchProcessor.stop();
     }
 }
 
