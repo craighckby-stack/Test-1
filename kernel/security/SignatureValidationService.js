@@ -10,13 +10,15 @@ class SignatureValidationService {
      * @param {object} dependencies
      * @param {object} dependencies.keyIdentityResolver - Service to map public keys/IDs to known system roles.
      * @param {object} dependencies.cryptoEngine - Interface for cryptographic operations (hashing, signature verification, canonicalization).
+     * @param {object} dependencies.complianceReporter - Plugin for general compliance reporting and validation tracking.
      */
-    constructor({ keyIdentityResolver, cryptoEngine }) {
-        if (!keyIdentityResolver || !cryptoEngine) {
-            throw new Error("SignatureValidationService requires keyIdentityResolver and cryptoEngine.");
+    constructor({ keyIdentityResolver, cryptoEngine, complianceReporter }) {
+        if (!keyIdentityResolver || !cryptoEngine || !complianceReporter) {
+            throw new Error("SignatureValidationService requires keyIdentityResolver, cryptoEngine, and complianceReporter.");
         }
         this.keyIdentityResolver = keyIdentityResolver;
         this.cryptoEngine = cryptoEngine;
+        this.complianceReporter = complianceReporter;
     }
 
     /**
@@ -37,63 +39,51 @@ class SignatureValidationService {
      * @returns {{verified: boolean, invalidSigners: string[], validRoles: Set<string>, missingRequiredRoles: Set<string>}}
      */
     verifyRequestSignatures(request, signatures, requiredRoles) {
-        const validRoles = new Set();
-        // Stores roles required for the transition that provided a cryptographically invalid signature.
-        const requiredRoleFailures = new Set(); 
-
+        
         if (!signatures || signatures.length === 0) {
             const missingRequiredRoles = new Set(requiredRoles);
-            return { verified: requiredRoles.size === 0, invalidSigners: [], validRoles, missingRequiredRoles };
+            return { verified: requiredRoles.size === 0, invalidSigners: [], validRoles: new Set(), missingRequiredRoles };
         }
 
         const messageToVerify = this._canonicalizeRequest(request);
 
-        for (const sig of signatures) {
-            if (!sig.publicKey || !sig.signature) continue;
-
-            // 1. Identify signer role using the dedicated resolver
-            const role = this.keyIdentityResolver.resolveRoleFromKey(sig.publicKey);
-
-            const isRequiredRole = role && requiredRoles.has(role);
-
-            if (!role) {
-                // Key is unknown. Ignore signature for validation purposes.
-                continue;
-            }
-
-            try {
-                // 2. Execute cryptographic verification
-                const isValid = this.cryptoEngine.verifySignature(messageToVerify, sig.signature, sig.publicKey);
-
-                if (isValid) {
-                    validRoles.add(role);
-                } else if (isRequiredRole) {
-                    // Signature provided by a required role failed cryptographic check.
-                    requiredRoleFailures.add(role);
-                } 
-            } catch (e) {
-                // Handle potential errors like malformed keys or crypto engine failure
-                console.error(`[SVS] Error during cryptographic verification for role ${role}:`, e.message);
-                if (isRequiredRole) {
-                    requiredRoleFailures.add(role);
-                }
-            }
-        }
-
-        // Determine which required roles are missing (did not provide a valid signature)
-        const missingRequiredRoles = new Set(Array.from(requiredRoles).filter(
-            r => !validRoles.has(r)
-        ));
-
-        // Final verification check: all required roles must be satisfied and none must have failed cryptographically.
-        const requirementsMet = missingRequiredRoles.size === 0 && requiredRoleFailures.size === 0;
+        // Define functions required by the ComplianceReporter plugin
         
+        /** Maps signature object to system role ID */
+        const idExtractor = (sig) => {
+            if (!sig.publicKey || !sig.signature) return null;
+            return this.keyIdentityResolver.resolveRoleFromKey(sig.publicKey);
+        };
+        
+        /** Performs cryptographic verification and handles engine errors */
+        const validator = (sig) => {
+            try {
+                return this.cryptoEngine.verifySignature(messageToVerify, sig.signature, sig.publicKey);
+            } catch (e) {
+                // Log specific cryptographic failures relevant to this service
+                console.error(`[SVS] Error during crypto verification for key ${sig.publicKey}:`, e.message);
+                // Treat crypto errors (malformed input, engine failure) as validation failure
+                return false; 
+            }
+        };
+
+        // Utilize the extracted compliance logic
+        const complianceResult = this.complianceReporter.execute({
+            requiredIds: requiredRoles,
+            inputList: signatures,
+            idExtractor: idExtractor,
+            validator: validator
+        });
+
+        // Map results back to the domain specific terminology
         return {
-            verified: requirementsMet,
-            // Return the full list of required roles that explicitly failed signing
-            invalidSigners: Array.from(requiredRoleFailures),
-            validRoles,
-            missingRequiredRoles
+            verified: complianceResult.verified,
+            // invalidIds maps to invalidSigners
+            invalidSigners: complianceResult.invalidIds,
+            // validIds maps to validRoles
+            validRoles: complianceResult.validIds,
+            // missingRequiredIds maps to missingRequiredRoles
+            missingRequiredRoles: complianceResult.missingRequiredIds
         };
     }
 }
