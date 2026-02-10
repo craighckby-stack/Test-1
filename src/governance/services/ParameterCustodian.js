@@ -4,38 +4,55 @@
  * It enforces SecurityThresholds and checks ComplexityGrowthLimitPerCycle before commitment.
  */
 
+// Assuming the GovernanceParameterConstraintValidator plugin is available via AGI-KERNEL environment
+declare const GovernanceParameterConstraintValidator: {
+    execute(args: { currentParams: any, proposedParams: any }): { valid: boolean, message?: string }[];
+};
+
 class ParameterCustodian {
-    constructor(governanceConfigPath) {
+    private configPath: string;
+    private currentParams: any;
+
+    constructor(governanceConfigPath: string) {
         this.configPath = governanceConfigPath;
-        this.currentParams = require(governanceConfigPath);
+        // NOTE: require is used for synchronous file loading in Node environment
+        this.currentParams = require(governanceConfigPath); 
     }
 
-    read(keyPath) {
-        // Utility to fetch deeply nested parameters
+    /**
+     * Utility to fetch deeply nested parameters.
+     */
+    read(keyPath: string): any {
+        return keyPath.split('.').reduce((o, i) => (o ? o[i] : o), this.currentParams);
     }
 
-    async validateMutation(proposedParams) {
-        const currentEvolution = this.currentParams.evolutionControl;
-        const proposedEvolution = proposedParams.evolutionControl;
-
-        // 1. Check Complexity Growth Constraint
-        // Placeholder: Needs actual metric comparison function
-        if (proposedEvolution.complexityGrowthLimitPerCycle > currentEvolution.complexityGrowthLimitPerCycle * 1.5) {
-            throw new Error("Mutation violates complexity growth constraints.");
+    async validateMutation(proposedParams: any): Promise<boolean> {
+        if (typeof GovernanceParameterConstraintValidator === 'undefined') {
+            throw new Error("GovernanceParameterConstraintValidator plugin is unavailable.");
         }
 
-        // 2. Check Security Threshold Requirements (e.g., requiring specific entropy/consensus input for change)
-        if (!proposedParams.securityEvidence) {
-             throw new Error("Missing authorization evidence for critical parameter modification.");
+        const results = GovernanceParameterConstraintValidator.execute({
+            currentParams: this.currentParams,
+            proposedParams: proposedParams
+        });
+
+        const invalidResults = results.filter(r => !r.valid);
+        
+        if (invalidResults.length > 0) {
+            // Concatenate all failure messages
+            const failureMessage = invalidResults.map(r => r.message).join(' | ');
+            throw new Error(`Mutation failed governance constraints: ${failureMessage}`);
         }
 
         return true; 
     }
 
-    async commit(proposedParams) {
+    async commit(proposedParams: any): Promise<void> {
         await this.validateMutation(proposedParams);
+        
         // Atomic write to disk and system reload/policy update 
         // ... logic for writing proposedParams to configPath ...
+
         this.currentParams = proposedParams;
         console.log("Governance parameters updated successfully.");
     }
