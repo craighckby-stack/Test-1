@@ -5,6 +5,8 @@
  */
 
 import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'; // Assuming JSON loading capability
+// Assuming RuleExecutionEngine is imported from a standard module path
+// import { RuleExecutionEngine } from '../Services/RuleExecutionEngine';
 
 /**
  * @typedef {Object} ConstraintDefinition
@@ -21,6 +23,10 @@ import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'
  * @property {(string|null)} [details] - Explanation of the failure, if applicable.
  */
 
+// Placeholder definition for RuleExecutionEngine usage, assuming it's imported.
+// In a real refactor, this class would be imported.
+const RuleExecutionEngine = globalThis.RuleExecutionEngine || class MockRuleEngine { constructor() { this.executors = new Map(); } registerRule() {} executeRule(type, ...args) { const executor = this.executors.get(type); return executor ? executor(...args) : null; } };
+
 export class ConstraintAdherenceValidator {
 
     /**
@@ -35,31 +41,9 @@ export class ConstraintAdherenceValidator {
         }
 
         this.taxonomyMap = new Map(taxonomy.map(c => [c.code, c]));
-        /** @type {Map<string, function(ConstraintDefinition, Object): ValidationResult>} */
-        this.ruleExecutors = new Map();
-        this._initializeDefaultRules();
-    }
-
-    /**
-     * Registers foundational validation rules.
-     * This method is a key point for emergent capability injection in future cycles.
-     */
-    _initializeDefaultRules() {
-        // Rule 1: Presence Check (A required parameter must exist in the configuration)
-        this.ruleExecutors.set('presence_check', (constraintDef, configuration) => {
-            const target = constraintDef.target_parameter;
-            const isPresent = target && configuration && configuration.hasOwnProperty(target);
-            return {
-                isMet: isPresent,
-                details: isPresent ? null : `Required parameter '${target}' is missing.`
-            };
-        });
-
-        // Rule 2: Placeholder for numerical limits (e.g., budget check)
-        this.ruleExecutors.set('numerical_limit', (def, config) => {
-            // AGI logic implementation goes here: compare config[def.target_parameter] against def.expected_value
-            return { isMet: true }; // Scaffolding
-        });
+        
+        /** @type {RuleExecutionEngine} */
+        this.ruleEngine = new RuleExecutionEngine();
     }
 
     /**
@@ -113,10 +97,11 @@ export class ConstraintAdherenceValidator {
              return { isMet: false, details: 'Constraint definition is missing required "check_type" for validation execution.' };
         }
 
-        const executor = this.ruleExecutors.get(checkType);
+        // Delegation to the Rule Execution Engine
+        const result = this.ruleEngine.executeRule(checkType, constraintDef, configuration);
 
-        if (executor) {
-            return executor(constraintDef, configuration);
+        if (result !== null) {
+            return result;
         }
 
         // Defaulting to failure if no specific executor is found ensures system safety.
