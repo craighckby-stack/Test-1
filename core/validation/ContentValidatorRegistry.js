@@ -2,13 +2,17 @@
  * core/validation/ContentValidatorRegistry.js
  * Manages and retrieves specific content validators (e.g., JsSchemaValidator, YamlLinter).
  * Ensures a centralized, single source of truth for validation routines via the Singleton pattern.
+ * 
+ * NOTE: Assumes ServiceRegistry base class is available.
  */
-class ContentValidatorRegistry {
+class ContentValidatorRegistry extends ServiceRegistry { 
   constructor() {
+    // 1. Singleton Check
     if (ContentValidatorRegistry.instance) {
         return ContentValidatorRegistry.instance;
     }
-    this._validators = new Map();
+    // 2. Initialize ServiceRegistry (sets up internal map for storage)
+    super(); 
     ContentValidatorRegistry.instance = this;
   }
 
@@ -21,13 +25,14 @@ class ContentValidatorRegistry {
    */
   registerValidator(name, validatorInstance) {
     if (typeof validatorInstance.validate !== 'function') {
-      throw new Error(`[ContentValidatorRegistry] Validator instance for '${name}' must implement an async validate(content, config) method.`);
+      throw new Error(`[ContentValidatorRegistry] Validator instance for '\${name}' must implement an async validate(content, config) method.`);
     }
-    if (this._validators.has(name)) {
-        // Use console.warn for soft overwrite indication, useful during bootstrapping.
-        // console.warn(`[ContentValidatorRegistry] Validator '${name}' is being overwritten.`);
+    
+    // Delegate storage and key validation to the base registry
+    if (super.has(name)) {
+        // console.warn(`[ContentValidatorRegistry] Validator '\${name}' is being overwritten.`);
     }
-    this._validators.set(name, validatorInstance);
+    super.register(name, validatorInstance);
   }
 
   /**
@@ -36,14 +41,14 @@ class ContentValidatorRegistry {
    * @returns {Object | null} The registered validator or null if not found.
    */
   getValidator(name) {
-    return this._validators.get(name) || null;
+    return super.get(name);
   }
 
   /**
    * @returns {Array<string>} List of registered validator names.
    */
   getRegisteredValidatorNames() {
-      return Array.from(this._validators.keys());
+      return super.getKeys();
   }
 }
 
