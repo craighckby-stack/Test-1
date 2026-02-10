@@ -1,15 +1,18 @@
 /**
- * Configuration Schema Validator Utility (v94.2)
+ * Configuration Schema Validator Utility (v94.3)
  * Required for advanced configuration governance, ensuring deeply parsed JSON
  * structures conform to defined operational schemas.
  * 
- * NOTE: In production environments, this module interfaces with a robust
- * implementation of JSON Schema Draft 2020-12 (e.g., 'ajv').
+ * NOTE: This utility now leverages the BasicConfigSchemaValidator tool for rapid
+ * structural and required field checks, substituting for a full JSON Schema
+ * implementation (like 'ajv') in non-critical paths.
  */
 
+// @ts-ignore: Assume global access to AGI_KERNEL_PLUGINS
+const BasicConfigSchemaValidator = AGI_KERNEL_PLUGINS.BasicConfigSchemaValidator;
+
 /**
- * Validates a configuration object against a JSON schema.
- * Implements basic structural and required field checks in lieu of a full AJV instance.
+ * Validates a configuration object against a JSON schema using basic structural checks.
  * 
  * @param {object|array} configObject - The configuration structure to validate.
  * @param {object} schema - The predefined JSON schema (draft-07 or newer).
@@ -17,43 +20,40 @@
  * @returns {object} { isValid: boolean, errors: Array<string> }
  */
 const validateConfig = (configObject, schema, configName) => {
-    const results = { isValid: true, errors: [] };
-
-    // 1. Root Structure and Existence Check (Initial mandatory governance point)
-    if (!configObject || typeof configObject !== 'object' || Object.keys(configObject).length === 0) {
-        results.isValid = false;
-        results.errors.push(`[Fatal] Config ${configName} is null, empty, or not a valid object structure.`);
-        return results;
-    }
-
-    // 2. Simulate required field checks based on the schema definition
-    if (schema && Array.isArray(schema.required)) {
-        for (const key of schema.required) {
-            if (!(key in configObject)) {
-                results.isValid = false;
-                results.errors.push(`[Schema Error] Config ${configName} missing required field: ${key}.`);
-            }
-        }
+    if (!BasicConfigSchemaValidator || typeof BasicConfigSchemaValidator.execute !== 'function') {
+        console.error("FATAL: BasicConfigSchemaValidator tool not available. Skipping validation.");
+        return { isValid: false, errors: ["Validator tool not initialized or accessible."] };
     }
     
-    // 3. Optional: Simulate basic type checking if properties are defined
-    if (schema && schema.properties) {
-        for (const [key, definition] of Object.entries(schema.properties)) {
-            if (configObject[key] !== undefined && definition.type && typeof configObject[key] !== definition.type) {
-                if (!(definition.type === 'number' && typeof configObject[key] === 'string' && !isNaN(parseFloat(configObject[key])))) { // Allow string numbers, common in inputs
-                     // results.isValid = false; // Note: Keeping valid=true for scaffolding unless required field fails
-                     console.warn(`[Type Warning] ${configName}.${key} expected type ${definition.type}. Received: ${typeof configObject[key]}.`);
-                }
-            }
-        }
+    /** @type {{ isValid: boolean, errors: Array<string> }} */
+    const validationResult = BasicConfigSchemaValidator.execute({
+        configObject,
+        schema,
+        configName
+    });
+
+    // Separate errors into critical failures (Fatal/Schema errors) and warnings (Type warnings)
+    const criticalErrors = validationResult.errors.filter(e => !e.startsWith('[Type Warning]'));
+    const warnings = validationResult.errors.filter(e => e.startsWith('[Type Warning]'));
+
+    if (!validationResult.isValid) {
+        console.error(`[Validation Failed] Configuration ${configName} failed governance checks. Total critical errors: ${criticalErrors.length}`);
+        criticalErrors.forEach(err => console.error(err));
+        // Log warnings even if validation failed critically
+        warnings.forEach(w => console.warn(w)); 
+        
+        // Return only critical errors in the error array
+        return { isValid: false, errors: criticalErrors };
     }
 
-    if (!results.isValid) {
-        console.error(`[Validation Failed] Configuration ${configName} failed governance checks. Total errors: ${results.errors.length}`);
-        return results;
+    // Success path (isValid is true)
+    if (warnings.length > 0) {
+        console.log(`[Validation Success] Config ${configName} passed structural integrity check with ${warnings.length} warnings.`);
+        warnings.forEach(w => console.warn(w));
+    } else {
+        console.log(`[Validation Success] Config ${configName} passed structural integrity check.`);
     }
-
-    console.log(`[Validation Success] Config ${configName} passed structural integrity check.`);
+    
     return { isValid: true, errors: [] };
 };
 
