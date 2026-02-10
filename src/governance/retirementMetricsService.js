@@ -14,6 +14,8 @@ import { usageTelemetry } from '../analysis/usageTelemetry.js';
 import { StaticAnalysisEngine } from '../analysis/staticAnalysisEngine.js'; // New dedicated dependency for structural metrics
 import { Logger } from '../utils/logger.js';
 import { METRIC_WEIGHTS } from './retirementMetricWeights.js';
+// Integration of existing structural plugin for complex scoring
+import { WeightedConstraintScorer } from '../plugins/WeightedConstraintScorer.js';
 
 const logger = new Logger('RMS');
 
@@ -61,41 +63,52 @@ export const retirementMetricsService = {
     /**
      * Processes raw metric scores into normalized, weighted inputs for the CORE Trust Calculus.
      * This ensures standardized, governed input based on current policy (METRIC_WEIGHTS).
+     * Uses WeightedConstraintScorer for transparent aggregation.
      * @param {object} rawMetrics - Raw scores (assumed 0.0 to 1.0).
      * @returns {object} Weighted scores encapsulated as Trust Calculus Input factors.
      */
     _processAndWeighMetrics(rawMetrics) {
+        const scorer = new WeightedConstraintScorer();
 
-        // --- Trust Calculus Input Factors (Scores aggregated here):
+        // 1. Prepare data for scoring, handling required transformations (e.g., converting usage rate to a penalty input).
+        const scoringData = {
+            redundancyScore: rawMetrics.redundancyScore,
+            complexityReductionEstimate: rawMetrics.complexityReductionEstimate,
+            criticalDependencyExposure: rawMetrics.criticalDependencyExposure,
+            // Usage Penalty input: High score means low usage (1 - usageRate)
+            usagePenaltyInput: 1 - rawMetrics.usageRate
+        };
 
-        // Safety Factor: Pushes towards retirement (higher redundancy => higher score)
-        const safetyFactor = rawMetrics.redundancyScore * METRIC_WEIGHTS.REDUNDANCY;
+        // 2. Define the scoring constraints (MetricKey -> Weight).
+        // Risk factor is configured with a negative weight to represent detraction.
+        const scoringConstraints = {
+            redundancyScore: METRIC_WEIGHTS.REDUNDANCY, // Safety Factor (Pushes retirement)
+            complexityReductionEstimate: METRIC_WEIGHTS.COMPLEXITY_REDUCTION, // Overhead Factor (Pushes retirement)
+            criticalDependencyExposure: METRIC_WEIGHTS.DEPENDENCY_EXPOSURE * -1, // Risk Factor (Pulls away from retirement)
+            usagePenaltyInput: METRIC_WEIGHTS.USAGE_RATE_PENALTY // Usage Penalty (Pushes retirement if usage is low)
+        };
 
-        // Overhead Factor: Pushes towards retirement (higher complexity reduction => higher score)
-        const overheadFactor = rawMetrics.complexityReductionEstimate * METRIC_WEIGHTS.COMPLEXITY_REDUCTION;
+        // 3. Execute the scoring calculation
+        const result = scorer.execute(scoringData, scoringConstraints);
 
-        // Risk Factor: Pulls away from retirement (higher exposure => lower score).
-        // Applied with a negative factor to represent drag/detraction from the overall retirement score.
-        const riskFactorDetraction = rawMetrics.criticalDependencyExposure * METRIC_WEIGHTS.DEPENDENCY_EXPOSURE * -1;
+        // 4. Map the results back to the required output structure.
+        // Assuming result.total is the sum and result.factors holds the weighted contributions
+        const trustCalculusInput = result.total;
 
-        // Usage Penalty: Pushes towards retirement if usage is low.
-        const usagePenalty = (1 - rawMetrics.usageRate) * METRIC_WEIGHTS.USAGE_RATE_PENALTY;
+        const adjudicationInput = {
+            // Main normalized input for CORE's P-01 function
+            trustCalculusInput: trustCalculusInput,
 
-        // Composite Trust Calculus Input (CTC): Sum of weighted factors
-        const trustCalculusInput = safetyFactor + overheadFactor + riskFactorDetraction + usagePenalty;
+            // Detailed Weighted Factors for auditing and traceability
+            safetyFactor: result.factors.redundancyScore,
+            riskFactor: result.factors.criticalDependencyExposure, // Includes the negative weight
+            overheadFactor: result.factors.complexityReductionEstimate,
+            usagePenalty: result.factors.usagePenaltyInput
+        };
 
         return {
             raw: rawMetrics,
-            adjudicationInput: {
-                // Main normalized input for CORE's P-01 function
-                trustCalculusInput: trustCalculusInput,
-
-                // Detailed Weighted Factors for auditing and traceability
-                safetyFactor: safetyFactor,
-                riskFactor: riskFactorDetraction,
-                overheadFactor: overheadFactor,
-                usagePenalty: usagePenalty
-            }
+            adjudicationInput: adjudicationInput
         };
     },
 
