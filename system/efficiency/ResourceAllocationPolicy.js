@@ -5,38 +5,44 @@
  * into concrete infrastructure provisioning requests, optimizing for P95 latency and cost efficiency.
  */
 
+interface ComputeDefinition {
+    scalability_model: 'Elastic_Burst' | 'Managed_Scale' | 'Dedicated_Fixed';
+    priority_tier: string;
+    cost_metrics: { peak_tps: number };
+}
+
+interface ProvisioningAction {
+    action: string;
+    units?: number;
+    reason?: string;
+}
+
 class ResourceAllocationPolicy {
-    constructor(computeDefinitions) {
+    private definitions: any;
+    // Assuming standard kernel mechanism for tool access
+    private ResourcePolicyDerivatorTool: { execute: (args: any) => ProvisioningAction }; 
+
+    constructor(computeDefinitions: any) {
         this.definitions = computeDefinitions; // Load COMPUTE_V2.0 definitions
+        // In a real AGI-KERNEL environment, tools are injected or retrieved via a standard factory.
+        // Placeholder retrieval:
+        this.ResourcePolicyDerivatorTool = (global as any).AGI_KERNEL.getPlugin('ResourcePolicyDerivatorTool'); 
     }
 
-    determineProvisioningStrategy(className, currentQueueDepth, requiredThroughput) {
-        const definition = this.definitions.compute_classes[className];
+    /**
+     * Determines the provisioning action by delegating the policy evaluation to the specialized tool.
+     */
+    determineProvisioningStrategy(className: string, currentQueueDepth: number, requiredThroughput: number): ProvisioningAction {
+        const definition: ComputeDefinition = this.definitions.compute_classes[className];
         if (!definition) throw new Error(`Unknown compute class: ${className}`);
 
-        const { scalability_model, priority_tier } = definition;
-
-        // Example logic based on scalability_model:
-        switch (scalability_model) {
-            case 'Elastic_Burst':
-                // High-priority (P3) scaling: Scale rapidly up to maximum limits based on utilization spikes.
-                if (currentQueueDepth > 0 || requiredThroughput > definition.cost_metrics.peak_tps * 0.8) {
-                    return { action: 'SCALE_UP', units: 1, reason: 'Queue non-empty, utilizing burst capacity.' };
-                }
-                return { action: 'MAINTAIN' };
-            
-            case 'Managed_Scale':
-                // Mid-priority (P2) scaling: Use predictive metrics or slower, measured scaling steps.
-                // Requires complex resource utilization analysis not defined here.
-                return { action: 'ADVISE_PREDICTIVE_SCALE' };
-
-            case 'Dedicated_Fixed':
-                // Low-priority (P1) scaling: Never automatically scale. Requires manual approval or explicit job scheduling.
-                return { action: 'VERIFY_AVAILABILITY' };
-
-            default:
-                return { action: 'ERROR', reason: 'Unrecognized scalability model.' };
-        }
+        // The complex logic mapping configuration traits (scalability_model) and dynamic metrics 
+        // to an action is now managed by the external tool.
+        return this.ResourcePolicyDerivatorTool.execute({
+            definition: definition,
+            currentQueueDepth: currentQueueDepth,
+            requiredThroughput: requiredThroughput
+        });
     }
 
     // ... (Other functions like CostOptimizer, LatencyGuarantor)
