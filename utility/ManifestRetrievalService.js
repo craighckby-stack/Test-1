@@ -1,5 +1,8 @@
-const crypto = require('crypto');
 const fs = require('fs/promises');
+
+// Assuming StructuralSchemaValidatorTool and CryptographicSignatureValidator are available via the runtime context
+// declare const StructuralSchemaValidatorTool: any;
+// declare const CryptographicSignatureValidator: any;
 
 /**
  * Manifest Retrieval Service (MRS) V1.0
@@ -33,18 +36,32 @@ class ManifestRetrievalService {
 
     /**
      * Fetches raw manifest data, assuming a format containing payload and signature.
-     * NOTE: In a production AGI, this would involve a secure network request (e.g., API call).
+     * NOTE: Uses StructuralSchemaValidatorTool for input integrity checking.
      * @param {string} sourceIdentifier - Local file path or secure API URL.
      * @returns {Promise<{payload: string, signature: string, version: string}>}
      */
     async fetchManifestRaw(sourceIdentifier) {
         console.log(`[MRS] Attempting retrieval of WCIM from: ${sourceIdentifier}`);
+        
+        const requiredSchema = {
+            type: 'object',
+            properties: {
+                signed_payload: { type: 'string' },
+                signature: { type: 'string' }
+            },
+            required: ['signed_payload', 'signature']
+        };
+
         try {
             const fullManifestData = await fs.readFile(sourceIdentifier, 'utf8');
             const fullManifest = JSON.parse(fullManifestData);
             
-            if (!fullManifest.signed_payload || !fullManifest.signature) {
-                 throw new Error("Raw manifest lacks required 'signed_payload' or 'signature' fields.");
+            // Use existing StructuralSchemaValidatorTool
+            const validationResult = StructuralSchemaValidatorTool.execute(fullManifest, requiredSchema);
+
+            if (!validationResult.valid) {
+                 const error = `Raw manifest failed structural validation: ${validationResult.errors ? JSON.stringify(validationResult.errors) : 'Missing required fields.'}`;
+                 throw new Error(error);
             }
 
             return {
@@ -59,17 +76,22 @@ class ManifestRetrievalService {
 
     /**
      * Verifies the digital signature of the WCIM payload using the sovereign public key.
+     * Utilizes the new CryptographicSignatureValidator plugin.
      */
     verifyManifestSignature(payload, signature) {
         if (!this.publicKey) {
             throw new Error("MRS Error: Public key not loaded. Cannot verify signature.");
         }
 
-        // Assuming industry standard algorithm for manifest signing (e.g., RSA-SHA256)
-        const verifier = crypto.createVerify('RSA-SHA256'); 
-        verifier.update(payload);
-        
-        const isVerified = verifier.verify(this.publicKey, signature, 'base64');
+        // Default algorithm based on previous requirements
+        const algorithm = 'RSA-SHA256'; 
+
+        const isVerified = CryptographicSignatureValidator.verify({
+            publicKey: this.publicKey,
+            payload: payload,
+            signature: signature,
+            algorithm: algorithm
+        });
 
         if (!isVerified) {
             console.error("CRITICAL SECURITY ALERT: WCIM signature verification FAILED. Manifest data is untrusted.");
