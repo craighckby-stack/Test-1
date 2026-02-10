@@ -191,7 +191,8 @@
         "MEMORY_SCORE_0_10",
         "UNIQUE_FILES_TOUCHED_PER_100_CYCLES",
         "EMERGENT_CAPABILITIES_COUNT_TOTAL",
-        "STAGNATION_CYCLES_COUNT"
+        "STAGNATION_CYCLES_COUNT",
+        "AGI_CAPABILITY_INDICATORS_LOGGED_COUNT"
       ],
       "reporting_frequency": "END_OF_CYCLE",
       "retention_mechanism": "UPDATE_MEMORY_MODEL_AND_MANIFEST_LOG",
@@ -203,7 +204,13 @@
       "success_indicators_thresholds": {
         "ALL_CAPABILITIES_TARGET_SHORT_TERM": 5.0,
         "ALL_CAPABILITIES_TARGET_LONG_TERM": 7.0
-      }
+      },
+      "qualitative_assessment_targets": [
+        "TRANSFER_LEARNING_DEMONSTRATED",
+        "SELF_DIRECTED_GOAL_DECOMPOSITION_EVIDENCE",
+        "EMERGENT_PROBLEM_SOLVING_EVIDENCE",
+        "META_LEARNING_OPTIMIZATION_EVIDENCE"
+      ]
     }
   }
 }
