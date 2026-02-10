@@ -3,7 +3,7 @@ import typing
 import collections
 from decimal import Decimal
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from .HashingErrors import ArtifactSerializationError
 
@@ -42,6 +42,9 @@ class CanonicalJSONEncoder(json.JSONEncoder):
     detection within custom object serialization paths to guarantee deterministic 
     hashing output even for complex or flawed object graphs, preventing potential 
     recursion errors in core/agent structures.
+    
+    AGI-KERNEL Improvement (Cycle 1 - Current): Enforced strict ISO 8601 formatting for datetimes 
+    to ensure canonical representation across environment locales.
     """
 
     def __init__(self, *args, **kwargs):
@@ -75,8 +78,18 @@ class CanonicalJSONEncoder(json.JSONEncoder):
             return list(obj)
 
         # 2. Handle common complex types by converting to deterministic strings
-        # Added pathlib.Path handling for canonical file system references.
-        if isinstance(obj, (datetime, Decimal, UUID, Path)):
+        # AGI-KERNEL Logic Improvement: Handle datetimes/dates with explicit ISO 8601 formatting.
+        if isinstance(obj, datetime):
+            # Naive datetimes are assumed UTC for canonical consistency, appended with 'Z'
+            if obj.tzinfo is None or obj.tzinfo.utcoffset(obj) is None:
+                return obj.isoformat() + 'Z'
+            return obj.isoformat()
+            
+        if isinstance(obj, date):
+            return obj.isoformat()
+
+        # Standard string conversion for other canonical types
+        if isinstance(obj, (Decimal, UUID, Path)):
             return str(obj)
 
         # 3. Handle binary data by converting to canonical hex string (Crucial for artifact integrity)
