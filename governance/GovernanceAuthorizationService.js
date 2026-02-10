@@ -7,11 +7,13 @@
  */
 class GovernanceAuthorizationService {
 
-    constructor(policyEngine, securityContextVerifier) {
+    constructor(policyEngine, securityContextVerifier, mandateEvaluator) {
         // Policy Engine holds current P-01 vectors and operational mandates
         this.policyEngine = policyEngine;
         // SCV handles token decryption, signature verification, and identity extraction
         this.scv = securityContextVerifier;
+        // Tool for executing specific governance mandate checks against an identity
+        this.mandateEvaluator = mandateEvaluator; 
     }
 
     /**
@@ -31,20 +33,16 @@ class GovernanceAuthorizationService {
             return false;
         }
 
-        // 1. Fetch the required mandate criteria from the Policy Engine
+        // 1. Fetch the required mandate criteria from the Policy Engine (for dynamic evaluation)
         const requiredCriteria = this.policyEngine.getMandateCriteria(requiredLevel);
         
-        // 2. Evaluate if the identity satisfies the criteria (Simplified Check)
-        if (requiredLevel === 'L4_P01_PASS') {
-            // Simulated complex check: Requires immutable logging access + verified AGI role
-            return validatedIdentity.roles.includes('AGI_GOVERNOR') && validatedIdentity.p01Status === 'CLEARED';
-        }
-        
-        if (requiredLevel === 'READ_ACCESS') {
-            return true; // Basic system read access granted universally if context is valid
-        }
-
-        return false;
+        // 2. Delegate the evaluation to the specialized tool
+        // The GovernanceMandateEvaluatorTool handles the complex boolean logic previously hardcoded.
+        return this.mandateEvaluator.execute({
+            requiredLevel: requiredLevel,
+            validatedIdentity: validatedIdentity,
+            requiredCriteria: requiredCriteria
+        });
     }
 }
 
