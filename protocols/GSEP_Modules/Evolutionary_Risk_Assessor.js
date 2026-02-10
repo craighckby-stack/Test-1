@@ -8,6 +8,10 @@
 
 import { loadConfig } from '../GSEP_Config/ConfigLoader';
 
+// Assuming the plugin interface is globally available or imported.
+dispatcher.load('QuantitativeEvolutionScorer');
+declare const QuantitativeEvolutionScorer: { execute: (metrics: { [key: string]: any }, config: { [key: string]: any }) => { quantitativeRisk: number, riskScore: number, efficacyScore: number } };
+
 const GPC = loadConfig('GPC');
 const { risk_tolerance, target_efficiency_gain_min } = GPC.protocol_evolution_control;
 
@@ -18,28 +22,25 @@ const { risk_tolerance, target_efficiency_gain_min } = GPC.protocol_evolution_co
  * @returns {object} - Assessment score and recommendation.
  */
 export function assessProposal(proposal, currentMetrics) {
-    const estimatedImpact = proposal.metrics.predicted_cpu_reduction; // Example metric
-    const codeComplexityChange = proposal.metrics.cyclomatic_change;
+    const metrics = {
+        estimatedImpact: proposal.metrics.predicted_cpu_reduction, // Example metric
+        codeComplexityChange: proposal.metrics.cyclomatic_change,
+        recent_errors: currentMetrics.recent_errors
+    };
 
-    let riskScore = 0;
-    let efficacyScore = 0;
+    // Configuration parameters for the scorer (using explicit values matching original logic)
+    const scorerConfig = {
+        targetEfficiencyMin: target_efficiency_gain_min,
+        complexityThreshold: 50,
+        instabilityThreshold: 0.01,
+        efficacyWeight: 0.6,
+        complexityRiskWeight: 0.8,
+        instabilityRiskWeight: 0.5
+    };
 
-    // 1. Efficacy Check: Must meet minimum gain threshold
-    if (estimatedImpact >= target_efficiency_gain_min) {
-        efficacyScore += 0.6; // High positive weighting
-    }
-
-    // 2. Risk Check: Large complexity changes increase risk
-    if (codeComplexityChange > 50) {
-        riskScore += 0.8;
-    }
-    
-    // 3. Current system stability check (example)
-    if (currentMetrics.recent_errors > 0.01) {
-        riskScore += 0.5; // Avoid high-risk evolution during instability
-    }
-
-    const quantitativeRisk = riskScore / efficacyScore; // simplified score
+    const scoringResult = QuantitativeEvolutionScorer.execute(metrics, scorerConfig);
+    const quantitativeRisk = scoringResult.quantitativeRisk;
+    const estimatedImpact = metrics.estimatedImpact;
 
     // Policy Enforcement based on GPC.risk_tolerance
     let recommendation = "REJECT";
