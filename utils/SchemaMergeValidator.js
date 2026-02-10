@@ -10,35 +10,22 @@
 
 const { resolveAIPSchemas } = require('./PolicySchemaResolver'); // New dependency
 
-// --- [ Internal Utilities ] ----------------------------------------------------
-
-/**
- * @typedef {object} JSONSchema
- * @property {object} [properties]
- * @property {string[]} [required]
- * @property {boolean} [additionalProperties]
- */
-
-/**
- * Utility function for creating a deep clone of basic JSON schema structures.
- * This ensures base schemas remain immutable during the merging process.
- * @param {JSONSchema} schema
- * @returns {JSONSchema}
- */
-const deepCloneSchema = (schema) => JSON.parse(JSON.stringify(schema));
-
-
 // --- [ Main Class ] -----------------------------------------------------------
 
 class SchemaMergeValidator {
   /**
    * @param {import('ajv').Ajv} ajvInstance - The pre-configured Ajv instance.
+   * @param {object} plugins - A container for reusable tools.
    */
-  constructor(ajvInstance) {
+  constructor(ajvInstance, plugins = {}) {
     if (!ajvInstance || typeof ajvInstance.compile !== 'function') {
       throw new Error('SchemaMergeValidator requires a valid Ajv instance.');
     }
+    if (!plugins.JSONSchemaMerger) {
+        throw new Error('SchemaMergeValidator requires the JSONSchemaMerger plugin.');
+    }
     this.ajv = ajvInstance;
+    this.plugins = plugins; 
     // Optimization: Pre-bind Ajv cache lookup function.
     this.getSchema = this.ajv.getSchema.bind(this.ajv);
   }
@@ -53,46 +40,6 @@ class SchemaMergeValidator {
       // Ensure the ref is safely integrated into the ID.
       const safeRef = coreSchemaRef.replace(/[^a-zA-Z0-9_-]/g, '_');
       return `AIP-Composite-${safeRef}-${hasCustomSchema ? 'CUSTOM' : 'BASE'}`;
-  }
-
-  /**
-   * Creates a composite schema by performing a targeted deep merge.
-   * Merges 'properties' and 'required' arrays, favoring custom settings
-   * for 'additionalProperties'.
-   *
-   * @param {JSONSchema} baseSchema - The resolved CoreIndexingMetadata schema.
-   * @param {JSONSchema | null | undefined} customSchema - The schema fragment (e.g., AIP.custom_metadata_schema).
-   * @returns {JSONSchema} The merged JSON Schema.
-   */
-  createCompositeSchema(baseSchema, customSchema) {
-    if (!customSchema || (!customSchema.properties && !customSchema.required && customSchema.additionalProperties === undefined)) {
-      // Return a deep clone of the base schema if the custom fragment provides no merging instruction.
-      return deepCloneSchema(baseSchema);
-    }
-
-    // 1. Deep clone the base schema to maintain source immutability.
-    const merged = deepCloneSchema(baseSchema);
-    
-    const baseProps = merged.properties || {};
-    const customProps = customSchema.properties || {};
-
-    // 2. Merge properties: Custom properties extend/overwrite base properties.
-    merged.properties = { 
-      ...baseProps,
-      ...customProps
-    };
-
-    // 3. Merge required fields, ensuring uniqueness and deterministic order (sorting for stability).
-    const baseRequired = merged.required || [];
-    const customRequired = customSchema.required || [];
-    merged.required = [...new Set([...baseRequired, ...customRequired])].sort();
-
-    // 4. Handle additionalProperties: Custom fragment explicitly overrides base if defined.
-    if (customSchema.additionalProperties !== undefined) {
-      merged.additionalProperties = customSchema.additionalProperties;
-    }
-
-    return merged;
   }
 
   /**
@@ -127,11 +74,11 @@ class SchemaMergeValidator {
     try {
         if (!validateFn) {
             
-            // 3. Create the composite schema (Only done if cache miss).
-            const compositeSchema = this.createCompositeSchema(
-              baseSchema,
-              customSchemaFragment
-            );
+            // 3. Create the composite schema using the dedicated plugin.
+            const compositeSchema = this.plugins.JSONSchemaMerger.execute({
+              baseSchema: baseSchema,
+              customSchema: customSchemaFragment
+            });
             
             // 4. Compile and Register.
             this.ajv.addSchema(compositeSchema, schemaId);
@@ -154,6 +101,8 @@ class SchemaMergeValidator {
     } catch (e) {
       // Handle Ajv compilation errors (e.g., malformed schemas).
       const message = e instanceof Error ? e.message : String(e);
+      // CRITICAL: Remove potentially corrupted schema from cache.
+      this.ajv.removeSchema(schemaId);
       return {
         isValid: false,
         errors: [{ keyword: 'compilation', message: `Schema compilation failed: ${message}` }],
