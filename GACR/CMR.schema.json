@@ -63,7 +63,7 @@
           },
           "capability_assessment": {
             "type": "object",
-            "description": "The model's self-assessed performance across core AGI capabilities (0-10 scale).",
+            "description": "The model's self-assessed performance across core AGI capabilities (0-10 scale), including dynamically added Emergent Metrics.",
             "properties": {
               "error_handling": {"type": "number", "minimum": 0, "maximum": 10},
               "json_parsing": {"type": "number", "minimum": 0, "maximum": 10},
@@ -71,7 +71,13 @@
               "autonomy": {"type": "number", "minimum": 0, "maximum": 10},
               "creativity": {"type": "number", "minimum": 0, "maximum": 10}
             },
-            "required": ["error_handling", "json_parsing", "meta_reasoning", "autonomy", "creativity"]
+            "required": ["error_handling", "json_parsing", "meta_reasoning", "autonomy", "creativity"],
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0, 
+              "maximum": 10,
+              "description": "Score for a kernel-invented emergent capability metric (0-10)."
+            }
           },
           
           "inputs_schema": {
