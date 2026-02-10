@@ -2,16 +2,23 @@ const GAXTelemetry = require('../Telemetry/GAXTelemetryService');
 
 /**
  * CRoTIndexClient
- * Handles the low-level data interaction for the PolicyHeuristicIndex, abstracting 
- * access via the KERNEL's CRoTIndexStorage capability.
+ * Handles the high-level policy data interaction, relying on the 
+ * CRoTIndexStorageAdapter (abstracted KERNEL capability) for data access.
  */
 class CRoTIndexClient {
     
     /**
-     * Constructor no longer requires a storageHandle dependency, relying on the KERNEL Tool.
+     * The client now depends on the abstracted CRoTIndexStorageAdapter interface,
+     * removing direct reliance on KERNEL_SYNERGY_CAPABILITIES.Tool.
      */
     constructor() {
-        GAXTelemetry.system('CRoT_IndexClient_Init_KernelMode');
+        // Link to the required abstraction provided by the environment/plugin system
+        this.storageAdapter = global.CRoTIndexStorageAdapter; // Assumes KERNEL environment linkage
+        if (!this.storageAdapter) {
+            // Provides clear failure if the KERNEL environment hasn't linked the adapter yet
+            throw new Error("CRoT Index Client failed initialization: CRoTIndexStorageAdapter is missing.");
+        }
+        GAXTelemetry.system('CRoT_IndexClient_Init_KernelMode_Abstracted');
     }
 
     /**
@@ -22,8 +29,8 @@ class CRoTIndexClient {
     async getAnchorsByFingerprint(fingerprint) {
         if (!fingerprint) return [];
         try {
-            // Use KERNEL Tool capability for storage lookup
-            const anchors = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('CRoTIndexStorage', 'lookup', fingerprint);
+            // Use abstracted storage adapter lookup method
+            const anchors = await this.storageAdapter.lookup(fingerprint);
             
             // Ensure anchors is an array for safety
             const result = Array.isArray(anchors) ? anchors : (anchors ? [anchors] : []);
@@ -48,9 +55,8 @@ class CRoTIndexClient {
             return;
         }
         try {
-            // Use KERNEL Tool capability for storage append
-            // Arguments: (interface, method, key, value, metadata)
-            await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('CRoTIndexStorage', 'append', fingerprint, txId, { timestamp: Date.now() });
+            // Use abstracted storage adapter append method
+            await this.storageAdapter.append(fingerprint, txId, { timestamp: Date.now() });
             
             GAXTelemetry.info('CRoT_IndexWrite_Success', { txId, fingerprint: fingerprint.substring(0, 8) });
         } catch (error) {
