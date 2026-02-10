@@ -7,13 +7,19 @@
  * GSEP Alignment: Crucial dependency for Stage 3 (P-01 Input Attestation) and Stage 4 (MCR State Commitment).
  */
 
-const { crypto } = require('crypto');
+// Dependency injection of the cryptographic primitives utility
+// This interface separates the core cryptographic functions from the key management policy.
+const KeyManagementCryptoCoreUtility = require('./_plugins/KeyManagementCryptoCoreUtility');
+
 const KEY_VAULT = new Map(); // Secure, ephemeral storage placeholder
 
 class KeyTrustAnchorManager {
     constructor() {
         if (!process.env.KTAM_SECURE_BOOT) {
             throw new Error("KTAM must only be initialized in a secure, measured boot environment.");
+        }
+        if (!KeyManagementCryptoCoreUtility) {
+             throw new Error("KTAM initialization failed: KeyManagementCryptoCoreUtility dependency missing.");
         }
     }
 
@@ -23,13 +29,14 @@ class KeyTrustAnchorManager {
      * @returns {string} Public key reference ID.
      */
     generateSigningKeyPair(entityId) {
-        const keyPair = crypto.generateKeyPairSync('rsa', {
-            modulusLength: 4096,
-            publicKeyEncoding: { type: 'spki', format: 'pem' },
-            privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+        // Delegate key generation logic to the utility (e.g., 4096-bit RSA)
+        const result = KeyManagementCryptoCoreUtility.execute({
+            action: 'generateKeyPair',
+            entityId: entityId
         });
         
-        const keyId = `${entityId}:${Date.now()}`;
+        const { keyPair, keyId } = result;
+        
         KEY_VAULT.set(keyId, keyPair);
         return keyId;
     }
@@ -53,12 +60,13 @@ class KeyTrustAnchorManager {
      * Verifies the authenticity of a cryptographic signature.
      */
     verifySignature(data, signature, publicKey) {
-        return crypto.verify(
-            'sha256',
-            Buffer.from(data),
-            publicKey,
-            signature
-        );
+        // Delegate verification logic to the utility
+        return KeyManagementCryptoCoreUtility.execute({
+            action: 'verifySignature',
+            data: data,
+            signature: signature,
+            publicKey: publicKey
+        });
     }
     
     // Other methods: Key rotation, certificate pinning, revocation lists...
