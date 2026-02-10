@@ -1,6 +1,8 @@
 // core/SchemaValidator_Engine.js
 import { XEL_Specification } from '../config/XEL_Specification.json';
 import Ajv from 'ajv'; 
+// IMPORTING EMERGENT CAPABILITY: Decouples navigation strategy synthesis from core validation
+import { SchemaFailureAnalyzer } from '../emergent/meta_tools/SchemaFailureAnalyzer.js'; 
 
 /**
  * Custom error class for structured, machine-readable validation failures.
@@ -47,14 +49,14 @@ class SchemaValidatorEngine {
      * @param {object} [options.componentSchemas] - Schema definitions to override defaults.
      * @param {function} [options.onValidationFailure] - Callback function for Nexus/MQM logging. (mqmPayload, failureEntry)
      * @param {string} [options.kernelVersion='N/A'] - The current kernel version for dynamic reporting (Meta-Reasoning).
-     * @param {object} [options.schemaComponentMap] - Map of schemaName -> {componentPath: string, priority: number} for Navigation targeting. (NEW)
+     * @param {object} [options.schemaComponentMap] - Map of schemaName -> {componentPath: string, priority: number} for Navigation targeting.
      */
     constructor(options = {}) {
         const { 
             componentSchemas, 
             onValidationFailure, 
             kernelVersion = 'N/A', 
-            schemaComponentMap = {} // Accepting new input for Navigation context
+            schemaComponentMap = {} 
         } = options;
         
         this.validator = null;
@@ -63,10 +65,10 @@ class SchemaValidatorEngine {
         // Store dynamic runtime metadata
         this.kernelVersion = kernelVersion;
 
-        // NEW: Context for AGI Navigator System
+        // Context for AGI Navigator System
         this.schemaComponentMap = schemaComponentMap;
         
-        // INTEGRATION HOOK: Function provided by the kernel core (App.js -> logToDb/MQM)
+        // INTEGRATION HOOK: Function provided by the kernel core
         this.onValidationFailure = onValidationFailure || (() => {}); 
         
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
@@ -75,6 +77,11 @@ class SchemaValidatorEngine {
         
         // Initialize validator using provided schemas or default imported ones
         this.initializeValidator(componentSchemas || XEL_Specification.ComponentSchemas);
+
+        // Architectural Refactoring: Initialize the Emergent Failure Analyzer
+        this.analyzer = new SchemaFailureAnalyzer({
+            schemaComponentMap: this.schemaComponentMap
+        });
     }
 
     /**
@@ -84,9 +91,6 @@ class SchemaValidatorEngine {
      */
     initializeValidator(componentSchemas) {
         // Configuration for maximum robustness and data hygiene:
-        // - allErrors: Collects all issues.
-        // - strict: Ensures the schemas themselves are valid.
-        // - removeAdditional: Strips extraneous properties, ensuring cleaner data flow (JSON Parsing).
         this.validator = new Ajv({
             allErrors: true,
             strict: true,
@@ -151,7 +155,7 @@ class SchemaValidatorEngine {
             case 'then':
             case 'else':
             case 'dependencies':
-            case 'oneOf': // LOGIC IMPROVEMENT: Complex structural constraints stress integration patterns
+            case 'oneOf': 
             case 'allOf': 
             case 'anyOf':
                 // Complex conditional errors suggest architectural problems or flawed integration patterns.
@@ -164,11 +168,6 @@ class SchemaValidatorEngine {
 
     /**
      * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
-     * This is the critical integration point for Requirements 2 (Log to Nexus) and 3 (Use MQM metrics).
-     * @param {string} schemaName 
-     * @param {Array<object>} errors 
-     * @param {boolean} isCritical 
-     * @param {object} dataSample - The data being validated (for context extraction).
      */
     _trackFailure(schemaName, errors, isCritical, dataSample) {
         // 1. Prepare history and summary
@@ -188,7 +187,7 @@ class SchemaValidatorEngine {
             isCritical, 
             summary,
             count: summary.length,
-            capabilityImpact: capabilityImpact // STORED for internal analysis/Memory
+            capabilityImpact: capabilityImpact // CRITICAL: Stored for the Emergent Analyzer to use
         };
         
         // 2. Log to Internal History (Requirement 4: Store trends in Nexus memory)
@@ -214,7 +213,6 @@ class SchemaValidatorEngine {
         };
         
         // APPLY existing tools: Use the injected function to log the metrics to Nexus/MQM system
-        // Robustness Improvement: Ensure logging failure does not crash the core system.
         try {
             this.onValidationFailure(mqmPayload, failureEntry);
         } catch (e) {
@@ -228,7 +226,7 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * Provides the recent failure history to the Nexus-Database/kernel for strategy optimization (Meta-Reasoning).
+     * Provides the recent failure history to the Nexus-Database/kernel for strategy optimization (Memory).
      * @returns {Array<object>} Recent validation failure records.
      */
     getFailureHistory() {
@@ -236,89 +234,15 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * [META-LEARNING / ARCHITECTURAL FLAG]
-     * NOTE: This method synthesizes strategic advice and is slated for extraction 
-     * into /emergent/meta_tools/SchemaFailureAnalyzer.js in a future cycle to 
-     * decouple core validation from navigational strategy generation.
+     * [NAVIGATION ADVICE PROXY]
+     * Uses the emergent SchemaFailureAnalyzer to generate strategic advice 
+     * for the Navigator System based on current validation failure trends.
+     * This method fulfills the requirement for Meta-Learning and strategic targeting.
      * 
-     * Performs a rapid self-diagnostic analysis of recent validation failures.
-     * Identifies the most stressed schema and the primary AGI capability impact.
-     * This emergent tool supports AGI-Kernel's Navigation and Logic refinement.
-     * 
-     * Synthesizes actionable advice for the Navigator, linking schema failures 
-     * to known component paths using the injected schemaComponentMap.
-     * 
-     * @returns {{mostStressedSchema: string, mostImpactedCapability: string, totalFailures: number, historyLength: number, analysisDate: number, suggestedNavigatorTarget: NavigatorSuggestion | null}}
+     * @returns {object} Analysis result containing navigation suggestion.
      */
-    getNavigatorStrategicSuggestion() { // Renamed from analyzeFailureTrends
-        const baseAnalysis = {
-            mostStressedSchema: 'None',
-            mostImpactedCapability: 'None',
-            totalFailures: 0,
-            historyLength: 0,
-            analysisDate: Date.now(),
-            suggestedNavigatorTarget: null
-        };
-        
-        const history = this.failureHistory;
-        if (history.length === 0) {
-            return baseAnalysis;
-        }
-
-        const schemaCounts = {};
-        const capabilityCounts = {};
-        let totalFailures = 0;
-
-        history.forEach(entry => {
-            // Count total failure occurrences (not just entry count)
-            totalFailures += entry.count;
-            
-            // Count by schema name
-            schemaCounts[entry.schemaName] = (schemaCounts[entry.schemaName] || 0) + entry.count;
-            
-            // Count by capability impact
-            const cap = entry.capabilityImpact || 'Unknown';
-            capabilityCounts[cap] = (capabilityCounts[cap] || 0) + entry.count;
-        });
-
-        // Helper to find the key with the maximum count
-        const findMax = (counts) => Object.entries(counts).reduce(
-            (max, [key, count]) => (count > max.count ? { key, count } : max),
-            { key: 'N/A', count: 0 }
-        );
-
-        const mostStressedSchema = findMax(schemaCounts).key;
-        const mostImpactedCapability = findMax(capabilityCounts).key;
-        
-        baseAnalysis.mostStressedSchema = mostStressedSchema;
-        baseAnalysis.mostImpactedCapability = mostImpactedCapability;
-        baseAnalysis.totalFailures = totalFailures;
-        baseAnalysis.historyLength = history.length;
-        
-        // --- Navigator Strategy Synthesis (Emergent Logic Protocol) ---
-        if (mostStressedSchema !== 'None' && this.schemaComponentMap[mostStressedSchema]) {
-            const mapEntry = this.schemaComponentMap[mostStressedSchema];
-            
-            // Construct NavigatorSuggestion object
-            baseAnalysis.suggestedNavigatorTarget = {
-                path: mapEntry.componentPath,
-                reason: `Schema '${mostStressedSchema}' (linked to ${mostImpactedCapability} failure) is critically unstable. Investigate and refactor source component.`,
-                // Calculate weight based on historical failure rate (higher failure => higher proposed weight increase)
-                increasedWeight: Math.min(0.25, totalFailures / this.MAX_HISTORY) * (mapEntry.priority || 1), // Cap weight increase at 25% for stability
-                originatingCapability: mostImpactedCapability // Adheres to NavigatorSuggestion protocol
-            };
-        } else if (mostStressedSchema !== 'None') {
-             // If component mapping is missing, suggest fixing the Schema Definition itself.
-             baseAnalysis.suggestedNavigatorTarget = {
-                path: `config/XEL_Specification.json`,
-                reason: `Schema '${mostStressedSchema}' is highly stressed but lacks a component map link. Analyze schema definition or update governance mapping.`, 
-                increasedWeight: 0.10,
-                originatingCapability: mostImpactedCapability 
-            };
-        }
-
-
-        return baseAnalysis;
+    getNavigationAdvice() { 
+        return this.analyzer.getNavigatorStrategicSuggestion(this.failureHistory, this.MAX_HISTORY);
     }
 
     /**
