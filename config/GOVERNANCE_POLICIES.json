@@ -36,7 +36,7 @@
           "trigger_condition": "NO_IMPROVEMENT_5_CONSECUTIVE_CYCLES",
           "protocol_steps": [
             "CLEAR_PORTION_OF_BLACKLIST",
-            "REVIEW_EMERGENT_INTEGRATION",
+            "REVIEW_EMERGENT_DIRECTORY_FOR_INTEGRATION_CANDIDATES",
             "INCREASE_SELECTION_RANDOMNESS",
             "TARGET_UNEXPLORED_AREAS",
             "PROPOSE_BOLD_ARCHITECTURAL_CHANGES",
@@ -59,6 +59,20 @@
       "name": "Emergent Capability Vetting and Documentation Protocol (Navigator Edition)",
       "applies_to_directory": "/emergent",
       "initial_status": "SANDBOXED_UNTRUSTED",
+      "creation_protocol": {
+        "action": "CREATE_NEW_FILE_STRUCTURE",
+        "path_format": "/emergent/[category]/[descriptive-name].*",
+        "required_header_comment_fields": [
+          "Cycle [N]",
+          "Origin: [What sparked this discovery]",
+          "Purpose: [What problem this solves]",
+          "Novel Aspect: [Why this is emergent vs. instructed]"
+        ],
+        "required_metadata_tagging": [
+          "CYCLE_NUMBER",
+          "ORIGINATING_INSIGHT"
+        ]
+      },
       "vetting_requirements": [
         "UNIT_TEST_COVERAGE_MIN_70%",
         "NO_EXTERNAL_CALLS_UNTIL_TRUSTED",
@@ -66,7 +80,6 @@
         "CONTEXT_ISOLATION_MANDATORY"
       ],
       "documentation_requirements": [
-        "REQUIRED_HEADER_COMMENT_FOR_ORIGIN_AND_PURPOSE",
         "MANIFEST_ENTRY_DESCRIBING_NOVELTY",
         "CYCLE_LOG_TAG_WITH_EMERGENCE_DETECTED_TRUE"
       ],
@@ -86,6 +99,12 @@
     "POLICY_EXPLORATION_V2": {
       "name": "Repository Diversity and Priority-Based Blacklist Management",
       "applies_to_system": "NAVIGATOR_SYSTEM",
+      "repository_context": {
+        "scale": "2300+",
+        "units": "files",
+        "projected_full_coverage_days": 190,
+        "strategy_focus": "HIGH_IMPACT_FIRST_BROAD_EXPLORATION_SECOND"
+      },
       "blacklist_management": {
         "max_size": 50,
         "action_on_exceeded": "CLEAR_OLDEST_ENTRIES",
