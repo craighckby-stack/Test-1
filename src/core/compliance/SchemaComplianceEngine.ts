@@ -1,83 +1,120 @@
-import { promises as fs } from 'fs';
-import * as path from 'path';
+// Define placeholders for commonly assumed kernel interfaces if not explicitly provided in ACTIVE_TOOLS
+interface ILoggerKernel {
+    info(message: string): void;
+    error(message: string, ...optionalParams: any[]): void;
+}
+interface IDataDecoderUtilityToolKernel {
+    decodeJson(content: string): any;
+}
+interface ISchemaErrorFormatterToolKernel {
+    formatErrors(errors: any[]): string;
+}
 
-// External dependencies resolved via the kernel/module system.
-// We import them for TypeScript definition purposes.
-import { DataDecoderUtility } from '../utils/DataDecoderUtility'; 
-import { SchemaCompilationAndValidationService } from '../validation/SchemaCompilationAndValidationService';
-import { SchemaErrorFormatterTool } from '../utils/SchemaErrorFormatterTool';
+// Use provided core kernel interfaces
+import { ISecureResourceLoaderInterfaceKernel } from '@kernel/SecureResourceLoaderInterfaceKernel';
+import { ISpecValidatorKernel } from '@kernel/ISpecValidatorKernel';
+import { ISchemaComplianceConfigRegistryKernel } from './SchemaComplianceConfigRegistryKernel'; 
 
-// Defines the expected structure for validation results returned by the service.
+// Defines the expected structure for validation results
 interface ValidationResult {
     isValid: boolean;
-    // Errors are typically complex objects (e.g., AJV validation errors)
     errors: any[]; 
 }
 
-// Define the static location of the compliance schema.
-const SCHEMA_PATH = path.join(__dirname, '../../../config/SPDM_Schema.json');
-const SCHEMA_FILE_NAME = path.basename(SCHEMA_PATH);
-const LOG_PREFIX = '[SCE]';
+const LOG_PREFIX = '[SCE-K]';
 
 /**
- * The SchemaComplianceEngine is responsible for managing the loading, registration,
- * and orchestration of configuration validation against a specific compliance schema
- * (SPDM_Schema.json). It delegates core functions to utility services.
+ * The SchemaComplianceEngineKernel manages the loading, registration, and orchestration 
+ * of configuration validation against a specific compliance schema.
+ * It strictly adheres to architectural separation via Dependency Injection (DI).
  */
-export class SchemaComplianceEngine {
+export class SchemaComplianceEngineKernel {
+    // Dependencies are assigned via constructor injection
+    private resourceLoader: ISecureResourceLoaderInterfaceKernel;
+    private decoder: IDataDecoderUtilityToolKernel;
+    private specValidator: ISpecValidatorKernel;
+    private errorFormatter: ISchemaErrorFormatterToolKernel;
+    private configRegistry: ISchemaComplianceConfigRegistryKernel;
+    private logger: ILoggerKernel;
+
+    // State derived from configuration
     private schema: any | null = null;
     private schemaId: string | undefined;
     private isSchemaLoaded = false;
+    private schemaPath!: string;
+    private schemaFileName!: string;
 
-    constructor() {
-        // Initialization involves setting up state, no heavy lifting done here.
+    constructor(
+        resourceLoader: ISecureResourceLoaderInterfaceKernel,
+        decoder: IDataDecoderUtilityToolKernel,
+        specValidator: ISpecValidatorKernel, 
+        errorFormatter: ISchemaErrorFormatterToolKernel,
+        configRegistry: ISchemaComplianceConfigRegistryKernel,
+        logger: ILoggerKernel 
+    ) {
+        this.resourceLoader = resourceLoader;
+        this.decoder = decoder;
+        this.specValidator = specValidator;
+        this.errorFormatter = errorFormatter;
+        this.configRegistry = configRegistry;
+        this.logger = logger;
+        
+        this.#setupDependencies();
     }
 
     /**
-     * Loads the schema content from disk, parses it, and registers it with the
-     * compilation/validation service for caching and use.
+     * Isolates dependency initialization and synchronous state setup,
+     * fulfilling the requirement for synchronous setup extraction.
+     */
+    private #setupDependencies(): void {
+        this.schemaPath = this.configRegistry.getSchemaPath();
+        this.schemaFileName = this.configRegistry.getSchemaFileName();
+    }
+
+    /**
+     * Loads the schema content using the injected secure resource loader, 
+     * parses it, and registers it with the specification validator.
      * 
      * @throws Error if file loading or parsing fails, or if the schema is malformed.
      */
     public async loadSchema(): Promise<void> {
         if (this.isSchemaLoaded && this.schema) {
-            console.log(`${LOG_PREFIX} Schema already loaded: ${this.schema.title || SCHEMA_FILE_NAME}`);
+            this.logger.info(`${LOG_PREFIX} Schema already loaded: ${this.schema.title || this.schemaFileName}`);
             return;
         }
 
-        console.log(`${LOG_PREFIX} Attempting to load schema from: ${SCHEMA_PATH}`);
+        this.logger.info(`${LOG_PREFIX} Attempting to load compliance schema from: ${this.schemaPath}`);
 
         try {
-            const schemaContent = await fs.readFile(SCHEMA_PATH, 'utf-8');
+            // Use the injected loader (abstracting fs/path/I/O context)
+            const schemaContent = await this.resourceLoader.loadResource(this.schemaPath, { encoding: 'utf-8' });
             
-            // 1. Safe JSON parsing
-            const parsedSchema = DataDecoderUtility.decodeJson(schemaContent);
+            // 1. Safe JSON parsing using injected decoder
+            const parsedSchema = this.decoder.decodeJson(schemaContent);
             
             if (!parsedSchema || typeof parsedSchema.$id !== 'string') {
-                 throw new Error(`Invalid schema structure for ${SCHEMA_FILE_NAME}: missing required '$id' field or empty content.`);
+                 throw new Error(`Invalid schema structure for ${this.schemaFileName}: missing required '$id' field or empty content.`);
             }
 
             this.schema = parsedSchema;
             this.schemaId = this.schema.$id;
             
-            // 2. Register the schema with the validation service
-            SchemaCompilationAndValidationService.registerSchema(this.schemaId, this.schema);
+            // 2. Register the schema with the validation service 
+            this.specValidator.registerSchema(this.schemaId, this.schema);
 
             this.isSchemaLoaded = true;
-            console.log(`${LOG_PREFIX} Success: Registered schema "${this.schema.title || this.schemaId}" (ID: ${this.schemaId}).`);
+            this.logger.info(`${LOG_PREFIX} Success: Registered compliance schema "${this.schema.title || this.schemaId}" (ID: ${this.schemaId}).`);
 
         } catch (error) {
             const errMessage = (error as Error).message;
-            // Log the detailed operational failure using a consistent prefix
-            console.error(`${LOG_PREFIX} FATAL Error during schema loading (${SCHEMA_FILE_NAME}): ${errMessage}`);
+            this.logger.error(`${LOG_PREFIX} FATAL Error during schema loading (${this.schemaFileName}): ${errMessage}`, error);
             
-            // Throw a concise error for upstream control flow handling
             throw new Error(`Compliance schema initialization failed.`);
         }
     }
 
     /**
-     * Validates configuration data against the loaded compliance schema.
+     * Validates configuration data against the loaded compliance schema using the injected validator.
      * 
      * @param configPath The path/identifier of the configuration being validated (for logging).
      * @param configData The configuration object to validate.
@@ -89,23 +126,21 @@ export class SchemaComplianceEngine {
             throw new Error('Compliance schema not loaded. Call loadSchema() first.');
         }
         
-        // Delegate validation execution to the dedicated service using the cached schema ID.
-        const validationResult: ValidationResult = SchemaCompilationAndValidationService.validateAgainstSchema(
+        // Delegate validation execution using the injected spec validator.
+        const validationResult: ValidationResult = this.specValidator.validateAgainstSchema(
             this.schemaId!,
             configData
-        );
+        ) as ValidationResult; 
         
         const isValid = validationResult.isValid;
 
         if (!isValid) {
-            console.error(`
-${LOG_PREFIX} VALIDATION FAILURE: Configuration file failed SPDM schema validation: ${configPath}`);
+            this.logger.error(`\n${LOG_PREFIX} VALIDATION FAILURE: Configuration file failed SPDM schema validation: ${configPath}`);
             
-            // Use dedicated tool to standardize and display validation errors
-            const formattedErrors = SchemaErrorFormatterTool.formatErrors(validationResult.errors);
-            console.error(formattedErrors);
-            console.error(`------------------------------------------------------------------
-`);
+            // Use dedicated injected tool to standardize and display validation errors
+            const formattedErrors = this.errorFormatter.formatErrors(validationResult.errors);
+            this.logger.error(formattedErrors);
+            this.logger.error(`------------------------------------------------------------------`);
         }
         return isValid;
     }
