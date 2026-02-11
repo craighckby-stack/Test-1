@@ -1,20 +1,13 @@
 // Proposed Component: Certified Execution Artifact Generator (CEAG)
 // Purpose: Transforms the Immutable Transaction Record (ITR) into a cryptographic executable payload.
 
-// We remove the direct dependency on 'fs' (unused) and 'crypto' (moved to utility).
+// We remove the direct dependency on 'fs' (unused) and 'crypto' (now handled by the injected utility).
 
 /**
  * Interface for the extracted cryptographic utility.
- * In a real system, this would be imported.
+ * This interface is satisfied by the Integrity Utility Plugin.
  */
 interface IntegrityHashingAndSigningUtilityInterface {
-    hash(record: any): string;
-    sign(payload: any, signingKey: string): string;
-}
-
-// Assuming the AGI kernel makes the utility available for instantiation or injection.
-declare class IntegrityHashingAndSigningUtility {
-    constructor();
     hash(record: any): string;
     sign(payload: any, signingKey: string): string;
 }
@@ -36,9 +29,8 @@ class CEAG {
         if (cryptoUtilityInstance) {
              this.cryptoUtility = cryptoUtilityInstance;
         } else {
-             // Fallback instantiation, assuming the utility is available in the environment.
-             // In a deployed environment, this is usually handled by a Dependency Resolver.
-             this.cryptoUtility = new IntegrityHashingAndSigningUtility(); 
+             // Fallback instantiation, assuming the utility (now provided by plugin) is available in the environment.
+             this.cryptoUtility = new (globalThis as any).IntegrityHashingAndSigningUtility(); 
         }
     }
 
