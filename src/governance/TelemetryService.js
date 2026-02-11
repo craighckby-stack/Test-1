@@ -1,16 +1,50 @@
+// Define log levels and their weights (higher weight means higher priority/severity)
+const LEVEL_WEIGHTS = {
+    'debug': 10,
+    'info': 20,
+    'warn': 30,
+    'error': 40,
+    'critical': 50,
+    'fatal': 60,
+};
+const DEFAULT_LEVEL = 'info';
+
 // src/governance/TelemetryService.js
 // Dedicated service for auditable governance logging and metrics tracking
 
 class TelemetryService {
     /**
-     * @param {object} config - Configuration object, e.g., { logLevel: 'info' }
+     * @param {object} config - Configuration object, e.g., { logLevel: 'info', source: 'AIA-CORE' }
      */
     constructor(config = {}) {
-        this.source = 'AEOR';
-        this.logLevel = config.logLevel || 'info'; 
+        this.source = config.source || 'AEOR';
+        
+        const requestedLevel = config.logLevel ? config.logLevel.toLowerCase() : DEFAULT_LEVEL;
+        
+        this.logLevel = requestedLevel;
+        // Determine the minimum weight required for a message to be logged
+        this.logLevelWeight = LEVEL_WEIGHTS[requestedLevel] || LEVEL_WEIGHTS[DEFAULT_LEVEL];
+
+        // Define a map for console sinks, adding robustness for environments lacking specific methods
+        this.consoleSink = {
+            fatal: console.error || console.log,
+            critical: console.error || console.log,
+            error: console.error || console.log,
+            warn: console.warn || console.log,
+            info: console.log,
+            debug: console.log,
+        };
     }
 
     _log(level, message, metadata = {}) {
+        const levelWeight = LEVEL_WEIGHTS[level];
+
+        // 1. Filtering: Suppress messages below the configured threshold
+        if (!levelWeight || levelWeight < this.logLevelWeight) {
+            return;
+        }
+
+        // 2. Formatting
         const timestamp = new Date().toISOString();
         const logEntry = {
             timestamp,
@@ -26,15 +60,9 @@ class TelemetryService {
         // Simplified console logging for demonstration:
         const output = JSON.stringify(logEntry, null, 2);
 
-        if (level === 'fatal' || level === 'critical') {
-            console.error(output);
-        } else if (level === 'error') {
-            console.error(output);
-        } else if (level === 'warn') {
-            console.warn(output);
-        } else {
-            console.log(output);
-        }
+        // 3. Output via mapped console sink
+        const sink = this.consoleSink[level] || console.log;
+        sink(output);
     }
 
     fatal(message, metadata) {
