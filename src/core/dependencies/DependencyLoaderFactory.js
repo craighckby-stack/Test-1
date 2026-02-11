@@ -4,23 +4,11 @@
  * It leverages the DependencyLookupUtility for robust and graceful dependency resolution.
  */
 
-// CRITICAL: Assuming the DependencyLookupUtility is accessible via a runtime or module system.
-// In a full AGI-KERNEL implementation, this would be injected or accessed via a standard kernel path.
-// For Node.js context, we simulate access.
 const DependencyLookupUtility = require('@agi-kernel/utilities').DependencyLookupUtility;
 
-/**
- * Environment-specific loader function using Node.js 'require'.
- * This function is passed to the utility tool for execution under robust error handling.
- * @param {string} serviceName 
- * @returns {any}
- */
-function nodeRequireLoader(serviceName) {
-    // SECURITY WARNING: In a production environment dealing with user-defined input, 
-    // ensure 'serviceName' is sanitized or mapped via an allowed list before calling require().
-    // Assuming 'serviceName' here is a predefined module name from configuration.
-    return require(serviceName);
-}
+// CRITICAL: The concrete Node.js 'require' implementation has been abstracted into a standard kernel component.
+// Assuming NodeEnvironmentLoader is now accessible via kernel context or standard module system path.
+const NodeEnvironmentLoader = require('@agi-kernel/loaders').NodeEnvironmentLoader; 
 
 /**
  * Default service loader function, delegating safety and error handling to the utility.
@@ -29,11 +17,12 @@ function nodeRequireLoader(serviceName) {
  */
 function defaultServiceLoader(serviceName) {
     if (!DependencyLookupUtility || typeof DependencyLookupUtility.executeLookup !== 'function') {
-        throw new Error("DependencyLookupUtility not initialized or accessible.");
+        throw new ReferenceError("AGI-KERNEL Utility Failure: DependencyLookupUtility not initialized or accessible.");
     }
     
-    // Delegate the synchronous execution and error handling to the reusable tool.
-    return DependencyLookupUtility.executeLookup(serviceName, nodeRequireLoader);
+    // Delegate the synchronous execution and error handling to the reusable tool,
+    // passing the abstracted Node environment loader.
+    return DependencyLookupUtility.executeLookup(serviceName, NodeEnvironmentLoader);
 }
 
 module.exports = defaultServiceLoader;
