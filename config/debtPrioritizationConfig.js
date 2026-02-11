@@ -28,4 +28,8 @@ const DEBT_PRIORITIZATION_CONFIG = {
     MIN_PRIORITY_TO_INJECT: 0.05,
 };
 
-module.exports = DEBT_PRIORITIZATION_CONFIG;
+/**
+ * Export the configuration as a frozen object to ensure immutability and
+ * prevent runtime modification of critical strategic weights and thresholds.
+ */
+module.exports = Object.freeze(DEBT_PRIORITIZATION_CONFIG);
