@@ -2,19 +2,35 @@ import { CanonicalPayloadGenerator } from '@agi-kernel/plugins/CanonicalPayloadG
 import { MultiSignatureRoleVerifier } from '@agi-kernel/plugins/MultiSignatureRoleVerifier';
 
 /**
- * Placeholder for KeyStoreService dependency.
- * In a production system, this would manage cryptographic keys.
+ * Interface defining the necessary methods from the KeyStoreService dependency.
+ * This service manages cryptographic keys.
  */
 type KeyStoreService = {
     getPublicKey: (keyId: string) => any; // Returns public key material
-    // verify: (publicKey: any, data: string, signature: string) => boolean; // Actual crypto verification
+};
+
+/**
+ * Type definition for a single signature credential provided in the request.
+ */
+type SignatureCredential = {
+    keyId: string;
+    signature: string;
+    role: string;
+};
+
+/**
+ * Type definition for the standardized output of the signature verification process.
+ */
+type SignatureVerificationResult = {
+    verifiedRoles: string[];
+    valid: boolean;
+    error: string | null;
 };
 
 /**
  * Sovereign AGI v94.1 | Governance Validator Service
  * Primary service for handling cryptographic verification of transition requests.
- * Decouples the low-level security mechanism (signature verification, key lookup)
- * from the high-level governance rules (SMC transition enforcement).
+ * Decouples the low-level security mechanism (key lookup) from the high-level governance rules.
  */
 class GovernanceValidatorService {
 
@@ -45,8 +61,9 @@ class GovernanceValidatorService {
 
         // --- Placeholder for Cryptographic Verification Logic ---
         // In a live system, this would call keyStore.verify(publicKey, dataToHash, signature);
+        // We explicitly mock success for testing purposes.
         console.warn(`MOCK CRYPTO VERIFICATION: Key ID ${keyId}. (MOCKING SUCCESS)`);
-        return true; // Mocked successful verification
+        return true; 
         // --------------------------------------------------------
     }
 
@@ -55,13 +72,13 @@ class GovernanceValidatorService {
      * Maps valid signatures back to system roles (e.g., 'Sovereign_Trustee', 'Operational_Lead').
      *
      * @param {object} payload - The full command/transition object being authorized.
-     * @param {Array<object>} signatures - Array of signatures, containing (keyId, signature, role).
-     * @returns {{verifiedRoles: Array<string>, valid: boolean, error: string | null}}
+     * @param {SignatureCredential[]} signatures - Array of signatures, containing (keyId, signature, role).
+     * @returns {SignatureVerificationResult}
      */
     verifyTransitionSignatures(
         payload: object,
-        signatures: Array<{ keyId: string, signature: string, role: string }>
-    ): { verifiedRoles: Array<string>, valid: boolean, error: string | null } {
+        signatures: SignatureCredential[]
+    ): SignatureVerificationResult {
 
         // 1. Canonicalize the payload using an existing tool (CanonicalPayloadGenerator)
         const canonicalData = CanonicalPayloadGenerator.generate(payload);
@@ -71,12 +88,13 @@ class GovernanceValidatorService {
 
         // 3. Use the extracted plugin for multi-signature processing and role mapping
         const result = MultiSignatureRoleVerifier.execute({
-            dataToVerify: canonicalData, // Explicitly passing the canonical data string
+            dataToVerify: canonicalData, 
             signatures: signatures,
             verifyCallback: boundVerifyCallback
         });
 
-        return result;
+        // Type casting is safe here as MultiSignatureRoleVerifier is expected to return this structure
+        return result as SignatureVerificationResult;
     }
 }
 
