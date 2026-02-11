@@ -8,10 +8,8 @@ import { validateSchema } from '../utility/schema_engine';
 import { calculateHash } from '../utility/hashing_utility';
 import * as executionEngine from './execution_engine';
 
-// Assuming HashIntegrityChecker plugin interface is available in the runtime environment
-declare const HashIntegrityChecker: {
-    execute: (args: { rawData: any, expectedHash: string, hashFunction: (data: any) => string }) => { success: boolean, reason?: string, computedHash?: string };
-};
+// NOTE: HashIntegrityChecker plugin is assumed to be available in the runtime environment.
+// Access method depends on kernel configuration (e.g., global, module import, or dependency injection).
 
 // Standardized list of proposal types that require an executable payload.
 const ACTIONABLE_PROPOSAL_TYPES = new Set([
@@ -34,6 +32,9 @@ const ACTIONABLE_PROPOSAL_TYPES = new Set([
 export async function validateProposalPayload(proposal) {
   const { type, details, implementationTarget } = proposal;
 
+  // Check for plugin availability defensively
+  const checker = typeof HashIntegrityChecker !== 'undefined' ? HashIntegrityChecker : null;
+
   if (!ACTIONABLE_PROPOSAL_TYPES.has(type)) {
     // Skip validation for informational or standard proposals (e.g., 'Discussion')
     return { valid: true, reason: 'Informational proposal, no execution payload required.' };
@@ -52,8 +53,12 @@ export async function validateProposalPayload(proposal) {
     return { valid: false, reason: `Executable payload data missing from storage for hash: ${expectedHash}.` };
   }
   
+  if (!checker || typeof checker.execute !== 'function') {
+    return { valid: false, reason: 'Critical error: Hash integrity verification service (plugin) unavailable.' };
+  }
+
   // 2. Hash Integrity Check (Delegated to Plugin)
-  const integrityResult = HashIntegrityChecker.execute({
+  const integrityResult = checker.execute({
     rawData: rawPayload,
     expectedHash: expectedHash,
     // Pass the required hashing utility function for the plugin to execute
