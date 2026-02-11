@@ -20,12 +20,7 @@ export class DCM_Precondition_Validator {
         this.#systemStateFeed = systemStateFeed; 
 
         // Resolve external utility dependency once upon initialization
-        const utility = globalThis.PreconditionExecutorUtility as IPreconditionExecutorUtility | undefined;
-        if (utility && typeof utility.execute === 'function') {
-            this.#executorUtility = utility;
-        } else {
-            this.#executorUtility = undefined;
-        }
+        this.#executorUtility = this.#getValidatedExecutorUtility();
 
         // Load atomic check functions
         this.#checkLibrary = this.#loadAtomicChecks(); 
@@ -57,9 +52,20 @@ export class DCM_Precondition_Validator {
     }
     
     /**
-     * Loads the defined atomic checks into a dictionary map.
+     * Resolves the external PreconditionExecutorUtility and validates its contract.
      */
-    private #loadAtomicChecks(): { [key: string]: Function } {
+    private #getValidatedExecutorUtility(): IPreconditionExecutorUtility | undefined {
+        const utility = globalThis.PreconditionExecutorUtility as IPreconditionExecutorUtility | undefined;
+        if (utility && typeof utility.execute === 'function') {
+            return utility;
+        }
+        return undefined;
+    }
+
+    /**
+     * Resolves system dependencies (like OS) and calculates necessary context parameters.
+     */
+    private #getSystemCheckContext(): { os: any, cpuCount: number } {
         // Resolve OS dependency once during check loading
         const os = globalThis.os || { 
             loadavg: () => [0, 0, 0], 
@@ -67,6 +73,14 @@ export class DCM_Precondition_Validator {
         };
         // Determine CPU count, defaulting to 1 to prevent division by zero
         const cpuCount = os.cpus().length || 1; 
+        return { os, cpuCount };
+    }
+
+    /**
+     * Loads the defined atomic checks into a dictionary map.
+     */
+    private #loadAtomicChecks(): { [key: string]: Function } {
+        const { os, cpuCount } = this.#getSystemCheckContext();
 
         // Returns an immutable map of standard checks
         return Object.freeze({
