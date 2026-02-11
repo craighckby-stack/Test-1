@@ -14,10 +14,10 @@ import { ThresholdReactionMatcher } from '../plugins/ThresholdReactionMatcher.js
 
 class PolicyComplianceEvaluator {
     /** @type {Object.<number, number>} Policy Code -> Weight */
-    weightMap = {};
+    #weightMap;
     
     /** @type {Object} */
-    trustConfig = {};
+    #trustConfig;
 
     /** @type {PolicyDeviationScorer} */
     #policyScorer;
@@ -25,40 +25,48 @@ class PolicyComplianceEvaluator {
     /** @type {ThresholdReactionMatcher} */
     #reactionMatcher;
 
+    /** @type {SystemActionDispatcher} */
+    #actionDispatcher; // Enforced Dependency Injection
+
     /** 
-     * @type {Object.<number, string>} Maps Policy Code to expected metric key name. 
+     * @type {Readonly<Object.<number, string>>} Maps Policy Code to expected metric key name. 
      */
-    #policyMetricMap = {
+    #policyMetricMap = Object.freeze({
         1: 'securityViolationRate',
         2: 'efficiencyLossSigma',
-    };
+    });
 
-    constructor() {
+    /**
+     * @param {SystemActionDispatcher} actionDispatcher - The core dispatcher utility.
+     */
+    constructor(actionDispatcher) {
+        // 1. Enforce critical dependency injection
+        if (!actionDispatcher) {
+             throw new Error("PCE requires SystemActionDispatcher for compliance enforcement.");
+        }
+        this.#actionDispatcher = actionDispatcher;
+
         const matrix = APM.AdaptiveDeviationHandling;
 
-        // 1. Optimize Weights: Transform Array into Map/Object for O(1) lookup in high-frequency calculation.
-        this.weightMap = matrix.ADH_Policy_Weights.reduce((acc, weight) => {
+        // 2. Optimize Weights: Transform Array into Map/Object for O(1) lookup.
+        const weightMapInstance = matrix.ADH_Policy_Weights.reduce((acc, weight) => {
             acc[weight.Code] = weight.Weight;
             return acc;
         }, {});
+        // Enforce immutability
+        this.#weightMap = Object.freeze(weightMapInstance);
 
-        // 2. Initialize Core Policy Configuration
-        this.trustConfig = APM.TrustDefinitions.T_Adaptive_Thresholds;
+        // 3. Initialize Core Policy Configuration and enforce immutability
+        this.#trustConfig = Object.freeze(APM.TrustDefinitions.T_Adaptive_Thresholds);
 
-        // 3. Initialize deviation scorer plugin
+        // 4. Initialize deviation scorer plugin
         this.#policyScorer = new PolicyDeviationScorer({
-            weightMap: this.weightMap,
+            weightMap: this.#weightMap,
             policyMetricMap: this.#policyMetricMap
         });
 
-        // 4. Initialize reaction matcher plugin, abstracting the threshold lookup logic
+        // 5. Initialize reaction matcher plugin
         this.#reactionMatcher = new ThresholdReactionMatcher(matrix.ADH_ReactionMatrix.Thresholds);
-
-        // Dependency check (optional, but good practice)
-        if (typeof SystemActionDispatcher === 'undefined') {
-             // Use throwing error here for mission-critical dependency
-             throw new Error("PCE requires SystemActionDispatcher for compliance enforcement.");
-        }
     }
 
     /**
@@ -69,9 +77,9 @@ class PolicyComplianceEvaluator {
      */
     evaluateSystemState(metrics, operationalContext) {
         // A. Primary Trust Policy Check (Fast fail evaluation)
-        if (metrics.P99_CommitTime_ms > this.trustConfig.HighLatency.Scale) {
+        if (metrics.P99_CommitTime_ms > this.#trustConfig.HighLatency.Scale) {
             console.warn(`[PCE Trust Violation] Latency breach: ${metrics.P99_CommitTime_ms}ms.`);
-            SystemActionDispatcher.dispatchAction(this.trustConfig.HighLatency.Trigger, { type: 'trust_violation', metrics });
+            this.#actionDispatcher.dispatchAction(this.#trustConfig.HighLatency.Trigger, { type: 'trust_violation', metrics });
             return true;
         }
 
@@ -83,11 +91,12 @@ class PolicyComplianceEvaluator {
 
         if (reaction) {
             console.warn(`[PCE Deviation] Score: ${deviationScore.toFixed(3)}. Policy Mandate: ${reaction.Action}`);
-            SystemActionDispatcher.dispatchAction(reaction.Action, { score: deviationScore, metrics, context: operationalContext });
+            this.#actionDispatcher.dispatchAction(reaction.Action, { score: deviationScore, metrics, context: operationalContext });
             return true;
         }
         return false;
     }
 }
 
-export const PCE = new PolicyComplianceEvaluator();
+// Inject the SystemActionDispatcher at instantiation time.
+export const PCE = new PolicyComplianceEvaluator(SystemActionDispatcher);
