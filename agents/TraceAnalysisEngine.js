@@ -1,47 +1,82 @@
 class TraceAnalysisEngine {
   constructor(traceLogDatabase) {
     this.db = traceLogDatabase;
+    // Initialize processor: attempts to load the concurrent plugin, otherwise provides a safe sequential fallback.
+    this.processor = this._initializeProcessor();
+  }
+
+  /**
+   * Creates a Sequential Fallback Processor if the ConcurrentProcessor plugin is unavailable.
+   */
+  _initializeProcessor() {
+    const ConcurrentProcessor = 
+      (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.ConcurrentProcessor)
+        ? KERNEL_SYNERGY_CAPABILITIES.ConcurrentProcessor
+        : null;
+
+    if (ConcurrentProcessor) {
+      return ConcurrentProcessor;
+    }
+
+    // Sequential Fallback Implementation
+    console.warn('TraceAnalysisEngine: Using internal sequential fallback processor. Performance may be suboptimal.');
+    return {
+      /**
+       * @param {string} capabilityName
+       * @param {Array<any>} dataArray
+       * @param {(item: any, Capability: any) => Promise<any>} itemMapper
+       */
+      execute: async (capabilityName, dataArray, itemMapper) => {
+        const Capability = (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES[capabilityName])
+          ? KERNEL_SYNERGY_CAPABILITIES[capabilityName]
+          : null;
+        
+        if (!Capability) return [];
+
+        const results = [];
+        for (const item of dataArray) {
+          const result = await itemMapper(item, Capability);
+          if (result) results.push(result);
+        }
+        return results;
+      }
+    };
   }
 
   /**
    * Identifies patterns in the traceability logs to generate prioritized self-improvement goals.
-   * This function now utilizes the TraceRiskAnalyzer tool for policy enforcement and scoring.
    * @returns {Array<MissionDefinition>}
    */
   async generateOptimizationMissions() {
-    // 1. Find operations that meet high-risk criteria defined by policy (i.e., those scored by the TraceRiskAnalyzer).
-    // NOTE: The DB query filters the superset of data based on the criteria required by the analyzer.
-    const highRiskStructuralChanges = await this.db.query({
+    // 1. Parallelize I/O operations (database query and aggregation)
+    const highRiskStructuralChangesPromise = this.db.query({
       'evolutionOutcome.integrityAssessment.hallucinationRisk': { $gt: 0.5 },
       'evolutionOutcome.architecturalImpact': true
     });
 
-    // 2. Identify common files that lead to low testPassed rates or high processingTime.
-    const bottleneckFiles = await this.db.aggregate([/* Aggregation pipeline to find bottlenecks */]);
+    const bottleneckFilesPromise = this.db.aggregate([/* Aggregation pipeline to find bottlenecks */]);
     
-    const missions = [];
-    const highRiskFindings = [];
+    const [highRiskStructuralChanges] = await Promise.all([
+        highRiskStructuralChangesPromise,
+        bottleneckFilesPromise // Run aggregation concurrently, result ignored for this block but waited on.
+    ]);
 
-    // Access the TraceRiskAnalyzer capability from KERNEL_SYNERGY_CAPABILITIES, ensuring safe global access.
-    const TraceRiskAnalyzer = 
-      (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer)
-        ? KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer 
-        : null;
-
-    if (TraceRiskAnalyzer) {
-        // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
-        // This ensures standardized priority scoring and goal definition based on reusable policy.
-        for (const trace of highRiskStructuralChanges) {
-            // Utilize the capability to run standardized risk analysis.
-            const finding = await TraceRiskAnalyzer.execute('analyze', trace); 
-            if (finding) {
-                highRiskFindings.push(finding);
-            }
+    const analysisMapper = async (trace, TraceRiskAnalyzer) => {
+        // Maps the trace item using the specific interface required by the TraceRiskAnalyzer
+        if (TraceRiskAnalyzer) {
+            return await TraceRiskAnalyzer.execute('analyze', trace);
         }
-    } else {
-        // Fallback logic if the necessary capability is missing.
-        console.warn('TraceAnalysisEngine: TraceRiskAnalyzer capability is unavailable in KERNEL_SYNERGY_CAPABILITIES. Skipping detailed analysis.');
-    }
+        return null;
+    };
+
+    // 2. Utilize the processor for concurrent analysis of high-risk findings, replacing sequential loop.
+    const highRiskFindings = await this.processor.execute(
+        'TraceRiskAnalyzer', 
+        highRiskStructuralChanges, 
+        analysisMapper
+    );
+
+    const missions = [];
 
     if (highRiskFindings.length > 0) {
       // Aggregate findings into a single high-priority mission
@@ -52,8 +87,7 @@ class TraceAnalysisEngine {
       });
     }
     
-    // Example: If a config file change led to performance regression (high costScore).
-    // [Further detailed logic...]
+    // [Further detailed logic using bottleneckFiles result...]
     
     return missions;
   }
