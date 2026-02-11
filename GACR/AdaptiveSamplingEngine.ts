@@ -48,11 +48,9 @@ const DEFAULT_TARGETS = {
 
 // --- KERNEL V7 SYNERGY: Global declarations for plugin access ---
 declare const KERNEL_SYNERGY_CAPABILITIES: {
-    Tool: {
-        execute: (toolName: string, params: any) => Promise<any>;
-    };
-    Plugin: {
-        register: (plugin: any) => void;
+    // Refactored to use dedicated service name
+    ConstraintReducer: {
+        execute: (command: 'reduce', constraints: any[]) => Promise<ReductionResult>;
     };
 };
 
@@ -60,7 +58,7 @@ declare const KERNEL_HOOK: {
     log(eventName: string, data: any): void;
 };
 
-// Declaration for the synchronous local plugin extracted below
+// Declaration for the synchronous local plugin extracted below (must be externally defined/registered)
 declare const ConstraintRateReducer: IConstraintRateReducer;
 
 // Robust local fallback implementation (delegates to the extracted synchronous plugin)
@@ -119,12 +117,12 @@ export class AdaptiveSamplingEngine {
                 current: metrics.cpu,
                 target: this.config.TargetCPUUtilization ?? DEFAULT_TARGETS.cpu 
             },
-            {
+            {S
                 name: 'Memory',
                 current: metrics.memory,
                 target: this.config.TargetMemoryUtilization ?? DEFAULT_TARGETS.memory 
             },
-            {
+            {S
                 name: 'QueueDepth',
                 current: metrics.queueDepth,
                 target: this.config.TargetQueueDepthRatio ?? DEFAULT_TARGETS.queueDepth 
@@ -178,7 +176,8 @@ export class AdaptiveSamplingEngine {
 
         try {
             // Primary Path: Execute the optimized ConstraintReducer capability via KERNEL_SYNERGY
-            reductionResult = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('ConstraintReducer', constraintsPayload) as ReductionResult;
+            // REFACTORED: Use service-specific execute interface
+            reductionResult = await KERNEL_SYNERGY_CAPABILITIES.ConstraintReducer.execute('reduce', constraintsPayload);
             calculationSource = 'Reducer';
 
         } catch (e) {
@@ -197,19 +196,12 @@ export class AdaptiveSamplingEngine {
 
         // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook Logging
         // Log decision parameters if sampling is enforced (< 1.0) and the hook is available.
-        if (finalRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
+        if (finalRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined' && typeof KERNEL_HOOK.log === 'function') {
             KERNEL_HOOK.log('AdaptiveSamplingDecision', {
                 finalRate: finalRate,
-                rawRate: requiredRate,
-                calculationSource,
-                boundariesApplied: requiredRate !== finalRate,
-                restrictingConstraint: {
-                    name: restrictingConstraint.name,
-                    current: restrictingConstraint.current,
-                    target: restrictingConstraint.target,
-                    // Log the raw rate factor used for calculation (Target/Current)
-                    rateFactor: restrictingConstraint.target / restrictingConstraint.current 
-                }
+                source: calculationSource,
+                constraint: restrictingConstraint,
+                metrics: constraintsPayload
             });
         }
         
