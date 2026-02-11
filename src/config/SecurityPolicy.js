@@ -10,7 +10,7 @@
  * - Signatures: Ed25519
  */
 const BYTES = Object.freeze({
-    // Standard sizes for cryptographic primitives
+    // Standard sizes (in bytes) for cryptographic primitives
     KEY_256_BIT: 32,
     KEY_512_BIT: 64,
     SALT_DEFAULT: 32,
@@ -36,7 +36,7 @@ const SecurityPolicy = Object.freeze({
         OUTPUT_ENCODING: 'hex',
         SIZE_BYTES: BYTES.KEY_512_BIT,
         SIZE_BITS: 512,
-        // Hex length: 64 bytes * 2 = 128
+        // Expected hex length: 64 bytes * 2 = 128
         SIZE_HEX_LENGTH: BYTES.KEY_512_BIT * 2
     }),
 
