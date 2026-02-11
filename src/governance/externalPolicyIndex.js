@@ -1,89 +1,111 @@
 /**
- * E-01: External Policy Index (EPI)
+ * E-01: External Policy Index Kernel (EPIK)
  * Role: Provides a robust, read-only, synchronous interface to access verified, immutable external policies (compliance, mandates, kill-switches).
  * Mechanism: Manages periodic, cryptographically verified updates in the background to ensure high availability and minimal latency for Veto checks.
- * 
- * Refactoring Rationale (v94.2):
- * 1. Abstraction: Extracted robust, self-scheduling periodic task logic into the RobustScheduler plugin.
- * 2. Simplicity: Removed internal handling of timeouts (_scheduleNextRefresh, _clearRefreshHandle).
+ * Adheres to AIA Enforcement Layer requirements for high-integrity governance data caching.
  */
-class ExternalPolicyIndex {
+class ExternalPolicyIndexKernel {
     // Defines the deterministic fail-safe policy applied on critical initialization failure.
     static FAILSAFE_POLICY = Object.freeze({ globalFreeze: true, rationale: "EPI Initialization Failure" });
 
-    /** @type {RobustScheduler} */
-    // @ts-ignore: This field is initialized using AGI_KERNEL plugin during construction.
-    private scheduler;
+    /** @type {Object} The critical synchronous state storage, guaranteed to be immutable. */
+    #activePolicy = {}; 
+    #lastFetchTime = 0;
+    #isFetching = false;
+    #isInitialized = false;
+    #isInFailsafeMode = false;
+    #policySourceTag = 'UNLOADED';
+
+    /** @type {string} */
+    #sourceUrl;
+    /** @type {number} */
+    #cacheDurationMs;
+
+    /** @type {ILoggerToolKernel} */
+    #logger;
+    /** @type {ISecurePolicyLoaderToolKernel} */
+    #policyLoader;
+    /** @type {IBackgroundRefreshSchedulerToolKernel} */
+    #scheduler;
+
 
     /**
-     * @param {Object} config
-     * @param {string} config.sourceUrl - URL of the centralized governance feed.
-     * @param {number} [config.cacheDurationMs=3600000] - Duration in milliseconds for cache renewal.
-     * @param {Object} config.PolicyFetcher - Dependency Injection for the secure fetch utility (must implement IPolicyFetcher and handle verification).
-     * @param {Object} config.logger - Standardized logging utility.
+     * @param {object} dependencies
+     * @param {string} dependencies.sourceUrl - URL of the centralized governance feed (Configured via Registry).
+     * @param {number} [dependencies.cacheDurationMs=3600000] - Duration in milliseconds for cache renewal (Configured via Registry).
+     * @param {ILoggerToolKernel} dependencies.ILoggerToolKernel - Standardized logging utility.
+     * @param {ISecurePolicyLoaderToolKernel} dependencies.ISecurePolicyLoaderToolKernel - Secure fetch utility implementing cryptographic verification.
+     * @param {IBackgroundRefreshSchedulerToolKernel} dependencies.IBackgroundRefreshSchedulerToolKernel - Kernel for managing periodic background tasks.
      */
-    constructor({ sourceUrl, cacheDurationMs = 3600000, PolicyFetcher, logger }) {
-        if (!PolicyFetcher || typeof PolicyFetcher.fetch !== 'function' || !sourceUrl || !logger || typeof logger.info !== 'function') {
-            throw new Error("E-01: EPI must be initialized with sourceUrl, reliable PolicyFetcher (implementing fetch), and a compliant logger.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+        
+        // Initialize state fields
+        this.#activePolicy = {}; 
+        this.#lastFetchTime = 0;
+        this.#isFetching = false;
+        this.#isInitialized = false;
+        this.#isInFailsafeMode = false;
+        this.#policySourceTag = 'UNLOADED';
+    }
+
+    /**
+     * Internal method to rigorously validate and assign injected dependencies.
+     * @param {object} dependencies
+     */
+    #setupDependencies(dependencies) {
+        const { sourceUrl, cacheDurationMs = 3600000, ILoggerToolKernel, ISecurePolicyLoaderToolKernel, IBackgroundRefreshSchedulerToolKernel } = dependencies;
+
+        if (!ISecurePolicyLoaderToolKernel || !ILoggerToolKernel || !IBackgroundRefreshSchedulerToolKernel || !sourceUrl) {
+            throw new Error("GOV_E_004: ExternalPolicyIndexKernel requires sourceUrl, ILoggerToolKernel, ISecurePolicyLoaderToolKernel, and IBackgroundRefreshSchedulerToolKernel.");
         }
         
-        this.sourceUrl = sourceUrl;
-        this.cacheDurationMs = cacheDurationMs;
-        this.fetcher = PolicyFetcher;
-        this.logger = logger;
-
-        this.activePolicy = {}; // The critical synchronous state storage
-        this.lastFetchTime = 0;
-        
-        // Concurrency Control: Ensures only one update process runs at a time.
-        this.isFetching = false;
-        this.isInitialized = false;
-        this.isInFailsafeMode = false; // New state flag
-        this.policySourceTag = 'UNLOADED'; // Track version/tag of the policies loaded
-
-        // Initialize the plugin instance for background scheduling
-        // @ts-ignore: Assume AGI_KERNEL exists in runtime environment
-        this.scheduler = AGI_KERNEL.plugins.RobustScheduler.create(); 
+        this.#sourceUrl = sourceUrl;
+        this.#cacheDurationMs = cacheDurationMs;
+        this.#policyLoader = ISecurePolicyLoaderToolKernel;
+        this.#logger = ILoggerToolKernel;
+        this.#scheduler = IBackgroundRefreshSchedulerToolKernel;
     }
 
     /**
      * Stops the periodic cache refresh.
+     * @returns {Promise<void>}
      */
-    stop() {
-        if (this.isInitialized) {
-            this.scheduler.stop();
-            this.isInitialized = false;
-            this.logger.info('E-01 Index refresh mechanism stopped.');
+    async stop() {
+        if (this.#isInitialized) {
+            await this.#scheduler.stop();
+            this.#isInitialized = false;
+            this.#logger.info('ExternalPolicyIndexKernel refresh mechanism stopped.', { conceptId: 'GOV_INFO_005' });
         }
     }
 
     /**
      * Starts the initial fetch and sets up the background periodic cache refresh.
+     * This operation must be asynchronous.
      * @returns {Promise<void>}
      */
     async initialize() {
-        if (this.isInitialized) return;
+        if (this.#isInitialized) return;
         
         // Immediate initial load (critical step 1: must succeed or fall back to fail-safe)
-        await this._fetchAndSetPolicies(true);
+        await this.#fetchAndSetPolicies(true);
         
-        if (this.isInFailsafeMode) {
-             this.logger.critical("E-01 Initialized in FAILSAFE Mode. Governance functionality is suspended.");
-        } else if (Object.keys(this.activePolicy).length === 0) {
-            this.logger.error("E-01 Initialization warning: Policy state remains empty after load attempt.");
+        if (this.#isInFailsafeMode) {
+             this.#logger.critical("ExternalPolicyIndexKernel Initialized in FAILSAFE Mode. Governance functionality is suspended.", { conceptId: 'GOV_CRIT_001' });
+        } else if (Object.keys(this.#activePolicy).length === 0) {
+            this.#logger.warning("Initialization warning: Policy state remains empty after load attempt.", { conceptId: 'GOV_WARN_001' });
         }
         
-        // Set up the periodic background refresh task using the Robust Scheduler
-        this.scheduler.start(
-            // Task function: perform background fetch, suppressing initialLoad criticality
-            () => this._fetchAndSetPolicies(false), 
-            this.cacheDurationMs,
-            this.logger
-        );
+        // Set up the periodic background refresh task using the injected Scheduler tool
+        await this.#scheduler.start({
+            taskFunction: () => this.#fetchAndSetPolicies(false), 
+            intervalMs: this.#cacheDurationMs,
+            taskName: 'EPIK_Refresh'
+        });
 
-        this.isInitialized = true;
-        this.logger.info(`E-01 Index initialized (Tag: ${this.policySourceTag}).` + 
-                         (this.isInFailsafeMode ? ' (Failsafe Enabled)' : ''));
+        this.#isInitialized = true;
+        this.#logger.info(`ExternalPolicyIndexKernel initialized (Tag: ${this.#policySourceTag}).` + 
+                         (this.#isInFailsafeMode ? ' (Failsafe Enabled)' : ''), { conceptId: 'GOV_INFO_006' });
     }
 
     /**
@@ -91,58 +113,61 @@ class ExternalPolicyIndex {
      * @param {boolean} initialLoad - If true, treats failures as critical system threats leading to failsafe.
      * @returns {Promise<boolean>} True if policy cache was updated, False otherwise.
      */
-    async _fetchAndSetPolicies(initialLoad = false) {
-        if (this.isFetching) {
+    async #fetchAndSetPolicies(initialLoad = false) {
+        if (this.#isFetching) {
             if (!initialLoad) {
-                this.logger.debug("E-01 Skipped refresh attempt: Previous fetch is still in progress.");
+                this.#logger.debug("Skipped refresh attempt: Previous fetch is still in progress.", { conceptId: 'GOV_DEBUG_001' });
             }
             return false;
         }
 
-        this.isFetching = true;
+        this.#isFetching = true;
         const fetchStartTime = Date.now();
         
         try {
-            // Assumes PolicyFetcher handles cryptographic verification and returns structured mandates, including a 'tag'.
-            const fetchedData = await this.fetcher.fetch(this.sourceUrl);
+            // Use the injected secure loader, which handles cryptographic verification.
+            const fetchedData = await this.#policyLoader.load(this.#sourceUrl);
             
             // Validate data integrity before committing to state
             if (!fetchedData || !fetchedData.mandates) {
-                throw new Error("Invalid or empty policy structure received after verification.");
+                // Ensure structured error path for auditability
+                throw new Error("GOV_E_005: Invalid or empty policy structure received after verification.");
             }
 
             // Atomically update the synchronous state
-            this.activePolicy = this._parseMandates(fetchedData.mandates);
-            this.lastFetchTime = fetchStartTime;
-            this.policySourceTag = fetchedData.tag || `V${fetchStartTime}`; // Use fetched tag or generate fallback version tag
-            this.isInFailsafeMode = false; // Successfully updated, exit failsafe state if previously active.
+            this.#activePolicy = this.#parseMandates(fetchedData.mandates);
+            this.#lastFetchTime = fetchStartTime;
+            this.#policySourceTag = fetchedData.tag || `V${fetchStartTime}`; 
+            this.#isInFailsafeMode = false; 
 
-            this.logger.info(`E-01 Policy state updated successfully. Tag: ${this.policySourceTag}.`);
+            this.#logger.info(`Policy state updated successfully. Tag: ${this.#policySourceTag}.`, { conceptId: 'GOV_INFO_007', tag: this.#policySourceTag });
             return true;
         } catch (error) {
+            this.#logger.error(`Error during policy fetch: ${error.message}`, { conceptId: 'GOV_E_006', errorDetails: error });
+
             if (initialLoad) {
                 // Initial Load Failure: Must enforce failsafe policy immediately.
-                this.logger.critical("E-01 CRITICAL FAILURE: Cannot load initial policies. Enforcing deterministic failsafe freeze.", { error: error.message });
-                this.activePolicy = ExternalPolicyIndex.FAILSAFE_POLICY; 
-                this.policySourceTag = 'FAILSAFE_INIT';
-                this.isInFailsafeMode = true;
+                this.#logger.critical("CRITICAL FAILURE: Cannot load initial policies. Enforcing deterministic failsafe freeze.", { conceptId: 'GOV_CRIT_002' });
+                this.#activePolicy = ExternalPolicyIndexKernel.FAILSAFE_POLICY; 
+                this.#policySourceTag = 'FAILSAFE_INIT';
+                this.#isInFailsafeMode = true;
             } else {
-                 this.logger.warn(`E-01: Background policy fetch failed. Relying on existing state (Tag: ${this.policySourceTag}, Last fetched: ${new Date(this.lastFetchTime).toISOString()}).`, { error: error.message });
+                 this.#logger.warning(`Background policy fetch failed. Relying on existing state (Tag: ${this.#policySourceTag}, Last fetched: ${new Date(this.#lastFetchTime).toISOString()}).`, { conceptId: 'GOV_WARN_002', tag: this.#policySourceTag });
             }
             return false;
         } finally {
-            this.isFetching = false;
+            this.#isFetching = false;
         }
     }
 
     /**
      * Enforces strong immutability and extracts required fields from the verified mandates.
      */
-    _parseMandates(mandates) {
+    #parseMandates(mandates) {
         return Object.freeze({
             // L1: Global Controls
             globalFreeze: Boolean(mandates.globalFreeze),
-            // L2: Targeted Controls (e.g., area restriction list)
+            // L2: Targeted Controls
             restrictedAreas: Array.isArray(mandates.restrictedAreas) ? mandates.restrictedAreas.map(a => String(a).toLowerCase()) : [],
             // Internal audit marker
             _timestamp: Date.now()
@@ -155,35 +180,44 @@ class ExternalPolicyIndex {
      */
     isVetoRequired(proposalMetadata) {
         // If queried before successful initialization or while in critical failsafe mode.
-        if (!this.isInitialized || this.isInFailsafeMode) {
-            // Fail-safe trigger: If queried before the system confirms readiness (post-initialization lock).
-            // Note: If initial load succeeded but subsequent background fetches fail, we still rely on the stale, valid 'activePolicy', not this global freeze.
-            if (this.isInFailsafeMode) {
-                 this.logger.warning("E-01 queried while in CRITICAL FAILSAFE MODE. Veto enforced.");
-                 return true;
+        if (!this.#isInitialized || this.#isInFailsafeMode) {
+            if (this.#isInFailsafeMode) {
+                 this.#logger.warning("ExternalPolicyIndexKernel queried while in CRITICAL FAILSAFE MODE. Veto enforced.", { conceptId: 'GOV_WARN_003' });
+                 return true; // Failsafe policy is defined as globalFreeze: true
             }
-            // This path should ideally not be hit if initialize() finishes its blocking call before this component is used.
-            this.logger.warning("E-01 queried before initialization completed. Enforcing veto to prevent unauthorized operation.");
-            return true; 
+            // If not initialized, enforce veto for safety.
+            this.#logger.error("ExternalPolicyIndexKernel queried before initialization completion. Veto enforced.", { conceptId: 'GOV_E_007' });
+            return true;
         }
 
-        const policy = this.activePolicy;
-        
-        // L1: Global Mandates (Highest Precedence)
-        if (policy.globalFreeze === true) {
-            this.logger.debug("Veto triggered by L1: Global Freeze mandate.");
-            return true; 
+        // Rule 1: Global Freeze
+        if (this.#activePolicy.globalFreeze) {
+            return true;
         }
-        
-        // L2: Targeted Restrictions
-        const targetArea = (proposalMetadata.targetArea || 'unknown').toLowerCase();
-        if (policy.restrictedAreas.includes(targetArea)) {
-            this.logger.debug(`Veto triggered by L2: Target area '${targetArea}' is restricted.`);
+
+        // Rule 2: Restricted Area Check
+        const targetArea = (proposalMetadata && proposalMetadata.targetArea) ? String(proposalMetadata.targetArea).toLowerCase() : null;
+        if (targetArea && this.#activePolicy.restrictedAreas.includes(targetArea)) {
+            this.#logger.debug(`Veto triggered: Target area '${targetArea}' is restricted by external policy (Tag: ${this.#policySourceTag}).`, { conceptId: 'GOV_DEBUG_002', targetArea });
             return true;
         }
         
         return false;
     }
-}
 
-module.exports = ExternalPolicyIndex;
+    /**
+     * Provides the current state tag for auditing purposes.
+     * @returns {string}
+     */
+    getPolicyTag() {
+        return this.#policySourceTag;
+    }
+
+    /**
+     * Provides access to the currently active, immutable policy for detailed checks (use sparingly).
+     * @returns {Object}
+     */
+    getActivePolicy() {
+        return this.#activePolicy;
+    }
+}
