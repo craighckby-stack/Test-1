@@ -36,7 +36,13 @@ class TrajectorySimulationEngine {
         this.ACVD = ACVD_Store;
         this.config = Configuration;
         this.model = ModelHandler;
-        // Dependency Injection: Use the Synergy Registry for accessing kernel services
+        
+        // Dependency Initialization: Resolve the SchemaValidationService once upon construction
+        // This optimization removes runtime lookup overhead from runSimulation.
+        this.validator = (SynergyRegistry && typeof SynergyRegistry.getService === 'function')
+            ? SynergyRegistry.getService('SchemaValidationService')
+            : null;
+        
         this.synergyRegistry = SynergyRegistry;
     }
 
@@ -69,18 +75,14 @@ class TrajectorySimulationEngine {
 
     /**
      * Runs the full trajectory simulation by extracting features and calling the model handler.
-     * Utilizes SchemaValidationService from the SynergyRegistry if available.
+     * Utilizes SchemaValidationService if available.
      * @param {Object} inputManifest
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
      */
     async runSimulation(inputManifest) {
         let entityId = 'unknown';
 
-        // 1. Access the Schema Validation Service via the injected synergy registry
-        // Assuming synergyRegistry implements getService(name)
-        const ValidationService = (this.synergyRegistry && typeof this.synergyRegistry.getService === 'function')
-            ? this.synergyRegistry.getService('SchemaValidationService')
-            : null;
+        // The ValidationService is now pre-resolved as this.validator
 
         try {
             // 1. Critical Minimal Input Check
@@ -89,10 +91,10 @@ class TrajectorySimulationEngine {
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation using ValidationService (preferred)
-            if (ValidationService) {
+            // 2. Comprehensive Input Validation using pre-resolved validator
+            if (this.validator) {
                 // NOTE: Validation Service executes validation logic against the schema.
-                const validationResult = await ValidationService.execute('validate', inputManifest, MANIFEST_SCHEMA);
+                const validationResult = await this.validator.execute('validate', inputManifest, MANIFEST_SCHEMA);
                 
                 if (!validationResult || !validationResult.isValid) {
                     const errorMsg = validationResult && validationResult.errors ? validationResult.errors.join('; ') : 'Unknown validation error.';
@@ -106,8 +108,8 @@ class TrajectorySimulationEngine {
             const results = await this.model.predict(features);
 
             // 3. Output Validation
-            if (ValidationService) {
-                const outputValidation = await ValidationService.execute('validate', results, PREDICTION_RESULT_SCHEMA);
+            if (this.validator) {
+                const outputValidation = await this.validator.execute('validate', results, PREDICTION_RESULT_SCHEMA);
                 
                 if (!outputValidation || !outputValidation.isValid) {
                      const errorMsg = outputValidation && outputValidation.errors ? outputValidation.errors.join('; ') : 'Unknown validation error.';
