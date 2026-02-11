@@ -11,24 +11,30 @@ const VALIDATOR_TOOL_NAME = "RuntimeConstraintValidatorTool";
  * @returns {boolean} True if environment meets constraints.
  */
 export function validateRuntime(constraints) {
-    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES.Tool) {
-        console.error("CRITICAL ERROR: KERNEL_SYNERGY_CAPABILITIES.Tool is missing. Cannot perform runtime validation.");
+    // Initialize KERNEL access safely to prevent ReferenceErrors
+    const KERNEL = typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' ? KERNEL_SYNERGY_CAPABILITIES : {};
+    const Tool = KERNEL.Tool;
+
+    if (!Tool || typeof Tool.execute !== 'function') {
+        console.error("CRITICAL ERROR: KERNEL_SYNERGY_CAPABILITIES.Tool interface is unavailable or improperly structured. Cannot delegate runtime validation.");
         return false;
     }
 
     try {
-        // Execute the 'validate' method on the registered tool
-        const result = KERNEL_SYNERGY_CAPABILITIES.Tool.execute({
+        const payload = {
             toolName: VALIDATOR_TOOL_NAME,
             method: 'validate',
             args: [constraints]
-        });
+        };
+
+        // Execute the validation via the registered tool interface
+        const result = Tool.execute(payload);
         
-        // The tool should return a boolean result based on validation success.
+        // Standardize result to a strict boolean, coercing truthy/falsy returns.
         return typeof result === 'boolean' ? result : !!result;
         
     } catch (e) {
-        console.error(`Validation failed due to tool execution error: ${e.message}`);
+        console.error(`Runtime constraint validation delegation failed for tool '${VALIDATOR_TOOL_NAME}': ${e.message}`, e);
         return false;
     }
 }
