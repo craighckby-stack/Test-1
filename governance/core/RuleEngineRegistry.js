@@ -12,13 +12,20 @@ const { ValidationResult } = require('../interfaces/ConfigValidator');
  * from the main ConfigValidator implementation.
  */
 class RuleEngineRegistry {
-    constructor() {
+    /**
+     * @param {Object} [aggregatorTool] - Optional dependency injection for the concurrent execution aggregator.
+     */
+    constructor(aggregatorTool) {
         /** @type {Array<Object>} */
         this.rules = [];
         
-        // Assuming runtime access to the AGI-KERNEL plugin registry
-        // Note: In a real environment, this dependency would be injected.
-        this.aggregatorTool = global.AGI_KERNEL_TOOLS ? global.AGI_KERNEL_TOOLS.ConcurrentValidationAggregator : null;
+        // Use injected tool or look up globally, preferring injection for testability.
+        // Note: The dependency is now strictly required for runAll to function.
+        this.aggregatorTool = aggregatorTool || (global.AGI_KERNEL_TOOLS ? global.AGI_KERNEL_TOOLS.ConcurrentValidationAggregator : null);
+        
+        if (!this.aggregatorTool) {
+             console.warn("RuleEngineRegistry initialized without 'ConcurrentValidationAggregator' tool. Execution of runAll() will fail if rules are present.");
+        }
     }
 
     /**
@@ -35,34 +42,13 @@ class RuleEngineRegistry {
     }
 
     /**
-     * Executes all registered rules concurrently against the configuration using the extracted tool.
+     * Executes all registered rules concurrently against the configuration using the dedicated aggregator tool.
      * @param {Object} config - The configuration object to validate.
      * @returns {Promise<ValidationResult>} Aggregated validation result.
      */
     async runAll(config) {
         if (!this.aggregatorTool || typeof this.aggregatorTool.execute !== 'function') {
-            // Fallback: Execute original logic if plugin is unavailable (for robustness)
-            if (this.rules.length === 0) {
-                return { isValid: true, errors: [] };
-            }
-    
-            // Execute all rules in parallel
-            const validationPromises = this.rules.map(rule => rule.execute(config));
-    
-            // Wait for all results and aggregate
-            const results = await Promise.all(validationPromises);
-    
-            let allErrors = [];
-            let globalIsValid = true;
-    
-            for (const result of results) {
-                if (result && result.isValid === false) {
-                    globalIsValid = false;
-                    allErrors = allErrors.concat(Array.isArray(result.errors) ? result.errors : []);
-                }
-            }
-    
-            return { isValid: globalIsValid, errors: allErrors };
+            throw new Error("Cannot run validations: Required ConcurrentValidationAggregator tool is unavailable or improperly defined.");
         }
         
         // Delegate the complex concurrent execution and aggregation logic to the plugin
