@@ -5,6 +5,13 @@
  */
 
 /**
+ * Creates an immutable, empty object placeholder used for type consistency referencing.
+ * This enforces a standardized approach for exporting structural types.
+ * @returns {Readonly<Object<string, never>>}
+ */
+const _createTypePlaceholder = () => Object.freeze({});
+
+/**
  * @typedef {object} Constraint
  * @property {string} constraintId - Unique ID of the violating constraint.
  * @property {string} axiomName - Name of the foundational axiom violated (e.g., 'Isolation_Priority').
@@ -31,7 +38,7 @@
  * This guarantees the consistency of type references across the Policy subsystem.
  */
 module.exports = {
-  Constraint: Object.freeze({}),
-  PolicyDelta: Object.freeze({}),
-  VerificationResult: Object.freeze({})
+  Constraint: _createTypePlaceholder(),
+  PolicyDelta: _createTypePlaceholder(),
+  VerificationResult: _createTypePlaceholder()
 };
