@@ -1,34 +1,78 @@
-import { TRUST_METRICS_SCHEMA, TRUST_POLARITY } from '../config/trustCalculusSchema';
+import {
+    ITrustCalculusConfigRegistryKernel,
+    IPolarizedWeightedScorerToolKernel,
+    ILoggerToolKernel
+} from "@strategic-interfaces";
 
 /**
- * CoreTrustCalculator
- * Utilizes the PolarizedWeightedScorer tool (provided by the kernel environment) 
- * to convert raw component metrics into a single normalized Trust Score (0.0 to 1.0).
+ * CoreTrustCalculatorKernel
+ * Converts raw component metrics into a single normalized Trust Score (0.0 to 1.0) 
+ * using the injected Polarized Weighted Scorer Tool.
  */
-export class CoreTrustCalculator {
+export class CoreTrustCalculatorKernel {
+    #trustConfigRegistry: ITrustCalculusConfigRegistryKernel;
+    #scorerTool: IPolarizedWeightedScorerToolKernel;
+    #logger: ILoggerToolKernel;
     
     /**
-     * Calculates the normalized Trust Score.
-     * @param {Record<string, number>} rawMetrics - Input metrics (0.0 to 1.0) for redundancyScore, usageRate, etc.
-     * @returns {number} The final normalized Trust Score (0.0 to 1.0).
-     * @throws {Error} If a required metric is missing or outside the expected [0, 1] range.
+     * @param trustConfigRegistry ITrustCalculusConfigRegistryKernel
+     * @param scorerTool IPolarizedWeightedScorerToolKernel
+     * @param logger ILoggerToolKernel
      */
-    static calculateScore(rawMetrics: Record<string, number>): number {
-        
-        // Assuming PolarizedWeightedScorer is globally available via the AGI-KERNEL environment
-        const Scorer = (PolarizedWeightedScorer as any);
+    constructor(
+        trustConfigRegistry: ITrustCalculusConfigRegistryKernel,
+        scorerTool: IPolarizedWeightedScorerToolKernel,
+        logger: ILoggerToolKernel
+    ) {
+        this.#setupDependencies(trustConfigRegistry, scorerTool, logger);
+    }
 
+    async initialize(): Promise<void> {
+        // Configuration loading is handled dynamically in calculateScore.
+        return;
+    }
+
+    #setupDependencies(
+        trustConfigRegistry: ITrustCalculusConfigRegistryKernel,
+        scorerTool: IPolarizedWeightedScorerToolKernel,
+        logger: ILoggerToolKernel
+    ): void {
+        if (!trustConfigRegistry || !scorerTool || !logger) {
+            throw new Error('CoreTrustCalculatorKernel requires Trust Calculus Registry, Scorer Tool, and Logger.');
+        }
+        this.#trustConfigRegistry = trustConfigRegistry;
+        this.#scorerTool = scorerTool;
+        this.#logger = logger;
+    }
+
+    /**
+     * Calculates the normalized Trust Score.
+     * @param {Record<string, number>} rawMetrics - Input metrics (0.0 to 1.0).
+     * @returns {Promise<number>} The final normalized Trust Score (0.0 to 1.0).
+     * @throws {Error} If scoring fails (e.g., missing metrics, range violation).
+     */
+    async calculateScore(rawMetrics: Record<string, number>): Promise<number> {
+        
         try {
-            // Delegate the core logic (validation, polarization, weighting, summation)
-            return Scorer.calculate({
+            // Asynchronously retrieve configuration data from the dedicated Registry Kernel
+            const scoringSchema = await this.#trustConfigRegistry.getTrustMetricsSchema();
+            const negativePolarityKey = await this.#trustConfigRegistry.getTrustPolarityNegativeKey();
+
+            // Delegate the core logic to the injected asynchronous tool
+            return await this.#scorerTool.calculate({
                 rawMetrics: rawMetrics,
-                scoringSchema: TRUST_METRICS_SCHEMA,
-                negativePolarityKey: TRUST_POLARITY.NEGATIVE
+                scoringSchema: scoringSchema,
+                negativePolarityKey: negativePolarityKey
             });
+
         } catch (e) {
-            // Wrap the error thrown by the plugin to maintain class context
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            throw new Error(`[CoreTrustCalculator] Scoring failed: ${errorMessage}`);
+            const error = e instanceof Error ? e : new Error(String(e));
+            this.#logger.error('[CoreTrustCalculatorKernel] Scoring failure during calculation.', { 
+                error: error.message, 
+                metrics: rawMetrics 
+            });
+            // Re-throw standardized error reflecting the asynchronous failure
+            throw new Error(`Trust scoring failed: ${error.message}`);
         }
     }
 }
