@@ -8,15 +8,10 @@
 
 import { SystemFiles } from 'core/system/filesystem';
 import { CRoTCrypto } from 'core/crypto/CRoT';
-// import { ContentIntegrityVerifier } from 'governance/tools/ContentIntegrityVerifier'; // Implicit Tool Import
+import { ContentIntegrityVerifier } from 'plugins/ContentIntegrityVerifier';
 
 // This path defines the structure where we expect to find the checksum manifest for policies
 const POLICY_MANIFEST_PATH = 'governance/config/PolicyManifest.json';
-
-// Placeholder for the external tool reference defined in the plugin block
-declare const ContentIntegrityVerifier: {
-    execute: (args: { rawContent: string, calculatedHash: string, expectedHash: string, policyName: string }) => object;
-};
 
 export class ConfigurationAuthService {
     
