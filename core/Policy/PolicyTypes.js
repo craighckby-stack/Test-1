@@ -27,14 +27,11 @@
  */
 
 /**
- * Explicitly exporting placeholders for the types defined above.
- * This allows modules to import this file for consistency checks and runtime dependency detection.
+ * Explicitly exporting immutable placeholders for the types defined above.
+ * This guarantees the consistency of type references across the Policy subsystem.
  */
 module.exports = {
-  /** @type {Constraint} */
-  Constraint: {},
-  /** @type {PolicyDelta} */
-  PolicyDelta: {},
-  /** @type {VerificationResult} */
-  VerificationResult: {}
+  Constraint: Object.freeze({}),
+  PolicyDelta: Object.freeze({}),
+  VerificationResult: Object.freeze({})
 };
