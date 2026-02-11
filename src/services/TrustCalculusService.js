@@ -19,20 +19,19 @@ export class TrustCalculusService {
 
         for (const [metricName, definition] of Object.entries(TRUST_METRICS_SCHEMA)) {
             const metricValue = metrics[metricName];
+            const { weight, polarity } = definition; // Destructuring for explicit access
             
             if (typeof metricValue !== 'number' || metricValue < 0 || metricValue > 1) {
                  throw new Error(`[TC-SERVICE] Invalid or missing metric value for '${metricName}'. Received: ${metricValue}. Metrics must be normalized (0.0 - 1.0).`);
             }
 
-            let adjustedValue = metricValue;
-
             // Apply Polarity Adjustment: If polarity is -1 (Inverse correlation/Risk metric),
-            // invert the value (1 - V) to make it contribute positively to the "Trust/Safety" score.
-            if (definition.polarity === -1) {
-                adjustedValue = 1 - metricValue;
-            }
+            // invert the value (1 - V) to ensure the metric contributes positively to the overall Trust Score.
+            const adjustedValue = (polarity === -1)
+                ? (1 - metricValue)
+                : metricValue;
 
-            weightedSum += adjustedValue * definition.weight;
+            weightedSum += adjustedValue * weight;
         }
 
         // Clamp the final score between 0.0 and 1.0
