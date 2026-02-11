@@ -8,27 +8,26 @@
  * to ensure platform abstraction, integrity, and compliance.
  */
 
-// Define the interface that the external utility must satisfy (for TypeScript context)
-interface ICanonicalCryptoUtility {
-    calculateHash(data: string, algorithm: string): string;
-    verifySignature(data: string, signature: string, attestationKeyId: string): boolean;
-}
-
-// Assuming the Kernel provides a mechanism to retrieve the required utility.
-// For standard DI, we pass it in the constructor.
+/**
+ * @typedef {object} ICanonicalCryptoUtility
+ * @property {(data: string, algorithm: string) => string} calculateHash - Calculates a hash digest.
+ * @property {(data: string, signature: string, attestationKeyId: string) => boolean} verifySignature - Verifies a signature.
+ */
 
 class AgiCryptoService {
-    private readonly ALGORITHM_HASH: string = 'sha256';
-    private readonly ALGORITHM_SIGNATURE: string = 'ecdsa';
-    private readonly cryptoUtility: ICanonicalCryptoUtility;
+    // Constants are typed using JSDoc standard or retained if TS is implicitly handled by the environment.
+    private readonly ALGORITHM_HASH = 'sha256';
+    private readonly ALGORITHM_SIGNATURE = 'ecdsa';
+    /** @type {ICanonicalCryptoUtility} */
+    private readonly cryptoUtility;
 
     /**
      * @param {ICanonicalCryptoUtility} cryptoUtility - Injected utility for crypto operations.
      */
-    constructor(cryptoUtility: ICanonicalCryptoUtility) {
-        // CRITICAL: Ensure the utility is available. In a real system, this would enforce initialization.
+    constructor(cryptoUtility) {
+        // CRITICAL: Ensure the utility is available and implements the required method.
         if (!cryptoUtility || typeof cryptoUtility.calculateHash !== 'function') {
-            throw new Error("AgiCryptoService requires a valid CanonicalCryptoUtility instance.");
+            throw new Error("AgiCryptoService requires a valid ICanonicalCryptoUtility instance providing calculateHash.");
         }
         this.cryptoUtility = cryptoUtility;
     }
@@ -37,10 +36,10 @@ class AgiCryptoService {
      * Calculates a cryptographic hash of the input data.
      * Delegates implementation to CanonicalCryptoUtility.
      * @param {string} data - The input data string.
-     * @param {string} algorithm - Hashing algorithm (e.g., 'sha256').
+     * @param {string} [algorithm] - Hashing algorithm (e.g., 'sha256'). Defaults to internal standard.
      * @returns {string} The computed hash digest (hexadecimal).
      */
-    public hash(data: string, algorithm: string = this.ALGORITHM_HASH): string {
+    public hash(data, algorithm = this.ALGORITHM_HASH) {
         return this.cryptoUtility.calculateHash(data, algorithm);
     }
 
@@ -52,7 +51,7 @@ class AgiCryptoService {
      * @param {string} attestationKeyId - Identifier for the public key used for verification.
      * @returns {boolean} True if the signature is valid, false otherwise.
      */
-    public verifySignature(data: string, signature: string, attestationKeyId: string): boolean {
+    public verifySignature(data, signature, attestationKeyId) {
         return this.cryptoUtility.verifySignature(data, signature, attestationKeyId);
     }
 }
