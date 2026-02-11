@@ -1,78 +1,117 @@
+const { ConfigSchemaRegistryKernel, ISpecValidatorKernel, MutationPayloadSpecKernel } = require('AGI_KERNELS');
+
 /**
- * Utility: Intent Schema Validator
- * ID: GU-ISV-v94.1R
- * Mandate: Provides API for validating incoming Mutation Intent Packages (M-XX) against
- * the central IntentSchemas registry and extracting necessary security configurations.
- * Fulfills the explicit requirement for 'strict compliance checks' by enforcing structural
- * integrity and defining expectations for content validation mechanisms.
+ * Kernel: Intent Schema Validator
+ * ID: GU-ISV-v94.2K
+ * Mandate: Provides asynchronous API for validating incoming Mutation Intent Packages (M-XX) against
+ * the audited schema registries and extracting necessary security configurations, strictly adhering
+ * to AIA Enforcement Layer mandates for non-blocking execution and Maximum Recursive Abstraction.
  */
-
-const IntentSchemas = require('../config/intentSchemas');
-// const IntentPayloadValidator = require('./IntentPayloadValidator'); // Dependency proposed for deep content validation
-
-// Conceptual reference to the extracted plugin utility
-// In an AGI-Kernel environment, this plugin would be injected or globally accessible.
-// declare const IntentPackageIntegrityTool: { execute: (args: { pkg: any, schemas: any }) => any };
-
-class IntentSchemaValidator {
+class IntentSchemaValidatorKernel {
 
     /**
-     * @typedef {object} ValidationResult
-     * @property {boolean} isValid - True if validation passed.
-     * @property {Array<{code: string, message: string, detail: any}>} [errors] - List of specific validation errors.
-     * @property {object|null} [schema] - The schema used for validation, if found.
+     * @param {object} dependencies
+     * @param {ConfigSchemaRegistryKernel} dependencies.configSchemaRegistry
+     * @param {ISpecValidatorKernel} dependencies.specValidator
+     * @param {MutationPayloadSpecKernel} dependencies.payloadSpecKernel
      */
+    constructor({ configSchemaRegistry, specValidator, payloadSpecKernel }) {
+        this.configSchemaRegistry = configSchemaRegistry;
+        this.specValidator = specValidator;
+        this.payloadSpecKernel = payloadSpecKernel;
+        this.INTENT_SCHEMAS_ID = 'GOVERNANCE_INTENT_SCHEMAS'; // Conceptual ID for the collection of intent schemas
+    }
 
     /**
-     * Retrieves the complete schema definition for a given intent ID.
+     * Initializes the Kernel and ensures all dependencies are ready.
+     * @async
+     */
+    async initialize() {
+        // Mandatory asynchronous initialization check
+        if (!this.configSchemaRegistry || !this.specValidator || !this.payloadSpecKernel) {
+            throw new Error("IntentSchemaValidatorKernel dependencies not fully injected.");
+        }
+        await this.configSchemaRegistry.initialize();
+        await this.specValidator.initialize();
+        await this.payloadSpecKernel.initialize();
+    }
+
+    /**
+     * Retrieves the complete schema definition for a given intent ID from the audited registry.
+     * @async
      * @param {string} intentId - e.g., 'M01', 'M02'
-     * @returns {object|null} The schema definition or null if not found.
+     * @returns {Promise<object|null>} The schema definition or null if not found.
      */
-    static getSchema(intentId) {
+    async getSchema(intentId) {
         if (typeof intentId !== 'string' || intentId.length === 0) {
             return null;
         }
-        return IntentSchemas[intentId] || null;
+        // Delegation: Retrieve the comprehensive definition for the specific intent via the ConfigSchemaRegistry.
+        return await this.configSchemaRegistry.getSchema(intentId);
     }
 
     /**
-     * Performs comprehensive validation on a raw incoming intent package structure and content header.
-     *
-     * NOTE: Basic structural integrity, schema existence, and type coherence checks are delegated to
-     * the IntentPackageIntegrityTool plugin for centralized error handling and compliance.
-     *
+     * Performs comprehensive structural and content header validation on a raw incoming intent package.
+     * Validation is delegated entirely to the specialized ISpecValidatorKernel.
+     * @async
      * @param {object} pkg - The raw intent package to validate.
-     * @returns {ValidationResult} Detailed validation result.
+     * @returns {Promise<{isValid: boolean, errors?: Array<{code: string, message: string, detail: any}>, schema: object|null}>} Detailed validation result.
      */
-    static validateIntentPackage(pkg) {
-        // Delegating core structural validation to the extracted tool.
-        // We pass the package and the configuration registry (IntentSchemas) to the plugin.
-        return IntentPackageIntegrityTool.execute({ 
-            pkg: pkg, 
-            schemas: IntentSchemas 
+    async validateIntentPackage(pkg) {
+        const intentId = pkg?.intentId;
+        if (!intentId) {
+            return {
+                isValid: false,
+                errors: [{ code: 'ISV_001_M', message: 'Missing required intentId for schema lookup.' }],
+                schema: null
+            };
+        }
+
+        const intentSchemaDefinition = await this.getSchema(intentId);
+
+        if (!intentSchemaDefinition) {
+             return {
+                isValid: false,
+                errors: [{ code: 'ISV_002_M', message: `Audited schema definition not found for intentId: ${intentId}.` }],
+                schema: null
+            };
+        }
+
+        // Delegation: Use ISpecValidatorKernel for strict compliance checks (structural integrity, schema adherence)
+        const validationResult = await this.specValidator.validate({ 
+            schema: intentSchemaDefinition,
+            data: pkg
         });
+
+        // Normalize result structure to match expected output
+        return {
+            isValid: validationResult.isValid,
+            errors: validationResult.errors || [],
+            schema: intentSchemaDefinition
+        };
     }
 
     /**
-     * Extracts required security parameters for execution flow logic.
+     * Extracts required security parameters for execution flow logic from the audited schema.
+     * @async
      * @param {string} intentId 
-     * @returns {object|null} Security configuration object
+     * @returns {Promise<object|null>} Security configuration object
      */
-    static getSecurityConfig(intentId) {
-        const schema = this.getSchema(intentId);
+    async getSecurityConfig(intentId) {
+        const schema = await this.getSchema(intentId);
         return (schema && schema.security) ? schema.security : null;
     }
 
     /**
-     * Extracts the required payload schema definition (if one exists).
-     * This definition is necessary for deep content validation.
+     * Extracts the required payload schema definition (if one exists), delegating to the specialized payload kernel.
+     * @async
      * @param {string} intentId 
-     * @returns {object|null} JSON Schema definition for the payload.
+     * @returns {Promise<object|null>} JSON Schema definition for the payload.
      */
-    static getPayloadSchema(intentId) {
-        const schema = this.getSchema(intentId);
-        return (schema && schema.payloadSchema) ? schema.payloadSchema : null;
+    async getPayloadSchema(intentId) {
+        // Delegation: The MutationPayloadSpecKernel is explicitly designed for retrieving specific payload schemas for validation.
+        return await this.payloadSpecKernel.getPayloadSchema(intentId);
     }
 }
 
-module.exports = IntentSchemaValidator;
+module.exports = IntentSchemaValidatorKernel;
