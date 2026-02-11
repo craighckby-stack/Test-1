@@ -1,3 +1,4 @@
+const ConfigSchemaValidator = require('../../utils/ConfigSchemaValidator');
 const TemplateNotFoundError = require('../errors/TemplateNotFoundError');
 const InputValidationError = require('../errors/InputValidationError');
 
@@ -32,13 +33,15 @@ class TemplateValidationService {
    * @param {SmsTemplate[]} messageTemplates - Array of template objects.
    */
   constructor({ validator, segmentCalculator }, schemaConfig, messageTemplates) {
-    if (!validator) {
-      throw new Error("TemplateValidationService requires a 'validator' dependency.");
-    }
     
-    this.validator = validator;
+    // Abstracting schema validation boilerplate using the ConfigSchemaValidator plugin
+    this.configValidator = new ConfigSchemaValidator(
+        validator,
+        schemaConfig,
+        "SMS Template Configuration"
+    );
+    
     this.calculateSegments = segmentCalculator || null; 
-    this.schema = schemaConfig;
 
     if (messageTemplates.some(t => !t || !t[TEMPLATE_KEY_FIELD])) {
          throw new Error(`All templates must define a non-null '${TEMPLATE_KEY_FIELD}' property.`);
@@ -129,17 +132,7 @@ class TemplateValidationService {
    * @throws {Error} If configuration validation fails.
    */
   validateSchemaIntegrity(config) {
-    const isValid = this.validator.validate(this.schema, config);
-
-    if (!isValid) {
-      // Improve error context and reporting detail by pretty-printing AJV errors
-      const errors = this.validator.errors 
-          ? JSON.stringify(this.validator.errors, null, 2) 
-          : "Unknown validation errors (validator.errors was null).";
-      
-      throw new Error(`SMS Template Schema Integrity Check Failed:\n${errors}`);
-    }
-
+    this.configValidator.validateIntegrity(config);
     return true;
   }
 }
