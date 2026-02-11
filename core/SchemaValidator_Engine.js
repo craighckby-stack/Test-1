@@ -41,11 +41,22 @@ class SchemaValidationError extends Error {
 /**
  * The Schema Validator enforces the structural integrity of data across the XEL environment.
  * It is designed for robustness (Error Handling) and dynamic updates (Autonomy).
- * 
- * Improvement: Accepts external dependency (onValidationFailure) to integrate with Nexus/MQM (Integration Requirement).
- * IMPROVEMENT: Accepts a component map to link schemas to specific AGI files/components for targeted Navigation refinement.
  */
 class SchemaValidatorEngine {
+    
+    // Private static field for configuration
+    static #MAX_HISTORY = 100; // Store the last 100 failures
+
+    // Private instance fields for strong encapsulation
+    #validator = null;
+    #kernelVersion;
+    #schemaComponentMap;
+    #onValidationFailure;
+    #capabilityMapper;
+    #runtimeMapper;
+    #failureHistory = [];
+    #analyzer;
+
     /**
      * @param {object} options - Configuration options.
      * @param {object} [options.componentSchemas] - Schema definitions to override defaults.
@@ -57,44 +68,41 @@ class SchemaValidatorEngine {
     constructor(options = {}) {
         const { 
             componentSchemas, 
-            onValidationFailure, 
+            onValidationFailure,
             kernelVersion = 'N/A', 
             schemaComponentMap = {},
             runtimeMapper
         } = options;
         
-        this.validator = null;
+        // Expose error type publicly for consumer convenience/error handling compatibility
         this.SchemaValidationError = SchemaValidationError;
         
-        // Store dynamic runtime metadata
-        this.kernelVersion = kernelVersion;
-
-        // Context for AGI Navigator System
-        this.schemaComponentMap = schemaComponentMap;
+        // Store dynamic runtime metadata privately
+        this.#kernelVersion = kernelVersion;
+        this.#schemaComponentMap = schemaComponentMap;
         
         // INTEGRATION HOOK: Function provided by the kernel core
-        this.onValidationFailure = onValidationFailure || (() => {}); 
+        this.#onValidationFailure = onValidationFailure || (() => {}); 
 
         // LOGIC REFACTOR: Keyword-to-Capability mapping is outsourced to ErrorCapabilityMapper plugin.
-        // The large internal fallback switch has been removed and replaced by the dedicated plugin.
         if (runtimeMapper) {
-            this._runtimeMapper = runtimeMapper;
+            this.#runtimeMapper = runtimeMapper;
         } else {
-            this.capabilityMapper = new ErrorCapabilityMapper();
+            // Initialize private mapper dependency
+            this.#capabilityMapper = new ErrorCapabilityMapper();
             // Bind the method to ensure 'this' context works correctly within the mapper instance
-            this._runtimeMapper = this.capabilityMapper.mapKeywordToCapability.bind(this.capabilityMapper);
+            this.#runtimeMapper = this.#capabilityMapper.mapKeywordToCapability.bind(this.#capabilityMapper);
         }
 
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
-        this.failureHistory = []; 
-        this.MAX_HISTORY = 100; // Store the last 100 failures
+        this.#failureHistory = []; 
         
         // Initialize validator using provided schemas or default imported ones
-        this.initializeValidator(componentSchemas || XEL_Specification.ComponentSchemas);
+        this.#initializeValidator(componentSchemas || XEL_Specification.ComponentSchemas);
 
         // Architectural Refactoring: Initialize the Emergent Failure Analyzer
-        this.analyzer = new SchemaFailureAnalyzer({
-            schemaComponentMap: this.schemaComponentMap
+        this.#analyzer = new SchemaFailureAnalyzer({
+            schemaComponentMap: this.#schemaComponentMap
         });
     }
 
@@ -103,9 +111,9 @@ class SchemaValidatorEngine {
      * when the AGI kernel autonomously modifies configuration files (Autonomy/Infrastructure).
      * @param {object} componentSchemas - Map of schema names to JSON Schema definitions.
      */
-    initializeValidator(componentSchemas) {
+    #initializeValidator(componentSchemas) {
         // Configuration for maximum robustness and data hygiene:
-        this.validator = new Ajv({
+        this.#validator = new Ajv({
             allErrors: true,
             strict: true,
             removeAdditional: 'all' 
@@ -116,10 +124,10 @@ class SchemaValidatorEngine {
             Object.entries(componentSchemas).forEach(([name, schema]) => {
                 try {
                     // Check if schema is already defined to avoid strict mode errors on re-init
-                    if (this.validator.getSchema(name)) {
-                         this.validator.removeSchema(name);
+                    if (this.#validator.getSchema(name)) {
+                         this.#validator.removeSchema(name);
                     }
-                    this.validator.addSchema(schema, name);
+                    this.#validator.addSchema(schema, name);
                 } catch (e) {
                     // Log schema registration failure, but continue initialization
                     console.error(`[SCHEMA_ENGINE]: Failed to register schema ${name}:`, e.message);
@@ -135,13 +143,13 @@ class SchemaValidatorEngine {
      */
     refreshSchemas(newSpecification) {
         // Clear old instance and re-initialize
-        this.initializeValidator(newSpecification);
+        this.#initializeValidator(newSpecification);
     }
 
     /**
      * Internal method to log validation failures for Meta-Reasoning analysis and trigger MQM/Nexus logging.
      */
-    _trackFailure(schemaName, errors, isCritical, dataSample) {
+    #trackFailure(schemaName, errors, isCritical, dataSample) {
         // 1. Prepare history and summary
         const summary = errors?.map(e => ({
             path: e.instancePath || e.dataPath || 'N/A',
@@ -152,8 +160,8 @@ class SchemaValidatorEngine {
         // Determine Capability Impact dynamically (Meta-Reasoning)
         const firstErrorKeyword = summary[0]?.keyword || 'N/A';
         
-        // REFACTORED: Use the injected/fallback mapper (ErrorCapabilityMapper plugin logic)
-        const capabilityImpact = this._runtimeMapper(firstErrorKeyword);
+        // REFACTORED: Use the private runtime mapper
+        const capabilityImpact = this.#runtimeMapper(firstErrorKeyword);
 
         const failureEntry = {
             timestamp: Date.
