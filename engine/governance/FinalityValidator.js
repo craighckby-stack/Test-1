@@ -8,9 +8,19 @@ interface ISchemaValidationService {
     getSchema(schemaId: string): any; // Assume we can fetch schemas
 }
 
+/**
+ * New interface for the abstracted rule evaluation logic.
+ * This utility handles the deterministic calculation of the final status 
+ * based on the proposal state and the governance rule set.
+ */
+interface IFinalityRuleEvaluator {
+    evaluate(proposalState: any, ruleSet: any): { status: string, criterion: string, details?: any };
+}
+
 // Assume dependency injection or global access via AGI_KERNEL
 const HashingUtility: IIntegrityHashingUtility = AGI_KERNEL.PLUGINS.IntegrityHashingUtility;
 const ValidatorService: ISchemaValidationService = AGI_KERNEL.PLUGINS.SchemaValidationService;
+const RuleEvaluator: IFinalityRuleEvaluator = AGI_KERNEL.PLUGINS.FinalityRuleEvaluator;
 
 // Placeholder for schema registration/lookup
 const FINALITY_RESULT_SCHEMA_ID = 'P01_Finality_Result';
@@ -21,11 +31,12 @@ const FINALITY_RESULT_SCHEMA_ID = 'P01_Finality_Result';
  */
 export class FinalityValidator {
   private ruleSet: any;
-  private ruleEngineVersion: string;
+  // Note: This version refers to the Finality structure generator, not the Rule Evaluator version.
+  private finalityStructureVersion: string;
 
   constructor(ruleSet: any) {
     this.ruleSet = ruleSet;
-    this.ruleEngineVersion = 'v1.1';
+    this.finalityStructureVersion = 'v1.1';
   }
 
   /**
@@ -34,11 +45,12 @@ export class FinalityValidator {
    * @returns {object} P01_Finality_Result conforming object.
    */
   public calculate(proposalState: any): any {
-    // 1. Determine status based on governance rules
-    const status = this._determineStatus(proposalState);
+    // 1. Determine status based on governance rules, delegated to the RuleEvaluator plugin
+    const status = RuleEvaluator.evaluate(proposalState, this.ruleSet);
     const finalizedAt = new Date().toISOString();
     
     // 2. Use a hash-derived identifier instead of non-deterministic Date.now() for resultId
+    // Using proposal ID and finalizedAt time stamp ensures uniqueness for this specific finalization event.
     const uniqueNonce = HashingUtility.generateCanonicalHash(proposalState.id, finalizedAt).substring(0, 12);
     
     const rawResult = {
@@ -46,14 +58,14 @@ export class FinalityValidator {
       governanceReferenceId: proposalState.id,
       finalityStatus: status.status,
       finalizedAt: finalizedAt,
-      ruleEngineVersion: this.ruleEngineVersion,
+      ruleEngineVersion: this.finalityStructureVersion,
       triggeringCriterion: status.criterion,
       details: status.details || {}
     };
 
     // 3. Create the canonical audit hash based on the deterministic inputs and rules.
-    // Replaced calculateAuditHash with HashingUtility.generateCanonicalHash
-    rawResult.auditHash = HashingUtility.generateCanonicalHash(
+    // The hash ensures integrity and verifiability of the final result.
+    rawResult.auditHash = HressingUtility.generateCanonicalHash(
       rawResult, 
       proposalState, 
       this.ruleSet
@@ -71,24 +83,5 @@ export class FinalityValidator {
     }
 
     return rawResult;
-  }
-
-  /**
-   * Determines the finality status by evaluating proposal state against rules.
-   */
-  private _determineStatus(proposalState: any): { status: string, criterion: string, details?: any } {
-    // Complex logic based on this.ruleSet, checking votes, time limits, and policy violations.
-    // This should ideally leverage CriteriaEvaluatorUtility or AxiomRuleEngineTool.
-    
-    if (proposalState.votes && proposalState.votes.inFavor > this.ruleSet.quorum) {
-      return { status: 'EXECUTED_SUCCESS', criterion: 'SupermajorityMet', details: { required: this.ruleSet.quorum } };
-    }
-    
-    if (proposalState.deadline && new Date(proposalState.deadline) < new Date()) {
-        return { status: 'EXPIRED', criterion: 'DeadlinePassed' };
-    }
-
-    // ... more rules
-    return { status: 'PENDING', criterion: 'NotApplicable' }; 
   }
 }
