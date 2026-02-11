@@ -3,6 +3,11 @@
  */
 
 /**
+ * Defines the constant identifier for the AGCA Protocol-Compliant Trust Model (PCTM) Asset, version 1.
+ */
+const AGCA_PCTM_V1_ID = 'AGCA_PCTM_V1' as const;
+
+/**
  * A reusable type alias for generic JSON-compatible configuration payloads.
  */
 export type AGCA_ConfigurationPayload = Record<string, unknown>;
@@ -26,7 +31,7 @@ export interface AGCA_PCTM_V1_Metadata {
     /** Identifier of the sovereign entity (Agent) that issued/owns this configuration. */
     readonly owner_agent: string;
     /** Standard identifier (Must be "AGCA_PCTM_V1"). */
-    readonly pctm_standard_id: 'AGCA_PCTM_V1';
+    readonly pctm_standard_id: typeof AGCA_PCTM_V1_ID;
 }
 
 /**
