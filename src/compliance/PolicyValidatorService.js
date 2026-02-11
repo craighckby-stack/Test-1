@@ -1,6 +1,6 @@
-import fs from 'fs/promises';
 import { Logger } from '../utils/Logger.js';
 import { SchemaValidationEngine } from '../utils/SchemaValidationEngine.js'; // Assumed import for the extracted tool
+import { SafeFileLoader } from '../utils/SafeFileLoader.js'; // Conceptual Import for the new plugin
 import {
     AJV_BASE_CONFIG,
     MINIMAL_FALLBACK_SCHEMA,
@@ -18,17 +18,20 @@ export class PolicyValidatorService {
      * @param {Logger} [dependencies.logger] - Logger instance.
      * @param {string} [dependencies.defaultSchemaPath] - Override for primary schema path.
      * @param {SchemaValidationEngine} [dependencies.schemaEngine] - Pre-initialized validation engine.
+     * @param {SafeFileLoader} [dependencies.fileLoader] - Utility for safe file loading.
      */
     constructor({
         logger = new Logger('PolicyValidator'),
         defaultSchemaPath = DEFAULT_GOVERNANCE_SCHEMA_PATH,
-        schemaEngine = new SchemaValidationEngine(AJV_BASE_CONFIG)
+        schemaEngine = new SchemaValidationEngine(AJV_BASE_CONFIG),
+        fileLoader = new SafeFileLoader({ logger })
     } = {}) {
         this.log = logger;
         this.schemaPath = defaultSchemaPath;
 
         // The validation engine handles AJV specifics (compilation, caching)
         this.schemaEngine = schemaEngine;
+        this.fileLoader = fileLoader;
 
         // Define standardized IDs for easier management
         this.primarySchemaId = null;
@@ -57,8 +60,13 @@ export class PolicyValidatorService {
         }
 
         try {
-            const schemaContent = await fs.readFile(this.schemaPath, 'utf-8');
-            const primarySchema = JSON.parse(schemaContent);
+            this.log.debug(`Attempting to load primary schema from ${this.schemaPath}`);
+            
+            // Use abstracted file loading logic
+            const primarySchema = await this.fileLoader.loadJson(
+                this.schemaPath,
+                'Primary Governance Schema'
+            );
 
             const schemaId = primarySchema.$id || 'main-governance-schema';
             this.primarySchemaId = schemaId;
@@ -69,15 +77,8 @@ export class PolicyValidatorService {
             this.log.info(`Primary governance schema loaded successfully from ${this.schemaPath}`);
 
         } catch (error) {
-            const pathMsg = `Path: ${this.schemaPath}`;
-
-            if (error.code === 'ENOENT') {
-                 this.log.warn(`Primary schema file not found. ${pathMsg}. Falling back.`);
-            } else if (error instanceof SyntaxError) {
-                 this.log.error(`Primary schema is invalid JSON. ${pathMsg}. Falling back. Error: ${error.message}`);
-            } else {
-                 this.log.error(`Could not initialize primary schema. ${pathMsg}. Falling back. Error: ${error.message}`);
-            }
+            // Error messages are standardized and descriptive due to SafeFileLoader
+            this.log.warn(`Initialization failed. ${error.message}. Falling back.`);
 
             // Set the active schema ID to the fallback ID
             this.primarySchemaId = this.fallbackSchemaId;
