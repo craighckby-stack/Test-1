@@ -18,10 +18,19 @@ declare const RoleThresholdScorer: {
     };
 };
 
+// Assuming GovernanceThresholdManager plugin is globally available after initialization
+declare const GovernanceThresholdManager: {
+    new (): {
+        loadModel(authModel: any): void;
+        isTransitionExempt(transitionIdentifier: string): boolean;
+        scoreCredentials(providedRoles: string[] | null): { score: number, required: number, met: boolean, error?: string };
+    }
+};
+
 class SMCTransitionEnforcer {
 
     private _protocolSpecs: Record<string, { allowed_commands: Set<string>, next_states: Set<string> }>;
-    private _authSpecs: { required_roles: Set<string>, exempt_transitions: Set<string>, required_threshold: number };
+    private _authManager: GovernanceThresholdManager; // Use the abstracted plugin
 
     /**
      * Standardized machine-readable status codes.
@@ -47,7 +56,10 @@ class SMCTransitionEnforcer {
         }
         
         this._protocolSpecs = this._processProtocolMap(spec.protocol_map);
-        this._authSpecs = this._processAuthorizationModel(spec.authorization_model);
+        
+        // Delegation of authorization model setup
+        this._authManager = new GovernanceThresholdManager();
+        this._authManager.loadModel(spec.authorization_model);
     }
 
     /**
@@ -64,23 +76,6 @@ class SMCTransitionEnforcer {
             };
         }
         return processedMap;
-    }
-
-    /**
-     * Converts authorization arrays into Sets and extracts the minimum threshold.
-     * @param {object} authModel
-     * @returns {object}
-     */
-    private _processAuthorizationModel(authModel: any): {
-        required_roles: Set<string>;
-        exempt_transitions: Set<string>;
-        required_threshold: number;
-    } {
-        return {
-            required_roles: new Set(authModel.required_roles || []),
-            exempt_transitions: new Set(authModel.exempt_transitions || []),
-            required_threshold: authModel.minimum_signature_threshold || 1
-        };
     }
 
     /**
@@ -132,7 +127,7 @@ class SMCTransitionEnforcer {
 
     /**
      * Checks credentials against the required roles and governance threshold set in the specification.
-     * This method now delegates the threshold counting logic to the RoleThresholdScorer plugin.
+     * This method now delegates the specification management and threshold counting logic to the GovernanceThresholdManager plugin.
      * @param {string} current
      * @param {string} target
      * @param {object} credentials
@@ -140,29 +135,21 @@ class SMCTransitionEnforcer {
      */
     private _validateAuthorization(current: string, target: string, credentials: any): { valid: boolean, reason: string, code: string } {
         const { StatusCodes } = SMCTransitionEnforcer;
-        const { required_roles, exempt_transitions, required_threshold } = this._authSpecs;
 
         const transitionIdentifier = `${current} -> ${target}`;
         
         // 4a. Check for Exemption
-        if (exempt_transitions.has(transitionIdentifier)) { 
+        if (this._authManager.isTransitionExempt(transitionIdentifier)) { 
             return this._success(StatusCodes.AUTH_EXEMPT, "Transition exempted from governance threshold checks.");
         }
 
-        // 4b. Credentials Format Check
-        if (!credentials || !Array.isArray(credentials.roles)) {
-             return this._fail(StatusCodes.AUTH_ERROR, "Required credentials ('roles' array) missing for threshold transition.");
-        }
+        const providedRoles = credentials ? credentials.roles : null;
         
-        // 4c. Threshold Enforcement using the external RoleThresholdScorer plugin (O(N) iteration over provided roles)
-        const scoringResult = RoleThresholdScorer.execute({
-            requiredRolesSet: required_roles,
-            providedRoles: credentials.roles,
-            requiredThreshold: required_threshold
-        });
+        // 4b/4c. Threshold Enforcement using the plugin
+        const scoringResult = this._authManager.scoreCredentials(providedRoles);
 
         if (scoringResult.error) {
-             return this._fail(StatusCodes.AUTH_ERROR, `Scoring Error: ${scoringResult.error}`);
+             return this._fail(StatusCodes.AUTH_ERROR, `Authorization Check Failed: ${scoringResult.error}`);
         }
 
         if (!scoringResult.met) {
@@ -182,19 +169,17 @@ class SMCTransitionEnforcer {
      * @param {string} reason
      * @returns {{valid: boolean, reason: string, code: string}}
      */
-    private _success(code: string, reason: string): { valid: boolean, reason: string, code: string } {
-        return { valid: true, reason: reason, code: code };
+    private _success(code: string, reason: string) {
+        return { valid: true, reason, code };
     }
 
     /**
      * Helper to generate standardized failure responses.
-     * @param {string} code - Machine readable error code.
-     * @param {string} reason - Human readable reason.
+     * @param {string} code
+     * @param {string} reason
      * @returns {{valid: boolean, reason: string, code: string}}
      */
-    private _fail(code: string, reason: string): { valid: boolean, reason: string, code: string } {
-        return { valid: false, reason: `SMC_FAIL (${code}): ${reason}`, code: code };
+    private _fail(code: string, reason: string) {
+        return { valid: false, reason, code };
     }
 }
-
-module.exports = SMCTransitionEnforcer;
