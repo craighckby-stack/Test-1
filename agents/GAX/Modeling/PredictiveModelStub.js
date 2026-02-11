@@ -52,9 +52,9 @@ class PredictiveModelStub {
             throw new Error("Required KERNEL capability 'PredictiveStubEngine' is missing or malformed.");
         }
 
-        // Delegate the core stub calculation logic to the KERNEL Tooling system
-        // Refactored to use KERNEL_SYNERGY_CAPABILITIES.CapabilityName.execute(args)
-        result = await KERNEL_SYNERGY_CAPABILITIES.PredictiveStubEngine.execute(features);
+        // Delegate the core stub calculation logic to the KERNEL Tooling system.
+        // Standardized execution uses the operation verb 'predict'.
+        result = await KERNEL_SYNERGY_CAPABILITIES.PredictiveStubEngine.execute('predict', features);
         
         return result;
     }
