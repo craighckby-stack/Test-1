@@ -1,5 +1,6 @@
 declare const PayloadSizeChecker: { execute: (args: { request: unknown, limit: number, unit?: string }) => boolean; };
 
+// --- Constraint Definitions ---
 export class ConstraintViolationError extends Error {
   public constraintType: string;
   
@@ -20,16 +21,36 @@ export interface ConstraintDefinition {
 // Defines the optimized lookup structure: Map<"serviceName/methodName", ConstraintDefinition[]>
 export type IndexedConstraintMap = Map<string, ConstraintDefinition[]>; 
 
+// --- Plugin Interface Definitions ---
+
+export interface ConstraintCheckResult {
+    isViolated: boolean;
+    violationMessage?: string;
+}
+
+export interface IConstraintChecker {
+    /** The type of constraint this checker handles (e.g., 'payload_size'). */
+    readonly constraintType: string; 
+    /** Executes the check against the request and constraint definition. */
+    execute(constraint: ConstraintDefinition, request: unknown): ConstraintCheckResult;
+}
+
+// --- Gax Constraint Enforcer (Refactored) ---
+
 export class GaxConstraintEnforcer {
-  // The enforcer relies on a pre-indexed, strongly typed constraint map.
   private indexedConstraints: IndexedConstraintMap;
+  private checkers: Map<string, IConstraintChecker>;
 
   /**
-   * Initializes the enforcer with a pre-indexed map of constraints.
+   * Initializes the enforcer with pre-indexed constraints and a set of constraint checkers.
    * Indexing logic (inheritance, merging) must occur externally.
    */
-  constructor(indexedConstraints: IndexedConstraintMap) {
+  constructor(indexedConstraints: IndexedConstraintMap, checkers: IConstraintChecker[]) {
     this.indexedConstraints = indexedConstraints;
+    this.checkers = new Map();
+    for (const checker of checkers) {
+      this.checkers.set(checker.constraintType, checker);
+    }
   }
 
   /**
@@ -38,27 +59,20 @@ export class GaxConstraintEnforcer {
   public enforce(serviceName: string, methodName: string, request: unknown): void {
     const constraints = this.getEffectiveConstraints(serviceName, methodName);
 
-    if (constraints.length === 0) {
-      return; 
-    }
-
     for (const constraint of constraints) {
-      switch (constraint.type) {
-        case 'rate_limit':
-          // Implementation requires integrating a stateful rate limiter utility.
-          if (!this.checkRateLimit(serviceName, methodName)) {
-            throw new ConstraintViolationError('Rate limit exceeded for method call', constraint.type);
-          }
-          break;
-        case 'payload_size':
-          const limit = constraint.value as number;
-          if (this.checkPayloadSize(request, limit, constraint.unit)) {
-             throw new ConstraintViolationError(`Payload size (${limit} ${constraint.unit || 'bytes'}) exceeded limit`, constraint.type);
-          }
-          break;
-        // Further validation cases (e.g., 'timeout', 'field_pattern') can be added here.
-        default:
-          console.warn(`[GaxConstraintEnforcer] Skipping unknown constraint type: ${constraint.type}`);
+      const checker = this.checkers.get(constraint.type);
+
+      if (!checker) {
+        // If a constraint is defined but no checker exists, skip it but log a warning
+        console.warn(`[GaxConstraintEnforcer] Skipping constraint '${constraint.type}'. No checker registered.`);
+        continue;
+      }
+
+      const result = checker.execute(constraint, request);
+
+      if (result.isViolated) {
+        const message = result.violationMessage || `Constraint violation of type '${constraint.type}' detected.`;
+        throw new ConstraintViolationError(message, constraint.type);
       }
     }
   }
@@ -69,25 +83,5 @@ export class GaxConstraintEnforcer {
   private getEffectiveConstraints(serviceName: string, methodName: string): ConstraintDefinition[] {
     const key = `${serviceName}/${methodName}`;
     return this.indexedConstraints.get(key) || [];
-  }
-
-  // --- Stub Implementations for Runtime Checks ---
-
-  private checkRateLimit(serviceName: string, methodName: string): boolean {
-    // TRUE if the call is allowed.
-    // Requires external RateLimiter instance injection.
-    return true; 
-  }
-  
-  private checkPayloadSize(request: unknown, limit: number, unit?: string): boolean {
-    // TRUE if the request violates the size limit.
-    // Leverages the external PayloadSizeChecker tool.
-    try {
-      return PayloadSizeChecker.execute({ request, limit, unit }); 
-    } catch (e) {
-      // Handle tool execution failure (e.g., serialization error inside tool)
-      // Treat failure to check as a violation for robust enforcement.
-      return true; 
-    }
   }
 }
