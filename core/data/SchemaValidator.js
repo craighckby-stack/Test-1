@@ -17,22 +17,22 @@ declare var plugins: {
 };
 
 class SchemaValidator {
+    // Encapsulate the critical plugin dependency using a private field.
+    #validator: typeof plugins.DataSchemaValidator | undefined;
 
-    /**
-     * Attempts to retrieve the DataSchemaValidator plugin instance safely.
-     * @private
-     * @returns {typeof plugins.DataSchemaValidator | undefined}
-     */
-    private _getValidatorPlugin(): typeof plugins.DataSchemaValidator | undefined {
+    constructor() {
+        // Resolve the dependency once during initialization, optimizing subsequent lookups
+        // and enforcing structural encapsulation.
         if (typeof plugins !== 'undefined' && plugins.DataSchemaValidator) {
-            return plugins.DataSchemaValidator;
+            this.#validator = plugins.DataSchemaValidator;
+        } else {
+            this.#validator = undefined;
         }
-        return undefined;
     }
 
     /**
      * Retrieves a schema definition based on the primitive type identifier.
-     * NOTE: Schemas are now managed externally by the DataSchemaValidator plugin.
+     * NOTE: Schemas are managed externally by the DataSchemaValidator plugin.
      * This method is deprecated internally but kept for potential external compatibility.
      * @param _primitiveType - The key identifier for the required schema (ignored).
      * @returns {null} Always returns null as schemas are externalized.
@@ -59,7 +59,7 @@ class SchemaValidator {
      * @returns {ValidationResult} Validation result object, including detailed errors.
      */
     validate(data: any, primitiveType: string): ValidationResult {
-        const validator = this._getValidatorPlugin();
+        const validator = this.#validator;
 
         if (validator) {
             try {
