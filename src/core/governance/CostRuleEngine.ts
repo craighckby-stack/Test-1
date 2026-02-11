@@ -1,7 +1,7 @@
 /**
  * Interface for granular performance or resource usage metrics.
  */
-interface GovernanceMetric {
+export interface IGovernanceMetric {
     id: string;
     value: number;
     baseCost: number;
@@ -12,57 +12,96 @@ interface GovernanceMetric {
 /**
  * Interface for cost constraints and penalty factors.
  */
-interface CostRule {
+export interface ICostRule {
     metricId: string;
     limit: number;
     penaltyFactor: number;
 }
 
-// Maps for O(1) lookup (Optimization Goal 3)
-type RulesMap = Map<string, CostRule>;
-type MetricsMap = Map<string, GovernanceMetric>;
-
-// Helper type for the external plugin interface
-declare const FunctionMemoizerUtility: {
-    memoize: <T extends (...args: any[]) => any>(fn: T, serializer?: (args: any[]) => string) => T;
-};
+// Maps for O(1) lookup
+type RulesMap = Map<string, ICostRule>;
+type MetricsMap = Map<string, IGovernanceMetric>;
 
 /**
- * NOTE: MetricCostCalculator is sourced from the AGI-KERNEL plugin layer.
- * It abstracts the core logic for calculating costs based on rules and limits.
+ * Registry interface for sourcing Governance Cost Rules.
  */
-declare class MetricCostCalculator {
-    public static calculate(
-        metric: GovernanceMetric, 
-        rule: CostRule | undefined, 
-        observedValue: number
-    ): number;
+export interface ICostRuleConfigRegistryKernel {
+    getCostRules(): Promise<ICostRule[]>;
 }
 
 /**
- * The Cost Rule Engine, optimized for computational efficiency and recursive abstraction.
- * Applies memoization, hash lookups, and functional iteration patterns.
+ * Registry interface for sourcing Governance Metrics configuration.
  */
-class CostRuleEngine {
+export interface IGovernanceMetricConfigRegistryKernel {
+    getGovernanceMetrics(): Promise<IGovernanceMetric[]>;
+}
+
+/**
+ * The Cost Rule Engine Kernel.
+ * Refactored to eliminate synchronous configuration storage and synchronous coupling
+ * to external utilities via strict Dependency Injection and asynchronous initialization.
+ */
+export class CostRuleEngineKernel {
+    // Dependencies
+    private rulesRegistry: ICostRuleConfigRegistryKernel;
+    private metricsRegistry: IGovernanceMetricConfigRegistryKernel;
+    private memoizerTool: IFunctionMemoizerToolKernel;
+    private calculatorTool: IMetricCostCalculatorToolKernel;
+
+    // Internal State (Initialized asynchronously)
     private rulesMap: RulesMap;
     private metricsMap: MetricsMap;
-    // Goal 1: Memoization applied to the core calculation function.
     private calculateMetricCostMemoized: (metricId: string, value: number) => number;
 
     /**
-     * Initializes the engine, transforming input arrays into hash maps for O(1) access
-     * and setting up memoized cost calculation functions.
-     * @param rules Array of rules.
-     * @param metrics Array of metrics.
+     * Initializes the kernel by injecting all necessary dependencies.
+     * Configuration loading (Rules and Metrics) is deferred to the asynchronous initialize() method.
      */
-    constructor(rules: CostRule[], metrics: GovernanceMetric[]) {
-        // Goal 3: Utilize efficient data structures (Hash Maps/Maps) for O(1) lookups
+    constructor(
+        rulesRegistry: ICostRuleConfigRegistryKernel,
+        metricsRegistry: IGovernanceMetricConfigRegistryKernel,
+        memoizerTool: IFunctionMemoizerToolKernel,
+        calculatorTool: IMetricCostCalculatorToolKernel
+    ) {
+        this.#setupDependencies(rulesRegistry, metricsRegistry, memoizerTool, calculatorTool);
+    }
+
+    /**
+     * Rigorously isolates synchronous dependency assignment and validation.
+     */
+    #setupDependencies(
+        rulesRegistry: ICostRuleConfigRegistryKernel,
+        metricsRegistry: IGovernanceMetricConfigRegistryKernel,
+        memoizerTool: IFunctionMemoizerToolKernel,
+        calculatorTool: IMetricCostCalculatorToolKernel
+    ): void {
+        if (!rulesRegistry || !metricsRegistry || !memoizerTool || !calculatorTool) {
+            throw new Error("CostRuleEngineKernel: All dependencies (Registries, Tools) must be provided.");
+        }
+        this.rulesRegistry = rulesRegistry;
+        this.metricsRegistry = metricsRegistry;
+        this.memoizerTool = memoizerTool;
+        this.calculatorTool = calculatorTool;
+        
+        // Initialize internal state placeholder
+        this.rulesMap = new Map(); 
+        this.metricsMap = new Map();
+        this.calculateMetricCostMemoized = (() => { throw new Error("CostRuleEngineKernel not initialized. Call initialize() first."); }) as any;
+    }
+
+    /**
+     * Asynchronously loads configuration data, builds internal maps, and sets up memoization.
+     */
+    public async initialize(): Promise<void> {
+        const rules = await this.rulesRegistry.getCostRules();
+        const metrics = await this.metricsRegistry.getGovernanceMetrics();
+
+        // Utilize efficient data structures (Hash Maps/Maps) for O(1) lookups
         this.rulesMap = new Map(rules.map(r => [r.metricId, r]));
         this.metricsMap = new Map(metrics.map(m => [m.id, m]));
         
-        // Goal 1 & 2: Implement Memoization and Recursive Abstraction setup
-        // Memoize the core calculation function based on metricId and value.
-        this.calculateMetricCostMemoized = FunctionMemoizerUtility.memoize(
+        // Implement Memoization using the injected tool
+        this.calculateMetricCostMemoized = this.memoizerTool.memoize(
             this.calculateMetricCostAbstraction.bind(this),
             // Custom simple serializer for key generation (metricId:value)
             (args: [string, number]) => `${args[0]}:${args[1]}` 
@@ -70,9 +109,8 @@ class CostRuleEngine {
     }
 
     /**
-     * Core cost calculation logic (Recursive Abstraction - Step 1/2).
-     * This function performs O(1) lookups and delegates the pure calculation
-     * to the MetricCostCalculator plugin, making it cleaner and more focused.
+     * Core cost calculation logic. Performs O(1) lookups and delegates the pure calculation
+     * to the injected MetricCostCalculator Tool.
      * @param metricId The ID of the metric being evaluated.
      * @param value The current value of the metric.
      * @returns The calculated cost.
@@ -86,19 +124,17 @@ class CostRuleEngine {
 
         const rule = this.rulesMap.get(metricId); // O(1) lookup
 
-        // Delegate pure calculation logic to the abstracted plugin
-        return MetricCostCalculator.calculate(metric, rule, value);
+        // Delegate pure calculation logic to the injected tool
+        return this.calculatorTool.calculate(metric, rule, value);
     }
 
     /**
      * Calculates the total governance cost by aggregating the costs of all metrics.
-     * Goal 4 & 5: Minimize iterations using functional methods (reduce).
      * @returns The total aggregated cost.
      */
     public calculateTotalGovernanceCost(): number {
-        // Use functional iteration (reduce) instead of traditional loops.
+        // Use functional iteration (reduce) and the memoized function for efficiency
         return Array.from(this.metricsMap.values()).reduce((totalCost, metric) => {
-            // Use the memoized function for efficiency
             const metricCost = this.calculateMetricCostMemoized(metric.id, metric.value);
             return totalCost + metricCost;
         }, 0);
