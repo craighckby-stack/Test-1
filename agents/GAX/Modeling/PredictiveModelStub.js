@@ -49,11 +49,26 @@ class PredictiveModelStub {
 
     /**
      * Handles lookup, validation, and execution delegation for KERNEL capabilities.
-     * This centralized logic replaces redundant checks in the original 'predict' method.
+     * This method now focuses purely on utilizing the validated engine instance.
      * @private
      * @static
      */
     static async #executeCapability(capabilityKey, method, features, registry) {
+        // 1. Run validation and retrieve the interface engine instance.
+        const engine = PredictiveModelStub.#getValidatedEngine(capabilityKey, registry);
+
+        // 2. Delegate execution
+        return engine.execute(method, features);
+    }
+    
+    /**
+     * Executes critical pre-flight checks and retrieves the validated KERNEL capability engine.
+     * Separates dependency validation (registry/capability presence and interface structure)
+     * from the execution delegation logic.
+     * @private
+     * @static
+     */
+    static #getValidatedEngine(capabilityKey, registry) {
         // 1. Validate Registry presence
         if (!registry) {
              throw new Error("SYNERGY REGISTRY Error: KERNEL_SYNERGY_CAPABILITIES is missing entirely. Cannot delegate execution.");
@@ -73,9 +88,7 @@ class PredictiveModelStub {
                 `SYNERGY REGISTRY Interface Error: Capability '${capabilityKey}' found, but it does not expose the required 'execute(method, features)' function interface.`
             );
         }
-
-        // 4. Delegate execution
-        return engine.execute(method, features);
+        return engine;
     }
 }
 
