@@ -1,12 +1,17 @@
 /**
- * src/governance/enforcement/GovernanceMetricProcessor.ts
+ * src/governance/enforcement/GovernanceMetricProcessorKernel.ts
  * 
  * Defines the core mechanism for evaluating governance metrics against defined enforcement rules.
- * Uses generics for maximum flexibility and type safety across different metric formats.
+ * This Kernel delegates metric evaluation to the high-integrity IRuleEvaluationEngineToolKernel.
  */
+
+import { ILoggerToolKernel } from "@core/logging/ILoggerToolKernel";
+import { IRuleEvaluationEngineToolKernel } from "@core/rule-engine/IRuleEvaluationEngineToolKernel";
+import { IStrategyRegistryToolKernel } from "@core/strategy/IStrategyRegistryToolKernel";
 
 /**
  * Defines the necessary structure for any data point representing a metric.
+ * This matches the GovernanceMetric definition for compatibility.
  */
 export interface GovernanceMetric {
     id: string;
@@ -16,102 +21,119 @@ export interface GovernanceMetric {
 }
 
 /**
- * Defines the contract for an enforcement rule capable of checking a metric.
- * TRuleConfig allows for rule-specific configuration details.
- */
-export interface EnforcementRule<TMetric extends GovernanceMetric, TRuleConfig = any> {
-    readonly ruleId: string;
-    readonly enforcementAction: 'WARN' | 'ENFORCE' | 'IGNORE';
-    readonly config: TRuleConfig;
-
-    /**
-     * Evaluates the metric against the rule criteria.
-     * @param metric The metric data point to evaluate.
-     * @returns True if the metric violates the rule, false otherwise.
-     */
-    evaluate(metric: TMetric): boolean;
-}
-
-/**
- * The outcome of processing a single metric.
+ * The outcome of processing a single metric, aligned with strategic governance reporting standards.
  */
 export interface ProcessingResult {
     metricId: string;
     isViolation: boolean;
     violatingRules: Array<{
         ruleId: string;
-        action: 'WARN' | 'ENFORCE';
+        action: 'WARN' | 'ENFORCE'; // Only actionable results are reported
     }>;
     processedTimestamp: number;
 }
 
+interface GovernanceMetricProcessorDependencies {
+    logger: ILoggerToolKernel;
+    ruleEvaluationEngine: IRuleEvaluationEngineToolKernel;
+    strategyRegistry: IStrategyRegistryToolKernel;
+}
+
 /**
- * Core class responsible for managing and applying rulesets to incoming governance metrics.
- * @template TMetric - The specific type of metric being processed.
+ * Core Kernel responsible for managing the application of a designated ruleset 
+ * (identified by configuration ID) to incoming governance metrics.
+ * 
+ * @template TMetric - The specific type of metric being processed, extending GovernanceMetric.
  */
-export class GovernanceMetricProcessor<TMetric extends GovernanceMetric> {
-    private ruleset: Array<EnforcementRule<TMetric>>;
+export class GovernanceMetricProcessorKernel<TMetric extends GovernanceMetric> {
+    private logger: ILoggerToolKernel;
+    private ruleEvaluationEngine: IRuleEvaluationEngineToolKernel;
+    private strategyRegistry: IStrategyRegistryToolKernel;
+    
+    // The ID referencing the active ruleset configuration within the StrategyRegistry
+    private activeRulesetConfigId: string | null = null;
 
     /**
-     * Initializes the processor with a set of pre-configured rules.
-     * @param initialRules - The set of rules used for evaluation.
+     * Initializes the kernel with high-integrity tool dependencies.
      */
-    constructor(initialRules: Array<EnforcementRule<TMetric>> = []) {
-        this.ruleset = initialRules;
-        // Note: In a kernel environment, logging should use dedicated kernel logging facilities.
-        // console.log(`GovernanceMetricProcessor initialized with ${this.ruleset.length} rules.`);
+    constructor(dependencies: GovernanceMetricProcessorDependencies) {
+        this.logger = dependencies.logger;
+        this.ruleEvaluationEngine = dependencies.ruleEvaluationEngine;
+        this.strategyRegistry = dependencies.strategyRegistry;
     }
 
     /**
-     * Dynamically adds or replaces the current ruleset.
-     * This method is crucial for hot-swapping governance policy without service restart.
-     * @param newRules - The new ruleset to use.
+     * Asynchronously initializes the kernel, loading the default ruleset ID.
+     * @param defaultRulesetId - The initial configuration ID for metric evaluation rules.
      */
-    public setRuleset(newRules: Array<EnforcementRule<TMetric>>): void {
-        this.ruleset = newRules;
-        // console.info(`Ruleset updated. Total rules: ${this.ruleset.length}`);
+    public async initialize(defaultRulesetId: string): Promise<void> {
+        if (!defaultRulesetId) {
+            throw new Error("GovernanceMetricProcessorKernel requires a default ruleset ID for initialization.");
+        }
+        
+        // Validation of ruleset presence or structure should occur within the StrategyRegistry/RuleEngine.
+        this.activeRulesetConfigId = defaultRulesetId;
+        
+        await this.logger.info(`GovernanceMetricProcessorKernel initialized. Active ruleset: ${this.activeRulesetConfigId}`, {
+            component: 'GMPK',
+            action: 'INITIALIZE'
+        });
     }
 
     /**
-     * Processes a single metric against all active rules.
-     * Rule evaluation must be synchronous and idempotent for reliability.
-     * @param metric - The metric data point to evaluate.
-     * @returns The structured processing result.
+     * Dynamically updates the active ruleset ID using the strategy registry for verification.
+     * This is crucial for hot-swapping governance policy without service restart.
+     * @param newRulesetConfigId - The new ruleset configuration ID to use.
      */
-    public processMetric(metric: TMetric): ProcessingResult {
-        const violatingRules: ProcessingResult['violatingRules'] = [];
-
-        for (const rule of this.ruleset) {
-            if (rule.evaluate(metric)) {
-                if (rule.enforcementAction !== 'IGNORE') {
-                    violatingRules.push({
-                        ruleId: rule.ruleId,
-                        action: rule.enforcementAction,
-                    });
-                }
-            }
+    public async setRuleset(newRulesetConfigId: string): Promise<void> {
+        if (!newRulesetConfigId) {
+             await this.logger.warn("Attempted to set an empty ruleset configuration ID.", { component: 'GMPK' });
+             return; 
         }
 
-        const isViolation = violatingRules.length > 0;
+        // Strategic Mandate: Use IStrategyRegistryToolKernel to ensure the new ID is valid and registered.
+        const isValid = await this.strategyRegistry.validateStrategyId(newRulesetConfigId);
+        
+        if (isValid) {
+            this.activeRulesetConfigId = newRulesetConfigId;
+            await this.logger.info(`Ruleset updated successfully. New config ID: ${this.activeRulesetConfigId}`, {
+                component: 'GMPK',
+                action: 'RULE_UPDATE'
+            });
+        } else {
+             await this.logger.error(`VETO: Cannot set ruleset. Configuration ID ${newRulesetConfigId} is invalid or unregistered.`, {
+                component: 'GMPK',
+                action: 'RULE_UPDATE_VETO'
+            });
+             throw new Error(`Invalid ruleset configuration ID: ${newRulesetConfigId}`);
+        }
+    }
 
-        // Note: Real enforcement actions (e.g., API calls, state changes) should be delegated 
-        // to a separate EnforcementDispatcher based on this result object.
+    /**
+     * Processes a single metric against the active ruleset by delegating to the Rule Evaluation Engine.
+     * @param metric - The metric data point to evaluate.
+     * @returns A promise resolving to the structured processing result.
+     */
+    public async processMetric(metric: TMetric): Promise<ProcessingResult> {
+        if (!this.activeRulesetConfigId) {
+            throw new Error("Processor not initialized or activeRulesetConfigId is missing.");
+        }
 
-        return {
-            metricId: metric.id,
-            isViolation,
-            violatingRules,
-            processedTimestamp: Date.now(),
-        };
+        // Delegation to the high-integrity execution tool
+        return this.ruleEvaluationEngine.execute(this.activeRulesetConfigId, metric as GovernanceMetric);
     }
 
     /**
      * Processes a collection of metrics efficiently.
      * @param metrics - Array of metrics to process.
-     * @returns A promise resolving to an array of processing results (async pattern retained for batch processing reporting).
+     * @returns A promise resolving to an array of processing results.
      */
     public async processBatch(metrics: TMetric[]): Promise<ProcessingResult[]> {
-        // Uses standard array mapping since processMetric is synchronously efficient.
-        return metrics.map(metric => this.processMetric(metric));
+        if (!this.activeRulesetConfigId) {
+            throw new Error("Processor not initialized or activeRulesetConfigId is missing.");
+        }
+
+        // Delegation to the batch execution function of the high-integrity tool
+        return this.ruleEvaluationEngine.executeBatch(this.activeRulesetConfigId, metrics as GovernanceMetric[]);
     }
 }
