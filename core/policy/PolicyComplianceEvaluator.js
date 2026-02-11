@@ -40,15 +40,31 @@ class PolicyComplianceEvaluator {
      * @param {SystemActionDispatcher} actionDispatcher - The core dispatcher utility.
      */
     constructor(actionDispatcher) {
-        // 1. Enforce critical dependency injection
+        this.#setupDependencies(actionDispatcher);
+        this.#initializeConfiguration();
+    }
+
+    /**
+     * Enforces critical dependency injection and assignment.
+     * @param {SystemActionDispatcher} actionDispatcher 
+     * @private
+     */
+    #setupDependencies(actionDispatcher) {
         if (!actionDispatcher) {
              throw new Error("PCE requires SystemActionDispatcher for compliance enforcement.");
         }
         this.#actionDispatcher = actionDispatcher;
+    }
 
+    /**
+     * Handles synchronous configuration loading, data preparation (freezing),
+     * and internal plugin instantiation.
+     * @private
+     */
+    #initializeConfiguration() {
         const matrix = APM.AdaptiveDeviationHandling;
 
-        // 2. Optimize Weights: Transform Array into Map/Object for O(1) lookup.
+        // 1. Optimize Weights: Transform Array into Map/Object for O(1) lookup.
         const weightMapInstance = matrix.ADH_Policy_Weights.reduce((acc, weight) => {
             acc[weight.Code] = weight.Weight;
             return acc;
@@ -56,17 +72,47 @@ class PolicyComplianceEvaluator {
         // Enforce immutability
         this.#weightMap = Object.freeze(weightMapInstance);
 
-        // 3. Initialize Core Policy Configuration and enforce immutability
+        // 2. Initialize Core Policy Configuration and enforce immutability
         this.#trustConfig = Object.freeze(APM.TrustDefinitions.T_Adaptive_Thresholds);
 
-        // 4. Initialize deviation scorer plugin
+        // 3. Initialize deviation scorer plugin
         this.#policyScorer = new PolicyDeviationScorer({
             weightMap: this.#weightMap,
             policyMetricMap: this.#policyMetricMap
         });
 
-        // 5. Initialize reaction matcher plugin
+        // 4. Initialize reaction matcher plugin
         this.#reactionMatcher = new ThresholdReactionMatcher(matrix.ADH_ReactionMatrix.Thresholds);
+    }
+
+    /**
+     * Delegates action execution to the SystemActionDispatcher dependency.
+     * @param {string} action
+     * @param {Object} payload
+     * @private
+     */
+    #delegateToSystemActionDispatcher(action, payload) {
+        this.#actionDispatcher.dispatchAction(action, payload);
+    }
+
+    /**
+     * Delegates score calculation to the PolicyDeviationScorer dependency.
+     * @param {Object} metrics
+     * @returns {number}
+     * @private
+     */
+    #delegateToPolicyScorer(metrics) {
+        return this.#policyScorer.execute({ metrics });
+    }
+
+    /**
+     * Delegates threshold matching to the ThresholdReactionMatcher dependency.
+     * @param {number} score
+     * @returns {{Action: string}|null}
+     * @private
+     */
+    #delegateToReactionMatcher(score) {
+        return this.#reactionMatcher.match(score);
     }
 
     /**
@@ -79,19 +125,19 @@ class PolicyComplianceEvaluator {
         // A. Primary Trust Policy Check (Fast fail evaluation)
         if (metrics.P99_CommitTime_ms > this.#trustConfig.HighLatency.Scale) {
             console.warn(`[PCE Trust Violation] Latency breach: ${metrics.P99_CommitTime_ms}ms.`);
-            this.#actionDispatcher.dispatchAction(this.#trustConfig.HighLatency.Trigger, { type: 'trust_violation', metrics });
+            this.#delegateToSystemActionDispatcher(this.#trustConfig.HighLatency.Trigger, { type: 'trust_violation', metrics });
             return true;
         }
 
         // B. Calculate Composite Deviation Score using the dedicated scorer plugin
-        const deviationScore = this.#policyScorer.execute({ metrics });
+        const deviationScore = this.#delegateToPolicyScorer(metrics);
 
         // C. Determine and Execute Reaction using the abstracted matcher
-        const reaction = this.#reactionMatcher.match(deviationScore);
+        const reaction = this.#delegateToReactionMatcher(deviationScore);
 
         if (reaction) {
             console.warn(`[PCE Deviation] Score: ${deviationScore.toFixed(3)}. Policy Mandate: ${reaction.Action}`);
-            this.#actionDispatcher.dispatchAction(reaction.Action, { score: deviationScore, metrics, context: operationalContext });
+            this.#delegateToSystemActionDispatcher(reaction.Action, { score: deviationScore, metrics, context: operationalContext });
             return true;
         }
         return false;
