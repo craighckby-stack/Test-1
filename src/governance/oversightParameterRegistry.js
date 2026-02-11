@@ -1,67 +1,92 @@
 /**
- * OVERSIGHT PARAMETER REGISTRY (OPR)
+ * OVERSIGHT PARAMETER KERNEL (OPK)
  * Manages the canonical set of governance parameters tied to a specific system state hash.
- * Parameters loaded are treated as immutable for the operational context derived from the hash.
+ * Enforces non-blocking execution and delegates all I/O, integrity checks, and constraint
+ * evaluation to specialized, asynchronous Tool Kernels, ensuring maximum recursive abstraction.
  */
-class OversightParameterRegistry {
+class OversightParameterKernel {
     /**
-     * @param {MutationChainRegistrar} mcr - Source of truth for parameter histories and commitment proofs.
-     * @param {SystemStateVerifier} ssv - Ensures data integrity using cryptographic checks.
-     * @param {Object} config - Configuration object containing governance constraints.
-     * @param {string[]} config.criticalKeys - List of governance keys that require GSEP validation.
-     * @param {KeyConstraintEvaluator} kce - The constraint evaluation plugin instance.
+     * @param {GovernanceSettingsRegistryKernel} configRegistry - Retrieves governance configurations.
+     * @param {IHighEfficiencyStateRetrieverToolKernel} stateRetriever - Fetches immutable state payloads by hash.
+     * @param {HashIntegrityCheckerToolKernel} integrityChecker - Ensures data integrity using cryptographic checks.
+     * @param {IGovernanceConstraintEvaluatorToolKernel} constraintEvaluator - Handles GSEP and critical key constraints.
+     * @param {IMutationChainPersistenceToolKernel} mutationPersister - Delegates mutation proposals.
+     * @param {MultiTargetAuditDisperserToolKernel} auditLogger - Handles auditable logging.
      */
-    constructor(mcr, ssv, config, kce) {
-        this.mcr = mcr;
-        this.ssv = ssv;
-        this.kce = kce; // Inject Key Constraint Evaluator
+    constructor(configRegistry, stateRetriever, integrityChecker, constraintEvaluator, mutationPersister, auditLogger) {
+        this.configRegistry = configRegistry;
+        this.stateRetriever = stateRetriever;
+        this.integrityChecker = integrityChecker;
+        this.constraintEvaluator = constraintEvaluator;
+        this.mutationPersister = mutationPersister;
+        this.auditLogger = auditLogger;
 
-        // Store configuration array for use by the stateless plugin
-        this.criticalKeysConfig = config.criticalKeys || [];
-        
-        // NOTE: The original logic for critical key checks is now delegated to this.kce.
         this.parameters = new Map();
         this.currentStateHash = null;
+        this.criticalKeys = [];
+        this.initialized = false;
+    }
+
+    /**
+     * Initializes the kernel by securely loading critical configuration parameters.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        if (this.initialized) return;
+        
+        // Load configuration asynchronously from the secure registry
+        // Assuming critical keys are stored under 'governance.oversight.criticalKeys'
+        const config = await this.configRegistry.get('governance.oversight.criticalKeys');
+        this.criticalKeys = Array.isArray(config) ? config : [];
+        
+        this.initialized = true;
     }
 
     /**
      * Loads, verifies, and applies the parameter set corresponding to the provided system state hash.
      * This state is treated as immutable for the current operational cycle.
      * @param {string} versionHash - The cryptographic hash identifying the system state.
-     * @returns {Promise<Map<string, *>>} The loaded parameters map.
+     * @returns {Promise<ReadonlyMap<string, *>>} The loaded parameters map.
      */
     async loadState(versionHash) {
-        if (!versionHash || typeof versionHash !== 'string') {
-             throw new Error("OPR_LOAD_ERROR: Invalid version hash provided.");
+        if (!this.initialized) await this.initialize();
+        if (typeof versionHash !== 'string' || versionHash.length === 0) {
+             throw new Error("OPK_LOAD_ERROR: Invalid version hash provided.");
         }
 
-        // 1. Fetch data payload from the MCR storage backend.
-        const rawData = await this._fetchPayload(versionHash);
-
-        // 2. Integrity Verification (SSV confirms data matches hash proof).
-        this.ssv.verifyIntegrity(versionHash, rawData);
+        // 1. Fetch data payload (Delegated I/O)
+        // Replaces _fetchPayload(hash) with IHighEfficiencyStateRetrieverToolKernel
+        const rawData = await this.stateRetriever.getStateByHash(versionHash);
+        
+        // 2. Integrity Verification (Delegated cryptographic check)
+        // Replaces ssv.verifyIntegrity
+        await this.integrityChecker.verifyDataIntegrity(rawData, versionHash);
 
         // 3. Application
         this.parameters = new Map(Object.entries(rawData));
         this.currentStateHash = versionHash;
 
-        return this.parameters;
+        // Ensure the returned map is immutable
+        return Object.freeze(this.parameters);
     }
 
     /**
      * Retrieves a parameter value.
      * @param {string} key - The parameter identifier.
      * @param {*} [defaultValue=undefined] - Value returned if the key is not found.
+     * @returns {*} 
      */
-    get(key, defaultValue = undefined) {
+    async get(key, defaultValue = undefined) {
+        if (!this.initialized) await this.initialize();
+
         if (!this.parameters.has(key)) {
-            // Use the plugin to check if the missing key is critical and log an alert.
-            this.kce.execute({
-                action: 'MISSING_INTEGRITY_CHECK',
-                key: key,
-                criticalKeys: this.criticalKeysConfig,
-                currentStateHash: this.currentStateHash
-            });
+            // Delegate critical key check and logging to the specialized evaluator kernel.
+            // Replaces kce.execute({ action: 'MISSING_INTEGRITY_CHECK', ... })
+            await this.constraintEvaluator.checkMissingParameterIntegrity(
+                key, 
+                this.criticalKeys, 
+                this.currentStateHash
+            );
             return defaultValue;
         }
         return this.parameters.get(key);
@@ -69,40 +94,37 @@ class OversightParameterRegistry {
 
     /**
      * Proposes a new parameter set change.
-     * This method does NOT mutate the currently loaded state but delegates the mutation and consensus
-     * process (GSEP Stage 1/2) to the MCR, resulting in a new immutable state/hash.
+     * This method delegates the mutation and consensus process (GSEP Stage 1/2)
+     * to the IMutationChainPersistenceToolKernel.
      * @param {string} key - Parameter key.
      * @param {*} value - Proposed new value.
+     * @returns {Promise<void>}
      */
-    proposeUpdate(key, value) {
-        // Use the plugin to perform the constraint check. Throws if not critical.
-        this.kce.execute({
-            action: 'PROPOSAL_CHECK',
-            key: key,
-            criticalKeys: this.criticalKeysConfig
+    async proposeUpdate(key, value) {
+        if (!this.initialized) await this.initialize();
+
+        if (!this.currentStateHash) {
+            throw new Error("OPK_PROPOSAL_ERROR: Cannot propose update before loading an initial state hash.");
+        }
+
+        // 1. Perform constraint check (Delegated high-level policy enforcement)
+        // Replaces kce.execute({ action: 'PROPOSAL_CHECK', ... })
+        await this.constraintEvaluator.checkProposalConstraints(
+            key, 
+            value, 
+            this.criticalKeys
+        );
+
+        // 2. Delegate GSEP consensus and subsequent chain commitment.
+        // Replaces mcr.proposeParameterChange
+        await this.mutationPersister.proposeNewParameterState(this.currentStateHash, key, value);
+
+        // 3. Auditable Logging
+        // Replaces console.log
+        await this.auditLogger.recordAudit({
+            eventType: 'GOVERNANCE_PROPOSAL',
+            target: 'OversightParameterKernel',
+            details: { key, value, sourceHash: this.currentStateHash }
         });
-
-        // MCR handles GSEP consensus and subsequent chain commitment.
-        this.mcr.proposeParameterChange(this.currentStateHash, key, value);
-        console.log(`Update proposal registered for ${key}. Awaiting MCR/GSEP resolution.`);
-    }
-
-    /**
-     * Placeholder for secure data fetching logic (from MCR or associated storage layer).
-     * @param {string} hash
-     * @returns {Promise<Object>} Raw parameter object.
-     */
-    async _fetchPayload(hash) {
-        // Simulated MCR interaction involving secure deserialization and verification.
-        // In reality, this requires I/O.
-        await new Promise(resolve => setTimeout(resolve, 5)); // Simulate minimal network latency
-        return {
-            'P01_RISK_FLOOR': 0.75, // Critical
-            'MAX_ENTROPY_DEBT': 100, // Critical
-            'SANDBOX_TIMEOUT_MS': 5000, // Critical
-            'L03_LOGGING_LEVEL': 'INFO' // Example of a non-critical parameter (ignored by proposeUpdate)
-        };
     }
 }
-
-module.exports = OversightParameterRegistry;
