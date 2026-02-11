@@ -34,38 +34,77 @@ type SignatureVerificationResult = {
  */
 class GovernanceValidatorService {
 
-    private keyStore: KeyStoreService;
+    #keyStore: KeyStoreService;
 
     /**
      * @param {KeyStoreService} keyStore - Service managing cryptographic keys and identities.
      */
     constructor(keyStore: KeyStoreService) {
-        this.keyStore = keyStore;
+        this.#keyStore = keyStore;
     }
 
+    // --- I/O Proxy Methods ---
+
+    /** Proxy for KeyStoreService.getPublicKey. */
+    #delegateToKeyStoreGetPublicKey(keyId: string): any {
+        return this.#keyStore.getPublicKey(keyId);
+    }
+
+    /** Proxy for console logging operations. */
+    #logVerificationWarning(message: string): void {
+        console.warn(message);
+    }
+
+    /** Proxy for CanonicalPayloadGenerator execution. */
+    #delegateToCanonicalPayloadGenerator(payload: object): string {
+        return CanonicalPayloadGenerator.generate(payload);
+    }
+
+    /** Proxy for MultiSignatureRoleVerifier execution. */
+    #delegateToMultiSignatureRoleVerifier(
+        dataToVerify: string, 
+        signatures: SignatureCredential[], 
+        verifyCallback: Function
+    ): SignatureVerificationResult {
+        const result = MultiSignatureRoleVerifier.execute({
+            dataToVerify: dataToVerify, 
+            signatures: signatures,
+            verifyCallback: verifyCallback
+        });
+        // Type casting is safely encapsulated here
+        return result as SignatureVerificationResult;
+    }
+
+    /** 
+     * Proxy/MOCK for the actual cryptographic verification engine.
+     * Isolates the external verification call and potential system logging.
+     */
+    #delegateToCryptoVerificationEngine(keyId: string, dataToHash: string, signature: string, publicKey: any): boolean {
+        // In a live system, this would call keyStore.verify(publicKey, dataToHash, signature);
+        this.#logVerificationWarning(`MOCK CRYPTO VERIFICATION: Key ID ${keyId}. (MOCKING SUCCESS)`);
+        return true; 
+    }
+    
     /**
-     * Internal wrapper function to bridge KeyStoreService methods to the verification utility's callback format.
-     * This method handles public key lookup and calls the underlying crypto verification engine.
+     * Internal worker function handling public key lookup and cryptographic verification.
+     * This method is bound and passed to the MultiSignatureRoleVerifier plugin.
      *
      * @param {string} keyId - The ID of the public key.
      * @param {string} dataToHash - The canonical data string.
      * @param {string} signature - The signature to verify.
      * @returns {boolean} True if the signature is valid.
      */
-    private verifyCallback(keyId: string, dataToHash: string, signature: string): boolean {
-        const publicKey = this.keyStore.getPublicKey(keyId);
+    private #executeVerification(keyId: string, dataToHash: string, signature: string): boolean {
+        const publicKey = this.#delegateToKeyStoreGetPublicKey(keyId);
+        
         if (!publicKey) {
-            console.warn(`Verification failed: Public key not found for ID ${keyId}.`);
+            this.#logVerificationWarning(`Verification failed: Public key not found for ID ${keyId}.`);
             return false;
         }
 
-        // --- Placeholder for Cryptographic Verification Logic ---
-        // In a live system, this would call keyStore.verify(publicKey, dataToHash, signature);
-        // We explicitly mock success for testing purposes.
-        console.warn(`MOCK CRYPTO VERIFICATION: Key ID ${keyId}. (MOCKING SUCCESS)`);
-        return true; 
-        // --------------------------------------------------------
+        return this.#delegateToCryptoVerificationEngine(keyId, dataToHash, signature, publicKey);
     }
+
 
     /**
      * Validates cryptographic signatures provided in the credentials object against the transition payload.
@@ -80,21 +119,14 @@ class GovernanceValidatorService {
         signatures: SignatureCredential[]
     ): SignatureVerificationResult {
 
-        // 1. Canonicalize the payload using an existing tool (CanonicalPayloadGenerator)
-        const canonicalData = CanonicalPayloadGenerator.generate(payload);
+        // 1. Canonicalize the payload using an existing tool (isolated via proxy)
+        const canonicalData = this.#delegateToCanonicalPayloadGenerator(payload);
 
-        // 2. Define the verification binding (closure capturing 'this')
-        const boundVerifyCallback = this.verifyCallback.bind(this);
+        // 2. Define the verification binding (binding the internal worker function)
+        const boundVerifyCallback = this.#executeVerification.bind(this);
 
-        // 3. Use the extracted plugin for multi-signature processing and role mapping
-        const result = MultiSignatureRoleVerifier.execute({
-            dataToVerify: canonicalData, 
-            signatures: signatures,
-            verifyCallback: boundVerifyCallback
-        });
-
-        // Type casting is safe here as MultiSignatureRoleVerifier is expected to return this structure
-        return result as SignatureVerificationResult;
+        // 3. Use the extracted plugin for multi-signature processing and role mapping (isolated via proxy)
+        return this.#delegateToMultiSignatureRoleVerifier(canonicalData, signatures, boundVerifyCallback);
     }
 }
 
