@@ -4,13 +4,10 @@ type ErrorContext = 'GENERATION' | 'VALIDATION' | 'LOAD' | 'OPERATION';
  * IntegrityManifestError
  * Custom error class designed to handle structured aggregation of errors,
  * especially those arising from concurrent operations like hashing or validation.
+ * 
+ * IMPORTANT: This error class is strictly a data carrier and does not contain
+ * kernel dependency resolution or complex external formatting logic.
  */
-
-// Attempt to load optional formatting utility from the kernel
-const IntegrityErrorFormatter = (
-  typeof __KERNEL__ !== 'undefined' && __KERNEL__.plugins && __KERNEL__.plugins.IntegrityErrorFormatter
-) ? __KERNEL__.plugins.IntegrityErrorFormatter : null; 
-
 class IntegrityManifestError extends Error {
     public details: string[];
     public context: ErrorContext;
@@ -38,28 +35,20 @@ class IntegrityManifestError extends Error {
 
     /**
      * Provides a consolidated report of the error and all detailed failures 
-     * using the IntegrityErrorFormatter tool, if available.
+     * using internal, basic formatting. External formatting tools should be 
+     * applied by consumers (e.g., LoggerKernel) who have access to strategic tools.
      * @returns {string}
      */
     get fullReport(): string {
-        // Use the external formatter if available and properly typed
-        if (IntegrityErrorFormatter && typeof IntegrityErrorFormatter.formatReport === 'function') {
-            return IntegrityErrorFormatter.formatReport(
-                this.message,
-                this.details,
-                this.context
-            );
-        } else {
-             // Fallback to internal reporting logic
-            let report = `[INTEGRITY FAILURE: ${this.context}] ${this.message}`; 
-            
-            if (this.details.length > 0) {
-                report += '\n\nDetailed Failures (' + this.details.length + ' total):';
-                // Nicer formatting for array details
-                report += this.details.map(detail => `\n -> ${detail}`).join('');
-            }
-            return report;
+        // Internal reporting logic
+        let report = `[INTEGRITY FAILURE: ${this.context}] ${this.message}`;
+
+        if (this.details.length > 0) {
+            report += '\n\nDetailed Failures (' + this.details.length + ' total):';
+            // Nicer formatting for array details
+            report += this.details.map(detail => `\n -> ${detail}`).join('');
         }
+        return report;
     }
 
     /**
