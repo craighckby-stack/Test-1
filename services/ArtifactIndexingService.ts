@@ -2,86 +2,171 @@ import { IndexingPolicy } from '../config/schemas/ArtifactIndexingPolicy.json';
 import { FileWatcher } from '../core/FileSystemWatcher';
 import { VectorDB } from '../data/VectorDatabase';
 
-// Interface definition for the extracted tool (simulating kernel/DI access)
+// Interface definitions (kept for context)
 interface PathPolicyRuleMatcherTool {
     execute(args: { path: string, rules: IndexingPolicy['policies'] }): IndexingPolicy['policies'][number] | null;
 }
 
-// Interface definition for the newly abstracted policy management plugin
 interface ArtifactIndexingPolicyManagerTool {
     getPolicy(): IndexingPolicy;
     getRules(): IndexingPolicy['policies'];
     getDefaultPolicy(): string;
 }
 
-// Assume dependency resolution/injection provides these instances
-declare const PathPolicyRuleMatcher: PathPolicyRuleMatcherTool;
-declare class ArtifactIndexingPolicyManager implements ArtifactIndexingPolicyManagerTool {
-    constructor(policyConfig: IndexingPolicy);
-    getPolicy(): IndexingPolicy;
-    getRules(): IndexingPolicy['policies'];
-    getDefaultPolicy(): string;
+// Utility for internal error handling
+class KernelSetupError extends Error {
+    constructor(message: string) {
+        super(`[ArtifactIndexingKernel Setup Error] ${message}`);
+        this.name = 'KernelSetupError';
+    }
 }
 
-
 /**
- * ArtifactIndexingService
- * Responsible for watching filesystem changes, prioritizing indexing jobs
- * based on the configured policy, managing the content chunking pipeline,
- * and interfacing with the Vector/Keyword database layer.
+ * ArtifactIndexingKernel
+ * Handles filesystem event watching and routing based on defined indexing policies.
+ * Adheres to Kernel architectural standards by isolating state, setup, and I/O.
  */
-export class ArtifactIndexingService {
-    private policyManager: ArtifactIndexingPolicyManagerTool;
-    private watcher: FileWatcher;
-    private vectorDb: VectorDB;
+export class ArtifactIndexingKernel {
+    #policyManager: ArtifactIndexingPolicyManagerTool;
+    #watcher: FileWatcher;
+    #vectorDb: VectorDB;
+    #ruleMatcher: PathPolicyRuleMatcherTool;
+
+    /**
+     * @param policyConfig The indexing policy configuration.
+     * @param vectorDb The vector database instance.
+     * @param ruleMatcherTool The tool for matching paths against policy rules.
+     * @param FileWatcherClass The constructor for the FileWatcher utility.
+     * @param PolicyManagerClass The constructor for the ArtifactIndexingPolicyManager tool.
+     */
+    constructor(
+        policyConfig: IndexingPolicy,
+        vectorDb: VectorDB,
+        ruleMatcherTool: PathPolicyRuleMatcherTool,
+        FileWatcherClass: new () => FileWatcher,
+        PolicyManagerClass: new (config: IndexingPolicy) => ArtifactIndexingPolicyManagerTool
+    ) {
+        this.#setupDependencies(
+            policyConfig,
+            vectorDb,
+            ruleMatcherTool,
+            FileWatcherClass,
+            PolicyManagerClass
+        );
+    }
+
+    // STRATEGIC GOAL 2: Synchronous Setup Extraction
+    #setupDependencies(
+        policyConfig: IndexingPolicy,
+        vectorDb: VectorDB,
+        ruleMatcherTool: PathPolicyRuleMatcherTool,
+        FileWatcherClass: new () => FileWatcher,
+        PolicyManagerClass: new (config: IndexingPolicy) => ArtifactIndexingPolicyManagerTool
+    ): void {
+        if (!policyConfig || !vectorDb || !ruleMatcherTool || !FileWatcherClass || !PolicyManagerClass) {
+            this.#throwSetupError("Missing required configuration, database, or dependency classes.");
+        }
+
+        // Initialize Policy Manager (abstraction of policy configuration/sorting)
+        this.#policyManager = new PolicyManagerClass(policyConfig);
+
+        // Assign remaining dependencies
+        this.#vectorDb = vectorDb;
+        this.#ruleMatcher = ruleMatcherTool;
+
+        // Initialize File Watcher
+        this.#watcher = new FileWatcherClass();
+    }
     
-    constructor(policyConfig: IndexingPolicy, vectorDb: VectorDB) {
-        // CRITICAL: Abstract policy preparation (sorting) into the Policy Manager Plugin
-        // The manager handles sorting the policies by priority on initialization.
-        this.policyManager = new ArtifactIndexingPolicyManager(policyConfig);
-        this.vectorDb = vectorDb;
-        this.watcher = new FileWatcher();
+    // I/O Proxy for Setup Errors
+    #throwSetupError(message: string): never {
+        throw new KernelSetupError(message);
     }
 
-    public startIndexing() {
-        const policy = this.policyManager.getPolicy();
-        console.log(`[IndexingService] Starting watch on artifacts based on v${policy.version} policy.`);
-        
-        this.watcher.watch('.', (path: string, event: 'added' | 'changed' | 'deleted') => {
-            this.handleArtifactChange(path, event);
+    public startIndexing(): void {
+        const policy = this.#delegateToPolicyManagerGetPolicy();
+        this.#logStartMessage(policy.version);
+
+        this.#startWatcher((path: string, event: 'added' | 'changed' | 'deleted') => {
+            this.#handleArtifactChange(path, event);
         });
     }
 
-    private async handleArtifactChange(path: string, event: 'added' | 'changed' | 'deleted') {
+    // STRATEGIC GOAL 3: I/O Proxy Methods
+
+    // I/O Proxy for Watcher Initialization
+    #startWatcher(callback: (path: string, event: 'added' | 'changed' | 'deleted') => void): void {
+        // Watches the current working directory
+        this.#watcher.watch('.', callback);
+    }
+
+    // I/O Proxy for Policy Access
+    #delegateToPolicyManagerGetPolicy(): IndexingPolicy {
+        return this.#policyManager.getPolicy();
+    }
+
+    // I/O Proxy for Rule Access
+    #delegateToPolicyManagerGetRules(): IndexingPolicy['policies'] {
+        return this.#policyManager.getRules();
+    }
+
+    // I/O Proxy for Default Policy Access
+    #delegateToPolicyManagerGetDefaultPolicy(): string {
+        return this.#policyManager.getDefaultPolicy();
+    }
+
+    // I/O Proxy for External Tool Execution (Rule Matcher)
+    #delegateToRuleMatcher(path: string, rules: IndexingPolicy['policies']): IndexingPolicy['policies'][number] | null {
+        return this.#ruleMatcher.execute({ path, rules });
+    }
+
+    // I/O Proxy for core asynchronous work (processing)
+    private async #delegateToProcessingAndIndexing(job: { path: string, rule: any, event: string }) {
+        this.#logProcessingStart(job.path, job.rule.strategy);
         
-        // Use the dedicated tool to find the highest priority matching rule
-        const applicableRule = PathPolicyRuleMatcher.execute({
-            path: path,
-            // Fetch pre-sorted rules from the manager
-            rules: this.policyManager.getRules()
-        });
+        // Implementation details involving #vectorDb interaction go here
+        // e.g. await this.#vectorDb.insert(processedData);
+    }
+
+    // I/O Proxy for Logging Start
+    #logStartMessage(version: string): void {
+        console.log(`[IndexingService] Starting watch on artifacts based on v${version} policy.`);
+    }
+
+    // I/O Proxy for Logging Default Match
+    #logDefaultPolicyMatch(path: string, defaultPolicy: string): void {
+        console.log(`[Indexing] Path ${path} matches default policy: ${defaultPolicy}`);
+    }
+
+    // I/O Proxy for Logging Ignore Rule
+    #logIgnoreRule(path: string, rule: IndexingPolicy['policies'][number]): void {
+        console.log(`[Indexing] Ignoring artifact: ${path} via priority ${rule.priority}`);
+    }
+    
+    // I/O Proxy for Logging Processing Start
+    #logProcessingStart(path: string, strategy: string): void {
+        console.log(`[Indexing] Processing ${path} using strategy ${strategy}.`);
+    }
+
+    private async #handleArtifactChange(path: string, event: 'added' | 'changed' | 'deleted') {
+        
+        // 1. Find the applicable rule using the dedicated tool and pre-sorted rules
+        const applicableRule = this.#delegateToRuleMatcher(
+            path,
+            this.#delegateToPolicyManagerGetRules()
+        );
         
         if (!applicableRule) {
-            console.log(`[Indexing] Path ${path} matches default policy: ${this.policyManager.getDefaultPolicy()}`);
-            // Implementation of default indexing logic
+            this.#logDefaultPolicyMatch(path, this.#delegateToPolicyManagerGetDefaultPolicy());
             return;
         }
 
         if (applicableRule.strategy === 'IGNORE') {
-            console.log(`[Indexing] Ignoring artifact: ${path} via priority ${applicableRule.priority}`);
+            this.#logIgnoreRule(path, applicableRule);
             return;
         }
 
-        // Asynchronous worker invocation for processing and database insertion
-        await this.processAndIndexArtifact({ path, rule: applicableRule, event });
-    }
-
-    private async processAndIndexArtifact(job: { path: string, rule: any, event: string }) {
-        // Detailed implementation would include:
-        // 1. Reading content
-        // 2. Applying chunking logic (based on job.rule.chunking)
-        // 3. Generating embeddings (based on job.rule.embeddingModel)
-        // 4. Storing in VectorDB (handling TTL, metadata, etc.)
-        console.log(`[Indexing] Processing ${job.path} using strategy ${job.rule.strategy}.`);
+        // 2. Delegate to processing pipeline
+        await this.#delegateToProcessingAndIndexing({ path, rule: applicableRule, event });
     }
 }
