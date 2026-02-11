@@ -2,7 +2,7 @@ import { EnvVarResolver } from "#plugins/EnvVarResolver";
 
 /**
  * core/config/CriticalPaths.js
- * 
+ *
  * Defines non-negotiable, mission-critical file system paths and endpoints 
  * required by isolated system components (like IsolatedFailureReporter) immediately 
  * upon boot, independent of the main configuration system.
@@ -14,7 +14,7 @@ import { EnvVarResolver } from "#plugins/EnvVarResolver";
  */
 const resolveCriticalPath = EnvVarResolver.resolve;
 
-export const CriticalPaths = {
+export const CriticalPaths = Object.freeze({
     // Path used by IsolatedFailureReporter for synchronous, append-only security logging.
     ISOLATED_FAILURE_LOG: resolveCriticalPath(
         'AGI_ISOLATED_LOG_PATH',
@@ -26,7 +26,7 @@ export const CriticalPaths = {
 
     // Optional: Low-level telemetry endpoint (if synchronous network I/O is possible).
     SECURE_TELEMETRY_ENDPOINT: null,
-};
+});
 
 // --- Initialization ---
 // This configuration must be loaded very early during the system bootstrap.
