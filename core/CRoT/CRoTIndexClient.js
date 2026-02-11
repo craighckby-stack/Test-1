@@ -8,16 +8,28 @@ const GAXTelemetry = require('../Telemetry/GAXTelemetryService');
 class CRoTIndexClient {
     
     /**
-     * The client now depends on the abstracted CRoTIndexStorageAdapter interface,
-     * removing direct reliance on KERNEL_SYNERGY_CAPABILITIES.Tool.
+     * Private field to encapsulate the storage adapter dependency.
+     * @type {CRoTIndexStorageAdapter}
+     */
+    #storageAdapter;
+
+    /**
+     * Initializes the client, resolving and validating the required storage adapter dependency.
      */
     constructor() {
-        // Link to the required abstraction provided by the environment/plugin system
-        this.storageAdapter = global.CRoTIndexStorageAdapter; // Assumes KERNEL environment linkage
-        if (!this.storageAdapter) {
-            // Provides clear failure if the KERNEL environment hasn't linked the adapter yet
-            throw new Error("CRoT Index Client failed initialization: CRoTIndexStorageAdapter is missing.");
+        const adapter = global.CRoTIndexStorageAdapter; 
+        
+        if (!adapter) {
+            // Standardized failure format for dependency injection errors
+            throw new Error("[CRoT Index Client] Initialization failure: CRoTIndexStorageAdapter dependency is missing from the global scope.");
         }
+
+        // Enforce basic contract integrity by validating required methods
+        if (typeof adapter.lookup !== 'function' || typeof adapter.append !== 'function') {
+            throw new Error("[CRoT Index Client] Initialization failure: CRoTIndexStorageAdapter contract violation (missing lookup or append methods).");
+        }
+        
+        this.#storageAdapter = adapter;
         GAXTelemetry.system('CRoT_IndexClient_Init_KernelMode_Abstracted');
     }
 
@@ -29,11 +41,12 @@ class CRoTIndexClient {
     async getAnchorsByFingerprint(fingerprint) {
         if (!fingerprint) return [];
         try {
-            // Use abstracted storage adapter lookup method
-            const anchors = await this.storageAdapter.lookup(fingerprint);
+            // Use encapsulated private storage adapter
+            const anchors = await this.#storageAdapter.lookup(fingerprint);
             
-            // Ensure anchors is an array for safety
-            const result = Array.isArray(anchors) ? anchors : (anchors ? [anchors] : []);
+            // Ensure anchors is an array for safety, handling single returns or nulls.
+            // Using != null covers both null and undefined.
+            const result = Array.isArray(anchors) ? anchors : (anchors != null ? [anchors] : []);
             
             GAXTelemetry.debug('CRoT_IndexRead', { count: result.length, fingerprint: fingerprint.substring(0, 8) });
             return result;
@@ -55,13 +68,14 @@ class CRoTIndexClient {
             return;
         }
         try {
-            // Use abstracted storage adapter append method
-            await this.storageAdapter.append(fingerprint, txId, { timestamp: Date.now() });
+            // Use encapsulated private storage adapter
+            await this.#storageAdapter.append(fingerprint, txId, { timestamp: Date.now() });
             
             GAXTelemetry.info('CRoT_IndexWrite_Success', { txId, fingerprint: fingerprint.substring(0, 8) });
         } catch (error) {
             GAXTelemetry.critical('CRoT_IndexWrite_Failure', { txId, error: error.message, fingerprint: fingerprint.substring(0, 8) });
-            throw new Error(`CRoT Indexing failed for TX ID ${txId}. Failure: ${error.message}`);
+            // Wrap and rethrow standardized error for consuming services
+            throw new Error(`[CRoT Index Client] Commit failed for TX ID ${txId}. Reason: ${error.message}`);
         }
     }
 }
