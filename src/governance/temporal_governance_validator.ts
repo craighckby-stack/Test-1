@@ -8,14 +8,20 @@ interface ITemporalWindowValidatorResult {
     error?: string;
 }
 
-// Mock function signature for the external plugin call (for TypeScript visibility)
-declare function TemporalWindowIntegrityValidatorTool(args: {
+// Define precise types for the external tool's arguments
+interface ITemporalValidatorArgs {
     stagingTimestamp: number | string;
     vetoWindowEnd: number | string;
     durationMs: number;
     requestFinalization?: boolean;
     toleranceMs?: number;
-}): ITemporalWindowValidatorResult;
+}
+
+// Define the type for the tool function itself
+type TemporalValidatorTool = (args: ITemporalValidatorArgs) => ITemporalWindowValidatorResult;
+
+// Mock function signature for the external plugin call (for TypeScript visibility)
+declare function TemporalWindowIntegrityValidatorTool(args: ITemporalValidatorArgs): ITemporalWindowValidatorResult;
 
 /**
  * Validates the temporal requirements defined in the PESM schema,
@@ -25,9 +31,9 @@ declare function TemporalWindowIntegrityValidatorTool(args: {
 export class TemporalGovernanceValidator {
     private static readonly VETO_DURATION_MS = 72 * 60 * 60 * 1000; // 72 hours
     
-    private readonly validatorTool: (args: any) => ITemporalWindowValidatorResult;
+    private readonly validatorTool: TemporalValidatorTool;
 
-    constructor(tool: (args: any) => ITemporalWindowValidatorResult = TemporalWindowIntegrityValidatorTool as any) {
+    constructor(tool: TemporalValidatorTool = TemporalWindowIntegrityValidatorTool) {
         this.validatorTool = tool;
     }
 
