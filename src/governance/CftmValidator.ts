@@ -1,8 +1,28 @@
 import * as CFTM_CONFIG from '../../config/security/cftm_v3.json';
 
+// --- Interfaces for Plugin Interaction ---
+interface ValidationRule {
+    path: string;
+    key: string;
+    type: 'number' | 'string' | 'boolean';
+    min?: number;
+    max?: number;
+    required: boolean;
+}
+
+interface ValidationResult {
+    isValid: boolean;
+    errors: string[];
+    constants: Map<string, number>;
+}
+
+interface INumericalConfigValidator {
+    execute(input: { configObject: any, rules: ValidationRule[] }): ValidationResult;
+}
+
 // --- Declarative Rules for CFTM Constants ---
 // These rules define the expected path, type, and range constraints for critical governance constants.
-const CFTM_VALIDATION_RULES = [
+const CFTM_VALIDATION_RULES: ValidationRule[] = [
     {
         // Corresponds to TAU (COF_Stability_Model)
         path: "axioms.COF_Stability_Model.value",
@@ -34,13 +54,16 @@ const CFTM_VALIDATION_RULES = [
 export class CftmValidator {
     private constants: ReadonlyMap<string, number>;
     
-    // Assume plugin is exposed on globalThis.AGI_PLUGINS
-    private readonly numericalConfigValidator: any = (globalThis as any).AGI_PLUGINS.NumericalConfigValidator;
+    // Access the typed plugin interface
+    private readonly numericalConfigValidator: INumericalConfigValidator;
 
     constructor() {
-        if (!this.numericalConfigValidator || typeof this.numericalConfigValidator.execute !== 'function') {
-            throw new Error("Required plugin NumericalConfigValidator is not available.");
+        const validator = (globalThis as any).AGI_PLUGINS?.NumericalConfigValidator as INumericalConfigValidator;
+
+        if (!validator || typeof validator.execute !== 'function') {
+            throw new Error("Required plugin NumericalConfigValidator is not available or incorrectly implemented.");
         }
+        this.numericalConfigValidator = validator;
         this.constants = this.loadAndValidate();
     }
 
