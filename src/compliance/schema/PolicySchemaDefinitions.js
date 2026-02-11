@@ -31,6 +31,21 @@ export const COMMON_SCHEMA_DEFS = {
         type: "string",
         format: "uuid", // Assumes standard UUID structure for traceability
         description: "A unique identifier for a monitored entity or resource."
+    },
+    VetoTrigger: {
+        type: "object",
+        description: "Defines a single condition (source and description) that results in a system veto.",
+        properties: {
+            source: { $ref: "#/$defs/VetoTriggerSource" },
+            description: { 
+                type: "string", 
+                minLength: 10, 
+                pattern: "^[A-Z].*",
+                description: "Detailed, standardized description of the specific veto condition. Must start with a capital letter."
+            }
+        },
+        required: ["source", "description"],
+        additionalProperties: false
     }
 };
 
@@ -55,15 +70,7 @@ export const MINIMAL_FALLBACK_SCHEMA = {
         },
         veto_triggers: {
             type: "array",
-            items: {
-                type: "object",
-                properties: {
-                    source: { $ref: "#/$defs/VetoTriggerSource" },
-                    description: { type: "string", minLength: 10, pattern: "^[A-Z].*" } // Enforcing structure
-                },
-                required: ["source", "description"], 
-                additionalProperties: false
-            },
+            items: { $ref: "#/$defs/VetoTrigger" },
             minItems: 0, 
             description: "List of system events or states that trigger an automatic veto or halt, indexed by source type."
         }
