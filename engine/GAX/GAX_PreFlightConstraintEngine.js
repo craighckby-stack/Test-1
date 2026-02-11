@@ -26,36 +26,26 @@ interface IJsonPathResolver {
 // Global hook placeholder for the plugin access (simulating environment injection)
 declare const JsonPathResolver: IJsonPathResolver;
 
+// Define interface and global hook for the new type checking plugin
+interface IDataTypeChecker {
+    checkType(value: any, expectedType: string): boolean;
+}
+declare const DataTypeChecker: IDataTypeChecker;
+
 
 class GAX_PreFlightConstraintEngine {
   constructor(constraintDefinition: { mandatory_constraints: any[], required_types: Record<string, string> }) {
     this.constraints = constraintDefinition.mandatory_constraints;
     this.typeMap = constraintDefinition.required_types;
+    // Ensure the required type checker is available
+    if (typeof DataTypeChecker === 'undefined') {
+        throw new Error("Dependency Injection Error: DataTypeChecker plugin is required.");
+    }
   }
   
   private constraints: any[];
   private typeMap: Record<string, string>;
 
-
-  /**
-   * Checks the type of a value against the expected type, handling complex types like array and object.
-   * @param {*} value The value to check.
-   * @param {string} expectedType The type string ('string', 'number', 'array', 'object', 'null').
-   * @returns {boolean}
-   */
-  _checkType(value: any, expectedType: string): boolean {
-    if (value === undefined) return false; 
-    
-    // Explicitly handle null: null is only valid if expected type is 'object' or 'null'
-    if (value === null) return expectedType === 'object' || expectedType === 'null';
-    
-    if (expectedType === 'array') return Array.isArray(value);
-    
-    // Check for plain object, excluding arrays
-    if (expectedType === 'object') return typeof value === 'object' && !Array.isArray(value);
-    
-    return typeof value === expectedType;
-  }
 
   /**
    * Executes a defined validation rule against a given value.
@@ -79,8 +69,9 @@ class GAX_PreFlightConstraintEngine {
 
     if (rule.type === RuleTypes.DATA_TYPE) {
       const expectedType = rule.expected;
-      // Use _checkType which handles undefined/null logic internally based on expectedType
-      return this._checkType(value, expectedType);
+      // Use the external DataTypeChecker plugin
+      // @ts-ignore: Assume global presence
+      return DataTypeChecker.checkType(value, expectedType);
     }
     
     if (rule.type === RuleTypes.VALUE_MATCH) {
@@ -162,7 +153,9 @@ class GAX_PreFlightConstraintEngine {
       try {
         const value = this._getValueAtPath(targetArtifact, path);
         
-        const typeOK = this._checkType(value, expectedType);
+        // Use external DataTypeChecker
+        // @ts-ignore: Assume global presence
+        const typeOK = DataTypeChecker.checkType(value, expectedType);
             
         if (!typeOK) {
             // Determine actual type for better reporting
