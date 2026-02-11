@@ -1,21 +1,4 @@
 /**
- * Utility function simulating the imported ValidationServiceWrapper plugin.
- * This function abstracts the validation logic extracted from the original class.
- */
-const _validateUtility = async (validator, data, schema, context) => {
-    if (!validator) return; 
-    
-    const validationResult = await validator.execute('validate', data, schema);
-    
-    if (!validationResult || !validationResult.isValid) {
-        // Use optional chaining and nullish coalescing for safety
-        const errors = validationResult?.errors?.join('; ') ?? 'Unknown validation error.';
-        // Standardized error prefix for reliable catching in runSimulation
-        throw new Error(`Validation Failed [${context}]: ${errors}`);
-    }
-};
-
-/**
  * The Trajectory Simulation Engine (TSE) is responsible for running high-fidelity,
  * asynchronous simulations of P3/P4 execution outcomes based on the current
  * Contextual State Record (CSR) and Axiomatic Constraint Verification Data (ACVD).
@@ -37,6 +20,27 @@ class TrajectorySimulationEngine {
         temm: { type: 'number', required: true }, // Trajectory Execution Mitigation Metric
         ecvm: { type: 'boolean', required: true }  // Execution Constraint Verification Metric
     };
+
+    /**
+     * Internal handler for executing schema validation via the injected service.
+     * Encapsulated utility that replaces the previous global _validateUtility.
+     * @param {Object} validator - SchemaValidationService instance.
+     * @param {Object} data - Data to validate.
+     * @param {Object} schema - Schema definition.
+     * @param {string} context - Error context string.
+     */
+    static async #validate(validator, data, schema, context) {
+        if (!validator) return; 
+        
+        const validationResult = await validator.execute('validate', data, schema);
+        
+        if (!validationResult || !validationResult.isValid) {
+            // Use optional chaining and nullish coalescing for safety
+            const errors = validationResult?.errors?.join('; ') ?? 'Unknown validation error.';
+            // Standardized error prefix
+            throw new Error(`TSE Validation Failed [${context}]: ${errors}`);
+        }
+    }
 
     /**
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints.
@@ -96,14 +100,14 @@ class TrajectorySimulationEngine {
         let entityId = 'unknown';
 
         try {
-            // 1. Critical Minimal Input Check (uses optional chaining for robustness)
+            // 1. Critical Minimal Input Check
             if (!inputManifest?.entityId) {
                  throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation (using abstracted utility)
-            await _validateUtility(
+            // 2. Comprehensive Input Validation (using encapsulated utility)
+            await TrajectorySimulationEngine.#validate(
                 this.validator,
                 inputManifest, 
                 TrajectorySimulationEngine.MANIFEST_SCHEMA, 
@@ -115,8 +119,8 @@ class TrajectorySimulationEngine {
             // Execute asynchronous model inference
             const results = await this.model.predict(features);
 
-            // 3. Comprehensive Output Validation (using abstracted utility)
-            await _validateUtility(
+            // 3. Comprehensive Output Validation (using encapsulated utility)
+            await TrajectorySimulationEngine.#validate(
                 this.validator,
                 results, 
                 TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA, 
@@ -137,12 +141,16 @@ class TrajectorySimulationEngine {
             
             const errorMessage = error.message || String(error);
             
-            // Use startsWith checking based on standardized error prefixes from the utility or #extractFeatures
-            if (errorMessage.startsWith('Validation Failed') || errorMessage.startsWith('Feature extraction failed')) {
+            // Identify and re-throw errors generated intentionally by TSE's internal structure 
+            // (validation checks, feature extraction failures, or manifest structure checks).
+            if (errorMessage.startsWith('TSE Validation Failed') || 
+                errorMessage.startsWith('Feature extraction failed') ||
+                errorMessage.startsWith('Invalid Manifest')
+            ) {
                 throw error; 
             }
 
-            // Otherwise, wrap the general prediction system error.
+            // Otherwise, wrap the general prediction system error (e.g., model handler failure).
             throw new Error(`Trajectory simulation failed due to prediction system error. Details: ${errorMessage}`);
         }
     }
