@@ -1,68 +1,87 @@
 /**
- * Utility: Intent Payload Validator
- * ID: GU-IPV-v94.2
- * Mandate: Provides strict content validation for Intent Package payloads using
- * industry-standard JSON Schema definitions. This utility now delegates core
- * validation logic to the high-performance SchemaValidationEngineTool.
+ * Kernel: Intent Payload Validator Kernel
+ * ID: GU-IPV-v94.3-KERNEL
+ * Mandate: Provides strict, asynchronous content validation for Intent Package
+ * payloads by delegating all core validation logic to the high-integrity
+ * ISpecValidatorKernel, strictly adhering to AIA Enforcement Layer mandates.
  */
 
-// NOTE: SchemaValidationEngineTool is assumed to be injected or imported from the kernel's toolset.
-
-interface ValidationResult {
-    isValid: boolean;
-    errors?: Array<object>;
-}
-
-// Conceptual interface for the extracted tool
-declare class SchemaValidationEngineTool {
-    execute(args: { payload: object, schema: object }): ValidationResult;
-}
-
-class IntentPayloadValidator {
+class IntentPayloadValidatorKernel {
+    
+    /**
+     * @param {object} dependencies
+     * @param {ISpecValidatorKernel} dependencies.iSpecValidatorKernel - Kernel for structural and content validation.
+     */
+    constructor({ iSpecValidatorKernel }) {
+        if (!iSpecValidatorKernel) {
+            throw new Error("IntentPayloadValidatorKernel requires ISpecValidatorKernel.");
+        }
+        this.iSpecValidatorKernel = iSpecValidatorKernel;
+        this.isInitialized = false;
+        this.KERNEL_ID = "GU-IPV-v94.3-KERNEL";
+    }
 
     /**
-     * Performs deep structural and content validation on a payload object against a defined JSON schema.
-     * This logic is delegated to the high-performance SchemaValidationEngineTool.
-     * @param {object} payload - The content object to validate.
-     * @param {object} schema - The JSON schema definition.
-     * @returns {ValidationResult}
+     * Mandatory asynchronous initialization method.
+     * Ensures all dependencies are ready.
+     * @returns {Promise<void>}
      */
-    static validate(payload: object, schema: object): ValidationResult {
+    async initialize() {
+        if (this.isInitialized) return;
+        // Await dependency initialization if necessary, or simply transition state.
+        
+        this.isInitialized = true;
+    }
+
+    /**
+     * Performs deep structural and content validation on a payload object against a defined JSON schema asynchronously.
+     * This logic is fully delegated to the ISpecValidatorKernel.
+     * 
+     * @param {object} args
+     * @param {object} args.payload - The content object to validate.
+     * @param {object} args.schema - The JSON schema definition.
+     * @returns {Promise<{isValid: boolean, errors?: Array<object>}>}
+     */
+    async validateIntentPayload({ payload, schema }) {
+        if (!this.isInitialized) {
+            throw new Error(`[${this.KERNEL_ID}] Kernel not initialized. Call initialize() first.`);
+        }
         
         if (!schema || !payload) {
-             return { isValid: false, errors: [{ message: "Payload or schema missing.", code: "E_PAYLOAD_MISSING" }] };
+             return { 
+                 isValid: false, 
+                 errors: [{ message: "Payload or schema missing.", code: "E_PAYLOAD_MISSING", kernelId: this.KERNEL_ID }] 
+             };
         }
         
         try {
-            // CRITICAL: Delegation of complex validation logic to the kernel tool.
-            // Instantiation pattern relies on kernel environment dependency injection.
-            const validationEngine = new (window as any).SchemaValidationEngineTool(); 
-            
-            const result = validationEngine.execute({ payload, schema });
+            // CRITICAL: Asynchronous delegation of validation logic to ISpecValidatorKernel.
+            // The ISpecValidatorKernel is expected to return a standardized result object.
+            const result = await this.iSpecValidatorKernel.validate({ spec: schema, payload });
 
-            if (!result.isValid) {
-                // Errors are propagated directly from the tool output.
+            // Assuming ISpecValidatorKernel returns { valid: boolean, errors?: Array<object> }
+            if (result && !result.valid) {
                 return { isValid: false, errors: result.errors };
             }
 
         } catch (error) {
-            console.error("[GU-IPV] Schema Validation Engine failed:", error);
-            return { isValid: false, errors: [{ message: "Internal validation engine failure.", code: "E_ENGINE_FAILURE", detail: String(error) }] };
+            // Catch errors thrown by the ISpecValidatorKernel itself (e.g., configuration failure)
+            console.error(`[${this.KERNEL_ID}] ISpecValidatorKernel failed unexpectedly:`, error);
+            return { 
+                isValid: false, 
+                errors: [{
+                    message: "Internal validation engine failure.", 
+                    code: "E_ENGINE_FAILURE", 
+                    detail: String(error) 
+                }] 
+            };
         }
         
         return { isValid: true };
     }
 
-    /**
-     * Placeholder for compiling and caching schemas for runtime efficiency.
-     * NOTE: Actual compilation/caching logic should ideally reside within the validation engine tool.
-     * @param {string} schemaId 
-     * @param {object} schemaDefinition
-     */
-    static compileSchema(schemaId: string, schemaDefinition: object): void {
-        // Delegation or no-op based on engine architecture.
-    }
+    // The synchronous 'compileSchema' placeholder is eliminated as compilation/caching is a core responsibility of the validation tool.
 
 }
 
-module.exports = IntentPayloadValidator;
+module.exports = IntentPayloadValidatorKernel;
