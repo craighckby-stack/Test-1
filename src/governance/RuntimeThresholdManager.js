@@ -1,108 +1,138 @@
 /**
- * Component ID: RTM
- * Name: Runtime Threshold Manager
+ * Component ID: RTM-K
+ * Name: Runtime Threshold Manager Kernel
  * Function: Manages persistent storage, validation, and real-time distribution of the system's
- *           governance parameters (weights, thresholds, severity boosts) used by RCE (C-11) and other control loops.
+ *           governance parameters (weights, thresholds, severity boosts).
  * Rationale: Ensures that constraint evaluation is driven by a single, dynamically configurable source of truth,
- *            decoupling constraint values from application code defaults.
+ *            decoupling constraint values from application code defaults, in compliance with kernel mandates.
  */
 
-const DEFAULT_CONFIG_PATH = '/etc/agi/governance/constraints.json';
+// --- Strategic Kernel and Interface Imports ---
+const ISpecValidatorKernel = "ISpecValidatorKernel";
+const SecureResourceLoaderInterfaceKernel = "SecureResourceLoaderInterfaceKernel";
+const ILoggerToolKernel = "ILoggerToolKernel";
+// Conceptual Registry Kernel for externalizing configuration paths and schemas.
+const IRuntimeThresholdConfigRegistryKernel = "IRuntimeThresholdConfigRegistryKernel"; 
 
-// --- Type definition for ConfigurationLoaderAndValidator output (internal use) ---
-interface ConstraintValidationResult {
-    success: boolean;
-    data: Record<string, any> | null;
-    error: string | null;
-}
+class RuntimeThresholdManagerKernel {
+    #secureLoader;
+    #validator;
+    #logger;
+    #configRegistry;
 
-interface ConfigurationLoaderAndValidatorInterface {
-    execute(args: { rawConfig: string, schema: any }): Promise<ConstraintValidationResult> | ConstraintValidationResult;
-}
-// ---------------------------------------------------------------------------------
-
-
-class RuntimeThresholdManager {
-    private persistenceService: any;
-    private currentConstraints: Record<string, any>;
-    private isLoaded: boolean;
-    private constraintSchema: any; // Placeholder for the actual governance constraint schema
-    private configValidator: ConfigurationLoaderAndValidatorInterface; // Injected utility
+    #currentConstraints = {};
+    #isLoaded = false;
+    #configPath;
+    #constraintSchema;
 
     /**
-     * @param {Object} persistenceService Service for configuration storage (e.g., File system, Database).
-     * @param {ConfigurationLoaderAndValidatorInterface} configValidator Plugin instance for parsing and validation.
-     * @param {Object} constraintSchema The schema used to validate governance parameters.
+     * @param {object} dependencies
+     * @param {SecureResourceLoaderInterfaceKernel} dependencies.secureLoader High integrity resource loader.
+     * @param {ISpecValidatorKernel} dependencies.validator High integrity specification validator.
+     * @param {ILoggerToolKernel} dependencies.logger Standard logging tool.
+     * @param {IRuntimeThresholdConfigRegistryKernel} dependencies.configRegistry Registry for configuration paths and schemas.
      */
-    constructor(
-        persistenceService: any, 
-        configValidator: ConfigurationLoaderAndValidatorInterface,
-        constraintSchema: any 
-    ) {
-        this.persistenceService = persistenceService;
-        this.configValidator = configValidator;
-        this.constraintSchema = constraintSchema;
-        this.currentConstraints = {};
-        this.isLoaded = false;
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    #setupDependencies(dependencies) {
+        if (!dependencies.secureLoader || !dependencies.validator || !dependencies.logger || !dependencies.configRegistry) {
+            throw new Error("RTM Kernel initialization failed: Missing required dependencies (secureLoader, validator, logger, configRegistry).");
+        }
+        this.#secureLoader = dependencies.secureLoader;
+        this.#validator = dependencies.validator;
+        this.#logger = dependencies.logger;
+        this.#configRegistry = dependencies.configRegistry;
+    }
+
+    /**
+     * Asynchronously initializes the kernel by loading configuration path and schema, and triggering constraints loading.
+     * @async
+     */
+    async initialize() {
+        this.#logger.debug("[RTM] Initializing Kernel: Retrieving configuration metadata.");
+        
+        // 1. Load path and schema from Registry Kernel (asynchronously)
+        const config = await this.#configRegistry.getConstraintConfiguration();
+        
+        if (!config || !config.path || !config.schema) {
+            this.#logger.error("RTM Kernel failed initialization: Could not retrieve path or schema from config registry.");
+            throw new Error("Configuration metadata missing.");
+        }
+
+        this.#configPath = config.path;
+        this.#constraintSchema = config.schema;
+        
+        // 2. Load constraints using the retrieved path/schema
+        await this.loadConfiguration();
     }
 
     /**
      * Loads constraints from the persistent layer, safely parses, and validates them.
      * @async
      */
-    async loadConfiguration(): Promise<void> {
-        let rawConfig: string;
+    async loadConfiguration() {
+        let rawConfigData;
         try {
-            rawConfig = await this.persistenceService.read(DEFAULT_CONFIG_PATH);
+            // Use SecureResourceLoaderInterfaceKernel for high-integrity resource reading
+            rawConfigData = await this.#secureLoader.readResource(this.#configPath);
         } catch (readError) {
-            console.error("[RTM] Failed to read raw constraint configuration from persistence. Falling back.", readError);
-            this.currentConstraints = {}; 
-            this.isLoaded = false;
+            this.#logger.error(`[RTM] Failed to read raw constraint configuration from ${this.#configPath}. Falling back.`, { error: readError });
+            this.#currentConstraints = {}; 
+            this.#isLoaded = false;
+            return;
+        }
+
+        let parsedConfig;
+        try {
+            // Assuming the raw data is a string/buffer containing JSON
+            parsedConfig = JSON.parse(rawConfigData.toString());
+        } catch (parseError) {
+            this.#logger.error(`[RTM] Failed to parse configuration data.`, { error: parseError });
+            this.#currentConstraints = {}; 
+            this.#isLoaded = false;
             return;
         }
         
-        // Use the extracted utility for safe parsing and validation
-        const validationResult = await this.configValidator.execute({ 
-            rawConfig: rawConfig,
-            schema: this.constraintSchema
-        });
+        // Use ISpecValidatorKernel for high-integrity validation
+        const validationResult = await this.#validator.validate(this.#constraintSchema, parsedConfig);
         
-        if (validationResult.success && validationResult.data) {
-            this.currentConstraints = validationResult.data;
-            this.isLoaded = true;
-            console.log("[RTM] Constraints loaded and validated successfully.");
+        if (validationResult.isValid) {
+            this.#currentConstraints = parsedConfig;
+            this.#isLoaded = true;
+            this.#logger.info("[RTM] Constraints loaded and validated successfully.");
         } else {
-            console.error(`[RTM] Constraint configuration failed validation or parsing. Error: ${validationResult.error}. Falling back to internal defaults.`, validationResult.data);
-            this.currentConstraints = {}; 
-            this.isLoaded = false;
+            this.#logger.error(`[RTM] Constraint configuration failed validation. Errors:`, validationResult.errors);
+            this.#currentConstraints = {}; 
+            this.#isLoaded = false;
         }
     }
 
     /**
      * Retrieves the current, validated governance constraints.
-     * @returns {Object} The complete configuration object for RCE consumption.
+     * @returns {Record<string, any>} A defensive copy of the configuration object.
      */
-    getConstraints(): Record<string, any> {
-        // Returns the loaded configuration; RCE handles merging this with its hardcoded defaults.
-        return this.currentConstraints;
+    getConstraints() {
+        return { ...this.#currentConstraints };
     }
 
     /**
-     * Updates a single constraint parameter (requires authorization and validation in production).
+     * Updates a single constraint parameter.
      * @async
      * @param {string} metricKey
      * @param {Record<string, any>} newParams { threshold, weight, severity_boost }
      */
-    async updateConstraint(metricKey: string, newParams: Record<string, any>): Promise<void> {
-        if (!this.currentConstraints[metricKey]) {
-            throw new Error(`Metric key ${metricKey} not found for update.`);
+    async updateConstraint(metricKey, newParams) {
+        if (!this.#currentConstraints[metricKey]) {
+            this.#logger.warn(`Attempted update for unknown metric key: ${metricKey}. Ignoring.`);
+            return;
         }
         
-        this.currentConstraints[metricKey] = { ...this.currentConstraints[metricKey], ...newParams };
-        // In production, this would also trigger a save/persistence update.
-        console.log(`[RTM] Constraint updated for ${metricKey}. Persistence update required.`);
-        // Potential future feature: Emit an event for hot-reloading configurations in active RCE instances.
+        // In a real scenario, full validation against schema would occur here before assignment.
+        this.#currentConstraints[metricKey] = { ...this.#currentConstraints[metricKey], ...newParams };
+        this.#logger.info(`[RTM] Constraint updated for ${metricKey}. Persistence update required (simulation).`);
     }
 }
 
-module.exports = RuntimeThresholdManager;
+module.exports = RuntimeThresholdManagerKernel;
