@@ -1,33 +1,105 @@
-import { EnforcementResult, RecourseAction } from './ConstraintEnforcementEngine'; 
+// NOTE: Assuming EnforcementResult and RecourseAction types are imported or globally standardized.
+// For self-contained demonstration, defining required structure:
+export type RecourseAction = "HALT_AND_QUARANTINE" | "ABORT_INFERENCE_PATH" | "LOG_VETO_PROPAGATE";
+export interface ViolationDetails { constraintId: string; [key: string]: any; }
+export interface EnforcementResult {
+    passed: boolean;
+    action?: RecourseAction;
+    violationDetails?: ViolationDetails;
+}
+
+// NOTE: ILoggerToolKernel assumed to be available
+interface ILoggerToolKernel {
+    error(message: string, ...meta: any[]): void;
+    warn(message: string, ...meta: any[]): void;
+    info(message: string, ...meta: any[]): void;
+}
+
+// Strategic abstractions for operational control and audit dispatch
+interface ISystemControlToolKernel {
+    initiateCriticalShutdown(reason: string, details: any): Promise<void>;
+    signalContextAbort(contextId: string, details: any): Promise<void>; 
+}
+interface IAuditDispatcherToolKernel {
+    dispatchVeto(details: ViolationDetails): Promise<void>;
+}
+
 
 /**
- * Responsible for executing the physical/operational system response mandated by
- * a Constraint Enforcement violation (RecourseAction).
- * Decouples system operational responses from pure enforcement logic.
+ * RecourseActuatorKernel: Responsible for executing the physical/operational 
+ * system response mandated by a Constraint Enforcement violation (RecourseAction).
+ * Decouples system operational responses from pure enforcement logic using 
+ * injected strategic kernels.
  */
-export class RecourseActuator {
+export class RecourseActuatorKernel {
 
-    private async executeHaltAndQuarantine(details: EnforcementResult['violationDetails']): Promise<void> {
-        console.error(`!!! L0 KERNEL VIOLATION DETECTED !!! Initiating HALT AND QUARANTINE sequence.`);
-        // HIGH PRIORITY: Secure system state and prepare for external reporting.
-        // Note: Actual system halt requires kernel integration (e.g., process.kill(0) or dedicated shutdown hooks).
-        // Placeholder action:
-        console.log(`[REC_ACTUATOR] State secured. System forcibly exiting. Constraint ID: ${details?.constraintId}`);
-        // process.exit(99); // Placeholder for critical failure
+    private readonly logger: ILoggerToolKernel;
+    private readonly systemControl: ISystemControlToolKernel;
+    private readonly auditDispatcher: IAuditDispatcherToolKernel;
+
+    constructor(
+        logger: ILoggerToolKernel,
+        systemControl: ISystemControlToolKernel,
+        auditDispatcher: IAuditDispatcherToolKernel
+    ) {
+        this.logger = logger;
+        this.systemControl = systemControl;
+        this.auditDispatcher = auditDispatcher;
+        this.#setupDependencies();
     }
 
-    private async executeAbortInferencePath(details: EnforcementResult['violationDetails']): Promise<void> {
-        console.warn(`L1/L2 Constraint violation. Aborting current execution context/inference path.`);
-        // [Integration point]: Signal the Scheduler or Inference Engine to terminate the current task gracefully.
-        // Placeholder: report termination.
-        console.log(`[REC_ACTUATOR] Signalling upstream task abortion. Constraint ID: ${details?.constraintId}.`);
+    private #setupDependencies(): void {
+        // Enforce strict dependency presence during synchronous construction
+        if (!this.logger || !this.systemControl || !this.auditDispatcher) {
+            throw new Error("RecourseActuatorKernel failed dependency injection setup: Missing required kernels.");
+        }
     }
 
-    private async executeLogVetoPropagate(details: EnforcementResult['violationDetails']): Promise<void> {
-        console.info(`Minor L2 Constraint violation. Logging details, propagating VETO signal, and allowing continuation.`);
-        // [Integration point]: Detailed telemetry log should occur here.
-        // telemetry.log(details, 'GOVERNANCE_VETO');
-        console.log(`[REC_ACTUATOR] VETO logged. Constraint ID: ${details?.constraintId}.`);
+    public async initialize(): Promise<void> {
+        // Mandatory asynchronous initialization step
+        this.logger.info("[RecourseActuatorKernel] Initializing operational readiness.");
+    }
+
+    private async executeHaltAndQuarantine(details: ViolationDetails): Promise<void> {
+        const constraintId = details.constraintId;
+        
+        this.logger.error(
+            `!!! L0 KERNEL VIOLATION DETECTED !!! Initiating HALT AND QUARANTINE sequence for constraint: ${constraintId}.`
+        );
+        
+        // Delegate critical system operation to the dedicated tool kernel
+        await this.systemControl.initiateCriticalShutdown(
+            `Governance Violation: ${constraintId}`, 
+            details
+        );
+        
+        this.logger.error(`[REC_ACTUATOR] Critical shutdown signaled via SystemControlTool.`);
+    }
+
+    private async executeAbortInferencePath(details: ViolationDetails): Promise<void> {
+        const constraintId = details.constraintId;
+        
+        this.logger.warn(
+            `L1/L2 Constraint violation. Signaling context abortion for constraint: ${constraintId}.`
+        );
+        
+        // Delegate graceful execution path termination
+        await this.systemControl.signalContextAbort(constraintId, details); 
+        
+        this.logger.info(`[REC_ACTUATOR] Upstream task abortion signal dispatched. Constraint ID: ${constraintId}.`);
+    }
+
+    private async executeLogVetoPropagate(details: ViolationDetails): Promise<void> {
+        const constraintId = details.constraintId;
+
+        this.logger.info(
+            `Minor L2 Constraint violation. Logging VETO signal and allowing continuation. Constraint ID: ${constraintId}.`
+        );
+        
+        // Delegate high-integrity logging and propagation to Audit Dispatcher
+        await this.auditDispatcher.dispatchVeto(details);
+        
+        this.logger.info(`[REC_ACTUATOR] VETO propagation completed.`);
     }
 
     /**
@@ -42,11 +114,9 @@ export class RecourseActuator {
         const action: RecourseAction = result.action;
         const details = result.violationDetails;
         
-        // Use optional chaining for constraintId access in logging for maximum safety, 
-        // though details is guaranteed non-null by the guard clause.
-        const constraintId = details?.constraintId || 'UNKNOWN';
+        const constraintId = details.constraintId || 'UNKNOWN';
 
-        console.log(`[RecourseActuator] Attempting execution of: ${action} (Constraint: ${constraintId})`);
+        this.logger.info(`[RecourseActuatorKernel] Attempting execution of: ${action} (Constraint: ${constraintId})`);
 
         try {
             switch (action) {
@@ -60,13 +130,13 @@ export class RecourseActuator {
                     await this.executeLogVetoPropagate(details);
                     break;
                 default:
-                    console.error(`[REC_ACTUATOR] Unknown recourse action encountered: ${action}`);
+                    this.logger.error(`[REC_ACTUATOR] Unknown recourse action encountered: ${action}`);
             }
         } catch (error) {
             // CRITICAL: Failure of the actuator must be logged, as the system is now operating 
             // under a violation without the mandated safety response being fully executed.
-            console.error(
-                `[REC_ACTUATOR] CRITICAL FAILURE: Action execution failed for ${action} (Constraint: ${constraintId}). Error:`,
+            this.logger.error(
+                `[REC_ACTUATOR] CRITICAL FAILURE: Action execution failed for ${action} (Constraint: ${constraintId}).`,
                 error
             );
         }
