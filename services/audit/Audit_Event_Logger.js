@@ -14,16 +14,18 @@ class AuditEventLogger {
      * @param {object} auditRecordCanonicalizerTool - Utility for creating canonical, hashable audit records.
      */
     constructor(dependency_ACM, dependency_SDR, auditRecordCanonicalizerTool) {
-        this.ACM = dependency_ACM;
-        this.SDR = dependency_SDR;
         this.canonicalizer = auditRecordCanonicalizerTool;
 
         if (!this.canonicalizer || typeof this.canonicalizer.createCanonicalRecord !== 'function') {
              throw new Error("AuditRecordCanonicalizer utility must be provided and implement createCanonicalRecord.");
         }
 
-        // Placeholder for real persistence layer (e.g., Immutable Store)
-        this.localImmutableStore = { save: (id, data) => console.log(`[AEL] Stored Audit Hash ID: ${id}`) };
+        // Placeholder for persistence layer (e.g., Immutable Store) required for the dispersal strategy.
+        // NOTE: The store is defined here as per original implementation, but managed by the disperser.
+        const localImmutableStore = { save: (id, data) => console.log(`[AEL] Stored Audit Hash ID: ${id}`) };
+
+        // Abstracting the multi-target dispersal logic into a dedicated plugin.
+        this.disperser = new MultiTargetAuditDisperser(dependency_ACM, dependency_SDR, localImmutableStore);
     }
 
     /**
@@ -40,14 +42,8 @@ class AuditEventLogger {
         const { record: event_data, auditHashId: audit_hash_id } = 
             this.canonicalizer.createCanonicalRecord(source_acronym, event_type, payload);
             
-        // 2. Persist locally (immutable store)
-        this.localImmutableStore.save(audit_hash_id, event_data);
-
-        // 3. Transmit hash and context to ACM for provenance anchoring (PCA-104 input)
-        this.ACM.anchorProvenance(audit_hash_id, event_data.timestamp, source_acronym);
-
-        // 4. Transmit raw event data to SDR for metric calculation (PCA-101/102 input)
-        this.SDR.ingestTelemetry(event_data);
+        // 2. Disperse the record to all mandated L5 destinations (Persistence, ACM, SDR)
+        this.disperser.disperse(audit_hash_id, event_data, source_acronym);
 
         return audit_hash_id;
     }
