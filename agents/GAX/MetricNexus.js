@@ -7,7 +7,7 @@
  * for autonomous self-assessment (Integration Requirement 2).
  * 
  * NOTE: Core calculation logic (EQM, UFRM, CFTM, PVM) has been delegated to the
- * 'MetricCalculator' plugin via KERNEL_SYNERGY_CAPABILITIES for performance and modularity.
+ * 'MetricCalculatorService' via KERNEL_SYNERGY_CAPABILITIES for performance and modularity.
  * 
  * Fulfills Requirements:
  * 2. Use MQM metrics to measure actual improvement (via EQM and ImprovementDelta).
@@ -53,14 +53,26 @@ class MetricNexus {
     }
 
     /**
-     * Internal helper to execute methods on the MetricCalculator tool,
-     * reducing boilerplate for KERNEL_SYNERGY_CAPABILITIES calls.
-     * @param {string} method - The method name on MetricCalculator.
+     * Internal helper to execute methods on the MetricCalculatorService, 
+     * ensuring robust capability checks.
+     * @param {string} method - The method name on MetricCalculatorService.
      * @param {Object} args - Arguments passed to the method.
-     * @returns {Promise<number>} The calculated or sanitized metric value.
+     * @returns {Promise<number>} The calculated or sanitized metric value, or 0 on failure.
      */
     async _executeMetricTool(method, args) {
-        return KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', method, args);
+        if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.MetricCalculatorService) {
+            const service = KERNEL_SYNERGY_CAPABILITIES.MetricCalculatorService;
+            
+            if (typeof service[method] === 'function') {
+                return await service[method](args);
+            } else {
+                console.error(`[MN ERROR]: MetricCalculatorService exists but missing required method: ${method}`);
+                return 0; // Return safe default
+            }
+        } else {
+            console.error("[MN CRITICAL ERROR]: MetricCalculatorService is not available in KERNEL_SYNERGY_CAPABILITIES. Metrics calculations bypassed.");
+            return 0; // Return safe default
+        }
     }
 
     /**
@@ -82,6 +94,7 @@ class MetricNexus {
         const pvm = await this._executeMetricTool('calculatePVM', { rawPolicyChangeRate: rawPvm });
         
         // 3. Use the Tool to calculate the final EQM score
+        // Note: EQM calculation uses named arguments for clarity
         const sanitizedEqm = await this._executeMetricTool('calculateEQM', { ufrm, cftm, pvm });
         
         // Cache the results
@@ -151,6 +164,7 @@ class MetricNexus {
         const previousMetrics = historicalTrends[1];
 
         // Helper to normalize values using the mandated MetricCalculator proxy (calculateUFRM).
+        // This pattern uses a consistent service method to sanitize/normalize all metric values.
         const normalize = (value) => this._executeMetricTool('calculateUFRM', { rawRisk: value });
 
         const currentEQM = await normalize(currentMetrics.MQM_EQM);
