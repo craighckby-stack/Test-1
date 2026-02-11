@@ -3,18 +3,7 @@
 import { CONCEPT_REGISTRY } from './conceptRegistry.js';
 import { CodebaseAccessor } from '../system/codebaseAccessor.js';
 import { ValidatorMessages } from './validatorMessages.js';
-
-// --- Utility Plugin Access Simulation ---
-// Define the expected structure of the Integrity Verification Utility
-interface IntegrityVerificationUtilityPlugin {
-    execute(args: {
-        path: string;
-        fileExistsAsync?: (path: string) => Promise<boolean>;
-        fileExists?: (path: string) => boolean;
-    }): Promise<{ exists: boolean, reason: string }>;
-}
-// Placeholder for accessing the plugin instance. Assumes kernel injection or global access.
-const IntegrityCheckPlugin: IntegrityVerificationUtilityPlugin = {} as any;
+import { ResourceIntegrityCheckerPlugin } from '../plugins/ResourceIntegrityChecker.js';
 
 /**
  * @typedef {Object} ValidationResult
@@ -72,8 +61,8 @@ export class ConceptValidator {
 
         // Case 2: Concrete Implementation Path Defined. Check existence.
         
-        // Use the IntegrityCheckPlugin to handle robust async/sync resource existence verification
-        const integrityCheck = await IntegrityCheckPlugin.execute({
+        // Use the ResourceIntegrityCheckerPlugin to handle robust async/sync resource existence verification
+        const integrityCheck = await ResourceIntegrityCheckerPlugin.check({
             path,
             fileExistsAsync: CodebaseAccessor.fileExistsAsync,
             fileExists: CodebaseAccessor.fileExists
