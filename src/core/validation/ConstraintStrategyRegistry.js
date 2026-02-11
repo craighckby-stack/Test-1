@@ -1,7 +1,8 @@
 /**
  * ConstraintStrategyRegistry.js
  * Manages and provides access to custom validation functions (strategies) 
- * using the ConstraintPatternRegistryUtility plugin.
+ * using the ConstraintPatternRegistryUtility plugin and initializes them 
+ * using CoreValidationStrategies plugin.
  */
 
 // Assume injection/import of the ConstraintPatternRegistryUtility singleton
@@ -12,43 +13,22 @@ if (!registry || typeof registry.register !== 'function') {
     throw new Error("Dependency 'ConstraintPatternRegistryUtility' missing.");
 }
 
-// --- Strategy Definitions (Specific to this application's engine) ---
+// --- Dependency Injection for Strategy Definitions ---
+// Assumes CoreValidationStrategies is available in the global scope after initialization.
+const CoreValidationStrategies = global.CoreValidationStrategies;
+
+if (!CoreValidationStrategies || typeof CoreValidationStrategies.registerAll !== 'function') {
+    // CRITICAL FAILURE: Strategy dependency missing
+    throw new Error("Dependency 'CoreValidationStrategies' missing or malformed. Strategy initialization failed.");
+}
 
 /**
- * Registers strategies specific to the Integrity Validation Engine.
+ * Registers strategies specific to the Integrity Validation Engine 
+ * using the abstract CoreValidationStrategies plugin.
  */
 function initializeStrategies() {
-    
-    // 1. Regex Strategy: Assumes state context provides the compiled regex.
-    const regexStrategy = (value, param, state) => {
-        try {
-            if (state && state.regex instanceof RegExp) {
-                return state.regex.test(String(value));
-            }
-            return false;
-        } catch (e) {
-            return false;
-        }
-    };
-
-    // 2. Minimum Length Strategy
-    const minLengthStrategy = (value, param) => {
-        const length = parseInt(String(param));
-        if (isNaN(length)) return false;
-        return (Array.isArray(value) || typeof value === 'string') && value.length >= length;
-    };
-
-    // 3. Is Defined Strategy
-    const isDefinedStrategy = (value) => value !== undefined && value !== null;
-
-    // 4. Is Immutable Strategy (Placeholder/Contextual check)
-    const isImmutableStrategy = () => true; 
-
-    // Register them
-    registry.register('regex', regexStrategy);
-    registry.register('min_length', minLengthStrategy);
-    registry.register('is_defined', isDefinedStrategy);
-    registry.register('is_immutable', isImmutableStrategy);
+    // Delegate strategy definition and registration to the dedicated utility plugin
+    CoreValidationStrategies.registerAll(registry);
 }
 
 // Execute registration immediately
