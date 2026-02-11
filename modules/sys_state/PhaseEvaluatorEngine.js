@@ -14,6 +14,7 @@ const DEFAULT_STATE = 'IDLE';
 class PhaseEvaluatorEngine extends EventEmitter {
     
     // Tool dependency definition for AGI-Kernel
+    // We rely on 'ConstraintEvaluator' for processing complex rule sets.
     private plugins: { ConstraintEvaluator: any }; 
     private config: any;
     private logger: any;
@@ -44,9 +45,9 @@ class PhaseEvaluatorEngine extends EventEmitter {
         this.timerManager = new HysteresisTimerManager(logger); 
         this.lastUpdateTime = Date.now();
         
-        // Initialize tool reference (handled by AGI kernel internally)
+        // Initialize tool reference
         this.plugins = {
-            ConstraintEvaluator: null, // Placeholder for external tool integration
+            ConstraintEvaluator: null,
         };
     }
     
@@ -95,7 +96,7 @@ class PhaseEvaluatorEngine extends EventEmitter {
         for (const targetPhaseName in currentPhaseConfig.transitions) {
             const transitionDefinition = currentPhaseConfig.transitions[targetPhaseName];
             
-            // USE PLUGIN: Check if the metric conditions are instantly met
+            // Step 1: Check if the metric conditions are instantly met using the external plugin
             const meetsInstantCondition = this._checkConditionsUsingPlugin(transitionDefinition.trigger);
             
             const transitionId = `${currentState}_TO_${targetPhaseName}`;
@@ -104,9 +105,9 @@ class PhaseEvaluatorEngine extends EventEmitter {
                 const durationMs = transitionDefinition.duration_ms || 0;
                 const priority = transitionDefinition.priority || 0; // Default priority 0
 
-                // Check if the condition has held for the required hysteresis duration
+                // Step 2: Check if the condition has held for the required hysteresis duration
                 if (this.timerManager.checkAndStartTimer(transitionId, durationMs)) {
-                    // Hysteresis met. Check against priority.
+                    // Hysteresis met. Step 3: Check against priority.
                     if (priority >= highestPriority) { 
                         highestPriority = priority;
                         pendingTransition = targetPhaseName;
@@ -130,13 +131,15 @@ class PhaseEvaluatorEngine extends EventEmitter {
      * @returns {boolean}
      */
     private _checkConditionsUsingPlugin(conditionSet: any): boolean {
-        if (!this.plugins.ConstraintEvaluator) {
-            // Fallback warning if plugin wasn't injected correctly
-            this.logger.warn("ConstraintEvaluator plugin not initialized. Condition checking skipped.");
+        const evaluator = this.plugins.ConstraintEvaluator;
+        
+        if (!evaluator || typeof evaluator.execute !== 'function') {
+            // Fallback warning if plugin wasn't injected correctly or is incomplete
+            this.logger.warn("ConstraintEvaluator plugin not initialized or missing 'execute' method. Condition checking skipped.");
             return false;
         }
 
-        return this.plugins.ConstraintEvaluator.execute({
+        return evaluator.execute({
             metricCache: this.metricCache,
             conditionSet: conditionSet
         });
