@@ -50,19 +50,28 @@ class StrategicCostIndexer {
     }
 
     /**
+     * Internal synchronous calculation step: Generates the payload by applying strategic weights
+     * to the base costs.
+     * @returns {Object<string, number>} Map of strategically weighted costs.
+     */
+    #prepareWeightedPayload() {
+        return StrategicCostIndexer.#applyStrategicWeights(
+            this.baseCosts, 
+            this.strategicWeights
+        );
+    }
+
+    /**
      * Calculates the Strategic Cost Index.
      * 
      * @param {Object<string, number>} factors - Dynamic runtime adjustment factors.
      * @returns {number} The calculated aggregated strategic cost index.
      */
     calculateIndex(factors = {}) {
-        // 1. Calculate strategically weighted costs internally using the private helper.
-        const strategicallyWeightedCosts = StrategicCostIndexer.#applyStrategicWeights(
-            this.baseCosts, 
-            this.strategicWeights
-        );
+        // 1. Prepare the payload by calculating strategically weighted costs (Internal sync calculation).
+        const strategicallyWeightedCosts = this.#prepareWeightedPayload();
 
-        // 2. Delegate final factor application and aggregation.
+        // 2. Delegate final factor application and aggregation (External Tool Execution).
         return KERNEL_SYNERGY_CAPABILITIES.CostIndexingTool.execute(
             'calculateFactorAggregation',
             strategicallyWeightedCosts,
