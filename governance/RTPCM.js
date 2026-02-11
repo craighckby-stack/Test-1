@@ -13,25 +13,21 @@ class RTPCM {
      * @param {LedgerService} deps.ledger - D-01/MCR dependency for audited transaction logging.
      * @param {ConfigValidator} deps.validator - The Governance Rule Configuration Module (GRCM) validation utility.
      * @param {HashUtility} deps.hasher - Utility for generating cryptographic hashes of configuration states.
-     * @param {Object} deps.integrityServiceTool - Utility providing canonicalStringify and deepFreeze (via execute method).
+     * @param {Object} deps.integrityServiceTool - Utility providing canonicalStringify and deepFreeze.
+     * @param {ImmutableConfigRegistry} [deps.registry] - Optional dependency injection of the registry plugin for testing/override.
      * @param {Object} [initialConfig={}] - Optional initial configuration settings.
      */
-    constructor({ ledger, validator, hasher, integrityServiceTool }, initialConfig = {}) {
+    constructor({ ledger, validator, hasher, integrityServiceTool, registry }, initialConfig = {}) {
         if (!ledger || !validator || !hasher || !integrityServiceTool) {
             throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityServiceTool) must be provided.");
         }
-        
+
         // Dependencies
         this._ledger = ledger;
         this._validator = validator;
-        this._hasher = hasher;
-        // Using the extracted tool for deep immutability and canonicalization
-        this._integrityServiceTool = integrityServiceTool;
-
-        // Internal State Management for Version Control and History
-        this._configRegistry = new Map();   // Stores { versionId: deepFrozenConfig }
-        this._activationTimeline = [];     // Tracks activation sequence: [{ versionId, timestamp, source, changeIndex }]
-        this._activeVersionId = null;
+        
+        // Configuration Registry Plugin (Abstracting storage, hashing, and immutability logic)
+        this._registry = registry || new ImmutableConfigRegistry({ hasher, integrityServiceTool });
 
         // Bootstrap: Register initial configuration if provided.
         if (Object.keys(initialConfig).length > 0) {
@@ -55,21 +51,15 @@ class RTPCM {
     }
 
     /**
-     * Generates a deterministic, version-specific hash using canonical serialization.
-     * @param {Object} config 
-     * @returns {string} The configuration hash (version ID).
-     * @throws {Error} If canonical serialization fails, compromising hash integrity.
+     * Logs the activation event to the Auditing Ledger (D-01/MCR).
+     * @param {string} versionId
+     * @param {Object} record
      */
-    calculateHash(config) {
-        try {
-            const serializedConfig = this._integrityServiceTool.execute({
-                operation: 'stringify',
-                data: config
-            });
-            return this._hasher.digest(serializedConfig);
-        } catch (error) {
-            throw new Error(`RTPCM Hashing Integrity Failure: Cannot perform canonical serialization. Error: ${error.message}`);
-        }
+    _auditActivation(versionId, record) {
+        this._ledger.logTransaction('RTPCM_CONFIG_ACTIVATION', {
+            ...record,
+            details: `P-01 Trust Calculus parameters version ${versionId.substring(0, 8)} activated.`,
+        });
     }
 
     /**
@@ -77,48 +67,22 @@ class RTPCM {
      * @param {Object} newConfig - The proposed policy configuration.
      * @param {string} [source='API_CALL'] - Context/source of the update.
      * @returns {{versionId: string, config: Object, isNew: boolean}}
-     * @throws {Error} If configuration validation or canonicalization fails.
+     * @throws {Error} If configuration validation fails.
      */
     registerNewVersion(newConfig, source = 'API_CALL') {
         if (!this.validateNewConfig(newConfig)) {
             throw new Error("RTPCM_GOV_ERROR: Configuration validation failed against Governance Rules Schema.");
         }
-        
-        const configHash = this.calculateHash(newConfig);
 
-        // Check for existing version (deduplication)
-        const isNewVersion = !this._configRegistry.has(configHash);
+        // Delegate version registration, immutability, and history tracking to the registry plugin.
+        // Pass the auditing function as a hook, allowing the plugin to handle the timing.
+        const result = this._registry.register(
+            newConfig, 
+            source, 
+            this._auditActivation.bind(this) 
+        );
         
-        if (!isNewVersion) {
-            // Skip registration if content is identical to an existing version.
-            return { versionId: configHash, config: this._configRegistry.get(configHash), isNew: false };
-        }
-
-        // 1. Enforce Deep Immutability using the guaranteed service.
-        const frozenConfig = this._integrityServiceTool.execute({
-            operation: 'freeze',
-            data: newConfig
-        });
-
-        this._configRegistry.set(configHash, frozenConfig);
-        
-        // 2. Activation and Timeline Update
-        this._activeVersionId = configHash;
-        const activationRecord = {
-            versionId: configHash,
-            timestamp: Date.now(),
-            source: source,
-            changeIndex: this._activationTimeline.length + 1 // Use 1-based index for logging clarity
-        };
-        this._activationTimeline.push(activationRecord);
-        
-        // 3. Auditing via Ledger
-        this._ledger.logTransaction('RTPCM_CONFIG_ACTIVATION', {
-            ...activationRecord,
-            details: `P-01 Trust Calculus parameters version ${configHash.substring(0, 8)} activated.`,
-        });
-        
-        return { versionId: configHash, config: frozenConfig, isNew: true };
+        return result;
     }
 
     /**
@@ -126,19 +90,7 @@ class RTPCM {
      * @returns {{versionId: string|null, config: Object|null}}
      */
     getActiveConfig() {
-        if (!this._activeVersionId) {
-            // Return defined structure in zero-state
-            return { versionId: null, config: null }; 
-        }
-
-        const config = this._configRegistry.get(this._activeVersionId);
-
-        // Fail-safe check: configuration must exist if ID is set.
-        if (!config) {
-             throw new Error("RTPCM State Integrity Error: Active version ID exists but configuration is missing from registry.");
-        }
-
-        return { versionId: this._activeVersionId, config };
+        return this._registry.getActiveConfig();
     }
 
     /**
@@ -147,7 +99,7 @@ class RTPCM {
      * @returns {Object|null} The immutable configuration object, or null if not found locally.
      */
     getHistoricalConfig(versionId) {
-        return this._configRegistry.get(versionId) || null;
+        return this._registry.getHistoricalConfig(versionId);
     }
 
     /**
@@ -155,11 +107,7 @@ class RTPCM {
      * @returns {ReadonlyArray<Object>} Returns a deeply frozen timeline array.
      */
     getActivationTimeline() {
-        // Deep freeze the array copy to prevent external mutation of the history records.
-        return this._integrityServiceTool.execute({
-            operation: 'freeze',
-            data: [...this._activationTimeline]
-        });
+        return this._registry.getActivationTimeline();
     }
 
     /**
@@ -167,7 +115,16 @@ class RTPCM {
      * @returns {string|null}
      */
     getActiveVersionId() {
-        return this._activeVersionId;
+        return this._registry.getActiveVersionId();
+    }
+
+    /**
+     * Exposed accessor for calculating a hash for external verification (e.g., API response).
+     * @param {Object} config
+     * @returns {string}
+     */
+    calculateHash(config) {
+        return this._registry.calculateHash(config);
     }
 }
 
