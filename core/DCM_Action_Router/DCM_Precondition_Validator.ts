@@ -1,14 +1,34 @@
+const PRECONDITION_SETUP_ERROR_PREFIX = "[DCM Precondition Validator Setup]";
+
+// Standardized type for the external executor utility
+interface IPreconditionExecutorUtility {
+    execute(context: { preconditions: any, checkLibrary: { [key: string]: Function }, stateFeed: SystemStateFeed }): Promise<{ success: boolean, failure_reasons: string[] }>;
+}
+
 export class DCM_Precondition_Validator {
-    private check_library: { [key: string]: Function };
-    private system_state_feed: SystemStateFeed; 
+    private #checkLibrary: { [key: string]: Function };
+    private #systemStateFeed: SystemStateFeed; 
+    private #executorUtility: IPreconditionExecutorUtility | undefined; 
 
     /**
-     * @param system_state_feed An object implementing SystemStateFeed interface to query current state.
+     * @param systemStateFeed An object implementing SystemStateFeed interface to query current state.
      */
-    constructor(system_state_feed: SystemStateFeed) {
-        this.system_state_feed = system_state_feed; 
+    constructor(systemStateFeed: SystemStateFeed) {
+        if (!systemStateFeed) {
+            throw new Error(`${PRECONDITION_SETUP_ERROR_PREFIX} Must provide a SystemStateFeed instance.`);
+        }
+        this.#systemStateFeed = systemStateFeed; 
+
+        // Resolve external utility dependency once upon initialization
+        const utility = globalThis.PreconditionExecutorUtility as IPreconditionExecutorUtility | undefined;
+        if (utility && typeof utility.execute === 'function') {
+            this.#executorUtility = utility;
+        } else {
+            this.#executorUtility = undefined;
+        }
+
         // Load atomic check functions
-        this.check_library = this.loadAtomicChecks(); 
+        this.#checkLibrary = this.#loadAtomicChecks(); 
     }
 
     /**
@@ -19,34 +39,41 @@ export class DCM_Precondition_Validator {
      */
     public async validate(preconditions: any): Promise<{success: boolean, failure_reasons: string[]}> {
         
-        // Retrieve the infrastructure plugin instance (assuming AGI-KERNEL standard global access)
-        const PreconditionExecutorUtility = globalThis.PreconditionExecutorUtility;
+        const executor = this.#executorUtility;
 
-        if (typeof PreconditionExecutorUtility !== 'undefined' && PreconditionExecutorUtility.execute) {
-            return PreconditionExecutorUtility.execute({
+        if (executor) {
+            return executor.execute({
                 preconditions: preconditions,
-                checkLibrary: this.check_library,
-                stateFeed: this.system_state_feed
+                checkLibrary: this.#checkLibrary,
+                stateFeed: this.#systemStateFeed
             });
         } else {
-            // Fallback or Error reporting if tool is missing
-            return { success: false, failure_reasons: ["Precondition validation service unavailable (PreconditionExecutorUtility missing)."] };
+            // Error reporting if tool is missing or invalid
+            return { 
+                success: false, 
+                failure_reasons: [`${PRECONDITION_SETUP_ERROR_PREFIX} Precondition validation service unavailable (PreconditionExecutorUtility missing or invalid).`] 
+            };
         }
     }
     
     /**
      * Loads the defined atomic checks into a dictionary map.
      */
-    private loadAtomicChecks(): { [key: string]: Function } {
-        // Uses global 'os' dependency, providing a basic fallback for robust compilation.
-        const os = globalThis.os || { loadavg: () => [0, 0, 0], cpus: () => [{}] };
-
-        // Returns a standard JS object map for compatibility with the utility plugin
-        return {
-            'INPUT_STABILITY_CHECK': async () => true, 
-            // Checks system load average against CPU count.
-            'SYSTEM_LOAD_BELOW_75_PERCENT': async () => (os.loadavg()[0] / os.cpus().length) < 0.75 
+    private #loadAtomicChecks(): { [key: string]: Function } {
+        // Resolve OS dependency once during check loading
+        const os = globalThis.os || { 
+            loadavg: () => [0, 0, 0], 
+            cpus: () => [{}] 
         };
+        // Determine CPU count, defaulting to 1 to prevent division by zero
+        const cpuCount = os.cpus().length || 1; 
+
+        // Returns an immutable map of standard checks
+        return Object.freeze({
+            'INPUT_STABILITY_CHECK': async () => true, 
+            // Checks system load average against CPU count (75% threshold).
+            'SYSTEM_LOAD_BELOW_75_PERCENT': async () => (os.loadavg()[0] / cpuCount) < 0.75 
+        });
     }
 }
 
