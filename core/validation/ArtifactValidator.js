@@ -13,8 +13,31 @@ class ArtifactValidator {
    * @param {Object} dependencies - Optional dependencies, notably contentValidatorRegistry.
    */
   constructor({ contentValidatorRegistry } = {}) {
+    this.#setupDependencies(contentValidatorRegistry);
+  }
+
+  /**
+   * Isolates dependency assignment and validation.
+   * @param {Object} contentValidatorRegistry
+   */
+  #setupDependencies(contentValidatorRegistry) {
     // Dependency injection allows separation of structural concerns from content concerns
     this.contentValidatorRegistry = contentValidatorRegistry;
+  }
+
+  /**
+   * Isolates interaction with the external validation tool.
+   *
+   * @param {Object} definitionStructure
+   * @param {Object} runtimeArtifact
+   * @returns {Promise<{success: boolean, errors: {code: string, path: string, message: string}[]}>}
+   */
+  async #delegateToValidatorExecution(definitionStructure, runtimeArtifact) {
+    return ArtifactStructureValidatorTool.execute({
+      definitionStructure,
+      runtimeArtifact,
+      contentValidatorRegistry: this.contentValidatorRegistry
+    });
   }
 
   /**
@@ -26,12 +49,8 @@ class ArtifactValidator {
    * @returns {Promise<{success: boolean, errors: {code: string, path: string, message: string}[]}>}
    */
   async validate(definitionStructure, runtimeArtifact) {
-    // Delegate the complex recursive validation and content checks to the tool.
-    return ArtifactStructureValidatorTool.execute({
-      definitionStructure,
-      runtimeArtifact,
-      contentValidatorRegistry: this.contentValidatorRegistry
-    });
+    // Delegate the complex recursive validation and content checks to the tool via I/O proxy.
+    return this.#delegateToValidatorExecution(definitionStructure, runtimeArtifact);
   }
 }
 
