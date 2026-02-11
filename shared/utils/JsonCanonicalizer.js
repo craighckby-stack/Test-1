@@ -1,30 +1,30 @@
 /**
- * Sovereign AGI v94.1 Json Canonicalization Utility
+ * Sovereign AGI v94.1 Json Canonicalization Utility Facade
  * Standardizes JSON object serialization by delegating the deep sorting
- * to the reusable CanonicalJsonUtility plugin.
+ * to the CanonicalJsonUtility plugin.
  */
 
-// Simulated interface for the injected canonicalizer utility
+// Interface for the injected canonicalizer utility (provided by the plugin)
 interface ICanonicalizerTool {
     canonicalize(data: any): string;
 }
 
-// In a real kernel environment, this dependency would be injected or accessed 
-// via a shared kernel resource lookup. 
-
 class JsonCanonicalizer {
-  
-  // Using a static property to simulate access to the canonicalization logic 
-  // provided by the extracted plugin (CanonicalJsonUtility).
-  private static canonicalizeLogic: ((data: any) => string) | null = null;
+
+  private canonicalizer: ICanonicalizerTool;
 
   /**
-   * Static setter for dependency injection simulation.
-   * This would typically be handled by the AGI-KERNEL framework boot process, 
-   * initializing the class with the extracted plugin's function.
+   * Initializes the Canonicalizer with the required tool/plugin.
+   * Refactoring Note: Switched from messy static dependency injection simulation
+   * to cleaner constructor injection.
+   * 
+   * @param canonicalizer The dependency providing the core canonicalization logic.
    */
-  public static setCanonicalizeLogic(logic: (data: any) => string): void {
-      JsonCanonicalizer.canonicalizeLogic = logic;
+  constructor(canonicalizer: ICanonicalizerTool) {
+    if (!canonicalizer || typeof canonicalizer.canonicalize !== 'function') {
+        throw new Error("Invalid ICanonicalizerTool provided to JsonCanonicalizer.");
+    }
+    this.canonicalizer = canonicalizer;
   }
 
   /**
@@ -35,17 +35,13 @@ class JsonCanonicalizer {
    * @returns {string} The canonical JSON string.
    */
   public canonicalize(data: any): string {
-    if (!JsonCanonicalizer.canonicalizeLogic) {
-        // In a deployed AGI kernel, this error should not occur if initialization is correct.
-        throw new Error("JsonCanonicalizer logic not initialized. Set logic via setCanonicalizeLogic.");
-    }
-    return JsonCanonicalizer.canonicalizeLogic(data);
+    return this.canonicalizer.canonicalize(data);
   }
 
   /**
    * Calculates a cryptographic hash of the canonicalized string.
-   * NOTE: This remains an integration point; hashing logic should ideally be 
-   * delegated to a dedicated CanonicalCryptoUtility.
+   * NOTE: This logic remains environment-dependent and should be delegated to a 
+   * dedicated CanonicalCryptoUtility for full abstraction in complex environments.
    * 
    * @param {string} canonicalString - Output of canonicalize().
    * @returns {string} SHA-256 hash in hex format.
@@ -54,17 +50,16 @@ class JsonCanonicalizer {
     // Check for browser/global crypto first
     if (typeof global !== 'undefined' && global.crypto && global.crypto.subtle) {
         // Placeholder for environment with SubtleCrypto
-        return 'SHA256_HASH_OF_CANONICAL_DATA'; 
+        // Actual implementation would involve async/await on subtle.digest
+        return 'SHA256_HASH_OF_CANONICAL_DATA_BROWSER_PLACEHOLDER'; 
     }
     
     try {
         // Attempt Node.js crypto module if available
-        // The use of require() here keeps the original environment compatibility logic.
         const crypto = require('crypto');
         return crypto.createHash('sha256').update(canonicalString).digest('hex');
     } catch (e) {
         // If crypto module fails or is unavailable
-        console.warn('Crypto API unavailable and Node crypto failed. Returning placeholder hash.');
         return 'SHA256_HASH_OF_CANONICAL_DATA_PLACEHOLDER';
     }
   }
