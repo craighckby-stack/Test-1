@@ -13,8 +13,8 @@ interface IDataFetcherTool {
  * needed to retrieve raw compliance data, using Dependency Injection for the core fetcher logic.
  */
 export class ComplianceAPIFetcher implements IComplianceDataFetcher {
-    private apiBaseUrl: string;
-    private dataFetcherTool: IDataFetcherTool; // The injected kernel tool
+    #apiBaseUrl: string;
+    #dataFetcherTool: IDataFetcherTool; // The injected kernel tool
 
     /**
      * @param dataFetcherTool - The kernel plugin tool responsible for execution (e.g., AGI_PLUGINS.SimulatedDataFetcherTool).
@@ -24,8 +24,25 @@ export class ComplianceAPIFetcher implements IComplianceDataFetcher {
         dataFetcherTool: IDataFetcherTool,
         baseUrl: string = 'http://localhost:8080/compliance/'
     ) {
-        this.dataFetcherTool = dataFetcherTool;
-        this.apiBaseUrl = baseUrl;
+        this.#setupDependencies(dataFetcherTool, baseUrl);
+    }
+
+    /**
+     * Extracts synchronous dependency resolution and initialization.
+     */
+    #setupDependencies(dataFetcherTool: IDataFetcherTool, baseUrl: string): void {
+        this.#dataFetcherTool = dataFetcherTool;
+        this.#apiBaseUrl = baseUrl;
+    }
+
+    /**
+     * Isolates the interaction with the external IDataFetcherTool dependency.
+     */
+    async #delegateToDataFetchToolExecution(endpoint: string): Promise<number> {
+        return this.#dataFetcherTool.execute({
+            baseUrl: this.#apiBaseUrl,
+            endpoint: endpoint
+        });
     }
 
     /**
@@ -34,13 +51,7 @@ export class ComplianceAPIFetcher implements IComplianceDataFetcher {
      * @returns A promise resolving to the raw compliance data value.
      */
     public async fetchComplianceData(endpoint: string): Promise<number> {
-        // Delegate URL construction and data retrieval to the injected tool.
-        
-        const data: number = await this.dataFetcherTool.execute({
-            baseUrl: this.apiBaseUrl,
-            endpoint: endpoint
-        });
-
-        return data;
+        // Delegate URL construction and data retrieval to the injected tool via proxy.
+        return this.#delegateToDataFetchToolExecution(endpoint);
     }
 }
