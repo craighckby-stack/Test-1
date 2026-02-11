@@ -4,7 +4,7 @@
  * the VETO trigger configurations based on system environment or target Asset ID.
  */
 
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 
 // CRITICAL: Assume ConfigNormalizationAndCacheUtility is injected or available.
@@ -39,19 +39,19 @@ class VetoConfigLoaderService {
     }
 
     /**
-     * Loads the raw configuration data from disk (I/O).
-     * Uses synchronous read consistent with the original implementation.
+     * Loads the raw configuration data from disk (I/O) asynchronously.
+     * Switched from synchronous read to fs/promises to prevent blocking the event loop.
      * @private
-     * @returns {object} The raw configuration data.
+     * @returns {Promise<object>} The raw configuration data.
      */
-    private loadRawConfig(): object {
+    private async loadRawConfig(): Promise<object> {
         const absolutePath = path.resolve(__dirname, DEFAULT_CONFIG_PATH);
         try {
-             const fileContent = fs.readFileSync(absolutePath, 'utf8');
+             const fileContent = await fs.readFile(absolutePath, 'utf8');
              return JSON.parse(fileContent);
         } catch (e) {
-            // Re-throw specific I/O or JSON parsing errors
-            throw new Error(`Failed to read/parse configuration file: ${e.message}`);
+            // Enhance error message to include the file path for easier debugging
+            throw new Error(`Failed to read/parse configuration file at ${absolutePath}. Error details: ${e.message}`);
         }
     }
 
@@ -69,8 +69,8 @@ class VetoConfigLoaderService {
                 return cachedConfig;
             }
 
-            // 2. Load Raw Data
-            const configData = this.loadRawConfig();
+            // 2. Load Raw Data (Awaits non-blocking I/O)
+            const configData = await this.loadRawConfig();
             
             // 3. Apply normalization and cache the result using the utility
             const normalizedConfig = this.configManager.execute({ 
@@ -83,7 +83,8 @@ class VetoConfigLoaderService {
             return normalizedConfig;
 
         } catch (error) {
-            console.error(`Error loading Veto Triggers for ${this.assetId}:`, error.message);
+            // Improved logging to specifically flag the use of fail-safe defaults.
+            console.error(`CRITICAL: Error loading Veto Triggers for Asset ${this.assetId}. Returning fail-safe defaults. Details: ${error.message}`);
             
             // Fail-safe: Return a structure that prevents runtime crashes in evaluation services.
             return { vector_definitions: {} }; 
