@@ -39,13 +39,17 @@ class CRoTIndexClient {
      * @returns {Promise<string[]>} Array of ACV transaction IDs.
      */
     async getAnchorsByFingerprint(fingerprint) {
-        if (!fingerprint) return [];
+        // Explicitly check for string type and content to ensure data integrity
+        if (typeof fingerprint !== 'string' || !fingerprint) {
+            GAXTelemetry.warn('CRoT_IndexRead_Skip', { reason: 'Invalid or missing fingerprint input' });
+            return [];
+        }
+
         try {
             // Use encapsulated private storage adapter
             const anchors = await this.#storageAdapter.lookup(fingerprint);
             
             // Ensure anchors is an array for safety, handling single returns or nulls.
-            // Using != null covers both null and undefined.
             const result = Array.isArray(anchors) ? anchors : (anchors != null ? [anchors] : []);
             
             GAXTelemetry.debug('CRoT_IndexRead', { count: result.length, fingerprint: fingerprint.substring(0, 8) });
@@ -63,10 +67,16 @@ class CRoTIndexClient {
      * @returns {Promise<void>}
      */
     async indexCommit(fingerprint, txId) {
-        if (!fingerprint || !txId) {
-            GAXTelemetry.warn('CRoT_IndexWrite_Skip', { reason: 'Missing identifier', hasFingerprint: !!fingerprint, hasTxId: !!txId });
+        // Explicitly check for string type and content
+        if (typeof fingerprint !== 'string' || !fingerprint) {
+            GAXTelemetry.warn('CRoT_IndexWrite_Skip', { reason: 'Invalid or missing fingerprint input', hasTxId: !!txId });
             return;
         }
+        if (typeof txId !== 'string' || !txId) {
+            GAXTelemetry.warn('CRoT_IndexWrite_Skip', { reason: 'Invalid or missing transaction ID input', hasFingerprint: !!fingerprint });
+            return;
+        }
+
         try {
             // Use encapsulated private storage adapter
             await this.#storageAdapter.append(fingerprint, txId, { timestamp: Date.now() });
