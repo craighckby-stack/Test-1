@@ -40,7 +40,8 @@ class PredictiveModelStub {
 
         // Delegate the core stub calculation logic to the KERNEL Tooling system
         // Tool: 'PredictiveStubEngine', Method: 'execute', Arguments: [features]
-        const result: PredictionResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
+        // CRITICAL REFACTOR: KERNEL_SYNERGY_CAPABILITIES interactions are typically asynchronous and must be awaited.
+        const result: PredictionResult = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
             'PredictiveStubEngine', 
             'execute', 
             [features]
