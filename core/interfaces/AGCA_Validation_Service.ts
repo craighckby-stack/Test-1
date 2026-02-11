@@ -22,12 +22,12 @@ export interface AGCA_Validation_Service {
    * NOTE: Implementation must ensure consistent canonical serialization of configurationData prior to hashing.
    * @param configurationData The raw configuration data object (the content being hashed/verified).
    * @param expectedHash The hash_sha256 value from the asset's metadata.
-   * @returns Promise<boolean> True if hashes match.
+   * @throws {AGCA_IntegrityError} If hash mismatch occurs.
    */
   verifyHashIntegrity(
     configurationData: AGCA_PCTM_V1_ConfigurationData,
     expectedHash: string
-  ): Promise<boolean>;
+  ): Promise<void>;
 
   /**
    * Step 2: Validates the cryptographic signature against the referenced GKM key material.
@@ -39,13 +39,13 @@ export interface AGCA_Validation_Service {
    * @param configurationData The content that was originally signed (used to rebuild the signing payload).
    * @param signature The gkm_signature value (e.g., base64 or similar encoded signature blob).
    * @param keyReference The gkm_key_reference URI identifying the public key.
-   * @returns Promise<boolean> True if the signature is valid.
+   * @throws {AGCA_SignatureVerificationError} If the signature is invalid or key is revoked.
    */
   verifyCryptographicSignature(
     configurationData: AGCA_PCTM_V1_ConfigurationData,
     signature: string,
     keyReference: string
-  ): Promise<boolean>;
+  ): Promise<void>;
 
   /**
    * Step 3: Checks if the owner_agent possesses the required permissions (policy/role) 
@@ -54,7 +54,7 @@ export interface AGCA_Validation_Service {
    * Requires external Authorization Service (AAS) consultation.
    * @param agentId The owner_agent identifier (Principal ID).
    * @param standardId The pctm_standard_id (e.g., "AGCA_PCTM_V1").
-   * @returns Promise<boolean> True if the agent is authorized.
+   * @throws {AGCA_AuthorizationError} If the agent is unauthorized.
    */
-  verifyAgentAuthorization(agentId: string, standardId: string): Promise<boolean>;
+  verifyAgentAuthorization(agentId: string, standardId: string): Promise<void>;
 }
