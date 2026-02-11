@@ -1,90 +1,105 @@
-// src/governance/mutationChainRegistrar.js
-// Responsibility: Maintains an immutable, cryptographically chained ledger of all successful 
-// and deployed architectural mutations (A-01 payloads), ensuring strict integrity checks.
-
 /**
- * @typedef {object} MutationRecord
- * @property {number} timestamp - Time of registration.
- * @property {string} mutationId - Version ID from the payload.
- * @property {string} architecturalHash - Hash of the A-01 manifest.
- * @property {string} p01Hash - Confirmation hash proving successful deployment (P-01).
- * @property {string} previousChainHash - Hash of the preceding chain record.
- * @property {string} selfHash - Hash of this entire record structure (linkage).
+ * AGI-KERNEL v7.11.3 - MutationChainRegistrarKernel
+ * Responsibility: Maintains an immutable, cryptographically chained ledger of all successful 
+ * architectural mutations (A-01 payloads), ensuring strict integrity checks via asynchronous Tool Kernels.
  */
 
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-class MutationChainRegistrar {
+class MutationChainRegistrarKernel {
+    /**
+     * @type {ReadonlyArray<MutationRecord>}
+     */
+    #chain = [];
+    #isInitialized = false;
+
     /**
      * @param {object} dependencies 
-     * @param {AuditLogger} dependencies.auditLogger 
-     * @param {IntegrityService} dependencies.integrityService - Must provide verifyArchitecturalSignature and calculateStableHash.
-     * @param {LedgerPersistence} dependencies.ledgerPersistence - Assumed to use async I/O and 'persistRecord'.
+     * @param {MultiTargetAuditDisperserToolKernel} dependencies.auditDisperser 
+     * @param {HashIntegrityCheckerToolKernel} dependencies.hashChecker 
+     * @param {CryptoPolicyValidatorKernel} dependencies.cryptoValidator 
+     * @param {IMutationChainPersistenceToolKernel} dependencies.ledgerPersistence 
+     * @param {ICryptographicChainVerifierToolKernel} dependencies.chainVerifier 
      */
-    constructor({ auditLogger, integrityService, ledgerPersistence }) {
-        if (!integrityService || !ledgerPersistence) {
-            throw new Error("MCR requires IntegrityService and LedgerPersistence dependencies.");
+    constructor({ auditDisperser, hashChecker, cryptoValidator, ledgerPersistence, chainVerifier }) {
+        if (!hashChecker || !ledgerPersistence || !chainVerifier || !auditDisperser || !cryptoValidator) {
+            throw new Error("MCRKernel requires all specified Tool Kernel dependencies.");
         }
 
-        this.auditLogger = auditLogger; 
-        this.integrityService = integrityService; 
+        this.auditDisperser = auditDisperser; 
+        this.hashChecker = hashChecker; 
+        this.cryptoValidator = cryptoValidator;
         this.ledgerPersistence = ledgerPersistence;
-        
-        // The chain array is initialized empty, waiting for initialization routine.
-        this.chain = []; 
-        this.isInitialized = false;
+        this.chainVerifier = chainVerifier;
     }
 
     /**
      * Initializes the registrar by loading historical data asynchronously and verifying linkage.
+     * Enforces non-blocking I/O and cryptographic verification.
      * @returns {Promise<void>}
      */
     async initialize() {
-        if (this.isInitialized) return;
+        if (this.#isInitialized) return;
         
         try {
-            this.chain = await this.ledgerPersistence.loadChainHistory();
+            // Load history. IMutationChainPersistenceToolKernel must return an immutable array.
+            const loadedChain = await this.ledgerPersistence.loadChainHistory();
             
-            if (this.chain.length > 0) {
-                this.auditLogger.logEvent('MCR_LOAD', `Loaded ${this.chain.length} records from history. Last hash: ${this.getLatestChainHash().substring(0, 10)}...`);
+            if (loadedChain.length > 0) {
                 
-                if (!this.verifyFullChainIntegrity()) {
+                await this.auditDisperser.logEvent('MCR_LOAD', {
+                    message: `Loaded ${loadedChain.length} records from history.`,
+                    lastHash: this.getLatestChainHash(loadedChain).substring(0, 10) + '...'
+                });
+                
+                // Verify linkage using the dedicated asynchronous kernel
+                if (!(await this.#verifyFullChainIntegrity(loadedChain))) {
                      throw new Error("Loaded chain failed internal cryptographic linkage verification.");
                 }
             } else {
-                this.auditLogger.logEvent('MCR_INIT', 'Initialized GENESIS chain.');
+                await this.auditDisperser.logEvent('MCR_INIT', 'Initialized GENESIS chain.');
             }
-            this.isInitialized = true;
+            
+            // Set the immutable internal state
+            this.#chain = Object.freeze(loadedChain);
+            this.#isInitialized = true;
+
         } catch (error) {
-            this.auditLogger.logCritical('MCR_INIT_FAILURE', `Failed to initialize chain history: ${error.message}`);
+            await this.auditDisperser.logCritical('MCR_INIT_FAILURE', {
+                message: `Failed to initialize chain history: ${error.message}`,
+                error: error.name
+            });
             // Must halt operations if chain history cannot be loaded/verified.
             throw new Error(`Critical failure loading mutation chain history: ${error.message}`);
         }
     }
 
     /**
-     * Validates the cryptographic linkage and self-hashes of every record in the loaded chain.
-     * Utilizes the CryptographicChainVerifier plugin.
-     * @returns {boolean}
+     * Validates the cryptographic linkage and self-hashes of every record in the chain
+     * using the specialized ICryptographicChainVerifierToolKernel.
+     * @param {ReadonlyArray<MutationRecord>} chainToVerify
+     * @returns {Promise<boolean>}
      */
-    verifyFullChainIntegrity() {
-        if (this.chain.length === 0) return true;
+    async #verifyFullChainIntegrity(chainToVerify) {
+        if (chainToVerify.length === 0) return true;
 
-        // The hasher function (calculateStableHash) relies on the IntegrityService context, so we bind it.
-        const hasher = this.integrityService.calculateStableHash.bind(this.integrityService);
+        // Provide the stable hash calculation utility from the HashIntegrityCheckerToolKernel
+        const hashCalculator = async (data) => this.hashChecker.calculateStableHash(data);
 
-        const verificationResult = AGI.CryptographicChainVerifier.execute({
-            chain: this.chain,
-            hasher: hasher,
-            genesisHash: GENESIS_HASH
-        });
+        const verificationResult = await this.chainVerifier.verifyChain(
+            chainToVerify,
+            GENESIS_HASH,
+            hashCalculator
+        );
 
         if (!verificationResult.success) {
-            this.auditLogger.logError('MCR_INTEGRITY_FAIL', `Chain verification failed: ${verificationResult.reason}`);
+            await this.auditDisperser.logError('MCR_INTEGRITY_FAIL', { 
+                reason: verificationResult.reason 
+            });
             return false;
         }
 
-        this.auditLogger.logEvent('MCR_INTEGRITY_OK', 'Chain structure verified successfully.');
+        await this.auditDisperser.logEvent('MCR_INTEGRITY_OK', 'Chain structure verified successfully.');
         return true;
     }
 
@@ -95,65 +110,93 @@ class MutationChainRegistrar {
      * @returns {Promise<string>} The selfHash of the newly registered record.
      */
     async registerMutation(payload, p01ConfirmationHash) {
-        if (!this.isInitialized) {
+        if (!this.#isInitialized) {
             throw new Error("MCR must be initialized before registering mutations.");
         }
 
-        // --- Critical Security Check ---
-        // Must verify the payload's signature ensures the mutation originated from the trusted governance assembly.
-        if (!this.integrityService.verifyArchitecturalSignature(payload)) {
-            this.auditLogger.logError('MCR_FAILURE', `Payload signature verification failed for version ${payload.versionId || 'unknown'}.`);
+        // Use CryptoPolicyValidatorKernel for mandated signature verification (non-blocking).
+        const signatureVerified = await this.cryptoValidator.verifyArchitecturalSignature(payload);
+        
+        if (!signatureVerified) {
+            await this.auditDisperser.logError('MCR_FAILURE', {
+                message: `Payload signature verification failed.`,
+                versionId: payload.versionId || 'unknown',
+                reason: 'Invalid cryptographic signature on A-01 manifest.'
+            });
             throw new Error("MCR Registration Failure: Invalid cryptographic signature on A-01 manifest.");
         }
         
         // 1. Structure the new record
+        const latestChainHash = this.getLatestChainHash(this.#chain);
+        
+        if (!payload.manifest) {
+             throw new Error("Payload must contain a manifest for architectural hashing.");
+        }
+
+        const architecturalHash = await this.hashChecker.calculateStableHash(payload.manifest);
+
         const newRecordWithoutHash = {
             timestamp: Date.now(),
             mutationId: payload.versionId,
-            // Use the manifest hash for immutable architectural record
-            architecturalHash: this.integrityService.calculateStableHash(payload.manifest), 
+            architecturalHash: architecturalHash, 
             p01Hash: p01ConfirmationHash, 
-            previousChainHash: this.getLatestChainHash()
+            previousChainHash: latestChainHash
         };
 
         // 2. Calculate the linkage hash (selfHash)
-        const selfHash = this.integrityService.calculateStableHash(newRecordWithoutHash);
+        const selfHash = await this.hashChecker.calculateStableHash(newRecordWithoutHash);
         
-        const newRecord = { ...newRecordWithoutHash, selfHash };
+        // Create the final, immutable record
+        const newRecord = Object.freeze({ ...newRecordWithoutHash, selfHash });
         
-        // 3. Commit locally and asynchronously persist
-        this.chain.push(newRecord);
+        // 3. Prepare new chain state and asynchronously persist
         
         try {
+            // Use the IMutationChainPersistenceToolKernel for non-blocking I/O
             await this.ledgerPersistence.persistRecord(newRecord);
         } catch (error) {
-             // If persistence fails, roll back the local change immediately to prevent state divergence
-            this.chain.pop(); 
-            this.auditLogger.logCritical('MCR_PERSISTENCE_FAIL', `Failed to persist record ${payload.versionId}. Chain integrity maintained via rollback.`);
+            await this.auditDisperser.logCritical('MCR_PERSISTENCE_FAIL', { 
+                versionId: payload.versionId,
+                error: error.message,
+                note: 'Persistence failure. Local state maintained via non-commit.'
+            });
             throw new Error(`Persistence failure during MCR commit: ${error.message}`);
         }
 
-        this.auditLogger.logEvent('MCR_COMMITMENT', `Mutation ${payload.versionId} committed. Hash: ${selfHash.substring(0, 10)}...`);
+        // 4. Commit to the new immutable state
+        const newChain = [...this.#chain, newRecord];
+        this.#chain = Object.freeze(newChain);
+
+        await this.auditDisperser.logEvent('MCR_COMMITMENT', {
+            versionId: payload.versionId,
+            message: `Mutation committed.`,
+            selfHash: selfHash.substring(0, 10) + '...'
+        });
+        
         return selfHash;
     }
 
     /**
-     * Retrieves the selfHash of the most recent record.
+     * Retrieves the selfHash of the most recent record from a given chain reference.
+     * @param {ReadonlyArray<MutationRecord>} [chainRef]
      * @returns {string}
      */
-    getLatestChainHash() {
-        if (this.chain.length === 0) return GENESIS_HASH;
-        return this.chain[this.chain.length - 1].selfHash;
+    getLatestChainHash(chainRef = this.#chain) {
+        if (chainRef.length === 0) return GENESIS_HASH;
+        return chainRef[chainRef.length - 1].selfHash;
     }
 
     getChainLength() {
-        return this.chain.length;
+        return this.#chain.length;
     }
 
+    /**
+     * Returns the current mutation chain as an immutable reference.
+     * @returns {ReadonlyArray<MutationRecord>}
+     */
     getChain() {
-        // Return a copy to ensure external manipulation does not compromise the internal ledger.
-        return [...this.chain];
+        return this.#chain;
     }
 }
 
-module.exports = MutationChainRegistrar;
+module.exports = MutationChainRegistrarKernel;
