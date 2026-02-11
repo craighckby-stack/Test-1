@@ -2,22 +2,20 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-// --- Centralized Integrity Protocol Constants (Mandated by CryptographicIntegrityTool) ---
-// These constants define the protocol mandated by GAX III, ensuring consistency across the system.
-const ALGORITHM = 'sha256';
-const ENCODING = 'hex';
-// Length of SHA-256 hash in hex characters (32 bytes * 2).
-const HASH_LENGTH_HEX = 64; 
-
 /**
  * IntegrityHashUtility
  * Provides standardized, consistent cryptographic hashing functions for
  * Governance Artifact attestation (GAX III requirement).
  * Ensures that all subsystems calculating hashes for GAR attestation use the same protocol.
  * Uses streams internally for efficient asynchronous file processing.
- * Core hashing and validation logic are standardized via external tool configuration (ALGORITHM, HASH_LENGTH_HEX).
  */
 class IntegrityHashUtility {
+
+    // --- Mandated Integrity Protocol Constants (GAX III) ---
+    static ALGORITHM = 'sha256';
+    static ENCODING = 'hex';
+    // Length of SHA-256 hash in hex characters (32 bytes * 2).
+    static HASH_LENGTH_HEX = 64; 
 
     /**
      * Calculates the cryptographic hash of raw data (Buffer or string).
@@ -30,10 +28,9 @@ class IntegrityHashUtility {
         if (data === null || data === undefined) {
             throw new Error("IntegrityHashUtility: Cannot hash null or undefined data.");
         }
-        // Uses standard algorithm defined globally/by tool configuration
-        return crypto.createHash(ALGORITHM)
+        return crypto.createHash(IntegrityHashUtility.ALGORITHM)
             .update(data)
-            .digest(ENCODING);
+            .digest(IntegrityHashUtility.ENCODING);
     }
 
     /**
@@ -63,7 +60,7 @@ class IntegrityHashUtility {
         const fullPath = path.resolve(filePath);
         
         return new Promise((resolve, reject) => {
-            const hash = crypto.createHash(ALGORITHM);
+            const hash = crypto.createHash(IntegrityHashUtility.ALGORITHM);
             const stream = fs.createReadStream(fullPath);
 
             // Catch stream read errors (e.g., file not found)
@@ -80,7 +77,7 @@ class IntegrityHashUtility {
                 .on('finish', () => {
                     // The hash object has received all input data.
                     try {
-                        const result = hash.digest(ENCODING);
+                        const result = hash.digest(IntegrityHashUtility.ENCODING);
                         resolve(result);
                     } catch (e) {
                         // Catch final digest calculation failure
@@ -103,7 +100,7 @@ class IntegrityHashUtility {
         }
 
         // Standardize validation against the defined digest length.
-        if (calculatedHash.length !== HASH_LENGTH_HEX || expectedHash.length !== HASH_LENGTH_HEX) {
+        if (calculatedHash.length !== IntegrityHashUtility.HASH_LENGTH_HEX || expectedHash.length !== IntegrityHashUtility.HASH_LENGTH_HEX) {
             return false;
         }
         
@@ -115,6 +112,6 @@ class IntegrityHashUtility {
      * @returns {string} The algorithm name.
      */
     static getAlgorithm() {
-        return ALGORITHM;
+        return IntegrityHashUtility.ALGORITHM;
     }
 }
