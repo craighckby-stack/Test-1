@@ -21,9 +21,10 @@ export interface EvolutionStep {
 }
 
 /**
- * The top-level structure for an AGI Evolution Mission Configuration (MEC).
+ * Defines the structural metadata for an AGI Evolution Mission Configuration (MEC).
+ * This part provides identification and integrity checks, separate from execution content.
  */
-export interface EvolutionMission {
+export interface EvolutionMissionMetadata {
     /** Unique identifier for the mission. */
     missionId: string;
     /** Configuration schema version. */
@@ -32,8 +33,20 @@ export interface EvolutionMission {
     timestamp: string; 
     /** General description of the mission objective. */
     description: string;
-    /** Ordered list of steps defining the evolution process. */
-    evolutionSteps: EvolutionStep[];
     /** Optional checksum/hash for integrity verification. */
     configHash?: string;
 }
+
+/**
+ * Defines the core executable content of an AGI Evolution Mission.
+ */
+export interface EvolutionMissionContent {
+    /** Ordered list of steps defining the evolution process. */
+    evolutionSteps: EvolutionStep[];
+}
+
+/**
+ * The top-level structure for an AGI Evolution Mission Configuration (MEC),
+ * composed of structural metadata and executable content.
+ */
+export type EvolutionMission = EvolutionMissionMetadata & EvolutionMissionContent;
