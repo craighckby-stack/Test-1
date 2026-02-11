@@ -7,12 +7,12 @@ interface GFTReportV94 {
 }
 
 /**
- * Post-Mortem Integrity Assurance Module (PIAM) Interface
+ * Post-Mortem Integrity Assurance Module (PIAM) Interface Kernel
  * Responsible for integrity sealing of terminal state, complete system isolation,
  * cryptographic signing and robust broadcasting of the final GFTR during 
  * SIH (TERMINAL) failure class events.
  */
-export interface PIAM_Interface {
+export interface PIAMInterfaceKernel {
 
     /**
      * Executes deep forensic state capture and cryptographically seals the terminal 
