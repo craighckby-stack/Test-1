@@ -3,43 +3,117 @@
  * Handles lookup and execution of Trust Policies defined in config/security/data_trust_endpoints_v3.json
  */
 
-// Assuming ToolExecutor is available globally or imported for accessing kernel plugins
-declare const ToolExecutor: any;
+class ProvenanceTrustClientKernel {
+    #configLoader;
+    #pvsConnector;
+    #streamMatcherTool;
+    #trustEvaluatorTool; 
+    
+    #config;
+    #policies;
+    #streams;
+    #defaults;
 
-class ProvenanceTrustClient {
-    private streamMatcherTool: any;
-    private trustEvaluatorTool: any; // NEW: Plugin for executing policy evaluation pipeline
-
-    constructor(configLoader, pvsConnector) {
-        this.config = configLoader.load('data_trust_endpoints_v3');
-        this.pvsConnector = pvsConnector; // Provenance Verification Service connection instance
-        this.policies = this.config.trust_policies;
-        this.streams = this.config.data_streams;
-        this.defaults = this.config.global_policy_defaults;
-
-        // Initialize the tool reference
-        this.streamMatcherTool = ToolExecutor.get('ConfigStreamMatcher');
-        this.trustEvaluatorTool = ToolExecutor.get('TrustPolicyEvaluationEngine'); // NEW
+    /**
+     * @param {IConfigLoaderKernel} configLoader - Configuration management service.
+     * @param {IPVSConnectorKernel} pvsConnector - Provenance Verification Service connection instance.
+     * @param {IConfigStreamMatcherToolKernel} streamMatcherTool - Tool for matching endpoints to configuration streams.
+     * @param {ITrustPolicyEvaluationEngineKernel} trustEvaluatorTool - Tool for executing trust policy evaluation.
+     */
+    constructor(configLoader, pvsConnector, streamMatcherTool, trustEvaluatorTool) {
+        this.#configLoader = configLoader;
+        this.#pvsConnector = pvsConnector;
+        this.#streamMatcherTool = streamMatcherTool;
+        this.#trustEvaluatorTool = trustEvaluatorTool;
+        this.#setupDependencies();
     }
 
     /**
-     * Matches an incoming endpoint URL to a defined data stream configuration 
-     * using the robust ConfigStreamMatcher plugin (supporting glob patterns).
+     * Rigorously checks dependencies, loads required configuration synchronously, and initializes internal state.
+     * @private
+     */
+    #setupDependencies() {
+        if (!this.#configLoader) {
+            throw new Error("Dependency IConfigLoaderKernel is required for ProvenanceTrustClientKernel.");
+        }
+        if (!this.#pvsConnector) {
+            throw new Error("Dependency IPVSConnectorKernel is required for ProvenanceTrustClientKernel.");
+        }
+        if (!this.#streamMatcherTool) {
+            throw new Error("Dependency IConfigStreamMatcherToolKernel is required for ProvenanceTrustClientKernel.");
+        }
+        if (!this.#trustEvaluatorTool) {
+            throw new Error("Dependency ITrustPolicyEvaluationEngineKernel is required for ProvenanceTrustClientKernel.");
+        }
+
+        this.#config = this.#delegateToConfigLoaderLoad('data_trust_endpoints_v3');
+        
+        if (!this.#config || !this.#config.trust_policies || !this.#config.data_streams || !this.#config.global_policy_defaults) {
+             throw new Error("Failed to load critical data trust configuration or structure is invalid.");
+        }
+
+        this.#policies = this.#config.trust_policies;
+        this.#streams = this.#config.data_streams;
+        this.#defaults = this.#config.global_policy_defaults;
+    }
+
+    // --- I/O Proxies ---
+
+    #delegateToConfigLoaderLoad(configName) {
+        // Isolating synchronous config loading I/O
+        return this.#configLoader.load(configName);
+    }
+
+    #delegateToStreamMatcherExecute(url) {
+        // Isolating tool execution I/O (IConfigStreamMatcherToolKernel)
+        return this.#streamMatcherTool.execute({
+            target: url,
+            patterns: this.#streams,
+            patternKey: 'endpoint_pattern'
+        });
+    }
+
+    async #delegateToPVSConnectorVerify(proofToken, level, keyId) {
+        // Isolating external service communication I/O (IPVSConnectorKernel)
+        return await this.#pvsConnector.verify(proofToken, level, keyId);
+    }
+    
+    async #delegateToTrustEvaluatorExecute(streamConfig, metadata, pvsVerifier) {
+         // Isolating tool execution I/O (ITrustPolicyEvaluationEngineKernel)
+        // NOTE: runtimeTrustScore must be calculated based on input signals (Placeholder maintained)
+        const runtimeTrustScore = 1.0; 
+
+        return await this.#trustEvaluatorTool.execute({
+            streamConfig: streamConfig,
+            policies: this.#policies,
+            defaults: this.#defaults,
+            runtimeTrustScore: runtimeTrustScore,
+            metadata: metadata,
+            pvsVerifier: pvsVerifier 
+        });
+    }
+
+    #logWarning(message) {
+        console.warn(message);
+    }
+    
+    #logError(message) {
+        console.error(message);
+    }
+
+    #logSuccess(message) {
+        console.log(message);
+    }
+
+    // --- Public Methods ---
+
+    /**
+     * Matches an incoming endpoint URL to a defined data stream configuration.
      * @param {string} url - The URL or identifier of the ingress point.
      * @returns {Object | null} The stream configuration or null.
      */
     findStreamConfiguration(url) {
-        if (!this.streamMatcherTool) {
-            // Fallback or error if tool is unavailable
-            console.error("ConfigStreamMatcher tool not initialized.");
-            return null;
-        }
-
-        return this.streamMatcherTool.execute({
-            target: url,
-            patterns: this.streams,
-            patternKey: 'endpoint_pattern'
-        });
+        return this.#delegateToStreamMatcherExecute(url);
     }
 
     /**
@@ -50,45 +124,30 @@ class ProvenanceTrustClient {
      */
     async validateTrust(endpointUrl, metadata) {
         const streamConfig = this.findStreamConfiguration(endpointUrl);
+        
         if (!streamConfig) {
-            console.warn(`No explicit trust policy found for ${endpointUrl}. Denying access.`);
+            this.#logWarning(`No explicit trust policy found for ${endpointUrl}. Denying access.`);
             return false;
         }
 
-        if (!this.trustEvaluatorTool) {
-            console.error("TrustPolicyEvaluationEngine tool not initialized.");
-            return false;
-        }
-
-        // Define the PVS verification function closure to inject dependencies into the stateless plugin
+        // Define the PVS verification function closure, injecting the I/O proxy for verification delegation
         const pvsVerifier = async (proofToken, level, keyId) => {
-            if (!this.pvsConnector) return false;
-            return this.pvsConnector.verify(proofToken, level, keyId);
+            return await this.#delegateToPVSConnectorVerify(proofToken, level, keyId);
         };
-
-        // NOTE: runtimeTrustScore must be calculated based on input signals
-        const runtimeTrustScore = 1.0; 
-
-        const evaluationResult = await this.trustEvaluatorTool.execute({
-            streamConfig: streamConfig,
-            policies: this.policies,
-            defaults: this.defaults,
-            runtimeTrustScore: runtimeTrustScore,
-            metadata: metadata,
-            pvsVerifier: pvsVerifier
-        });
+        
+        const evaluationResult = await this.#delegateToTrustEvaluatorExecute(streamConfig, metadata, pvsVerifier);
 
         if (!evaluationResult.success) {
-            console.error(`Trust validation failed: ${evaluationResult.reason}`);
+            this.#logError(`Trust validation failed: ${evaluationResult.reason}`);
             return false;
         }
 
         // 3. Integrity Check: (Placeholder for checks not managed by the evaluation engine)
         // ... Implementation depends on I/O system ...
 
-        console.log(`Trust validation successful for stream ${streamConfig.stream_id}.`);
+        this.#logSuccess(`Trust validation successful for stream ${streamConfig.stream_id}.`);
         return true;
     }
 }
 
-module.exports = ProvenanceTrustClient;
+module.exports = ProvenanceTrustClientKernel;
