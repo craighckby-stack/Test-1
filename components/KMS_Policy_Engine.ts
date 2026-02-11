@@ -78,9 +78,23 @@ class KMSPolicyEngine {
   }
 
   /**
+   * Internal helper to delegate execution to the adapter, automatically injecting
+   * static dependencies (Error class and KERNEL capabilities).
+   */
+  private #executeValidationCheck(identityId: string, checkFailed: string, toolArgs: object): void {
+    this.adapter.execute(
+        identityId,
+        checkFailed,
+        toolArgs,
+        PolicyValidationError, // Static injection
+        KERNEL_SYNERGY_CAPABILITIES // Static injection
+    );
+  }
+
+  /**
    * Resolves the identity entry from the cached mapping (O(1)).
    */
-  private getIdentityEntry(identityId: string): IdentityMapEntry {
+  private #getIdentityEntry(identityId: string): IdentityMapEntry {
     const roleEntry = this.cache.identityMap[identityId];
     if (!roleEntry) {
       throw new PolicyValidationError(`Identity ${identityId} not mapped in system policies.`, identityId, 'IdentityResolution');
@@ -91,7 +105,7 @@ class KMSPolicyEngine {
   /**
    * Resolves the usage profile based on the identity entry (O(1)).
    */
-  private getUsageProfile(roleEntry: IdentityMapEntry): UsageProfile {
+  private #getUsageProfile(roleEntry: IdentityMapEntry): UsageProfile {
     const profile = this.cache.usageProfiles[roleEntry.usage_profile_id];
     if (!profile) {
         throw new PolicyValidationError(`Usage profile ${roleEntry.usage_profile_id} not defined.`, roleEntry.identity_id, 'ProfileResolution');
@@ -102,29 +116,27 @@ class KMSPolicyEngine {
   /**
    * 1. Checks if the requested operation is permitted using the validation adapter.
    */
-  private checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
-    // Use adapter to delegate tool execution and standardize error handling (DRY principle applied)
-    this.adapter.execute(
+  private #checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
+    // Use abstracted helper to delegate tool execution
+    this.#executeValidationCheck(
         identityId,
         'ForbiddenUsage',
         {
             operation: 'validateInclusion',
             value: operation,
             allowedList: profile.allowed_usages,
-        },
-        PolicyValidationError,
-        KERNEL_SYNERGY_CAPABILITIES
+        }
     );
   }
 
   /**
    * 2. Checks if the signature age exceeds the globally defined Time-To-Live (TTL).
    */
-  private checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
+  private #checkSignatureTTL(identityId: string, signatureAgeMinutes: number): void {
     const { signature_ttl_minutes: globalTTL } = this.cache.globalPolicies;
 
-    // Use adapter to delegate tool execution and standardize error handling
-    this.adapter.execute(
+    // Use abstracted helper to delegate tool execution
+    this.#executeValidationCheck(
         identityId,
         'SignatureTTL',
         {
@@ -132,16 +144,14 @@ class KMSPolicyEngine {
             value: signatureAgeMinutes,
             // We enforce value <= constraint (TTL)
             constraint: globalTTL,
-        },
-        PolicyValidationError,
-        KERNEL_SYNERGY_CAPABILITIES
+        }
     );
   }
 
   /**
    * 3. Checks for geospatial compliance if required by global policy.
    */
-  private checkGeospatialLock(identityId: string, geoCoordinate?: [number, number]): void {
+  private #checkGeospatialLock(identityId: string, geoCoordinate?: [number, number]): void {
     const { access_controls } = this.cache.globalPolicies;
     
     if (access_controls.enforce_geospatial_lock && !geoCoordinate) {
@@ -155,13 +165,13 @@ class KMSPolicyEngine {
    */
   public validate(request: KeyRequest): boolean {
     // O(1) lookups improve validation startup time
-    const identityEntry = this.getIdentityEntry(request.identityId);
-    const profile = this.getUsageProfile(identityEntry);
+    const identityEntry = this.#getIdentityEntry(request.identityId);
+    const profile = this.#getUsageProfile(identityEntry);
 
-    // Execute Checks
-    this.checkAllowedUsage(request.identityId, profile, request.operation);
-    this.checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
-    this.checkGeospatialLock(request.identityId, request.geoCoordinate);
+    // Execute Checks (using encapsulated, private methods)
+    this.#checkAllowedUsage(request.identityId, profile, request.operation);
+    this.#checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
+    this.#checkGeospatialLock(request.identityId, request.geoCoordinate);
 
     return true; // All policies passed
   }
