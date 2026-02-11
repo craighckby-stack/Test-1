@@ -14,8 +14,10 @@ class ArtifactValidatorService {
             throw new Error("ArtifactValidatorService requires schemaRegistry, cryptoService, and constraintUtility dependencies.");
         }
         this.registry = schemaRegistry;
-        this.cryptoService = cryptoService;
         this.constraintUtility = constraintUtility;
+        
+        // Delegate cryptographic concerns to a specialized plugin
+        this.cryptoValidator = new CryptographicArtifactValidatorPlugin(cryptoService);
     }
 
     /**
@@ -35,7 +37,7 @@ class ArtifactValidatorService {
         this._validateStructure(definition.schema, payload, artifactId);
 
         // 2. Cryptographic Integrity Validation
-        await this._validateCryptography(definition.cryptographic_requirements, payload, artifactId);
+        await this.cryptoValidator.validate(definition.cryptographic_requirements, payload, artifactId);
 
         return true;
     }
@@ -63,76 +65,6 @@ class ArtifactValidatorService {
             // Catch errors thrown by the validator and re-throw with Artifact ID context.
             throw new Error(`[${artifactId}] Validation failed: ${e.message}`);
         }
-    }
-
-    /**
-     * Performs cryptographic validation (signatures, Merkle proofs) using the CryptoService.
-     */
-    async _validateCryptography(requirements, payload, artifactId) {
-        if (!requirements) {
-            return; // No cryptographic requirements specified
-        }
-
-        // Canonical data is the specific data block that was signed/hashed.
-        const dataToVerify = this._getCanonicalData(payload, requirements.signed_fields);
-
-        // --- 1. Signature Authority Verification ---
-        if (requirements.signing_authorities) {
-            for (const requirement of requirements.signing_authorities) {
-                const { key_identifier_field, signature_field, authority_name } = requirement;
-
-                const keyId = payload[key_identifier_field];
-                const signature = payload[signature_field];
-
-                if (!keyId || !signature) {
-                    throw new Error(`[${artifactId}] Cryptography failed: Missing key ID (${key_identifier_field}) or signature (${signature_field}) for authority ${authority_name}.`);
-                }
-
-                const isValid = await this.cryptoService.verifySignature(dataToVerify, signature, keyId, authority_name);
-
-                if (!isValid) {
-                    throw new Error(`[${artifactId}] Cryptography failed: Invalid signature detected for authority: ${authority_name}.`);
-                }
-            }
-        }
-
-        // --- 2. Integrity Check (e.g., Merkle Root Verification) ---
-        if (requirements.integrity && requirements.integrity.algorithm.startsWith('MERKLE_')) {
-            const { algorithm, target_fields, root_field } = requirements.integrity;
-            const claimedRoot = payload[root_field];
-
-            if (!claimedRoot) {
-                 throw new Error(`[${artifactId}] Integrity failed: Missing claimed Merkle Root (${root_field}).`);
-            }
-
-            // Collect data points whose hashes form the Merkle tree leaves.
-            const leavesData = target_fields.map(field => payload[field]);
-
-            const calculatedRoot = await this.cryptoService.calculateMerkleRoot(leavesData, algorithm);
-
-            if (calculatedRoot !== claimedRoot) {
-                 throw new Error(`[${artifactId}] Integrity failed: Calculated Merkle Root mismatch (Claimed: ${claimedRoot}, Calculated: ${calculatedRoot}).`);
-            }
-        }
-    }
-
-    /**
-     * Helper to prepare the canonicalized data payload used for cryptographic operations.
-     * Assumes specific fields need to be canonicalized based on requirements.signed_fields.
-     * Note: Proper implementation requires strict JCS (JSON Canonicalization Scheme).
-     */
-    _getCanonicalData(payload, signedFields) {
-        if (signedFields && Array.isArray(signedFields)) {
-            const dataSubset = {};
-            signedFields.forEach(field => {
-                if (Object.prototype.hasOwnProperty.call(payload, field)) {
-                    dataSubset[field] = payload[field];
-                }
-            });
-            // A robust JCS implementation would sort keys recursively here.
-            return JSON.stringify(dataSubset);
-        }
-        return JSON.stringify(payload);
     }
 }
 
