@@ -1,45 +1,38 @@
 /**
  * @fileoverview Custom error class for failures encountered during Payload Specification Engine validation.
  * Represents a structured operational failure due to invalid input schema or governance rules violation.
- * This error is designed to be safe for transmission and easy for structured logging.
+ * This error enforces the mandatory high-integrity error structure, including a specific conceptId,
+ * required by the AIA Enforcement Layer for auditable error processing and normalization.
  *
- * This version leverages the CanonicalErrorFormatterUtility for standardized, safe serialization.
+ * NOTE: Canonical serialization (safe field exclusion, deep filtering) is delegated to the
+ * IErrorDetailNormalizationToolKernel during pipeline processing, eliminating the need for internal
+ * synchronous utility usage (CanonicalErrorFormatterUtility).
  */
-
-// Define the assumed interface for the plugin tool
-interface ICanonicalErrorFormatterUtility {
-    serialize(error: PayloadSchemaError): object;
-}
-
-// Global accessor for the kernel plugin, assuming it's available.
-// In a real environment, this would be dependency injected or imported.
-// @ts-ignore
-const CanonicalErrorFormatterUtility: ICanonicalErrorFormatterUtility = typeof __PLUGINS__ !== 'undefined' ? __PLUGINS__.CanonicalErrorFormatterUtility : null;
-
 
 class PayloadSchemaError extends Error {
     // Standard HTTP status code for client payload validation errors.
-    static HTTP_STATUS = 400; 
-    // Internal standardized code for auditing.
-    static ERROR_CODE = 'GOV_MPSE_BREACH'; 
+    static HTTP_STATUS = 400;
+    
+    // Mandatory, standardized concept identifier for high-integrity audit (AIA Enforcement Layer).
+    static CONCEPT_ID = 'GOV_E_003'; 
 
     /** @type {boolean} */
-    public isOperational: boolean;
+    public isOperational;
     /** @type {number} */
-    public status: number;
+    public status;
     /** @type {string} */
-    public code: string;
+    public conceptId;
     /** @type {Object} */
-    public failedPayload: object;
+    public failedPayload;
     /** @type {(Object|Array)} */
-    public validationDetails: object | any[];
+    public validationDetails;
 
     /**
      * @param {string} message - A user-readable explanation of the error.
-     * @param {Object} [payload={}] - The full or relevant part of the input payload that caused the failure. Sensitive data should be sanitized before storing.
+     * @param {Object} [payload={}] - The full or relevant part of the input payload that caused the failure. Sensitive data must be sanitized before storing.
      * @param {(Object|Array)} [validationDetails={}] - Structured data detailing specific validation failures (e.g., Joi/Zod output, array of field errors).
      */
-    constructor(message: string, payload: object = {}, validationDetails: object | any[] = {}) {
+    constructor(message, payload = {}, validationDetails = {}) {
         super(message);
 
         // --- Core Error Identification ---
@@ -48,7 +41,7 @@ class PayloadSchemaError extends Error {
 
         // --- Contextual Data & Governance ---
         this.status = PayloadSchemaError.HTTP_STATUS;
-        this.code = PayloadSchemaError.ERROR_CODE;
+        this.conceptId = PayloadSchemaError.CONCEPT_ID;
 
         this.failedPayload = payload;
         this.validationDetails = validationDetails; 
@@ -61,23 +54,19 @@ class PayloadSchemaError extends Error {
     }
 
     /**
-     * Provides a standard representation of the error suitable for JSON serialization (e.g., API response bodies or structured logs).
-     * Delegates serialization rules to the CanonicalErrorFormatterUtility to ensure consistency and safety.
+     * Provides a basic representation of the error suitable for native JSON serialization (JSON.stringify).
+     * Full, canonical normalization and security filtering is handled asynchronously by the
+     * IErrorDetailNormalizationToolKernel in the processing pipeline.
      * @returns {Object} Serializable error representation.
      */
-    toJSON(): object {
-        // Use the extracted utility to ensure canonical formatting and security exclusions.
-        if (CanonicalErrorFormatterUtility && typeof CanonicalErrorFormatterUtility.serialize === 'function') {
-            return CanonicalErrorFormatterUtility.serialize(this);
-        }
-        
-        // Fallback for environments without the plugin initialized
+    toJSON() {
         return {
             name: this.name,
-            code: this.code,
+            conceptId: this.conceptId,
             status: this.status,
             message: this.message,
             validationDetails: this.validationDetails
+            // failedPayload is intentionally omitted here; the normalization tool handles inclusion/exclusion safely.
         };
     }
 }
