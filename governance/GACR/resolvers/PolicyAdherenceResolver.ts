@@ -1,4 +1,5 @@
 import { MPAMConfiguration, PolicyAdherenceResult } from '../types/MPAMTypes';
+import { IPolicyThresholdValidator, ThresholdValidationResult } from '../plugins/PolicyThresholdValidator';
 
 /**
  * Interface for the external data fetching dependency.
@@ -18,13 +19,19 @@ type Policy = MPAMConfiguration['policies'][0];
 export class PolicyAdherenceResolver {
     private config: MPAMConfiguration;
     private readonly dataFetcher: IComplianceDataFetcher;
+    private readonly thresholdValidator: IPolicyThresholdValidator;
 
-    constructor(mpamConfig: MPAMConfiguration, dataFetcher: IComplianceDataFetcher) {
-        if (!dataFetcher) {
-            throw new Error("IComplianceDataFetcher dependency missing.");
+    constructor(
+        mpamConfig: MPAMConfiguration, 
+        dataFetcher: IComplianceDataFetcher,
+        thresholdValidator: IPolicyThresholdValidator
+    ) {
+        if (!dataFetcher || !thresholdValidator) {
+            throw new Error("Missing required dependency: IComplianceDataFetcher or IPolicyThresholdValidator.");
         }
         this.config = mpamConfig;
         this.dataFetcher = dataFetcher;
+        this.thresholdValidator = thresholdValidator;
     }
 
     /**
@@ -60,18 +67,16 @@ export class PolicyAdherenceResolver {
             const adherenceScore = this.calculateScore(policy, rawData);
             
             // Compliance Check delegated to PolicyThresholdValidator plugin
-            // Checks if adherenceScore meets ANY of the required target thresholds.
-            const isCompliant = policy.metrics.some(metric => adherenceScore >= metric.target_threshold);
-            
-            // Find the lowest required threshold for reporting (useful for context, even if multiple metrics exist)
-            const minRequiredThreshold = policy.metrics.reduce((min, metric) => 
-                Math.min(min, metric.target_threshold), Infinity);
+            const validationResult: ThresholdValidationResult = this.thresholdValidator.validate(
+                adherenceScore,
+                policy.metrics
+            );
 
             results.push({
                 policyId: policy.policy_id,
-                isCompliant: isCompliant,
+                isCompliant: validationResult.isCompliant,
                 score: adherenceScore,
-                requiredThreshold: minRequiredThreshold !== Infinity ? minRequiredThreshold : 0,
+                requiredThreshold: validationResult.requiredReportingThreshold,
                 timestamp: new Date().toISOString()
             });
         }
