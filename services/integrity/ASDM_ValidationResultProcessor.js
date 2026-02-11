@@ -1,16 +1,10 @@
 /**
- * services/integrity/ASDM_ValidationResultProcessor.js V94.1 (Delegated)
+ * services/integrity/ASDM_ValidationResultProcessor.js V95.0 (Refactored Wrapper)
  * Utility to transform raw Ajv validation errors into standardized, actionable, and machine-readable output.
- * Uses the AjvErrorTransformer plugin for core logic.
+ * Delegates core logic to the AjvErrorTransformer plugin.
  */
 
-// Assuming that the services layer accesses the tool functionality
-// via a utility wrapper or dependency injection mechanism. This declaration
-// abstracts the external interface defined in the plugin.
-declare const AjvErrorTransformer: {
-    processValidationErrors: (schemaKey: string, rawErrors: AjvError[]) => StandardIssue[];
-    createValidationResponse: (schemaKey: string, validationResult: { isValid: boolean, errors: AjvError[] | null | undefined }) => { success: boolean, issues: StandardIssue[] };
-};
+import { AjvErrorTransformer } from "@/plugins/AjvErrorTransformer"; // Assuming standard import path
 
 /**
  * @typedef {object} AjvError
@@ -39,20 +33,7 @@ declare const AjvErrorTransformer: {
  * @returns {Array<StandardIssue>}
  */
 export function processValidationErrors(schemaKey: string, rawErrors: AjvError[]): StandardIssue[] {
-    // Delegation to the extracted plugin logic
-    if (typeof AjvErrorTransformer?.processValidationErrors === 'function') {
-        return AjvErrorTransformer.processValidationErrors(schemaKey, rawErrors);
-    }
-    
-    // Safety fallback implementation
-    if (!Array.isArray(rawErrors)) return [];
-    
-    return rawErrors.map(error => ({
-        schema: schemaKey,
-        field: (error as any).instancePath || (error as any).dataPath || '/', 
-        code: (error as any).keyword,
-        message: (error as any).message || `Validation error [${(error as any).keyword}] details unavailable`
-    })) as StandardIssue[];
+    return AjvErrorTransformer.processValidationErrors(schemaKey, rawErrors);
 }
 
 /**
@@ -64,21 +45,5 @@ export function processValidationErrors(schemaKey: string, rawErrors: AjvError[]
  * @returns {{success: boolean, issues: Array<StandardIssue>}}
  */
 export function createValidationResponse(schemaKey: string, validationResult: {isValid: boolean, errors: AjvError[] | null | undefined}): { success: boolean, issues: StandardIssue[] } {
-    // Delegation to the extracted plugin logic
-    if (typeof AjvErrorTransformer?.createValidationResponse === 'function') {
-        return AjvErrorTransformer.createValidationResponse(schemaKey, validationResult);
-    }
-
-    // Safety fallback implementation
-    const isValid = validationResult?.isValid ?? false;
-    const errors = validationResult?.errors ?? null;
-
-    const issues = isValid 
-        ? [] 
-        : processValidationErrors(schemaKey, errors as AjvError[]);
-
-    return {
-        success: isValid,
-        issues: issues,
-    };
+    return AjvErrorTransformer.createValidationResponse(schemaKey, validationResult);
 }
