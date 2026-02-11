@@ -1,26 +1,41 @@
 /**
- * Utility: Policy Intent Factory (PIF)
- * ID: PIF-v94.1
- * Mandate: Centralize the creation of standardized, high-security mutation intent packages (M-XX series),
- *          ensuring strict metadata compliance required for RSAM attestation, leveraging an external schema registry.
+ * Kernel: Policy Intent Factory Kernel (PIF-v94.1 Refactored)
+ * ID: PIF-v94.1R
+ * Mandate: Asynchronously centralize the creation of standardized, high-security mutation intent packages (M-XX series),
+ *          ensuring strict metadata compliance required for RSAM attestation by leveraging asynchronous registry services.
  */
-// Import centralized governance schemas. Proposed location via scaffolding.
-const INTENT_SCHEMAS = require('./config/intentSchemas'); 
 
-// CRITICAL ASSUMPTION: TraceableIdGenerator plugin is available in the environment.
-// This type declaration is for documentation/TypeScript compatibility and should be removed if targetting pure JS environments without type checking.
-// declare const TraceableIdGenerator: { execute: (args: { prefix: string, uniqueIdGenerator: () => string }) => string; }
-
-class PolicyIntentFactory {
+class PolicyIntentFactoryKernel {
     /**
-     * @param {Object} uuidGenerator - A compliant UUID generation utility (e.g., v4).
+     * @param {PayloadSchemaRegistryKernel} payloadSchemaRegistryKernel - For loading intent configuration metadata (e.g., INTENT_SCHEMAS).
+     * @param {ITraceableIdGeneratorToolKernel} traceableIdGeneratorToolKernel - For generating standardized, traceable IDs.
      */
-    constructor(uuidGenerator) {
-        if (!uuidGenerator || typeof uuidGenerator.v4 !== 'function') {
-             throw new Error("PolicyIntentFactory requires a compliant uuidGenerator.");
+    constructor(payloadSchemaRegistryKernel, traceableIdGeneratorToolKernel) {
+        if (!payloadSchemaRegistryKernel || typeof payloadSchemaRegistryKernel.getSchema !== 'function') {
+            throw new Error("PolicyIntentFactoryKernel requires a compliant PayloadSchemaRegistryKernel.");
         }
-        this.uuidGenerator = uuidGenerator;
-        this.intentSchemas = INTENT_SCHEMAS;
+        if (!traceableIdGeneratorToolKernel || typeof traceableIdGeneratorToolKernel.generateTraceableId !== 'function') {
+            throw new Error("PolicyIntentFactoryKernel requires a compliant ITraceableIdGeneratorToolKernel.");
+        }
+
+        this.schemaRegistry = payloadSchemaRegistryKernel;
+        this.idGenerator = traceableIdGeneratorToolKernel;
+        this.intentSchemasCache = null;
+    }
+
+    /**
+     * Asynchronously initializes the kernel by loading required schemas.
+     * This replaces the synchronous 'require' operation.
+     */
+    async initialize() {
+        if (this.intentSchemasCache === null) {
+            // Load intent metadata structure asynchronously from the centralized registry.
+            this.intentSchemasCache = await this.schemaRegistry.getSchema('GOVERNANCE_INTENT_METADATA');
+            if (!this.intentSchemasCache) {
+                 // Use MultiTargetAuditDisperserToolKernel in a full implementation, here we throw for fast failure.
+                 throw new Error("Initialization failed: Could not load GOVERNANCE_INTENT_METADATA schemas.");
+            }
+        }
     }
 
     /**
@@ -29,7 +44,12 @@ class PolicyIntentFactory {
      * @returns {Object} Intent configuration metadata.
      */
     _getIntentMetadata(typeId) {
-        const metadata = this.intentSchemas[typeId];
+        if (!this.intentSchemasCache) {
+             // Should be initialized externally, but a check remains.
+             throw new Error("PolicyIntentFactoryKernel not initialized. Call initialize() first.");
+        }
+
+        const metadata = this.intentSchemasCache[typeId];
         if (!metadata) {
             // High security requirement: fail fast on unknown intent types.
             throw new Error(`PIF Integrity Breach: Unknown Intent Type ID provided: ${typeId}`);
@@ -39,24 +59,23 @@ class PolicyIntentFactory {
 
     /**
      * Generically creates a standardized, high-security mutation intent package (M-XX series).
+     * Replaces synchronous execution with asynchronous delegation and ensures high-integrity output.
      *
      * @param {string} typeId - The registered intent code (e.g., 'M01').
-     * @param {MutationIntentPayload} rawRequest - The core operational payload.
-     * @returns {IntentPackage} Structured intent object for governance registration.
+     * @param {Object} rawRequest - The core operational payload.
+     * @returns {Promise<Readonly<Object>>} Structured intent object for governance registration.
      */
-    createIntent(typeId, rawRequest) {
+    async createIntent(typeId, rawRequest) {
+        // Ensure schemas are loaded if initialization hasn't occurred.
+        if (!this.intentSchemasCache) await this.initialize();
+        
         const metadata = this._getIntentMetadata(typeId);
         
-        // Use the TraceableIdGenerator plugin for standardized, traceable ID creation.
-        // This abstracts away the complex ID composition logic.
-        // Note: Bind is used to ensure the UUID generator function maintains its 'this' context.
-        const intentId = TraceableIdGenerator.execute({
-            prefix: typeId,
-            uniqueIdGenerator: this.uuidGenerator.v4.bind(this.uuidGenerator)
-        });
+        // Delegation to specialized, asynchronous Tool Kernel for traceable ID generation
+        const intentId = await this.idGenerator.generateTraceableId(typeId);
 
         // Construct the compliant package based on centralized governance configuration
-        return {
+        const intentPackage = {
             id: intentId,
             type: metadata.type, 
             priority: metadata.priority, 
@@ -66,7 +85,10 @@ class PolicyIntentFactory {
             // Attach standardized security requirements derived from the schema
             securityMetadata: metadata.security
         };
+        
+        // Enforce immutability on the final output package.
+        return Object.freeze(intentPackage);
     }
 }
 
-module.exports = PolicyIntentFactory;
+module.exports = PolicyIntentFactoryKernel;
