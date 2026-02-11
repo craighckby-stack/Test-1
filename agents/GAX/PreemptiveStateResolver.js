@@ -9,7 +9,7 @@
  * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
  */
 
-// CRITICAL: Assumes KERNEL_SYNERGY_CAPABILITIES is available in the runtime context.
+// CRITICAL: Refactored to use Dependency Injection for KERNEL_SYNERGY_CAPABILITIES interface handling.
 
 class PreemptiveStateResolver {
     
@@ -17,6 +17,7 @@ class PreemptiveStateResolver {
     #policyEngine;
     #metricsStore;
     #simEngine;
+    #kernelCapabilityService; // Stores required KERNEL_SYNERGY_CAPABILITIES interfaces
     
     // Inputs needed for external R_TH calculation via the kernel tool
     #riskAccessors;
@@ -26,15 +27,22 @@ class PreemptiveStateResolver {
      * @param {Object} Dependencies - Structured dependencies required for PSR operation.
      * @param {Object} Dependencies.GAX_Context - Full context container (must expose PolicyEngine, MetricsStore, getRiskModel, getUFRM, getCFTM).
      * @param {Object} Dependencies.SimulationEngine - Engine for TEMM/ECVM prediction using ACVD.
+     * @param {Object} Dependencies.KernelCapabilities - REQUIRED: The KERNEL_SYNERGY_CAPABILITIES subset relevant to PSR (e.g., RiskThresholdCalculatorService).
      */
-    constructor({ GAX_Context, SimulationEngine }) {
+    constructor({ GAX_Context, SimulationEngine, KernelCapabilities }) {
         if (!GAX_Context || !SimulationEngine) {
             throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
         }
         
+        // 1. Validate and store Kernel Capabilities Dependency
+        if (!KernelCapabilities || !KernelCapabilities.RiskThresholdCalculatorService) {
+            throw new Error("[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: RiskThresholdCalculatorService. Cannot calculate R_TH.");
+        }
+        this.#kernelCapabilityService = KernelCapabilities;
+        
         const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         
-        // Dependency validation: Ensure all accessors needed for both internal use and external tool execution are present.
+        // 2. Dependency validation: Ensure all accessors needed for both internal use and external tool execution are present.
         if (!GAX_Context.PolicyEngine || !riskModel || !GAX_Context.getUFRM || !GAX_Context.getCFTM || !GAX_Context.MetricsStore) {
              throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, MetricsStore, RiskModel, UFRM, CFTM accessors). This is a Kernel Context error.");
         }
@@ -95,12 +103,9 @@ class PreemptiveStateResolver {
         
         let R_TH = 0; // Initialize R_TH
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool
-        if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.RiskThresholdCalculatorService) {
-            R_TH = await KERNEL_SYNERGY_CAPABILITIES.RiskThresholdCalculatorService.execute('calculateThreshold', riskParams);
-        } else {
-             throw new Error("[PSR] CRITICAL FAILURE: RiskThresholdCalculatorService capability is not loaded or KERNEL_SYNERGY_CAPABILITIES is undefined.");
-        }
+        // Stage 0: Calculate Risk Threshold (R_TH) using the injected Kernel Capability
+        // This pattern relies on the orchestrator ensuring 'RiskThresholdCalculatorService' is present in KernelCapabilities.
+        R_TH = await this.#kernelCapabilityService.RiskThresholdCalculatorService.execute('calculateThreshold', riskParams);
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
