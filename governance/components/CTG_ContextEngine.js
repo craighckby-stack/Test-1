@@ -6,11 +6,49 @@ import { ContextStore } from "@plugins/ContextStore";
  * Contains specific business logic for governance decisions.
  */
 class CTG_ContextEngine {
+    #contextStore;
+
     constructor() {
-        // Delegate all timed storage management to the ContextStore plugin
-        this.contextStore = new ContextStore(); 
-        console.log("CTG Context Engine Initialized.");
+        this.#setupDependencies();
     }
+
+    /**
+     * Extracts synchronous dependency resolution and initialization.
+     */
+    #setupDependencies() {
+        // Delegate all timed storage management to the ContextStore plugin
+        this.#contextStore = this.#delegateToStoreInstantiation();
+        this.#logInfo("CTG Context Engine Initialized.");
+    }
+
+    // --- I/O Proxy Functions ---
+
+    /** Rigorously isolates external dependency instantiation. */
+    #delegateToStoreInstantiation() {
+        return new ContextStore();
+    }
+
+    /** Isolates interaction with external console logging. */
+    #logInfo(message) {
+        console.log(message);
+    }
+
+    /** Isolates interaction with ContextStore#set. */
+    #delegateToStoreSet(key, value, ttl) {
+        this.#contextStore.set(key, value, ttl);
+    }
+
+    /** Isolates interaction with ContextStore#getAll. */
+    #delegateToStoreGetAll() {
+        return this.#contextStore.getAll();
+    }
+
+    /** Isolates interaction with ContextStore#get. */
+    #delegateToStoreGet(key) {
+        return this.#contextStore.get(key);
+    }
+
+    // --- Public API ---
 
     /**
      * Registers a context item with optional expiration.
@@ -19,7 +57,7 @@ class CTG_ContextEngine {
      * @param {number} [ttl] - Time to live in seconds (default 3600).
      */
     registerContext(key, value, ttl) {
-        this.contextStore.set(key, value, ttl);
+        this.#delegateToStoreSet(key, value, ttl);
     }
 
     /**
@@ -27,7 +65,7 @@ class CTG_ContextEngine {
      * @returns {Object}
      */
     getCurrentContext() {
-        return this.contextStore.getAll();
+        return this.#delegateToStoreGetAll();
     }
 
     /**
@@ -36,7 +74,7 @@ class CTG_ContextEngine {
      * @returns {*} or undefined
      */
     getContextValue(key) {
-        return this.contextStore.get(key);
+        return this.#delegateToStoreGet(key);
     }
 
     /**
