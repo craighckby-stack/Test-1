@@ -50,7 +50,7 @@ class ResolutionStrategyLoader {
      * @param {IDynamicModuleLoader} dependencies.dynamicModuleLoader - Utility for loading and instantiating modules.
      */
     constructor(definitionConfig, dependencies = {}) {
-        if (!definitionConfig || typeof definitionConfig.resolutionStrategies !== 'object') {
+        if (!definitionConfig || typeof definitionConfig.resolutionStrategies !== 'object' || definitionConfig.resolutionStrategies === null) {
             throw new Error('ResolutionStrategyLoader requires a valid definitionConfig with resolutionStrategies defined.');
         }
         
