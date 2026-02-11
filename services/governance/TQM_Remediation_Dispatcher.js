@@ -1,86 +1,104 @@
 /**
- * TQM_Remediation_Dispatcher
+ * TQM_RemediationDispatcherKernel
  * Executes defined remedial policies by routing commands based on protocol (RPC/QUEUE, etc.).
  * Designed for resilience, auditability, and clear separation of execution concerns.
  */
 import { policies } from '../../config/governance/TQM_PolicyMapping.json';
 import { RPCClient } from '../platform/RPCClient';
 import { QueueManager } from '../platform/QueueManager';
-import { GovernanceAuditService } from './GovernanceAuditService';
+import { GovernanceAuditKernel } from './GovernanceAuditKernel';
 
-// Define the interface for the extracted routing tool
+// Define the interface for the command routing tool
 interface ICommandRouter {
     register(protocolKey: string, handlerFn: Function): void;
     route(protocolKey: string, ...args: any[]): Promise<any>;
 }
 
-// NOTE: ProtocolRouter is the concrete implementation of the command routing plugin.
-// We declare it here to satisfy TypeScript when instantiating it without an explicit import.
-declare class ProtocolRouter implements ICommandRouter { 
+// NOTE: ProtocolRouterToolKernel is implemented as a plugin.
+declare class ProtocolRouterToolKernel implements ICommandRouter {
     constructor();
     register(protocolKey: string, handlerFn: Function): void;
     route(protocolKey: string, ...args: any[]): Promise<any>;
 }
 
-export class TQM_Remediation_Dispatcher {
+export class TQM_RemediationDispatcherKernel {
     
     #policiesMap: Map<string, any>;
     #rpcClient: RPCClient;
     #queueManager: QueueManager;
-    #auditService: GovernanceAuditService;
+    #auditService: GovernanceAuditKernel;
     #commandRouter: ICommandRouter; // Field for protocol routing
 
     /**
      * @param {object} [dependencies] - Optional dependencies container for robust DI.
-     * @param {RPCClient} [dependencies.rpcClient]
-     * @param {QueueManager} [dependencies.queueManager]
-     * @param {GovernanceAuditService} [dependencies.auditService]
-     * @param {ICommandRouter} [dependencies.commandRouter] - For injection during testing.
      */
     constructor(dependencies: any = {}) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Executes synchronous dependency validation, configuration loading, and assignment.
+     */
+    #setupDependencies(dependencies: any = {}): void {
         const { rpcClient, queueManager, auditService, commandRouter } = dependencies;
         
         // 1. Configuration Safety Check and Mapping
         if (!policies || !Array.isArray(policies.remedial_policies)) {
-            throw new Error("Invalid TQM configuration: remedial_policies array is missing or malformed.");
+            this.#throwSetupError("Invalid TQM configuration: remedial_policies array is missing or malformed.");
         }
         this.#policiesMap = new Map(policies.remedial_policies.map((p: any) => [p.id, p]));
         
         // 2. Dependency Initialization using encapsulation
         this.#rpcClient = rpcClient || new RPCClient();
         this.#queueManager = queueManager || new QueueManager();
-        this.#auditService = auditService || new GovernanceAuditService();
+        // GovernanceAuditService refactored to GovernanceAuditKernel
+        this.#auditService = auditService || new GovernanceAuditKernel({});
 
         // 3. Command Router Initialization and Registration
-        // Use injected router or initialize the concrete ProtocolRouter plugin instance.
-        this.#commandRouter = commandRouter || new ProtocolRouter();
+        this.#commandRouter = commandRouter || new ProtocolRouterToolKernel();
         
-        // Register handlers, ensuring 'this' context is preserved
-        this.#commandRouter.register('RPC', this.#handleRpcExecution.bind(this));
-        this.#commandRouter.register('QUEUE', this.#handleQueueExecution.bind(this));
+        this.#registerHandlers();
     }
 
     /**
-     * Retrieves a policy and validates its existence.
-     * @param {string} policyId 
-     * @returns {object} The policy object.
+     * Internal proxy to register communication handlers with the router.
      */
-    #getPolicyOrThrow(policyId: string): any {
+    #registerHandlers(): void {
+        // Register handlers, ensuring 'this' context is preserved via dedicated private proxies
+        this.#commandRouter.register('RPC', this.#delegateToRpcClientSend.bind(this));
+        this.#commandRouter.register('QUEUE', this.#delegateToQueueManagerPublish.bind(this));
+    }
+
+    /**
+     * I/O Proxy: Throws a fatal setup error.
+     */
+    #throwSetupError(message: string): never {
+        throw new Error(`[TQM_RemediationDispatcherKernel Setup Failure] ${message}`);
+    }
+
+    /**
+     * I/O Proxy: Retrieves a policy and validates its existence.
+     */
+    #retrievePolicyAndValidate(policyId: string): any {
         const policy = this.#policiesMap.get(policyId);
         if (!policy) {
-            this.#auditService.log(policyId, 'LOOKUP_FAILURE', { message: `Policy ID ${policyId} not found.` });
+            this.#logLookupFailure(policyId);
             throw new Error(`TQM Policy ID ${policyId} not found in map.`);
         }
         return policy;
     }
 
     /**
-     * Executes the RPC protocol command.
-     * @param {object} execution - Policy execution details.
-     * @param {object} payload - The finalized execution payload.
-     * @returns {Promise<any>}
+     * I/O Proxy: Logs a policy lookup failure via the Audit Kernel.
      */
-    async #handleRpcExecution(execution: any, payload: any): Promise<any> {
+    #logLookupFailure(policyId: string): void {
+        this.#auditService.log(policyId, 'LOOKUP_FAILURE', { message: `Policy ID ${policyId} not found.` });
+    }
+
+    /**
+     * I/O Proxy: Executes the RPC protocol command via RPCClient.
+     */
+    async #delegateToRpcClientSend(execution: any, payload: any): Promise<any> {
         const isSynchronous = execution.synchronous ?? true;
         
         return this.#rpcClient.send(
@@ -92,18 +110,49 @@ export class TQM_Remediation_Dispatcher {
     }
 
     /**
-     * Executes the QUEUE protocol command.
-     * @param {object} execution - Policy execution details.
-     * @param {object} payload - The finalized execution payload.
-     * @param {string} severity - Severity level for prioritization. (Matches router signature)
-     * @returns {Promise<any>}
+     * I/O Proxy: Executes the QUEUE protocol command via QueueManager.
      */
-    async #handleQueueExecution(execution: any, payload: any, severity: string): Promise<any> {
+    async #delegateToQueueManagerPublish(execution: any, payload: any, severity: string): Promise<any> {
         return this.#queueManager.publish(
             execution.target, 
             payload,
             severity
         );
+    }
+
+    /**
+     * I/O Proxy: Delegates routing and execution to the Command Router.
+     */
+    async #delegateToCommandRouterRoute(executionProtocol: string, execution: any, finalPayload: any, severity: string): Promise<any> {
+        return this.#commandRouter.route(
+            executionProtocol,
+            execution, 
+            finalPayload,
+            severity
+        );
+    }
+
+    /**
+     * I/O Proxy: Logs a successful execution attempt via the Audit Kernel.
+     */
+    #logExecutionAttempt(policyId: string, finalPayload: any, result: any): void {
+        this.#auditService.logExecution(policyId, 'SUCCESS', finalPayload, result);
+    }
+
+    /**
+     * I/O Proxy: Logs a failure to the console and the Audit Kernel, then re-throws the error.
+     */
+    #logFailureAndReThrow(policyId: string, error: any, finalPayload: any): never {
+        const errorInstance = error instanceof Error ? error : new Error(String(error));
+        
+        console.error(`[TQM_RemediationDispatcherKernel] Execution failed for ${policyId}:`, errorInstance);
+        
+        this.#auditService.logExecution(policyId, 'FAILURE', finalPayload, { 
+            error: errorInstance.message, 
+            stack: errorInstance.stack 
+        });
+        
+        throw errorInstance; 
     }
     
     /**
@@ -113,7 +162,7 @@ export class TQM_Remediation_Dispatcher {
      * @returns {Promise<any>} The result of the dispatch operation.
      */
     async executePolicy(policyId: string, dynamicContext: any = {}): Promise<any> {
-        const policy = this.#getPolicyOrThrow(policyId);
+        const policy = this.#retrievePolicyAndValidate(policyId);
         const { execution, severity } = policy;
         
         // Construct Payload: Stamp with explicit metadata for enhanced traceability.
@@ -125,29 +174,19 @@ export class TQM_Remediation_Dispatcher {
         };
 
         try {
-            // Delegate routing and execution to the command router
-            const result = await this.#commandRouter.route(
+            // Delegate routing and execution to the command router via proxy
+            const result = await this.#delegateToCommandRouterRoute(
                 execution.protocol,
                 execution, 
                 finalPayload, 
                 severity
             );
 
-            this.#auditService.logExecution(policyId, 'SUCCESS', finalPayload, result);
+            this.#logExecutionAttempt(policyId, finalPayload, result);
             return result;
 
         } catch (error) {
-            const errorInstance = error instanceof Error ? error : new Error(String(error));
-            
-            console.error(`[TQM Dispatcher] Execution failed for ${policyId}:`, errorInstance);
-            
-            // Log failure before re-throwing
-            this.#auditService.logExecution(policyId, 'FAILURE', finalPayload, { 
-                error: errorInstance.message, 
-                stack: errorInstance.stack 
-            });
-            
-            throw errorInstance; 
+            this.#logFailureAndReThrow(policyId, error, finalPayload);
         }
     }
 }
