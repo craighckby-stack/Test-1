@@ -6,7 +6,15 @@
  * NOTE: Assumes ServiceRegistry base class is available.
  */
 class ContentValidatorRegistry extends ServiceRegistry { 
+
   constructor() {
+    this.#initializeRegistry();
+  }
+
+  /**
+   * Initializes the Singleton instance and the base ServiceRegistry.
+   */
+  #initializeRegistry() {
     // 1. Singleton Check
     if (ContentValidatorRegistry.instance) {
         return ContentValidatorRegistry.instance;
@@ -17,6 +25,37 @@ class ContentValidatorRegistry extends ServiceRegistry {
   }
 
   /**
+   * Ensures the validator instance implements the required methods.
+   * @param {string} name - The identifier.
+   * @param {Object} validatorInstance - The validator implementation.
+   * @throws {Error} If validation fails.
+   */
+  #validateValidatorInterface(name, validatorInstance) {
+    if (typeof validatorInstance.validate !== 'function') {
+      throw new Error(`[ContentValidatorRegistry] Validator instance for '${name}' must implement an async validate(content, config) method.`);
+    }
+  }
+
+  // --- I/O Proxies for ServiceRegistry Interactions (Base Class Dependency) ---
+
+  #delegateToRegistryHas(name) {
+      return super.has(name);
+  }
+  
+  #delegateToRegistryRegister(name, instance) {
+      super.register(name, instance);
+  }
+
+  #delegateToRegistryGet(name) {
+      return super.get(name);
+  }
+
+  #delegateToRegistryGetKeys() {
+      return super.getKeys();
+  }
+
+
+  /**
    * Registers a new validator utility.
    * A validator must implement an `async validate(content, config)` method.
    * @param {string} name - The identifier used in artifact definitions (e.g., 'jsLinter').
@@ -24,15 +63,13 @@ class ContentValidatorRegistry extends ServiceRegistry {
    * @throws {Error} If the validator does not implement the required method.
    */
   registerValidator(name, validatorInstance) {
-    if (typeof validatorInstance.validate !== 'function') {
-      throw new Error(`[ContentValidatorRegistry] Validator instance for '\${name}' must implement an async validate(content, config) method.`);
-    }
+    this.#validateValidatorInterface(name, validatorInstance);
     
     // Delegate storage and key validation to the base registry
-    if (super.has(name)) {
-        // console.warn(`[ContentValidatorRegistry] Validator '\${name}' is being overwritten.`);
+    if (this.#delegateToRegistryHas(name)) {
+        // console.warn(`[ContentValidatorRegistry] Validator '${name}' is being overwritten.`);
     }
-    super.register(name, validatorInstance);
+    this.#delegateToRegistryRegister(name, validatorInstance);
   }
 
   /**
@@ -41,14 +78,14 @@ class ContentValidatorRegistry extends ServiceRegistry {
    * @returns {Object | null} The registered validator or null if not found.
    */
   getValidator(name) {
-    return super.get(name);
+    return this.#delegateToRegistryGet(name);
   }
 
   /**
    * @returns {Array<string>} List of registered validator names.
    */
   getRegisteredValidatorNames() {
-      return super.getKeys();
+      return this.#delegateToRegistryGetKeys();
   }
 }
 
