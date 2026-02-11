@@ -5,14 +5,28 @@
  * reporting mechanism itself cannot cause cascade failures or block the main thread.
  */
 class IsolatedFailureReporter {
+    #transport;
+    #serializer;
+
     /**
      * Initializes the reporter. Requires the ErrorSerializer dependency
      * (or equivalent class with a static safeSerialize method) and a transport function.
-     * 
+     *
      * @param {function(Object): Promise<void>} transportFunction - Function responsible for sending the serialized data (e.g., an HTTP post).
      * @param {Class} ErrorSerializerClass - The dependency for serialization (expected to have a static safeSerialize method).
      */
     constructor(transportFunction, ErrorSerializerClass) {
+        this.#setupDependencies(transportFunction, ErrorSerializerClass);
+    }
+
+    /**
+     * Extracts dependency assignment and validation, storing dependencies privately.
+     * (Strategic Goal: Dependency Encapsulation & Synchronous Setup Extraction)
+     * 
+     * @param {function(Object): Promise<void>} transportFunction 
+     * @param {Class} ErrorSerializerClass 
+     */
+    #setupDependencies(transportFunction, ErrorSerializerClass) {
         if (typeof transportFunction !== 'function') {
             throw new Error("IsolatedFailureReporter requires a valid transport function.");
         }
@@ -20,8 +34,31 @@ class IsolatedFailureReporter {
             throw new Error("IsolatedFailureReporter requires a valid ErrorSerializer plugin dependency.");
         }
         
-        this.transport = transportFunction;
-        this.serializer = ErrorSerializerClass;
+        this.#transport = transportFunction;
+        this.#serializer = ErrorSerializerClass;
+    }
+
+    /**
+     * Isolates the synchronous interaction with the external serializer dependency. 
+     * (Strategic Goal: I/O Proxy Creation)
+     *
+     * @param {Error|*} error 
+     * @param {Object} context 
+     * @returns {Object} The serialized payload.
+     */
+    #delegateToSerializer(error, context) {
+        return this.#serializer.safeSerialize(error, context);
+    }
+
+    /**
+     * Isolates the asynchronous interaction (I/O) with the external transport dependency. 
+     * (Strategic Goal: I/O Proxy Creation)
+     *
+     * @param {Object} payload 
+     * @returns {Promise<void>}
+     */
+    async #delegateToTransport(payload) {
+        return this.#transport(payload);
     }
 
     /**
@@ -37,11 +74,11 @@ class IsolatedFailureReporter {
         await Promise.resolve();
 
         try {
-            // Utilize the abstracted serializer plugin for safe data packaging
-            const failurePayload = this.serializer.safeSerialize(error, context);
+            // Utilize the synchronous I/O proxy for safe data packaging
+            const failurePayload = this.#delegateToSerializer(error, context);
             
-            // Execute transport asynchronously
-            await this.transport(failurePayload);
+            // Execute transport asynchronously via I/O proxy
+            await this.#delegateToTransport(failurePayload);
 
         } catch (transportError) {
             // CRITICAL: If the transport mechanism fails, we must catch and log internally.
