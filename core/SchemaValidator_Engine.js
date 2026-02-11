@@ -84,15 +84,8 @@ class SchemaValidatorEngine {
         // INTEGRATION HOOK: Function provided by the kernel core
         this.#onValidationFailure = onValidationFailure || (() => {}); 
 
-        // LOGIC REFACTOR: Keyword-to-Capability mapping is outsourced to ErrorCapabilityMapper plugin.
-        if (runtimeMapper) {
-            this.#runtimeMapper = runtimeMapper;
-        } else {
-            // Initialize private mapper dependency
-            this.#capabilityMapper = new ErrorCapabilityMapper();
-            // Bind the method to ensure 'this' context works correctly within the mapper instance
-            this.#runtimeMapper = this.#capabilityMapper.mapKeywordToCapability.bind(this.#capabilityMapper);
-        }
+        // Refactored: Dependency resolution and setup logic extracted
+        this.#setupRuntimeMapper(runtimeMapper);
 
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
         this.#failureHistory = []; 
@@ -107,8 +100,24 @@ class SchemaValidatorEngine {
     }
 
     /**
-     * Initializes or re-initializes the Ajv instance. This supports dynamic schema updates
-     * when the AGI kernel autonomously modifies configuration files (Autonomy/Infrastructure).
+     * Synchronously resolves and configures the runtime capability mapping dependency.
+     * Handles conditional injection or instantiation/binding of the ErrorCapabilityMapper plugin.
+     * @param {function | undefined} runtimeMapper - Optional injected mapper function.
+     */
+    #setupRuntimeMapper(runtimeMapper) {
+        if (runtimeMapper) {
+            this.#runtimeMapper = runtimeMapper;
+            return;
+        }
+        
+        // Initialize private mapper dependency (fallback)
+        this.#capabilityMapper = new ErrorCapabilityMapper();
+        // Bind the method to ensure 'this' context works correctly within the mapper instance
+        this.#runtimeMapper = this.#capabilityMapper.mapKeywordToCapability.bind(this.#capabilityMapper);
+    }
+
+    /**
+     * Initializes or re-initializes the Ajv instance configuration.
      * @param {object} componentSchemas - Map of schema names to JSON Schema definitions.
      */
     #initializeValidator(componentSchemas) {
@@ -119,6 +128,16 @@ class SchemaValidatorEngine {
             removeAdditional: 'all' 
         });
 
+        // Delegate repetitive schema loading loop
+        this.#registerComponentSchemas(componentSchemas);
+    }
+
+    /**
+     * Iterates through component schemas and registers them with the configured Ajv instance.
+     * This separates the repetitive schema registration logic from the primary initialization.
+     * @param {object} componentSchemas - Map of schema names to JSON Schema definitions.
+     */
+    #registerComponentSchemas(componentSchemas) {
         // Add all schemas dynamically
         if (componentSchemas && typeof componentSchemas === 'object' && !Array.isArray(componentSchemas)) {
             Object.entries(componentSchemas).forEach(([name, schema]) => {
