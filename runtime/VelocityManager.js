@@ -4,58 +4,98 @@
  */
 import GVDM_CONFIG from '../config/GVDM.json';
 
-// CRITICAL: We assume the AdaptiveThrottlePlugin is loaded by the Kernel.
-// We expect to instantiate and initialize it if available.
-let adaptiveThrottleTool: any;
+// CRITICAL: We rely on AdaptiveThrottlePlugin being globally accessible if used.
 
-class VelocityManager {
-    private config: any;
-    private vector_config: any;
-    private monitor: any; // System load monitor
+class VelocityManagerKernel {
+    #config: any;
+    #vectorConfig: any;
+    #monitor: any; // System load monitor
+    #adaptiveThrottleTool: any | null = null;
 
     constructor(system_monitor: any) {
-        this.config = GVDM_CONFIG.velocity_control;
-        this.vector_config = GVDM_CONFIG.vector_space;
-        this.monitor = system_monitor; 
-        
-        // Initialize the abstracted tool to manage state and calculation logic
-        if (typeof AdaptiveThrottlePlugin !== 'undefined') {
-            // @ts-ignore: Assume AdaptiveThrottlePlugin is accessible globally and callable
-            adaptiveThrottleTool = new AdaptiveThrottlePlugin();
-            adaptiveThrottleTool.initialize(this.config);
+        this.#setupDependencies(system_monitor);
+    }
+
+    /**
+     * Executes synchronous setup: loads config, assigns dependencies, and initializes external tools.
+     */
+    #setupDependencies(systemMonitor: any): void {
+        this.#loadConfiguration();
+        this.#monitor = systemMonitor; 
+        this.#initializeAdaptiveThrottleTool();
+    }
+
+    #logWarning(message: string): void {
+        console.warn(message);
+    }
+
+    #loadConfiguration(): void {
+        this.#config = GVDM_CONFIG.velocity_control;
+        this.#vectorConfig = GVDM_CONFIG.vector_space;
+    }
+
+    #initializeAdaptiveThrottleTool(): void {
+        // Check for the global dependency
+        if (typeof (globalThis as any).AdaptiveThrottlePlugin !== 'undefined') {
+            try {
+                // @ts-ignore: Assume AdaptiveThrottlePlugin is accessible globally and callable
+                this.#adaptiveThrottleTool = new (globalThis as any).AdaptiveThrottlePlugin();
+                this.#adaptiveThrottleTool.initialize(this.#config);
+            } catch (e) {
+                this.#logWarning(`Error initializing AdaptiveThrottlePlugin: ${e.message}`);
+                this.#adaptiveThrottleTool = null;
+            }
         } else {
-             // In a production environment, proper error handling or fallback injection would occur.
-             console.warn("AdaptiveThrottlePlugin not loaded. Velocity management may be degraded.");
+             this.#logWarning("AdaptiveThrottlePlugin not loaded. Velocity management may be degraded.");
         }
     }
 
+    // Static Proxy for configuration access
     static getDimension(): number {
+        return VelocityManagerKernel.#getEmbeddingDimension();
+    }
+
+    static #getEmbeddingDimension(): number {
         return GVDM_CONFIG.vector_space.embedding_dimension;
     }
 
     isHighVelocityEvent(data_change_percentage: number): boolean {
-        if (data_change_percentage >= this.config.change_threshold_percent) {
-            return true;
-        }
-        return false;
+        return this.#checkThreshold(data_change_percentage);
+    }
+
+    #checkThreshold(change: number): boolean {
+        return change >= this.#config.change_threshold_percent;
     }
 
     /**
-     * Delegates the dynamic calculation of throttle delay to the AdaptiveThrottlePlugin.
+     * Delegates the dynamic calculation of throttle delay to the AdaptiveThrottlePlugin or uses fallback.
      */
     getAdaptiveThrottleDelay(): number {
-        if (adaptiveThrottleTool) {
-            const load = this.monitor.getSystemLoadRatio(); // 0.0 to 1.0
-            return adaptiveThrottleTool.calculateDelay(load);
+        if (this.#adaptiveThrottleTool) {
+            const load = this.#getMonitorLoadRatio();
+            return this.#delegateToThrottleCalculation(load);
         }
         
-        // Fallback calculation if the tool is unavailable
-        if (this.config.dynamic_throttle_enabled) {
+        return this.#calculateFallbackDelay();
+    }
+
+    #getMonitorLoadRatio(): number {
+        return this.#monitor.getSystemLoadRatio();
+    }
+
+    #delegateToThrottleCalculation(load: number): number {
+        // Tool existence checked in public method
+        return this.#adaptiveThrottleTool.calculateDelay(load);
+    }
+
+    #calculateFallbackDelay(): number {
+        if (this.#config.dynamic_throttle_enabled) {
             // Fixed rate calculation
-            return 1000 / (this.config.max_velocity_events_per_s || 10);
+            const maxEvents = this.#config.max_velocity_events_per_s || 10;
+            return 1000 / maxEvents;
         }
         return 0;
     }
 }
 
-export default VelocityManager;
+export default VelocityManagerKernel;
