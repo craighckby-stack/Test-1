@@ -8,7 +8,11 @@ class DeepMergeUtilityTool {
         for (const key in source) {
             if (Object.prototype.hasOwnProperty.call(source, key)) {
                 if (source[key] instanceof Object && !Array.isArray(source[key])) {
-                    target[key] = DeepMergeUtilityTool.deepMerge(target[key] || {}, source[key]);
+                    // Ensure the target property exists before merging deeply
+                    if (!target[key] || typeof target[key] !== 'object') {
+                        target[key] = {};
+                    }
+                    target[key] = DeepMergeUtilityTool.deepMerge(target[key], source[key]);
                 } else {
                     target[key] = source[key];
                 }
@@ -19,7 +23,6 @@ class DeepMergeUtilityTool {
 }
 
 // Assuming the abstracted tool is available via require
-// In a full environment, this would be injected: const DotPathUtilityTool = require('../utils/DotPathUtilityTool');
 // We define a placeholder to ensure the code references the external tool correctly.
 const DotPathUtilityTool = require('../utils/DotPathUtilityTool');
 
@@ -53,12 +56,13 @@ const DEFAULTS = {
 };
 
 class ConfigManager {
-    static #config: Record<string, any> = {}; // Use private field for encapsulation
+    static #config = {}; // Use private static field for encapsulation (Correct ES syntax)
 
     /**
      * Loads defaults, environment variables, and calculates derived configuration values.
+     * @returns {void}
      */
-    static initialize(): void {
+    static initialize() {
         if (Object.keys(ConfigManager.#config).length > 0) {
             // Already initialized
             return;
@@ -68,7 +72,7 @@ class ConfigManager {
         let configData = DeepMergeUtilityTool.deepMerge({}, DEFAULTS);
 
         // 2. Apply Environment Overrides
-        const envOverrides: Record<string, any> = {};
+        const envOverrides = {};
         const envMap = configData.logging.envMap;
         
         for (const [envKey, configKey] of Object.entries(envMap)) {
@@ -86,6 +90,9 @@ class ConfigManager {
         // 3. Calculate Derived Paths
         const logsDirPath = path.join(configData.app.root, configData.dirs.logs);
 
+        // Store the calculated logs directory path
+        DotPathUtilityTool.set(configData, 'dirs.logsPath', logsDirPath);
+
         // Calculate full audit log path
         configData.logging.auditPath = path.join(
             logsDirPath,
@@ -100,7 +107,7 @@ class ConfigManager {
      * @param {string} key - Dot-separated path to the configuration value.
      * @returns {any | undefined}
      */
-    static get(key: string): any | undefined {
+    static get(key) {
         if (Object.keys(ConfigManager.#config).length === 0) {
             // Auto-initialize if necessary, though explicit initialize is preferred
             ConfigManager.initialize();
