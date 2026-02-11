@@ -32,25 +32,44 @@ const NoOpRetryCalculator: IRetryCalculator = {
  * Required for implementing resilient network operations within the AGI mesh.
  */
 export class ServicePolicyEngine {
-  private config: ServiceConfig;
-  private retryCalculator: IRetryCalculator;
+  private readonly #config: ServiceConfig;
+  private #retryCalculator: IRetryCalculator;
 
   constructor(config: ServiceConfig) {
-    this.config = config;
-    
-    // CRITICAL: Initialize the retry logic using the extracted plugin.
-    // We pass 200ms as the default initial delay.
+    this.#config = config;
+    this.#setupDependencies();
+  }
+
+  // I/O Proxy: Handles console logging
+  private #logMissingDependencyWarning(): void {
+      console.warn("RetryBackoffCalculatorTool not found, using NoOp stub.");
+  }
+
+  // I/O Proxy: Handles dependency resolution and external tool creation
+  private #delegateToCalculatorCreation(): IRetryCalculator {
+    // Check global scope availability
     if (typeof RetryBackoffCalculatorTool !== 'undefined' && RetryBackoffCalculatorTool.create) {
-        this.retryCalculator = RetryBackoffCalculatorTool.create(this.config.retryPolicy, 200);
-    } else {
-        // Fallback/Mock initialization required for Type safety. Logic is moved to the plugin.
-        console.warn("RetryBackoffCalculatorTool not found, using NoOp stub.");
-        this.retryCalculator = NoOpRetryCalculator;
-    }
+        // Delegate to external factory with fixed parameters
+        return RetryBackoffCalculatorTool.create(this.#config.retryPolicy, 200);
+    } 
+    // I/O Proxy: Logging the failure
+    this.#logMissingDependencyWarning();
+    return NoOpRetryCalculator;
+  }
+
+  // Strategic Goal: Synchronous Setup Extraction
+  private #setupDependencies(): void {
+      // Initialize the crucial internal dependency using the proxy
+      this.#retryCalculator = this.#delegateToCalculatorCreation();
   }
 
   public getDefaultTimeout(): number {
-    return this.config.defaultTimeoutMs;
+    return this.#config.defaultTimeoutMs;
+  }
+
+  // I/O Proxy: Delegation to the internal calculator dependency
+  private #delegateToCalculateRetryDelay(attempt: number, initialDelayMs?: number): number {
+      return this.#retryCalculator.calculateRetryDelay(attempt, initialDelayMs);
   }
 
   /**
@@ -60,10 +79,15 @@ export class ServicePolicyEngine {
    * @param initialDelayMs Initial delay override (optional).
    */
   public calculateRetryDelay(attempt: number, initialDelayMs?: number): number {
-    return this.retryCalculator.calculateRetryDelay(attempt, initialDelayMs);
+    return this.#delegateToCalculateRetryDelay(attempt, initialDelayMs);
+  }
+
+  // I/O Proxy: Delegation to the internal calculator dependency
+  private #delegateToShouldRetry(attempt: number): boolean {
+      return this.#retryCalculator.shouldRetry(attempt);
   }
 
   public shouldRetry(attempt: number): boolean {
-    return this.retryCalculator.shouldRetry(attempt);
+    return this.#delegateToShouldRetry(attempt);
   }
 }
