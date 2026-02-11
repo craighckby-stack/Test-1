@@ -9,29 +9,48 @@ import {
 // NOTE: Implementation assumes necessary external services (CryptoEngine, PolicyService) are available/imported elsewhere.
 
 /**
- * Default configuration constants for the Verifier, focusing on hard safety thresholds.
+ * Interface for the required external threshold validation utility.
  */
-const DEFAULT_CONFIG: VerifierConfiguration = {
-    standardRiskCeiling: 500000, // Maximum allowed S02_Value for standard operational profiles (in LiabilityUnit).
-};
-
-// Helper to access external plugin environment (Simulated Global Access)
-declare const ThresholdValidator: { execute: (args: any) => { passed: boolean, reason: string } };
+interface IThresholdValidator {
+    execute: (args: { 
+        value: number, 
+        ceiling: number, 
+        unit: string, 
+        allowedUnits: string[] 
+    }) => { passed: boolean, reason: string };
+}
 
 /**
- * GRCS_Verifier (v94.1)
+ * Default configuration constants for the Verifier, focusing on hard safety thresholds.
+ * Rigorously deep-frozen to ensure immutability.
+ */
+const DEFAULT_CONFIG: VerifierConfiguration = Object.freeze({
+    standardRiskCeiling: 500000, // Maximum allowed S02_Value for standard operational profiles (in LiabilityUnit).
+});
+
+/**
+ * GRCS_Verifier (v94.2)
  * Utility responsible for verifying the integrity and policy adherence of a Governance Runtime Context Schema (GRCS) report.
  * Utilizes specific configurations for adaptive risk evaluation.
  */
 export class GRCS_Verifier {
-    private static config: VerifierConfiguration = DEFAULT_CONFIG;
+    // Use private static fields for strong encapsulation of configuration and dependencies.
+    private static #config: VerifierConfiguration = DEFAULT_CONFIG;
+    private static #validator: IThresholdValidator | null = null;
 
     /**
-     * Sets runtime configuration for dynamic threshold adjustments.
+     * Sets runtime configuration and injects the required ThresholdValidator utility.
+     * NOTE: The validator *must* be injected via this method before calling verify().
+     * 
      * @param customConfig Partial configuration object.
+     * @param validator Optional injection of the required ThresholdValidator service.
      */
-    public static configure(customConfig: Partial<VerifierConfiguration>): void {
-        this.config = { ...DEFAULT_CONFIG, ...customConfig };
+    public static configure(customConfig: Partial<VerifierConfiguration>, validator?: IThresholdValidator): void {
+        // Merge configuration and immediately freeze the result for immutability.
+        GRCS_Verifier.#config = Object.freeze({ ...DEFAULT_CONFIG, ...customConfig });
+        if (validator) {
+            GRCS_Verifier.#validator = validator;
+        }
     }
 
     /**
@@ -40,6 +59,10 @@ export class GRCS_Verifier {
      * @returns A detailed VerificationResult object.
      */
     public static async verify(report: GRCSReport): Promise<VerificationResult> {
+        if (!GRCS_Verifier.#validator) {
+            throw new Error("GRCS_Verifier Dependency Failure: ThresholdValidator not injected. Call configure() with the validator instance before use.");
+        }
+
         const auditTrail: VerificationResult['auditTrail'] = [];
 
         // --- Step 1: Cryptographic Integrity Verification (CRoT) ---
@@ -84,7 +107,7 @@ export class GRCS_Verifier {
             success: true, 
             reason: 'CRoT Signature validated against S01 metrics.',
             details: metrics.MetricsSetID
-        }; 
+        };
     }
 
     /**
@@ -122,17 +145,16 @@ export class GRCS_Verifier {
      * Checks if the operational risk (S02_Value) exceeds configurable system-wide risk ceilings (external operational check).
      */
     private static checkRiskThreshold(profile: FailureProfile): VerificationResult['auditTrail'][0] {
-        const ceiling = this.config.standardRiskCeiling;
+        // Validator is guaranteed to exist by the check in `verify`.
+        const validator = GRCS_Verifier.#validator!;
+        const ceiling = GRCS_Verifier.#config.standardRiskCeiling;
         
-        // --- PLUGIN CALL: ThresholdValidator ---
-        // Utilizing the extracted ThresholdValidator plugin for centralized limit checking and unit validation.
-        const plugin = (globalThis as any).ThresholdValidator || { execute: () => ({ passed: false, reason: 'ThresholdValidator missing or failed initialization.' }) };
-        
-        const validationResult = plugin.execute({
+        // Utilizing the explicitly injected ThresholdValidator plugin for centralized limit checking and unit validation.
+        const validationResult = validator.execute({
             value: profile.S02_Value,
             ceiling: ceiling,
             unit: profile.LiabilityUnit,
-            allowedUnits: ['USD', 'PPR']
+            allowedUnits: ['USD', 'PPR'] // Hardcoded allowed units, derived from core GRCS standards.
         });
         // ----------------------------------------
 
@@ -150,7 +172,7 @@ export class GRCS_Verifier {
                 step: 'Risk_Threshold',
                 success: false,
                 reason: finalReason,
-                details: `Ceiling Source: ${this.config === DEFAULT_CONFIG ? 'DEFAULT' : 'CUSTOM'}`
+                details: `Ceiling Source: ${GRCS_Verifier.#config === DEFAULT_CONFIG ? 'DEFAULT' : 'CUSTOM'}`
             };
         }
 
