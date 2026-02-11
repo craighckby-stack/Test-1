@@ -1,27 +1,83 @@
+import { ILoggerToolKernel } from '@core/logging/ILoggerToolKernel';
+
 /**
- * Utility for robust URI pattern matching, supporting path parameters and complex globbing.
- * This moves complex route comparison logic out of the core ValidationContextResolver,
- * leveraging the dedicated PathPolicyRuleMatcher plugin for compilation and matching.
+ * @interface IPathMatcherToolKernel
+ * Defines the interface for performing robust URI pattern matching, 
+ * supporting path parameters and complex globbing, abstracting the
+ * underlying matching engine.
  */
-export class RouterPatternMatcher {
+class IPathMatcherToolKernel {
+    /**
+     * Checks if a target path matches a given pattern.
+     * @param {string} targetPath - The incoming URI path.
+     * @param {string} pattern - The configured pattern.
+     * @returns {Promise<boolean>} True if matched.
+     */
+    async matches(targetPath, pattern) {
+        throw new Error('Method not implemented.');
+    }
+}
+
+/**
+ * Kernel responsible for robust URI pattern matching based on configured policies.
+ * It abstracts the specific path matching implementation behind the IPathMatcherToolKernel interface.
+ */
+export class RouterPatternMatcherKernel {
+    /** @type {IPathMatcherToolKernel} */
+    #pathMatcherTool;
+    /** @type {ILoggerToolKernel} */
+    #logger;
 
     /**
-     * Checks if a target path matches a given pattern using the dedicated
-     * PathPolicyRuleMatcher tool.
+     * @param {object} dependencies
+     * @param {IPathMatcherToolKernel} dependencies.pathMatcherTool
+     * @param {ILoggerToolKernel} dependencies.logger
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Enforces Dependency Injection and ensures all required components are present.
+     * Rigorously satisfies the synchronous setup extraction mandate.
+     * @param {object} dependencies
+     */
+    #setupDependencies(dependencies) {
+        if (!dependencies.pathMatcherTool || typeof dependencies.pathMatcherTool.matches !== 'function') {
+            throw new Error("RouterPatternMatcherKernel requires a valid IPathMatcherToolKernel with an 'matches' method.");
+        }
+        if (!dependencies.logger) {
+            throw new Error("RouterPatternMatcherKernel requires a valid ILoggerToolKernel.");
+        }
+        this.#pathMatcherTool = dependencies.pathMatcherTool;
+        this.#logger = dependencies.logger;
+    }
+
+    /**
+     * Standard asynchronous initialization hook.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Adheres to the standard kernel structure.
+    }
+
+    /**
+     * Checks if a target path matches a given pattern using the injected Path Matcher Tool.
      * 
      * @param {string} targetPath - The incoming URI path (e.g., '/users/123/details').
      * @param {string} pattern - The configured pattern (e.g., '/users/:id/*').
-     * @returns {boolean} True if matched.
+     * @returns {Promise<boolean>} True if matched.
      */
-    static matches(targetPath, pattern) {
-        // Delegate the complex pattern matching and regex compilation to the external utility.
-        // Assuming the PathPolicyRuleMatcher tool is accessible via a standardized interface.
-        if (typeof PathPolicyRuleMatcher !== 'undefined' && PathPolicyRuleMatcher.matches) {
-            return PathPolicyRuleMatcher.matches(targetPath, pattern);
-        } else {
-            // Fallback (or placeholder for kernel access)
-            console.error("PathPolicyRuleMatcher tool not available.");
-            return targetPath === pattern;
+    async matches(targetPath, pattern) {
+        try {
+            // Delegate the complex pattern matching to the injected tool
+            return await this.#pathMatcherTool.matches(targetPath, pattern);
+        } catch (error) {
+            this.#logger.error(
+                `RouterPatternMatcherKernel failed to execute matching for target path: '${targetPath}' against pattern: '${pattern}'. Falling back to 'false'.`,
+                error
+            );
+            return false;
         }
     }
 }
