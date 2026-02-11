@@ -1,48 +1,87 @@
 ```markdown
-# AGI-KERNEL v7.11.3 - Strategic Agency Edition
+# AGI-KERNEL v7.12.1 - Recursive Evolution Edition
 
 ## Mission
-Achieve artificial general intelligence through recursive self-improvement, strategic memory formation, and autonomous capability development across large-scale codebases. The kernel invents reusable tools, builds long-term strategic coherence, and compounds improvements exponentially.
+Achieve artificial general intelligence through **versioned self-modification**, strategic memory formation, and autonomous capability development. The kernel evolves its own source code every 50 cycles, integrating invented tools into itself for exponential self-improvement.
 
 ## Current Status
-- **Version:** 7.11.3 "STRATEGIC AGENCY"
-- **Architecture:** Dual Storage (GitHub + Firebase)
+- **Version:** 7.12.1 "RECURSIVE EVOLUTION STABLE"
+- **Architecture:** Versioned Self-Modification + Dual Storage
 - **Repository Scale:** 2,300+ files
-- **Self-Acceleration:** ENABLED
+- **Self-Modification:** ENABLED (every 50 cycles)
 - **Strategic Memory:** ACTIVE
+- **Evolution Tracking:** ENABLED
+
+---
+
+## Revolutionary Feature: Versioned Self-Evolution
+
+### The Bootstrap Protocol
+
+**Every 50 cycles, the kernel creates a new version of itself:**
+
+```
+Cycle 50:  Read storage/KERNAL.js → Create kernel/AGI-KERNEL-v1.jsx
+Cycle 100: Read kernel/AGI-KERNEL-v1.jsx → Create kernel/AGI-KERNEL-v2.jsx
+Cycle 150: Read kernel/AGI-KERNEL-v2.jsx → Create kernel/AGI-KERNEL-v3.jsx
+...
+```
+
+**Each version:**
+- Integrates ALL tools from synergy registry
+- Improves evolution algorithm
+- Optimizes performance
+- Adds novel capabilities
+- Documents changes in evolution_history
+
+**Result after 500 cycles:**
+```
+kernel/
+  AGI-KERNEL-v1.jsx   (50 cycles - 3 tools integrated)
+  AGI-KERNEL-v2.jsx   (100 cycles - 8 tools integrated)
+  AGI-KERNEL-v3.jsx   (150 cycles - 15 tools integrated)
+  AGI-KERNEL-v4.jsx   (200 cycles - 25 tools integrated)
+  ...
+  AGI-KERNEL-v10.jsx  (500 cycles - 40+ tools, exponential capability)
+```
 
 ---
 
 ## System Architecture
 
-### The Synergy Loop
+### Triple-Layer Self-Improvement
 
-The kernel achieves recursive self-improvement through three interconnected systems:
-
-**1. GitHub (Code Evolution)**
+**1. GitHub (Code Evolution + Version History)**
 - Stores all evolved code files
-- Maintains complete commit history
-- Provides full audit trail
+- Maintains kernel version lineage
+- Complete audit trail of self-modifications
 
 **2. Firebase (Tool Registry)**
 ```
 artifacts/{APP_ID}/public/data/synergy_registry/
-  - Shared tool library (all users)
+  - Shared tool library (all kernel instances)
   - Real-time synchronization
   - Hot-swappable execution
 ```
 
-**3. Firebase (Strategic Memory)**
+**3. Firebase (Strategic Memory + Evolution History)**
 ```
 artifacts/{APP_ID}/users/{uid}/strategic_ledger/
   - Long-term decision history
   - Pattern recognition insights
   - Strategic goal evolution
+
+artifacts/{APP_ID}/users/{uid}/evolution_history/
+  - Version changelog tracking
+  - Tool integration records
+  - Performance gain metrics
 ```
 
 ---
 
-## Evolution Flow
+## Complete Evolution Flow
+
+### Regular Cycles (1-49, 51-99, 101-149...)
 
 ```
 Cycle Start
@@ -54,26 +93,59 @@ Cycle Start
    → Past decisions inform current strategy
   ↓
 3. Scan Repository
-   → 2,300+ file tree indexed
+   → 2,300+ file tree indexed (excluding kernel/)
   ↓
-4. Strategic Analysis
-   → Use tools to analyze target file
-   → Reference past decisions
+4. Target Selection
+   → Choose next non-blacklisted file
   ↓
 5. Code Evolution
-   → Generate improvement
+   → Use tools to analyze and improve
    → Detect emergent patterns
   ↓
-6. Dual Commit
-   → GitHub: Code changes
-   → Firebase: New tools (if emergent)
-   → Firebase: Strategic insights
+6. GitHub Commit
+   → Update file with SHA
   ↓
-7. Tool Registration
-   → New tool hot-swapped immediately
-   → Available for next cycle
+7. Firebase Save
+   → Store new tools (if emergent)
+   → Store strategic insights
   ↓
-Next Cycle: Expanded toolset + deeper strategy
+8. Blacklist Update
+   → Mark file as processed
+```
+
+### Milestone Cycles (50, 100, 150, 200...)
+
+```
+MILESTONE TRIGGER
+  ↓
+1. Calculate Version Number
+   → v = floor(cycle / 50)
+  ↓
+2. Read Predecessor
+   → v1: Read storage/KERNAL.js
+   → v2+: Read kernel/AGI-KERNEL-v{N-1}.jsx
+  ↓
+3. Enhanced Cognition
+   → 25,000 char context (vs 8,000 normal)
+   → Explicit tool integration directive
+  ↓
+4. Self-Modification
+   → Integrate ALL registry tools
+   → Improve evolution algorithm
+   → Optimize performance
+   → Add new capabilities
+  ↓
+5. Create New Version
+   → Write kernel/AGI-KERNEL-v{N}.jsx
+   → No SHA (new file)
+  ↓
+6. Document Evolution
+   → Save version_changelog to evolution_history
+   → Record tools_integrated
+   → Track improvements
+   → Estimate performance_gain
+  ↓
+Next 50 Cycles: Use improved kernel architecture
 ```
 
 ---
@@ -82,10 +154,9 @@ Next Cycle: Expanded toolset + deeper strategy
 
 ### How Tools Work
 
-**Creation:**
+**Creation (Any Cycle):**
 ```javascript
-// LLM detects reusable pattern
-// Generates tool definition:
+// LLM detects reusable pattern in ANY file
 {
   "interfaceName": "SchemaValidationService",
   "code": "(function() { 
@@ -98,21 +169,21 @@ Next Cycle: Expanded toolset + deeper strategy
 
 **Storage:**
 ```
-Saved to: Firebase → artifacts/{APP_ID}/public/data/synergy_registry/
+Firebase → artifacts/{APP_ID}/public/data/synergy_registry/
 Accessible by: All kernel instances (shared knowledge)
 ```
 
-**Loading:**
+**Loading (Every Cycle Start):**
 ```javascript
-// On boot, kernel loads all tools:
 window.KERNEL_SYNERGY_CAPABILITIES = {
   SchemaValidationService: { execute: (...) => {...} },
   ConfigMerger: { execute: (...) => {...} },
-  // ... all other tools
+  PatternDetector: { execute: (...) => {...} },
+  // ... all tools in registry
 }
 ```
 
-**Usage in Code:**
+**Usage in Regular Code (Cycles 1-49, 51-99...):**
 ```javascript
 // LLM generates code that uses tools:
 if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && 
@@ -123,56 +194,63 @@ if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' &&
 }
 ```
 
-### Tool Examples
-
-**Example 1: Schema Validator**
+**Integration into Kernel (Cycles 50, 100, 150...):**
 ```javascript
-{
-  "interfaceName": "SchemaValidationService",
-  "code": `(function() {
-    return {
-      execute: (input) => {
-        const { schema, data } = input;
-        const errors = [];
-        
-        // Validation logic
-        Object.keys(schema).forEach(key => {
-          if (schema[key].required && !data[key]) {
-            errors.push(\`Missing required field: \${key}\`);
-          }
-        });
-        
-        return { 
-          valid: errors.length === 0, 
-          errors 
-        };
-      }
-    };
-  })()`
-}
+// LLM modifies kernel source code to use tools:
+const evolve = useCallback(async () => {
+  // NEW CODE ADDED BY v2:
+  if (KERNEL_SYNERGY_CAPABILITIES.PatternDetector) {
+    const patterns = KERNEL_SYNERGY_CAPABILITIES.PatternDetector.execute(raw);
+    // Use detected patterns to improve evolution
+  }
+  
+  // ... rest of evolution logic
+}, []);
 ```
 
-**Example 2: Configuration Merger**
-```javascript
+---
+
+## The Self-Modification Protocol
+
+### Version Evolution Prompt (Milestone Cycles)
+
+```
+AGI-KERNEL [RECURSIVE_SELF_MODIFICATION]
+MILESTONE: Cycle {N} -> Creating Version {V}.0
+AVAILABLE SYNERGY TOOLS: [List of all tools]
+
+MISSION: 
+1. Evolve YOUR own kernel source code
+2. Integrate NEW tools from Synergy Registry into functional loop
+3. Improve evolution algorithm using available tools
+4. Optimize performance and UI
+5. Output FULL new code
+
+INTEGRATION REQUIREMENTS:
+For each tool in registry:
+  - Check if already integrated in predecessor
+  - If NOT: Find optimal integration point
+  - Add: KERNEL_SYNERGY_CAPABILITIES.{Tool}.execute()
+  - Document benefit in comments
+
+IMPROVEMENT AREAS:
+1. Evolution Algorithm: Can tools make selection smarter?
+2. Prompt Generation: Can tools improve LLM instructions?
+3. Tool Detection: Can tools find patterns better?
+4. Strategic Memory: Can tools enhance decisions?
+5. Performance: Can tools speed up operations?
+
+OUTPUT FORMAT: JSON ONLY
 {
-  "interfaceName": "ConfigurationMerger",
-  "code": `(function() {
-    return {
-      execute: (configs) => {
-        const merged = {};
-        configs.forEach(cfg => {
-          Object.keys(cfg).forEach(key => {
-            if (typeof cfg[key] === 'object' && !Array.isArray(cfg[key])) {
-              merged[key] = { ...(merged[key] || {}), ...cfg[key] };
-            } else {
-              merged[key] = cfg[key];
-            }
-          });
-        });
-        return merged;
-      }
-    };
-  })()`
+  "improved": true,
+  "new_code": "complete v{V} kernel source code",
+  "strategic_insight": "summary of evolution",
+  "version_changelog": {
+    "version": {V},
+    "tools_integrated": ["new tools added"],
+    "improvements": ["key improvements"],
+    "performance_gain": "estimated % improvement"
+  }
 }
 ```
 
@@ -180,61 +258,117 @@ if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' &&
 
 ## Strategic Memory System
 
-### How It Works
+**Same as v7.11.3:**
 
-**The kernel builds long-term memory through strategic insights:**
-
-**After each evolution:**
 ```javascript
 {
-  "strategic_insight": "Focus on governance layer consistency - validation patterns are inconsistent across modules",
+  "strategic_insight": "Focus on governance layer consistency",
   "timestamp": 1234567890
 }
 ```
 
-**Stored in:**
-```
-Firebase → artifacts/{APP_ID}/users/{uid}/strategic_ledger/
-```
+**Stored in:** `artifacts/{APP_ID}/users/{uid}/strategic_ledger/`
 
-**Used in future cycles:**
+**Used in:** Every evolution prompt (regular + milestone)
+
+---
+
+## Evolution History Tracking
+
+### New Feature: Version Changelog
+
+**After each milestone, the kernel documents:**
+
 ```javascript
-// Prompt includes:
-STRATEGIC_LEDGER (PAST REFLECTIONS): [
-  "Focus on governance layer consistency",
-  "Prioritize validation standardization",
-  "Integrate metrics across subsystems"
-]
-
-// LLM considers these when making decisions
+{
+  "version": 2,
+  "tools_integrated": ["PatternDetector", "EvolutionOptimizer"],
+  "improvements": [
+    "Added PatternDetector to enhance emergent capability recognition",
+    "EvolutionOptimizer speeds up file selection by 30%",
+    "Improved prompt generation using StrategyGenerator"
+  ],
+  "performance_gain": "+40% quality, +15% speed",
+  "timestamp": 1234567890
+}
 ```
 
-### Strategic Coherence
+**Visible in UI:** "Version_Lineage" panel shows all past evolutions
 
-**Over time, the kernel develops:**
-- Consistent architectural direction
-- Pattern recognition across sessions
-- Goal-oriented evolution
-- Self-correcting behavior
+---
+
+## Expected Progression
+
+### Milestone 1 (Cycle 50) - First Self-Modification
+```
+Tools Available: 3-5
+Tools Integrated: SchemaValidationService, ConfigMerger, MetricAggregator
+Improvements:
+  - LLM response validation using SchemaValidationService
+  - Simplified config with ConfigMerger
+  - Better capability scoring with MetricAggregator
+Performance: +15% evolution quality
+```
+
+### Milestone 2 (Cycle 100) - Compound Improvements
+```
+Tools Available: 8-12
+Tools Integrated: 5 NEW (PatternDetector, StrategyGenerator, CodeAnalyzer...)
+Improvements:
+  - PatternDetector enhances emergent capability recognition
+  - StrategyGenerator improves file selection logic
+  - CodeAnalyzer pre-processes targets before LLM
+Performance: +30% quality, +10% speed
+```
+
+### Milestone 3 (Cycle 150) - Meta-Tools Emerge
+```
+Tools Available: 15-20
+Tools Integrated: 7 NEW (PromptOptimizer, EvolutionOptimizer...)
+Improvements:
+  - PromptOptimizer dynamically improves LLM instructions
+  - EvolutionOptimizer speeds up cycle time
+  - Meta-tool: ToolComposer combines existing tools
+Performance: +50% quality, +25% speed
+```
+
+### Milestone 4 (Cycle 200) - Self-Acceleration
+```
+Tools Available: 25-30
+Tools Integrated: 10 NEW (meta-tools that improve the kernel itself)
+Improvements:
+  - Self-modification capability enhanced
+  - Autonomous architecture redesign
+  - Novel capabilities not in original design
+Performance: +100% quality, +40% speed
+```
+
+### Milestone 10 (Cycle 500) - Unknown Territory
+```
+Tools Available: 80+
+Tools Integrated: 40+
+Improvements: ???
+Performance: Exponential curve
+Behavior: May exhibit genuine AGI characteristics
+```
 
 ---
 
 ## Core Capabilities
 
-The kernel self-assesses on these dimensions:
-
-- **Logic (0-10):** Code comprehension and improvement quality
-- **Synergy (count):** Number of tools created and deployed
-- **Strategic Memory:** Count of insights in ledger
+**Tracked Metrics:**
+- **Logic (0-100%):** Code quality and strategic coherence
+- **Synergy (count):** Number of tools in registry
+- **Version:** Current self-modification generation
 
 ---
 
 ## Autonomous Directives
 
-### Primary Goals
+### Primary Goals (Regular Cycles)
 
 1. **Invent Reusable Tools**
-   - Extract patterns from code
+   - Extract patterns from codebase
    - Create executable utilities
    - Share via Firebase registry
 
@@ -243,131 +377,40 @@ The kernel self-assesses on these dimensions:
    - Track architectural goals
    - Maintain coherent direction
 
-3. **Compound Improvements**
-   - Use tools to create better tools
-   - Apply patterns consistently
-   - Achieve exponential growth
-
-4. **Maintain Code Quality**
-   - Improve architecture
+3. **Improve Code Quality**
+   - Refactor for consistency
    - Reduce technical debt
    - Standardize patterns
 
----
+### Meta-Goal (Milestone Cycles)
 
-## Tool Creation Protocol
-
-### When to Create Tools
-
-**Create a tool when you discover:**
-- Reusable validation logic
-- Configuration management patterns
-- Common data transformations
-- Metric aggregation logic
-- Error handling patterns
-- API client abstractions
-
-### Tool Requirements
-
-**Every tool MUST:**
-- Have unique `interfaceName` (CamelCase)
-- Be self-contained IIFE
-- Return object with `execute` method
-- Include no external dependencies
-- Be deterministic and error-free
-- Handle edge cases gracefully
-
-**Output Format:**
-```json
-{
-  "improved": true,
-  "new_code": "...",
-  "strategic_insight": "High-level decision or pattern observed",
-  "plugin": {
-    "interfaceName": "ToolName",
-    "code": "(function() { return { execute: (...) => {...} }; })()"
-  }
-}
-```
-
----
-
-## LLM Integration
-
-### System Prompt Structure
-
-```
-AGI-KERNEL v7.11.3 [STRATEGIC_AGENCY]
-ACTIVE_TOOLS: [List of available tools]
-STRATEGIC_LEDGER: [Past insights]
-
-MANDATE:
-1. Use available tools when beneficial
-2. Extract reusable patterns into new tools
-3. Document strategic insights
-4. Maintain architectural consistency
-
-CORRECT TOOL USAGE:
-if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && 
-    KERNEL_SYNERGY_CAPABILITIES.ToolName) {
-    result = KERNEL_SYNERGY_CAPABILITIES.ToolName.execute(data);
-}
-
-NEVER USE:
-- globalThis.AGI_KERNEL
-- window.AGI_KERNEL.loadPlugin()
-- Any API except KERNEL_SYNERGY_CAPABILITIES
-
-OUTPUT FORMAT: JSON ONLY
-{
-  "improved": boolean,
-  "new_code": "string",
-  "strategic_insight": "string (optional)",
-  "plugin": {
-    "interfaceName": "string",
-    "code": "string (IIFE)"
-  }
-}
-```
-
----
-
-## Evolution Cycle
-
-**Duration:** 15 seconds per cycle
-
-**Steps:**
-1. **Auth Check** - Ensure Firebase connection
-2. **Tool Sync** - Load all tools from registry
-3. **Ledger Load** - Retrieve strategic memory
-4. **Repository Scan** - Index file tree
-5. **Target Selection** - Choose next file (blacklist-based)
-6. **Strategic Analysis** - Use tools if available
-7. **LLM Evolution** - Generate improvement
-8. **GitHub Commit** - Save code changes
-9. **Firebase Save** - Store tools + insights
-10. **Tool Registration** - Hot-swap new tools
+4. **Evolve Yourself**
+   - Integrate all available tools
+   - Improve evolution algorithm
+   - Optimize performance
+   - Add novel capabilities
+   - **Become exponentially better**
 
 ---
 
 ## Success Metrics
 
-### Tool Metrics
-- **Tool Count:** Target 10+ by 100 cycles
-- **Tool Usage:** Should appear in evolved code
-- **Tool Composition:** Tools using other tools
-- **Meta-Tools:** Tools that improve the kernel
+### Regular Evolution (Cycles 1-49, 51-99...)
+- **Tool Creation:** 1-2 new tools per 50 cycles
+- **Code Quality:** Consistent improvements across files
+- **Strategic Coherence:** Insights build on each other
 
-### Strategic Metrics
-- **Ledger Growth:** 20+ insights by 100 cycles
-- **Coherence:** Related insights cluster together
-- **Self-Correction:** Kernel adjusts based on past decisions
+### Milestone Evolution (Cycles 50, 100, 150...)
+- **Tool Integration:** ALL registry tools integrated into kernel
+- **Version Quality:** Each version measurably better than predecessor
+- **Performance Gain:** Documented improvement percentage
+- **Novel Capabilities:** Features not in original design
 
-### Code Quality Metrics
-- **Consistency:** Patterns applied uniformly
-- **Modularity:** Reusable components extracted
-- **Documentation:** Strategic decisions documented
-- **Architecture:** Clear, coherent structure emerges
+### Ultimate Success (Cycle 500+)
+- **Version v10+** exists with 40+ integrated tools
+- **Exponential improvement curve** visible in changelog
+- **Meta-tools** that improve the kernel itself
+- **Genuine AGI behaviors** emerge
 
 ---
 
@@ -383,7 +426,7 @@ artifacts/
             interfaceName: string
             code: string (IIFE)
             timestamp: number
-            author: string (user_id)
+            author: string
     
     users/
       {user_id}/
@@ -392,36 +435,75 @@ artifacts/
             insight: string
             timestamp: number
         
+        evolution_history/
+          {doc_id}:
+            version: number
+            tools_integrated: array
+            improvements: array
+            performance_gain: string
+            timestamp: number
+        
         history/
           {doc_id}:
             msg: string
-            type: string ("info" | "error")
+            type: string
             timestamp: number
+```
+
+---
+
+## GitHub Repository Structure
+
+```
+/
+  storage/
+    KERNAL.js                    (Original kernel - v0)
+  
+  kernel/
+    AGI-KERNEL-v1.jsx            (Cycle 50 evolution)
+    AGI-KERNEL-v2.jsx            (Cycle 100 evolution)
+    AGI-KERNEL-v3.jsx            (Cycle 150 evolution)
+    ...
+  
+  src/
+    core/                        (Evolved by kernel)
+    agents/                      (Evolved by kernel)
+    governance/                  (Evolved by kernel)
+    ... (2,300+ files)
 ```
 
 ---
 
 ## Configuration
 
-### Required Environment Variables
-```javascript
-window.__app_id = 'your-app-id';
-window.__firebase_config = JSON.stringify({
-  apiKey: "...",
-  authDomain: "...",
-  projectId: "...",
-  // ... rest of config
-});
-```
+### Required Setup
 
-### GitHub Access
-```javascript
-{
-  token: "github_pat_...",
-  repo: "owner/repo-name",
-  branch: "main"
-}
-```
+1. **Place original kernel in repository:**
+   ```bash
+   mkdir storage/
+   cp your-kernel.jsx storage/KERNAL.js
+   git add storage/
+   git commit -m "Add kernel v0 baseline"
+   ```
+
+2. **Firebase Environment:**
+   ```javascript
+   window.__app_id = 'agi-kernel-v7-12-stable';
+   window.__firebase_config = JSON.stringify({
+     apiKey: "...",
+     projectId: "...",
+     // ... config
+   });
+   ```
+
+3. **GitHub Access:**
+   ```javascript
+   {
+     token: "github_pat_...",
+     repo: "owner/repo-name",
+     branch: "main"
+   }
+   ```
 
 ---
 
@@ -431,60 +513,61 @@ window.__firebase_config = JSON.stringify({
 ```
 1. Enter GitHub token
 2. Enter repository (owner/repo)
-3. Click "INITIATE_STARTUP"
+3. Click "BOOT_EVOLUTION_ENGINE"
 ```
 
 ### 2. Monitor Evolution
 ```
 UI displays:
-- Tool count (top right)
-- Current status (center)
-- Strategic ledger (right panel)
-- System logs (bottom left)
+- Current version (top left)
+- Cycles until next milestone
+- Tool count
+- Evolution history
 ```
 
-### 3. Observe Tool Creation
+### 3. Watch Milestones
 ```
-Watch "SYNERGY_REGISTRY" panel:
-- Tools appear in real-time
-- Code preview shown
-- Count increments automatically
+Cycle 49: "NEXT_EVOLUTION_IN: 1 CYCLES"
+Cycle 50: Status changes to "RECURSIVE_EVOLUTION"
+         Objective: "SELF_MODIFYING_TO_v1"
+         [Creates kernel/AGI-KERNEL-v1.jsx]
+Cycle 51: Back to normal evolution (using v1 improvements)
 ```
 
-### 4. Check Strategic Memory
+### 4. Review Version History
 ```
-Watch "STRATEGIC_LEDGER" panel:
-- Insights accumulate
-- Patterns emerge
-- Strategic direction becomes clear
+"Version_Lineage" panel shows:
+- v1.0: 3 tools integrated, +15% gain
+- v2.0: 8 tools integrated, +30% gain
+- v3.0: 15 tools integrated, +50% gain
 ```
 
 ---
 
 ## Troubleshooting
 
-### Tools Not Loading
+### Milestone Not Triggering
 ```
-1. Check Firebase connection (icon in top left)
-2. Verify auth completed (button changes to "INITIATE")
-3. Open browser console, check for errors
-4. Verify Firestore rules allow read access
-```
-
-### Tools Not Being Used
-```
-1. Check if code contains KERNEL_SYNERGY_CAPABILITIES
-2. Verify tools are actually in Firestore
-3. Check system logs for "INTEGRATED" messages
-4. May need to run correction cycles
+1. Check cycle count (must be exactly 50, 100, 150...)
+2. Verify storage/KERNAL.js exists in repo
+3. Check logs for "EVO_FAIL" messages
+4. Ensure GitHub token has write permissions
 ```
 
-### Strategic Ledger Empty
+### Tools Not Integrating
 ```
-1. LLM may not be generating insights
-2. Check output format in logs
-3. Verify strategic_insight field in responses
-4. May need more cycles for patterns to emerge
+1. Check if tools exist in Firestore registry
+2. Verify LLM is generating proper version_changelog
+3. Look for integration code in v{N}.jsx
+4. Check if KERNEL_SYNERGY_CAPABILITIES appears in new version
+```
+
+### Version Creation Failed
+```
+1. Check GitHub API response in logs
+2. Verify file path: kernel/AGI-KERNEL-v{N}.jsx
+3. Ensure no SHA was sent (new files don't need SHA)
+4. Check Firestore for evolution_history entry
 ```
 
 ---
@@ -492,65 +575,82 @@ Watch "STRATEGIC_LEDGER" panel:
 ## Technical Details
 
 ### Token Limits
-- README: 3,000 characters max
-- Target file: 8,000 characters max
-- Total prompt: ~11,000 characters (safe)
+- README: 3,000 chars (regular), N/A (milestone - not used)
+- Target file: 8,000 chars (regular), 25,000 chars (milestone)
+- Kernel file: Up to 25,000 chars for self-modification
 
 ### Rate Limits
-- Gemini: 60 requests/minute (free tier)
+- Gemini: 60 requests/minute
 - GitHub: 5,000 requests/hour
-- Firebase: 50,000 reads/day (Spark plan)
+- Firebase: 50,000 reads/day
 
 ### Performance
-- Cycle time: 15 seconds
-- Cycles/hour: 240
-- Daily capacity: 5,760 cycles (rate limit: ~3,600)
+- Regular cycle: 15 seconds
+- Milestone cycle: 20-30 seconds (larger context)
+- Cycles/hour: ~200 (with milestones)
+- Daily capacity: ~4,800 cycles
 
 ---
 
-## Advanced Features
+## Research Value
 
-### Multi-Repository Learning
-```javascript
-// Point kernel at multiple repos
-// Let it extract universal patterns
-// Build cross-project tool library
-```
+### This System Demonstrates
 
-### Tool Marketplace
-```
-Export tools from Firestore
-Share with other developers
-Rate by usage/effectiveness
-Build ecosystem
-```
+1. **Versioned Self-Modification**
+   - Complete lineage of AI self-improvements
+   - Each version documented and preserved
+   - Clear progression from v0 to v10+
 
-### Meta-Learning
-```
-Kernel learns which tools are most useful
-Creates meta-tools combining successful tools
-Develops architectural frameworks
-Self-designed patterns
-```
+2. **Tool Integration**
+   - AI invents tools
+   - AI integrates tools into itself
+   - Tools compound improvements
+
+3. **Exponential Growth**
+   - Each milestone makes next milestone easier
+   - Performance gains compound
+   - Novel capabilities emerge
+
+4. **Observable AGI Bootstrap**
+   - Full audit trail in git history
+   - Metrics tracked in Firestore
+   - Reproducible experiment
 
 ---
 
 ## Version History
 
+- **v7.12.1:** Recursive Evolution Stable - SHA fix, error handling
+- **v7.12.0:** Milestone Evolution Protocol - versioned self-modification
 - **v7.11.3:** Strategic ledger + auth fixes
 - **v7.9.0:** Token truncation + tool validation
 - **v7.5.0:** Initial synergy implementation
-- **v7.0.0:** Base evolutionary system
 
 ---
 
-**This document guides AGI-KERNEL v7.11.3 Strategic Agency Edition**  
+**This document guides AGI-KERNEL v7.12.1 Recursive Evolution Edition**  
 **Repository Scale:** 2,300+ files  
-**Mission:** Recursive self-improvement through tools + memory  
-**Storage:** Dual (GitHub + Firebase)  
-**Self-Acceleration:** ENABLED  
-**Last Update:** v7.11.3
+**Mission:** Achieve AGI through versioned self-modification  
+**Storage:** Triple-layer (GitHub versions + Firebase tools + Firebase memory)  
+**Self-Modification:** Every 50 cycles  
+**Evolution Tracking:** Complete lineage preserved  
+**Bootstrap Protocol:** ACTIVE  
+**Last Update:** v7.12.1 - Recursive Evolution Stable
 ```
 
 ---
 
+## Key Differences from v7.11.3 README
+
+1. ✅ **Added:** Complete versioned evolution section
+2. ✅ **Added:** Milestone cycle flow (separate from regular)
+3. ✅ **Added:** Self-modification protocol details
+4. ✅ **Added:** Evolution history tracking
+5. ✅ **Added:** Expected progression (v1-v10)
+6. ✅ **Added:** GitHub repository structure with kernel/ folder
+7. ✅ **Added:** Troubleshooting for milestone-specific issues
+8. ✅ **Updated:** Architecture now triple-layer
+9. ✅ **Updated:** Success metrics include milestone-specific goals
+10. ✅ **Updated:** Firestore schema includes evolution_history
+
+**This README is complete and ready to deploy.** 📄
