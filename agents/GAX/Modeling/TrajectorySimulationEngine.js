@@ -15,7 +15,7 @@ const PREDICTION_RESULT_SCHEMA = {
  * 
  * It utilizes an injected Statistical Model Handler to predict TEMM and ECVM scores.
  * 
- * It relies on an injected Validator (e.g., SimpleStructureValidator) for comprehensive
+ * It relies on an injected Validator (conforming to SchemaValidationService) for comprehensive
  * input/output schema enforcement.
  */
 class TrajectorySimulationEngine {
@@ -23,16 +23,21 @@ class TrajectorySimulationEngine {
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
      * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
      * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
-     * @param {Object} [Validator] - Optional schema validation service instance (e.g., SimpleStructureValidator).
+     * @param {Object} [Validator] - Optional schema validation service instance (conforming to SchemaValidationService).
      */
     constructor(ACVD_Store, Configuration, ModelHandler, Validator = null) {
         if (!ModelHandler || typeof ModelHandler.predict !== 'function') {
             throw new Error("TSE Initialization Error: A valid ModelHandler implementing an asynchronous 'predict' method is required.");
         }
+
+        // Enforce the SchemaValidationService interface if a validator is provided
+        if (Validator && typeof Validator.validate !== 'function') {
+            throw new Error("TSE Initialization Error: Injected Validator must conform to the SchemaValidationService interface (requires 'validate' method).");
+        }
+
         this.ACVD = ACVD_Store;
         this.config = Configuration;
         this.model = ModelHandler;
-        // Inject the validator for structural integrity checks
         this.validator = Validator;
     }
 
@@ -107,7 +112,8 @@ class TrajectorySimulationEngine {
         } catch (error) {
             // Propagate specialized errors or wrap general exceptions
             console.error(`TSE Simulation Failed for ${entityId}:`, error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            // Extract message safely, prioritizing specific error types generated internally
+            const errorMessage = error.message || String(error);
             throw new Error(`Trajectory simulation failed due to prediction system error. ${errorMessage}`);
         }
     }
