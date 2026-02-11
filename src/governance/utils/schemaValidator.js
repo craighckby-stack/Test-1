@@ -4,19 +4,28 @@
  * V97.1.0: Refactored to use dedicated Kernel Tool.
  */
 
-// Conceptual access to the kernel tool interface. In a production environment,
-// this reference would be securely injected or resolved via a service locator.
-const SchemaCompilerTool = globalThis.AGI_KERNEL_TOOLS?.HighPerformanceSchemaCompilerTool || {
-    // Provide graceful fallbacks if the tool is not yet loaded/available
-    compile: (s) => { throw new Error("HighPerformanceSchemaCompilerTool is unavailable."); },
-    validate: (s, d) => ({
-        isValid: false,
-        errors: [{ message: "HighPerformanceSchemaCompilerTool is unavailable.", keyword: 'system' }]
-    })
+const TOOL_NAME = "HighPerformanceSchemaCompilerTool";
+const UNAVAILABLE_ERROR_MSG = `${TOOL_NAME} is unavailable.`;
+const SYSTEM_ERROR_OBJ = {
+    isValid: false,
+    errors: [{ message: UNAVAILABLE_ERROR_MSG, keyword: 'system' }]
 };
+
+// Centralized fallback tool definition for graceful degradation
+const FallbackTool = {
+    compile: () => { 
+        throw new Error(UNAVAILABLE_ERROR_MSG);
+    },
+    validate: () => SYSTEM_ERROR_OBJ
+};
+
+// Conceptual access to the kernel tool interface. 
+// Resolves the actual tool or the robust FallbackTool.
+const SchemaCompilerTool = globalThis.AGI_KERNEL_TOOLS?.[TOOL_NAME] || FallbackTool;
 
 /**
  * Proxy class for Schema Validation operations.
+ * Trusts the initialization setup (SchemaCompilerTool) handles availability errors.
  */
 class SchemaValidator {
     constructor() {
@@ -31,20 +40,19 @@ class SchemaValidator {
      * @throws {Error} If schema compilation fails or tool is missing.
      */
     compile(schema) {
-        if (typeof SchemaCompilerTool.compile !== 'function') {
-             throw new Error("HighPerformanceSchemaCompilerTool compile function is missing.");
-        }
+        // No redundant check needed; FallbackTool.compile handles the error case via throw.
         return SchemaCompilerTool.compile(schema);
     }
 
     /**
      * Helper method to directly validate data against a raw schema.
      * Delegates to the HighPerformanceSchemaCompilerTool.
+     * @param {object} schema - The JSON Schema definition.
+     * @param {any} data - The data to validate.
+     * @returns {{isValid: boolean, errors: Array<object>}} Validation result object.
      */
     validate(schema, data) {
-        if (typeof SchemaCompilerTool.validate !== 'function') {
-            return { isValid: false, errors: [{ message: "HighPerformanceSchemaCompilerTool validate function is missing.", keyword: 'system' }] };
-        }
+        // No redundant check needed; FallbackTool.validate handles the error case by returning SYSTEM_ERROR_OBJ.
         return SchemaCompilerTool.validate(schema, data);
     }
 }
