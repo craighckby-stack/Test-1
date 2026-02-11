@@ -25,10 +25,33 @@ export class BaseAgiError extends Error {
         /** @type {number} */
         this.httpStatus = httpStatus;
 
+        this.#captureStackTrace();
+    }
+
+    /**
+     * Executes the V8 optimization to ensure a cleaner stack trace capture.
+     * Separates boilerplate setup from core initialization.
+     * @private
+     */
+    #captureStackTrace(): void {
         // V8 optimization for cleaner stack trace
         if (Error.captureStackTrace) {
+            // We capture the stack from the constructor, ensuring the error class itself is excluded from the stack.
             Error.captureStackTrace(this, this.constructor);
         }
+    }
+
+    /**
+     * Delegates the serialization task to the external CanonicalPayloadSerializer utility (I/O proxy).
+     * @returns {Object} Serialized error object.
+     * @private
+     */
+    #serializeErrorPayload(): Object {
+        return CanonicalPayloadSerializer.serializeErrorPayload({
+            name: this.name,
+            message: this.message,
+            httpStatus: this.httpStatus
+        });
     }
 
     /**
@@ -37,10 +60,6 @@ export class BaseAgiError extends Error {
      * @returns {Object} Serialized error object.
      */
     toJson(): Object {
-        return CanonicalPayloadSerializer.serializeErrorPayload({
-            name: this.name,
-            message: this.message,
-            httpStatus: this.httpStatus
-        });
+        return this.#serializeErrorPayload();
     }
 }
