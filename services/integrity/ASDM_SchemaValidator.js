@@ -9,11 +9,19 @@ import ASDM_Schemas from '../../config/ASDM_ArtifactSchemas.json';
 // Assume JsonSchemaService is available via kernel injection or import path
 import { JsonSchemaService } from 'AGI-KERNEL/plugins/JsonSchemaService'; 
 
+// Define the type expected for a custom format checker function (input is typically 'unknown' from the validator engine)
+type FormatChecker = (data: unknown) => boolean;
+
 // --- 1. Custom Format Definition ---
-const ASDM_CustomFormats: Record<string, Function> = {
-    'hash_256+': (data: string) => typeof data === 'string' && data.length >= 64 && /^[0-9a-fA-F]+$/.test(data),
-    'epoch_milliseconds': (data: number) => Number.isInteger(data) && data > 1609459200000,
-    'ASDM_ID': (data: string) => typeof data === 'string' && data.length > 10,
+const ASDM_CustomFormats: Record<string, FormatChecker> = {
+    // Ensures string data is hex, and at least 256 bits long (64 chars)
+    'hash_256+': (data) => typeof data === 'string' && data.length >= 64 && /^[0-9a-fA-F]+$/.test(data),
+    
+    // Ensures numerical data is an integer timestamp after a reasonable system epoch (Jan 1, 2021)
+    'epoch_milliseconds': (data) => typeof data === 'number' && Number.isInteger(data) && data > 1609459200000,
+    
+    // Basic check for ASDM Identifier string length
+    'ASDM_ID': (data) => typeof data === 'string' && data.length > 10,
 };
 
 // --- 2. Initialize the service instance ---
