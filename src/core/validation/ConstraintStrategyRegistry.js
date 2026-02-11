@@ -1,65 +1,80 @@
 /**
- * ConstraintStrategyRegistry.js
- * Manages and provides access to custom validation functions (strategies) 
- * using the ConstraintPatternRegistryUtility plugin and initializes them 
- * using CoreValidationStrategies plugin.
+ * ConstraintStrategyRegistryKernel.js
+ * Manages and provides access to custom validation functions (strategies).
+ * It delegates registration and retrieval to an injected IStrategyRegistryToolKernel
+ * and initializes core strategies via IValidationStrategyInitializerToolKernel.
  */
 
-// Assume injection/import of the ConstraintPatternRegistryUtility singleton
-const registry = global.ConstraintPatternRegistryUtility;
+class ConstraintStrategyRegistryKernel {
+    /**
+     * @private {IStrategyRegistryToolKernel}
+     */
+    strategyRegistryTool;
 
-if (!registry || typeof registry.register !== 'function') {
-    // CRITICAL FAILURE: Plugin dependency missing
-    throw new Error("Dependency 'ConstraintPatternRegistryUtility' missing.");
-}
+    /**
+     * @private {IValidationStrategyInitializerToolKernel}
+     */
+    strategyInitializerTool;
 
-// --- Dependency Injection for Strategy Definitions ---
-// Assumes CoreValidationStrategies is available in the global scope after initialization.
-const CoreValidationStrategies = global.CoreValidationStrategies;
+    /**
+     * @param {IStrategyRegistryToolKernel} strategyRegistryTool
+     * @param {IValidationStrategyInitializerToolKernel} strategyInitializerTool
+     */
+    constructor(strategyRegistryTool, strategyInitializerTool) {
+        this.#setupDependencies(strategyRegistryTool, strategyInitializerTool);
+    }
 
-if (!CoreValidationStrategies || typeof CoreValidationStrategies.registerAll !== 'function') {
-    // CRITICAL FAILURE: Strategy dependency missing
-    throw new Error("Dependency 'CoreValidationStrategies' missing or malformed. Strategy initialization failed.");
-}
+    /**
+     * Strictly verifies and assigns kernel dependencies.
+     * Enforces the synchronous setup extraction mandate.
+     * @private
+     * @param {IStrategyRegistryToolKernel} strategyRegistryTool
+     * @param {IValidationStrategyInitializerToolKernel} strategyInitializerTool
+     */
+    #setupDependencies(strategyRegistryTool, strategyInitializerTool) {
+        // Note: IStrategyRegistryToolKernel methods are expected to be synchronous for fast delegation, 
+        // but the Kernel's public interface remains asynchronous.
+        if (!strategyRegistryTool || typeof strategyRegistryTool.register !== 'function' || typeof strategyRegistryTool.get !== 'function') {
+            throw new Error('Dependency Error: IStrategyRegistryToolKernel is missing or invalid.');
+        }
+        // Note: IValidationStrategyInitializerToolKernel.registerAll is expected to be asynchronous.
+        if (!strategyInitializerTool || typeof strategyInitializerTool.registerAll !== 'function') {
+            throw new Error('Dependency Error: IValidationStrategyInitializerToolKernel is missing or invalid.');
+        }
 
-/**
- * Registers strategies specific to the Integrity Validation Engine 
- * using the abstract CoreValidationStrategies plugin.
- */
-function initializeStrategies() {
-    // Delegate strategy definition and registration to the dedicated utility plugin
-    CoreValidationStrategies.registerAll(registry);
-}
+        this.strategyRegistryTool = strategyRegistryTool;
+        this.strategyInitializerTool = strategyInitializerTool;
+    }
 
-// Execute registration immediately
-initializeStrategies();
-
-/**
- * ConstraintStrategyRegistry Class Wrapper.
- * Acts as the public interface, delegating calls to the underlying plugin instance.
- */
-class ConstraintStrategyRegistry {
-    constructor() {
-        // The underlying registry is initialized above.
+    /**
+     * Asynchronously initializes the kernel by registering all core strategies.
+     * This replaces the synchronous initialization block in the original file.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Delegate strategy definition and registration to the dedicated initializer tool
+        await this.strategyInitializerTool.registerAll(this.strategyRegistryTool);
     }
 
     /**
      * Registers a new constraint strategy function.
      * @param {string} name - The identifier.
      * @param {function} handler - The validation function.
+     * @returns {Promise<void>}
      */
-    register(name, handler) {
-        // Delegation to the utility plugin
-        registry.register(name, handler);
+    async register(name, handler) {
+        // Delegation to the utility plugin, wrapped in Promise.resolve for consistency.
+        return Promise.resolve(this.strategyRegistryTool.register(name, handler));
     }
 
     /**
      * Retrieves a constraint strategy by name.
+     * @param {string} name
+     * @returns {Promise<function|null>}
      */
-    get(name) {
-        return registry.get(name);
+    async get(name) {
+        return Promise.resolve(this.strategyRegistryTool.get(name));
     }
 }
 
-// Singleton pattern export, using the class wrapper.
-module.exports = new ConstraintStrategyRegistry();
+module.exports = ConstraintStrategyRegistryKernel;
