@@ -1,6 +1,9 @@
 declare const ThresholdViolationChecker: {
     execute: (args: { telemetryData: object, constraints: object }) => Array<any>
 };
+declare const ContextIdGenerator: {
+    generate: (data: object) => string
+};
 
 class MCRA_Risk_Metric_Normalizer {
   
@@ -19,26 +22,6 @@ class MCRA_Risk_Metric_Normalizer {
   }
 
   /**
-   * Generates a truncated base64 ID from the raw telemetry payload.
-   * Uses Buffer, assuming a Node/Kernel execution environment.
-   * @param {object} rawTelemetry - Raw time-series input metrics.
-   * @returns {string} Truncated context ID.
-   */
-  private static _generateContextId(rawTelemetry: object): string {
-    if (typeof Buffer === 'undefined' || !Buffer.from) {
-        return 'ID_GENERATION_UNAVAILABLE';
-    }
-    try {
-        // Simplified ID generation
-        return Buffer.from(JSON.stringify(rawTelemetry)).toString('base64').substring(0, 16);
-    } catch (e) {
-        console.error("Failed to generate context ID:", e);
-        return 'ID_GENERATION_FAILED';
-    }
-  }
-
-
-  /**
    * Standardizes raw system telemetry into risk profiles suitable for the MCRA Arbiter.
    * @param {object} rawTelemetry - Raw time-series input metrics.
    * @param {object} constraintSet - Current operative constraints.
@@ -55,8 +38,8 @@ class MCRA_Risk_Metric_Normalizer {
         constraints: constraintSet 
     });
     
-    // 3. Generate Context ID
-    const contextSnapshotId = MCRA_Risk_Metric_Normalizer._generateContextId(rawTelemetry);
+    // 3. Generate Context ID using the abstract ContextIdGenerator
+    const contextSnapshotId = ContextIdGenerator.generate(rawTelemetry);
 
     return {
       risk_profile: {
