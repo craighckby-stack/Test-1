@@ -22,14 +22,17 @@ class TraceAnalysisEngine {
     const missions = [];
     const highRiskFindings = [];
 
-    // Check and use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
-    if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer) {
-        const TraceRiskAnalyzer = KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer;
-        
+    // Access the TraceRiskAnalyzer capability from KERNEL_SYNERGY_CAPABILITIES, ensuring safe global access.
+    const TraceRiskAnalyzer = 
+      (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer)
+        ? KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer 
+        : null;
+
+    if (TraceRiskAnalyzer) {
         // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
         // This ensures standardized priority scoring and goal definition based on reusable policy.
         for (const trace of highRiskStructuralChanges) {
-            // Refactored to use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
+            // Utilize the capability to run standardized risk analysis.
             const finding = await TraceRiskAnalyzer.execute('analyze', trace); 
             if (finding) {
                 highRiskFindings.push(finding);
