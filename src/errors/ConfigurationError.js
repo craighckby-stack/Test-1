@@ -16,7 +16,7 @@ export class ConfigurationError extends OperationalErrorBase {
      * @param {string} [code] - Machine-readable error code (e.g., 'MISSING_ENV', 'INVALID_SCHEMA').
      * @param {Object} [context={}] - Additional details relevant for debugging.
      */
-    constructor(message: string, code?: string, context: object = {}) {
+    constructor(message, code, context = {}) {
         // 1. Determine the specific default code for this class
         const finalCode = code || 'E_CONFIG_GENERIC';
 
