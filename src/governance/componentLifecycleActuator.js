@@ -1,7 +1,4 @@
-import { DependencyLookupUtility } from '@core/DependencyLookupUtility';
-import { PolicyExecutionEngine } from '@governance/PolicyExecutionEngine';
-// Assume the extracted tool is available via the kernel's plugin system
-import { StageSequenceExecutor } from '@plugins/StageSequenceExecutor';
+import { AbstractKernel } from '@core/AbstractKernel';
 
 // Constants defining lifecycle stages
 const LIFECYCLE_STATES = {
@@ -15,34 +12,62 @@ const LIFECYCLE_STATES = {
 };
 
 /**
- * Manages the transition and execution flow for a component's lifecycle,
- * utilizing a dedicated dependency router and sequential stage execution.
- * Focuses on handling non-reversible system modifications through staged processes.
+ * Manages the transition and execution flow for a component's lifecycle.
+ * Utilizes high-integrity tool kernels for dependency resolution, policy enforcement,
+ * and staged, asynchronous execution of critical, non-reversible operations.
  */
-class ComponentLifecycleActuator {
+class ComponentLifecycleActuatorKernel extends AbstractKernel {
+    static dependencies = [
+        'ILoggerToolKernel',
+        'IServiceResolutionToolKernel', 
+        'IConceptualPolicyEvaluatorKernel', 
+        'IExecutionStageOrchestratorToolKernel'
+    ];
+
     private componentId: string;
     private currentState: string;
-    private dependencyResolver: DependencyLookupUtility;
-    private stageExecutor: StageSequenceExecutor;
+    private logger: ILoggerToolKernel;
+    private serviceResolver: IServiceResolutionToolKernel;
+    private policyEvaluator: IConceptualPolicyEvaluatorKernel;
+    private stageOrchestrator: IExecutionStageOrchestratorToolKernel;
 
-    constructor(componentId: string) {
+    constructor(
+        componentId: string,
+        dependencies
+    ) {
+        super();
         this.componentId = componentId;
         this.currentState = LIFECYCLE_STATES.INIT;
-        // Using existing plugin for dependency routing/lookup, adhering to SRP
-        this.dependencyResolver = new DependencyLookupUtility(); 
-        // Using the newly extracted tool for synchronous management of async stages
-        this.stageExecutor = new StageSequenceExecutor(); 
+        // Dependency assignment handled via injection
+        Object.assign(this, dependencies);
+    }
+
+    #setupDependencies(): void {
+        if (!this.logger || !this.serviceResolver || !this.policyEvaluator || !this.stageOrchestrator) {
+            throw new Error(`${this.constructor.name}: Missing required kernel dependencies.`);
+        }
+    }
+
+    async initialize(): Promise<void> {
+        this.#setupDependencies();
+        this.logger.debug(`${this.constructor.name} initialized for component: ${this.componentId}`);
     }
 
     /**
-     * Attempts a state transition, managing asynchronous stages synchronously.
+     * Attempts a state transition, managing asynchronous stages.
      * Handles non-reversible system modifications (Deprecation/Retirement).
      * @param targetState The state to transition to.
      */
     public async transitionTo(targetState: string): Promise<void> {
-        console.log(`[${this.componentId}] Transitioning from ${this.currentState} to ${targetState}`);
+        this.logger.info({
+            message: `Transitioning component lifecycle stage.`,
+            componentId: this.componentId,
+            fromState: this.currentState,
+            toState: targetState
+        });
 
         if (this.currentState === LIFECYCLE_STATES.RETIRED) {
+            this.logger.warn(`Attempted transition on retired component: ${this.componentId}`);
             throw new Error(`Component ${this.componentId} is retired and cannot transition.`);
         }
 
@@ -72,35 +97,54 @@ class ComponentLifecycleActuator {
                 default:
                     throw new Error(`Unknown or invalid target state: ${targetState}`);
             }
-            console.log(`[${this.componentId}] Transition complete. New state: ${this.currentState}`);
+            this.logger.info({
+                message: `Transition complete.`,
+                componentId: this.componentId,
+                newState: this.currentState
+            });
 
         } catch (e) {
             this.currentState = LIFECYCLE_STATES.ERROR;
-            console.error(`Transition failed for ${this.componentId} (reverting from ${previousState}):`, e);
+            this.logger.error({
+                message: `Lifecycle transition failed (reverting to ERROR state).`,
+                componentId: this.componentId,
+                revertedFrom: previousState,
+                error: e.message
+            });
             throw e;
         }
     }
 
     private async _verifyDeprecationPolicy(): Promise<void> {
-        // Uses policy engine dependency resolution (via DependencyLookupUtility)
-        const policyEngine = this.dependencyResolver.getDependency<PolicyExecutionEngine>('PolicyExecutionEngine');
+        // Use IConceptualPolicyEvaluatorKernel for high-integrity governance checks
+        const policyContext = { componentId: this.componentId, action: 'DEPRECATION' };
         
-        const compliance = await policyEngine.checkPolicy(this.componentId, 'STAGED_DEPRECATION_MANDATE'); 
+        // The policy evaluation must handle the specific context
+        const compliance = await this.policyEvaluator.evaluate('STAGED_DEPRECATION_MANDATE', policyContext); 
         
-        if (!compliance) {
-            throw new Error("Mandated policy violation detected for staged deprecation.");
+        if (!compliance || !compliance.isCompliant) {
+            // VETO logging for non-reversible governance failure
+            this.logger.veto({
+                message: "Mandated policy violation detected for staged deprecation.",
+                componentId: this.componentId,
+                policyId: 'STAGED_DEPRECATION_MANDATE'
+            });
+            throw new Error("Mandated policy violation detected for staged deprecation. VETO initiated.");
         }
+        this.logger.debug(`Deprecation policy check passed for ${this.componentId}.`);
     }
 
     /**
      * Executes the sequence required to bring the component online.
      */
     private async _executeStartingStage(): Promise<void> {
-        const initializer = this.dependencyResolver.getDependency('ComponentInitializer');
+        // Use service resolver to get required component interfaces
+        const initializer = await this.serviceResolver.resolve('ComponentInitializer');
 
-        await this.stageExecutor.execute(`Startup_${this.componentId}`, [
+        await this.stageOrchestrator.executeSequence(`Startup_${this.componentId}`, [
             { name: 'LoadConfiguration', task: async () => { /* load config logic */ } },
             { name: 'InitializeDependencies', task: async () => { /* init dependencies logic */ } },
+            // Assumes initializer is a service with a callable runSetup method
             { name: 'RunSetupHooks', task: () => initializer.runSetup(this.componentId) }
         ]);
     }
@@ -109,9 +153,9 @@ class ComponentLifecycleActuator {
      * Executes the sequence for staged deprecation (non-reversible soft stop).
      */
     private async _executeDeprecationStage(): Promise<void> {
-        const retirementService = this.dependencyResolver.getDependency('RetirementService');
+        const retirementService = await this.serviceResolver.resolve('RetirementService');
 
-        await this.stageExecutor.execute(`Deprecation_${this.componentId}`, [
+        await this.stageOrchestrator.executeSequence(`Deprecation_${this.componentId}`, [
             { name: 'HaltIngress', task: async () => { /* stop new requests */ } },
             { name: 'DrainQueues', task: async () => { /* gracefully handle existing tasks */ } },
             { name: 'NotifyConsumers', task: () => retirementService.stageDeprecation(this.componentId) }
@@ -122,10 +166,10 @@ class ComponentLifecycleActuator {
      * Executes the sequence for final retirement (non-reversible hard stop/cleanup).
      */
     private async _executeRetirementStage(): Promise<void> {
-        const dbCleaner = this.dependencyResolver.getDependency('DatabaseCleaner');
-        const assetManager = this.dependencyResolver.getDependency('AssetDecommissioner');
+        const dbCleaner = await this.serviceResolver.resolve('DatabaseCleaner');
+        const assetManager = await this.serviceResolver.resolve('AssetDecommissioner');
 
-        await this.stageExecutor.execute(`Retirement_${this.componentId}`, [
+        await this.stageOrchestrator.executeSequence(`Retirement_${this.componentId}`, [
             { name: 'ShutdownProcesses', task: async () => { /* force shutdown remaining instances */ } },
             { name: 'DecommissionAssets', task: () => assetManager.decommission(this.componentId) },
             { name: 'DatabaseCleanup', task: () => dbCleaner.removeRecords(this.componentId) }
@@ -133,4 +177,4 @@ class ComponentLifecycleActuator {
     }
 }
 
-export { ComponentLifecycleActuator, LIFECYCLE_STATES };
+export { ComponentLifecycleActuatorKernel, LIFECYCLE_STATES };
