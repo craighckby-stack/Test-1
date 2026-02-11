@@ -1,28 +1,35 @@
 /**
- * Interface definition for the Risk & Security Attestation Manager (RSAM).
- * All concrete RSAM implementations must adhere to this asynchronous contract 
- * to ensure non-blocking operation of the Governance Constraint Orchestrator (GCO).
+ * High-Integrity Tool Kernel Interface for the Risk & Security Attestation Manager (RSAM).
+ * This kernel is responsible for managing the pre-attestation lifecycle of governance mutation intents (e.g., M-01).
+ * All concrete implementations must adhere to this asynchronous contract, adhering to the AIA Enforcement Layer mandates
+ * for non-blocking operation within core governance components like the Governance Constraint Orchestrator Kernel.
+ * 
+ * @interface IRiskAttestationManagerToolKernel
  */
-class IRSAMService {
+class IRiskAttestationManagerToolKernel {
     
     /**
-     * Asynchronously registers a policy intent package (e.g., M-01) 
+     * Asynchronously registers an immutable policy intent package (e.g., M-01) 
      * for mandatory pre-attestation processing.
-     * @param {IntentPackage} intentPackage - The packaged mutation intent.
-     * @returns {Promise<{attestationId: string, status: string}>} Registration confirmation.
+     * 
+     * @param {Readonly<Object>} intentPackage - The immutable packaged mutation intent. Must adhere to PayloadSchemaRegistry/M-01 schema.
+     * @returns {Promise<{attestationId: string, status: string}>} The initial attestation registration record summary.
      */
     async registerPolicyIntent(intentPackage) {
-        throw new Error("Method 'registerPolicyIntent()' must be implemented.");
+        // Enforce contract implementation
+        throw new Error("IRiskAttestationManagerToolKernel::registerPolicyIntent must be implemented.");
     }
 
     /**
-     * Asynchronously retrieves the current attestation status for a registered intent.
-     * @param {string} intentId
-     * @returns {Promise<AttestationStatus>} 
+     * Asynchronously retrieves the current, detailed attestation status for a registered intent.
+     * 
+     * @param {string} attestationId - The unique ID returned during registration via registerPolicyIntent.
+     * @returns {Promise<AttestationStatus>} A detailed status object, including compliance metrics and risk scores.
      */
-    async getAttestationStatus(intentId) {
-        throw new Error("Method 'getAttestationStatus()' must be implemented.");
+    async getAttestationStatus(attestationId) {
+        // Enforce contract implementation
+        throw new Error("IRiskAttestationManagerToolKernel::getAttestationStatus must be implemented.");
     }
 }
 
-module.exports = IRSAMService;
+module.exports = IRiskAttestationManagerToolKernel;
