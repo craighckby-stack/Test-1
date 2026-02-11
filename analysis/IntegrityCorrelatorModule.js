@@ -2,7 +2,6 @@
  * Integrity Correlator Module (ICM)
  * Mission: High-throughput analysis correlating TEDS and PCSS data 
  * against historical constraint violation models (UFRM/CFTM) to determine root cause and policy magnitude.
- * NOTE: Policy derivation is now handled by the KERNEL-bound PolicyMagnitudeDeriver tool.
  */
 
 class IntegrityCorrelatorModule {
@@ -17,9 +16,9 @@ class IntegrityCorrelatorModule {
         this.constraintModels = constraintModels;
         this.CORRELATION_THRESHOLD = 0.85; // Sensitivity threshold for high-severity findings
         
-        // Ensure KERNEL access is globally available
-        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.Tool === 'undefined') {
-             throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES is required for tool execution.");
+        // Ensure KERNEL access is globally available and the required Policy Derivation Service is loaded.
+        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService === 'undefined') {
+             throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService is required for tool execution.");
         }
     }
 
@@ -36,11 +35,16 @@ class IntegrityCorrelatorModule {
         // Step 2: Constraint Validation against PCSS (Integrity Check)
         const axiomBreaches = this._validateAxiomBreaches();
 
-        // Step 3: Derive Mandatory Policy Correction based on composite severity using the KERNEL Tool.
-        const derivationResult = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
-            'PolicyMagnitudeDeriver', 
+        const derivationInput = {
+            skewMagnitude: temporalSkewMagnitude,
+            breachCount: axiomBreaches.length
+        };
+
+        // Step 3: Derive Mandatory Policy Correction based on composite severity using the KERNEL Service.
+        // Using the standardized KERNEL_SYNERGY_CAPABILITIES.ServiceName.execute('method', data) pattern.
+        const derivationResult = await KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService.execute(
             'derive', 
-            [temporalSkewMagnitude, axiomBreaches.length]
+            derivationInput
         );
 
         // Simulate heavy computation (e.g., calling an external ML service)
