@@ -5,7 +5,16 @@
  * This module now leverages the KernelCapabilityInvoker for standardized, robust plugin execution.
  */
 
-// Assume KERNEL_SYNERGY_CAPABILITIES is globally available.
+// Assume KERNEL_SYNERGY_CAPABILITIES is globally available and initialized.
+
+// Optimization: Resolve and validate the core dependency once at module initialization time,
+// shifting the integrity check cost outside the hot execution path.
+const ACVD_INVOKER = KERNEL_SYNERGY_CAPABILITIES?.Plugin?.get("KernelCapabilityInvoker");
+
+if (!ACVD_INVOKER || typeof ACVD_INVOKER.execute !== 'function') {
+    // Ensure immediate, traceable failure upon module load if the kernel is misconfigured.
+    throw new Error("[ACVDSchema Setup Failure] Core execution invoker (KernelCapabilityInvoker) is not available or incomplete. System integrity compromised.");
+}
 
 /**
  * Validates a candidate ACVD object against the defined schema using the kernel's validation service.
@@ -14,14 +23,6 @@
  * @throws {Error} If validation fails or if required plugins are missing.
  */
 export function validateACVDStructure(candidate: unknown): unknown {
-    // Retrieve the generalized plugin execution utility.
-    const invoker = KERNEL_SYNERGY_CAPABILITIES.Plugin.get("KernelCapabilityInvoker");
-
-    if (!invoker || typeof invoker.execute !== 'function') {
-        throw new Error("Core execution invoker (KernelCapabilityInvoker) is not available. System integrity compromised.");
-    }
-
-    // Delegate execution: The Invoker handles plugin lookup, interface checks, and execution.
-    // This drastically reduces boilerplate and centralizes error handling.
-    return invoker.execute("ACVDValidator", "validate", candidate);
+    // The dependency is pre-validated, allowing for direct, clean execution delegation.
+    return ACVD_INVOKER.execute("ACVDValidator", "validate", candidate);
 }
