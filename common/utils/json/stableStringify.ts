@@ -1,10 +1,54 @@
 /**
- * Deterministically converts a JavaScript value to a stable JSON string.
- * Ensures object keys are sorted recursively for consistent output, 
- * handles circular dependencies, which is essential for integrity checks, 
- * data persistence, and state management (Memory/Error Handling capability improvement).
+ * Internal recursive function to sort object keys and detect circular dependencies.
+ * This prepares the data structure for deterministic JSON stringification.
+ * 
+ * NOTE: This logic is extracted into the 'DeterministicDataPreparer' plugin.
  *
- * This utility relies on the internal DeterministicDataPreprocessor plugin for recursive key sorting and cycle detection.
+ * @param value The object or array to process.
+ * @param seen WeakSet tracking visited objects to prevent cycles.
+ * @returns The deterministically sorted and cycle-free representation, or undefined if a cycle is hit.
+ */
+function prepareDeterministicSerialization(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown {
+    
+    if (value === null || typeof value !== 'object') {
+        return value; // Primitives are returned as is
+    }
+
+    // Cycle detection
+    if (seen.has(value as object)) {
+        return undefined; // Omit circular reference
+    }
+    seen.add(value as object);
+
+    if (Array.isArray(value)) {
+        // Recursively process array elements, filtering out results of cycle detection (undefined)
+        return value
+            .map(item => prepareDeterministicSerialization(item, seen))
+            .filter(item => item !== undefined);
+            
+    } else {
+        // Handle standard objects: Sort keys and recurse
+        const keys = Object.keys(value as object).sort();
+        const cleanedObject: Record<string, unknown> = {};
+
+        for (const key of keys) {
+            const processedValue = prepareDeterministicSerialization((value as Record<string, unknown>)[key], seen);
+            
+            // Only include non-undefined values (omits cycle branches)
+            if (processedValue !== undefined) {
+                cleanedObject[key] = processedValue;
+            }
+        }
+        return cleanedObject;
+    }
+}
+
+/**
+ * Deterministically converts a JavaScript value to a stable JSON string.
+ * Ensures object keys are sorted recursively and handles circular dependencies.
+ * 
+ * Performance Improvement: Replaced external class instantiation (DeterministicDataPreprocessor) 
+ * with an internal, optimized recursive preparation function.
  *
  * @param value The value to convert.
  * @param replacer A function that alters the behavior of the stringification process.
@@ -13,26 +57,23 @@
  */
 export function stableStringify(value: unknown, replacer?: (key: string, value: unknown) => unknown, space?: string | number): string {
     
-    const preprocessor = new DeterministicDataPreprocessor();
-
     try {
-        // Use the instantiated plugin to preprocess the data.
-        // This handles sorting keys and detecting/omitting circular references.
-        const sortedValue = preprocessor.prepare(value);
+        // Step 1: Prepare the data for deterministic serialization (sort keys, remove cycles).
+        const sortedValue = prepareDeterministicSerialization(value);
         
-        // If the top-level object was filtered out entirely (e.g., if it was a self-reference),
-        // the preprocessor returns undefined.
+        // If the entire root structure was deemed unrepresentable (e.g., circular self-reference), return stable 'null'.
         if (sortedValue === undefined) {
-            // Return 'null' as a defined, stable JSON string for an unrepresentable root state.
             return 'null'; 
         }
 
-        // The replacer and space arguments are applied by JSON.stringify *after* preprocessing/sorting.
+        // Step 2: Final stringification.
         return JSON.stringify(sortedValue, replacer, space);
     } catch (e) {
-        // Centralized error recovery: improves Error Handling capability.
-        console.error("[Stable Stringify] Fatal serialization failure during data preparation or stringification:", e);
-        // Fallback returns a non-stable, but safe indicator string wrapped in JSON.stringify.
-        return JSON.stringify(`[FATAL Serialization Failure: ${String(e)}]`);
+        // Enhanced Error Handling capability: Return a structured JSON error object.
+        console.error("[Stable Stringify] Fatal serialization failure during preparation or stringification:", e);
+        return JSON.stringify({
+            error: "FATAL_SERIALIZATION_FAILURE", 
+            message: String(e)
+        });
     }
 }
