@@ -1,5 +1,6 @@
 import { STESSpecification } from '../protocols/STES_specification.json';
 import { ResolverHooks } from './ResolverHooks';
+import { ProtocolConstraintValidator } from '../plugins/ProtocolConstraintValidator';
 
 // Assuming SpecificationStateTransitionResolver is available in the execution environment.
 // We use a mock interface declaration for type checking purposes.
@@ -26,17 +27,8 @@ export class STES_Protocol_Resolver {
 
     /** Verifies incoming request compliance based on protocol constraints. */
     public validateRequest(request: any): boolean {
-        const constraints = this.spec.constraints.runtime_validation;
-        // Check required keys and trust score
-        for (const key of constraints.required_keys) {
-            if (!request[key]) {
-                throw new Error(`Missing mandatory key: ${key}`);
-            }
-        }
-        if (request.trustScore < constraints.minimum_trust_score) {
-            throw new Error(`Trust score (${request.trustScore}) below minimum threshold (${constraints.minimum_trust_score}).`);
-        }
-        return true;
+        // Delegate reusable constraint validation logic to the specialized plugin
+        return ProtocolConstraintValidator.validate(this.spec.constraints, request);
     }
 
     /** Determines and executes the state transition based on the current state and trigger. */
