@@ -1,5 +1,5 @@
 /**
- * SCR_IntegrityValidator v94.1 (Refactored)
+ * SCR_IntegrityValidator v94.2 (Refactored)
  * Autonomous system component for enforcing structural integrity policies.
  *
  * Reads SCR_IntegrityManifest.json, computes real-time file hashes
@@ -10,17 +10,11 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // Assume AGI_PLUGINS access for integration
-declare const AGI_PLUGINS: {
-    FileIntegrityHasher: {
-        calculateHash: (args: { filePath: string, algorithm: string }) => Promise<string>;
-    }
-};
-
-// Integration point for handling breach policy execution
-const FailureModeExecutor = require('./SCR_FailureModeExecutor'); 
-
-const MANIFEST_PATH = path.join(__dirname, 'SCR_IntegrityManifest.json');
-const HASH_ALGORITHM = 'sha512';
+// declare const AGI_PLUGINS: {
+//     FileIntegrityHasher: {
+//         calculateHash: (args: { filePath: string, algorithm: string }) => Promise<string>;
+//     }
+// };
 
 // --- Manifest Data Structures ---
 
@@ -42,25 +36,6 @@ interface IntegrityManifest {
     };
 }
 
-// --- Core Functions ---
-
-/**
- * Loads and parses the Integrity Manifest.
- * @returns {Promise<IntegrityManifest>} The manifest data.
- */
-async function loadManifest(): Promise<IntegrityManifest> {
-    try {
-        const data = await fs.readFile(MANIFEST_PATH, 'utf8');
-        return JSON.parse(data) as IntegrityManifest;
-    } catch (e) {
-        if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-            throw new Error('CRITICAL: Integrity Manifest not found.');
-        }
-        // Handle parsing errors or read errors gracefully
-        throw new Error(`CRITICAL: Failed to load or parse manifest: ${(e as Error).message}`);
-    }
-}
-
 interface Breach {
     path: string;
     failure_mode: string;
@@ -70,127 +45,221 @@ interface Breach {
 }
 
 /**
- * Processes integrity breaches identified during validation and executes policies.
- * @param {Breach[]} breaches - List of detected integrity compromises.
+ * SCR_IntegrityValidator
+ * Encapsulated class for managing integrity validation flow.
  */
-async function handleBreaches(breaches: Breach[]): Promise<boolean> {
-    if (breaches.length === 0) {
-        console.log('VALIDATION SUCCESS: System integrity confirmed.');
-        return true;
+class SCR_IntegrityValidator {
+    #fs;
+    #path;
+    #manifestPath;
+    #hashAlgorithm;
+    #FailureModeExecutor;
+    #FileIntegrityHasher;
+
+    constructor() {
+        this.#setupDependencies();
     }
 
-    console.error(`VALIDATION FAILED: ${breaches.length} critical files compromised.`);
-
-    for (const breach of breaches) {
-        console.warn(`[BREACH] File: ${breach.path}. Mode: ${breach.failure_mode}`);
-        console.warn(` -> Expected: ${breach.expectedHash.substring(0, 16)}...`);
-        console.warn(` -> Actual:   ${breach.actualHash.substring(0, 16)}...`);
+    /**
+     * Goal: Synchronous setup extraction.
+     * Resolves all external dependencies, plugins, and constants.
+     */
+    #setupDependencies() {
+        // 1. Resolve Standard Environment Tooling
+        this.#fs = fs;
+        this.#path = path;
+        this.#hashAlgorithm = 'sha512';
         
-        // Delegate enforcement logic to the Executor
-        await FailureModeExecutor.execute(breach.failure_mode, breach.path, breach.details);
+        // 2. Resolve Constants using proxy for path operation
+        this.#manifestPath = this.#delegateToPathJoin(__dirname, 'SCR_IntegrityManifest.json');
+        
+        // 3. Resolve Local Dependency (synchronous require)
+        this.#FailureModeExecutor = require('./SCR_FailureModeExecutor'); 
+        
+        // 4. Resolve Plugin Dependency (AGI_PLUGINS is assumed globally available)
+        // @ts-ignore: AGI_PLUGINS is injected by the runtime environment
+        if (typeof AGI_PLUGINS === 'undefined' || !AGI_PLUGINS.FileIntegrityHasher) {
+            throw new Error("CRITICAL Dependency Failure: FileIntegrityHasher plugin not available.");
+        }
+        // @ts-ignore
+        this.#FileIntegrityHasher = AGI_PLUGINS.FileIntegrityHasher;
     }
-    
-    // Validation status is false if any breaches occurred.
-    return false;
-}
 
-/**
- * Executes concurrent integrity validation against the manifest.
- * @returns {Promise<boolean>} True if validation succeeded, false otherwise.
- */
-async function validateIntegrity(): Promise<boolean> {
-    let manifest: IntegrityManifest;
-    try {
-        manifest = await loadManifest();
-    } catch (e) {
-        console.error((e as Error).message);
+    // --- I/O Proxy Functions ---
+
+    #logInfo(message: string) {
+        console.log(message);
+    }
+
+    #logError(message: string) {
+        console.error(message);
+    }
+
+    #logWarning(message: string) {
+        console.warn(message);
+    }
+
+    #delegateToPathJoin(...args: string[]): string {
+        return this.#path.join(...args);
+    }
+
+    /** Delegates file system read and JSON parsing for the manifest. */
+    async #delegateToFSRuntimeLoadManifest(): Promise<IntegrityManifest> {
+        try {
+            const data = await this.#fs.readFile(this.#manifestPath, 'utf8');
+            return JSON.parse(data) as IntegrityManifest;
+        } catch (e) {
+            const error = e as NodeJS.ErrnoException;
+            if (error.code === 'ENOENT') {
+                throw new Error('CRITICAL: Integrity Manifest not found.');
+            }
+            throw new Error(`CRITICAL: Failed to load or parse manifest: ${error.message}`);
+        }
+    }
+
+    /** Delegates hash calculation to the external FileIntegrityHasher plugin. */
+    async #delegateToFileHashCalculation(filePath: string): Promise<string> {
+        return this.#FileIntegrityHasher.calculateHash({
+            filePath: filePath, 
+            algorithm: this.#hashAlgorithm 
+        });
+    }
+
+    /** Delegates policy enforcement to the FailureModeExecutor. */
+    async #delegateToFailureModeExecution(mode: string, path: string, details: any): Promise<void> {
+        // FailureModeExecutor is implicitly 'require'd earlier
+        await this.#FailureModeExecutor.execute(mode, path, details);
+    }
+
+    // --- Internal Logic Methods ---
+
+    /** Loads and parses the Integrity Manifest using I/O proxies. */
+    async #loadManifest(): Promise<IntegrityManifest> {
+        return this.#delegateToFSRuntimeLoadManifest();
+    }
+
+    /** Processes integrity breaches identified during validation and executes policies. */
+    async #handleBreaches(breaches: Breach[]): Promise<boolean> {
+        if (breaches.length === 0) {
+            this.#logInfo('VALIDATION SUCCESS: System integrity confirmed.');
+            return true;
+        }
+
+        this.#logError(`VALIDATION FAILED: ${breaches.length} critical files compromised.`);
+
+        for (const breach of breaches) {
+            this.#logWarning(`[BREACH] File: ${breach.path}. Mode: ${breach.failure_mode}`);
+            this.#logWarning(` -> Expected: ${breach.expectedHash.substring(0, 16)}...`);
+            this.#logWarning(` -> Actual:   ${breach.actualHash.substring(0, 16)}...`);
+            
+            // Delegate enforcement logic to the Executor
+            await this.#delegateToFailureModeExecution(breach.failure_mode, breach.path, breach.details);
+        }
+        
+        // Validation status is false if any breaches occurred.
         return false;
     }
 
-    console.log(`[Integrity Check] Starting validation using Manifest ID: ${manifest.manifest_id}`);
+    /** 
+     * Executes concurrent integrity validation against the manifest.
+     * @returns {Promise<boolean>} True if validation succeeded, false otherwise.
+     */
+    async executeValidation(): Promise<boolean> {
+        // 1. Load Manifest
+        let manifest: IntegrityManifest;
+        try {
+            manifest = await this.#loadManifest();
+        } catch (e) {
+            this.#logError((e as Error).message);
+            return false;
+        }
 
-    type HashResult = { fileKey: string; status: 'success' | 'error'; hash?: string; message?: string; };
-    
-    // Combines manifest entry with dynamic run data
-    type FileMetadata = ManifestFileEntry & { groupName: string, priority: number };
+        this.#logInfo(`[Integrity Check] Starting validation using Manifest ID: ${manifest.manifest_id}`);
 
-    const hashPromises: Promise<HashResult>[] = [];
-    const filesMap = new Map<string, FileMetadata>(); 
+        type HashResult = { fileKey: string; status: 'success' | 'error'; hash?: string; message?: string; };
+        type FileMetadata = ManifestFileEntry & { groupName: string, priority: number };
 
-    // 1. Queue all file hash calculations concurrently
-    Object.entries(manifest.integrity_groups).forEach(([groupName, group]) => {
-        group.files.forEach((fileEntry, index) => {
-            const fileKey = `${groupName}:${index}`;
-            
-            filesMap.set(fileKey, { 
-                ...fileEntry, 
-                groupName,
-                priority: group.priority 
+        const hashPromises: Promise<HashResult>[] = [];
+        const filesMap = new Map<string, FileMetadata>(); 
+
+        // 2. Queue all file hash calculations concurrently
+        Object.entries(manifest.integrity_groups).forEach(([groupName, group]) => {
+            group.files.forEach((fileEntry, index) => {
+                const fileKey = `${groupName}:${index}`;
+                
+                filesMap.set(fileKey, { 
+                    ...fileEntry, 
+                    groupName,
+                    priority: group.priority 
+                });
+                
+                // Use proxied hashing service
+                hashPromises.push(
+                    this.#delegateToFileHashCalculation(fileEntry.path)
+                    .then(currentHash => ({
+                        fileKey, 
+                        status: 'success',
+                        hash: currentHash 
+                    }))
+                    .catch(error => ({
+                        fileKey, 
+                        status: 'error', 
+                        message: (error as Error).message 
+                    }))
+                );
             });
-            
-            // Use FileIntegrityHasher plugin
-            hashPromises.push(
-                AGI_PLUGINS.FileIntegrityHasher.calculateHash({
-                    filePath: fileEntry.path, 
-                    algorithm: HASH_ALGORITHM 
-                })
-                .then(currentHash => ({
-                    fileKey, 
-                    status: 'success',
-                    hash: currentHash 
-                }))
-                .catch(error => ({
-                    fileKey, 
-                    status: 'error', 
-                    message: (error as Error).message 
-                }))
-            );
         });
-    });
 
-    // 2. Wait for all hash calculations to complete in parallel
-    const results = await Promise.all(hashPromises);
+        // 3. Wait for all hash calculations to complete in parallel
+        const results = await Promise.all(hashPromises);
 
-    // 3. Analyze results and identify breaches
-    const breaches: Breach[] = [];
+        // 4. Analyze results and identify breaches
+        const breaches: Breach[] = [];
 
-    results.forEach(result => {
-        const fileMetadata = filesMap.get(result.fileKey);
+        results.forEach(result => {
+            const fileMetadata = filesMap.get(result.fileKey);
 
-        if (!fileMetadata) return; // Should not happen
+            if (!fileMetadata) return; // Should not happen
 
-        if (result.status === 'error') {
-            // File inaccessible or hashing failed
-            breaches.push({
-                path: fileMetadata.path,
-                failure_mode: fileMetadata.failure_mode,
-                expectedHash: fileMetadata.hash_sha512,
-                actualHash: 'N/A (Read Error)',
-                details: { error: result.message, type: 'FILE_ACCESS' }
-            });
-            return;
-        }
+            if (result.status === 'error') {
+                // File inaccessible or hashing failed
+                breaches.push({
+                    path: fileMetadata.path,
+                    failure_mode: fileMetadata.failure_mode,
+                    expectedHash: fileMetadata.hash_sha512,
+                    actualHash: 'N/A (Read Error)',
+                    details: { error: result.message, type: 'FILE_ACCESS' }
+                });
+                return;
+            }
 
-        // Type cast assertion needed here since `result.hash` exists only if status is 'success'
-        const actualHash = result.hash!;
-        
-        if (actualHash !== fileMetadata.hash_sha512) {
-            // Hash Mismatch detected
-            breaches.push({
-                path: fileMetadata.path,
-                failure_mode: fileMetadata.failure_mode,
-                expectedHash: fileMetadata.hash_sha512,
-                actualHash: actualHash,
-                details: { 
-                    priority: fileMetadata.priority, 
-                    type: 'HASH_MISMATCH' 
-                }
-            });
-        }
-    });
+            // Type cast assertion needed here since `result.hash` exists only if status is 'success'
+            const actualHash = result.hash!;
+            
+            if (actualHash !== fileMetadata.hash_sha512) {
+                // Hash Mismatch detected
+                breaches.push({
+                    path: fileMetadata.path,
+                    failure_mode: fileMetadata.failure_mode,
+                    expectedHash: fileMetadata.hash_sha512,
+                    actualHash: actualHash,
+                    details: { 
+                        priority: fileMetadata.priority, 
+                        type: 'HASH_MISMATCH' 
+                    }
+                });
+            }
+        });
 
-    // 4. Handle all collected breaches
-    return await handleBreaches(breaches);
+        // 5. Handle all collected breaches
+        return await this.#handleBreaches(breaches);
+    }
 }
 
-module.exports = { validateIntegrity };
+// Instantiate a private singleton for external access
+const validatorInstance = new SCR_IntegrityValidator();
+
+// Export the original API via a wrapper method
+module.exports = { 
+    validateIntegrity: () => validatorInstance.executeValidation() 
+};
