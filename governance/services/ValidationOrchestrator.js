@@ -1,6 +1,6 @@
 /**
  * @fileoverview Manages and orchestrates the execution of multiple concrete ConfigValidator implementations.
- * Logic for concurrent execution and result aggregation is delegated to the ConcurrentTaskAggregatorTool.
+ * Logic for concurrent execution and result aggregation is delegated to the TaskAggregator tool (plugin).
  */
 
 const { ConfigValidator, ValidationResult } = require('../interfaces/ConfigValidator');
@@ -12,19 +12,20 @@ const { ConfigValidator, ValidationResult } = require('../interfaces/ConfigValid
 class ValidationOrchestrator {
     /** @type {ConfigValidator[]} */
     validators;
-    /** @type {object} */
+    /** @type {import('../plugins/TaskAggregator')} */
     #aggregator;
 
     /**
      * @param {object} dependencies - Dependencies injected by the system.
-     * @param {object} dependencies.ConcurrentTaskAggregatorTool - The tool instance for aggregation.
+     * @param {object} dependencies.TaskAggregator - The tool instance for concurrent execution and result aggregation.
      */
     constructor(dependencies) {
+        // Use TaskAggregator interface. Support legacy name during transition.
+        this.#aggregator = dependencies.TaskAggregator || dependencies.ConcurrentTaskAggregatorTool;
         this.validators = [];
-        this.#aggregator = dependencies.ConcurrentTaskAggregatorTool;
 
         if (!this.#aggregator) {
-            console.error("[ValidationOrchestrator] Initialization error: ConcurrentTaskAggregatorTool dependency missing.");
+            throw new Error("[ValidationOrchestrator] Dependency Error: TaskAggregator tool instance is missing.");
         }
     }
 
@@ -33,13 +34,12 @@ class ValidationOrchestrator {
      * @param {ConfigValidator} validatorInstance - An instance of a concrete ConfigValidator subclass.
      */
     registerValidator(validatorInstance) {
-        // Note: Retaining original type check for interface compatibility, 
-        // assuming ConfigValidator is available or using duck typing if not defined.
-        if (typeof ConfigValidator !== 'undefined' && !(validatorInstance instanceof ConfigValidator)) {
-            throw new Error("Attempted to register non-ConfigValidator object.");
+        // Enforce duck typing check for the required 'validate' method.
+        if (typeof validatorInstance.validate !== 'function') {
+            throw new Error("Attempted to register object lacking the required 'validate' method (ConfigValidator interface).");
         }
         this.validators.push(validatorInstance);
-        console.log(`[ValidationOrchestrator] Registered validator: ${validatorInstance.constructor.name}`);
+        // console.debug(`[ValidationOrchestrator] Registered validator: ${validatorInstance.constructor.name}`);
     }
 
     /**
@@ -49,19 +49,15 @@ class ValidationOrchestrator {
      */
     async validateSystemConfig(config) {
         if (this.validators.length === 0) {
-            console.warn("[ValidationOrchestrator] No validators registered. Configuration passed by default.");
+            // Default success when no rules are registered.
             return { isValid: true, errors: [] };
-        }
-
-        if (!this.#aggregator) {
-            throw new Error("Orchestrator is not properly configured. Aggregator tool is missing.");
         }
 
         // 1. Map validators to promises (tasks)
         const promises = this.validators.map(v => v.validate(config));
 
-        // 2. Use the injected tool to execute concurrently and aggregate results
-        // The tool handles Promise.allSettled, error aggregation, and rejection handling.
+        // 2. Use the injected tool to execute concurrently and aggregate results.
+        // The TaskAggregator handles Promise.allSettled and subsequent reduction.
         const finalResult = await this.#aggregator.execute(promises);
 
         return finalResult;
