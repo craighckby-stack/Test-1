@@ -5,6 +5,19 @@
  */
 
 class IntegrityCorrelatorModule {
+    
+    /**
+     * Centralizes dependency lookup and validation for KERNEL services.
+     * @returns {Object} PolicyMagnitudeDeriverService instance.
+     */
+    static #resolveDeriverService() {
+        const PDS = KERNEL_SYNERGY_CAPABILITIES?.PolicyMagnitudeDeriverService;
+        if (!PDS) {
+            throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService is required for tool execution.");
+        }
+        return PDS;
+    }
+
     /**
      * @param {Object} teds - Temporal data series.
      * @param {Object} pcss - System state snapshot.
@@ -16,12 +29,8 @@ class IntegrityCorrelatorModule {
         this.constraintModels = constraintModels;
         this.CORRELATION_THRESHOLD = 0.85; // Sensitivity threshold for high-severity findings
         
-        // Dependency Check: Ensure the required Policy Derivation Service is loaded and stored locally.
-        const PDS = KERNEL_SYNERGY_CAPABILITIES?.PolicyMagnitudeDeriverService;
-        if (typeof PDS === 'undefined') {
-             throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService is required for tool execution.");
-        }
-        this.policyDeriverService = PDS;
+        // Dependency Check: Resolve and store Policy Derivation Service using private static helper.
+        this.policyDeriverService = IntegrityCorrelatorModule.#resolveDeriverService();
     }
 
     /**
@@ -30,19 +39,15 @@ class IntegrityCorrelatorModule {
      */
     async executeCorrelation() {
         // Step 1: Feature Extraction from TEDS (Temporal Pattern Matching)
-        const temporalSkewMagnitude = this._analyzeTemporalSkew();
+        const temporalSkewMagnitude = this.#analyzeTemporalSkew();
 
         // Step 2: Constraint Validation against PCSS (Integrity Check)
-        const axiomBreaches = this._analyzeAxiomBreaches();
+        const axiomBreaches = this.#analyzeAxiomBreaches();
 
-        // Step 3: Aggregate data for Derivation Service Input (Plugin Logic: AnalysisInputAggregator)
-        const derivationInput = {
-            skewMagnitude: temporalSkewMagnitude,
-            breachCount: axiomBreaches.length
-        };
+        // Step 3: Aggregate data for Derivation Service Input
+        const derivationInput = this.#aggregateDerivationInput(temporalSkewMagnitude, axiomBreaches);
 
         // Step 4: Derive Mandatory Policy Correction based on composite severity using the KERNEL Service.
-        // Removed synchronous delay simulation for performance.
         const derivationResult = await this.policyDeriverService.execute(
             'derive', 
             derivationInput
@@ -51,18 +56,29 @@ class IntegrityCorrelatorModule {
         return {
             failedAxioms: axiomBreaches,
             requiredThresholdIncrease: derivationResult.requiredThresholdIncrease,
-            // Ensure logicError is always returned as an array, even if null
-            logicErrors: derivationResult.logicError ? [derivationResult.logicError] : []
+            // Ensure logicErrors is always returned as an array
+            logicErrors: derivationResult.logicError ? [derivationResult.logicError].flat() : []
         };
     }
     
-    // Internal simulation of complex analysis routines
-    _analyzeTemporalSkew() {
+    /**
+     * Aggregates inputs from internal analysis stages into the required format 
+     * for the Policy Derivation Service.
+     */
+    #aggregateDerivationInput(temporalSkewMagnitude, axiomBreaches) {
+        return {
+            skewMagnitude: temporalSkewMagnitude,
+            breachCount: axiomBreaches.length
+        };
+    }
+
+    // Internal simulation of complex analysis routines (Refactored to private methods)
+    #analyzeTemporalSkew() {
         // Placeholder logic for TEDS analysis against operational baseline.
         return 0.22; 
     }
     
-    _analyzeAxiomBreaches() {
+    #analyzeAxiomBreaches() {
         // Placeholder logic for constraint violation mapping against PCSS.
         return ['AXIOM/C-11/StabilityLoss', 'AXIOM/C-15/TemporalDrift'];
     }
