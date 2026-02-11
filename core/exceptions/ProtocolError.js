@@ -8,14 +8,19 @@
 const BaseApplicationError = require('./BaseApplicationError');
 
 class ProtocolError extends BaseApplicationError {
+    // Enforce the error contract using static, canonical fields
+    static ERROR_NAME = 'ProtocolError';
+    static ERROR_PREFIX = 'AGI_PRTCL';
+    static HTTP_STATUS_CODE = 500;
+
     /**
      * @param {string} message - Human-readable error message.
      * @param {object} [context={}] - Optional metadata relevant to the error occurrence.
      */
     constructor(message, context = {}) {
         // Protocol failures are typically Internal Server Errors (500).
-        // The status code and stack trace setup are handled by BaseApplicationError.
-        super(message, 500, context);
+        // Use the canonical static status code definition, ensuring consistency.
+        super(message, ProtocolError.HTTP_STATUS_CODE, context);
     }
 }
 
