@@ -22,9 +22,9 @@ type IntegrityCheckFunction = (id: string, expectedHash: string) => Promise<bool
  * lazy loading, and functional composition for high efficiency.
  */
 export class PreflightArtifactProcessor {
+    private readonly retrievalService: ArtifactRetrievalService;
     private readonly hasher: CanonicalHashingTool;
     private readonly errorSerializer: CanonicalErrorSerializer;
-    private readonly retrievalService: ArtifactRetrievalService;
     private readonly memoizationUtility: FunctionMemoizer;
 
     // Memoized functions for efficiency
@@ -43,16 +43,44 @@ export class PreflightArtifactProcessor {
         this.errorSerializer = errorSerializer;
         this.memoizationUtility = memoizationUtility;
 
+        this.#setupMemoizers();
+    }
+
+    /**
+     * Extracts synchronous dependency configuration into a setup method.
+     */
+    private #setupMemoizers(): void {
         // Initialize memoized functions using the injected utility
-        this.memoizedRetrieval = this.memoizationUtility.createMemoizer(
-            this._retrieveAndHashArtifact.bind(this) as RetrievalFunction
+        this.memoizedRetrieval = this.#delegateToMemoizerCreation(
+            this.#retrieveAndHashArtifact.bind(this) as RetrievalFunction
         );
         
         // Use a custom key generator for the integrity check based on ID and expected hash
-        this.memoizedIntegrityCheck = this.memoizationUtility.createMemoizer(
-            this._checkIntegrityLogic.bind(this) as IntegrityCheckFunction,
+        this.memoizedIntegrityCheck = this.#delegateToMemoizerCreation(
+            this.#checkIntegrityLogic.bind(this) as IntegrityCheckFunction,
             ([id, expectedHash]) => `${id}:${expectedHash}` 
         );
+    }
+
+    // --- I/O Proxy Methods ---
+
+    private async #delegateToRetrievalService(id: string): Promise<any> {
+        return this.retrievalService.retrieve(id);
+    }
+
+    private #delegateToHasher(data: any): string {
+        return this.hasher.calculateHash(data);
+    }
+
+    private #delegateToErrorSerializer(error: Error): any {
+        return this.errorSerializer.serialize(error);
+    }
+
+    private #delegateToMemoizerCreation<T extends Function>(
+        func: T, 
+        keyGenerator?: (...args: any[]) => string
+    ): T {
+        return this.memoizationUtility.createMemoizer(func, keyGenerator);
     }
 
     /**
@@ -60,16 +88,16 @@ export class PreflightArtifactProcessor {
      * Implements lazy loading by fetching only when needed and calculating the hash immediately.
      * @private
      */
-    private async _retrieveAndHashArtifact(id: string): Promise<ArtifactData> {
+    private async #retrieveAndHashArtifact(id: string): Promise<ArtifactData> {
         try {
-            const data = await this.retrievalService.retrieve(id);
+            const data = await this.#delegateToRetrievalService(id);
             if (!data) {
                 const error = new Error(`Artifact ${id} not found during retrieval.`);
-                throw this.errorSerializer.serialize(error);
+                throw this.#delegateToErrorSerializer(error);
             }
             
             // Canonical hashing for integrity baseline
-            const hash = this.hasher.calculateHash(data); 
+            const hash = this.#delegateToHasher(data); 
             return { data, hash };
         } catch (error) {
             console.error(`Error retrieving artifact ${id}:`, error);
@@ -82,7 +110,7 @@ export class PreflightArtifactProcessor {
      * Uses the memoized retrieval result (functional composition).
      * @private
      */
-    private async _checkIntegrityLogic(id: string, expectedHash: string): Promise<boolean> {
+    private async #checkIntegrityLogic(id: string, expectedHash: string): Promise<boolean> {
         if (!expectedHash) {
             // Integrity is satisfied if no mandate is present
             return true;
@@ -125,7 +153,7 @@ export class PreflightArtifactProcessor {
             const { data } = await this.memoizedRetrieval(artifactId);
             
             // Composition 3: Perform downstream structural validation
-            return this._performStructuralValidation(data);
+            return this.#performStructuralValidation(data);
 
         } catch (e) {
             // Retrieval or validation failed
@@ -137,7 +165,7 @@ export class PreflightArtifactProcessor {
      * Placeholder for structural validation logic (e.g., calling SchemaValidator).
      * @private
      */
-    private _performStructuralValidation(data: any): boolean {
+    private #performStructuralValidation(data: any): boolean {
         // Implements dynamic dispatch based on artifact structure/type if necessary
         if (typeof data !== 'object' || data === null || !data.artifactIdentifier) {
             return false;
