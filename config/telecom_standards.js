@@ -1,14 +1,39 @@
 /**
- * Example usage: Loading and accessing the configuration via the KERNEL tool system,
- * utilizing the ConfigurationAccessPlugin for simplified configuration retrieval.
+ * Ensures strict and predictable access to critical telecom configuration standards
+ * resolved via the KERNEL configuration system.
+ *
+ * This module translates runtime configuration keys into stable, exported constants.
  */
 
-const { ConfigurationAccessPlugin } = KERNEL_SYNERGY_CAPABILITIES.Plugin.get("ConfigurationAccessPlugin");
+// 1. Dependency Resolution and Encapsulation
+const CONFIG_LOADER = (() => {
+    try {
+        // Resolve the plugin once upon module initialization
+        const { ConfigurationAccessPlugin } = KERNEL_SYNERGY_CAPABILITIES.Plugin.get("ConfigurationAccessPlugin");
+        if (!ConfigurationAccessPlugin || typeof ConfigurationAccessPlugin.loadConfig !== 'function') {
+            throw new Error("Interface violation: 'loadConfig' method missing.");
+        }
+        return ConfigurationAccessPlugin;
+    } catch (error) {
+        // Centralized failure handling for critical dependencies
+        throw new Error(`[TelecomStandards] Critical dependency failure during initialization: ${error.message}`);
+    }
+})();
 
-// Abstracted configuration loading
-const telecommConfig = ConfigurationAccessPlugin.loadConfig("TelecommConfig");
+// 2. Load the configuration object once
+const telecommConfig = CONFIG_LOADER.loadConfig("TelecommConfig");
 
-// Destructured access for clarity
-const { single: gsmSingleLimit } = telecommConfig.SMS.GSM_7BIT.LIMITS;
+// 3. Extract and export standardized constants from the loaded configuration
 
-console.log(`Current GSM 7-bit single segment limit: ${gsmSingleLimit}`);
+/**
+ * Standard segment limit (in characters) for a single GSM 7-bit encoded SMS message.
+ */
+export const GSM_7BIT_SINGLE_LIMIT = telecommConfig.SMS.GSM_7BIT.LIMITS.single;
+
+/**
+ * Standard maximum character count for a concatenated (multi-part) GSM 7-bit SMS message.
+ */
+export const GSM_7BIT_CONCAT_MAX_CHARS = telecommConfig.SMS.GSM_7BIT.LIMITS.concatenated_max_chars;
+
+// Export the full configuration object for advanced usage, ensuring immutability for stability
+export const TELECOM_CONFIG = Object.freeze(telecommConfig);
