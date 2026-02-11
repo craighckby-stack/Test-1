@@ -19,7 +19,7 @@ export class CoreCryptographicVerifier {
      * @returns {string} Hex encoded hash
      */
     static hash(data: string | Buffer): string {
-        return IntegrityHashingUtility.calculateSha256(data);
+        return CoreCryptographicVerifier.#delegateToHashingUtility(data);
     }
 
     /**
@@ -36,10 +36,30 @@ export class CoreCryptographicVerifier {
         leafData: string,
         proofPath: Array<{hash: string, position: 'left' | 'right'}>
     ): boolean {
-        return MerkleProofVerifierTool.execute({
+        return CoreCryptographicVerifier.#delegateToProofVerifier({
             rootHash,
             leafData,
             proofPath
         });
+    }
+
+    /**
+     * Private static I/O Proxy function.
+     * Delegates synchronous hashing execution to the external IntegrityHashingUtility tool.
+     */
+    static #delegateToHashingUtility(data: string | Buffer): string {
+        return IntegrityHashingUtility.calculateSha256(data);
+    }
+
+    /**
+     * Private static I/O Proxy function.
+     * Delegates synchronous Merkle Proof verification execution to the external MerkleProofVerifierTool.
+     */
+    static #delegateToProofVerifier(params: {
+        rootHash: string,
+        leafData: string,
+        proofPath: Array<{hash: string, position: 'left' | 'right'}>
+    }): boolean {
+        return MerkleProofVerifierTool.execute(params);
     }
 }
