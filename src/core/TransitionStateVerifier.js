@@ -1,16 +1,38 @@
 /** 
- * Requires a ShallowObjectDiffUtility instance provided during construction.
+ * TransitionStateVerifierKernel enforces architectural consistency by utilizing
+ * Dependency Injection (DI) for its required utilities and isolating synchronous 
+ * setup logic.
  */
-class TransitionStateVerifier {
-    constructor(schema, diffUtility) {
-        this.schema = schema;
-        this.diffUtility = diffUtility; // Dependency Injection
+class TransitionStateVerifierKernel {
+    /**
+     * @param {ITransitionSchema} schema - The state machine configuration schema.
+     * @param {IShallowObjectDiffUtilityToolKernel} shallowDiffUtilityKernel - Utility for shallow object comparison.
+     */
+    constructor(schema, shallowDiffUtilityKernel) {
+        /** @private {ITransitionSchema} */
+        this._schema = null;
+        /** @private {IShallowObjectDiffUtilityToolKernel} */
+        this._shallowDiffUtilityKernel = null;
+
+        this.#setupDependencies(schema, shallowDiffUtilityKernel);
+    }
+
+    /**
+     * Isolates synchronous dependency setup and validation.
+     * @private
+     */
+    #setupDependencies(schema, shallowDiffUtilityKernel) {
+        if (!schema || !shallowDiffUtilityKernel) {
+            throw new Error("TransitionStateVerifierKernel requires schema and shallowDiffUtilityKernel.");
+        }
+        this._schema = schema;
+        this._shallowDiffUtilityKernel = shallowDiffUtilityKernel;
     }
 
     verify(state, transition) {
         const { from, to } = transition;
         
-        if (!this.schema.states[from] || !this.schema.states[to]) {
+        if (!this._schema.states[from] || !this._schema.states[to]) {
             return false;
         }
 
@@ -30,9 +52,9 @@ class TransitionStateVerifier {
      * utilizing the injected diff utility.
      */
     getDiff(state, from) {
-        const fromSchema = this.schema.states[from];
-        // Uses the injected utility
-        return this.diffUtility.getDiff(state, fromSchema);
+        const fromSchema = this._schema.states[from];
+        // Uses the injected kernel
+        return this._shallowDiffUtilityKernel.getDiff(state, fromSchema);
     }
 
     /**
@@ -41,7 +63,7 @@ class TransitionStateVerifier {
      */
     getAbstraction(diff, from) {
         const abstraction = {};
-        const fromSchema = this.schema.states[from];
+        const fromSchema = this._schema.states[from];
 
         diff.forEach(key => {
             abstraction[key] = fromSchema[key];
@@ -54,7 +76,7 @@ class TransitionStateVerifier {
      * the definition of the target state ('to').
      */
     isAbstractionValid(abstraction, to) {
-        const toState = this.schema.states[to];
+        const toState = this._schema.states[to];
         
         const keys = Object.keys(abstraction);
         for (let i = 0; i < keys.length; i++) {
