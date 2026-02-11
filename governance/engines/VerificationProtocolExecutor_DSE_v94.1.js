@@ -8,6 +8,13 @@ declare const IntegrityFailurePolicyEnforcerTool: {
 }; // Tool declaration
 declare const SystemAPI: any; // External dependency
 declare const LogService: any; // External dependency
+declare const SystemIntegrityActionsProvider: { 
+    getActions: () => { 
+        logBreach: (rid: string, msg: string, sev: string) => void;
+        initiateAudit: (rid: string, sev: string) => void;
+        emergencyHalt: (payload: any) => void;
+    }
+}; // New abstraction dependency
 
 class VerificationProtocolExecutor {
     constructor(config) {
@@ -43,29 +50,29 @@ class VerificationProtocolExecutor {
 
     /**
      * Handles failure based on policy using the IntegrityFailurePolicyEnforcer Tool.
+     * Actions are retrieved via the SystemIntegrityActionsProvider abstraction.
      * @returns {boolean} True if the system was instructed to halt.
      */
     handleFailure(ruleId, message, policy) {
-        // Define action hooks mapping to system dependencies (LogService and SystemAPI)
-        const enforcementActions = {
-            logBreach: (rid, msg, sev) => LogService.captureIntegrityBreach(rid, msg, sev),
-            initiateAudit: (rid, sev) => SystemAPI.initiateComplianceAudit(rid, sev),
-            emergencyHalt: (payload) => SystemAPI.emergencyHalt(payload)
-        };
+        // Retrieve standardized system actions (mapping abstract names to concrete system calls)
+        const enforcementActions = SystemIntegrityActionsProvider.getActions();
         
-        // Use the extracted plugin logic
+        // Use the extracted policy enforcement tool
         if (typeof IntegrityFailurePolicyEnforcerTool === 'object' && IntegrityFailurePolicyEnforcerTool.enforce) {
              const result = IntegrityFailurePolicyEnforcerTool.enforce(ruleId, message, policy, enforcementActions);
              return result.halted;
         } else {
              // CRITICAL: Fallback logic if tool is missing
              console.error("IntegrityFailurePolicyEnforcerTool missing. Executing manual failure policy.");
-             LogService.captureIntegrityBreach(ruleId, message, policy.severity);
+             
+             // Use standardized actions for fallback consistency
+             enforcementActions.logBreach(ruleId, message, policy.severity);
+             
              if (policy.trigger_audit) {
-                 SystemAPI.initiateComplianceAudit(ruleId, policy.severity);
+                 enforcementActions.initiateAudit(ruleId, policy.severity);
              }
              if (policy.severity === 'CRITICAL' && policy.handler && policy.handler.includes('HALT')) {
-                 SystemAPI.emergencyHalt({ reason: 'ASGL_CRITICAL_FAILURE_MANUAL', ruleId });
+                 enforcementActions.emergencyHalt({ reason: 'ASGL_CRITICAL_FAILURE_MANUAL', ruleId });
                  return true;
              }
              return false;
