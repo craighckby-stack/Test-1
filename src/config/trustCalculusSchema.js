@@ -8,6 +8,9 @@
  * Refactored for explicit type definitions (JSDoc) and enforcement of strict configuration.
  */
 
+// Import Validator Utility
+import { WeightedSchemaValidator } from '../utils/WeightedSchemaValidator.js'; // Adjust import path as needed
+
 /** @typedef {1 | -1} TrustPolarityValue - 1: Positive Correlation, -1: Negative Correlation */
 /**
  * @typedef {Object} TrustMetricSchemaItem
@@ -15,8 +18,6 @@
  * @property {TrustPolarityValue} polarity - Defines correlation with Trust Score.
  * @property {string} description - Semantic explanation of the metric.
  */
-
-// NOTE: Assuming the existence of a kernel-provided WeightedSchemaValidator tool for weight summation.
 
 // --- Constants ---
 
@@ -56,35 +57,6 @@ const SCHEMA_DEFINITION = {
 };
 
 // --- Validation and Export ---
-
-// Define a conceptual tool interface for execution environment compatibility
-const WeightedSchemaValidator = globalThis.WeightedSchemaValidator || {
-    execute: (args) => {
-        const { schema, weightKey, targetSum = 1.0, tolerance = 1e-9 } = args;
-        let currentSum = 0;
-        const items = Object.values(schema);
-
-        for (const item of items) {
-            if (item && typeof item === 'object' && typeof item[weightKey] === 'number') {
-                currentSum += item[weightKey];
-            } else {
-                return { isValid: false, error: `Item missing or invalid weight property '${weightKey}'.` };
-            }
-        }
-
-        const difference = Math.abs(currentSum - targetSum);
-        const isValid = difference < tolerance;
-
-        if (!isValid) {
-            return {
-                isValid: false,
-                error: `Metric weights must sum exactly to ${targetSum}. Current sum: ${currentSum}.`
-            };
-        }
-
-        return { isValid: true, totalWeight: currentSum };
-    }
-};
 
 /**
  * Validates the schema integrity, primarily ensuring weights sum correctly and polarities are valid.
