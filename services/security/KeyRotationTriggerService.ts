@@ -26,12 +26,12 @@ export interface CheckSummary {
 }
 
 /**
- * @interface KeyRotationTriggerService
+ * @interface KeyRotationTriggerInterfaceKernel
  * Handles monitoring key usage metrics against rotation schedules 
  * defined in config/key_rotation_schedule.json and triggering 
  * mandatory key updates via the IKLM (Key Lifecycle Management) service.
  */
-export interface KeyRotationTriggerService {
+export interface KeyRotationTriggerInterfaceKernel {
     
     /**
      * Registers a new key domain rotation policy for active monitoring.
