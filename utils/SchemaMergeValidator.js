@@ -1,5 +1,5 @@
 /**
- * SchemaMergeValidator (v94.1 - Decoupled Schema Resolution)
+ * SchemaMergeValidator (v94.2 - Isolated Compilation Path)
  * Utility class responsible for merging base schemas (Core Indexing Metadata)
  * with custom schema fragments defined within an Artifact Indexing Policy (AIP)
  * and performing robust validation using Ajv.
@@ -66,27 +66,34 @@ class SchemaMergeValidator {
     const { baseSchema, coreSchemaRef, customSchemaFragment } = resolution;
     
     // 2. Generate schema ID for Ajv caching.
-    const hasCustomSchema = !!customSchemaFragment;
-    const schemaId = this._generateSchemaId(coreSchemaRef, hasCustomSchema);
+    const schemaId = this._generateSchemaId(coreSchemaRef, !!customSchemaFragment);
 
     let validateFn = this.getSchema(schemaId);
     
+    // --- FAST PATH: Cache Hit ---
+    if (validateFn) {
+        const isValid = validateFn(data);
+        return {
+            isValid,
+            errors: isValid ? null : validateFn.errors,
+            schemaId: schemaId
+        };
+    }
+
+    // --- SLOW PATH: Cache Miss (Merge & Compile) ---
     try {
+        // 3. Create the composite schema using the dedicated plugin.
+        const compositeSchema = this.plugins.JSONSchemaMerger.execute({
+          baseSchema: baseSchema,
+          customSchema: customSchemaFragment
+        });
+        
+        // 4. Compile and Register.
+        this.ajv.addSchema(compositeSchema, schemaId);
+        validateFn = this.getSchema(schemaId); 
+        
         if (!validateFn) {
-            
-            // 3. Create the composite schema using the dedicated plugin.
-            const compositeSchema = this.plugins.JSONSchemaMerger.execute({
-              baseSchema: baseSchema,
-              customSchema: customSchemaFragment
-            });
-            
-            // 4. Compile and Register.
-            this.ajv.addSchema(compositeSchema, schemaId);
-            validateFn = this.getSchema(schemaId); 
-            
-            if (!validateFn) {
-                throw new Error("Ajv compilation failed, validator function not retrieved.");
-            }
+            throw new Error("Ajv compilation failed, validator function not retrieved after registration.");
         }
 
         // 5. Execute Validation.
@@ -100,8 +107,8 @@ class SchemaMergeValidator {
         
     } catch (e) {
       // Handle Ajv compilation errors (e.g., malformed schemas).
-      const message = e instanceof Error ? e.message : String(e);
       // CRITICAL: Remove potentially corrupted schema from cache.
+      const message = e instanceof Error ? e.message : String(e);
       this.ajv.removeSchema(schemaId);
       return {
         isValid: false,
