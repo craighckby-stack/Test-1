@@ -1,91 +1,148 @@
-// Define log levels and their weights (higher weight means higher priority/severity)
-const LEVEL_WEIGHTS = Object.freeze({
-    'debug': 10,
-    'info': 20,
-    'warn': 30,
-    'error': 40,
-    'critical': 50,
-    'fatal': 60,
-});
-const DEFAULT_LEVEL = 'info';
+// src/governance/TelemetryServiceKernel.js
 
-// src/governance/TelemetryService.js
-// Dedicated service for auditable governance logging and metrics tracking
+const DEFAULT_SOURCE = 'AEOR';
 
-class TelemetryService {
+/**
+ * TelemetryServiceKernel
+ * Dedicated kernel for auditable, high-integrity governance logging and metrics tracking.
+ * Replaces synchronous dependencies and direct console access with injected, asynchronous tools.
+ */
+class TelemetryServiceKernel {
     /**
-     * @param {object} config - Configuration object, e.g., { logLevel: 'info', source: 'AIA-CORE' }
+     * @param {object} dependencies
+     * @param {ILoggerToolKernel} dependencies.loggerToolKernel
+     * @param {MultiTargetAuditDisperserToolKernel} dependencies.auditDisperserToolKernel
+     * @param {ConfigDefaultsRegistryKernel} dependencies.configDefaultsRegistryKernel
+     * @param {object} [dependencies.config] - Initial configuration (e.g., { logLevel: 'info', source: 'AIA-CORE' })
      */
-    constructor(config = {}) {
-        this.source = config.source || 'AEOR';
+    constructor(dependencies) {
+        this._isInitialized = false;
+        this._dependencies = dependencies;
         
-        const requestedLevel = (config.logLevel || DEFAULT_LEVEL).toLowerCase();
-        
-        // Normalize logLevel: Ensure this.logLevel is always a recognized key. 
-        const effectiveLevel = LEVEL_WEIGHTS[requestedLevel] ? requestedLevel : DEFAULT_LEVEL;
-        
-        this.logLevel = effectiveLevel;
-        // Determine the minimum weight required for a message to be logged
-        this.logLevelWeight = LEVEL_WEIGHTS[effectiveLevel];
+        // Configuration place holders
+        this._levelWeights = {};
+        this._logLevelWeight = 0;
+        this._source = DEFAULT_SOURCE;
+        this._logLevel = 'info';
 
-        // Define a map for console sinks, adding robustness for environments lacking specific methods
-        this.consoleSink = {
-            fatal: console.error || console.log,
-            critical: console.error || console.log,
-            error: console.error || console.log,
-            warn: console.warn || console.log,
-            info: console.log,
-            debug: console.log,
-        };
+        this.#setupDependencies();
     }
 
-    _log(level, message, metadata = {}) {
-        const levelWeight = LEVEL_WEIGHTS[level];
+    #setupDependencies() {
+        const { loggerToolKernel, auditDisperserToolKernel, configDefaultsRegistryKernel } = this._dependencies;
 
-        // 1. Filtering: Suppress messages below the configured threshold
-        if (!levelWeight || levelWeight < this.logLevelWeight) {
+        if (!loggerToolKernel || !auditDisperserToolKernel || !configDefaultsRegistryKernel) {
+            throw new Error("TelemetryServiceKernel requires loggerToolKernel, auditDisperserToolKernel, and configDefaultsRegistryKernel.");
+        }
+
+        this._logger = loggerToolKernel;
+        this._auditDisperser = auditDisperserToolKernel;
+        this._configRegistry = configDefaultsRegistryKernel;
+    }
+
+    async initialize() {
+        if (this._isInitialized) {
+            this._logger.warn("TelemetryServiceKernel already initialized.");
             return;
         }
 
-        // 2. Formatting
+        try {
+            // Load level weights and default level from the Configuration Registry asynchronously
+            const telemetryConfig = await this._configRegistry.get('telemetry.logConfig', {
+                LEVEL_WEIGHTS: {
+                    'debug': 10, 'info': 20, 'warn': 30, 'error': 40,
+                    'critical': 50, 'fatal': 60,
+                },
+                DEFAULT_LEVEL: 'info'
+            });
+
+            this._levelWeights = telemetryConfig.LEVEL_WEIGHTS;
+            const defaultLevel = telemetryConfig.DEFAULT_LEVEL;
+            
+            // Source is retrieved from configuration passed to the constructor (or defaults)
+            this._source = this._dependencies.config?.source || DEFAULT_SOURCE;
+            
+            const requestedLevel = (this._dependencies.config?.logLevel || defaultLevel).toLowerCase();
+            
+            // Normalize logLevel and set weight
+            const effectiveLevel = this._levelWeights[requestedLevel] ? requestedLevel : defaultLevel;
+            
+            this._logLevel = effectiveLevel;
+            this._logLevelWeight = this._levelWeights[effectiveLevel];
+
+            this._isInitialized = true;
+            this._logger.info("TelemetryServiceKernel initialized successfully.", { effectiveLevel });
+
+        } catch (error) {
+            this._logger.error("Failed to initialize TelemetryServiceKernel configuration.", { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Internal asynchronous logging function responsible for filtering and dual-path dispatching.
+     * 1. Local logging (via ILoggerToolKernel).
+     * 2. High-Integrity Auditing (via MultiTargetAuditDisperserToolKernel, fulfilling D-01 mandate).
+     * @param {string} level 
+     * @param {string} message 
+     * @param {object} metadata 
+     */
+    async _log(level, message, metadata = {}) {
+        if (!this._isInitialized) {
+             // Fallback using standard logger if available
+             this._logger?.warn(`Telemetry requested before initialization: [${level}] ${message}`);
+             return;
+        }
+
+        const levelWeight = this._levelWeights[level];
+
+        // 1. Filtering: Suppress messages below the configured threshold
+        if (!levelWeight || levelWeight < this._logLevelWeight) {
+            return;
+        }
+
+        // 2. Formatting (Standardized Audit Record Data Model)
         const timestamp = new Date().toISOString();
-        const logEntry = {
+        const auditRecord = {
             timestamp,
             level: level.toUpperCase(),
-            source: this.source,
+            source: this._source,
             message,
             ...metadata
         };
         
-        // NOTE: In a production AIA system, this output would be asynchronously
-        // piped to a durable, cryptographically verifiable audit log (D-01 requirement).
+        // 3. Dispatching
         
-        // Simplified console logging for demonstration:
-        const output = JSON.stringify(logEntry, null, 2);
-
-        // 3. Output via mapped console sink
-        const sink = this.consoleSink[level] || console.log;
-        sink(output);
+        // A) Local Logging (handled by ILoggerToolKernel)
+        const loggerMetadata = { ...metadata, source: this._source };
+        if (this._logger[level]) {
+            this._logger[level](message, loggerMetadata);
+        } else {
+            this._logger.log(level, message, loggerMetadata);
+        }
+        
+        // B) High-Integrity Audit Dispersal (Asynchronously pipe to verifiable audit log)
+        await this._auditDisperser.dispersedAudit(auditRecord);
     }
 
-    fatal(message, metadata) {
-        this._log('fatal', message, metadata);
+    async fatal(message, metadata) {
+        await this._log('fatal', message, metadata);
     }
-    critical(message, metadata) {
-        this._log('critical', message, metadata);
+    async critical(message, metadata) {
+        await this._log('critical', message, metadata);
     }
-    error(message, metadata) {
-        this._log('error', message, metadata);
+    async error(message, metadata) {
+        await this._log('error', message, metadata);
     }
-    warn(message, metadata) {
-        this._log('warn', message, metadata);
+    async warn(message, metadata) {
+        await this._log('warn', message, metadata);
     }
-    info(message, metadata) {
-        this._log('info', message, metadata);
+    async info(message, metadata) {
+        await this._log('info', message, metadata);
     }
-    debug(message, metadata) {
-        this._log('debug', message, metadata);
+    async debug(message, metadata) {
+        await this._log('debug', message, metadata);
     }
 }
 
-module.exports = TelemetryService;
+module.exports = TelemetryServiceKernel;
