@@ -16,14 +16,13 @@ class GovernanceLoader {
         }
         
         this.io = ioPlugin;
+        // Ensure configDirectory is stored correctly for path joining
         this.configDirectory = configDirectory;
         /** @type {Map<string, Promise<Object>>} Cache storage for pending or resolved configuration loading promises. */
         this.cache = new Map();
         
-        // Update IO plugin's base path for scoped loading (assuming IO plugin supports base path modification)
-        if (this.io.setBasePath) {
-             this.io.setBasePath(path.join(this.io.basePath, this.configDirectory));
-        }
+        // NOTE: Removed logic modifying the IO plugin's global base path. 
+        // Path construction is now handled internally in the load method.
     }
 
     /**
@@ -42,9 +41,11 @@ class GovernanceLoader {
         }
 
         const fileName = `${cacheKey}.json`;
+        // Construct the full path relative to the IO plugin's root
+        const fullPath = path.join(this.configDirectory, fileName);
 
         // 2. Define the loading operation
-        const loadOperation = this.io.loadJson(fileName)
+        const loadOperation = this.io.loadJson(fullPath)
             .catch(error => {
                 // Remove failed promise from cache to allow retries
                 this.cache.delete(cacheKey);
@@ -80,7 +81,6 @@ class GovernanceLoader {
      */
     clearCache() {
         this.cache.clear();
-        // console.log("GovernanceLoader cache cleared."); // Optional logging
     }
 }
 
