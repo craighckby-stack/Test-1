@@ -3,24 +3,27 @@ interface PolicyContext {
   mutationRate: number;
   securityLevel: number;
   runtimeStatus: 'OPERATIONAL' | 'DEGRADED' | 'CRITICAL';
-  // Note: For string comparisons in the expression, map runtimeStatus to a numerical value
-  // or ensure the evaluator handles string equality if needed.
+}
+
+interface EnforcementAction {
+  actionType: string;
+  targetScope: string;
 }
 
 interface EnforcementResult {
   policyId: string;
   triggered: boolean;
-  actions: Array<{ actionType: string; targetScope: string }>;
+  actions: EnforcementAction[];
 }
 
 interface Policy {
   policyId: string;
-  triggerLogic: string; // e.g., "checksumDelta > 100 && securityLevel < 5"
-  actions: Array<{ actionType: string; targetScope: string }>;
+  triggerLogic: string;
+  actions: EnforcementAction[];
 }
 
 /**
- * Placeholder for the plugin interface
+ * Placeholder for the plugin interface (External Dependency)
  */
 declare const SecureExpressionEvaluator: {
   execute: (args: { expression: string; context: PolicyContext | Record<string, any> }) => boolean;
@@ -29,16 +32,18 @@ declare const SecureExpressionEvaluator: {
 /**
  * GSIMPolicyEvaluator Class
  * Responsible for securely parsing and executing Boolean expressions defined in the 'triggerLogic' field
- * against real-time operational context data.
+ * against real-time operational context data, coordinating policy management and enforcement triggering.
  */
 class GSIMPolicyEvaluator {
   private policies: Policy[]; 
 
   constructor(schema: object) {
-    // Load and compile policies. For demonstration, we load mock policies.
     this.policies = this.loadPolicies(schema);
   }
 
+  /**
+   * Loads and validates policy definitions from a schema source.
+   */
   private loadPolicies(_schema: object): Policy[] {
     // Mock policy loading based on expected PolicyContext fields
     return [
@@ -49,10 +54,20 @@ class GSIMPolicyEvaluator {
       },
       {
         policyId: 'P002',
+        // Demonstrates string comparison capability
         triggerLogic: "securityLevel < 3 && runtimeStatus === 'CRITICAL'",
         actions: [{ actionType: 'REBOOT', targetScope: 'System' }]
       }
     ];
+  }
+
+  /**
+   * Checks policy preconditions (e.g., validity, external system status).
+   * @returns True if evaluation should proceed.
+   */
+  private checkPreconditions(_policy: Policy, _context: PolicyContext): boolean {
+    // Placeholder: In a real system, this might check system clock sync or policy dependencies.
+    return true;
   }
 
   /**
@@ -70,14 +85,14 @@ class GSIMPolicyEvaluator {
 
       let triggered = false;
       try {
-        // CRITICAL: Use the SecureExpressionEvaluator tool for sandbox execution.
+        // Delegate execution to the secure sandbox environment.
         triggered = SecureExpressionEvaluator.execute({
           expression: policy.triggerLogic,
           context: context
         });
       } catch (error) {
-        console.error(`Error evaluating policy ${policy.policyId}:`, error);
-        // Default to not triggered on error for safety
+        console.error(`[GSIMPolicyEvaluator] Error evaluating policy ${policy.policyId}:`, error);
+        // Safety: default to not triggered on error
         triggered = false;
       }
 
@@ -91,15 +106,5 @@ class GSIMPolicyEvaluator {
     }
 
     return results;
-  }
-
-  public checkPreconditions(policy: Policy, context: PolicyContext): boolean {
-    // In a real system, this might check policy validity, system clock sync, etc.
-    // Here, we ensure basic necessary keys exist, especially if 'runtimeStatus' needs to be handled as a string.
-    if (typeof context.runtimeStatus === 'string') {
-        // Example safety transformation: Inject string literal variables for comparison safety
-        // Note: The plugin implementation handles this by accepting all context keys.
-    }
-    return true;
   }
 }
