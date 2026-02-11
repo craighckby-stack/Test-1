@@ -44,15 +44,27 @@ export default class Logger {
     }
 
     /**
+     * Delegates the structured logging request to the external Kernel Utility 
+     * if the utility is available. Returns true if delegation occurred.
+     * Enforces architectural consistency by isolating the core dependency execution (I/O proxy).
+     */
+    #attemptKernelDelegation(levelStr, message, data) {
+        if (USE_KERNEL_UTILITY) {
+            KernelLogUtility.execute(levelStr, this.#context, message, data);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Handles core logging by delegating formatting and output to the external utility,
      * or using a structured console fallback.
      */
     #log(level, message, data) {
         const levelStr = level.toUpperCase();
 
-        // 1. Primary Path: Use kernel utility (checked once at module load)
-        if (USE_KERNEL_UTILITY) {
-            KernelLogUtility.execute(levelStr, this.#context, message, data);
+        // 1. Primary Path: Attempt delegation to kernel utility
+        if (this.#attemptKernelDelegation(levelStr, message, data)) {
             return;
         }
 
