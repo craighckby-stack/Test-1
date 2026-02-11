@@ -1,60 +1,50 @@
-// Schema Migration Adjudicator (SMA) V99.0 - Policy-Driven Decoupling
-// GSEP Stage 2/3 Interlock: Ensures state schema integrity during architectural mutation.
-
-import { ASR } from './architectureSchemaRegistrar.js';
-import { MCR } from './mutationChainRegistrar.js';
-import { MPSE } from './mutationPayloadSpecEngine.js'; 
-import { SMSE } from './schemaMigrationSimulationEngine.js'; 
-import { D_01 } from '../core/decisionAuditLogger.js';
-import { GPE } from './governancePolicyEngine.js';
-
-// Placeholder import for the extracted utility
-// This assumes 'WeightedScoreAggregator' is available, replacing internal logic.
-// NOTE: In a real environment, this would be imported from a utility module.
+import { IGovernanceRuleDefinitionsRegistryKernel } from "../policy/IGovernanceRuleDefinitionsRegistryKernel";
+import { MultiTargetAuditDisperserToolKernel } from "../auditing/MultiTargetAuditDisperserToolKernel";
+import { MutationPayloadSpecKernel } from "../validation/MutationPayloadSpecKernel";
+import { PreCommitSimulationRunnerKernel } from "../simulation/PreCommitSimulationRunnerKernel";
+import { IConceptualPolicyEvaluatorKernel } from "../policy/IConceptualPolicyEvaluatorKernel";
+import { GovernanceSettingsRegistryKernel } from "../config/GovernanceSettingsRegistryKernel";
+import { ITraceableIdGeneratorToolKernel } from "../utilities/ITraceableIdGeneratorToolKernel";
+import { ActiveStateContextManagerKernel } from "../state/ActiveStateContextManagerKernel";
 
 /**
- * Utility object that performs the weighted score aggregation. 
- * Assuming this utility is available or imported from a core module.
+ * AGI-KERNEL: SchemaMigrationAdjudicatorKernel (SMAK)
+ * Refactored from the synchronous SchemaMigrationAdjudicator (SMA).
+ * 
+ * This Kernel orchestrates asynchronous validation, simulation, scoring, and policy enforcement
+ * for proposed schema mutations (M-02 payloads), strictly adhering to AIA Enforcement Layer
+ * mandates for non-blocking execution and Maximum Recursive Abstraction.
  */
-const WeightedScoreAggregator = (globalThis as any).WeightedScoreAggregator || {
-    /**
-     * Calculates a weighted sum of scores based on corresponding weights.
-     * @param {Object<string, number>} scores - Map of score names to values.
-     * @param {Object<string, number>} weights - Map of weight names to values.
-     * @returns {number} The aggregated weighted score.
-     */
-    calculate: (scores: { [key: string]: number }, weights: { [key: string]: number }): number => {
-        let totalScore = 0;
-        const keys = Object.keys(weights);
-        for (const key of keys) {
-            const score = scores[key];
-            const weight = weights[key];
-
-            if (typeof score === 'number' && typeof weight === 'number') {
-                totalScore += score * weight;
-            }
-        }
-        return totalScore;
-    }
-};
-
-/**
- * The SMA validates proposed schema changes within the M-02 payload against the
- * system state (MCR) and mandated contracts (ASR). It fetches dynamic governance
- * parameters from GPE, delegates simulation to SMSE, integrates results, and 
- * determines final acceptance.
- */
-export class SchemaMigrationAdjudicator {
+export class SchemaMigrationAdjudicatorKernel {
     
-    /**
-     * Policy parameters loaded from GPE at runtime startup.
-     * @private
-     * @readonly
-     */
-    static GOVERNANCE_CONFIG = GPE.getSMAParams();
+    private config: any;
+    private initialized: boolean = false;
 
-    constructor() {
-        // Stateless Adjudicator. Dependencies are module imports.
+    constructor(
+        private readonly configRegistry: GovernanceSettingsRegistryKernel,
+        private readonly auditDisperser: MultiTargetAuditDisperserToolKernel,
+        private readonly payloadValidator: MutationPayloadSpecKernel,
+        private readonly simulationRunner: PreCommitSimulationRunnerKernel,
+        private readonly policyEvaluator: IConceptualPolicyEvaluatorKernel,
+        private readonly stateManager: ActiveStateContextManagerKernel,
+        private readonly idGenerator: ITraceableIdGeneratorToolKernel
+    ) {}
+
+    /**
+     * Initializes the Kernel by asynchronously loading necessary configuration parameters.
+     * @throws {Error} If configuration loading fails.
+     */
+    public async initialize(): Promise<void> {
+        if (this.initialized) return;
+        
+        // Asynchronously load policy parameters, replacing synchronous GPE call.
+        this.config = await this.configRegistry.get('SMA_ADJUDICATION_POLICY');
+
+        if (!this.config?.WEIGHTS || !this.config?.THRESHOLDS) {
+            throw new Error("SMAK Initialization Failure: Missing WEIGHTS or THRESHOLDS configuration.");
+        }
+
+        this.initialized = true;
     }
 
     /**
@@ -62,18 +52,25 @@ export class SchemaMigrationAdjudicator {
      * @param {object} m02Payload - The Mutation Payload (contains the proposed new schema definitions).
      * @returns {Promise<{compatibilityScore: number, migrationPlanValidated: boolean, requiredRollbackProcedure: string}>}
      */
-    async adjudicate(m02Payload) {
-        const { WEIGHTS, THRESHOLDS } = SchemaMigrationAdjudicator.GOVERNANCE_CONFIG;
+    public async adjudicate(m02Payload: any): Promise<{
+        compatibilityScore: number,
+        migrationPlanValidated: boolean,
+        requiredRollbackProcedure: string
+    }> {
+        if (!this.initialized) throw new Error("SchemaMigrationAdjudicatorKernel not initialized.");
 
-        // --- 0. Payload Pre-Validation & Structure Check ---
+        const traceId = await this.idGenerator.generateTraceId('SMA-ADJ');
+        const { WEIGHTS, THRESHOLDS } = this.config;
+
+        // --- 0. Payload Pre-Validation (Delegated to MutationPayloadSpecKernel) ---
         try {
-            // Utilize defensive checking around MPSE utility
-            if (!MPSE.validateM02Structure || !MPSE.validateM02Structure(m02Payload)) {
-                await D_01.logFailure('SMA', 'M-02 payload failed structural validation against specs or MPSE utility unavailable.');
+            const isValid = await this.payloadValidator.validatePayload(m02Payload, 'M02_SCHEMA_MIGRATION_PAYLOAD');
+            if (!isValid) {
+                await this.auditDisperser.logFailure(traceId, 'SMAK', 'M-02 payload failed structural validation.', { payload: m02Payload });
                 return this._vetoResult('Structural Veto: Payload Format Invalid');
             }
         } catch (error) {
-            await D_01.logFailure('SMA', `MPSE validation failed critically: ${error.message}`);
+            await this.auditDisperser.logFailure(traceId, 'SMAK', `Payload validation failed critically.`, { error: error.message });
             return this._vetoResult('Structural Veto: Validation Engine Failure');
         }
 
@@ -82,45 +79,57 @@ export class SchemaMigrationAdjudicator {
             return this._vetoResult('Structural Veto: Missing Schema Definition');
         }
 
-        const currentSchemaHash = MCR.getCurrentSchemaHash(); 
+        // --- 1. State Retrieval (Delegated to ActiveStateContextManagerKernel) ---
+        // Replaces synchronous MCR hash lookup
+        const currentSchemaHash = await this.stateManager.getSystemContextHash('ARCHITECTURAL_SCHEMA_HASH'); 
+        
+        // --- 2. Deep Simulation and Contract Compliance Check (Delegated to PreCommitSimulationRunnerKernel) ---
+        // This tool encapsulates ASR validation (Contract Compliance) and SMSE simulation (Migration Integrity).
+        const simulationResult = await this.simulationRunner.simulateSchemaMutation({
+            currentSchemaHash: currentSchemaHash,
+            proposedSchema: proposedSchema,
+            traceId: traceId
+        });
 
-        // --- 1. Contract Compliance Check (ASR) ---
-        const contractCompliance = await ASR.validateSchemaCompliance(proposedSchema);
-        if (contractCompliance.score < 0.01) {
-            await D_01.logFailure('SMA', 'Proposed schema failed architectural contract compliance checks (ASR).');
+        // Fail fast if the simulation reported a severe, unrecoverable contract breach or integrity failure.
+        if (simulationResult.complianceScore < 0.01) {
+            await this.auditDisperser.logFailure(traceId, 'SMAK', 'Proposed schema failed architectural contract compliance checks.', { scores: simulationResult });
             return this._vetoResult('Policy Veto: Contract Breach');
         }
 
-        // --- 2. Deep Simulation (SMSE Delegation) ---
-        const diffAnalysis = await SMSE.runDeepSchemaDiff(currentSchemaHash, proposedSchema);
-        const migrationIntegrityResult = await SMSE.simulateMigrationPath(diffAnalysis, proposedSchema);
-
-        // --- 3. Final Adjudication Score Calculation ---
+        // --- 3. Final Adjudication Score Calculation (Delegated to IConceptualPolicyEvaluatorKernel) ---
         
         const scoresToAggregate = {
-            CONTRACT_COMPLIANCE: contractCompliance.score,
-            MIGRATION_INTEGRITY: migrationIntegrityResult.integrity,
+            CONTRACT_COMPLIANCE: simulationResult.complianceScore,
+            MIGRATION_INTEGRITY: simulationResult.integrityScore,
         };
 
-        // Use the externalized utility for calculating the weighted score
-        const compatibilityScore = WeightedScoreAggregator.calculate(scoresToAggregate, WEIGHTS);
+        // Replaces internal/external WeightedScoreAggregator utility
+        const compatibilityScore = await this.policyEvaluator.aggregateScores(scoresToAggregate, WEIGHTS);
 
         // --- 4. Decision & Validation ---
-        // Must meet MINIMUM_ACCEPTANCE to proceed, and VALIDATION threshold for full confidence.
         const migrationAccepted = compatibilityScore >= THRESHOLDS.MINIMUM_ACCEPTANCE;
         const migrationValidated = compatibilityScore >= THRESHOLDS.VALIDATION;
 
         if (!migrationAccepted) {
-            await D_01.logWarning('SMA', `Rejected. Score: ${compatibilityScore.toFixed(4)} (Minimum: ${THRESHOLDS.MINIMUM_ACCEPTANCE}). Reason: Insufficient Score.`);
+            await this.auditDisperser.logWarning(
+                traceId, 
+                'SMAK', 
+                `Rejected. Score: ${compatibilityScore.toFixed(4)} (Minimum: ${THRESHOLDS.MINIMUM_ACCEPTANCE}). Reason: Insufficient Score.`
+            );
             return this._vetoResult('Score Veto: Minimum Threshold Not Met');
         } else {
-             await D_01.logSuccess('SMA', `Schema Accepted. Score: ${compatibilityScore.toFixed(4)}. Validation Status: ${migrationValidated ? 'Validated' : 'Accepted (Waivered)'}`);
+             await this.auditDisperser.logSuccess(
+                 traceId, 
+                 'SMAK', 
+                 `Schema Accepted. Score: ${compatibilityScore.toFixed(4)}. Validation Status: ${migrationValidated ? 'Validated' : 'Accepted (Waivered)'}`
+            );
         }
 
         return {
             compatibilityScore: compatibilityScore,
             migrationPlanValidated: migrationValidated,
-            requiredRollbackProcedure: migrationIntegrityResult.rollbackPlanHash
+            requiredRollbackProcedure: simulationResult.rollbackPlanHash
         };
     }
     
@@ -130,7 +139,11 @@ export class SchemaMigrationAdjudicator {
      * @param {string} reason 
      * @returns {{compatibilityScore: number, migrationPlanValidated: boolean, requiredRollbackProcedure: string}}
      */
-    _vetoResult(reason) {
+    private _vetoResult(reason: string): {
+        compatibilityScore: number,
+        migrationPlanValidated: boolean,
+        requiredRollbackProcedure: string
+    } {
         return { 
             compatibilityScore: 0.0, 
             migrationPlanValidated: false, 
