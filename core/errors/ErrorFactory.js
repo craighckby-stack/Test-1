@@ -1,7 +1,7 @@
 import { AuditorError } from '../errors/AuditorError.js';
-
-// Access the abstracted standard error generation logic via the plugin.
-// We assume StandardErrorGeneratorPlugin is available globally or imported.
+// Explicitly import the core utility for standardized error generation, ensuring structural integrity
+// and removing reliance on implicit global scope.
+import { StandardErrorGeneratorPlugin } from '../utils/StandardErrorGeneratorPlugin.js'; 
 
 /**
  * ErrorFactory v1.0.1
@@ -15,7 +15,7 @@ class ErrorFactory {
      * @param {object} [details={}] - Structured auditing context.
      * @returns {AuditorError}
      */
-    static createAuditorError(message: string, details?: object): AuditorError {
+    static createAuditorError(message, details = {}) {
         // This remains local as it depends on the imported domain-specific class AuditorError
         return new AuditorError(message, 'AUDIT_FAILURE', details);
     }
@@ -28,8 +28,8 @@ class ErrorFactory {
      * @param {Error | null} [cause=null]
      * @returns {Error}
      */
-    static createOperationalError(message: string, code: string = 'OPERATIONAL_ERROR', cause: Error | null = null): Error {
-        // Delegate the standardized structuring and creation to the reusable plugin.
+    static createOperationalError(message, code = 'OPERATIONAL_ERROR', cause = null) {
+        // Delegate the standardized structuring and creation to the reusable, imported plugin.
         return StandardErrorGeneratorPlugin.createOperationalError(message, code, cause);
     }
 
