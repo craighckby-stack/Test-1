@@ -1,29 +1,76 @@
-// Sovereign AGI Metric Engine Collector (v94.2) - Refactored
-// Responsible for dynamic metric sourcing and calculation execution via Strategy Pattern, 
-// now integrating dedicated logging, post-processing services, and dedicated template validation.
-
 /**
- * MetricEngineCollector
- * Uses dependency injection and a handler strategy map to execute various metric calculation methods.
+ * MetricEngineCollectorKernel (v94.3)
+ * Responsible for dynamic metric sourcing and calculation execution via Strategy Pattern, 
+ * integrating dedicated logging, post-processing services, and dedicated template validation.
+ *
+ * Adheres to strict Kernel architectural requirements: asynchronous initialization, 
+ * synchronous setup extraction, and Dependency Injection using formalized interfaces.
  */
-class MetricEngineCollector {
+class MetricEngineCollectorKernel {
     /**
-     * @param {object} dependencies - Dependencies object
-     * @param {object} dependencies.repository - Metric definition repository.
-     * @param {object} dependencies.handlers - Map of calculation methods to execution services.
-     * @param {object} dependencies.logger - Standardized system logger.
-     * @param {object} dependencies.postProcessor - Service for validation, transformation, and threshold checks.
-     * @param {object} dependencies.templateValidator - Extracted tool for validating metric templates and handlers.
+     * @type {IMetricDefinitionConfigRegistryKernel}
+     * @private
      */
-    constructor({ repository, handlers, logger, postProcessor, templateValidator }) {
-        if (!repository || !handlers || !logger || !postProcessor || !templateValidator) {
-            throw new Error("MetricEngineCollector initialization requires repository, handlers, logger, postProcessor, and templateValidator.");
-        }
-        this.repository = repository;
-        this.handlers = handlers; // Strategy map
-        this.logger = logger;
-        this.postProcessor = postProcessor;
-        this.templateValidator = templateValidator; // New dependency
+    #repository;
+
+    /**
+     * @type {IMetricExecutionStrategyProviderToolKernel}
+     * @private
+     */
+    #handlersProvider;
+
+    /**
+     * @type {ILoggerToolKernel}
+     * @private
+     */
+    #logger;
+
+    /**
+     * @type {IMetricPostProcessorToolKernel}
+     * @private
+     */
+    #postProcessor;
+
+    /**
+     * @type {IMetricTemplateValidatorToolKernel}
+     * @private
+     */
+    #templateValidator;
+
+    /**
+     * MetricEngineCollectorKernel
+     * @param {object} dependencies - Dependencies object conforming to kernel interfaces.
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Ensures all dependencies are present and assigns them.
+     * Enforces the synchronous setup extraction mandate.
+     * @param {object} dependencies 
+     * @private
+     */
+    #setupDependencies({ repository, handlers, logger, postProcessor, templateValidator }) {
+        if (!repository) throw new Error("MetricEngineCollectorKernel requires IMetricDefinitionConfigRegistryKernel (repository).");
+        if (!handlers) throw new Error("MetricEngineCollectorKernel requires IMetricExecutionStrategyProviderToolKernel (handlers).");
+        if (!logger) throw new Error("MetricEngineCollectorKernel requires ILoggerToolKernel (logger).");
+        if (!postProcessor) throw new Error("MetricEngineCollectorKernel requires IMetricPostProcessorToolKernel (postProcessor).");
+        if (!templateValidator) throw new Error("MetricEngineCollectorKernel requires IMetricTemplateValidatorToolKernel (templateValidator).");
+
+        this.#repository = repository;
+        this.#handlersProvider = handlers; // Strategy map provider
+        this.#logger = logger;
+        this.#postProcessor = postProcessor;
+        this.#templateValidator = templateValidator;
+    }
+
+    /**
+     * Standard asynchronous initialization interface.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Configuration loading or complex startup logic would go here.
     }
 
     /**
@@ -33,12 +80,12 @@ class MetricEngineCollector {
      * @returns {object|null} A structured response if processing should stop (SKIPPED or FAILURE), otherwise null to proceed.
      * @private
      */
-    _handleValidationResult(metricId, validationResult) {
+    #handleValidationResult(metricId, validationResult) {
         if (validationResult.valid) {
             return null; // Proceed
         }
 
-        this.logger.warn(`Metric ID ${metricId} validation failure: ${validationResult.reason}.`);
+        this.#logger.warn(`Metric ID ${metricId} validation failure: ${validationResult.reason}.`);
         
         // Handle SKIPPED status (e.g., InactiveStatus)
         if (validationResult.reason === 'InactiveStatus') {
@@ -46,26 +93,26 @@ class MetricEngineCollector {
         }
         
         // Handle definite failures (TemplateNotFound, HandlerNotConfigured, etc.)
-        return this.postProcessor.createFailureResponse(metricId, validationResult.reason);
+        return this.#postProcessor.createFailureResponse(metricId, validationResult.reason);
     }
 
     /**
      * Collects and calculates a specific metric based on its configuration template.
      * @param {string} metricId - The ID of the metric to collect.
      * @returns {Promise<object>}
-The calculated and standardized metric result (or structured failure status).
+     * The calculated and standardized metric result (or structured failure status).
      */
     async collectMetric(metricId) {
         
         // Step 1: Validate metric template and handler using the dedicated tool
-        const validationResult = this.templateValidator.execute({
+        const validationResult = this.#templateValidator.execute({
             metricId: metricId,
-            repository: this.repository,
-            handlers: this.handlers
+            repository: this.#repository, // Injecting the registry
+            handlers: this.#handlersProvider // Injecting the strategy provider
         });
 
         // Handle validation outcome (Success, Skip, or Failure)
-        const earlyResponse = this._handleValidationResult(metricId, validationResult);
+        const earlyResponse = this.#handleValidationResult(metricId, validationResult);
         if (earlyResponse) {
             return earlyResponse;
         }
@@ -74,19 +121,19 @@ The calculated and standardized metric result (or structured failure status).
         const method = template.calculation_method;
 
         try {
-            this.logger.info(`Executing metric ${metricId} via method: ${method}`);
+            this.#logger.info(`Executing metric ${metricId} via method: ${method}`);
             
             // Step 2: Execute the strategy handler
             const rawResult = await handler.execute(template);
             
             // Step 3: Delegate to PostProcessor for validation, transformation, and threshold checking
-            return this.postProcessor.process(template, rawResult);
+            return this.#postProcessor.process(template, rawResult);
             
         } catch (error) {
-            this.logger.error(`Failure collecting metric ${metricId} (Method: ${method}):`, error instanceof Error ? error.stack : String(error));
+            this.#logger.error(`Failure collecting metric ${metricId} (Method: ${method}):`, error instanceof Error ? error.stack : String(error));
             
             // Step 4: Use postProcessor to standardize internal execution failures
-            return this.postProcessor.createFailureResponse(
+            return this.#postProcessor.createFailureResponse(
                 metricId, 
                 'ExecutionError', 
                 error instanceof Error ? error.message : 'Unknown execution error'
@@ -95,4 +142,4 @@ The calculated and standardized metric result (or structured failure status).
     }
 }
 
-module.exports = MetricEngineCollector;
+module.exports = MetricEngineCollectorKernel;
