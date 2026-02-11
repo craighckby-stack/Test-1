@@ -1,13 +1,6 @@
 import manifest from '../../config/protocol/remediation_command_manifest.json';
 import { RemediationService } from './RemediationService';
-
-// CRITICAL: Assuming PolicyExecutionRetryUtility is globally available or imported
-// In a real TS environment, this would be typed:
-// import { PolicyExecutionRetryUtility } from '@@kernel/utilities';
-
-declare const PolicyExecutionRetryUtility: { 
-    execute: (fn: () => Promise<any>, policy: any, commandId: string) => Promise<any>
-};
+import { PolicyApplicationPlugin } from "./PolicyApplicationPlugin";
 
 /**
  * CommandExecutorPolicyEngine
@@ -17,11 +10,13 @@ declare const PolicyExecutionRetryUtility: {
 class CommandExecutorPolicyEngine {
     private commandMap: Map<string, any>;
     private service: RemediationService;
+    private policyEngine: PolicyApplicationPlugin;
 
     constructor() {
         this.commandMap = this._initializeCommandMap(manifest);
         // RemediationService assumed to handle actual low-level system interactions
         this.service = new RemediationService(); 
+        this.policyEngine = new PolicyApplicationPlugin();
     }
 
     _initializeCommandMap(manifestData: { commands: any[] }) {
@@ -48,24 +43,22 @@ class CommandExecutorPolicyEngine {
         }
         // Note: Full JSON Schema validation should be implemented here (e.g., using AJV).
 
-        const policy = commandDef.metadata.retry_policy;
-
         // Define the execution logic that will be retried
         const executionFn = async () => {
             // Execute the command via the defined target interface
             return await this.service.dispatch(commandDef.execution_target, commandDef.id, parameters);
         };
 
+        // Use the policy application plugin to handle retry and backoff logic
+        // The plugin abstracts the dependency on PolicyExecutionRetryUtility.
         try {
-            // Use the extracted utility to handle all retry and backoff logic
-            const result = await PolicyExecutionRetryUtility.execute(
-                executionFn,
-                policy,
-                commandId
+            return await this.policyEngine.executeWithPolicy(
+                commandId,
+                commandDef,
+                executionFn
             );
-            return result;
         } catch (error) {
-            // The utility handles maximum attempt exhaustion and throws the final error
+            // The utility (via the plugin) handles maximum attempt exhaustion and throws the final error
             throw error;
         }
     }
