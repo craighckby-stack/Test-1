@@ -15,30 +15,24 @@ const PREDICTION_RESULT_SCHEMA = {
  * 
  * It utilizes an injected Statistical Model Handler to predict TEMM and ECVM scores.
  * 
- * It relies on an injected Validator (conforming to SchemaValidationService) for comprehensive
- * input/output schema enforcement.
+ * It relies on KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService for comprehensive
+ * input/output schema enforcement, if available.
  */
 class TrajectorySimulationEngine {
     /**
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
      * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
      * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
-     * @param {Object} [Validator] - Optional schema validation service instance (conforming to SchemaValidationService).
      */
-    constructor(ACVD_Store, Configuration, ModelHandler, Validator = null) {
+    constructor(ACVD_Store, Configuration, ModelHandler) { // Removed optional Validator
         if (!ModelHandler || typeof ModelHandler.predict !== 'function') {
             throw new Error("TSE Initialization Error: A valid ModelHandler implementing an asynchronous 'predict' method is required.");
-        }
-
-        // Enforce the SchemaValidationService interface if a validator is provided
-        if (Validator && typeof Validator.validate !== 'function') {
-            throw new Error("TSE Initialization Error: Injected Validator must conform to the SchemaValidationService interface (requires 'validate' method).");
         }
 
         this.ACVD = ACVD_Store;
         this.config = Configuration;
         this.model = ModelHandler;
-        this.validator = Validator;
+        // Note: Validation service is now accessed dynamically via KERNEL_SYNERGY_CAPABILITIES
     }
 
     /**
@@ -74,6 +68,11 @@ class TrajectorySimulationEngine {
     async runSimulation(inputManifest) {
         let entityId = 'unknown';
 
+        // Access the KERNEL Schema Validation Service dynamically
+        const ValidationService = (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService)
+            ? KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService
+            : null;
+
         try {
             // 1. Critical Minimal Input Check: Ensure entityId exists for logging and feature extraction.
             if (!inputManifest || typeof inputManifest.entityId !== 'string') {
@@ -81,11 +80,14 @@ class TrajectorySimulationEngine {
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation using injected Validator (preferred)
-            if (this.validator) {
-                const inputValidation = this.validator.validate(inputManifest, MANIFEST_SCHEMA);
-                if (!inputValidation.isValid) {
-                    throw new Error(`Comprehensive Input Validation Failed: ${inputValidation.errors.join('; ')}`);
+            // 2. Comprehensive Input Validation using KERNEL_SYNERGY_CAPABILITIES (preferred)
+            if (ValidationService) {
+                // NOTE: We assume execute wraps the validation logic, requiring data and schema.
+                const inputValidation = await ValidationService.execute('validate', inputManifest, MANIFEST_SCHEMA);
+                
+                if (!inputValidation || !inputValidation.isValid) {
+                    const errorMsg = inputValidation && inputValidation.errors ? inputValidation.errors.join('; ') : 'Unknown validation error.';
+                    throw new Error(`Comprehensive Input Validation Failed: ${errorMsg}`);
                 }
             } 
 
@@ -95,10 +97,12 @@ class TrajectorySimulationEngine {
             const results = await this.model.predict(features);
 
             // 3. Output Validation
-            if (this.validator) {
-                const outputValidation = this.validator.validate(results, PREDICTION_RESULT_SCHEMA);
-                if (!outputValidation.isValid) {
-                    throw new Error(`Model output format invalid (Comprehensive Check). Expected {temm: number, ecvm: boolean}. Errors: ${outputValidation.errors.join('; ')}`);
+            if (ValidationService) {
+                const outputValidation = await ValidationService.execute('validate', results, PREDICTION_RESULT_SCHEMA);
+                
+                if (!outputValidation || !outputValidation.isValid) {
+                     const errorMsg = outputValidation && outputValidation.errors ? outputValidation.errors.join('; ') : 'Unknown validation error.';
+                     throw new Error(`Model output format invalid (Comprehensive Check). Expected {temm: number, ecvm: boolean}. Errors: ${errorMsg}`);
                 }
             } else if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
                  // Fallback to manual check if validator is absent
