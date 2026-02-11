@@ -1,36 +1,63 @@
-import { ASTParser } from './parsers/astParser';
-import { RecursiveASTTraversal } from '../plugins/RecursiveASTTraversal'; 
-
 /**
- * StaticAnalysisEngine handles configuration, parsing, caching, 
- * and delegates efficient AST traversal to the RecursiveASTTraversal plugin.
+ * StaticAnalysisKernel handles configuration, parsing, caching,
+ * and delegates efficient AST traversal to the injected AST Traversal Interface.
  */
-class StaticAnalysisEngine {
+class StaticAnalysisKernel {
+    #rules;
+    #config;
+    #cache;
+    #astParser; 
+    #astTraverser;
+
     /**
-     * @param {Array<Object>} rules - A collection of analysis rule objects.
-     * @param {Object} [config={}] - Configuration options.
+     * @param {Object} dependencies 
+     * @param {Array<Object>} dependencies.rules - A collection of analysis rule objects.
+     * @param {Object} [dependencies.config={}] - Configuration options.
+     * @param {ASTParserInterfaceKernel} dependencies.astParser - Tool for parsing source code (Injected).
+     * @param {ASTTraversalInterfaceKernel} dependencies.astTraverser - Tool for high-performance AST traversal (Injected).
      */
-    constructor(rules, config = {}) {
-        this.rules = rules;
-        this.config = config;
-        this.cache = new Map();
-        
-        // Initialize the Traversal mechanism using the abstracted plugin.
-        // The traverser uses _applyRules as its high-performance node handler callback.
-        this.traverser = new RecursiveASTTraversal(this._applyRules.bind(this));
+    constructor({ rules, config = {}, astParser, astTraverser }) {
+        this.#rules = rules;
+        this.#config = config;
+        this.#astParser = astParser;
+        this.#astTraverser = astTraverser;
+
+        this.#setupDependencies();
     }
 
     /**
-     * Central method to execute analysis rules on a specific node.
-     * This logic remains lightweight and focused purely on rule interaction.
+     * Rigorous validation and setup for dependencies and internal state.
+     * Extracts synchronous dependency configuration from the constructor.
      * @private
      */
-    _applyRules(node, context) {
+    #setupDependencies() {
+        if (!this.#rules || !Array.isArray(this.#rules)) {
+            throw new Error("Rules array must be provided to StaticAnalysisKernel.");
+        }
+        if (!this.#astParser || typeof this.#astParser.parse !== 'function') {
+            throw new Error("ASTParserInterfaceKernel dependency missing or invalid.");
+        }
+        if (!this.#astTraverser || typeof this.#astTraverser.traverse !== 'function' || typeof this.#astTraverser.setNodeHandler !== 'function') {
+            // The traversal interface is required to accept a handler callback.
+            throw new Error("ASTTraversalInterfaceKernel dependency missing or invalid. Must expose traverse() and setNodeHandler().");
+        }
+
+        this.#cache = new Map();
+        
+        // Configure the traverser with the kernel's rule application logic, ensuring DI is maintained.
+        this.#astTraverser.setNodeHandler(this.#applyRules.bind(this));
+    }
+
+    /**
+     * Executes analysis rules on a specific node.
+     * This method is the callback handler for the injected #astTraverser.
+     * @private
+     */
+    #applyRules(node, context) {
         let findings = [];
         
-        // Optimization: Iterate rules and execute only if a match is found.
-        for (const rule of this.rules) {
-            // Assumes rules expose a standardized match() and execute() interface
+        for (const rule of this.#rules) {
+            // Interactions with external rule objects (I/O interaction)
             if (rule.match && rule.match(node, context)) {
                 const violation = rule.execute(node, context);
                 if (violation) {
@@ -40,6 +67,23 @@ class StaticAnalysisEngine {
         }
         return findings;
     }
+    
+    /**
+     * I/O Proxy: Delegates source code parsing to the injected utility.
+     * @private
+     */
+    #delegateToParserParse(sourceCode, parserOptions) {
+        return this.#astParser.parse(sourceCode, parserOptions);
+    }
+    
+    /**
+     * I/O Proxy: Delegates the actual AST traversal to the injected utility.
+     * @private
+     */
+    #delegateToTraverserTraverse(ast, context) {
+        return this.#astTraverser.traverse(ast, context);
+    }
+
 
     /**
      * Analyzes the provided source code.
@@ -47,27 +91,25 @@ class StaticAnalysisEngine {
      * @returns {Array} List of analysis violations/findings.
      */
     analyze(sourceCode) {
-        // Step 1: Computational efficiency via memoization/caching
-        if (this.cache.has(sourceCode)) {
-            return this.cache.get(sourceCode);
+        // Step 1: Cache check (Internal State Management)
+        if (this.#cache.has(sourceCode)) {
+            return this.#cache.get(sourceCode);
         }
 
-        // Context setup
         const analysisContext = { 
             source: sourceCode, 
-            config: this.config 
+            config: this.#config 
         };
 
-        // Step 2: Parse source into AST
-        // Assuming ASTParser is optimized and external
-        const ast = ASTParser.parse(sourceCode, this.config.parserOptions);
+        // Step 2: Parse (Delegated I/O)
+        const ast = this.#delegateToParserParse(sourceCode, this.#config.parserOptions);
         
-        // Step 3: Use the highly efficient, abstracted traverser plugin
-        const results = this.traverser.traverse(ast, analysisContext); 
+        // Step 3: Traverse (Delegated I/O)
+        const results = this.#delegateToTraverserTraverse(ast, analysisContext); 
         
-        this.cache.set(sourceCode, results);
+        this.#cache.set(sourceCode, results);
         return results;
     }
 }
 
-export default StaticAnalysisEngine;
+export default StaticAnalysisKernel;
