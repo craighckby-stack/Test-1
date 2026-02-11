@@ -1,63 +1,81 @@
 /**
- * src/governance/AuditDataNormalizer.js
+ * src/governance/AuditDataNormalizerKernel.js
  * Purpose: Processes raw system telemetry and audit logs, transforming them into the
  * normalized metrics [0.0, 1.0] required by the PerformanceMetricGenerator.
- * This layer handles logic such as converting latency spikes or resource usage percentages
- * into the required 'efficiencyScore', and aggregating log events into compliance ratios.
+ * This kernel ensures all normalization logic is executed asynchronously and relies on
+ * centralized configuration management and specialized normalization tools.
  */
 
-// Placeholder utility function representing the LinearScoreNormalizer plugin's core logic.
-// In a real environment, this function would be imported.
-const normalizeLinearScore = (rawValue, goodThreshold, badThreshold) => {
-    if (rawValue <= goodThreshold) {
-        return 1.0;
-    }
-    if (rawValue >= badThreshold) {
-        return 0.0;
+class AuditDataNormalizerKernel {
+    #metricNormalizer;
+    #configRegistry;
+    #logger;
+    #thresholds;
+    #isInitialized = false;
+
+    /**
+     * @param {object} dependencies
+     * @param {MetricNormalizerToolKernel} dependencies.metricNormalizerToolKernel - Tool for standard metric normalization logic (e.g., linear scaling).
+     * @param {IAuditDataNormalizationConfigRegistryKernel} dependencies.auditDataNormalizationConfigRegistryKernel - Registry for operational thresholds.
+     * @param {ILoggerToolKernel} dependencies.loggerToolKernel - Standard logger for error reporting.
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
     }
 
-    // Linear interpolation between the good and bad thresholds
-    const range = badThreshold - goodThreshold;
-    const score = 1.0 - (rawValue - goodThreshold) / range;
+    #setupDependencies(dependencies) {
+        if (!dependencies) {
+            throw new Error("AuditDataNormalizerKernel requires dependencies.");
+        }
+
+        this.#metricNormalizer = dependencies.metricNormalizerToolKernel;
+        this.#configRegistry = dependencies.auditDataNormalizationConfigRegistryKernel;
+        this.#logger = dependencies.loggerToolKernel;
+
+        if (!this.#metricNormalizer || !this.#configRegistry || !this.#logger) {
+            throw new Error("Missing required kernel dependencies: metricNormalizerToolKernel, auditDataNormalizationConfigRegistryKernel, or loggerToolKernel.");
+        }
+    }
     
-    return Math.max(0.0, Math.min(1.0, score));
-};
-
-class AuditDataNormalizer {
-
     /**
-     * Standard configuration thresholds for metric conversion.
+     * Loads configuration asynchronously. Must be called before `normalize`.
+     * @returns {Promise<void>}
      */
-    static DEFAULT_THRESHOLDS = {
-        P95_LATENCY_GOOD_MS: 50, // Optimal latency threshold
-        P95_LATENCY_BAD_MS: 500, // Latency score drops to 0.0 above this threshold
-        RESOURCE_USAGE_MAX_PCT: 85, // Resource usage must stay below this for 1.0 score boundary
-        COMPLIANCE_WINDOW_MS: 3600000 // 1 hour window for compliance ratio calculation
-    };
-
-    /**
-     * @param {Object} config - Optional threshold overrides.
-     */
-    constructor(config = {}) {
-        this.thresholds = { ...AuditDataNormalizer.DEFAULT_THRESHOLDS, ...config };
+    async initialize() {
+        try {
+            this.#thresholds = await this.#configRegistry.getNormalizationThresholds();
+            if (!this.#thresholds || Object.keys(this.#thresholds).length === 0) {
+                 this.#logger.error("Failed to load normalization thresholds from registry.");
+                 throw new Error("Configuration initialization failed for AuditDataNormalizerKernel: Empty thresholds.");
+            }
+            this.#isInitialized = true;
+        } catch (error) {
+            this.#logger.error("Error during AuditDataNormalizerKernel initialization.", { error: error.message });
+            throw error; 
+        }
     }
+
 
     /**
      * Normalizes all collected raw data into the format required by the metric generator.
      * 
-     * @param {string} actorId - ID of the component.
-     * @param {Object} rawTelemetry - Raw, recent telemetry and event logs.
+     * @param {string} actorId - ID of the component being audited.
+     * @param {object} rawTelemetry - Raw telemetry and event logs.
      * @param {number} rawTelemetry.p95LatencyMs - Observed 95th percentile latency.
-     * @param {number} rawTelemetry.resourceUsagePct - Observed maximum resource usage percentage (e.g., CPU/Memory).
+     * @param {number} rawTelemetry.resourceUsagePct - Observed maximum resource usage percentage.
      * @param {number} rawTelemetry.complianceChecksRun - Total policy checks executed.
      * @param {number} rawTelemetry.complianceChecksFailed - Total policy checks failed.
-     * @param {number} rawTelemetry.seriousViolations - Count of non-recoverable, severe policy breaches.
-     * @returns {Object} Normalized Audit Data (complianceScore, violationCount, efficiencyScore).
+     * @param {number} rawTelemetry.seriousViolations - Count of severe policy breaches.
+     * @returns {Promise<object>} Normalized Audit Data (complianceScore, violationCount, efficiencyScore).
      */
-    normalize(actorId, rawTelemetry) {
+    async normalize(actorId, rawTelemetry) {
+        if (!this.#isInitialized) {
+            throw new Error("AuditDataNormalizerKernel must be initialized before calling normalize.");
+        }
+
         const { 
             p95LatencyMs = Infinity,
-            resourceUsagePct = 0, // Added default for new metric
+            resourceUsagePct = 0,
             complianceChecksRun = 0,
             complianceChecksFailed = 0,
             seriousViolations = 0 
@@ -67,9 +85,9 @@ class AuditDataNormalizer {
             P95_LATENCY_GOOD_MS, 
             P95_LATENCY_BAD_MS,
             RESOURCE_USAGE_MAX_PCT 
-        } = this.thresholds;
+        } = this.#thresholds;
 
-        // Define the assumed absolute bad threshold for resource usage
+        // Resource usage normalization ceiling
         const RESOURCE_USAGE_BAD_PCT = 100;
 
         // 1. Calculate Compliance Score (Ratio of successful checks)
@@ -79,31 +97,31 @@ class AuditDataNormalizer {
             complianceScore = successChecks / complianceChecksRun;
         }
 
-        // 2. Calculate Efficiency Score Components
+        // 2. Calculate Efficiency Score Components using the injected MetricNormalizerToolKernel
         
         // 2a. Latency Score
-        const latencyScore = normalizeLinearScore(
+        const latencyScore = this.#metricNormalizer.normalizeLinearScore(
             p95LatencyMs,
             P95_LATENCY_GOOD_MS,
             P95_LATENCY_BAD_MS
         );
 
-        // 2b. Resource Score (Normalized against 100% ceiling)
-        const resourceScore = normalizeLinearScore(
+        // 2b. Resource Score
+        const resourceScore = this.#metricNormalizer.normalizeLinearScore(
             resourceUsagePct,
-            RESOURCE_USAGE_MAX_PCT, // Score stays 1.0 up to this point
-            RESOURCE_USAGE_BAD_PCT  // Score drops to 0.0 at this point
+            RESOURCE_USAGE_MAX_PCT, 
+            RESOURCE_USAGE_BAD_PCT
         );
 
         // 2c. Final Efficiency Score: Limited by the worst metric (bottleneck principle)
         const efficiencyScore = Math.min(latencyScore, resourceScore);
 
         return {
-            complianceScore,
+            complianceScore: parseFloat(complianceScore.toFixed(4)),
             violationCount: seriousViolations,
-            efficiencyScore
+            efficiencyScore: parseFloat(efficiencyScore.toFixed(4))
         };
     }
 }
 
-module.exports = AuditDataNormalizer;
+module.exports = AuditDataNormalizerKernel;
