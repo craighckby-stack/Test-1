@@ -1,71 +1,105 @@
 /**
- * RiskContextualizer.js
+ * RiskContextualizerKernel.js
  * 
- * Utility responsible for monitoring mission context, environment variables, 
- * and external threat signals to dynamically adjust RCDM parameters 
- * (specifically 'risk_matrix.weighted_factors' and 'risk_tiers.thresholds') 
- * at runtime.
+ * Kernel responsible for monitoring mission context and external signals
+ * to dynamically adjust RCDM parameters by applying configuration overlays.
  */
 
-// Configuration data moved outside the class and into a constant/external source
-const CONTEXT_MAP_DATA = {
-    'HIGH_SECURITY_MISSION': {
-        'risk_matrix.weighted_factors': [
-            { 'metric_id': 'A_ANOMALY', 'weight': 0.60 },
-            { 'metric_id': 'V_COMPLIANCE', 'weight': 0.25 },
-            { 'metric_id': 'R_STARVATION', 'weight': 0.15 }
-        ],
-        'risk_tiers.HIGH.threshold': 0.60
-    },
-    'BASELINE': {} // Explicit baseline context
-    // ... other contexts 
-};
+// --- Conceptual Interface Definitions ---
 
 /**
- * Placeholder interface for the RCDM Manager (external interface to apply config)
+ * Handles the high-integrity application of dynamic configuration overlays to the RCDM.
  */
-interface RCDMManager {
-    applyConfigOverlay(overlay: any): void;
+interface IRCDMConfigApplierToolKernel {
+    applyConfigOverlay(overlay: any): Promise<void>;
 }
 
 /**
- * Interface definition for the extracted plugin interaction
+ * Tool for executing secure lookup of configuration overlays based on context keys.
  */
-interface ContextualOverlayLoaderTool {
+interface IContextualOverlayLoaderToolKernel {
     execute(args: { key: string, map: any }): any | null;
 }
 
-class RiskContextualizer {
-    private rcdmManager: RCDMManager;
-    private activeContext: string;
-    private contextMapData: any;
-    private overlayLoader: ContextualOverlayLoaderTool;
+/**
+ * Registry Kernel responsible for providing the immutable mapping of risk contexts to configuration data.
+ */
+interface IRiskContextMapConfigRegistryKernel {
+    getContextMap(): Promise<any>;
+    initialize(): Promise<void>;
+}
 
-    constructor(rcdmManager: RCDMManager, overlayLoader: ContextualOverlayLoaderTool) {
-        this.rcdmManager = rcdmManager; // Interface to modify active RCDM configuration
-        // Dependency injection of the lookup utility
-        this.overlayLoader = overlayLoader;
-        // Configuration source is loaded during setup
-        this.contextMapData = CONTEXT_MAP_DATA;
-        this.activeContext = 'BASELINE';
+interface ILoggerToolKernel {
+    log(level: 'info' | 'security' | 'warn' | 'error', message: string, details?: any): void;
+}
+
+// ----------------------------------------
+
+class RiskContextualizerKernel {
+    #rcdmApplier: IRCDMConfigApplierToolKernel;
+    #overlayLoader: IContextualOverlayLoaderToolKernel;
+    #contextMapRegistry: IRiskContextMapConfigRegistryKernel;
+    #logger: ILoggerToolKernel;
+
+    #contextMapData: any;
+    #activeContext: string;
+
+    constructor(
+        rcdmApplier: IRCDMConfigApplierToolKernel,
+        overlayLoader: IContextualOverlayLoaderToolKernel,
+        contextMapRegistry: IRiskContextMapConfigRegistryKernel,
+        logger: ILoggerToolKernel
+    ) {
+        this.#rcdmApplier = rcdmApplier;
+        this.#overlayLoader = overlayLoader;
+        this.#contextMapRegistry = contextMapRegistry;
+        this.#logger = logger;
+        
+        this.#activeContext = 'BASELINE'; 
+
+        this.#setupDependencies();
     }
 
-    // Removed loadContextMap; data retrieval is now delegated to the plugin
+    #setupDependencies(): void {
+        if (!this.#rcdmApplier) {
+            throw new Error('RiskContextualizerKernel requires IRCDMConfigApplierToolKernel.');
+        }
+        if (!this.#overlayLoader) {
+            throw new Error('RiskContextualizerKernel requires IContextualOverlayLoaderToolKernel.');
+        }
+        if (!this.#contextMapRegistry) {
+            throw new Error('RiskContextualizerKernel requires IRiskContextMapConfigRegistryKernel.');
+        }
+        if (!this.#logger) {
+            throw new Error('RiskContextualizerKernel requires ILoggerToolKernel.');
+        }
+    }
 
-    updateContext(newContextKey: string): boolean {
-        if (newContextKey !== this.activeContext) {
+    /**
+     * Asynchronously loads the risk context map configuration data.
+     */
+    async initialize(): Promise<void> {
+        this.#contextMapData = await this.#contextMapRegistry.getContextMap();
+        this.#logger.log('info', 'RiskContextualizerKernel initialized and configuration loaded.');
+    }
+
+    /**
+     * Updates the active governance context and applies the corresponding RCDM overlay.
+     */
+    async updateContext(newContextKey: string): Promise<boolean> {
+        if (newContextKey !== this.#activeContext && this.#contextMapData) {
             
-            // Use the extracted plugin to retrieve the overlay configuration
-            const overlay = this.overlayLoader.execute({
+            // Use the extracted tool kernel to retrieve the overlay configuration
+            const overlay = this.#overlayLoader.execute({
                 key: newContextKey,
-                map: this.contextMapData
+                map: this.#contextMapData
             });
 
             if (overlay) {
-                // Apply dynamic update via the RCDM manager interface
-                this.rcdmManager.applyConfigOverlay(overlay);
-                this.activeContext = newContextKey;
-                console.log(`RCDM context updated to: ${newContextKey}`);
+                // Apply dynamic update via the formalized RCDM applier (asynchronous)
+                await this.#rcdmApplier.applyConfigOverlay(overlay);
+                this.#activeContext = newContextKey;
+                this.#logger.log('security', `RCDM context dynamically updated to: ${newContextKey}`);
                 return true;
             }
             return false;
@@ -73,11 +107,12 @@ class RiskContextualizer {
         return false;
     }
 
-    // Method to continuously evaluate external signals (e.g., monitoring queues, API)
-    monitorSignals() {
-        // Logic to decide if a context switch is required
-        // Example: if (ExternalThreatLevel.get() > 5) { this.updateContext('HIGH_SECURITY_MISSION'); }
+    /**
+     * Method to continuously evaluate external signals (e.g., monitoring queues, API)
+     */
+    async monitorSignals(): Promise<void> {
+        // Placeholder for asynchronous signal monitoring and context switching logic.
     }
 }
 
-module.exports = RiskContextualizer;
+module.exports = RiskContextualizerKernel;
