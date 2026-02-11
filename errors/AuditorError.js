@@ -16,6 +16,31 @@ class AuditorError extends StructuredErrorBase {
     static VERSION = 'v2.1.1';
 
     /**
+     * Utility to resolve effective options by applying AuditorError specific defaults.
+     * Extracted synchronous setup logic.
+     * @param {object} options 
+     * @returns {object}
+     */
+    static #resolveEffectiveOptions(options: { code?: string, details?: object, cause?: Error | any } = {}) {
+        return {
+            code: 'AUDIT_GENERIC',
+            details: {},
+            ...options
+        };
+    }
+
+    /**
+     * I/O Proxy: Delegates the actual instantiation of an AuditorError instance.
+     * This encapsulates the core action of error object creation.
+     * @param {string} message 
+     * @param {object} options 
+     * @returns {AuditorError}
+     */
+    static #delegateToAuditorErrorCreation(message: string, options: object): AuditorError {
+        return new AuditorError(message, options);
+    }
+
+    /**
      * @param {string} message - A concise, descriptive error message.
      * @param {object} [options={}] - Configuration options for the error.
      * @param {string} [options.code='AUDIT_GENERIC'] - A machine-readable error code.
@@ -23,12 +48,8 @@ class AuditorError extends StructuredErrorBase {
      * @param {Error} [options.cause] - The underlying error.
      */
     constructor(message: string, options: { code?: string, details?: object, cause?: Error | any } = {}) {
-        // Apply default code specific to AuditorError if not provided
-        const effectiveOptions = {
-            code: 'AUDIT_GENERIC',
-            details: {},
-            ...options
-        };
+        // Synchronous Setup Extraction: Resolve defaults before calling super.
+        const effectiveOptions = AuditorError.#resolveEffectiveOptions(options);
         
         // All stack capturing, code/details assignment, and cause handling are done by StructuredErrorBase.
         super(message, effectiveOptions);
@@ -41,13 +62,13 @@ class AuditorError extends StructuredErrorBase {
      * @returns {AuditorError}
      */
     static requiredField(fieldName: string, context: object = {}): AuditorError {
-        return new AuditorError(
-            `Required field missing or invalid: ${fieldName}`,
-            {
-                code: 'AUDIT_REQUIRED_FIELD',
-                details: { fieldName, ...context }
-            }
-        );
+        const message = `Required field missing or invalid: ${fieldName}`;
+        const options = {
+            code: 'AUDIT_REQUIRED_FIELD',
+            details: { fieldName, ...context }
+        };
+        // Delegate instantiation via I/O Proxy
+        return AuditorError.#delegateToAuditorErrorCreation(message, options);
     }
 
     /**
@@ -57,10 +78,12 @@ class AuditorError extends StructuredErrorBase {
      * @returns {AuditorError}
      */
     static constraintViolation(message: string, constraints: object): AuditorError {
-        return new AuditorError(message, {
+        const options = {
             code: 'AUDIT_CONSTRAINT_VIOLATION',
             details: { constraints }
-        });
+        };
+        // Delegate instantiation via I/O Proxy
+        return AuditorError.#delegateToAuditorErrorCreation(message, options);
     }
 
     // toJSON method is inherited from StructuredErrorBase
