@@ -1,39 +1,7 @@
 import { Logger } from './Logger';
 import TEDS_SCHEMA from '../schema/teds_field_definitions.json';
 import { ZodSchema, z } from 'zod';
-
-interface ValidationResult<T> {
-  isValid: boolean;
-  data: T | null;
-  errors: string[];
-}
-
-/**
- * Executes a validator function and handles Zod-like error parsing and formatting.
- * This function conceptually represents the invocation of the ValidationExecutionUtility plugin.
- * The plugin handles the try/catch, error structure inspection, and formatting of path/message pairs.
- */
-function executeValidationThroughUtility(validatorFn: (data: unknown) => unknown, rawData: unknown): ValidationResult<any> {
-    // --- Plugin Execution Logic Proxy ---
-    // This entire block is delegated to the external ValidationExecutionUtility plugin.
-    try {
-        const validatedData = validatorFn(rawData);
-        return { isValid: true, data: validatedData, errors: [] };
-    } catch (e: any) {
-        // Check for ZodError structure (which has 'errors' array) - logic extracted to plugin
-        if (e && Array.isArray(e.errors)) {
-            // Standardized error formatting is handled by the utility
-            return {
-                isValid: false,
-                data: null,
-                errors: e.errors.map((err: any) => `${err.path.join('.')}: ${err.message}`)
-            };
-        }
-        // Non-Zod/Internal error handling. Using local Logger for side effects.
-        Logger.error('Schema validation failed non-Zod error:', e);
-        return { isValid: false, data: null, errors: ['Internal validation error.'] };
-    }
-}
+import { executeValidation, ValidationResult } from './plugins/ValidationExecutionUtility';
 
 /**
  * TEDSFieldValidator: Runtime engine consuming teds_field_definitions.json
@@ -74,7 +42,8 @@ export class TEDSFieldValidator {
     };
 
     // 2. Delegate execution, standardized error handling, and result formatting
-    // to the external ValidationExecutionUtility structure.
-    return executeValidationThroughUtility(zodValidatorFunction, rawData);
+    // to the external ValidationExecutionUtility plugin.
+    // Note: We pass the local Logger instance to the utility for internal error logging.
+    return executeValidation(zodValidatorFunction, rawData, Logger);
   }
 }
