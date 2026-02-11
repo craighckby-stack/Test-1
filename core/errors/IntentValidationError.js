@@ -29,6 +29,14 @@ export class IntentValidationError extends BaseAgiError {
             IntentValidationError.HTTP_STATUS_CODE
         );
 
+        this.#initializeDetails(validationDetails);
+    }
+
+    /**
+     * Extracts the synchronous setup of internal error details.
+     * @param {Array<Object>} validationDetails 
+     */
+    #initializeDetails(validationDetails) {
         // Encapsulate the diagnostic payload
         this.#details = validationDetails;
     }
