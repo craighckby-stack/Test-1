@@ -93,8 +93,12 @@ class PreemptiveStateResolver {
             riskModel: this.#riskModel
         };
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool (Now a dedicated plugin)
-        const R_TH = KERNEL_SYNERGY_CAPABILITIES.Tool.execute('RiskThresholdCalculator', riskParams);
+        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool
+        if (typeof KERNEL_SYNERGY_CAPABILITIES.RiskThresholdCalculatorService === 'undefined') {
+            throw new Error("[PSR] CRITICAL FAILURE: RiskThresholdCalculatorService is not loaded into KERNEL_SYNERGY_CAPABILITIES.");
+        }
+        
+        const R_TH = await KERNEL_SYNERGY_CAPABILITIES.RiskThresholdCalculatorService.execute('calculateThreshold', riskParams);
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
