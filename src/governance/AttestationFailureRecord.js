@@ -1,69 +1,60 @@
 /**
  * @file AttestationFailureRecord.js
- * Represents an immutable record of a failed attestation attempt, leveraging
- * the ImmutableRecordBase plugin for standardized serialization and immutability.
+ * Represents an immutable record of a failed attestation attempt.
+ * This class is a pure data structure requiring its serialization schema 
+ * to be injected upon instantiation. Static factory and schema retrieval 
+ * methods are delegated to a strategic Factory Kernel to enforce asynchronous 
+ * configuration retrieval and dependency resolution.
+ *
+ * NOTE: It is assumed that 'ImmutableRecordBase' is provided through the 
+ * module environment or inheritance chain, eliminating the need for synchronous `require`.
  */
-
-// NOTE: Assumes ImmutableRecordBase is imported/available in the execution context.
-const { ImmutableRecordBase } = require('../plugins/ImmutableRecordBase');
-
-/**
- * Defines the mapping between internal field names (full) and minimized external JSON keys (aId, vId, etc.)
- * for computational efficiency and reduced payload size.
- * @type {Object<string, string>}
- */
-const RECORD_SCHEMA = Object.freeze({
-    attestationId: 'aId',
-    validatorId: 'vId',
-    reason: 'r',
-    timestamp: 't' // Unix epoch ms
-});
 
 class AttestationFailureRecord extends ImmutableRecordBase {
     /**
      * Constructs an immutable failure record.
-     * @param {object} data - Data structure containing properties matching SCHEMA internal keys.
+     * 
+     * NOTE: This constructor now requires the validated serialization schema 
+     * to be passed by the calling Factory/Tool Kernel.
+     * 
+     * @param {object} data - Data structure containing properties.
      * @param {string} data.attestationId - Unique ID of the failed attestation.
      * @param {string} data.validatorId - ID of the validator that recorded the failure.
      * @param {string} data.reason - Concise reason for the failure.
      * @param {number} data.timestamp - Timestamp (ms) of the failure.
+     * @param {Object<string, string>} recordSchema - The serialization/minification schema.
      */
-    constructor(data) {
-        // Enforce essential validation before initializing the immutable structure.
+    constructor(data, recordSchema) {
+        // 1. Enforce essential validation
         if (!data || !data.attestationId || typeof data.attestationId !== 'string' || 
             !data.validatorId || typeof data.timestamp !== 'number' || !data.reason) {
             throw new Error("AttestationFailureRecord: Required fields missing or invalid data type.");
         }
 
-        // The base constructor handles property definition, immutability, and assignment.
-        super(data, RECORD_SCHEMA);
+        // 2. Validate injected configuration dependency
+        if (!recordSchema || typeof recordSchema !== 'object' || Object.keys(recordSchema).length === 0) {
+            throw new Error("AttestationFailureRecord: Required recordSchema configuration dependency missing or invalid.");
+        }
+
+        // 3. The base constructor handles property definition, immutability, and assignment,
+        // utilizing the injected schema for mapping.
+        super(data, recordSchema);
     }
 
     /**
      * Serializes the record into a minimized JSON structure.
+     * Assumes the base class (ImmutableRecordBase) implements this method 
+     * using the schema passed during construction.
      * @returns {Object}
      */
     toJSON() {
-        return ImmutableRecordBase.toJSON(this, RECORD_SCHEMA);
+        // Delegate serialization responsibility entirely to the base class.
+        return super.toJSON();
     }
-
-    /**
-     * Creates a new AttestationFailureRecord instance from a serialized JSON object.
-     * @param {Object} json - The serialized record data.
-     * @returns {AttestationFailureRecord}
-     */
-    static fromJSON(json) {
-        const internalData = ImmutableRecordBase.fromJSON(json, RECORD_SCHEMA);
-        return new AttestationFailureRecord(internalData);
-    }
-
-    /**
-     * Helper for accessing the schema map without exposing internal details directly.
-     * @returns {Object<string, string>}
-     */
-    static getSchema() {
-        return RECORD_SCHEMA;
-    }
+    
+    // NOTE: Static methods (fromJSON, getSchema) are removed. They introduce 
+    // synchronous dependencies on configuration (schema) and utility kernel references,
+    // and must be implemented by an external, asynchronous Factory/Tool Kernel.
 }
 
 module.exports = AttestationFailureRecord;
