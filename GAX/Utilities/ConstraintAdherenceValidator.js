@@ -27,6 +27,49 @@ _createCriticalViolation(code, details, target = 'SYSTEM') {
     };
 }
 
+/**
+ * Performs critical input and dependency checks necessary before attempting constraint execution.
+ * This method extracts the logic for dependency checking (steps 1, 2, 3 of original validate).
+ * 
+ * @param {string[]} requiredConstraintCodes 
+ * @returns {{code?: string, details?: string, service?: object}}
+ */
+_runCriticalPreflightChecks(requiredConstraintCodes) {
+    const SERVICE_KEY = 'ConstraintExecutionService';
+
+    // 1. Input Validation (Data Preparation Check)
+    if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
+        return { 
+            code: 'INPUT_VALIDATION_ERROR', 
+            details: 'Required constraint codes list is invalid (must be a non-empty array).'
+        };
+    }
+    
+    // 2. Synergy Service Access (Dependency Retrieval)
+    let ConstraintExecutionService = null;
+    if (typeof Synergy === 'object' && typeof Synergy.get === 'function') {
+        ConstraintExecutionService = Synergy.get(SERVICE_KEY);
+    }
+
+    if (!ConstraintExecutionService) {
+        return { 
+            code: 'KERNEL_SERVICE_UNAVAILABLE', 
+            details: `Required synergy service ${SERVICE_KEY} is unavailable.` 
+        };
+    }
+
+    // 3. Local Dependency Check (Taxonomy Map)
+    const { taxonomyMap } = this;
+    if (!taxonomyMap || typeof taxonomyMap.get !== 'function') {
+        return { 
+            code: 'TAXONOMY_MAP_MISSING', 
+            details: "Local taxonomy map required for constraint definitions is missing or invalid (this.taxonomyMap)."
+        };
+    }
+    
+    // Success path: return the acquired service instance.
+    return { service: ConstraintExecutionService };
+}
 
 /**
  * Standardizes the output of a single constraint check into a structured violation object or null if adherent.
@@ -77,37 +120,22 @@ _standardizeConstraintResult(code, constraintDef, adherenceCheck, error) {
 
 
 async validate(configuration, requiredConstraintCodes) {
-    const SERVICE_KEY = 'ConstraintExecutionService';
     const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
 
-    // 1. Input Validation (Data Preparation Check)
-    if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
-        const details = 'Required constraint codes list is invalid (must be a non-empty array).';
-        console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return this._createCriticalViolation('INPUT_VALIDATION_ERROR', details);
+    // 1. Run Critical Preflight Checks
+    const preflightResult = this._runCriticalPreflightChecks(requiredConstraintCodes);
+
+    if (preflightResult.code) {
+        // Handle critical failure: Log error (Side effect) and return violation payload (Data assembly)
+        console.error(`${VALIDATION_CONTEXT} ${preflightResult.details}`);
+        return this._createCriticalViolation(preflightResult.code, preflightResult.details);
     }
     
-    // 2. Synergy Service Access (Dependency Retrieval)
-    let ConstraintExecutionService = null;
-    if (typeof Synergy === 'object' && typeof Synergy.get === 'function') {
-        ConstraintExecutionService = Synergy.get(SERVICE_KEY);
-    }
+    // Extract successful dependencies
+    const ConstraintExecutionService = preflightResult.service;
+    const { taxonomyMap } = this; // Taxonomy check was implicitly successful if we reached here
 
-    if (!ConstraintExecutionService) {
-        const details = `Required synergy service ${SERVICE_KEY} is unavailable.`;
-        console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return this._createCriticalViolation('KERNEL_SERVICE_UNAVAILABLE', details);
-    }
-
-    // 3. Local Dependency Check (Taxonomy Map)
-    const { taxonomyMap } = this;
-    if (!taxonomyMap || typeof taxonomyMap.get !== 'function') {
-        const details = "Local taxonomy map required for constraint definitions is missing or invalid (this.taxonomyMap).";
-        console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return this._createCriticalViolation('TAXONOMY_MAP_MISSING', details);
-    }
-
-    // 4. Constraint Execution Loop (Parallelized using Promise.all)
+    // 2. Constraint Execution Loop (Parallelized using Promise.all)
     const validationPromises = requiredConstraintCodes.map(async (code) => {
         const constraintDef = taxonomyMap.get(code);
 
