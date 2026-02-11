@@ -1,12 +1,12 @@
 // Define log levels and their weights (higher weight means higher priority/severity)
-const LEVEL_WEIGHTS = {
+const LEVEL_WEIGHTS = Object.freeze({
     'debug': 10,
     'info': 20,
     'warn': 30,
     'error': 40,
     'critical': 50,
     'fatal': 60,
-};
+});
 const DEFAULT_LEVEL = 'info';
 
 // src/governance/TelemetryService.js
@@ -19,11 +19,14 @@ class TelemetryService {
     constructor(config = {}) {
         this.source = config.source || 'AEOR';
         
-        const requestedLevel = config.logLevel ? config.logLevel.toLowerCase() : DEFAULT_LEVEL;
+        const requestedLevel = (config.logLevel || DEFAULT_LEVEL).toLowerCase();
         
-        this.logLevel = requestedLevel;
+        // Normalize logLevel: Ensure this.logLevel is always a recognized key. 
+        const effectiveLevel = LEVEL_WEIGHTS[requestedLevel] ? requestedLevel : DEFAULT_LEVEL;
+        
+        this.logLevel = effectiveLevel;
         // Determine the minimum weight required for a message to be logged
-        this.logLevelWeight = LEVEL_WEIGHTS[requestedLevel] || LEVEL_WEIGHTS[DEFAULT_LEVEL];
+        this.logLevelWeight = LEVEL_WEIGHTS[effectiveLevel];
 
         // Define a map for console sinks, adding robustness for environments lacking specific methods
         this.consoleSink = {
