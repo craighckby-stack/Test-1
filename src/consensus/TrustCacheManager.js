@@ -1,32 +1,25 @@
 /**
- * @typedef {object} CacheEntry
- * @property {number} score - The calculated trust score.
- * @property {number} expiry - Unix timestamp in milliseconds when the entry expires.
- */
-
-/**
  * Trust Cache Manager Configuration structure.
  * @typedef {object} TrustCacheManagerConfig
  * @property {number} [ttlSeconds=300] - Time-to-live for cache entries.
  * @property {number} [cleanupIntervalSeconds=60] - How often the background cleanup runs.
  */
 
+const TTLMapCache = require('./plugins/TTLMapCache');
+
 const DEFAULT_TTL_SECONDS = 300; // 5 minutes
 const DEFAULT_CLEANUP_INTERVAL_SECONDS = 60; // 1 minute
 
 /**
- * Trust Cache Manager (TCM) v94.1
+ * Trust Cache Manager (TCM) v94.2
  * Manages the persistence and retrieval of calculated agent trust scores, implementing
- * active garbage collection for bounded memory usage and configurable lifetime.
+ * active garbage collection via the underlying TTLMapCache utility.
  */
 class TrustCacheManager {
     /**
      * @param {TrustCacheManagerConfig} [config={}] - Configuration object.
      */
     constructor(config = {}) {
-        /** @type {Map<string, CacheEntry>} */
-        this.cache = new Map();
-
         // Resolve configuration with defaults
         const resolvedConfig = {
             ttlSeconds: DEFAULT_TTL_SECONDS,
@@ -34,48 +27,11 @@ class TrustCacheManager {
             ...config
         };
 
-        this._ttlMs = resolvedConfig.ttlSeconds * 1000;
-        this._cleanupIntervalMs = resolvedConfig.cleanupIntervalSeconds * 1000;
+        const ttlMs = resolvedConfig.ttlSeconds * 1000;
+        const cleanupIntervalMs = resolvedConfig.cleanupIntervalSeconds * 1000;
         
-        this._cleanupTimer = null; 
-
-        this._startCleanupTask();
-    }
-
-    /**
-     * Initializes the periodic background task for cache cleanup.
-     * Prevents unbounded memory growth from unread, expired entries.
-     * @private
-     */
-    _startCleanupTask() {
-        if (this._cleanupIntervalMs > 0) {
-            // Use .bind(this) to ensure the execution context for _runCleanup is correct
-            this._cleanupTimer = setInterval(this._runCleanup.bind(this), this._cleanupIntervalMs);
-            
-            // Optimization: Allow Node process to exit cleanly if this is the only active timer.
-            if (typeof this._cleanupTimer.unref === 'function') {
-                this._cleanupTimer.unref(); 
-            }
-        }
-    }
-
-    /**
-     * Clears all expired entries from the cache in one pass.
-     * @private
-     * @returns {number} The number of items cleaned.
-     */
-    _runCleanup() {
-        const now = Date.now();
-        let cleanedCount = 0;
-        
-        for (const [key, entry] of this.cache.entries()) {
-            // Use <= now for strict expiration handling
-            if (entry.expiry <= now) {
-                this.cache.delete(key);
-                cleanedCount++;
-            }
-        }
-        return cleanedCount;
+        /** @type {TTLMapCache<string, number>} */
+        this._cache = new TTLMapCache(ttlMs, cleanupIntervalMs);
     }
 
     /**
@@ -106,12 +62,8 @@ class TrustCacheManager {
         }
 
         const key = this._generateKey(agentId, currentContext);
-        const expiry = Date.now() + this._ttlMs;
         
-        /** @type {CacheEntry} */
-        const entry = { score, expiry };
-
-        this.cache.set(key, entry);
+        this._cache.set(key, score);
     }
 
     /**
@@ -124,20 +76,11 @@ class TrustCacheManager {
     getScore(agentId, currentContext = 'GLOBAL') {
         try {
             const key = this._generateKey(agentId, currentContext);
-            const entry = this.cache.get(key);
+            const score = this._cache.get(key);
 
-            if (!entry) {
-                return null;
-            }
-
-            const now = Date.now();
-            if (entry.expiry <= now) {
-                // Lazy expiration: delete expired item immediately
-                this.cache.delete(key);
-                return null;
-            }
-
-            return entry.score;
+            // TTLMapCache returns undefined if missing/expired, map back to null for API consistency
+            return score !== undefined ? score : null;
+            
         } catch (e) {
             // Gracefully handle errors from _generateKey (e.g., invalid Agent ID)
             return null; 
@@ -152,7 +95,7 @@ class TrustCacheManager {
     invalidate(agentId, currentContext = 'GLOBAL') {
         try {
             const key = this._generateKey(agentId, currentContext);
-            this.cache.delete(key);
+            this._cache.delete(key);
         } catch (e) {
             // Ignore invalidation attempts based on bad input keys
         }
@@ -162,17 +105,14 @@ class TrustCacheManager {
      * Returns the current size of the cache (including potentially expired items).
      */
     size() {
-        return this.cache.size;
+        return this._cache.size();
     }
 
     /**
      * Stops the background cleanup interval task. Essential for clean system shutdown.
      */
     stop() {
-        if (this._cleanupTimer) {
-            clearInterval(this._cleanupTimer);
-            this._cleanupTimer = null;
-        }
+        this._cache.stopCleanup();
     }
 }
 
