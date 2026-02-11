@@ -61,10 +61,16 @@ class EfficiencyDebtPrioritizer {
         for (const [metricKey, weight] of Object.entries(weights)) {
             // RobustWeightedScorer logic: handles missing metrics by defaulting to least favorable value.
             const isPenaltyMetric = weight < 0;
+            
             // Default to 1.0 (max penalty) if negative weight and metric missing; 0.0 otherwise.
             const defaultValue = isPenaltyMetric ? 1.0 : 0.0;
             
-            const metricValue = metrics[metricKey] || defaultValue;
+            const rawMetricValue = metrics[metricKey];
+            
+            // CRITICAL FIX: Ensure valid metric scores of 0.0 are not replaced by the default value.
+            const metricValue = (rawMetricValue === undefined || rawMetricValue === null)
+                ? defaultValue
+                : rawMetricValue;
             
             score += metricValue * weight;
         }
