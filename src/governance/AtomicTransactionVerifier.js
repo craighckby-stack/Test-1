@@ -11,13 +11,14 @@ class AtomicTransactionVerifier {
      * @param {CryptographyService} dependencies.crypto - Service for hashing and signing.
      * @param {ArtifactStorage} dependencies.storage - Persistent storage for transaction artifacts.
      * @param {TelemetryService} dependencies.telemetry - Logging service.
+     * @param {IntegrityAuditor} dependencies.integrityAuditor - The abstracted integrity checking plugin.
      */
-    constructor({ crypto, storage, telemetry }) {
+    constructor({ crypto, storage, telemetry, integrityAuditor }) {
         this.crypto = crypto;
         this.storage = storage;
         this.telemetry = telemetry;
-        // Assume PLUGINS is globally available or resolved via injection mechanism
-        this.integrityVerifier = PLUGINS.IntegrityVerificationUtility; 
+        // Inject the newly formalized plugin instead of accessing a global PLUGINS object
+        this.integrityAuditor = integrityAuditor; 
     }
 
     /**
@@ -40,14 +41,12 @@ class AtomicTransactionVerifier {
 
         // --- 2. Re-calculate and verify hash of the C-04 trace log using plugin ---
         
-        // Bind the specific crypto function for injection into the utility
-        const hashArtifactFn = this.crypto.hashArtifact.bind(this.crypto); 
-        
-        const hashCheckResult = this.integrityVerifier.execute('verifyHashConsistency', [
+        // Direct call to the plugin method, passing the specific implementation function as a dependency
+        const hashCheckResult = this.integrityAuditor.verifyHashConsistency(
             traceArtifact.traceLog,
             auditContext.expectedTraceHash,
-            hashArtifactFn
-        ]);
+            this.crypto.hashArtifact.bind(this.crypto)
+        );
 
         if (!hashCheckResult.isConsistent) {
              this.telemetry.error(`MTV Integrity Breach: C04 Execution Trace hash mismatch for ${deploymentID}. Reason: ${hashCheckResult.reason}`);
@@ -56,13 +55,12 @@ class AtomicTransactionVerifier {
         
         // --- 3. Verify SEA/FBA Audit Data Integrity (Signature check) using plugin ---
 
-        const verifySignatureFn = this.crypto.verifySignature.bind(this.crypto);
-
-        const signatureCheckResult = this.integrityVerifier.execute('verifySignatureIntegrity', [
+        // Direct call to the plugin method, passing the specific implementation function as a dependency
+        const signatureCheckResult = this.integrityAuditor.verifySignatureIntegrity(
             auditContext.metrics, 
             auditContext.auditSignature,
-            verifySignatureFn
-        ]);
+            this.crypto.verifySignature.bind(this.crypto)
+        );
 
         if (!signatureCheckResult.isValid) {
              this.telemetry.error(`MTV Integrity Breach: Audit data signature failed verification for ${deploymentID}. Reason: ${signatureCheckResult.reason}`);
