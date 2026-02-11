@@ -34,13 +34,23 @@ class IntentValidator {
      * @param validatorUtility The core schema validation tool instance.
      */
     constructor(validatorUtility: ISchemaValidatorUtility) {
-        this.#validator = validatorUtility;
-        this.#initializeSchema(); // Guaranteed initialization before first use
+        this.#setupDependencies(validatorUtility);
+        this.#performSynchronousSetup();
     }
 
-    // Private method ensures the critical schema loading logic is contained and managed.
-    #initializeSchema(): void {
-        this.#validator.initialize(intentSchema);
+    // Isolates dependency assignment, enforcing strict dependency encapsulation.
+    #setupDependencies(validatorUtility: ISchemaValidatorUtility): void {
+        this.#validator = validatorUtility;
+    }
+
+    // Isolates synchronous steps required before the validator is operational (schema loading).
+    #performSynchronousSetup(): void {
+        this.#delegateToValidatorInitialization(intentSchema);
+    }
+
+    // Private I/O proxy for delegating the schema initialization call to the external tool.
+    #delegateToValidatorInitialization(schema: any): void {
+        this.#validator.initialize(schema);
     }
 
     /**
@@ -49,7 +59,13 @@ class IntentValidator {
      * @returns The validation result.
      */
     public validate(intent: IntentPayload): ValidationResult {
-        return this.#validator.execute(intent);
+        // Abstract the external tool interaction via a dedicated I/O proxy.
+        return this.#delegateToValidatorValidation(intent);
+    }
+
+    // Private I/O proxy for delegating the validation execution call to the external tool.
+    #delegateToValidatorValidation(payload: IntentPayload): ValidationResult {
+        return this.#validator.execute(payload);
     }
 }
 
