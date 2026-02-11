@@ -7,7 +7,9 @@
  * CRITICAL: Logic delegated to AdaptiveQoSConstraintGovernor tool.
  */
 
-// Assuming the AGI environment makes extracted tools accessible globally or via an assumed dependency injection mechanism.
+// Placeholder mechanism for accessing Kernel-managed tools/plugins.
+// This ensures flexibility whether the dependency is global, injected, or provided via a standard registry.
+const ToolRegistry = globalThis.ToolRegistry || {}; 
 
 /**
  * Calculates optimal runtime constraints based on performance feedback.
@@ -15,20 +17,24 @@
  *
  * @param {object} currentConstraints - The current constraints configuration.
  * @param {object} performanceMetrics - Real-time performance metrics (e.g., successful_evaluations, failed_timeouts, average_latency_ms).
+ * @param {object} [GovernorTool] - Optional tool instance injection for testing/flexibility.
  * @returns {object} The updated constraints configuration.
  */
-export function calculateOptimalConstraints(currentConstraints, performanceMetrics) {
-    // Access the specialized governance tool (injected by AGI_KERNEL)
-    const GovernorTool = AdaptiveQoSConstraintGovernor;
+export function calculateOptimalConstraints(currentConstraints, performanceMetrics, GovernorTool) {
+    
+    // Resolve the dependency. Prioritize injection, then registry/global lookup.
+    const Governor = GovernorTool 
+        || ToolRegistry.AdaptiveQoSConstraintGovernor 
+        || globalThis.AdaptiveQoSConstraintGovernor;
 
-    if (!GovernorTool || typeof GovernorTool.execute !== 'function') {
+    if (!Governor || typeof Governor.execute !== 'function') {
         // Fallback: If the tool is unavailable, return existing constraints.
-        console.error("AdaptiveQoSConstraintGovernor tool is not available. Cannot apply adaptive QoS.");
+        console.warn("AdaptiveQoSConstraintGovernor tool is missing or improperly defined. Cannot apply adaptive QoS.");
         return currentConstraints;
     }
 
     // Delegate the complex calculation to the plugin for centralized and reusable logic.
-    return GovernorTool.execute({
+    return Governor.execute({
         currentConstraints,
         performanceMetrics
     });
