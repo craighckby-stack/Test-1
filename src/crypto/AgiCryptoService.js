@@ -1,59 +1,96 @@
 /**
- * AGS: AGI CRYPTO SERVICE (V95.3)
+ * AGS: AGI CRYPTO SERVICE KERNEL (V95.3)
  * Scope: Stage 1/Security Core Utility.
  * Function: Provides standardized, high-assurance cryptographic primitives required
  * by the System State Verifier (SSV), Governance Rule System (GRS), and other sensitive components.
  *
- * NOTE: All cryptographic operations are now delegated to the CanonicalCryptoUtility plugin
+ * NOTE: All cryptographic operations are now delegated to the CryptoUtilityInterfaceKernel
  * to ensure platform abstraction, integrity, and compliance.
  */
 
 /**
- * @typedef {object} ICanonicalCryptoUtility
- * @property {(data: string, algorithm: string) => string} calculateHash - Calculates a hash digest.
- * @property {(data: string, signature: string, attestationKeyId: string) => boolean} verifySignature - Verifies a signature.
+ * @typedef {import("../../tools/CryptoUtilityInterfaceKernel").ICryptoUtilityInterfaceKernel} ICryptoUtilityInterfaceKernel
  */
 
-class AgiCryptoService {
-    // Constants are typed using JSDoc standard or retained if TS is implicitly handled by the environment.
-    private readonly ALGORITHM_HASH = 'sha256';
-    private readonly ALGORITHM_SIGNATURE = 'ecdsa';
-    /** @type {ICanonicalCryptoUtility} */
-    private readonly cryptoUtility;
+class AgiCryptoServiceKernel {
+    // Constants are now private fields to enforce encapsulation.
+    #ALGORITHM_HASH = 'sha256';
+    #ALGORITHM_SIGNATURE = 'ecdsa';
+
+    /** @type {ICryptoUtilityInterfaceKernel} */
+    #cryptoUtility;
 
     /**
-     * @param {ICanonicalCryptoUtility} cryptoUtility - Injected utility for crypto operations.
+     * @param {object} dependencies
+     * @param {ICryptoUtilityInterfaceKernel} dependencies.cryptoUtility - Injected kernel tool for crypto operations.
      */
-    constructor(cryptoUtility) {
-        // CRITICAL: Ensure the utility is available and implements the required method.
-        if (!cryptoUtility || typeof cryptoUtility.calculateHash !== 'function') {
-            throw new Error("AgiCryptoService requires a valid ICanonicalCryptoUtility instance providing calculateHash.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Isolates dependency assignment and validation, satisfying the synchronous setup extraction mandate.
+     * @param {object} dependencies
+     */
+    #setupDependencies(dependencies) {
+        if (!dependencies || !dependencies.cryptoUtility) {
+            throw new Error("AgiCryptoServiceKernel requires the 'cryptoUtility' dependency (ICryptoUtilityInterfaceKernel).");
         }
-        this.cryptoUtility = cryptoUtility;
+        const cryptoUtility = dependencies.cryptoUtility;
+
+        // CRITICAL: Ensure the utility is available and implements the required methods.
+        if (typeof cryptoUtility.calculateHash !== 'function' || typeof cryptoUtility.verifySignature !== 'function') {
+            throw new Error("AgiCryptoServiceKernel: Injected cryptoUtility must provide calculateHash and verifySignature methods.");
+        }
+
+        this.#cryptoUtility = cryptoUtility;
+    }
+
+    /**
+     * Required initialization hook for the Kernel architecture.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Asynchronous initialization steps would go here if required.
+        return Promise.resolve();
     }
 
     /**
      * Calculates a cryptographic hash of the input data.
-     * Delegates implementation to CanonicalCryptoUtility.
+     * NOTE: Transitioned to asynchronous execution for strategic consistency.
      * @param {string} data - The input data string.
      * @param {string} [algorithm] - Hashing algorithm (e.g., 'sha256'). Defaults to internal standard.
-     * @returns {string} The computed hash digest (hexadecimal).
+     * @returns {Promise<string>} The computed hash digest (hexadecimal).
      */
-    public hash(data, algorithm = this.ALGORITHM_HASH) {
-        return this.cryptoUtility.calculateHash(data, algorithm);
+    async hash(data, algorithm = this.#ALGORITHM_HASH) {
+        // Wrap synchronous crypto call in a Promise to enforce strategic async signature.
+        try {
+            const result = this.#cryptoUtility.calculateHash(data, algorithm);
+            return Promise.resolve(result);
+        } catch (error) {
+            // Use error wrapping for context in high-level kernel
+            throw new Error(`AgiCryptoServiceKernel hash operation failed: ${error.message}`);
+        }
     }
 
     /**
      * Verifies an external cryptographic signature against the data and a known public key.
-     * Delegates implementation to CanonicalCryptoUtility.
+     * NOTE: Transitioned to asynchronous execution for strategic consistency.
      * @param {string} data - The original data payload.
      * @param {string} signature - The signature to verify.
      * @param {string} attestationKeyId - Identifier for the public key used for verification.
-     * @returns {boolean} True if the signature is valid, false otherwise.
+     * @returns {Promise<boolean>} True if the signature is valid, false otherwise.
      */
-    public verifySignature(data, signature, attestationKeyId) {
-        return this.cryptoUtility.verifySignature(data, signature, attestationKeyId);
+    async verifySignature(data, signature, attestationKeyId) {
+        // Wrap synchronous crypto call in a Promise to enforce strategic async signature.
+        try {
+            const result = this.#cryptoUtility.verifySignature(data, signature, attestationKeyId);
+            return Promise.resolve(result);
+        } catch (error) {
+            // Use error wrapping for context in high-level kernel
+            throw new Error(`AgiCryptoServiceKernel signature verification failed: ${error.message}`);
+        }
     }
 }
 
-module.exports = AgiCryptoService;
+module.exports = AgiCryptoServiceKernel;
