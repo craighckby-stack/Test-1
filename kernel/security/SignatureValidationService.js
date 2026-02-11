@@ -11,14 +11,25 @@ class SignatureValidationService {
      * @param {object} dependencies.keyIdentityResolver - Service to map public keys/IDs to known system roles.
      * @param {object} dependencies.cryptoEngine - Interface for cryptographic operations (hashing, signature verification, canonicalization).
      * @param {object} dependencies.complianceReporter - Plugin for general compliance reporting and validation tracking.
+     * @param {object} [dependencies.signatureContextFactory] - Optional factory to abstract context creation (auto-initialized if missing).
      */
-    constructor({ keyIdentityResolver, cryptoEngine, complianceReporter }) {
+    constructor({ keyIdentityResolver, cryptoEngine, complianceReporter, signatureContextFactory }) {
         if (!keyIdentityResolver || !cryptoEngine || !complianceReporter) {
             throw new Error("SignatureValidationService requires keyIdentityResolver, cryptoEngine, and complianceReporter.");
         }
         this.keyIdentityResolver = keyIdentityResolver;
         this.cryptoEngine = cryptoEngine;
         this.complianceReporter = complianceReporter;
+
+        // Use provided factory or initialize the abstracted component internally
+        if (signatureContextFactory) {
+            this.contextFactory = signatureContextFactory;
+        } else {
+            // Assumes SignatureVerificationContextFactory is available (e.g., imported or required)
+            // We instantiate it internally using the core dependencies it needs.
+            const Factory = typeof SignatureVerificationContextFactory !== 'undefined' ? SignatureVerificationContextFactory : require('./SignatureVerificationContextFactory');
+            this.contextFactory = new Factory({ keyIdentityResolver, cryptoEngine });
+        }
     }
 
     /**
@@ -47,27 +58,10 @@ class SignatureValidationService {
 
         const messageToVerify = this._canonicalizeRequest(request);
 
-        // Define functions required by the ComplianceReporter plugin
-        
-        /** Maps signature object to system role ID */
-        const idExtractor = (sig) => {
-            if (!sig.publicKey || !sig.signature) return null;
-            return this.keyIdentityResolver.resolveRoleFromKey(sig.publicKey);
-        };
-        
-        /** Performs cryptographic verification and handles engine errors */
-        const validator = (sig) => {
-            try {
-                return this.cryptoEngine.verifySignature(messageToVerify, sig.signature, sig.publicKey);
-            } catch (e) {
-                // Log specific cryptographic failures relevant to this service
-                console.error(`[SVS] Error during crypto verification for key ${sig.publicKey}:`, e.message);
-                // Treat crypto errors (malformed input, engine failure) as validation failure
-                return false; 
-            }
-        };
+        // 1. Abstract generation of ID extraction and validation functions
+        const { idExtractor, validator } = this.contextFactory.createContext(messageToVerify);
 
-        // Utilize the extracted compliance logic
+        // 2. Utilize the generic compliance reporter with the generated context
         const complianceResult = this.complianceReporter.execute({
             requiredIds: requiredRoles,
             inputList: signatures,
