@@ -16,6 +16,16 @@ class FailureTraceLogger_Service {
      * @param {object} storage - The immutable storage connector.
      */
     constructor(serializer, certifier, storage) {
+        this.#setupDependencies(serializer, certifier, storage);
+    }
+
+    /**
+     * Handles synchronous dependency validation and assignment.
+     * @param {object} serializer 
+     * @param {object} certifier 
+     * @param {object} storage 
+     */
+    #setupDependencies(serializer, certifier, storage) {
         // Enforce explicit dependency injection contract
         if (!serializer || !certifier || !storage) {
             throw new Error("FailureTraceLogger_Service requires all three dependencies (serializer, certifier, storage) to be explicitly injected.");
@@ -23,7 +33,34 @@ class FailureTraceLogger_Service {
         
         this.#serializer = serializer; 
         this.#certifier = certifier;   
-        this.#storage = storage;       
+        this.#storage = storage;
+    }
+
+    /**
+     * Delegates synchronous serialization to the external plugin.
+     * @param {object} traceData - The raw failure trace object.
+     * @returns {string} The canonical JSON string.
+     */
+    #delegateToSerializer(traceData) {
+        return this.#serializer.serialize(traceData);
+    }
+
+    /**
+     * Delegates asynchronous signing/certification to the external plugin.
+     * @param {string} canonicalTrace - The deterministic JSON string.
+     * @returns {Promise<string>} The certified log data.
+     */
+    async #delegateToCertifier(canonicalTrace) {
+        return await this.#certifier.sign(canonicalTrace);
+    }
+
+    /**
+     * Delegates asynchronous immutable storage operation to the external connector.
+     * @param {string} certifiedLog - The certified log data.
+     * @returns {Promise<object>} The storage receipt.
+     */
+    async #delegateToStorage(certifiedLog) {
+        return await this.#storage.store(certifiedLog);
     }
 
     /**
@@ -37,14 +74,13 @@ class FailureTraceLogger_Service {
         }
 
         // 1. Canonical JSON Serialization
-        // Ensures a deterministic string output, crucial for hashing consistency.
-        const canonicalTrace = this.#serializer.serialize(traceData);
+        const canonicalTrace = this.#delegateToSerializer(traceData);
 
         // 2. Cryptographic Certification
-        const certifiedLog = await this.#certifier.sign(canonicalTrace);
+        const certifiedLog = await this.#delegateToCertifier(canonicalTrace);
 
         // 3. Immutable Storage Connection
-        const storageReceipt = await this.#storage.store(certifiedLog);
+        const storageReceipt = await this.#delegateToStorage(certifiedLog);
 
         return {
             storageReceipt: storageReceipt,
