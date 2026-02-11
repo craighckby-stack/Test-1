@@ -1,71 +1,131 @@
 /**
- * ConstraintEnforcementService
+ * ConstraintEnforcementKernel
  * This service manages module contract integrity, efficient lookup, and constraint evaluation.
  * It abstracts the complex interactions between caching/integrity utilities and the evaluation engine.
  */
-class ConstraintEnforcementService {
+class ConstraintEnforcementKernel {
     
+    #contractCacheUtility;
+    #evaluationEngine;
+    // Internal state required by the delegated utility's API for dynamic cycle detection.
+    #activeContractMap;
+
     /**
      * Initializes the service, retrieving necessary kernel utilities.
      * @param {Object} [deps] Optional dependencies for testing/injection.
-     * @param {Object} [deps.contractCacheUtility] The utility for efficient contract retrieval and cycle detection.
-     * @param {Object} [deps.evaluationEngine] The tool for calculating the safety index and checking constraints.
      */
     constructor(deps = {}) {
-        this.contractCacheUtility = deps.contractCacheUtility || globalThis.ContractIntegrityAndCacheUtility;
-        this.evaluationEngine = deps.evaluationEngine || globalThis.ConstraintEvaluationEngineTool;
+        this.#setupDependencies(deps);
+        this.#activeContractMap = new Map(); 
+    }
 
-        if (!this.contractCacheUtility) {
-            throw new Error("Initialization Failure: Dependency ContractIntegrityAndCacheUtility missing.");
-        }
-        if (!this.evaluationEngine) {
-            throw new Error("Initialization Failure: Dependency ConstraintEvaluationEngineTool missing.");
-        }
+    /**
+     * (Strategic Goal: Synchronous Setup Extraction)
+     * Handles dependency validation and assignment.
+     */
+    #setupDependencies(deps) {
+        this.#contractCacheUtility = deps.contractCacheUtility || globalThis.ContractIntegrityAndCacheUtility;
+        this.#evaluationEngine = deps.evaluationEngine || globalThis.ConstraintEvaluationEngineTool;
 
-        // Map used solely for providing context during a single graph traversal 
-        // within the utility function to detect circular dependencies dynamically.
-        // Managed instance state required by the delegated utility's API.
-        this.activeContractMap = new Map(); 
+        if (!this.#contractCacheUtility) {
+            this.#throwSetupError("Dependency ContractIntegrityAndCacheUtility missing.");
+        }
+        if (!this.#evaluationEngine) {
+            this.#throwSetupError("Dependency ConstraintEvaluationEngineTool missing.");
+        }
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation)
+     * Throws initialization errors.
+     */
+    #throwSetupError(message) {
+        throw new Error(`ConstraintEnforcementKernel Initialization Failure: ${message}`);
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation - State Management)
+     * Clears the context map for a fresh dependency check scope.
+     */
+    #clearActiveContractMap() {
+        this.#activeContractMap.clear();
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation - External Delegation)
+     * Delegates efficient storage, caching, and integrity checks.
+     */
+    #delegateToContractCacheUtility(moduleId) {
+        // Must clear state before calling the utility based on its API contract.
+        this.#clearActiveContractMap();
+        
+        // Utility handles caching, efficient lookup, and cycle detection.
+        return this.#contractCacheUtility.execute({ 
+            moduleId: moduleId,
+            contractMap: this.#activeContractMap // Context provided to the utility
+        });
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation - External Delegation)
+     * Delegates to the evaluation engine to check constraints and calculate safety index.
+     */
+    #delegateToEvaluationEngine(contract, runtimeData) {
+        return this.#evaluationEngine.execute({ 
+            contract: contract,
+            data: runtimeData
+        });
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation - Logging)
+     * Handles logging for integrity failures.
+     */
+    #logIntegrityFailure(moduleId, error) {
+        console.warn(`Constraint Enforcement Failure for module ${moduleId}: ${error.message}`);
+    }
+
+    /**
+     * (Strategic Goal: I/O Proxy Creation - Control Flow/Formatting)
+     * Formats a standardized failure result object.
+     */
+    #formatIntegrityFailureResult(error) {
+        return {
+            safetyIndex: 0.0,
+            results: [{
+                name: "IntegrityCheck",
+                isValid: false,
+                message: `Contract retrieval or integrity check failed: ${error.message}`
+            }],
+            isCompliant: false
+        };
     }
 
     /**
      * Retrieves and validates the contract for a given module ID.
-     * Delegates efficient storage, caching, and integrity checks (circular dependencies).
      * 
      * @param {string} moduleId 
      * @returns {Object} The validated contract definition.
      * @throws {Error} If a circular dependency or missing contract is found.
      */
     getValidatedContract(moduleId) {
-        // Clear context map for a fresh dependency check scope related to this retrieval.
-        this.activeContractMap.clear(); 
-        
-        // Utility handles caching, efficient lookup, and cycle detection.
-        const contract = this.contractCacheUtility.execute({ 
-            moduleId: moduleId,
-            contractMap: this.activeContractMap // Context provided to the utility
-        });
-        
-        return contract;
+        return this.#delegateToContractCacheUtility(moduleId);
     }
 
     /**
      * Core method to evaluate runtime data against module constraints and calculate the Safety Index.
-     * 
+     *
      * @param {string} moduleId The ID of the module whose constraints are being enforced.
      * @param {Object} runtimeData The data object to validate against the contract.
      * @returns {{safetyIndex: number, results: Array, isCompliant: boolean}} Enforcement results.
      */
     enforce(moduleId, runtimeData) {
         try {
-            // 1. Integrity Check and Contract Retrieval (Efficient & Safe)
+            // 1. Integrity Check and Contract Retrieval
             const contract = this.getValidatedContract(moduleId);
 
             // 2. Constraint Evaluation (Delegated logic)
-            const evaluationResult = this.evaluationEngine.execute({ 
-                contract: contract,
-                data: runtimeData
-            });
+            const evaluationResult = this.#delegateToEvaluationEngine(contract, runtimeData);
 
             return {
                 safetyIndex: evaluationResult.safetyIndex,
@@ -75,21 +135,11 @@ class ConstraintEnforcementService {
 
         } catch (error) {
             // Handle integrity breaches (e.g., Circular Dependency, missing contract)
-            console.warn(`Constraint Enforcement Failure for module ${moduleId}: ${error.message}`);
-            
-            // Format an integrity failure result
-            return {
-                safetyIndex: 0.0,
-                results: [{
-                    name: "IntegrityCheck",
-                    isValid: false,
-                    message: `Contract retrieval or integrity check failed: ${error.message}`
-                }],
-                isCompliant: false
-            };
+            this.#logIntegrityFailure(moduleId, error);
+            return this.#formatIntegrityFailureResult(error);
         }
     }
 }
 
 // Expose the service
-globalThis.ConstraintEnforcementService = ConstraintEnforcementService;
+globalThis.ConstraintEnforcementKernel = ConstraintEnforcementKernel;
