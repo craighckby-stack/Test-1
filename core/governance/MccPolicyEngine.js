@@ -31,10 +31,10 @@ interface IDeclarativePolicyConditionEvaluator {
 }
 
 class MccPolicyEngine {
-    private policies: PolicyDefinition[] = [];
-    private policyMatcher: PolicyRuleMatcherTool;
-    private conditionEvaluator: IDeclarativePolicyConditionEvaluator;
-    private schemaValidator: SchemaCompilerAndValidator;
+    #policies: PolicyDefinition[] = [];
+    #policyMatcher: PolicyRuleMatcherTool;
+    #conditionEvaluator: IDeclarativePolicyConditionEvaluator;
+    #schemaValidator: SchemaCompilerAndValidator;
 
     /**
      * @param policyMatcher Tool for efficient rule indexing and matching.
@@ -46,10 +46,10 @@ class MccPolicyEngine {
         conditionEvaluator: IDeclarativePolicyConditionEvaluator, // Now required injection
         schemaValidator: SchemaCompilerAndValidator,
     ) {
-        // Dependencies are cleanly injected.
-        this.conditionEvaluator = conditionEvaluator;
-        this.policyMatcher = policyMatcher;
-        this.schemaValidator = schemaValidator;
+        // Dependencies are cleanly injected and assigned to private fields.
+        this.#conditionEvaluator = conditionEvaluator;
+        this.#policyMatcher = policyMatcher;
+        this.#schemaValidator = schemaValidator;
     }
 
     /**
@@ -57,17 +57,18 @@ class MccPolicyEngine {
      */
     public initializeEngine(rawPolicies: PolicyDefinition[]): void {
         if (!rawPolicies || rawPolicies.length === 0) {
-            this.policies = [];
+            this.#policies = [];
             return;
         }
 
         // Optimization 1 & 2: Assuming PolicyRuleMatcherTool compiles efficient lookup structures.
-        this.policyMatcher.compileRules(rawPolicies);
+        this.#policyMatcher.compileRules(rawPolicies);
 
-        // Optimization 3: Sort policies based on explicit priority (high priority first) to minimize evaluation steps (Step 4).
-        this.policies = rawPolicies.sort((a, b) => b.priority - a.priority);
+        // Optimization 3: Sort a copy of policies based on explicit priority (high priority first) to minimize evaluation steps (Step 4).
+        // Using spread syntax ([...rawPolicies]) ensures we do not mutate the array passed by the caller.
+        this.#policies = [...rawPolicies].sort((a, b) => b.priority - a.priority);
 
-        console.log(`MccPolicyEngine initialized with ${this.policies.length} prioritized policies.`);
+        console.log(`MccPolicyEngine initialized with ${this.#policies.length} prioritized policies.`);
     }
 
     /**
@@ -79,7 +80,7 @@ class MccPolicyEngine {
         }
 
         // Step 4a: Find matching policies using efficient structures (Trie/Interval Tree abstraction).
-        const matchingPolicies = this.policyMatcher.findMatchingRules(transaction.resourceId, this.policies);
+        const matchingPolicies = this.#policyMatcher.findMatchingRules(transaction.resourceId, this.#policies);
 
         // Iterate through matching policies in order of pre-sorted priority (Step 4b)
         for (const policy of matchingPolicies) {
@@ -87,7 +88,7 @@ class MccPolicyEngine {
             const contextData = { ...transaction, ...transaction.context };
             
             // Step 5: Use the dedicated condition evaluator for recursive assessment.
-            const conditionsMet = this.conditionEvaluator.execute({
+            const conditionsMet = this.#conditionEvaluator.execute({
                 data: contextData,
                 policyConditions: policy.conditions
             });
