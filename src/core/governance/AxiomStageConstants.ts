@@ -5,6 +5,8 @@
  * Derived from config/schemas/AxiomStageIDs.schema.json (V94.1).
  */
 
+import { deepFreeze } from '@kernel/utils/DeepFreezer';
+
 export type StageID =
   | 'S0'
   | 'S1'
@@ -22,23 +24,6 @@ export interface StageDefinition {
   name: string;
   description: string;
 }
-
-/**
- * Utility function derived from the RecursiveConstantFreezer tool logic
- * to ensure deep immutability of constant definitions.
- */
-const deepFreeze = <T>(obj: T): Readonly<T> => {
-    if (obj && typeof obj === 'object' && obj !== null && !Object.isFrozen(obj)) {
-        Object.getOwnPropertyNames(obj).forEach(prop => {
-            const val = (obj as any)[prop];
-            if (typeof val === 'object' && val !== null && !Object.isFrozen(val)) {
-                deepFreeze(val);
-            }
-        });
-        return Object.freeze(obj) as Readonly<T>;
-    }
-    return obj as Readonly<T>;
-};
 
 export const AXIOM_STAGES: Readonly<Record<StageID, Readonly<StageDefinition>>> = deepFreeze({
   S0: {
