@@ -9,6 +9,18 @@ const GAXEventSchema = Object.freeze(require('./GAXEventSchema'));
 
 class TelemetryValidator {
     /**
+     * Executes the core validation logic using the external declarative tool.
+     * @param {Object} schema - The validation schema definition.
+     * @param {Object} payload - The raw data object to validate.
+     * @returns {Object} { isValid: boolean, errors: Array<string> }
+     */
+    static #executeValidationDelegation({ schema, payload }) {
+        // Delegate the core validation logic (required, type, enum, strictness) to the specialized, reusable tool.
+        // Tool interface: .validate({ schema, payload }) -> { isValid, errors }
+        return DeclarativeEventSchemaValidator.validate({ schema, payload });
+    }
+
+    /**
      * Validates a raw event payload against its defined schema using the declarative validator tool.
      * @param {string} eventName - The key name of the event (e.g., 'SYS:INIT:START').
      * @param {Object} payload - The raw data object to validate.
@@ -36,9 +48,7 @@ class TelemetryValidator {
             };
         }
         
-        // Delegate the core validation logic (required, type, enum, strictness) to the specialized, reusable tool.
-        // Tool interface: .validate({ schema, payload }) -> { isValid, errors }
-        return DeclarativeEventSchemaValidator.validate({ schema, payload });
+        return this.#executeValidationDelegation({ schema, payload });
     }
 }
 
