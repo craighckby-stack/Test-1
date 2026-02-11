@@ -5,35 +5,36 @@
  */
 
 import { RequestContext } from '@core/middleware/RequestContext.js';
-// Import the newly defined plugin interface for type safety (if available in the environment)
-// Since we are operating within AGI-KERNEL, we define the type for use.
 
 /**
- * Interface for the stateful ConfigurationContextMapper tool.
- * @typedef {object} ConfigurationContextMapper
+ * Interface for the stateful ContextResolutionMapper tool.
+ * @typedef {object} ContextResolutionMapperInstance
  * @property {(args: { method?: string, route?: string, jobType?: string }) => string} execute - Resolves context attributes to a validation group.
  */
 
 export class ValidationContextResolver {
   /**
-   * @type {ConfigurationContextMapper}
+   * @type {ContextResolutionMapperInstance}
    */
   #mapper;
 
   /**
    * @param {object} config - Application configuration object.
    * @param {object} [config.contextResolution.contextMap] - The flat mapping of context keys to groups.
-   * @param {object} ConfigurationContextMapperTool - Injected/available tool factory.
+   * @param {object} ContextResolutionMapper - Injected tool class that exposes a static initialize() method.
+   * 
+   * Note: ConfigurationContextMapperTool has been replaced by the abstracted ContextResolutionMapper.
    */
-  constructor(config, ConfigurationContextMapperTool) {
+  constructor(config, ContextResolutionMapper) {
     const configMap = config.contextResolution?.contextMap || {};
     
-    // Use the extracted tool to handle configuration parsing and storage, 40%
-    // delegation of complexity.
-    if (!ConfigurationContextMapperTool || typeof ConfigurationContextMapperTool.initialize !== 'function') {
-        throw new Error("ConfigurationContextMapperTool is required for ValidationContextResolver.");
+    // Ensure the required plugin is available for initialization.
+    if (!ContextResolutionMapper || typeof ContextResolutionMapper.initialize !== 'function') {
+        throw new Error("ContextResolutionMapper is required for ValidationContextResolver.");
     }
-    this.#mapper = ConfigurationContextMapperTool.initialize(configMap);
+    
+    // Delegate configuration parsing and context structure creation to the specialized tool.
+    this.#mapper = ContextResolutionMapper.initialize(configMap);
   }
 
   /**
