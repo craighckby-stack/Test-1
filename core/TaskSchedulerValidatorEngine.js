@@ -14,19 +14,35 @@ class TaskSchedulerValidatorEngine {
     #validationChecks;
 
     /**
+     * Extracts the dependency resolution and critical interface validation logic for the Precondition Executor.
+     * @param {object | undefined} executorInstance 
+     * @returns {object} The validated or newly instantiated utility.
+     */
+    #getValidatedExecutorUtility(executorInstance) {
+        if (!PreconditionExecutorUtility && !executorInstance) {
+             throw new Error(`${TaskSchedulerValidatorEngine.#SETUP_ERROR_PREFIX} Required dependency 'PreconditionExecutorUtility' not available.`);
+        }
+        return executorInstance || new PreconditionExecutorUtility();
+    }
+
+    /**
+     * Resolves the logger dependency, providing a fallback console logger if needed.
+     * @param {object | undefined} inputLogger 
+     * @returns {object} The resolved logger instance.
+     */
+    #resolveLogger(inputLogger) {
+        return inputLogger || (FALLBACK_LOGGER ? new FALLBACK_LOGGER('TaskValidator') : console);
+    }
+
+    /**
      * @param {object} [dependencies]
      * @param {object} [dependencies.logger] - An instance of the system logger.
      * @param {object} [dependencies.executorUtility] - An instance of PreconditionExecutorUtility.
      */
     constructor({ logger, executorUtility } = {}) {
-        // 1. Dependency Validation & Resolution
-        if (!PreconditionExecutorUtility && !executorUtility) {
-             throw new Error(`${TaskSchedulerValidatorEngine.#SETUP_ERROR_PREFIX} Required dependency 'PreconditionExecutorUtility' not available.`);
-        }
-
-        this.#executorUtility = executorUtility || new PreconditionExecutorUtility();
-        // Fallback to console if logger utility isn't globally available
-        this.#logger = logger || (FALLBACK_LOGGER ? new FALLBACK_LOGGER('TaskValidator') : console);
+        // 1. Dependency Resolution using extracted helpers
+        this.#executorUtility = this.#getValidatedExecutorUtility(executorUtility);
+        this.#logger = this.#resolveLogger(logger);
 
         // 2. Initialize the Validation Map and freeze it to guarantee immutability.
         this.#validationChecks = Object.freeze(this.#setupValidationMap());
@@ -57,6 +73,24 @@ class TaskSchedulerValidatorEngine {
             // ... additional core checks ...
         };
     }
+    
+    /**
+     * Delegates the precondition checks to the external utility, handling immediate errors and logging.
+     * This acts as an I/O proxy for the PreconditionExecutorUtility.
+     * @param {string[]} preconditions
+     * @param {Object} taskDefinition
+     * @param {string} checkName
+     * @returns {boolean} True if preconditions passed.
+     */
+    #runPreconditions(preconditions, taskDefinition, checkName) {
+        try {
+            this.#executorUtility.execute(preconditions, taskDefinition);
+            return true;
+        } catch (error) {
+            this.#logger.warn(`[Validation Precondition Failure] Check: ${checkName}. Error: ${error.message}`);
+            return false;
+        }
+    }
 
     /**
      * Executes the comprehensive validation suite against a task definition.
@@ -74,14 +108,8 @@ class TaskSchedulerValidatorEngine {
         for (const [checkName, checkConfig] of Object.entries(this.#validationChecks)) {
             const { preconditions, check } = checkConfig;
 
-            // 1. Execute Preconditions using the encapsulated utility
-            let preConditionPass = true;
-            try {
-                this.#executorUtility.execute(preconditions, taskDefinition);
-            } catch (error) {
-                this.#logger.warn(`[Validation Precondition Failure] Check: ${checkName}. Error: ${error.message}`);
-                preConditionPass = false;
-            }
+            // 1. Execute Preconditions using the encapsulated I/O proxy
+            const preConditionPass = this.#runPreconditions(preconditions, taskDefinition, checkName);
 
             if (!preConditionPass) {
                 overallValidity = false;
