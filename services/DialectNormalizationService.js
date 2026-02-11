@@ -5,17 +5,12 @@
  */
 
 const mapConfig = require('../config/dial_analysis_map.json');
-
-// CRITICAL: We assume a dependency injection framework (like the AGI-Kernel) 
-// provides a mechanism to initialize the stateful tool instance based on the config.
-// We simulate this by requiring a hypothetical ToolInitializer.
-
-const ToolInitializer = require('@kernel/plugins/CascadedMappingResolverTool');
+const CascadedMappingResolverTool = require('@kernel/plugins/CascadedMappingResolverTool');
 
 class DialectNormalizationService {
   constructor() {
     // Initialize the stateful resolver instance using the configuration map.
-    this.resolver = ToolInitializer.initialize(mapConfig);
+    this.resolver = CascadedMappingResolverTool.initialize(mapConfig);
 
     console.log(`DANS initialized using CascadedMappingResolverTool with version ${mapConfig.version}`);
   }
