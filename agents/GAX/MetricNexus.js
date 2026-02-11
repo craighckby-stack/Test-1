@@ -1,4 +1,15 @@
 /**
+ * Helper function to stabilize floating point precision across kernel nodes.
+ * @param {number} value
+ * @returns {number}
+ */
+const _stabilizePrecision = (value) => {
+    // Stabilizes precision to 6 decimal places for kernel consistency
+    const safeValue = typeof value === 'number' && !isNaN(value) ? value : 0;
+    return parseFloat(safeValue.toFixed(6));
+};
+
+/**
  * Calculates the directional change (delta) in the standardized Equilibrium Metric (EQM)
  * between the current state and the immediate preceding historical state.
  * This function relies on an external EQM_Extractor plugin for robust data handling.
@@ -22,9 +33,9 @@ const calculateEquilibriumDelta = (currentMetrics, historicalTrends, EQM_Extract
     ];
 
     // Determine the directional change.
-    // Precision is stabilized to prevent floating point inaccuracies across kernel nodes.
+    // Precision is stabilized using a dedicated helper to prevent floating point inaccuracies.
     const rawDelta = currentEQM - previousEQM;
-    const delta = parseFloat(rawDelta.toFixed(6));
+    const delta = _stabilizePrecision(rawDelta);
 
     return { delta, previousEQM, currentEQM };
 };
