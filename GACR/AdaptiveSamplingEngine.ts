@@ -192,21 +192,27 @@ export class AdaptiveSamplingEngine {
         }
         
         const { rate: requiredRate, restrictingConstraint } = reductionResult;
+        
+        const finalRate = this._applyBoundaries(requiredRate); // Apply boundaries and precision
 
         // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook Logging
         // Log decision parameters if sampling is enforced (< 1.0) and the hook is available.
-        if (requiredRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
+        if (finalRate < 1.0 && restrictingConstraint && typeof KERNEL_HOOK !== 'undefined') {
             KERNEL_HOOK.log('AdaptiveSamplingDecision', {
-                rateAdjustment: requiredRate,
-                constrainingFactor: restrictingConstraint.name,
-                currentUtilization: restrictingConstraint.current,
-                targetUtilization: restrictingConstraint.target,
-                source: calculationSource // Explicit source tracking for resilience analysis
+                finalRate: finalRate,
+                rawRate: requiredRate,
+                calculationSource,
+                boundariesApplied: requiredRate !== finalRate,
+                restrictingConstraint: {
+                    name: restrictingConstraint.name,
+                    current: restrictingConstraint.current,
+                    target: restrictingConstraint.target,
+                    // Log the raw rate factor used for calculation (Target/Current)
+                    rateFactor: restrictingConstraint.target / restrictingConstraint.current 
+                }
             });
         }
         
-        // --- END: KERNEL V7 Synergy Integration ---
-
-        return this._applyBoundaries(requiredRate);
+        return finalRate;
     }
 }
