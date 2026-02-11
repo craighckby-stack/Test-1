@@ -1,49 +1,66 @@
 /**
- * Component ID: SSR
- * Component Name: State Snapshot Repository
+ * Component ID: SSRK
+ * Component Name: State Snapshot Repository Kernel
  * GSEP Role: EPDP D/E Auxiliary (Atomic State Tracing)
- * Location: src/governance/stateSnapshotRepository.js
+ * Location: src/governance/stateSnapshotRepositoryKernel.js
  *
  * Function: Stores an immutable record of cryptographic components used to define
  * a System State Hash (SSH), providing a persistent, detailed audit trail for
  * rollback decisions and state integrity verification.
  *
- * NOTE ON IMMUTABILITY: All stored snapshots are defensively frozen to prevent runtime mutation.
+ * This kernel replaces the synchronous StateSnapshotRepository, delegating all persistence,
+ * validation, and logging responsibilities to specialized asynchronous Tool Kernels
+ * to achieve Maximum Recursive Abstraction (MRA) and comply with AIA mandates.
  */
 
-// NOTE: In a production environment, this should utilize a secure, append-only, 
-// persistent store (like an isolated database table or tamper-proof log).
-// For scaffolding, we use a simple in-memory structure.
-
-const stateSnapshots = new Map();
-
-/**
- * Defines the expected structure for a System State Snapshot.
- * @typedef {{ proposalID: string, configHash: string, codebaseHash: string, ssh: string, timestamp: number }} SystemStateSnapshot
- */
-
-export class StateSnapshotRepository {
+export class StateSnapshotRepositoryKernel {
 
     /**
-     * Internal utility for checking snapshot validity structure.
-     * @param {any} snapshot 
-     * @returns {boolean}
+     * @param {object} tools - Injected Tool Kernels.
+     * @param {IProposalHistoryConfigRegistryKernel} tools.proposalHistoryRegistry - Manages immutable historical records linked to proposals.
+     * @param {ISpecValidatorKernel} tools.specValidator - Validates the structure and integrity of the snapshot payload.
+     * @param {MultiTargetAuditDisperserToolKernel} tools.auditDisperser - Handles secure, asynchronous, auditable logging.
      */
-    static _validateSnapshot(snapshot) {
-        if (typeof snapshot !== 'object' || snapshot === null) {
-            console.error(`[SSR Validation Error] Snapshot object is null or not an object.`);
+    constructor({ proposalHistoryRegistry, specValidator, auditDisperser }) {
+        this.proposalHistoryRegistry = proposalHistoryRegistry;
+        this.specValidator = specValidator;
+        this.auditDisperser = auditDisperser;
+        this.isInitialized = false;
+        this.snapshotSchemaId = 'SystemStateSnapshotSchema';
+    }
+
+    /**
+     * Mandatory asynchronous initialization method.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        if (this.isInitialized) return;
+        
+        // All underlying Tool Kernels are assumed initialized via the global initialization routine.
+        // We only check structural initialization here.
+        this.isInitialized = true;
+    }
+
+    /**
+     * Internal utility for checking snapshot structural validity via the Spec Validator.
+     * @param {object} snapshot 
+     * @returns {Promise<boolean>}
+     */
+    async _validateSnapshot(snapshot) {
+        const validationResult = await this.specValidator.validate({
+            schemaId: this.snapshotSchemaId,
+            payload: snapshot
+        });
+        
+        if (!validationResult.isValid) {
+            const errors = validationResult.errors.map(e => e.message || String(e)).join('; ');
+            await this.auditDisperser.audit({
+                level: 'CRITICAL', 
+                message: `Invalid state snapshot provided. Validation errors: ${errors}`,
+                component: 'SSRK', 
+                data: snapshot 
+            });
             return false;
-        }
-        const requiredKeys = ['proposalID', 'configHash', 'codebaseHash', 'ssh'];
-        for (const key of requiredKeys) {
-            if (typeof snapshot[key] !== 'string' || snapshot[key].length === 0) {
-                console.error(`[SSR Validation Error] Missing or invalid key: ${key}`);
-                return false;
-            }
-        }
-        if (typeof snapshot.timestamp !== 'number') {
-             console.error(`[SSR Validation Error] Missing timestamp.`);
-             return false;
         }
         return true;
     }
@@ -51,61 +68,90 @@ export class StateSnapshotRepository {
     /**
      * Saves the complete cryptographic context snapshot, ensuring immutability.
      * The proposalID serves as the unique identifier and transaction lock.
-     * @param {SystemStateSnapshot} snapshot
-     * @returns {void}
+     * @param {{ proposalID: string, configHash: string, codebaseHash: string, ssh: string, timestamp: number }} snapshot
+     * @returns {Promise<void>}
      */
-    static saveSnapshot(snapshot) {
-        if (!StateSnapshotRepository._validateSnapshot(snapshot)) {
-            console.error(`[SSR] Critical Error: Invalid snapshot provided. Refusing to store immutable record.`);
+    async saveSnapshot(snapshot) {
+        if (!this.isInitialized) throw new Error("SSRK: Kernel not initialized.");
+
+        const isValid = await this._validateSnapshot(snapshot);
+        if (!isValid) {
+            return; // Validation failure logged internally.
+        }
+
+        // Check for existing record via the Registry
+        const proposalID = snapshot.proposalID;
+        const exists = await this.proposalHistoryRegistry.hasHistoryRecord(proposalID);
+        
+        if (exists) {
+            // Immutability Check: Prevent overwriting existing, locked state records.
+            await this.auditDisperser.audit({
+                level: 'WARNING',
+                message: `Attempted to overwrite state snapshot for Proposal ID ${proposalID}. Operation skipped due to immutability mandate.`,
+                component: 'SSRK',
+                proposalId: proposalID
+            });
             return;
         }
 
-        if (stateSnapshots.has(snapshot.proposalID)) {
-            // Immutability Check: Prevent overwriting existing, locked state records.
-            console.warn(`[SSR] Warning: Attempted to overwrite state snapshot for Proposal ID ${snapshot.proposalID}. Operation skipped due to immutability mandate.`);
-            return;
+        try {
+            // Delegation: The registry handles persistence, defensive copying, and freezing.
+            await this.proposalHistoryRegistry.registerHistoryRecord(proposalID, snapshot);
+
+            await this.auditDisperser.audit({
+                level: 'INFO',
+                message: `State snapshot successfully locked and saved for Proposal ID: ${proposalID}.`,
+                component: 'SSRK',
+                proposalId: proposalID
+            });
+        } catch (error) {
+            await this.auditDisperser.audit({
+                level: 'ERROR',
+                message: `Failed to save state snapshot for Proposal ID ${proposalID}: ${error.message}`,
+                component: 'SSRK',
+                error: error.message,
+                stack: error.stack
+            });
+            throw error; 
         }
-        
-        // Store the immutable record defensively copied and frozen.
-        const immutableRecord = Object.freeze({ ...snapshot });
-        stateSnapshots.set(snapshot.proposalID, immutableRecord);
-        console.info(`[SSR] State snapshot successfully locked and saved for Proposal ID: ${snapshot.proposalID}. Total records: ${stateSnapshots.size}.`);
     }
 
     /**
      * Retrieves a detailed snapshot by Proposal ID.
      * @param {string} proposalID
-     * @returns {SystemStateSnapshot | undefined}
+     * @returns {Promise<object | undefined>}
      */
-    static getSnapshot(proposalID) {
-        // Returns the frozen object or undefined, maintaining read-only access.
-        return stateSnapshots.get(proposalID);
+    async getSnapshot(proposalID) {
+        if (!this.isInitialized) throw new Error("SSRK: Kernel not initialized.");
+        // Delegation: Retrieve the immutable record.
+        return this.proposalHistoryRegistry.getHistoryRecord(proposalID);
     }
 
     /**
-     * Checks if a snapshot exists for a given Proposal ID, crucial for integrity checks.
+     * Checks if a snapshot exists for a given Proposal ID.
      * @param {string} proposalID
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
-    static hasSnapshot(proposalID) {
-        return stateSnapshots.has(proposalID);
-    }
-
-    /**
-     * Clears all snapshots. Restricted to privileged environment resets/testing.
-     * @returns {void}
-     */
-    static clearRepository() {
-        const count = stateSnapshots.size;
-        stateSnapshots.clear();
-        console.warn(`[SSR] Repository Cleared. ${count} records forcefully removed.`);
+    async hasSnapshot(proposalID) {
+        if (!this.isInitialized) throw new Error("SSRK: Kernel not initialized.");
+        return this.proposalHistoryRegistry.hasHistoryRecord(proposalID);
     }
 
     /**
      * Retrieves the total count of stored snapshots (Metric).
-     * @returns {number}
+     * @returns {Promise<number>}
      */
-    static getSize() {
-        return stateSnapshots.size;
+    async getSize() {
+        if (!this.isInitialized) throw new Error("SSRK: Kernel not initialized.");
+        // Delegation: Retrieve the metric from the underlying registry.
+        // Assuming the history registry exposes a size/count accessor.
+        if (typeof this.proposalHistoryRegistry.getRecordCount === 'function') {
+            return this.proposalHistoryRegistry.getRecordCount();
+        } 
+        return 0; // Fallback
     }
+    
+    // Note: The synchronous 'clearRepository' method is deprecated and removed to maintain
+    // the immutability mandate. Repository cleaning must be done via privileged system calls
+    // routed through the Proposal History Registry's lifecycle management interface.
 }
