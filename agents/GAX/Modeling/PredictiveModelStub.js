@@ -42,19 +42,17 @@ class PredictiveModelStub {
              throw new Error("Model weights failed to load or were unloaded.");
         }
 
-        let result;
+        // Access the KERNEL capability interface
+        const engine = globalThis.KERNEL_SYNERGY_CAPABILITIES?.PredictiveStubEngine;
 
         // Check for KERNEL capability access and ensure the necessary service is available.
-        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || 
-            !KERNEL_SYNERGY_CAPABILITIES.PredictiveStubEngine ||
-            typeof KERNEL_SYNERGY_CAPABILITIES.PredictiveStubEngine.execute !== 'function') {
-            
+        if (!engine || typeof engine.execute !== 'function') {
             throw new Error("Required KERNEL capability 'PredictiveStubEngine' is missing or malformed.");
         }
 
         // Delegate the core stub calculation logic to the KERNEL Tooling system.
         // Standardized execution uses the operation verb 'predict'.
-        result = await KERNEL_SYNERGY_CAPABILITIES.PredictiveStubEngine.execute('predict', features);
+        const result = await engine.execute('predict', features);
         
         return result;
     }
