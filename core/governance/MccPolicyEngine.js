@@ -46,10 +46,32 @@ class MccPolicyEngine {
         conditionEvaluator: IDeclarativePolicyConditionEvaluator, // Now required injection
         schemaValidator: SchemaCompilerAndValidator,
     ) {
-        // Dependencies are cleanly injected and assigned to private fields.
+        this.#setupDependencies(policyMatcher, conditionEvaluator, schemaValidator);
+    }
+
+    /**
+     * Encapsulates dependency assignment.
+     */
+    #setupDependencies(policyMatcher: PolicyRuleMatcherTool, conditionEvaluator: IDeclarativePolicyConditionEvaluator, schemaValidator: SchemaCompilerAndValidator): void {
         this.#conditionEvaluator = conditionEvaluator;
         this.#policyMatcher = policyMatcher;
         this.#schemaValidator = schemaValidator;
+    }
+
+    /**
+     * I/O Proxy: Delegates to PolicyRuleMatcherTool to compile lookup structures.
+     */
+    #compileMatchingRules(rawPolicies: PolicyDefinition[]): void {
+        this.#policyMatcher.compileRules(rawPolicies);
+    }
+
+    /**
+     * Synchronous Setup: Sorts policies based on priority.
+     */
+    #preparePolicies(rawPolicies: PolicyDefinition[]): void {
+        // Optimization 3: Sort a copy of policies based on explicit priority (high priority first) to minimize evaluation steps.
+        // Using spread syntax ([...rawPolicies]) ensures we do not mutate the array passed by the caller.
+        this.#policies = [...rawPolicies].sort((a, b) => b.priority - a.priority);
     }
 
     /**
@@ -61,14 +83,28 @@ class MccPolicyEngine {
             return;
         }
 
-        // Optimization 1 & 2: Assuming PolicyRuleMatcherTool compiles efficient lookup structures.
-        this.#policyMatcher.compileRules(rawPolicies);
-
-        // Optimization 3: Sort a copy of policies based on explicit priority (high priority first) to minimize evaluation steps (Step 4).
-        // Using spread syntax ([...rawPolicies]) ensures we do not mutate the array passed by the caller.
-        this.#policies = [...rawPolicies].sort((a, b) => b.priority - a.priority);
+        this.#compileMatchingRules(rawPolicies);
+        this.#preparePolicies(rawPolicies);
 
         console.log(`MccPolicyEngine initialized with ${this.#policies.length} prioritized policies.`);
+    }
+
+    /**
+     * I/O Proxy: Delegates to PolicyRuleMatcherTool to find relevant policies.
+     */
+    #findMatchingPolicies(resourceId: string): PolicyDefinition[] {
+        // Step 4a: Find matching policies using efficient structures (Trie/Interval Tree abstraction).
+        return this.#policyMatcher.findMatchingRules(resourceId, this.#policies);
+    }
+
+    /**
+     * I/O Proxy: Delegates evaluation to the specialized condition evaluator plugin (Step 5).
+     */
+    #delegateToConditionEvaluator(contextData: any, policyConditions: any): boolean {
+        return this.#conditionEvaluator.execute({
+            data: contextData,
+            policyConditions: policyConditions
+        });
     }
 
     /**
@@ -79,19 +115,14 @@ class MccPolicyEngine {
             return 'DENY'; 
         }
 
-        // Step 4a: Find matching policies using efficient structures (Trie/Interval Tree abstraction).
-        const matchingPolicies = this.#policyMatcher.findMatchingRules(transaction.resourceId, this.#policies);
+        const matchingPolicies = this.#findMatchingPolicies(transaction.resourceId);
 
         // Iterate through matching policies in order of pre-sorted priority (Step 4b)
         for (const policy of matchingPolicies) {
             // Combine transaction details and context for full evaluation scope
             const contextData = { ...transaction, ...transaction.context };
             
-            // Step 5: Use the dedicated condition evaluator for recursive assessment.
-            const conditionsMet = this.#conditionEvaluator.execute({
-                data: contextData,
-                policyConditions: policy.conditions
-            });
+            const conditionsMet = this.#delegateToConditionEvaluator(contextData, policy.conditions);
 
             if (conditionsMet) {
                 // Return the action of the highest priority rule that meets its conditions.
