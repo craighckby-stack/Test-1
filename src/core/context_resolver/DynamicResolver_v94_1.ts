@@ -1,21 +1,62 @@
-interface IPathNormalizer {
+/**
+ * Dependency interfaces (extracted)
+ */
+
+interface ExecutionContext {
+    severity: string;
+    origin_path: string;
+    task_type: string;
+    metrics: { load: number };
+}
+
+interface ResolvedTarget {
+    target: string;
+    ruleId: string;
+    failurePolicy: string;
+}
+
+// Replaces internal IPathNormalizer and tight coupling to CriteriaPathNormalizer implementation
+export interface ICriteriaPathNormalizerToolKernel {
     normalize(criteria: any): any;
 }
 
-// We assume CriteriaPathNormalizer (the implementation from the plugin) is available 
-// and fulfills the IPathNormalizer interface.
-declare class CriteriaPathNormalizer implements IPathNormalizer {
-    normalize(criteria: any): any;
+// Replaces global state access to (globalThis as any).CriteriaEvaluatorUtility
+export interface ICriteriaEvaluatorUtilityToolKernel {
+    execute(payload: { context: ExecutionContext, criteria: any }): boolean;
 }
 
-export class DynamicResolver_v94_1 {
+// Standard Logging Interface (replaces console.error)
+export interface ILoggerToolKernel {
+    error(...args: any[]): void;
+}
+
+
+export class DynamicResolverKernel {
     private engineMap: any;
-    private normalizer: IPathNormalizer;
+    private normalizer: ICriteriaPathNormalizerToolKernel;
+    private evaluator: ICriteriaEvaluatorUtilityToolKernel;
+    private logger: ILoggerToolKernel;
 
-    constructor(mapConfig: any) {
+    constructor(
+        mapConfig: any,
+        normalizer: ICriteriaPathNormalizerToolKernel,
+        evaluator: ICriteriaEvaluatorUtilityToolKernel,
+        logger: ILoggerToolKernel
+    ) {
+        // Dependencies are assigned directly, relying on the caller for instantiation
+        this.normalizer = normalizer;
+        this.evaluator = evaluator;
+        this.logger = logger;
+        
+        // Setup logic is strictly isolated
+        this.#setupDependencies(mapConfig);
+    }
+
+    /**
+     * Isolates configuration setup and validation, satisfying synchronous setup extraction.
+     */
+    private #setupDependencies(mapConfig: any): void {
         this.engineMap = mapConfig;
-        // Instantiate the abstracted dependency
-        this.normalizer = new CriteriaPathNormalizer(); 
         this.validateMapStructure(mapConfig);
     }
 
@@ -33,7 +74,7 @@ export class DynamicResolver_v94_1 {
 
     public resolveEngineTarget(context: ExecutionContext): ResolvedTarget {
         // Rule prioritization remains local orchestration logic
-        const rules = [...this.engineMap.mapping_rules].sort((a, b) => b.priority - a.priority);
+        const rules = [...this.engineMap.mapping_rules].sort((a: any, b: any) => b.priority - a.priority);
 
         for (const rule of rules) {
             if (this.contextMatches(context, rule.context_match_criteria)) {
@@ -55,35 +96,17 @@ export class DynamicResolver_v94_1 {
     }
 
     private contextMatches(context: ExecutionContext, criteria: any): boolean {
-        const CriteriaEvaluator = (globalThis as any).CriteriaEvaluatorUtility;
-
-        if (!CriteriaEvaluator || typeof CriteriaEvaluator.execute !== 'function') {
-            // Fallback or secure failure if utility is missing
-            throw new Error("CriteriaEvaluatorUtility plugin is required but not loaded or improperly configured.");
-        }
         
-        // 1. Delegate normalization of legacy criteria paths
+        // 1. Delegate normalization of legacy criteria paths using injected normalizer
         const runtimeCriteria = this.normalizer.normalize(criteria);
 
-        // 2. Delegate complex comparison logic to the utility
+        // 2. Delegate complex comparison logic using injected evaluator
         try {
-            return CriteriaEvaluator.execute({ context, criteria: runtimeCriteria });
+            return this.evaluator.execute({ context, criteria: runtimeCriteria });
         } catch (e) {
-            console.error("Context matching failed during evaluation.", e);
+            // Use injected logger instead of console.error
+            this.logger.error("Context matching failed during evaluation.", e);
             return false;
         }
     }
-}
-
-interface ExecutionContext {
-    severity: string;
-    origin_path: string;
-    task_type: string;
-    metrics: { load: number };
-}
-
-interface ResolvedTarget {
-    target: string;
-    ruleId: string;
-    failurePolicy: string;
 }
