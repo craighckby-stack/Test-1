@@ -41,6 +41,12 @@ class ResolutionStrategyLoader {
     #moduleLoader;
 
     /**
+     * Utility function for default dynamic module loading (external I/O).
+     * @type {function(string): Promise<object>}
+     */
+    #delegateToDefaultModuleResolution = (path) => import(path);
+
+    /**
      * @param {object} definitionConfig - Configuration object containing resolution strategies.
      * @param {object} definitionConfig.resolutionStrategies - Map of strategy IDs to their definitions.
      * @param {object} dependencies - Core dependencies.
@@ -50,6 +56,15 @@ class ResolutionStrategyLoader {
      * @param {IDynamicModuleLoader} dependencies.dynamicModuleLoader - Utility for loading and instantiating modules.
      */
     constructor(definitionConfig, dependencies = {}) {
+        this.#setupDependencies(definitionConfig, dependencies);
+    }
+
+    /**
+     * Extracts synchronous dependency resolution and configuration.
+     * @param {object} definitionConfig
+     * @param {object} dependencies
+     */
+    #setupDependencies(definitionConfig, dependencies) {
         if (!definitionConfig || typeof definitionConfig.resolutionStrategies !== 'object' || definitionConfig.resolutionStrategies === null) {
             throw new Error('ResolutionStrategyLoader requires a valid definitionConfig with resolutionStrategies defined.');
         }
@@ -71,8 +86,8 @@ class ResolutionStrategyLoader {
         // Use an injected logger for production resilience and standardized logging.
         this.#logger = logger;
         
-        // Inject or default the module loading function.
-        this.#resolveModule = moduleResolver || ((path) => import(path));
+        // Inject or default the module loading function, utilizing the proxy for default I/O.
+        this.#resolveModule = moduleResolver || this.#delegateToDefaultModuleResolution;
         this.#cacheGuard = asyncCacheGuard;
         this.#moduleLoader = dynamicModuleLoader;
     }
@@ -86,12 +101,21 @@ class ResolutionStrategyLoader {
      * @throws {Error} If the strategy ID is not defined or loading fails.
      */
     async getStrategy(strategyId) {
-        // Delegate concurrency control, caching, and promise cleanup to the plugin.
+        // Delegate concurrency control, caching, and promise cleanup to the plugin via proxy.
+        return this.#delegateToCacheGuard(strategyId);
+    }
+
+    /**
+     * Isolates interaction with IAsyncCacheGuard for concurrency control (External I/O delegation).
+     * @param {string} strategyId
+     * @returns {Promise<IResolutionStrategy>}
+     */
+    #delegateToCacheGuard(strategyId) {
         return this.#cacheGuard.guard(
             strategyId,
             this.#strategyCache, 
             this.#loadingPromises, 
-            this._executeLoadingTask.bind(this) // Pass the actual loader logic
+            this.#executeLoadingTask.bind(this) // Pass the actual loader logic
         );
     }
 
@@ -103,19 +127,29 @@ class ResolutionStrategyLoader {
      * @returns {Promise<IResolutionStrategy>}
      * @private
      */
-    async _executeLoadingTask(strategyId) {
+    async #executeLoadingTask(strategyId) {
         const def = this.#strategies[strategyId];
         if (!def) {
             throw new Error(`Strategy ID '${strategyId}' not found in the resolution strategies definition.`);
         }
         
         // Delegate dynamic import, instantiation, validation, and initialization 
-        // using the injected module loader.
+        // using the injected module loader via proxy.
+        return this.#delegateToModuleLoader(strategyId, def);
+    }
+
+    /**
+     * Isolates interaction with IDynamicModuleLoader for instantiation and initialization (External I/O delegation).
+     * @param {string} strategyId
+     * @param {object} definition
+     * @returns {Promise<any>}
+     */
+    #delegateToModuleLoader(strategyId, definition) {
         return this.#moduleLoader.loadInstance(
             strategyId,
-            def,
+            definition,
             this.#resolveModule,
-            this._validateStrategyInstance.bind(this), // Strategy-specific validation
+            this.#validateStrategyInstance.bind(this), // Strategy-specific validation
             this.#logger
         );
     }
@@ -129,7 +163,7 @@ class ResolutionStrategyLoader {
      * @param {string} path - The implementation path.
      * @private
      */
-    _validateStrategyInstance(instance, strategyId, path) {
+    #validateStrategyInstance(instance, strategyId, path) {
         if (typeof instance.resolve !== 'function') {
             throw new Error(`Strategy '${strategyId}' instantiated from ${path} does not implement the required 'resolve()' method (IResolutionStrategy contract).`);
         }
