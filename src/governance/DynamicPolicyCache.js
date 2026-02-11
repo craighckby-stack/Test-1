@@ -3,9 +3,10 @@
  * Loads and encapsulates ACVD constraints for optimized, low-latency axiomatic checks.
  */
 
-// Assume PolicyVetoCheckerTool is imported or accessible via the runtime environment
-declare const PolicyVetoCheckerTool: {
-    execute: (args: { metrics: { pvlm_failure_count: number, mpam_failure_count: number }, bounds: { max_pvlm_failures: number, max_mpam_failures: number } }) => boolean;
+// AGI-KERNEL Refactor Note: PolicyVetoCheckerTool has been abstracted into the IntegrityVetoChecker plugin.
+// Assume IntegrityVetoChecker is accessible via the runtime environment.
+declare const IntegrityVetoChecker: {
+    check: (metrics: { pvlm_failure_count: number, mpam_failure_count: number }, bounds: { max_pvlm_failures: number, max_mpam_failures: number }) => boolean;
 };
 
 class DynamicPolicyCache {
@@ -46,11 +47,11 @@ class DynamicPolicyCache {
      * @returns {boolean} True if the system state is valid and non-vetoable.
      */
     checkIntegrityVeto(metrics: { pvlm_failure_count: number, mpam_failure_count: number }): boolean {
-        // Delegate the core comparison logic to the reusable PolicyVetoChecker tool.
-        return PolicyVetoCheckerTool.execute({
-            metrics: metrics,
-            bounds: this.#VetoBounds
-        });
+        // Delegate the core comparison logic to the reusable IntegrityVetoChecker plugin.
+        return IntegrityVetoChecker.check(
+            metrics,
+            this.#VetoBounds
+        );
     }
 
     /**
