@@ -1,60 +1,64 @@
 /**
- * SchemaValidator Utility Proxy
- * Delegates validation and compilation tasks to the HighPerformanceSchemaCompilerTool.
- * V97.1.0: Refactored to use dedicated Kernel Tool.
+ * AGI-KERNEL Schema Validator Proxy Kernel
+ * Delegates high-integrity schema compilation and validation tasks 
+ * to the specialized ISpecValidatorKernel.
+ * 
+ * Adheres to AIA Enforcement Layer mandates:
+ * 1. Asynchronous initialization via initialize().
+ * 2. Explicit dependency injection.
+ * 3. Maximum Recursive Abstraction (MRA) by delegating core logic.
  */
+class SchemaValidatorKernel {
+    /**
+     * @param {object} tools 
+     * @param {ISpecValidatorKernel} tools.iSpecValidatorKernel
+     */
+    constructor({ iSpecValidatorKernel }) {
+        if (!iSpecValidatorKernel) {
+            throw new Error("[SchemaValidatorKernel] Initialization failure: ISpecValidatorKernel dependency is missing.");
+        }
+        /** @type {ISpecValidatorKernel} */
+        this.specValidator = iSpecValidatorKernel;
+    }
 
-const TOOL_NAME = "HighPerformanceSchemaCompilerTool";
-const UNAVAILABLE_ERROR_MSG = `${TOOL_NAME} is unavailable.`;
-const SYSTEM_ERROR_OBJ = {
-    isValid: false,
-    errors: [{ message: UNAVAILABLE_ERROR_MSG, keyword: 'system' }]
-};
-
-// Centralized fallback tool definition for graceful degradation
-const FallbackTool = {
-    compile: () => { 
-        throw new Error(UNAVAILABLE_ERROR_MSG);
-    },
-    validate: () => SYSTEM_ERROR_OBJ
-};
-
-// Conceptual access to the kernel tool interface. 
-// Resolves the actual tool or the robust FallbackTool.
-const SchemaCompilerTool = globalThis.AGI_KERNEL_TOOLS?.[TOOL_NAME] || FallbackTool;
-
-/**
- * Proxy class for Schema Validation operations.
- * Trusts the initialization setup (SchemaCompilerTool) handles availability errors.
- */
-class SchemaValidator {
-    constructor() {
-        // Initialization is lightweight as the heavy lifting is delegated.
+    /**
+     * Initializes the kernel and ensures dependencies are ready.
+     * This method is mandatory for AIA compliance.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // The underlying ISpecValidatorKernel handles its own complex asynchronous setup.
+        return Promise.resolve();
     }
 
     /**
      * Compiles a JSON Schema into a reusable, high-performance validation function.
-     * Delegates to the HighPerformanceSchemaCompilerTool.
+     * Delegates to the ISpecValidatorKernel.
+     * 
+     * NOTE: This proxy maintains a synchronous facade for high-performance usage 
+     * post-initialization, relying on the underlying kernel's optimized runtime path.
+     * 
      * @param {object} schema - The JSON Schema definition.
      * @returns {Function} The compiled validation function.
-     * @throws {Error} If schema compilation fails or tool is missing.
+     * @throws {Error} If schema compilation fails.
      */
     compile(schema) {
-        // No redundant check needed; FallbackTool.compile handles the error case via throw.
-        return SchemaCompilerTool.compile(schema);
+        // Delegate compilation to the specialized tool kernel.
+        return this.specValidator.compile(schema);
     }
 
     /**
      * Helper method to directly validate data against a raw schema.
-     * Delegates to the HighPerformanceSchemaCompilerTool.
+     * Delegates to the ISpecValidatorKernel.
+     * 
      * @param {object} schema - The JSON Schema definition.
      * @param {any} data - The data to validate.
      * @returns {{isValid: boolean, errors: Array<object>}} Validation result object.
      */
     validate(schema, data) {
-        // No redundant check needed; FallbackTool.validate handles the error case by returning SYSTEM_ERROR_OBJ.
-        return SchemaCompilerTool.validate(schema, data);
+        // Delegate direct validation to the specialized tool kernel.
+        return this.specValidator.validate(schema, data);
     }
 }
 
-module.exports = SchemaValidator;
+module.exports = SchemaValidatorKernel;
