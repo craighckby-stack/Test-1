@@ -4,16 +4,36 @@
  * This ensures type safety across the KMS Policy Engine and related components.
  */
 
+// --- Type Aliases for Enhanced Strictness ---
+
+/** Defines a geographical coordinate as [latitude, longitude]. */
+export type GeoCoordinate = [number, number]; 
+
+/** Defines the set of permissible operations within the KMS. */
+export type KMSOperation = 
+  | 'SIGN_RECOVERY' 
+  | 'STATE_ATTESTATION'
+  | 'DECRYPT_DATA'
+  | 'ENCRYPT_DATA'
+  | 'KEY_GENERATION';
+
+/** Defines the possible states for key rotation status. */
+export type KeyRotationStatus = 'ACTIVE' | 'PENDING_DEPRECATION' | 'DEPRECATED';
+
+// --- Runtime Request Interface ---
+
 export interface KeyRequest {
   identityId: string;
-  operation: string; // e.g., 'SIGN_RECOVERY', 'STATE_ATTESTATION'
+  operation: KMSOperation; 
   signatureAgeMinutes: number;
-  geoCoordinate?: [number, number];
+  geoCoordinate?: GeoCoordinate;
 }
+
+// --- Configuration Interfaces ---
 
 export interface UsageProfile {
   description: string;
-  allowed_usages: string[];
+  allowed_usages: KMSOperation[];
   max_concurrent_ops?: number; 
   rate_limit_per_minute?: number;
 }
@@ -22,7 +42,7 @@ export interface IdentityMapEntry {
     identity_id: string;
     usage_profile_id: string;
     description: string;
-    key_rotation_status?: 'ACTIVE' | 'PENDING_DEPRECATION' | 'DEPRECATED';
+    key_rotation_status?: KeyRotationStatus;
 }
 
 export interface GlobalSecurityPolicies {
@@ -31,7 +51,7 @@ export interface GlobalSecurityPolicies {
     enforce_geospatial_lock: boolean;
     allowed_countries?: string[];
   };
-  enforce_key_rotation_check: boolean; // Proposed security measure
+  enforce_key_rotation_check: boolean;
 }
 
 export interface PolicyStructure {
