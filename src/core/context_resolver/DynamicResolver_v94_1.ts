@@ -1,8 +1,21 @@
+interface IPathNormalizer {
+    normalize(criteria: any): any;
+}
+
+// We assume CriteriaPathNormalizer (the implementation from the plugin) is available 
+// and fulfills the IPathNormalizer interface.
+declare class CriteriaPathNormalizer implements IPathNormalizer {
+    normalize(criteria: any): any;
+}
+
 export class DynamicResolver_v94_1 {
     private engineMap: any;
+    private normalizer: IPathNormalizer;
 
     constructor(mapConfig: any) {
         this.engineMap = mapConfig;
+        // Instantiate the abstracted dependency
+        this.normalizer = new CriteriaPathNormalizer(); 
         this.validateMapStructure(mapConfig);
     }
 
@@ -49,8 +62,8 @@ export class DynamicResolver_v94_1 {
             throw new Error("CriteriaEvaluatorUtility plugin is required but not loaded or improperly configured.");
         }
         
-        // 1. Normalize criteria to map legacy keys (like 'system_load') to dot-notation paths ('metrics.load')
-        const runtimeCriteria = this.normalizeCriteria(criteria);
+        // 1. Delegate normalization of legacy criteria paths
+        const runtimeCriteria = this.normalizer.normalize(criteria);
 
         // 2. Delegate complex comparison logic to the utility
         try {
@@ -59,41 +72,6 @@ export class DynamicResolver_v94_1 {
             console.error("Context matching failed during evaluation.", e);
             return false;
         }
-    }
-    
-    /**
-     * Normalizes legacy criteria structure to use dot notation paths for deeply nested data.
-     */
-    private normalizeCriteria(criteria: any): any {
-        if (!criteria || typeof criteria !== 'object') {
-            return criteria;
-        }
-        
-        let transformedCriteria = criteria;
-        let requiresClone = false;
-        
-        const legacyPathMap: Record<string, string> = {
-            // Maps criteria key 'system_load' to context path 'metrics.load'
-            'system_load': 'metrics.load',
-        };
-        
-        for (const legacyKey in legacyPathMap) {
-            if (criteria.hasOwnProperty(legacyKey)) {
-                if (!requiresClone) {
-                    // Only clone if modification is about to occur
-                    transformedCriteria = JSON.parse(JSON.stringify(criteria));
-                    requiresClone = true;
-                }
-                
-                const newPath = legacyPathMap[legacyKey];
-                
-                // Move the rule definition to the new path key
-                transformedCriteria[newPath] = transformedCriteria[legacyKey];
-                delete transformedCriteria[legacyKey];
-            }
-        }
-        
-        return transformedCriteria;
     }
 }
 
