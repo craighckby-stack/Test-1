@@ -1,6 +1,7 @@
 import Ajv from 'ajv';
 import acvdSchema from './ACVD_schema.json';
 import logger from '../utility/logger.js';
+import StrictSchemaValidator from 'AGI_PLUGIN/StrictSchemaValidator';
 
 // --- AGI Plugin Integration: SchemaErrorAnalyzer ---
 // Defines the interface for the externally managed error analysis tool
@@ -9,7 +10,6 @@ interface IErrorAnalyzer {
 }
 
 // Simulated lookup/injection of the tool instance (AGI Kernel dependency injection point).
-// Note: This fallback must match the expected output structure if injection fails.
 const errorAnalyzer: IErrorAnalyzer = (globalThis as any).SchemaErrorAnalyzer || {
     analyze: (errors) => { 
         return { summary: [], counts: {}, severityCounts: { CRITICAL: 0, MAJOR: 0, MINOR: 0 } };
@@ -18,30 +18,15 @@ const errorAnalyzer: IErrorAnalyzer = (globalThis as any).SchemaErrorAnalyzer ||
 // ----------------------------------------------------
 
 
-// Configure Ajv for robust error collection and strict compliance, essential for AGI governance quality control.
-const ajv = new Ajv({
-    allErrors: true,       // Collect all errors for comprehensive learning retention (Memory)
-    coerceTypes: true,     // Helps with input flexibility
-    strict: true           // Ensures schema compliance is strict, preventing silent errors (Logic/Robustness)
-});
+// Initialize the robust validator using the plugin
+const acvdValidator = new StrictSchemaValidator(acvdSchema, 'ACVD Proposal Validator');
 
-let validate: Ajv.ValidateFunction;
-let initialized = false;
-let initErrorDetails: { keyword: string, message: string, errorContext: string } | null = null; // Store context if schema compilation fails
-
-try {
-    validate = ajv.compile(acvdSchema);
-    initialized = true;
+if (!acvdValidator.isInitialized) {
+    const details = acvdValidator.getInitErrorDetails();
+    logger.fatal('ACVD Validator Initialization FAILED: Schema compilation error.', details);
+    // Note: The validator handles the fallback function internally.
+} else {
     logger.info('ACVD Proposal Validator schema compiled successfully. (Strict compliance and robust error collection enabled)');
-} catch (error) {
-    logger.fatal('ACVD Validator Initialization FAILED: Schema compilation error.', error);
-    initErrorDetails = {
-        keyword: 'system_init_failure', 
-        message: 'Validator failed to compile ACVD schema.', 
-        errorContext: error instanceof Error ? error.message : String(error)
-    };
-    // Fallback: Ensure validate is a safe function that always fails validation contextually
-    validate = () => false; 
 }
 
 /**
@@ -53,18 +38,22 @@ try {
 export function validateProposal(proposal: object) {
     const proposalId = (proposal as any)?.proposalId || 'N/A';
 
-    if (!initialized) {
+    // Use the StrictSchemaValidator plugin for robust validation
+    const { isValid, rawErrors, initErrorDetails } = acvdValidator.validate(proposal);
+
+    // Handle System Initialization Failure path
+    if (initErrorDetails) {
         logger.error(`Validator uninitialized due to schema error. Rejecting proposal ID ${proposalId}. Context stored in initErrorDetails.`);
         
-        // Return structured initialization failure context, manually formatted to match tool output structure
+        // Return structured initialization failure context, manually formatted
         return {
             isValid: false,
             rawErrors: [initErrorDetails],
             errorSummary: [{
                 dataPath: '',
-                keyword: initErrorDetails!.keyword,
-                message: initErrorDetails!.message,
-                params: { context: initErrorDetails!.errorContext },
+                keyword: initErrorDetails.keyword,
+                message: initErrorDetails.message,
+                params: { context: initErrorDetails.errorContext },
                 severity: 'CRITICAL'
             }],
             errorCounts: { system_init_failure: 1 },
@@ -72,11 +61,10 @@ export function validateProposal(proposal: object) {
         };
     }
 
-    const isValid = validate(proposal);
-
     if (!isValid) {
         // Use the SchemaErrorAnalyzer plugin for structured analysis
-        const { summary, counts, severityCounts } = errorAnalyzer.analyze(validate.errors!);
+        // rawErrors is guaranteed to be present here if initialized and invalid
+        const { summary, counts, severityCounts } = errorAnalyzer.analyze(rawErrors!); 
         
         // Determine log level based on detected severity (Logic enhancement)
         let logLevel: 'warn' | 'error' = 'warn';
@@ -96,7 +84,7 @@ export function validateProposal(proposal: object) {
 
         return {
             isValid: false,
-            rawErrors: validate.errors,
+            rawErrors: rawErrors,
             errorSummary: summary, 
             errorCounts: counts,
             errorSeverityCounts: severityCounts
