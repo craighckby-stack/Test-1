@@ -8,40 +8,12 @@ class DCM_FormulaValidator {
     private allowedFunctions: Set<string>;
     private allowedScopes: RegExp;
     private allowedAliases: Set<string>;
-    private tokenValidator: any; // ContextTokenValidator
 
     constructor(contextDefinition: any) {
         this.context = contextDefinition;
         this.allowedFunctions = this._flattenFunctions(contextDefinition.allowed_functions);
         this.allowedScopes = this._buildScopeRegex(contextDefinition.scope_definition);
         this.allowedAliases = this._flattenAliases(contextDefinition.context_aliases);
-
-        // Simulate plugin instantiation/access
-        this.tokenValidator = this._createMockValidator();
-    }
-
-    // Helper for simulating plugin behavior (to ensure portability)
-    _createMockValidator() {
-        // Fallback logic mirroring ContextTokenValidator plugin structure
-        const contextChecker = this._constraintConfig;
-        return {
-            execute: (args: any) => {
-                const { token } = args;
-                if (token.type === 'FUNCTION') {
-                    if (!contextChecker.allowedFunctions.has(token.value)) {
-                        return { allowed: false, reason: `Disallowed function: ${token.value}` };
-                    }
-                }
-                if (token.type === 'VARIABLE') {
-                    const isAllowedVariable = contextChecker.allowedScopes.test(token.value);
-                    const isAllowedAlias = contextChecker.allowedAliases.has(token.value);
-                    if (!isAllowedVariable && !isAllowedAlias) {
-                        return { allowed: false, reason: `Disallowed variable or keyword: ${token.value}` };
-                    }
-                }
-                return { allowed: true };
-            }
-        }
     }
 
     _flattenFunctions(funcs: any): Set<string> {
@@ -54,16 +26,31 @@ class DCM_FormulaValidator {
 
     _buildScopeRegex(scopes: any): RegExp {
         // Generates a comprehensive regex for allowed variables (e.g., /^(T|S|H)-[A-Za-z0-9_]+$/)
+        // Extract prefixes, ensuring they are escaped for regex if necessary (though here they are simple letters/symbols)
         const prefixes = Object.keys(scopes).map(k => scopes[k].replace('-*', '')).join('|');
         return new RegExp(`^(${prefixes})-[A-Za-z0-9_]+$`);
     }
 
-    private get _constraintConfig() {
-        return {
-            allowedFunctions: this.allowedFunctions,
-            allowedScopes: this.allowedScopes,
-            allowedAliases: this.allowedAliases
-        };
+    /**
+     * Directly checks if a token adheres to the context constraints.
+     * This logic replaces the external ContextTokenValidator simulation.
+     */
+    private _checkTokenConstraints(token: { type: string, value: string }): { allowed: boolean, reason?: string } {
+        if (token.type === 'FUNCTION') {
+            if (!this.allowedFunctions.has(token.value)) {
+                return { allowed: false, reason: `Disallowed function: ${token.value}` };
+            }
+        }
+        if (token.type === 'VARIABLE') {
+            const isAllowedVariable = this.allowedScopes.test(token.value);
+            const isAllowedAlias = this.allowedAliases.has(token.value);
+            
+            // Must be EITHER an allowed scope variable OR an allowed alias.
+            if (!isAllowedVariable && !isAllowedAlias) {
+                return { allowed: false, reason: `Disallowed variable or keyword: ${token.value}` };
+            }
+        }
+        return { allowed: true };
     }
 
     validate(formulaString: string): { valid: boolean, message: string } {
@@ -76,11 +63,11 @@ class DCM_FormulaValidator {
         
         // 2. Constraint Check
         for (const token of tokens) {
-            // Use the extracted tool logic via the simulated validator
-            const validationResult = this.tokenValidator.execute({ token });
+            // Use direct internal validation method
+            const validationResult = this._checkTokenConstraints(token);
 
             if (!validationResult.allowed) {
-                return { valid: false, message: validationResult.reason };
+                return { valid: false, message: validationResult.reason! };
             }
         }
 
@@ -92,15 +79,18 @@ class DCM_FormulaValidator {
     // Simple mock tokenizer for example demonstration
     mockTokenize(formula: string): Array<{ type: string, value: string }> {
         // NOTE: A real implementation requires a robust lexer/parser combination.
-        const regex = /([A-Z]+(?=\())|([A-Z][A-Z0-9_-]*)|([0-9.]+)/g;
+        // Enhanced regex to potentially better handle delimiters and general structure.
+        const regex = /([A-Z]+(?=\()))|([A-Z][A-Z0-9_-]*)|([0-9.]+)|([\(\),\+\-\*\/])/g;
         let match;
         const tokens: Array<{ type: string, value: string }> = [];
         while ((match = regex.exec(formula)) !== null) {
             let type: string;
             let value = match[0];
             
-            if (value.includes('-')) { 
-                type = 'VARIABLE'; 
+            if (value.length === 1 && '()+-*/,'.includes(value)) {
+                 type = 'OPERATOR/DELIMITER';
+            } else if (value.includes('-')) { 
+                type = 'VARIABLE'; // Potential scope variable (e.g., T-123)
             } else if (value.toUpperCase() === value) {
                  if (formula.includes(value + '(')) {
                      type = 'FUNCTION';
@@ -108,7 +98,7 @@ class DCM_FormulaValidator {
                      type = 'VARIABLE'; // Covers CONSTANTS/ALIASES too
                  }
             } else { 
-                type = 'LITERAL';
+                type = 'LITERAL'; // Likely a number
             }
             tokens.push({ type, value });
         }
