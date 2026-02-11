@@ -1,22 +1,33 @@
 const VALIDATOR_TOOL_NAME = "RuntimeConstraintValidatorTool";
 
 /**
- * Internal helper to execute the validation check against the KERNEL Tool interface.
- * Throws errors if dependencies are missing or execution fails.
- * 
- * @param {object} constraints 
- * @returns {boolean}
+ * Extracts and validates the KERNEL Tool interface.
+ * Throws errors if dependencies are missing or improperly structured.
+ * @returns {object} The validated Tool interface.
  * @private
  */
-function _executeValidationCheck(constraints) {
+function _getValidatedTool() {
     // 1. Dependency Resolution
-    // Using optional chaining for cleaner dependency access
     const KERNEL = typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' ? KERNEL_SYNERGY_CAPABILITIES : null;
     const Tool = KERNEL?.Tool;
 
     if (!Tool || typeof Tool.execute !== 'function') {
         throw new Error("Dependency Error: KERNEL_SYNERGY_CAPABILITIES.Tool interface is unavailable or improperly structured.");
     }
+    return Tool;
+}
+
+/**
+ * Internal helper to execute the validation check against the KERNEL Tool interface.
+ * Throws errors if execution fails.
+ * 
+ * @param {object} constraints 
+ * @returns {boolean}
+ * @private
+ */
+function _executeValidationCheck(constraints) {
+    // 1. Dependency Resolution (Delegated)
+    const Tool = _getValidatedTool();
 
     // 2. Payload Construction
     const payload = {
