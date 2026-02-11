@@ -55,6 +55,7 @@ export class GRCS_Verifier {
 
     /**
      * Executes the comprehensive three-phase verification process (CRoT, Policy, Risk).
+     * Uses an optimized, short-circuiting loop to execute steps sequentially.
      * @param report The GRCS Report object.
      * @returns A detailed VerificationResult object.
      */
@@ -65,25 +66,27 @@ export class GRCS_Verifier {
 
         const auditTrail: VerificationResult['auditTrail'] = [];
 
-        // --- Step 1: Cryptographic Integrity Verification (CRoT) ---
-        const signatureEntry = await this.verifyCRoT(report.CertifiedUtilityMetrics);
-        auditTrail.push(signatureEntry);
-        if (!signatureEntry.success) {
-            return { passed: false, auditTrail };
-        }
+        // Define steps as an array of functions returning promises for sequential, short-circuit execution.
+        // Steps 2 and 3 are synchronous, wrapped in Promise.resolve() for uniform iteration.
+        const verificationSteps: Array<() => Promise<VerificationResult['auditTrail'][0]>> = [
+            // Step 1: Cryptographic Integrity Verification (CRoT)
+            () => this.verifyCRoT(report.CertifiedUtilityMetrics),
+            
+            // Step 2: Policy Compliance Check
+            () => Promise.resolve(this.checkPolicyAdherence(report.PolicyReference, report.EstimatedFailureProfile)),
+            
+            // Step 3: Threshold and Consistency Checks (S02)
+            () => Promise.resolve(this.checkRiskThreshold(report.EstimatedFailureProfile)),
+        ];
 
-        // --- Step 2: Policy Compliance Check ---
-        const policyEntry = this.checkPolicyAdherence(report.PolicyReference, report.EstimatedFailureProfile);
-        auditTrail.push(policyEntry);
-        if (!policyEntry.success) {
-            return { passed: false, auditTrail };
-        }
+        for (const stepExecutor of verificationSteps) {
+            const entry = await stepExecutor();
+            auditTrail.push(entry);
 
-        // --- Step 3: Threshold and Consistency Checks (S02) ---
-        const riskEntry = this.checkRiskThreshold(report.EstimatedFailureProfile);
-        auditTrail.push(riskEntry);
-        if (!riskEntry.success) {
-            return { passed: false, auditTrail };
+            if (!entry.success) {
+                // Fail fast upon first verification failure
+                return { passed: false, auditTrail };
+            }
         }
         
         return { passed: true, auditTrail };
