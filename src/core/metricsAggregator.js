@@ -1,22 +1,68 @@
 /**
- * MetricsAggregator
+ * MetricsAggregatorKernel
  * Efficiently aggregates time-series data (counts, sums, min/max) and dispatches them
- * using a dependency-injected plugin.
+ * using injected kernel tools.
  */
-class MetricsAggregator {
+class MetricsAggregatorKernel {
+    #dispatcherKernel;
+    #loggerKernel;
+    #metricPresetRegistry;
+
+    // State
+    #metrics;
+    #intervalMs;
+    #timer = null;
+    #startTime;
+
     /**
-     * @param {MetricsDispatcher} dispatcherPlugin - The plugin responsible for sending aggregated data.
-     * @param {number} [intervalMs=60000] - The interval (in milliseconds) for dispatching metrics.
+     * @param {object} dependencies - Kernel dependencies.
+     * @param {IMetricsDispatcherToolKernel} dependencies.IMetricsDispatcherToolKernel - Tool for sending aggregated data.
+     * @param {ILoggerToolKernel} dependencies.ILoggerToolKernel - Tool for logging.
+     * @param {IMetricPresetRegistryKernel} dependencies.IMetricPresetRegistryKernel - Registry for metric configuration defaults.
+     * @param {number} [dependencies.intervalMs] - Optional explicit interval override (in milliseconds).
      */
-    constructor(dispatcherPlugin, intervalMs = 60000) {
-        if (!dispatcherPlugin || typeof dispatcherPlugin.dispatch !== 'function') {
-            throw new Error("MetricsAggregator requires a valid MetricsDispatcher plugin with a 'dispatch' method.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Isolates dependency validation and assignment, rigorously enforcing the synchronous setup extraction mandate.
+     * @param {object} dependencies
+     */
+    #setupDependencies(dependencies) {
+        if (!dependencies.IMetricsDispatcherToolKernel) {
+            throw new Error("MetricsAggregatorKernel requires IMetricsDispatcherToolKernel.");
         }
-        this.dispatcher = dispatcherPlugin;
-        this.metrics = new Map();
-        this.intervalMs = intervalMs;
-        this.timer = null;
-        this.startTime = Date.now();
+        if (!dependencies.ILoggerToolKernel) {
+            // Assumed to exist based on strategic ledger
+            throw new Error("MetricsAggregatorKernel requires ILoggerToolKernel.");
+        }
+        if (!dependencies.MetricPresetRegistryKernel) { // Note: using MetricPresetRegistryKernel from the tool list
+            throw new Error("MetricsAggregatorKernel requires MetricPresetRegistryKernel.");
+        }
+
+        this.#dispatcherKernel = dependencies.IMetricsDispatcherToolKernel;
+        this.#loggerKernel = dependencies.ILoggerToolKernel;
+        this.#metricPresetRegistry = dependencies.MetricPresetRegistryKernel;
+        this.#intervalMs = dependencies.intervalMs;
+    }
+
+    /**
+     * Asynchronously initializes the kernel and loads configuration defaults.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        this.#metrics = new Map();
+        
+        // 1. Resolve interval configuration asynchronously
+        if (typeof this.#intervalMs !== 'number' || this.#intervalMs <= 0) {
+            // Assuming the registry holds a method for standard interval retrieval
+            const defaultInterval = await this.#metricPresetRegistry.getMetricAggregationInterval();
+            this.#intervalMs = defaultInterval || 60000; // Fallback
+        }
+
+        this.#startTime = Date.now();
+        this.#loggerKernel.info('MetricsAggregatorKernel initialized.', { intervalMs: this.#intervalMs });
     }
 
     /**
@@ -28,10 +74,10 @@ class MetricsAggregator {
     recordMetric(name, value, tags = {}) {
         if (typeof value !== 'number') return;
 
-        if (!this.metrics.has(name)) {
-            this.metrics.set(name, { count: 0, sum: 0, min: Infinity, max: -Infinity, tags: tags });
+        if (!this.#metrics.has(name)) {
+            this.#metrics.set(name, { count: 0, sum: 0, min: Infinity, max: -Infinity, tags: tags });
         }
-        const data = this.metrics.get(name);
+        const data = this.#metrics.get(name);
         
         // Update aggregation statistics
         data.count += 1;
@@ -47,9 +93,9 @@ class MetricsAggregator {
     aggregate() {
         const payload = [];
         const endTime = Date.now();
-        const duration = endTime - this.startTime;
+        const duration = endTime - this.#startTime;
 
-        for (const [name, data] of this.metrics.entries()) {
+        for (const [name, data] of this.#metrics.entries()) {
             const avg = data.count > 0 ? data.sum / data.count : 0;
             payload.push({
                 name: name,
@@ -65,50 +111,58 @@ class MetricsAggregator {
         }
         
         // Reset state for the next interval
-        this.metrics.clear();
-        this.startTime = endTime;
+        this.#metrics.clear();
+        this.#startTime = endTime;
 
         return payload;
     }
 
     /**
-     * Executes aggregation and dispatches the data using the injected plugin.
+     * Executes aggregation and dispatches the data using the injected kernel tool.
+     * @returns {Promise<void>}
      */
     async dispatchMetrics() {
         const payload = this.aggregate();
         if (payload.length > 0) {
             try {
-                await this.dispatcher.dispatch(payload);
+                await this.#dispatcherKernel.dispatch(payload);
             } catch (err) {
-                // Use a dedicated error logging mechanism if available
-                console.error("Metrics dispatcher failed:", err);
+                this.#loggerKernel.error("Metrics dispatcher failed during transmission.", { error: err.message, payloadCount: payload.length });
             }
         }
     }
 
     /**
      * Starts the timed aggregation and dispatch cycle.
+     * @returns {void}
      */
     start() {
-        if (this.timer) {
+        if (this.#timer) {
             this.stop();
         }
-        this.timer = setInterval(() => {
-            this.dispatchMetrics();
-        }, this.intervalMs);
-        console.log(`MetricsAggregator started, dispatching every ${this.intervalMs}ms.`);
+        
+        this.#timer = setInterval(() => {
+            // Handle async dispatch safely within setInterval
+            this.dispatchMetrics().catch(e => {
+                 this.#loggerKernel.error("Fatal error in scheduled metrics dispatch cycle.", { error: e.message });
+            });
+        }, this.#intervalMs);
+        
+        this.#loggerKernel.info(`MetricsAggregatorKernel started.`, { intervalMs: this.#intervalMs });
     }
 
     /**
      * Stops the timed aggregation cycle.
+     * @returns {Promise<void>} - Ensures remaining metrics are dispatched before completion.
      */
-    stop() {
-        if (this.timer) {
-            clearInterval(this.timer);
-            this.timer = null;
-            console.log("MetricsAggregator stopped.");
+    async stop() {
+        if (this.#timer) {
+            clearInterval(this.#timer);
+            this.#timer = null;
+            this.#loggerKernel.info("MetricsAggregatorKernel stopped.");
+            
             // Dispatch any remaining metrics upon stop
-            this.dispatchMetrics(); 
+            await this.dispatchMetrics();
         }
     }
 }
