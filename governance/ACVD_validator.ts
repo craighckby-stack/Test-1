@@ -1,7 +1,8 @@
 import { ACVD_SCHEMA } from './ACVD_schema.json';
 import Ajv, { ErrorObject } from 'ajv';
-import crypto from 'crypto';
 import { ALGORITHM, canonicalStringify } from '../config/crypto_standards';
+// Assuming the plugin is imported from a utility folder
+import { IntegrityHasher, CryptoHashUtility } from './utilities/IntegrityHasher'; 
 
 // --- Types ---
 export interface ACVDRecord {
@@ -19,18 +20,8 @@ export interface ValidationResult {
 const ajv = new Ajv({ allErrors: true, useDefaults: true });
 const validateSchema = ajv.compile(ACVD_SCHEMA);
 
-/**
- * Generates a SHA256 hash for input data, optionally ensuring canonical stringification if object is provided.
- * @param data Input data (string or object).
- * @returns SHA256 hash string.
- */
-function createIntegrityHash(data: string | object): string {
-    const inputString = typeof data === 'object' 
-        ? canonicalStringify(data) 
-        : data;
-    
-    return crypto.createHash(ALGORITHM).update(inputString).digest('hex');
-}
+// Initialize the Hashing Utility, injecting dependencies
+const hasher: IntegrityHasher = new CryptoHashUtility(ALGORITHM, canonicalStringify);
 
 /**
  * Validates an ACVD record against the canonical schema and performs cryptographic integrity checks.
@@ -53,7 +44,7 @@ export function validateACVD(record: ACVDRecord, inputContext: string): Validati
     }
 
     // 2. Context Hash Integrity Check
-    const computedContextHash = createIntegrityHash(inputContext);
+    const computedContextHash = hasher.createIntegrityHash(inputContext);
     if (computedContextHash !== record.context_hash) {
         errors.push({
             message: `Context hash mismatch. Input context appears tampered or incorrectly hashed.`,
@@ -66,7 +57,7 @@ export function validateACVD(record: ACVDRecord, inputContext: string): Validati
     const { ACVD_ID, ...recordForHashing } = record;
     
     // Hash the rest of the record using canonical stringification
-    const expectedACVDId = createIntegrityHash(recordForHashing);
+    const expectedACVDId = hasher.createIntegrityHash(recordForHashing);
 
     if (expectedACVDId !== ACVD_ID) {
         errors.push({
