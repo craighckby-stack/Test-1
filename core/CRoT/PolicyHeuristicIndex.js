@@ -17,17 +17,27 @@ class PolicyHeuristicIndex {
     #indexClient;
 
     /**
+     * Synchronously validates the injected CRoT Index Client contract enforcement.
+     * @param {ICRoTIndexClient} client 
+     * @returns {ICRoTIndexClient} The validated client instance.
+     * @private
+     */
+    #validateIndexClient(client) {
+        if (!client || 
+            typeof client.getAnchorsByFingerprint !== 'function' || 
+            typeof client.indexCommit !== 'function') {
+            
+            throw new Error(`${PolicyHeuristicIndex.SETUP_PREFIX} Requires a valid CRoT Index Client instance implementing getAnchorsByFingerprint and indexCommit.`);
+        }
+        return client;
+    }
+
+    /**
      * @param {ICRoTIndexClient} indexClient - An instance of a CRoT index client conforming to the interface.
      */
     constructor(indexClient) {
         // Enforce strong dependency validation and encapsulation via private fields.
-        if (!indexClient || 
-            typeof indexClient.getAnchorsByFingerprint !== 'function' || 
-            typeof indexClient.indexCommit !== 'function') {
-            
-            throw new Error(`${PolicyHeuristicIndex.SETUP_PREFIX} Requires a valid CRoT Index Client instance implementing getAnchorsByFingerprint and indexCommit.`);
-        }
-        this.#indexClient = indexClient;
+        this.#indexClient = this.#validateIndexClient(indexClient);
         GAXTelemetry.system(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.INIT`, { component: 'PolicyHeuristicIndex' });
     }
 
