@@ -1,10 +1,11 @@
-// src/core/data_management/ArtifactSchemaValidator.ts
+// src/core/data_management/ArtifactSchemaValidatorKernel.ts
 
-import { readFileSync } from 'fs';
+import { ISpecValidatorKernel } from '../../interfaces/ISpecValidatorKernel';
+import { ISecureResourceLoaderInterfaceKernel } from '../../interfaces/SecureResourceLoaderInterfaceKernel';
+import { IArtifactSchemaConfigRegistryKernel } from './IArtifactSchemaConfigRegistryKernel';
 
 /**
- * CONTRACT: ValidationResult
- * Defines the structure for schema validation outcomes returned by the external tool.
+ * CONTRACT: ValidationResult (Mapping the output structure of ISpecValidatorKernel)
  */
 interface ValidationResult {
     isValid: boolean;
@@ -13,63 +14,64 @@ interface ValidationResult {
 }
 
 /**
- * CONTRACT: SchemaValidationTool
- * Defines the contract (interface) for the required external schema compilation and validation plugin.
- */
-interface SchemaValidationTool {
-    /** Compiles the schema content and registers it internally for future validation */
-    compileAndCacheSchema(schemaRef: string, schemaContent: unknown): string;
-    /** Executes validation against a previously compiled schema reference */
-    validateData(schemaRef: string, data: unknown): ValidationResult;
-}
-
-
-/**
  * Manages dynamic loading and validation of external schemas referenced by 
  * the Data Artifact Registry (via the 'schema_ref' field).
  * 
- * This utility is critical for ensuring that structured data payloads conform 
- * to the defined governance and operational contracts at runtime.
+ * This Kernel ensures that structured data payloads conform 
+ * to the defined governance and operational contracts at runtime using strict Dependency Injection.
  */
-export class ArtifactSchemaValidator {
-    // Tracks which schemas have been loaded from disk and compiled by the service.
+export class ArtifactSchemaValidatorKernel {
     private loadedSchemaRefs: Set<string>; 
-    private readonly schemaBasePath: string;
-    private readonly validationTool: SchemaValidationTool;
+    private configuredSchemaBasePath: string;
+    private readonly specValidator: ISpecValidatorKernel;
+    private readonly resourceLoader: ISecureResourceLoaderInterfaceKernel;
+    private readonly configRegistry: IArtifactSchemaConfigRegistryKernel;
 
-    constructor(schemaBasePath: string = './config/schemas') {
-        // Abstracting global access and performing immediate dependency injection check
-        const tool = (globalThis as any).SchemaCompilationAndValidationService as SchemaValidationTool | undefined;
-        
-        if (!tool) {
-            throw new Error("SchemaCompilationAndValidationService plugin is required but not found in the execution environment.");
-        }
-        this.validationTool = tool;
-        
+    constructor(
+        specValidator: ISpecValidatorKernel,
+        resourceLoader: ISecureResourceLoaderInterfaceKernel,
+        configRegistry: IArtifactSchemaConfigRegistryKernel
+    ) {
+        // Dependency assignment, ensuring rigor and immutability of dependencies
+        this.specValidator = specValidator;
+        this.resourceLoader = resourceLoader;
+        this.configRegistry = configRegistry;
         this.loadedSchemaRefs = new Set();
-        // Ensure the path ends with a separator
-        this.schemaBasePath = schemaBasePath.endsWith('/') ? schemaBasePath : `${schemaBasePath}/`;
+        
+        // Rigorously enforce synchronous setup extraction
+        this.#setupDependencies();
+    }
+    
+    /**
+     * Private method to isolate synchronous dependency setup and configuration retrieval.
+     * Satisfies synchronous setup extraction and enforces architectural separation.
+     */
+    #setupDependencies(): void {
+        // Configuration retrieved via injected registry, eliminating hardcoded path defaults
+        const basePath = this.configRegistry.getArtifactSchemaBasePath();
+        
+        // Isolation of path normalization logic
+        this.configuredSchemaBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
     }
 
     /**
      * Loads, parses, and compiles a schema from the file system based on its reference path.
-     * Caches the compilation result via the Schema Validation Tool.
-     * @param schemaRef The path defined in the artifact registry (e.g., 'CORE_TRANSACTION_EVENT.json')
+     * Caches the compilation result via the Spec Validator Kernel.
      */
     private ensureSchemaIsCompiled(schemaRef: string): void {
         if (this.loadedSchemaRefs.has(schemaRef)) {
             return;
         }
 
-        const fullPath = `${this.schemaBasePath}${schemaRef}`;
-        console.debug(`[ArtifactSchemaValidator] Attempting to load schema from: ${fullPath}`);
+        const fullPath = `${this.configuredSchemaBasePath}${schemaRef}`;
 
         try {
-            const schemaContentString = readFileSync(fullPath, 'utf-8');
+            // Replaced synchronous 'fs.readFileSync' with injected synchronous resource loader method.
+            const schemaContentString = this.resourceLoader.readResourceSync(fullPath, 'utf-8');
             const schema = JSON.parse(schemaContentString);
             
-            // Delegate compilation and caching to the external tool
-            this.validationTool.compileAndCacheSchema(schemaRef, schema);
+            // Delegate compilation and caching to the external tool (ISpecValidatorKernel)
+            this.specValidator.compileAndCacheSchema(schemaRef, schema);
             
             this.loadedSchemaRefs.add(schemaRef);
 
@@ -77,33 +79,22 @@ export class ArtifactSchemaValidator {
             let errorMessage = `Failed to initialize validator for schemaRef: ${schemaRef}.`;
             
             if (error instanceof Error) {
-                if (error.message.includes('ENOENT')) {
-                    errorMessage += " Ensure file exists.";
-                } else if (error.message.includes('JSON')) {
-                    errorMessage += " Ensure file contains valid JSON Schema.";
-                } else {
-                    errorMessage += ` Internal tool error: ${error.message}`;
-                }
+                errorMessage += ` Internal tool or processing error: ${error.message}`;
             }
-            console.error(`Error processing schema at ${fullPath}:`, error);
-           
+            
             throw new Error(errorMessage);
         }
     }
 
     /**
      * Validates a given structured data payload against the referenced artifact schema.
-     * @param data The data object to validate.
-     * @param schemaRef The reference key for the schema definition (e.g., 'API_RESPONSE.json').
-     * @returns True if valid.
-     * @throws Error if validation fails.
      */
     public validateArtifact(data: unknown, schemaRef: string): boolean {
         // 1. Ensure schema is loaded and compiled
         this.ensureSchemaIsCompiled(schemaRef);
 
         // 2. Delegate validation to the external tool
-        const validationResult = this.validationTool.validateData(schemaRef, data);
+        const validationResult = this.specValidator.validateData(schemaRef, data) as ValidationResult;
 
         if (!validationResult.isValid) {
             // Providing clear error details from the tool
