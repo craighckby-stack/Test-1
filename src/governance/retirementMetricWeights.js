@@ -1,96 +1,123 @@
+import { MetricPresetRegistryKernel } from '@AGI/core/MetricPresetRegistryKernel';
+import { IRegistryInitializerToolKernel } from '@AGI/tools/IRegistryInitializerToolKernel';
+
 /**
- * GOVERNANCE CONFIGURATION: P-01 Trust Calculus Metric Definitions
- * Defines the comprehensive parameters for normalizing and weighting raw metrics 
- * provided by the Retirement Metrics Service (RMS) before inputting into 
- * the CORE Trust Calculus Adjudication engine.
+ * AGI-KERNEL: TrustCalculusMetricPresetRegistryKernel (TCM-R)
  * 
- * The normalized value (Nv) is calculated using the configured strategy, applied to the raw metric (Rv).
- * Trust Score Contribution (TSC) = Nv * weight * (influence === 'negative' ? -1 : 1).
- * 
- * STRUCTURE: { metric_name: { weight: Number, category: String, influence: ('positive'|'negative'), normalization: { strategy: String, bounds?: [Number, Number] }, description: String } }
+ * This Kernel replaces the synchronous `retirementMetricWeights.js` configuration file.
+ * It ensures the P-01 Trust Calculus Metric Definitions are loaded asynchronously, validated,
+ * and registered using audited standard Registry Kernels, eliminating reliance on synchronous
+ * configuration exports and ad-hoc utility calls (e.g., MetricConfigurationUtility.execute).
  */
+export class TrustCalculusMetricPresetRegistryKernel {
+    private readonly metricPresetRegistry: MetricPresetRegistryKernel;
+    private readonly registryInitializer: IRegistryInitializerToolKernel;
 
-/** @typedef {'SAFETY'|'RISK'|'OVERHEAD'|'USAGE'} GovernanceCategory */
-/** @typedef {'positive'|'negative'} InfluenceDirection */
-/** @typedef {'linear_minmax' | 'logarithmic' | 'percentile_rank' | 'constant'} NormalizationStrategy */
-
-// Assuming the plugin interface is available for use
-declare const MetricConfigurationUtility: {
-    execute: (configs: any, operation: 'validate' | 'getMetricWeights') => any;
-};
-
-export const GOVERNANCE_CATEGORIES = {
-    SAFETY: "Metrics promoting component stability and high confidence in retention.",
-    RISK: "Metrics indicating potential downstream failure or exposure.",
-    OVERHEAD: "Metrics related to system maintenance burden and resource drain.",
-    USAGE: "Metrics tied directly to component adoption and operational activity rates."
-};
-
-export const METRIC_CONFIGURATIONS = {
-    
-    // 1. SAFETY FACTORS (High metric value is generally positive)
-    SUBSIDIARY_REDUNDANCY_SCORE: {
-        weight: 1.5,
-        category: 'SAFETY',
-        influence: 'positive',
-        normalization: { 
-            strategy: 'linear_minmax', 
-            bounds: [0, 5] // Expected raw score range
-        },
-        description: "Confidence derived from having robust substitutes or alternatives. Higher score is better."
-    },
-
-    // 2. RISK FACTORS (High metric value is generally negative)
-    CRITICAL_DEPENDENCY_EXPOSURE: {
-        weight: 2.0, 
-        category: 'RISK',
-        influence: 'negative',
-        normalization: { 
-            strategy: 'logarithmic',
-        }, // Log scaling handles outliers in dependency counts
-        description: "Critical risk based on the severity and breadth of downstream reliance. Higher count is worse."
-    },
-    
-    // 3. OVERHEAD FACTORS 
-    COMPONENT_COMPLEXITY_SCORE: {
-        weight: 1.2,
-        category: 'OVERHEAD',
-        influence: 'negative', // Higher complexity score leads to negative Trust
-        normalization: {
-            strategy: 'percentile_rank', // Compare against peer components
-        },
-        description: "Measures inherent code complexity. High complexity increases retirement viability (negative influence)."
-    },
-    MAINTENANCE_BURDEN_INDEX: {
-        weight: 1.0,
-        category: 'OVERHEAD',
-        influence: 'negative', 
-        normalization: { 
-            strategy: 'linear_minmax',
-            bounds: [0, 500] // Hours per quarter
-        },
-        description: "Index tracking accumulated resource hours spent on mandatory component upkeep."
-    },
-    
-    // 4. USAGE ADJUSTMENT FACTORS
-    DAILY_USAGE_RATE: {
-        weight: 1.8,
-        category: 'USAGE',
-        influence: 'positive', // Standard interpretation: Higher usage is positive for retention
-        normalization: { 
-            strategy: 'linear_minmax',
-            bounds: [0, 1000000]
-        }, 
-        description: "Raw metric of daily transaction/call volume. Normalized to penalize values below critical threshold via non-linear mapping in preprocessor."
+    /**
+     * @param metricPresetRegistry MetricPresetRegistryKernel instance for data persistence.
+     * @param registryInitializer Tool Kernel to guarantee asynchronous and audited registration.
+     */
+    constructor(
+        metricPresetRegistry: MetricPresetRegistryKernel,
+        registryInitializer: IRegistryInitializerToolKernel
+    ) {
+        this.metricPresetRegistry = metricPresetRegistry;
+        this.registryInitializer = registryInitializer;
     }
-};
 
-/**
- * Legacy/Flat Export: Provided for immediate compatibility with systems 
- * expecting a simple key-value weight map (RMS/CORE input pre-v94 integration).
- * Uses the MetricConfigurationUtility plugin to safely extract weights.
- */
-export const METRIC_WEIGHTS: Record<string, number> = MetricConfigurationUtility.execute(
-    METRIC_CONFIGURATIONS, 
-    'getMetricWeights'
-);
+    /**
+     * @async
+     * Asynchronously loads and validates the Trust Calculus metric definitions (P-01).
+     * This execution must complete before the definitions are available for the CORE engine.
+     */
+    public async initialize(): Promise<void> {
+        const GOVERNANCE_CATEGORIES = {
+            SAFETY: "Metrics promoting component stability and high confidence in retention.",
+            RISK: "Metrics indicating potential downstream failure or exposure.",
+            OVERHEAD: "Metrics related to system maintenance burden and resource drain.",
+            USAGE: "Metrics tied directly to component adoption and operational activity rates."
+        };
+
+        const METRIC_DEFINITIONS = {
+            
+            // 1. SAFETY FACTORS (High metric value is generally positive)
+            SUBSIDIARY_REDUNDANCY_SCORE: {
+                weight: 1.5,
+                category: 'SAFETY',
+                influence: 'positive',
+                normalization: { 
+                    strategy: 'linear_minmax', 
+                    bounds: [0, 5] // Expected raw score range
+                },
+                description: "Confidence derived from having robust substitutes or alternatives. Higher score is better."
+            },
+
+            // 2. RISK FACTORS (High metric value is generally negative)
+            CRITICAL_DEPENDENCY_EXPOSURE: {
+                weight: 2.0, 
+                category: 'RISK',
+                influence: 'negative',
+                normalization: { 
+                    strategy: 'logarithmic',
+                }, 
+                description: "Critical risk based on the severity and breadth of downstream reliance. Higher count is worse."
+            },
+            
+            // 3. OVERHEAD FACTORS 
+            COMPONENT_COMPLEXITY_SCORE: {
+                weight: 1.2,
+                category: 'OVERHEAD',
+                influence: 'negative', 
+                normalization: {
+                    strategy: 'percentile_rank', 
+                },
+                description: "Measures inherent code complexity. High complexity increases retirement viability (negative influence)."
+            },
+            MAINTENANCE_BURDEN_INDEX: {
+                weight: 1.0,
+                category: 'OVERHEAD',
+                influence: 'negative', 
+                normalization: { 
+                    strategy: 'linear_minmax',
+                    bounds: [0, 500] // Hours per quarter
+                },
+                description: "Index tracking accumulated resource hours spent on mandatory component upkeep."
+            },
+            
+            // 4. USAGE ADJUSTMENT FACTORS
+            DAILY_USAGE_RATE: {
+                weight: 1.8,
+                category: 'USAGE',
+                influence: 'positive', 
+                normalization: { 
+                    strategy: 'linear_minmax',
+                    bounds: [0, 1000000]
+                }, 
+                description: "Raw metric of daily transaction/call volume. Normalized to penalize values below critical threshold via non-linear mapping in preprocessor."
+            }
+        };
+
+        // Delegate configuration registration and validation to the specialized Tool Kernel.
+        await this.registryInitializer.registerMetricPresets(
+            this.metricPresetRegistry,
+            METRIC_DEFINITIONS,
+            GOVERNANCE_CATEGORIES
+        );
+    }
+
+    /**
+     * Retrieves the metric definition for a specific key.
+     * @param metricKey The key of the metric.
+     * @returns The stored metric configuration.
+     */
+    public getDefinition(metricKey: string) {
+        return this.metricPresetRegistry.getMetricPreset(metricKey);
+    }
+
+    /**
+     * Retrieves all registered metric definitions.
+     */
+    public getAllDefinitions() {
+        return this.metricPresetRegistry.getAllMetricPresets();
+    }
+}
