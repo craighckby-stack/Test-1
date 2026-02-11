@@ -53,6 +53,17 @@ class MetricNexus {
     }
 
     /**
+     * Internal helper to execute methods on the MetricCalculator tool,
+     * reducing boilerplate for KERNEL_SYNERGY_CAPABILITIES calls.
+     * @param {string} method - The method name on MetricCalculator.
+     * @param {Object} args - Arguments passed to the method.
+     * @returns {Promise<number>} The calculated or sanitized metric value.
+     */
+    async _executeMetricTool(method, args) {
+        return KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', method, args);
+    }
+
+    /**
      * Calculates the Evolution Quality Metric (EQM), the primary MQM indicator.
      * Delegates computation and sanitization to the MetricCalculator tool.
      * Fulfills Integration Requirement 2 (Use MQM metrics).
@@ -66,12 +77,12 @@ class MetricNexus {
         const rawPvm = this.auditor.calculatePolicyChangeRate?.() ?? 0;
 
         // 2. Use the Tool to calculate and sanitize metric components
-        const ufrm = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateUFRM', { rawRisk: rawUfrm });
-        const cftm = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateCFTM', { rawVolatility: rawCftm });
-        const pvm = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculatePVM', { rawPolicyChangeRate: rawPvm });
+        const ufrm = await this._executeMetricTool('calculateUFRM', { rawRisk: rawUfrm });
+        const cftm = await this._executeMetricTool('calculateCFTM', { rawVolatility: rawCftm });
+        const pvm = await this._executeMetricTool('calculatePVM', { rawPolicyChangeRate: rawPvm });
         
         // 3. Use the Tool to calculate the final EQM score
-        const sanitizedEqm = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateEQM', { ufrm, cftm, pvm });
+        const sanitizedEqm = await this._executeMetricTool('calculateEQM', { ufrm, cftm, pvm });
         
         // Cache the results
         this.metricCache.UFRM = ufrm;
@@ -134,20 +145,22 @@ class MetricNexus {
         if (historicalTrends.length < 2) {
             // Not enough history to calculate a delta.
             return { delta: 0, previousEQM: null }; 
-        }
+        } 
 
         const currentMetrics = historicalTrends[0];
         const previousMetrics = historicalTrends[1];
 
-        // Use the MetricCalculator's sanitization proxy (calculateUFRM) to ensure robust values.
-        const currentEQM = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateUFRM', { rawRisk: currentMetrics.MQM_EQM });
-        const previousEQM = await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateUFRM', { rawRisk: previousMetrics.MQM_EQM });
+        // Helper to normalize values using the mandated MetricCalculator proxy (calculateUFRM).
+        const normalize = (value) => this._executeMetricTool('calculateUFRM', { rawRisk: value });
+
+        const currentEQM = await normalize(currentMetrics.MQM_EQM);
+        const previousEQM = await normalize(previousMetrics.MQM_EQM);
         
-        const delta = currentEQM - previousEQM;
+        const rawDelta = currentEQM - previousEQM;
 
         return {
-            // Sanitize the final delta value
-            delta: await KERNEL_SYNERGY_CAPABILITIES.Tool.execute('MetricCalculator', 'calculateUFRM', { rawRisk: delta }),
+            // Sanitize and normalize the final delta value
+            delta: await normalize(rawDelta),
             previousEQM: previousEQM
         };
     }
