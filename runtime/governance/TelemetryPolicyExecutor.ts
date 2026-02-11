@@ -1,11 +1,11 @@
 /**
- * TelemetryPolicyExecutor.ts
+ * TelemetryPolicyExecutorKernel.ts
  * Executes conditional governance responses based on vetted telemetry results.
  * Implements logic to map validation results against the Tiered Criticality Mapping
  * defined in the TelemetryVettingSpec.
  *
- * Sovereign AGI v94.1 Intelligence Refactor: Externalized reusable PolicyRuleMatcher
- * utility to enforce SoC and improve governance code reuse.
+ * Refactored to adhere to AGI-KERNEL standards: synchronous setup extraction, state
+ * privatization, and rigorous I/O proxy creation.
  */
 
 // --- Telemetry Domain Interfaces ---
@@ -42,49 +42,53 @@ interface PolicyConditionEvaluator {
 
 // Assumed access to the global PolicyRuleMatcherTool defined in the plugin layer.
 declare const PolicyRuleMatcherTool: { 
-    execute(args: any): string; 
+    execute(args: {
+        policies: RejectionPolicy[],
+        context: Record<string, any>,
+        evaluator: (condition: string, ctx: Record<string, any>) => boolean,
+        defaultAction: string 
+    }): string; 
 }; 
 
-export class TelemetryPolicyExecutor {
-    private policies: GovernancePolicies;
-    private evaluator: PolicyConditionEvaluator;
+export class TelemetryPolicyExecutorKernel {
+    #policies: GovernancePolicies;
+    #evaluator: PolicyConditionEvaluator;
 
     /**
      * @param spec The full TelemetryVettingSpec.
      * @param evaluator The required utility for policy condition evaluation.
      */
     constructor(spec: TelemetryVettingSpec, evaluator: PolicyConditionEvaluator) {
-        if (!spec || !spec.governance_responses) {
-            throw new Error("TelemetryPolicyExecutor: Invalid TelemetryVettingSpec provided.");
-        }
-        this.policies = spec.governance_responses;
-        this.evaluator = evaluator;
-    }
-
-    public evaluate(results: VettingResult[]): string {
-        // 1. Prepare a structured context from results
-        const context = this.createEvaluationContext(results);
-
-        // 2. Delegate policy matching to the external PolicyRuleMatcher tool.
-        // We pass the PolicyConditionEvaluator's bound method as the required evaluator callback.
-        const evaluatorCallback = (condition: string, ctx: Record<string, any>): boolean => {
-            return this.evaluator.evaluate(condition, ctx);
-        };
-
-        return PolicyRuleMatcherTool.execute({
-            policies: this.policies.rejection_policies,
-            context: context,
-            evaluator: evaluatorCallback,
-            defaultAction: this.policies.default_fallback_protocol || 'DEFAULT_PASS'
-        });
+        this.#setupDependencies(spec, evaluator);
     }
 
     /**
-     * Transforms VettingResults into a predictable key/value context 
-     * suitable for the expression evaluator.
-     * @param results The incoming vetting results.
+     * Isolated control flow proxy for throwing setup errors.
      */
-    private createEvaluationContext(results: VettingResult[]): Record<string, any> {
+    #throwSetupError(message: string): never {
+        throw new Error(`TelemetryPolicyExecutorKernel Setup Error: ${message}`);
+    }
+
+    /**
+     * Synchronously validates and assigns all required internal dependencies and configuration.
+     */
+    #setupDependencies(spec: TelemetryVettingSpec, evaluator: PolicyConditionEvaluator): void {
+        if (!spec || typeof spec !== 'object' || !spec.governance_responses) {
+            this.#throwSetupError("Invalid TelemetryVettingSpec provided. Missing spec or governance_responses.");
+        }
+        if (!evaluator || typeof evaluator.evaluate !== 'function') {
+            this.#throwSetupError("Invalid PolicyConditionEvaluator provided (missing or invalid 'evaluate' function).");
+        }
+
+        this.#policies = spec.governance_responses;
+        this.#evaluator = evaluator;
+    }
+
+    /**
+     * Internal Logic Proxy: Transforms VettingResults into a predictable key/value context 
+     * suitable for the expression evaluator.
+     */
+    #createEvaluationContext(results: VettingResult[]): Record<string, any> {
         const context: Record<string, any> = {};
 
         // Direct function equivalents (e.g., used to evaluate 'IsCriticalFailure(A1)')
@@ -98,5 +102,46 @@ export class TelemetryPolicyExecutor {
         context['AnyCriticalFailure'] = results.some(r => r.isCritical);
 
         return context;
+    }
+    
+    /**
+     * I/O Proxy: Delegates condition evaluation using the injected evaluator tool.
+     */
+    #delegateToEvaluator(condition: string, ctx: Record<string, any>): boolean {
+        return this.#evaluator.evaluate(condition, ctx);
+    }
+
+    /**
+     * I/O Proxy: Delegates policy matching and execution lookup to the external PolicyRuleMatcherTool.
+     */
+    #delegateToPolicyMatcher(context: Record<string, any>): string {
+        const policies = this.#policies.rejection_policies;
+        const defaultAction = this.#policies.default_fallback_protocol || 'DEFAULT_PASS';
+
+        // Create an encapsulated callback that uses the internal I/O proxy for evaluation
+        const evaluatorCallback = (condition: string, ctx: Record<string, any>): boolean => {
+            return this.#delegateToEvaluator(condition, ctx);
+        };
+
+        // Execution of the external tool
+        return PolicyRuleMatcherTool.execute({
+            policies: policies,
+            context: context,
+            evaluator: evaluatorCallback,
+            defaultAction: defaultAction
+        });
+    }
+
+    /**
+     * Public API: Evaluates vetting results against governance policies to determine the appropriate response action.
+     * @param results The incoming vetting results.
+     * @returns The determined governance action string.
+     */
+    public evaluate(results: VettingResult[]): string {
+        // 1. Prepare a structured context from results
+        const context = this.#createEvaluationContext(results);
+        
+        // 2. Delegate policy matching to the external tool
+        return this.#delegateToPolicyMatcher(context);
     }
 }
