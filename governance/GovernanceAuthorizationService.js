@@ -7,12 +7,14 @@
  */
 class GovernanceAuthorizationService {
 
+    /**
+     * @param {object} policyEngine - Handles fetching mandate criteria based on requiredLevel.
+     * @param {object} securityContextVerifier - Handles token verification and identity extraction.
+     * @param {object} mandateEvaluator - Executes complex governance mandate checks.
+     */
     constructor(policyEngine, securityContextVerifier, mandateEvaluator) {
-        // Policy Engine holds current P-01 vectors and operational mandates
         this.policyEngine = policyEngine;
-        // SCV handles token decryption, signature verification, and identity extraction
         this.scv = securityContextVerifier;
-        // Tool for executing specific governance mandate checks against an identity
         this.mandateEvaluator = mandateEvaluator; 
     }
 
@@ -23,25 +25,36 @@ class GovernanceAuthorizationService {
      * @returns {Promise<boolean>} True if authorization is sufficient.
      */
     async validate(requiredLevel, context) {
-        if (!context || Object.keys(context).length === 0) {
-            console.warn(`Authorization check failed for ${requiredLevel}: No context provided.`);
+        // Input validation
+        if (!context || typeof context !== 'object' || Object.keys(context).length === 0) {
+            console.error(`[GAS] Validation failure: Required level '${requiredLevel}'. Context is missing or empty.`);
             return false;
         }
 
-        const validatedIdentity = await this.scv.verifyContext(context);
+        let validatedIdentity;
+        try {
+            // Step 1: Verify the integrity and authenticity of the context/token
+            validatedIdentity = await this.scv.verifyContext(context);
+        } catch (error) {
+            // Handle failures in the security context pipeline (e.g., expired token, malformed signature)
+            console.error(`[GAS] Security Context Verification failed for level ${requiredLevel}. Error: ${error.message}`);
+            return false;
+        }
+
         if (!validatedIdentity) {
+            // Identity verification returned a falsy value (e.g., unauthorized identity found)
+            console.warn(`[GAS] Identity verification failed for level ${requiredLevel}. Identity unauthorized or unknown.`);
             return false;
         }
 
-        // 1. Fetch the required mandate criteria from the Policy Engine (for dynamic evaluation)
+        // Step 2: Fetch the required mandate criteria from the Policy Engine
         const requiredCriteria = this.policyEngine.getMandateCriteria(requiredLevel);
         
-        // 2. Delegate the evaluation to the specialized tool
-        // The GovernanceMandateEvaluatorTool handles the complex boolean logic previously hardcoded.
+        // Step 3: Delegate the comprehensive evaluation to the specialized tool
         return this.mandateEvaluator.execute({
-            requiredLevel: requiredLevel,
-            validatedIdentity: validatedIdentity,
-            requiredCriteria: requiredCriteria
+            requiredLevel,
+            validatedIdentity,
+            requiredCriteria
         });
     }
 }
