@@ -1,11 +1,11 @@
 /**
  * Telemetry Input Attestation Registrar (TIAR V94.1 - Refactored)
- * 
+ *
  * Role: Ensures non-repudiation and cryptographic integrity of decision input vectors 
  * (S-01, S-02) immediately prior to P-01 execution by the OGT. Guarantees the
  * Irreversible Mutation Gate operates on provably attested data.
  *
- * Dependencies: KeyManager, AttestationStore, CanonicalIntegrityTool (via Executor), [Optional: Logger].
+ * Dependencies: KeyManager, AttestationStore, DataIntegrityProcessor (Plugin), [Optional: Logger].
  * GSEP Alignment: Stage 3 (Pre-P-01 Gate Execution)
  */
 
@@ -18,20 +18,20 @@ class TelemetryInputAttestationRegistrar {
      * @param {object} dependencies 
      * @param {KeyManagementService} dependencies.keyManager - Service for signing/verifying.
      * @param {AttestationStoreInterface} dependencies.attestationStore - Persistence layer for commitments.
-     * @param {object} dependencies.integrityTool - Plugin Executor interface for CanonicalIntegrityTool.
+     * @param {DataIntegrityProcessor} dependencies.dataIntegrityProcessor - Plugin for deterministic data fingerprinting (canonicalization + hashing).
      * @param {Logger} [dependencies.logger] - Structured logger interface.
      */
     constructor(dependencies) {
-        // Note: Renamed 'canonicalizer' to 'integrityTool' to reflect the extracted plugin.
-        const { keyManager, attestationStore, integrityTool, hashAlgorithm, logger } = dependencies;
+        // Note: Renamed 'integrityTool' to 'dataIntegrityProcessor' to reflect the abstracted plugin.
+        const { keyManager, attestationStore, dataIntegrityProcessor, hashAlgorithm, logger } = dependencies;
 
-        if (!keyManager || !attestationStore || !integrityTool) {
-            throw new Error("TIAR Initialization Failure: Core dependencies missing (keyManager, attestationStore, integrityTool).");
+        if (!keyManager || !attestationStore || !dataIntegrityProcessor) {
+            throw new Error("TIAR Initialization Failure: Core dependencies missing (keyManager, attestationStore, dataIntegrityProcessor).");
         }
 
         this.keyManager = Object.freeze(keyManager);
         this.attestationStore = Object.freeze(attestationStore);
-        this.integrityTool = Object.freeze(integrityTool); // Executor interface
+        this.dataIntegrityProcessor = Object.freeze(dataIntegrityProcessor); 
         this.logger = logger || console;
         this.hashAlgorithm = hashAlgorithm || DEFAULT_HASH_ALGORITHM;
     }
@@ -44,23 +44,16 @@ class TelemetryInputAttestationRegistrar {
      */
     async attestInputs(inputVector) {
         
-        // 1. Canonicalization: Convert input into a deterministic byte stream using the tool.
-        const canonicalData = await this.integrityTool.execute({
-            operation: 'canonicalize',
-            data: inputVector
-        }); 
+        // 1. Generate Deterministic Hash using the abstracted processor
+        const inputHash = await this.dataIntegrityProcessor.getDeterministicFingerprint(
+            inputVector,
+            this.hashAlgorithm
+        );
         
-        // 2. Generate Deterministic Hash (sha256 is passed as algorithm arg)
-        const inputHash = await this.integrityTool.execute({
-            operation: 'hash',
-            data: canonicalData,
-            algorithm: this.hashAlgorithm
-        });
-        
-        // 3. Sign the Hash (cryptographic proof of possession and commitment)
+        // 2. Sign the Hash (cryptographic proof of possession and commitment)
         const signature = await this.keyManager.sign(inputHash);
 
-        // 4. Construct and register the attestation commitment record
+        // 3. Construct and register the attestation commitment record
         const attestationCommitment = {
             hash: inputHash,
             signature: signature,
@@ -92,16 +85,10 @@ class TelemetryInputAttestationRegistrar {
         }
 
         // 2. Recalculate hash of the provided input to verify content integrity
-        const reCanonicalizedData = await this.integrityTool.execute({
-            operation: 'canonicalize',
-            data: inputDataToVerify
-        });
-        
-        const reCalculatedHash = await this.integrityTool.execute({
-            operation: 'hash',
-            data: reCanonicalizedData,
-            algorithm: this.hashAlgorithm
-        });
+        const reCalculatedHash = await this.dataIntegrityProcessor.getDeterministicFingerprint(
+            inputDataToVerify,
+            this.hashAlgorithm
+        );
 
         if (reCalculatedHash !== commitmentRecord.hash) {
             return { valid: false, code: "E_HASH_MISMATCH", reason: "Input content integrity failure: Provided data does not match the committed hash." };
