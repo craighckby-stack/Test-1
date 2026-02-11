@@ -1,12 +1,6 @@
 const { ValidationResult } = require('../interfaces/ConfigValidator');
 
 /**
- * @typedef {object} ValidationResult
- * @property {boolean} isValid
- * @property {Array<any>} errors
- */
-
-/**
  * Manages the collection and concurrent execution of individual validation rules.
  * This decouples specific validation logic (e.g., SchemaCheck, StabilityCheck) 
  * from the main ConfigValidator implementation.
