@@ -1,10 +1,10 @@
 /** 
- * Assumes ShallowObjectDiffUtility is available in scope, providing getDiff(objA, objB).
+ * Requires a ShallowObjectDiffUtility instance provided during construction.
  */
-
 class TransitionStateVerifier {
-    constructor(schema) {
+    constructor(schema, diffUtility) {
         this.schema = schema;
+        this.diffUtility = diffUtility; // Dependency Injection
     }
 
     verify(state, transition) {
@@ -20,32 +20,19 @@ class TransitionStateVerifier {
             return true;
         }
 
-        // Fix: 'from' state identifier is now passed, resolving undefined variable error.
         const abstraction = this.getAbstraction(diff, from); 
         
         return this.isAbstractionValid(abstraction, to);
     }
 
     /**
-     * Identifies keys in 'state' that differ from the definition of the 'from' schema state.
-     * Utilizes the ShallowObjectDiffUtility plugin.
+     * Identifies keys in 'state' that differ from the definition of the 'from' schema state,
+     * utilizing the injected diff utility.
      */
     getDiff(state, from) {
         const fromSchema = this.schema.states[from];
-        
-        // Use the plugin if available
-        if (typeof ShallowObjectDiffUtility !== 'undefined' && typeof ShallowObjectDiffUtility.getDiff === 'function') {
-            return ShallowObjectDiffUtility.getDiff(state, fromSchema);
-        }
-
-        // Manual fallback implementation
-        const diff = [];
-        Object.keys(state).forEach(key => {
-            if (state[key] !== fromSchema[key]) {
-                diff.push(key);
-            }
-        });
-        return diff;
+        // Uses the injected utility
+        return this.diffUtility.getDiff(state, fromSchema);
     }
 
     /**
@@ -65,7 +52,6 @@ class TransitionStateVerifier {
     /**
      * Checks if the abstraction values (old values of changed fields) match 
      * the definition of the target state ('to').
-     * FIX: Corrected iteration logic to allow early exit (fixing original functional flaw).
      */
     isAbstractionValid(abstraction, to) {
         const toState = this.schema.states[to];
