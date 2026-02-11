@@ -1,10 +1,24 @@
 /**
+ * @typedef {Object} RiskAccessors
+ * @property {function(): Object} getUFRM - Function to retrieve the Unforeseen Risk Metric.
+ * @property {function(): Object} getCFTM - Function to retrieve the Core Function Trajectory Metric.
+ */
+
+/**
+ * @typedef {Object} ATMOutput
+ * @property {number} predicted_TEMM - Predicted Temporal Metric score (0 to 1).
+ * @property {boolean} predicted_ECVM - Predicted Execution Constraint Viability Metric (true if viable).
+ * @property {number} R_TH - The dynamically calculated Risk Threshold.
+ * @property {boolean} Guaranteed_ADTM_Trigger - True if TEMM is predicted to fall below R_TH, guaranteeing activation of Atomic Drift Trajectory Mitigation (ADTM).
+ */
+
+/**
  * GATED EXECUTION PIPELINE (GSEP-C) Enhancement: Preemptive State Resolution (v94.1 Axiomatic Trajectory Mapping)
  *
  * The Preemptive State Resolver (PSR) module generates the Axiomatic Trajectory Map (ATM)
  * asynchronously during ANCHORING (P1) and POLICY VETTING (P2), using predictive outcome modeling
  * to determine the mathematical certainty of policy or constraint failure (P-01=Fail) prior to P3/P4 execution.
- * 
+ *
  * PSR calculates the predicted TEMM (Temporal Metric) and ECVM (Execution Constraint Viability Metric)
  * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
  */
@@ -24,20 +38,32 @@ class PreemptiveStateResolver {
     // ----------------------------------
 
     // Core internal handlers for state and modeling utilities
+    /** @type {Object} */
     #policyEngine;
+    /** @type {Object} */
     #metricsStore;
+    /** @type {Object} */
     #simEngine;
-    #riskThresholdService; // Stores the resolved instance of the RiskThresholdCalculatorService
+    /** 
+     * @type {{ execute: function(string, Object): Promise<number> }} 
+     * Stores the resolved instance of the mandatory RiskThresholdCalculatorService synergy plugin.
+     */
+    #riskThresholdService;
     
     // Inputs needed for external R_TH calculation via the kernel tool
+    /** @type {RiskAccessors} */
     #riskAccessors;
+    /** @type {Object} */
     #riskModel;
 
     /**
+     * Initializes the Preemptive State Resolver, injecting core GAX components and required Kernel Synergy Services.
+     * 
      * @param {Object} Dependencies - Structured dependencies required for PSR operation.
      * @param {Object} Dependencies.GAX_Context - Full context container (must expose PolicyEngine, MetricsStore, getRiskModel, getUFRM, getCFTM).
-     * @param {Object} Dependencies.SimulationEngine - Engine for TEMM/ECVM prediction using ACVD.
+     * @param {Object} Dependencies.SimulationEngine - Engine for TEMM/ECVM prediction using ACVD (Assisted Constraint Viability Dynamics).
      * @param {Object} Dependencies.KernelCapabilities - REQUIRED: The KERNEL_SYNERGY_CAPABILITIES subset relevant to PSR.
+     * @throws {Error} If essential dependencies or required synergy interfaces are missing/malformed.
      */
     constructor({ GAX_Context, SimulationEngine, KernelCapabilities }) {
         if (!GAX_Context || !SimulationEngine) {
@@ -49,8 +75,8 @@ class PreemptiveStateResolver {
         // 1. Validate, resolve, and store Kernel Capabilities Dependency against Synergy Requirements
         const thresholdServiceInstance = KernelCapabilities ? KernelCapabilities[requiredServiceKey] : null;
         
-        if (!thresholdServiceInstance) {
-            throw new Error(`[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: ${requiredServiceKey}. Cannot calculate R_TH.`);
+        if (!thresholdServiceInstance || typeof thresholdServiceInstance.execute !== 'function') {
+            throw new Error(`[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: ${requiredServiceKey}. Interface is invalid or missing 'execute' method.`);
         }
         
         this.#riskThresholdService = thresholdServiceInstance; // Store resolved service directly
@@ -58,8 +84,11 @@ class PreemptiveStateResolver {
         const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         
         // 2. Dependency validation: Ensure all accessors needed for both internal use and external tool execution are present.
-        if (!GAX_Context.PolicyEngine || !riskModel || !GAX_Context.getUFRM || !GAX_Context.getCFTM || !GAX_Context.MetricsStore) {
-             throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, MetricsStore, RiskModel, UFRM, CFTM accessors). This is a Kernel Context error.");
+        const requiredContextProps = ['PolicyEngine', 'MetricsStore', 'getUFRM', 'getCFTM'];
+        const missingContextProps = requiredContextProps.filter(prop => !GAX_Context[prop]);
+
+        if (missingContextProps.length > 0 || !riskModel) {
+             throw new Error(`[PSR Init] GAX_Context failed to provide necessary core components. Missing: ${missingContextProps.join(', ')} (RiskModel: ${!!riskModel ? 'Present' : 'Missing'}). This is a Kernel Context error.`);
         }
 
         // Explicit extraction of core components for better typing and encapsulation
@@ -78,7 +107,7 @@ class PreemptiveStateResolver {
     /**
      * Private handler: Projects the policy constraints against the anticipated input manifest.
      * Incorporates Policy Volatility Metrics (PVM) for dynamic vetting (Simulates P2 checks).
-     * @param {Object} inputManifest
+     * @param {Object} inputManifest - The workflow/transaction data to check.
      * @returns {boolean} True if initial policy projection passes the pre-vetted stage.
      */
     #projectPolicyViability(inputManifest) {
@@ -91,7 +120,7 @@ class PreemptiveStateResolver {
             return policyViable;
 
         } catch (error) {
-            console.error(`[PSR Policy Failure] Critical Projection Error: ${error.message}`);
+            console.error(`[PSR Policy Failure] Critical Projection Error during checkViability: ${error.message}`);
             return false;
         }
     }
@@ -99,14 +128,14 @@ class PreemptiveStateResolver {
     /**
      * Generates the Axiomatic Trajectory Map (ATM).
      * @param {Object} inputManifest - The incoming workflow or transaction data.
-     * @returns {Promise<Object>} ATM { predicted_TEMM: Number, predicted_ECVM: Boolean, R_TH: Number, Guaranteed_ADTM_Trigger: Boolean }
+     * @returns {Promise<ATMOutput>} ATM { predicted_TEMM, predicted_ECVM, R_TH, Guaranteed_ADTM_Trigger }
      */
     async generateATM(inputManifest) {
         if (!inputManifest) {
             throw new Error("[PSR] Input manifest required for ATM generation.");
         }
         
-        // Resolve metrics locally before passing data to the kernel tool
+        // Stage 0a: Prepare risk metrics for external service calculation
         const UFRM = this.#riskAccessors.getUFRM();
         const CFTM = this.#riskAccessors.getCFTM();
         
@@ -116,15 +145,17 @@ class PreemptiveStateResolver {
             riskModel: this.#riskModel
         };
         
-        let R_TH = 0;
+        let R_TH;
+        // Standard conservative fallback threshold if synergy calculation fails.
+        const DEFAULT_SAFE_THRESHOLD = 0.0001;
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the stored Synergy Service instance.
+        // Stage 0b: Calculate Risk Threshold (R_TH) using the stored Synergy Service instance.
         try {
             R_TH = await this.#riskThresholdService.execute('calculateThreshold', riskParams);
         } catch (e) {
             console.error("[PSR] Critical error calculating R_TH via Synergy Service. Defaulting to safe minimal threshold.", e);
             // Default to a highly conservative/low threshold if calculation fails, guaranteeing ADTM trigger if risk is non-zero.
-            R_TH = 0.0001; 
+            R_TH = DEFAULT_SAFE_THRESHOLD; 
         }
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
@@ -140,9 +171,12 @@ class PreemptiveStateResolver {
 
         // Stage 2: Detailed Trajectory Modeling
         console.log("PSR: Starting predictive model simulation (P1/P2 overlap).");
+        
+        // Use destructuring for clearer result extraction
         const { predictedTEMM, predictedECVM } = await this.#simEngine.runSimulation(inputManifest);
         
         // Stage 3: Failure Guarantee Check (S04 precursor evaluation)
+        // P-01=Fail certainty requires TEMM < R_TH
         const isFailureGuaranteed = predictedTEMM < R_TH;
 
         const ATM = {
