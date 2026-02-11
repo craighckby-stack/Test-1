@@ -1,130 +1,178 @@
 /**
- * CORE RESOURCE CHECKS
- * ID: RCR-C01
- * GSEP Role: Provides standardized, basic, pre-defined resource checks to be registered
- * with the ResourceCheckRegistry upon system boot.
+ * CORE RESOURCE CHECKS KERNEL
+ * ID: RCR-C01-K
+ * GSEP Role: Defines standardized, high-integrity resource checks. Replaces synchronous
+ * dependencies and ad-hoc utility calls with specialized, asynchronous Tool Kernels.
  */
 
-// Assumed Dependencies: Standardized Metric IDs and necessary type definitions.
+// Tool Kernel Aliases for strict dependency injection
+const ResourceThresholdManagerKernel = 'ResourceThresholdManagerKernel';
+const IConceptIdRegistryKernel = 'IConceptIdRegistryKernel';
 
 /**
  * @typedef {import('../ResourceCheckRegistry').ResourceCheckFunction} ResourceCheckFunction
  * @typedef {import('../../types/GovernanceTypes').GovernanceConfig} GovernanceConfig
  * @typedef {import('../../monitoring/SystemMonitor').MonitorInterface} MonitorInterface
  */
-const { 
-    SYS_CPU_U, 
-    SYS_MEM_A, 
-    SYS_CLOCK_S 
-} = require('../../governance/constants/MetricConstants'); 
 
-/**
- * Interface definition for the utility function derived from the ThresholdResolver plugin.
- * This function resolves thresholds based on a three-tiered fallback strategy 
- * (metadata > config > hard default).
- * 
- * NOTE: The implementation of this utility (formerly _getThreshold) is now handled
- * externally by the ThresholdResolver plugin.
- */
-declare const resolveThreshold: (
-    metadata: any,
-    governanceConfig: any,
-    metadataKey: string,
-    configKey: string,
-    hardDefault: number
-) => number;
+class CoreResourceChecksKernel {
+    /**
+     * @param {Object} toolKernels
+     * @param {ResourceThresholdManagerKernel} toolKernels.ResourceThresholdManagerKernel
+     * @param {IConceptIdRegistryKernel} toolKernels.IConceptIdRegistryKernel
+     */
+    constructor(toolKernels) {
+        // Delegation of critical responsibilities to specialized, audited Tool Kernels
+        this.RTMK = toolKernels[ResourceThresholdManagerKernel];
+        this.CIDRK = toolKernels[IConceptIdRegistryKernel];
+        
+        // Internal state for metrics (resolved asynchronously)
+        this.metricConstants = {};
+    }
+
+    /**
+     * Mandatory asynchronous initialization method adhering to AIA Enforcement Layer mandates.
+     * Replaces synchronous constant loading with asynchronous registry access.
+     */
+    async initialize() {
+        // Asynchronously load standardized metric IDs via the specialized registry
+        const constants = await this.CIDRK.getConcepts([
+            'SYS_CPU_U', 
+            'SYS_MEM_A', 
+            'SYS_CLOCK_S'
+        ]);
+
+        if (!constants || Object.keys(constants).length !== 3) {
+             throw new Error("Failed to initialize CoreResourceChecksKernel: Missing required metric constants.");
+        }
+
+        this.metricConstants = constants;
+        
+        // Bind check methods to the instance for proper context management
+        this.cpuUtilizationCheck = this._cpuUtilizationCheck.bind(this);
+        this.memoryAvailableCheck = this._memoryAvailableCheck.bind(this);
+        this.clockSkewCheck = this._clockSkewCheck.bind(this);
+    }
+
+    /**
+     * Internal wrapper to delegate threshold resolution to the ResourceThresholdManagerKernel.
+     * Achieves Maximum Recursive Abstraction by replacing ad-hoc utility calls.
+     * @private
+     */
+    async _resolveThreshold(metadata, governanceConfig, metadataKey, configKey, hardDefault) {
+        // Strict delegation to RTMK for auditable, three-tiered threshold resolution
+        return this.RTMK.resolveThreshold({
+            metadata,
+            governanceConfig,
+            metadataKey,
+            configKey,
+            hardDefault
+        });
+    }
 
 
-// --- Standard Resource Check Implementations ---
+    // --- Standard Resource Check Implementations ---
 
-/**
- * Standard CPU Utilization Check.
- * Ensures average CPU usage is below a specified threshold (e.g., 75%).
- * @type {ResourceCheckFunction}
- */
-const cpuUtilizationCheck = async (monitor, governanceConfig, metadata) => {
-    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
-    const required = resolveThreshold(metadata, governanceConfig, 
-        'cpuThreshold', 'defaultCpuThreshold', 75); 
+    /**
+     * Standard CPU Utilization Check (Tool-mediated threshold resolution).
+     * @private
+     * @type {ResourceCheckFunction}
+     */
+    async _cpuUtilizationCheck(monitor, governanceConfig, metadata) {
+        const { SYS_CPU_U } = this.metricConstants;
+        
+        // Threshold resolution is now asynchronous and delegated to RTMK
+        const required = await this._resolveThreshold(metadata, governanceConfig, 
+            'cpuThreshold', 'defaultCpuThreshold', 75); 
 
-    // Assume monitor.getSystemMetrics() is used.
-    const metrics = await monitor.getSystemMetrics(); 
-    // Safety fallback: if metrics fail, assume 100% usage (worst case).
-    const currentUsage = metrics?.cpu?.usagePercentage ?? 100; 
+        // Assume monitor.getSystemMetrics() is provided by the caller/attestation engine
+        const metrics = await monitor.getSystemMetrics(); 
+        const currentUsage = metrics?.cpu?.usagePercentage ?? 100; 
 
-    const success = currentUsage <= required;
+        const success = currentUsage <= required;
+        
+        return {
+            success,
+            details: {
+                current: currentUsage,
+                required: required,
+                unit: '%',
+                measurementId: SYS_CPU_U
+            }
+        };
+    }
+
+    /**
+     * Standard Memory Free Check (Tool-mediated threshold resolution).
+     * @private
+     * @type {ResourceCheckFunction}
+     */
+    async _memoryAvailableCheck(monitor, governanceConfig, metadata) {
+        const { SYS_MEM_A } = this.metricConstants;
+
+        // Threshold resolution is now asynchronous and delegated to RTMK
+        const requiredPercentage = await this._resolveThreshold(metadata, governanceConfig, 
+            'memoryPercentageMin', 'defaultMemoryMinPercentage', 20);
+
+        const metrics = await monitor.getSystemMetrics();
+        const currentAvailablePercentage = metrics?.memory?.availablePercentage ?? 0; 
+
+        const success = currentAvailablePercentage >= requiredPercentage;
+
+        return {
+            success,
+            details: {
+                current: currentAvailablePercentage,
+                required: requiredPercentage,
+                unit: '% available',
+                measurementId: SYS_MEM_A
+            }
+        };
+    }
+
+    /**
+     * Standard NTP/Clock Synchronization Check (Tool-mediated threshold resolution).
+     * @private
+     * @type {ResourceCheckFunction}
+     */
+    async _clockSkewCheck(monitor, governanceConfig, metadata) {
+        const { SYS_CLOCK_S } = this.metricConstants;
+        const ONE_SECOND_MS_DEFAULT = 1000;
+        
+        // Threshold resolution is now asynchronous and delegated to RTMK
+        const maxSkewMs = await this._resolveThreshold(metadata, governanceConfig, 
+            'maxClockSkewMs', 'defaultMaxClockSkewMs', ONE_SECOND_MS_DEFAULT); 
+
+        const metrics = await monitor.getTimeSyncMetrics(); 
+        const currentSkewMs = metrics?.clockSkewMs ?? 3600000; 
+
+        const success = Math.abs(currentSkewMs) <= maxSkewMs; 
+
+        return {
+            success,
+            details: {
+                current: currentSkewMs,
+                required: maxSkewMs,
+                unit: 'ms',
+                measurementId: SYS_CLOCK_S
+            }
+        };
+    }
     
-    return {
-        success,
-        details: {
-            current: currentUsage,
-            required: required,
-            unit: '%',
-            measurementId: SYS_CPU_U
+    /**
+     * Public method to retrieve the registered checks after initialization.
+     * @returns {Object<string, ResourceCheckFunction>} The collection of runnable checks.
+     */
+    getChecks() {
+        if (!this.metricConstants.SYS_CPU_U) {
+            throw new Error("CoreResourceChecksKernel must be initialized before retrieving checks.");
         }
-    };
-};
+        return {
+            cpuUtilizationCheck: this.cpuUtilizationCheck,
+            memoryAvailableCheck: this.memoryAvailableCheck,
+            clockSkewCheck: this.clockSkewCheck
+        };
+    }
+}
 
-/**
- * Standard Memory Free Check.
- * Ensures a minimum percentage of free memory is available (e.g., 20%).
- * @type {ResourceCheckFunction}
- */
-const memoryAvailableCheck = async (monitor, governanceConfig, metadata) => {
-    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
-    const requiredPercentage = resolveThreshold(metadata, governanceConfig, 
-        'memoryPercentageMin', 'defaultMemoryMinPercentage', 20);
-
-    const metrics = await monitor.getSystemMetrics();
-    // Safety fallback: if metrics fail, assume 0% available (worst case).
-    const currentAvailablePercentage = metrics?.memory?.availablePercentage ?? 0; 
-
-    const success = currentAvailablePercentage >= requiredPercentage;
-
-    return {
-        success,
-        details: {
-            current: currentAvailablePercentage,
-            required: requiredPercentage,
-            unit: '% available',
-            measurementId: SYS_MEM_A
-        }
-    };
-};
-
-/**
- * Standard NTP/Clock Synchronization Check.
- * Ensures system clock skew relative to trusted sources is within limits (default 1000ms).
- * @type {ResourceCheckFunction}
- */
-const clockSkewCheck = async (monitor, governanceConfig, metadata) => {
-    const ONE_SECOND_MS_DEFAULT = 1000;
-    
-    // Uses the externalized threshold resolution utility (ThresholdResolver plugin)
-    const maxSkewMs = resolveThreshold(metadata, governanceConfig, 
-        'maxClockSkewMs', 'defaultMaxClockSkewMs', ONE_SECOND_MS_DEFAULT); 
-
-    const metrics = await monitor.getTimeSyncMetrics(); 
-    // Safety fallback: If metrics fail, assume 1 hour skew (massive failure).
-    const currentSkewMs = metrics?.clockSkewMs ?? 3600000; 
-
-    // Check if absolute value of skew is within tolerance
-    const success = Math.abs(currentSkewMs) <= maxSkewMs; 
-
-    return {
-        success,
-        details: {
-            current: currentSkewMs,
-            required: maxSkewMs,
-            unit: 'ms',
-            measurementId: SYS_CLOCK_S
-        }
-    };
-};
-
-
-module.exports = {
-    cpuUtilizationCheck,
-    memoryAvailableCheck,
-    clockSkewCheck
-};
+module.exports = { CoreResourceChecksKernel };
