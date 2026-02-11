@@ -1,30 +1,42 @@
 /**
  * Proposal Success History Index (PSHI) v94.2 - Ultra-Efficiency Indexing
  * Stores and analyzes historical metadata concerning generated code proposals (AGI-C-14 output).
- * Utilizes indexed maps for O(1) access. Refactored to eliminate O(N) operations in high-throughput paths (pruning, aggregation lookups).
- * Supports rapid recalibration of ARCH-ATM (agent trust) and AGI-C-12 CIW (contextual weighting).
+ * Utilizes indexed maps for O(1) access.
+ * Refactored to enforce Dependency Injection and configuration isolation.
  */
-class ProposalHistoryIndex {
-    /**
-     * @param {object} [config] - Configuration options.
-     * @param {number} [config.maxHistorySize=5000] - Max number of events retained in temporal index.
-     * @param {number} [config.decayFactor=0.05] - Decay factor (alpha) for Exponential Moving Average (EMA) on ATM scores.
-     */
-    constructor(config = {}) {
-        // Configuration options
-        this.maxHistorySize = config.maxHistorySize || 5000;
-        this.decayFactor = config.decayFactor || 0.05; // Used for weighted long-term stats
 
-        // Initialize EMA Calculator Plugin (now required and abstracted)
-        if (typeof ExponentialMovingAverage !== 'function') {
-             throw new Error("ExponentialMovingAverage plugin must be available globally or injected.");
+/**
+ * Interface for the required configuration registry.
+ * @typedef {object} IProposalHistoryConfigRegistryKernel
+ * @property {function(): number} getMaxHistorySize
+ * @property {function(): number} getDecayFactor
+ */
+
+/**
+ * Interface for the Exponential Moving Average utility.
+ * @typedef {object} IExponentialMovingAverageToolKernel
+ * @property {function(number, number): number} calculate
+ */
+
+class ProposalHistoryIndexKernel {
+    /**
+     * @param {IProposalHistoryConfigRegistryKernel} configRegistry - Configuration kernel providing constants (Max History Size).
+     * @param {IExponentialMovingAverageToolKernel} emaCalculator - Pre-configured EMA utility instance (Decay Factor applied externally).
+     */
+    constructor(configRegistry, emaCalculator) {
+        if (!configRegistry || !emaCalculator) {
+            throw new Error("ProposalHistoryIndexKernel requires configRegistry and emaCalculator.");
         }
-        this.emaCalculator = new ExponentialMovingAverage(this.decayFactor);
+
+        this._configRegistry = configRegistry;
+        this._emaCalculator = emaCalculator;
+        
+        this.#setupDependencies();
 
         // Index 1: Primary data store by proposal ID (O(1) access)
         this.proposalsById = new Map();
 
-        // Index 2: Temporal Queue (FIFO) - Stores IDs only for efficient O(1) pruning (replaces slow history array)
+        // Index 2: Temporal Queue (FIFO) - Stores IDs only for efficient O(1) pruning 
         this.temporalQueueIds = []; 
 
         // Index 3: Agent Performance Aggregates
@@ -32,9 +44,16 @@ class ProposalHistoryIndex {
         this.agentPerformanceMap = new Map(); 
         
         // Index 4: Contextual Failure Index (O(1) pattern bias lookup)
-        this.failureTopologyIndex = new Map(); // { topologyType: count }
-        this.totalFailureCount = 0; // Global count of failures for bias calculation
+        this.failureTopologyIndex = new Map(); 
+        this.totalFailureCount = 0; 
     }
+
+    // Configuration and Tool setup isolated
+    #setupDependencies() {
+        // Configuration retrieved via injected registry, eliminating hardcoded defaults and synchronous setup.
+        this.maxHistorySize = this._configRegistry.getMaxHistorySize();
+    }
+
 
     /**
      * Records a new proposal event, validates schema, and updates internal indices.
@@ -86,12 +105,12 @@ class ProposalHistoryIndex {
             stats.successCount++;
             // Treat success as a perfect score (1.0) for EMA if no CIW score is present
             const rateValue = normalizedEvent.actual_score_ciw !== undefined ? normalizedEvent.actual_score_ciw : 1.0;
-            stats.weightedAverageRate = this.emaCalculator.calculate(stats.weightedAverageRate, rateValue);
+            stats.weightedAverageRate = this._emaCalculator.calculate(stats.weightedAverageRate, rateValue);
         } else {
             stats.failureCount++;
             this.totalFailureCount++;
             // Treat failure as zero for EMA
-            stats.weightedAverageRate = this.emaCalculator.calculate(stats.weightedAverageRate, 0);
+            stats.weightedAverageRate = this._emaCalculator.calculate(stats.weightedAverageRate, 0);
         }
 
         // Update recent CIW scores (essential for quick, un-decayed metric)
@@ -111,14 +130,14 @@ class ProposalHistoryIndex {
     }
 
     /**
-     * Implements an O(1) removal pruning mechanism using the ID queue.
+     * Implements an O(N) removal pruning mechanism using the ID queue (note: Array.shift is O(N)).
      */
     _pruneHistory() {
         if (this.temporalQueueIds.length > this.maxHistorySize) {
             const excessCount = this.temporalQueueIds.length - this.maxHistorySize;
             
             for (let i = 0; i < excessCount; i++) {
-                const oldestId = this.temporalQueueIds.shift(); // Standard JS Array shift (O(N)), optimized by small array size relative to overall system throughput.
+                const oldestId = this.temporalQueueIds.shift(); 
                 const oldEvent = this.proposalsById.get(oldestId);
                 
                 if (oldEvent) {
