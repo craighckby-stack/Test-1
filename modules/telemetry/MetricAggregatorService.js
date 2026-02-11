@@ -12,13 +12,21 @@ const EventEmitter = require('events');
  * @property {function(object): object} standardize - Function to coerce and standardize raw data.
  */
 
+/**
+ * PeriodicRunner instance (injected plugin)
+ * @typedef {object} PeriodicRunnerInstance
+ * @property {function(): void} start
+ * @property {function(): void} stop
+ */
+
 class MetricAggregatorService extends EventEmitter {
     /**
      * @param {object} config - Configuration defining metric sources, sampling intervals, and normalization rules.
      * @param {function} logger - Logging utility.
      * @param {MetricDataStandardizerInstance} [metricStandardizer] - Tool for data normalization.
+     * @param {function} [PeriodicRunnerClass] - Class used to manage scheduled metric pushes (from plugin).
      */
-    constructor(config, logger = console, metricStandardizer = null) {
+    constructor(config, logger = console, metricStandardizer = null, PeriodicRunnerClass = null) {
         super();
         this.config = config;
         this.logger = logger;
@@ -28,14 +36,21 @@ class MetricAggregatorService extends EventEmitter {
         // Dependency Injection for the standardization tool
         this.metricStandardizer = metricStandardizer;
 
-        // Interval to push aggregated data to downstream components (e.g., PhaseEvaluatorEngine)
-        this.pushIntervalMs = config.pushIntervalMs || 5000;
-        this.intervalHandle = null;
+        // Initialize the timing mechanism using the abstracted runner
+        const pushIntervalMs = config.pushIntervalMs || 5000;
+        
+        if (PeriodicRunnerClass) {
+            // Instantiate the runner, binding pushMetrics as the periodic callback
+            this.runner = new PeriodicRunnerClass(pushIntervalMs, this.pushMetrics.bind(this), this.logger);
+        } else {
+            this.logger.warn('PeriodicRunnerClass not provided. Periodic push functionality is unavailable.');
+            // Fallback: implement Null Object pattern for safety
+            this.runner = { start: () => { this.logger.warn('Cannot start aggregation: PeriodicRunner missing.'); }, stop: () => {} };
+        }
     }
 
     _initializeSources(sourceConfigs) {
         // Placeholder: In a real implementation, this sets up connections
-        // (e.g., HTTP polling, message queue listeners, or database watchers)
         this.logger.info(`Initialized aggregator with ${sourceConfigs.length} metric sources.`);
         return sourceConfigs;
     }
@@ -72,27 +87,18 @@ class MetricAggregatorService extends EventEmitter {
     }
 
     /**
-     * Starts the periodic push mechanism.
+     * Starts the periodic push mechanism using the PeriodicRunner.
      */
     start() {
-        if (this.intervalHandle) {
-            this.stop();
-        }
-        this.intervalHandle = setInterval(() => {
-            this.pushMetrics();
-        }, this.pushIntervalMs);
-        this.logger.info(`Metric Aggregator started. Pushing metrics every ${this.pushIntervalMs}ms.`);
+        this.runner.start();
+        this.logger.info(`Metric Aggregator requested start via runner.`);
     }
 
     /**
-     * Stops the periodic push mechanism.
+     * Stops the periodic push mechanism using the PeriodicRunner.
      */
     stop() {
-        if (this.intervalHandle) {
-            clearInterval(this.intervalHandle);
-            this.intervalHandle = null;
-            this.logger.info('Metric Aggregator stopped.');
-        }
+        this.runner.stop();
     }
 
     /**
