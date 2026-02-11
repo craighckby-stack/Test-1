@@ -7,22 +7,23 @@
 
 import { CanonicalCryptoUtility } from '@agi-kernel/plugins'; // Use the established plugin interface
 
+const PLUGIN_ERROR_MESSAGE = 
+    "CanonicalCryptoUtility plugin is required but unavailable or improperly initialized.";
+
 /**
- * Generates a SHA256 hash of the input data.
- * Supports complex objects by stably serializing them first.
+ * Generates a cryptographic hash of the input data.
+ * Supports complex objects by stably serializing them first via the underlying utility.
  * 
- * @param {*} data - The input data (string or object) to be hashed.
- * @param {string} [algorithm='sha256'] - The hashing algorithm to use.
+ * @param {*} data - The input data (string, object, buffer) to be hashed.
+ * @param {string} [algorithm='sha256'] - The hashing algorithm to use (e.g., 'sha256', 'sha512').
  * @returns {string} The hexadecimal hash digest.
+ * @throws {Error} If the CanonicalCryptoUtility plugin is not available.
  */
 export function calculateHash(data, algorithm = 'sha256') {
     // Delegate the complex logic (serialization + hashing) to the reusable plugin
     
-    // Note: The specific implementation details (Node.js crypto vs Web Crypto) are now abstracted
-    // within the CanonicalCryptoUtility plugin.
-
-    if (!CanonicalCryptoUtility || typeof CanonicalCryptoUtility.calculateHash !== 'function') {
-        throw new Error("CanonicalCryptoUtility plugin is required but unavailable or improperly initialized.");
+    if (typeof CanonicalCryptoUtility?.calculateHash !== 'function') {
+        throw new Error(PLUGIN_ERROR_MESSAGE);
     }
 
     return CanonicalCryptoUtility.calculateHash(data, algorithm);
