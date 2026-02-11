@@ -1,16 +1,30 @@
-const crypto = require('crypto');
+/**
+ * NOTE: We rely on the kernel injecting the required utilities.
+ */
 
-// Define the assumed interface for the external Canonicalization Tool
+// Interface for the deterministic serialization tool
 interface CanonicalizerTool {
     generate(data: unknown): string;
 }
 
-// NOTE: We assume the AGI kernel environment exposes the defined plugin
-// 'CanonicalPayloadGenerator' logic through a known access mechanism (e.g., global utility map).
+// Interface for the general cryptographic hashing tool
+interface SecureHasherTool {
+    hash(data: string, algorithm?: string): string;
+}
+
+// Access the kernel-provided Canonicalization Utility
 const CanonicalizerUtility: CanonicalizerTool = (global as any).CanonicalPayloadGenerator || {
     generate: (data: unknown) => {
         // Fallback/Error: The utility must be initialized by the kernel
         throw new Error("CanonicalPayloadGenerator utility not initialized or available.");
+    }
+};
+
+// Access the kernel-provided Hashing Utility (SecureHasher plugin)
+const HasherUtility: SecureHasherTool = (global as any).SecureHasher || {
+    hash: (data: string, algorithm?: string) => {
+        // Fallback/Error: The utility must be initialized by the kernel
+        throw new Error("SecureHasher utility not initialized or available.");
     }
 };
 
@@ -33,8 +47,9 @@ class Canonicalizer {
     }
 
     /**
-     * Calculates a secure cryptographic hash of the canonical data.
+     * Calculates a secure cryptographic hash of the canonical data using the SecureHasher utility.
      * NOTE: Algorithm choice should be standardized via ConsensusConfig.
+     * 
      * @param {string} canonicalData - Data obtained from canonicalize().
      * @param {string} algorithm - Hashing algorithm (Default: SHA-256).
      * @returns {string} Hexadecimal hash digest.
@@ -43,10 +58,8 @@ class Canonicalizer {
         if (typeof canonicalData !== 'string') {
              throw new Error("Input to hash must be a canonical string.");
         }
-        return crypto
-            .createHash(algorithm.toLowerCase())
-            .update(canonicalData, 'utf8')
-            .digest('hex');
+        // Delegate hashing logic to the dedicated plugin
+        return HasherUtility.hash(canonicalData, algorithm);
     }
 }
 
