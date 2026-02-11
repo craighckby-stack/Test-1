@@ -1,5 +1,12 @@
 const crypto = require('crypto');
 const Policy = require('../config/SecurityPolicy');
+const util = require('util');
+
+/**
+ * A promisified version of the Node.js crypto.scrypt function.
+ * Note: This is used internally by the PolicyScryptKDFExecutor.
+ */
+const scryptAsync = util.promisify(crypto.scrypt);
 
 // Placeholder/wrapper for the PolicyScryptKDFUtility plugin execution.
 // In a true AGI-Kernel environment, this would be provided by the runtime's Tool Execution Context.
@@ -8,10 +15,14 @@ const PolicyScryptKDFExecutor = {
      * Simulates the execution of the PolicyScryptKDFUtility plugin, which handles KDF according to policy.
      * We must maintain the functional implementation here to ensure the Node.js module remains executable, 
      * but the conceptual design relies on the plugin logic.
+     * 
+     * NOTE: This implementation now uses async/await and util.promisify for cleaner execution,
+     * assuming the injected 'scryptPrimitive' is the standard Node.js callback function.
+     * 
      * @param {{password: string, salt: Buffer, policyKDF: Object, scryptPrimitive: Function}} args 
      * @returns {Promise<Buffer>}
      */
-    execute: (args) => {
+    execute: async (args) => {
         const { password, salt, policyKDF, scryptPrimitive } = args;
         
         if (!scryptPrimitive) {
@@ -20,23 +31,20 @@ const PolicyScryptKDFExecutor = {
 
         const { COST_N, COST_R, COST_P, KEY_LENGTH_BYTES } = policyKDF;
         
-        return new Promise((resolve, reject) => {
-            scryptPrimitive(
-                password,
-                salt,
-                KEY_LENGTH_BYTES,
-                { N: COST_N, r: COST_R, p: COST_P },
-                (err, derivedKey) => {
-                    if (err) return reject(err);
-                    resolve(derivedKey);
-                }
-            );
-        });
+        // Since 'scryptPrimitive' is injected, we use util.promisify on it to handle asynchronous execution cleanly.
+        const executeScrypt = util.promisify(scryptPrimitive);
+
+        return executeScrypt(
+            password,
+            salt,
+            KEY_LENGTH_BYTES,
+            { N: COST_N, r: COST_R, p: COST_P }
+        );
     }
 }
 
 /**
- * CryptoService v1.1
+ * CryptoService v1.2
  * Central utility for all cryptographic operations, enforcing SecurityPolicy standards,
  * delegating complex KDF tasks to specialized tooling (PolicyScryptKDFUtility).
  */
