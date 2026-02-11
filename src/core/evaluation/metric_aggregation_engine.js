@@ -1,87 +1,124 @@
 /**
- * MetricAggregationEngine
- * Manages the execution, aggregation, and threshold monitoring defined in config/metrics_and_oracles_v1.json.
+ * MetricAggregationKernel
+ * Manages the execution, aggregation, and threshold monitoring for metrics and oracles.
  */
-class MetricAggregationEngine {
-    config: any;
-    metricHistory: Record<string, any>;
+class MetricAggregationKernel {
+    #configRegistry; // IMetricAggregationConfigRegistryKernel
+    #logger; // ILoggerToolKernel
+    #thresholdMonitor; // IMetricThresholdMonitorToolKernel
+    #metricExecutionTool; // IMetricExecutionToolKernel
 
-    constructor(config: any) {
-        this.config = config;
-        this.metricHistory = {};
+    // Internal State
+    #metricHistory = {};
+
+    /**
+     * @param {IMetricAggregationConfigRegistryKernel} configRegistry - Registry for metrics and oracle configurations.
+     * @param {ILoggerToolKernel} logger - Standardized logging interface.
+     * @param {IMetricThresholdMonitorToolKernel} thresholdMonitor - Tool for monitoring results against thresholds.
+     * @param {IMetricExecutionToolKernel} metricExecutionTool - Tool for executing specific metrics and oracles.
+     */
+    constructor(
+        configRegistry,
+        logger,
+        thresholdMonitor,
+        metricExecutionTool
+    ) {
+        this.#setupDependencies(configRegistry, logger, thresholdMonitor, metricExecutionTool);
+    }
+
+    /**
+     * Synchronously validates and assigns all required dependencies.
+     */
+    #setupDependencies(configRegistry, logger, thresholdMonitor, metricExecutionTool) {
+        if (!configRegistry || typeof configRegistry.getConfig !== 'function') {
+            throw new Error("MetricAggregationKernel requires a valid IMetricAggregationConfigRegistryKernel.");
+        }
+        if (!logger || typeof logger.warn !== 'function' || typeof logger.error !== 'function') {
+            throw new Error("MetricAggregationKernel requires a valid ILoggerToolKernel.");
+        }
+        if (!thresholdMonitor || typeof thresholdMonitor.monitor !== 'function') {
+            throw new Error("MetricAggregationKernel requires a valid IMetricThresholdMonitorToolKernel.");
+        }
+        if (!metricExecutionTool || typeof metricExecutionTool.executeOracle !== 'function' || typeof metricExecutionTool.calculateMetric !== 'function') {
+            throw new Error("MetricAggregationKernel requires a valid IMetricExecutionToolKernel.");
+        }
+
+        this.#configRegistry = configRegistry;
+        this.#logger = logger;
+        this.#thresholdMonitor = thresholdMonitor;
+        this.#metricExecutionTool = metricExecutionTool;
     }
 
     /**
      * Executes a specific evaluation pipeline based on the specified tier.
      * @param {string} tier - e.g., 'lightweight_validation'
      * @param {object} context - Runtime data needed for oracle execution.
-     * @returns {object} Results mapping metric/oracle IDs to outcomes.
+     * @returns {Promise<Record<string, any>>} Results mapping metric/oracle IDs to outcomes.
      */
-    async runTieredEvaluation(tier: string, context: Record<string, any>): Promise<Record<string, any>> {
-        const pipeline: string[] = this.config.default_evaluation_pipeline[tier];
+    async runTieredEvaluation(tier, context) {
+        const config = this.#configRegistry.getConfig();
+        const pipeline = config.default_evaluation_pipeline?.[tier];
+
         if (!pipeline) {
-            console.warn(`No pipeline defined for tier: ${tier}`);
+            this.#logger.warn(`No pipeline defined for tier: ${tier}`);
             return {};
         }
 
-        const results: Record<string, any> = {};
+        const results = {};
         for (const id of pipeline) {
-            if (this.config.oracles && this.config.oracles[id]) {
-                // Execute oracle (Placeholder: Should call component defined by component_id)
-                results[id] = await this.executeOracle(id, this.config.oracles[id], context);
-            } else if (this.config.metrics && this.config.metrics[id]) {
-                // Calculate metric
-                results[id] = this.calculateMetric(id, this.config.metrics[id]);
+            if (config.oracles?.[id]) {
+                results[id] = await this.#executeOracle(id, config.oracles[id], context);
+            } else if (config.metrics?.[id]) {
+                results[id] = this.#calculateMetric(id, config.metrics[id]);
             }
         }
         
-        // Use the abstracted plugin for monitoring
-        const violations = this.monitorThresholds(results);
+        const violations = this.#monitorThresholds(results, config);
         
-        // Handle violations post-monitoring
         if (Object.keys(violations).length > 0) {
-            console.warn(`[${tier}] Metric threshold violations detected:`, violations);
-            // Further action (e.g., logging to audit, triggering recovery) would go here.
+            this.#logger.warn(`[${tier}] Metric threshold violations detected:`, violations);
         }
 
         return results;
     }
 
     /**
-     * Executes an oracle component. (Placeholder implementation)
+     * Executes an oracle component using the injected execution tool.
      */
-    private async executeOracle(id: string, definition: any, context: Record<string, any>): Promise<any> {
-        // Assume execution based on definition.component_id and context
-        return Math.random() * 100; 
+    async #executeOracle(id, definition, context) {
+        return this.#metricExecutionTool.executeOracle(id, definition, context);
     }
 
     /**
-     * Calculates a metric based on its definition. (Placeholder implementation)
+     * Calculates a metric using the injected execution tool and updates internal history.
      */
-    private calculateMetric(id: string, definition: any): any {
-        // Assume calculation based on definition.type and historical data
-        const value = Math.random() * 10;
-        this.metricHistory[id] = { value, timestamp: Date.now() };
-        return value;
-    }
-
-    /**
-     * Monitors the calculated results against defined configuration thresholds using the dedicated utility.
-     * Relies on the external MetricThresholdMonitorUtility plugin.
-     * 
-     * @param {object} results - Results mapping metric/oracle IDs to outcomes.
-     * @returns {object} A map of violations: { metricId: violationDetails[] }.
-     */
-    private monitorThresholds(results: Record<string, any>): Record<string, any> {
-        if (typeof MetricThresholdMonitorUtility !== 'undefined' && MetricThresholdMonitorUtility.monitor) {
-            return MetricThresholdMonitorUtility.monitor({
-                results: results,
-                config: this.config
-            });
+    #calculateMetric(id, definition) {
+        // Delegate calculation, providing history data
+        const result = this.#metricExecutionTool.calculateMetric(id, definition, this.#metricHistory);
+        
+        if (result && result.value !== undefined) {
+             // Update internal state after calculation
+             this.#metricHistory[id] = { value: result.value, timestamp: Date.now() };
         }
-        console.error("Dependency MetricThresholdMonitorUtility is unavailable. Skipping threshold monitoring.");
-        return {};
+
+        // Return the resulting value for aggregation
+        return result?.value;
+    }
+
+    /**
+     * Monitors the calculated results against defined configuration thresholds using the dedicated tool.
+     */
+    #monitorThresholds(results, config) {
+        try {
+            return this.#thresholdMonitor.monitor({
+                results: results,
+                config: config
+            });
+        } catch (error) {
+            this.#logger.error("Error encountered during metric threshold monitoring.", error);
+            return {};
+        }
     }
 }
 
-module.exports = MetricAggregationEngine;
+module.exports = MetricAggregationKernel;
