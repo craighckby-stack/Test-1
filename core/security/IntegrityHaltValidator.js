@@ -37,23 +37,40 @@ const HALT_LOG_SCHEMA = Object.freeze({
 /**
  * IntegrityHaltValidator: Ensures critical halt logs conform strictly
  * to the defined integrity schema before signing/finalizing.
- * Relies on StrictSchemaValidator plugin for fatal failure handling.
+ * 
+ * Optimization: Uses explicit Dependency Injection and private fields
+ * to replace reliance on global scope access for the core validator utility.
  */
 class IntegrityHaltValidator {
+    
+    #validator;
+    #schema;
+    #schemaId;
+
     /**
-     * Validates a critical halt log entry, immediately halting the system
-     * if the structural integrity is compromised.
+     * @param {object} validator An instance of the StrictSchemaValidator utility.
+     *                          Must implement a validate(payload, schema, schemaId) method.
+     */
+    constructor(validator) {
+        if (!validator || typeof validator.validate !== 'function') {
+            throw new Error('Dependency Error: A valid StrictSchemaValidator instance is required.');
+        }
+        
+        // Strict encapsulation of dependencies and configuration
+        this.#validator = validator;
+        this.#schema = HALT_LOG_SCHEMA;
+        this.#schemaId = this.#schema.$id;
+    }
+
+    /**
+     * Validates a critical halt log entry, delegating the operation to the
+     * injected, strictly encapsulated validator utility.
      * @param {object} logEntry The log entry object to validate.
      * @returns {boolean} True if validation passes.
      */
-    static validate(logEntry) {
-        // Assumption: StrictSchemaValidator is available in the execution context
-        if (typeof StrictSchemaValidator === 'undefined') {
-             throw new Error('Kernel Dependency Missing: StrictSchemaValidator is required.');
-        }
-        
+    validate(logEntry) {
         // Delegation to the abstracted strict validation logic
-        return StrictSchemaValidator.validate(logEntry, HALT_LOG_SCHEMA, 'IntegrityHaltLog');
+        return this.#validator.validate(logEntry, this.#schema, this.#schemaId);
     }
 
     /**
