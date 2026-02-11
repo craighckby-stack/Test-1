@@ -9,6 +9,9 @@ declare const CanonicalJsonStringifierTool: {
     execute(data: any): string;
 };
 
+// Assumed declaration/import from the generated Utf8Converter plugin
+declare function stringToUint8Array(input: string): Uint8Array;
+
 /**
  * Converts a data object into its canonical UTF-8 byte representation.
  * 
@@ -23,13 +26,6 @@ export function canonicalizeAPM(data: any): Uint8Array {
     // 1. Get the deterministic JSON string.
     const deterministicString = CanonicalJsonStringifierTool.execute(data);
     
-    // 2. Convert string to UTF-8 bytes (Uint8Array/Buffer).
-    if (typeof TextEncoder !== 'undefined') {
-        return new TextEncoder().encode(deterministicString);
-    } else if (typeof Buffer !== 'undefined') {
-        // Fallback for Node.js environments
-        return Buffer.from(deterministicString, 'utf8');
-    } else {
-        throw new Error("Environment lacks TextEncoder or Buffer for UTF-8 conversion.");
-    }
+    // 2. Convert string to UTF-8 bytes using the abstracted utility.
+    return stringToUint8Array(deterministicString);
 }
