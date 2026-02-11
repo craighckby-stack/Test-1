@@ -8,7 +8,6 @@
 
 import { promises as fs } from 'fs'; 
 import path from 'path';
-// The crypto dependency has been moved to the FileIntegrityHasher plugin.
 
 // Assume AGI_PLUGINS access for integration
 declare const AGI_PLUGINS: {
@@ -23,16 +22,36 @@ const FailureModeExecutor = require('./SCR_FailureModeExecutor');
 const MANIFEST_PATH = path.join(__dirname, 'SCR_IntegrityManifest.json');
 const HASH_ALGORITHM = 'sha512';
 
-// calculateFileHash function removed - migrated to FileIntegrityHasher plugin.
+// --- Manifest Data Structures ---
+
+interface ManifestFileEntry {
+    path: string;
+    hash_sha512: string; // The expected hash
+    failure_mode: string; // Policy identifier for the executor
+}
+
+interface IntegrityGroup {
+    priority: number;
+    files: ManifestFileEntry[];
+}
+
+interface IntegrityManifest {
+    manifest_id: string;
+    integrity_groups: {
+        [groupName: string]: IntegrityGroup;
+    };
+}
+
+// --- Core Functions ---
 
 /**
  * Loads and parses the Integrity Manifest.
- * @returns {Promise<any>} The manifest data.
+ * @returns {Promise<IntegrityManifest>} The manifest data.
  */
-async function loadManifest(): Promise<any> {
+async function loadManifest(): Promise<IntegrityManifest> {
     try {
         const data = await fs.readFile(MANIFEST_PATH, 'utf8');
-        return JSON.parse(data);
+        return JSON.parse(data) as IntegrityManifest;
     } catch (e) {
         if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
             throw new Error('CRITICAL: Integrity Manifest not found.');
@@ -80,7 +99,7 @@ async function handleBreaches(breaches: Breach[]): Promise<boolean> {
  * @returns {Promise<boolean>} True if validation succeeded, false otherwise.
  */
 async function validateIntegrity(): Promise<boolean> {
-    let manifest: any;
+    let manifest: IntegrityManifest;
     try {
         manifest = await loadManifest();
     } catch (e) {
@@ -90,25 +109,34 @@ async function validateIntegrity(): Promise<boolean> {
 
     console.log(`[Integrity Check] Starting validation using Manifest ID: ${manifest.manifest_id}`);
 
-    type HashResult = { fileKey: string; status: string; hash?: string; message?: string; };
+    type HashResult = { fileKey: string; status: 'success' | 'error'; hash?: string; message?: string; };
+    
+    // Combines manifest entry with dynamic run data
+    type FileMetadata = ManifestFileEntry & { groupName: string, priority: number };
+
     const hashPromises: Promise<HashResult>[] = [];
-    const filesMap = new Map<string, any>(); 
+    const filesMap = new Map<string, FileMetadata>(); 
 
     // 1. Queue all file hash calculations concurrently
-    Object.entries(manifest.integrity_groups).forEach(([groupName, group]: [string, any]) => {
-        group.files.forEach((fileEntry: any, index: number) => {
+    Object.entries(manifest.integrity_groups).forEach(([groupName, group]) => {
+        group.files.forEach((fileEntry, index) => {
             const fileKey = `${groupName}:${index}`;
-            filesMap.set(fileKey, { ...fileEntry, groupName, priority: group.priority });
+            
+            filesMap.set(fileKey, { 
+                ...fileEntry, 
+                groupName,
+                priority: group.priority 
+            });
             
             // Use FileIntegrityHasher plugin
             hashPromises.push(
-                AGI_PLUGINS.FileIntegrityHasher.calculateHash({ 
+                AGI_PLUGINS.FileIntegrityHasher.calculateHash({
                     filePath: fileEntry.path, 
                     algorithm: HASH_ALGORITHM 
                 })
                 .then(currentHash => ({
                     fileKey, 
-                    status: 'success', 
+                    status: 'success',
                     hash: currentHash 
                 }))
                 .catch(error => ({
@@ -129,7 +157,7 @@ async function validateIntegrity(): Promise<boolean> {
     results.forEach(result => {
         const fileMetadata = filesMap.get(result.fileKey);
 
-        if (!fileMetadata) return;
+        if (!fileMetadata) return; // Should not happen
 
         if (result.status === 'error') {
             // File inaccessible or hashing failed
@@ -143,13 +171,16 @@ async function validateIntegrity(): Promise<boolean> {
             return;
         }
 
-        if (result.hash !== fileMetadata.hash_sha512) {
+        // Type cast assertion needed here since `result.hash` exists only if status is 'success'
+        const actualHash = result.hash!;
+        
+        if (actualHash !== fileMetadata.hash_sha512) {
             // Hash Mismatch detected
             breaches.push({
                 path: fileMetadata.path,
                 failure_mode: fileMetadata.failure_mode,
                 expectedHash: fileMetadata.hash_sha512,
-                actualHash: result.hash || 'ERROR_UNDEFINED',
+                actualHash: actualHash,
                 details: { 
                     priority: fileMetadata.priority, 
                     type: 'HASH_MISMATCH' 
