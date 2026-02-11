@@ -17,57 +17,83 @@ type Policy = MPAMConfiguration['policies'][0];
  * by using an injected data service to retrieve compliance metrics against defined policies.
  */
 export class PolicyAdherenceResolver {
-    private config: MPAMConfiguration;
-    private readonly dataFetcher: IComplianceDataFetcher;
-    private readonly thresholdValidator: IPolicyThresholdValidator;
+    #config: MPAMConfiguration;
+    #dataFetcher: IComplianceDataFetcher;
+    #thresholdValidator: IPolicyThresholdValidator;
 
     constructor(
         mpamConfig: MPAMConfiguration, 
         dataFetcher: IComplianceDataFetcher,
         thresholdValidator: IPolicyThresholdValidator
     ) {
-        if (!dataFetcher || !thresholdValidator) {
-            throw new Error("Missing required dependency: IComplianceDataFetcher or IPolicyThresholdValidator.");
-        }
-        this.config = mpamConfig;
-        this.dataFetcher = dataFetcher;
-        this.thresholdValidator = thresholdValidator;
+        this.#setupDependencies(mpamConfig, dataFetcher, thresholdValidator);
     }
 
     /**
-     * Calculates the adherence score from raw data based on complex scoring rules.
+     * Extracts synchronous dependency setup and input validation from the constructor.
+     */
+    #setupDependencies(
+        mpamConfig: MPAMConfiguration, 
+        dataFetcher: IComplianceDataFetcher,
+        thresholdValidator: IPolicyThresholdValidator
+    ): void {
+        if (!dataFetcher || !thresholdValidator) {
+            throw new Error("Missing required dependency: IComplianceDataFetcher or IPolicyThresholdValidator.");
+        }
+        this.#config = mpamConfig;
+        this.#dataFetcher = dataFetcher;
+        this.#thresholdValidator = thresholdValidator;
+    }
+
+    /**
+     * Internal Helper: Calculates the adherence score from raw data based on complex scoring rules.
      * @param policy - The policy definition.
      * @param rawData - The raw compliance data (e.g., API response).
      * @returns The normalized adherence score (0.0 to 1.0).
      */
-    private calculateScore(policy: Policy, rawData: number): number {
+    #calculateScore(policy: Policy, rawData: number): number {
         // Note: Complex, algorithm-specific logic (e.g., aggregating multiple metric sources,
         // normalization, temporal averaging) would reside here.
         // Currently, it returns the raw data value directly, assuming it's a score.
         return rawData;
     }
 
+    /** I/O Proxy: Delegates data fetching to the external service. */
+    async #delegateToDataFetch(endpoint: string): Promise<number> {
+        return this.#dataFetcher.fetchComplianceData(endpoint);
+    }
+
+    /** I/O Proxy: Delegates threshold validation to the external plugin. */
+    #delegateToThresholdValidation(score: number, metrics: Policy['metrics']): ThresholdValidationResult {
+        return this.#thresholdValidator.validate(score, metrics);
+    }
+
+    /** I/O Proxy: Delegates error logging to the console. */
+    #logError(message: string, error: unknown): void {
+        console.error(message, error);
+    }
+
     public async checkAdherence(): Promise<PolicyAdherenceResult[]> {
         const results: PolicyAdherenceResult[] = [];
 
-        for (const policy of this.config.policies) {
+        for (const policy of this.#config.policies) {
             if (!policy.audit_config || policy.metrics.length === 0) continue;
 
             const endpoint = policy.audit_config.source_api;
             let rawData: number;
             
             try {
-                rawData = await this.dataFetcher.fetchComplianceData(endpoint);
+                rawData = await this.#delegateToDataFetch(endpoint);
             } catch (error) {
-                console.error(`Error fetching compliance data for ${policy.policy_id} from ${endpoint}:`, error);
+                this.#logError(`Error fetching compliance data for ${policy.policy_id} from ${endpoint}:`, error);
                 // Skip or mark as non-compliant due to inability to audit
                 continue;
             }
 
-            const adherenceScore = this.calculateScore(policy, rawData);
+            const adherenceScore = this.#calculateScore(policy, rawData);
             
-            // Compliance Check delegated to PolicyThresholdValidator plugin
-            const validationResult: ThresholdValidationResult = this.thresholdValidator.validate(
+            // Compliance Check delegated via proxy
+            const validationResult: ThresholdValidationResult = this.#delegateToThresholdValidation(
                 adherenceScore,
                 policy.metrics
             );
