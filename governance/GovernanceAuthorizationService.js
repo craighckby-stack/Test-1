@@ -7,15 +7,57 @@
  */
 class GovernanceAuthorizationService {
 
+    #policyEngine;
+    #scv;
+    #mandateEvaluator;
+
     /**
      * @param {object} policyEngine - Handles fetching mandate criteria based on requiredLevel.
      * @param {object} securityContextVerifier - Handles token verification and identity extraction.
      * @param {object} mandateEvaluator - Executes complex governance mandate checks.
      */
     constructor(policyEngine, securityContextVerifier, mandateEvaluator) {
-        this.policyEngine = policyEngine;
-        this.scv = securityContextVerifier;
-        this.mandateEvaluator = mandateEvaluator; 
+        this.#setupDependencies(policyEngine, securityContextVerifier, mandateEvaluator);
+    }
+
+    /**
+     * Extracts synchronous dependency assignment and ensures existence.
+     * @private
+     */
+    #setupDependencies(policyEngine, securityContextVerifier, mandateEvaluator) {
+        if (!policyEngine || !securityContextVerifier || !mandateEvaluator) {
+             throw new Error("Missing required dependencies for GovernanceAuthorizationService.");
+        }
+        this.#policyEngine = policyEngine;
+        this.#scv = securityContextVerifier;
+        this.#mandateEvaluator = mandateEvaluator; 
+    }
+
+    // --- I/O Proxies: External interactions and Logging ---
+
+    #logError(message) {
+        // I/O Proxy for console.error
+        console.error(`[GAS] ${message}`);
+    }
+
+    #logWarning(message) {
+        // I/O Proxy for console.warn
+        console.warn(`[GAS] ${message}`);
+    }
+
+    async #delegateToSecurityContextVerification(context) {
+        // I/O Proxy for external tool execution (SCV)
+        return this.#scv.verifyContext(context);
+    }
+    
+    #delegateToPolicyEngine(requiredLevel) {
+        // I/O Proxy for external tool execution (Policy Engine data fetch)
+        return this.#policyEngine.getMandateCriteria(requiredLevel);
+    }
+
+    #delegateToMandateEvaluation(payload) {
+        // I/O Proxy for external tool execution (Mandate Evaluator)
+        return this.#mandateEvaluator.execute(payload);
     }
 
     /**
@@ -27,31 +69,31 @@ class GovernanceAuthorizationService {
     async validate(requiredLevel, context) {
         // Input validation
         if (!context || typeof context !== 'object' || Object.keys(context).length === 0) {
-            console.error(`[GAS] Validation failure: Required level '${requiredLevel}'. Context is missing or empty.`);
+            this.#logError(`Validation failure: Required level '${requiredLevel}'. Context is missing or empty.`);
             return false;
         }
 
         let validatedIdentity;
         try {
             // Step 1: Verify the integrity and authenticity of the context/token
-            validatedIdentity = await this.scv.verifyContext(context);
+            validatedIdentity = await this.#delegateToSecurityContextVerification(context);
         } catch (error) {
-            // Handle failures in the security context pipeline (e.g., expired token, malformed signature)
-            console.error(`[GAS] Security Context Verification failed for level ${requiredLevel}. Error: ${error.message}`);
+            // Handle failures in the security context pipeline
+            this.#logError(`Security Context Verification failed for level ${requiredLevel}. Error: ${error.message}`);
             return false;
         }
 
         if (!validatedIdentity) {
-            // Identity verification returned a falsy value (e.g., unauthorized identity found)
-            console.warn(`[GAS] Identity verification failed for level ${requiredLevel}. Identity unauthorized or unknown.`);
+            // Identity verification returned a falsy value
+            this.#logWarning(`Identity verification failed for level ${requiredLevel}. Identity unauthorized or unknown.`);
             return false;
         }
 
-        // Step 2: Fetch the required mandate criteria from the Policy Engine
-        const requiredCriteria = this.policyEngine.getMandateCriteria(requiredLevel);
+        // Step 2: Fetch the required mandate criteria
+        const requiredCriteria = this.#delegateToPolicyEngine(requiredLevel);
         
-        // Step 3: Delegate the comprehensive evaluation to the specialized tool
-        return this.mandateEvaluator.execute({
+        // Step 3: Delegate the comprehensive evaluation
+        return this.#delegateToMandateEvaluation({
             requiredLevel,
             validatedIdentity,
             requiredCriteria
