@@ -7,20 +7,8 @@
  */
 export const GOVERNANCE_SCHEMA_IDENTIFIER = 'config/governanceSchema.json';
 
-/**
- * Base configuration parameters for the AJV validator instance.
- * Enables strict structural enforcement essential for compliance verification.
- */
-export const AJV_CONFIG_STRICT = {
-    // Report all structural discrepancies rather than failing fast on the first error.
-    allErrors: true,
-    // Enforce stricter JSON schema rules (e.g., prohibiting unknown format usages).
-    strict: true,
-    // Allows AJV to cast data types to match schema types (e.g., "5" -> 5)
-    coerceTypes: true,
-    // Enable validation for standard formats (e.g., email, uuid, date-time)
-    formats: true,
-};
+// NOTE: AJV_CONFIG_STRICT has been abstracted into the AjvConfigStrict plugin 
+// as a reusable kernel configuration utility.
 
 // --- Reusable Schema Fragments (Definitions) ---
 
