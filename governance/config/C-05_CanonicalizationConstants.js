@@ -20,14 +20,16 @@ interface CanonicalizationConstants {
   DIGEST_ALGORITHM: "SHA3-256";
 }
 
+const NUMERIC_CONSTRAINTS: Readonly<NumericConstraint> = Object.freeze({
+  FORMAT: "Full Decimal Representation",
+  PRECISION_GUARD: "IEEE 754 Doubles Only (No NaN/Infinity)",
+});
+
 export const CANONICAL_SERIALIZATION_CONSTANTS: Readonly<CanonicalizationConstants> = Object.freeze({
   STANDARD_IDENTIFIER: "JCS-Strict-RFC8785-Profile",
   KEY_ORDERING: "Lexicographical: UTF-8 Binary Comparison",
   ENCODING: "UTF-8",
   WHITESPACE_POLICY: "Compact (No Non-Significant Whitespace)",
-  NUMERIC_CONSTRAINT: Object.freeze({
-    FORMAT: "Full Decimal Representation",
-    PRECISION_GUARD: "IEEE 754 Doubles Only (No NaN/Infinity)",
-  }),
+  NUMERIC_CONSTRAINT: NUMERIC_CONSTRAINTS,
   DIGEST_ALGORITHM: "SHA3-256",
 });
