@@ -20,29 +20,35 @@ const _stabilizePrecision = (value) => {
  * @returns {{delta: number, previousEQM: number, currentEQM: number}}
  */
 const calculateEquilibriumDelta = (currentMetrics, historicalTrends, EQM_Extractor) => {
-    // Utilize the injected plugin interface for reliable, standardized data extraction.
-    const extractEQM = (metrics) => EQM_Extractor.execute(metrics);
+    
+    // Internal function combining extraction and precision stabilization.
+    const extractAndStabilizeEQM = (metrics) => {
+        // Assume baseline EQM of 0 if historical data is missing (e.g., initialization).
+        if (!metrics) {
+            return 0; 
+        }
+        
+        // Execute the external extractor and stabilize the resulting floating-point value.
+        const rawEQM = EQM_Extractor.execute(metrics);
+        return _stabilizePrecision(rawEQM);
+    };
 
     // Identify the preceding historical metric snapshot using defensive indexing.
     const previousMetrics = historicalTrends?.[1];
 
-    // Calculate standardized scores for current and previous states concurrently.
-    const [currentEQM, previousEQM] = [
-        extractEQM(currentMetrics),
-        extractEQM(previousMetrics)
-    ];
-
+    // Calculate standardized and stabilized scores for both states.
+    const currentEQM = extractAndStabilizeEQM(currentMetrics);
+    const previousEQM = extractAndStabilizeEQM(previousMetrics);
+    
     // Determine the directional change.
-    // Precision is stabilized using a dedicated helper to prevent floating point inaccuracies.
+    // Since inputs are already stabilized numbers, direct subtraction is safe.
+    // Stabilize the final delta to ensure absolute precision consistency in the resulting metric.
     const rawDelta = currentEQM - previousEQM;
     const delta = _stabilizePrecision(rawDelta);
 
-    // Define the output structure explicitly before returning, aligning with strategic clarity goals.
-    const equilibriumDeltaResult = {
+    return {
         delta: delta,
         previousEQM: previousEQM,
         currentEQM: currentEQM
     };
-
-    return equilibriumDeltaResult;
 };
