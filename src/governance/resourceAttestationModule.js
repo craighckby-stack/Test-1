@@ -1,43 +1,53 @@
 /**
- * RESOURCE ATTESTATION MODULE (RAM)
- * ID: RAM-G01 (Orchestrator Role)
+ * RESOURCE ATTESTATION KERNEL (RAM Kernel)
+ * ID: RAM-K01 (Strategic Orchestrator)
  * GSEP Role: Pre-execution resource integrity verification using A-07 (Autonomy Core telemetry).
  *
- * The RAM ensures that the target environment and the Autogeny Sandbox (C-04)
- * are provisioned correctly and meet minimum operational guarantees. This prevents
- * Mutation Failure Due to Environmental Drift (MFDED) and enhances rollback safety.
+ * The RAM Kernel ensures the target environment meets minimum operational guarantees using
+ * asynchronous, auditable Tool Kernels for all operations, adhering strictly to AIA mandates.
  */
 
-const AttestationFailureRecord = require('./AttestationFailureRecord');
-
-// NOTE: The runCheck utility has been extracted into the ResilientTaskExecutor plugin.
-// The class uses dependency injection to access the standardized execution utility.
-
-class ResourceAttestationModule {
+class ResourceAttestationKernel {
     /**
-     * @param {object} config - The baseline configuration and thresholds.
-     * @param {object} environmentMonitor - The telemetry source for real-time resource data.
-     * @param {object} checkRegistry - The centralized source of all defined resource checks.
-     * @param {object} [taskExecutor] - Dependency injection for the ResilientTaskExecutor utility.
+     * @param {object} dependencies
+     * @param {TelemetryAttestationConfigRegistryKernel} dependencies.telemetryAttestationConfigRegistry
+     * @param {IAsyncCheckExecutionWrapperToolKernel} dependencies.asyncCheckExecutionWrapperTool
+     * @param {MultiTargetAuditDisperserToolKernel} dependencies.multiTargetAuditDisperserTool
+     * @param {IConsensusErrorCodesRegistryKernel} dependencies.consensusErrorCodesRegistry
+     * @param {IExternalMetricExecutionToolKernel} dependencies.externalMetricExecutionTool
      */
-    constructor(config, environmentMonitor, checkRegistry, taskExecutor = null) {
-        if (!config || !environmentMonitor || !checkRegistry) {
-            // Updated failure record to reflect new dependency requirement
-            throw new AttestationFailureRecord('RAM_INIT_001', 'Initialization failed: Missing config, environment monitor, or CheckRegistry dependency.');
+    constructor({
+        telemetryAttestationConfigRegistry,
+        asyncCheckExecutionWrapperTool,
+        multiTargetAuditDisperserTool,
+        consensusErrorCodesRegistry,
+        externalMetricExecutionTool
+    }) {
+        if (!telemetryAttestationConfigRegistry || !asyncCheckExecutionWrapperTool || !multiTargetAuditDisperserTool || !consensusErrorCodesRegistry || !externalMetricExecutionTool) {
+            throw new Error("KRNL_INIT_FAILURE: ResourceAttestationKernel missing required Tool Kernel dependencies.");
         }
-        this.baselineConfig = config;
-        this.environmentMonitor = environmentMonitor;
-        this.checkRegistry = checkRegistry;
+
+        this._configRegistry = telemetryAttestationConfigRegistry;
+        this._checkExecutor = asyncCheckExecutionWrapperTool;
+        this._auditor = multiTargetAuditDisperserTool;
+        this._errorCodes = consensusErrorCodesRegistry;
+        this._metricSource = externalMetricExecutionTool; 
         
-        // Attempt to resolve dependency, preferring explicit injection
-        this.taskExecutor = taskExecutor || (typeof ResilientTaskExecutor !== 'undefined' ? ResilientTaskExecutor : null);
+        this._attestationConfig = null;
+    }
 
-        if (!this.taskExecutor) {
-             console.error("RAM-G01 Initialization Warning: ResilientTaskExecutor dependency missing.");
-             // Note: In a production kernel environment, this should be guaranteed available.
-        }
-
-        console.log('RAM-G01 initialized. Using Check Registry for flexible attestations.');
+    /**
+     * Asynchronously loads configuration and check definitions.
+     */
+    async initialize() {
+        // Load configuration which includes baseline thresholds and check definitions
+        this._attestationConfig = await this._configRegistry.loadConfiguration('attestation_checks');
+        
+        await this._auditor.recordAudit({
+            level: 'INFO',
+            message: 'RAM Kernel initialized and configuration loaded.',
+            context: { configKeys: Object.keys(this._attestationConfig) }
+        });
     }
 
     /**
@@ -45,34 +55,58 @@ class ResourceAttestationModule {
      *
      * @typedef {object} AttestationReport
      * @property {boolean} success - True if all checks passed.
-     * @property {Array<{check: string, status: string, details: object}>} results - Detailed output of each check.
+     * @property {ReadonlyArray<{checkId: string, status: string, details: object, success: boolean}>} results - Detailed output.
      *
-     * @param {object} payloadMetadata - Metadata detailing resources required by the mutation (e.g., requiredResources).
+     * @param {object} payloadMetadata - Metadata detailing resources required by the mutation.
      * @returns {Promise<AttestationReport>} Structured report detailing check outcomes.
      */
     async executePreExecutionCheck(payloadMetadata) {
-        if (!this.taskExecutor) {
-             throw new AttestationFailureRecord('RAM_EXEC_002', 'Cannot execute checks: ResilientTaskExecutor is unavailable.');
+        if (!this._attestationConfig || !this._attestationConfig.checks) {
+            throw new Error(this._errorCodes.getErrorCode('RAM_NOT_CONFIGURED'));
         }
         
+        const checksToRun = this._attestationConfig.checks;
         const requiredResources = payloadMetadata.requiredResources || {};
-        const checksToRun = this.checkRegistry.getChecks(); 
+        const payloadId = payloadMetadata.id || 'N/A';
 
         if (checksToRun.length === 0) {
-            console.warn("RAM-G01: Check Registry is empty. Bypassing attestation (Potential Security Risk).");
+            await this._auditor.recordAudit({
+                level: 'WARN',
+                message: 'RAM: Check Registry is empty. Bypassing attestation (Potential Security Risk).',
+                context: { payloadId }
+            });
             return { success: true, results: [] };
         }
 
-        console.log(`RAM-G01: Initiating concurrent attestation of ${checksToRun.length} resources (Payload: ${payloadMetadata.id || 'N/A'}).`);
+        await this._auditor.recordAudit({
+            level: 'INFO',
+            message: `RAM: Initiating concurrent attestation of ${checksToRun.length} resources.`,
+            context: { payloadId }
+        });
 
-        // 1. Map checks into executable promises wrapped by the ResilientTaskExecutor.
-        // The Executor handles standardization of success/failure/error outcomes.
-        const checkPromises = checksToRun.map(check => 
-            this.taskExecutor.execute(
-                check.id, 
-                () => check.execute(requiredResources, this.environmentMonitor, this.baselineConfig)
-            )
-        );
+        // 1. Map checks into executable promises using the IAsyncCheckExecutionWrapperToolKernel.
+        const checkPromises = checksToRun.map(checkDef => {
+            // Define the check execution function closure: fetches metrics and performs comparison.
+            const checkFunction = async () => {
+                // Delegate metric retrieval to the specialized tool kernel
+                const currentMetric = await this._metricSource.executeMetricQuery(checkDef.metricId, requiredResources);
+
+                // Perform local threshold check based on loaded configuration
+                if (currentMetric >= checkDef.threshold) {
+                    return { passed: true, metricValue: currentMetric, threshold: checkDef.threshold };
+                } else {
+                    // Failing the check function causes the wrapper to record a failure state
+                    throw new Error(`Metric check failed: ${currentMetric} < ${checkDef.threshold}`);
+                }
+            };
+
+            // Execute the check using the resilient wrapper, delegating all robust execution logic
+            return this._checkExecutor.execute(
+                checkDef.id, 
+                checkFunction,
+                { timeoutMs: checkDef.timeout || this._attestationConfig.defaultTimeout } 
+            );
+        });
 
         // 2. Execute all checks simultaneously.
         const checkResults = await Promise.all(checkPromises);
@@ -80,28 +114,44 @@ class ResourceAttestationModule {
         // 3. Aggregate results and finalize report.
         const report = {
             success: true,
-            results: []
-        };
-
-        checkResults.forEach(result => {
-            report.results.push({
-                check: result.id, // Using 'id' provided by the executor
+            results: checkResults.map(result => ({
+                checkId: result.id,
                 status: result.status,
-                details: result.details
-            });
-            if (!result.success) {
-                report.success = false;
-            }
-        });
+                details: result.details,
+                success: result.success
+            }))
+        };
+        
+        const failedChecks = report.results.filter(r => !r.success);
 
-        if (!report.success) {
-             // Throw standardized record containing the full failure report
-             throw new AttestationFailureRecord('RAM_CHECK_FAIL', 'Resource attestation failed one or more critical checks. Mutation execution halted.', { report });
+        if (failedChecks.length > 0) {
+            report.success = false;
+            
+            await this._auditor.recordAudit({
+                level: 'CRITICAL',
+                message: 'RAM: Resource attestation failed one or more critical checks. Mutation execution halted.',
+                context: { 
+                    payloadId,
+                    failedCheckCount: failedChecks.length,
+                    failedChecksSummary: failedChecks.map(f => ({ id: f.checkId, status: f.status, error: f.details.error })) 
+                }
+            });
+            
+            // Throw standardized error referencing a registered code
+            const errorCode = this._errorCodes.getErrorCode('RAM_ATTESTATION_FAILURE');
+            const error = new Error(`${errorCode}: Resource attestation failed.`);
+            error.details = { report, payloadId };
+            throw error;
         }
 
-        console.log("RAM-G01: Attestation passed successfully.");
+        await this._auditor.recordAudit({
+            level: 'INFO',
+            message: "RAM: Attestation passed successfully.",
+            context: { payloadId }
+        });
+        
         return report;
     }
 }
 
-module.exports = ResourceAttestationModule;
+module.exports = ResourceAttestationKernel;
