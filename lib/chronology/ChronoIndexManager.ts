@@ -76,3 +76,82 @@ export interface ChronoIndexManager {
    */
   getLatestRecordByType(entityType: string, entityId?: string): Promise<CHR_Record | null>;
 }
+
+/**
+ * Concrete implementation of ChronoIndexManager, enforcing architectural separation.
+ * All interactions with external I/O systems (database, cache) must be proxied via private methods.
+ */
+export class ChronoIndexManagerImpl implements ChronoIndexManager {
+  // #dbClient: StorageClient; // Placeholder for future dependencies
+
+  public constructor() {
+    // Dependency setup would occur here
+  }
+
+  public async write(record: CHR_Record): Promise<void> {
+    return this.#delegateToWrite(record);
+  }
+
+  public async getById(chr_id: string): Promise<CHR_Record | null> {
+    return this.#delegateToGetById(chr_id);
+  }
+
+  public async getChildren(parent_chr_id: string): Promise<CHR_Record[]> {
+    return this.#delegateToGetChildren(parent_chr_id);
+  }
+
+  public async query(criteria: ChronoQueryCriteria): Promise<CHR_Record[]> {
+    return this.#delegateToQuery(criteria);
+  }
+
+  public async getLatestRecordByType(entityType: string, entityId?: string): Promise<CHR_Record | null> {
+    return this.#delegateToGetLatestRecord(entityType, entityId);
+  }
+
+  // --- I/O Proxy Functions ---
+
+  /**
+   * Proxies the write operation to the underlying persistence layer.
+   */
+  #delegateToWrite(record: CHR_Record): Promise<void> {
+    // Placeholder I/O operation (e.g., this.#dbClient.insert(record))
+    console.warn(`[ChronoIndexManager] Placeholder write operation executed for ID: ${record.chr_id}`);
+    return Promise.resolve();
+  }
+
+  /**
+   * Proxies the retrieval by ID operation.
+   */
+  #delegateToGetById(chr_id: string): Promise<CHR_Record | null> {
+    // Placeholder I/O operation
+    console.warn(`[ChronoIndexManager] Placeholder retrieval by ID executed for: ${chr_id}`);
+    return Promise.resolve(null);
+  }
+
+  /**
+   * Proxies the children retrieval operation.
+   */
+  #delegateToGetChildren(parent_chr_id: string): Promise<CHR_Record[]> {
+    // Placeholder I/O operation
+    console.warn(`[ChronoIndexManager] Placeholder children retrieval executed for: ${parent_chr_id}`);
+    return Promise.resolve([]);
+  }
+
+  /**
+   * Proxies the complex query operation.
+   */
+  #delegateToQuery(criteria: ChronoQueryCriteria): Promise<CHR_Record[]> {
+    // Placeholder I/O operation
+    console.warn('[ChronoIndexManager] Placeholder query executed with criteria:', criteria);
+    return Promise.resolve([]);
+  }
+
+  /**
+   * Proxies the latest record lookup operation.
+   */
+  #delegateToGetLatestRecord(entityType: string, entityId?: string): Promise<CHR_Record | null> {
+    // Placeholder I/O operation
+    console.warn(`[ChronoIndexManager] Placeholder latest record lookup executed for type: ${entityType}, ID: ${entityId}`);
+    return Promise.resolve(null);
+  }
+}
