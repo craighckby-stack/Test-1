@@ -27,7 +27,8 @@ class HandlerServiceResolver {
      */
     async initialize() {
         if (this.isInitialized) return; 
-        console.log("HSR: Initializing execution handlers...");
+        const handlerCount = Object.keys(this.registry).length;
+        console.log(`[HSR] Starting initialization of ${handlerCount} execution handlers...`);
         
         const resolutions = Object.entries(this.registry).map(([id, definition]) => 
             this._resolveAndRegister(id, definition)
@@ -36,6 +37,7 @@ class HandlerServiceResolver {
         // Resolve all concurrently to speed up startup
         await Promise.all(resolutions);
         this.isInitialized = true;
+        console.log("[HSR] Initialization complete.");
     }
 
     /**
@@ -55,35 +57,37 @@ class HandlerServiceResolver {
      * Internal function to load the service, bind execution metadata, and cache the result.
      */
     async _resolveAndRegister(id, definition) {
-        const path = definition.path;
+        // Destructure definition, providing a default empty object for metadata
+        const { path, execution_metadata = {} } = definition; 
+        
         const [serviceName, methodName] = path.split('.');
 
         if (!serviceName || !methodName) {
-             throw new Error(`Invalid handler definition for ${id}: Path '${path}' must be in 'Service.Method' format.`);
+             throw new Error(`[HSR Error] Invalid definition for handler '${id}': Path '${path}' must be in 'Service.Method' format.`);
         }
 
         // Use the injected loader for dependency resolution
         const ServiceModule = this.loadService(serviceName);
         
         if (!ServiceModule) {
-             throw new Error(`Service module not resolvable for handler ${id}: ${serviceName}`);
+             throw new Error(`[HSR Error] Service module not resolvable for handler '${id}': Service '${serviceName}' not found.`);
         }
 
         const handlerFunction = ServiceModule[methodName];
 
         if (typeof handlerFunction !== 'function') {
-            throw new Error(`Invalid handler definition for ${id}: Path ${path} does not point to a callable function.`);
+            throw new Error(`[HSR Error] Invalid handler definition for '${id}': Path ${path} does not point to a callable function.`);
         }
 
         // Wrap the handler function with metadata 
         // Ensure 'this' context is preserved (ServiceModule might be a class instance or plain object)
         const executableWrapper = {
             handler: handlerFunction.bind(ServiceModule), 
-            metadata: definition.execution_metadata || {}
+            metadata: execution_metadata
         };
         
         this.cache.set(id, executableWrapper);
-        console.log(`HSR: Registered handler ${id} -> ${path}`);
+        console.log(`[HSR] Registered handler: ${id} (Path: ${path})`);
     }
 }
 
