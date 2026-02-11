@@ -15,20 +15,52 @@ const POLICY_MANIFEST_PATH = 'governance/config/PolicyManifest.json';
 
 export class ConfigurationAuthService {
     
-    static _manifestCache: object | null = null;
+    static #manifestCache = null;
+    
+    // --- Synchronous Dependency Resolution Proxies ---
+
+    static #resolveSystemFiles() { return SystemFiles; }
+    static #resolveCRoTCrypto() { return CRoTCrypto; }
+    static #resolveIntegrityVerifier() { return ContentIntegrityVerifier; }
+
+    // --- Private I/O Proxies ---
+
+    static async #readSystemFile(path) {
+        return ConfigurationAuthService.#resolveSystemFiles().read(path);
+    }
+
+    static #parseJson(rawContent) {
+        // Isolating potentially failing parsing operation based on external input
+        return JSON.parse(rawContent);
+    }
+
+    static async #calculateHash(content, hashType) {
+        return ConfigurationAuthService.#resolveCRoTCrypto().hash(content, hashType);
+    }
+
+    static #delegateToVerifierExecution(args) {
+        return ConfigurationAuthService.#resolveIntegrityVerifier().execute(args);
+    }
+
+    static #logWarning(message) {
+        console.warn(message);
+    }
+
+    // --- Public API (Static Methods) ---
 
     /**
      * Loads and validates the central Policy Manifest which dictates required integrity checks.
      */
-    static async loadPolicyManifest(): Promise<object> {
-        if (ConfigurationAuthService._manifestCache) {
-            return ConfigurationAuthService._manifestCache;
+    static async loadPolicyManifest() {
+        if (ConfigurationAuthService.#manifestCache) {
+            return ConfigurationAuthService.#manifestCache;
         }
         try {
-            const rawManifest = await SystemFiles.read(POLICY_MANIFEST_PATH);
-            ConfigurationAuthService._manifestCache = JSON.parse(rawManifest);
+            const rawManifest = await ConfigurationAuthService.#readSystemFile(POLICY_MANIFEST_PATH);
+            const manifest = ConfigurationAuthService.#parseJson(rawManifest);
+            ConfigurationAuthService.#manifestCache = manifest;
             // FUTURE: Add self-integrity check on the manifest itself (signed by AGI core key).
-            return ConfigurationAuthService._manifestCache;
+            return ConfigurationAuthService.#manifestCache;
         } catch (e) {
             throw new Error(`ConfigurationAuthService: Failed to load Policy Manifest from ${POLICY_MANIFEST_PATH}. ${(e as Error).message}`);
         }
@@ -40,7 +72,7 @@ export class ConfigurationAuthService {
      * @param {string} filePath - Absolute path to the configuration file (E.g., governance/config/IntegrityPolicy.json)
      * @returns {Promise<object>} The parsed and verified policy content.
      */
-    static async getVerifiedPolicy(policyName: string, filePath: string): Promise<object> {
+    static async getVerifiedPolicy(policyName, filePath) {
         const manifest = await ConfigurationAuthService.loadPolicyManifest();
         const requiredCheck = (manifest as any).policies?.[policyName];
 
@@ -49,16 +81,16 @@ export class ConfigurationAuthService {
         }
 
         if (requiredCheck.path !== filePath) {
-             console.warn(`[ConfigAuth] Path deviation detected for ${policyName}. Expected: ${filePath}, Manifest: ${requiredCheck.path}`);
+             ConfigurationAuthService.#logWarning(`[ConfigAuth] Path deviation detected for ${policyName}. Expected: ${filePath}, Manifest: ${requiredCheck.path}`);
              // Note: In a hardened system, this should likely fail unless manifest is flexible.
         }
 
         try {
-            const rawContent = await SystemFiles.read(filePath);
-            const calculatedHash = await CRoTCrypto.hash(rawContent, requiredCheck.hash_type);
+            const rawContent = await ConfigurationAuthService.#readSystemFile(filePath);
+            const calculatedHash = await ConfigurationAuthService.#calculateHash(rawContent, requiredCheck.hash_type);
             
             // Delegate integrity verification and JSON parsing to the ContentIntegrityVerifier tool
-            return ContentIntegrityVerifier.execute({
+            return ConfigurationAuthService.#delegateToVerifierExecution({
                 rawContent: rawContent,
                 calculatedHash: calculatedHash,
                 expectedHash: requiredCheck.expected_hash,
