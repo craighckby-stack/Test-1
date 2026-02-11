@@ -27,6 +27,29 @@ class MetricEngineCollector {
     }
 
     /**
+     * Handles the outcome of the template validation, determining if execution should proceed, skip, or fail.
+     * @param {string} metricId - The ID of the metric being processed.
+     * @param {object} validationResult - The result from templateValidator.execute.
+     * @returns {object|null} A structured response if processing should stop (SKIPPED or FAILURE), otherwise null to proceed.
+     * @private
+     */
+    _handleValidationResult(metricId, validationResult) {
+        if (validationResult.valid) {
+            return null; // Proceed
+        }
+
+        this.logger.warn(`Metric ID ${metricId} validation failure: ${validationResult.reason}.`);
+        
+        // Handle SKIPPED status (e.g., InactiveStatus)
+        if (validationResult.reason === 'InactiveStatus') {
+            return { metricId, status: 'SKIPPED', timestamp: Date.now(), value: null };
+        }
+        
+        // Handle definite failures (TemplateNotFound, HandlerNotConfigured, etc.)
+        return this.postProcessor.createFailureResponse(metricId, validationResult.reason);
+    }
+
+    /**
      * Collects and calculates a specific metric based on its configuration template.
      * @param {string} metricId - The ID of the metric to collect.
      * @returns {Promise<object>}
@@ -41,17 +64,10 @@ The calculated and standardized metric result (or structured failure status).
             handlers: this.handlers
         });
 
-        if (!validationResult.valid) {
-            this.logger.warn(`Metric ID ${metricId} validation failure: ${validationResult.reason}.`);
-            
-            // Handle SKIPPED status separately as it's not a true failure state requiring postProcessor failure response
-            if (validationResult.reason === 'InactiveStatus') {
-                // Return a structured, inert response if skipped
-                return { metricId, status: 'SKIPPED', timestamp: Date.now(), value: null };
-            }
-            
-            // For TemplateNotFound and HandlerNotConfigured errors
-            return this.postProcessor.createFailureResponse(metricId, validationResult.reason);
+        // Handle validation outcome (Success, Skip, or Failure)
+        const earlyResponse = this._handleValidationResult(metricId, validationResult);
+        if (earlyResponse) {
+            return earlyResponse;
         }
 
         const { template, handler } = validationResult;
@@ -70,7 +86,11 @@ The calculated and standardized metric result (or structured failure status).
             this.logger.error(`Failure collecting metric ${metricId} (Method: ${method}):`, error instanceof Error ? error.stack : String(error));
             
             // Step 4: Use postProcessor to standardize internal execution failures
-            return this.postProcessor.createFailureResponse(metricId, 'ExecutionError', error instanceof Error ? error.message : 'Unknown execution error');
+            return this.postProcessor.createFailureResponse(
+                metricId, 
+                'ExecutionError', 
+                error instanceof Error ? error.message : 'Unknown execution error'
+            );
         }
     }
 }
