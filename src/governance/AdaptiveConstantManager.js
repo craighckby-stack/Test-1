@@ -1,107 +1,148 @@
-// src/governance/AdaptiveConstantManager.js
+// src/governance/AdaptiveConstantManagerKernel.js
 
-// Manages and merges static governance constants with dynamic, runtime-adjusted overlays.
-// This service ensures that system constants can be tuned by external or self-tuning agents
-// based on real-time performance data, providing maximum operational efficiency without restarts.
-
-const STATIC_CONSTANTS = require('../../config/governance_constants_v2.json');
-
-// NOTE ON DEPENDENCIES:
-// 1. deepMerge is assumed to be available (e.g., via ConfigurationMerger plugin).
-// 2. PollingConfigurationSource is provided by the extracted plugin logic.
-
-// --- Local Mock/Dependency Stubs (for initialization when not injected) ---
-// This mock simulates the required network adapter behavior (GovernanceApiAdapter).
-const mockGovernanceFetcher = async (endpoint) => {
-    // Placeholder simulation:
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    return { 
-        system_tuning: { last_check: Date.now() },
-        execution_policy: { max_recursion_depth: 60 } 
-    };
-};
-
-// Assume PollingConfigurationSource is available globally or injected for operational code.
-let PollingConfigurationSource = global.PollingConfigurationSource; 
-// ---------------------------------------------------------------------------
-
-class AdaptiveConstantManager {
-    // Dependencies can be injected for testing/strict environments, or defaults used.
-    constructor(deps = {}) {
-        this.deepMerge = deps.deepMerge || (typeof deepMerge !== 'undefined' ? deepMerge : null);
-        this.PollingSource = deps.PollingSource || PollingConfigurationSource;
-        this.fetcher = deps.fetcher || mockGovernanceFetcher;
-
-        if (!this.deepMerge) {
-            throw new Error("AdaptiveConstantManager requires 'deepMerge' utility.");
-        }
+/**
+ * Manages and merges static governance constants with dynamic, runtime-adjusted overlays.
+ * Provides asynchronous initialization and handles the lifecycle of dynamic configuration polling.
+ */
+class AdaptiveConstantManagerKernel {
+    
+    /**
+     * @param {object} dependencies
+     * @param {IConfigurationMergerToolKernel} dependencies.configMergerToolKernel - Tool for deep merging configurations.
+     * @param {IPollingConfigurationSourceToolKernel} dependencies.pollingSourceToolKernel - Factory for dynamic configuration polling.
+     * @param {IGovernanceApiFetcherToolKernel} dependencies.governanceApiFetcherToolKernel - Interface for fetching dynamic constants.
+     * @param {ILoggerToolKernel} dependencies.loggerToolKernel - Standard logging utility.
+     * @param {IGovernanceConstantsV2ConfigRegistryKernel} dependencies.constantsRegistryKernel - Registry for static constants.
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
         
-        // Initialize config with a deep copy of static constants
-        this.currentConfig = this.deepMerge({}, STATIC_CONSTANTS);
+        /** @private {object} The current merged configuration (static + dynamic overlay). */
+        this.currentConfig = {};
+        /** @private {object | null} An instance representing the active polling source, managed by the PollingSource tool. */
         this.dynamicSource = null; 
+    }
 
-        const overlaySource = this.getConstant('dynamic_overlay_source');
-        
-        if (overlaySource && overlaySource.enabled) {
-            this.setupDynamicFetching(overlaySource);
+    /**
+     * Synchronously validates and assigns all required dependencies.
+     * @private
+     */
+    #setupDependencies(dependencies) {
+        const required = [
+            'configMergerToolKernel', 'pollingSourceToolKernel', 
+            'governanceApiFetcherToolKernel', 'loggerToolKernel', 
+            'constantsRegistryKernel'
+        ];
+
+        for (const dep of required) {
+            if (!dependencies[dep]) {
+                throw new Error(`AdaptiveConstantManagerKernel requires dependency: ${dep}.`);
+            }
+        }
+
+        /** @private */
+        this.configMerger = dependencies.configMergerToolKernel;
+        /** @private */
+        this.PollingSource = dependencies.pollingSourceToolKernel;
+        /** @private */
+        this.fetcher = dependencies.governanceApiFetcherToolKernel;
+        /** @private */
+        this.logger = dependencies.loggerToolKernel;
+        /** @private */
+        this.constantsRegistry = dependencies.constantsRegistryKernel;
+    }
+
+    /**
+     * Initializes the kernel by loading static constants and setting up dynamic polling.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        try {
+            const staticConstants = await this.constantsRegistry.getConstants();
+            
+            // Initialize config with a deep copy of static constants using the merger tool
+            this.currentConfig = this.configMerger.deepMerge({}, staticConstants);
+
+            const overlaySource = this.getConstant('dynamic_overlay_source');
+            
+            if (overlaySource && overlaySource.enabled) {
+                await this.#setupDynamicFetching(overlaySource);
+            }
+        } catch (error) {
+            this.logger.error('AdaptiveConstantManagerKernel failed during initialization. Dynamic constants may be unavailable.', { error });
+            // Note: If initialization fails, the static config might still be partially loaded, but we re-throw critical errors.
+            throw error;
         }
     }
 
-    setupDynamicFetching(source) {
-        if (!this.PollingSource) {
-            console.warn('Dynamic constant fetching disabled: PollingConfigurationSource dependency missing.');
-            return;
-        }
-
+    /**
+     * @private
+     * Sets up the polling source for dynamic configuration updates.
+     * @param {object} source - Configuration for the polling source.
+     * @returns {Promise<void>}
+     */
+    async #setupDynamicFetching(source) {
         const fallbackInterval = this.getConstant('governance_intervals.telemetry_reporting_ms') || 15000; 
 
-        // The entire polling, network scheduling, and error handling complexity is now abstracted 
-        // into the PollingConfigurationSource plugin.
-        this.dynamicSource = new this.PollingSource(
+        // Use the injected PollingSource tool to create and manage the polling instance.
+        this.dynamicSource = await this.PollingSource.create(
             source, 
-            this.fetcher, 
+            this.fetcher.fetchConstants, // Assuming the fetcher kernel exposes a suitable async method
             (newConfig) => this.mergeConfig(newConfig), // Success Callback
             fallbackInterval
         );
 
-        this.dynamicSource.start();
+        // Start the polling process
+        await this.dynamicSource.start();
     }
 
+    /**
+     * Merges a dynamic overlay into the current configuration state.
+     * Note: This remains synchronous, manipulating internal state via the injected tool.
+     * @param {object} overlay - The new configuration snippet.
+     * @returns {void}
+     */
     mergeConfig(overlay) {
-        // Use dedicated deepMerge utility for robust, nested configuration updates.
-        const prevConfigJson = JSON.stringify(this.currentConfig); // Snapshot for comparison
-        this.currentConfig = this.deepMerge(this.currentConfig, overlay);
+        const prevConfigJson = JSON.stringify(this.currentConfig); 
+        this.currentConfig = this.configMerger.deepMerge(this.currentConfig, overlay);
         
         if (prevConfigJson !== JSON.stringify(this.currentConfig)) {
-            console.log('[ACL] Governance constants updated dynamically. Configuration delta applied.');
+            this.logger.info('AdaptiveConstantManagerKernel: Governance constants updated dynamically. Configuration delta applied.', { source: 'dynamic_overlay' });
         }
     }
 
+    /**
+     * Retrieves a nested constant value from the current configuration.
+     * @param {string} path - Dot-separated path (e.g., 'execution_policy.max_recursion_depth').
+     * @returns {*} The constant value, or undefined if not found.
+     */
     getConstant(path) {
-        // Utility to retrieve a nested constant safely, returning undefined on failure.
         if (!path || typeof path !== 'string') return undefined;
 
         try {
+            // Use standard JS path reduction. Abstracting this to IJsonPathQueryToolKernel 
+            // is only necessary for complex, parameterized queries.
             return path.split('.').reduce((o, i) => {
-                // Ensure object exists before accessing property
-                if (!o || typeof o !== 'object') return undefined;
+                if (!o || typeof o !== 'object' || o === null) return undefined;
                 return o[i];
             }, this.currentConfig);
         } catch (e) {
-            console.error(`Error during constant retrieval for path: ${path}`, e.message);
+            this.logger.error(`Error during constant retrieval for path: ${path}`, { message: e.message });
             return undefined;
         }
     }
 
-    stop() {
+    /**
+     * Stops the dynamic configuration polling process, if active.
+     * @returns {Promise<void>}
+     */
+    async stop() {
         if (this.dynamicSource) {
-            this.dynamicSource.stop();
+            await this.dynamicSource.stop();
             this.dynamicSource = null;
-            console.log('AdaptiveConstantManager polling management stopped.');
+            this.logger.info('AdaptiveConstantManagerKernel polling management stopped.');
         }
     }
 }
 
-// Export a robust singleton instance
-// Note: Dependencies (like deepMerge, PollingSource) must be available in the execution context.
-module.exports = new AdaptiveConstantManager({});
+export default AdaptiveConstantManagerKernel;
