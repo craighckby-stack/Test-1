@@ -1,61 +1,91 @@
 /**
- * ParameterCustodian: Service responsible for read, validation, and atomic mutation 
- * of the core governance parameters defined in governanceParams.json.
- * It enforces SecurityThresholds and checks ComplexityGrowthLimitPerCycle before commitment.
+ * ParameterCustodianKernel: High-integrity, asynchronous service responsible for 
+ * read, validation, and atomic mutation of core governance parameters.
+ * It enforces SecurityThresholds and checks ComplexityGrowthLimitPerCycle via the
+ * IGovernanceConstraintEvaluatorToolKernel, strictly adhering to AIA mandates 
+ * for non-blocking I/O and maximum recursive abstraction.
  */
 
-// Assuming the GovernanceParameterConstraintValidator plugin is available via AGI-KERNEL environment
-declare const GovernanceParameterConstraintValidator: {
-    execute(args: { currentParams: any, proposedParams: any }): { valid: boolean, message?: string }[];
-};
+import { GovernanceSettingsRegistryKernel } from "./GovernanceSettingsRegistryKernel";
+import { IGovernanceConstraintEvaluatorToolKernel } from "./IGovernanceConstraintEvaluatorToolKernel";
+import { MultiTargetAuditDisperserToolKernel } from "./MultiTargetAuditDisperserToolKernel";
+import { HashIntegrityCheckerToolKernel } from "./HashIntegrityCheckerToolKernel";
 
-class ParameterCustodian {
-    private configPath: string;
-    private currentParams: any;
+class ParameterCustodianKernel {
+    
+    // Mandatory initialization interface
+    async initialize(): Promise<void> {
+        // Dependencies are initialized externally by the AGI-KERNEL loader.
+        // We rely on the GovernanceSettingsRegistryKernel to have loaded the initial state.
+    }
 
-    constructor(governanceConfigPath: string) {
-        this.configPath = governanceConfigPath;
-        // NOTE: require is used for synchronous file loading in Node environment
-        this.currentParams = require(governanceConfigPath); 
+    constructor(
+        private governanceSettingsRegistryKernel: GovernanceSettingsRegistryKernel,
+        private constraintEvaluatorKernel: IGovernanceConstraintEvaluatorToolKernel,
+        private auditDisperserKernel: MultiTargetAuditDisperserToolKernel,
+        private hashIntegrityCheckerKernel: HashIntegrityCheckerToolKernel
+    ) {}
+
+    /**
+     * Utility to fetch deeply nested parameters asynchronously.
+     * Delegates entirely to the GovernanceSettingsRegistryKernel.
+     */
+    async read(keyPath: string): Promise<any> {
+        // GovernanceSettingsRegistryKernel handles the asynchronous retrieval and path parsing
+        return this.governanceSettingsRegistryKernel.get(keyPath);
     }
 
     /**
-     * Utility to fetch deeply nested parameters.
+     * Validates a proposed parameter mutation against defined governance constraints.
+     * Delegates complex constraint checking to the specialized ConstraintEvaluator Kernel.
      */
-    read(keyPath: string): any {
-        return keyPath.split('.').reduce((o, i) => (o ? o[i] : o), this.currentParams);
-    }
-
-    async validateMutation(proposedParams: any): Promise<boolean> {
-        if (typeof GovernanceParameterConstraintValidator === 'undefined') {
-            throw new Error("GovernanceParameterConstraintValidator plugin is unavailable.");
-        }
-
-        const results = GovernanceParameterConstraintValidator.execute({
-            currentParams: this.currentParams,
-            proposedParams: proposedParams
-        });
-
-        const invalidResults = results.filter(r => !r.valid);
+    async validateMutation(proposedParams: any): Promise<void> {
+        const currentParams = await this.governanceSettingsRegistryKernel.getAll();
         
-        if (invalidResults.length > 0) {
-            // Concatenate all failure messages
-            const failureMessage = invalidResults.map(r => r.message).join(' | ');
-            throw new Error(`Mutation failed governance constraints: ${failureMessage}`);
-        }
+        const validationPayload = {
+            target: 'GOVERNANCE_PARAMETERS_MUTATION',
+            current: currentParams,
+            proposed: proposedParams
+        };
 
-        return true; 
+        // The constraint evaluation is complex and must be asynchronous.
+        const evaluationResult = await this.constraintEvaluatorKernel.evaluateConstraints(validationPayload);
+
+        if (!evaluationResult.valid) {
+            const failureMessages = evaluationResult.details
+                .filter(d => d.status === 'FAIL')
+                .map(d => `${d.constraintId}: ${d.message}`);
+
+            await this.auditDisperserKernel.recordAudit(
+                'GOVERNANCE_PARAM_MUTATION_REJECTED', 
+                { reason: 'Constraint Violation', failures: failureMessages, proposedParams },
+                'HIGH_RISK'
+            );
+
+            throw new Error(`Mutation failed governance constraints: ${failureMessages.join(' | ')}`);
+        }
     }
 
+    /**
+     * Commits the validated parameters, persisting the state atomically.
+     * Delegates state persistence entirely to the GovernanceSettingsRegistryKernel.
+     */
     async commit(proposedParams: any): Promise<void> {
+        // 1. Re-validate immediately before commit (ensuring atomicity and external state freshness)
         await this.validateMutation(proposedParams);
         
-        // Atomic write to disk and system reload/policy update 
-        // ... logic for writing proposedParams to configPath ...
+        // 2. Delegate the atomic write and internal state update
+        await this.governanceSettingsRegistryKernel.updateAll(proposedParams);
 
-        this.currentParams = proposedParams;
-        console.log("Governance parameters updated successfully.");
+        // 3. Generate verifiable hash and record auditable confirmation
+        const newParamsHash = await this.hashIntegrityCheckerKernel.hashObject(proposedParams, 'SHA3-512');
+
+        await this.auditDisperserKernel.recordAudit(
+            'GOVERNANCE_PARAM_MUTATION_SUCCESS', 
+            { newParamsHash, details: 'Core governance parameters updated successfully.' },
+            'NORMAL'
+        );
     }
 }
 
-module.exports = ParameterCustodian;
+module.exports = ParameterCustodianKernel;
