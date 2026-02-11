@@ -18,22 +18,45 @@ export interface FinalAxiomaticStateValidation {
 }
 
 /**
- * Service responsible for validating output against FinalAxiomaticStateValidation.schema.json.
- * Requires integration with a JSON Schema validator library (e.g., Ajv).
+ * Service responsible for managing the final validation record and consensus proof.
+ * This service typically depends on a runtime JSON schema validator.
  */
 export class AxiomaticValidationService {
-    // Omitted: Ajv instance and schema loading logic.
 
+    /**
+     * Executes runtime structural validation against the FinalAxiomaticStateValidation schema.
+     * (Placeholder: Actual validation logic omitted, requires external library integration.)
+     */
     public validate(data: unknown): data is FinalAxiomaticStateValidation {
-        // Runtime validation logic using loaded schema
-        // if (!this.validator(data)) {
-        //    throw new Error(`Validation Failed: ${this.validator.errors}`);
-        // }
-        return true; // Placeholder
+        // In a real scenario, this would execute a loaded schema validator (e.g., via JsonSchemaValidatorPlugin).
+        return true; 
     }
 
-    public signFinalState(validationRecord: Omit<FinalAxiomaticStateValidation, 'consensusProof'>, signature: string): FinalAxiomaticStateValidation {
-        // Logic to construct and finalize the ConsensusProof
-        throw new Error('Not yet implemented');
+    /**
+     * Constructs the final validation record by integrating a new signature 
+     * and calculating/updating the ConsensusProof.
+     * 
+     * @param validationRecord The partially finalized state record, excluding the proof.
+     * @param signature The new signature provided by a validator.
+     * @returns The finalized validation record including the updated ConsensusProof.
+     */
+    public signFinalState(
+        validationRecord: Omit<FinalAxiomaticStateValidation, 'consensusProof'>, 
+        signature: string
+    ): FinalAxiomaticStateValidation {
+        
+        // NOTE: In a complete implementation, this would involve hashing validationRecord.stateHash
+        // and managing cumulative signatures across multiple calls.
+        
+        const consensusProof: ConsensusProof = {
+            quorumReached: 1, 
+            timestampUtc: new Date().toISOString(),
+            validatorSignatures: [signature], 
+        };
+
+        return {
+            ...validationRecord,
+            consensusProof: consensusProof,
+        };
     }
 }
