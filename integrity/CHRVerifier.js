@@ -11,6 +11,8 @@ const fs = require('fs');
 /**
  * NOTE: SynchronousFileIntegrityCheckerTool is provided by the AGI-KERNEL framework.
  * It encapsulates fs.readFileSync and crypto.createHash for file hashing.
+ * 
+ * NOTE: SynchronousIntegrityChecker plugin is used to generalize the integrity validation loop.
  */
 
 class CHRVerifier {
@@ -29,8 +31,8 @@ class CHRVerifier {
         }
     }
 
-    // Refactored to use the synchronous file hashing plugin
-    computeFileHash(filePath) {
+    // Private helper defining how file hashing is performed using the AGI-KERNEL tool.
+    _synchronousHashCalculator(filePath, algorithm) {
         // Runtime check for tool availability
         if (typeof SynchronousFileIntegrityCheckerTool === 'undefined' || typeof SynchronousFileIntegrityCheckerTool.execute !== 'function') {
              throw new Error("Dependency Error: SynchronousFileIntegrityCheckerTool is not available.");
@@ -39,7 +41,7 @@ class CHRVerifier {
         try {
             return SynchronousFileIntegrityCheckerTool.execute({
                 filePath: filePath,
-                algorithm: this.baseline.integrity_algorithm
+                algorithm: algorithm
             });
         } catch (e) {
             // Ensure any error from the synchronous tool is clearly surfaced
@@ -48,48 +50,16 @@ class CHRVerifier {
     }
 
     async runValidation() {
-        const results = [];
-        let integrityOK = true;
-
-        for (const cid in this.baseline.registry) {
-            if (!Object.prototype.hasOwnProperty.call(this.baseline.registry, cid)) continue;
-
-            const entry = this.baseline.registry[cid];
-            let status = 'PASS';
-            let runtimeHash = null;
-            let error = null;
-
-            try {
-                runtimeHash = this.computeFileHash(entry.path);
-                
-                // Skip validation if expected hash is placeholder (e.g., during registry generation)
-                if (entry.hash !== '[GENERATE_RUNTIME_HASH]' && runtimeHash !== entry.hash) {
-                    status = 'FAIL';
-                    integrityOK = false;
-                    error = 'Hash mismatch detected.';
-                }
-
-            } catch (e) {
-                status = 'FAIL';
-                integrityOK = false;
-                error = `File read or compute error: ${e.message || String(e)}`;
-            }
-
-            results.push({
-                cid: cid,
-                path: entry.path,
-                status: status,
-                expected: entry.hash,
-                actual: runtimeHash,
-                error: error
-            });
+        // Runtime check for plugin availability
+        if (typeof SynchronousIntegrityChecker === 'undefined' || typeof SynchronousIntegrityChecker.execute !== 'function') {
+             throw new Error("Refactoring Error: SynchronousIntegrityChecker plugin is not available.");
         }
 
-        return {
-            integrity_status: integrityOK ? 'VALID' : 'COMPROMISED',
-            algorithm: this.baseline.integrity_algorithm,
-            details: results
-        };
+        // Delegate the core validation loop to the generic plugin
+        return SynchronousIntegrityChecker.execute(
+            this.baseline,
+            (filePath) => this._synchronousHashCalculator(filePath, this.baseline.integrity_algorithm)
+        );
     }
 }
 
