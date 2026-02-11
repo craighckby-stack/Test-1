@@ -1,17 +1,9 @@
-interface ComplianceRecordCanonicalizerTool {
-    execute(args: { 
-        breach: any; 
-        snapshot: any;
-        timestamp?: number;
-        severity?: string;
-    }): any; // Returns the canonical record object or { error: string }
-}
-
-declare const ComplianceRecordCanonicalizer: ComplianceRecordCanonicalizerTool | undefined;
-
 import { FloorBreach } from './RiskFloorComplianceUtility';
 import { PersistenceService } from '../../infrastructure/persistence/PersistenceService';
 import { TelemetrySnapshot } from '../telemetry/TelemetryService';
+
+// Assuming the plugin interface is imported for dependency injection
+import { ComplianceRecordCanonicalizerPlugin } from '../plugins/ComplianceRecordCanonicalizerPlugin';
 
 /**
  * ComplianceReportingService
@@ -20,10 +12,19 @@ import { TelemetrySnapshot } from '../telemetry/TelemetryService';
  * and breaches. This service decouples immediate enforcement actions from critical audit trail generation.
  */
 export class ComplianceReportingService {
-    private persistence: PersistenceService; // Assumed external persistence mechanism
+    private persistence: PersistenceService;
+    private canonicalizer: ComplianceRecordCanonicalizerPlugin | null;
 
-    constructor(persistence: PersistenceService) {
+    /**
+     * @param persistence Assumed external persistence mechanism
+     * @param canonicalizer Optional plugin used to standardize breach records before persistence.
+     */
+    constructor(
+        persistence: PersistenceService,
+        canonicalizer: ComplianceRecordCanonicalizerPlugin | null = null
+    ) {
         this.persistence = persistence;
+        this.canonicalizer = canonicalizer;
     }
 
     /**
@@ -34,9 +35,9 @@ export class ComplianceReportingService {
     public async logBreach(breach: FloorBreach, snapshot: TelemetrySnapshot): Promise<void> {
         let record: any;
 
-        if (ComplianceRecordCanonicalizer && ComplianceRecordCanonicalizer.execute) {
-            // CRITICAL: Use the extracted reusable tool for canonicalization
-            record = ComplianceRecordCanonicalizer.execute({
+        if (this.canonicalizer) {
+            // CRITICAL: Use the injected plugin for canonicalization
+            record = this.canonicalizer.execute({
                 breach: breach,
                 snapshot: snapshot
             });
@@ -46,8 +47,8 @@ export class ComplianceReportingService {
                 return;
             }
         } else {
-            // Fallback warning if the tool is unexpectedly missing
-            console.warn("[ComplianceAudit]: ComplianceRecordCanonicalizer tool unavailable. Logging aborted.");
+            // Warning if the necessary tool is missing
+            console.warn("[ComplianceAudit]: ComplianceRecordCanonicalizer plugin unavailable. Logging aborted.");
             return;
         }
         
