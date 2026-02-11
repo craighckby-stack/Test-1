@@ -1,10 +1,12 @@
 import { KEY_LENGTH } from '../utils/cryptographicUtil.js';
 import { ConfigurationError } from '../errors/ConfigurationError.js';
-import { validateCryptographicKey } from '../tools/CryptographicKeyValidatorTool.js'; // New utility derived from plugin
+import { validateCryptographicKey } from '../tools/CryptographicKeyValidatorTool.js';
+import { ConfigurationInitializer } from '../utils/ConfigurationInitializer.js';
 
 // Configuration constants
 const REQUIRED_KEY_HEX_LENGTH = KEY_LENGTH * 2;
 const MASTER_KEY_ENV_VAR = 'AGI_MASTER_KEY';
+const CONFIGURATION_NAME = 'AGI Master Key configuration';
 
 /**
  * Retrieves and validates the AES Master Key (AGI_MASTER_KEY) from environment variables.
@@ -14,7 +16,7 @@ const MASTER_KEY_ENV_VAR = 'AGI_MASTER_KEY';
 export function getMasterEncryptionKey(): string {
     const key = process.env[MASTER_KEY_ENV_VAR];
 
-    // Use the reusable validation tool (extracted plugin logic)
+    // Use the reusable validation tool
     validateCryptographicKey({
         keyName: MASTER_KEY_ENV_VAR,
         key: key,
@@ -32,15 +34,9 @@ export function getMasterEncryptionKey(): string {
  * @throws {ConfigurationError} If validation fails.
  */
 export function initializeSecurityChecks(): void {
-    console.log("Security Setup: Validating AGI Master Key configuration...");
-    try {
-        getMasterEncryptionKey();
-        console.log("Security Setup: Master Encryption Key validated successfully.");
-    } catch (error) {
-        // Ensure configuration errors propagate correctly during initialization
-        if (error instanceof ConfigurationError) {
-            throw error;
-        }
-        throw new ConfigurationError("Security initialization failed unexpectedly.", { originalError: error });
-    }
+    ConfigurationInitializer.initialize(
+        CONFIGURATION_NAME,
+        getMasterEncryptionKey,
+        ConfigurationError
+    );
 }
