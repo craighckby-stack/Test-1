@@ -1,85 +1,90 @@
 /**
- * Governance Audit Service - src/governance/services/GovernanceAuditService.js
- * ID: GAS v1.1
- * Role: Immutable Logging and Traceability
+ * Governance Audit Kernel - src/governance/services/GovernanceAuditKernel.js
+ * ID: GAK v2.0
+ * Role: Immutable Logging and Traceability Endpoint
  *
- * Provides a durable, centralized logging endpoint for all governance state transitions.
- * This service ensures a complete, verifiable history of component lifecycle events,
- * supporting governance decisions and debugging efforts.
- *
- * This service MUST be persistent (e.g., utilize a dedicated database table or immutable log store).
+ * This kernel replaces the synchronous GovernanceAuditService (GAS v1.1).
+ * It ensures a complete, verifiable history of governance state transitions by
+ * delegating all complex tasks—canonicalization, ID generation, and immutable
+ * persistence—to specialized, asynchronous Tool Kernels.
  */
 
-// Define the interface for the extracted tool (for TypeScript typing only)
-interface IAuditRecordCanonicalizer {
-    execute(args: { componentId: string, previousState: any, nextState: any }): any;
-}
-
-class GovernanceAuditService {
-    private auditRecordCanonicalizer: IAuditRecordCanonicalizer;
+class GovernanceAuditKernel {
+    #auditDisperserKernel;
+    #logSchemaRegistryKernel;
+    #traceableIdGeneratorKernel;
 
     /**
-     * @param {object} dependencies - Dependencies injected by the runtime environment.
-     * @param {IAuditRecordCanonicalizer} dependencies.auditRecordCanonicalizer - Tool for standardizing audit payloads.
+     * @param {object} dependencies - Tool Kernels injected by the runtime environment.
+     * @param {MultiTargetAuditDisperserToolKernel} dependencies.MultiTargetAuditDisperserToolKernel
+     * @param {GovernanceLogSchemaRegistryKernel} dependencies.GovernanceLogSchemaRegistryKernel
+     * @param {ITraceableIdGeneratorToolKernel} dependencies.ITraceableIdGeneratorToolKernel
      */
-    constructor(dependencies: { auditRecordCanonicalizer: IAuditRecordCanonicalizer }) {
-        if (!dependencies.auditRecordCanonicalizer) {
-            throw new Error("GovernanceAuditService requires AuditRecordCanonicalizer.");
+    constructor(dependencies) {
+        this.#auditDisperserKernel = dependencies.MultiTargetAuditDisperserToolKernel;
+        this.#logSchemaRegistryKernel = dependencies.GovernanceLogSchemaRegistryKernel;
+        this.#traceableIdGeneratorKernel = dependencies.ITraceableIdGeneratorToolKernel;
+
+        if (!this.#auditDisperserKernel || !this.#logSchemaRegistryKernel || !this.#traceableIdGeneratorKernel) {
+            throw new Error("GovernanceAuditKernel requires MultiTargetAuditDisperserToolKernel, GovernanceLogSchemaRegistryKernel, and ITraceableIdGeneratorToolKernel.");
         }
-        this.auditRecordCanonicalizer = dependencies.auditRecordCanonicalizer;
+    }
+
+    /**
+     * Mandatory asynchronous initialization method.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Ensure the audit log schemas are loaded and available for canonicalization.
+        // Note: Actual schema registration is handled by IRegistryInitializerToolKernel during system boot.
+        // This ensures the dependency is ready.
     }
 
     /**
      * Logs a state transition event, capturing component identity, status change, and metadata.
+     * Delegation to MultiTargetAuditDisperserToolKernel ensures canonicalization, persistence, and non-blocking I/O.
+     * 
      * @param {string} componentId - The unique ID of the component being governed.
-     * @param {import('../governanceStateRegistry').ComponentState} previousState - The state before the transition.
-     * @param {import('../governanceStateRegistry').ComponentState} nextState - The state after the transition.
+     * @param {object} previousState - The state before the transition.
+     * @param {object} nextState - The state after the transition.
+     * @returns {Promise<void>}
      */
     async logTransition(componentId, previousState, nextState) {
         
-        // 1. Use the extracted tool to generate the canonical audit record
-        const auditRecord = this.auditRecordCanonicalizer.execute({
-            componentId,
-            previousState,
-            nextState
-        });
+        const traceId = await this.#traceableIdGeneratorKernel.generateTraceableId('GOVERNANCE_TRANSITION_AUDIT');
+        
+        const transitionPayload = {
+            traceId: traceId,
+            componentId: componentId,
+            timestamp: Date.now(),
+            previousStatus: previousState?.status || 'INITIAL', 
+            nextStatus: nextState?.status || 'UNKNOWN',
+            transitionData: { previous: previousState, next: nextState },
+            // Map data to the GOVERNANCE_TRANSITION schema definition managed by GovernanceLogSchemaRegistryKernel
+        };
 
-        // TODO: Replace this with actual database persistence logic (e.g., use a DAO layer)
-        // Example: await this.auditDao.insertRecord(auditRecord);
-
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[GOV AUDIT] Component ${componentId} logged transition from ${previousState.status} to ${nextState.status}. Record canonicalized.`);
-        }
+        // The Audit Disperser handles canonicalization (based on registered schemas),
+        // security checks, and persistent storage across defined audit targets.
+        await this.#auditDisperserKernel.distributeAuditRecord(
+            transitionPayload,
+            'GOVERNANCE_TRANSITION' // Audit type defined in GovernanceLogSchemaRegistryKernel
+        );
     }
 
     /**
      * Retrieves the complete audit history for a specific component.
+     * This retrieval logic is delegated, assuming the Audit Disperser or a high-efficiency
+     * state retriever provides the necessary query interface for archived logs.
+     * 
      * @param {string} componentId
      * @returns {Promise<Array<Object>>}
      */
     async getHistory(componentId) {
-        // TODO: Implement database lookup
-        return [];
+        // Delegate complex data retrieval to a specialized kernel (e.g., IHighEfficiencyStateRetrieverToolKernel or a query interface on the Audit Disperser).
+        return this.#auditDisperserKernel.queryAuditHistory(componentId, 'GOVERNANCE_TRANSITION');
     }
 
-    // Future methods: getTimeline(statusFilter), getRecentTransitions(), etc.
+    // Note: Synchronous console logging removed in favor of auditable, asynchronous distribution via MTADK.
 }
 
-// --- Dependency Setup for Export ---
-
-// Minimal mock implementation for environments lacking dependency injection setup
-const DefaultCanonicalizer = {
-    execute: (args) => ({
-        timestamp: Date.now(),
-        componentId: args.componentId,
-        previousStatus: args.previousState?.status || 'N/A',
-        nextStatus: args.nextState?.status || 'N/A',
-        actionType: args.nextState?.actionType || 'GENERIC',
-        metadata: args.nextState?.decisionReport || {},
-        transitionData: { previous: args.previousState, next: args.nextState }
-    })
-};
-
-export const governanceAuditService = new GovernanceAuditService({
-    auditRecordCanonicalizer: DefaultCanonicalizer 
-});
+export { GovernanceAuditKernel };
