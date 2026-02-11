@@ -1,35 +1,25 @@
+import { AbstractValidator, ValidationError, ValidationResult } from "@/plugins/ValidatorInterface";
+
 /**
  * @fileoverview Defines the abstract interface and standard types for Configuration Validation
  * within the Governance Subsystem (GOV).
  */
 
-// --- Standard Interface Types ---
+// --- Standard Interface Types (Aliased for GOV domain specificity) ---
 
 /**
  * Standard Interface Type: GOV_ValidationError
  * Represents a specific failure point discovered during configuration validation.
+ * (Alias for core ValidationError type.)
  */
-export interface GOV_ValidationError {
-    /** Identifier of the rule that failed (e.g., 'GRS-001', 'SchemaCheck'). */
-    ruleId: string;
-    /** Human-readable, actionable description of the failure. */
-    message: string;
-    /** Optional JSON path to the failed configuration element (e.g., 'rules[3].threshold'). */
-    path?: string;
-    /** Optional failing value for detailed debugging. */
-    value?: unknown;
-}
+export type GOV_ValidationError = ValidationError;
 
 /**
  * Standard Interface Type: GOV_ValidationResult
  * The aggregated result of a configuration validation operation.
+ * (Alias for core ValidationResult type.)
  */
-export interface GOV_ValidationResult {
-    /** True if the configuration passed all checks. */
-    isValid: boolean;
-    /** Array of detailed errors if validation failed (empty array if isValid is true). */
-    errors: GOV_ValidationError[];
-}
+export type GOV_ValidationResult = ValidationResult;
 
 // --- Abstract Base Interface ---
 
@@ -39,9 +29,9 @@ export interface GOV_ValidationResult {
  * Scope: Standardized, Asynchronous Interface for Configuration Integrity Checks.
  *
  * Purpose: Defines the required contract for all concrete governance configuration validation modules (GRCMs).
- * Enforces async validation capability.
+ * Extends AbstractValidator to inherit standard validation contract capabilities.
  */
-export abstract class ConfigValidator {
+export abstract class ConfigValidator extends AbstractValidator {
     /**
      * Static unique identifier for introspection and registry management. Version bumped to v2
      * to indicate adherence to modern standardized types (GOV_ prefix).
@@ -49,7 +39,8 @@ export abstract class ConfigValidator {
     public static readonly INTERFACE_ID = 'GOV_IFACE_VLDTR_v2';
 
     constructor() {
-        // Enforce abstract nature for runtime robustness, even though TS enforces it statically.
+        super();
+        // Enforce abstract nature specific to the governance interface.
         if (new.target === ConfigValidator) {
             throw new TypeError("Cannot instantiate abstract class ConfigValidator. Use concrete implementations (GRCMs).");
         }
