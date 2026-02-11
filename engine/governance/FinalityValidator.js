@@ -5,13 +5,11 @@ interface IIntegrityHashingUtility {
 
 interface ISchemaValidationService {
     validate(schema: any, data: any): { isValid: boolean, errors: string[] };
-    getSchema(schemaId: string): any; // Assume we can fetch schemas
+    getSchema(schemaId: string): any;
 }
 
 /**
  * New interface for the abstracted rule evaluation logic.
- * This utility handles the deterministic calculation of the final status 
- * based on the proposal state and the governance rule set.
  */
 interface IFinalityRuleEvaluator {
     evaluate(proposalState: any, ruleSet: any): { status: string, criterion: string, details?: any };
@@ -30,13 +28,41 @@ const FINALITY_RESULT_SCHEMA_ID = 'P01_Finality_Result';
  * and validating the P01 Finality Result based on governance inputs.
  */
 export class FinalityValidator {
-  private ruleSet: any;
-  // Note: This version refers to the Finality structure generator, not the Rule Evaluator version.
-  private finalityStructureVersion: string;
+  #ruleSet: any;
+  #finalityStructureVersion: string;
 
   constructor(ruleSet: any) {
-    this.ruleSet = ruleSet;
-    this.finalityStructureVersion = 'v1.1';
+    this.#initializeEngine(ruleSet);
+  }
+
+  /**
+   * Extracts synchronous initialization logic and sets private fields.
+   */
+  #initializeEngine(ruleSet: any): void {
+    this.#ruleSet = ruleSet;
+    this.#finalityStructureVersion = 'v1.1';
+  }
+
+  // --- I/O Proxy Methods ---
+
+  /** Delegates rule evaluation to the external plugin. */
+  #delegateToRuleEvaluation(proposalState: any, ruleSet: any): ReturnType<IFinalityRuleEvaluator['evaluate']> {
+    return RuleEvaluator.evaluate(proposalState, ruleSet);
+  }
+
+  /** Delegates canonical hash generation to the external hashing utility. */
+  #delegateToHashGeneration(...inputs: any[]): string {
+    return HashingUtility.generateCanonicalHash(...inputs);
+  }
+    
+  /** Delegates schema retrieval to the external validation service. */
+  #delegateToGetSchema(schemaId: string): any {
+    return ValidatorService.getSchema(schemaId);
+  }
+
+  /** Delegates data validation to the external validation service. */
+  #delegateToValidation(schema: any, data: any): ReturnType<ISchemaValidationService['validate']> {
+    return ValidatorService.validate(schema, data);
   }
 
   /**
@@ -45,38 +71,37 @@ export class FinalityValidator {
    * @returns {object} P01_Finality_Result conforming object.
    */
   public calculate(proposalState: any): any {
-    // 1. Determine status based on governance rules, delegated to the RuleEvaluator plugin
-    const status = RuleEvaluator.evaluate(proposalState, this.ruleSet);
+    // 1. Determine status based on governance rules (Proxied call)
+    const status = this.#delegateToRuleEvaluation(proposalState, this.#ruleSet);
     const finalizedAt = new Date().toISOString();
     
-    // 2. Use a hash-derived identifier instead of non-deterministic Date.now() for resultId
-    // Using proposal ID and finalizedAt time stamp ensures uniqueness for this specific finalization event.
-    const uniqueNonce = HashingUtility.generateCanonicalHash(proposalState.id, finalizedAt).substring(0, 12);
+    // 2. Hash-derived identifier (Proxied call)
+    const uniqueNonce = this.#delegateToHashGeneration(proposalState.id, finalizedAt).substring(0, 12);
     
-    const rawResult = {
+    const rawResult: any = {
       resultId: `final-${uniqueNonce}`,
       governanceReferenceId: proposalState.id,
       finalityStatus: status.status,
       finalizedAt: finalizedAt,
-      ruleEngineVersion: this.finalityStructureVersion,
+      ruleEngineVersion: this.#finalityStructureVersion,
       triggeringCriterion: status.criterion,
       details: status.details || {}
     };
 
-    // 3. Create the canonical audit hash based on the deterministic inputs and rules.
-    // The hash ensures integrity and verifiability of the final result.
-    rawResult.auditHash = HressingUtility.generateCanonicalHash(
+    // 3. Create the canonical audit hash (Proxied call, correcting original typo)
+    rawResult.auditHash = this.#delegateToHashGeneration(
       rawResult, 
       proposalState, 
-      this.ruleSet
+      this.#ruleSet
     );
 
-    // 4. Validation against the schema using SchemaValidationService
-    const schema = ValidatorService.getSchema(FINALITY_RESULT_SCHEMA_ID); // Fetch schema definition
+    // 4. Validation against the schema
+    const schema = this.#delegateToGetSchema(FINALITY_RESULT_SCHEMA_ID); // Proxied call
+
     if (!schema) {
       console.warn(`Schema ${FINALITY_RESULT_SCHEMA_ID} not found. Skipping runtime validation.`);
     } else {
-        const validationResult = ValidatorService.validate(schema, rawResult);
+        const validationResult = this.#delegateToValidation(schema, rawResult); // Proxied call
         if (!validationResult.isValid) {
             throw new Error(`P01 Finality Result failed validation: ${validationResult.errors.join('; ')}`);
         }
