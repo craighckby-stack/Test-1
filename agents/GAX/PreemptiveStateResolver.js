@@ -9,10 +9,19 @@
  * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
  */
 
-// CRITICAL: Refactored to use Dependency Injection for KERNEL_SYNERGY_CAPABILITIES interface handling.
+// CRITICAL: Refactored to use Dependency Injection for KERNEL_SYNERGY_CAPABILITIES interface handling and formalizing requirements via Synergy Registry.
 
 class PreemptiveStateResolver {
     
+    // -- SYNERGY REGISTRY DECLARATION --
+    // Explicitly lists the required services/tools from the Kernel Synergy Provider.
+    static SYNERGY_REQUIREMENTS = {
+        SERVICES: {
+            RiskThresholdCalculator: "RiskThresholdCalculatorService" 
+        }
+    };
+    // ----------------------------------
+
     // Core internal handlers for state and modeling utilities
     #policyEngine;
     #metricsStore;
@@ -27,16 +36,18 @@ class PreemptiveStateResolver {
      * @param {Object} Dependencies - Structured dependencies required for PSR operation.
      * @param {Object} Dependencies.GAX_Context - Full context container (must expose PolicyEngine, MetricsStore, getRiskModel, getUFRM, getCFTM).
      * @param {Object} Dependencies.SimulationEngine - Engine for TEMM/ECVM prediction using ACVD.
-     * @param {Object} Dependencies.KernelCapabilities - REQUIRED: The KERNEL_SYNERGY_CAPABILITIES subset relevant to PSR (e.g., RiskThresholdCalculatorService).
+     * @param {Object} Dependencies.KernelCapabilities - REQUIRED: The KERNEL_SYNERGY_CAPABILITIES subset relevant to PSR.
      */
     constructor({ GAX_Context, SimulationEngine, KernelCapabilities }) {
         if (!GAX_Context || !SimulationEngine) {
             throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
         }
         
-        // 1. Validate and store Kernel Capabilities Dependency
-        if (!KernelCapabilities || !KernelCapabilities.RiskThresholdCalculatorService) {
-            throw new Error("[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: RiskThresholdCalculatorService. Cannot calculate R_TH.");
+        const requiredServiceKey = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
+
+        // 1. Validate and store Kernel Capabilities Dependency against Synergy Requirements
+        if (!KernelCapabilities || !KernelCapabilities[requiredServiceKey]) {
+            throw new Error(`[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: ${requiredServiceKey}. Cannot calculate R_TH.`);
         }
         this.#kernelCapabilityService = KernelCapabilities;
         
@@ -103,9 +114,11 @@ class PreemptiveStateResolver {
         
         let R_TH = 0; // Initialize R_TH
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the injected Kernel Capability
-        // This pattern relies on the orchestrator ensuring 'RiskThresholdCalculatorService' is present in KernelCapabilities.
-        R_TH = await this.#kernelCapabilityService.RiskThresholdCalculatorService.execute('calculateThreshold', riskParams);
+        // Stage 0: Calculate Risk Threshold (R_TH) using the injected Kernel Capability (Synergy Service)
+        const requiredServiceKey = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
+        const thresholdService = this.#kernelCapabilityService[requiredServiceKey];
+
+        R_TH = await thresholdService.execute('calculateThreshold', riskParams);
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
@@ -120,7 +133,6 @@ class PreemptiveStateResolver {
 
         // Stage 2: Detailed Trajectory Modeling
         console.log("PSR: Starting predictive model simulation (P1/P2 overlap).");
-        // NOTE: SimulationEngine#runSimulation is assumed to be complex and remains local.
         const { predictedTEMM, predictedECVM } = await this.#simEngine.runSimulation(inputManifest);
         
         // Stage 3: Failure Guarantee Check (S04 precursor evaluation)
