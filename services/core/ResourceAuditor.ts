@@ -1,34 +1,38 @@
 import { RCMConfig, UsageSnapshot, CostReport } from '../types/EfficiencyTypes';
 
-// Define the interface that the external plugin satisfies, replacing the old utility.
+// Define the interface that the secure expression evaluator satisfies.
 interface EvaluatorPlugin {
     safeEvaluate(expression: string, context: Record<string, any>): number;
     safeEvaluateBoolean(expression: string, context: Record<string, any>): boolean;
 }
 
-// Type representing cumulative usage stored internally
+// Re-declare AggregateUsage type based on the external meter's output structure
 type AggregateUsage = UsageSnapshot & { 
     last_updated: number; 
-    // Ensures that all tracked metrics are numerical upon storage
-    [key: string]: number | undefined;
+    [key: string]: number | undefined; 
 };
 
+// Define the interface for the extracted Usage Meter logic
+interface UsageMeterPlugin {
+    recordUsage(moduleId: string, usage: Partial<UsageSnapshot>): void;
+    getAggregatedUsage(moduleId: string): AggregateUsage | undefined;
+    getAllModules(): string[];
+}
+
 /**
- * ResourceAuditor: The core utility for high-frequency tracking, cost calculation,
- * and enforcement of RCM policies.
+ * ResourceAuditor: The core utility for cost calculation and RCM policy enforcement.
+ * It now relies on external plugins for secure expression evaluation and usage metering.
  */
 export class ResourceAuditor {
     private config: RCMConfig;
-    private meter: Map<string, AggregateUsage>;
-    // Dependency switched from internal utility to external plugin interface
     private evaluator: EvaluatorPlugin;
+    private meter: UsageMeterPlugin;
 
-    constructor(initialConfig: RCMConfig) {
+    constructor(initialConfig: RCMConfig, meterPlugin: UsageMeterPlugin) {
         this.config = initialConfig;
-        this.meter = new Map();
+        this.meter = meterPlugin;
         
-        // Placeholder initialization for the external plugin instance.
-        // In a real AGI-KERNEL environment, this instance is provided via DI.
+        // Placeholder initialization for the external plugin instance (Evaluator).
         this.evaluator = {
             safeEvaluate: (expr, ctx) => { console.warn("Using mock evaluator for plugin!"); return 0.0; },
             safeEvaluateBoolean: (expr, ctx) => { console.warn("Using mock evaluator for plugin!"); return false; }
@@ -43,24 +47,10 @@ export class ResourceAuditor {
     }
 
     /** 
-     * Records resource usage metrics for a specific task/module, performing high-speed aggregation.
-     * Assumes UsageSnapshot fields (tokens, cpu_ms, etc.) are numerical.
+     * Delegates usage recording to the external metering plugin.
      */
     public recordUsage(moduleId: string, usage: Partial<UsageSnapshot>): void {
-        const existing = this.meter.get(moduleId) || { last_updated: Date.now() };
-
-        // Aggregate new usage onto existing metrics
-        for (const key in usage) {
-            if (usage.hasOwnProperty(key)) {
-                const value = usage[key as keyof UsageSnapshot];
-                if (typeof value === 'number') {
-                    (existing as any)[key] = ((existing as any)[key] || 0) + value;
-                }
-            }
-        }
-
-        existing.last_updated = Date.now();
-        this.meter.set(moduleId, existing as AggregateUsage);
+        this.meter.recordUsage(moduleId, usage);
     }
 
     /** 
@@ -91,10 +81,10 @@ export class ResourceAuditor {
     /** Checks all adaptive policies against current system state and applies actions. */
     public checkAdaptivePolicies(): string[] {
         const actions: string[] = [];
-        // In a production system, `getSystemStatus()` would fetch real-time metrics.
+        
         const systemContext = { 
             global_load: 0.85, // Example metric
-            high_cost_modules_count: Array.from(this.meter.keys()).length // Example metric
+            high_cost_modules_count: this.meter.getAllModules().length // Fetched from meter plugin
         };
 
         for (const policy of this.config.adaptive_policies || []) {
@@ -108,8 +98,8 @@ export class ResourceAuditor {
         return actions; 
     }
 
-    /** Retrieves the current aggregated usage snapshot for external reporting. */
+    /** Retrieves the current aggregated usage snapshot from the metering plugin. */
     public getAggregatedUsage(moduleId: string): AggregateUsage | undefined {
-        return this.meter.get(moduleId);
+        return this.meter.getAggregatedUsage(moduleId);
     }
 }
