@@ -27,12 +27,12 @@ export function calculateTrustScore(metrics: { [key: string]: number }): number 
     try {
         // Delegate calculation, validation, and clamping to the reusable utility
         return polarizedWeightedScorer.execute({
-            metrics: metrics,
+            metrics, // Use object literal shorthand
             schema: TRUST_METRICS_SCHEMA,
             negativePolarityMarker: TRUST_POLARITY.NEGATIVE
         });
     } catch (e) {
-        // Re-throw the structured error from the scoring utility
-        throw new Error(`Failed to calculate trust score due to input validation error: ${e.message}`);
+        // Re-throw with improved context. The previous message erroneously assumed only 'input validation' failed.
+        throw new Error(`Trust score calculation failed using PolarizedWeightedScorer: ${e.message}`);
     }
 }
