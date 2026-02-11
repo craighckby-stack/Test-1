@@ -1,69 +1,114 @@
-// Note: This implementation assumes MetricNormalizationUtility is available via injection or global scope.
-
 /**
- * @typedef {object} TelemetryAdapter
- * @property {function} report - Method to report normalized metrics externally.
+ * AGI-KERNEL v7.11.3 [MetricCollectorKernel]
+ * Refactored to enforce Dependency Injection, strict state encapsulation, synchronous setup extraction, and I/O proxy isolation.
  */
 
 /**
- * @typedef {object} MetricNormalizerInterface
+ * @typedef {object} TelemetryAdapterInterfaceKernel
+ * @property {function(object, string): void} report - Method to report normalized metrics externally.
+ */
+
+/**
+ * @typedef {object} MetricNormalizerToolKernel
  * @property {function({rawData: object, mappingConfig: object, sourceIdentifier: string}): object} execute - Method to perform metric transformation and standardization.
  */
 
-// Class responsible for standardizing metric ingestion, normalization, and caching.
-class MetricCollectorService {
+// Kernel responsible for standardizing metric ingestion, normalization, and caching.
+class MetricCollectorKernel {
+  #adapter;
+  #metricCache = {};
+  #normalizer;
+  #tqmMappingConfig;
+
   /**
-   * @param {TelemetryAdapter} telemetryAdapter
-   * @param {MetricNormalizerInterface} metricNormalizer - Injected utility conforming to the MetricNormalizer interface.
+   * @param {TelemetryAdapterInterfaceKernel} telemetryAdapter - Adapter for external reporting.
+   * @param {MetricNormalizerToolKernel} metricNormalizer - Tool for transforming raw metrics.
+   * @param {object} tqmMappingConfig - Configuration defining the mapping rules.
    */
-  constructor(telemetryAdapter, metricNormalizer) {
-    this.adapter = telemetryAdapter;
-    this.metricCache = {};
-    this.normalizer = metricNormalizer; 
-    
-    // TQM Mapping configuration definition (should ideally be loaded from configuration service)
-    this.tqmMappingConfig = {
-        'SonarQube.CC': 'code.cyclomatic_complexity',
-        'Jira.OpenBugs': 'process.open_critical_defects',
-        'Coverage.Line': 'quality.test_coverage_line',
-        // Add more mappings
-    };
+  constructor(telemetryAdapter, metricNormalizer, tqmMappingConfig) {
+    this.#setupDependencies(telemetryAdapter, metricNormalizer, tqmMappingConfig);
   }
 
-  // Ingests raw data, validates structure, and normalized metric keys based on TQM mapping.
-  async ingestAndNormalizeMetrics(rawData, sourceIdentifier) {
-    if (!this.normalizer || typeof this.normalizer.execute !== 'function') {
-        throw new Error("Metric Normalizer is not available or correctly initialized.");
+  // --- Setup and Validation ---
+
+  /**
+   * Synchronously validates dependencies and internal configuration.
+   * Goal: Satisfy the synchronous setup extraction mandate.
+   */
+  #setupDependencies(telemetryAdapter, metricNormalizer, tqmMappingConfig) {
+    if (!telemetryAdapter || typeof telemetryAdapter.report !== 'function') {
+      this.#throwSetupError("Telemetry Adapter must be provided and implement 'report' function.");
     }
-    
-    // Delegation to the extracted normalization tool.
-    const normalizedMetrics = this.normalizer.execute({
-        rawData: rawData,
-        mappingConfig: this.tqmMappingConfig,
-        sourceIdentifier: sourceIdentifier
+    if (!metricNormalizer || typeof metricNormalizer.execute !== 'function') {
+      this.#throwSetupError("Metric Normalizer Tool must be provided and implement 'execute' function.");
+    }
+    if (!tqmMappingConfig || typeof tqmMappingConfig !== 'object') {
+      this.#throwSetupError("TQM Mapping Configuration object is mandatory.");
+    }
+
+    this.#adapter = telemetryAdapter;
+    this.#normalizer = metricNormalizer;
+    this.#tqmMappingConfig = tqmMappingConfig;
+  }
+
+  #throwSetupError(message) {
+    throw new Error(`MetricCollectorKernel Setup Error: ${message}`);
+  }
+
+  // --- I/O Proxies ---
+
+  /**
+   * Delegates the metric normalization task to the injected tool.
+   * Goal: Satisfy the I/O proxy creation mandate.
+   */
+  #delegateToNormalizerExecute(rawData, sourceIdentifier) {
+    return this.#normalizer.execute({
+      rawData: rawData,
+      mappingConfig: this.#tqmMappingConfig,
+      sourceIdentifier: sourceIdentifier
     });
-    
-    Object.assign(this.metricCache, normalizedMetrics);
-    
-    // Optional: Use adapter to report normalized data
-    if (this.adapter && typeof this.adapter.report === 'function') {
-        this.adapter.report(normalizedMetrics, sourceIdentifier);
-    }
-    
+  }
+
+  /**
+   * Delegates the reporting of normalized metrics to the telemetry adapter.
+   * Goal: Satisfy the I/O proxy creation mandate.
+   */
+  #delegateToTelemetryAdapterReport(normalizedMetrics, sourceIdentifier) {
+    this.#adapter.report(normalizedMetrics, sourceIdentifier);
+  }
+
+  // --- Internal Helpers ---
+
+  #getMetricValue(metricKey) {
+    return this.#metricCache[metricKey] || null;
+  }
+
+  // --- Public API ---
+
+  /**
+   * Ingests raw data, normalizes it, caches it, and reports it externally.
+   */
+  async ingestAndNormalizeMetrics(rawData, sourceIdentifier) {
+    const normalizedMetrics = this.#delegateToNormalizerExecute(rawData, sourceIdentifier);
+
+    // Update internal cache
+    Object.assign(this.#metricCache, normalizedMetrics);
+
+    // Report via adapter
+    this.#delegateToTelemetryAdapterReport(normalizedMetrics, sourceIdentifier);
+
     return normalizedMetrics;
   }
 
-  getMetricValue(metricKey) {
-    return this.metricCache[metricKey] || null;
-  }
-
-  // Method exposed to TQM Policy Engine for policy evaluation.
+  /**
+   * Method exposed to TQM Policy Engine for policy evaluation.
+   */
   getMetricsForPolicyEvaluation(policyKeys) {
     return policyKeys.reduce((acc, key) => {
-      acc[key] = this.getMetricValue(key);
+      acc[key] = this.#getMetricValue(key);
       return acc;
     }, {});
   }
 }
 
-module.exports = MetricCollectorService;
+module.exports = MetricCollectorKernel;
