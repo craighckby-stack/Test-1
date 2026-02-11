@@ -27,12 +27,12 @@ interface GSIMResolverTools {
 }
 
 export class GSIMMapResolver {
-    private integrityVerifier: IPayloadIntegrityVerifier;
-    private dependencyResolver: IDependencyResolver;
+    private readonly #integrityVerifier: IPayloadIntegrityVerifier;
+    private readonly #dependencyResolver: IDependencyResolver;
 
     constructor(tools: GSIMResolverTools) {
-        this.integrityVerifier = tools.payloadIntegrityVerifier;
-        this.dependencyResolver = tools.dependencyResolver;
+        this.#integrityVerifier = tools.payloadIntegrityVerifier;
+        this.#dependencyResolver = tools.dependencyResolver;
     }
 
     /**
@@ -41,27 +41,64 @@ export class GSIMMapResolver {
      * @param mapData The parsed GSIM enforcement map.
      */
     public async resolve(mapData: GsimEnforcementMap): Promise<EnforcementRule[]> {
-        console.log(`[GSIM] Attempting resolution for map ID: ${mapData.map_id}`);
+        const { map_id, metadata, enforcement_map } = mapData;
 
-        // 1. Integrity Verification (Now using the abstracted tool)
-        const verificationResult = await this.integrityVerifier.verify({
-            payload: mapData.enforcement_map,
-            expectedChecksum: mapData.metadata.checksum
-        });
+        this.#logResolutionAttempt(map_id);
+
+        // 1. Integrity Verification
+        const verificationResult = await this.#delegateToIntegrityVerification(
+            enforcement_map,
+            metadata.checksum
+        );
 
         if (!verificationResult.isValid) {
-            const calculated = verificationResult.calculatedChecksum || 'N/A';
-            throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch. Expected: ${mapData.metadata.checksum}, Calculated: ${calculated}.`);
+            this.#throwIntegrityError(
+                map_id,
+                metadata.checksum,
+                verificationResult.calculatedChecksum
+            );
         }
 
-        // 2. Dependency Resolution Loop (Delegated to plugin)
-        for (const rule of mapData.enforcement_map) {
+        // 2. Dependency Resolution Loop
+        for (const rule of enforcement_map) {
             if (rule.dependencies) {
-                await this.dependencyResolver.resolveDependencies(rule.dependencies);
+                await this.#delegateToDependencyResolution(rule.dependencies);
             }
         }
 
-        console.log(`[GSIM] Map ${mapData.map_id} resolved successfully.`);
-        return mapData.enforcement_map;
+        this.#logSuccess(map_id);
+        return enforcement_map;
+    }
+
+    // --- I/O Proxy Functions ---
+
+    /** Proxies interaction with the IPayloadIntegrityVerifier tool. */
+    private async #delegateToIntegrityVerification(
+        payload: any,
+        expectedChecksum: string
+    ): Promise<Awaited<ReturnType<IPayloadIntegrityVerifier['verify']>>> {
+        return this.#integrityVerifier.verify({ payload, expectedChecksum });
+    }
+
+    /** Proxies interaction with the IDependencyResolver tool. */
+    private async #delegateToDependencyResolution(dependencies: EnforcementRule['dependencies']): Promise<void> {
+        // dependencies is guaranteed non-null by the caller context (resolve loop).
+        return this.#dependencyResolver.resolveDependencies(dependencies!);
+    }
+
+    /** Proxies console logging for successful resolution. */
+    private #logResolutionAttempt(mapId: string): void {
+        console.log(`[GSIM] Attempting resolution for map ID: ${mapId}`);
+    }
+
+    /** Proxies console logging for successful resolution. */
+    private #logSuccess(mapId: string): void {
+        console.log(`[GSIM] Map ${mapId} resolved successfully.`);
+    }
+
+    /** Proxies error throwing upon failed integrity check. */
+    private #throwIntegrityError(mapId: string, expected: string, calculated: string | null): never {
+        const calculatedStr = calculated || 'N/A';
+        throw new Error(`Integrity Check Failed for ${mapId}. Hash mismatch. Expected: ${expected}, Calculated: ${calculatedStr}.`);
     }
 }
