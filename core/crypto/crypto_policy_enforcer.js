@@ -15,12 +15,21 @@ class CryptoPolicyEnforcer {
     }
     
     // 1. Guarantee structural integrity: Deep-freeze the policy configuration
-    this.#policy = Object.freeze(config);
+    this.#policy = this.#freezePolicyConfiguration(config);
     
     // 2. Start initialization (fire-and-forget, internal state update handled internally)
     this.init();
   }
   
+  /**
+   * Synchronously freezes the cryptographic policy configuration object.
+   * @param {object} config 
+   * @returns {Readonly<object>}
+   */
+  #freezePolicyConfiguration(config) {
+    return Object.freeze(config);
+  }
+
   /**
    * @returns {boolean} True if the policy enforcer has completed its initialization phase.
    */
