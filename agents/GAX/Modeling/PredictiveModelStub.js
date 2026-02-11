@@ -2,7 +2,7 @@
  * agents/GAX/Modeling/PredictiveModelStub.js
  *
  * Provides the explicit asynchronous interface required by the Trajectory Simulation Engine (TSE).
- * Now delegates specific stub calculation logic to the KERNEL Tooling system.
+ * Delegates specific stub calculation logic to the KERNEL Synergy Registry.
  */
 
 /**
@@ -20,13 +20,21 @@
 
 class PredictiveModelStub {
     /**
-     * @type {boolean}
+     * Defines the required KERNEL capability interface name.
+     * @type {string}
      */
-    weightsLoaded;
+    static REQUIRED_CAPABILITY = 'PredictiveStubEngine';
+
+    /**
+     * @type {boolean}
+     * @private
+     */
+    #isInitialized;
 
     constructor() {
-        console.log("Predictive Model Handler Initialized: Using statistical stub for TEMM/ECVM.");
-        this.weightsLoaded = true;
+        console.log(`Predictive Model Handler Initialized: Stub delegates calculation to KERNEL capability: ${PredictiveModelStub.REQUIRED_CAPABILITY}.`);
+        // Assert immediate readiness for the stub.
+        this.#isInitialized = true;
     }
 
     /**
@@ -35,23 +43,25 @@ class PredictiveModelStub {
      * @returns {Promise<PredictionResult>} Predicted metrics.
      */
     async predict(features) {
-        // Simulate necessary latency for high-fidelity model inference
+        // 1. Assert readiness (simulating weight loading status)
+        if (!this.#isInitialized) {
+             throw new Error("Model Handler is not initialized or failed dependency checks.");
+        }
+
+        // 2. Simulate necessary latency for high-fidelity model inference
         await new Promise(resolve => setTimeout(resolve, 5));
 
-        if (!this.weightsLoaded) {
-             throw new Error("Model weights failed to load or were unloaded.");
-        }
+        // 3. Access the KERNEL synergy registry for the required capability
+        const engine = globalThis.KERNEL_SYNERGY_CAPABILITIES?.[PredictiveModelStub.REQUIRED_CAPABILITY];
 
-        // Access the KERNEL capability interface
-        const engine = globalThis.KERNEL_SYNERGY_CAPABILITIES?.PredictiveStubEngine;
-
-        // Check for KERNEL capability access and ensure the necessary service is available.
+        // 4. Validate KERNEL capability availability and interface structure
         if (!engine || typeof engine.execute !== 'function') {
-            throw new Error("Required KERNEL capability 'PredictiveStubEngine' is missing or malformed.");
+            throw new Error(
+                `SYNERGY REGISTRY Error: Required KERNEL capability '${PredictiveModelStub.REQUIRED_CAPABILITY}' is missing, malformed, or failed to expose the 'execute' interface.`
+            );
         }
 
-        // Delegate the core stub calculation logic to the KERNEL Tooling system.
-        // Standardized execution uses the operation verb 'predict'.
+        // 5. Delegate the core stub calculation logic to the KERNEL Tooling system.
         const result = await engine.execute('predict', features);
         
         return result;
