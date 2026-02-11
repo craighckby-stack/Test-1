@@ -4,39 +4,24 @@
  */
 
 import { ConstraintResolutionEngineDefinition } from "./types";
+import { 
+  DependencyGraphAnalyzer, 
+  GraphDiagnostic, 
+  AnalysisNode 
+} from 'AGI_KERNEL/DependencyGraphAnalyzer';
 
-// START: Structured Diagnostic Types for robust error reporting
-export type DiagnosticType = 'CYCLE' | 'DUPLICATE_ID' | 'MISSING_DEPENDENCY';
-
-export interface GraphDiagnostic {
-  severity: 'error' | 'warning';
-  type: DiagnosticType;
-  message: string;
-}
-// END: Structured Diagnostic Types
-
-// Placeholder for the external analysis tool interface
-interface AnalysisNode {
-    [key: string]: any;
-}
-type AnalysisResult = GraphDiagnostic[];
-
-/** 
- * IMPORTANT: This function represents the delegated call to the AGI_KERNEL plugin 
- * (DependencyGraphAnalyzer) which encapsulates the complex graph traversal logic.
+/**
+ * ConstraintDependencyGraphAnalyzer
+ * Delegates complex graph analysis (cycles, duplicates, missing dependencies)
+ * to the reusable AGI_KERNEL:DependencyGraphAnalyzer plugin.
  */
-declare function runDependencyAnalysis(args: {
-    nodes: AnalysisNode[];
-    idKey: string;
-    depsKey: string;
-}): AnalysisResult;
-
-
 export class ConstraintDependencyGraphAnalyzer {
   private definition: ConstraintResolutionEngineDefinition;
+  private graphAnalyzer: DependencyGraphAnalyzer;
 
   constructor(definition: ConstraintResolutionEngineDefinition) {
     this.definition = definition;
+    this.graphAnalyzer = new DependencyGraphAnalyzer();
   }
 
   /**
@@ -45,7 +30,7 @@ export class ConstraintDependencyGraphAnalyzer {
    * @returns An array of structured diagnostic messages.
    */
   public analyzeForCycles(): GraphDiagnostic[] {
-    const diagnostics = runDependencyAnalysis({
+    const diagnostics = this.graphAnalyzer.analyze({
       // The input structure (resolutionPhases) matches the expected format
       nodes: this.definition.resolutionPhases as AnalysisNode[], 
       idKey: 'phaseId',
