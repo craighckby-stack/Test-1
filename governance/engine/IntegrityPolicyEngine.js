@@ -14,50 +14,17 @@ class IntegrityPolicyEngine {
      */
     constructor(policyConfig: any) {
         this.config = policyConfig.governed_domains;
-        // Assume AttestationPolicyEnforcer is either globally available or accessed via an internal registry.
-        this.policyEnforcer = typeof AttestationPolicyEnforcer !== 'undefined' ? AttestationPolicyEnforcer : this._getLocalEnforcerImplementation();
+
+        // The core policy enforcement logic is now abstracted into the AttestationPolicyEnforcer plugin.
+        // We ensure the dependency is available.
+        if (typeof AttestationPolicyEnforcer === 'undefined' || typeof AttestationPolicyEnforcer.execute !== 'function') {
+            throw new Error("IntegrityPolicyEngine requires the AttestationPolicyEnforcer dependency.");
+        }
+        this.policyEnforcer = AttestationPolicyEnforcer;
     }
 
     private config: any;
     private policyEnforcer: typeof AttestationPolicyEnforcer;
-
-    /**
-     * Internal implementation fallback for the policy enforcer logic.
-     * This logic is extracted into the AttestationPolicyEnforcer plugin.
-     */
-    private _getLocalEnforcerImplementation() {
-        return {
-            execute: async (args: any) => {
-                const { requirements, verificationCallback, context } = args;
-                const { domainId } = context;
-                
-                let criticalFailure = false;
-                const auditLogs: string[] = [];
-
-                for (const requirement of requirements) {
-                    const signer_id = requirement.signer_id;
-                    const enforcement_level = requirement.enforcement_level || 'STANDARD';
-                    
-                    const isVerified = await verificationCallback({ 
-                        signerId: signer_id, 
-                        context: context 
-                    });
-
-                    if (!isVerified) {
-                        if (enforcement_level === 'CRITICAL') {
-                            console.error(`[INTEGRITY FAILURE] Critical required attestation failed for ${signer_id} in domain ${domainId}.`);
-                            criticalFailure = true;
-                        } else if (enforcement_level === 'MANDATORY_AUDIT') {
-                            const log = `[INTEGRITY WARNING] Mandatory audit attestation failed for ${signer_id}. Logging incident in domain ${domainId}.`;
-                            console.warn(log);
-                            auditLogs.push(log);
-                        }
-                    }
-                }
-                return { criticalFailure, auditLogs };
-            }
-        }
-    }
 
     /**
      * Validates an artifact against the integrity policy for a specific domain.
