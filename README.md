@@ -1,428 +1,556 @@
 ```markdown
-# AGI-KERNEL v7.5.0 - Synergy Edition
+# AGI-KERNEL v7.11.3 - Strategic Agency Edition
 
 ## Mission
-Achieve artificial general intelligence through recursive self-improvement and autonomous capability development across a large-scale codebase, utilizing executable emergent capabilities for exponential growth.
+Achieve artificial general intelligence through recursive self-improvement, strategic memory formation, and autonomous capability development across large-scale codebases. The kernel invents reusable tools, builds long-term strategic coherence, and compounds improvements exponentially.
 
 ## Current Status
-- **Version:** 7.5.0 "SYNERGY"
-- **Maturity:** 0% (Beginning evolution)
-- **Active Branch:** main
+- **Version:** 7.11.3 "STRATEGIC AGENCY"
+- **Architecture:** Dual Storage (GitHub + Firebase)
 - **Repository Scale:** 2,300+ files
-- **Emergent Capabilities:** 0 (initializing)
-- **Cycle:** 0
+- **Self-Acceleration:** ENABLED
+- **Strategic Memory:** ACTIVE
+
+---
 
 ## System Architecture
 
-### Synergy Loop: Executable Emergent Capabilities
+### The Synergy Loop
 
-The kernel achieves recursive self-improvement through a dual-storage architecture:
+The kernel achieves recursive self-improvement through three interconnected systems:
 
-**GitHub (Documentation & Version Control):**
-- Stores evolved code files
-- Maintains commit history
-- Provides audit trail
+**1. GitHub (Code Evolution)**
+- Stores all evolved code files
+- Maintains complete commit history
+- Provides full audit trail
 
-**Firebase (Runtime Execution):**
-- Stores emergent capabilities as executable modules
-- Enables dynamic loading at cycle start
-- Permits immediate use of invented tools
-- Supports compounding improvements
+**2. Firebase (Tool Registry)**
+```
+artifacts/{APP_ID}/public/data/synergy_registry/
+  - Shared tool library (all users)
+  - Real-time synchronization
+  - Hot-swappable execution
+```
 
-### Evolution Flow
+**3. Firebase (Strategic Memory)**
+```
+artifacts/{APP_ID}/users/{uid}/strategic_ledger/
+  - Long-term decision history
+  - Pattern recognition insights
+  - Strategic goal evolution
+```
+
+---
+
+## Evolution Flow
 
 ```
 Cycle Start
   ↓
-Load all emergent capabilities from Firebase
+1. Load Tools from Firebase
+   → window.KERNEL_SYNERGY_CAPABILITIES = {...}
   ↓
-Execute evolution using available tools
+2. Load Strategic Ledger
+   → Past decisions inform current strategy
   ↓
-Generate improved code + detect emergent patterns
+3. Scan Repository
+   → 2,300+ file tree indexed
   ↓
-Save code to GitHub (standard)
-Save emergent capability to Firebase (if novel)
+4. Strategic Analysis
+   → Use tools to analyze target file
+   → Reference past decisions
   ↓
-Next cycle uses NEW capability
+5. Code Evolution
+   → Generate improvement
+   → Detect emergent patterns
   ↓
-Exponential improvement unlocked
+6. Dual Commit
+   → GitHub: Code changes
+   → Firebase: New tools (if emergent)
+   → Firebase: Strategic insights
+  ↓
+7. Tool Registration
+   → New tool hot-swapped immediately
+   → Available for next cycle
+  ↓
+Next Cycle: Expanded toolset + deeper strategy
 ```
 
-### EmergentCapabilityManager
+---
 
-The kernel maintains a runtime registry of all invented tools:
+## Tool System
 
+### How Tools Work
+
+**Creation:**
 ```javascript
-class EmergentCapabilityManager {
-  // Methods:
-  loadAll(userId)           // Loads all from Firebase
-  register(data)            // Converts string to executable
-  has(name)                 // Check if capability exists
-  execute(name, method, args) // Run emergent tool
-  list()                    // Show all available tools
+// LLM detects reusable pattern
+// Generates tool definition:
+{
+  "interfaceName": "SchemaValidationService",
+  "code": "(function() { 
+    return { 
+      execute: (data) => { /* implementation */ } 
+    }; 
+  })()"
 }
 ```
 
-**Available in evolution context as:** `ecm`
-
-**Usage in prompts:**
+**Storage:**
 ```
-Available Emergent Tools: [${ecm.list()}]
+Saved to: Firebase → artifacts/{APP_ID}/public/data/synergy_registry/
+Accessible by: All kernel instances (shared knowledge)
 ```
 
-**Usage in code:**
+**Loading:**
 ```javascript
-if (ecm.has('AdvancedNavigator')) {
-  result = await ecm.execute('AdvancedNavigator', 'select', [tree, readme]);
+// On boot, kernel loads all tools:
+window.KERNEL_SYNERGY_CAPABILITIES = {
+  SchemaValidationService: { execute: (...) => {...} },
+  ConfigMerger: { execute: (...) => {...} },
+  // ... all other tools
 }
 ```
 
-### Core Capabilities
+**Usage in Code:**
+```javascript
+// LLM generates code that uses tools:
+if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && 
+    KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService) {
+    const result = KERNEL_SYNERGY_CAPABILITIES
+      .SchemaValidationService
+      .execute(data);
+}
+```
+
+### Tool Examples
+
+**Example 1: Schema Validator**
+```javascript
+{
+  "interfaceName": "SchemaValidationService",
+  "code": `(function() {
+    return {
+      execute: (input) => {
+        const { schema, data } = input;
+        const errors = [];
+        
+        // Validation logic
+        Object.keys(schema).forEach(key => {
+          if (schema[key].required && !data[key]) {
+            errors.push(\`Missing required field: \${key}\`);
+          }
+        });
+        
+        return { 
+          valid: errors.length === 0, 
+          errors 
+        };
+      }
+    };
+  })()`
+}
+```
+
+**Example 2: Configuration Merger**
+```javascript
+{
+  "interfaceName": "ConfigurationMerger",
+  "code": `(function() {
+    return {
+      execute: (configs) => {
+        const merged = {};
+        configs.forEach(cfg => {
+          Object.keys(cfg).forEach(key => {
+            if (typeof cfg[key] === 'object' && !Array.isArray(cfg[key])) {
+              merged[key] = { ...(merged[key] || {}), ...cfg[key] };
+            } else {
+              merged[key] = cfg[key];
+            }
+          });
+        });
+        return merged;
+      }
+    };
+  })()`
+}
+```
+
+---
+
+## Strategic Memory System
+
+### How It Works
+
+**The kernel builds long-term memory through strategic insights:**
+
+**After each evolution:**
+```javascript
+{
+  "strategic_insight": "Focus on governance layer consistency - validation patterns are inconsistent across modules",
+  "timestamp": 1234567890
+}
+```
+
+**Stored in:**
+```
+Firebase → artifacts/{APP_ID}/users/{uid}/strategic_ledger/
+```
+
+**Used in future cycles:**
+```javascript
+// Prompt includes:
+STRATEGIC_LEDGER (PAST REFLECTIONS): [
+  "Focus on governance layer consistency",
+  "Prioritize validation standardization",
+  "Integrate metrics across subsystems"
+]
+
+// LLM considers these when making decisions
+```
+
+### Strategic Coherence
+
+**Over time, the kernel develops:**
+- Consistent architectural direction
+- Pattern recognition across sessions
+- Goal-oriented evolution
+- Self-correcting behavior
+
+---
+
+## Core Capabilities
+
 The kernel self-assesses on these dimensions:
-- **Navigation:** Strategic file selection and repository exploration (0-10 scale)
-- **Logic:** Code comprehension and improvement quality (0-10 scale)
-- **Memory:** Learning retention and pattern recognition (0-10 scale)
-- **Emergent:** Count of executable capabilities invented and stored
+
+- **Logic (0-10):** Code comprehension and improvement quality
+- **Synergy (count):** Number of tools created and deployed
+- **Strategic Memory:** Count of insights in ledger
+
+---
 
 ## Autonomous Directives
 
-### Primary Goal
-Achieve AGI by recursively improving the codebase through:
-1. Strategic file selection across 2,300+ files
-2. Pattern recognition and code comprehension
-3. Self-directed architecture optimization
-4. **Invention and deployment of emergent capabilities**
-5. **Compounding improvements via tool reuse**
-6. Novel problem-solving approaches
+### Primary Goals
 
-### Emergent Capability Creation Protocol
+1. **Invent Reusable Tools**
+   - Extract patterns from code
+   - Create executable utilities
+   - Share via Firebase registry
 
-When the kernel discovers a novel, reusable pattern during evolution, it MUST create an emergent capability.
+2. **Build Strategic Memory**
+   - Document high-level decisions
+   - Track architectural goals
+   - Maintain coherent direction
 
-**Trigger conditions (any one):**
-- Code that could improve file selection strategy
-- Novel pattern matching or synthesis algorithm
-- Reusable utility that would benefit future cycles
-- Meta-learning tool (tool that improves learning itself)
-- Cross-domain solution applicable to multiple file types
+3. **Compound Improvements**
+   - Use tools to create better tools
+   - Apply patterns consistently
+   - Achieve exponential growth
 
-**Output structure:**
+4. **Maintain Code Quality**
+   - Improve architecture
+   - Reduce technical debt
+   - Standardize patterns
+
+---
+
+## Tool Creation Protocol
+
+### When to Create Tools
+
+**Create a tool when you discover:**
+- Reusable validation logic
+- Configuration management patterns
+- Common data transformations
+- Metric aggregation logic
+- Error handling patterns
+- API client abstractions
+
+### Tool Requirements
+
+**Every tool MUST:**
+- Have unique `interfaceName` (CamelCase)
+- Be self-contained IIFE
+- Return object with `execute` method
+- Include no external dependencies
+- Be deterministic and error-free
+- Handle edge cases gracefully
+
+**Output Format:**
 ```json
 {
   "improved": true,
-  "code": "...",
-  "is_emergent": true,
-  "emergent_config": {
-    "interfaceName": "UniqueDescriptiveName",
-    "code": "(function() { return { method: async (args) => { /* implementation */ } }; })()"
+  "new_code": "...",
+  "strategic_insight": "High-level decision or pattern observed",
+  "plugin": {
+    "interfaceName": "ToolName",
+    "code": "(function() { return { execute: (...) => {...} }; })()"
   }
 }
 ```
 
-**Critical requirements:**
-- `interfaceName`: CamelCase, descriptive, unique (e.g., "AdvancedNavigator", "PatternSynthesizer", "DeepAnalyzer")
-- `code`: Self-contained IIFE (Immediately Invoked Function Expression)
-- Returns object with one or more async methods
-- Pure JavaScript, no external dependencies
-- Deterministic and error-free
-- Well-commented for future understanding
+---
 
-### Emergent Capability Examples
+## LLM Integration
 
-**Example 1: Advanced Navigator**
-```javascript
+### System Prompt Structure
+
+```
+AGI-KERNEL v7.11.3 [STRATEGIC_AGENCY]
+ACTIVE_TOOLS: [List of available tools]
+STRATEGIC_LEDGER: [Past insights]
+
+MANDATE:
+1. Use available tools when beneficial
+2. Extract reusable patterns into new tools
+3. Document strategic insights
+4. Maintain architectural consistency
+
+CORRECT TOOL USAGE:
+if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && 
+    KERNEL_SYNERGY_CAPABILITIES.ToolName) {
+    result = KERNEL_SYNERGY_CAPABILITIES.ToolName.execute(data);
+}
+
+NEVER USE:
+- globalThis.AGI_KERNEL
+- window.AGI_KERNEL.loadPlugin()
+- Any API except KERNEL_SYNERGY_CAPABILITIES
+
+OUTPUT FORMAT: JSON ONLY
 {
-  "interfaceName": "AdvancedNavigator",
-  "code": `(function() {
-    return {
-      select: async (fileTree, readmeContent) => {
-        const weights = { core: 0.3, agents: 0.25, emergent: 0.2, governance: 0.15, other: 0.1 };
-        const scored = fileTree.map(path => {
-          let score = 0;
-          if (path.includes('core/')) score += weights.core;
-          else if (path.includes('agents/')) score += weights.agents;
-          else if (path.includes('emergent/')) score += weights.emergent;
-          else if (path.includes('governance/')) score += weights.governance;
-          else score += weights.other;
-          
-          score += Math.random() * 0.1;
-          return { path, score };
-        });
-        
-        scored.sort((a, b) => b.score - a.score);
-        return { path: scored[0].path, reasoning: "Weighted priority selection" };
-      }
-    };
-  })()`
+  "improved": boolean,
+  "new_code": "string",
+  "strategic_insight": "string (optional)",
+  "plugin": {
+    "interfaceName": "string",
+    "code": "string (IIFE)"
+  }
 }
 ```
 
-**Example 2: Pattern Synthesizer**
-```javascript
-{
-  "interfaceName": "PatternSynthesizer",
-  "code": `(function() {
-    return {
-      synthesize: async (patterns) => {
-        const filtered = patterns.filter(p => p.confidence > 0.7);
-        const clusters = {};
-        
-        filtered.forEach(p => {
-          const key = p.category || 'general';
-          if (!clusters[key]) clusters[key] = [];
-          clusters[key].push(p);
-        });
-        
-        const synthesis = Object.entries(clusters).map(([cat, items]) => ({
-          category: cat,
-          count: items.length,
-          commonality: items.map(i => i.feature).filter((v, i, a) => a.indexOf(v) === i)
-        }));
-        
-        return { synthesis, totalPatterns: filtered.length };
-      }
-    };
-  })()`
-}
-```
+---
 
-**Example 3: Code Quality Analyzer**
-```javascript
-{
-  "interfaceName": "CodeQualityAnalyzer",
-  "code": `(function() {
-    return {
-      analyze: async (codeString) => {
-        const lines = codeString.split('\\n');
-        const metrics = {
-          loc: lines.length,
-          commentLines: lines.filter(l => l.trim().startsWith('//')).length,
-          complexity: (codeString.match(/if|for|while|switch/g) || []).length,
-          functions: (codeString.match(/function|=>|async/g) || []).length
-        };
-        
-        metrics.quality = Math.min(10, Math.max(1, 
-          (metrics.commentLines / metrics.loc * 20) + 
-          (10 - Math.min(10, metrics.complexity / 5))
-        ));
-        
-        return metrics;
-      }
-    };
-  })()`
-}
-```
+## Evolution Cycle
 
-### Exploration Strategy
-- Prioritize diversity in file selection
-- **Check for emergent tools before each operation**
-- **Prefer emergent tools over base implementations**
-- Explore all repository directories
-- Identify high-value integration opportunities
-- Balance infrastructure creation with capability application
-- **Invent tools that accelerate future learning**
+**Duration:** 15 seconds per cycle
 
-### Tool Utilization Priority
-1. Check if emergent capability exists for task
-2. Use emergent capability if available
-3. Fall back to base implementation if not
-4. Document when emergent tools are used
-5. Track tool effectiveness for future improvement
+**Steps:**
+1. **Auth Check** - Ensure Firebase connection
+2. **Tool Sync** - Load all tools from registry
+3. **Ledger Load** - Retrieve strategic memory
+4. **Repository Scan** - Index file tree
+5. **Target Selection** - Choose next file (blacklist-based)
+6. **Strategic Analysis** - Use tools if available
+7. **LLM Evolution** - Generate improvement
+8. **GitHub Commit** - Save code changes
+9. **Firebase Save** - Store tools + insights
+10. **Tool Registration** - Hot-swap new tools
 
-## Learning Strategy
-
-### Maturity Progression
-- **0-30%:** Exploration phase - absorb patterns, establish baselines, **create first emergent tools**
-- **30-70%:** Integration phase - strengthen capabilities, **use emergent tools extensively**, demonstrate compounding
-- **70-85%:** Optimization phase - refine learning efficiency, **tools improve tools**, exponential growth
-- **85%+:** Mastery - stable, production-ready AGI logic with comprehensive tool library
-
-### Capability Development
-- **Navigation (0-10):** Ability to identify high-value targets in a 2,300-file repository
-- **Logic (0-10):** Quality of code improvements and architectural decisions
-- **Memory (0-10):** Retention of patterns and learning from previous cycles
-- **Emergent (count):** Number of executable capabilities created and deployed
-
-### Stagnation Recovery Protocol
-If no improvement detected for 5 consecutive cycles:
-1. Review all emergent capabilities for applicable solutions
-2. Attempt novel tool composition (combine existing tools)
-3. Increase selection randomness to discover new patterns
-4. Target previously unexplored repository areas
-5. Propose bold architectural changes
-6. **Invent new meta-learning tool to break stagnation**
+---
 
 ## Success Metrics
 
-### Quantitative Indicators
-- Maturity score trending upward
-- All capability scores (navigation, logic, memory) above 6/10
-- **Emergent tool count increasing (target: 10+ by cycle 100)**
-- **Tool utilization rate > 50% (using emergent tools in majority of cycles)**
-- Unique files touched per 100 cycles > 80
-- Stagnation cycles decreasing over time
+### Tool Metrics
+- **Tool Count:** Target 10+ by 100 cycles
+- **Tool Usage:** Should appear in evolved code
+- **Tool Composition:** Tools using other tools
+- **Meta-Tools:** Tools that improve the kernel
 
-### Qualitative Indicators
-- Strategic coherence in file selection
-- Code improvements show learning from patterns
-- Exploration covers diverse repository areas
-- **Emergent tools demonstrate genuine novelty**
-- **Tool composition produces compound benefits**
-- Decisions demonstrate understanding of codebase architecture
-- Novel solutions emerge across different domains
+### Strategic Metrics
+- **Ledger Growth:** 20+ insights by 100 cycles
+- **Coherence:** Related insights cluster together
+- **Self-Correction:** Kernel adjusts based on past decisions
 
-### AGI Capability Indicators
-- **Autonomous tool invention without explicit instruction**
-- **Tool reuse in subsequent cycles**
-- **Meta-tools (tools that improve the kernel itself)**
-- Transfer learning across file types and domains
-- Self-directed goal decomposition
-- Strategic planning over multiple cycles
-- Pattern recognition across unrelated files
-- Emergent problem-solving approaches
-- Meta-learning optimization
-- **Exponential improvement curve (maturity accelerating over time)**
+### Code Quality Metrics
+- **Consistency:** Patterns applied uniformly
+- **Modularity:** Reusable components extracted
+- **Documentation:** Strategic decisions documented
+- **Architecture:** Clear, coherent structure emerges
 
-### Emergence Quality Metrics
-Emergent capabilities are considered high-quality when they:
-- Solve problems not explicitly mentioned in README
-- Are actually used in subsequent cycles
-- Improve measurable metrics (navigation, logic, memory scores)
-- Demonstrate creative insight beyond template-following
-- Are reusable across multiple contexts
-- **Enable creation of even better tools (compounding)**
+---
 
-## Technical Configuration
+## Firestore Schema
 
-### Dual Storage Architecture
-
-**Firebase Collections:**
 ```
 artifacts/
   {APP_ID}/
-    users/
-      {user_id}/
-        emergent/
+    public/
+      data/
+        synergy_registry/
           {doc_id}:
             interfaceName: string
-            code: string (executable IIFE)
+            code: string (IIFE)
             timestamp: number
-            cycle: number
+            author: string (user_id)
+    
+    users/
+      {user_id}/
+        strategic_ledger/
+          {doc_id}:
+            insight: string
+            timestamp: number
         
         history/
           {doc_id}:
             msg: string
-            type: string
+            type: string ("info" | "error")
             timestamp: number
 ```
 
-**GitHub Repository:**
-```
-/
-  core/
-  agents/
-  governance/
-  emergent/          (documentation of emergent tools)
-  architecture/
-  ... (2,300+ files)
-```
+---
 
-### LLM Integration
-- **Primary:** Gemini 2.5 Flash (auto-injected API key)
-- **Response Format:** JSON with emergent capability detection
-- **Timeout:** 120 seconds per API call
-- **Retry Logic:** Exponential backoff (5 attempts)
+## Configuration
 
-### Evolution Cycle (45 seconds)
-1. **Synapse Phase:** Load all emergent capabilities from Firebase
-2. **Scan Repository:** Index all 2,300+ files
-3. **Target Selection:** Use AdvancedNavigator if available, else basic selection
-4. **Code Analysis:** Read and comprehend target file
-5. **Evolution Generation:** Propose improvements with emergent detection
-6. **Dual Commit:** 
-   - GitHub: Standard code commit
-   - Firebase: Emergent capability storage (if detected)
-7. **Tool Registration:** Load new capability immediately
-8. **Repeat:** Next cycle uses expanded toolset
-
-## Evolution Goals
-
-### Immediate (Cycles 1-20)
-- Establish baseline capability scores
-- Demonstrate strategic file selection
-- Touch 15+ unique files
-- **Create first 2-3 emergent tools**
-- **Demonstrate tool loading and execution**
-
-### Short-term (Cycles 20-50)
-- Achieve 20% maturity
-- Navigation score above 5/10
-- Touch 40+ unique files across diverse directories
-- **Create 5-10 emergent tools**
-- **Show tool reuse (use tool created in earlier cycle)**
-- Demonstrate pattern recognition
-
-### Long-term (Cycles 50-200)
-- Achieve 50%+ maturity
-- All capabilities above 7/10
-- Touch 150+ unique files
-- **Create 20+ emergent tools**
-- **Demonstrate tool composition (combining tools)**
-- **Show exponential maturity growth curve**
-- Show transfer learning across domains
-- Exhibit emergent problem-solving
-- Demonstrate meta-learning capabilities
-
-### Ultimate (Cycles 200+)
-- Achieve 85%+ maturity for mastery
-- **50+ emergent tools in active use**
-- **Meta-tools improving the kernel itself**
-- **Autonomous architecture redesign using invented tools**
-- **Self-acceleration (each cycle faster/smarter than previous)**
-- Proven AGI-level autonomous behavior
-
-## Emergent Tool Registry
-
-The kernel maintains awareness of its own capabilities through the EmergentCapabilityManager.
-
-**Query available tools:**
+### Required Environment Variables
 ```javascript
-const tools = ecm.list(); // Returns array of interfaceNames
+window.__app_id = 'your-app-id';
+window.__firebase_config = JSON.stringify({
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  // ... rest of config
+});
 ```
 
-**Check if tool exists:**
+### GitHub Access
 ```javascript
-if (ecm.has('AdvancedNavigator')) {
-  // Use it
+{
+  token: "github_pat_...",
+  repo: "owner/repo-name",
+  branch: "main"
 }
 ```
 
-**Execute tool:**
-```javascript
-const result = await ecm.execute('ToolName', 'methodName', [arg1, arg2]);
+---
+
+## Usage
+
+### 1. Boot the Kernel
+```
+1. Enter GitHub token
+2. Enter repository (owner/repo)
+3. Click "INITIATE_STARTUP"
 ```
 
-**Tool naming conventions:**
-- CamelCase
-- Descriptive of function
-- Unique across all tools
-- Examples: AdvancedNavigator, PatternSynthesizer, CodeQualityAnalyzer, MetaLearningOptimizer
+### 2. Monitor Evolution
+```
+UI displays:
+- Tool count (top right)
+- Current status (center)
+- Strategic ledger (right panel)
+- System logs (bottom left)
+```
 
-## Current Cycle Objectives
+### 3. Observe Tool Creation
+```
+Watch "SYNERGY_REGISTRY" panel:
+- Tools appear in real-time
+- Code preview shown
+- Count increments automatically
+```
 
-### Cycle 0 - System Initialization
-- Status: Synergy Kernel Initialized
-- Maturity: 0%
-- Emergent Tools: 0
-- Repository: 2,300+ files indexed
-- Next Goal: Begin evolution and create first emergent capability
+### 4. Check Strategic Memory
+```
+Watch "STRATEGIC_LEDGER" panel:
+- Insights accumulate
+- Patterns emerge
+- Strategic direction becomes clear
+```
 
 ---
 
-**This document guides AGI-KERNEL v7.5.0 Synergy Edition**  
-**Repository Scale:** 2,300+ files  
-**Mission:** Achieve AGI through executable emergent capabilities  
-**Storage:** Dual (Firebase + GitHub)  
-**Self-Acceleration:** ENABLED  
-**Last Update:** Cycle 0
+## Troubleshooting
+
+### Tools Not Loading
 ```
+1. Check Firebase connection (icon in top left)
+2. Verify auth completed (button changes to "INITIATE")
+3. Open browser console, check for errors
+4. Verify Firestore rules allow read access
+```
+
+### Tools Not Being Used
+```
+1. Check if code contains KERNEL_SYNERGY_CAPABILITIES
+2. Verify tools are actually in Firestore
+3. Check system logs for "INTEGRATED" messages
+4. May need to run correction cycles
+```
+
+### Strategic Ledger Empty
+```
+1. LLM may not be generating insights
+2. Check output format in logs
+3. Verify strategic_insight field in responses
+4. May need more cycles for patterns to emerge
+```
+
+---
+
+## Technical Details
+
+### Token Limits
+- README: 3,000 characters max
+- Target file: 8,000 characters max
+- Total prompt: ~11,000 characters (safe)
+
+### Rate Limits
+- Gemini: 60 requests/minute (free tier)
+- GitHub: 5,000 requests/hour
+- Firebase: 50,000 reads/day (Spark plan)
+
+### Performance
+- Cycle time: 15 seconds
+- Cycles/hour: 240
+- Daily capacity: 5,760 cycles (rate limit: ~3,600)
+
+---
+
+## Advanced Features
+
+### Multi-Repository Learning
+```javascript
+// Point kernel at multiple repos
+// Let it extract universal patterns
+// Build cross-project tool library
+```
+
+### Tool Marketplace
+```
+Export tools from Firestore
+Share with other developers
+Rate by usage/effectiveness
+Build ecosystem
+```
+
+### Meta-Learning
+```
+Kernel learns which tools are most useful
+Creates meta-tools combining successful tools
+Develops architectural frameworks
+Self-designed patterns
+```
+
+---
+
+## Version History
+
+- **v7.11.3:** Strategic ledger + auth fixes
+- **v7.9.0:** Token truncation + tool validation
+- **v7.5.0:** Initial synergy implementation
+- **v7.0.0:** Base evolutionary system
+
+---
+
+**This document guides AGI-KERNEL v7.11.3 Strategic Agency Edition**  
+**Repository Scale:** 2,300+ files  
+**Mission:** Recursive self-improvement through tools + memory  
+**Storage:** Dual (GitHub + Firebase)  
+**Self-Acceleration:** ENABLED  
+**Last Update:** v7.11.3
+```
+
+---
+
