@@ -17,6 +17,7 @@ export const DataSourcePrimitives = Object.freeze({
 
 /**
  * Provides access to the array of valid primitive keys.
+ * The array is frozen to prevent runtime modification.
  * @type {ReadonlyArray<string>}
  */
-export const PRIMITIVE_KEYS = Object.keys(DataSourcePrimitives);
+export const PRIMITIVE_KEYS = Object.freeze(Object.keys(DataSourcePrimitives));
