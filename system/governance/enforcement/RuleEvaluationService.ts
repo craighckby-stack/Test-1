@@ -20,19 +20,37 @@ export type T1RiskReport = {
 };
 
 /**
+ * Defines the required interface for the external T1 Risk Scorer utility.
+ * This abstracts the complex, weighted calculation logic and ensures dependency injection is type-safe.
+ */
+interface IWeightedRiskScorer {
+    execute(input: {
+        // Assuming Tier_A is an array of rule definitions
+        rules: GFRMSpec['governance_tiers']['Tier_A'];
+        processData: ProcessAudit
+    }): {
+        riskScore: number;
+        triggeredRules: T1RiskReport['triggeredRules'];
+    };
+}
+
+/**
  * Sovereign AGI v94.1 Implementation of the operational compliance calculations.
  * This service acts as the central orchestrator for evaluating audit data against the GFRM ruleset,
  * utilizing specialized internal evaluators for high-efficiency T0 checks and tiered T1 risk scoring.
+ * It requires injection of the IWeightedRiskScorer implementation for T1 calculations.
  * Implements structured reporting for better downstream processing and logging.
  */
 export class RuleEvaluationService implements IRuleEvaluationService {
     private ruleset: GFRMSpec;
     // A map to cache pre-processed, high-priority T0 constraint limits for fast O(1) lookup.
     private t0ConstraintCache: Map<string, any>; 
+    private t1Scorer: IWeightedRiskScorer; // Stored dependency
 
-    constructor(spec: GFRMSpec) {
+    constructor(spec: GFRMSpec, t1Scorer: IWeightedRiskScorer) {
         this.ruleset = spec;
         this.t0ConstraintCache = this.initializeT0Cache(spec);
+        this.t1Scorer = t1Scorer; // Inject and store the T1 risk scorer implementation
     }
 
     /**
@@ -87,13 +105,13 @@ export class RuleEvaluationService implements IRuleEvaluationService {
 
     /**
      * T1 Evaluation: Calculates a quantitative operational risk score (0-100) and the drivers.
-     * This method applies weighted rules defined in the governance tiers using the external WeightedRiskScorer.
+     * This method applies weighted rules defined in the governance tiers using the injected IWeightedRiskScorer.
      */
     public async evaluateT1Risk(process: ProcessAudit): Promise<T1RiskReport> {
         const relevantRules = this.ruleset.governance_tiers?.Tier_A || [];
 
-        // Use the kernel plugin to execute the weighted risk calculation.
-        const results = (globalThis as any).WeightedRiskScorer.execute({
+        // Execute the weighted risk calculation using the injected dependency.
+        const results = this.t1Scorer.execute({
             rules: relevantRules,
             processData: process
         });
