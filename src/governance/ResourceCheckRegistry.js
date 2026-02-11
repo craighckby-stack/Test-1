@@ -1,9 +1,9 @@
 /**
- * RESOURCE CHECK REGISTRY (RCR)
- * ID: RCR-G01
+ * RESOURCE CHECK REGISTRY KERNEL (RCRK)
+ * ID: RCRK-G01
  * GSEP Role: Centralized store and execution manager for standardized resource checks.
  *
- * The RCR provides a formal interface for defining new environmental prerequisites,
+ * The RCRK provides a formal interface for defining new environmental prerequisites,
  * decoupling the specifics of resource measurement (like memory usage or latency)
  * from the main Resource Attestation Module (RAM) governance flow.
  */
@@ -39,35 +39,43 @@ const CHECK_STATUS = Object.freeze({
 });
 
 /**
- * Manages and executes resource prerequisite checks.
+ * Manages and executes resource prerequisite checks, leveraging injected tools for execution standardization and logging.
  */
-class ResourceCheckRegistry {
-    constructor() {
+class ResourceCheckRegistryKernel {
+    
+    /**
+     * @param {IAsyncCheckExecutionWrapperToolKernel} asyncExecutionWrapperToolKernel - Executes and standardizes check results.
+     * @param {ILoggerToolKernel} loggerToolKernel - Standardized logging interface.
+     */
+    constructor(asyncExecutionWrapperToolKernel, loggerToolKernel) {
         /** @type {Map<string, ResourceCheckFunction>} */
         this.checks = new Map();
         this.STATUS = CHECK_STATUS;
+        this.asyncExecutionWrapper = asyncExecutionWrapperToolKernel;
+        this.logger = loggerToolKernel;
         
-        // RCR-I01: The execution wrapper is now formalized as AsyncCheckExecutionWrapper.
-        // Rely on kernel injection. If missing, use a failure stub.
-        this.asyncExecutionWrapper = (typeof globalThis !== 'undefined' && globalThis.AGI_KERNEL_UTILITIES?.AsyncCheckExecutionWrapper) 
-                                     || this._noOpRunner();
+        this.#setupDependencies();
     }
 
     /**
-     * @private Fallback for missing dependency. Forces kernel environment setup compliance.
+     * Synchronously validates required dependencies.
+     * @private
      */
-    _noOpRunner() {
-        console.error("RCR-E02: Required dependency AsyncCheckExecutionWrapper not found. Execution will fail.");
-        return {
-            execute: async (fn, id, args, STATUS) => {
-                return { 
-                    check: id, 
-                    status: STATUS.ERROR,
-                    success: false,
-                    details: { message: `RCR Fatal: Cannot execute check ${id}. AsyncCheckExecutionWrapper dependency missing.` }
-                };
-            }
-        };
+    #setupDependencies() {
+        if (!this.asyncExecutionWrapper || typeof this.asyncExecutionWrapper.execute !== 'function') {
+            throw new Error("RCRK-D01: IAsyncCheckExecutionWrapperToolKernel dependency is required and must implement 'execute'.");
+        }
+        if (!this.logger || typeof this.logger.warn !== 'function' || typeof this.logger.error !== 'function') {
+            throw new Error("RCRK-D02: ILoggerToolKernel dependency is required.");
+        }
+    }
+
+    /**
+     * Asynchronously initializes the kernel.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Adheres to the mandate for high-integrity kernel initialization.
     }
 
     /**
@@ -78,10 +86,11 @@ class ResourceCheckRegistry {
      */
     registerCheck(id, checkFn) {
         if (typeof checkFn !== 'function') {
-            throw new TypeError(`RCR-E01: Check function for ID ${id} must be a function.`);
+            this.logger.error(`RCRK-E01: Check function for ID ${id} must be a function.`);
+            throw new TypeError(`RCRK-E01: Check function for ID ${id} must be a function.`);
         }
         if (this.checks.has(id)) {
-            console.warn(`RCR-W01: Check ID ${id} already registered. Overwriting definition.`);
+            this.logger.warn(`RCRK-W01: Check ID ${id} already registered. Overwriting definition.`);
         }
         this.checks.set(id, checkFn);
     }
@@ -97,21 +106,19 @@ class ResourceCheckRegistry {
 
     /**
      * Executes all registered checks concurrently, providing necessary context.
-     * The complexity of standardized error handling and result formatting is delegated
-     * to the injected executionWrapper (AsyncCheckExecutionWrapper).
      * 
      * @param {Object} monitor - System monitoring dependency.
      * @param {Object} governanceConfig - Baseline configuration.
      * @param {Object} payloadMetadata - Mutation-specific requirements.
      * @returns {Promise<CheckExecutionResult[]>} A promise resolving to an array of standardized check results.
      */
-    runAllChecks(monitor, governanceConfig, payloadMetadata) {
+    async runAllChecks(monitor, governanceConfig, payloadMetadata) {
         const checkPromises = [];
         const args = [monitor, governanceConfig, payloadMetadata];
 
         for (const [id, checkFn] of this.checks.entries()) {
             
-            // Delegation of execution, error handling, and result standardization to the specialized wrapper plugin
+            // Delegation of execution, error handling, and result standardization to the specialized wrapper tool kernel
             const runnerPromise = this.asyncExecutionWrapper.execute(
                 checkFn, 
                 id, 
@@ -126,4 +133,4 @@ class ResourceCheckRegistry {
     }
 }
 
-module.exports = ResourceCheckRegistry;
+module.exports = ResourceCheckRegistryKernel;
