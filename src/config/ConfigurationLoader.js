@@ -1,34 +1,45 @@
 /**
- * Assuming dependency injection or module system provides the utility.
- * The concrete implementation (ObjectPathResolverUtility) is now provided by the kernel via the 'ObjectPathResolver' plugin.
+ * Interface definition for the required dependency.
+ * This tool is responsible for safe, dot-notation path traversal on objects.
  */
-
-interface PathResolverTool {
+interface ObjectPathResolverToolKernel {
     execute(args: { obj: any, path: string, defaultValue?: any }): any;
 }
 
-// NOTE: ObjectPathResolverUtility is declared here as an external dependency
-// provided by the AGI-KERNEL runtime via the abstracted plugin.
-declare const ObjectPathResolverUtility: PathResolverTool;
-
 /**
- * Configuration Loader for Sovereign AGI v94.1
+ * Configuration Loader Kernel for Sovereign AGI v94.1
  * Provides standardized, centralized access to global configuration parameters.
  * This utility ensures governance parameters, like default schema versions, are managed flexibly.
  */
-class ConfigurationLoader {
-    private config: Record<string, any>;
-    private pathResolver: PathResolverTool; 
+class ConfigurationLoaderKernel {
+    #config: Record<string, any>;
+    #pathResolver: ObjectPathResolverToolKernel;
 
-    constructor() {
-        // Inject the reusable path resolution tool (now an external dependency)
-        this.pathResolver = ObjectPathResolverUtility;
-        // Load configuration from all sources (e.g., environment variables, static files, defaults)
-        this.config = this._loadDefaultConfig(); 
+    /**
+     * @param {ObjectPathResolverToolKernel} pathResolver - Injected utility for path resolution.
+     */
+    constructor(pathResolver: ObjectPathResolverToolKernel) {
+        this.#setupDependencies(pathResolver);
     }
 
-    private _loadDefaultConfig(): Record<string, any> {
-        // Defines critical governance defaults for module initialization.
+    /**
+     * Extracts synchronous dependency setup and validation.
+     * Ensures the dependency is valid and loads the configuration defaults.
+     */
+    #setupDependencies(pathResolver: ObjectPathResolverToolKernel): void {
+        if (!pathResolver || typeof pathResolver.execute !== 'function') {
+            throw new Error("ConfigurationLoaderKernel requires a valid ObjectPathResolverToolKernel with an 'execute' method.");
+        }
+        this.#pathResolver = pathResolver;
+        // Load configuration from all sources (e.g., environment variables, static files, defaults)
+        this.#config = this.#loadDefaultConfig();
+    }
+
+    /**
+     * Defines critical governance defaults for module initialization.
+     */
+    #loadDefaultConfig(): Record<string, any> {
+        // This method simulates loading or defining configuration sources.
         return {
             governance: {
                 // Default schema key for the Mutation Payload Specification Engine (MPSE)
@@ -43,20 +54,26 @@ class ConfigurationLoader {
     }
 
     /**
+     * Isolates delegation to the injected ObjectPathResolverToolKernel for path resolution.
+     */
+    #delegateToPathResolverGet(path: string, defaultValue?: any): any {
+        return this.#pathResolver.execute({
+            obj: this.#config,
+            path: path,
+            defaultValue: defaultValue
+        });
+    }
+
+    /**
      * Retrieves a configuration value using a dot-notated path (e.g., 'governance.mpseSchemaVersion').
-     * Utilizes the ObjectPathResolverUtility for robust path resolution.
      * @param {string} path - The configuration key path.
      * @param {any} [defaultValue=undefined] - The value to return if the path is not found.
      * @returns {any} The configuration value.
      */
     get(path: string, defaultValue?: any): any {
-        return this.pathResolver.execute({
-            obj: this.config,
-            path: path,
-            defaultValue: defaultValue
-        });
+        // External interaction delegated via private I/O proxy method.
+        return this.#delegateToPathResolverGet(path, defaultValue);
     }
 }
 
-// Export a singleton instance for global access
-module.exports = new ConfigurationLoader();
+module.exports = { ConfigurationLoaderKernel };
