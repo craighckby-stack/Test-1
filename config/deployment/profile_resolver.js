@@ -18,6 +18,17 @@ const ACVD_DEFINITION_MAPPING = Object.freeze({
 const RESOLVER_TOOL_NAME = 'HierarchicalConfigResolver';
 
 /**
+ * Delegates the resolution task to the AGI Kernel Tool.
+ * This function encapsulates the direct dependency interaction (I/O proxy).
+ *
+ * @param {object} payload The structured payload for the kernel tool.
+ * @returns {object} The result from the kernel tool execution.
+ */
+function _delegateResolutionToKernel(payload) {
+    return executeKernelTool(RESOLVER_TOOL_NAME, payload);
+}
+
+/**
  * Resolves a profile using the HierarchicalConfigResolver tool via the AGI kernel capabilities.
  *
  * @param {string} profileName The name of the profile to resolve.
@@ -32,8 +43,7 @@ function resolveProfile(profileName, mapData) {
         keyResolutionMap: ACVD_DEFINITION_MAPPING
     };
     
-    // Use the abstracted kernel capability invocation method.
-    return executeKernelTool(RESOLVER_TOOL_NAME, payload);
+    return _delegateResolutionToKernel(payload);
 }
 
 module.exports = { resolveProfile };
