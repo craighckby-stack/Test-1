@@ -1,69 +1,64 @@
 /**
- * NOTE: We rely on the kernel injecting the required utilities.
+ * CanonicalizerKernel
+ * Utility for ensuring deterministic state serialization and secure hashing, 
+ * strictly utilizing injected kernel dependencies.
  */
+class CanonicalizerKernel {
+    #canonicalPayloadGenerator;
+    #secureHasher;
 
-// Interface for the deterministic serialization tool
-interface CanonicalizerTool {
-    generate(data: unknown): string;
-}
+    /**
+     * @param {ICanonicalPayloadGeneratorToolKernel} canonicalPayloadGenerator - Tool for deterministic serialization.
+     * @param {ICryptoUtilityInterfaceKernel} secureHasher - Tool for secure cryptographic hashing.
+     */
+    constructor(canonicalPayloadGenerator, secureHasher) {
+        // Rigorously enforce Dependency Injection
+        if (!canonicalPayloadGenerator || typeof canonicalPayloadGenerator.generate !== 'function') {
+            throw new Error("CanonicalizerKernel requires an initialized ICanonicalPayloadGeneratorToolKernel.");
+        }
+        if (!secureHasher || typeof secureHasher.hash !== 'function') {
+            throw new Error("CanonicalizerKernel requires an initialized ICryptoUtilityInterfaceKernel (SecureHasher).");
+        }
 
-// Interface for the general cryptographic hashing tool
-interface SecureHasherTool {
-    hash(data: string, algorithm?: string): string;
-}
-
-/**
- * Creates a function that throws an initialization error, 
- * used as a fallback for missing kernel dependencies.
- */
-const createMissingUtilityFallback = (utilityName: string) => (...args: unknown[]) => {
-    // Fallback/Error: The utility must be initialized by the kernel
-    throw new Error(`${utilityName} utility not initialized or available.`);
-};
-
-// Access the kernel-provided Canonicalization Utility
-const CanonicalizerUtility: CanonicalizerTool = (global as any).CanonicalPayloadGenerator || {
-    generate: createMissingUtilityFallback("CanonicalPayloadGenerator")
-};
-
-// Access the kernel-provided Hashing Utility (SecureHasher plugin)
-const HasherUtility: SecureHasherTool = (global as any).SecureHasher || {
-    hash: createMissingUtilityFallback("SecureHasher")
-};
-
-/**
- * Utility for ensuring deterministic state serialization and secure hashing.
- * Essential for cryptographic integrity checks across distributed sovereign nodes.
- * Ensures that complex objects yield the exact same hash across all nodes.
- */
-class Canonicalizer {
+        this.#canonicalPayloadGenerator = canonicalPayloadGenerator;
+        this.#secureHasher = secureHasher;
+        
+        // Isolation of synchronous initialization logic
+        this.#setupDependencies();
+    }
+    
+    /**
+     * Private method to encapsulate initialization logic, maintaining architectural consistency.
+     */
+    #setupDependencies() {
+        // No complex logic required, dependencies are assigned directly in the constructor.
+    }
 
     /**
      * Converts a complex object into a deterministically ordered JSON string 
-     * suitable for hashing/signing, utilizing the specialized CanonicalPayloadGenerator tool.
+     * suitable for hashing/signing, utilizing the injected tool.
      * 
      * @param {unknown} data 
      * @returns {string} Canonical JSON string.
      */
-    static canonicalize(data: unknown): string {
-        return CanonicalizerUtility.generate(data);
+    canonicalize(data) {
+        return this.#canonicalPayloadGenerator.generate(data);
     }
 
     /**
-     * Calculates a secure cryptographic hash of the canonical data using the SecureHasher utility.
-     * NOTE: Algorithm choice should be standardized via ConsensusConfig.
+     * Calculates a secure cryptographic hash of the canonical data using the injected tool.
      * 
      * @param {string} canonicalData - Data obtained from canonicalize().
-     * @param {string} algorithm - Hashing algorithm (Default: SHA-256).
+     * @param {string} [algorithm='sha256'] - Hashing algorithm.
      * @returns {string} Hexadecimal hash digest.
      */
-    static hash(canonicalData: string, algorithm: string = 'sha256'): string {
+    hash(canonicalData, algorithm = 'sha256') {
         if (typeof canonicalData !== 'string') {
              throw new Error("Input to hash must be a canonical string.");
         }
-        // Delegate hashing logic to the dedicated plugin
-        return HasherUtility.hash(canonicalData, algorithm);
+        // Delegate hashing logic to the dedicated injected tool
+        return this.#secureHasher.hash(canonicalData, algorithm);
     }
 }
 
-module.exports = Canonicalizer;
+module.exports = CanonicalizerKernel;
