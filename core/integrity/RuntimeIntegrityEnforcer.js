@@ -23,11 +23,27 @@ class RuntimeIntegrityEnforcer {
      * @param {object} policyLoader Dependency capable of resilient policy loading and merging.
      */
     constructor(policyPath, kernelInterface, systemInterface, policyLoader) {
+        this.#setupDependencies(policyPath, kernelInterface, systemInterface, policyLoader);
+        this.#setupDefaultPolicy();
+
+        this.#policy = this.#delegateToPolicyLoader(policyPath);
+        this.#isActive = this.#policy && this.#policy.status === 'Active';
+    }
+
+    // --- Setup and Configuration (Synchronous Extraction) ---
+
+    #setupDependencies(policyPath, kernelInterface, systemInterface, policyLoader) {
         this.#policyPath = policyPath;
         this.#kernelInterface = kernelInterface;
         this.#systemInterface = systemInterface;
         this.#policyLoader = policyLoader;
 
+        if (!this.#policyLoader || typeof this.#policyLoader.loadAndMergePolicy !== 'function') {
+            throw new Error("PolicyLoader interface (ResilientPolicyLoader) is required for RuntimeIntegrityEnforcer.");
+        }
+    }
+
+    #setupDefaultPolicy() {
         // Define and Deep-Freeze the robust default policy structure
         this.#defaultPolicy = Object.freeze({
             status: 'Inactive',
@@ -40,14 +56,9 @@ class RuntimeIntegrityEnforcer {
             },
             breachResponse: { protocol: 'LogOnly' }
         });
-
-        if (!this.#policyLoader || typeof this.#policyLoader.loadAndMergePolicy !== 'function') {
-            throw new Error("PolicyLoader interface (ResilientPolicyLoader) is required for RuntimeIntegrityEnforcer.");
-        }
-
-        this.#policy = this.#loadPolicy(policyPath);
-        this.#isActive = this.#policy && this.#policy.status === 'Active';
     }
+
+    // --- I/O Proxies (External Dependency Delegation) ---
 
     #log(level, message, data = {}) {
         if (this.#kernelInterface && this.#kernelInterface.log && typeof this.#kernelInterface.log[level] === 'function') {
@@ -58,7 +69,7 @@ class RuntimeIntegrityEnforcer {
         }
     }
 
-    #loadPolicy(path) {
+    #delegateToPolicyLoader(path) {
         // Delegation: Policy parsing and resilient merging is handled by the PolicyLoader plugin.
         const loadedPolicy = this.#policyLoader.loadAndMergePolicy(
             path,
@@ -68,6 +79,28 @@ class RuntimeIntegrityEnforcer {
         // Crucial: Freeze the loaded policy to guarantee immutability against runtime tampering.
         return Object.freeze(loadedPolicy);
     }
+
+    #delegateToSystemHaltAndIsolate() {
+        if (this.#systemInterface) {
+            this.#systemInterface.halt();
+            this.#systemInterface.isolate();
+        }
+    }
+
+    #registerSystemCallInterceptionHandler(prohibitedCalls) {
+        this.#log('info', `Registering interception for ${prohibitedCalls.length} system calls.`);
+
+        // Hook into kernel system call interface to block list entries
+        this.#kernelInterface.SystemCallInterceptor.registerHandler(call => {
+            if (prohibitedCalls.includes(call.name)) {
+                this.triggerBreach(`Unauthorized System Call: ${call.name}`);
+                return false; // Block execution
+            }
+            return true;
+        });
+    }
+
+    // --- Orchestration Logic ---
 
     initialize() {
         if (!this.#isActive) return;
@@ -90,7 +123,7 @@ class RuntimeIntegrityEnforcer {
             this.#monitoringInterval = null;
         }
 
-        this.#policy = this.#loadPolicy(this.#policyPath);
+        this.#policy = this.#delegateToPolicyLoader(this.#policyPath);
         this.#isActive = this.#policy.status === 'Active';
 
         if (this.#isActive) {
@@ -111,16 +144,7 @@ class RuntimeIntegrityEnforcer {
 
         if (prohibitedCalls.length === 0) return;
 
-        this.#log('info', `Registering interception for ${prohibitedCalls.length} system calls.`);
-
-        // Hook into kernel system call interface to block list entries
-        this.#kernelInterface.SystemCallInterceptor.registerHandler(call => {
-            if (prohibitedCalls.includes(call.name)) {
-                this.triggerBreach(`Unauthorized System Call: ${call.name}`);
-                return false; // Block execution
-            }
-            return true;
-        });
+        this.#registerSystemCallInterceptionHandler(prohibitedCalls);
     }
 
     #startResourceMonitoringLoop() {
@@ -158,9 +182,8 @@ class RuntimeIntegrityEnforcer {
         }
 
         // Implementation to handle breach (Halt, Isolation, Reporting).
-        if (protocol === "ImmediateHaltAndIsolation" && this.#systemInterface) {
-            this.#systemInterface.halt();
-            this.#systemInterface.isolate();
+        if (protocol === "ImmediateHaltAndIsolation") {
+            this.#delegateToSystemHaltAndIsolate();
         }
     }
 }
