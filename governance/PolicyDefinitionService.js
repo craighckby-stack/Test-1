@@ -6,24 +6,33 @@ interface IIntegrityValidator {
 declare function InternalAPICall(source: string, options: { key: string, trust: string }): Promise<any>;
 
 /**
+ * Interface for the abstracted secure data loading mechanism.
+ * (Implementation is provided by the SecureCacheLoader plugin)
+ */
+interface ISecureCacheLoader {
+    load(identifier: string): Promise<any>;
+}
+
+/**
  * Service responsible for fetching, caching, and ensuring the integrity of governance policy definitions.
  */
 class PolicyDefinitionService {
-    private policyCache: Map<string, any>;
-    private source: string;
-    private trustAnchor: string;
-    private integrityValidator: IIntegrityValidator;
+    private policyLoader: ISecureCacheLoader;
 
     /**
      * @param config - Configuration object.
      * @param integrityValidator - Instance of the PolicyIntegrityValidatorTool.
      */
     constructor(config: any, integrityValidator: IIntegrityValidator) {
-        this.source = config.governance.policy_source;
-        this.trustAnchor = config.governance.trust_anchor_identifier;
+        const loaderConfig = {
+            source: config.governance.policy_source,
+            trustAnchorIdentifier: config.governance.trust_anchor_identifier,
+            validator: integrityValidator
+        };
         
-        this.policyCache = new Map();
-        this.integrityValidator = integrityValidator;
+        // The core data fetching and integrity logic is delegated to the abstracted plugin.
+        // Assuming SecureCacheLoader class is globally available or imported for instantiation.
+        this.policyLoader = new SecureCacheLoader(loaderConfig as any);
     }
 
     /**
@@ -32,23 +41,8 @@ class PolicyDefinitionService {
      * @returns The policy data.
      */
     async fetchPolicies(identifier: string): Promise<any> {
-        if (this.policyCache.has(identifier)) {
-            return this.policyCache.get(identifier);
-        }
-        
-        const policies = await InternalAPICall(this.source, { key: identifier, trust: this.trustAnchor });
-        
-        if (!policies) {
-            throw new Error(`Failed to retrieve policies for identifier: ${identifier}.`);
-        }
-        
-        // Use the injected tool for integrity verification
-        if (!this.integrityValidator.verify(policies, this.trustAnchor)) {
-            throw new Error("Policy integrity verification failed. Signature mismatch or missing trust anchor.");
-        }
-        
-        this.policyCache.set(identifier, policies);
-        return policies;
+        // Delegates fetching, caching, and validation to the loader.
+        return this.policyLoader.load(identifier);
     }
 
     /**
