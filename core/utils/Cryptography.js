@@ -18,11 +18,19 @@ export class Cryptography {
    * @returns {string} The cryptographic hash.
    */
   static hashCanonical(data: object, encoding: string = 'hex'): string {
-    // Delegate the combined canonicalization and hashing logic to the specialized tool.
+    // Delegate the combined canonicalization and hashing logic to the specialized tool via proxy.
+    return Cryptography.#delegateToHashingTool(data, encoding);
+  }
+
+  /**
+   * Private static I/O proxy to delegate execution to the external CanonicalHashingTool.
+   * This isolates the direct interaction with the external dependency, enforcing architectural separation.
+   */
+  static #delegateToHashingTool(data: object, encoding: string): string {
+    // Delegate execution to the specialized tool, passing the required dependency (CanonicalJson.stringify)
     return CanonicalHashingTool.execute({
       data: data,
       encoding: encoding,
-      // Pass the required canonical stringifier dependency to the tool
       canonicalizer: CanonicalJson.stringify
     });
   }
