@@ -19,13 +19,22 @@ class GovernanceError extends Error {
 class ActionValidationError extends GovernanceError {
     constructor(message, validationErrors = []) {
         super(message, { validationErrors });
+        // Expose validation errors directly on the instance for easier programmatic handling
+        this.validationErrors = validationErrors;
     }
 }
 
 /**
  * Error raised when the requested executor service cannot be found in the registry.
  */
-class ExecutorNotFoundError extends GovernanceError {}
+class ExecutorNotFoundError extends GovernanceError {
+    constructor(executorId, message) {
+        const defaultMessage = `Requested executor service not found${executorId ? `: ${executorId}` : '.'}`;
+        super(message || defaultMessage, { executorId });
+        // Expose the missing ID directly
+        this.executorId = executorId;
+    }
+}
 
 module.exports = {
     GovernanceError,
