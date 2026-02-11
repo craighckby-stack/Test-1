@@ -1,4 +1,21 @@
 /**
+ * Utility function simulating the imported ValidationServiceWrapper plugin.
+ * This function abstracts the validation logic extracted from the original class.
+ */
+const _validateUtility = async (validator, data, schema, context) => {
+    if (!validator) return; 
+    
+    const validationResult = await validator.execute('validate', data, schema);
+    
+    if (!validationResult || !validationResult.isValid) {
+        // Use optional chaining and nullish coalescing for safety
+        const errors = validationResult?.errors?.join('; ') ?? 'Unknown validation error.';
+        // Standardized error prefix for reliable catching in runSimulation
+        throw new Error(`Validation Failed [${context}]: ${errors}`);
+    }
+};
+
+/**
  * The Trajectory Simulation Engine (TSE) is responsible for running high-fidelity,
  * asynchronous simulations of P3/P4 execution outcomes based on the current
  * Contextual State Record (CSR) and Axiomatic Constraint Verification Data (ACVD).
@@ -12,7 +29,6 @@ class TrajectorySimulationEngine {
     // Defining Schemas as static properties for modern class structure and clarity
     static MANIFEST_SCHEMA = {
         entityId: { type: 'string', required: true },
-        // Added optional fields expected in features for clarity
         transactionId: { type: 'string', required: false },
         complexity: { type: 'number', required: false }
     };
@@ -23,8 +39,8 @@ class TrajectorySimulationEngine {
     };
 
     /**
-     * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
-     * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
+     * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints.
+     * @param {Object} Configuration - System configuration and load factors.
      * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
      * @param {Object} [SynergyRegistry={}] - Central registry for accessing kernel capabilities (e.g., SchemaValidationService).
      */
@@ -46,56 +62,33 @@ class TrajectorySimulationEngine {
     }
 
     /**
-     * Private helper to standardize schema validation execution and error throwing.
-     * @param {Object} data - The object to validate.
-     * @param {Object} schema - The schema definition.
-     * @param {string} context - Descriptive name for the error message (e.g., 'Input Manifest', 'Model Output').
-     * @private
-     */
-    async #validate(data, schema, context) {
-        if (!this.validator) {
-            return; // Skip if validation service is not injected
-        }
-
-        const validationResult = await this.validator.execute('validate', data, schema);
-
-        if (!validationResult || !validationResult.isValid) {
-            const errors = validationResult && validationResult.errors ? validationResult.errors.join('; ') : 'Unknown validation error.';
-            throw new Error(`${context} Validation Failed: ${errors}`);
-        }
-    }
-
-    /**
      * Generates feature vectors from the input manifest for model consumption.
-     * Assumes ACVD operations (like fetching risk) involve asynchronous database interaction.
      * @param {Object} inputManifest
      * @returns {Promise<Object>} Feature vector
      */
     async #extractFeatures(inputManifest) {
-        // Detailed logic for feature engineering (e.g., transaction complexity, data volume, historical entity risk)
         try {
-            const { entityId, transactionId, complexity } = inputManifest;
+            // Use destructuring with defaults for clean access and clarity
+            const { entityId, transactionId = 'N/A', complexity = 5 } = inputManifest;
             
-            // ACVD interaction is assumed to be async due to potential database or service calls
-            // Using default 0 if risk fetching fails temporarily, prioritizing prediction over crash
+            // Robust ACVD interaction with guaranteed fallback (0 risk) on failure
             const historyRisk = await this.ACVD.getHistoricalRisk(entityId).catch(() => 0);
 
             return {
-                transactionId: transactionId || 'N/A',
-                complexity_score: complexity || 5, // Default complexity
-                history_risk: historyRisk, // Value derived asynchronously
+                transactionId,
+                complexity_score: complexity, 
+                history_risk: historyRisk, 
                 current_load_factor: this.config.getCurrentLoadFactor() 
             };
         } catch (error) {
             console.error("TSE Feature Extraction Failed: Could not process ACVD data.", error);
-            // Re-throw if critical error (e.g., this.config is inaccessible)
-            throw new Error("Feature extraction failed."); 
+            // Prefix error for standardized detection in runSimulation catch block
+            throw new Error(`Feature extraction failed: ${error.message || String(error)}`); 
         }
     }
 
     /**
      * Runs the full trajectory simulation by extracting features and calling the model handler.
-     * Utilizes SchemaValidationService if available.
      * @param {Object} inputManifest
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
      */
@@ -103,24 +96,34 @@ class TrajectorySimulationEngine {
         let entityId = 'unknown';
 
         try {
-            // 1. Critical Minimal Input Check
-            if (!inputManifest || typeof inputManifest.entityId !== 'string') {
+            // 1. Critical Minimal Input Check (uses optional chaining for robustness)
+            if (!inputManifest?.entityId) {
                  throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation (using private helper)
-            await this.#validate(inputManifest, TrajectorySimulationEngine.MANIFEST_SCHEMA, 'Input Manifest');
+            // 2. Comprehensive Input Validation (using abstracted utility)
+            await _validateUtility(
+                this.validator,
+                inputManifest, 
+                TrajectorySimulationEngine.MANIFEST_SCHEMA, 
+                'Input Manifest'
+            );
 
             const features = await this.#extractFeatures(inputManifest);
 
             // Execute asynchronous model inference
             const results = await this.model.predict(features);
 
-            // 3. Comprehensive Output Validation (using private helper)
-            await this.#validate(results, TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA, 'Model Output');
+            // 3. Comprehensive Output Validation (using abstracted utility)
+            await _validateUtility(
+                this.validator,
+                results, 
+                TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA, 
+                'Model Output'
+            );
 
-            // Fallback manual check if validator is absent
+            // Fallback manual check only if the validation service is absent
             if (!this.validator && (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean')) {
                  throw new Error("Model output format invalid (No Validator): Expected {temm: number, ecvm: boolean}.");
             }
@@ -130,13 +133,12 @@ class TrajectorySimulationEngine {
                 predictedECVM: results.ecvm
             };
         } catch (error) {
-            // Propagate specialized errors (like validation or feature extraction errors) without wrapping them again.
             console.error(`TSE Simulation Failed for Entity ${entityId}:`, error.message);
             
-            const errorMessage = (error instanceof Error) ? error.message : String(error);
+            const errorMessage = error.message || String(error);
             
-            // If the error is already descriptive (from #validate or #extractFeatures), re-throw it directly.
-            if (errorMessage.includes('Validation Failed') || errorMessage.includes('Feature extraction failed')) {
+            // Use startsWith checking based on standardized error prefixes from the utility or #extractFeatures
+            if (errorMessage.startsWith('Validation Failed') || errorMessage.startsWith('Feature extraction failed')) {
                 throw error; 
             }
 
