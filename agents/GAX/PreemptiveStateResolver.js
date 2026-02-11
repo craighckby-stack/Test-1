@@ -10,6 +10,7 @@
  */
 
 // CRITICAL: Refactored to use Dependency Injection for KERNEL_SYNERGY_CAPABILITIES interface handling and formalizing requirements via Synergy Registry.
+// Refinement: Storing the specific required Synergy Service instance directly for immediate, type-safe access.
 
 class PreemptiveStateResolver {
     
@@ -26,7 +27,7 @@ class PreemptiveStateResolver {
     #policyEngine;
     #metricsStore;
     #simEngine;
-    #kernelCapabilityService; // Stores required KERNEL_SYNERGY_CAPABILITIES interfaces
+    #riskThresholdService; // Stores the resolved instance of the RiskThresholdCalculatorService
     
     // Inputs needed for external R_TH calculation via the kernel tool
     #riskAccessors;
@@ -45,11 +46,14 @@ class PreemptiveStateResolver {
         
         const requiredServiceKey = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
 
-        // 1. Validate and store Kernel Capabilities Dependency against Synergy Requirements
-        if (!KernelCapabilities || !KernelCapabilities[requiredServiceKey]) {
+        // 1. Validate, resolve, and store Kernel Capabilities Dependency against Synergy Requirements
+        const thresholdServiceInstance = KernelCapabilities ? KernelCapabilities[requiredServiceKey] : null;
+        
+        if (!thresholdServiceInstance) {
             throw new Error(`[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: ${requiredServiceKey}. Cannot calculate R_TH.`);
         }
-        this.#kernelCapabilityService = KernelCapabilities;
+        
+        this.#riskThresholdService = thresholdServiceInstance; // Store resolved service directly
         
         const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         
@@ -112,13 +116,16 @@ class PreemptiveStateResolver {
             riskModel: this.#riskModel
         };
         
-        let R_TH = 0; // Initialize R_TH
+        let R_TH = 0;
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the injected Kernel Capability (Synergy Service)
-        const requiredServiceKey = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
-        const thresholdService = this.#kernelCapabilityService[requiredServiceKey];
-
-        R_TH = await thresholdService.execute('calculateThreshold', riskParams);
+        // Stage 0: Calculate Risk Threshold (R_TH) using the stored Synergy Service instance.
+        try {
+            R_TH = await this.#riskThresholdService.execute('calculateThreshold', riskParams);
+        } catch (e) {
+            console.error("[PSR] Critical error calculating R_TH via Synergy Service. Defaulting to safe minimal threshold.", e);
+            // Default to a highly conservative/low threshold if calculation fails, guaranteeing ADTM trigger if risk is non-zero.
+            R_TH = 0.0001; 
+        }
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
         if (!this.#projectPolicyViability(inputManifest)) {
