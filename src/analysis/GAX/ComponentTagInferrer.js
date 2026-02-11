@@ -9,7 +9,7 @@ class ComponentTagInferrer {
   /**
    * @param {Object} staticAnalyzer
    * @param {Object} telemetryEngine
-   * @param {TagInferenceEngine} tagInferenceEngine - Injected reusable tool
+   * @param {RuleBasedTaggingEngine} tagInferenceEngine - Injected reusable tool
    */
   constructor(staticAnalyzer, telemetryEngine, tagInferenceEngine) {
     this.staticAnalyzer = staticAnalyzer;
@@ -19,7 +19,7 @@ class ComponentTagInferrer {
   }
 
   loadInferenceRules() {
-    // Rules are defined structurally to be executed by the TagInferenceEngine plugin.
+    // Rules are defined structurally to be executed by the RuleBasedTaggingEngine plugin.
     // Structure: { source: 'static'|'runtime', field: string, operator: string, value: any, tag: string }
     return [
       // 1. Static Analysis Inference (e.g., high dependency count suggests criticality)
