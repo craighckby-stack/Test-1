@@ -10,7 +10,7 @@ interface ServiceConfig {
   retryPolicy: RetryPolicy;
 }
 
-// Interface reflecting the methods provided by the vanilla JS plugin instance
+// Interface reflecting the methods provided by the plugin instance
 interface IRetryCalculator {
     calculateRetryDelay(attempt: number, initialDelayMs?: number): number;
     shouldRetry(attempt: number): boolean;
@@ -19,6 +19,12 @@ interface IRetryCalculator {
 // Mock declaration for the injected plugin utility for type safety
 declare const RetryBackoffCalculatorTool: {
     create(config: RetryPolicy, initialDelayMs?: number): IRetryCalculator;
+};
+
+// Minimal stub implementation when the actual tool is not injected (e.g., during tests)
+const NoOpRetryCalculator: IRetryCalculator = {
+    calculateRetryDelay: () => 0,
+    shouldRetry: () => false
 };
 
 /**
@@ -33,32 +39,13 @@ export class ServicePolicyEngine {
     this.config = config;
     
     // CRITICAL: Initialize the retry logic using the extracted plugin.
-    // We pass 200ms as the default initial delay, matching the original function signature default.
+    // We pass 200ms as the default initial delay.
     if (typeof RetryBackoffCalculatorTool !== 'undefined' && RetryBackoffCalculatorTool.create) {
         this.retryCalculator = RetryBackoffCalculatorTool.create(this.config.retryPolicy, 200);
     } else {
-        // Fallback/Mock initialization required for Type safety in environments where the tool isn't injected.
-        // In the AGI-KERNEL, the primary path utilizes the tool.
-        console.warn("RetryBackoffCalculatorTool not found, using internal mock.");
-        this.retryCalculator = {
-             calculateRetryDelay: (attempt: number, initialDelayMs: number = 200): number => {
-                const policy = this.config.retryPolicy;
-                if (attempt <= 0 || attempt > policy.maxRetries) return 0;
-                
-                const delay = initialDelayMs;
-                const MAX_DELAY_MS = 30000;
-                
-                switch (policy.backoffStrategy) {
-                    case 'EXPONENTIAL':
-                        return Math.min(delay * Math.pow(2, attempt), MAX_DELAY_MS);
-                    case 'LINEAR':
-                        return delay * attempt;
-                    default:
-                        return delay;
-                }
-             },
-             shouldRetry: (attempt: number): boolean => attempt <= this.config.retryPolicy.maxRetries
-        };
+        // Fallback/Mock initialization required for Type safety. Logic is moved to the plugin.
+        console.warn("RetryBackoffCalculatorTool not found, using NoOp stub.");
+        this.retryCalculator = NoOpRetryCalculator;
     }
   }
 
