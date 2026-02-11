@@ -20,15 +20,7 @@ class IntegrityHasher {
      * @param {string} [encoding=IntegrityHasher.DEFAULT_ENCODING] - Default encoding for string inputs.
      */
     constructor(algorithm = IntegrityHasher.DEFAULT_ALGORITHM, encoding = IntegrityHasher.DEFAULT_ENCODING) {
-        const normalizedAlgorithm = algorithm.toLowerCase();
-        
-        // Validate algorithm support early for robustness
-        if (!crypto.getHashes().includes(normalizedAlgorithm)) {
-            throw new Error(`Unsupported hash algorithm: ${algorithm}. Please check Node's supported list.`);
-        }
-
-        this.algorithm = normalizedAlgorithm;
-        this.encoding = encoding;
+        this.#initializeConfiguration(algorithm, encoding);
     }
 
     /**
@@ -38,16 +30,8 @@ class IntegrityHasher {
      * @returns {string} The hash digest in hex format.
      */
     calculate(content) {
-        const hash = crypto.createHash(this.algorithm);
-
-        if (typeof content === 'string') {
-            hash.update(content, this.encoding);
-        } else {
-            // Handles Buffer, Uint8Array, DataView, etc.
-            hash.update(content);
-        }
-        
-        return hash.digest('hex');
+        // Delegates core crypto execution to the I/O proxy
+        return this.#delegateToSynchronousHashing(content, this.algorithm, this.encoding);
     }
 
     /**
@@ -63,7 +47,82 @@ class IntegrityHasher {
             throw new Error("Input must be a Readable stream.");
         }
         
-        const hash = crypto.createHash(this.algorithm);
+        // Delegates async I/O and crypto execution to the I/O proxy
+        return this.#delegateToStreamHashing(stream, this.algorithm);
+    }
+
+    /**
+     * Static utility method for quick, default SHA-256 hashing.
+     * Optimized to avoid class instantiation overhead.
+     * 
+     * @param {Buffer|string|Uint8Array} content - The content to hash.
+     * @returns {string} The hash digest in hex format.
+     */
+    static defaultHash(content) {
+        return IntegrityHasher.#delegateToDefaultSynchronousHashing(content);
+    }
+
+    // === Private Setup and Configuration ===
+
+    /**
+     * Isolates synchronous initialization and validation logic.
+     * (Satisfies Synchronous Setup Extraction goal)
+     * @param {string} algorithm 
+     * @param {string} encoding 
+     */
+    #initializeConfiguration(algorithm, encoding) {
+        const normalizedAlgorithm = algorithm.toLowerCase();
+        
+        // Validate algorithm support early for robustness via I/O Proxy
+        if (!IntegrityHasher.#delegateToCryptoCheck(normalizedAlgorithm)) {
+            throw new Error(`Unsupported hash algorithm: ${algorithm}. Please check Node's supported list.`);
+        }
+
+        this.algorithm = normalizedAlgorithm;
+        this.encoding = encoding;
+    }
+
+    // === Private I/O Proxies ===
+
+    /**
+     * I/O Proxy: Delegates to Node's crypto API to check supported hashes.
+     * @param {string} algorithm
+     * @returns {boolean}
+     */
+    static #delegateToCryptoCheck(algorithm) {
+        // EXTERNAL DEPENDENCY INTERACTION: crypto.getHashes()
+        return crypto.getHashes().includes(algorithm);
+    }
+
+    /**
+     * I/O Proxy: Handles synchronous hash calculation using Node's crypto API.
+     * @param {Buffer|string|Uint8Array} content
+     * @param {string} algorithm
+     * @param {string} encoding
+     * @returns {string}
+     */
+    #delegateToSynchronousHashing(content, algorithm, encoding) {
+        // EXTERNAL DEPENDENCY INTERACTION: crypto.createHash, hash.update, hash.digest
+        const hash = crypto.createHash(algorithm);
+
+        if (typeof content === 'string') {
+            hash.update(content, encoding);
+        } else {
+            hash.update(content);
+        }
+        
+        return hash.digest('hex');
+    }
+
+    /**
+     * I/O Proxy: Handles asynchronous stream processing and hash calculation.
+     * @param {Readable} stream
+     * @param {string} algorithm
+     * @returns {Promise<string>}
+     */
+    async #delegateToStreamHashing(stream, algorithm) {
+        // EXTERNAL DEPENDENCY INTERACTION: crypto.createHash, hash.update, async iteration
+        const hash = crypto.createHash(algorithm);
 
         try {
             // Use async iteration to process the stream chunks
@@ -78,17 +137,19 @@ class IntegrityHasher {
     }
 
     /**
-     * Static utility method for quick, default SHA-256 hashing.
-     * Optimized to avoid class instantiation overhead.
-     * 
-     * @param {Buffer|string|Uint8Array} content - The content to hash.
-     * @returns {string} The hash digest in hex format.
+     * Static I/O Proxy: Handles synchronous hash calculation using default settings.
+     * @param {Buffer|string|Uint8Array} content
+     * @returns {string}
      */
-    static defaultHash(content) {
-        const hash = crypto.createHash(IntegrityHasher.DEFAULT_ALGORITHM);
+    static #delegateToDefaultSynchronousHashing(content) {
+        const algorithm = IntegrityHasher.DEFAULT_ALGORITHM;
+        const encoding = IntegrityHasher.DEFAULT_ENCODING;
+        
+        // EXTERNAL DEPENDENCY INTERACTION: crypto.createHash, hash.update, hash.digest
+        const hash = crypto.createHash(algorithm);
 
         if (typeof content === 'string') {
-            hash.update(content, IntegrityHasher.DEFAULT_ENCODING);
+            hash.update(content, encoding);
         } else {
             hash.update(content);
         }
