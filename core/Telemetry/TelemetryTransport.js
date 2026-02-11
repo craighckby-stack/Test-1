@@ -16,7 +16,15 @@ class TelemetryTransport {
 
     constructor(config) {
         // Initialize the abstracted transport layer
-        this.#httpTransport = new HttpBatchTransport(config);
+        this.#httpTransport = this.#setupTransport(config);
+    }
+
+    /**
+     * @private
+     * Handles the synchronous instantiation and resolution of the internal transport dependency.
+     */
+    #setupTransport(config) {
+        return new HttpBatchTransport(config);
     }
 
     queueEvent(packet) {
