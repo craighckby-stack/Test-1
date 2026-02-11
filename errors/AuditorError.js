@@ -1,55 +1,37 @@
 /**
- * @fileoverview AuditorError v2.1.0
+ * @fileoverview AuditorError v2.1.1
  * Custom error class for signaling strict validation and constraint violations
  * encountered by security or integrity components (e.g., ParameterAuditor).
- * It provides structured context, standard serialization, and factory methods.
+ * It provides structured context, standard serialization, and factory methods,
+ * built on the reusable StructuredErrorBase.
  */
 
-// AGI-KERNEL Integration: Declare the specialized serialization utility for standardized error formatting.
-declare const StructuredErrorSerializerTool: {
-    execute(error: any): { 
-        name: string; 
-        code: string; 
-        message: string; 
-        details: any; 
-        stack?: string; 
-        cause?: any 
-    };
-};
+import { StructuredErrorBase } from './StructuredErrorBase';
 
-class AuditorError extends Error {
+class AuditorError extends StructuredErrorBase {
     /** The standard name for this error type. */
     name: 'AuditorError' = 'AuditorError';
 
-    /** Machine-readable error code. */
-    code: string;
-
-    /** Structured context details. */
-    details: object;
-
     /** A version identifier for serialization tracking. */
-    static VERSION = 'v2.1.0';
+    static VERSION = 'v2.1.1';
 
     /**
      * @param {string} message - A concise, descriptive error message.
      * @param {object} [options={}] - Configuration options for the error.
-     * @param {string} [options.code='AUDIT_GENERIC'] - A machine-readable error code (e.g., 'AUDIT_REQUIRED_FIELD').
-     * @param {object} [options.details={}] - Structured context, e.g., { parameterName, failedValue, constraints }.
-     * @param {Error} [options.cause] - The underlying error that caused this AuditorError (for error wrapping).
+     * @param {string} [options.code='AUDIT_GENERIC'] - A machine-readable error code.
+     * @param {object} [options.details={}] - Structured context.
+     * @param {Error} [options.cause] - The underlying error.
      */
     constructor(message: string, options: { code?: string, details?: object, cause?: Error | any } = {}) {
-        // Error cause handling is standard practice in modern JS/TS error systems
-        super(message, { cause: options.cause });
-
-        const { code = 'AUDIT_GENERIC', details = {} } = options;
-
-        this.code = code;
-        this.details = details;
-
-        // Node.js/V8 specific optimization: captureStackTrace makes error instantiation cleaner in stack traces.
-        if (typeof Error.captureStackTrace === 'function') {
-            Error.captureStackTrace(this, AuditorError);
-        }
+        // Apply default code specific to AuditorError if not provided
+        const effectiveOptions = {
+            code: 'AUDIT_GENERIC',
+            details: {},
+            ...options
+        };
+        
+        // All stack capturing, code/details assignment, and cause handling are done by StructuredErrorBase.
+        super(message, effectiveOptions);
     }
 
     /**
@@ -81,34 +63,7 @@ class AuditorError extends Error {
         });
     }
 
-    /**
-     * Returns a structured representation of the error, useful for standardized logging and API responses.
-     * This uses the AGI-KERNEL serialization utility for standardized output format and handling of nested causes.
-     */
-    toJSON(): object {
-        if (typeof StructuredErrorSerializerTool?.execute === 'function') {
-            // Use the kernel utility for robust and standardized serialization
-            return StructuredErrorSerializerTool.execute(this);
-        }
-
-        // Fallback implementation if the serialization tool is not available
-        const output: Record<string, any> = {
-            name: this.name,
-            code: this.code,
-            message: this.message,
-            details: this.details,
-            stack: this.stack
-        };
-        
-        // Fallback cause serialization
-        if (this.cause) {
-            output.cause = this.cause instanceof Error && typeof (this.cause as any).toJSON === 'function'
-                ? (this.cause as any).toJSON()
-                : String(this.cause);
-        }
-
-        return output;
-    }
+    // toJSON method is inherited from StructuredErrorBase
 }
 
 export { AuditorError };
