@@ -8,6 +8,7 @@ declare const ToolExecutor: any;
 
 class ProvenanceTrustClient {
     private streamMatcherTool: any;
+    private trustEvaluatorTool: any; // NEW: Plugin for executing policy evaluation pipeline
 
     constructor(configLoader, pvsConnector) {
         this.config = configLoader.load('data_trust_endpoints_v3');
@@ -18,6 +19,7 @@ class ProvenanceTrustClient {
 
         // Initialize the tool reference
         this.streamMatcherTool = ToolExecutor.get('ConfigStreamMatcher');
+        this.trustEvaluatorTool = ToolExecutor.get('TrustPolicyEvaluationEngine'); // NEW
     }
 
     /**
@@ -53,32 +55,35 @@ class ProvenanceTrustClient {
             return false;
         }
 
-        const policyId = streamConfig.policy_id;
-        const policy = this.policies[policyId] || this.defaults;
-        const effectivePolicy = { ...this.defaults, ...policy, ...streamConfig.overrides };
-
-        // 1. Check Trust Score Threshold (runtime evaluation)
-        // runtimeTrustScore must be calculated based on input signals (e.g., source reputation, signing authority freshness)
-        const runtimeTrustScore = 1.0; 
-        if (runtimeTrustScore < effectivePolicy.trust_score_threshold) {
-            console.error(`Trust score failed (${runtimeTrustScore} < ${effectivePolicy.trust_score_threshold})`);
+        if (!this.trustEvaluatorTool) {
+            console.error("TrustPolicyEvaluationEngine tool not initialized.");
             return false;
         }
-        
-        // 2. Execute Provenance Verification Check (via PVS)
-        if (effectivePolicy.provenance_level_min !== this.defaults.provenance_level_min) {
-            const isProven = await this.pvsConnector.verify(
-                metadata.proof_token, 
-                effectivePolicy.provenance_level_min, 
-                effectivePolicy.trusted_kms_key_id
-            );
-            if (!isProven) {
-                console.error(`Provenance validation failed at required level ${effectivePolicy.provenance_level_min}.`);
-                return false;
-            }
+
+        // Define the PVS verification function closure to inject dependencies into the stateless plugin
+        const pvsVerifier = async (proofToken, level, keyId) => {
+            if (!this.pvsConnector) return false;
+            return this.pvsConnector.verify(proofToken, level, keyId);
+        };
+
+        // NOTE: runtimeTrustScore must be calculated based on input signals
+        const runtimeTrustScore = 1.0; 
+
+        const evaluationResult = await this.trustEvaluatorTool.execute({
+            streamConfig: streamConfig,
+            policies: this.policies,
+            defaults: this.defaults,
+            runtimeTrustScore: runtimeTrustScore,
+            metadata: metadata,
+            pvsVerifier: pvsVerifier
+        });
+
+        if (!evaluationResult.success) {
+            console.error(`Trust validation failed: ${evaluationResult.reason}`);
+            return false;
         }
 
-        // 3. Integrity Check: Ensure metadata checksum matches data integrity algorithm/location
+        // 3. Integrity Check: (Placeholder for checks not managed by the evaluation engine)
         // ... Implementation depends on I/O system ...
 
         console.log(`Trust validation successful for stream ${streamConfig.stream_id}.`);
