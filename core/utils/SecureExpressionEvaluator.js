@@ -12,6 +12,44 @@ class SecureExpressionEvaluator {
     static CONTEXT_VAR_REGEX = /Context\.([A-Za-z0-9_]+)/g;
 
     /**
+     * Delegates secure execution to the sandboxed math evaluator plugin.
+     * @param {string} formula - The prepared formula string.
+     * @returns {number} The evaluated result.
+     * @private
+     */
+    static #delegateToMathEvaluator(formula) {
+        // Isolated interaction with the external dependency
+        return SecureMathEvaluator.execute(formula);
+    }
+
+    /**
+     * Replaces Context variables in the formula with values from the context map.
+     * This ensures the formula is purely mathematical before execution.
+     * @param {string} formula 
+     * @param {Object<string, number>} context 
+     * @returns {string} The formula with variables substituted by numerical values (or 0).
+     * @private
+     */
+    static #prepareExecutableFormula(formula, context) {
+        const executionContext = context || {};
+
+        return formula.replace(
+            SecureExpressionEvaluator.CONTEXT_VAR_REGEX, 
+            (match, varName) => {
+                const value = executionContext[varName];
+                
+                // Robust safety check: Ensure substituted value is a finite number.
+                // If missing, null, or invalid (NaN, Infinity), substitute 0.
+                if (typeof value === 'number' && isFinite(value)) {
+                    return value;
+                }
+                
+                return 0;
+            }
+        );
+    }
+
+    /**
      * Executes a formula securely against a provided context map.
      * @param {string} formula - The mathematical/logical expression (e.g., 'Context.TCS * 1.5 + MAX(10, Context.Urgency)')
      * @param {Object<string, number>} context - Key-value map of runtime variables (TCS, Urgency, etc.).
@@ -23,27 +61,12 @@ class SecureExpressionEvaluator {
             return 0;
         }
 
-        const executionContext = context || {};
-
         try {
-            // Step 1: Replace Context variables (e.g., Context.TCS -> 50)
-            const executableFormula = formula.replace(
-                SecureExpressionEvaluator.CONTEXT_VAR_REGEX, 
-                (match, varName) => {
-                    const value = executionContext[varName];
-                    
-                    // Robust safety check: Ensure substituted value is a finite number.
-                    // If missing, null, or invalid (NaN, Infinity), substitute 0.
-                    if (typeof value === 'number' && isFinite(value)) {
-                        return value;
-                    }
-                    
-                    return 0;
-                }
-            );
+            // Step 1: Prepare the formula (Synchronous Data Preparation)
+            const executableFormula = this.#prepareExecutableFormula(formula, context);
 
-            // Step 2: Delegate secure execution to the sandboxed plugin
-            return SecureMathEvaluator.execute(executableFormula);
+            // Step 2: Delegate secure execution (I/O Proxy)
+            return this.#delegateToMathEvaluator(executableFormula);
 
         } catch (e) {
             // Use a specific prefix for high-integrity governance logging
