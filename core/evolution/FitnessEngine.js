@@ -16,34 +16,44 @@ interface DeclarativeConditionEvaluatorToolPlugin {
     checkCondition: (metricValue: number, condition: string, targetValue: number) => boolean;
 }
 
+// File-private helper functions for defining static constants (synchronous data preparation)
+
+/**
+ * @private
+ * Synchronously defines and deep-freezes the internal capability weights.
+ */
+const _defineCapabilityWeights = () => Object.freeze({
+    // Maps Internal Core Scores to AGI Core Capabilities (Navigation, Logic, Memory)
+    navigation: Object.freeze({ Autonomy: 0.45, Creativity: 0.35, "Meta-Reasoning": 0.20 }),
+    logic: Object.freeze({ "Meta-Reasoning": 0.60, "Error Handling": 0.40 }),
+    memory: Object.freeze({ "Error Handling": 0.50, "JSON Parsing": 0.50 })
+});
+
+/**
+ * @private
+ * Synchronously defines and freezes the improvement distribution weights.
+ */
+const _defineImprovementDistributionWeights = () => Object.freeze({
+    // Total sums to 1.0. Prioritizes Meta-Reasoning and Autonomy/Error Handling.
+    "Error Handling": 0.20,
+    "JSON Parsing": 0.10,
+    "Meta-Reasoning": 0.30,
+    "Autonomy": 0.25,
+    "Creativity": 0.15
+});
+
 /**
  * @class FitnessEngine
  * Consumes config/metrics_and_oracles_v2.json and calculates the fitness score
  * for a new codebase generation based on collected runtime and static metrics.
- * 
+ *
  * Crucial for the kernel's Meta-Reasoning and Self-Improvement cycle, now integrating Historical Context.
  */
 class FitnessEngine {
   
-  // Define internal weights structure for transparency and modularity (Logic Improvement)
-  // NOTE: Rigorously frozen to guarantee immutability and consistency.
-  static CAPABILITY_WEIGHTS = Object.freeze({
-      // Maps Internal Core Scores to AGI Core Capabilities (Navigation, Logic, Memory)
-      navigation: Object.freeze({ Autonomy: 0.45, Creativity: 0.35, "Meta-Reasoning": 0.20 }),
-      logic: Object.freeze({ "Meta-Reasoning": 0.60, "Error Handling": 0.40 }),
-      memory: Object.freeze({ "Error Handling": 0.50, "JSON Parsing": 0.50 })
-  });
-
-  // NEW: Defines how overall fitness improvement (above baseline 5.0) is distributed across internal capabilities.
-  // NOTE: Rigorously frozen to guarantee immutability and consistency.
-  static IMPROVEMENT_DISTRIBUTION_WEIGHTS = Object.freeze({
-      // Total sums to 1.0. Prioritizes Meta-Reasoning and Autonomy/Error Handling.
-      "Error Handling": 0.20,
-      "JSON Parsing": 0.10,
-      "Meta-Reasoning": 0.30,
-      "Autonomy": 0.25,
-      "Creativity": 0.15
-  });
+  // Define internal weights structure using extracted setup functions
+  static CAPABILITY_WEIGHTS = _defineCapabilityWeights();
+  static IMPROVEMENT_DISTRIBUTION_WEIGHTS = _defineImprovementDistributionWeights();
     
   // Formalized constants for system tuning and clarity (Logic/Error Handling)
   static MAX_FITNESS = 10.0;
@@ -67,41 +77,59 @@ class FitnessEngine {
     formulaEvaluator: SafeFormulaEvaluatorPlugin,
     conditionEvaluator: DeclarativeConditionEvaluatorToolPlugin
   ) {
-    if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
-        // Robust data extraction/JSON Parsing check
-        console.error("FitnessEngine: Invalid or missing metrics configuration provided. Profiles object missing.");
-        this.#config = { profiles: {} };
-        this.#isOperational = false;
-    } else {
-        this.#config = metricsConfig;
-        this.#isOperational = true;
-    }
+    this.#setupDependencies(formulaEvaluator, conditionEvaluator);
+    this.#initializeConfiguration(metricsConfig);
+  }
 
-    // Explicit dependency assignment: Eliminates reliance on global scope
+  /**
+   * Private helper to encapsulate dependency assignment.
+   * @param {SafeFormulaEvaluatorPlugin} formulaEvaluator
+   * @param {DeclarativeConditionEvaluatorToolPlugin} conditionEvaluator
+   */
+  #setupDependencies(
+    formulaEvaluator: SafeFormulaEvaluatorPlugin,
+    conditionEvaluator: DeclarativeConditionEvaluatorToolPlugin
+  ) {
     this.#formulaEvaluator = formulaEvaluator;
     this.#conditionEvaluator = conditionEvaluator;
-    
-    // JSON Parsing: Deep structural validation check for profiles
-    if (this.#isOperational) {
-        for (const profileName in this.#config.profiles) {
-            const profile = this.#config.profiles[profileName];
-            if (typeof profile !== 'object' || 
-                !profile.target_metric || 
-                !profile.optimization_goal ||
-                !['minimize', 'maximize', 'neutral'].includes(profile.optimization_goal)) {
-                console.error(`FitnessEngine: Profile '${profileName}' failed structural validation (Missing target_metric or invalid optimization_goal).`);
-                this.#isOperational = false;
-                break;
-            }
-            
-            // NEW: Robust Oracle Structure Check (Error Handling/JSON Parsing)
-            if (profile.oracles && !Array.isArray(profile.oracles)) {
-                console.error(`FitnessEngine: Profile '${profileName}' oracles property must be an array, found type ${typeof profile.oracles}.`);
-                this.#isOperational = false;
-                break;
-            }
-        }
-    }
+  }
+
+  /**
+   * Private helper to handle synchronous configuration validation and setup.
+   * Separates complex setup boilerplate from the constructor core.
+   * @param {any} metricsConfig
+   */
+  #initializeConfiguration(metricsConfig: any) {
+      if (!metricsConfig || !metricsConfig.profiles || typeof metricsConfig.profiles !== 'object') {
+          // Robust data extraction/JSON Parsing check
+          console.error("FitnessEngine: Invalid or missing metrics configuration provided. Profiles object missing.");
+          this.#config = { profiles: {} };
+          this.#isOperational = false;
+          return;
+      } 
+
+      this.#config = metricsConfig;
+      this.#isOperational = true;
+      
+      // JSON Parsing: Deep structural validation check for profiles
+      for (const profileName in this.#config.profiles) {
+          const profile = this.#config.profiles[profileName];
+          if (typeof profile !== 'object' || 
+              !profile.target_metric || 
+              !profile.optimization_goal ||
+              !['minimize', 'maximize', 'neutral'].includes(profile.optimization_goal)) {
+              console.error(`FitnessEngine: Profile '${profileName}' failed structural validation (Missing target_metric or invalid optimization_goal).`);
+              this.#isOperational = false;
+              break;
+          }
+          
+          // NEW: Robust Oracle Structure Check (Error Handling/JSON Parsing)
+          if (profile.oracles && !Array.isArray(profile.oracles)) {
+              console.error(`FitnessEngine: Profile '${profileName}' oracles property must be an array, found type ${typeof profile.oracles}.`);
+              this.#isOperational = false;
+              break;
+          }
+      }
   }
 
   /**
@@ -133,6 +161,14 @@ class FitnessEngine {
   }
   
   /**
+   * I/O Proxy: Delegates evaluation request to the SafeFormulaEvaluator plugin.
+   * Enforces strict separation of external dependency interaction.
+   */
+  #delegateToFormulaEvaluator(formula: string, context: Record<string, any>): number {
+      return this.#formulaEvaluator.evaluate(formula, context as Record<string, number>);
+  }
+
+  /**
    * Autonomy/Security: Evaluates a dynamic metric formula using the SafeFormulaEvaluator plugin.
    * 
    * @param {Record<string, number>} rawMetrics - Collected M_* metrics.
@@ -147,8 +183,8 @@ class FitnessEngine {
         return this.#safeGetMetricValue(rawMetrics, formulaString);
     }
 
-    // 2. Use the extracted plugin for complex evaluation (Autonomy/Logic)
-    return this.#formulaEvaluator.evaluate(formulaString, rawMetrics as Record<string, number>);
+    // 2. Delegate to I/O Proxy for external evaluation (Autonomy/Logic)
+    return this.#delegateToFormulaEvaluator(formulaString, rawMetrics);
   }
   
   /**
@@ -174,7 +210,5 @@ class FitnessEngine {
     }
 
     // [... Calculation logic would continue here ...]
-    // Placeholder return to complete the truncated function
-    return 5.0;
   }
 }
