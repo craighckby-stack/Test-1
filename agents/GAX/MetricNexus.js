@@ -37,5 +37,12 @@ const calculateEquilibriumDelta = (currentMetrics, historicalTrends, EQM_Extract
     const rawDelta = currentEQM - previousEQM;
     const delta = _stabilizePrecision(rawDelta);
 
-    return { delta, previousEQM, currentEQM };
+    // Define the output structure explicitly before returning, aligning with strategic clarity goals.
+    const equilibriumDeltaResult = {
+        delta: delta,
+        previousEQM: previousEQM,
+        currentEQM: currentEQM
+    };
+
+    return equilibriumDeltaResult;
 };
