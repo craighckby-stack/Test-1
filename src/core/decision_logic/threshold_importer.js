@@ -11,8 +11,15 @@ import THRESHOLD_MANIFEST from '../../../config/core_failure_thresholds_manifest
 // Import the abstracted configuration loading plugin
 import { ImmutableConfigImporter } from 'AGI_PLUGINS/ImmutableConfigImporter'; 
 
-// Step 1: Structure the raw configuration manifest data.
-const RawCoreConfigData = {
+/**
+ * Loads, validates, and deep-freezes the core failure manifest using
+ * the ImmutableConfigImporter plugin. This prevents runtime modification,
+ * upholding the Axiomatic contract (COF/P-01).
+ * 
+ * Note: The structure is explicitly defined here to filter and normalize
+ * incoming keys (e.g., lowercase 'version' to uppercase 'VERSION').
+ */
+export const CoreFailureManifest = ImmutableConfigImporter.load({
     VERSION: THRESHOLD_MANIFEST.version,
     
     // Fundamental constants accessible directly
@@ -23,13 +30,7 @@ const RawCoreConfigData = {
 
     // Tiered thresholds
     THRESHOLDS: THRESHOLD_MANIFEST.THRESHOLDS
-};
-
-/**
- * Use the ImmutableConfigImporter plugin to deep-freeze the structured configuration.
- * This prevents runtime modification, upholding the Axiomatic contract (COF/P-01).
- */
-export const CoreFailureManifest = ImmutableConfigImporter.load(RawCoreConfigData);
+});
 
 // Example Usage:
 // import { CoreFailureManifest } from './threshold_importer';
