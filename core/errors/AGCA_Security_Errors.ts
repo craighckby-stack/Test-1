@@ -21,12 +21,15 @@ declare const StructuredErrorFactory: {
     };
 };
 
-/** Canonical error codes used by the AGCA Validation Service. Immediately frozen to guarantee immutability. */
-const AGCA_ERROR_CODES = Object.freeze({
+/** Helper to define and freeze the canonical error codes. */
+const _defineErrorCodes = () => Object.freeze({
     INTEGRITY_CHECK_FAILED: 'INTEGRITY_CHECK_FAILED',
     SIGNATURE_VERIFICATION_FAILED: 'SIGNATURE_VERIFICATION_FAILED',
     AGENT_AUTHORIZATION_DENIED: 'AGENT_AUTHORIZATION_DENIED',
 } as const);
+
+/** Canonical error codes used by the AGCA Validation Service. Immediately frozen to guarantee immutability. */
+const AGCA_ERROR_CODES = _defineErrorCodes();
 
 /** Base error for all AGCA Validation failures. Requires explicit code definition on instantiation. */
 export const AGCA_ValidationError = StructuredErrorFactory.createBase('AGCA_ValidationError');
