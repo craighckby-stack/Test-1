@@ -1,28 +1,66 @@
 /**
- * DependencyLoaderFactory
- * This module provides a centralized function capable of resolving module paths or service names.
- * It leverages the DependencyLookupUtility for robust and graceful dependency resolution.
+ * DependencyLoaderKernel
+ * This Kernel encapsulates the mechanism for resolving module paths or service names
+ * by leveraging injected utility and environment loader dependencies, ensuring
+ * architectural separation and testability.
  */
-
-const DependencyLookupUtility = require('@agi-kernel/utilities').DependencyLookupUtility;
-
-// CRITICAL: The concrete Node.js 'require' implementation has been abstracted into a standard kernel component.
-// Assuming NodeEnvironmentLoader is now accessible via kernel context or standard module system path.
-const NodeEnvironmentLoader = require('@agi-kernel/loaders').NodeEnvironmentLoader; 
-
-/**
- * Default service loader function, delegating safety and error handling to the utility.
- * @param {string} serviceName - The name or path of the service/module to load.
- * @returns {any | null} The loaded module or null upon failure.
- */
-function defaultServiceLoader(serviceName) {
-    if (!DependencyLookupUtility || typeof DependencyLookupUtility.executeLookup !== 'function') {
-        throw new ReferenceError("AGI-KERNEL Utility Failure: DependencyLookupUtility not initialized or accessible.");
-    }
+class DependencyLoaderKernel {
+    /** @type {IDependencyLookupToolKernel} */
+    #dependencyLookupUtility;
     
-    // Delegate the synchronous execution and error handling to the reusable tool,
-    // passing the abstracted Node environment loader.
-    return DependencyLookupUtility.executeLookup(serviceName, NodeEnvironmentLoader);
+    /** @type {IEnvironmentLoaderToolKernel} */
+    #environmentLoader;
+
+    /**
+     * @param {object} dependencies
+     * @param {IDependencyLookupToolKernel} dependencies.dependencyLookupUtility
+     * @param {IEnvironmentLoaderToolKernel} dependencies.environmentLoader
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Isolates dependency setup and validation from the constructor,
+     * rigorously satisfying synchronous setup extraction.
+     * @param {object} dependencies
+     * @private
+     */
+    #setupDependencies(dependencies) {
+        if (!dependencies) {
+            throw new Error("Dependencies must be provided to DependencyLoaderKernel.");
+        }
+
+        const { dependencyLookupUtility, environmentLoader } = dependencies;
+
+        // Validation of IDependencyLookupToolKernel
+        if (!dependencyLookupUtility || typeof dependencyLookupUtility.executeLookup !== 'function') {
+            throw new TypeError("IDependencyLookupToolKernel (dependencyLookupUtility) must be provided with an executeLookup method.");
+        }
+        this.#dependencyLookupUtility = dependencyLookupUtility;
+
+        // Validation of IEnvironmentLoaderToolKernel
+        if (!environmentLoader) {
+            throw new TypeError("IEnvironmentLoaderToolKernel (environmentLoader) must be provided.");
+        }
+        this.#environmentLoader = environmentLoader;
+    }
+
+    /**
+     * Resolves a dependency synchronously using the configured utility and environment loader.
+     * This replaces the functionality previously exposed by defaultServiceLoader.
+     *
+     * @param {string} serviceName - The name or path of the service/module to load.
+     * @returns {any | null} The loaded module or null upon failure.
+     */
+    resolveDependencySync(serviceName) {
+        // Delegate the synchronous execution and error handling to the reusable tool,
+        // passing the injected environment loader.
+        return this.#dependencyLookupUtility.executeLookup(
+            serviceName, 
+            this.#environmentLoader
+        );
+    }
 }
 
-module.exports = defaultServiceLoader;
+module.exports = DependencyLoaderKernel;
