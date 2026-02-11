@@ -13,26 +13,57 @@ interface ISecureCacheLoader {
     load(identifier: string): Promise<any>;
 }
 
+// Assuming SecureCacheLoader class is globally available or imported for instantiation.
+declare class SecureCacheLoader {
+    constructor(config: any);
+    load(identifier: string): Promise<any>;
+}
+
 /**
  * Service responsible for fetching, caching, and ensuring the integrity of governance policy definitions.
  */
 class PolicyDefinitionService {
-    private policyLoader: ISecureCacheLoader;
+    #policyLoader: ISecureCacheLoader;
+
+    // --- I/O Proxy Functions ---
+
+    /**
+     * I/O Proxy: Delegates to the instantiation of the SecureCacheLoader dependency.
+     * Rigorously isolates external dependency creation.
+     */
+    #delegateToLoaderInstantiation(config: any, integrityValidator: IIntegrityValidator): ISecureCacheLoader {
+        const loaderConfig = {
+            source: config.governance.policy_source,
+            trustAnchorIdentifier: config.governance.trust_anchor_identifier,
+            validator: integrityValidator
+        };
+        // Dependency instantiation (Assumes SecureCacheLoader is in scope)
+        return new SecureCacheLoader(loaderConfig as any);
+    }
+    
+    /**
+     * I/O Proxy: Delegates the asynchronous policy loading request to the underlying loader instance.
+     */
+    async #delegateToPolicyLoad(identifier: string): Promise<any> {
+        return this.#policyLoader.load(identifier);
+    }
+
+    // --- Setup and Initialization ---
+
+    /**
+     * Synchronous Setup Extraction: Handles dependency resolution and initialization.
+     */
+    #setupDependencies(config: any, integrityValidator: IIntegrityValidator): void {
+        // Instantiation of the loader is delegated to the proxy
+        this.#policyLoader = this.#delegateToLoaderInstantiation(config, integrityValidator);
+    }
 
     /**
      * @param config - Configuration object.
      * @param integrityValidator - Instance of the PolicyIntegrityValidatorTool.
      */
     constructor(config: any, integrityValidator: IIntegrityValidator) {
-        const loaderConfig = {
-            source: config.governance.policy_source,
-            trustAnchorIdentifier: config.governance.trust_anchor_identifier,
-            validator: integrityValidator
-        };
-        
-        // The core data fetching and integrity logic is delegated to the abstracted plugin.
-        // Assuming SecureCacheLoader class is globally available or imported for instantiation.
-        this.policyLoader = new SecureCacheLoader(loaderConfig as any);
+        this.#setupDependencies(config, integrityValidator);
     }
 
     /**
@@ -41,8 +72,8 @@ class PolicyDefinitionService {
      * @returns The policy data.
      */
     async fetchPolicies(identifier: string): Promise<any> {
-        // Delegates fetching, caching, and validation to the loader.
-        return this.policyLoader.load(identifier);
+        // Delegates fetching, caching, and validation via I/O proxy.
+        return this.#delegateToPolicyLoad(identifier);
     }
 
     /**
