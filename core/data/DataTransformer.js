@@ -15,8 +15,16 @@ class DataTransformer {
 
     constructor() {
         this.#logger = Logger.module('DataTransformer');
-        this.#validator = SchemaValidator; // Utilize the validation module
-        this.#decoder = DataDecoderUtility; // Utilize the extracted decoding utility
+        this.#setupDependencies();
+    }
+
+    /**
+     * Resolves and sets up external dependencies (Validator, Decoder).
+     * @private
+     */
+    #setupDependencies(): void {
+        this.#validator = SchemaValidator; 
+        this.#decoder = DataDecoderUtility; 
     }
 
     /**
@@ -45,13 +53,21 @@ class DataTransformer {
     }
 
     /**
-     * Handles specific encoding formats using the DataDecoderUtility plugin.
+     * Delegates the raw data decoding to the external DataDecoderUtility tool.
+     * @private
+     */
+    #executeDecodingDelegation(rawData: any, format: string): any {
+        return this.#decoder.execute({ rawData, format });
+    }
+
+    /**
+     * Handles specific encoding formats using the DataDecoderUtility plugin, including error mapping.
      * @private
      */
     #decodeData(rawData: any, format: string, key: string): any {
         try {
             // Use the extracted utility for data transformation
-            return this.#decoder.execute({ rawData, format });
+            return this.#executeDecodingDelegation(rawData, format);
         } catch (error) {
             // The decoder plugin throws if a supported format (like JSON) fails parsing.
             const errorMessage = (error instanceof Error) ? error.message : String(error);
@@ -65,11 +81,19 @@ class DataTransformer {
     // --- Core Checks ---
 
     /**
+     * Delegates the schema validation check to the external SchemaValidator tool.
+     * @private
+     */
+    #delegateToValidator(data: any, primitiveType: string): boolean {
+        return this.#validator.validate(data, primitiveType);
+    }
+
+    /**
      * Executes schema validation using the centralized Validator utility.
      * @private
      */
     #validateSchema(data: any, primitiveType: string, key: string): void {
-        if (!this.#validator.validate(data, primitiveType)) {
+        if (!this.#delegateToValidator(data, primitiveType)) {
              this.#logger.error(`[SCHEMA_MISMATCH] Validation failed for expected type: ${primitiveType} in source ${key}`);
              throw new Error(`[SCHEMA_VALIDATION_FAILURE] Data structure invalid for primitive type: ${primitiveType}.`);
         }
