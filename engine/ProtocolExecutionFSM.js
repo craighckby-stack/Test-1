@@ -5,44 +5,23 @@
  * and 'HaltExecution' defined in the protocol definition schema.
  */
 
-// --- SIMULATED DEPENDENCY ACCESS ---
-// Assumes the FailurePolicyHandler plugin is loaded and available for instantiation/access.
-// This block simulates the execution structure defined in the plugin below.
-const __failurePolicyHandlerInstance = {
-    execute: (args) => {
-        const step = args.step;
-        const currentIndex = args.currentIndex;
-        const action = step.on_failure || 'HaltExecution';
-        let newState = 'RUNNING';
-        let nextIndex = currentIndex;
-        
-        switch (action) {
-            case 'HaltExecution':
-                newState = 'HALTED';
-                break;
-            case 'ContinueWarning':
-                nextIndex = currentIndex + 1;
-                break;
-            case 'RetryStep':
-                // nextIndex remains currentIndex
-                break;
-            default:
-                newState = 'HALTED';
-        }
-        return { newState, nextIndex };
-    }
-};
-// ------------------------------------
-
 class ProtocolExecutionFSM {
-  constructor(protocolDefinition) {
+  /**
+   * @param {object} protocolDefinition The definition of the protocol.
+   * @param {object} failurePolicyHandler An instance of the FailurePolicyHandler plugin interface.
+   */
+  constructor(protocolDefinition, failurePolicyHandler) {
+    if (!failurePolicyHandler || typeof failurePolicyHandler.execute !== 'function') {
+        throw new Error("ProtocolExecutionFSM requires a valid FailurePolicyHandler instance.");
+    }
+    
     this.protocol = protocolDefinition;
     this.steps = protocolDefinition.required_steps;
     this.currentState = 'READY';
     this.currentStepIndex = 0;
     
-    // Reference the extracted utility
-    this.failurePolicyHandler = __failurePolicyHandlerInstance; 
+    // Use injected dependency
+    this.failurePolicyHandler = failurePolicyHandler; 
   }
 
   async executeProtocol() {
@@ -54,10 +33,10 @@ class ProtocolExecutionFSM {
       const result = await this._runStep(step);
 
       if (!result.success) {
-        // Delegate failure policy logic to the extracted utility
+        // Delegate failure policy logic to the injected handler
         const policyResult = this.failurePolicyHandler.execute({
             step: step,
-            result: result, // Pass result for potential logging/reporting within the utility
+            result: result, 
             currentIndex: this.currentStepIndex
         });
 
@@ -83,7 +62,5 @@ class ProtocolExecutionFSM {
       message: `Step ${step.step_id} verified.`
     };
   }
-
-  // _handleFailure removed: Logic extracted to FailurePolicyHandler plugin.
 }
 module.exports = ProtocolExecutionFSM;
