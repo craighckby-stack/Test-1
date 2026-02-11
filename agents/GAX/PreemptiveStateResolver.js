@@ -112,6 +112,29 @@ class PreemptiveStateResolver {
     }
 
     /**
+     * Initiates the asynchronous calculation of the Risk Threshold (R_TH) 
+     * via the external Synergy Service, handling necessary input assembly 
+     * and critical error defaulting.
+     * 
+     * @returns {Promise<number>} A Promise resolving to R_TH, or DEFAULT_SAFE_THRESHOLD on critical failure.
+     */
+    #calculateRiskThresholdAsync() {
+        const riskParams = {
+            UFRM: this.#riskAccessors.getUFRM(),
+            CFTM: this.#riskAccessors.getCFTM(),
+            riskModel: this.#riskModel
+        };
+        
+        const DEFAULT_SAFE_THRESHOLD = 0.0001;
+
+        return this.#riskThresholdService.execute('calculateThreshold', riskParams)
+            .catch(e => {
+                console.error("[PSR] Critical error calculating R_TH via Synergy Service. Defaulting to safe minimal threshold.", e);
+                return DEFAULT_SAFE_THRESHOLD;
+            });
+    }
+
+    /**
      * Generates the Axiomatic Trajectory Map (ATM).
      * PERFORMANCE REFACTOR: Uses Promise concurrency to overlap external latency (R_TH) 
      * with local computation (Policy Check, Simulation).
@@ -125,19 +148,7 @@ class PreemptiveStateResolver {
         }
         
         // Stage 0a/0b: Initiate Risk Threshold Calculation (ASYNCHRONOUS START)
-        const riskParams = {
-            UFRM: this.#riskAccessors.getUFRM(),
-            CFTM: this.#riskAccessors.getCFTM(),
-            riskModel: this.#riskModel
-        };
-        
-        const DEFAULT_SAFE_THRESHOLD = 0.0001;
-
-        const R_TH_Promise = this.#riskThresholdService.execute('calculateThreshold', riskParams)
-            .catch(e => {
-                console.error("[PSR] Critical error calculating R_TH via Synergy Service. Defaulting to safe minimal threshold.", e);
-                return DEFAULT_SAFE_THRESHOLD;
-            });
+        const R_TH_Promise = this.#calculateRiskThresholdAsync();
         
         // Stage 1: Synchronous Policy Check (Runs concurrently with R_TH_Promise)
         const policyViable = this.#projectPolicyViability(inputManifest);
