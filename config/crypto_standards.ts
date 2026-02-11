@@ -19,12 +19,19 @@ interface ICanonicalSerializer {
 declare const SYSTEM_SERIALIZER: ICanonicalSerializer;
 
 /**
+ * Resolve the SYSTEM_SERIALIZER reference locally upon module initialization.
+ * This strategy centralizes the dependency linkage, improving encapsulation 
+ * and ensuring a direct, locally-scoped reference is used for high-frequency operations.
+ */
+const ACVD_SERIALIZER = SYSTEM_SERIALIZER;
+
+/**
  * Recursively sorts keys of an object to ensure deterministic output for hashing
  * using the kernel's dedicated Canonical Serialization Plugin.
  * @param obj The object to canonicalize.
  * @returns A strictly canonicalized JSON string.
  */
 export function canonicalStringify(obj: object): string {
-    // Utilize the injected plugin interface method for clean abstraction
-    return SYSTEM_SERIALIZER.stringify(obj);
+    // Utilize the locally resolved, encapsulated adapter reference.
+    return ACVD_SERIALIZER.stringify(obj);
 }
