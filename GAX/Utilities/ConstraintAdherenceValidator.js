@@ -4,6 +4,31 @@
  */
 
 /**
+ * Creates a standard critical violation payload used for immediate systemic failures 
+ * (e.g., missing dependencies).
+ * 
+ * @param {string} code 
+ * @param {string} details
+ * @param {string} [target='SYSTEM']
+ * @returns {{isAdherent: boolean, violations: object[]}}
+ */
+_createCriticalViolation(code, details, target = 'SYSTEM') {
+    // Defining the data structure clearly for immediate failure payloads
+    const violationStructure = { 
+        code,
+        target,
+        severity: 'CRITICAL',
+        details
+    };
+
+    return {
+        isAdherent: false,
+        violations: [violationStructure]
+    };
+}
+
+
+/**
  * Standardizes the output of a single constraint check into a structured violation object or null if adherent.
  * Extracted from validate() to improve method readability and encapsulation.
  * 
@@ -55,38 +80,23 @@ async validate(configuration, requiredConstraintCodes) {
     const SERVICE_KEY = 'ConstraintExecutionService';
     const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
 
-    // Helper function for consistent critical violation structure
-    const createCriticalViolation = (code, details, target = 'SYSTEM') => {
-        // Defining the data structure clearly for immediate failure payloads
-        const violationStructure = { 
-            code,
-            target,
-            severity: 'CRITICAL',
-            details
-        };
-
-        return {
-            isAdherent: false,
-            violations: [violationStructure]
-        };
-    };
-
-    // 1. Input Validation
+    // 1. Input Validation (Data Preparation Check)
     if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
         const details = 'Required constraint codes list is invalid (must be a non-empty array).';
         console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return createCriticalViolation('INPUT_VALIDATION_ERROR', details);
+        return this._createCriticalViolation('INPUT_VALIDATION_ERROR', details);
     }
     
-    // 2. Synergy Service Access
-    const ConstraintExecutionService = (typeof Synergy === 'object' && typeof Synergy.get === 'function') 
-        ? Synergy.get(SERVICE_KEY) 
-        : null;
+    // 2. Synergy Service Access (Dependency Retrieval)
+    let ConstraintExecutionService = null;
+    if (typeof Synergy === 'object' && typeof Synergy.get === 'function') {
+        ConstraintExecutionService = Synergy.get(SERVICE_KEY);
+    }
 
     if (!ConstraintExecutionService) {
         const details = `Required synergy service ${SERVICE_KEY} is unavailable.`;
         console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return createCriticalViolation('KERNEL_SERVICE_UNAVAILABLE', details);
+        return this._createCriticalViolation('KERNEL_SERVICE_UNAVAILABLE', details);
     }
 
     // 3. Local Dependency Check (Taxonomy Map)
@@ -94,7 +104,7 @@ async validate(configuration, requiredConstraintCodes) {
     if (!taxonomyMap || typeof taxonomyMap.get !== 'function') {
         const details = "Local taxonomy map required for constraint definitions is missing or invalid (this.taxonomyMap).";
         console.error(`${VALIDATION_CONTEXT} ${details}`);
-        return createCriticalViolation('TAXONOMY_MAP_MISSING', details);
+        return this._createCriticalViolation('TAXONOMY_MAP_MISSING', details);
     }
 
     // 4. Constraint Execution Loop (Parallelized using Promise.all)
@@ -113,7 +123,7 @@ async validate(configuration, requiredConstraintCodes) {
             // Delegating constraint execution
             adherenceCheck = await ConstraintExecutionService.execute('executeConstraintCheck', constraintDef, configuration);
         } catch (error) {
-            // Catches unexpected runtime errors during service execution
+            // Catches unexpected runtime errors during service execution (Side-effect logging)
             console.error(`${VALIDATION_CONTEXT} Unexpected error executing constraint ${code}:`, error);
             executionError = error;
         }
