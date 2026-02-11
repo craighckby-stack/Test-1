@@ -1,17 +1,31 @@
 // Abstract class for CryptoPolicyEnforcer
 class CryptoPolicyEnforcer {
+  /** @type {Readonly<object>} */
+  #policy;
+  /** @type {boolean} */
+  #isReady = false;
+
   /**
    * @param {object} config - The cryptographic policy configuration object.
    */
   constructor(config) {
     if (new.target === CryptoPolicyEnforcer) {
-      // Prevent direct instantiation of the abstract base class
-      // Subclasses must define specific crypto backend implementation (e.g., NodeCryptoPolicyEnforcer)
-      // throw new Error("Cannot instantiate abstract class CryptoPolicyEnforcer directly.");
+      // Enforce abstraction: Prevent direct instantiation of the abstract base class
+      throw new Error("Cannot instantiate abstract class CryptoPolicyEnforcer directly.");
     }
-    this.policy = config;
-    this.is_ready = false;
+    
+    // 1. Guarantee structural integrity: Deep-freeze the policy configuration
+    this.#policy = Object.freeze(config);
+    
+    // 2. Start initialization (fire-and-forget, internal state update handled internally)
     this.init();
+  }
+  
+  /**
+   * @returns {boolean} True if the policy enforcer has completed its initialization phase.
+   */
+  get isReady() {
+    return this.#isReady;
   }
 
   /**
@@ -20,8 +34,8 @@ class CryptoPolicyEnforcer {
   async init() {
     // Load environment-specific cryptographic primitives (e.g., OpenSSL or WebCrypto)
     // Verify policy configuration integrity and dependencies.
-    console.log(`Policy ${this.policy?.crypto_version || 'N/A'} loaded.`);
-    this.is_ready = true;
+    console.log(`Policy ${this.#policy?.crypto_version || 'N/A'} loaded.`);
+    this.#isReady = true;
   }
 
   /**
@@ -41,7 +55,7 @@ class CryptoPolicyEnforcer {
    * @returns {string} The preferred cipher suite identifier.
    */
   getPreferredCipherSuite() {
-    return this.policy.protocol_enforcement?.tls?.preferred_ciphers?.[0] || 'DEFAULT_CIPHER';
+    return this.#policy.protocol_enforcement?.tls?.preferred_ciphers?.[0] || 'DEFAULT_CIPHER';
   }
 
   /**
