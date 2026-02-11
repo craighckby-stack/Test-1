@@ -18,16 +18,17 @@ const PREDICTION_RESULT_SCHEMA = {
  * 
  * It utilizes an injected Statistical Model Handler to predict TEMM and ECVM scores.
  * 
- * It relies on KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService for comprehensive
- * input/output schema enforcement, if available.
+ * It relies on an injected SynergyRegistry to access the SchemaValidationService for 
+ * comprehensive input/output schema enforcement.
  */
 class TrajectorySimulationEngine {
     /**
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
      * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
      * @param {Object} ModelHandler - The initialized predictive model wrapper implementing the 'predict' interface.
+     * @param {Object} [SynergyRegistry={}] - Central registry for accessing kernel capabilities (e.g., SchemaValidationService).
      */
-    constructor(ACVD_Store, Configuration, ModelHandler) {
+    constructor(ACVD_Store, Configuration, ModelHandler, SynergyRegistry = {}) {
         if (!ModelHandler || typeof ModelHandler.predict !== 'function') {
             throw new Error("TSE Initialization Error: A valid ModelHandler implementing an asynchronous 'predict' method is required.");
         }
@@ -35,7 +36,8 @@ class TrajectorySimulationEngine {
         this.ACVD = ACVD_Store;
         this.config = Configuration;
         this.model = ModelHandler;
-        // Validation service is accessed dynamically in runSimulation
+        // Dependency Injection: Use the Synergy Registry for accessing kernel services
+        this.synergyRegistry = SynergyRegistry;
     }
 
     /**
@@ -67,16 +69,17 @@ class TrajectorySimulationEngine {
 
     /**
      * Runs the full trajectory simulation by extracting features and calling the model handler.
-     * Utilizes KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService if available.
+     * Utilizes SchemaValidationService from the SynergyRegistry if available.
      * @param {Object} inputManifest
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
      */
     async runSimulation(inputManifest) {
         let entityId = 'unknown';
 
-        // Access the KERNEL Schema Validation Service dynamically
-        const ValidationService = (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService)
-            ? KERNEL_SYNERGY_CAPABILITIES.SchemaValidationService
+        // 1. Access the Schema Validation Service via the injected synergy registry
+        // Assuming synergyRegistry implements getService(name)
+        const ValidationService = (this.synergyRegistry && typeof this.synergyRegistry.getService === 'function')
+            ? this.synergyRegistry.getService('SchemaValidationService')
             : null;
 
         try {
@@ -86,7 +89,7 @@ class TrajectorySimulationEngine {
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation using KERNEL_SYNERGY_CAPABILITIES (preferred)
+            // 2. Comprehensive Input Validation using ValidationService (preferred)
             if (ValidationService) {
                 // NOTE: Validation Service executes validation logic against the schema.
                 const validationResult = await ValidationService.execute('validate', inputManifest, MANIFEST_SCHEMA);
