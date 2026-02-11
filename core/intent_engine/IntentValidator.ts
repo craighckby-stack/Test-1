@@ -41,8 +41,12 @@ export class IntentValidator {
      * @param validator The kernel's ICriticalSchemaValidator instance (Dependency Injection).
      */
     constructor(validator: ICriticalSchemaValidator) {
-        if (!validator || typeof validator.validate !== 'function') {
-            throw new Error("IntentValidator instantiation failed: A valid ICriticalSchemaValidator instance must be provided via constructor injection.");
+        // Ensure all required interface methods are present upon injection.
+        if (!validator || 
+            typeof validator.validate !== 'function' || 
+            typeof validator.isInitialized !== 'function'
+        ) {
+            throw new Error("IntentValidator instantiation failed: A valid ICriticalSchemaValidator instance must be provided via constructor injection, guaranteeing validate() and isInitialized() methods.");
         }
         this.#validator = validator;
         
@@ -55,8 +59,9 @@ export class IntentValidator {
      * @private
      */
     #initializeSchema(): void {
-        // Check initialization status defensively.
-        if (!this.#validator.isInitialized || !this.#validator.isInitialized()) {
+        // Only trigger initialization if the validator utility reports it is not yet initialized.
+        // We rely on the utility's implementation to handle idempotent schema registration.
+        if (!this.#validator.isInitialized()) {
             this.#validator.initialize({
                 schemas: [intentSchema]
             });
