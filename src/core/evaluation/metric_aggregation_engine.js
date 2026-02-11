@@ -35,6 +35,7 @@ class MetricAggregationEngine {
             }
         }
         
+        // Use the abstracted plugin for monitoring
         const violations = this.monitorThresholds(results);
         
         // Handle violations post-monitoring
@@ -66,11 +67,12 @@ class MetricAggregationEngine {
 
     /**
      * Monitors the calculated results against defined configuration thresholds using the dedicated utility.
+     * Relies on the external MetricThresholdMonitorUtility plugin.
+     * 
      * @param {object} results - Results mapping metric/oracle IDs to outcomes.
      * @returns {object} A map of violations: { metricId: violationDetails[] }.
      */
     private monitorThresholds(results: Record<string, any>): Record<string, any> {
-        // CRITICAL: Call the extracted Vanilla JS Plugin
         if (typeof MetricThresholdMonitorUtility !== 'undefined' && MetricThresholdMonitorUtility.monitor) {
             return MetricThresholdMonitorUtility.monitor({
                 results: results,
