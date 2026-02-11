@@ -1,36 +1,52 @@
 import { IRiskThresholdChecker, ComplianceResult } from '../../plugins/Compliance/RiskThresholdChecker';
+import { IRiskFloorConfigRegistryKernel } from '../../config/IRiskFloorConfigRegistryKernel';
 
 /**
  * Manages specialized risk floor compliance checks using an abstracted evaluation mechanism.
- * The specific risk thresholds are defined internally or loaded via configuration.
+ * Adheres to the Kernel pattern for dependency management and configuration separation.
  */
-export class RiskFloorComplianceUtility {
-    private checker: IRiskThresholdChecker;
+export class RiskFloorComplianceKernel {
+    private checker!: IRiskThresholdChecker;
+    private configRegistry!: IRiskFloorConfigRegistryKernel;
 
     /**
-     * @param checker The generalized risk threshold evaluation service.
+     * @param dependencies Dependencies required for initialization.
      */
-    constructor(checker: IRiskThresholdChecker) {
-        this.checker = checker;
+    constructor(dependencies: {
+        checker: IRiskThresholdChecker;
+        configRegistry: IRiskFloorConfigRegistryKernel;
+    }) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Isolates dependency assignment and validation to ensure synchronous setup extraction.
+     * @private
+     */
+    #setupDependencies(dependencies: {
+        checker: IRiskThresholdChecker;
+        configRegistry: IRiskFloorConfigRegistryKernel;
+    }): void {
+        if (!dependencies.checker) {
+            throw new Error("IRiskThresholdChecker must be provided to RiskFloorComplianceKernel.");
+        }
+        if (!dependencies.configRegistry) {
+            throw new Error("IRiskFloorConfigRegistryKernel must be provided to RiskFloorComplianceKernel.");
+        }
+        this.checker = dependencies.checker;
+        this.configRegistry = dependencies.configRegistry;
     }
 
     /**
      * Checks a set of critical operational metrics against predefined minimum thresholds (Risk Floors).
-     * Logic abstracted to the IRiskThresholdChecker plugin.
      *
      * @param currentOperationalMetrics Key/value pairs of current measured metrics.
      * @returns The result of the compliance check.
      */
     public checkCoreOperationalRisk(currentOperationalMetrics: Record<string, number>): ComplianceResult {
-        // Configuration abstracted away from the core checking logic
-        const CORE_RISK_FLOORS = {
-            minimumTrustScore: 0.85,
-            latencyMetric: 0.90, // Must be >= 0.90 (e.g., probability of fast response)
-            securityRating: 75
-        };
+        // Retrieve configuration from the injected registry, eliminating hardcoded values.
+        const CORE_RISK_FLOORS = this.configRegistry.getCoreRiskFloors();
 
         return this.checker.evaluate(currentOperationalMetrics, CORE_RISK_FLOORS);
     }
-
-    // Other utility methods related to enforcement now leverage the checker or are simplified.
 }
