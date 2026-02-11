@@ -1,143 +1,157 @@
 /**
- * src/governance/TrustMatrixManager.js
+ * src/governance/TrustMatrixManagerKernel.js
  * Purpose: Manages the dynamic evolution of the RCDM weighting_matrix (trust matrix)
  * based on real-time performance, compliance history, and behavioral audits of actors.
- * This separation ensures the PolicyEngine remains a fast, read-only enforcer.
+ * This component handles asynchronous persistence and state updates.
  *
- * Sovereign AGI Refactoring Rationale (v94.1):
- * 1. Encapsulation: Removed internal I/O control state (`#saveTimer`, etc.) and replaced
- *    with the IODebounceScheduler plugin, focusing the class on governance logic.
- * 2. Robust Initialization: Standardized configuration handling in `#validateConfig`.
- * 3. Efficiency Maintenance: Delegated the high-efficiency asynchronous debounced write mechanism
- *    to the reusable IODebounceScheduler.
- * 4. Audit Improvement: Retained threshold checking in `recalculateWeight`.
+ * Refactoring Rationale:
+ * 1. Kernel Compliance: Renamed and enforced asynchronous initialization (initialize()).
+ * 2. Dependency Injection: Replaced raw objects (persistenceLayer, auditLog) with
+ *    high-integrity interfaces: CachePersistenceInterfaceKernel, ILoggerToolKernel, 
+ *    and ISpecValidatorKernel.
+ * 3. Configuration Management: Abstracted configuration loading and validation to 
+ *    a conceptual registry (ITrustMatrixConfigRegistryKernel) and ISpecValidatorKernel.
+ * 4. Asynchronous I/O: Eliminated synchronous matrix loading and ensured persistence
+ *    is handled asynchronously via CachePersistenceInterfaceKernel and the injected
+ *    IAsyncDebouncerToolKernel.
  */
 
-declare var IODebounceScheduler: any;
+class TrustMatrixManagerKernel {
 
-class TrustMatrixManager {
-
-    static PERSISTENCE_KEY = 'weighting_matrix';
-
-    static DEFAULT_CONFIG = {
-        smoothingFactor: 0.15,   // Base EMA learning rate (alpha)
-        penaltyBoost: 0.35,      // Higher alpha applied immediately on negative feedback for faster decay
-        saveDebounceMs: 4000,    // Time (ms) to wait before writing to persistent storage
-        initialTrustScore: 0.5   // Default trust for new actors
-    };
-
-    // External dependencies
-    private persistence: any;
-    private auditLog: any;
     private config: any;
     private currentMatrix: Record<string, number> = {};
-    
-    // Plugin Instance for I/O control
-    private saveScheduler: any;
+    private persistenceKey: string;
+
+    // Injected Dependencies
+    private logger: ILoggerToolKernel;
+    private persistence: CachePersistenceInterfaceKernel;
+    private configRegistry: any; // ITrustMatrixConfigRegistryKernel (conceptual)
+    private debouncer: IAsyncDebouncerToolKernel;
+    private validator: ISpecValidatorKernel;
 
     /**
-     * @param {Object} persistenceLayer - Must implement load(key) and save(key, data)
-     * @param {Object} auditLog - Must implement log() and error()
-     * @param {Object} [config={}] - Optional configuration overrides.
+     * Standard Kernel Constructor: Only performs dependency injection and setup validation.
+     * Configuration and I/O are deferred to initialize().
      */
-    constructor(persistenceLayer: any, auditLog: any, config = {}) {
-        if (!persistenceLayer || !auditLog) {
-            throw new Error("TrustMatrixManager requires a persistenceLayer and an auditLog instance.");
+    constructor(dependencies: {
+        logger: ILoggerToolKernel,
+        persistence: CachePersistenceInterfaceKernel,
+        configRegistry: any, // ITrustMatrixConfigRegistryKernel
+        debouncer: IAsyncDebouncerToolKernel,
+        validator: ISpecValidatorKernel
+    }) {
+        this.logger = dependencies.logger;
+        this.persistence = dependencies.persistence;
+        this.configRegistry = dependencies.configRegistry;
+        this.debouncer = dependencies.debouncer;
+        this.validator = dependencies.validator;
+
+        this.#setupDependencies();
+    }
+
+    #setupDependencies(): void {
+        if (!this.logger || !this.persistence || !this.configRegistry || !this.debouncer || !this.validator) {
+            throw new Error("TrustMatrixManagerKernel: All required dependencies must be injected.");
+        }
+    }
+
+    /**
+     * Asynchronous Kernel Initialization. Loads configuration, validates it, and loads state.
+     */
+    async initialize(): Promise<void> {
+        this.logger.debug('TrustMatrixManagerKernel: Starting initialization.');
+
+        // 1. Load Configuration asynchronously (assuming registry provides defaults and schema)
+        const defaults = await this.configRegistry.getDefaultConfig();
+        const schema = await this.configRegistry.getConfigSchema();
+        
+        const validationResult = await this.validator.validate(schema, defaults);
+        if (!validationResult.isValid) {
+            await this.logger.fatal('TrustMatrixManagerKernel: Configuration failed schema validation.', { errors: validationResult.errors });
+            throw new Error('Kernel configuration error: Trust Matrix settings invalid.');
         }
         
-        this.persistence = persistenceLayer;
-        this.auditLog = auditLog;
-        
-        this.config = this.#validateConfig({ ...TrustMatrixManager.DEFAULT_CONFIG, ...config });
+        this.config = defaults; 
+        this.persistenceKey = this.config.persistenceKey || 'trust_matrix_state'; 
 
-        // Initialize the scheduler to manage debounced I/O
-        this.saveScheduler = IODebounceScheduler.execute({
+        // 2. Initialize the I/O Debounce Scheduler
+        this.debouncer.setup({
             asyncTask: () => this.#performSaveInternal(),
             delayMs: this.config.saveDebounceMs,
-            // Provide a log function for the scheduler to report its internal concurrency errors
-            logFunction: (details: any) => this.auditLog.error(details)
+            // Delegate error reporting to the injected logger
+            logFunction: (details: any) => this.logger.error({
+                component: 'TrustMatrix',
+                type: 'DEBOUNCE_ERROR',
+                details: details
+            })
         });
 
-        // Synchronous Load: Required for immediate service startup.
-        this.#loadMatrix();
-    }
-    
-    /**
-     * Internal configuration validation and normalization.
-     */
-    #validateConfig(config: any) {
-        // Ensure critical factors are clamped between 0 and 1
-        config.smoothingFactor = Math.max(0, Math.min(1, config.smoothingFactor || TrustMatrixManager.DEFAULT_CONFIG.smoothingFactor));
-        config.penaltyBoost = Math.max(0, Math.min(1, config.penaltyBoost || TrustMatrixManager.DEFAULT_CONFIG.penaltyBoost));
-        config.initialTrustScore = Math.max(0, Math.min(1, config.initialTrustScore || TrustMatrixManager.DEFAULT_CONFIG.initialTrustScore));
-
-        if (typeof config.saveDebounceMs !== 'number' || config.saveDebounceMs < 500) {
-            config.saveDebounceMs = TrustMatrixManager.DEFAULT_CONFIG.saveDebounceMs;
-        }
-
-        return config;
+        // 3. Asynchronously Load Matrix
+        await this.#loadMatrix();
+        
+        this.logger.info('TrustMatrixManagerKernel initialized successfully.', { key: this.persistenceKey });
     }
 
     /**
-     * Synchronous initialization method to load the matrix from persistent storage.
+     * Asynchronous initialization method to load the matrix from persistent storage.
      */
-    #loadMatrix() {
+    async #loadMatrix(): Promise<void> {
         try {
-            this.currentMatrix = this.persistence.load(TrustMatrixManager.PERSISTENCE_KEY) || {};
-            this.auditLog.log({ 
-                component: 'TrustMatrix', 
-                type: 'MATRIX_LOAD', 
-                status: 'Success', 
-                size: Object.keys(this.currentMatrix).length 
+            const loadedData = await this.persistence.load(this.persistenceKey);
+            
+            this.currentMatrix = (loadedData && typeof loadedData === 'object') ? loadedData : {};
+
+            await this.logger.log({
+                component: 'TrustMatrix',
+                type: 'MATRIX_LOAD',
+                status: 'Success',
+                size: Object.keys(this.currentMatrix).length
             });
         } catch (error: any) {
-            // Fail safe: If load fails, start with an empty matrix to prevent blocking execution.
             this.currentMatrix = {};
-            this.auditLog.error({ 
-                component: 'TrustMatrix', 
-                type: 'MATRIX_LOAD_ERROR', 
-                message: `Failed to load initial matrix: ${error.message}` 
+            await this.logger.error({
+                component: 'TrustMatrix',
+                type: 'MATRIX_LOAD_ERROR',
+                message: `Failed to load initial matrix: ${error.message}`
             });
         }
     }
 
     /**
      * Executes the actual persistence write operation.
-     * This function is passed to the IODebounceScheduler and only performs the I/O.
      */
-    async #performSaveInternal() {
+    async #performSaveInternal(): Promise<void> {
         try {
-            await this.persistence.save(TrustMatrixManager.PERSISTENCE_KEY, this.currentMatrix);
-            this.auditLog.log({ component: 'TrustMatrix', type: 'MATRIX_PERSIST', status: 'Complete', size: Object.keys(this.currentMatrix).length });
+            await this.persistence.save(this.persistenceKey, this.currentMatrix);
+            await this.logger.log({ component: 'TrustMatrix', type: 'MATRIX_PERSIST', status: 'Complete', size: Object.keys(this.currentMatrix).length });
         } catch (error: any) {
-            this.auditLog.error({ component: 'TrustMatrix', type: 'MATRIX_PERSIST_ERROR', error: error.message });
+            await this.logger.error({ component: 'TrustMatrix', type: 'MATRIX_PERSIST_ERROR', error: error.message });
         }
     }
 
     /**
      * Schedules persistence of the matrix using a debounce delay.
-     * Delegates control to the IODebounceScheduler.
      */
-    scheduleSave() {
-        this.saveScheduler.schedule();
+    scheduleSave(): void {
+        this.debouncer.schedule();
     }
 
     /**
      * Updates the weight of a specific actor using Exponential Moving Average (EMA).
      * @param {string} actorId - The ID of the component or agent.
      * @param {number} performanceMetric - Calculated score (0.0 to 1.0).
-     * @returns {number} The new calculated trust score/weight.
+     * @returns {Promise<number>} The new calculated trust score/weight.
      */
-    recalculateWeight(actorId: string, performanceMetric: number): number {
+    async recalculateWeight(actorId: string, performanceMetric: number): Promise<number> {
         // Strict input validation
         if (typeof actorId !== 'string' || !actorId || typeof performanceMetric !== 'number' || isNaN(performanceMetric)) {
-             this.auditLog.error({ 
+             await this.logger.error({ 
                  component: 'TrustMatrix', 
                  type: 'MATRIX_INVALID_INPUT', 
                  message: 'Invalid actorId or performance metric type.',
                  input_metric: performanceMetric
              });
-             return this.getWeight(actorId); // Return current weight, don't update
+             return this.getWeight(actorId);
         }
 
         // Clamp incoming metric
@@ -162,9 +176,8 @@ class TrustMatrixManager {
         this.scheduleSave();
         
         // 4. Audit Log 
-        // Only log updates that significantly change the score to prevent log bloat
         if (Math.abs(finalWeight - currentWeight) > 0.001) { 
-            this.auditLog.log({
+            await this.logger.log({
                 component: 'TrustMatrix',
                 type: 'MATRIX_UPDATE',
                 actor: actorId,
@@ -179,31 +192,19 @@ class TrustMatrixManager {
     }
 
     /**
-     * Returns the current, dynamically updated weighting matrix.
-     * Note: Returns a reference to the internal object for read efficiency. Callers should not modify it.
-     * @returns {Object<string, number>}
+     * Returns a copy of the current, dynamically updated weighting matrix.
+     * @returns {Object<string, number>} A shallow copy to prevent mutation.
      */
     getMatrix(): Record<string, number> {
-        return this.currentMatrix;
+        return { ...this.currentMatrix };
     }
 
     /**
      * Synchronously retrieves the trust score for a specific actor.
      * @param {string} actorId 
-     * @returns {number} The actor's current trust weight.
+     * @returns {number} The trust score, or the initial default score if not found.
      */
     getWeight(actorId: string): number {
-        if (typeof actorId !== 'string') return this.config.initialTrustScore; // Defensive programming
         return this.currentMatrix[actorId] ?? this.config.initialTrustScore;
     }
-
-    /**
-     * Immediately triggers a save operation without waiting for the debounce delay.
-     * Primarily used during graceful shutdown procedures.
-     */
-    async flush() {
-        await this.saveScheduler.flush();
-    }
 }
-
-module.exports = TrustMatrixManager;
