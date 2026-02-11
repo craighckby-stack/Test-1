@@ -1,77 +1,96 @@
 /**
- * src/governance/PerformanceMetricGenerator.js
+ * src/governance/PerformanceMetricGeneratorKernel.js
  * Purpose: Calculates a standardized performance metric [0.0, 1.0] by applying weighted penalties
  * to deviations from optimal audit metrics (1.0). This metric feeds into the Trust Matrix.
- * 
- * Uses StructuralSchemaValidatorTool for input validation and the emergent 
- * WeightedDeviationScorer plugin for metric calculation.
+ *
+ * Refactored to adhere to kernel architecture: asynchronous operation, configuration separation,
+ * and formalized dependency injection.
  */
 
-// Define the shape of audit data for type safety
+// Defining required interfaces for clarity (assuming injection of implementations)
+
 interface AuditData {
     complianceScore: number;
     violationCount: number;
     efficiencyScore: number;
 }
 
-// Type declarations for assumed global tool interfaces (simulating imports)
-declare const StructuralSchemaValidatorTool: {
-    validate: (data: any, schema: any) => { isValid: boolean, errors: string[] };
-};
+// Assumed types for Registry Kernels (must be defined elsewhere)
+interface MetricWeightsConfig {
+    COMPLIANCE_DEVIATION_WEIGHT: number;
+    EFFICIENCY_DEVIATION_WEIGHT: number;
+    POLICY_VIOLATION_PENALTY: number;
+}
 
-declare const WeightedDeviationScorer: {
-    execute: (args: {
-        baseScore?: number,
-        weightedDeviations?: { score: number, weight: number }[],
-        fixedPenalties?: { count: number, penaltyPerCount: number }[]
-    }) => number;
-};
+interface IMetricWeightsConfigRegistryKernel {
+    getMetricWeights(): Promise<MetricWeightsConfig>;
+}
 
+interface IPerformanceMetricSchemaRegistryKernel {
+    getAuditDataSchema(): Promise<object>;
+}
 
-class PerformanceMetricGenerator {
+// Assumed standard governance interfaces
+declare const ISpecValidatorKernel: any; // Available via ACTIVE_TOOLS
+declare const ILoggerToolKernel: any; // Standard Tool Kernel
+
+// Tool Kernel defined in plugin output
+declare const IWeightedDeviationScorerToolKernel: any;
+
+interface PerformanceMetricGeneratorDependencies {
+    specValidatorKernel: ISpecValidatorKernel;
+    weightsRegistry: IMetricWeightsConfigRegistryKernel;
+    schemaRegistry: IPerformanceMetricSchemaRegistryKernel;
+    scorerToolKernel: IWeightedDeviationScorerToolKernel;
+    logger: ILoggerToolKernel; 
+}
+
+class PerformanceMetricGeneratorKernel {
     
-    /**
-     * Standard configuration for governing the impact of audit data deviations.
-     * Weights represent the maximum impact on the final score (0.0 to 1.0) for a full deviation.
-     */
-    static DEFAULT_WEIGHTS = {
-        // Max negative impact if complianceScore is 0.0 (e.g., score reduction of up to 0.4)
-        COMPLIANCE_DEVIATION_WEIGHT: 0.4,
-        
-        // Max negative impact if efficiencyScore is 0.0 (e.g., score reduction of up to 0.3)
-        EFFICIENCY_DEVIATION_WEIGHT: 0.3,
-        
-        // Fixed deduction applied per discrete policy violation instance
-        POLICY_VIOLATION_PENALTY: 0.15
-    };
+    private weights: MetricWeightsConfig;
+    private auditDataSchema: object;
 
-    /**
-     * Defines the expected structure and constraints for audit data input validation.
-     */
-    static AUDIT_DATA_SCHEMA = {
-        complianceScore: { type: 'number', min: 0.0, max: 1.0, required: true },
-        efficiencyScore: { type: 'number', min: 0.0, max: 1.0, required: true },
-        // violationCount must be a non-negative integer
-        violationCount: { type: 'number', min: 0, integer: true, required: true } 
-    };
+    private readonly specValidatorKernel: ISpecValidatorKernel;
+    private readonly weightsRegistry: IMetricWeightsConfigRegistryKernel;
+    private readonly schemaRegistry: IPerformanceMetricSchemaRegistryKernel;
+    private readonly scorerToolKernel: IWeightedDeviationScorerToolKernel;
+    private readonly logger: ILoggerToolKernel;
 
-    private weights: typeof PerformanceMetricGenerator.DEFAULT_WEIGHTS;
+    constructor(deps: PerformanceMetricGeneratorDependencies) {
+        this.#setupDependencies(deps);
+    }
 
-    /**
-     * @param {Object} [config={}] - Optional configuration overrides for weight distribution.
-     */
-    constructor(config: Partial<typeof PerformanceMetricGenerator.DEFAULT_WEIGHTS> = {}) {
-        this.weights = { ...PerformanceMetricGenerator.DEFAULT_WEIGHTS, ...config };
+    #setupDependencies(deps: PerformanceMetricGeneratorDependencies): void {
+        if (!deps.specValidatorKernel || !deps.weightsRegistry || !deps.schemaRegistry || !deps.scorerToolKernel || !deps.logger) {
+            throw new Error("Missing required dependencies for PerformanceMetricGeneratorKernel.");
+        }
+        this.specValidatorKernel = deps.specValidatorKernel;
+        this.weightsRegistry = deps.weightsRegistry;
+        this.schemaRegistry = deps.schemaRegistry;
+        this.scorerToolKernel = deps.scorerToolKernel;
+        this.logger = deps.logger;
+    }
+
+    async initialize(): Promise<void> {
+        try {
+            [this.weights, this.auditDataSchema] = await Promise.all([
+                this.weightsRegistry.getMetricWeights(),
+                this.schemaRegistry.getAuditDataSchema()
+            ]);
+            this.logger.debug("PerformanceMetricGeneratorKernel initialized successfully.");
+        } catch (error) {
+            this.logger.error("Failed to load critical configuration or schema during initialization.", error);
+            throw new Error("Initialization failed: Required governance configurations are missing.");
+        }
     }
 
     /**
      * Synthesizes a unified trust metric based on recent operational performance data.
-     * 
-     * @param {string} actorId - The ID of the component being audited.
-     * @param {Partial<AuditData>} auditData - Aggregated and normalized data points for a specific actor.
-     * @returns {number} The calculated performance metric between 0.0 and 1.0.
+     * @param actorId - The ID of the component being audited.
+     * @param auditData - Aggregated and normalized data points for a specific actor.
+     * @returns A Promise resolving to the calculated performance metric between 0.0 and 1.0.
      */
-    generateMetric(actorId: string, auditData: Partial<AuditData>): number {
+    async generateMetric(actorId: string, auditData: Partial<AuditData>): Promise<number> {
         
         // 1. Apply defaults
         const defaultedData: AuditData = {
@@ -80,16 +99,17 @@ class PerformanceMetricGenerator {
             efficiencyScore: auditData.efficiencyScore ?? 1.0,
         };
 
-        // 2. Validation using StructuralSchemaValidatorTool
-        const validationResult = StructuralSchemaValidatorTool.validate(defaultedData, PerformanceMetricGenerator.AUDIT_DATA_SCHEMA);
+        // 2. Validation using ISpecValidatorKernel
+        const validationResult = await this.specValidatorKernel.validate(defaultedData, this.auditDataSchema);
         
         if (!validationResult.isValid) {
+            this.logger.warn(`Audit Data Validation Failed for actor ${actorId}. Errors: ${validationResult.errors.join('; ')}`);
             throw new Error(`Audit Data Validation Failed for actor ${actorId}: ${validationResult.errors.join('; ')}`);
         }
         
         const { complianceScore, violationCount, efficiencyScore } = defaultedData;
 
-        // 3. Calculation using the WeightedDeviationScorer plugin
+        // 3. Calculation using the IWeightedDeviationScorerToolKernel
         
         const scoringArguments = {
             baseScore: 1.0,
@@ -98,9 +118,9 @@ class PerformanceMetricGenerator {
                     score: complianceScore, 
                     weight: this.weights.COMPLIANCE_DEVIATION_WEIGHT 
                 },
-                { 
-                    score: efficiencyScore, 
-                    weight: this.weights.EFFICIENCY_DEVIATION_WEIGHT 
+                {
+                    score: efficiencyScore,
+                    weight: this.weights.EFFICIENCY_DEVIATION_WEIGHT
                 }
             ],
             fixedPenalties: [
@@ -111,8 +131,8 @@ class PerformanceMetricGenerator {
             ]
         };
 
-        return WeightedDeviationScorer.execute(scoringArguments);
+        return this.scorerToolKernel.execute(scoringArguments);
     }
 }
 
-module.exports = PerformanceMetricGenerator;
+module.exports = PerformanceMetricGeneratorKernel;
