@@ -8,12 +8,12 @@
 const { executeKernelTool } = require('./KernelToolAdapter'); 
 
 // Specific mapping of ACVD keys to definition containers.
-const ACVD_DEFINITION_MAPPING = {
+const ACVD_DEFINITION_MAPPING = Object.freeze({
     targetInfrastructureKey: 'infrastructureTargets',
     verificationPipelineKey: 'verificationPipelines',
     preflightCheckKey: 'preflightChecks',
     deploymentStrategyKey: 'deploymentStrategies'
-};
+});
 
 const RESOLVER_TOOL_NAME = 'HierarchicalConfigResolver';
 
@@ -27,8 +27,8 @@ const RESOLVER_TOOL_NAME = 'HierarchicalConfigResolver';
 function resolveProfile(profileName, mapData) {
     
     const payload = {
-        profileName: profileName,
-        mapData: mapData,
+        profileName,
+        mapData,
         keyResolutionMap: ACVD_DEFINITION_MAPPING
     };
     
