@@ -1,18 +1,13 @@
 /**
- * DSCM (Decisional State Checkpoint Manager)
+ * DSCM (Decisional State Checkpoint Manager Kernel)
  * Role: Manages atomic, verifiable state capture prior to P-01 Calculus execution.
  * Activated: Boundary between GSEP Stage 3 and Stage 4 (Verification Boundary).
  */
 
-import { MICM_Input } from './MICM';
-import { IHasher } from '../system/interfaces/IHasher'; // Injected dependency
-
-/**
- * Interface for executing Kernel plugins.
- */
-interface IPluginExecutor {
-    execute(interfaceName: string, args: any): any;
-}
+import { MICM_Input } from './MICM'; // Assumed dependency interface
+import { HashIntegrityCheckerToolKernel } from '../tools/HashIntegrityCheckerToolKernel';
+import { ILoggerToolKernel } from '../logging/ILoggerToolKernel';
+import { IChronologyFilterToolKernel } from '../tools/IChronologyFilterToolKernel'; // Newly formalized dependency
 
 /**
  * Interface representing the key calculation context locked down at time of decision boundary.
@@ -34,32 +29,53 @@ interface DSCM_StateSnapshot {
     snapshot_hash: string;         // Immutable cryptographic hash of the entire checkpoint data structure
 }
 
-export class DecisionalStateCheckpointManager {
+export class DecisionalStateCheckpointManagerKernel {
 
     private checkpointHistory: DSCM_StateSnapshot[] = [];
-    private readonly hasher: IHasher;
-    private readonly pluginExecutor: IPluginExecutor; 
+    private readonly hasher: HashIntegrityCheckerToolKernel;
+    private readonly chronologyFilter: IChronologyFilterToolKernel; 
+    private readonly logger: ILoggerToolKernel;
     
     /**
-     * Initializes the DSCM, requiring an injected Hashing Utility and Plugin Executor.
-     * @param hasher Utility conforming to IHasher.
-     * @param pluginExecutor Utility conforming to IPluginExecutor for core utilities.
+     * Initializes the DSCM Kernel, requiring injected strategic kernel dependencies.
      */
-    constructor(hasher: IHasher, pluginExecutor: IPluginExecutor) {
+    constructor(
+        hasher: HashIntegrityCheckerToolKernel,
+        chronologyFilter: IChronologyFilterToolKernel,
+        logger: ILoggerToolKernel
+    ) {
         this.hasher = hasher;
-        this.pluginExecutor = pluginExecutor;
+        this.chronologyFilter = chronologyFilter;
+        this.logger = logger;
+        this.#setupDependencies();
+    }
+
+    /**
+     * Ensures all required dependencies are present and correctly structured.
+     * @private
+     */
+    #setupDependencies(): void {
+        if (!this.hasher || typeof this.hasher.hash !== 'function') {
+            throw new Error("DecisionalStateCheckpointManagerKernel requires a valid HashIntegrityCheckerToolKernel.");
+        }
+        if (!this.chronologyFilter || typeof this.chronologyFilter.filterByCutoff !== 'function') {
+            throw new Error("DecisionalStateCheckpointManagerKernel requires a valid IChronologyFilterToolKernel.");
+        }
+        if (!this.logger) {
+            throw new Error("DecisionalStateCheckpointManagerKernel requires a valid ILoggerToolKernel.");
+        }
     }
 
     /**
      * Takes an immutable, time-stamped checkpoint of the entire P-01 calculation context.
-     * This ensures F-01 (Failure Trace) can accurately trace the exact state leading to the decision.
+     * Ensures F-01 (Failure Trace) can accurately trace the exact state leading to the decision.
      * @param input Data locked by MICM.
      * @param telemetryHash Telemetry/Sensor input attestation hash (from TIAR).
      * @returns The generated DSCM state snapshot object.
      */
-    public createCheckpoint(input: MICM_Input, telemetryHash: string): DSCM_StateSnapshot {    
-        // 1. Lock down input data integrity
-        const checksum_micm = this.hasher.hash(input);
+    public async createCheckpoint(input: MICM_Input, telemetryHash: string): Promise<DSCM_StateSnapshot> {    
+        // 1. Lock down input data integrity (Asynchronous hashing)
+        const checksum_micm = await this.hasher.hash(input);
 
         // 2. Define Context
         const calculation_context: CalculationContext = {
@@ -71,22 +87,25 @@ export class DecisionalStateCheckpointManager {
         // Capture time as high-fidelity ISO string for precise auditing
         const timestamp_utc = new Date().toISOString(); 
         
-        // 3. Create provisional snapshot structure (everything needed for hashing)
+        // 3. Create provisional snapshot structure
         const provisionalSnapshot: Omit<DSCM_StateSnapshot, 'snapshot_hash'> = {
             checksum_micm,
             calculation_context,
             timestamp_utc
         };
 
-        // 4. Generate final definitive hash based on the entire structure 
-        const snapshot_hash = this.hasher.hash(provisionalSnapshot);
+        // 4. Generate final definitive hash based on the entire structure (Asynchronous hashing)
+        const snapshot_hash = await this.hasher.hash(provisionalSnapshot);
         
         const snapshot: DSCM_StateSnapshot = {
             ...provisionalSnapshot,
             snapshot_hash
         };
 
+        // Note: Checkpoint storage is a local operation, so synchronous push is acceptable.
         this.checkpointHistory.push(snapshot);
+        this.logger.debug(`DSCM Checkpoint created successfully: ${snapshot_hash}`);
+
         return snapshot;
     }
 
@@ -94,7 +113,8 @@ export class DecisionalStateCheckpointManager {
      * Retrieves a specific checkpoint using its verified cryptographic hash.
      * @param hash The snapshot_hash identifier.
      */
-    public retrieveSnapshot(hash: string): DSCM_StateSnapshot | undefined {
+    public async retrieveSnapshot(hash: string): Promise<DSCM_StateSnapshot | undefined> {
+        // Wrapping local array search in async for architectural consistency
         return this.checkpointHistory.find(s => s.snapshot_hash === hash);
     }
 
@@ -104,27 +124,36 @@ export class DecisionalStateCheckpointManager {
      * @param snapshot The snapshot object to verify.
      * @returns True if the hash matches the content, false otherwise.
      */
-    public verifySnapshot(snapshot: DSCM_StateSnapshot): boolean {
+    public async verifySnapshot(snapshot: DSCM_StateSnapshot): Promise<boolean> {
         const { snapshot_hash, ...provisional } = snapshot;
         
-        // Requires deterministic serialization by the IHasher implementation.
-        const recalculatedHash = this.hasher.hash(provisional);
+        // Requires deterministic serialization by the Hashing Kernel.
+        const recalculatedHash = await this.hasher.hash(provisional);
         
         return recalculatedHash === snapshot_hash;
     }
 
     /**
      * Clears local history based on a minimum required timestamp (ISO 8601 string).
-     * Snapshots committed to D-01 or successfully resolved by F-01 should be pruned locally.
-     * Now delegates time comparison and filtering to the ISOChronologyFilter plugin.
+     * Delegates time comparison and filtering to the IChronologyFilterToolKernel.
      * @param cutoffIsoDate UTC ISO 8601 timestamp string defining the cutoff point.
      */
-    public purgeStaleSnapshots(cutoffIsoDate: string): void {
+    public async purgeStaleSnapshots(cutoffIsoDate: string): Promise<void> {
+        this.logger.info(`Initiating DSCM purge for snapshots older than ${cutoffIsoDate}.`);
         
-        this.checkpointHistory = this.pluginExecutor.execute('ISOChronologyFilter', {
-            data: this.checkpointHistory,
-            timestampKey: 'timestamp_utc',
-            cutoffIsoDate: cutoffIsoDate
-        }) as DSCM_StateSnapshot[];
+        const initialCount = this.checkpointHistory.length;
+        
+        const filteredHistory = await this.chronologyFilter.filterByCutoff(
+            this.checkpointHistory,
+            'timestamp_utc',
+            cutoffIsoDate
+        );
+        
+        this.checkpointHistory = filteredHistory as DSCM_StateSnapshot[];
+
+        const purgedCount = initialCount - this.checkpointHistory.length;
+        if (purgedCount > 0) {
+            this.logger.info(`DSCM successfully purged ${purgedCount} stale snapshots.`);
+        }
     }
 }
