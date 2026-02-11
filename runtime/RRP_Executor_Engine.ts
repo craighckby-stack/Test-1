@@ -10,42 +10,12 @@ interface RRPTrigger {
   actions: RRPAction[];
 }
 
-// --- Plugin Integration Definitions ---
 /**
- * Interface reflecting the contract of the RecoveryActionExecutor plugin.
+ * Interface reflecting the contract of the RRP Action Processor plugin.
  */
-interface IRecoveryActionExecutor {
-    execute(args: { action: RRPAction }): Promise<{ success: boolean; message: string; [key: string]: any }>;
+interface IRRPActionProcessor {
+    process(action: RRPAction): Promise<void>;
 }
-
-/**
- * Utility class to manage and delegate RRP actions to the external plugin.
- */
-class RecoveryActionWrapper {
-    private tool: IRecoveryActionExecutor;
-    
-    constructor() {
-        // Simulation of tool retrieval and instantiation.
-        this.tool = {
-            execute: async (args) => {
-                // This calls the underlying vanilla JS plugin code dynamically.
-                console.log(`[RRP Tool Call] Delegating action to RecoveryActionExecutor: ${args.action.type}`);
-                
-                // In a true implementation, we would execute the compiled JS function
-                // For TypeScript compilation integrity, we simulate the success path.
-                return { success: true, message: "Simulated execution success via plugin." };
-            }
-        } as IRecoveryActionExecutor;
-    }
-
-    public async process(action: RRPAction): Promise<void> {
-        const result = await this.tool.execute({ action });
-        if (!result.success) {
-            console.error(`RRP Action failed via tool: ${result.message}`, action);
-        } 
-    }
-}
-// ----------------------------------------
 
 /**
  * RRP_Executor_Engine:
@@ -55,11 +25,12 @@ class RecoveryActionWrapper {
  */
 class RRPExecutorEngine {
   private policies: Record<string, RRPTrigger>;
-  private actionProcessor: RecoveryActionWrapper;
+  private actionProcessor: IRRPActionProcessor;
 
-  constructor(policyDefinition: Record<string, RRPTrigger>) {
+  constructor(policyDefinition: Record<string, RRPTrigger>, actionProcessor: IRRPActionProcessor) {
     this.policies = policyDefinition;
-    this.actionProcessor = new RecoveryActionWrapper();
+    // Dependency Injection: Rely on the abstracted processor interface
+    this.actionProcessor = actionProcessor;
   }
 
   public async executeTrigger(hookName: keyof typeof this.policies): Promise<void> {
