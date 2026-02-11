@@ -70,14 +70,14 @@ export class CodeMetricProvider {
     }
     
     /** Simple simulation helper based on complexity until full integration. */
-    _simulateMetrics(code: string): Promise<CodeMetrics> {
+    _simulateMetrics(code: string): CodeMetrics { // Changed return type from Promise<CodeMetrics>
         const loc = code.split('\n').length;
         const randomness = Math.sin(loc * 0.01) * 0.15 + 0.1;
-        return Promise.resolve({
+        return {
             cyclomaticComplexity: 8 + Math.floor(randomness * 10),
             maintainabilityIndex: 0.7 - randomness, // Tends to be higher if lines are fewer
             couplingDegree: 3 + Math.floor(randomness * 5),
             linesOfCode: loc
-        });
+        }; // Removed redundant Promise.resolve()
     }
 }
