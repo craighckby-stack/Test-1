@@ -1,64 +1,77 @@
 import { ITelemetryService } from '../Plugins/Telemetry/ITelemetryService';
 
+// Standard no-operation function to use as a fallback executor.
+const NO_OP = () => {};
+
 /**
  * Service implementation for Google Analytics (or equivalent GA-like backend).
  * Assumes the GA tracking script (analytics.js or gtag.js) is loaded globally.
+ * @implements {ITelemetryService}
  */
-export class GAXTelemetryService implements ITelemetryService {
-    private trackingId: string | null = null;
-    private isEnabled: boolean = false;
-    
-    // Utility to ensure the GA function exists globally before calling
-    private get ga(): (...args: any[]) => void {
-        if (typeof window === 'undefined' || typeof (window as any).ga !== 'function') {
-            if (this.isEnabled) {
-                console.warn('Telemetry: GA function (window.ga) not found. Tracking commands ignored.');
-            }
-            return () => {}; // Return no-op function if not available
+export class GAXTelemetryService {
+    #trackingId = null;
+    #isEnabled = false;
+    // Stores the resolved GA function (window.ga) or the NO_OP fallback.
+    #gaExecutor = NO_OP; 
+
+    /**
+     * Helper to resolve the global GA function reference.
+     * @returns {function} The window.ga function or a NO_OP function.
+     */
+    #resolveGAFunction() {
+        if (typeof window !== 'undefined' && typeof window.ga === 'function') {
+            return window.ga;
         }
-        return (window as any).ga;
+        return NO_OP;
     }
 
     /**
      * Initializes the GA tracker.
-     * @param config - Must include trackingId.
+     * @param {{ trackingId: string, enabled: boolean }} config - Configuration object.
+     * @returns {Promise<void>}
      */
-    async init(config: { trackingId: string, enabled: boolean }): Promise<void> {
-        this.trackingId = config.trackingId;
-        this.isEnabled = config.enabled;
+    async init(config) {
+        this.#trackingId = config.trackingId;
+        this.#isEnabled = config.enabled;
 
-        if (!this.isEnabled) {
-            console.log(`Telemetry Service (GAX) initialized but disabled.`);
+        if (!this.#isEnabled) {
+            console.log(`[GAXTelemetryService] Initialized but disabled.`);
             return;
         }
         
-        if (!this.trackingId) {
-            console.error('GAXTelemetryService requires a trackingId.');
-            this.isEnabled = false;
+        if (!this.#trackingId) {
+            console.error('[GAXTelemetryService Setup Error] A trackingId is required.');
+            this.#isEnabled = false;
             return;
         }
 
+        // Resolve dependency once upon initialization
+        this.#gaExecutor = this.#resolveGAFunction();
+
+        if (this.#gaExecutor === NO_OP) {
+            console.warn('[GAXTelemetryService Warning] Global GA function (window.ga) not found. Tracking commands will be ignored.');
+        }
+
         // Initialize GA tracker
-        this.ga('create', this.trackingId, 'auto');
-        console.info(`Telemetry Service (GAX) initialized for ID: ${this.trackingId}`);
+        this.#gaExecutor('create', this.#trackingId, 'auto');
+        console.info(`[GAXTelemetryService] Initialized successfully for ID: ${this.#trackingId}.`);
     }
 
     /**
      * Tracks a page view event.
      */
-    trackPageView(path: string, properties?: Record<string, any>): void {
-        if (!this.isEnabled) return;
+    trackPageView(path, properties = {}) {
+        if (!this.#isEnabled) return;
         
-        this.ga('set', { page: path, ...properties });
-        this.ga('send', 'pageview');
+        this.#gaExecutor('set', { page: path, ...properties });
+        this.#gaExecutor('send', 'pageview');
     }
 
     /**
      * Tracks a specific user action or custom event using GA's event model.
-     * Maps generic properties to GA's required (category, action, label, value).
      */
-    trackEvent(eventName: string, properties: Record<string, any>): void {
-        if (!this.isEnabled) return;
+    trackEvent(eventName, properties) {
+        if (!this.#isEnabled) return;
         
         const category = properties.category || 'App Interaction';
         const action = eventName;
@@ -66,20 +79,20 @@ export class GAXTelemetryService implements ITelemetryService {
         // Value must be an integer in GA
         const value = properties.value ? parseInt(properties.value, 10) : 0;
 
-        this.ga('send', 'event', category, action, label, value);
+        this.#gaExecutor('send', 'event', category, action, label, value);
     }
     
     /**
      * Identifies the current user by setting the GA User ID.
      */
-    identify(userId: string, traits?: Record<string, any>): void {
-        if (!this.isEnabled) return;
+    identify(userId, traits) {
+        if (!this.#isEnabled) return;
 
-        this.ga('set', 'userId', userId); 
+        this.#gaExecutor('set', 'userId', userId); 
         
         // In a complex implementation, traits would map to custom dimensions.
         if (traits) {
-            // Example: this.ga('set', 'dimension1', traits.accountType);
+            // Example: this.#gaExecutor('set', 'dimension1', traits.accountType);
         }
     }
 }
