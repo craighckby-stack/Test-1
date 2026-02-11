@@ -1,122 +1,158 @@
 /**
- * Component ID: RCE
- * Name: Resource Constraint Evaluator
- * Function: Provides dynamic, real-time operational context (e.g., CPU load, I/O latency, memory pressure)
- *           to the MCRA Engine (C-11) by calculating a weighted Constraint Factor derived from tunable thresholds.
+ * Component ID: RCEK
+ * Name: Resource Constraint Evaluator Kernel
+ * Function: Provides dynamic, asynchronous, real-time operational context
+ *           (Constraint Factor) to the MCRA Engine (C-11) based on governed thresholds.
  * GSEP Alignment: Stage 3 (P-01 Input)
- * Refactor V94.1: Introduced non-linear (squared deviation) penalty scaling and enhanced structural reporting.
+ * Architectural Compliance: Fully asynchronous, maximum recursive abstraction achieved.
  */
 
-// Define types for clarity in TypeScript
-interface ConstraintConfig {
-    threshold: number;
-    weight: number;
-    severity_boost: number;
-}
+/**
+ * @typedef {Object} ConstraintConfig
+ * @property {number} threshold
+ * @property {number} weight
+ * @property {number} severity_boost
+ */
 
-interface RawMetrics {
-    cpu_util: number;
-    memory_used_ratio: number;
-    io_wait_factor: number;
-    [key: string]: number;
-}
+/**
+ * @typedef {Object} RawMetrics
+ * @property {number} cpu_util Normalized CPU utilization (0.0 to 1.0).
+ * @property {number} memory_used_ratio Normalized memory usage ratio (0.0 to 1.0).
+ * @property {number} io_wait_factor Normalized I/O wait factor (0.0 to 1.0).
+ */
 
-interface TriggerDetail {
-    metric: string;
-    value: number;
-    threshold: number;
-    weight: number;
-    penalty_contribution: number;
-    type: 'CRITICAL' | 'PROXIMITY';
-}
+/**
+ * @typedef {Object} TriggerDetail
+ * @property {string} metric
+ * @property {number} value
+ * @property {number} threshold
+ * @property {number} weight
+ * @property {number} penalty_contribution
+ * @property {'CRITICAL' | 'PROXIMITY'} type
+ */
 
-interface ScoreData {
-    score: number;
-    triggers: TriggerDetail[];
-}
+/**
+ * @typedef {Object} ScoreData
+ * @property {number} score The aggregate constraint factor (0.0 to 1.0).
+ * @property {TriggerDetail[]} triggers Detailed list of triggered constraints.
+ */
 
-const DEFAULT_CONSTRAINTS: Record<string, ConstraintConfig> = {
+const DEFAULT_CONSTRAINTS = {
     // Note: Metrics are expected to be normalized ratios (0.0 to 1.0)
     cpu_util: { threshold: 0.85, weight: 0.40, severity_boost: 2.0 }, 
     memory_used_ratio: { threshold: 0.90, weight: 0.50, severity_boost: 3.0 }, // Higher penalty for memory, critical path resource
     io_wait_factor: { threshold: 0.60, weight: 0.10, severity_boost: 1.5 }
 };
 
-// Proximity constants are now internalized within the WeightedConstraintScorer plugin logic.
+class ResourceConstraintEvaluatorKernel {
+    /** @type {GovernanceHealthConfigRegistryKernel} */
+    #configRegistry;
+    /** @type {IExternalMetricExecutionToolKernel} */
+    #metricFetcher;
+    /** @type {IGovernanceConstraintEvaluatorToolKernel} */
+    #constraintEvaluator;
+    /** @type {MultiTargetAuditDisperserToolKernel} */
+    #auditDisperser;
 
-class ResourceConstraintEvaluator {
-    private metricsService: any;
-    private config: Record<string, ConstraintConfig>;
+    #isInitialized = false;
 
     /**
-     * @param {Object} metricsService Dependency injected service for system metrics access.
-     * @param {Object} [constraintsConfig] Optional configuration, ideally sourced from RuntimeThresholdManager (RTM).
+     * @param {Object} dependencies
+     * @param {GovernanceHealthConfigRegistryKernel} dependencies.GovernanceHealthConfigRegistryKernel 
+     * @param {IExternalMetricExecutionToolKernel} dependencies.IExternalMetricExecutionToolKernel 
+     * @param {IGovernanceConstraintEvaluatorToolKernel} dependencies.IGovernanceConstraintEvaluatorToolKernel
+     * @param {MultiTargetAuditDisperserToolKernel} dependencies.MultiTargetAuditDisperserToolKernel
      */
-    constructor(metricsService: any, constraintsConfig: Record<string, ConstraintConfig> = {}) {
-        if (!metricsService) {
-            throw new Error("MetricsService dependency is required for RCE.");
+    constructor({
+        GovernanceHealthConfigRegistryKernel: configRegistry,
+        IExternalMetricExecutionToolKernel: metricFetcher,
+        IGovernanceConstraintEvaluatorToolKernel: constraintEvaluator,
+        MultiTargetAuditDisperserToolKernel: auditDisperser
+    }) {
+        if (!configRegistry || !metricFetcher || !constraintEvaluator || !auditDisperser) {
+            throw new Error("RCEK: Mandatory tool kernels missing.");
         }
-        this.metricsService = metricsService;
-        // Merge configuration for current operational context.
-        this.config = {
-            ...DEFAULT_CONSTRAINTS,
-            ...constraintsConfig
-        };
+        this.#configRegistry = configRegistry;
+        this.#metricFetcher = metricFetcher;
+        this.#constraintEvaluator = constraintEvaluator;
+        this.#auditDisperser = auditDisperser;
     }
 
     /**
-     * Internal utility to gather all raw metrics.
-     * Maps heterogeneous service outputs to a standardized, flat metric structure (0.0 to 1.0).
-     * @returns {RawMetrics} Normalized raw metrics.
+     * Asynchronously initializes the kernel, registering default constraints.
+     * @returns {Promise<void>}
      */
-    private _fetchRawMetrics(): RawMetrics {
+    async initialize() {
+        await this.#configRegistry.registerDefaults('resourceConstraints', DEFAULT_CONSTRAINTS);
+        this.#isInitialized = true;
+    }
+
+    /**
+     * Internal utility to asynchronously gather and normalize raw operational metrics.
+     * Replaces synchronous metricsService access.
+     * @returns {Promise<RawMetrics>} Normalized raw metrics.
+     */
+    async #fetchRawMetrics() {
+        if (!this.#isInitialized) throw new Error("Kernel must be initialized before fetching metrics.");
+        
         try {
-            const load = this.metricsService.getCurrentLoad();
-            const memory = this.metricsService.getMemoryPressure();
-            const iowait = this.metricsService.getIOWaitFactor();
+            // Use the Metric Execution Tool to fetch a standardized set of metrics (0.0 to 1.0 ratios).
+            const metrics = await this.#metricFetcher.execute({
+                metricSetId: 'OPERATIONAL_CONTEXT_METRICS',
+                scope: 'SYSTEM_HEALTH'
+            });
 
-            return {
-                // Use nullish coalescing to safely default to 0 if sub-properties are missing
-                cpu_util: load?.cpu_util ?? 0,
-                memory_used_ratio: memory?.used_ratio ?? 0,
-                io_wait_factor: iowait?.iowait_factor ?? 0
+            /** @type {RawMetrics} */
+            const normalizedMetrics = {
+                cpu_util: metrics?.cpu_util ?? 0,
+                memory_used_ratio: metrics?.memory_used_ratio ?? 0,
+                io_wait_factor: metrics?.io_wait_factor ?? 0
             };
-        } catch (error: any) {
-            console.error("[RCE] Metric Fetch Critical Error:", error.message);
-            // Return zeroed metrics if the underlying service fails, ensuring a safety default.
-            return {
-                cpu_util: 0,
-                memory_used_ratio: 0,
-                io_wait_factor: 0
-            };
+            
+            return normalizedMetrics;
+
+        } catch (error) {
+            await this.#auditDisperser.logAudit({
+                level: 'CRITICAL',
+                message: `[RCEK] Metric Fetch Critical Error: ${error.message}`,
+                data: { error_stack: error.stack }
+            });
+            // Return safety default metrics (zero) if the underlying service fails.
+            return { cpu_util: 0, memory_used_ratio: 0, io_wait_factor: 0 };
         }
     }
 
     /**
-     * Delegates quantification of raw metrics to the external WeightedConstraintScorer plugin.
+     * Delegates quantification of raw metrics to the Governance Constraint Evaluator Tool.
      * @param {RawMetrics} rawMetrics - Flattened current system metrics.
-     * @returns {ScoreData} Calculated score and detailed list of triggered constraints.
+     * @returns {Promise<ScoreData>} Calculated score and detailed list of triggered constraints.
      */
-    private _calculateAggregateConstraintScore(rawMetrics: RawMetrics): ScoreData {
-        // Execute the extracted, specialized scoring logic via the Kernel tool interface.
-        const scoreData = DeepStateIntegrityTool.execute({
-            toolName: 'WeightedConstraintScorer',
-            args: {
-                rawMetrics: rawMetrics,
-                config: this.config
-            }
+    async #calculateAggregateConstraintScore(rawMetrics) {
+        // Fetch current active constraints (configuration is asynchronous via registry)
+        const config = await this.#configRegistry.get('resourceConstraints');
+        
+        /** @type {ScoreData} */
+        const scoreData = await this.#constraintEvaluator.evaluateConstraintScore({
+            metrics: rawMetrics,
+            constraints: config,
+            // Enforce non-linear scaling as mandated by Refactor V94.1
+            calculationMode: 'NON_LINEAR_WEIGHTED_DEVIATION' 
         });
         
-        return scoreData as ScoreData;
+        return scoreData;
     }
 
     /**
      * Gathers current environmental constraints and quantifies them into a contextual overhead metric.
-     * @returns {{constraintMetric: number, triggeredConstraints: TriggerDetail[], details: RawMetrics}} 
+     * @returns {Promise<{constraintMetric: number, triggeredConstraints: TriggerDetail[], details: RawMetrics}>} 
      */
-    public getOperationalContext() {
-        const rawMetrics = this._fetchRawMetrics();
-        const scoreData = this._calculateAggregateConstraintScore(rawMetrics);
+    async getOperationalContext() {
+        if (!this.#isInitialized) {
+            throw new Error("ResourceConstraintEvaluatorKernel is not initialized.");
+        }
+
+        const rawMetrics = await this.#fetchRawMetrics();
+        const scoreData = await this.#calculateAggregateConstraintScore(rawMetrics);
 
         return {
             constraintMetric: parseFloat(scoreData.score.toFixed(4)), // Normalized factor (0.0 to 1.0)
@@ -127,11 +163,12 @@ class ResourceConstraintEvaluator {
 
     /**
      * Primary interface for the MCRA Engine (C-11).
-     * @returns {number} A normalized factor (0.0 to 1.0) representing current resource scarcity/instability.
+     * @returns {Promise<number>} A normalized factor (0.0 to 1.0) representing current resource scarcity/instability.
      */
-    public getConstraintFactor(): number {
-        return this.getOperationalContext().constraintMetric;
+    async getConstraintFactor() {
+        const context = await this.getOperationalContext();
+        return context.constraintMetric;
     }
 }
 
-export = ResourceConstraintEvaluator;
+module.exports = ResourceConstraintEvaluatorKernel;
