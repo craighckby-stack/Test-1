@@ -1,3 +1,52 @@
+/**
+ * NOTE: This implementation assumes the surrounding code defines a class
+ * 'ConstraintAdherenceValidator' and these methods are part of its prototype.
+ */
+
+/**
+ * Standardizes the output of a single constraint check into a structured violation object or null if adherent.
+ * Extracted from validate() to improve method readability and encapsulation.
+ * 
+ * @param {string} code 
+ * @param {object} constraintDef 
+ * @param {object | null} adherenceCheck 
+ * @param {Error | null} error 
+ * @returns {object | null}
+ */
+_standardizeConstraintResult(code, constraintDef, adherenceCheck, error) {
+    // Use destructuring with defaults
+    const {
+        target_parameter: target = 'N/A',
+        severity: defSeverity = 'MAJOR'
+    } = constraintDef;
+
+    if (error) {
+        return {
+            code: `${code}_RUNTIME_ERROR`,
+            severity: 'CRITICAL',
+            details: `Unexpected execution error during constraint ${code}: ${error.message}`
+        };
+    }
+
+    if (adherenceCheck?.isMet === false) {
+        const failureDetails = adherenceCheck.details || `Adherence rule failed for code: ${code}.`;
+        return { code, target, severity: defSeverity, details: failureDetails };
+    }
+
+    if (adherenceCheck === undefined || adherenceCheck === null) {
+        // Service failure or invalid response
+        return {
+            code: `${code}_SERVICE_FAIL`,
+            target: target,
+            severity: 'CRITICAL',
+            details: `Service returned an invalid or null response for constraint check: ${code}`
+        };
+    }
+
+    return null; // Adherent
+}
+
+
 async validate(configuration, requiredConstraintCodes) {
     const SERVICE_KEY = 'ConstraintExecutionService';
     const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
@@ -7,41 +56,6 @@ async validate(configuration, requiredConstraintCodes) {
         isAdherent: false,
         violations: [{ code, severity: 'CRITICAL', details }]
     });
-
-    // LOGIC EXTRACTED TO PLUGIN: Standardizes constraint check output into a violation object or null.
-    const processConstraintResult = (code, constraintDef, adherenceCheck, error) => {
-        // Use destructuring with defaults
-        const {
-            target_parameter: target = 'N/A',
-            severity: defSeverity = 'MAJOR'
-        } = constraintDef;
-
-        if (error) {
-            return {
-                code: `${code}_RUNTIME_ERROR`,
-                severity: 'CRITICAL',
-                details: `Unexpected execution error during constraint ${code}: ${error.message}`
-            };
-        }
-
-        if (adherenceCheck?.isMet === false) {
-            const failureDetails = adherenceCheck.details || `Adherence rule failed for code: ${code}.`;
-            return { code, target, severity: defSeverity, details: failureDetails };
-        }
-
-        if (adherenceCheck === undefined || adherenceCheck === null) {
-            // Service failure or invalid response
-            return {
-                code: `${code}_SERVICE_FAIL`,
-                target: target,
-                severity: 'CRITICAL',
-                details: `Service returned an invalid or null response for constraint check: ${code}`
-            };
-        }
-
-        return null; // Adherent
-    };
-
 
     // 1. Input Validation
     if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
@@ -91,7 +105,7 @@ async validate(configuration, requiredConstraintCodes) {
         }
         
         // Use externalized logic to standardize result
-        return processConstraintResult(code, constraintDef, adherenceCheck, executionError);
+        return this._standardizeConstraintResult(code, constraintDef, adherenceCheck, executionError);
     });
 
     // Execute all constraints concurrently for performance improvement (IO bound operations)
