@@ -1,49 +1,82 @@
+import { IExecutionThrottlerToolKernel } from './interfaces/IExecutionThrottlerToolKernel';
+import { ICapacityLimitedCacheUtilityToolKernel } from './interfaces/ICapacityLimitedCacheUtilityToolKernel';
+import { IGAXEngineLimitsConfigRegistryKernel } from './interfaces/IGAXEngineLimitsConfigRegistryKernel';
+
 /**
- * GAX Expression Runtime Context Manager (V94.3)
- * Manages execution resource consumption and memoization by utilizing external utilities.
- * Depends on ExecutionThrottler and CapacityLimitedCacheUtility.
+ * AGI-KERNEL: GAX Expression Runtime Context Manager Kernel (V1.0)
+ * Manages execution resource consumption and memoization via injected kernel dependencies.
+ * Achieves high architectural separation by eliminating synchronous global state access and configuration coupling.
  */
-class ExpressionRuntimeContextManager {
-  constructor(config) {
-    this.limits = config.EngineLimits;
+class ExpressionRuntimeContextManagerKernel {
+  /** @type {IExecutionThrottlerToolKernel} */
+  #throttlerKernel;
+  /** @type {ICapacityLimitedCacheUtilityToolKernel} */
+  #cacheUtilityKernel;
+  /** @type {IGAXEngineLimitsConfigRegistryKernel} */
+  #limitsRegistry;
+  /** @type {object} */
+  #memoCacheManager;
+
+  /**
+   * @param {IExecutionThrottlerToolKernel} throttlerKernel - Pre-configured execution throttler instance.
+   * @param {ICapacityLimitedCacheUtilityToolKernel} cacheUtilityKernel - Utility for cache management and memoization.
+   * @param {IGAXEngineLimitsConfigRegistryKernel} limitsRegistry - Configuration registry for GAX engine limits.
+   */
+  constructor(throttlerKernel, cacheUtilityKernel, limitsRegistry) {
+    if (!throttlerKernel || !cacheUtilityKernel || !limitsRegistry) {
+        throw new Error("Kernel Initialization Error: ExpressionRuntimeContextManagerKernel requires IExecutionThrottlerToolKernel, ICapacityLimitedCacheUtilityToolKernel, and IGAXEngineLimitsConfigRegistryKernel.");
+    }
     
-    // Runtime dependency checks
-    if (typeof ExecutionThrottler === 'undefined') {
-        throw new Error("Dependency Error: ExecutionThrottler plugin not available.");
-    }
-    if (typeof CapacityLimitedCacheUtility === 'undefined' || !CapacityLimitedCacheUtility.create) {
-        throw new Error("Dependency Error: CapacityLimitedCacheUtility plugin not available.");
-    }
-
-    // Resource Throttling delegated to plugin
-    this.throttler = new ExecutionThrottler(this.limits);
-
-    // Memoization cache initialization
-    this.memoCacheManager = CapacityLimitedCacheUtility.create(this.limits.memoizationLimit);
+    this.#throttlerKernel = throttlerKernel;
+    this.#cacheUtilityKernel = cacheUtilityKernel;
+    this.#limitsRegistry = limitsRegistry;
+    
+    this.#setupDependencies();
   }
 
+  /**
+   * Isolates synchronous initialization logic, retrieving configuration and setting up internal state.
+   */
+  #setupDependencies() {
+    const limits = this.#limitsRegistry.getLimits();
+    
+    // Memoization cache initialization using injected utility and limits from the registry
+    this.#memoCacheManager = this.#cacheUtilityKernel.create(limits.memoizationLimit);
+    
+    // The throttler is assumed to be fully configured upon injection.
+  }
+
+  /**
+   * Delegates all limit checks (complexity, depth, timeout) to the injected throttler kernel.
+   */
   checkResourceLimits() {
-    // Delegates all limit checks (complexity, depth, timeout) to the throttler
-    this.throttler.check();
+    this.#throttlerKernel.check();
   }
 
   increaseComplexity(scoreIncrement) {
-    this.throttler.increaseComplexity(scoreIncrement);
+    this.#throttlerKernel.increaseComplexity(scoreIncrement);
   }
 
+  /**
+   * Function entry handles depth increment and immediate resource check.
+   */
   enterFunction() {
-    // Function entry handles depth increment and immediate resource check
-    this.throttler.enterScope();
+    this.#throttlerKernel.enterScope();
   }
 
   exitFunction() {
-    this.throttler.exitScope();
+    this.#throttlerKernel.exitScope();
   }
 
-  // Method for safe lookup/storage with memoization limit enforcement
+  /**
+   * Method for safe lookup/storage with memoization limit enforcement, delegated to injected utility.
+   * @param {string} key
+   * @param {Function} computation
+   * @returns {any}
+   */
   memoize(key, computation) {
-    return CapacityLimitedCacheUtility.memoize(this.memoCacheManager, key, computation);
+    return this.#cacheUtilityKernel.memoize(this.#memoCacheManager, key, computation);
   }
 }
 
-module.exports = ExpressionRuntimeContextManager;
+module.exports = ExpressionRuntimeContextManagerKernel;
