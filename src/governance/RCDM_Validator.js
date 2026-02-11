@@ -1,88 +1,144 @@
-import { HighPerformanceSchemaCacheTool } from '@plugin/HighPerformanceSchemaCacheTool'; 
-import { TraceableIdGenerator } from '@plugin/TraceableIdGenerator'; // Utility for generating unique IDs
-import { CanonicalHashingTool } from '@plugin/CanonicalHashingTool'; // Utility for stable data hashing
+import { ISpecValidatorKernel } from '@core/validation/ISpecValidatorKernel';
+import { HashIntegrityCheckerToolKernel } from '@core/integrity/HashIntegrityCheckerToolKernel';
+import { ConfigSchemaRegistryKernel } from '@core/registry/ConfigSchemaRegistryKernel';
+import { CachePersistenceInterfaceKernel } from '@core/cache/CachePersistenceInterfaceKernel';
+import { ILoggerToolKernel } from '@core/utility/ILoggerToolKernel';
 
+// Standard key for the RCDM Schema retrieved from the registry
+const RCDM_SCHEMA_KEY = 'Governance.RCDM.ConfigurationSchema'; 
+
+/**
+ * Type definition for validation result aligned with external interfaces.
+ */
 interface ValidationResult {
     valid: boolean;
     errors: any[] | null;
 }
 
 /**
- * RCDMValidator: Recursive Configuration Data Model Validator
- * Utilizes high-performance caching, lazy schema compilation, and stable hashing
- * to achieve maximum computational efficiency for governance data validation.
+ * RCDMValidatorKernel: Recursive Configuration Data Model Validator Kernel
  * 
- * NOTE: Core schema validation, compilation, and result caching are delegated
- * to the HighPerformanceSchemaCacheTool plugin for optimal AJV-based performance.
+ * Enforces architectural mandates by utilizing asynchronous initialization,
+ * strict dependency injection, and leveraging high-integrity strategic kernels
+ * for validation, hashing, configuration retrieval, and cache management.
  */
-class RCDMValidator {
+class RCDMValidatorKernel {
     private schema: object | null = null;
-    private schemaId: string;
-    private readonly cacheTool: HighPerformanceSchemaCacheTool;
+    private schemaId: string | null = null;
+    private instanceId: string;
+
+    // Injected Dependencies
+    private readonly specValidatorKernel: ISpecValidatorKernel;
+    private readonly hashIntegrityCheckerTool: HashIntegrityCheckerToolKernel;
+    private readonly configSchemaRegistry: ConfigSchemaRegistryKernel;
+    private readonly cachePersistenceKernel: CachePersistenceInterfaceKernel;
+    private readonly logger: ILoggerToolKernel; 
 
     /**
-     * Initializes the validator.
-     * @param schema The schema object (can be loaded lazily later).
+     * @param dependencies Dependencies injected via the IoC container.
      */
-    constructor(schema?: object) {
-        // Use a stable ID based on the schema structure if provided, otherwise generate a unique instance ID.
-        // Assuming CanonicalHashingTool and TraceableIdGenerator are injected or statically accessible.
-        // This ensures cache integrity across service restarts.
-        this.schemaId = schema 
-            ? CanonicalHashingTool.hash(schema) 
-            : TraceableIdGenerator.generate("RCDM_INST");
-        
-        this.schema = schema || null;
-        // The plugin interface is initialized here, encapsulating caching and compilation logic.
-        this.cacheTool = new HighPerformanceSchemaCacheTool();
+    constructor(dependencies: {
+        specValidatorKernel: ISpecValidatorKernel,
+        hashIntegrityCheckerTool: HashIntegrityCheckerToolKernel,
+        configSchemaRegistry: ConfigSchemaRegistryKernel,
+        cachePersistenceKernel: CachePersistenceInterfaceKernel,
+        logger: ILoggerToolKernel
+    }) {
+        // Generates a unique instance ID for logging and tracing (replaces TraceableIdGenerator usage)
+        this.instanceId = `RCDM_VAL_KRNL_${Date.now()}`;
+        this.#setupDependencies(dependencies);
     }
 
     /**
-     * Loads the schema if it wasn't provided in the constructor (Lazy Loading).
-     * This is idempotent and updates the schemaId if the new schema is different.
-     * @param newSchema The JSON schema to use for validation.
+     * Isolates synchronous dependency assignment and validation, satisfying the architectural mandate.
      */
-    public loadSchema(newSchema: object): void {
-        const newSchemaId = CanonicalHashingTool.hash(newSchema);
+    #setupDependencies(dependencies: any): void {
+        const missingDeps = ['specValidatorKernel', 'hashIntegrityCheckerTool', 'configSchemaRegistry', 'cachePersistenceKernel', 'logger']
+            .filter(key => !dependencies[key]);
         
-        if (this.schemaId !== newSchemaId) {
-            // A new schema has been loaded. Invalidate global caches associated with the old ID.
-            this.cacheTool.clearCaches(); 
-            this.schema = newSchema;
-            this.schemaId = newSchemaId;
+        if (missingDeps.length > 0) {
+            throw new Error(`RCDMValidatorKernel failed dependency injection setup. Missing: ${missingDeps.join(', ')}`);
         }
-        // If schemas match, do nothing (efficient no-op).
+
+        this.specValidatorKernel = dependencies.specValidatorKernel;
+        this.hashIntegrityCheckerTool = dependencies.hashIntegrityCheckerTool;
+        this.configSchemaRegistry = dependencies.configSchemaRegistry;
+        this.cachePersistenceKernel = dependencies.cachePersistenceKernel;
+        this.logger = dependencies.logger;
     }
 
     /**
-     * Validates the input data against the current RCDM schema.
-     * Leverages the cache tool for memoization and lazy compilation.
+     * Asynchronously initializes the kernel by loading the required RCDM schema
+     * from the configuration registry and calculating its stable hash ID.
+     * This replaces synchronous schema loading and ad-hoc hashing.
+     */
+    public async initialize(): Promise<void> {
+        this.logger.debug(`[${this.instanceId}] Initializing RCDMValidatorKernel...`);
+        try {
+            // 1. Load the RCDM schema asynchronously from the strategic registry
+            const schema = await this.configSchemaRegistry.getSchema(RCDM_SCHEMA_KEY);
+            
+            if (!schema) {
+                const msg = `Required RCDM schema key not found: ${RCDM_SCHEMA_KEY}`;
+                this.logger.fatal(msg);
+                throw new Error(msg);
+            }
+            
+            this.schema = schema;
+
+            // 2. Calculate the stable schema ID (replaces CanonicalHashingTool usage)
+            this.schemaId = await this.hashIntegrityCheckerTool.generateStableHash(this.schema);
+            
+            // 3. Register the schema with the high-integrity validator kernel for compilation
+            await this.specValidatorKernel.registerSchema(this.schemaId, this.schema);
+
+            this.logger.info(`[${this.instanceId}] Initialized successfully. Schema ID: ${this.schemaId}`);
+            
+        } catch (error) {
+            this.logger.fatal(`[${this.instanceId}] Initialization error.`, { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Asynchronously validates the input data against the current RCDM schema.
+     * Replaces the synchronous validate() method.
      * 
      * @param data The configuration data payload.
-     * @returns ValidationResult { valid: boolean, errors: array | null }
+     * @returns Promise<ValidationResult>
      */
-    public validate(data: any): ValidationResult {
-        if (!this.schema) {
-            console.error("RCDM Schema has not been loaded.");
-            return { valid: false, errors: [{ message: "RCDM Schema not initialized." }] };
+    public async validate(data: any): Promise<ValidationResult> {
+        if (!this.schemaId) {
+            this.logger.error(`[${this.instanceId}] Validation failed: Schema not initialized.`);
+            return { valid: false, errors: [{ code: 'RCDM_E_001', message: "RCDM Schema not initialized. Call initialize() first." }] };
         }
         
-        // Delegate high-performance validation, caching, and lazy compilation to the plugin.
-        const result = this.cacheTool.execute({
-            schemaId: this.schemaId,
-            schema: this.schema,
-            data: data
-        });
-
-        return result;
+        // Delegate high-performance, cached validation to the ISpecValidatorKernel.
+        try {
+            const result = await this.specValidatorKernel.validate(this.schemaId, data);
+            
+            return {
+                valid: result.isValid,
+                errors: result.errors || null
+            };
+        } catch (e) {
+             this.logger.error(`[${this.instanceId}] Validation execution failed.`, { error: e.message });
+             return { valid: false, errors: [{ code: 'RCDM_E_002', message: `Validation execution failed: ${e.message}` }] };
+        }
     }
 
     /**
-     * Invalidates the validation results cache entirely (useful after global configuration changes).
+     * Invalidates all cached validation results associated with the RCDM schema scope.
+     * Uses the strategic Cache Persistence Kernel for high-integrity cache manipulation.
      */
-    public invalidateCache(): void {
-        this.cacheTool.clearCaches();
+    public async invalidateCache(): Promise<void> {
+        this.logger.warn(`[${this.instanceId}] Triggering RCDM validation cache invalidation for scope.`);
+        
+        const scopeId = this.schemaId || RCDM_SCHEMA_KEY;
+        
+        // Purge entries based on the schema's unique ID or key, aligning with the original sweeping cache clear functionality.
+        await this.cachePersistenceKernel.purgeByScope(scopeId);
     }
 }
 
-export { RCDMValidator };
+export { RCDMValidatorKernel };
