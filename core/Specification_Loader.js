@@ -26,12 +26,27 @@ class SpecificationLoader {
         this.#specPath = config.specPath || DEFAULT_SPEC_PATH;
         this.#logger = new Logger('SpecificationLoader');
         
-        // Use the abstracted store for I/O and state management
-        this.#store = new ImmutableAsyncDataStore(this.#specPath, this.#logger);
+        // Refactored: Delegate store instantiation and validation
+        this.#store = this.#getValidatedStore(this.#specPath, this.#logger);
+    }
 
-        if (!this.#store) {
+    /**
+     * Synchronously resolves, instantiates, and validates the required 
+     * ImmutableAsyncDataStore dependency.
+     * 
+     * @param {string} specPath The path to the specification file.
+     * @param {Logger} logger The logger instance.
+     * @returns {ImmutableAsyncDataStore} The validated store instance.
+     * @private
+     */
+    #getValidatedStore(specPath, logger) {
+        // Use the abstracted store for I/O and state management
+        const store = new ImmutableAsyncDataStore(specPath, logger);
+
+        if (!store) {
              throw new Error("[SpecificationLoader Setup] Failed to instantiate ImmutableAsyncDataStore dependency.");
         }
+        return store;
     }
 
     /**
