@@ -52,12 +52,24 @@ class IntegrityHaltValidator {
      *                          Must implement a validate(payload, schema, schemaId) method.
      */
     constructor(validator) {
+        this.#setupDependencies(validator);
+        this.#initializeConfiguration();
+    }
+
+    /**
+     * Handles dependency validation and assignment.
+     */
+    #setupDependencies(validator) {
         if (!validator || typeof validator.validate !== 'function') {
             throw new Error('Dependency Error: A valid StrictSchemaValidator instance is required.');
         }
-        
-        // Strict encapsulation of dependencies and configuration
         this.#validator = validator;
+    }
+
+    /**
+     * Handles synchronous configuration setup.
+     */
+    #initializeConfiguration() {
         this.#schema = HALT_LOG_SCHEMA;
         this.#schemaId = this.#schema.$id;
     }
@@ -69,6 +81,14 @@ class IntegrityHaltValidator {
      * @returns {boolean} True if validation passes.
      */
     validate(logEntry) {
+        return this.#delegateToValidatorValidation(logEntry);
+    }
+
+    /**
+     * Isolates interaction with the external StrictSchemaValidator dependency.
+     * @param {object} logEntry The log entry object to validate.
+     */
+    #delegateToValidatorValidation(logEntry) {
         // Delegation to the abstracted strict validation logic
         return this.#validator.validate(logEntry, this.#schema, this.#schemaId);
     }
