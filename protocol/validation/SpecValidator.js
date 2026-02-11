@@ -1,56 +1,88 @@
-class SpecValidator {
+class SpecValidatorKernel {
     // Strategic Optimization 3: Minimize error handling overhead by reusing static error objects.
     static ERROR_CACHE = {
         SCHEMA_NOT_FOUND: Object.freeze({ success: false, code: 404, message: "Schema specification not found or cached." }),
         VALIDATION_FAILURE: Object.freeze({ success: false, code: 400, message: "Validation failed against specification rules." })
     };
 
+    #specs; // Raw specification source definitions.
+    #schemaCache; // Map for fast schema lookups.
+    #customRules; // Map of custom validation functions.
+
     /**
      * @param {Object} specs - Raw specification source definitions.
      * @param {Object<string, Function>} customRules - Map of custom validation functions.
      */
     constructor(specs, customRules = {}) {
-        this.specs = specs;
-        
-        // Strategic Optimization 1: Implement schema caching using Map for fast lookups.
-        this._schemaCache = new Map(); 
-
-        // Strategic Optimization 2: Use Map for custom rules for O(1) average lookup time.
-        this.customRules = new Map(Object.entries(customRules));
+        this.#setupDependencies(specs, customRules);
     }
 
     /**
-     * Retrieves a schema from cache, falling back to raw storage if necessary.
+     * Rigorously extracts synchronous setup logic, validation, and field assignment.
+     * @param {Object} specs
+     * @param {Object} customRules
+     */
+    #setupDependencies(specs, customRules) {
+        if (!specs || typeof specs !== 'object') {
+            throw this.#throwSetupError("SpecValidator requires a valid specs object.");
+        }
+        this.#specs = specs;
+        
+        // Strategic Optimization 1: Implement schema caching using Map for fast lookups.
+        this.#schemaCache = new Map(); 
+
+        // Strategic Optimization 2: Use Map for custom rules for O(1) average lookup time.
+        const rulesMap = new Map();
+        if (customRules && typeof customRules === 'object') {
+            Object.entries(customRules).forEach(([key, value]) => {
+                if (typeof value === 'function') {
+                    rulesMap.set(key, value);
+                }
+            });
+        }
+        this.#customRules = rulesMap;
+    }
+
+    /**
+     * I/O Proxy: Retrieves a schema from cache, falling back to raw storage if necessary, and performs caching.
      * @param {string} specName
      * @returns {Object|null}
      */
-    _getOrCacheSchema(specName) {
-        if (this._schemaCache.has(specName)) {
-            return this._schemaCache.get(specName);
+    #delegateToSchemaLookupAndCache(specName) {
+        if (this.#schemaCache.has(specName)) {
+            return this.#schemaCache.get(specName);
         }
 
-        const schema = this.specs[specName];
+        const schema = this.#specs[specName];
         if (schema) {
-            // Optional: Deep freeze schema here if immutability is guaranteed and desired
-            this._schemaCache.set(specName, schema);
+            this.#schemaCache.set(specName, schema);
             return schema;
         }
         return null;
     }
 
     /**
-     * Executes a custom validation rule via direct O(1) lookup.
+     * I/O Proxy: Executes a custom validation rule via direct O(1) lookup.
      * @param {string} ruleName
      * @param {*} data
-     * @returns {boolean}
+     * @returns {boolean} - true if validation passed or rule was missing, false otherwise.
      */
-    _applyCustomRule(ruleName, data) {
-        const ruleFn = this.customRules.get(ruleName);
+    #delegateToCustomRuleExecution(ruleName, data) {
+        const ruleFn = this.#customRules.get(ruleName);
         if (ruleFn) {
+            // Delegation of execution
             return ruleFn(data);
         }
         // If rule doesn't exist, treat as success to avoid breaking validation flow
         return true; 
+    }
+
+    /**
+     * I/O Proxy: Throws a configuration error during setup.
+     * @param {string} message
+     */
+    #throwSetupError(message) {
+        return new Error(`[SpecValidator Setup Error] ${message}`);
     }
 
     /**
@@ -60,21 +92,21 @@ class SpecValidator {
      * @returns {Object} - Validation result.
      */
     validate(data, specName) {
-        const schema = this._getOrCacheSchema(specName);
+        const schema = this.#delegateToSchemaLookupAndCache(specName);
 
         if (!schema) {
-            // Reusing static error object
-            return SpecValidator.ERROR_CACHE.SCHEMA_NOT_FOUND;
+            // Uses static error object
+            return SpecValidatorKernel.ERROR_CACHE.SCHEMA_NOT_FOUND;
         }
 
         // --- Placeholder for intensive recursive validation logic ---
 
-        // Example of using custom rule lookup
+        // Example of using custom rule lookup via I/O Proxy
         if (schema.requiredCustomCheck) {
-            const result = this._applyCustomRule(schema.requiredCustomCheck, data);
+            const result = this.#delegateToCustomRuleExecution(schema.requiredCustomCheck, data);
             if (result === false) {
-                // Reusing static error object
-                return SpecValidator.ERROR_CACHE.VALIDATION_FAILURE; 
+                // Uses static error object
+                return SpecValidatorKernel.ERROR_CACHE.VALIDATION_FAILURE; 
             }
         }
 
