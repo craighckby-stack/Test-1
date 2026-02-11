@@ -5,7 +5,7 @@
  * configuration files, ensuring integrity and immutability during runtime.
  */
 
-import * as fs from 'fs/promises'; // Changed to use promises for async I/O
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { SystemLogger } from '../system/SystemLogger';
@@ -44,6 +44,52 @@ class ConfigParseError extends Error {
 export class SecureConfigLoader {
 
     /**
+     * Calculates the hash of a given file content string.
+     * @param {string} content - The content to hash.
+     * @returns {string} SHA256 hash string.
+     */
+    static getHash(content) {
+        return crypto.createHash('sha256').update(content).digest('hex');
+    }
+
+    /**
+     * Delegates file reading to fs/promises and handles read errors.
+     * This acts as an I/O proxy for external file system interaction.
+     * @param {string} filePath
+     * @returns {Promise<string>} File content.
+     * @throws {ConfigReadError}
+     */
+    static async #delegateToReadFile(filePath) {
+        let fileContent;
+        try {
+            // Use async read to prevent blocking the kernel's execution loop.
+            fileContent = await fs.readFile(filePath, 'utf8');
+            return fileContent;
+        } catch (error) {
+            logger.critical(`SECURITY FAILURE: Cannot read critical config file at ${filePath}.`, { error: error.message });
+            // Immediate halt required if a critical config file cannot be accessed.
+            throw new ConfigReadError(`File read failure`, filePath);
+        }
+    }
+
+    /**
+     * Delegates JSON parsing and handles parsing errors.
+     * This acts as an I/O proxy for the external JSON tool.
+     * @param {string} fileContent
+     * @param {string} filePath
+     * @returns {object} Parsed object.
+     * @throws {ConfigParseError}
+     */
+    static #delegateToParseContent(fileContent, filePath) {
+        try {
+            return JSON.parse(fileContent);
+        } catch (error) {
+            logger.critical(`CONFIGURATION ERROR: Failed to parse JSON content in ${filePath}.`, { error: error.message });
+            throw new ConfigParseError(`JSON parsing failed`, filePath);
+        }
+    }
+
+    /**
      * Loads a critical configuration file and performs a simple hash integrity check asynchronously.
      *
      * @param {string} filePath - Absolute path to the configuration file (e.g., JSON).
@@ -54,17 +100,11 @@ export class SecureConfigLoader {
     static async load(filePath, expectedHash = null) {
         logger.info(`Attempting to securely load config: ${filePath}`);
 
-        let fileContent;
-        try {
-            // Use async read to prevent blocking the kernel's execution loop.
-            fileContent = await fs.readFile(filePath, 'utf8');
-        } catch (error) {
-            logger.critical(`SECURITY FAILURE: Cannot read critical config file at ${filePath}.`, { error: error.message });
-            // Immediate halt required if a critical config file cannot be accessed.
-            throw new ConfigReadError(`File read failure`, filePath);
-        }
+        // 1. External I/O Proxy: Read file content
+        const fileContent = await SecureConfigLoader.#delegateToReadFile(filePath);
 
-        const currentHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+        // 2. Core Logic: Hash check (utilizing the public static helper which wraps crypto)
+        const currentHash = SecureConfigLoader.getHash(fileContent);
 
         if (expectedHash && currentHash !== expectedHash) {
             logger.critical(`SECURITY BREACH DETECTED: Config integrity failure for ${path.basename(filePath)}.`, {
@@ -75,21 +115,7 @@ export class SecureConfigLoader {
             throw new ConfigIntegrityError(`Integrity check failed`, filePath);
         }
 
-        try {
-            // Attempt to parse JSON content
-            return JSON.parse(fileContent);
-        } catch (error) {
-            logger.critical(`CONFIGURATION ERROR: Failed to parse JSON content in ${filePath}.`, { error: error.message });
-            throw new ConfigParseError(`JSON parsing failed`, filePath);
-        }
-    }
-
-    /**
-     * Calculates the hash of a given file content string.
-     * @param {string} content - The content to hash.
-     * @returns {string} SHA256 hash string.
-     */
-    static getHash(content) {
-        return crypto.createHash('sha256').update(content).digest('hex');
+        // 3. External I/O Proxy: Parse content
+        return SecureConfigLoader.#delegateToParseContent(fileContent, filePath);
     }
 }
