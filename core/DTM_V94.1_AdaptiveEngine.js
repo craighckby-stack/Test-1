@@ -12,34 +12,48 @@ declare const AdaptiveThresholdAdjuster: {
  * Responsible for calculating real-time risk scores based on policy metrics.
  */
 class DTM_AdaptiveEngine {
-  private telemetry: any;
-  private readonly ENTROPY_SENSITIVITY = 0.05;
-  private readonly DEPTH_NORMALIZER = 100.0; // Assuming depth max is 100
+  // Static Configuration and Constants (Encapsulated)
+  private static readonly #ENTROPY_SENSITIVITY = 0.05;
+  private static readonly #DEPTH_NORMALIZER = 100.0; // Assuming depth max is 100
+  private static readonly #SCORING_WEIGHTS = Object.freeze({
+    historicalConfidence: 0.5,
+    structuralDepthContribution: 0.3,
+    impactMitigation: 0.2
+  });
+
+  // Core Utility Dependencies (Resolved statically for single lookup and strong coupling)
+  private static readonly #WeightedScorerUtility = WeightedScorerUtility;
+  private static readonly #AdaptiveThresholdAdjuster = AdaptiveThresholdAdjuster;
+
+  private readonly #telemetry: any;
 
   constructor(telemetryFeed: any) {
-    this.telemetry = telemetryFeed;
+    if (!telemetryFeed) {
+        throw new Error("[DTM Adaptive Engine] Telemetry feed is required for initialization.");
+    }
+    this.#telemetry = telemetryFeed;
   }
 
   /**
    * Fetches rolling average of past successful self-modifications (0.0 to 1.0).
    */
-  private getHistoricalConfidence(): number {
-    return this.telemetry.fetchAvgSuccessRate();
+  private #getHistoricalConfidence(): number {
+    return this.#telemetry.fetchAvgSuccessRate();
   }
 
   /**
    * Prepares the specific, normalized, and inverted factors used for DTM scoring.
    */
-  private _prepareScoringInputs(payload: { metrics: { depth: number } }): Record<string, number> {
-    const historicalConfidence = this.getHistoricalConfidence();
-    const impactPrediction = this.telemetry.getImpactPrediction(payload);
+  private #prepareScoringInputs(payload: { metrics: { depth: number } }): Record<string, number> {
+    const historicalConfidence = this.#getHistoricalConfidence();
+    const impactPrediction = this.#telemetry.getImpactPrediction(payload);
     
     return {
       // Historical track record (favor stability)
       historicalConfidence: historicalConfidence, 
       
       // Structural complexity mitigation (1 - depth/max_depth). Lower depth = higher score contribution.
-      structuralDepthContribution: 1.0 - (payload.metrics.depth / this.DEPTH_NORMALIZER),
+      structuralDepthContribution: 1.0 - (payload.metrics.depth / DTM_AdaptiveEngine.#DEPTH_NORMALIZER),
       
       // Impact mitigation (1 - severity). Lower severity = higher score contribution.
       impactMitigation: 1.0 - impactPrediction
@@ -50,16 +64,14 @@ class DTM_AdaptiveEngine {
    * Calculates the overall normalized trust score for a proposed modification.
    */
   calculateTrustScore(proposedModificationPayload: { metrics: { depth: number } }): number {
-    const inputs = this._prepareScoringInputs(proposedModificationPayload);
+    const inputs = this.#prepareScoringInputs(proposedModificationPayload);
 
-    const weights = {
-      historicalConfidence: 0.5,
-      structuralDepthContribution: 0.3,
-      impactMitigation: 0.2
-    };
-
-    // Use the WeightedScorerUtility plugin to calculate the normalized weighted sum and clamp the result.
-    const score = WeightedScorerUtility.calculate(inputs, weights, true);
+    // Use the statically resolved utility and frozen weights.
+    const score = DTM_AdaptiveEngine.#WeightedScorerUtility.calculate(
+      inputs, 
+      DTM_AdaptiveEngine.#SCORING_WEIGHTS, 
+      true
+    );
     
     return score;
   }
@@ -68,13 +80,13 @@ class DTM_AdaptiveEngine {
    * Calculates the minimum required trust, adjusting upward based on system entropy.
    */
   MinTrustRequired(baseline: number): number {
-    const entropyFactor = this.telemetry.getEnvironmentalEntropy();
+    const entropyFactor = this.#telemetry.getEnvironmentalEntropy();
     
-    // Use the AdaptiveThresholdAdjuster tool to manage dynamic threshold calculation
-    return AdaptiveThresholdAdjuster.calculateAdjustment(
+    // Use the statically resolved utility and static sensitivity.
+    return DTM_AdaptiveEngine.#AdaptiveThresholdAdjuster.calculateAdjustment(
       baseline, 
       entropyFactor, 
-      this.ENTROPY_SENSITIVITY
+      DTM_AdaptiveEngine.#ENTROPY_SENSITIVITY
     );
   }
 }
