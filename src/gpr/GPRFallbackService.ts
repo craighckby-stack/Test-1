@@ -1,53 +1,60 @@
-/**
- * Autonomous Code Evolution Proposal: GPR Fallback Cache Service.
- * Rationale: Critical parameters (load_stage: STARTUP) must be available
- * even if the GPR endpoint is temporarily unreachable. This service
- * handles local persistence and retrieval of configuration snapshots.
- */
-
 import { CriticalParameterSetDefinition } from './gpr.types';
-
-// Assume the external plugin interface (CanonicalConfigurationCacheTool) is available globally or injected.
-declare const CanonicalConfigurationCacheTool: {
-    loadFromCache(setId: string): Promise<ParameterData | null>;
-    updateCache(setId: string, data: ParameterData): Promise<void>;
-};
+import { CachePersistenceInterfaceKernel } from '@agnostic/core/CachePersistenceInterfaceKernel';
 
 export interface ParameterData {
     [key: string]: any;
 }
 
 /**
- * Manages local persistence and retrieval of critical GPR parameters
+ * GPRFallbackServiceKernel manages local persistence and retrieval of critical GPR parameters
  * to ensure high availability and robust startup operation.
- * Leverages CanonicalConfigurationCacheTool for persistence abstraction and staleness checking.
+ * Adheres to AIA mandates by leveraging the asynchronous CachePersistenceInterfaceKernel
+ * for secure, non-blocking I/O operations.
  */
-export class GPRFallbackService {
-    // CACHE_DIR is now managed by the underlying persistence tool and is no longer needed here.
-    
-    // Inject the plugin utility, or rely on global scope if environment dictates
-    private readonly cacheUtility = CanonicalConfigurationCacheTool;
+export class GPRFallbackServiceKernel {
+    private cachePersistenceKernel!: CachePersistenceInterfaceKernel;
+    private readonly criticalSets: CriticalParameterSetDefinition[];
 
-    constructor(private readonly criticalSets: CriticalParameterSetDefinition[]) {
-        // Initialization logic related to criticalSets (e.g., ensuring all required IDs are known)
+    /**
+     * Initializes the kernel with the definitions of critical parameter sets.
+     */
+    constructor(criticalSets: CriticalParameterSetDefinition[]) {
+        this.criticalSets = criticalSets;
     }
 
     /**
-     * Attempts to read a critical parameter set from the local cache storage.
-     * Includes implicit staleness check handled by the underlying utility.
+     * Mandatory asynchronous initialization hook.
+     * Establishes dependency on the secure cache persistence kernel.
+     * @param tools Required tool kernels for operation.
+     */
+    public async initialize(tools: { 
+        CachePersistenceInterfaceKernel: CachePersistenceInterfaceKernel 
+    }): Promise<void> {
+        if (!tools.CachePersistenceInterfaceKernel) {
+            throw new Error("GPRFallbackServiceKernel requires CachePersistenceInterfaceKernel.");
+        }
+        this.cachePersistenceKernel = tools.CachePersistenceInterfaceKernel;
+        console.log("GPRFallbackServiceKernel initialized and bound to persistence layer.");
+    }
+
+    /**
+     * Attempts to read a critical parameter set from the local cache storage via the persistent kernel.
+     * Delegation handles persistence, serialization, and implicit staleness checking.
      * @param setId The identifier of the critical set.
      */
     public async loadFromCache(setId: string): Promise<ParameterData | null> {
-        console.debug(`Attempting fallback load via cache utility for critical set: ${setId}`);
+        console.debug(`Attempting fallback load via cache persistence kernel for critical set: ${setId}`);
         
-        // Delegating persistence and staleness check to the plugin
-        const data = await this.cacheUtility.loadFromCache(setId);
+        // Delegate I/O to the specialized asynchronous tool
+        const data = await this.cachePersistenceKernel.retrieveResource(setId);
 
         if (data === null) {
             console.warn(`Fallback cache miss or entry was stale for ${setId}.`);
+            return null;
         }
         
-        return data;
+        // Type casting the retrieved resource
+        return data as ParameterData;
     }
 
     /**
@@ -56,8 +63,8 @@ export class GPRFallbackService {
      * @param data The successfully retrieved parameter data.
      */
     public async updateCache(setId: string, data: ParameterData): Promise<void> {
-        // Delegating serialization and persistence update to the plugin
-        await this.cacheUtility.updateCache(setId, data);
+        // Delegate persistence and serialization to the specialized asynchronous tool
+        await this.cachePersistenceKernel.persistResource(setId, data);
         console.log(`Delegated cache update successful for ${setId}.`);
     }
 }
