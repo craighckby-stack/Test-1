@@ -16,23 +16,23 @@ export type AGCA_PCTM_V1_ConfigurationData = AGCA_ConfigurationPayload;
 
 export interface AGCA_PCTM_V1_Metadata {
     /** URI reference pointing to the required public key within the Global Key Management (GKM). */
-    gkm_key_reference: string;
+    readonly gkm_key_reference: string;
     /** Cryptographic signature over the serialized configuration_data. */
-    gkm_signature: string;
+    readonly gkm_signature: string;
     /** SHA-256 hash of the serialized configuration_data payload. */
-    hash_sha256: string;
+    readonly hash_sha256: string;
     /** Unix timestamp (seconds since epoch) when the asset was issued/last modified. */
-    timestamp_issued: number;
+    readonly timestamp_issued: number;
     /** Identifier of the sovereign entity (Agent) that issued/owns this configuration. */
-    owner_agent: string;
+    readonly owner_agent: string;
     /** Standard identifier (Must be "AGCA_PCTM_V1"). */
-    pctm_standard_id: 'AGCA_PCTM_V1';
+    readonly pctm_standard_id: 'AGCA_PCTM_V1';
 }
 
 /**
  * The complete AGCA Protocol-Compliant Trust Model (PCTM) Asset, version 1.
  */
 export interface AGCA_PCTM_V1_Asset {
-    metadata: AGCA_PCTM_V1_Metadata;
-    configuration_data: AGCA_PCTM_V1_ConfigurationData;
+    readonly metadata: AGCA_PCTM_V1_Metadata;
+    readonly configuration_data: AGCA_PCTM_V1_ConfigurationData;
 }
