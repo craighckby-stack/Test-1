@@ -1,105 +1,141 @@
-const path = require('path');
-
 /**
- * Utility tool for deep merging objects. (Replaces original inline function).
+ * Interface placeholders based on strategic architecture goals.
+ * NOTE: These modules are assumed to be implemented externally and injected.
  */
-class DeepMergeUtilityTool {
-    static deepMerge(target, source) {
-        for (const key in source) {
-            if (Object.prototype.hasOwnProperty.call(source, key)) {
-                if (source[key] instanceof Object && !Array.isArray(source[key])) {
-                    // Ensure the target property exists before merging deeply
-                    if (!target[key] || typeof target[key] !== 'object') {
-                        target[key] = {};
-                    }
-                    target[key] = DeepMergeUtilityTool.deepMerge(target[key], source[key]);
-                } else {
-                    target[key] = source[key];
-                }
-            }
-        }
-        return target;
-    }
-}
 
-// Assuming the abstracted tool is available via require
-// We define a placeholder to ensure the code references the external tool correctly.
-const DotPathUtilityTool = require('../utils/DotPathUtilityTool');
+class ConfigManagerKernel {
+    #config = {};
 
-/**
- * Determine the absolute root directory of the project based on relative path from configManager.js
- */
-const ROOT_DIR = path.resolve(__dirname, '..', '..');
-
-const DEFAULTS = {
-    // Core identification and paths
-    app: {
-        id: 'sovereign-agi',
-        root: ROOT_DIR,
-    },
-    // Directory names
-    dirs: {
-        logs: 'logs',
-        temp: 'temp',
-    },
-    // Logging configuration defaults and env mapping
-    logging: {
-        logLevel: 'info', // Can be overridden via ENV
-        auditFileName: 'ogt_decisions.jsonl',
-        envMap: {
-            // Map environment variable keys to config object keys (dot notation)
-            LOG_LEVEL: 'logging.logLevel',
-            LOGS_DIR_NAME: 'dirs.logs',
-            AUDIT_FILE_NAME: 'logging.auditFileName'
-        }
-    }
-};
-
-class ConfigManager {
-    static #config = {}; // Use private static field for encapsulation (Correct ES syntax)
+    #defaultsRegistry;
+    #mergeUtility;
+    #pathResolver;
+    #systemPathResolver;
+    #envAccess;
+    #moduleDirContext;
 
     /**
-     * Loads defaults, environment variables, and calculates derived configuration values.
-     * @returns {void}
+     * @param {object} dependencies
+     * @param {Object} dependencies.defaultsRegistry - ConfigDefaultsRegistryKernel instance.
+     * @param {Object} dependencies.mergeUtility - IMergeUtilityToolKernel instance.
+     * @param {Object} dependencies.pathResolver - IObjectPathResolverToolKernel instance.
+     * @param {Object} dependencies.systemPathResolver - ISystemPathResolverKernel instance.
+     * @param {Object} dependencies.envAccess - IEnvironmentAccessKernel instance.
+     * @param {string} dependencies.moduleDirContext - The __dirname context of the configuration module.
      */
-    static initialize() {
-        if (Object.keys(ConfigManager.#config).length > 0) {
-            // Already initialized
-            return;
+    constructor({ defaultsRegistry, mergeUtility, pathResolver, systemPathResolver, envAccess, moduleDirContext }) {
+        this.#defaultsRegistry = defaultsRegistry;
+        this.#mergeUtility = mergeUtility;
+        this.#pathResolver = pathResolver;
+        this.#systemPathResolver = systemPathResolver;
+        this.#envAccess = envAccess;
+        this.#moduleDirContext = moduleDirContext;
+        
+        // Synchronous setup must be isolated
+        this.#setupDependencies();
+    }
+
+    /**
+     * Loads defaults, environment variables, calculates derived configuration,
+     * and ensures final configuration immutability.
+     */
+    #setupDependencies() {
+        // Note: Dependency validation omitted for focused refactoring output.
+
+        if (Object.keys(this.#config).length > 0) {
+            return; // Already initialized
         }
 
-        // 1. Start with defaults (deep clone for safe mutation) using the DeepMergeUtilityTool
-        let configData = DeepMergeUtilityTool.deepMerge({}, DEFAULTS);
+        // 1. Start with defaults (deep clone using the merge utility for safety)
+        const rawDefaults = this.#delegateToDefaultsRegistryGetDefaults();
+        // Use an empty object as target to ensure cloning
+        let configData = this.#delegateToMergeUtilityDeepMerge({}, rawDefaults);
+
+        // Calculate ROOT_DIR immediately using the injected context and system path resolver
+        // Original: path.resolve(__dirname, '..', '..');
+        const rootDir = this.#delegateToSystemPathResolverResolve(
+            this.#moduleDirContext, 
+            '..', 
+            '..'
+        );
+        this.#delegateToPathResolverSet(configData, 'app.root', rootDir);
 
         // 2. Apply Environment Overrides
         const envOverrides = {};
-        const envMap = configData.logging.envMap;
+        const envMap = this.#delegateToPathResolverGet(configData, 'logging.envMap') || {};
         
         for (const [envKey, configKey] of Object.entries(envMap)) {
-            const envValue = process.env[envKey];
+            const envValue = this.#delegateToEnvironmentGet(envKey);
             if (envValue !== undefined) {
-                // Use the DotPathUtilityTool for setting values
-                DotPathUtilityTool.set(envOverrides, configKey, envValue);
+                this.#delegateToPathResolverSet(envOverrides, configKey, envValue);
             }
         }
 
-        // Merge environment overrides onto defaults using the DeepMergeUtilityTool
-        configData = DeepMergeUtilityTool.deepMerge(configData, envOverrides);
-        delete configData.logging.envMap; // Clean up the map after use
+        // Merge environment overrides onto defaults
+        configData = this.#delegateToMergeUtilityDeepMerge(configData, envOverrides);
+        
+        // Clean up the map after use
+        this.#delegateToPathResolverDelete(configData, 'logging.envMap');
 
         // 3. Calculate Derived Paths
-        const logsDirPath = path.join(configData.app.root, configData.dirs.logs);
+        const appRoot = this.#delegateToPathResolverGet(configData, 'app.root');
+        const logsDirName = this.#delegateToPathResolverGet(configData, 'dirs.logs');
+
+        // Original: path.join(configData.app.root, configData.dirs.logs);
+        const logsDirPath = this.#delegateToSystemPathResolverJoin(appRoot, logsDirName);
 
         // Store the calculated logs directory path
-        DotPathUtilityTool.set(configData, 'dirs.logsPath', logsDirPath);
+        this.#delegateToPathResolverSet(configData, 'dirs.logsPath', logsDirPath);
 
         // Calculate full audit log path
-        configData.logging.auditPath = path.join(
-            logsDirPath,
-            configData.logging.auditFileName
-        );
+        const auditFileName = this.#delegateToPathResolverGet(configData, 'logging.auditFileName');
+        // Original: path.join(logsDirPath, configData.logging.auditFileName);
+        const auditPath = this.#delegateToSystemPathResolverJoin(logsDirPath, auditFileName);
+
+        this.#delegateToPathResolverSet(configData, 'logging.auditPath', auditPath);
         
-        ConfigManager.#config = configData;
+        // Ensure final configuration is immutable
+        this.#config = Object.freeze(configData); 
+    }
+    
+    // --- I/O and Utility Proxy Methods ---
+
+    #delegateToDefaultsRegistryGetDefaults() {
+        return this.#defaultsRegistry.getDefaults();
+    }
+
+    #delegateToMergeUtilityDeepMerge(target, source) {
+        // Assuming the merge utility exposes a 'deepMerge' method
+        return this.#mergeUtility.deepMerge(target, source); 
+    }
+
+    #delegateToPathResolverSet(target, key, value) {
+        // Assuming IObjectPathResolverToolKernel supports 'set'
+        return this.#pathResolver.set(target, key, value);
+    }
+    
+    #delegateToPathResolverGet(target, key) {
+        // Assuming IObjectPathResolverToolKernel supports 'get'
+        return this.#pathResolver.get(target, key);
+    }
+    
+    #delegateToPathResolverDelete(target, key) {
+        // Assuming IObjectPathResolverToolKernel supports 'delete'
+        return this.#pathResolver.delete(target, key);
+    }
+
+    #delegateToSystemPathResolverResolve(...parts) {
+        // Assuming ISystemPathResolverKernel supports 'resolve'
+        return this.#systemPathResolver.resolve(...parts);
+    }
+
+    #delegateToSystemPathResolverJoin(...parts) {
+        // Assuming ISystemPathResolverKernel supports 'join'
+        return this.#systemPathResolver.join(...parts);
+    }
+
+    #delegateToEnvironmentGet(key) {
+        // Assuming IEnvironmentAccessKernel supports 'get'
+        return this.#envAccess.get(key);
     }
 
     /**
@@ -107,16 +143,13 @@ class ConfigManager {
      * @param {string} key - Dot-separated path to the configuration value.
      * @returns {any | undefined}
      */
-    static get(key) {
-        if (Object.keys(ConfigManager.#config).length === 0) {
-            // Auto-initialize if necessary, though explicit initialize is preferred
-            ConfigManager.initialize();
+    get(key) {
+        if (Object.keys(this.#config).length === 0) {
+             throw new Error("ConfigManagerKernel accessed before instantiation or initialization failed.");
         }
 
-        // Use the DotPathUtilityTool for safe path retrieval
-        return DotPathUtilityTool.get(ConfigManager.#config, key);
+        return this.#delegateToPathResolverGet(this.#config, key);
     }
 }
 
-ConfigManager.initialize(); // Initialize immediately upon module load
-module.exports = ConfigManager;
+module.exports = ConfigManagerKernel;
