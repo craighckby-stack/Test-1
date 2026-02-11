@@ -1,77 +1,82 @@
-import { PESMSchema } from './policy_evolution_schema';
-
-// NOTE: We assume 'TemporalWindowIntegrityValidatorTool' is globally available or injected
-// as provided in the AGI-KERNEL plugin registry.
-
-interface ITemporalWindowValidatorResult {
-    success: boolean;
-    error?: string;
-}
-
-// Define precise types for the external tool's arguments
-interface ITemporalValidatorArgs {
-    stagingTimestamp: number | string;
-    vetoWindowEnd: number | string;
-    durationMs: number;
-    requestFinalization?: boolean;
-    toleranceMs?: number;
-}
-
-// Define the type for the tool function itself
-type TemporalValidatorTool = (args: ITemporalValidatorArgs) => ITemporalWindowValidatorResult;
-
-// Mock function signature for the external plugin call (for TypeScript visibility)
-declare function TemporalWindowIntegrityValidatorTool(args: ITemporalValidatorArgs): ITemporalWindowValidatorResult;
+import { PESMSchema } from "./policy_evolution_schema";
+import { VetoTriggerEvaluationKernel } from "@kernel/VetoTriggerEvaluationKernel";
+import { GovernanceSettingsRegistryKernel } from "@registry/GovernanceSettingsRegistryKernel";
 
 /**
- * Validates the temporal requirements defined in the PESM schema,
- * specifically enforcing the HIL-T Veto Check period using the external
- * TemporalWindowIntegrityValidatorTool.
+ * Define the key used to retrieve the Veto Duration from Governance Settings.
+ * This prevents hardcoding temporal constants.
  */
-export class TemporalGovernanceValidator {
-    private static readonly VETO_DURATION_MS = 72 * 60 * 60 * 1000; // 72 hours
-    
-    private readonly validatorTool: TemporalValidatorTool;
+const GOVERNANCE_KEY_VETO_DURATION = 'temporal.vetoDurationMs';
 
-    constructor(tool: TemporalValidatorTool = TemporalWindowIntegrityValidatorTool) {
-        this.validatorTool = tool;
+/**
+ * The TemporalGovernanceValidatorKernel enforces the High-Integrity Lifecycle (HIL-T) 
+ * Veto Check period asynchronously using specialized Tool Kernels.
+ */
+export class TemporalGovernanceValidatorKernel {
+    private vetoDurationMs: number = 0;
+
+    /**
+     * @param vetoEvaluator Kernel responsible for high-integrity temporal checks.
+     * @param settingsRegistry Kernel for retrieving secure governance parameters.
+     */
+    constructor(
+        private readonly vetoEvaluator: VetoTriggerEvaluationKernel,
+        private readonly settingsRegistry: GovernanceSettingsRegistryKernel
+    ) {}
+
+    /**
+     * Ensures the Kernel is fully configured by fetching required parameters asynchronously.
+     */
+    public async initialize(): Promise<void> {
+        // Fetch the mandatory veto duration from the secure registry
+        const duration = await this.settingsRegistry.getSetting(GOVERNANCE_KEY_VETO_DURATION);
+        
+        if (typeof duration !== 'number' || duration <= 0) {
+             throw new Error(`[TemporalGovernanceValidatorKernel] Initialization failure: Could not retrieve valid veto duration for key: ${GOVERNANCE_KEY_VETO_DURATION}`);
+        }
+        
+        this.vetoDurationMs = duration;
     }
 
     /**
-     * Ensures the vetoWindowEnd is correctly set based on stagingTimestamp and verifies
-     * that the current time has passed this window if finalization is requested.
+     * Ensures the veto window integrity and verifies that the current time has passed 
+     * this window if finalization is requested.
      * @param manifest The policy evolution manifest object.
-     * @param requestFinalization True if checking for S0 integration readiness.
+     * @param requestFinalization True if checking for S0 integration readiness (i.e., window must be passed).
+     * @returns Promise<boolean> True if validation passes.
+     * @throws Error if temporal integrity fails or the veto window is still active during finalization.
      */
-    public validate(manifest: PESMSchema, requestFinalization: boolean = false): boolean | Error {
-        const { stagingMetadata } = manifest;
-
-        const result = this.validatorTool({
-            stagingTimestamp: stagingMetadata.stagingTimestamp,
-            vetoWindowEnd: stagingMetadata.vetoWindowEnd,
-            durationMs: TemporalGovernanceValidator.VETO_DURATION_MS,
-            requestFinalization: requestFinalization,
-            toleranceMs: 1000 // 1 second margin
-        });
-
-        if (!result.success) {
-            // Map the generic plugin error message back to the domain-specific context
-            let errorMessage = result.error || "Temporal validation failed.";
-
-            if (errorMessage.includes("Temporal Integrity Failure")) {
-                // Mapping 1: PESM Integrity Check
-                errorMessage = errorMessage.replace("Temporal Integrity Failure", "PESM Integrity Failure");
-            } else if (errorMessage.includes("Enforcement blocked")) {
-                // Mapping 2: HIL-T Specific Enforcement
-                const remainingMatch = errorMessage.match(/Remaining: ([\d.]+) hours\./);
-                const remainingHours = remainingMatch ? remainingMatch[1] : "unknown";
-
-                errorMessage = `Deployment blocked. Mandatory HIL-T Veto Check period still active. Remaining: ${remainingHours} hours.`;
-            }
-            
-            throw new Error(errorMessage);
+    public async validate(manifest: PESMSchema, requestFinalization: boolean = false): Promise<boolean> {
+        if (this.vetoDurationMs === 0) {
+            throw new Error("[TemporalGovernanceValidatorKernel] Kernel not initialized. Call initialize() first.");
         }
 
+        const { stagingMetadata } = manifest;
+
+        const evaluationContext = {
+            stagingTimestamp: stagingMetadata.stagingTimestamp,
+            vetoWindowEnd: stagingMetadata.vetoWindowEnd, // Allows the tool to calculate or verify
+            durationMs: this.vetoDurationMs,
+            checkExpiration: requestFinalization, // Check if the window is passed
+            toleranceMs: 1000 // 1 second margin for clock drift tolerance
+        };
+        
+        // Delegation to the specialized, asynchronous VetoTriggerEvaluationKernel
+        const result = await this.vetoEvaluator.evaluateProposalTemporalIntegrity(evaluationContext);
+
+        if (result.error) {
+            // The evaluator handles low-level temporal data integrity issues
+            throw new Error(`PESM Temporal Integrity Error: ${result.error}`);
+        }
+        
+        // Domain-specific enforcement logic: HIL-T Veto Check
+        if (requestFinalization && !result.isVetoWindowExpired) {
+            const remainingHours = (result.remainingDurationMs || 0) / (60 * 60 * 1000);
+            const formattedHours = remainingHours.toFixed(2);
+            
+            throw new Error(`Deployment blocked. Mandatory HIL-T Veto Check period still active. Remaining: ${formattedHours} hours.`);
+        }
+        
         return true;
     }
 }
