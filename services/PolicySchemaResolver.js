@@ -6,16 +6,8 @@
  */
 
 /**
- * @typedef {object} PolicyResolutionResult
- * @property {object | null} baseSchema - The resolved core indexing schema.
- * @property {object | null} customSchemaFragment - The optional custom metadata fragment.
- * @property {string | null} coreSchemaRef - The identifier of the base schema definition.
- * @property {string | null} error - An error message if resolution failed.
- */
-
-/**
- * @interface PolicySchemaExtractorTool
- * @property {function(object): PolicyResolutionResult} resolve - Resolves schema components from a policy.
+ * @typedef {import('./path-to-plugin').PolicyResolutionResult} PolicyResolutionResult
+ * @typedef {import('./path-to-plugin').PolicySchemaExtractorTool} PolicySchemaExtractorTool
  */
 
 class PolicySchemaResolver {
@@ -23,13 +15,13 @@ class PolicySchemaResolver {
    * @private
    * @type {PolicySchemaExtractorTool}
    */
-  extractor;
+  #extractor;
 
   /**
    * @param {PolicySchemaExtractorTool} extractor 
    */
   constructor(extractor) {
-    this.extractor = extractor;
+    this.#extractor = extractor;
   }
 
   /**
@@ -39,7 +31,7 @@ class PolicySchemaResolver {
    */
   resolveSchemaComponents(policy) {
     // Delegate the entire structural extraction and initial validation process to the specialized tool.
-    return this.extractor.resolve(policy);
+    return this.#extractor.resolve(policy);
   }
 }
 
