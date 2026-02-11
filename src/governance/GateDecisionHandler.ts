@@ -1,39 +1,70 @@
 import { GatingIntegrityAuditReport } from '../types/GatingIntegrityAuditReport';
 import {
-    PolicyEngine,
-    AlertingService,
-    Logger,
-    RemediationService,
     AuditStatus,
     CheckSeverity,
-    AuditActionExtractor
-} from './governance.interfaces'; // Import scaffolded types and the new AuditActionExtractor interface
+    IAlertingServiceToolKernel,
+    IPolicyEnforcementToolKernel,
+    IRemediationServiceToolKernel,
+    IAuditActionExtractorToolKernel
+} from './governance.interfaces'; 
+import { ILoggerToolKernel } from '@core/logging'; // Standard strategic logging interface
 
 /**
- * GateDecisionHandler
+ * GateDecisionHandlerKernel
  * Centralized component responsible for consuming the Gating Integrity Audit Report
  * and translating its PASS/FAIL/CONDITIONAL status into mandatory operational commands (e.g., halt CI/CD, trigger alerts, generate tickets).
+ * Adheres to kernel naming convention, formalized dependency injection, and setup isolation.
  */
-export class GateDecisionHandler {
+export class GateDecisionHandlerKernel {
 
-    private policyEngine: PolicyEngine;
-    private alertingService: AlertingService;
-    private logger: Logger;
-    private remediationService: RemediationService;
-    private actionExtractor: AuditActionExtractor; // Dependency Injection for logic extraction
+    private policyEnforcementTool: IPolicyEnforcementToolKernel;
+    private alertingServiceTool: IAlertingServiceToolKernel;
+    private loggerTool: ILoggerToolKernel;
+    private remediationServiceTool: IRemediationServiceToolKernel;
+    private actionExtractorTool: IAuditActionExtractorToolKernel;
 
     constructor(
-        policyEngine: PolicyEngine,
-        alertingService: AlertingService,
-        logger: Logger,
-        remediationService: RemediationService,
-        actionExtractor: AuditActionExtractor // Inject the logic extractor
+        policyEnforcementTool: IPolicyEnforcementToolKernel,
+        alertingServiceTool: IAlertingServiceToolKernel,
+        loggerTool: ILoggerToolKernel,
+        remediationServiceTool: IRemediationServiceToolKernel,
+        actionExtractorTool: IAuditActionExtractorToolKernel
     ) {
-        this.policyEngine = policyEngine;
-        this.alertingService = alertingService;
-        this.logger = logger;
-        this.remediationService = remediationService;
-        this.actionExtractor = actionExtractor;
+        this.#setupDependencies({
+            policyEnforcementTool,
+            alertingServiceTool,
+            loggerTool,
+            remediationServiceTool,
+            actionExtractorTool
+        });
+    }
+
+    /**
+     * Isolates synchronous dependency assignment and validation.
+     */
+    private #setupDependencies(dependencies: {
+        policyEnforcementTool: IPolicyEnforcementToolKernel,
+        alertingServiceTool: IAlertingServiceToolKernel,
+        loggerTool: ILoggerToolKernel,
+        remediationServiceTool: IRemediationServiceToolKernel,
+        actionExtractorTool: IAuditActionExtractorToolKernel
+    }): void {
+        if (!dependencies.policyEnforcementTool || !dependencies.loggerTool || !dependencies.actionExtractorTool) {
+            throw new Error('GateDecisionHandlerKernel requires all formalized dependencies.');
+        }
+
+        this.policyEnforcementTool = dependencies.policyEnforcementTool;
+        this.alertingServiceTool = dependencies.alertingServiceTool;
+        this.loggerTool = dependencies.loggerTool;
+        this.remediationServiceTool = dependencies.remediationServiceTool;
+        this.actionExtractorTool = dependencies.actionExtractorTool;
+    }
+
+    /**
+     * Placeholder for asynchronous initialization.
+     */
+    public async initialize(): Promise<void> {
+        // No complex async setup required yet, but method is retained for architectural consistency.
     }
 
     /**
@@ -56,14 +87,14 @@ export class GateDecisionHandler {
                 return true; 
 
             case AuditStatus.PASS:
-                this.logger.info(`Gate Decision: PASSED for entity ${entityId}. Status: ${overallStatus}`);
+                this.loggerTool.info(`Gate Decision: PASSED for entity ${entityId}. Status: ${overallStatus}`);
                 return true; // Full clearance
 
             default:
-                this.logger.error(`Unknown audit status detected for ${entityId}: ${overallStatus}. Treating as failure.`);
+                this.loggerTool.error(`Unknown audit status detected for ${entityId}: ${overallStatus}. Treating as failure.`);
                 // Fallback action for undefined statuses should be blocking for security/integrity.
-                await this.policyEngine.blockPipeline(entityId);
-                await this.alertingService.sendAlert({
+                await this.policyEnforcementTool.blockPipeline(entityId);
+                await this.alertingServiceTool.sendAlert({
                     severity: CheckSeverity.CRITICAL,
                     message: `GATING INTEGRITY FAILURE: Undefined audit status (${overallStatus}) detected for ${entityId}. Block enforced.`,
                 });
@@ -80,7 +111,7 @@ export class GateDecisionHandler {
         );
 
         // 2. Alert
-        await this.alertingService.sendAlert({
+        await this.alertingServiceTool.sendAlert({
             severity: CheckSeverity.CRITICAL,
             message: `GATING BLOCK enforced: Entity ${entityId} failed audit. Violations: ${report.auditSummary.violationCount}.`,
             context: {
@@ -89,9 +120,9 @@ export class GateDecisionHandler {
         });
 
         // 3. Enforce blockage
-        await this.policyEngine.blockPipeline(entityId);
+        await this.policyEnforcementTool.blockPipeline(entityId);
 
-        this.logger.error(
+        this.loggerTool.error(
             `GATING BLOCK triggered for ${entityId}. Critical violations found: ${criticalViolations.length}.`,
             { entityId, violations: report.auditSummary.violationCount }
         );
@@ -101,7 +132,7 @@ export class GateDecisionHandler {
         const entityId = report.entity.identifier;
         
         // Use the injected action extractor plugin to gather required actions
-        const requiredActions = this.actionExtractor.extractConditionalActions(
+        const requiredActions = this.actionExtractorTool.extractConditionalActions(
             report.gatingChecks,
             AuditStatus.FAIL,
             CheckSeverity.CRITICAL
@@ -110,21 +141,21 @@ export class GateDecisionHandler {
         if (requiredActions.length > 0) {
             
             // Initiate mandatory external mitigation tracking (e.g., creating a JIRA ticket)
-            const trackingId = await this.remediationService.initiateMitigation(entityId, requiredActions);
+            const trackingId = await this.remediationServiceTool.initiateMitigation(entityId, requiredActions);
 
-            this.logger.warn(
+            this.loggerTool.warn(
                 `CONDITIONAL PASS granted for ${entityId}. ${requiredActions.length} mitigation actions required. Tracking ID: ${trackingId}`,
                 { entityId, trackingId }
             );
 
             // Notify relevant teams that tracking is active
-            await this.alertingService.sendAlert({ 
+            await this.alertingServiceTool.sendAlert({ 
                 severity: CheckSeverity.MEDIUM, 
                 message: `Conditional passage granted. Mitigation tracking initiated (ID: ${trackingId}) for ${entityId}.` 
             });
         } else {
             // Should theoretically not happen if the status is CONDITIONAL, but guards against empty lists.
-            this.logger.info(`Conditional status reported, but no explicit actions found for ${entityId}. Allowing passage.`);
+            this.loggerTool.info(`Conditional status reported, but no explicit actions found for ${entityId}. Allowing passage.`);
         }
     }
 }
