@@ -1,6 +1,5 @@
 import { CanonicalHashingTool } from '../integrity/canonical_hashing_tool';
 import { CanonicalErrorSerializer } from '../errors/canonical_error_serializer';
-// Assuming the FunctionMemoizationUtility is available via injection or module system.
 
 /**
  * Interface definition for a retrieval service (Lazy Loading)
@@ -8,36 +7,25 @@ import { CanonicalErrorSerializer } from '../errors/canonical_error_serializer';
  * @property {(id: string) => Promise<any>} retrieve - Function to fetch the artifact data.
  */
 
-// Placeholder for accessing the extracted utility (must be loaded by the kernel)
-const FunctionMemoizationUtility = {
-    /** 
-     * @template T 
-     * @param {T} func
-     * @param {function} [keyGenerator]
-     * @returns {T} 
-     */
-    createMemoizer: (func, keyGenerator) => { 
-        // In the runtime environment, this proxies to the plugin's actual logic.
-        // If not available, it defaults to the original function (no memoization).
-        if (typeof globalThis.FunctionMemoizationUtility !== 'undefined') {
-            return globalThis.FunctionMemoizationUtility.createMemoizer(func, keyGenerator);
-        }
-        return func;
-    }
-};
+/**
+ * Interface definition for the Function Memoization Utility (The extracted Plugin: FunctionMemoizer)
+ * @typedef {Object} FunctionMemoizer
+ * @property {<T extends Function>(func: T, keyGenerator?: (...args: any[]) => string) => T} createMemoizer
+ */
 
 type ArtifactData = { data: any, hash: string };
 type RetrievalFunction = (id: string) => Promise<ArtifactData>;
 type IntegrityCheckFunction = (id: string, expectedHash: string) => Promise<boolean>;
 
 /**
- * PreflightArtifactProcessor implements artifact validation using memoization, 
+ * PreflightArtifactProcessor implements artifact validation using memoization,
  * lazy loading, and functional composition for high efficiency.
  */
 export class PreflightArtifactProcessor {
     private readonly hasher: CanonicalHashingTool;
     private readonly errorSerializer: CanonicalErrorSerializer;
     private readonly retrievalService: ArtifactRetrievalService;
+    private readonly memoizationUtility: FunctionMemoizer;
 
     // Memoized functions for efficiency
     private memoizedRetrieval: RetrievalFunction;
@@ -46,19 +34,22 @@ export class PreflightArtifactProcessor {
     constructor(
         retrievalService: ArtifactRetrievalService,
         hasher: CanonicalHashingTool,
-        errorSerializer: CanonicalErrorSerializer
+        errorSerializer: CanonicalErrorSerializer,
+        /** @type {FunctionMemoizer} */
+        memoizationUtility
     ) {
         this.retrievalService = retrievalService;
         this.hasher = hasher;
         this.errorSerializer = errorSerializer;
+        this.memoizationUtility = memoizationUtility;
 
-        // Initialize memoized functions using the extracted utility
-        this.memoizedRetrieval = FunctionMemoizationUtility.createMemoizer(
+        // Initialize memoized functions using the injected utility
+        this.memoizedRetrieval = this.memoizationUtility.createMemoizer(
             this._retrieveAndHashArtifact.bind(this) as RetrievalFunction
         );
         
         // Use a custom key generator for the integrity check based on ID and expected hash
-        this.memoizedIntegrityCheck = FunctionMemoizationUtility.createMemoizer(
+        this.memoizedIntegrityCheck = this.memoizationUtility.createMemoizer(
             this._checkIntegrityLogic.bind(this) as IntegrityCheckFunction,
             ([id, expectedHash]) => `${id}:${expectedHash}` 
         );
