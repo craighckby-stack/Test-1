@@ -6,9 +6,9 @@ interface Config {
 }
 
 /**
- * Defines the interface for a safe deep merge utility.
+ * Defines the interface for a safe deep merge utility specialized for configuration.
  */
-interface IDeepMergeTool {
+interface IConfigurationDeepMergeToolKernel {
     safeDeepMerge(target: Config, source: Config): Config;
 }
 
@@ -16,15 +16,23 @@ interface IDeepMergeTool {
  * Processes and merges configuration layers from base, environment, and overrides.
  * Ensures input validation and uses a secure deep merging utility.
  */
-export class RuntimeConfigProcessor {
-    private mergeTool: IDeepMergeTool;
+export class RuntimeConfigProcessorKernel {
+    private mergeTool: IConfigurationDeepMergeToolKernel;
 
     /**
      * @param mergeTool An instance of a safe configuration merging utility.
      */
-    constructor(mergeTool: IDeepMergeTool) {
+    constructor(mergeTool: IConfigurationDeepMergeToolKernel) {
+        this.#setupDependencies(mergeTool);
+    }
+
+    /**
+     * Isolates dependency validation and assignment, ensuring synchronous setup extraction.
+     * @param mergeTool The configuration merging utility.
+     */
+    #setupDependencies(mergeTool: IConfigurationDeepMergeToolKernel): void {
         if (!mergeTool || typeof mergeTool.safeDeepMerge !== 'function') {
-            throw new Error("Initialization failed: Required IDeepMergeTool dependency (e.g., SafeConfigurationDeepMergeTool) is missing or invalid.");
+            throw new Error("Initialization failed: Required IConfigurationDeepMergeToolKernel dependency is missing or invalid.");
         }
         this.mergeTool = mergeTool;
     }
