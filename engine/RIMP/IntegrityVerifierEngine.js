@@ -2,6 +2,8 @@
 // This module utilizes the prioritized baseline snapshot to perform intelligent, tiered integrity checks.
 // Refactored for scalability and better asynchronous dependency management (Cycle 1: Hash Abstraction).
 
+// NOTE: Assumes ContextualLogger is available, either required or globally registered in the AGI-KERNEL environment.
+
 const RIMP_STATUS = {
     MODIFIED: 'MODIFIED',
     OK: 'OK',
@@ -18,33 +20,23 @@ class IntegrityVerifierEngine {
         this.hashAlgorithm = baselineConfig.algorithm || 'SHA256';
         this.verifierId = baselineConfig.snapshotId;
         
+        // Initialize Contextual Logger plugin
+        this.contextualLogger = new ContextualLogger(`RIMP::${this.verifierId}`, environmentServices.logger);
+
         // Dependency Injection for external tools
         // The 'SimulatedIntegrityHasher' (or actual Crypto/FS utility) is injected here.
         this.integrityHasher = environmentServices.integrityHasher || null;
 
-        // Prepare for integration with standardized logging
-        this.logger = environmentServices.logger || console; 
-        
         // Sorting keys upfront based on descending priority for efficient iteration
         this.componentKeys = Object.keys(baselineConfig.components).sort((a, b) => 
             baselineConfig.components[b].priority - baselineConfig.components[a].priority
         );
 
         if (!this.integrityHasher) {
-             this._log('WARNING: Integrity Hash calculation tool not provided. Scan will proceed but requires external injection for functionality.', 'warn');
+             this.contextualLogger.warn('Integrity Hash calculation tool not provided. Scan will proceed but requires external injection for functionality.');
         }
 
-        this._log(`Initialized RIMP Engine ${this.verifierId} using ${this.hashAlgorithm}.`);
-    }
-
-    _log(message, level = 'info') {
-        // Use structured logging preparation instead of simple console.log
-        if (this.logger && this.logger[level]) {
-            this.logger[level](`[RIMP::${this.verifierId}] ${message}`);
-        } else {
-             // Fallback if logger doesn't have the level (e.g., standard console)
-            console.log(`[RIMP::${this.verifierId}] [${level.toUpperCase()}] ${message}`);
-        }
+        this.contextualLogger.info(`Initialized RIMP Engine ${this.verifierId} using ${this.hashAlgorithm}.`);
     }
 
     /**
@@ -55,17 +47,17 @@ class IntegrityVerifierEngine {
      */
     async executeScan(maxPriority, differential = false) {
         if (!this.integrityHasher) {
-             this._log('Cannot execute scan: Integrity Hash calculation tool is missing.', 'error');
+             this.contextualLogger.error('Cannot execute scan: Integrity Hash calculation tool is missing.');
              throw new Error('Missing IntegrityHasher dependency.');
         }
 
-        this._log(`Starting Integrity Scan (Max P: ${maxPriority}, Differential: ${differential})`);
+        this.contextualLogger.info(`Starting Integrity Scan (Max P: ${maxPriority}, Differential: ${differential})`);
         const results = {};
         
         for (const key of this.componentKeys) {
             const component = this.baseline.components[key];
             if (component.priority <= maxPriority) {
-                this._log(`Verifying component: ${key} (P: ${component.priority})`, 'debug');
+                this.contextualLogger.debug(`Verifying component: ${key} (P: ${component.priority})`);
                 
                 for (const [path, expectedHash] of Object.entries(component.hashes)) {
                     let currentHash;
@@ -77,7 +69,7 @@ class IntegrityVerifierEngine {
                         }); 
                     } catch (error) {
                         results[path] = { status: RIMP_STATUS.ERROR, detail: error.message };
-                        this._log(`Error reading file ${path}: ${error.message}`, 'error');
+                        this.contextualLogger.error(`Error reading file ${path}: ${error.message}`);
                         continue; // Move to the next file
                     }
 
@@ -87,18 +79,16 @@ class IntegrityVerifierEngine {
                             current: currentHash,
                             expected: expectedHash
                         };
-                        this._log(`Integrity breach detected: ${path}`, 'warn');
+                        this.contextualLogger.warn(`Integrity breach detected: ${path}`);
                     } else if (!differential) {
                         results[path] = { status: RIMP_STATUS.OK };
                     }
                 }
             }
         }
-        this._log(`Scan complete. Found ${Object.keys(results).filter(p => results[p].status !== RIMP_STATUS.OK).length} integrity issues.`);
+        this.contextualLogger.info(`Scan complete. Found ${Object.keys(results).filter(p => results[p].status !== RIMP_STATUS.OK).length} integrity issues.`);
         return results;
     }
-
-    // _calculateFileHash has been abstracted into the SimulatedIntegrityHasher plugin.
 }
 
 module.exports = IntegrityVerifierEngine;
