@@ -2,21 +2,26 @@
 
 import { readFileSync } from 'fs';
 
-// Placeholder for the external Schema Validation Tool Interface
-// These interfaces define the contract with the vanilla JS plugin.
+/**
+ * CONTRACT: ValidationResult
+ * Defines the structure for schema validation outcomes returned by the external tool.
+ */
 interface ValidationResult {
     isValid: boolean;
     errors: Array<{ message: string, dataPath?: string }>;
     errorText?: string;
 }
 
+/**
+ * CONTRACT: SchemaValidationTool
+ * Defines the contract (interface) for the required external schema compilation and validation plugin.
+ */
 interface SchemaValidationTool {
+    /** Compiles the schema content and registers it internally for future validation */
     compileAndCacheSchema(schemaRef: string, schemaContent: unknown): string;
+    /** Executes validation against a previously compiled schema reference */
     validateData(schemaRef: string, data: unknown): ValidationResult;
 }
-
-// We assume the SchemaCompilationAndValidationService plugin is executed and available in the global scope.
-const schemaValidationTool: SchemaValidationTool = (globalThis as any).SchemaCompilationAndValidationService;
 
 
 /**
@@ -29,12 +34,18 @@ const schemaValidationTool: SchemaValidationTool = (globalThis as any).SchemaCom
 export class ArtifactSchemaValidator {
     // Tracks which schemas have been loaded from disk and compiled by the service.
     private loadedSchemaRefs: Set<string>; 
-    private schemaBasePath: string;
+    private readonly schemaBasePath: string;
+    private readonly validationTool: SchemaValidationTool;
 
     constructor(schemaBasePath: string = './config/schemas') {
-        if (!schemaValidationTool) {
+        // Abstracting global access and performing immediate dependency injection check
+        const tool = (globalThis as any).SchemaCompilationAndValidationService as SchemaValidationTool | undefined;
+        
+        if (!tool) {
             throw new Error("SchemaCompilationAndValidationService plugin is required but not found in the execution environment.");
         }
+        this.validationTool = tool;
+        
         this.loadedSchemaRefs = new Set();
         // Ensure the path ends with a separator
         this.schemaBasePath = schemaBasePath.endsWith('/') ? schemaBasePath : `${schemaBasePath}/`;
@@ -58,7 +69,7 @@ export class ArtifactSchemaValidator {
             const schema = JSON.parse(schemaContentString);
             
             // Delegate compilation and caching to the external tool
-            schemaValidationTool.compileAndCacheSchema(schemaRef, schema);
+            this.validationTool.compileAndCacheSchema(schemaRef, schema);
             
             this.loadedSchemaRefs.add(schemaRef);
 
@@ -92,7 +103,7 @@ export class ArtifactSchemaValidator {
         this.ensureSchemaIsCompiled(schemaRef);
 
         // 2. Delegate validation to the external tool
-        const validationResult = schemaValidationTool.validateData(schemaRef, data);
+        const validationResult = this.validationTool.validateData(schemaRef, data);
 
         if (!validationResult.isValid) {
             // Providing clear error details from the tool
