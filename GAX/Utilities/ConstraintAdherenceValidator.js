@@ -2,10 +2,8 @@
  * @file ConstraintAdherenceValidator.js
  * @module GAX/Utilities
  * @description Utility class for validating deployment configurations against established constraints defined in ConstraintTaxonomy.
+ * Dependencies handled via KERNEL_SYNERGY_CAPABILITIES.
  */
-
-import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'; // Assuming JSON loading capability
-import { executeConstraintCheck } from './ConstraintExecutionCapability';
 
 /**
  * @typedef {Object} ConstraintDefinition
@@ -25,11 +23,12 @@ import { executeConstraintCheck } from './ConstraintExecutionCapability';
 export class ConstraintAdherenceValidator {
 
     /**
-     * Initializes the validator.
-     * @param {Array<ConstraintDefinition>} [taxonomy] - The array of constraints, usually loaded from a schema.
+     * Initializes the validator. 
+     * Note: Taxonomy must be provided by the caller or loaded via initializeDefaultTaxonomy().
+     * @param {Array<ConstraintDefinition>} [taxonomy=[]] - The array of constraints.
      */
-    constructor(taxonomy = ConstraintTaxonomy && ConstraintTaxonomy.constraintTypes ? ConstraintTaxonomy.constraintTypes : []) {
-        // Ensure taxonomy is an array, handling potential failures during JSON loading.
+    constructor(taxonomy = []) {
+        // Ensure taxonomy is an array, handling potential failures.
         let constraints = taxonomy;
         if (!Array.isArray(constraints)) {
             console.error("Constraint taxonomy initialized with invalid structure. Resetting to empty array.");
@@ -41,13 +40,40 @@ export class ConstraintAdherenceValidator {
     }
 
     /**
+     * Attempts to asynchronously load the default Constraint Taxonomy using the ConfigurationService.
+     * @returns {Promise<boolean>} True if loaded successfully.
+     */
+    async initializeDefaultTaxonomy() {
+        if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.ConfigurationService) {
+            try {
+                // Assume 'get_config' is the method and 'GAX/ConstraintTaxonomy' is the configuration path/key
+                const configData = await KERNEL_SYNERGY_CAPABILITIES.ConfigurationService.execute('get_config', 'GAX/ConstraintTaxonomy');
+                if (configData && Array.isArray(configData.constraintTypes)) {
+                    this.taxonomyMap = new Map(configData.constraintTypes.map(c => [c.code, c]));
+                    return true;
+                }
+            } catch (e) {
+                console.error("Failed to load default ConstraintTaxonomy via ConfigurationService.", e);
+            }
+        }
+        return false;
+    }
+
+    /**
      * Checks if a provided configuration payload adheres to a specific set of constraints.
      * @param {Object} configuration - The system configuration (e.g., a planned deployment).
      * @param {Array<string>} requiredConstraintCodes - The specific subset of constraints to validate against (e.g., all HARD constraints).
-     * @returns {Object} Validation result containing status and list of violations.
+     * @returns {Promise<Object>} Validation result containing status and list of violations.
      */
-    validate(configuration, requiredConstraintCodes) {
+    async validate(configuration, requiredConstraintCodes) {
         const violations = [];
+
+        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES.ConstraintExecutionService) {
+            console.error("ConstraintExecutionService capability is unavailable. Cannot perform validation.");
+            return { isAdherent: false, violations: [{ code: 'KERNEL_ERROR', severity: 'CRITICAL', details: 'Constraint Execution Service required but not found.' }] };
+        }
+
+        const ConstraintExecutionService = KERNEL_SYNERGY_CAPABILITIES.ConstraintExecutionService;
 
         for (const code of requiredConstraintCodes) {
             /** @type {ConstraintDefinition} */
@@ -58,15 +84,15 @@ export class ConstraintAdherenceValidator {
                 continue;
             }
             
-            // Delegating constraint execution to the capability function
-            const adherenceCheck = executeConstraintCheck(constraintDef, configuration);
+            // Delegating constraint execution to the capability service
+            const adherenceCheck = await ConstraintExecutionService.execute('executeConstraintCheck', constraintDef, configuration);
 
-            if (!adherenceCheck.isMet) {
+            if (!adherenceCheck || adherenceCheck.isMet === false) {
                 violations.push({
                     code: constraintDef.code,
                     target: constraintDef.target_parameter || 'N/A',
                     severity: constraintDef.severity || 'UNKNOWN',
-                    details: adherenceCheck.details || 'Adherence rule failed.'
+                    details: adherenceCheck ? (adherenceCheck.details || 'Adherence rule failed.') : 'Constraint check failed due to service error.'
                 });
             }
         }
