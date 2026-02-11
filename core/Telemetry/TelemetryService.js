@@ -65,8 +65,9 @@ class TelemetryService {
      * @param {string} eventName - Must be a key from GAXEventRegistry values
      * @param {object} payload - Contextual data related to the event
      */
-    async publish(eventName, payload = {}) {
+    publish(eventName, payload = {}) { 
         
+        // Check initialization state explicitly, ensuring all necessary components are ready.
         const fullyInitialized = this.#isInitialized && !!this.#transport && !!this.#sampler;
 
         // 0. Precondition Check using the abstracted Validator
