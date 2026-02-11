@@ -1,86 +1,104 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
-// Assuming SchemaCompilationAndValidationService and DataDecoderUtility are available via plugin infrastructure
-// We import them conceptually for TypeScript typing, but they are resolved at runtime via the kernel.
+// External dependencies resolved via the kernel/module system.
+// We import them for TypeScript definition purposes.
 import { DataDecoderUtility } from '../utils/DataDecoderUtility'; 
 import { SchemaCompilationAndValidationService } from '../validation/SchemaCompilationAndValidationService';
 import { SchemaErrorFormatterTool } from '../utils/SchemaErrorFormatterTool';
 
-const SCHEMA_PATH = path.join(__dirname, '../../../config/SPDM_Schema.json');
-
+// Defines the expected structure for validation results returned by the service.
 interface ValidationResult {
     isValid: boolean;
-    errors: any[];
+    // Errors are typically complex objects (e.g., AJV validation errors)
+    errors: any[]; 
 }
 
+// Define the static location of the compliance schema.
+const SCHEMA_PATH = path.join(__dirname, '../../../config/SPDM_Schema.json');
+
 /**
- * Orchestrates schema loading from the file system and uses the SchemaCompilationAndValidationService
- * for performing the actual validation against cached schemas.
+ * The SchemaComplianceEngine is responsible for managing the loading, registration,
+ * and orchestration of configuration validation against a specific compliance schema
+ * (SPDM_Schema.json). It delegates core functions to utility services.
  */
 export class SchemaComplianceEngine {
     private schema: any | null = null;
     private schemaId: string | undefined;
+    private isSchemaLoaded = false;
 
     constructor() {
-        // Initialization relies on external tools. No AJV instantiation required here.
+        // Initialization involves setting up state, no heavy lifting done here.
     }
 
     /**
-     * Loads the schema content from disk and parses it using a safe decoder utility.
+     * Loads the schema content from disk, parses it, and registers it with the
+     * compilation/validation service for caching and use.
+     * 
+     * @throws Error if file loading or parsing fails, or if the schema is malformed.
      */
     public async loadSchema(): Promise<void> {
-        if (this.schema) {
-            console.log(`[Compliance] Schema already loaded: ${this.schema.title}`);
+        if (this.isSchemaLoaded && this.schema) {
+            console.log(`[Compliance] Schema already loaded: ${this.schema.title || 'Unknown Schema'}`);
             return;
         }
+
+        console.log(`[Compliance] Attempting to load schema from: ${SCHEMA_PATH}`);
 
         try {
             const schemaContent = await fs.readFile(SCHEMA_PATH, 'utf-8');
             
-            // Use DataDecoderUtility to safely parse JSON content, replacing direct JSON.parse
-            this.schema = DataDecoderUtility.decodeJson(schemaContent);
+            // 1. Safe JSON parsing
+            const parsedSchema = DataDecoderUtility.decodeJson(schemaContent);
             
-            if (!this.schema || typeof this.schema.$id !== 'string') {
-                 throw new Error("Invalid schema structure: missing required '$id' field.");
+            if (!parsedSchema || typeof parsedSchema.$id !== 'string') {
+                 throw new Error("Invalid schema structure: missing required '$id' field or empty content.");
             }
+
+            this.schema = parsedSchema;
             this.schemaId = this.schema.$id;
             
-            // Optional: Explicitly register the schema for compilation/caching in the service
+            // 2. Register the schema with the validation service
             SchemaCompilationAndValidationService.registerSchema(this.schemaId, this.schema);
 
-            console.log(`[Compliance] Loaded schema: ${this.schema.title}`);
+            this.isSchemaLoaded = true;
+            console.log(`[Compliance] Successfully loaded and registered schema: ${this.schema.title || this.schemaId}`);
+
         } catch (error) {
-            console.error(`Failed to load or parse schema from ${SCHEMA_PATH}:`, error);
+            console.error(`[FATAL] Failed to load or parse schema from ${SCHEMA_PATH}:`, (error as Error).message);
             throw new Error(`Schema loading failed.`);
         }
     }
 
     /**
-     * Validates configuration data against the loaded schema using the dedicated validation service.
-     * @param configPath The path of the configuration file being validated.
+     * Validates configuration data against the loaded compliance schema.
+     * 
+     * @param configPath The path/identifier of the configuration being validated (for logging).
      * @param configData The configuration object to validate.
      * @returns True if the configuration is valid, false otherwise.
+     * @throws Error if the schema has not been successfully loaded prior to validation.
      */
     public validateConfig(configPath: string, configData: any): boolean {
-        if (!this.schema || !this.schemaId) {
-            throw new Error('Schema not loaded. Call loadSchema() first.');
+        if (!this.isSchemaLoaded || !this.schemaId) {
+            throw new Error('Compliance schema not loaded. Call loadSchema() first.');
         }
         
-        // Delegate validation execution to the dedicated service.
+        // Delegate validation execution to the dedicated service using the cached schema ID.
         const validationResult: ValidationResult = SchemaCompilationAndValidationService.validateAgainstSchema(
-            this.schemaId, 
+            this.schemaId!,
             configData
         );
         
         const isValid = validationResult.isValid;
 
         if (!isValid) {
-            console.error(`[Compliance Failure] Config failed validation: ${configPath}`);
+            console.error(`\n--- [COMPLIANCE FAILURE] ---`);
+            console.error(`Configuration file failed SPDM schema validation: ${configPath}`);
             
-            // Use SchemaErrorFormatterTool to standardize and display validation errors
+            // Use dedicated tool to standardize and display validation errors
             const formattedErrors = SchemaErrorFormatterTool.formatErrors(validationResult.errors);
             console.error(formattedErrors);
+            console.error(`---------------------------\n`);
         }
         return isValid;
     }
