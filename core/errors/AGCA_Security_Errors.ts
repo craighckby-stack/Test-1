@@ -21,6 +21,13 @@ declare const StructuredErrorFactory: {
     };
 };
 
+/** Canonical error codes used by the AGCA Validation Service. Immediately frozen to guarantee immutability. */
+const AGCA_ERROR_CODES = Object.freeze({
+    INTEGRITY_CHECK_FAILED: 'INTEGRITY_CHECK_FAILED',
+    SIGNATURE_VERIFICATION_FAILED: 'SIGNATURE_VERIFICATION_FAILED',
+    AGENT_AUTHORIZATION_DENIED: 'AGENT_AUTHORIZATION_DENIED',
+} as const);
+
 /** Base error for all AGCA Validation failures. Requires explicit code definition on instantiation. */
 export const AGCA_ValidationError = StructuredErrorFactory.createBase('AGCA_ValidationError');
 export type AGCA_ValidationError = InstanceType<typeof AGCA_ValidationError>;
@@ -29,7 +36,7 @@ export type AGCA_ValidationError = InstanceType<typeof AGCA_ValidationError>;
 export const AGCA_IntegrityError = StructuredErrorFactory.create(
     AGCA_ValidationError,
     'AGCA_IntegrityError',
-    'INTEGRITY_CHECK_FAILED'
+    AGCA_ERROR_CODES.INTEGRITY_CHECK_FAILED
 );
 export type AGCA_IntegrityError = InstanceType<typeof AGCA_IntegrityError>;
 
@@ -37,7 +44,7 @@ export type AGCA_IntegrityError = InstanceType<typeof AGCA_IntegrityError>;
 export const AGCA_SignatureVerificationError = StructuredErrorFactory.create(
     AGCA_ValidationError,
     'AGCA_SignatureVerificationError',
-    'SIGNATURE_VERIFICATION_FAILED'
+    AGCA_ERROR_CODES.SIGNATURE_VERIFICATION_FAILED
 );
 export type AGCA_SignatureVerificationError = InstanceType<typeof AGCA_SignatureVerificationError>;
 
@@ -45,6 +52,6 @@ export type AGCA_SignatureVerificationError = InstanceType<typeof AGCA_Signature
 export const AGCA_AuthorizationError = StructuredErrorFactory.create(
     AGCA_ValidationError,
     'AGCA_AuthorizationError',
-    'AGENT_AUTHORIZATION_DENIED'
+    AGCA_ERROR_CODES.AGENT_AUTHORIZATION_DENIED
 );
 export type AGCA_AuthorizationError = InstanceType<typeof AGCA_AuthorizationError>;
