@@ -18,39 +18,118 @@ const GSR_PARAMS = {
 
 /**
  * Validates GSR readings based on static ranges and dynamic rate-of-change limits.
- * Abstraction is achieved by delegating sequence consistency checks to the reusable TimeSeriesDeltaValidator.
+ * Encapsulates configuration and delegates sequence consistency checks to the TimeSeriesDeltaValidator.
  */
-class GSR_Validator {
-    static config = GSR_PARAMS;
+class GSRValidatorKernel {
+    /** @type {object} */
+    #config;
+    /** @type {TimeSeriesDeltaValidator} */
+    #deltaValidator;
 
     /**
-     * Static instance of the reusable rate validator, configured for GSR data.
+     * Initializes the validator kernel, setting up configuration and dependencies.
+     * @param {object} [dependencies={}] - Optional dependencies for testing/injection.
+     * @param {object} [dependencies.config=GSR_PARAMS] - Configuration overrides.
+     * @param {function} [dependencies.TimeSeriesDeltaValidator=TimeSeriesDeltaValidator] - Delta Validator dependency.
      */
-    static deltaValidator = new TimeSeriesDeltaValidator(
-        GSR_PARAMS.MAX_RATE_OF_CHANGE_uS_PER_MS,
-        'conductance_uS' // The key containing the value to track changes on
-    );
+    constructor(dependencies = {}) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Executes synchronous dependency validation and configuration loading.
+     * Satisfies the synchronous setup extraction goal.
+     * @private
+     */
+    #setupDependencies(dependencies) {
+        const config = dependencies.config || GSR_PARAMS;
+        const DeltaValidatorClass = dependencies.TimeSeriesDeltaValidator || TimeSeriesDeltaValidator;
+
+        if (!config || typeof config.MAX_RATE_OF_CHANGE_uS_PER_MS !== 'number') {
+            this.#throwSetupError("Invalid or missing GSR configuration constants.");
+        }
+        if (typeof DeltaValidatorClass !== 'function') {
+            this.#throwSetupError("TimeSeriesDeltaValidator dependency is missing or invalid.");
+        }
+
+        this.#config = config;
+        
+        const maxRate = this.#delegateToConfigAccess('MAX_RATE_OF_CHANGE_uS_PER_MS');
+        const valueKey = 'conductance_uS';
+
+        // Instantiate the external dependency
+        this.#deltaValidator = new DeltaValidatorClass(maxRate, valueKey);
+    }
+
+    /**
+     * Proxy for synchronous configuration access.
+     * @private
+     */
+    #delegateToConfigAccess(key) {
+        return this.#config[key];
+    }
+
+    /**
+     * Checks basic structural integrity of a single reading.
+     * @private
+     */
+    #checkStructure(reading) {
+        return typeof reading?.conductance_uS === 'number' && typeof reading.timestamp === 'number';
+    }
+
+    /**
+     * Checks if the conductance value falls within physiological range.
+     * @private
+     */
+    #checkRange(value) {
+        const MIN = this.#delegateToConfigAccess('MIN_CONDUCTANCE_uS');
+        const MAX = this.#delegateToConfigAccess('MAX_CONDUCTANCE_uS');
+        return value >= MIN && value <= MAX;
+    }
+
+    /**
+     * Checks for negative timestamps.
+     * @private
+     */
+    #checkNegativeTimestamp(timestamp) {
+        return timestamp < 0;
+    }
+
+    /**
+     * Delegates dynamic rate-of-change and monotonicity validation to the external tool.
+     * @private
+     */
+    #delegateToDeltaValidation(readings) {
+        return this.#deltaValidator.validateSequence(readings);
+    }
+
+    /**
+     * Throws a setup error, serving as an I/O proxy for critical failure.
+     * @private
+     */
+    #throwSetupError(message) {
+        throw new Error(`GSRValidatorKernel Setup Error: ${message}`);
+    }
 
     /**
      * Checks basic structural integrity and static range bounds for a single reading.
      * @param {GSRReading} reading
      * @returns {boolean} True if the structure and value are valid.
      */
-    static validateReading(reading) {
-        // Use optional chaining and direct type check for maximum efficiency
-        if (typeof reading?.conductance_uS !== 'number' || typeof reading.timestamp !== 'number') {
+    validateReading(reading) {
+        if (!this.#checkStructure(reading)) {
             return false;
         }
 
         const value = reading.conductance_uS;
 
-        // High-speed range check
-        if (value < GSR_PARAMS.MIN_CONDUCTANCE_uS || value > GSR_PARAMS.MAX_CONDUCTANCE_uS) {
+        // Range check via proxy
+        if (!this.#checkRange(value)) {
             return false;
         }
 
-        // Time must be non-negative
-        if (reading.timestamp < 0) {
+        // Time check via proxy
+        if (this.#checkNegativeTimestamp(reading.timestamp)) {
             return false;
         }
 
@@ -64,21 +143,21 @@ class GSR_Validator {
      * @param {GSRReading[]} readings
      * @returns {boolean} True if the entire sequence is valid and consistent.
      */
-    static validateSequence(readings) {
+    validateSequence(readings) {
         if (!Array.isArray(readings) || readings.length === 0) {
             return true; // Trivially valid sequence
         }
 
         // Phase 1: Range and Structure Check (Optimized for fail-fast)
         for (let i = 0; i < readings.length; i++) {
-            if (!GSR_Validator.validateReading(readings[i])) {
+            if (!this.validateReading(readings[i])) {
                 return false;
             }
         }
 
-        // Phase 2: Dynamic Delta and Monotonicity Check (Abstracted)
-        return GSR_Validator.deltaValidator.validateSequence(readings);
+        // Phase 2: Dynamic Delta and Monotonicity Check (Delegated via I/O Proxy)
+        return this.#delegateToDeltaValidation(readings);
     }
 }
 
-export default GSR_Validator;
+export default GSRValidatorKernel;
