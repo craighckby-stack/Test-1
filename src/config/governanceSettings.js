@@ -1,7 +1,4 @@
-import { EnvironmentConfigLoader } from '@AGI-KERNEL/EnvironmentConfigLoader';
-import { CanonicalConfigurationCacheTool } from '@AGI-KERNEL/CanonicalConfigurationCacheTool';
-import { SafeConfigurationCoercer } from '@AGI-KERNEL/SafeConfigurationCoercer';
-import { ImmutableConfigAccessorGenerator } from '@AGI-KERNEL/ImmutableConfigAccessorGenerator'; // Newly utilized Plugin
+import { RobustConfigInitializer } from '@AGI-KERNEL/RobustConfigInitializer';
 
 /**
  * Defines the strict schema for governance configuration.
@@ -37,47 +34,24 @@ const GOVERNANCE_SCHEMA = Object.freeze({
  * Key used for caching the canonical configuration.
  */
 const CONFIG_CACHE_KEY = 'GOVERNANCE_SETTINGS_CANONICAL_V1';
+
 let governanceSettingsAccessors: Readonly<Record<string, () => any>> | null = null;
 
 /**
- * Loads and caches the governance settings using a robust, multi-stage process:
- * 1. Environment Loading/Validation (Robust Env Handling).
- * 2. Data Coercion to Map (Efficient Data Structure).
- * 3. Configuration Caching (Caching Mechanism).
- * 4. Accessor Generation (Recursive Abstraction).
+ * Loads and caches the governance settings using the abstracted configuration pipeline.
  */
 function loadGovernanceSettings() {
     if (governanceSettingsAccessors) {
-        // Optimization 2: Return cached accessors immediately
         return governanceSettingsAccessors;
     }
 
     try {
-        // Step 1: Load configuration using schema defaults and environment variables
-        const rawConfig = EnvironmentConfigLoader.execute({ 
-            schema: GOVERNANCE_SCHEMA, 
-            source: process.env 
-        });
-
-        // Step 2: Validate, coerce types, and ensure result is an efficient Map
-        const canonicalConfigMap = SafeConfigurationCoercer.execute({
-            config: rawConfig,
+        // Uses RobustConfigInitializer to handle Loading, Coercion, Caching, and Accessor Generation.
+        governanceSettingsAccessors = RobustConfigInitializer.execute({
             schema: GOVERNANCE_SCHEMA,
-            returnMap: true // Optimization 4: Store as Map
+            cacheKey: CONFIG_CACHE_KEY,
+            source: process.env // Pass environment variables as source
         });
-
-        // Step 3: Cache the canonical configuration
-        const ttl = canonicalConfigMap.get('CACHE_TTL_MS') as number;
-        CanonicalConfigurationCacheTool.set({ 
-            key: CONFIG_CACHE_KEY, 
-            config: canonicalConfigMap,
-            ttl: ttl
-        });
-        
-        // Step 4: Optimization 3 & 4: Generate immutable, high-speed accessor functions
-        governanceSettingsAccessors = ImmutableConfigAccessorGenerator.execute({ 
-            configSource: canonicalConfigMap 
-        }) as Readonly<Record<string, () => any>>;
 
         return governanceSettingsAccessors;
 
