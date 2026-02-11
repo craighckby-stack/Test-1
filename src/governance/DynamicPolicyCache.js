@@ -1,42 +1,95 @@
 /**
- * Dynamic Policy Cache (DPC) Utility V2
+ * Dynamic Policy Cache Kernel (DPC) V2
  * Loads and encapsulates ACVD constraints for optimized, low-latency axiomatic checks.
+ * Ensures policy data is loaded asynchronously and is immutable post-initialization.
  */
 
-// AGI-KERNEL Refactor Note: PolicyVetoCheckerTool has been abstracted into the IntegrityVetoChecker plugin.
-// Assume IntegrityVetoChecker is accessible via the runtime environment.
-declare const IntegrityVetoChecker: {
-    check: (metrics: { pvlm_failure_count: number, mpam_failure_count: number }, bounds: { max_pvlm_failures: number, max_mpam_failures: number }) => boolean;
-};
+class DynamicPolicyCacheKernel {
+    // # Dependencies
+    #acvdConfigRegistry;
+    #integrityVetoChecker;
+    #logger;
 
-class DynamicPolicyCache {
-    // Private fields ensure policy stability (immutability post-init)
-    #VetoBounds: { max_pvlm_failures: number, max_mpam_failures: number };
-    #UtilityBounds: { UFRM: number };
-    #ContextRequired: boolean;
+    // # Internal State (Policy Data)
+    #VetoBounds: { max_pvlm_failures: number, max_mpam_failures: number } = {};
+    #UtilityBounds: { UFRM: number } = {};
+    #ContextRequired: boolean = false;
+    #isInitialized = false;
 
     /**
-     * Initializes the DPC with pre-validated ACVD configuration.
-     * @param {Object} config - ACVD constraints structure.
-     * @param {Object} config.policy_thresholds - Contains governance bounds.
-     * @param {Object} config.attestation_requirements - Contains EVCM requirements.
+     * Initializes the DPC Kernel, formalizing dependencies.
+     * @param {object} dependencies
+     * @param {ACVDPolicyConfigRegistryKernel} dependencies.acvdConfigRegistry - Asynchronously loads the ACVD configuration.
+     * @param {IIntegrityVetoCheckerToolKernel} dependencies.integrityVetoChecker - Tool for executing low-latency veto checks.
+     * @param {ILoggerToolKernel} dependencies.logger
      */
-    constructor({ policy_thresholds, attestation_requirements }: any) {
-        // Input validation is streamlined, expecting schema validation to happen upstream (see scaffold).
-        if (!policy_thresholds || !attestation_requirements) {
-            throw new Error("[DPC] Initialization requires valid policy and attestation configurations.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    #setupDependencies(dependencies) {
+        const { acvdConfigRegistry, integrityVetoChecker, logger } = dependencies;
+
+        if (!acvdConfigRegistry || typeof acvdConfigRegistry.getACVDConfiguration !== 'function') {
+            throw new Error("[DynamicPolicyCacheKernel] Missing or invalid acvdConfigRegistry.");
+        }
+        // IIntegrityVetoCheckerToolKernel replaces synchronous global access to IntegrityVetoChecker
+        if (!integrityVetoChecker || typeof integrityVetoChecker.check !== 'function') {
+            throw new Error("[DynamicPolicyCacheKernel] Missing or invalid integrityVetoChecker.");
+        }
+        if (!logger) {
+            throw new Error("[DynamicPolicyCacheKernel] Missing logger dependency.");
         }
 
-        const { integrity_veto_bounds, utility_maximization } = policy_thresholds;
-        const { ecvm_required } = attestation_requirements;
+        this.#acvdConfigRegistry = acvdConfigRegistry;
+        this.#integrityVetoChecker = integrityVetoChecker;
+        this.#logger = logger;
+    }
 
-        // Direct assignment to private fields
-        this.#VetoBounds = integrity_veto_bounds;
-        this.#UtilityBounds = utility_maximization;
-        this.#ContextRequired = ecvm_required;
+    /**
+     * Asynchronously initializes the cache by loading the ACVD configuration from the Registry.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        if (this.#isInitialized) {
+            this.#logger.warn('DynamicPolicyCacheKernel is already initialized.');
+            return;
+        }
 
-        // Policy cache must be immutable to prevent runtime governance policy drift.
-        Object.freeze(this);
+        this.#logger.info('Loading ACVD configuration...');
+
+        try {
+            const config = await this.#acvdConfigRegistry.getACVDConfiguration();
+
+            const { policy_thresholds, attestation_requirements } = config;
+
+            if (!policy_thresholds || !attestation_requirements) {
+                 throw new Error("Configuration integrity failure: Missing required policy_thresholds or attestation_requirements.");
+            }
+
+            const { integrity_veto_bounds, utility_maximization } = policy_thresholds;
+            const { ecvm_required } = attestation_requirements;
+
+            // Assigning data and enforcing immutability on subsets
+            this.#VetoBounds = Object.freeze(integrity_veto_bounds);
+            this.#UtilityBounds = Object.freeze(utility_maximization);
+            this.#ContextRequired = ecvm_required;
+
+            // Policy cache must be immutable post-init
+            Object.freeze(this);
+            this.#isInitialized = true;
+            this.#logger.info('DynamicPolicyCacheKernel initialized successfully.');
+
+        } catch (error) {
+            this.#logger.error('Failed to initialize DynamicPolicyCacheKernel by loading ACVD configuration.', { error: error.message });
+            throw error; 
+        }
+    }
+
+    _ensureInitialized() {
+        if (!this.#isInitialized) {
+            throw new Error("[DynamicPolicyCacheKernel] Must be initialized before use.");
+        }
     }
 
     /**
@@ -47,8 +100,9 @@ class DynamicPolicyCache {
      * @returns {boolean} True if the system state is valid and non-vetoable.
      */
     checkIntegrityVeto(metrics: { pvlm_failure_count: number, mpam_failure_count: number }): boolean {
-        // Delegate the core comparison logic to the reusable IntegrityVetoChecker plugin.
-        return IntegrityVetoChecker.check(
+        this._ensureInitialized();
+        // Delegate the core comparison logic to the injected IIntegrityVetoCheckerToolKernel.
+        return this.#integrityVetoChecker.check(
             metrics,
             this.#VetoBounds
         );
@@ -59,6 +113,7 @@ class DynamicPolicyCache {
      * @returns {number} The current UFRM bound.
      */
     getUFRMBound(): number {
+        this._ensureInitialized();
         return this.#UtilityBounds.UFRM;
     }
 
@@ -67,8 +122,9 @@ class DynamicPolicyCache {
      * @returns {boolean}
      */
     isContextValidationRequired(): boolean {
+        this._ensureInitialized();
         return this.#ContextRequired;
     }
 }
 
-module.exports = DynamicPolicyCache;
+module.exports = DynamicPolicyCacheKernel;
