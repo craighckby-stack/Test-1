@@ -2,6 +2,9 @@
  * AGI Metrics Schema and Consensus Pipeline Constants (AMC)
  * Defines the required structure, enumerations, and operational parameters for the 
  * Proposal History Index (PSHI) and the overall consensus pipeline.
+ * 
+ * Dependencies: StructuralSchemaValidatorTool must be injected or globally available 
+ * for validation functions to operate correctly.
  */
 
 // 1. Core Enumerations (Ensuring immutability and centralized state management)
@@ -13,6 +16,8 @@ export const PROPOSAL_STATUS_ENUM = Object.freeze({
     EXPIRED: 'EXPIRED'
 });
 
+const PROPOSAL_STATUS_VALUES = Object.values(PROPOSAL_STATUS_ENUM);
+
 // 2. Proposal Event Schema Definition (Metadata-rich structure for validation)
 // Defines expected field names, required status, and data types.
 export const PROPOSAL_SCHEMA_DEFINITION = Object.freeze({
@@ -20,7 +25,7 @@ export const PROPOSAL_SCHEMA_DEFINITION = Object.freeze({
     agent_id: { type: 'string', required: true, description: 'ID of the submitting agent (AGI-C-XX).' },
     validation_status: { 
         type: 'enum', 
-        enum: Object.values(PROPOSAL_STATUS_ENUM), 
+        enum: PROPOSAL_STATUS_VALUES, 
         required: true,
         description: 'Current consensus state of the proposal.'
     },
@@ -38,7 +43,7 @@ export const PSHI_CONFIG = Object.freeze({
 // 4. Standardized Failure Tagging Taxonomy
 export const FAILURE_TOPOLOGY_TAGS = Object.freeze({
     API_SCHEMA_MISALIGNMENT: 'API_Schema_Misalignment',
-    RESOURCE_LEAK: 'Resource_Contention_Pattern', // Formerly Memory Leak
+    RESOURCE_LEAK: 'Resource_Contention_Pattern', 
     PERFORMANCE_REGRESSION: 'Performance_Regression',
     SECURITY_FAILURE: 'Security_Protocol_Failure',
     CONTEXTUAL_DRIFT: 'Contextual_Mandate_Drift',
@@ -46,27 +51,22 @@ export const FAILURE_TOPOLOGY_TAGS = Object.freeze({
 });
 
 /**
- * Executes deep validation against the PROPOSAL_SCHEMA_DEFINITION.
- * NOTE: The implementation logic is now delegated to the StructuralSchemaValidatorTool plugin.
+ * Validates an event object against PROPOSAL_SCHEMA_DEFINITION using the 
+ * StructuralSchemaValidatorTool (must be dependency-injected or globally available).
  * 
  * @param {object} event The event object to validate.
+ * @param {object} [validatorTool] Optional StructuralSchemaValidatorTool instance for injection.
  * @returns {object} Validation result { isValid: boolean, missingFields: string[], typeErrors: string[] }.
+ * @throws {Error} If the required validator tool is not accessible.
  */
-export function validateProposalEventSchema(event: any): { isValid: boolean, missingFields: string[], typeErrors: string[] } {
-    // In a dependency-injected environment, this would call:
-    // StructuralSchemaValidatorTool.execute({ data: event, schema: PROPOSAL_SCHEMA_DEFINITION });
-    
-    // Simulated delegation using the expected tool interface
-    if (typeof global !== 'undefined' && (global as any).StructuralSchemaValidatorTool) {
-        return (global as any).StructuralSchemaValidatorTool.execute({ data: event, schema: PROPOSAL_SCHEMA_DEFINITION });
+export function validateProposalEventSchema(event, validatorTool) {
+    const tool = validatorTool || (typeof global !== 'undefined' ? (global).StructuralSchemaValidatorTool : null);
+
+    if (!tool || typeof tool.execute !== 'function') {
+        throw new Error("AGI Initialization Error: StructuralSchemaValidatorTool is required for schema validation but was not injected.");
     }
     
-    // Fallback stub for API compatibility (should not execute in production AGI environment)
-    return {
-        isValid: false,
-        missingFields: [],
-        typeErrors: ["Validation utility not initialized."]
-    };
+    return tool.execute({ data: event, schema: PROPOSAL_SCHEMA_DEFINITION });
 }
 
 // Group all primary exports for comprehensive access
