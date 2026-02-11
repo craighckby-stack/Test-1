@@ -20,11 +20,19 @@ class ICRoTIndexClient {
     }
 
     /**
+     * Private helper to enforce abstract contract fulfillment by throwing a standard error.
+     * @param {string} methodName The name of the method that requires implementation.
+     */
+    #enforceImplementation(methodName) {
+        throw new Error(`Method '${methodName}' must be implemented by the concrete CRoT Index Client.`);
+    }
+
+    /**
      * @param {string} fingerprint The 64-character SHA-256 policy hash.
      * @returns {Promise<string[]>} List of historical ACV transaction IDs.
      */
     async getAnchorsByFingerprint(fingerprint) {
-        throw new Error('Method must be implemented by the concrete CRoT Index Client.');
+        this.#enforceImplementation('getAnchorsByFingerprint');
     }
 
     /**
@@ -33,7 +41,7 @@ class ICRoTIndexClient {
      * @returns {Promise<void>} 
      */
     async indexCommit(fingerprint, txId) {
-        throw new Error('Method must be implemented by the concrete CRoT Index Client.');
+        this.#enforceImplementation('indexCommit');
     }
 }
 
