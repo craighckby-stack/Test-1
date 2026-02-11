@@ -6,15 +6,40 @@
  */
 
 class ArtifactDefinitionComposer {
+  #registry;
 
   /**
    * @param {Object} registry - The tool instance for managing structural templates. Must implement registerPattern and getPattern.
    */
   constructor(registry) {
+    this.#setupDependencies(registry);
+  }
+
+  /**
+   * Extracts dependency assignment and validation from the constructor.
+   */
+  #setupDependencies(registry) {
     if (!registry || typeof registry.registerPattern !== 'function' || typeof registry.getPattern !== 'function') {
       throw new Error("StructuralPatternRegistryTool dependency must be provided and implement required methods: registerPattern(name, definition) and getPattern(name).");
     }
-    this.registry = registry;
+    this.#registry = registry;
+  }
+
+  /**
+   * Isolates interaction with the external registry tool for retrieval (I/O Proxy).
+   * @param {string} name - Template name.
+   */
+  #delegateToRegistryGetPattern(name) {
+    return this.#registry.getPattern(name);
+  }
+
+  /**
+   * Isolates interaction with the external registry tool for registration (I/O Proxy).
+   * @param {string} name - Template name.
+   * @param {Object} definition - The partial definition structure.
+   */
+  #delegateToRegistryRegisterPattern(name, definition) {
+    this.#registry.registerPattern(name, definition);
   }
 
   /**
@@ -24,21 +49,21 @@ class ArtifactDefinitionComposer {
    * @param {Object} definition - The partial definition structure.
    */
   registerTemplate(name, definition) {
-    // Note: Warning logic retained here as it relates to the Composer's specific registration policy
-    if (this.registry.getPattern(name)) {
+    // Note: The check for existence uses the I/O proxy.
+    if (this.#delegateToRegistryGetPattern(name)) {
       console.warn(`Template '${name}' is being overwritten.`);
     }
-    this.registry.registerPattern(name, definition);
+    this.#delegateToRegistryRegisterPattern(name, definition);
   }
 
   /**
    * Retrieves a registered template.
-   * Delegates retrieval to the registry tool.
+   * Delegates retrieval to the registry tool via I/O proxy.
    * @param {string} name - Template name.
    * @returns {Object|null}
    */
   getTemplate(name) {
-    return this.registry.getPattern(name);
+    return this.#delegateToRegistryGetPattern(name);
   }
 
   /**
@@ -54,7 +79,7 @@ class ArtifactDefinitionComposer {
       let definitionToMerge;
       
       if (typeof item === 'string') {
-        definitionToMerge = this.getTemplate(item);
+        definitionToMerge = this.getTemplate(item); // Uses refactored getTemplate
         if (!definitionToMerge) {
           throw new Error(`Template '${item}' not found during composition.`);
         }
