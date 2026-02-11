@@ -1,5 +1,3 @@
-import { SafeConfigurationDeepMergeTool } from "@plugin/SafeConfigurationDeepMergeTool";
-
 /**
  * Represents a key-value mapping for configuration objects.
  */
