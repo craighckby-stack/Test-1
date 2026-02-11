@@ -18,58 +18,102 @@ interface IRRPActionProcessor {
 }
 
 /**
- * RRP_Executor_Engine:
+ * RRPExecutorKernel:
  * Executes mandatory Rollback and Recovery Policies defined in RRP_Policy_Definition.json.
  * Guarantees atomic, sequenced execution of recovery actions, prioritizing CATASTROPHIC
  * events even during resource exhaustion.
  */
-class RRPExecutorEngine {
+class RRPExecutorKernel {
   private policies: Record<string, RRPTrigger>;
   private actionProcessor: IRRPActionProcessor;
 
   constructor(policyDefinition: Record<string, RRPTrigger>, actionProcessor: IRRPActionProcessor) {
-    this.policies = policyDefinition;
-    // Dependency Injection: Rely on the abstracted processor interface
+    this.#setupDependencies(policyDefinition, actionProcessor);
+  }
+
+  /**
+   * Extracts synchronous dependency validation and assignment.
+   */
+  private #setupDependencies(
+    policyDefinition: Record<string, RRPTrigger>,
+    actionProcessor: IRRPActionProcessor
+  ): void {
+    if (!actionProcessor || typeof actionProcessor.process !== 'function') {
+      this.#throwSetupError("Action Processor dependency is invalid or missing the 'process' method.");
+    }
+    if (!policyDefinition || typeof policyDefinition !== 'object') {
+        this.#throwSetupError("Policy definition configuration is invalid.");
+    }
+
     this.actionProcessor = actionProcessor;
+    this.policies = policyDefinition;
+  }
+
+  private #throwSetupError(message: string): never {
+    throw new Error(`RRPExecutorKernel Setup Error: ${message}`);
   }
 
   /**
    * Executes all actions defined under a specific policy hook.
-   * Execution is designed to be fault-tolerant: if one action fails, subsequent actions are still attempted.
+   * Execution is designed to be fault-tolerant.
    */
   public async executeTrigger(hookName: string): Promise<void> {
     const trigger = this.policies[hookName];
+
     if (!trigger) {
-      console.warn(`[RRP EXEC] Trigger '${hookName}' not defined. Skipping.`);
+      this.#logWarning(hookName);
       return;
     }
 
-    console.error(`[RRP EXEC] Activating trigger: ${hookName} (Severity: ${trigger.severity})`);
+    this.#logActivation(hookName, trigger.severity);
 
     // 1. Execute actions robustly, ensuring subsequent actions run even if one fails.
-    // Recovery must be resilient against partial failures.
     for (const [index, action] of trigger.actions.entries()) {
       try {
-        await this.processAction(action);
+        await this.#delegateToActionProcessing(action);
       } catch (error) {
         // CRITICAL: Log the failure but CONTINUE the execution chain.
-        console.error(
-          `[RRP EXEC] CRITICAL FAILURE: Action step ${index} failed for trigger '${hookName}' (Type: ${action.type}). Continuing execution chain.`, 
-          error
-        );
+        this.#logCriticalFailure(hookName, index, action, error);
       }
     }
 
     // 2. Report Final State to central supervisor
-    this.reportRecoveryCompletion(hookName, trigger.severity);
+    this.#delegateToCompletionReport(hookName, trigger.severity);
   }
 
-  private async processAction(action: RRPAction): Promise<void> {
-    // Delegation to the extracted tool for robust, atomic action execution.
+  // --- I/O Proxies and Delegation ---
+
+  /** Delegates action execution to the external Action Processor tool. */
+  private async #delegateToActionProcessing(action: RRPAction): Promise<void> {
     await this.actionProcessor.process(action);
   }
 
-  private reportRecoveryCompletion(hookName: string, severity: string): void {
-    // Implementation detail: Notify upstream supervisor of recovery attempt success/failure.
+  /** Delegates the notification of recovery attempt success/failure to the supervisor. */
+  private #delegateToCompletionReport(hookName: string, severity: string): void {
+    // Implementation detail: Notifies upstream supervisor.
+    console.log(`[RRP EXEC] Policy executed successfully: ${hookName} (${severity}). Reporting completion.`);
+  }
+
+  /** Logs a warning when a requested trigger hook is not found. */
+  private #logWarning(hookName: string): void {
+    console.warn(`[RRP EXEC] Trigger '${hookName}' not defined. Skipping.`);
+  }
+
+  /** Logs the start of the trigger activation process. */
+  private #logActivation(hookName: string, severity: string): void {
+    console.error(`[RRP EXEC] Activating trigger: ${hookName} (Severity: ${severity})`);
+  }
+
+  /** Logs a critical failure during a single action step but allows the chain to continue. */
+  private #logCriticalFailure(
+    hookName: string,
+    index: number,
+    action: RRPAction,
+    error: any
+  ): void {
+    console.error(
+      `[RRP EXEC] CRITICAL FAILURE: Action step ${index} failed for trigger '${hookName}' (Type: ${action.type}). Continuing execution chain.`,
+      error
+    );
   }
 }
