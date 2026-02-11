@@ -22,14 +22,22 @@ class TraceAnalysisEngine {
     const missions = [];
     const highRiskFindings = [];
 
-    // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
-    // This ensures standardized priority scoring and goal definition based on reusable policy.
-    for (const trace of highRiskStructuralChanges) {
-        // Refactored to use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
-        const finding = await KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer.execute('analyze', trace); 
-        if (finding) {
-            highRiskFindings.push(finding);
+    // Check and use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
+    if (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer) {
+        const TraceRiskAnalyzer = KERNEL_SYNERGY_CAPABILITIES.TraceRiskAnalyzer;
+        
+        // Use the extracted TraceRiskAnalyzer tool to analyze and score the findings
+        // This ensures standardized priority scoring and goal definition based on reusable policy.
+        for (const trace of highRiskStructuralChanges) {
+            // Refactored to use the KERNEL_SYNERGY_CAPABILITIES tool for standardized risk analysis.
+            const finding = await TraceRiskAnalyzer.execute('analyze', trace); 
+            if (finding) {
+                highRiskFindings.push(finding);
+            }
         }
+    } else {
+        // Fallback logic if the necessary capability is missing.
+        console.warn('TraceAnalysisEngine: TraceRiskAnalyzer capability is unavailable in KERNEL_SYNERGY_CAPABILITIES. Skipping detailed analysis.');
     }
 
     if (highRiskFindings.length > 0) {
