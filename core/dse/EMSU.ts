@@ -17,12 +17,16 @@ import { ISealingUtility } from './interfaces/ISealingUtility'; // Assuming stan
 
 
 export class EMSU {
-    private configRegistry: ConfigurationRegistry;
-    private manifestSealer: ISealingUtility; // Renamed for clarity and uses the abstracted interface
+    // Enforcing strict encapsulation for core dependencies and making them readonly.
+    private readonly #configRegistry: ConfigurationRegistry;
+    private readonly #manifestSealer: ISealingUtility;
+
+    // Static constant for DSE version ensures consistency and easy maintenance.
+    private static readonly DSE_VERSION = 'v94.1';
 
     constructor(registry: ConfigurationRegistry, manifestSealer: ISealingUtility) {
-        this.configRegistry = registry;
-        this.manifestSealer = manifestSealer;
+        this.#configRegistry = registry;
+        this.#manifestSealer = manifestSealer;
     }
 
     /**
@@ -31,13 +35,13 @@ export class EMSU {
      */
     public async generateAndSealManifest(chr_checksum: string): Promise<string> {
         // 1. Load critical hash dependencies (GAX III inputs)
-        const acvmHash = await this.configRegistry.getHash('config/acvm.json');
-        const policyHash = await this.configRegistry.getHash('config/pcre_policies.json');
+        const acvmHash = await this.#configRegistry.getHash('config/acvm.json');
+        const policyHash = await this.#configRegistry.getHash('config/pcre_policies.json');
         
         // 2. Compile the Epoch Manifest payload
         const manifestPayload = {
             timestamp: new Date().toISOString(),
-            dse_version: 'v94.1',
+            dse_version: EMSU.DSE_VERSION, // Use static constant
             input_checksum_baseline: chr_checksum,
             governance_hashes: { acvmHash, policyHash }
         };
@@ -45,7 +49,7 @@ export class EMSU {
         // 3. Utilize ManifestSealingUtility for canonicalization, hashing, and signing.
         // This enforces a standardized integrity flow (GAX III inputs -> Manifest -> Seal).
         
-        const sealResult = await this.manifestSealer.execute({ // Use abstracted instance
+        const sealResult = await this.#manifestSealer.execute({ // Use strictly encapsulated instance
             payload: manifestPayload,
             // AASS provides the necessary cryptographic primitives
             hasherFn: AASS.generateHash, 
@@ -60,7 +64,7 @@ export class EMSU {
         const SAT = `${manifestHash}:${ems_signature}`;
 
         // 5. Store sealed manifest for P-R03 auditing
-        await this.configRegistry.storeArtifact('protocol/epoch_manifest.json', manifestPayload);
+        await this.#configRegistry.storeArtifact('protocol/epoch_manifest.json', manifestPayload);
 
         console.log(`[EMSU] G0 Lock Success. Manifest Hash: ${manifestHash}`);
         return SAT;
