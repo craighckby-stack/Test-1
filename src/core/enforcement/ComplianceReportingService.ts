@@ -29,32 +29,38 @@ export class ComplianceReportingService {
 
     /**
      * Logs a detected risk floor breach to persistent storage for auditing and analysis.
+     * Ensures that an audit record is always created, falling back to raw data if canonicalization fails or is unavailable.
      * @param breach The detailed breach event.
      * @param snapshot The telemetry context at the time of the breach.
      */
     public async logBreach(breach: FloorBreach, snapshot: TelemetrySnapshot): Promise<void> {
-        let record: any;
+        const rawRecord = {
+            breach: breach,
+            snapshot: snapshot,
+            timestamp: Date.now() // Essential for robust auditing
+        };
+        
+        let recordToPersist: any = rawRecord;
 
         if (this.canonicalizer) {
-            // CRITICAL: Use the injected plugin for canonicalization
-            record = this.canonicalizer.execute({
-                breach: breach,
-                snapshot: snapshot
-            });
+            let canonicalizedResult = this.canonicalizer.execute(rawRecord);
 
-            if (record && record.error) {
-                console.error(`[ComplianceAudit]: Canonicalization failed: ${record.error}`);
-                return;
+            if (canonicalizedResult && canonicalizedResult.error) {
+                // Canonicalization failed. Log error, but fall back to persisting raw data.
+                console.error(`[ComplianceAudit]: Canonicalization failed: ${canonicalizedResult.error}. Logging raw record instead.`);
+            } else if (canonicalizedResult) {
+                recordToPersist = canonicalizedResult;
+            } else {
+                 // Safety check if canonicalizer returns null/undefined
+                 console.warn("[ComplianceAudit]: Canonicalizer returned empty result. Logging raw record.");
             }
         } else {
-            // Warning if the necessary tool is missing
-            console.warn("[ComplianceAudit]: ComplianceRecordCanonicalizer plugin unavailable. Logging aborted.");
-            return;
+            // Plugin unavailable. Log warning, but proceed with raw data to ensure audit trail integrity.
+            console.warn("[ComplianceAudit]: ComplianceRecordCanonicalizer plugin unavailable. Logging raw breach data.");
         }
-        
+
         console.log(`[ComplianceAudit]: Logging persistent breach record for ${breach.floorName}`);
-        // Example persistence call
-        // await this.persistence.save('compliance_breach_log', record);
+        await this.persistence.save('compliance_breach_log', recordToPersist);
     }
 
     // Future methods: getRecentBreaches, generateAuditReport, alertExternalMonitoring
