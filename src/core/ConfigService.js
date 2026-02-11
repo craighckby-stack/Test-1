@@ -1,88 +1,111 @@
 /**
- * Sovereign AGI v95.0 - ConfigService
+ * Sovereign AGI v95.0 - ConfigServiceKernel
  * Function: Centralized service for loading, parsing, and providing runtime configuration parameters.
- * Ensures type safety and consistent defaults across all modules by utilizing the EnvironmentConfigLoader.
+ * Enforces Dependency Injection for all configuration schema, loading logic, environment access, and logging.
  */
 
-// --- Type Definitions ---
-interface ConfigDefinitionItem {
-    type: 'string' | 'number' | 'boolean';
-    default: any;
-    envKey?: string; // Optional environment variable override key
+// --- Required Interfaces for Dependency Injection ---
+
+/** Interface for Configuration Schema Registry (Requires ConfigSchemaRegistryKernel) */
+interface IConfigSchemaRegistryKernel {
+    getConfigDefinition(): Record<string, any>;
 }
 
-type ConfigDefinition = Record<string, ConfigDefinitionItem>;
+/** Interface for abstracting environment variables access (Replaces direct process.env access) */
+interface IEnvironmentAccessKernel {
+    getEnvironmentVariables(): Record<string, string>;
+}
 
-// Define keys for internal consistency and type hinting
+/** Interface for the Config Loader Utility (Replaces synchronous global plugin access) */
+interface IConfigLoaderToolKernel {
+    load(definition: Record<string, any>, envMap: Record<string, string>): Record<string, any>;
+}
+
+/** Interface for Logging Utility (Replaces synchronous console.* calls) */
+interface ILoggerToolKernel {
+    error(message: string, ...args: any[]): void;
+    warn(message: string, ...args: any[]): void;
+}
+
+// Define keys for configuration access (for type hinting)
 type CoreConfigKeys = 'AGI_VERSION' | 'ENVIRONMENT' | 'LOG_LEVEL' | 'LOG_DESTINATION' | 'API_PORT';
 
-// Assuming the plugin interface is available via __AGI_PLUGINS__
-declare const __AGI_PLUGINS__: {
-    EnvironmentConfigLoader: {
-        load(definition: ConfigDefinition, envMap: Record<string, any>): Record<string, any>;
-    };
-};
+class ConfigServiceKernel {
+    private readonly configSchemaRegistry: IConfigSchemaRegistryKernel;
+    private readonly configLoader: IConfigLoaderToolKernel;
+    private readonly envAccess: IEnvironmentAccessKernel;
+    private readonly logger: ILoggerToolKernel;
+    
+    private _config: Readonly<Record<string, any>>;
 
-class ConfigService {
-    // Declarative schema for configuration
-    private readonly CONFIG_DEFINITION: ConfigDefinition = {
-        // Core System Settings
-        AGI_VERSION: { type: 'string', default: 'v95.0', envKey: 'AGI_VERSION' },
-        ENVIRONMENT: { type: 'string', default: 'development', envKey: 'NODE_ENV' },
+    /**
+     * Initializes the Kernel using rigorous Dependency Injection.
+     */
+    constructor(
+        configSchemaRegistry: IConfigSchemaRegistryKernel,
+        configLoader: IConfigLoaderToolKernel,
+        envAccess: IEnvironmentAccessKernel,
+        logger: ILoggerToolKernel
+    ) {
+        this.configSchemaRegistry = configSchemaRegistry;
+        this.configLoader = configLoader;
+        this.envAccess = envAccess;
+        this.logger = logger;
+        this._config = {}; 
         
-        // Logging Settings (Used by AgiLogger)
-        LOG_LEVEL: { type: 'string', default: 'INFO', envKey: 'AGI_LOG_LEVEL' },
-        LOG_DESTINATION: { type: 'string', default: 'stdout', envKey: 'AGI_LOG_DESTINATION' },
-
-        // Default ports/resources
-        API_PORT: { type: 'number', default: 3000, envKey: 'API_PORT' },
-        // ... other system settings (SRM limits, Memory capacity, etc.)
-    };
-
-    private _config: Record<string, any>;
-
-    constructor() {
-        this._config = this._loadConfiguration();
+        // Configuration initialization is isolated to the setup method
+        this.#setupConfiguration();
     }
 
     /**
-     * Loads configuration using the EnvironmentConfigLoader plugin to handle defaults and coercion.
+     * Isolates synchronous setup logic, eliminating configuration loading from the constructor body.
+     * Rigorously replaces synchronous internal coupling with dependency delegation.
      */
-    private _loadConfiguration(): Record<string, any> {
-        // Use the extracted plugin for robust configuration handling
+    #setupConfiguration(): void {
+        const definition = this.configSchemaRegistry.getConfigDefinition();
+        
         try {
-            const loader = __AGI_PLUGINS__.EnvironmentConfigLoader;
-            return loader.load(this.CONFIG_DEFINITION, process.env);
+            // Delegate environment access
+            const envMap = this.envAccess.getEnvironmentVariables();
+            
+            // Delegate configuration loading and coercion
+            this._config = this.configLoader.load(definition, envMap);
         } catch (e) {
-            // Fallback to basic defaults if plugin loading fails
-            console.error(
-                `[ConfigService] FATAL: EnvironmentConfigLoader plugin failed. Falling back to default configuration. Error: ${e instanceof Error ? e.message : String(e)}`
+            // Delegate error handling
+            this.logger.error(
+                `[ConfigServiceKernel] FATAL: Configuration loading failed. Falling back to default configuration defined in the registry. Error: ${e instanceof Error ? e.message : String(e)}`
             );
-
-            return Object.keys(this.CONFIG_DEFINITION).reduce((acc, key) => {
-                acc[key] = this.CONFIG_DEFINITION[key].default;
+            
+            // Fallback logic relies strictly on the injected schema defaults
+            this._config = Object.keys(definition).reduce((acc, key) => {
+                acc[key] = definition[key].default; 
                 return acc;
             }, {} as Record<string, any>);
         }
+        
+        // Enforce immutability after initialization
+        Object.freeze(this._config);
     }
 
     /**
      * Retrieves a configuration value by key.
-     * @param {CoreConfigKeys | string} key - The configuration key (e.g., 'LOG_LEVEL').
-     * @returns {T | null} The configuration value, typed generic T, or null if key is undefined.
      */
     public get<T = any>(key: CoreConfigKeys | string): T | null {
         if (!Object.prototype.hasOwnProperty.call(this._config, key)) {
-            console.warn(`[ConfigService] Attempted access to undefined configuration key: ${key}. This should be defined in CONFIG_DEFINITION.`);
+            this.logger.warn(`[ConfigServiceKernel] Attempted access to undefined configuration key: ${key}. This should be defined in the injected schema registry.`);
             return null; 
         }
         return this._config[key] as T;
     }
+    
+    /**
+     * Returns the full immutable configuration object.
+     */
+    public getAllConfig(): Readonly<Record<string, any>> {
+        return this._config;
+    }
 }
 
-// Enforce Singleton Pattern
-const instance = new ConfigService();
-// Freeze the instance to prevent external modification of methods/properties
-Object.freeze(instance);
-
-module.exports = instance;
+// NOTE: The synchronous singleton pattern (module.exports = new ConfigService()) is eliminated.
+// Consumers must use Dependency Injection.
+module.exports = ConfigServiceKernel;
