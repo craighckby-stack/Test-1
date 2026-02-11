@@ -5,7 +5,10 @@
                 current: restrictingConstraint.current,
                 target: restrictingConstraint.target,
                 // Synergy v7 mandate: Breach significance is calculated as the ratio (current / target).
-                breachSignificance: restrictingConstraint.current / restrictingConstraint.target,
+                // Added robustness check for division by zero.
+                breachSignificance: restrictingConstraint.target > 0
+                    ? restrictingConstraint.current / restrictingConstraint.target
+                    : (restrictingConstraint.current > 0 ? Infinity : 0), // Signifies extreme breach if target is zero but current is positive.
             }
             : null;
 
