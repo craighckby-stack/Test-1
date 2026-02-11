@@ -33,18 +33,31 @@ class RRPExecutorEngine {
     this.actionProcessor = actionProcessor;
   }
 
-  public async executeTrigger(hookName: keyof typeof this.policies): Promise<void> {
+  /**
+   * Executes all actions defined under a specific policy hook.
+   * Execution is designed to be fault-tolerant: if one action fails, subsequent actions are still attempted.
+   */
+  public async executeTrigger(hookName: string): Promise<void> {
     const trigger = this.policies[hookName];
     if (!trigger) {
-      console.warn(`RRP Trigger '${hookName}' not defined. Skipping.`);
+      console.warn(`[RRP EXEC] Trigger '${hookName}' not defined. Skipping.`);
       return;
     }
 
     console.error(`[RRP EXEC] Activating trigger: ${hookName} (Severity: ${trigger.severity})`);
 
-    // 1. Prioritized Actions (E.g., immediate logging and shutdown checks)
-    for (const action of trigger.actions) {
-      await this.processAction(action);
+    // 1. Execute actions robustly, ensuring subsequent actions run even if one fails.
+    // Recovery must be resilient against partial failures.
+    for (const [index, action] of trigger.actions.entries()) {
+      try {
+        await this.processAction(action);
+      } catch (error) {
+        // CRITICAL: Log the failure but CONTINUE the execution chain.
+        console.error(
+          `[RRP EXEC] CRITICAL FAILURE: Action step ${index} failed for trigger '${hookName}' (Type: ${action.type}). Continuing execution chain.`, 
+          error
+        );
+      }
     }
 
     // 2. Report Final State to central supervisor
