@@ -1,61 +1,105 @@
-const fs = require('fs/promises');
-const path = require('path');
-const SimplePathExclusionChecker = require('./SimplePathExclusionChecker');
+class IntegrityScannerKernel {
+    #secureLoader;
+    #exclusionChecker;
+    #logger;
 
-/**
- * IntegrityScanner
- * Utility responsible for traversing the filesystem and identifying files that
- * should be included in an integrity manifest, typically filtered by directory or exclusion patterns.
- */
-class IntegrityScanner {
+    /**
+     * @param {object} dependencies
+     * @param {SecureResourceLoaderInterfaceKernel} dependencies.SecureResourceLoaderInterfaceKernel
+     * @param {IPathExclusionCheckerToolKernel} dependencies.IPathExclusionCheckerToolKernel
+     * @param {ILoggerToolKernel} dependencies.ILoggerToolKernel
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    #setupDependencies(dependencies) {
+        const {
+            SecureResourceLoaderInterfaceKernel,
+            IPathExclusionCheckerToolKernel,
+            ILoggerToolKernel,
+        } = dependencies;
+
+        if (!SecureResourceLoaderInterfaceKernel || !IPathExclusionCheckerToolKernel || !ILoggerToolKernel) {
+            throw new Error("IntegrityScannerKernel requires SecureResourceLoaderInterfaceKernel, IPathExclusionCheckerToolKernel, and ILoggerToolKernel.");
+        }
+
+        this.#secureLoader = SecureResourceLoaderInterfaceKernel;
+        this.#exclusionChecker = IPathExclusionCheckerToolKernel;
+        this.#logger = ILoggerToolKernel;
+    }
+
+    async initialize() {
+        // Kernel initialization logic (if required)
+    }
+
+    /**
+     * Internal helper to join path segments, replacing reliance on the native 'path' module.
+     * Assumes standard forward slash separation for cross-platform compatibility within the engine.
+     */
+    #joinPath(part1, part2) {
+        if (!part1) return part2;
+        if (!part2) return part1;
+        const separator = '/';
+        
+        // Normalize segments for robust joining
+        let p1 = part1.endsWith(separator) ? part1.slice(0, -1) : part1;
+        let p2 = part2.startsWith(separator) ? part2.slice(1) : part2;
+        
+        // Handle root relative path case where part1 is empty string
+        if (part1 === '' && part2 !== '') {
+            return part2;
+        }
+
+        return `${p1}${separator}${p2}`;
+    }
 
     /**
      * Recursively scans a directory and returns a list of paths for files
      * that should be included in the manifest.
      * Paths returned are relative to the provided rootDir.
      * 
-     * NOTE: This basic implementation skips symbolic links in directories and offers only basic string inclusion filtering.
-     * 
-     * @param {string} rootDir The starting directory for the scan.
-     * @param {string[]} [ignorePatterns=[]] Optional array of partial path strings (e.g., 'node_modules', '.git') to skip.
+     * @param {string} rootDir The starting directory for the scan (assumed to be resolved externally).
+     * @param {string[]} [ignorePatterns=[]] Optional array of partial path strings to skip.
      * @returns {Promise<string[]>} List of file paths, relative to rootDir.
      */
-    static async scanDirectory(rootDir, ignorePatterns = []) {
-        const fullRootPath = path.resolve(rootDir);
+    async scanDirectory(rootDir, ignorePatterns = []) {
         const filesToHash = [];
+        const self = this;
 
         async function traverse(currentDir, relativePath) {
             try {
-                const entries = await fs.readdir(currentDir, { withFileTypes: true });
+                // Use the injected Secure Resource Loader for I/O operations
+                const entries = await self.#secureLoader.readDirAsync(currentDir, { withFileTypes: true });
 
                 for (const entry of entries) {
-                    const entryPath = path.join(currentDir, entry.name);
-                    const entryRelativePath = path.join(relativePath, entry.name);
+                    // Use internal helper for path joining
+                    const entryPathAbs = self.#joinPath(currentDir, entry.name);
+                    const entryRelativePathClean = self.#joinPath(relativePath, entry.name);
 
-                    // Use the abstracted exclusion check
-                    if (SimplePathExclusionChecker.check(entryRelativePath, ignorePatterns)) {
+                    // Use the injected exclusion checker tool
+                    if (self.#exclusionChecker.check(entryRelativePathClean, ignorePatterns)) {
                         continue;
                     }
 
                     if (entry.isDirectory()) {
-                        // Standard practice: Skip symbolic links to prevent loop risks
+                        // Skip symbolic links
                         if (!entry.isSymbolicLink()) {
-                            await traverse(entryPath, entryRelativePath);
+                            await traverse(entryPathAbs, entryRelativePathClean);
                         }
                     } else if (entry.isFile()) {
-                        filesToHash.push(entryRelativePath);
+                        filesToHash.push(entryRelativePathClean);
                     }
                 }
             } catch (e) {
-                // If we hit permission issues or read errors, warn and continue traversing.
-                console.warn(`Integrity Scanner Warning: Could not read directory ${currentDir}: ${e.message}`);
+                // Use the injected logger tool instead of console.warn
+                self.#logger.warn(`Integrity Scanner Warning: Could not read directory ${currentDir}`, { error: e.message, code: 'SCAN_READ_FAIL' });
             }
         }
 
-        // The root relative path is initialized as empty string
-        await traverse(fullRootPath, '');
+        await traverse(rootDir, '');
         return filesToHash;
     }
 }
 
-module.exports = IntegrityScanner;
+module.exports = IntegrityScannerKernel;
