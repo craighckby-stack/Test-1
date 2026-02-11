@@ -66,6 +66,11 @@ export class ConstraintAdherenceValidator {
      * @returns {Promise<Object>} Validation result containing status and list of violations.
      */
     async validate(configuration, requiredConstraintCodes) {
+        if (!Array.isArray(requiredConstraintCodes)) {
+            console.error("Validation requires an array of constraint codes.");
+            return { isAdherent: false, violations: [{ code: 'INPUT_ERROR', severity: 'CRITICAL', details: 'Required constraint codes list is invalid.' }] };
+        }
+
         const violations = [];
 
         if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES.ConstraintExecutionService) {
