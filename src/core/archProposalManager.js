@@ -1,5 +1,5 @@
 /**
- * Component: A-01 Architectural Proposal Manager (APM)
+ * Component: A-01 Architectural Proposal Manager Kernel (APM)
  * Role: Securely stages accepted architectural mutation payloads, ensuring integrity
  * and immutability between OGT consensus (D-01 decision) and execution (C-04).
  * ID: A-01
@@ -8,10 +8,7 @@
  * and compiles the necessary rollback metadata.
  */
 
-import { D01_AuditLogger } from './decisionAuditLogger.js';
-import { C04_AutogenySandbox } from '../execution/autogenySandbox.js';
-// Dependency Injection / Plugin usage for integrity management
-import { PayloadIntegrityStager } from '../plugins/PayloadIntegrityStager'; 
+// Dependencies are now injected, not imported directly.
 
 /**
  * @typedef {Object} DecisionEnvelope
@@ -29,23 +26,47 @@ import { PayloadIntegrityStager } from '../plugins/PayloadIntegrityStager';
  * @property {string} serialized - Internal serialized representation used for verification.
  */
 
-export class ArchProposalManager {
+// Assuming the existence of interfaces: IAuditLoggerKernel, IAutogenySandboxKernel
+// The new utility interface is defined in the plugin output: IPayloadIntegrityStagerToolKernel
+
+export class ArchProposalManagerKernel {
+    
     /**
-     * @param {D01_AuditLogger} [auditLogger] 
-     * @param {typeof PayloadIntegrityStager} [integrityStager] 
+     * @param {IAuditLoggerKernel} auditLogger 
+     * @param {IPayloadIntegrityStagerToolKernel} integrityStager 
+     * @param {IAutogenySandboxKernel} autogenySandboxKernel 
      */
-    constructor(auditLogger = new D01_AuditLogger(), integrityStager = PayloadIntegrityStager) {
+    constructor(auditLogger, integrityStager, autogenySandboxKernel) {
         /** @type {Map<string, StagingEntry>} */
         this.stagingArea = new Map();
+        
         this.auditLogger = auditLogger;
         this.integrityStager = integrityStager;
+        this.autogenySandboxKernel = autogenySandboxKernel;
         
-        // Runtime check for essential plugin functions via DI
+        this.#setupDependencies();
+    }
+    
+    /**
+     * Private method to handle dependency verification and synchronous setup.
+     * @private
+     */
+    #setupDependencies() {
+        // Rigorous check for essential injected interfaces
         if (typeof this.integrityStager === 'undefined' || 
             typeof this.integrityStager.createVerifiableEntry !== 'function' ||
             typeof this.integrityStager.verifyIntegrity !== 'function') {
             
-            throw new Error("A-01 Initialization Error: Required 'PayloadIntegrityStager' utility interface is incomplete or missing.");
+            throw new Error("A-01 Initialization Error: Required 'IPayloadIntegrityStagerToolKernel' interface is incomplete or missing.");
+        }
+        
+        if (typeof this.auditLogger === 'undefined' || typeof this.auditLogger.logWarning !== 'function') {
+            // Simplified check, assuming necessary logging methods exist
+            throw new Error("A-01 Initialization Error: Required 'IAuditLoggerKernel' is missing or incomplete.");
+        }
+
+        if (typeof this.autogenySandboxKernel === 'undefined' || typeof this.autogenySandboxKernel.executeMutation !== 'function') {
+            throw new Error("A-01 Initialization Error: Required 'IAutogenySandboxKernel' is missing or incomplete (C-04 interface).");
         }
     }
 
@@ -65,7 +86,6 @@ export class ArchProposalManager {
         }
 
         // 1. Generate immutable, verifiable entry using the utility
-        // The utility handles hashing, freezing the payload, and serialization.
         const verifiableEntry = this.integrityStager.createVerifiableEntry(proposalPayload);
         const transactionHash = verifiableEntry.hash;
         
@@ -111,9 +131,8 @@ export class ArchProposalManager {
         this.auditLogger.logDebug(`A-01: Integrity check passed for ${proposalId}. Preparing C-04 handover.`);
 
         try {
-            // Hand off to Autogeny Sandbox (C-04)
-            // Note: C04_AutogenySandbox is treated as a core static dependency (adjacent subsystem).
-            const executionResult = C04_AutogenySandbox.executeMutation(stagedProposal.payload);
+            // Hand off to Autogeny Sandbox (C-04) via injected kernel
+            const executionResult = this.autogenySandboxKernel.executeMutation(stagedProposal.payload);
             
             if (executionResult) {
                 this.stagingArea.delete(proposalId); // Clean staging area on success
