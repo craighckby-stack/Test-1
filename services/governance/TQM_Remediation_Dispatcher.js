@@ -14,8 +14,13 @@ interface ICommandRouter {
     route(protocolKey: string, ...args: any[]): Promise<any>;
 }
 
-// NOTE: ProtocolRouterFactory is assumed to be available from the kernel environment
-declare const ProtocolRouterFactory: { execute: () => ICommandRouter };
+// NOTE: ProtocolRouter is the concrete implementation of the command routing plugin.
+// We declare it here to satisfy TypeScript when instantiating it without an explicit import.
+declare class ProtocolRouter implements ICommandRouter { 
+    constructor();
+    register(protocolKey: string, handlerFn: Function): void;
+    route(protocolKey: string, ...args: any[]): Promise<any>;
+}
 
 export class TQM_Remediation_Dispatcher {
     
@@ -23,7 +28,7 @@ export class TQM_Remediation_Dispatcher {
     #rpcClient: RPCClient;
     #queueManager: QueueManager;
     #auditService: GovernanceAuditService;
-    #commandRouter: ICommandRouter; // New field for protocol routing
+    #commandRouter: ICommandRouter; // Field for protocol routing
 
     /**
      * @param {object} [dependencies] - Optional dependencies container for robust DI.
@@ -47,7 +52,8 @@ export class TQM_Remediation_Dispatcher {
         this.#auditService = auditService || new GovernanceAuditService();
 
         // 3. Command Router Initialization and Registration
-        this.#commandRouter = commandRouter || ProtocolRouterFactory.execute();
+        // Use injected router or initialize the concrete ProtocolRouter plugin instance.
+        this.#commandRouter = commandRouter || new ProtocolRouter();
         
         // Register handlers, ensuring 'this' context is preserved
         this.#commandRouter.register('RPC', this.#handleRpcExecution.bind(this));
