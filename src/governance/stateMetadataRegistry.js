@@ -1,127 +1,121 @@
-const METADATA_VALIDATION_ERROR = "Invalid metadata payload: Must be a non-null, non-array object.";
-const KEY_VALIDATION_ERROR = "Invalid registry key: Key must be a non-empty string.";
+const { ActiveStateContextManagerKernel } = require('AGI-KERNEL');
 
 /**
- * StateMetadataRegistry optimized for computational efficiency and robust state parity checking.
- * Utilizes Map for O(1) average time complexity for core operations.
+ * StateMetadataRegistryKernel
+ * Refactored from the synchronous StateMetadataRegistry, this kernel delegates all
+ * persistence, versioning, integrity checking, and concurrent state management to the
+ * ActiveStateContextManagerKernel, adhering strictly to AIA mandates for asynchronous I/O
+ * and Maximum Recursive Abstraction.
  */
-class StateMetadataRegistry {
+class StateMetadataRegistryKernel {
     
-    constructor() {
-        this._registry = new Map();
-        // High-resolution counter for internal state versioning/tracking
-        this._version = 0;
-        this._lastOperationTimestamp = Date.now();
-    }
-
     /**
-     * Private method for strict key parity checking (input validation).
-     * @param {string} key
+     * @param {object} dependencies
+     * @param {ActiveStateContextManagerKernel} dependencies.ActiveStateContextManagerKernel
+     * @param {object} dependencies.logger - Standard logging utility.
      */
-    _checkKeyParity(key) {
-        if (typeof key !== 'string' || key.trim() === '') {
-            throw new Error(KEY_VALIDATION_ERROR);
+    constructor({ ActiveStateContextManagerKernel, logger }) {
+        if (!ActiveStateContextManagerKernel || !logger) {
+            throw new Error("StateMetadataRegistryKernel initialization failed: Missing required tool kernels (ActiveStateContextManagerKernel, logger).");
         }
-        // Optimization: Return trimmed key to ensure consistent lookup/storage keys
-        return key.trim(); 
+
+        this.stateManager = ActiveStateContextManagerKernel;
+        this.logger = logger;
+        // Define a unique, auditable context path for this registry within the state manager.
+        this.CONTEXT_PATH = 'governance/metadata/state_registry';
     }
 
     /**
-     * Private method for strict metadata payload parity checking (input validation).
-     * Enforces that metadata is a structured, non-array object.
-     * @param {object} metadata
+     * Mandatory asynchronous initialization method.
+     * @returns {Promise<void>}
      */
-    _checkMetadataParity(metadata) {
-        if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
-            throw new Error(METADATA_VALIDATION_ERROR);
-        }
-        return metadata;
+    async initialize() {
+        // Delegate initialization logic to ensure the underlying state manager is ready.
+        this.logger.info(`StateMetadataRegistryKernel initialized. Context Path: ${this.CONTEXT_PATH}`);
     }
 
     /**
-     * Registers or completely overwrites metadata for a given key.
-     * Parity Check: Validates key and metadata structure.
+     * Registers or completely overwrites metadata for a given key. Fully asynchronous.
+     * Delegation: Persistence, key validation, and versioning are handled by the ActiveStateContextManagerKernel.
      * @param {string} key - The state identifier.
      * @param {object} metadata - The associated metadata object.
+     * @returns {Promise<boolean>}
      */
-    setMetadata(key, metadata) {
-        const validatedKey = this._checkKeyParity(key);
-        this._checkMetadataParity(metadata);
-        
-        this._registry.set(validatedKey, metadata);
-        this._version++;
-        this._lastOperationTimestamp = Date.now();
-        
-        return true; 
+    async setMetadata(key, metadata) {
+        try {
+            // The state manager automatically handles validation (key must be string, metadata must be non-array object).
+            await this.stateManager.updateState(this.CONTEXT_PATH, key, metadata);
+            return true;
+        } catch (error) {
+            this.logger.error(`[SMRK] Error setting metadata for key ${key}: ${error.message}`);
+            // Re-throw the error for upstream handling
+            throw error;
+        }
     }
 
     /**
-     * Retrieves metadata associated with a key. O(1) lookup.
-     * Parity Check: Validates key existence and format.
+     * Retrieves metadata associated with a key. Fully asynchronous.
+     * Delegation: O(1) lookup efficiency and integrity checks are handled by the state manager.
      * @param {string} key - The state identifier.
-     * @returns {object | null} The metadata object or null if not found.
+     * @returns {Promise<object | null>} The metadata object or null if not found.
      */
-    getMetadata(key) {
-        const validatedKey = this._checkKeyParity(key);
-        return this._registry.get(validatedKey) || null;
+    async getMetadata(key) {
+        try {
+            const data = await this.stateManager.getState(this.CONTEXT_PATH, key);
+            // The state manager returns null if the key is not found, consistent with the original API.
+            return data || null;
+        } catch (error) {
+            this.logger.warn(`[SMRK] Failed to retrieve metadata for key ${key}: ${error.message}`);
+            return null; // Return null on retrieval failure for resilience
+        }
     }
 
     /**
-     * Deeply merges partial metadata into an existing entry, facilitating recursive abstraction.
-     * Uses Object.assign for highly optimized shallow merging, minimizing computational overhead.
-     * Parity Check: Validates key and partial metadata structure.
+     * Deeply merges partial metadata into an existing entry. Fully asynchronous.
+     * Delegation: Atomic merge operation and versioning managed by the state manager's patch functionality.
      * @param {string} key - The state identifier.
      * @param {object} partialMetadata - The properties to merge.
+     * @returns {Promise<boolean>}
      */
-    mergeMetadata(key, partialMetadata) {
-        const validatedKey = this._checkKeyParity(key);
-        const validatedMetadata = this._checkMetadataParity(partialMetadata);
-
-        const existing = this._registry.get(validatedKey);
-
-        if (!existing) {
-            // Optimization: If nothing exists, bypass merge logic and just set it.
-            return this.setMetadata(key, validatedMetadata);
+    async mergeMetadata(key, partialMetadata) {
+        try {
+            // Use patchState for optimized, auditable merging
+            await this.stateManager.patchState(this.CONTEXT_PATH, key, partialMetadata);
+            return true;
+        } catch (error) {
+            this.logger.error(`[SMRK] Error merging metadata for key ${key}: ${error.message}`);
+            throw error;
         }
-
-        // Computational Efficiency: Object.assign provides the fastest standard JS shallow merge.
-        Object.assign(existing, validatedMetadata);
-        
-        // Update version and timestamp
-        this._version++;
-        this._lastOperationTimestamp = Date.now();
-        
-        return true;
     }
 
     /**
-     * Checks the internal integrity (Parity Check) of the entire registry state.
-     * Ensures all stored keys and values conform to expected types.
-     * @returns {object} A report detailing integrity status.
+     * Checks the internal integrity of the registry state via the delegated persistence kernel.
+     * Delegation: Integrity checks (hashing, structural conformance) are handled by the ActiveStateContextManagerKernel.
+     * @returns {Promise<object>} A report detailing integrity status.
      */
-    checkStateIntegrity() {
-        let issues = [];
-        let totalEntries = this._registry.size;
-
-        for (const [key, value] of this._registry.entries()) {
-            try {
-                // Key integrity check
-                this._checkKeyParity(key); 
-                // Value structure integrity check
-                this._checkMetadataParity(value); 
-            } catch (e) {
-                issues.push({ key, error: e.message });
-            }
+    async checkStateIntegrity() {
+        try {
+            const report = await this.stateManager.getContextIntegrityReport(this.CONTEXT_PATH);
+            
+            // Adapt the detailed report structure provided by the kernel to the expected output format.
+            return {
+                integrity_ok: report.integrity_status === 'HEALTHY',
+                registry_version: report.current_version,
+                totalEntries: report.entry_count,
+                lastUpdated: report.last_update_timestamp_ms,
+                integrity_issues: report.anomalies || [] 
+            };
+        } catch (error) {
+            this.logger.critical(`[SMRK] Failed to generate state integrity report: ${error.message}`);
+            return {
+                integrity_ok: false,
+                registry_version: -1,
+                totalEntries: 0,
+                lastUpdated: Date.now(),
+                integrity_issues: [{ error: `Integrity service failure: ${error.message}` }]
+            };
         }
-
-        return {
-            integrity_ok: issues.length === 0,
-            registry_version: this._version,
-            totalEntries,
-            lastUpdated: this._lastOperationTimestamp,
-            integrity_issues: issues
-        };
     }
 }
 
-module.exports = StateMetadataRegistry;
+module.exports = StateMetadataRegistryKernel;
