@@ -1,45 +1,50 @@
-const RISK_NODES = { 
-    A: { risk: 0.8, dependencies: ['B'] }, 
-    B: { risk: 0.5, dependencies: [] } 
-};
-
-const RISK_POLICIES = {
-    baseMultiplier: 10,
-    recursionDepth: 5,
-    enforcementThreshold: 12
+const CONFIGURATION = {
+    NODES: {
+        A: { risk: 0.8, dependencies: ['B'] },
+        B: { risk: 0.5, dependencies: [] }
+    },
+    POLICIES: {
+        baseMultiplier: 10,
+        recursionDepth: 5,
+        enforcementThreshold: 12
+    }
 };
 
 const riskData = {
-    nodes: RISK_NODES,
-    policies: RISK_POLICIES
+    nodes: CONFIGURATION.NODES,
+    policies: CONFIGURATION.POLICIES
 };
 
 /**
- * Handles the result of the enforcement calculation, logging output and warnings.
- * @param {object} enforcementResult - The result returned by the RiskEnforcer tool.
- * @param {object} policies - The policies used for checking thresholds.
+ * Executes the risk enforcement calculation and processes the result.
+ * The threshold checking logic is delegated to the RiskThresholdChecker plugin (or equivalent logic).
  */
-function handleEnforcementOutput(enforcementResult, policies) {
-    console.log("Risk Enforcement Map Calculation Result:");
-    console.log(enforcementResult);
+function executeRiskWorkflow(data, policies) {
+    let enforcementResult;
+    
+    try {
+        // 1. Delegation of the complex, computationally efficient recursive risk calculation
+        enforcementResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
+            "RiskEnforcer", 
+            "calculateMap", 
+            data
+        );
 
-    const { enforcementThreshold } = policies;
+        console.log("Risk Enforcement Map Calculation Result:", enforcementResult);
 
-    if (enforcementResult && enforcementResult.totalRiskScore > enforcementThreshold) {
-        console.warn(`WARNING: Risk threshold (${enforcementThreshold}) exceeded by score: ${enforcementResult.totalRiskScore}`);
+        // 2. Use the abstracted threshold checking logic (simulating plugin usage)
+        const thresholdChecker = KERNEL_SYNERGY_CAPABILITIES.Plugin.load("RiskThresholdChecker");
+        const analysisReport = thresholdChecker.execute(enforcementResult, policies);
+
+        if (analysisReport.exceeded) {
+            console.warn(`[THRESHOLD EXCEEDED] ${analysisReport.message}`);
+        } else {
+            console.log(`[STATUS OK] ${analysisReport.message}`);
+        }
+
+    } catch (error) {
+        console.error("Failed during risk enforcement calculation:", error.message);
     }
 }
 
-try {
-    // Delegation of the complex, computationally efficient recursive risk calculation
-    const enforcementResult = KERNEL_SYNERGY_CAPABILITIES.Tool.execute(
-        "RiskEnforcer", 
-        "calculateMap", 
-        riskData
-    );
-    
-    handleEnforcementOutput(enforcementResult, RISK_POLICIES);
-
-} catch (error) {
-    console.error("Failed during risk enforcement calculation:", error);
-}
+executeRiskWorkflow(riskData, CONFIGURATION.POLICIES);
