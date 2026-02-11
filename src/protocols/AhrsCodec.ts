@@ -96,12 +96,15 @@ export function decodeAhrsMessage(buffer: ArrayBuffer): AhrsMessage {
 
     // === Data ===
     // Use external codec for numerical tuples
-    const { data: orientation, nextOffset: o1 } = Float64TupleCodec.readTuple<Quaternion>(view, offset, 4);
-    offset = o1;
-    const { data: angular_velocity, nextOffset: o2 } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3);
-    offset = o2;
-    const { data: linear_acceleration, nextOffset: o3 } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3);
-    offset = o3;
+    // Declare tuple variables using 'let' to allow sequential assignment while updating 'offset'.
+    let orientation: Quaternion;
+    let angular_velocity: Vector3;
+    let linear_acceleration: Vector3;
+
+    // Read tuples and update offset simultaneously using assignment destructuring
+    ({ data: orientation, nextOffset: offset } = Float64TupleCodec.readTuple<Quaternion>(view, offset, 4));
+    ({ data: angular_velocity, nextOffset: offset } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3));
+    ({ data: linear_acceleration, nextOffset: offset } = Float64TupleCodec.readTuple<Vector3>(view, offset, 3));
 
     // calibration_status
     const calibration_status_raw = view.getUint8(offset);
