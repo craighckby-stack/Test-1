@@ -5,20 +5,38 @@
  * integrity and type consistency across the kernel's governance components.
  */
 
+// --- Synchronous Data Preparation Helpers ---
+
+/**
+ * Defines and freezes the canonical liability unit constants.
+ */
+const _defineLiabilityUnits = () => {
+    const units = {
+        USD: 'USD',
+        EUR: 'EUR',
+        PPR: 'PPR', // Probability Percent (Failure Probability)
+        UNKNOWN: 'Unknown',
+    } as const;
+    return Object.freeze(units);
+};
+
+/**
+ * Defines and freezes the canonical verification audit step constants.
+ */
+const _defineVerificationAuditSteps = () => {
+    const steps = {
+        CROT_SIGNATURE: 'CRoT_Signature',
+        POLICY_ADHERENCE: 'Policy_Adherence',
+        RISK_THRESHOLD: 'Risk_Threshold',
+    } as const;
+    return Object.freeze(steps);
+};
+
 // --- Canonical Constants for Structural Integrity ---
 
-export const LIABILITY_UNITS = Object.freeze({
-    USD: 'USD',
-    EUR: 'EUR',
-    PPR: 'PPR', // Probability Percent (Failure Probability)
-    UNKNOWN: 'Unknown',
-} as const);
+export const LIABILITY_UNITS = _defineLiabilityUnits();
 
-export const VERIFICATION_AUDIT_STEPS = Object.freeze({
-    CROT_SIGNATURE: 'CRoT_Signature',
-    POLICY_ADHERENCE: 'Policy_Adherence',
-    RISK_THRESHOLD: 'Risk_Threshold',
-} as const);
+export const VERIFICATION_AUDIT_STEPS = _defineVerificationAuditSteps();
 
 // --- Reusable Risk Definition Types ---
 
