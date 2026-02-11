@@ -1,8 +1,3 @@
-// Proposed Component: Certified Execution Artifact Generator (CEAG)
-// Purpose: Transforms the Immutable Transaction Record (ITR) into a cryptographic executable payload.
-
-// We remove the direct dependency on 'fs' (unused) and 'crypto' (now handled by the injected utility).
-
 /**
  * Interface for the extracted cryptographic utility.
  * This interface is satisfied by the Integrity Utility Plugin.
@@ -18,19 +13,26 @@ interface IntegrityHashingAndSigningUtilityInterface {
  */
 class CEAG {
     private signingKey: string;
-    private artifactSchema: any;
     private cryptoUtility: IntegrityHashingAndSigningUtilityInterface;
 
-    constructor(trustLayerConfig: { SIGNING_KEY_PRIVATE: string, CEAG_SCHEMA: any }, cryptoUtilityInstance?: IntegrityHashingAndSigningUtilityInterface) {
+    /**
+     * @param {object} trustLayerConfig - Configuration containing the signing key.
+     * @param {string} trustLayerConfig.SIGNING_KEY_PRIVATE - The private key used for artifact signing.
+     * @param {IntegrityHashingAndSigningUtilityInterface} [cryptoUtilityInstance] - Optional injected utility.
+     */
+    constructor(trustLayerConfig: { SIGNING_KEY_PRIVATE: string }, cryptoUtilityInstance?: IntegrityHashingAndSigningUtilityInterface) {
         this.signingKey = trustLayerConfig.SIGNING_KEY_PRIVATE;
-        this.artifactSchema = trustLayerConfig.CEAG_SCHEMA;
         
-        // Dependency Injection for Testability and Abstraction
+        // Dependency Injection and Fallback Handling
         if (cryptoUtilityInstance) {
              this.cryptoUtility = cryptoUtilityInstance;
         } else {
-             // Fallback instantiation, assuming the utility (now provided by plugin) is available in the environment.
-             this.cryptoUtility = new (globalThis as any).IntegrityHashingAndSigningUtility(); 
+             // Fallback instantiation: relies on the utility being available via a global plugin.
+             const Utility = (globalThis as any).IntegrityHashingAndSigningUtility;
+             if (!Utility) {
+                 throw new Error("Cryptography Utility missing. Must be injected or available globally.");
+             }
+             this.cryptoUtility = new Utility(); 
         }
     }
 
@@ -40,8 +42,10 @@ class CEAG {
      * @returns {object} Certified execution payload.
      */
     generateArtifact(immutableTransactionRecord: { validated_payload: any, context: any, p01_seal_valid?: boolean }): { certifiedPayload: object, signature: string, manifestVersion: string } {
+        const { validated_payload, context } = immutableTransactionRecord;
+
         if (!this.validateITR(immutableTransactionRecord)) {
-            throw new Error("ITR failed internal structural validation. Seal validation required.");
+            throw new Error("ITR failed validation: P-01 Seal is not valid or missing.");
         }
 
         const timestamp = new Date().toISOString();
@@ -52,8 +56,8 @@ class CEAG {
         const payload = {
             ITR_HASH: itrHash,
             ITR_TIMESTAMP: timestamp,
-            PROPOSAL_CONTEXT: immutableTransactionRecord.context, // Assumes context is preserved
-            EXECUTION_PARAMS: immutableTransactionRecord.validated_payload
+            PROPOSAL_CONTEXT: context, 
+            EXECUTION_PARAMS: validated_payload
         };
 
         // Step 2: Sign the resulting payload using the extracted utility
