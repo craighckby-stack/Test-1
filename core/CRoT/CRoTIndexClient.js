@@ -14,9 +14,11 @@ class CRoTIndexClient {
     #storageAdapter;
 
     /**
-     * Initializes the client, resolving and validating the required storage adapter dependency.
+     * Resolves and validates the CRoT Index Storage Adapter dependency.
+     * @returns {CRoTIndexStorageAdapter}
+     * @throws {Error} If the dependency is missing or violates the contract.
      */
-    constructor() {
+    #getValidatedStorageAdapter() {
         const adapter = global.CRoTIndexStorageAdapter; 
         
         if (!adapter) {
@@ -29,7 +31,14 @@ class CRoTIndexClient {
             throw new Error("[CRoT Index Client] Initialization failure: CRoTIndexStorageAdapter contract violation (missing lookup or append methods).");
         }
         
-        this.#storageAdapter = adapter;
+        return adapter;
+    }
+
+    /**
+     * Initializes the client, resolving and validating the required storage adapter dependency.
+     */
+    constructor() {
+        this.#storageAdapter = this.#getValidatedStorageAdapter();
         GAXTelemetry.system('CRoT_IndexClient_Init_KernelMode_Abstracted');
     }
 
