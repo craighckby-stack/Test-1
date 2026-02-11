@@ -23,6 +23,7 @@ const SUPPORTED_INTEGRITY_ALGORITHMS = Object.freeze([
 
 /**
  * Immutable object encapsulating all cryptographic constants.
+ * This structure is rigorously frozen to guarantee configuration consistency.
  */
 const CryptoConstants = Object.freeze({
     DEFAULT_HASH_ALGORITHM: 'sha256',
