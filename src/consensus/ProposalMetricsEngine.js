@@ -1,12 +1,13 @@
 /**
- * AGI-KERNEL v7.9.2 - ProposalMetricsEngine
+ * AGI-KERNEL v7.11.3 - ProposalMetricsEngineKernel
  * Optimized for efficiency using an Abstracted, Plugin-based Calculation Architecture.
  * Features O(1) state lookups and lazy/memoized metric calculation.
  */
 
+// --- CONTRACT DEFINITION ---
 /**
- * Abstract base class for all metric calculation units (recursive abstraction).
- * Extracted as a formal plugin interface below.
+ * Abstract base class serving as the formal contract (IProposalMetricPlugin) 
+ * for all metric calculation units. Defines the necessary structure for injection.
  */
 class AbstractMetricPlugin {
     /**
@@ -42,9 +43,16 @@ class AbstractMetricPlugin {
         throw new Error(`Plugin ${this.name}: Method 'calculate' must be implemented.`);
     }
 }
+// --- END CONTRACT DEFINITION ---
 
-class ProposalMetricsEngine {
-    constructor() {
+
+class ProposalMetricsEngineKernel {
+    /**
+     * Enforces Dependency Injection for metric configuration.
+     * 
+     * @param {AbstractMetricPlugin[]} metricPlugins - The list of metric plugins to initialize the engine with.
+     */
+    constructor(metricPlugins) {
         /** @type {Map<string, AbstractMetricPlugin>} Registered calculation plugins. */
         this.plugins = new Map();
         /** 
@@ -52,21 +60,32 @@ class ProposalMetricsEngine {
          * state structure: { id: string, metrics: Map<string, *>, startTime: number, internalData: object }
          */
         this.proposalStates = new Map();
+
+        this.#setupDependencies(metricPlugins);
     }
 
     /**
-     * Registers an external metric calculation unit.
-     * @param {AbstractMetricPlugin} plugin 
+     * Initializes the plugin map based on injected dependencies, enforcing structural integrity 
+     * and immutability of the configuration set.
+     * @param {AbstractMetricPlugin[]} metricPlugins 
      */
-    registerPlugin(plugin) {
-        if (!(plugin instanceof AbstractMetricPlugin)) {
-            throw new Error("Engine can only register instances of AbstractMetricPlugin.");
+    #setupDependencies(metricPlugins) {
+        if (!Array.isArray(metricPlugins)) {
+            throw new TypeError("Metric plugins must be provided as an array.");
         }
-        if (this.plugins.has(plugin.name)) {
-             console.warn(`Plugin '${plugin.name}' already registered. Overwriting.`);
+
+        for (const plugin of metricPlugins) {
+            // Enforce dependency injection requirements by checking contract adherence
+            if (!(plugin instanceof AbstractMetricPlugin)) {
+                throw new TypeError("Engine only accepts instances derived from AbstractMetricPlugin.");
+            }
+            if (this.plugins.has(plugin.name)) {
+                throw new Error(`Dependency Injection Error: Duplicate plugin name registered: '${plugin.name}'.`);
+            }
+            this.plugins.set(plugin.name, plugin);
         }
-        this.plugins.set(plugin.name, plugin);
     }
+
 
     /**
      * Ingests a new event, applying the delta to all active metric plugins.
@@ -80,7 +99,7 @@ class ProposalMetricsEngine {
             state = {
                 id: proposalId,
                 metrics: new Map(), // O(1) cache for calculated results
-                startTime: Date.now(),
+                startTime: Date.now(), 
                 internalData: {},
             };
             this.proposalStates.set(proposalId, state);
@@ -117,7 +136,8 @@ class ProposalMetricsEngine {
             let value;
             if (state.metrics.has(name)) {
                 value = state.metrics.get(name);
-            } else {
+            }
+             else {
                 // Delegate heavy lifting to the plugin's calculate method
                 value = plugin.calculate(state);
                 // Update global state cache
@@ -139,4 +159,7 @@ class ProposalMetricsEngine {
     }
 }
 
-module.exports = ProposalMetricsEngine;
+module.exports = {
+    ProposalMetricsEngineKernel,
+    AbstractMetricPlugin
+};
