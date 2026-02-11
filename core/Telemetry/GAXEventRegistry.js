@@ -11,12 +11,13 @@ const _createEvent = (namespace, subdomain, action) =>
     `${namespace}:${subdomain}:${action}`;
 
 /**
- * The hierarchical map defining all GAX Telemetry Events.
+ * Defines the hierarchical map defining all GAX Telemetry Events.
  * Structure: NAMESPACE -> SUBDOMAIN -> [ACTIONS]
  * 
  * This map is frozen to guarantee the immutability of the core event contract definitions.
+ * @returns {Object}
  */
-const RAW_EVENT_MAP = Object.freeze({
+const _defineRawEventMap = () => Object.freeze({
     // System Lifecycle (SYS)
     SYS: {
         INIT: ['START', 'COMPLETE'],
@@ -70,7 +71,7 @@ const RAW_EVENT_MAP = Object.freeze({
  * @param {Object} definitions 
  * @returns {Object}
  */
-const _buildRegistry = (definitions) => {
+const _buildFlatRegistry = (definitions) => {
     const registry = {};
 
     for (const namespace in definitions) {
@@ -101,6 +102,6 @@ const _buildRegistry = (definitions) => {
  * Structure: NAMESPACE:SUBDOMAIN:ACTION
  * Ensures consistency, machine readability, effective filtering, and standardized consumption.
  */
-const GAXEventRegistry = _buildRegistry(RAW_EVENT_MAP);
+const GAXEventRegistry = _buildFlatRegistry(_defineRawEventMap());
 
 module.exports = GAXEventRegistry;
