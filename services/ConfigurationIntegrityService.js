@@ -1,22 +1,40 @@
 /**
- * NOTE: The DeepInitializer utility is now provided by the kernel via the
- * 'DeepInitializer' plugin interface, abstracting complex recursive merge logic.
+ * AGI-KERNEL v7.11.3 - Configuration Integrity and Policy Enforcement Kernel
+ * Refactored from ConfigurationIntegrityService.js
  */
+class ConfigurationIntegrityKernel {
+    #schema;
+    #defaults;
+    #policies;
+    #deepInitializer;
 
-class ConfigurationIntegrityService {
     /**
-     * @param {object} config.schema - Joi/Zod like schema definition.
-     * @param {object} config.defaults - Default values for the configuration structure.
-     * @param {function[]} config.policies - Array of functions to enforce runtime constraints.
+     * @param {object} dependencies
+     * @param {object} dependencies.schema - Joi/Zod like schema definition.
+     * @param {object} dependencies.defaults - Default values for the configuration structure.
+     * @param {function[]} dependencies.policies - Array of functions to enforce runtime constraints.
+     * @param {function} dependencies.deepInitializer - The DeepInitializer kernel plugin utility.
      */
-    constructor({ schema, defaults, policies = [] }) {
+    constructor({ schema, defaults, policies = [], deepInitializer }) {
+        this.#setupDependencies({ schema, defaults, policies, deepInitializer });
+    }
+
+    /**
+     * Synchronously validates and assigns all required internal dependencies.
+     * @private
+     */
+    #setupDependencies({ schema, defaults, policies, deepInitializer }) {
         if (!schema || typeof schema !== 'object') {
-            throw new Error('ConfigurationIntegrityService requires a valid schema definition.');
+            this.#throwSetupError('A valid schema definition is required.');
+        }
+        if (typeof deepInitializer !== 'function') {
+            this.#throwSetupError('The DeepInitializer function must be provided (Kernel Plugin missing).');
         }
 
-        this.schema = schema;
-        this.defaults = defaults;
-        this.policies = policies;
+        this.#schema = schema;
+        this.#defaults = defaults;
+        this.#policies = policies;
+        this.#deepInitializer = deepInitializer;
     }
 
     /**
@@ -26,11 +44,10 @@ class ConfigurationIntegrityService {
      * @returns {object} The validated configuration object.
      */
     validate(config) {
-        // Using a placeholder robust validation function signature
-        const validationResult = this._internalSchemaValidator(config, this.schema);
+        const validationResult = this.#delegateToInternalValidator(config);
 
         if (validationResult.error) {
-            throw new Error(`Configuration Validation Failed: ${validationResult.error.message}`);
+            this.#throwValidationError(validationResult.error.message);
         }
 
         return validationResult.value;
@@ -43,54 +60,108 @@ class ConfigurationIntegrityService {
      * @returns {object} The migrated and initialized configuration object.
      */
     migrate(config) {
-        // Step 1: Initialize structural integrity using deep recursion (via the plugin)
-        // Assumes DeepInitializer is globally available/injected by the AGI-KERNEL.
-        const initializedConfig = DeepInitializer(config, this.defaults);
-
-        // Step 2: Apply specific version migrations if necessary (placeholder logic)
-        // if (initializedConfig.version < TARGET_VERSION) { ... apply patch ... }
-
-        return initializedConfig;
+        return this.#delegateToDeepInitializer(config, this.#defaults);
     }
 
     /**
      * Enforces runtime policies (e.g., dynamic constraints, limits, environment-specific overrides).
-     * Policies are functions that take config and return the modified config.
      * @param {object} config - The configuration object (usually post-validation/migration).
      * @returns {object} The configuration object with policies applied.
      */
     enforce(config) {
-        let enforcedConfig = { ...config };
+        return this.#executePolicyEnforcement(config, this.#policies);
+    }
 
-        for (const policy of this.policies) {
-            if (typeof policy !== 'function') {
-                console.warn('Skipping non-function policy encountered.');
-                continue;
-            }
-            try {
-                enforcedConfig = policy(enforcedConfig);
-                if (!enforcedConfig) {
-                    throw new Error('Policy execution returned a falsy value. Must return the updated config.');
-                }
-            } catch (error) {
-                // Fail fast on policy breaches or internal policy errors
-                throw new Error(`Policy enforcement failed during execution: ${error.message}`);
-            }
-        }
+    // --- I/O PROXY METHODS ---
 
-        return enforcedConfig;
+    /**
+     * Proxy for schema validation execution.
+     * @private
+     */
+    #delegateToInternalValidator(config) {
+        return this.#executeSchemaValidation(config, this.#schema);
     }
 
     /**
-     * Private placeholder for complex schema validation logic.
-     * Mocked here to satisfy method requirement.
+     * Proxy for external DeepInitializer utility execution.
+     * @private
      */
-    _internalSchemaValidator(config, schema) {
+    #delegateToDeepInitializer(config, defaults) {
+        return this.#deepInitializer(config, defaults);
+    }
+
+    /**
+     * Executes the sequence of configuration policies.
+     * @private
+     */
+    #executePolicyEnforcement(initialConfig, policies) {
+        let enforcedConfig = { ...initialConfig };
+
+        for (const policy of policies) {
+            if (typeof policy !== 'function') {
+                this.#logSkippedPolicyWarning();
+                continue;
+            }
+            try {
+                const result = policy(enforcedConfig);
+                if (!result) {
+                    this.#throwPolicyEnforcementError('Policy execution returned a falsy value. Must return the updated config.');
+                }
+                enforcedConfig = result;
+            } catch (error) {
+                // Fail fast on policy breaches or internal policy errors
+                this.#throwPolicyEnforcementError(`Policy enforcement failed during execution: ${error.message}`);
+            }
+        }
+        return enforcedConfig;
+    }
+
+    // --- EXECUTION & ERROR HANDLING METHODS ---
+
+    /**
+     * Internal placeholder for complex schema validation logic.
+     * (Formerly _internalSchemaValidator)
+     * @private
+     */
+    #executeSchemaValidation(config, schema) {
+        // Mocked implementation
         if (schema && typeof config !== 'object') {
              return { error: { message: 'Config must be an object' }, value: null };
         }
         return { error: null, value: config };
     }
+
+    /**
+     * Throws an error related to Kernel initialization failure.
+     * @private
+     */
+    #throwSetupError(message) {
+        throw new Error(`ConfigurationIntegrityKernel Setup Error: ${message}`);
+    }
+
+    /**
+     * Throws a configuration validation error.
+     * @private
+     */
+    #throwValidationError(message) {
+        throw new Error(`Configuration Validation Failed: ${message}`);
+    }
+
+    /**
+     * Throws a policy enforcement execution error.
+     * @private
+     */
+    #throwPolicyEnforcementError(message) {
+        throw new Error(message);
+    }
+
+    /**
+     * Logs a warning when a policy is skipped.
+     * @private
+     */
+    #logSkippedPolicyWarning() {
+        console.warn('Skipping non-function policy encountered in ConfigurationIntegrityKernel.');
+    }
 }
 
-module.exports = ConfigurationIntegrityService;
+module.exports = ConfigurationIntegrityKernel;
