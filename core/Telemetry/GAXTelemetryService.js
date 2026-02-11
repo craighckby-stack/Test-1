@@ -15,6 +15,15 @@ export class GAXTelemetryService {
     #gaExecutor = NO_OP; 
 
     /**
+     * Delegates the command arguments to the resolved GA executor function.
+     * This acts as the I/O proxy for the external GA dependency (window.ga).
+     * @private
+     */
+    #executeGACommand(...args) {
+        this.#gaExecutor(...args);
+    }
+
+    /**
      * Helper to resolve the global GA function reference.
      * @returns {function} The window.ga function or a NO_OP function.
      */
@@ -53,7 +62,7 @@ export class GAXTelemetryService {
         }
 
         // Initialize GA tracker
-        this.#gaExecutor('create', this.#trackingId, 'auto');
+        this.#executeGACommand('create', this.#trackingId, 'auto');
         console.info(`[GAXTelemetryService] Initialized successfully for ID: ${this.#trackingId}.`);
     }
 
@@ -63,8 +72,8 @@ export class GAXTelemetryService {
     trackPageView(path, properties = {}) {
         if (!this.#isEnabled) return;
         
-        this.#gaExecutor('set', { page: path, ...properties });
-        this.#gaExecutor('send', 'pageview');
+        this.#executeGACommand('set', { page: path, ...properties });
+        this.#executeGACommand('send', 'pageview');
     }
 
     /**
@@ -79,7 +88,7 @@ export class GAXTelemetryService {
         // Value must be an integer in GA
         const value = properties.value ? parseInt(properties.value, 10) : 0;
 
-        this.#gaExecutor('send', 'event', category, action, label, value);
+        this.#executeGACommand('send', 'event', category, action, label, value);
     }
     
     /**
@@ -88,11 +97,11 @@ export class GAXTelemetryService {
     identify(userId, traits) {
         if (!this.#isEnabled) return;
 
-        this.#gaExecutor('set', 'userId', userId); 
+        this.#executeGACommand('set', 'userId', userId); 
         
         // In a complex implementation, traits would map to custom dimensions.
         if (traits) {
-            // Example: this.#gaExecutor('set', 'dimension1', traits.accountType);
+            // Example: this.#executeGACommand('set', 'dimension1', traits.accountType);
         }
     }
 }
