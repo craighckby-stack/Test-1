@@ -3,8 +3,8 @@
  * Dedicated utility component responsible for robust and safe parsing and execution
  * of complex governance policy condition expressions (DSL).
  *
- * NOTE: The highly unsafe direct execution via eval/new Function has been replaced 
- * by delegation to the SecurePolicyEvaluatorTool plugin for safety and sandboxing.
+ * NOTE: This implementation delegates execution to a sandboxed SecurePolicyEvaluatorTool 
+ * dependency provided upon initialization, ensuring security and isolation.
  */
 
 interface SecurePolicyEvaluatorTool {
@@ -15,20 +15,21 @@ interface PolicyConditionEvaluator {
     evaluate(conditionExpression: string, context: Record<string, any>): boolean;
 }
 
-// Placeholder for runtime plugin access (assuming injection or centralized registry lookup)
-declare const PluginRegistry: {
-    getTool: (name: "SecurePolicyEvaluatorTool") => SecurePolicyEvaluatorTool | undefined
-};
-
-let SECURE_EVALUATOR: SecurePolicyEvaluatorTool | undefined;
-
-// Attempt to retrieve the secure tool once upon file load/initialization
-if (typeof PluginRegistry !== 'undefined') {
-    // @ts-ignore
-    SECURE_EVALUATOR = PluginRegistry.getTool("SecurePolicyEvaluatorTool");
-}
-
 export class BasicPolicyConditionEvaluator implements PolicyConditionEvaluator {
+    private readonly secureEvaluator: SecurePolicyEvaluatorTool;
+
+    /**
+     * Initializes the evaluator with a required sandboxing tool.
+     * Dependency Injection is used to provide the sandboxed execution environment.
+     * 
+     * @param secureEvaluator The SecurePolicyEvaluatorTool instance.
+     */
+    constructor(secureEvaluator: SecurePolicyEvaluatorTool) {
+        if (!secureEvaluator) {
+            throw new Error("SecurePolicyEvaluatorTool dependency is required for safe policy evaluation.");
+        }
+        this.secureEvaluator = secureEvaluator;
+    }
 
     /**
      * Evaluates a complex conditional expression against a context of data points 
@@ -39,14 +40,9 @@ export class BasicPolicyConditionEvaluator implements PolicyConditionEvaluator {
      */
     public evaluate(conditionExpression: string, context: Record<string, any>): boolean {
         
-        if (!SECURE_EVALUATOR) {
-            console.error("SecurePolicyEvaluatorTool is not available. Policy evaluation aborted.");
-            return false;
-        }
-
         try {
             // Delegate the substitution, keyword transformation, and safe execution.
-            return SECURE_EVALUATOR.execute({
+            return this.secureEvaluator.execute({
                 conditionExpression: conditionExpression,
                 context: context
             });
