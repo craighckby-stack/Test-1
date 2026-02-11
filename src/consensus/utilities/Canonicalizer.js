@@ -12,20 +12,23 @@ interface SecureHasherTool {
     hash(data: string, algorithm?: string): string;
 }
 
+/**
+ * Creates a function that throws an initialization error, 
+ * used as a fallback for missing kernel dependencies.
+ */
+const createMissingUtilityFallback = (utilityName: string) => (...args: unknown[]) => {
+    // Fallback/Error: The utility must be initialized by the kernel
+    throw new Error(`${utilityName} utility not initialized or available.`);
+};
+
 // Access the kernel-provided Canonicalization Utility
 const CanonicalizerUtility: CanonicalizerTool = (global as any).CanonicalPayloadGenerator || {
-    generate: (data: unknown) => {
-        // Fallback/Error: The utility must be initialized by the kernel
-        throw new Error("CanonicalPayloadGenerator utility not initialized or available.");
-    }
+    generate: createMissingUtilityFallback("CanonicalPayloadGenerator")
 };
 
 // Access the kernel-provided Hashing Utility (SecureHasher plugin)
 const HasherUtility: SecureHasherTool = (global as any).SecureHasher || {
-    hash: (data: string, algorithm?: string) => {
-        // Fallback/Error: The utility must be initialized by the kernel
-        throw new Error("SecureHasher utility not initialized or available.");
-    }
+    hash: createMissingUtilityFallback("SecureHasher")
 };
 
 /**
