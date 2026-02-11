@@ -20,21 +20,25 @@ _standardizeConstraintResult(code, constraintDef, adherenceCheck, error) {
         severity: defSeverity = 'MAJOR'
     } = constraintDef;
 
+    // A. Runtime Execution Error
     if (error) {
+        // Ensuring consistent violation schema by including target parameter
         return {
             code: `${code}_RUNTIME_ERROR`,
+            target, 
             severity: 'CRITICAL',
             details: `Unexpected execution error during constraint ${code}: ${error.message}`
         };
     }
 
+    // B. Explicit Constraint Failure
     if (adherenceCheck?.isMet === false) {
         const failureDetails = adherenceCheck.details || `Adherence rule failed for code: ${code}.`;
         return { code, target, severity: defSeverity, details: failureDetails };
     }
 
+    // C. Service Failure / Invalid Response
     if (adherenceCheck === undefined || adherenceCheck === null) {
-        // Service failure or invalid response
         return {
             code: `${code}_SERVICE_FAIL`,
             target: target,
@@ -43,7 +47,7 @@ _standardizeConstraintResult(code, constraintDef, adherenceCheck, error) {
         };
     }
 
-    return null; // Adherent
+    return null; // D. Adherent
 }
 
 
@@ -51,11 +55,21 @@ async validate(configuration, requiredConstraintCodes) {
     const SERVICE_KEY = 'ConstraintExecutionService';
     const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
 
-    // Helper functions
-    const createCriticalViolation = (code, details) => ({
-        isAdherent: false,
-        violations: [{ code, severity: 'CRITICAL', details }]
-    });
+    // Helper function for consistent critical violation structure
+    const createCriticalViolation = (code, details, target = 'SYSTEM') => {
+        // Defining the data structure clearly for immediate failure payloads
+        const violationStructure = { 
+            code,
+            target,
+            severity: 'CRITICAL',
+            details
+        };
+
+        return {
+            isAdherent: false,
+            violations: [violationStructure]
+        };
+    };
 
     // 1. Input Validation
     if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
