@@ -1,54 +1,21 @@
 const JsonPathUtility = require('./JsonPathUtility');
 
 /**
- * NOTE: ConstraintStrategies should ideally be managed by a separate Registry
- * component to allow for runtime extension and modularity. Temporarily defined
- * locally pending scaffolding of ConstraintStrategyRegistry.js.
+ * IntegrityValidationEngine manages the loading, caching, and application of integrity rules
+ * against a payload, relying on external services for constraint compilation and path traversal.
  */
-const ConstraintStrategies = {
-    regex: (value, param, state) => state.regex.test(value),
-    min_length: (value, param) => (Array.isArray(value) || typeof value === 'string') && value.length >= parseInt(param),
-    is_defined: (value) => value !== undefined && value !== null,
-    // is_immutable requires comparison against original state context, assumed true for current implementation scope.
-    is_immutable: () => true,
-};
-
 class IntegrityValidationEngine {
-    constructor(ruleManifest) {
+    /**
+     * @param {object} ruleManifest - Loaded manifest defining rule sets.
+     * @param {ConstraintEvaluator} constraintEvaluator - Service handling constraint parsing and compilation.
+     */
+    constructor(ruleManifest, constraintEvaluator) {
         // ruleManifest is loaded from spec/integrity/mcis_v1.2.json
         this.manifest = ruleManifest;
         // Utilize the utility; ensure external registration if the system grows.
         this.jsonPath = JsonPathUtility;
+        this.evaluator = constraintEvaluator; 
         this.compiledRulesCache = {};
-    }
-
-    /**
-     * Parses and compiles a raw constraint string into an executable validation object.
-     * Regex constraints are pre-compiled for performance.
-     */
-    _compileConstraint(constraintString) {
-        const [type, ...rest] = constraintString.split(':');
-        const param = rest.join(':');
-
-        const strategy = ConstraintStrategies[type];
-
-        if (!strategy) {
-            console.warn(`[IntegrityEngine] Unknown constraint type encountered: ${type}. Failing safe (pass).`);
-            return { type, param, check: () => true, state: {} };
-        }
-
-        let state = {};
-        if (type === 'regex') {
-            // Compile the regex once upon loading the rule.
-            try {
-                state.regex = new RegExp(param);
-            } catch (e) {
-                console.error(`Invalid regex parameter for rule: ${param}`, e);
-                return { type, param, check: () => false, state: {} }; // Fail fast on invalid regex
-            }
-        }
-
-        return { type, param, check: (value) => strategy(value, param, state), state };
     }
 
     /**
@@ -66,7 +33,8 @@ class IntegrityValidationEngine {
             ...rawRuleset,
             rules: rawRuleset.rules.map(rule => ({
                 ...rule,
-                compiledConstraint: this._compileConstraint(rule.constraint)
+                // Delegate compilation to the external evaluator service
+                compiledConstraint: this.evaluator.compile(rule.constraint)
             }))
         };
 
