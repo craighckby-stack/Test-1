@@ -1,88 +1,134 @@
 /**
- * MitigationActionRouter: 
+ * MitigationActionRouterKernel: 
  * Manages the intake, validation, and specialized routing of standardized 
  * governance mitigation action payloads based on the specified 'executor'.
  */
 
-const Ajv = require('ajv');
-const actionSchema = require('../../config/governance_mitigation_action_schema.json');
-// Assuming a centralized logger utility
-const logger = require('../utils/Logger'); 
-// Custom error handling for governance domain failures
-const { ActionValidationError, ExecutorNotFoundError } = require('./errors/GovernanceErrors'); 
+// Note: Assuming ILoggerToolKernel, ISpecValidatorKernel, 
+//       IMitigationExecutorResolverToolKernel, and 
+//       IGovernanceMitigationSchemaRegistryKernel are injected strategic interfaces.
 
-// Note: In a real environment, the DeclarativeConstraintValidator would be typed/imported.
+// Custom error handling for governance domain failures (Imported/Injected externally)
+// const { ActionValidationError, ExecutorNotFoundError } = require('./errors/GovernanceErrors'); 
 
-class MitigationActionRouter {
+class MitigationActionRouterKernel {
+    #executorResolver;
+    #specValidator;
+    #schemaRegistry;
+    #logger;
+    #actionSchema;
 
-  /**
-   * @param {Map<string, IActionExecutor>} executorRegistry - Map of executor names to service instances.
-   * @param {object} validatorTool - Instance conforming to DeclarativeConstraintValidator interface.
-   */
-  constructor(executorRegistry, validatorTool) {
-    if (!(executorRegistry instanceof Map)) {
-        throw new TypeError("MitigationActionRouter requires a Map instance for executorRegistry.");
-    }
-    if (!validatorTool || typeof validatorTool.execute !== 'function') {
-        throw new TypeError("MitigationActionRouter requires a valid validatorTool instance with an 'execute' method.");
-    }
-
-    // Configure Ajv for detailed error reporting and default value population
-    this.ajv = new Ajv({ allErrors: true, useDefaults: true });
-    this.validator = this.ajv.compile(actionSchema);
-    this.executorRegistry = executorRegistry; 
-    this.validatorTool = validatorTool; 
-    logger.debug('MitigationActionRouter initialized, Schema Validator compiled.');
-  }
-
-  /**
-   * Validates and routes the action payload to the designated specialized executor.
-   * @param {Object} actionPayload - The payload describing the mitigation action.
-   * @returns {Promise<{status: string, actionId: string, executorUsed: string}>}
-   */
-  async routeAction(actionPayload) {
-    
-    // 1. Validation using DeclarativeConstraintValidator
-    const validationResult = this.validatorTool.execute({
-        validatorFn: this.validator,
-        payload: actionPayload
-    });
-
-    if (!validationResult.valid) {
-      const errors = validationResult.errors;
-      logger.error('Mitigation action validation failed.', { errors, payload: actionPayload });
-      throw new ActionValidationError('Invalid mitigation action payload provided.', errors);
-    }
-    
-    const validatedPayload = validationResult.standardizedPayload;
-
-    const { executor, actionId, actionType, priority } = validatedPayload;
-
-    // 2. Executor Resolution
-    const service = this.executorRegistry.get(executor);
-    if (!service) {
-      logger.warn(`Attempted to route action ${actionId} to unknown executor: ${executor}`);
-      throw new ExecutorNotFoundError(`Mitigation executor service not found for identifier: ${executor}`);
+    /**
+     * @param {object} dependencies - Injected dependencies
+     * @param {IMitigationExecutorResolverToolKernel} dependencies.executorResolver - Resolver for mitigation execution services.
+     * @param {ISpecValidatorKernel} dependencies.specValidator - Tool for high-integrity schema validation.
+     * @param {IGovernanceMitigationSchemaRegistryKernel} dependencies.schemaRegistry - Registry for loading the action schema.
+     * @param {ILoggerToolKernel} dependencies.logger - Standardized logging interface.
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+        this.#logger.debug(`${this.constructor.name} initialized, awaiting configuration.`);
     }
 
-    // 3. Execution/Routing
-    logger.info(`Routing Action ${actionId} [P:${priority}, T:${actionType}] to Executor: ${executor}`);
-    
-    try {
-        // Execute the action using the validated (and potentially defaulted) payload
-        await service.execute(validatedPayload);
-    } catch (error) {
-        logger.error(`Failed to execute action ${actionId} via ${executor}. Propagating failure.`, { error, actionId });
-        // Preserve specialized error type from the executor
-        throw error; 
+    #setupDependencies(dependencies) {
+        if (!dependencies) {
+            throw new Error("Dependencies object is required for MitigationActionRouterKernel.");
+        }
+        
+        const { executorResolver, specValidator, schemaRegistry, logger } = dependencies;
+
+        // Validation mandated by architectural standards
+        if (!executorResolver || typeof executorResolver.resolve !== 'function') {
+            throw new TypeError("executorResolver must conform to IMitigationExecutorResolverToolKernel and expose 'resolve(executorId)'.");
+        }
+        if (!specValidator || typeof specValidator.validateAsync !== 'function') {
+            throw new TypeError("specValidator must conform to ISpecValidatorKernel and expose 'validateAsync'.");
+        }
+        if (!schemaRegistry || typeof schemaRegistry.getActionSchema !== 'function') {
+            throw new TypeError("schemaRegistry must conform to IGovernanceMitigationSchemaRegistryKernel and expose 'getActionSchema'.");
+        }
+        if (!logger || typeof logger.info !== 'function') {
+            throw new TypeError("logger must conform to ILoggerToolKernel.");
+        }
+
+        this.#executorResolver = executorResolver;
+        this.#specValidator = specValidator;
+        this.#schemaRegistry = schemaRegistry;
+        this.#logger = logger;
     }
 
-    return { 
-        status: 'ActionRoutedAndInitiated', 
-        actionId: actionId,
-        executorUsed: executor
-    };
-  }
+    /**
+     * Loads the required configuration (action schema) asynchronously.
+     */
+    async initialize() {
+        this.#actionSchema = await this.#schemaRegistry.getActionSchema();
+        if (!this.#actionSchema) {
+            this.#logger.fatal("Initialization failure: Failed to retrieve mitigation action schema.");
+            throw new Error("MitigationActionRouterKernel failed to initialize configuration.");
+        }
+        this.#logger.info(`${this.constructor.name} configuration loaded successfully.`);
+    }
+
+    /**
+     * Validates and routes the action payload to the designated specialized executor.
+     * @param {Object} actionPayload - The payload describing the mitigation action.
+     * @returns {Promise<{status: string, actionId: string, executorUsed: string}>}
+     */
+    async routeAction(actionPayload) {
+        if (!this.#actionSchema) {
+            this.#logger.error("Attempted to route action before initialization was complete.");
+            throw new Error("Router not initialized.");
+        }
+
+        // 1. Validation using ISpecValidatorKernel (Asynchronous)
+        // Note: Assume ActionValidationError and ExecutorNotFoundError are available via context or imports.
+        
+        const validationResult = await this.#specValidator.validateAsync({
+            schema: this.#actionSchema,
+            payload: actionPayload,
+            // Configuration to ensure standardization and default population
+            options: { useDefaults: true, allErrors: true } 
+        });
+
+        if (!validationResult.isValid) {
+            const errors = validationResult.errors;
+            this.#logger.error('Mitigation action validation failed.', { errors, payload: actionPayload });
+            // Throw specialized error (assuming ActionValidationError is defined/in scope)
+            throw new Error('ActionValidationError: Invalid mitigation action payload provided.'); 
+        }
+        
+        const validatedPayload = validationResult.validatedPayload; 
+        
+        const { executor, actionId, actionType, priority } = validatedPayload;
+
+        // 2. Executor Resolution via Resolver Tool
+        // The IMitigationExecutorResolverToolKernel abstracts the map lookup.
+        const service = await this.#executorResolver.resolve(executor); 
+        
+        if (!service) {
+            this.#logger.warn(`Attempted to route action ${actionId} to unknown executor: ${executor}`);
+            // Throw specialized error (assuming ExecutorNotFoundError is defined/in scope)
+            throw new Error(`ExecutorNotFoundError: Mitigation executor service not found for identifier: ${executor}`);
+        }
+
+        // 3. Execution/Routing
+        this.#logger.info(`Routing Action ${actionId} [P:${priority}, T:${actionType}] to Executor: ${executor}`);
+        
+        try {
+            // Execute the action using the validated payload.
+            // Assuming the executor service implements an async execute method.
+            await service.execute(validatedPayload);
+        } catch (error) {
+            this.#logger.error(`Failed to execute action ${actionId} via ${executor}. Propagating failure.`, { error, actionId });
+            throw error; 
+        }
+
+        return { 
+            status: 'ActionRoutedAndInitiated', 
+            actionId: actionId,
+            executorUsed: executor
+        };
+    }
 }
 
-module.exports = MitigationActionRouter;
+module.exports = MitigationActionRouterKernel;
