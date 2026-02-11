@@ -16,28 +16,46 @@ import {
  * to the reusable AGI_KERNEL:DependencyGraphAnalyzer plugin.
  */
 export class ConstraintDependencyGraphAnalyzer {
-  private definition: ConstraintResolutionEngineDefinition;
-  private graphAnalyzer: DependencyGraphAnalyzer;
+  #definition: ConstraintResolutionEngineDefinition;
+  #graphAnalyzer: DependencyGraphAnalyzer;
 
   constructor(definition: ConstraintResolutionEngineDefinition) {
-    this.definition = definition;
-    this.graphAnalyzer = new DependencyGraphAnalyzer();
+    this.#definition = definition;
+    this.#setupDependencies();
+  }
+  
+  /**
+   * Encapsulates dependency resolution and initialization.
+   * Satisfies Synchronous Setup Extraction goal.
+   */
+  #setupDependencies(): void {
+    // Dependency: AGI_KERNEL/DependencyGraphAnalyzer
+    this.#graphAnalyzer = new DependencyGraphAnalyzer();
+  }
+
+  /**
+   * Isolates the direct interaction with the external DependencyGraphAnalyzer tool.
+   * Satisfies I/O Proxy Creation goal.
+   */
+  #delegateToGraphAnalyzer(config: { nodes: AnalysisNode[], idKey: string, depsKey: string }): GraphDiagnostic[] {
+    return this.#graphAnalyzer.analyze(config);
   }
 
   /**
    * Analyzes the dependency graph for cycles, duplicates, and missing references.
-   * Logic delegated to the DependencyGraphAnalyzer tool.
    * @returns An array of structured diagnostic messages.
    */
   public analyzeForCycles(): GraphDiagnostic[] {
-    const diagnostics = this.graphAnalyzer.analyze({
+    // Synchronous data preparation: creating the configuration structure
+    const analysisConfig = {
       // The input structure (resolutionPhases) matches the expected format
-      nodes: this.definition.resolutionPhases as AnalysisNode[], 
+      nodes: this.#definition.resolutionPhases as AnalysisNode[], 
       idKey: 'phaseId',
       depsKey: 'dependencies',
-    });
+    };
     
-    return diagnostics;
+    // Delegate I/O to the proxy function
+    return this.#delegateToGraphAnalyzer(analysisConfig);
   }
 
   public validateDefinition(): void {
