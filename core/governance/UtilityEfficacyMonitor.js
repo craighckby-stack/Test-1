@@ -73,18 +73,55 @@ class UtilityEfficacyMonitor {
     thresholdComparator: MetricThresholdComparator,
     policyExecutor: CompliancePolicyExecutor
   ) {
-    // 1. Dependency Injection and Strict Encapsulation
-    this.#thresholdComparator = thresholdComparator;
-    this.#policyExecutor = policyExecutor;
-    
-    // 2. Enforce Immutability: Deep-freeze the governance configuration to prevent runtime modification.
-    // NOTE: Reliance on Object.freeze guarantees top-level immutability; a deep freeze utility
-    // is recommended for production systems with complex nested configurations.
-    this.#config = Object.freeze(config);
+    this.#setupDependencies(thresholdComparator, policyExecutor);
+    this.#initializeConfiguration(config);
     
     this.#runtimeMetrics = {}; // Data store for live operational metrics (mutable internal state)
     
     console.log(`Efficacy Monitor initialized.`);
+  }
+
+  /**
+   * Isolates dependency injection and assignment.
+   */
+  #setupDependencies(thresholdComparator: MetricThresholdComparator, policyExecutor: CompliancePolicyExecutor): void {
+    this.#thresholdComparator = thresholdComparator;
+    this.#policyExecutor = policyExecutor;
+  }
+
+  /**
+   * Extracts synchronous configuration setup and immutability enforcement.
+   */
+  #initializeConfiguration(config: Config): void {
+    // Enforce Immutability: Deep-freeze the governance configuration to prevent runtime modification.
+    // NOTE: Object.freeze guarantees top-level immutability.
+    this.#config = Object.freeze(config);
+  }
+
+  /**
+   * I/O Proxy: Delegates violation evaluation to the external comparator dependency.
+   */
+  #delegateToThresholdComparator(metricSpec: MetricSpec, currentValue: number): boolean {
+    return this.#thresholdComparator.evaluateViolation(metricSpec, currentValue);
+  }
+
+  /**
+   * I/O Proxy: Delegates violation escalation action to the external executor dependency.
+   */
+  async #delegateToPolicyEscalation(
+    utilityId: string,
+    metricName: string,
+    policyId: string,
+    currentValue: number
+  ): Promise<void> {
+    await this.#policyExecutor.escalateViolation(utilityId, metricName, policyId, currentValue);
+  }
+
+  /**
+   * I/O Proxy: Delegates failover initiation to the external executor dependency.
+   */
+  async #delegateToFailoverInitiation(targetUtilityId: string): Promise<void> {
+    await this.#policyExecutor.initiateFailover(targetUtilityId);
   }
 
   /**
@@ -106,18 +143,18 @@ class UtilityEfficacyMonitor {
     for (const metricSpec of utilitySpec.metrics) {
       const currentValue = currentMetrics[metricSpec.name];
       
-      // Use the reusable plugin logic for violation detection
-      const violation = this.#thresholdComparator.evaluateViolation(metricSpec, currentValue);
+      // Use I/O Proxy 1
+      const violation = this.#delegateToThresholdComparator(metricSpec, currentValue);
 
       if (violation) {
         const policyId = metricSpec.failure_policy_id || this.#config.default_policy_id;
         
-        // Delegation 1: Escalate violation using the executor plugin
-        await this.#policyExecutor.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
+        // Use I/O Proxy 2: Escalate violation
+        await this.#delegateToPolicyEscalation(utilityId, metricSpec.name, policyId, currentValue);
         
         if (utilitySpec.failover && utilitySpec.failover.enabled) {
-          // Delegation 2: Initiate failover using the executor plugin
-          await this.#policyExecutor.initiateFailover(utilitySpec.failover.target_utility_id);
+          // Use I/O Proxy 3: Initiate failover
+          await this.#delegateToFailoverInitiation(utilitySpec.failover.target_utility_id);
         }
       }
     }
