@@ -4,34 +4,10 @@
  * and retrospective analysis of system corrections.
  */
 
-// Assuming integration with the AuditRecordCanonicalizer tool
+import { AuditRecordCanonicalizer } from '@/plugins/AuditRecordCanonicalizer'; // Assumed import path
 
-// Placeholder import for tool access (in a real environment, this is injected or imported)
-// const AuditRecordCanonicalizerTool = require('@/plugins/AuditRecordCanonicalizer');
-
-// Dummy Tool Access for demonstration
-const AuditRecordCanonicalizerTool = {
-    canonicalize: (policyId, status, payload, response) => {
-        // Fallback or expectation if the tool is not directly imported
-        const canonicalizer = (function() {
-            return {
-                canonicalize: function(policyId, status, payload, response) {
-                    var record = {
-                        timestamp: new Date().toISOString(),
-                        policyId: policyId,
-                        status: status,
-                        protocol: payload ? payload.protocol : null,
-                        target: payload ? payload.target : null,
-                        payload: payload,
-                        response: response
-                    };
-                    return record;
-                }
-            };
-        })();
-        return canonicalizer.canonicalize(policyId, status, payload, response);
-    }
-};
+// Initialize the canonicalizer utility
+const canonicalizer = new AuditRecordCanonicalizer();
 
 export class GovernanceAuditService {
     
@@ -41,10 +17,11 @@ export class GovernanceAuditService {
      * @param {string} status - The execution status (e.g., 'SUCCESS').
      * @param {object} payload - The input data/context for the policy.
      * @param {object} response - The result of the policy execution.
+     * @returns {Promise<object>} The canonical audit record.
      */
     static async logExecution(policyId, status, payload, response) {
         // Use the dedicated tool to ensure canonical data structure
-        const record = AuditRecordCanonicalizerTool.canonicalize(policyId, status, payload, response);
+        const record = canonicalizer.canonicalize(policyId, status, payload, response);
         
         // In a real system, this would write to a specialized Audit Log database or Kafka topic
         console.log(`[AUDIT] Policy ${policyId} executed. Status: ${status}`);
