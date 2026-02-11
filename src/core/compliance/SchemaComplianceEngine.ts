@@ -16,6 +16,8 @@ interface ValidationResult {
 
 // Define the static location of the compliance schema.
 const SCHEMA_PATH = path.join(__dirname, '../../../config/SPDM_Schema.json');
+const SCHEMA_FILE_NAME = path.basename(SCHEMA_PATH);
+const LOG_PREFIX = '[SCE]';
 
 /**
  * The SchemaComplianceEngine is responsible for managing the loading, registration,
@@ -39,11 +41,11 @@ export class SchemaComplianceEngine {
      */
     public async loadSchema(): Promise<void> {
         if (this.isSchemaLoaded && this.schema) {
-            console.log(`[Compliance] Schema already loaded: ${this.schema.title || 'Unknown Schema'}`);
+            console.log(`${LOG_PREFIX} Schema already loaded: ${this.schema.title || SCHEMA_FILE_NAME}`);
             return;
         }
 
-        console.log(`[Compliance] Attempting to load schema from: ${SCHEMA_PATH}`);
+        console.log(`${LOG_PREFIX} Attempting to load schema from: ${SCHEMA_PATH}`);
 
         try {
             const schemaContent = await fs.readFile(SCHEMA_PATH, 'utf-8');
@@ -52,7 +54,7 @@ export class SchemaComplianceEngine {
             const parsedSchema = DataDecoderUtility.decodeJson(schemaContent);
             
             if (!parsedSchema || typeof parsedSchema.$id !== 'string') {
-                 throw new Error("Invalid schema structure: missing required '$id' field or empty content.");
+                 throw new Error(`Invalid schema structure for ${SCHEMA_FILE_NAME}: missing required '$id' field or empty content.`);
             }
 
             this.schema = parsedSchema;
@@ -62,11 +64,15 @@ export class SchemaComplianceEngine {
             SchemaCompilationAndValidationService.registerSchema(this.schemaId, this.schema);
 
             this.isSchemaLoaded = true;
-            console.log(`[Compliance] Successfully loaded and registered schema: ${this.schema.title || this.schemaId}`);
+            console.log(`${LOG_PREFIX} Success: Registered schema "${this.schema.title || this.schemaId}" (ID: ${this.schemaId}).`);
 
         } catch (error) {
-            console.error(`[FATAL] Failed to load or parse schema from ${SCHEMA_PATH}:`, (error as Error).message);
-            throw new Error(`Schema loading failed.`);
+            const errMessage = (error as Error).message;
+            // Log the detailed operational failure using a consistent prefix
+            console.error(`${LOG_PREFIX} FATAL Error during schema loading (${SCHEMA_FILE_NAME}): ${errMessage}`);
+            
+            // Throw a concise error for upstream control flow handling
+            throw new Error(`Compliance schema initialization failed.`);
         }
     }
 
@@ -92,13 +98,14 @@ export class SchemaComplianceEngine {
         const isValid = validationResult.isValid;
 
         if (!isValid) {
-            console.error(`\n--- [COMPLIANCE FAILURE] ---`);
-            console.error(`Configuration file failed SPDM schema validation: ${configPath}`);
+            console.error(`
+${LOG_PREFIX} VALIDATION FAILURE: Configuration file failed SPDM schema validation: ${configPath}`);
             
             // Use dedicated tool to standardize and display validation errors
             const formattedErrors = SchemaErrorFormatterTool.formatErrors(validationResult.errors);
             console.error(formattedErrors);
-            console.error(`---------------------------\n`);
+            console.error(`------------------------------------------------------------------
+`);
         }
         return isValid;
     }
