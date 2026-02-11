@@ -25,6 +25,17 @@ const _CODES_MAP = Object.freeze({
 });
 
 /**
+ * Private helper function to ensure safe lookup of an error code.
+ * This function guarantees a fallback to SYSTEM_UNKNOWN if the key is invalid or undefined.
+ * 
+ * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
+ * @returns {string} The corresponding error code, or SYSTEM_UNKNOWN if not found.
+ */
+const _getValidatedCode = (key) => {
+    return _CODES_MAP[key] || _CODES_MAP.SYSTEM_UNKNOWN;
+};
+
+/**
  * Standardized registry interface for accessing machine-readable error codes.
  * This unified interface provides safe lookup utilities and access to the immutable code enumeration.
  * @type {Readonly<{Codes: Readonly<Record<string, string>>, get: function(string): string}>}
@@ -35,13 +46,8 @@ export const ErrorCodeRegistry = Object.freeze({
 
     /**
      * Utility function to quickly access a standardized code.
-     * Provides safe lookup with a mandatory fallback to SYSTEM_UNKNOWN if the key is not found.
-     * 
      * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
      * @returns {string}
      */
-    get(key) {
-        // Uses direct property access on the internal map with logical OR fallback.
-        return _CODES_MAP[key] || _CODES_MAP.SYSTEM_UNKNOWN;
-    }
+    get: _getValidatedCode
 });
