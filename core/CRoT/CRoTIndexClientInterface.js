@@ -11,6 +11,15 @@
  */
 class ICRoTIndexClient {
     /**
+     * Ensures the class is treated as an abstract interface and cannot be instantiated directly.
+     */
+    constructor() {
+        if (new.target === ICRoTIndexClient) {
+            throw new Error("Cannot instantiate abstract interface ICRoTIndexClient directly. It must be extended.");
+        }
+    }
+
+    /**
      * @param {string} fingerprint The 64-character SHA-256 policy hash.
      * @returns {Promise<string[]>} List of historical ACV transaction IDs.
      */
@@ -21,7 +30,7 @@ class ICRoTIndexClient {
     /**
      * @param {string} fingerprint The 64-character SHA-256 policy hash.
      * @param {string} txId The transaction ID (Anchor) associated with the successful policy change.
-     * @returns {Promise<void>}
+     * @returns {Promise<void>} 
      */
     async indexCommit(fingerprint, txId) {
         throw new Error('Method must be implemented by the concrete CRoT Index Client.');
