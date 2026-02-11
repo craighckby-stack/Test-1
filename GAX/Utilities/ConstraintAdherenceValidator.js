@@ -5,6 +5,7 @@
  */
 
 import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'; // Assuming JSON loading capability
+import { executeConstraintCheck } from './ConstraintExecutionCapability';
 
 /**
  * @typedef {Object} ConstraintDefinition
@@ -21,8 +22,6 @@ import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'
  * @property {(string|null)} [details] - Explanation of the failure, if applicable.
  */
 
-// Assuming KERNEL_SYNERGY_CAPABILITIES is globally available for Tool execution
-
 export class ConstraintAdherenceValidator {
 
     /**
@@ -31,14 +30,14 @@ export class ConstraintAdherenceValidator {
      */
     constructor(taxonomy = ConstraintTaxonomy && ConstraintTaxonomy.constraintTypes ? ConstraintTaxonomy.constraintTypes : []) {
         // Ensure taxonomy is an array, handling potential failures during JSON loading.
-        if (!Array.isArray(taxonomy)) {
-            console.error("Constraint taxonomy initialized with invalid structure.");
-            taxonomy = [];
+        let constraints = taxonomy;
+        if (!Array.isArray(constraints)) {
+            console.error("Constraint taxonomy initialized with invalid structure. Resetting to empty array.");
+            constraints = [];
         }
 
-        this.taxonomyMap = new Map(taxonomy.map(c => [c.code, c]));
-        
-        // Dependency on RuleExecutionEngine removed.
+        /** @type {Map<string, ConstraintDefinition>} */
+        this.taxonomyMap = new Map(constraints.map(c => [c.code, c]));
     }
 
     /**
@@ -59,7 +58,8 @@ export class ConstraintAdherenceValidator {
                 continue;
             }
             
-            const adherenceCheck = this.executeConstraintCheck(constraintDef, configuration);
+            // Delegating constraint execution to the capability function
+            const adherenceCheck = executeConstraintCheck(constraintDef, configuration);
 
             if (!adherenceCheck.isMet) {
                 violations.push({
@@ -74,37 +74,6 @@ export class ConstraintAdherenceValidator {
         return {
             isAdherent: violations.length === 0,
             violations
-        };
-    }
-
-    /**
-     * Executes the specific technical check for a constraint against a configuration
-     * by delegating to the KERNEL_SYNERGY_CAPABILITIES ConstraintExecutor Tool.
-     * @param {ConstraintDefinition} constraintDef - The definition of the constraint to check.
-     * @param {Object} configuration - The system configuration.
-     * @returns {ValidationResult} Adherence status.
-     */
-    executeConstraintCheck(constraintDef, configuration) {
-        const checkType = constraintDef.check_type;
-
-        if (!checkType) {
-             return { isMet: false, details: 'Constraint definition is missing required "check_type" for validation execution.' };
-        }
-
-        // Delegation to the ConstraintExecutor Tool via the KERNEL
-        const result = KERNEL_SYNERGY_CAPABILITIES.Tool.execute('ConstraintExecutor', 'executeCheck', {
-            constraintDef: constraintDef,
-            configuration: configuration
-        });
-
-        if (result && result.isMet !== undefined) {
-            return result;
-        }
-
-        // Defaulting to failure if execution fails or returns an unrecognized structure
-        return { 
-            isMet: false, 
-            details: `Tool 'ConstraintExecutor' failed or returned an invalid structure for check type '${checkType}'.`
         };
     }
 
