@@ -1,7 +1,7 @@
 const { ValidationError } = require('../../utils/ValidationError');
 
 /**
- * NOTE: Assumes ObjectPathResolver plugin is available in the execution context.
+ * NOTE: This engine requires the ObjectPathResolver plugin to be available in the execution context.
  */
 
 /**
@@ -34,9 +34,14 @@ class CrossFieldDependencyEngine {
   static execute(fieldSchema, currentFieldPath, dataContext) {
     const errors = [];
 
+    if (!fieldSchema || typeof fieldSchema !== 'object') {
+        return errors;
+    }
+    
     for (const [directive, ruleDefinition] of Object.entries(fieldSchema)) {
-      if (CrossFieldDependencyEngine.DEPENDENCY_MAP[directive]) {
-        const handler = CrossFieldDependencyEngine.DEPENDENCY_MAP[directive];
+      const handler = CrossFieldDependencyEngine.DEPENDENCY_MAP[directive];
+      
+      if (handler) {
         // Handlers must return an array of ValidationError instances
         const results = handler(currentFieldPath, ruleDefinition, dataContext);
         errors.push(...results);
@@ -63,22 +68,26 @@ class CrossFieldDependencyEngine {
     const errors = [];
     const { presenceOf, requiredTargets } = ruleDefinition;
 
+    if (!presenceOf || !requiredTargets) {
+        return errors; 
+    }
+
     // 1. Check Condition 
-    // Use ObjectPathResolver plugin for safe path resolution
+    // Assumes ObjectPathResolver is available via the execution context.
     const dependencyValue = ObjectPathResolver.resolve(dataContext, presenceOf);
 
-    // Check passes if the dependency field is present (assuming simple presence check for efficiency)
+    // Check passes if the dependency field is present (not undefined and not null)
     if (dependencyValue !== undefined && dependencyValue !== null) { 
       const targets = Array.isArray(requiredTargets) ? requiredTargets : [requiredTargets];
       
       // 2. Evaluate Targets
       targets.forEach(targetFieldPath => {
-        // Use ObjectPathResolver plugin for safe path resolution
         const targetValue = ObjectPathResolver.resolve(dataContext, targetFieldPath);
+        
         if (targetValue === undefined || targetValue === null) {
           errors.push(new ValidationError(
             targetFieldPath, 
-            `${targetFieldPath} is required because ${presenceOf} is provided.`,
+            `${targetFieldPath} is required because ${presenceOf} is provided. (Triggered by value: ${JSON.stringify(dependencyValue).substring(0, 50)})`,
             'dependency.required'
           ));
         }
@@ -87,17 +96,21 @@ class CrossFieldDependencyEngine {
     return errors;
   }
   
+  /**
+   * Stub: Logic for checking mutual exclusion.
+   */
   static _evaluateExclusion(currentFieldPath, mutuallyExclusiveFields, dataContext) {
-      // Stub: Logic for checking if the current field conflicts with mutually exclusive fields.
+      // Implementation pending
       return []; 
   }
 
+  /**
+   * Stub: Logic for complex conditional requirements.
+   */
   static _evaluateConditional(currentFieldPath, conditionalRules, dataContext) {
-      // Stub: Logic for complex 'when value equals X' type rules.
+      // Implementation pending
       return [];
   }
-  
-  // _resolvePath utility removed and replaced by ObjectPathResolver plugin call.
 }
 
 module.exports = CrossFieldDependencyEngine;
