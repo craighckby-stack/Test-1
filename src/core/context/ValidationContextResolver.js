@@ -1,40 +1,40 @@
 /**
- * GAX Constraint Validation Context Resolver
+ * GAX Constraint Validation Context Resolver Kernel
  * Maps execution context (e.g., request type, route) to a defined validation group.
- * Pre-processes configuration for optimized runtime lookups.
+ * Configuration parsing and initialization are delegated and managed via Dependency Injection.
  */
 
 import { RequestContext } from '@core/middleware/RequestContext.js';
 
 /**
  * Interface for the stateful ContextResolutionMapper tool.
- * @typedef {object} ContextResolutionMapperInstance
+ * @interface IContextResolutionMapperToolKernel
  * @property {(args: { method?: string, route?: string, jobType?: string }) => string} execute - Resolves context attributes to a validation group.
  */
 
-export class ValidationContextResolver {
+export class ValidationContextResolverKernel {
   /**
-   * @type {ContextResolutionMapperInstance}
+   * @type {IContextResolutionMapperToolKernel}
    */
   #mapper;
 
   /**
-   * @param {object} config - Application configuration object.
-   * @param {object} [config.contextResolution.contextMap] - The flat mapping of context keys to groups.
-   * @param {object} ContextResolutionMapper - Injected tool class that exposes a static initialize() method.
-   * 
-   * Note: ConfigurationContextMapperTool has been replaced by the abstracted ContextResolutionMapper.
+   * @param {IContextResolutionMapperToolKernel} mapperTool - The pre-initialized tool responsible for context mapping logic.
    */
-  constructor(config, ContextResolutionMapper) {
-    const configMap = config.contextResolution?.contextMap || {};
-    
-    // Ensure the required plugin is available for initialization.
-    if (!ContextResolutionMapper || typeof ContextResolutionMapper.initialize !== 'function') {
-        throw new Error("ContextResolutionMapper is required for ValidationContextResolver.");
+  constructor(mapperTool) {
+    this.#mapper = null; // Initialize private fields before setup
+    this.#setupDependencies(mapperTool);
+  }
+
+  /**
+   * Isolates dependency assignment and synchronous setup.
+   * @param {IContextResolutionMapperToolKernel} mapperTool
+   */
+  #setupDependencies(mapperTool) {
+    if (!mapperTool || typeof mapperTool.execute !== 'function') {
+      throw new Error("IContextResolutionMapperToolKernel is required and must expose an 'execute' method.");
     }
-    
-    // Delegate configuration parsing and context structure creation to the specialized tool.
-    this.#mapper = ContextResolutionMapper.initialize(configMap);
+    this.#mapper = mapperTool;
   }
 
   /**
