@@ -63,9 +63,11 @@ export async function generateRuntimeReport(): Promise<RuntimeReport> {
         mcraThresholdResult,
         systemMetricsResult
     ] = await Promise.all([
-        safeFetch(fetchAtmScores as () => Promise<AtmResult>, ATM_DEFAULTS),
-        safeFetch(getMcraThresholds as () => Promise<number>, MCRA_DEFAULTS),
-        safeFetch(fetchSystemMetrics as () => Promise<SystemMetricsResult>, METRICS_DEFAULTS) 
+        // Rely on TypeScript inference for imported function return types (T),
+        // removing redundant type assertions ('as () => Promise<T>') for cleaner code.
+        safeFetch(fetchAtmScores, ATM_DEFAULTS),
+        safeFetch(getMcraThresholds, MCRA_DEFAULTS),
+        safeFetch(fetchSystemMetrics, METRICS_DEFAULTS) 
     ]);
 
     const report: RuntimeReport = {
