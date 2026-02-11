@@ -1,54 +1,70 @@
-import { ConfigurationService } from '../config/configurationService';
-import { CodebaseHasher } from '../utility/codebaseHasher';
-import { ActiveStateContextManager } from './activeStateContextManager';
-import { Logger } from '../utility/logger';
+import { ConfigurationIntegrityKernel } from './configurationIntegrityKernel'; 
+import { ActiveStateContextManagerKernel } from './activeStateContextManagerKernel';
+import { ILoggerToolKernel } from '../interfaces/iLoggerToolKernel'; 
 
 /**
- * Service ID: GCS
- * Component Name: Governance Context Service
- * Location: src/governance/governanceContextService.js
- *
- * Function: Centralizes the retrieval of all components required to define the system's operational state 
- * (Configuration Hash, Codebase Hash, Active Proposal ID). This abstraction layer isolates SSV from dependency fetch details, 
- * enabling SSV to focus solely on cryptographic verification.
+ * Component Name: Governance Context Kernel (GCK)
+ * 
+ * Function: Centralizes the asynchronous retrieval of all components required to define the system's operational state 
+ * (Configuration Hash, Codebase Hash, Active Proposal ID). This component adheres to AIA mandates by relying strictly 
+ * on injected, asynchronous Kernels/Tools for context resolution, isolating the Strategic State Validator (SSV).
  */
-export class GovernanceContextService {
+export class GovernanceContextKernel {
 
-    constructor() {
-        // Note: Assumes standard utility dependency resolution, but could also take Logger via DI.
-        this.logger = Logger.get('GCS'); 
+    /**
+     * @param {ConfigurationIntegrityKernel} configurationIntegrityKernel Provides canonical system integrity hashes.
+     * @param {ActiveStateContextManagerKernel} activeStateContextManagerKernel Manages the active proposal state.
+     * @param {ILoggerToolKernel} logger Auditable logger instance.
+     */
+    constructor(
+        configurationIntegrityKernel,
+        activeStateContextManagerKernel,
+        logger
+    ) {
+        // Strict architectural check for mandatory dependencies
+        if (!configurationIntegrityKernel || !activeStateContextManagerKernel || !logger) {
+            throw new Error("[GCK] Mandatory dependencies (ConfigurationIntegrityKernel, ActiveStateContextManagerKernel, Logger) missing.");
+        }
+        this._configKernel = configurationIntegrityKernel;
+        this._activeStateKernel = activeStateContextManagerKernel;
+        this._logger = logger;
     }
 
     /**
      * Gathers the necessary hashes and the Proposal ID required to define a system state context.
-     * This is the canonical source for verification context resolution.
+     * All context retrieval is now asynchronous and delegated to high-integrity kernels.
      * 
      * @param {string | null} [explicitProposalID=null] - Explicit ID used for locking a *new* state, or null to find active state.
      * @returns {Promise<{configHash: string, codeHash: string, proposalID: string}>}
      */
     async resolveVerificationContext(explicitProposalID = null) {
         
-        this.logger.debug(`Resolving verification context (Explicit ID: ${explicitProposalID || 'Active State'})...`);
+        this._logger.debug(`[GCK] Resolving verification context (Explicit ID: ${explicitProposalID || 'Active State'})...`);
 
-        // 1. Fetch static hashes (assuming CodebaseHasher is sync or result is pre-cached/fast)
-        const configHash = ConfigurationService.fetchCriticalConfigHash();
-        const codeHash = CodebaseHasher.calculateActiveCodebaseHash(); 
+        // 1. Asynchronously fetch static integrity components. 
+        // Assumes ConfigurationIntegrityKernel exposes methods for both config and codebase integrity state.
+        const configHashPromise = this._configKernel.getCanonicalConfigHash();
+        const codeHashPromise = this._configKernel.getCanonicalCodebaseHash(); 
+
+        const [configHash, codeHash] = await Promise.all([configHashPromise, codeHashPromise]);
         
         let proposalID;
         
         if (explicitProposalID) {
             proposalID = explicitProposalID;
         } else {
-            // 2. Retrieve the active ID from the operational runtime context
-            proposalID = ActiveStateContextManager.getActiveProposalID();
+            // 2. Retrieve the active ID from the operational runtime context (now asynchronous)
+            proposalID = await this._activeStateKernel.getActiveProposalID();
         }
 
         if (!proposalID) {
-            this.logger.error("Operational context missing: Unable to determine Active Proposal ID.");
-            throw new Error("[GCS] Unable to determine operational context.");
+            // Use structured logging and error handling referencing a canonical concept ID (GOV_E_010)
+            const errorDetails = { conceptId: "GOV_E_010", message: "Unable to determine operational context (Active Proposal ID missing)." };
+            this._logger.error("[GCK] Operational context missing.", errorDetails);
+            throw new Error(`[GOV_E_010] ${errorDetails.message}`);
         }
 
-        this.logger.trace(`Context resolved: {P:${proposalID.substring(0, 8)}, C:${configHash.substring(0, 8)}, H:${codeHash.substring(0, 8)}}`);
+        this._logger.trace(`[GCK] Context resolved: {P:${proposalID.substring(0, 8)}, C:${configHash.substring(0, 8)}, H:${codeHash.substring(0, 8)}}`);
         return { configHash, codeHash, proposalID };
     }
 }
