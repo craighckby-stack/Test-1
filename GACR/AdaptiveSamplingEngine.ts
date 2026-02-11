@@ -1,4 +1,4 @@
-        // 1. Construct standardized telemetry payload for the restricting constraint, if present.
+        // 1. Assemble detailed constraint metrics for telemetry reporting.
         const constraintDetails = restrictingConstraint 
             ? {
                 name: restrictingConstraint.name,
@@ -11,7 +11,7 @@
             }
             : null;
 
-        // 2. Assemble the full telemetry payload structure, separating construction from logging side-effect.
+        // 2. Construct the full telemetry payload, integrating all decision factors.
         const decisionPayload = {
             finalRate,
             requiredRate,
@@ -23,7 +23,7 @@
             restrictingConstraint: constraintDetails,
         };
 
-        // 3. Log decision parameters using standardized payload structure (AGI telemetry standardization).
+        // 3. Dispatch standardized telemetry event.
         KERNEL_SYNERGY_CAPABILITIES.telemetry.log('AdaptiveSamplingDecision', decisionPayload);
 
         return finalRate;
