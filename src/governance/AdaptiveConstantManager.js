@@ -4,64 +4,73 @@
 // This service ensures that system constants can be tuned by external or self-tuning agents
 // based on real-time performance data, providing maximum operational efficiency without restarts.
 
-// NOTE: deepMerge is now provided by the ConfigurationMerger plugin (extracted utility).
-
 const STATIC_CONSTANTS = require('../../config/governance_constants_v2.json');
 
+// NOTE ON DEPENDENCIES:
+// 1. deepMerge is assumed to be available (e.g., via ConfigurationMerger plugin).
+// 2. PollingConfigurationSource is provided by the extracted plugin logic.
+
+// --- Local Mock/Dependency Stubs (for initialization when not injected) ---
+// This mock simulates the required network adapter behavior (GovernanceApiAdapter).
+const mockGovernanceFetcher = async (endpoint) => {
+    // Placeholder simulation:
+    await new Promise(resolve => setTimeout(resolve, 50)); 
+    return { 
+        system_tuning: { last_check: Date.now() },
+        execution_policy: { max_recursion_depth: 60 } 
+    };
+};
+
+// Assume PollingConfigurationSource is available globally or injected for operational code.
+let PollingConfigurationSource = global.PollingConfigurationSource; 
+// ---------------------------------------------------------------------------
+
 class AdaptiveConstantManager {
-    constructor() {
+    // Dependencies can be injected for testing/strict environments, or defaults used.
+    constructor(deps = {}) {
+        this.deepMerge = deps.deepMerge || (typeof deepMerge !== 'undefined' ? deepMerge : null);
+        this.PollingSource = deps.PollingSource || PollingConfigurationSource;
+        this.fetcher = deps.fetcher || mockGovernanceFetcher;
+
+        if (!this.deepMerge) {
+            throw new Error("AdaptiveConstantManager requires 'deepMerge' utility.");
+        }
+        
         // Initialize config with a deep copy of static constants
-        // deepMerge is assumed to be available via plugin interface.
-        this.currentConfig = deepMerge({}, STATIC_CONSTANTS);
-        this.fetchIntervalId = null; 
+        this.currentConfig = this.deepMerge({}, STATIC_CONSTANTS);
+        this.dynamicSource = null; 
 
         const overlaySource = this.getConstant('dynamic_overlay_source');
         
         if (overlaySource && overlaySource.enabled) {
-            this.startDynamicFetch(overlaySource);
+            this.setupDynamicFetching(overlaySource);
         }
     }
 
-    startDynamicFetch(source) {
-        const fallbackInterval = this.getConstant('governance_intervals.telemetry_reporting_ms') || 15000; // Default 15s
-        const interval = source.polling_interval_ms || fallbackInterval;
-
-        if (!source.fetch_endpoint) {
-            console.warn('Dynamic constant fetching disabled: missing fetch_endpoint in dynamic_overlay_source.');
+    setupDynamicFetching(source) {
+        if (!this.PollingSource) {
+            console.warn('Dynamic constant fetching disabled: PollingConfigurationSource dependency missing.');
             return;
         }
 
-        const fetchConstants = async () => {
-            try {
-                // NOTE: A dedicated network adapter (like the proposed GovernanceApiAdapter) should handle this complexity.
-                // Placeholder implementation for fetching new runtime configuration:
-                // const response = await fetch(source.fetch_endpoint);
-                // const newConfig = await response.json();
+        const fallbackInterval = this.getConstant('governance_intervals.telemetry_reporting_ms') || 15000; 
 
-                // Placeholder simulation:
-                const newConfig = { 
-                    system_tuning: { last_check: Date.now() },
-                    execution_policy: { max_recursion_depth: 60 } 
-                };
+        // The entire polling, network scheduling, and error handling complexity is now abstracted 
+        // into the PollingConfigurationSource plugin.
+        this.dynamicSource = new this.PollingSource(
+            source, 
+            this.fetcher, 
+            (newConfig) => this.mergeConfig(newConfig), // Success Callback
+            fallbackInterval
+        );
 
-                this.mergeConfig(newConfig);
-            } catch (error) {
-                console.error('Failed to fetch dynamic governance constants:', error.message);
-                // TODO: Implement advanced backoff or circuit breaking logic here.
-            }
-        };
-
-        // Execute immediately upon starting the manager, then set the interval.
-        fetchConstants(); 
-        
-        this.fetchIntervalId = setInterval(fetchConstants, interval);
-        console.log(`Dynamic constant fetching started. Polling URL: ${source.fetch_endpoint}. Interval: ${interval}ms.`);
+        this.dynamicSource.start();
     }
 
     mergeConfig(overlay) {
         // Use dedicated deepMerge utility for robust, nested configuration updates.
         const prevConfigJson = JSON.stringify(this.currentConfig); // Snapshot for comparison
-        this.currentConfig = deepMerge(this.currentConfig, overlay);
+        this.currentConfig = this.deepMerge(this.currentConfig, overlay);
         
         if (prevConfigJson !== JSON.stringify(this.currentConfig)) {
             console.log('[ACL] Governance constants updated dynamically. Configuration delta applied.');
@@ -85,13 +94,14 @@ class AdaptiveConstantManager {
     }
 
     stop() {
-        if (this.fetchIntervalId) {
-            clearInterval(this.fetchIntervalId);
-            this.fetchIntervalId = null;
-            console.log('AdaptiveConstantManager polling stopped.');
+        if (this.dynamicSource) {
+            this.dynamicSource.stop();
+            this.dynamicSource = null;
+            console.log('AdaptiveConstantManager polling management stopped.');
         }
     }
 }
 
 // Export a robust singleton instance
-module.exports = new AdaptiveConstantManager();
+// Note: Dependencies (like deepMerge, PollingSource) must be available in the execution context.
+module.exports = new AdaptiveConstantManager({});
