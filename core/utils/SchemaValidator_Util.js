@@ -1,5 +1,5 @@
 /**
- * AGI-KERNEL v7.9.2 Navigator Edition - Core Schema Validator Utility
+ * AGI-KERNEL v7.11.3 Navigator Edition - Core Schema Validator Utility
  * Provides standardized, high-performance schema validation essential for data integrity 
  * across sensitive service boundaries.
  * 
@@ -28,15 +28,51 @@ class SchemaValidator_Util {
     // Future schemas: 'TelemetryEvent', 'ConfigurationUpdate'
   };
 
+  /**
+   * Initializes the validator utility, setting up dependencies and registering core schemas.
+   */
   constructor() {
+    this.#setupDependencies();
+    
+    // Register default schemas immediately upon initialization
+    this.#initializeDefaultSchemas();
+  }
+
+  /**
+   * Isolates dependency resolution and validation.
+   * @private
+   */
+  #setupDependencies() {
     // CRITICAL: Access the StructuralSchemaValidator plugin injected into the runtime environment.
     if (typeof plugins === 'undefined' || !plugins.StructuralSchemaValidator) {
         throw new Error("CRITICAL: StructuralSchemaValidator plugin missing. Cannot initialize SchemaValidator_Util.");
     }
     this.validatorPlugin = plugins.StructuralSchemaValidator;
-    
-    // Register default schemas immediately upon initialization
-    this.#initializeDefaultSchemas();
+  }
+
+  /**
+   * Isolates the external execution call for registering a schema (I/O proxy).
+   * @private
+   */
+  #delegateToPluginRegistration(schemaName, definition) {
+      this.validatorPlugin.execute({
+          action: 'register',
+          schemaName: schemaName,
+          definition: definition
+      });
+  }
+
+  /**
+   * Isolates the external execution call for validating data (I/O proxy).
+   * @private
+   */
+  #delegateToPluginValidation(schemaName, data) {
+      // The plugin returns { isValid, errors } directly.
+      return this.validatorPlugin.execute({
+          action: 'validate',
+          schemaName: schemaName,
+          data: data
+      });
   }
 
   /**
@@ -48,39 +84,29 @@ class SchemaValidator_Util {
     
     for (const schemaName in schemasToRegister) {
         if (Object.hasOwnProperty.call(schemasToRegister, schemaName)) {
-            this.registerSchema(schemaName, schemasToRegister[schemaName]);
+            // Use the delegate directly during internal setup
+            this.#delegateToPluginRegistration(schemaName, schemasToRegister[schemaName]);
         }
     }
   }
   
   /**
-   * Dynamically registers a new schema definition using the StructuralSchemaValidator plugin.
+   * Dynamically registers a new schema definition.
    * @param {string} schemaName - The unique name of the schema.
    * @param {Object} definition - The schema definition object.
    */
   registerSchema(schemaName, definition) {
-      this.validatorPlugin.execute({
-          action: 'register',
-          schemaName: schemaName,
-          definition: definition
-      });
+      this.#delegateToPluginRegistration(schemaName, definition);
   }
 
   /**
-   * Validates input data against a defined schema using the StructuralSchemaValidator plugin.
+   * Validates input data against a defined schema.
    * @param {string} schemaName - The name of the schema to use.
    * @param {Object} data - The data payload to validate.
    * @returns {Object} { isValid: boolean, errors: string[] }
    */
   validate(schemaName, data) {
-    const result = this.validatorPlugin.execute({
-        action: 'validate',
-        schemaName: schemaName,
-        data: data
-    });
-    
-    // The plugin returns { isValid, errors } directly.
-    return result;
+    return this.#delegateToPluginValidation(schemaName, data);
   }
 }
 
