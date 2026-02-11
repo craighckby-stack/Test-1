@@ -5,16 +5,24 @@
  * Requirement: Must use immutable storage (e.g., PKI root hashes) for signature verification keys.
  */
 class CryptographicFetcher {
+    #http;
+    #KeyRing;
+    #SignedPayloadValidatorUtility;
+
     /**
      * @param {Object} config
-     * @param {Object} config.httpService - Low-level HTTP client (e.g., Axios instance).
-     * @param {Object} config.KeyRing - Access to necessary public keys/signature verification utilities.
-     * @param {Object} config.SignedPayloadValidatorUtility - Injected tool for verification.
+     * @param {Object} config.httpService - Low-level HTTP client (e.g., Axios instance). Must support async get(url).
+     * @param {Object} config.KeyRing - Access to necessary public keys/signature verification utilities. Must support async verify(payload, signature).
+     * @param {Object} config.SignedPayloadValidatorUtility - Injected tool for verification. Must support async execute({ rawData, verifyFunction }).
      */
     constructor({ httpService, KeyRing, SignedPayloadValidatorUtility }) {
-        this.http = httpService;
-        this.KeyRing = KeyRing;
-        this.SignedPayloadValidatorUtility = SignedPayloadValidatorUtility; // Assume injected
+        if (!httpService || !KeyRing || !SignedPayloadValidatorUtility) {
+            throw new Error("CryptographicFetcher: Missing required dependencies (httpService, KeyRing, or SignedPayloadValidatorUtility).");
+        }
+
+        this.#http = httpService;
+        this.#KeyRing = KeyRing;
+        this.#SignedPayloadValidatorUtility = SignedPayloadValidatorUtility;
     }
 
     /**
@@ -23,14 +31,17 @@ class CryptographicFetcher {
      * @returns {Promise<Object>} Object containing mandates and a verifiable 'tag'.
      */
     async fetch(url) {
-        const response = await this.http.get(url);
+        // Fetch data
+        const response = await this.#http.get(url);
         const rawData = response.data;
         
+        // Create the specific verification function using the private KeyRing
+        const verificationFunction = (payload, signature) => this.#KeyRing.verify(payload, signature);
+        
         // Delegate structural validation, cryptographic verification, and parsing to the utility
-        const verifiedData = await this.SignedPayloadValidatorUtility.execute({
+        const verifiedData = await this.#SignedPayloadValidatorUtility.execute({
             rawData: rawData,
-            // Ensure the verify function is bound correctly if needed, or rely on its standard async API
-            verifyFunction: (payload, signature) => this.KeyRing.verify(payload, signature) 
+            verifyFunction: verificationFunction
         });
 
         // Return verified data structure
