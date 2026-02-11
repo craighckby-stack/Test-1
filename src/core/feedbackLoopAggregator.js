@@ -23,26 +23,35 @@ interface OutcomeData {
     agentWeights: any;
 }
 
-// Assumed global availability of the extracted tool for validation and normalization.
-declare const FeedbackSchemaNormalizerTool: {
-    execute(data: OutcomeData): { error?: string, record?: FeedbackRecord };
+// Interface for the injected Normalizer dependency (implemented by the new plugin)
+interface Normalizer {
+    normalize(data: OutcomeData): { error?: string, record?: FeedbackRecord };
 }
+
 
 class FeedbackLoopAggregator {
     private consensusLog: FeedbackRecord[];
+    private normalizer: Normalizer;
 
-    constructor() {
+    /**
+     * @param {Normalizer} normalizer - The dependency responsible for data validation and normalization.
+     */
+    constructor(normalizer: Normalizer) {
+        if (!normalizer || typeof normalizer.normalize !== 'function') {
+            throw new Error("FeedbackLoopAggregator requires a valid Normalizer instance.");
+        }
         this.consensusLog = [];
+        this.normalizer = normalizer;
     }
 
     /**
      * Captures and validates the outcome of a single proposal validation cycle.
-     * Validation and normalization logic is delegated to FeedbackSchemaNormalizerTool.
+     * Validation and normalization logic is delegated to the injected Normalizer.
      * @param {Object} outcomeData - Contains proposal ID, success status, applied MCRA threshold, final weighted ATM score, and resulting architecture delta.
      */
     captureConsensusOutcome(outcomeData: OutcomeData): void {
         
-        const normalizationResult = FeedbackSchemaNormalizerTool.execute(outcomeData);
+        const normalizationResult = this.normalizer.normalize(outcomeData);
 
         if (normalizationResult.error || !normalizationResult.record) {
             console.error(`Invalid outcome data provided to Aggregator. Error: ${normalizationResult.error || 'Normalization failed.'}`);
