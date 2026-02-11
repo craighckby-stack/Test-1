@@ -1,87 +1,125 @@
-const { CONSTANTS, MUTATION_KEYS } = require('./governanceConstants'); 
-// Assuming an integrated logging service, falling back to console if not globally defined.
-const Logger = global.SovereignLogger || console;
+const { ILoggerToolKernel, ISpecValidatorKernel, IGovernanceConstantsV2ConfigRegistryKernel, PayloadSchemaRegistryKernel, IProposalHistoryConfigRegistryKernel, IEventFactoryGeneratorToolKernel, HashIntegrityCheckerToolKernel } = require('core_interfaces');
 
 /**
- * DCG: Dynamic Constraint Generator
- * V94.2 SOVEREIGN REFACTOR - Constraint Derivation and Policy Integrity.
- * Translates refined governance model insights (GMRE/SEA) into validated,
- * concrete M-01 executable constraint updates for the GRS (Governance Rule Source).
- * Enhanced reliability via integrated constant mapping and forced package integrity hashing (now delegated to IntegrityPackageFinalizer).
+ * DynamicConstraintGeneratorKernel (DCG Kernel)
+ * Mandate: Asynchronously translates refined governance model insights (GMRE) into
+ * validated, concrete M-01 executable constraint updates for the GRS (Governance Rule Source).
+ * Enforces AIA integrity mandates via injected tool kernels for validation and hashing.
  */
-class DynamicConstraintGenerator {
+class DynamicConstraintGeneratorKernel {
     /**
-     * @param {Object} governanceRuleSource - Interface to GRS for current rule context.
-     * @param {Object} refinementEngine - Source of high-level proposals (GMRE).
-     * @param {Object} validator - REQUIRED schema validator instance (e.g., Joi, AJV).
-     * @param {Object} sovereignUtils - REQUIRED utility for hashing, UUID, etc.
+     * @param {Object} dependencies
+     * @param {ILoggerToolKernel} dependencies.logger - Auditable logging service.
+     * @param {ISpecValidatorKernel} dependencies.specValidator - Schema validation tool.
+     * @param {IGovernanceConstantsV2ConfigRegistryKernel} dependencies.governanceConstantsRegistry - Registry for governance constants.
+     * @param {PayloadSchemaRegistryKernel} dependencies.payloadSchemaRegistry - Registry for governance payload schemas.
+     * @param {IProposalHistoryConfigRegistryKernel} dependencies.proposalHistoryRegistry - Access to current GRS/Policy context.
+     * @param {IEventFactoryGeneratorToolKernel} dependencies.eventFactoryGenerator - Tool for generating structured events/intents (including UUIDs).
+     * @param {HashIntegrityCheckerToolKernel} dependencies.hashIntegrityChecker - Tool for ensuring M-01 package integrity.
      */
-    constructor(governanceRuleSource, refinementEngine, validator, sovereignUtils) {
-        if (!validator || !sovereignUtils) {
-            Logger.error("DCG Initialization Error: Required dependencies (validator, sovereignUtils) are missing.");
-            throw new Error("DCG Initialization Error: Required dependencies (validator, sovereignUtils) are missing.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+        this.isInitialized = false;
+    }
+
+    #setupDependencies(dependencies) {
+        const { logger, specValidator, governanceConstantsRegistry, payloadSchemaRegistry, proposalHistoryRegistry, eventFactoryGenerator, hashIntegrityChecker } = dependencies;
+
+        if (!logger || !specValidator || !governanceConstantsRegistry || !payloadSchemaRegistry || !proposalHistoryRegistry || !eventFactoryGenerator || !hashIntegrityChecker) {
+            throw new Error("DynamicConstraintGeneratorKernel Initialization Error: Missing one or more required high-integrity dependencies.");
         }
-        this.GRS = governanceRuleSource;
-        this.GMRE = refinementEngine;
-        this.validator = validator;
-        this.utils = sovereignUtils; // Renamed for brevity
+
+        this.logger = logger;
+        this.specValidator = specValidator;
+        this.governanceConstantsRegistry = governanceConstantsRegistry;
+        this.payloadSchemaRegistry = payloadSchemaRegistry;
+        this.proposalHistoryRegistry = proposalHistoryRegistry;
+        this.eventFactoryGenerator = eventFactoryGenerator;
+        this.hashIntegrityChecker = hashIntegrityChecker;
+    }
+
+    /**
+     * Asynchronously loads required constants and schemas, completing kernel initialization.
+     */
+    async initialize() {
+        if (this.isInitialized) {
+            this.logger.warn({ message: "DynamicConstraintGeneratorKernel already initialized." });
+            return;
+        }
         
-        // Assuming availability of the kernel-provided plugin (IntegrityPackageFinalizer)
-        this.integrityPackageFinalizer = global.IntegrityPackageFinalizer; 
-        if (!this.integrityPackageFinalizer || typeof this.integrityPackageFinalizer.execute !== 'function') {
-            Logger.warn("DCG Initialization Warning: IntegrityPackageFinalizer plugin is not available. Package integrity hashing may fail.");
-            // Fallback strategy could be implemented here if required.
+        // Load critical components asynchronously from high-integrity registries
+        this.CONSTANTS = await this.governanceConstantsRegistry.getConstants();
+        this.MUTATION_KEYS = await this.governanceConstantsRegistry.getMutationKeys();
+        
+        // Load required input schema from the high-integrity registry
+        this.RefinementProposalSchema = await this.payloadSchemaRegistry.getSchema('RefinementProposalSchema');
+
+        if (!this.RefinementProposalSchema) {
+            throw new Error("DCG Kernel failed to load RefinementProposalSchema from registry.");
         }
+
+        this.logger.info({ message: "DynamicConstraintGeneratorKernel initialized successfully.", version: this.CONSTANTS.VERSION });
+        this.isInitialized = true;
     }
 
     /**
      * Translates the refinement proposal into a formal, executable M-01 policy package.
-     * Includes necessary input validation and contextual relevance checks against the current GRS state.
-     * @param {Object} refinementProposal - Output from the Governance Model Refinement Engine.
+     * @param {Object} refinementProposal - Output from the Governance Model Refinement Engine (GMRE).
      * @returns {Promise<Object|null>} M-01 Package containing required updates for GRS, or null if no actionable changes are derived.
      */
     async generatePolicyUpdate(refinementProposal) {
-        if (!refinementProposal || typeof refinementProposal !== 'object' || Object.keys(refinementProposal).length === 0) {
-            Logger.error(CONSTANTS.E101_EMPTY_PROPOSAL);
-            throw new Error(CONSTANTS.E101_EMPTY_PROPOSAL);
+        if (!this.isInitialized) {
+            throw new Error("DCG Kernel must be initialized before use.");
         }
 
-        // 1. Validation Trace (Mandatory for policy changes)
+        if (!refinementProposal || typeof refinementProposal !== 'object' || Object.keys(refinementProposal).length === 0) {
+            this.logger.error({ code: 'E101', message: this.CONSTANTS.E101_EMPTY_PROPOSAL });
+            throw new Error(this.CONSTANTS.E101_EMPTY_PROPOSAL);
+        }
+
+        // 1. Validation Trace
         await this._validateInputProposal(refinementProposal);
 
-        // 2. Fetch current GRS context for contextual derivation
-        const currentGRSContext = await this.GRS.fetchContextSnapshot();
+        // 2. Fetch current GRS context
+        const currentGRSContext = await this.proposalHistoryRegistry.getCurrentPolicyContextSnapshot();
         
         // 3. Derivation
         const newConstraints = this._mapProposalToConstraints(refinementProposal, currentGRSContext);
         
         if (Object.keys(newConstraints).length === 0) {
-            Logger.info(`${CONSTANTS.W203_ZERO_ACTIONS} against context ${currentGRSContext.timestamp}.`);
+            this.logger.info({ 
+                code: 'W203', 
+                message: this.CONSTANTS.W203_ZERO_ACTIONS, 
+                contextTimestamp: currentGRSContext.timestamp 
+            });
             return null;
         }
         
-        // 4. M-01 Package Creation
-        let m01Package = {
-            intentId: this.utils.generateUUID('DCG-M01'), 
-            timestamp: new Date().toISOString(),
-            sourceEngine: CONSTANTS.VERSION,
-            targetComponent: 'GRS',
-            mutationType: MUTATION_KEYS.POLICY_UPDATE,
+        // 4. M-01 Package Creation using IEventFactoryGeneratorToolKernel (replaces ad-hoc package creation)
+        let m01Package = await this.eventFactoryGenerator.createGovernanceIntent({
+            intentType: this.MUTATION_KEYS.POLICY_UPDATE,
+            targetKernel: 'GRSKernel', 
+            payload: newConstraints,
             metadata: {
                 gmreProposalId: refinementProposal.proposalId || 'N/A',
                 contextSnapshotTime: currentGRSContext.timestamp,
                 derivedConstraintCount: Object.keys(newConstraints).length,
             },
-            payload: newConstraints
-        };
+            sourceEngine: this.CONSTANTS.VERSION,
+        });
 
-        // 5. Finalization (Hashing and Integrity Check) - Delegated to specialized tool
-        if (this.integrityPackageFinalizer) {
-            m01Package = this.integrityPackageFinalizer.execute({ m01Package });
-        } else {
-            // Fallback/Warning if tool is missing
-            Logger.error("E405: Integrity check tool missing. M-01 package sent without integrity hash.");
-        }
+        // 5. Finalization (Hashing and Integrity Check) - AIA Enforcement Layer Mandate
+        const payloadHash = await this.hashIntegrityChecker.calculateHash(m01Package.payload);
+        
+        // Update metadata with the mandatory integrity hash
+        if (!m01Package.metadata) m01Package.metadata = {};
+        m01Package.metadata.payloadHash = payloadHash;
+        
+        this.logger.debug({ 
+            message: "M-01 Package finalized with integrity hash.", 
+            intentId: m01Package.intentId, 
+            hash: payloadHash 
+        });
         
         return m01Package;
     }
@@ -92,21 +130,23 @@ class DynamicConstraintGenerator {
      */
     _mapProposalToConstraints(proposal, context) {
         const updates = {};
-        
+        const MIN_ACTIONABLE_DELTA = this.CONSTANTS.MIN_ACTIONABLE_DELTA;
+
         // S-02 Adjustment Derivation (Risk Floors)
-        if (proposal.optimalS02Adjustment !== undefined && Math.abs(proposal.optimalS02Adjustment) > CONSTANTS.MIN_ACTIONABLE_DELTA) {
-            updates[MUTATION_KEYS.S02_RISK_FLOOR_DELTA] = proposal.optimalS02Adjustment;
+        if (proposal.optimalS02Adjustment !== undefined && Math.abs(proposal.optimalS02Adjustment) > MIN_ACTIONABLE_DELTA) {
+            updates[this.MUTATION_KEYS.S02_RISK_FLOOR_DELTA] = proposal.optimalS02Adjustment;
         }
 
         // S-03 Hard Policy Derivation (Veto Rules)
         if (Array.isArray(proposal.recommendedVetoRules) && proposal.recommendedVetoRules.length > 0) {
              // Filter out any rules already present (ensuring idempotence)
+            const activeVetoRules = context.activeVetoRules || []; 
             const rulesToAdd = proposal.recommendedVetoRules.filter(
-                rule => !context.activeVetoRules.some(existing => existing.ruleId === rule.ruleId)
+                rule => !activeVetoRules.some(existing => existing.ruleId === rule.ruleId)
             );
             
             if (rulesToAdd.length > 0) {
-                updates[MUTATION_KEYS.S03_VETO_RULES_ADD] = rulesToAdd;
+                updates[this.MUTATION_KEYS.S03_VETO_RULES_ADD] = rulesToAdd;
             }
         }
 
@@ -114,17 +154,19 @@ class DynamicConstraintGenerator {
     }
     
     /** 
-     * @private Ensures input conformity against a known governance schema. 
+     * @private Ensures input conformity against a known governance schema using ISpecValidatorKernel. 
      */
     async _validateInputProposal(proposal) {
-        // NOTE: Assume M01PolicySchema is accessible. Replaced synchronous require with clearer context call.
-        const { RefinementProposalSchema } = require('./schemas/M01PolicySchema'); 
         
-        const validationResult = await this.validator.validate(proposal, RefinementProposalSchema);
+        const validationResult = await this.specValidator.validate(proposal, this.RefinementProposalSchema);
         
-        if (validationResult.error) {
-            const errorDetails = validationResult.error.details.map(d => d.message).join('; ');
-            Logger.error(`DCG (E302) Input Validation Failure: ${errorDetails}`);
+        if (validationResult.isValid === false) {
+            const errorDetails = validationResult.errors.map(d => d.message).join('; ');
+            this.logger.error({ 
+                code: 'DCG_E302', 
+                message: `Input Validation Failure: ${errorDetails}`,
+                details: errorDetails
+            });
             // Throw structured error for programmatic handling
             throw Object.assign(new Error("Policy proposal failed input schema validation."), { 
                 code: 'DCG_E302_VALIDATION', 
@@ -132,8 +174,6 @@ class DynamicConstraintGenerator {
             });
         }
     }
-    
-    // Removed _finalizeM01Package, logic is now in IntegrityPackageFinalizer plugin
 }
 
-module.exports = DynamicConstraintGenerator;
+module.exports = DynamicConstraintGeneratorKernel;
