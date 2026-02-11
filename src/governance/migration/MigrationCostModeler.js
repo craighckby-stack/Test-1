@@ -1,117 +1,140 @@
+import { IMigrationCostDeriverToolKernel } from './interfaces/IMigrationCostDeriverToolKernel';
+import { IMigrationCostConfigRegistryKernel, MigrationCostConfig } from './registry/IMigrationCostConfigRegistryKernel';
+
 /**
- * Migration Cost Modeler (MCM) V1.0
- * Predicts CPU, Memory, I/O, and Time complexity for schema migrations based on
- * structural difference metrics provided by the SchemaAnalyzer.
+ * Type definition for the immutable cost estimate result.
  */
-export class MigrationCostModeler {
+type CostEstimate = Readonly<{
+    durationMs: number;
+    resources: Readonly<{
+        cpu: number;
+        memory: number;
+        io: number;
+    }>
+}>;
 
-    private config: {
-        ioFactor: number;
-        cpuFactor: number;
-        baseOverheadMs: number;
-    };
+/**
+ * Migration Cost Modeler Kernel (MCM) V2.0
+ * Predicts CPU, Memory, I/O, and Time complexity for schema migrations.
+ * Adheres to AIA Enforcement Layer mandates for asynchronous execution and auditable dependency injection.
+ */
+export class MigrationCostModelerKernel {
 
-    // Assume dependency injection or global access to the kernel utility
-    private weightedMetricDerivator: any; 
+    private config!: Readonly<MigrationCostConfig>;
+    private initialized: boolean = false;
 
     /**
-     * Creates a new Cost Modeler instance.
-     * @param {object} configuration - Configuration specifying environmental constants (e.g., typical IO throughput).
+     * @param costDeriver - High-integrity asynchronous tool for weighted score calculation.
+     * @param configRegistry - Asynchronous registry for retrieving immutable cost model parameters.
      */
-    constructor(configuration: Record<string, any> = {}) {
-        this.config = { 
-            ioFactor: configuration.ioFactor || 1.2,
-            cpuFactor: configuration.cpuFactor || 0.85,
-            baseOverheadMs: configuration.baseOverheadMs || 500
-        };
-        // CRITICAL: Accessing the injected plugin
-        this.weightedMetricDerivator = globalThis.KRNL_PLUGINS?.WeightedMetricDerivator || { execute: () => 0 };
+    constructor(
+        private readonly costDeriver: IMigrationCostDeriverToolKernel,
+        private readonly configRegistry: IMigrationCostConfigRegistryKernel
+    ) {}
+
+    /**
+     * Asynchronously initializes the kernel, loading configuration securely.
+     */
+    public async initialize(): Promise<void> {
+        if (this.initialized) return;
+
+        // Load configuration using the asynchronous registry
+        const config = await this.configRegistry.getCostModelConfiguration();
+        
+        // Enforce immutability and apply defaults if necessary
+        this.config = Object.freeze({
+            ioFactor: config.ioFactor ?? 1.2,
+            cpuFactor: config.cpuFactor ?? 0.85,
+            baseOverheadMs: config.baseOverheadMs ?? 500
+        });
+
+        this.initialized = true;
     }
 
     /**
-     * Helper to call the weighted metric calculation plugin.
-     * @param inputs The input data {complexity: N, breaking: M}.
-     * @param weights The weight mapping.
-     * @param scalingFactor The global scale.
-     * @param baseOffset The base offset.
-     * @returns {number}
+     * Helper to call the asynchronous weighted metric derivation kernel.
      */
-    private calculateScore(inputs: Record<string, number>, weights: Record<string, number>, scalingFactor: number = 1, baseOffset: number = 0): number {
-        return this.weightedMetricDerivator.execute({
+    private async calculateScore(inputs: Readonly<Record<string, number>>, weights: Readonly<Record<string, number>>, scalingFactor: number = 1, baseOffset: number = 0): Promise<number> {
+        if (!this.initialized) {
+            throw new Error("MCM Kernel not initialized. Call initialize() first.");
+        }
+        return this.costDeriver.calculateWeightedScore({
             inputs: inputs,
-            definition: {
-                weights: weights,
-                scalingFactor: scalingFactor,
-                baseOffset: baseOffset
-            }
+            weights: weights,
+            scalingFactor: scalingFactor,
+            baseOffset: baseOffset
         });
     }
 
     /**
-     * Estimates the full migration cost profile based on analysis inputs.
-     * @param {object} diffAnalysis - The output structure from SchemaMigrationSimulationEngine.analyzeDifferential.
-     * @returns {{durationMs: number, resources: {cpu: number, memory: number, io: number}}}
+     * Asynchronously estimates the full migration cost profile based on analysis inputs.
+     * @param diffAnalysis - The immutable input structure from differential analysis.
+     * @returns {Promise<CostEstimate>} Immutable cost profile.
      */
-    estimateCosts(diffAnalysis: { complexityScore: number, breakingChangesCount: number, dataTransformationRequired: boolean }): { durationMs: number, resources: { cpu: number, memory: number, io: number } } {
+    public async estimateCosts(
+        diffAnalysis: Readonly<{ complexityScore: number, breakingChangesCount: number, dataTransformationRequired: boolean }>
+    ): Promise<CostEstimate> {
+        if (!this.initialized) {
+            throw new Error("MCM Kernel must be initialized before estimating costs.");
+        }
+
         const complexity = diffAnalysis.complexityScore;
         const breaking = diffAnalysis.breakingChangesCount;
-        const inputs = { complexity, breaking };
+        const inputs = Object.freeze({ complexity, breaking });
 
-        // --- 1. Time Duration Estimate ---
-        // Time = Base + (Complexity * 1500 * CPU_F) + (Breaking * 500 * IO_F)
-
+        // --- 1. Time Duration Estimate (Asynchronous Calls) ---
+        
         // Contribution 1: CPU-bound complexity
-        const cpuTimeContribution = this.calculateScore(
+        const cpuTimeContribution = await this.calculateScore(
             inputs,
-            { complexity: 1500 },
+            Object.freeze({ complexity: 1500 }),
             this.config.cpuFactor
         );
 
         // Contribution 2: IO-bound breaking changes
-        const ioTimeContribution = this.calculateScore(
+        const ioTimeContribution = await this.calculateScore(
             inputs,
-            { breaking: 500 },
+            Object.freeze({ breaking: 500 }),
             this.config.ioFactor
         );
         
         const estimatedTime = this.config.baseOverheadMs + cpuTimeContribution + ioTimeContribution;
 
-        // --- 2. Resource Estimation ---
+        // --- 2. Resource Estimation (Asynchronous Calls) ---
         
-        // CPU Usage: (complexity * 0.1) + (breaking * 0.5)
-        const cpuUsage = this.calculateScore(inputs, {
+        // CPU Usage
+        const cpuUsage = await this.calculateScore(inputs, Object.freeze({
             complexity: 0.1, 
             breaking: 0.5
-        });
+        }));
 
-        // Memory Usage: (complexity * 0.05) + (breaking * 0.3)
-        const memoryUsage = this.calculateScore(inputs, {
+        // Memory Usage
+        const memoryUsage = await this.calculateScore(inputs, Object.freeze({
             complexity: 0.05,
             breaking: 0.3
-        });
+        }));
 
-        // I/O Usage (Conditional Logic handled externally)
+        // I/O Usage
         let ioUsage: number;
         if (diffAnalysis.dataTransformationRequired) {
-            // (breaking * 1.5) + (complexity * 0.1)
-            ioUsage = this.calculateScore(inputs, {
+            ioUsage = await this.calculateScore(inputs, Object.freeze({
                 breaking: 1.5,
                 complexity: 0.1
-            });
+            }));
         } else {
-            // (complexity * 0.05)
-            ioUsage = this.calculateScore(inputs, {
+            ioUsage = await this.calculateScore(inputs, Object.freeze({
                 complexity: 0.05
-            });
+            }));
         }
 
-        return {
+        // Return immutable result structure
+        return Object.freeze({
             durationMs: Math.ceil(estimatedTime),
-            resources: {
+            resources: Object.freeze({
                 cpu: Math.min(10.0, cpuUsage), 
                 memory: Math.min(10.0, memoryUsage), 
                 io: Math.min(10.0, ioUsage) 
-            }
-        };
+            })
+        });
     }
 }
