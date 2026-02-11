@@ -94,7 +94,6 @@ class MetricNexus {
         const pvm = await this._executeMetricTool('calculatePVM', { rawPolicyChangeRate: rawPvm });
         
         // 3. Use the Tool to calculate the final EQM score
-        // Note: EQM calculation uses named arguments for clarity
         const sanitizedEqm = await this._executeMetricTool('calculateEQM', { ufrm, cftm, pvm });
         
         // Cache the results
@@ -109,18 +108,29 @@ class MetricNexus {
     /**
      * [Integration] Logs the current metric snapshot and trends to the Nexus persistent storage.
      * Fulfills Integration Requirement 3: Store trends in Nexus memory.
-     * @param {Object} metrics - The calculated metric snapshot.
+     * If no metrics are provided, uses the current metricCache.
+     * @param {Object} [metrics={}] - Optional metrics to merge/override cache values.
      */
-    async logMetricsToNexus(metrics) {
+    async logMetricsToNexus(metrics = {}) {
         if (!this.isNexusIntegrationActive) {
             return; 
         }
+
+        // Merge cached results with optional overrides
+        const snapshot = {
+            ...this.metricCache, // Includes UFRM, CFTM, PVM, EQM if calculated
+            ...metrics,         // Allows override or addition of external metrics
+            timestamp: Date.now(), 
+        };
+
+        // EQM is the primary metric, logging should fail without it
+        if (!snapshot.EQM) {
+            console.warn(`[MN Warning]: Attempted to log metrics without a calculated EQM (or EQM missing in cache/input). Aborting log persistence.`);
+            return;
+        }
+
         try {
-            // Log under a specific key for easy retrieval later
-            await this.nexus.logTrend(METRIC_CONSTANTS.NEXUS_TREND_KEY, { 
-                timestamp: Date.now(), 
-                ...metrics 
-            });
+            await this.nexus.logTrend(METRIC_CONSTANTS.NEXUS_TREND_KEY, snapshot); 
         } catch (error) {
             // Use existing error handling pattern: log the fault but do not halt the evolution.
             console.error(`MetricNexus Persistence Failure: Failed to log trends to Nexus. Error: ${error.message}`);
@@ -164,11 +174,14 @@ class MetricNexus {
         const previousMetrics = historicalTrends[1];
 
         // Helper to normalize values using the mandated MetricCalculator proxy (calculateUFRM).
-        // This pattern uses a consistent service method to sanitize/normalize all metric values.
         const normalize = (value) => this._executeMetricTool('calculateUFRM', { rawRisk: value });
 
-        const currentEQM = await normalize(currentMetrics.MQM_EQM);
-        const previousEQM = await normalize(previousMetrics.MQM_EQM);
+        // Use robust key retrieval (EQM is preferred, MQM_EQM is fallback for legacy persistence)
+        const currentEQMValue = currentMetrics.EQM ?? currentMetrics.MQM_EQM ?? 0;
+        const previousEQMValue = previousMetrics.EQM ?? previousMetrics.MQM_EQM ?? 0;
+
+        const currentEQM = await normalize(currentEQMValue);
+        const previousEQM = await normalize(previousEQMValue);
         
         const rawDelta = currentEQM - previousEQM;
 
