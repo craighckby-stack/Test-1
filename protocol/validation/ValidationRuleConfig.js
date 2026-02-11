@@ -1,18 +1,18 @@
 /**
  * Constants defining standard types and severity levels for validation rules.
  */
-const RuleSeverity = {
+const RuleSeverity = Object.freeze({
     ERROR: 'ERROR',     // Blocks execution/deployment
     WARNING: 'WARNING', // Permitted, but logged for review
     INFO: 'INFO'        // Informational checks
-};
+});
 
-const RuleType = {
+const RuleType = Object.freeze({
     COHERENCE: 'COHERENCE', // Checks related entity consistency (e.g., hard/soft limits)
     VERSIONING: 'VERSIONING', // Checks dependency compatibility
     STRUCTURAL: 'STRUCTURAL', // Checks required fields and data format
     POLICY: 'POLICY' // Checks against governance or ethical constraints
-};
+});
 
 /**
  * @typedef {Object} ValidationRule
@@ -32,7 +32,7 @@ const RuleType = {
  */
 
 /**
- * @type {{ 
+ * @type {{
  *   RuleSeverity: typeof RuleSeverity,
  *   RuleType: typeof RuleType,
  *   chrSpecRules: ValidationRule[],
