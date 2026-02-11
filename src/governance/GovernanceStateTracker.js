@@ -4,14 +4,7 @@
  */
 
 import { RCDM_CONFIG } from './RCDM.json';
-
-// Define the interface for the injected tool for TypeScript compatibility
-interface IRCDMPhaseTransitionValidator {
-    execute(args: { rcdmConfig: any, newPhaseId: string }): { success: boolean, rulesetId: string | null, error: string | null };
-}
-
-// Assume the plugin is globally accessible or injected via dependency inversion
-declare const RCDMPhaseTransitionValidatorTool: IRCDMPhaseTransitionValidator;
+import RCDMPhaseTransitionValidator from '../plugins/RCDMPhaseTransitionValidator'; // Use explicit import of the new plugin
 
 class GovernanceStateTracker {
     private currentState: {
@@ -20,7 +13,7 @@ class GovernanceStateTracker {
         active_proposals: Record<string, any>;
         metrics_cache: Record<string, any>;
     };
-    private rcdmValidator: IRCDMPhaseTransitionValidator;
+    private rcdmValidator: RCDMPhaseTransitionValidator; // Type reference updated
 
     constructor() {
         this.currentState = {
@@ -29,8 +22,8 @@ class GovernanceStateTracker {
             active_proposals: {},
             metrics_cache: {}
         };
-        // Initialize the validator tool
-        this.rcdmValidator = RCDMPhaseTransitionValidatorTool;
+        // Initialize the validator tool using the imported plugin
+        this.rcdmValidator = new RCDMPhaseTransitionValidator();
     }
 
     updatePhase(newPhaseId: string): boolean {
