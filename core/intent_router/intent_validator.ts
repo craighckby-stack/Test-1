@@ -8,26 +8,62 @@ interface ValidationResult {
     errors: any[] | null;
 }
 
-interface SchemaPayloadValidatorTool {
+// Define the explicit Dependency Interface
+interface ISchemaValidatorUtility {
     initialize(schema: any): void;
     execute(payload: any): ValidationResult;
 }
 
 // CRITICAL: We simulate the injection and instantiation of the defined plugin.
-declare const SchemaPayloadValidator: { new(): SchemaPayloadValidatorTool };
-const intentValidatorInstance: SchemaPayloadValidatorTool = new SchemaPayloadValidator();
+declare const CriticalSchemaValidatorUtility: { new(): ISchemaValidatorUtility };
 
-// Initialize the tool with the specific intent schema
-intentValidatorInstance.initialize(intentSchema);
 
 /**
- * Validates an incoming payload against the standard Intent Schema V1.
- * If valid, routes the intent to the appropriate Execution Handler queue.
+ * Core utility for validating incoming Intent Payloads against the canonical
+ * Governance Schema (M01). It strictly enforces encapsulation and guarantees
+ * one-time schema initialization via Dependency Injection (DI).
+ */
+class IntentValidator {
+    // Private class fields enforce strict encapsulation for core dependencies and state.
+    readonly #schemaId: string = 'M01_INTENT_SCHEMA_V1';
+    readonly #validator: ISchemaValidatorUtility;
+
+    /**
+     * Initializes the validator with an explicit dependency on the schema utility.
+     * The governance schema is loaded immediately upon construction.
+     * @param validatorUtility The core schema validation tool instance.
+     */
+    constructor(validatorUtility: ISchemaValidatorUtility) {
+        this.#validator = validatorUtility;
+        this.#initializeSchema(); // Guaranteed initialization before first use
+    }
+
+    // Private method ensures the critical schema loading logic is contained and managed.
+    #initializeSchema(): void {
+        this.#validator.initialize(intentSchema);
+    }
+
+    /**
+     * Executes the validation against the current intent schema.
+     * @param intent The intent object to validate.
+     * @returns The validation result.
+     */
+    public validate(intent: IntentPayload): ValidationResult {
+        return this.#validator.execute(intent);
+    }
+}
+
+// Instantiate the core validator using the (simulated) Dependency Injection pattern.
+const IntentValidatorInstance = new IntentValidator(new CriticalSchemaValidatorUtility());
+
+/**
+ * Validates an incoming payload against the standard Intent Schema V1
+ * and routes the intent to the appropriate Execution Handler queue.
  * @param intent The intent object to process.
  */
 export function validateAndRouteIntent(intent: IntentPayload): void {
-    const validationResult = intentValidatorInstance.execute(intent);
-    
+    const validationResult = IntentValidatorInstance.validate(intent);
+
     if (!validationResult.isValid) {
         const errors = validationResult.errors;
         console.error('Intent Validation Failed:', errors);
