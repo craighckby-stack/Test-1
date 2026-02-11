@@ -35,6 +35,16 @@ declare const DataTypeChecker: IDataTypeChecker;
 
 class GAX_PreFlightConstraintEngine {
   constructor(constraintDefinition: { mandatory_constraints: any[], required_types: Record<string, string> }) {
+    this.#initializeEngine(constraintDefinition);
+  }
+  
+  private constraints: any[];
+  private typeMap: Record<string, string>;
+
+  /**
+   * Extracts synchronous initialization and dependency validation.
+   */
+  #initializeEngine(constraintDefinition: { mandatory_constraints: any[], required_types: Record<string, string> }): void {
     this.constraints = constraintDefinition.mandatory_constraints;
     this.typeMap = constraintDefinition.required_types;
     // Ensure the required type checker is available
@@ -42,10 +52,26 @@ class GAX_PreFlightConstraintEngine {
         throw new Error("Dependency Injection Error: DataTypeChecker plugin is required.");
     }
   }
-  
-  private constraints: any[];
-  private typeMap: Record<string, string>;
 
+  // --- I/O Proxy Methods ---
+
+  /**
+   * Private proxy to delegate artifact path resolution to the external tool.
+   */
+  #delegateToJsonPathResolverExecution(artifact: object, path: string): any {
+    // @ts-ignore: Assume global presence of JsonPathResolver injected by runtime.
+    return JsonPathResolver.execute({ artifact, path });
+  }
+
+  /**
+   * Private proxy to delegate type checking to the external tool.
+   */
+  #delegateToDataTypeChecker(value: any, expectedType: string): boolean {
+    // @ts-ignore: Assume global presence
+    return DataTypeChecker.checkType(value, expectedType);
+  }
+
+  // --- Internal Logic Methods ---
 
   /**
    * Executes a defined validation rule against a given value.
@@ -53,7 +79,7 @@ class GAX_PreFlightConstraintEngine {
    * @param {object} rule The rule definition (type, expected, required, etc.).
    * @returns {boolean}
    */
-  _executeRule(value: any, rule: any): boolean {
+  #executeRule(value: any, rule: any): boolean {
     const isDefined = value !== undefined && value !== null;
 
     if (rule.type === RuleTypes.PRESENCE) {
@@ -69,9 +95,7 @@ class GAX_PreFlightConstraintEngine {
 
     if (rule.type === RuleTypes.DATA_TYPE) {
       const expectedType = rule.expected;
-      // Use the external DataTypeChecker plugin
-      // @ts-ignore: Assume global presence
-      return DataTypeChecker.checkType(value, expectedType);
+      return this.#delegateToDataTypeChecker(value, expectedType);
     }
     
     if (rule.type === RuleTypes.VALUE_MATCH) {
@@ -89,13 +113,12 @@ class GAX_PreFlightConstraintEngine {
    * @param {string} path Dot-notation path (e.g., 'data.user.id').
    * @returns {*} The value at the path.
    */
-  _getValueAtPath(artifact: object, path: string): any {
+  #getValueAtPath(artifact: object, path: string): any {
     // AGI-KERNEL Plugin integration: Replace internal logic with external tool call.
     if (!path || !artifact) return undefined;
     
     try {
-        // @ts-ignore: Assume global presence of JsonPathResolver injected by runtime.
-        return JsonPathResolver.execute({ artifact, path });
+        return this.#delegateToJsonPathResolverExecution(artifact, path);
     } catch (e: any) {
         // Ensure that any error thrown by the plugin which is a resolution failure 
         // is re-thrown as the locally defined PathResolutionError, allowing `instanceof` checks 
@@ -123,10 +146,10 @@ class GAX_PreFlightConstraintEngine {
       let value: any = undefined;
 
       try {
-        value = this._getValueAtPath(targetArtifact, path);
+        value = this.#getValueAtPath(targetArtifact, path);
         
         // Execute rule on found value (including undefined/null if applicable)
-        const isValid = this._executeRule(value, rule);
+        const isValid = this.#executeRule(value, rule);
         
         if (!isValid) {
           recordFailure(constraintId, path, `Rule type ${rule.type} failed validation. Expected: ${rule.expected || rule.expectedValue || 'N/A'}`);
@@ -151,11 +174,9 @@ class GAX_PreFlightConstraintEngine {
     // 2. Required Type Validation (Semantic)
     for (const [path, expectedType] of Object.entries(this.typeMap)) {
       try {
-        const value = this._getValueAtPath(targetArtifact, path);
+        const value = this.#getValueAtPath(targetArtifact, path);
         
-        // Use external DataTypeChecker
-        // @ts-ignore: Assume global presence
-        const typeOK = DataTypeChecker.checkType(value, expectedType);
+        const typeOK = this.#delegateToDataTypeChecker(value, expectedType);
             
         if (!typeOK) {
             // Determine actual type for better reporting
