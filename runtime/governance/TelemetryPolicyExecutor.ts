@@ -3,11 +3,12 @@
  * Executes conditional governance responses based on vetted telemetry results.
  * Implements logic to map validation results against the Tiered Criticality Mapping
  * defined in the TelemetryVettingSpec.
- * 
- * Sovereign AGI v94.1 Intelligence Refactor: Abstracted runtime expression evaluation
- * into a dedicated utility via dependency injection (SoC enforcement).
+ *
+ * Sovereign AGI v94.1 Intelligence Refactor: Externalized reusable PolicyRuleMatcher
+ * utility to enforce SoC and improve governance code reuse.
  */
 
+// --- Telemetry Domain Interfaces ---
 interface VettingResult {
     domain: string;
     violations: string[];
@@ -39,21 +40,10 @@ interface PolicyConditionEvaluator {
     evaluate(conditionExpression: string, context: Record<string, any>): boolean;
 }
 
-// --- Tool Access Interface (for the extracted plugin) ---
-/**
- * Assumed interface for the extracted PolicyRuleMatcher plugin.
- * This tool executes the core iteration loop against provided policies.
- */
-interface PolicyRuleMatcherTool {
-    execute(args: {
-        policies: RejectionPolicy[];
-        context: Record<string, any>;
-        evaluator: (condition: string, context: Record<string, any>) => boolean;
-        defaultAction?: string;
-    }): string;
-}
-
-declare const PolicyRuleMatcherTool: PolicyRuleMatcherTool;
+// Assumed access to the global PolicyRuleMatcherTool defined in the plugin layer.
+declare const PolicyRuleMatcherTool: { 
+    execute(args: any): string; 
+}; 
 
 export class TelemetryPolicyExecutor {
     private policies: GovernancePolicies;
@@ -109,8 +99,4 @@ export class TelemetryPolicyExecutor {
 
         return context;
     }
-
-    // checkCondition method removed as its logic is now provided directly as a callback
-    // to the PolicyRuleMatcher tool.
-
 }
