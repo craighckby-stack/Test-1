@@ -1,28 +1,69 @@
-const path = require('path');
-
 /**
+ * AGI-KERNEL v7.11.3 [STRATEGIC_AGENCY]
+ * Refactored component: GovernanceLoader -> GovernanceLoaderKernel
+ *
  * Manages the loading, caching, and retrieval of system governance configurations.
- * Implements memoization (promise caching) for maximum computational efficiency on repeated access.
- * This loader relies on an injected I/O utility for abstraction of file system access.
+ * Implements promise memoization for computational efficiency on repeated access.
+ * Relies strictly on Dependency Injection (DI) for I/O and configuration path resolution.
  */
-class GovernanceLoader {
+
+// NOTE: Interface imports are conceptual for this output.
+// import { ISecureResourceLoaderInterfaceKernel } from './ISecureResourceLoaderInterfaceKernel';
+// import { IPathRegistryKernel } from './IPathRegistryKernel';
+
+class GovernanceLoaderKernel {
+    /** @type {ISecureResourceLoaderInterfaceKernel} */
+    #ioLoader;
+    /** @type {IPathRegistryKernel} */
+    #pathRegistry;
+    /** @type {string} */
+    #configDirectory;
+    /** @type {Map<string, Promise<Object>>} Cache storage for pending or resolved configuration loading promises. */
+    #cache = new Map();
+
     /**
-     * @param {object} ioPlugin Instance of the I/O utility plugin (must expose loadJson method).
-     * @param {string} [configDirectory='config/governance'] The base directory where governance files reside (relative to IO plugin's root).
+     * @param {object} dependencies
+     * @param {ISecureResourceLoaderInterfaceKernel} dependencies.ioLoader
+     * @param {IPathRegistryKernel} dependencies.pathRegistry
      */
-    constructor(ioPlugin, configDirectory = 'config/governance') {
-        if (!ioPlugin || typeof ioPlugin.loadJson !== 'function') {
-             throw new Error("GovernanceLoader requires a valid IO utility plugin instance with a 'loadJson' method.");
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+
+    /**
+     * Rigorously validates and assigns injected dependencies.
+     * Satisfies the mandate for synchronous setup extraction.
+     * @param {object} dependencies
+     */
+    #setupDependencies(dependencies) {
+        const { ioLoader, pathRegistry } = dependencies;
+
+        if (!ioLoader || typeof ioLoader.loadJson !== 'function') {
+             throw new Error("GovernanceLoaderKernel requires a valid ioLoader (ISecureResourceLoaderInterfaceKernel) instance with a 'loadJson' method.");
+        }
+        if (!pathRegistry || typeof pathRegistry.resolvePath !== 'function') {
+             throw new Error("GovernanceLoaderKernel requires a valid pathRegistry (IPathRegistryKernel) instance with a 'resolvePath' method.");
         }
         
-        this.io = ioPlugin;
-        // Ensure configDirectory is stored correctly for path joining
-        this.configDirectory = configDirectory;
-        /** @type {Map<string, Promise<Object>>} Cache storage for pending or resolved configuration loading promises. */
-        this.cache = new Map();
+        this.#ioLoader = ioLoader;
+        this.#pathRegistry = pathRegistry;
+    }
+
+    /**
+     * Initializes the kernel, asynchronously retrieving the governance configuration root path.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        // Strategic constant definition for the governance config root path
+        const GOVERNANCE_CONFIG_DIR_KEY = 'GOVERNANCE_CONFIG_ROOT'; 
+        const DEFAULT_GOVERNANCE_PATH = 'config/governance';
         
-        // NOTE: Removed logic modifying the IO plugin's global base path. 
-        // Path construction is now handled internally in the load method.
+        try {
+            // The IPathRegistryKernel is responsible for providing the strategic path configuration.
+            this.#configDirectory = await this.#pathRegistry.resolvePath(GOVERNANCE_CONFIG_DIR_KEY, DEFAULT_GOVERNANCE_PATH);
+        } catch (e) {
+             throw new Error(`[GovernanceLoaderKernel] Failed to resolve governance configuration path '${GOVERNANCE_CONFIG_DIR_KEY}': ${e.message}`);
+        }
     }
 
     /**
@@ -36,24 +77,25 @@ class GovernanceLoader {
         const cacheKey = policyName.toLowerCase();
 
         // 1. Check cache for existing promise or resolved value
-        if (this.cache.has(cacheKey)) {
-            return this.cache.get(cacheKey);
+        if (this.#cache.has(cacheKey)) {
+            return this.#cache.get(cacheKey);
         }
 
         const fileName = `${cacheKey}.json`;
-        // Construct the full path relative to the IO plugin's root
-        const fullPath = path.join(this.configDirectory, fileName);
+        // Construct the full path using the resolved config directory.
+        // Note: Direct dependency on Node's 'path.join' has been removed.
+        const fullPath = `${this.#configDirectory}/${fileName}`;
 
         // 2. Define the loading operation
-        const loadOperation = this.io.loadJson(fullPath)
+        const loadOperation = this.#ioLoader.loadJson(fullPath)
             .catch(error => {
                 // Remove failed promise from cache to allow retries
-                this.cache.delete(cacheKey);
+                this.#cache.delete(cacheKey);
                 throw error;
             });
         
         // 3. Cache the promise immediately to prevent concurrent duplicate I/O operations (race conditions)
-        this.cache.set(cacheKey, loadOperation);
+        this.#cache.set(cacheKey, loadOperation);
 
         // 4. Await and return the result
         return loadOperation;
@@ -70,6 +112,7 @@ class GovernanceLoader {
         
         if (!pathString) return config;
         
+        // Implements safe dot-notation traversal
         return pathString.split('.').reduce((acc, part) => {
             if (acc === undefined || acc === null) return undefined; 
             return acc[part];
@@ -80,8 +123,8 @@ class GovernanceLoader {
      * Clears all cached configuration promises, forcing a full reload on next access.
      */
     clearCache() {
-        this.cache.clear();
+        this.#cache.clear();
     }
 }
 
-module.exports = GovernanceLoader;
+module.exports = GovernanceLoaderKernel;
