@@ -3,11 +3,14 @@
 import AxiomSchema from '../../../schema/GAX/AxiomDefinitionSchema.json';
 import { logger } from '../../utility/Logger';
 
-// Assumed declaration for the injected plugin interface
+// Assumed declaration for the injected plugin interfaces (Updated)
 declare const KernelTools: {
     SchemaValidationService: {
         compileSchema: (schemaId: string, schemaDefinition: object) => boolean;
         validate: (schemaId: string, data: object) => { isValid: boolean, errors: any[] | null };
+    },
+    RuleEvaluationEngine: { // NEWLY ABSTRACTED SERVICE
+        evaluate: (definitionType: string, condition: any, contextData: object) => boolean;
     }
 };
 
@@ -69,9 +72,14 @@ class AxiomRuleValidator {
             // 1. Scope Check
             if (axiom.ruleDefinition.scope.includes(scopeIdentifier)) {
                 
-                // 2. Condition Evaluation (Placeholder for logic engine dispatch)
-                const evaluationEngine = this.getEngine(axiom.definitionType);
-                if (evaluationEngine.evaluate(axiom.ruleDefinition.condition, contextData)) {
+                // 2. Condition Evaluation using the abstracted RuleEvaluationEngine
+                const isViolation = KernelTools.RuleEvaluationEngine.evaluate(
+                    axiom.definitionType,
+                    axiom.ruleDefinition.condition,
+                    contextData
+                );
+                
+                if (isViolation) {
                     logger.warn(`Axiom violation detected: ${key} in scope ${scopeIdentifier}`);
                     enforcementActions.push({
                         axiomId: axiom.axiomId,
@@ -89,20 +97,8 @@ class AxiomRuleValidator {
         }
         return enforcementActions;
     }
-
-    // Placeholder method to select the correct rule interpreter
-    getEngine(definitionType: string) {
-        // In a real implementation, this would dynamically import/select AST parsers, DSL interpreters, etc.
-        return {
-            evaluate: (condition: string, data: any) => {
-                // Simulation: rules are complex, always return false unless we hit a specific flag in data.
-                if (definitionType === 'JAVASCRIPT_EVAL' && condition.includes('criticalFlag') && data.hasCriticalFlag) {
-                    return true; 
-                }
-                return false; 
-            }
-        };
-    }
+    
+    // The placeholder getEngine method has been abstracted into the RuleEvaluationEngine plugin.
 }
 
 export const axiomRuleValidator = new AxiomRuleValidator();
