@@ -1,9 +1,13 @@
         const previousMetrics = historicalTrends[1];
 
-        // Use robust key retrieval (EQM is preferred, MQM_EQM is fallback for legacy naming conventions).
-        // Note: EQM values stored in Nexus are already sanitized scores (0-100), avoiding unnecessary re-normalization.
-        const currentEQM = currentMetrics.EQM || currentMetrics.MQM_EQM || 0;
-        const previousEQM = previousMetrics.EQM || previousMetrics.MQM_EQM || 0;
+        // Helper for robust EQM retrieval (EQM preferred, MQM_EQM fallback, safe default 0).
+        // Uses Optional Chaining (?.) and Nullish Coalescing (??) for maximum compatibility and safety.
+        const getEQM = (metrics) => metrics?.EQM ?? metrics?.MQM_EQM ?? 0;
+
+        // Retrieve current and previous scores using the robust utility.
+        // Note: Assumes 'currentMetrics' is available in the execution scope.
+        const currentEQM = getEQM(currentMetrics);
+        const previousEQM = getEQM(previousMetrics);
 
         const delta = currentEQM - previousEQM;
 
