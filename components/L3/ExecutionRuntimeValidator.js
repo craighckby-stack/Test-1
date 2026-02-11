@@ -1,6 +1,39 @@
 const VALIDATOR_TOOL_NAME = "RuntimeConstraintValidatorTool";
 
 /**
+ * Internal helper to execute the validation check against the KERNEL Tool interface.
+ * Throws errors if dependencies are missing or execution fails.
+ * 
+ * @param {object} constraints 
+ * @returns {boolean}
+ * @private
+ */
+function _executeValidationCheck(constraints) {
+    // 1. Dependency Resolution
+    // Using optional chaining for cleaner dependency access
+    const KERNEL = typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' ? KERNEL_SYNERGY_CAPABILITIES : null;
+    const Tool = KERNEL?.Tool;
+
+    if (!Tool || typeof Tool.execute !== 'function') {
+        throw new Error("Dependency Error: KERNEL_SYNERGY_CAPABILITIES.Tool interface is unavailable or improperly structured.");
+    }
+
+    // 2. Payload Construction
+    const payload = {
+        toolName: VALIDATOR_TOOL_NAME,
+        method: 'validate',
+        args: [constraints]
+    };
+
+    // 3. Execution
+    const result = Tool.execute(payload);
+    
+    // Standardize result to a strict boolean
+    return !!result;
+}
+
+
+/**
  * Validates the local host environment against the strict resource constraints
  * defined in the SEM configuration prior to sandbox initialization.
  * 
@@ -11,30 +44,17 @@ const VALIDATOR_TOOL_NAME = "RuntimeConstraintValidatorTool";
  * @returns {boolean} True if environment meets constraints.
  */
 export function validateRuntime(constraints) {
-    // Initialize KERNEL access safely to prevent ReferenceErrors
-    const KERNEL = typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' ? KERNEL_SYNERGY_CAPABILITIES : {};
-    const Tool = KERNEL.Tool;
-
-    if (!Tool || typeof Tool.execute !== 'function') {
-        console.error("CRITICAL ERROR: KERNEL_SYNERGY_CAPABILITIES.Tool interface is unavailable or improperly structured. Cannot delegate runtime validation.");
-        return false;
-    }
-
+    const errorPrefix = "[RuntimeValidationEngine]";
+    
     try {
-        const payload = {
-            toolName: VALIDATOR_TOOL_NAME,
-            method: 'validate',
-            args: [constraints]
-        };
-
-        // Execute the validation via the registered tool interface
-        const result = Tool.execute(payload);
-        
-        // Standardize result to a strict boolean, coercing truthy/falsy returns.
-        return typeof result === 'boolean' ? result : !!result;
-        
+        return _executeValidationCheck(constraints);
     } catch (e) {
-        console.error(`Runtime constraint validation delegation failed for tool '${VALIDATOR_TOOL_NAME}': ${e.message}`, e);
+        // Centralized error reporting, differentiating between dependency and execution failure
+        if (e.message.startsWith("Dependency Error")) {
+            console.error(`${errorPrefix} CRITICAL DEPENDENCY FAILURE: Cannot delegate runtime validation. ${e.message}`);
+        } else {
+            console.error(`${errorPrefix} Execution Failed for tool '${VALIDATOR_TOOL_NAME}': ${e.message}`, e);
+        }
         return false;
     }
 }
