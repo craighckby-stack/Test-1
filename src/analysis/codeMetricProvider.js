@@ -1,6 +1,6 @@
 /**
  * Code Metric Provider - src/analysis/codeMetricProvider.js
- * ID: CMP_V1
+ * ID: CMP_V2
  * Role: Core AST Analysis and Metric Calculation
  *
  * This utility provides the raw, objective structural metrics (e.g., Cyclomatic Complexity, LOC)
@@ -8,6 +8,7 @@
  */
 
 import fs from 'fs/promises';
+import { BasicStringValidator } from '@plugins/BasicStringValidator';
 
 /**
  * Defines the standard structure for code metrics returned by the provider.
@@ -20,27 +21,19 @@ interface CodeMetrics {
 }
 
 export class CodeMetricProvider {
+    private stringValidator: BasicStringValidator;
+    
     constructor() {
-        // Configuration for external parsers or internal AST handlers goes here.
+        this.stringValidator = new BasicStringValidator();
     }
 
     /**
      * Validates that the component path is a valid input (non-empty string).
-     * This encapsulates logic now handled by the BasicStringConstraintValidator utility.
+     * Now utilizes the abstracted BasicStringValidator plugin.
      * @param {string} componentPath - Full file path to the code component.
      */
     private _validateComponentPath(componentPath: string): void {
-        // Simulating invocation of BasicStringConstraintValidator plugin
-        const validator = { /* Internal representation of the plugin logic */
-            validate: (value: any, name: string) => {
-                if (typeof value !== 'string' || value.length === 0) {
-                    return { valid: false, message: `${name} must be provided and be a non-empty string.` };
-                }
-                return { valid: true };
-            }
-        };
-        
-        const result = validator.validate(componentPath, 'Component Path');
+        const result = this.stringValidator.validate(componentPath, 'Component Path');
         
         if (!result.valid) {
             throw new Error(result.message);
