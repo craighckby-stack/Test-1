@@ -7,7 +7,22 @@ interface PathPolicyRuleMatcherTool {
     execute(args: { path: string, rules: IndexingPolicy['policies'] }): IndexingPolicy['policies'][number] | null;
 }
 
+// Interface definition for the newly abstracted policy management plugin
+interface ArtifactIndexingPolicyManagerTool {
+    getPolicy(): IndexingPolicy;
+    getRules(): IndexingPolicy['policies'];
+    getDefaultPolicy(): string;
+}
+
+// Assume dependency resolution/injection provides these instances
 declare const PathPolicyRuleMatcher: PathPolicyRuleMatcherTool;
+declare class ArtifactIndexingPolicyManager implements ArtifactIndexingPolicyManagerTool {
+    constructor(policyConfig: IndexingPolicy);
+    getPolicy(): IndexingPolicy;
+    getRules(): IndexingPolicy['policies'];
+    getDefaultPolicy(): string;
+}
+
 
 /**
  * ArtifactIndexingService
@@ -16,28 +31,21 @@ declare const PathPolicyRuleMatcher: PathPolicyRuleMatcherTool;
  * and interfacing with the Vector/Keyword database layer.
  */
 export class ArtifactIndexingService {
-    private policy: IndexingPolicy;
+    private policyManager: ArtifactIndexingPolicyManagerTool;
     private watcher: FileWatcher;
     private vectorDb: VectorDB;
     
     constructor(policyConfig: IndexingPolicy, vectorDb: VectorDB) {
-        // CRITICAL: Policy must be sorted before use by the PathPolicyRuleMatcherTool
-        this.policy = this.sortPolicy(policyConfig);
+        // CRITICAL: Abstract policy preparation (sorting) into the Policy Manager Plugin
+        // The manager handles sorting the policies by priority on initialization.
+        this.policyManager = new ArtifactIndexingPolicyManager(policyConfig);
         this.vectorDb = vectorDb;
         this.watcher = new FileWatcher();
     }
 
-    /**
-     * Sorts policies by priority (descending) so the rule matcher finds specific rules first.
-     */
-    private sortPolicy(policy: IndexingPolicy): IndexingPolicy {
-        // Sort policies by priority (descending) so specific rules are checked first
-        policy.policies.sort((a, b) => b.priority - a.priority);
-        return policy;
-    }
-
     public startIndexing() {
-        console.log(`[IndexingService] Starting watch on artifacts based on v${this.policy.version} policy.`);
+        const policy = this.policyManager.getPolicy();
+        console.log(`[IndexingService] Starting watch on artifacts based on v${policy.version} policy.`);
         
         this.watcher.watch('.', (path: string, event: 'added' | 'changed' | 'deleted') => {
             this.handleArtifactChange(path, event);
@@ -49,11 +57,12 @@ export class ArtifactIndexingService {
         // Use the dedicated tool to find the highest priority matching rule
         const applicableRule = PathPolicyRuleMatcher.execute({
             path: path,
-            rules: this.policy.policies
+            // Fetch pre-sorted rules from the manager
+            rules: this.policyManager.getRules()
         });
         
         if (!applicableRule) {
-            console.log(`[Indexing] Path ${path} matches default policy: ${this.policy.defaultPolicy}`);
+            console.log(`[Indexing] Path ${path} matches default policy: ${this.policyManager.getDefaultPolicy()}`);
             // Implementation of default indexing logic
             return;
         }
