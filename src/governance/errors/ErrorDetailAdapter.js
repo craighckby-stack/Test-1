@@ -1,32 +1,28 @@
 /**
- * Utility class to adapt verbose external validation errors (e.g., Joi, Zod) 
- * into a structured, lightweight format expected by system errors like PayloadSchemaError.
- * This decouples the governance error structure from specific validation libraries by delegating 
- * normalization to the dedicated plugin.
+ * IErrorDetailNormalizationToolKernel
+ * 
+ * Defines the high-integrity interface for adapting verbose external validation errors 
+ * (e.g., Joi, Zod) into the structured, lightweight format expected by core system 
+ * errors (like PayloadSchemaError). This replaces the synchronous, globally coupled 
+ * ErrorDetailAdapter utility, which relied on the global `__ErrorDetailNormalizationUtility__`.
+ *
+ * Adherence to the AIA Enforcement Layer mandates asynchronous operation and 
+ * dependency injection for all structural normalization tasks.
  */
-
-// Assume __ErrorDetailNormalizationUtility__ is globally available or imported 
-// via the runtime environment after extraction.
-const NormalizationUtility = typeof __ErrorDetailNormalizationUtility__ !== 'undefined' 
-    ? __ErrorDetailNormalizationUtility__ 
-    : { 
-        // Minimal fallback for environment safety, though the kernel ensures tool availability
-        normalize: (err) => err ? [{ field: 'internal', reason: 'Normalization utility not found', rule: 'MISSING_TOOL' }] : []
-    };
-    
-class ErrorDetailAdapter {
+class IErrorDetailNormalizationToolKernel {
     
     /**
-     * Maps raw validation error objects (which are often verbose) into a 
-     * normalized array of failure structures for the PayloadSchemaError.
+     * Maps raw external validation error objects into a normalized, structured 
+     * array of failure details.
      * 
-     * @param {Object} externalError - The raw validation error object (e.g., Joi validation error).
-     * @returns {Array<{field: string, reason: string, rule: string}>} A structured array of failure details.
+     * @param {Object} externalError - The raw validation error object.
+     * @returns {Promise<Array<{field: string, reason: string, rule: string}>>} 
+     *          A promise resolving to the structured array of failure details.
      */
-    static normalize(externalError) {
-        // Delegate the entire normalization task to the dedicated utility
-        return NormalizationUtility.normalize(externalError);
+    async normalize(externalError) {
+        // Mandates that consumers utilize the injected interface, not static methods or globals.
+        throw new Error("IErrorDetailNormalizationToolKernel: Method 'normalize' must be implemented and called asynchronously.");
     }
 }
 
-module.exports = { ErrorDetailAdapter };
+module.exports = { IErrorDetailNormalizationToolKernel };
