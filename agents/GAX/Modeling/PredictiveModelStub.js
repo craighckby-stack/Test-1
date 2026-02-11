@@ -43,28 +43,26 @@ class PredictiveModelStub {
      * @returns {Promise<PredictionResult>} Predicted metrics.
      */
     async predict(features) {
-        // 1. Assert readiness (simulating weight loading status)
+        // 1. Assert readiness
         if (!this.#isInitialized) {
-             throw new Error("Model Handler is not initialized or failed dependency checks.");
+             throw new Error("Predictive Model Stub is uninitialized or failed initialization checks.");
         }
 
-        // 2. Simulate necessary latency for high-fidelity model inference
-        await new Promise(resolve => setTimeout(resolve, 5));
+        const capabilityKey = PredictiveModelStub.REQUIRED_CAPABILITY;
+        // 2. Retrieve the engine from the global Synergy Registry
+        const engine = globalThis.KERNEL_SYNERGY_CAPABILITIES?.[capabilityKey];
 
-        // 3. Access the KERNEL synergy registry for the required capability
-        const engine = globalThis.KERNEL_SYNERGY_CAPABILITIES?.[PredictiveModelStub.REQUIRED_CAPABILITY];
-
-        // 4. Validate KERNEL capability availability and interface structure
+        // 3. Validate KERNEL capability availability and interface structure
         if (!engine || typeof engine.execute !== 'function') {
+            const registryStatus = globalThis.KERNEL_SYNERGY_CAPABILITIES ? "malformed" : "missing";
             throw new Error(
-                `SYNERGY REGISTRY Error: Required KERNEL capability '${PredictiveModelStub.REQUIRED_CAPABILITY}' is missing, malformed, or failed to expose the 'execute' interface.`
+                `SYNERGY REGISTRY Error: Required KERNEL capability '${capabilityKey}' is ${registryStatus} or failed to expose the 'execute' interface.`
             );
         }
 
-        // 5. Delegate the core stub calculation logic to the KERNEL Tooling system.
-        const result = await engine.execute('predict', features);
-        
-        return result;
+        // 4. Delegate the core stub calculation logic to the KERNEL Tooling system.
+        // The engine is expected to handle asynchronous operations and required latency.
+        return engine.execute('predict', features);
     }
 }
 
