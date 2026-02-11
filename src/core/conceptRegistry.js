@@ -8,6 +8,8 @@
 
 // --- Type Definitions and Constants for Self-Documentation ---
 
+import { StaticRegistryFactory } from '../utils/StaticRegistryFactory.js'; // Assuming location for the new plugin
+
 /** @typedef {'AGI'|'ARCH'|'HALLUCINATION'} ConceptCategory */
 /** @typedef {'Fundamental'|'Core'|'Critical Core'|'In Development'|'Philosophical/Core'|'Critical Consensus'|'Core ATM'|'Memory/Strategic'|'Agent Protocol'|'Critical'} ConceptStatus */
 /** @typedef {'Discard'|'Salvage/Reformulate'|'Capture, Validate, and Cache via SIC (AGI-C-13)'|null} HallucinationAction */
@@ -67,6 +69,7 @@ const RAW_CONCEPT_DEFINITIONS = Object.freeze([
 
 /**
  * Concept Registry Instance Structure.
+ * Note: Internal keys map 'byGroup' to 'byCategory' to maintain external interface compatibility.
  * @typedef {Object} ConceptRegistryInstance
  * @property {ReadonlyArray<ConceptDefinition>} all
  * @property {ReadonlyMap<string, ConceptDefinition>} byId
@@ -76,78 +79,28 @@ const RAW_CONCEPT_DEFINITIONS = Object.freeze([
  */
 
 /**
- * Initializes and validates the Concept Registry, constructing immutable lookup structures.
+ * Initializes and validates the Concept Registry, constructing immutable lookup structures using the StaticRegistryFactory.
  * @returns {ConceptRegistryInstance}
  */
 function initializeRegistry() {
-    const registryById = new Map();
-    const registryByCategory = {};
-    const categoryValues = Object.values(ConceptCategories);
+    const registry = StaticRegistryFactory(
+        RAW_CONCEPT_DEFINITIONS,
+        'id',
+        'category',
+        Object.values(ConceptCategories)
+    );
 
-    for (const concept of RAW_CONCEPT_DEFINITIONS) {
-        // Validation Phase
-        if (registryById.has(concept.id)) {
-            throw new Error(`[ConceptRegistry] Duplicate concept ID found: ${concept.id}. Integrity compromised.`);
-        }
-        if (!categoryValues.includes(concept.category)) {
-             throw new Error(`[ConceptRegistry] Invalid category '${concept.category}' for ID ${concept.id}.`);
-        }
-
-        // Freeze individual definition for deep immutability
-        const frozenConcept = Object.freeze(concept);
-
-        // Populate Structures
-        registryById.set(concept.id, frozenConcept);
-
-        const categoryKey = concept.category;
-        if (!registryByCategory[categoryKey]) {
-            registryByCategory[categoryKey] = [];
-        }
-        registryByCategory[categoryKey].push(frozenConcept);
-    }
-
-    // Freeze category arrays and the category structure itself
-    Object.keys(registryByCategory).forEach(key => {
-        Object.freeze(registryByCategory[key]);
+    // Map the generic factory output to the expected ConceptRegistry interface
+    return Object.freeze({
+        all: registry.all,
+        byId: registry.byId,
+        byCategory: registry.byGroup, // Factory uses 'byGroup'
+        
+        // Public methods mapped to maintain existing signatures
+        getConceptById: registry.getById,
+        getConceptsByCategory: registry.getByGroup,
     });
-    Object.freeze(registryByCategory);
-
-
-    /** @type {ConceptRegistryInstance} */
-    const registryInstance = {
-        /** The raw list of concepts (derived from the validated Map values). */
-        all: Object.freeze(Array.from(registryById.values())),
-
-        /** O(1) Lookup Map by ID. */
-        byId: registryById,
-
-        /** Categorized list map (deeply immutable). */
-        byCategory: registryByCategory,
-
-        /**
-         * Retrieves a concept definition by its unique ID.
-         * @param {string} id
-         * @returns {?ConceptDefinition}
-         */
-        getConceptById: (id) => registryById.get(id) || null,
-
-        /**
-         * Retrieves all concepts within a specific category.
-         * @param {ConceptCategory} category
-         * @returns {ReadonlyArray<ConceptDefinition>}
-         */
-        getConceptsByCategory: (category) => registryByCategory[category] || [],
-    };
-
-    // Make the registry API object immutable.
-    return Object.freeze(registryInstance);
 }
 
-// --- Public Exports ---
-
-/**
- * The unified, immutable Concept Registry instance, containing all data and lookup methods.
- * Consumer code should primarily interact with this single object.
- * @type {ConceptRegistryInstance}
- */
+/** @type {ConceptRegistryInstance} */
 export const ConceptRegistry = initializeRegistry();
