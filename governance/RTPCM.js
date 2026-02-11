@@ -8,6 +8,10 @@
  * Implements strict versioning via content hashing, internal timeline tracking, and atomic configuration updates.
  */
 class RTPCM {
+    #ledger;
+    #validator;
+    #registry;
+
     /**
      * @param {Object} deps - Explicit dependencies for governance operations.
      * @param {LedgerService} deps.ledger - D-01/MCR dependency for audited transaction logging.
@@ -17,17 +21,8 @@ class RTPCM {
      * @param {ImmutableConfigRegistry} [deps.registry] - Optional dependency injection of the registry plugin for testing/override.
      * @param {Object} [initialConfig={}] - Optional initial configuration settings.
      */
-    constructor({ ledger, validator, hasher, integrityServiceTool, registry }, initialConfig = {}) {
-        if (!ledger || !validator || !hasher || !integrityServiceTool) {
-            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityServiceTool) must be provided.");
-        }
-
-        // Dependencies
-        this._ledger = ledger;
-        this._validator = validator;
-        
-        // Configuration Registry Plugin (Abstracting storage, hashing, and immutability logic)
-        this._registry = registry || new ImmutableConfigRegistry({ hasher, integrityServiceTool });
+    constructor(deps, initialConfig = {}) {
+        this.#setupDependencies(deps);
 
         // Bootstrap: Register initial configuration if provided.
         if (Object.keys(initialConfig).length > 0) {
@@ -42,24 +37,44 @@ class RTPCM {
     }
 
     /**
+     * Extracts synchronous dependency resolution and initialization.
+     * @param {Object} deps
+     */
+    #setupDependencies(deps) {
+        const { ledger, validator, hasher, integrityServiceTool, registry } = deps;
+        
+        if (!ledger || !validator || !hasher || !integrityServiceTool) {
+            throw new Error("RTPCM Initialization Error: Required dependencies (ledger, validator, hasher, integrityServiceTool) must be provided.");
+        }
+
+        this.#ledger = ledger;
+        this.#validator = validator;
+        
+        // Configuration Registry Plugin (Abstracting storage, hashing, and immutability logic)
+        this.#registry = registry || this.#delegateToRegistryInstantiation({ hasher, integrityServiceTool });
+    }
+
+    // --- I/O Proxies for Setup ---
+
+    /**
+     * Delegates instantiation of the ImmutableConfigRegistry.
+     * @param {Object} deps
+     */
+    #delegateToRegistryInstantiation(deps) {
+        // Assuming ImmutableConfigRegistry is available in scope (as per original code structure).
+        // If not provided via DI, instantiate the required tool.
+        return new ImmutableConfigRegistry(deps);
+    }
+
+    // --- Core Policy Methods ---
+
+    /**
      * Internal validation against established GRS stability policies and schema.
      * @param {Object} config 
      * @returns {boolean}
      */
     validateNewConfig(config) {
-        return this._validator.validate(config);
-    }
-
-    /**
-     * Logs the activation event to the Auditing Ledger (D-01/MCR).
-     * @param {string} versionId
-     * @param {Object} record
-     */
-    _auditActivation(versionId, record) {
-        this._ledger.logTransaction('RTPCM_CONFIG_ACTIVATION', {
-            ...record,
-            details: `P-01 Trust Calculus parameters version ${versionId.substring(0, 8)} activated.`,
-        });
+        return this.#delegateToValidationExecution(config);
     }
 
     /**
@@ -74,12 +89,11 @@ class RTPCM {
             throw new Error("RTPCM_GOV_ERROR: Configuration validation failed against Governance Rules Schema.");
         }
 
-        // Delegate version registration, immutability, and history tracking to the registry plugin.
-        // Pass the auditing function as a hook, allowing the plugin to handle the timing.
-        const result = this._registry.register(
+        // Delegate version registration, immutability, and history tracking to the registry plugin via proxy.
+        const result = this.#delegateToRegistryRegistration(
             newConfig, 
             source, 
-            this._auditActivation.bind(this) 
+            this.#auditActivation.bind(this) // Pass the internal auditing function as a hook
         );
         
         return result;
@@ -90,7 +104,7 @@ class RTPCM {
      * @returns {{versionId: string|null, config: Object|null}}
      */
     getActiveConfig() {
-        return this._registry.getActiveConfig();
+        return this.#delegateToRegistryGetActive();
     }
 
     /**
@@ -99,7 +113,7 @@ class RTPCM {
      * @returns {Object|null} The immutable configuration object, or null if not found locally.
      */
     getHistoricalConfig(versionId) {
-        return this._registry.getHistoricalConfig(versionId);
+        return this.#delegateToRegistryGetHistorical(versionId);
     }
 
     /**
@@ -107,7 +121,7 @@ class RTPCM {
      * @returns {ReadonlyArray<Object>} Returns a deeply frozen timeline array.
      */
     getActivationTimeline() {
-        return this._registry.getActivationTimeline();
+        return this.#delegateToRegistryGetTimeline();
     }
 
     /**
@@ -115,7 +129,7 @@ class RTPCM {
      * @returns {string|null}
      */
     getActiveVersionId() {
-        return this._registry.getActiveVersionId();
+        return this.#delegateToRegistryGetVersionId();
     }
 
     /**
@@ -124,7 +138,61 @@ class RTPCM {
      * @returns {string}
      */
     calculateHash(config) {
-        return this._registry.calculateHash(config);
+        return this.#delegateToRegistryCalculateHash(config);
+    }
+
+    // --- Internal Helpers & I/O Proxies ---
+
+    /**
+     * Logs the activation event to the Auditing Ledger (D-01/MCR).
+     * @param {string} versionId
+     * @param {Object} record
+     */
+    #auditActivation(versionId, record) {
+        this.#delegateToAuditLog('RTPCM_CONFIG_ACTIVATION', {
+            ...record,
+            details: `P-01 Trust Calculus parameters version ${versionId.substring(0, 8)} activated.`,
+        });
+    }
+
+    // I/O Proxy: Executes validation using the ConfigValidator dependency.
+    #delegateToValidationExecution(config) {
+        return this.#validator.validate(config);
+    }
+
+    // I/O Proxy: Executes transaction logging via the LedgerService dependency.
+    #delegateToAuditLog(type, data) {
+        this.#ledger.logTransaction(type, data);
+    }
+
+    // I/O Proxy: Delegates configuration registration to the ImmutableConfigRegistry.
+    #delegateToRegistryRegistration(config, source, auditHook) {
+        return this.#registry.register(config, source, auditHook);
+    }
+
+    // I/O Proxy: Delegates retrieval of the active configuration.
+    #delegateToRegistryGetActive() {
+        return this.#registry.getActiveConfig();
+    }
+
+    // I/O Proxy: Delegates retrieval of a historical configuration.
+    #delegateToRegistryGetHistorical(versionId) {
+        return this.#registry.getHistoricalConfig(versionId);
+    }
+
+    // I/O Proxy: Delegates retrieval of the activation timeline.
+    #delegateToRegistryGetTimeline() {
+        return this.#registry.getActivationTimeline();
+    }
+
+    // I/O Proxy: Delegates retrieval of the active version ID.
+    #delegateToRegistryGetVersionId() {
+        return this.#registry.getActiveVersionId();
+    }
+
+    // I/O Proxy: Delegates hash calculation.
+    #delegateToRegistryCalculateHash(config) {
+        return this.#registry.calculateHash(config);
     }
 }
 
