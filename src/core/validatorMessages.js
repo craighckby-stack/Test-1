@@ -1,8 +1,10 @@
+import { AbstractKernel } from '../kernel/AbstractKernel';
+
 /**
  * Standardized error messages for common validation rules.
  * Functions are used to allow dynamic insertion of field names and parameters (e.g., min/max values).
  */
-const ValidatorMessages = {
+const INTERNAL_VALIDATOR_MESSAGES = Object.freeze({
   required: (field) => `${field} is required.`,
   email: (field) => `${field} must be a valid email address.`,
   numeric: (field) => `${field} must be a numeric value.`,
@@ -17,6 +19,42 @@ const ValidatorMessages = {
   
   // Fallback message for undefined rules
   default: (field) => `The value provided for ${field} is invalid.`,
-};
+});
 
-export default ValidatorMessages;
+/**
+ * ValidatorMessagesConfigRegistryKernel
+ * Provides standardized, immutable configuration for validation error message templates.
+ * This replaces the synchronous utility export with an architectural configuration registry.
+ */
+export class ValidatorMessagesConfigRegistryKernel extends AbstractKernel {
+    
+    constructor() {
+        super('ValidatorMessagesConfigRegistryKernel');
+    }
+
+    /**
+     * @inheritdoc
+     * No external dependencies are required for static message definitions.
+     */
+    async #setupDependencies() {
+        // Enforces the synchronous setup extraction mandate.
+    }
+
+    /**
+     * @inheritdoc
+     */
+    async initialize() {
+        await this.#setupDependencies();
+        // Message configuration is static, no further async initialization required.
+    }
+
+    /**
+     * Retrieves the standardized validation message generators.
+     * @returns {Promise<Readonly<Object<string, Function>>>} An immutable map of rule names to message generation functions.
+     */
+    async getMessages() {
+        // Configuration access must be asynchronous to maintain architectural consistency,
+        // even for static data.
+        return Promise.resolve(INTERNAL_VALIDATOR_MESSAGES);
+    }
+}
