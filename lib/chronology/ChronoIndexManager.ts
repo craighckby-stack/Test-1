@@ -1,4 +1,11 @@
+/**
+ * Type alias for the core data payload of a Chronology Record.
+ */
 export type ChronoPayload = Record<string, unknown>;
+
+/**
+ * Type alias for system/processing metadata associated with a Chronology Record.
+ */
 export type ChronoMetadata = Record<string, unknown>;
 
 /**
@@ -33,7 +40,6 @@ export interface ChronoQueryCriteria {
   limit?: number;
   offset?: number;
   sortDirection?: 'asc' | 'desc';
-  // Future refinement: field filters (e.g., where payload.status = 'active')
 }
 
 /**
