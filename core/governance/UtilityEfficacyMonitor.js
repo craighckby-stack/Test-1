@@ -1,10 +1,5 @@
 // core/governance/UtilityEfficacyMonitor.js
 
-// Assuming the existence of an AGI_KERNEL interface for plugin access
-declare const AGI_KERNEL: {
-    getPlugin<T>(name: string): T;
-};
-
 /**
  * Interface for the MetricThresholdComparator plugin (Pre-existing dependency)
  * @interface MetricThresholdComparator
@@ -62,26 +57,41 @@ interface Config {
 
 // UtilityEfficacyMonitor Class Definition
 class UtilityEfficacyMonitor {
-  private config: Config;
-  private runtimeMetrics: Record<string, any>;
-  private thresholdComparator: MetricThresholdComparator;
-  private policyExecutor: CompliancePolicyExecutor;
+  // Utilize robust private class fields for encapsulation
+  #config: Config;
+  #runtimeMetrics: Record<string, any>;
+  #thresholdComparator: MetricThresholdComparator;
+  #policyExecutor: CompliancePolicyExecutor;
 
-  constructor(specConfigPath: string) {
-    this.thresholdComparator = AGI_KERNEL.getPlugin('MetricThresholdComparator');
-    this.policyExecutor = AGI_KERNEL.getPlugin('CompliancePolicyExecutor');
+  /**
+   * @param config The governance configuration object (passed directly, not loaded from path).
+   * @param thresholdComparator Injected dependency for metric comparison logic.
+   * @param policyExecutor Injected dependency for compliance action execution.
+   */
+  constructor(
+    config: Config,
+    thresholdComparator: MetricThresholdComparator,
+    policyExecutor: CompliancePolicyExecutor
+  ) {
+    // 1. Dependency Injection and Strict Encapsulation
+    this.#thresholdComparator = thresholdComparator;
+    this.#policyExecutor = policyExecutor;
     
-    // NOTE: Using require() suggests Node.js context.
-    this.config = require(specConfigPath) as Config;
-    this.runtimeMetrics = {}; // Data store for live operational metrics
-    console.log(`Efficacy Monitor v94.1 initialized.`)
+    // 2. Enforce Immutability: Deep-freeze the governance configuration to prevent runtime modification.
+    // NOTE: Reliance on Object.freeze guarantees top-level immutability; a deep freeze utility
+    // is recommended for production systems with complex nested configurations.
+    this.#config = Object.freeze(config);
+    
+    this.#runtimeMetrics = {}; // Data store for live operational metrics (mutable internal state)
+    
+    console.log(`Efficacy Monitor initialized.`);
   }
 
   /**
    * Checks a specific utility against its operational metrics specifications.
    */
   async checkUtilityCompliance(domain: string, utilityId: string, currentMetrics: Record<string, number>): Promise<void> {
-    const domainConfig = this.config.operational_domains[domain];
+    const domainConfig = this.#config.operational_domains[domain];
     if (!domainConfig) {
         console.warn(`Domain ${domain} not configured.`);
         return;
@@ -97,17 +107,17 @@ class UtilityEfficacyMonitor {
       const currentValue = currentMetrics[metricSpec.name];
       
       // Use the reusable plugin logic for violation detection
-      const violation = this.thresholdComparator.evaluateViolation(metricSpec, currentValue);
+      const violation = this.#thresholdComparator.evaluateViolation(metricSpec, currentValue);
 
       if (violation) {
-        const policyId = metricSpec.failure_policy_id || this.config.default_policy_id;
+        const policyId = metricSpec.failure_policy_id || this.#config.default_policy_id;
         
         // Delegation 1: Escalate violation using the executor plugin
-        await this.policyExecutor.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
+        await this.#policyExecutor.escalateViolation(utilityId, metricSpec.name, policyId, currentValue);
         
         if (utilitySpec.failover && utilitySpec.failover.enabled) {
           // Delegation 2: Initiate failover using the executor plugin
-          await this.policyExecutor.initiateFailover(utilitySpec.failover.target_utility_id);
+          await this.#policyExecutor.initiateFailover(utilitySpec.failover.target_utility_id);
         }
       }
     }
