@@ -1,53 +1,79 @@
 async validate(configuration, requiredConstraintCodes) {
-    if (!Array.isArray(requiredConstraintCodes)) {
-        console.error("Validation requires an array of constraint codes.");
-        return { isAdherent: false, violations: [{ code: 'INPUT_ERROR', severity: 'CRITICAL', details: 'Required constraint codes list is invalid.' }] };
+    const SERVICE_KEY = 'ConstraintExecutionService';
+    const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
+
+    // 1. Input Validation
+    if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
+        const details = Array.isArray(requiredConstraintCodes) && requiredConstraintCodes.length === 0 
+            ? 'Required constraint codes list is empty.'
+            : 'Required constraint codes list is invalid (must be a non-empty array).';
+            
+        console.error(`${VALIDATION_CONTEXT} ${details}`);
+        return { 
+            isAdherent: false, 
+            violations: [{ code: 'INPUT_VALIDATION_ERROR', severity: 'CRITICAL', details }]
+        };
+    }
+    
+    // 2. Synergy Registry Access Check (Refactored using Synergy concept)
+    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES[SERVICE_KEY]) {
+        const details = `Required synergy service ${SERVICE_KEY} is unavailable in KERNEL_SYNERGY_CAPABILITIES.`;
+        console.error(`${VALIDATION_CONTEXT} ${details}`);
+        return { 
+            isAdherent: false, 
+            violations: [{ code: 'KERNEL_SERVICE_UNAVAILABLE', severity: 'CRITICAL', details }]
+        };
     }
 
+    const ConstraintExecutionService = KERNEL_SYNERGY_CAPABILITIES[SERVICE_KEY];
     const violations = [];
-    const ServiceKey = 'ConstraintExecutionService';
 
-    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES[ServiceKey]) {
-        console.error(`${ServiceKey} capability is unavailable. Cannot perform validation.`);
-        return { isAdherent: false, violations: [{ code: 'KERNEL_ERROR', severity: 'CRITICAL', details: `Required service ${ServiceKey} not found in KERNEL_SYNERGY_CAPABILITIES.` }] };
+    // 3. Local Dependency Check (Taxonomy Map)
+    if (!this.taxonomyMap || typeof this.taxonomyMap.get !== 'function') {
+        const details = "Local taxonomy map required for constraint definitions is missing or invalid (this.taxonomyMap).";
+        console.error(`${VALIDATION_CONTEXT} ${details}`);
+        return { 
+            isAdherent: false, 
+            violations: [{ code: 'TAXONOMY_MAP_MISSING', severity: 'CRITICAL', details }]
+        };
     }
-
-    const ConstraintExecutionService = KERNEL_SYNERGY_CAPABILITIES[ServiceKey];
 
     try {
-        // Robustness check: Ensure the internal taxonomy map is ready for lookups
-        if (!this.taxonomyMap || typeof this.taxonomyMap.get !== 'function') {
-             throw new Error("Local taxonomy map required for definitions is missing or invalid.");
-        }
-
         for (const code of requiredConstraintCodes) {
             /** @type {ConstraintDefinition} */
             const constraintDef = this.taxonomyMap.get(code);
 
             if (!constraintDef) {
-                console.warn(`Constraint code ${code} not found in taxonomy. Skipping adherence check.`);
+                console.warn(`${VALIDATION_CONTEXT} Constraint code ${code} not found in taxonomy. Skipping adherence check.`);
                 continue;
             }
             
             // Delegating constraint execution to the capability service
             const adherenceCheck = await ConstraintExecutionService.execute('executeConstraintCheck', constraintDef, configuration);
 
-            if (!adherenceCheck || adherenceCheck.isMet === false) {
-                const failureDetails = adherenceCheck 
-                    ? (adherenceCheck.details || 'Adherence rule failed.') 
-                    : 'Constraint check failed due to underlying service error or unexpected null response.';
+            if (adherenceCheck?.isMet === false) {
+                // Constraint failed
+                const failureDetails = adherenceCheck.details || `Adherence rule failed for code: ${code}.`;
 
                 violations.push({
                     code: constraintDef.code,
                     target: constraintDef.target_parameter || 'N/A',
-                    severity: constraintDef.severity || 'MAJOR', // Use 'MAJOR' as a clearer default severity
+                    severity: constraintDef.severity || 'MAJOR',
                     details: failureDetails
+                });
+            } else if (!adherenceCheck) {
+                // Service returned null/undefined, indicating internal service failure during execution
+                 violations.push({
+                    code: `${constraintDef.code}_SERVICE_FAIL`,
+                    target: constraintDef.target_parameter || 'N/A',
+                    severity: 'CRITICAL',
+                    details: `Service returned an invalid or null response for constraint check: ${code}`
                 });
             }
         }
     } catch (error) {
          // Catches unexpected runtime errors during iteration or capability communication failures
-         console.error("A critical unexpected error occurred during constraint validation:", error);
+         console.error(`${VALIDATION_CONTEXT} Critical unexpected error during validation loop:`, error);
          violations.push({
             code: 'RUNTIME_EXECUTION_ERROR',
             severity: 'CRITICAL',
