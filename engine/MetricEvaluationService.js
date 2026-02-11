@@ -1,26 +1,10 @@
-// Implementation of MEE Metric Evaluation
-
 /**
- * A utility function to apply normalization to calculated metric values.
- * Currently implements a simple 0-10 linear scale normalization for AGI capability scores.
- * @param {number} value - The raw calculated metric value.
- * @param {string} functionType - The requested normalization function type.
- * @returns {number} The normalized value.
+ * AGI-KERNEL v7.9.2
+ * Component: Metric Evaluation Service (MEE)
  */
-const normalize = (value: number, functionType: string): number => {
-  switch (functionType) {
-    case 'SIGMOID_BOUNDED_10':
-      // Simple sigmoid approximation scaled for 0-10 output for readability
-      return parseFloat((10 / (1 + Math.exp(-(value / 5)))).toFixed(2));
-    case 'LINEAR_0_10':
-      // Assumes value is already somewhat bounded, caps it simply.
-      return Math.max(0, Math.min(10, value));
-    default:
-      return value;
-  }
-};
 
 // Define necessary interfaces for clean TypeScript integration
+
 interface ComponentDefinition {
     source_ref: string;
     data_point: string;
@@ -54,13 +38,22 @@ interface AsyncWeightedScorerInterface {
     calculate(components: ComponentDefinition[], dataProviderMap: Map<string, DataProvider>): Promise<CalculationResult>;
 }
 
+/**
+ * Abstracted reusable logic for metric value transformation (scaling, bounding).
+ */
+interface NormalizationUtilityInterface {
+    normalize(value: number, functionType: string): number;
+}
+
 class MetricEvaluationService {
   private config: Config;
   private metricDefinitions: Record<string, MetricDefinition>;
   private contextMap: any;
   private dataProvider: Map<string, DataProvider>;
-  // Assumed injection point for the new plugin
+  // Assumed injection point for the plugin managing data aggregation
   private asyncWeightedScorer: AsyncWeightedScorerInterface; 
+  // Assumed injection point for the plugin managing value scaling
+  private normalizationUtility: NormalizationUtilityInterface; 
 
   constructor(config: Config) {
     this.config = config;
@@ -68,8 +61,9 @@ class MetricEvaluationService {
     this.contextMap = config.context_mapping;
     this.dataProvider = new Map<string, DataProvider>(); 
     
-    // Initialize the plugin interface placeholder (runtime kernel will inject implementation)
+    // Initialize the plugin interface placeholders (runtime kernel will inject implementation)
     this.asyncWeightedScorer = {} as AsyncWeightedScorerInterface; 
+    this.normalizationUtility = {} as NormalizationUtilityInterface; 
   }
 
   async initializeDataProviders(providers: Record<string, DataProvider>) {
@@ -109,8 +103,7 @@ class MetricEvaluationService {
     
     // 1. Use the AsyncWeightedScorer plugin to perform data fetching and aggregation.
     if (typeof this.asyncWeightedScorer.calculate !== 'function') {
-        console.error(`AsyncWeightedScorer not available. Falling back to internal calculation (not implemented).`);
-        // We rely on the plugin for complex logic now. Fail cleanly if not present.
+        console.error(`AsyncWeightedScorer not available. Cannot proceed.`);
         return { metricId, value: null, status: 'CRITICAL_ERROR' };
     }
 
@@ -130,7 +123,12 @@ class MetricEvaluationService {
 
     // 2. Apply normalization if defined 
     if (definition.normalization && definition.normalization.function) {
-      calculatedValue = normalize(calculatedValue, definition.normalization.function);
+      if (typeof this.normalizationUtility.normalize !== 'function') {
+        console.error(`Normalization function '${definition.normalization.function}' requested, but NormalizationUtility is not injected or initialized.`);
+        // Proceed with raw value
+      } else {
+        calculatedValue = this.normalizationUtility.normalize(calculatedValue, definition.normalization.function);
+      }
     }
     
     // 3. Check against risk thresholds for RISK metrics
