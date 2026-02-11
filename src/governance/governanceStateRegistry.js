@@ -1,23 +1,24 @@
 /**
- * Component Governance State Registry - src/governance/governanceStateRegistry.js
- * ID: GSR v94.3 (Refactored for Dependency Injection and Robustness)
- * Role: State Persistence / Transactional Safety
+ * Component Governance State Kernel - src/governance/governanceStateKernel.js
+ * ID: GSK v1.0 (Refactored for Asynchronous Execution and Kernel Injection)
+ * Role: State Persistence / Transactional Safety / AIA Compliance
  *
  * Maintains the current governance lifecycle status of all components, ensuring idempotency,
- * sequential execution, and providing an authoritative source of truth.
- *
- * Refactor Note: This class is now infrastructure-agnostic, requiring explicit injection of
- * a Persistence Adapter and an Audit Service, drastically improving testability and scalability.
+ * sequential execution, and providing an authoritative source of truth. All operations are
+ * asynchronous and leverage injected, audited Tool Kernels for I/O and logging.
  */
 
+import { IHighEfficiencyStateRetrieverToolKernel } from '../tools/IHighEfficiencyStateRetrieverToolKernel';
+import { GovernanceAuditKernel } from './GovernanceAuditKernel'; // Assumes injection of the refactored Kernel
+
 // --- Constants ---
-export const COMPONENT_STATUS = {
+export const COMPONENT_STATUS = Object.freeze({
     ACTIVE: 'ACTIVE',
     PENDING_REVIEW: 'PENDING_REVIEW', 
     SCHEDULED_ACTION: 'SCHEDULED_ACTION', 
     RETIRED: 'RETIRED',
-    BLOCKED: 'BLOCKED' 
-};
+    BLOCKED: 'BLOCKED'
+});
 
 /**
  * @typedef {Object} ComponentState
@@ -27,114 +28,101 @@ export const COMPONENT_STATUS = {
  * @property {Object | null} [decisionReport] - Full report/metadata justifying the current state transition.
  */
 
-const DEFAULT_STATE = { status: COMPONENT_STATUS.ACTIVE, timestamp: 0, actionType: null, decisionReport: null };
+const DEFAULT_STATE = Object.freeze({ status: COMPONENT_STATUS.ACTIVE, timestamp: 0, actionType: null, decisionReport: null });
 
-// --- Infrastructure / Default Adapters (In-Module Instantiation Only) ---
+// --- Main Registry Kernel ---
 
-/**
- * Implements a simple in-memory key-value persistence adapter for the Registry.
- * Mimics the expected interface of a DurablePersistenceAdapter (e.g., Redis/DB).
- */
-class MemoryPersistenceAdapter {
-    constructor() {
-        this.store = new Map();
-    }
-
-    get(key) {
-        // Returns state object or undefined
-        return this.store.get(key);
-    }
-
-    set(key, value) {
-        this.store.set(key, value);
-        return value;
-    }
-}
-
-/**
- * Placeholder for the dedicated Governance Audit Service (Proposed Scaffold).
- */
-class PlaceholderAuditService {
-    logTransition(id, previous, next) {
-        // console.log(`[AUDIT] Transition for ${id}: ${previous.status} -> ${next.status}`);
-        // Actual implementation would persist this log to a centralized audit trail.
-    }
-}
-
-
-// --- Main Registry Class ---
-
-class GovernanceStateRegistry {
+export class GovernanceStateKernel {
 
     /**
-     * @param {MemoryPersistenceAdapter | Object} persistenceAdapter - Adapter implementing get(id) and set(id, state).
-     * @param {PlaceholderAuditService | Object} auditService - Service implementing logTransition.
+     * @param {IHighEfficiencyStateRetrieverToolKernel} stateRetriever - Adapter implementing async get(id) and set(id, state).
+     * @param {GovernanceAuditKernel} governanceAudit - Service implementing async recordTransition.
      */
-    constructor(persistenceAdapter, auditService) {
-        if (!persistenceAdapter || !auditService) {
-            throw new Error("GovernanceStateRegistry requires a Persistence Adapter and an Audit Service.");
+    constructor(stateRetriever, governanceAudit) {
+        if (!stateRetriever || !governanceAudit) {
+            throw new Error("GovernanceStateKernel requires an IHighEfficiencyStateRetrieverToolKernel and GovernanceAuditKernel.");
         }
-        this.persistence = persistenceAdapter;
-        this.audit = auditService;
+        this.stateRetriever = stateRetriever;
+        this.governanceAudit = governanceAudit;
+        this.stateKeyPrefix = 'GOV_STATE:';
+    }
+
+    _getStorageKey(componentId) {
+        return `${this.stateKeyPrefix}${componentId}`;
     }
 
     /**
      * Internal Helper for handling state transitions, audit logging, and consistency.
+     * Now strictly asynchronous.
      * @param {string} componentId
      * @param {Partial<ComponentState>} newStateData
+     * @returns {Promise<ComponentState>}
      */
-    _updateState(componentId, newStateData) {
-        const currentState = this.getStatus(componentId);
+    async _updateState(componentId, newStateData) {
+        const currentState = await this.getStatus(componentId);
         
-        // 1. Calculate next state, overwriting properties only if defined in newStateData
-        const nextState = {
+        // 1. Calculate next state
+        const nextState = Object.freeze({
             ...currentState,
             ...newStateData,
             timestamp: Date.now(),
-            // Explicitly ensuring state keys are present, defaulting to null/undefined if intended to be cleared.
+            // Explicitly handle fields that might be cleared to null
             actionType: newStateData.actionType !== undefined ? newStateData.actionType : (currentState.actionType || null),
             decisionReport: newStateData.decisionReport !== undefined ? newStateData.decisionReport : (currentState.decisionReport || null)
-        };
+        });
 
-        // 2. Critical audit logging hook
-        this.audit.logTransition(componentId, currentState, nextState);
+        // 2. Critical audit logging hook (Must be async)
+        await this.governanceAudit.recordTransition(
+            componentId, 
+            'GovernanceStateChange', 
+            currentState, 
+            nextState
+        );
         
-        // 3. Persist new state
-        return this.persistence.set(componentId, nextState);
+        // 3. Persist new state (Must be async, using the state retrieval tool for persistence)
+        const storageKey = this._getStorageKey(componentId);
+        await this.stateRetriever.set(storageKey, nextState);
+        
+        return nextState;
     }
 
     /**
      * Retrieves the current, standardized state object for a component.
-     * Ensures a consistent return type (ComponentState).
      * @param {string} componentId
-     * @returns {ComponentState}
+     * @returns {Promise<ComponentState>}
      */
-    getStatus(componentId) {
-        const state = this.persistence.get(componentId);
+    async getStatus(componentId) {
+        const storageKey = this._getStorageKey(componentId);
+        
+        // Asynchronous retrieval
+        const state = await this.stateRetriever.get(storageKey);
         
         if (!state) {
-             // Return a newly constructed default active state if component is not yet registered
-             return { ...DEFAULT_STATE, timestamp: Date.now() };
+             // Return a newly constructed, frozen default active state if component is not yet registered
+             return Object.freeze({ ...DEFAULT_STATE, timestamp: Date.now() });
         }
 
-        // Ensure backward compatibility/schema consistency if persistence layer returns partial data
-        return { ...DEFAULT_STATE, ...state }; 
+        // Ensure consistency and immutability upon retrieval
+        return Object.freeze({ ...DEFAULT_STATE, ...state }); 
     }
 
     /**
      * Checks if a component is retired.
+     * @returns {Promise<boolean>}
      */
-    isComponentRetired(componentId) {
-        return this.getStatus(componentId).status === COMPONENT_STATUS.RETIRED;
+    async isComponentRetired(componentId) {
+        const status = (await this.getStatus(componentId)).status;
+        return status === COMPONENT_STATUS.RETIRED;
     }
     
     /**
      * Checks if a component is actively undergoing a governance process.
      * @param {string} componentId
      * @param {string | null} [actionType] - Optional, check for a specific type of action.
+     * @returns {Promise<boolean>}
      */
-    isComponentInProcess(componentId, actionType = null) {
-        const state = this.getStatus(componentId);
+    async isComponentInProcess(componentId, actionType = null) {
+        const state = await this.getStatus(componentId);
 
         const inProcess = (
             state.status === COMPONENT_STATUS.PENDING_REVIEW || 
@@ -149,10 +137,12 @@ class GovernanceStateRegistry {
 
     /**
      * Registers that a component review has started (entering PENDING_REVIEW state).
+     * @returns {Promise<ComponentState>}
      */
-    registerPendingReview(componentId, actionType, decisionReport = null) {
-        if (this.isComponentInProcess(componentId)) {
-            throw new Error(`Component ${componentId} is already in governance process. Status: ${this.getStatus(componentId).status}`);
+    async registerPendingReview(componentId, actionType, decisionReport = null) {
+        if (await this.isComponentInProcess(componentId)) {
+            const status = (await this.getStatus(componentId)).status;
+            throw new Error(`Component ${componentId} is already in governance process. Status: ${status}`);
         }
         if (!actionType) {
             throw new Error("actionType must be specified when initiating a review.");
@@ -167,10 +157,10 @@ class GovernanceStateRegistry {
 
     /**
      * Clears the pending state, reverting to ACTIVE. Handles vetoes or failed adjudications.
-     * This explicitly clears actionType and decisionReport.
+     * @returns {Promise<ComponentState>}
      */
-    clearPendingState(componentId) {
-        const current = this.getStatus(componentId);
+    async clearPendingState(componentId) {
+        const current = await this.getStatus(componentId);
         
         if (current.status === COMPONENT_STATUS.ACTIVE || current.status === COMPONENT_STATUS.RETIRED) {
              return current; // Idempotent success
@@ -185,9 +175,10 @@ class GovernanceStateRegistry {
 
     /**
      * Registers a decision has passed adjudication and is SCHEDULED for execution.
+     * @returns {Promise<ComponentState>}
      */
-    registerActionScheduled(componentId, actionReport) {
-        const currentStatus = this.getStatus(componentId).status;
+    async registerActionScheduled(componentId, actionReport) {
+        const currentStatus = (await this.getStatus(componentId)).status;
         if (currentStatus !== COMPONENT_STATUS.PENDING_REVIEW && currentStatus !== COMPONENT_STATUS.ACTIVE) {
              throw new Error(`Cannot schedule action for component ${componentId}. Current status: ${currentStatus}. Must be PENDING_REVIEW or ACTIVE.`);
         }
@@ -205,34 +196,16 @@ class GovernanceStateRegistry {
 
     /**
      * Updates the component status to permanently retired/finalized.
+     * @returns {Promise<ComponentState>}
      */
-    registerActionFinalized(componentId, finalStatus = COMPONENT_STATUS.RETIRED, actionType = 'GOVERNANCE_ACTION') {
+    async registerActionFinalized(componentId, finalStatus = COMPONENT_STATUS.RETIRED, actionType = 'GOVERNANCE_ACTION') {
+        const current = await this.getStatus(componentId);
         
-        // If retiring, clear previous pending metadata but keep the final status report if provided in a later action.
+        // If retiring, merge new status while keeping existing decisionReport if actionType context is the same.
         return this._updateState(componentId, {
             status: finalStatus,
             actionType: actionType,
-            // decisionReport carries over if the state was SCHEDULED_ACTION
-        });
-    }
-
-    /**
-     * Marks a component as blocked due to failure or veto, preventing automated action.
-     */
-    registerBlockedState(componentId, reasonReport = {}) {
-         return this._updateState(componentId, {
-            status: COMPONENT_STATUS.BLOCKED,
-            actionType: 'BLOCK_VETO',
-            decisionReport: reasonReport
+            decisionReport: current.decisionReport // Maintain consistency unless overwritten by _updateState caller
         });
     }
 }
-
-// Instantiate the Singleton using local/default implementations
-const defaultPersistence = new MemoryPersistenceAdapter();
-const defaultAudit = new PlaceholderAuditService();
-
-export const governanceStateRegistry = new GovernanceStateRegistry(defaultPersistence, defaultAudit);
-
-// Export the Class for alternative initialization or testing purposes
-export { GovernanceStateRegistry };
