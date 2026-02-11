@@ -9,26 +9,7 @@
  * scores, comparing them against the dynamically calculated Risk Threshold (R_TH).
  */
 
-// NOTE: Assumes KERNEL_SYNERGY_CAPABILITIES is globally available in the runtime context.
-const KERNEL_SYNERGY_CAPABILITIES = global.KERNEL_SYNERGY_CAPABILITIES || {
-    Tool: {
-        execute: (toolName, params) => { 
-            console.error(`Tool execution placeholder for: ${toolName}`);
-            // In a live kernel, this would synchronously or asynchronously return the result.
-            // Since the logic for RiskThresholdCalculator is now external, this placeholder 
-            // assumes success and a mock return if the plugin isn't actually loaded here.
-            if (toolName === 'RiskThresholdCalculator') {
-                const { UFRM, CFTM, riskModel } = params;
-                const weightA = riskModel?.weightA ?? 0.4;
-                const weightB = riskModel?.weightB ?? 0.6;
-                const bias = riskModel?.bias ?? 0.05;
-                const R_TH = (UFRM * weightA) + (CFTM * weightB) + bias;
-                return Math.min(10.0, Math.max(0.1, R_TH));
-            }
-            throw new Error(`Tool ${toolName} not found.`);
-        }
-    }
-};
+// CRITICAL: Assumes KERNEL_SYNERGY_CAPABILITIES is available in the runtime context.
 
 class PreemptiveStateResolver {
     
@@ -112,7 +93,7 @@ class PreemptiveStateResolver {
             riskModel: this.#riskModel
         };
         
-        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool
+        // Stage 0: Calculate Risk Threshold (R_TH) using the Kernel Tool (Now a dedicated plugin)
         const R_TH = KERNEL_SYNERGY_CAPABILITIES.Tool.execute('RiskThresholdCalculator', riskParams);
 
         // Stage 1: Preemptive Policy Constraint Check (Fail Fast)
