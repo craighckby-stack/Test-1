@@ -21,12 +21,39 @@ class SchemaValidator {
     #validator: typeof plugins.DataSchemaValidator | undefined;
 
     constructor() {
+        this.#setupValidatorDependency();
+    }
+
+    /**
+     * Resolves the DataSchemaValidator plugin dependency during initialization.
+     * @private
+     */
+    #setupValidatorDependency(): void {
         // Resolve the dependency once during initialization, optimizing subsequent lookups
         // and enforcing structural encapsulation.
         if (typeof plugins !== 'undefined' && plugins.DataSchemaValidator) {
             this.#validator = plugins.DataSchemaValidator;
         } else {
             this.#validator = undefined;
+        }
+    }
+
+    /**
+     * Handles the direct delegation of validation logic to the external plugin,
+     * including immediate error handling (I/O proxy).
+     * @private
+     */
+    #delegateToValidator(validator: NonNullable<typeof plugins.DataSchemaValidator>, data: any, primitiveType: string): ValidationResult {
+        try {
+            // Delegate all complex validation logic to the dedicated plugin.
+            return validator.execute({
+                data: data,
+                primitiveType: primitiveType
+            });
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            // Ensure graceful handling of plugin execution errors
+            return { isValid: false, errors: [`DataSchemaValidator execution failed: ${message}`] };
         }
     }
 
@@ -62,17 +89,8 @@ class SchemaValidator {
         const validator = this.#validator;
 
         if (validator) {
-            try {
-                // Delegate all complex validation logic to the dedicated plugin.
-                return validator.execute({
-                    data: data,
-                    primitiveType: primitiveType
-                });
-            } catch (e) {
-                const message = e instanceof Error ? e.message : String(e);
-                // Ensure graceful handling of plugin execution errors
-                return { isValid: false, errors: [`DataSchemaValidator execution failed: ${message}`] };
-            }
+            // Delegate execution to the isolated I/O proxy
+            return this.#delegateToValidator(validator, data, primitiveType);
         }
         
         // Fallback if plugin infrastructure is missing
