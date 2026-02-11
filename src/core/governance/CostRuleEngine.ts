@@ -28,6 +28,18 @@ declare const FunctionMemoizerUtility: {
 };
 
 /**
+ * NOTE: MetricCostCalculator is sourced from the AGI-KERNEL plugin layer.
+ * It abstracts the core logic for calculating costs based on rules and limits.
+ */
+declare class MetricCostCalculator {
+    public static calculate(
+        metric: GovernanceMetric, 
+        rule: CostRule | undefined, 
+        observedValue: number
+    ): number;
+}
+
+/**
  * The Cost Rule Engine, optimized for computational efficiency and recursive abstraction.
  * Applies memoization, hash lookups, and functional iteration patterns.
  */
@@ -59,38 +71,23 @@ class CostRuleEngine {
 
     /**
      * Core cost calculation logic (Recursive Abstraction - Step 1/2).
-     * This function is pure based on its inputs and is now memoized.
+     * This function performs O(1) lookups and delegates the pure calculation
+     * to the MetricCostCalculator plugin, making it cleaner and more focused.
      * @param metricId The ID of the metric being evaluated.
      * @param value The current value of the metric.
      * @returns The calculated cost.
      */
     private calculateMetricCostAbstraction(metricId: string, value: number): number {
-        const rule = this.rulesMap.get(metricId); // O(1) lookup
         const metric = this.metricsMap.get(metricId); // O(1) lookup
 
         if (!metric) {
             return 0;
         }
 
-        const baseCost = metric.baseCost;
+        const rule = this.rulesMap.get(metricId); // O(1) lookup
 
-        if (!rule) {
-            // No rule defined, standard base cost
-            return baseCost * value;
-        }
-
-        // Rule present: Check for limits and apply penalties
-        if (value > rule.limit) {
-            const excess = value - rule.limit;
-            
-            // Cost calculation divided into two parts (Abstraction - Step 2/2)
-            const standardCost = baseCost * rule.limit;
-            const penaltyCost = excess * baseCost * rule.penaltyFactor;
-
-            return standardCost + penaltyCost;
-        }
-
-        return baseCost * value;
+        // Delegate pure calculation logic to the abstracted plugin
+        return MetricCostCalculator.calculate(metric, rule, value);
     }
 
     /**
