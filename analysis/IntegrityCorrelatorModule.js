@@ -16,10 +16,12 @@ class IntegrityCorrelatorModule {
         this.constraintModels = constraintModels;
         this.CORRELATION_THRESHOLD = 0.85; // Sensitivity threshold for high-severity findings
         
-        // Ensure KERNEL access is globally available and the required Policy Derivation Service is loaded.
-        if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || typeof KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService === 'undefined') {
+        // Dependency Check: Ensure the required Policy Derivation Service is loaded and stored locally.
+        const PDS = KERNEL_SYNERGY_CAPABILITIES?.PolicyMagnitudeDeriverService;
+        if (typeof PDS === 'undefined') {
              throw new Error("ICM initialization failed: KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService is required for tool execution.");
         }
+        this.policyDeriverService = PDS;
     }
 
     /**
@@ -27,33 +29,30 @@ class IntegrityCorrelatorModule {
      * @returns {Promise<Object>} Analysis results including proposed policy adjustments.
      */
     async executeCorrelation() {
-        console.log("ICM: Initiating multi-dimensional policy correlation...");
-
         // Step 1: Feature Extraction from TEDS (Temporal Pattern Matching)
         const temporalSkewMagnitude = this._analyzeTemporalSkew();
 
         // Step 2: Constraint Validation against PCSS (Integrity Check)
-        const axiomBreaches = this._validateAxiomBreaches();
+        const axiomBreaches = this._analyzeAxiomBreaches();
 
+        // Step 3: Aggregate data for Derivation Service Input (Plugin Logic: AnalysisInputAggregator)
         const derivationInput = {
             skewMagnitude: temporalSkewMagnitude,
             breachCount: axiomBreaches.length
         };
 
-        // Step 3: Derive Mandatory Policy Correction based on composite severity using the KERNEL Service.
-        // Using the standardized KERNEL_SYNERGY_CAPABILITIES.ServiceName.execute('method', data) pattern.
-        const derivationResult = await KERNEL_SYNERGY_CAPABILITIES.PolicyMagnitudeDeriverService.execute(
+        // Step 4: Derive Mandatory Policy Correction based on composite severity using the KERNEL Service.
+        // Removed synchronous delay simulation for performance.
+        const derivationResult = await this.policyDeriverService.execute(
             'derive', 
             derivationInput
         );
 
-        // Simulate heavy computation (e.g., calling an external ML service)
-        await new Promise(resolve => setTimeout(resolve, 10)); 
-
         return {
             failedAxioms: axiomBreaches,
             requiredThresholdIncrease: derivationResult.requiredThresholdIncrease,
-            logicErrors: [derivationResult.logicError]
+            // Ensure logicError is always returned as an array, even if null
+            logicErrors: derivationResult.logicError ? [derivationResult.logicError] : []
         };
     }
     
@@ -63,7 +62,7 @@ class IntegrityCorrelatorModule {
         return 0.22; 
     }
     
-    _validateAxiomBreaches() {
+    _analyzeAxiomBreaches() {
         // Placeholder logic for constraint violation mapping against PCSS.
         return ['AXIOM/C-11/StabilityLoss', 'AXIOM/C-15/TemporalDrift'];
     }
