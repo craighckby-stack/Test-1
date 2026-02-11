@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { SecureConfigProvider } from '../utils/secureConfigProvider.js';
 import { ConfigNormalizationAndTransformationUtility } from '../plugins/ConfigNormalizationAndTransformationUtility.js';
+import { SecureValueTransformer } from '../plugins/SecureValueTransformer.js';
 
 /**
  * Responsible for loading, decrypting, and providing the finalized application configuration.
@@ -11,26 +11,8 @@ export class SystemConfigLoader {
     static CONFIG_FILE_PATH = path.resolve(process.cwd(), 'config', 'runtime.encrypted.json');
 
     /**
-     * Defines the transformation logic for configuration fields (i.e., decryption).
-     * @param {string} key - The configuration key.
-     * @param {*} value - The raw configuration value.
-     * @returns {*} The transformed value (decrypted or original).
-     */
-    static decryptTransformer(key, value) {
-        // Simple decryption logic: If the value is a string and contains a colon, attempt decryption.
-        
-        if (typeof value === 'string' && value.includes(':')) {
-            // SecureConfigProvider handles decryption and automatic JSON parsing if content is JSON
-            // Failures here will be caught and re-thrown by the utility.
-            return SecureConfigProvider.getSecret(value);
-        }
-        
-        // Non-secret or pre-parsed value
-        return value;
-    }
-
-    /**
      * Loads and decrypts the primary configuration file using the transformation utility.
+     * It applies the SecureValueTransformer to handle decryption of marked fields.
      * @returns {Object} The fully configured and decrypted system configuration object.
      */
     static async loadConfig() {
@@ -39,7 +21,7 @@ export class SystemConfigLoader {
         try {
             const config = ConfigNormalizationAndTransformationUtility.execute({
                 filePath: SystemConfigLoader.CONFIG_FILE_PATH,
-                transformer: SystemConfigLoader.decryptTransformer
+                transformer: SecureValueTransformer.transform
             });
             
             console.log('System configuration loaded and secrets successfully decrypted.');
