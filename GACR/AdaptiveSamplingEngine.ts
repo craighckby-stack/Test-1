@@ -1,16 +1,15 @@
-        // V7 SYNERGY LOGIC INJECTION: Self-Correcting Hook Logging
-        // Pre-calculate constraint details for cleaner log payload structure and AGI telemetry standardization.
+        // Construct standardized telemetry payload for the restricting constraint.
         const constraintDetails = restrictingConstraint 
             ? {
                 name: restrictingConstraint.name,
                 current: restrictingConstraint.current,
                 target: restrictingConstraint.target,
-                // Measure magnitude of constraint breach relative to target. Renamed to align with kernel standards.
+                // Synergy v7 mandate: Breach significance is calculated as the ratio (current / target).
                 breachSignificance: restrictingConstraint.current / restrictingConstraint.target,
             }
             : null;
 
-        // Log decision parameters using standardized payload structure and property shorthand
+        // Log decision parameters using standardized payload structure (AGI telemetry standardization).
         KERNEL_SYNERGY_CAPABILITIES.telemetry.log('AdaptiveSamplingDecision', {
             finalRate,
             requiredRate,
