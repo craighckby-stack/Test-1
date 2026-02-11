@@ -3,6 +3,15 @@
  * focusing on computational efficiency, concurrency, and recursive abstraction.
  */
 
+// --- Type Aliases ---
+
+/**
+ * Standardized type for runtime data passed during check execution.
+ * Uses Readonly to enforce context immutability during check execution.
+ */
+export type ExecutionContext = Readonly<Record<string, any>>;
+
+
 // --- Data Structure Definitions ---
 
 /**
@@ -57,7 +66,7 @@ export interface GatingRunnerService {
      */
     runGICM(
         manifest: GatingCheckManifest,
-        context: Record<string, any>
+        context: ExecutionContext
     ): Promise<GatingCheckResult[]>;
 
     /**
@@ -70,12 +79,12 @@ export interface GatingRunnerService {
      */
     executeCheck(
         check: GatingCheck,
-        context: Record<string, any>,
+        context: ExecutionContext,
         depth?: number
     ): Promise<GatingCheckResult>;
     
     /**
      * Utility method to compute the canonical hash key for a check execution, aiding in memoization.
      */
-    computeCanonicalKey(check: GatingCheck, context: Record<string, any>): string;
+    computeCanonicalKey(check: GatingCheck, context: ExecutionContext): string;
 }
