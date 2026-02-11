@@ -1,10 +1,3 @@
-const ConfigSchemaValidator = require('../../utils/ConfigSchemaValidator');
-const TemplateNotFoundError = require('../errors/TemplateNotFoundError');
-const InputValidationError = require('../errors/InputValidationError');
-
-/**
- * Service constants for constraints
- */
 const DEFAULT_MAX_SEGMENTS = 5;
 const TEMPLATE_KEY_FIELD = 'template_key';
 
@@ -18,66 +11,94 @@ const TEMPLATE_KEY_FIELD = 'template_key';
  */
 
 /**
- * Service responsible for validating SMS template configurations 
+ * Kernel responsible for validating SMS template configurations 
  * against a schema and runtime input data against template requirements.
- *
- * Assumes dependencies handle content interpolation implicitly (e.g., segmentCalculator
- * will substitute variables before counting segments).
  */
-class TemplateValidationService {
+class TemplateValidationKernel {
+  
+  // Private internal state
+  #configIntegrityKernel;
+  #segmentCalculatorTool;
+  #templates; // Map<string, SmsTemplate>
+  #TemplateNotFoundErrorClass;
+  #InputValidationErrorClass;
+
+  static DEFAULT_MAX_SEGMENTS = DEFAULT_MAX_SEGMENTS;
+  static TEMPLATE_KEY_FIELD = TEMPLATE_KEY_FIELD;
+
   /**
    * @param {Object} dependencies 
-   * @param {Object} dependencies.validator - JSON Schema validator instance (e.g., AJV, must support .validate(schema, data) and .errors).
-   * @param {Function} [dependencies.segmentCalculator] - Utility function: ({ content, data, encoding }) => number
-   * @param {Object} schemaConfig - The master configuration schema for templates.
-   * @param {SmsTemplate[]} messageTemplates - Array of template objects.
+   * @param {ConfigurationIntegrityKernel} dependencies.configIntegrityKernel
+   * @param {SmsSegmentCalculatorToolKernel} [dependencies.segmentCalculatorTool]
+   * @param {Function} dependencies.TemplateNotFoundErrorClass - Constructor for TemplateNotFoundError
+   * @param {Function} dependencies.InputValidationErrorClass - Constructor for InputValidationError
+   * @param {Object} config 
+   * @param {SmsTemplate[]} config.messageTemplates - Array of template objects.
    */
-  constructor({ validator, segmentCalculator }, schemaConfig, messageTemplates) {
-    
-    // Abstracting schema validation boilerplate using the ConfigSchemaValidator plugin
-    this.configValidator = new ConfigSchemaValidator(
-        validator,
-        schemaConfig,
-        "SMS Template Configuration"
-    );
-    
-    this.calculateSegments = segmentCalculator || null; 
-
-    if (messageTemplates.some(t => !t || !t[TEMPLATE_KEY_FIELD])) {
-         throw new Error(`All templates must define a non-null '${TEMPLATE_KEY_FIELD}' property.`);
-    }
-
-    /** @type {Map<string, SmsTemplate>} */
-    this.templates = new Map(messageTemplates.map(t => [t[TEMPLATE_KEY_FIELD], t]));
+  constructor(dependencies, config) {
+    this.#setupDependencies(dependencies, config);
   }
 
   /**
-   * Validates runtime input data against required variables and segment limits.
-   * @param {string} templateKey - The key of the SMS template.
-   * @param {Object} inputData - Runtime data for substitution.
-   * @returns {void} Throws an error on failure.
-   * @throws {TemplateNotFoundError} If template key is invalid.
-   * @throws {InputValidationError} If data is missing variables or exceeds limits.
+   * Rigorously validates and assigns all required dependencies and configuration.
+   * @private
    */
-  validateRuntimeData(templateKey, inputData) {
-    const template = this.templates.get(templateKey);
+  #setupDependencies(dependencies, config) {
+    if (!dependencies.configIntegrityKernel) {
+         throw new Error('Dependency Error: ConfigurationIntegrityKernel is required.');
+    }
+    if (!dependencies.TemplateNotFoundErrorClass || !dependencies.InputValidationErrorClass) {
+         throw new Error('Dependency Error: Error classes (TemplateNotFoundErrorClass, InputValidationErrorClass) are required.');
+    }
+    if (!config || !config.messageTemplates) {
+         throw new Error('Configuration Error: config.messageTemplates array is required.');
+    }
+
+    this.#configIntegrityKernel = dependencies.configIntegrityKernel;
+    this.#segmentCalculatorTool = dependencies.segmentCalculatorTool || null; 
+    this.#TemplateNotFoundErrorClass = dependencies.TemplateNotFoundErrorClass;
+    this.#InputValidationErrorClass = dependencies.InputValidationErrorClass;
+    
+    const messageTemplates = config.messageTemplates;
+    const KEY_FIELD = TemplateValidationKernel.TEMPLATE_KEY_FIELD;
+
+    if (messageTemplates.some(t => !t || !t[KEY_FIELD])) {
+         throw new Error(`Setup Validation Error: All templates must define a non-null '${KEY_FIELD}' property.`);
+    }
+
+    this.#templates = new Map(messageTemplates.map(t => [t[KEY_FIELD], t]));
+  }
+
+  // --- I/O Proxy Methods ---
+
+  /**
+   * Delegates configuration validation to the injected ConfigurationIntegrityKernel.
+   * @private
+   */
+  #delegateToConfigIntegrityCheck(config) {
+    // Assuming ConfigurationIntegrityKernel is pre-configured to handle the SMS schema context.
+    this.#configIntegrityKernel.validateConfiguration(config);
+    return true;
+  }
+  
+  /**
+   * Looks up a template and throws a structured error if not found.
+   * @private
+   */
+  #delegateToTemplateLookup(templateKey) {
+    const template = this.#templates.get(templateKey);
     
     if (!template) {
-      throw new TemplateNotFoundError(`Template not found: ${templateKey}`);
+      throw new this.#TemplateNotFoundErrorClass(`Template not found: ${templateKey}`);
     }
-
-    this._checkRequiredVariables(template, templateKey, inputData);
-    this._checkMessageConstraints(template, templateKey, inputData);
+    return template;
   }
 
   /**
-   * Internal helper to check for missing required variables.
-   * @param {SmsTemplate} template
-   * @param {string} templateKey
-   * @param {Object} inputData
-   * @throws {InputValidationError}
+   * Checks for missing required variables and throws a structured error if variables are missing.
+   * @private
    */
-  _checkRequiredVariables(template, templateKey, inputData) {
+  #delegateToCheckRequiredVariables(template, templateKey, inputData) {
     const inputIsObject = inputData !== null && typeof inputData === 'object';
     
     const missingVars = (template.required_variables || []).filter(
@@ -85,56 +106,74 @@ class TemplateValidationService {
     );
 
     if (missingVars.length > 0) {
-      throw new InputValidationError(
+      throw new this.#InputValidationErrorClass(
         `Missing required variables for template ${templateKey}: ${missingVars.join(', ')}`
       );
     }
   }
 
   /**
-   * Internal helper to check message constraints (segments).
-   * @param {SmsTemplate} template
-   * @param {string} templateKey
-   * @param {Object} inputData
-   * @throws {InputValidationError}
+   * Delegates segment calculation to the injected tool.
+   * @private
    */
-  _checkMessageConstraints(template, templateKey, inputData) {
-    if (!this.calculateSegments) {
-        // Cannot check segments without the dependency.
-        return; 
+  #delegateToSegmentCalculator(template, inputData) {
+    if (!this.#segmentCalculatorTool) {
+        return null; 
     }
     
-    // --- Segment Check ---
-
-    const segments = this.calculateSegments({
+    return this.#segmentCalculatorTool.calculateSegments({
         content: template.content,
-        data: inputData, // Data passed for internal interpolation
+        data: inputData, 
         encoding: template.encoding
     });
+  }
 
-    // Use constant for default limit and check for explicit 'undefined'
+  /**
+   * Checks message segment constraints and throws a structured error if limits are exceeded.
+   * @private
+   */
+  #delegateToCheckMessageConstraints(template, templateKey, inputData) {
+    const segments = this.#delegateToSegmentCalculator(template, inputData);
+
+    if (segments === null) {
+        return; // Segment calculator dependency was not provided
+    }
+    
     const maxSegments = template.max_segments !== undefined 
         ? template.max_segments 
-        : DEFAULT_MAX_SEGMENTS; 
+        : TemplateValidationKernel.DEFAULT_MAX_SEGMENTS; 
 
     if (segments > maxSegments) {
-        throw new InputValidationError(
+        throw new this.#InputValidationErrorClass(
             `Message for template ${templateKey} exceeds maximum segment limit (${segments}/${maxSegments}).`
         );
     }
   }
 
+  // --- Public Interface ---
+
+  /**
+   * Validates runtime input data against required variables and segment limits.
+   * @param {string} templateKey - The key of the SMS template.
+   * @param {Object} inputData - Runtime data for substitution.
+   * @returns {void} Throws an error on failure.
+   */
+  validateRuntimeData(templateKey, inputData) {
+    const template = this.#delegateToTemplateLookup(templateKey);
+    
+    this.#delegateToCheckRequiredVariables(template, templateKey, inputData);
+    this.#delegateToCheckMessageConstraints(template, templateKey, inputData);
+  }
+
   /**
    * Validates the configuration data itself against the master JSON schema.
-   * This should typically run during system initialization/config load.
    * @param {Object} config - The SMS configuration object being validated.
    * @returns {boolean} True if validation passes.
    * @throws {Error} If configuration validation fails.
    */
   validateSchemaIntegrity(config) {
-    this.configValidator.validateIntegrity(config);
-    return true;
+    return this.#delegateToConfigIntegrityCheck(config);
   }
 }
 
-module.exports = TemplateValidationService;
+module.exports = TemplateValidationKernel;
