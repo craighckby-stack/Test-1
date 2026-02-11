@@ -6,30 +6,60 @@
  * It utilizes the TemplateDefinitionCompiler plugin for $ref resolution and template merging.
  */
 
-// Dependencies
-// We use 'require' here to abstract the dependency injection of the InternalReferenceResolverTool
-// based on standard Node.js module loading for compatibility with the original module structure.
-const InternalReferenceResolverTool = require('InternalReferenceResolverTool'); 
-// Assuming TemplateDefinitionCompiler is available via module loading in the refactored environment
-const TemplateDefinitionCompiler = require('TemplateDefinitionCompiler'); 
+// Dependencies are now injected via the constructor.
 
 class SchemaResolver {
-  // TypeScript allowed in new_code
   private schema: any;
   private templates: any;
   private metadata: any;
-  private resolver: typeof InternalReferenceResolverTool;
+  private resolver: any; // IInternalReferenceResolverTool
+  private compiler: any; // ITemplateDefinitionCompiler
 
-  constructor(schemaData) {
+  constructor(
+    schemaData: any,
+    resolverTool: any, // IInternalReferenceResolverTool
+    compilerTool: any  // ITemplateDefinitionCompiler
+  ) {
+    this.#setupDependencies(resolverTool, compilerTool);
+    this.#initializeConfiguration(schemaData);
+  }
+
+  /**
+   * Extracts dependency resolution and validation, enforcing dependency encapsulation.
+   */
+  #setupDependencies(
+    resolverTool: any,
+    compilerTool: any
+  ): void {
+    // Validate tool availability (simulated injection)
+    if (typeof resolverTool?.resolve !== 'function') {
+        throw new Error("InternalReferenceResolverTool not correctly initialized or available.");
+    }
+    this.resolver = resolverTool;
+    this.compiler = compilerTool;
+  }
+
+  /**
+   * Extracts synchronous data assignment and configuration.
+   */
+  #initializeConfiguration(schemaData: any): void {
     this.schema = schemaData;
     this.templates = schemaData.FieldTemplates;
     this.metadata = schemaData.Metadata;
+  }
 
-    // Validate tool availability (simulated injection)
-    if (typeof InternalReferenceResolverTool.resolve !== 'function') {
-        throw new Error("InternalReferenceResolverTool not correctly initialized or available.");
-    }
-    this.resolver = InternalReferenceResolverTool;
+  /**
+   * Proxy function to isolate interaction with the TemplateDefinitionCompiler tool.
+   * This strictly enforces architectural separation by creating an I/O proxy.
+   * @param {object} field - The field definition to compile.
+   * @returns {object} The resolved and merged field definition.
+   */
+  #delegateToCompilerResolution(field: any): any {
+    return this.compiler.resolveAndMerge(
+        field, 
+        this.resolver, 
+        this.schema
+    );
   }
 
   /**
@@ -38,7 +68,7 @@ class SchemaResolver {
    * @param {string} definitionKey - The key of the definition to compile.
    * @returns {object} The compiled definition object.
    */
-  compileDefinition(definitionKey) {
+  compileDefinition(definitionKey: string): any {
     const definition = this.schema.Definitions[definitionKey];
     if (!definition) {
       throw new Error(`Definition not found: ${definitionKey}`);
@@ -49,12 +79,8 @@ class SchemaResolver {
     for (const fieldName in definition.fields) {
       let field = definition.fields[fieldName];
       
-      // Use the abstracted plugin for reference resolution and template merging
-      field = TemplateDefinitionCompiler.resolveAndMerge(
-        field, 
-        this.resolver, 
-        this.schema
-      );
+      // Use the I/O proxy for resolution and merging
+      field = this.#delegateToCompilerResolution(field);
 
       // Apply global metadata constraints if necessary (future extension)
 
@@ -68,13 +94,11 @@ class SchemaResolver {
     };
   }
 
-  getCompiledSchema(definitionKey) {
+  getCompiledSchema(definitionKey: string): any {
     return this.compileDefinition(definitionKey);
   }
 
-  getSystemMetadata() {
+  getSystemMetadata(): any {
     return this.metadata;
   }
 }
-
-module.exports = SchemaResolver;
