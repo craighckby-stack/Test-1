@@ -1,60 +1,91 @@
 /**
- * ConfigurationService
- * Handles loading, merging, and retrieving application configuration.
- * Priorities: Defaults -> Environment Variables
+ * ConfigurationServiceKernel
+ * Handles loading, merging, and retrieving application configuration using Dependency Injection.
+ * Priorities: Defaults (Registry) -> Environment Variables (Decoder)
  */
-class ConfigurationService {
-    // Define static defaults for core settings
-    static defaults = {
-        PORT: 8080,
-        LOG_LEVEL: 'info', // debug, info, warn, error
-        MAX_CONTEXT_TOKENS: 4096,
-        API_KEY_ENV_VAR: 'AGI_API_KEY',
-        ENABLE_TELEMETRY: true,
-        SERVICE_TIMEOUT_MS: 15000
-    };
+class ConfigurationServiceKernel {
+    #config;
+    #defaultsRegistry;
+    #envDecoder;
+    #mergeTool;
+    #logger;
 
-    constructor() {
-        if (ConfigurationService.instance) {
-            return ConfigurationService.instance;
-        }
+    /**
+     * @param {IConfigurationDefaultsRegistryKernel} defaultsRegistry
+     * @param {IEnvironmentTypeDecoderInterfaceKernel} envDecoder
+     * @param {IConfigurationDeepMergeToolKernel} mergeTool
+     * @param {ILoggerToolKernel} logger
+     */
+    constructor(defaultsRegistry, envDecoder, mergeTool, logger) {
+        this.#defaultsRegistry = defaultsRegistry;
+        this.#envDecoder = envDecoder;
+        this.#mergeTool = mergeTool;
+        this.#logger = logger;
 
-        this.config = { ...ConfigurationService.defaults };
-        this._loadEnvironmentVariables();
-        
-        ConfigurationService.instance = this;
+        // Rigorously enforce synchronous setup extraction
+        this.#setupDependencies();
     }
 
     /**
-     * Overrides default configuration using environment variables, ensuring proper type casting.
+     * Isolates configuration loading and merging logic.
      * @private
      */
-    _loadEnvironmentVariables() {
-        const env = process.env;
+    #setupDependencies() {
+        const defaults = this.#defaultsRegistry.getDefaults();
+        
+        // Start configuration with defaults
+        let baseConfig = { ...defaults }; 
+        
+        // Load environment overrides using the decoder
+        const envOverrides = this.#loadEnvironmentVariables(defaults);
 
+        // Merge environment overrides onto base config using the injected tool
+        // We assume the merge tool handles cloning to maintain safety, but simple shallow copy is sufficient here.
+        this.#config = this.#mergeTool.deepMerge(baseConfig, envOverrides); 
+    }
+
+    /**
+     * Loads configuration overrides from the environment, using defaults for type guidance.
+     * @private
+     * @param {object} defaults - The registered defaults dictionary for type guidance.
+     * @returns {object} The extracted and type-cast environment overrides.
+     */
+    #loadEnvironmentVariables(defaults) {
+        // Access environment variables via the injected decoder tool
+        const env = this.#envDecoder.getEnvironment(); 
+        const overrides = {};
+        
         // Helper for parsing integers
         const parseInteger = (key, fallback) => {
-            const value = parseInt(env[key], 10);
-            return isNaN(value) ? fallback : value;
+            const value = env[key];
+            if (value === undefined) return undefined;
+            const parsed = parseInt(String(value), 10);
+            return isNaN(parsed) ? fallback : parsed;
         };
 
         // Numeric overrides
-        this.config.PORT = parseInteger('PORT', this.config.PORT);
-        this.config.MAX_CONTEXT_TOKENS = parseInteger('MAX_CONTEXT_TOKENS', this.config.MAX_CONTEXT_TOKENS);
-        this.config.SERVICE_TIMEOUT_MS = parseInteger('SERVICE_TIMEOUT_MS', this.config.SERVICE_TIMEOUT_MS);
+        ['PORT', 'MAX_CONTEXT_TOKENS', 'SERVICE_TIMEOUT_MS'].forEach(key => {
+            const value = parseInteger(key, defaults[key]);
+            // Only include the override if it differs from the default (and was successfully parsed)
+            if (value !== undefined && value !== defaults[key]) {
+                overrides[key] = value;
+            }
+        });
 
         // String overrides
-        if (env.LOG_LEVEL) {
-            this.config.LOG_LEVEL = env.LOG_LEVEL.toLowerCase();
+        if (env.LOG_LEVEL !== undefined) {
+            overrides.LOG_LEVEL = String(env.LOG_LEVEL).toLowerCase();
         }
-        if (env.API_KEY_ENV_VAR) {
-            this.config.API_KEY_ENV_VAR = env.API_KEY_ENV_VAR;
+        if (env.API_KEY_ENV_VAR !== undefined) {
+            overrides.API_KEY_ENV_VAR = String(env.API_KEY_ENV_VAR);
         }
 
-        // Boolean overrides (Handles 'true'/'false' strings)
+        // Boolean overrides
         if (env.ENABLE_TELEMETRY !== undefined) {
-             this.config.ENABLE_TELEMETRY = String(env.ENABLE_TELEMETRY).toLowerCase() === 'true';
+             overrides.ENABLE_TELEMETRY = String(env.ENABLE_TELEMETRY).toLowerCase() === 'true';
         }
+        
+        return overrides;
     }
 
     /**
@@ -63,22 +94,22 @@ class ConfigurationService {
      * @returns {any}
      */
     get(key) {
-        const value = this.config[key];
+        const value = this.#config[key];
         if (value === undefined) {
-            // Use a warn for unknown access, but return undefined if missing
-            console.warn(`[ConfigurationService] Accessing unknown key: ${key}`);
+            // Use injected logger instead of console.warn
+            this.#logger.warn(`[ConfigurationServiceKernel] Accessing unknown key: ${key}`);
         }
         return value;
     }
 
     /**
-     * Sets a configuration value at runtime (useful for testing or dynamic config).
+     * Sets a configuration value at runtime (maintaining original service capability).
      * @param {string} key
      * @param {any} value
      */
     set(key, value) {
-        this.config[key] = value;
+        this.#config[key] = value;
     }
 }
 
-module.exports = new ConfigurationService();
+module.exports = ConfigurationServiceKernel;
