@@ -33,22 +33,32 @@ class DynamicToleranceAdapter {
      * @returns Proposed margin adjustment object.
      */
     calculateDynamicFactor(metric_key: string, sensor_data: Map<string, number>): object {
-        // Retrieve baseline configuration
-        const policyConfig = this.config.governance_gates[metric_key]?.policy;
-        
+        // Retrieve full configuration for the specific gate
+        const gateConfig = this.config.governance_gates?.[metric_key];
+        const policyConfig = gateConfig?.policy;
+
         if (!policyConfig) {
             console.warn(`DTA: Metric key ${metric_key} missing policy configuration.`);
             return { metric_key, proposed_margin: null, adjustment_factor: 1.0, adaptation_reason: "Configuration missing" };
         }
 
-        let current_margin = policyConfig.baseline_tolerance_margin;
+        const current_margin = policyConfig.baseline_tolerance_margin;
         
-        // Retrieve dynamic input
+        // Retrieve dynamic input (currently hardcoded to system volatility)
         const volatility_index = sensor_data.get('system_volatility') || 0;
         
-        // Define specific parameters for this adjustment heuristic
-        const adjustmentParams = { indexWeight: 0.1, baseFactor: 1.0 };
+        // Define specific parameters for this adjustment heuristic, prioritizing configuration values.
+        const adjustmentParams = policyConfig.dynamic_factors?.heuristic_params || {
+            indexWeight: 0.1, 
+            baseFactor: 1.0 
+        };
         
+        // Ensure the current margin is valid before passing to the tool
+        if (typeof current_margin !== 'number' || isNaN(current_margin)) {
+             console.warn(`DTA: Metric ${metric_key} has invalid baseline tolerance margin: ${current_margin}.`);
+             return { metric_key, proposed_margin: null, adjustment_factor: 1.0, adaptation_reason: "Invalid baseline margin" };
+        }
+
         const calculationResult = this.dfhdTool.calculate(
             current_margin, 
             volatility_index, 
@@ -64,15 +74,34 @@ class DynamicToleranceAdapter {
         };
     }
 
+    /**
+     * Generates a comprehensive proposal by calculating dynamic factors for all configured governance gates.
+     * @param system_state Current sensor state map.
+     * @returns Adaptation proposal containing a list of adjustments.
+     */
     generateAdaptationProposal(system_state: Map<string, number>): object {
-        // Note: The specific metrics ('SystemicRiskExposure', 'PerformanceEfficacy') are hardcoded, 
-        // suggesting this adapter specifically targets these two system aspects.
-        const risk_adjustment = this.calculateDynamicFactor('SystemicRiskExposure', system_state);
-        const efficacy_adjustment = this.calculateDynamicFactor('PerformanceEfficacy', system_state);
+        const proposals = [];
+        const governance_gates = this.config.governance_gates || {};
+        
+        // Strategic Improvement: Iterate over all configured governance gates for full coverage.
+        const gateKeys = Object.keys(governance_gates);
+
+        if (gateKeys.length === 0) {
+            console.warn("DTA: No governance gates defined in configuration for adaptation proposal.");
+        }
+
+        for (const metric_key of gateKeys) {
+            const adjustment = this.calculateDynamicFactor(metric_key, system_state);
+            
+            // Only include proposals that resulted in a successful margin calculation
+            if (adjustment.proposed_margin !== null) {
+                proposals.push(adjustment);
+            }
+        }
         
         return {
             'adaptation_id': `DTA_PROP_${Date.now()}`,
-            'proposals': [risk_adjustment, efficacy_adjustment]
+            'proposals': proposals
         };
     }
 }
