@@ -3,7 +3,6 @@
  * Function: Provides robust, declarative validation for internal data structures 
  *           (e.g., M01 Intents, Configuration Blocks) by delegating to the core constraint engine.
  */
-
 interface SchemaDefinition {
     required?: boolean;
     type?: 'string' | 'number' | 'boolean' | 'object' | 'array';
@@ -39,9 +38,6 @@ class SchemaValidator {
      */
     validate(data: any, schema: Record<string, SchemaDefinition>): ValidationResult {
         
-        // In a live AGI kernel environment, this would resolve to the injected tool:
-        // const validatorTool = AGI_KERNEL.getTool('DeclarativeConstraintValidator');
-        
         // Simulate tool execution access via a conceptual global registry for demonstration.
         const validatorTool: IConstraintValidatorTool = globalThis.AGI_TOOL_REGISTRY?.DeclarativeConstraintValidator;
 
@@ -50,10 +46,15 @@ class SchemaValidator {
             return validatorTool.execute({ data, schema });
         }
 
-        // Critical fallback: If the tool is missing, validation is technically bypassed, 
-        // but this indicates a setup failure in the kernel environment.
-        console.error("DeclarativeConstraintValidator tool not found. Integrity risk mitigated by default pass.");
-        return { isValid: true, errors: [] };
+        // CRITICAL INTEGRITY POLICY CHANGE:
+        // If the validation tool is missing, validation MUST NOT be bypassed (default pass).
+        // This indicates a severe kernel initialization failure. We must Fail-Fast.
+        const errorMsg = "CRITICAL KERNEL INTEGRITY FAILURE: Required tool 'DeclarativeConstraintValidator' not found. Validation bypassed, integrity cannot be guaranteed.";
+        
+        console.error(errorMsg);
+
+        // Throw an exception to immediately halt processing and signal the unrecoverable configuration error.
+        throw new Error(errorMsg);
     }
 }
 
