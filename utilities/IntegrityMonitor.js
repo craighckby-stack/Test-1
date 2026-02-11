@@ -36,11 +36,26 @@ export function calculateArtifactHash(data) {
  * @returns {boolean} True if hashes match, false otherwise.
  */
 export function validateTedsIntegrity(recordedHash, artifact) {
-  const calculatedHash = calculateArtifactHash(artifact);
-  return recordedHash.toLowerCase() === calculatedHash;
+  // Hash calculation is assumed to produce the canonical (lowercase) form.
+  const canonicalCalculatedHash = calculateArtifactHash(artifact);
+  
+  // Normalize the potentially mixed-case recorded hash for robust, case-insensitive comparison.
+  const normalizedRecordedHash = recordedHash.toLowerCase();
+  
+  return normalizedRecordedHash === canonicalCalculatedHash;
 }
 
-// Placeholder export for cross-stage comparison logic (S03 Input vs S05 Output)
+/**
+ * Compares two artifact hashes from different stages, ensuring case insensitivity.
+ * @param {string} hashA 
+ * @param {string} hashB 
+ * @returns {boolean} True if hashes match.
+ */
 export function compareStageArtifacts(hashA, hashB) {
-  return hashA.toLowerCase() === hashB.toLowerCase();
+  // Normalize both hashes to the canonical (lowercase) standard before comparison
+  // to guarantee cross-stage integrity check reliability.
+  const canonicalA = hashA.toLowerCase();
+  const canonicalB = hashB.toLowerCase();
+  
+  return canonicalA === canonicalB;
 }
