@@ -1,23 +1,32 @@
+import { RulePrioritizationService } from './RulePrioritizationService'; // Assuming local import path
+
 /**
  * Manages the resolution process for deviations by prioritizing and executing
  * mandated actions based on defined rules, incorporating memoization and delegated scoring.
- *
- * Note: Assumes dependency injection of CriteriaEvaluatorUtility, WeightedScorerUtility,
- * CapacityLimitedCacheUtility, and CanonicalHashingTool.
+ * 
+ * This engine focuses primarily on caching and key management, delegating the 
+ * heavy lifting of rule evaluation and scoring to the RulePrioritizationService.
  */
 class DeviationResolutionEngine {
     
-    // Dependencies injected via constructor or assumed global scope access
+    // Dependencies injected via constructor 
     constructor(dependencies) {
-        this.criteriaEvaluator = dependencies.CriteriaEvaluatorUtility;
-        this.weightedScorer = dependencies.WeightedScorerUtility;
-        // Utilize existing high-efficiency cache for result memoization
+        
+        // Ensure core dependencies are present (used by the engine or the service)
+        if (!dependencies.CriteriaEvaluatorUtility || !dependencies.WeightedScorerUtility || 
+            !dependencies.CapacityLimitedCacheUtility || !dependencies.CanonicalHashingTool) {
+            throw new Error("DeviationResolutionEngine requires essential utilities (CriteriaEvaluatorUtility, WeightedScorerUtility, CapacityLimitedCacheUtility, CanonicalHashingTool).");
+        }
+        
+        // 1. Core Utilities for Caching/Hashing
         this.cache = dependencies.CapacityLimitedCacheUtility.getCache('DeviationResolutionResults');
         this.hasher = dependencies.CanonicalHashingTool;
         
-        if (!this.criteriaEvaluator || !this.weightedScorer || !this.cache || !this.hasher) {
-            throw new Error("DeviationResolutionEngine requires essential utilities (CriteriaEvaluatorUtility, WeightedScorerUtility, CapacityLimitedCacheUtility, CanonicalHashingTool).");
-        }
+        // 2. Specialized Service for Prioritization (Abstraction of core logic)
+        this.rulePrioritizer = new RulePrioritizationService(
+            dependencies.CriteriaEvaluatorUtility,
+            dependencies.WeightedScorerUtility
+        );
     }
 
     /**
@@ -65,31 +74,9 @@ class DeviationResolutionEngine {
             return cachedResult;
         }
 
-        let bestMatch = null;
-        let maxMagnitude = -Infinity;
-
-        // 2. Rule Evaluation and Prioritization
-        for (const rule of resolutionRules) {
-            // Delegate complex multi-criteria matching to the dedicated utility
-            const isMatch = this.criteriaEvaluator.execute(rule, incidentContext);
-            
-            if (isMatch) {
-                // Delegate weighted scoring for priority determination
-                const magnitude = this.weightedScorer.calculateScore(rule.weights || {}, incidentContext);
-
-                if (magnitude > maxMagnitude) {
-                    maxMagnitude = magnitude;
-                    bestMatch = {
-                        action: rule.resolutionAction,
-                        magnitude: magnitude,
-                        ruleId: rule.ruleId
-                    };
-                }
-            }
-        }
+        // 2. Delegate Rule Evaluation and Prioritization
+        const finalResult = this.rulePrioritizer.findBestMatch(resolutionRules, incidentContext);
         
-        const finalResult = bestMatch || { action: 'NO_ACTION_REQUIRED', magnitude: 0 };
-
         // 3. Cache the result
         this.cache.set(cacheKey, finalResult);
 
