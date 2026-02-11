@@ -12,7 +12,7 @@ const {
  * Orchestrates the lifecycle of an ArtifactStructuralDefinition:
  * Dependency resolution, hook execution, generation, and structural validation.
  *
- * Refactor V94.3: Strict encapsulation enforced via private class fields (#).
+ * Refactor V94.4: Strict encapsulation, synchronous setup extraction, and I/O proxy creation enforced.
  */
 class ArtifactProcessor {
   // Core configuration and state (private)
@@ -46,22 +46,59 @@ class ArtifactProcessor {
       throw new ArtifactBaseError(`Processor initialization failed: Missing required services: ${missing.join(', ')}.`);
     }
 
-    // 1. Assign configuration
-    this.#definition = definition;
-    this.#artifactId = definition.id || 'N/A';
+    // 1. Dependency Assignment
+    this.#setupDependencies(services);
+    
+    // 2. Synchronous Configuration and Logger Setup
+    this.#initializeConfiguration(definition, services);
+  }
 
-    // 2. Initialize logger (maintaining existing ContextualLogger initialization pattern)
-    const BaseLogger = services.logger || console;
-    // Assumes ContextualLogger is available in scope
-    this.#logger = new ContextualLogger(`ArtifactProcessor:${this.#artifactId}`, BaseLogger);
-
-    // 3. Assign dependencies
+  /**
+   * Isolates dependency assignment and default handling.
+   * @param {Object} services
+   */
+  #setupDependencies(services) {
     this.#validator = services.validator;
     // Standardize defaults to no-op methods returning expected structures
     this.#resolver = services.resolver || { resolve: async () => ({ inputs: {} }) };
     this.#hookExecutor = services.hookExecutor || { execute: async () => {} };
     this.#generator = services.generator;
   }
+
+  /**
+   * Isolates synchronous configuration definition and logger initialization.
+   * @param {ArtifactStructuralDefinition} definition
+   * @param {Object} services
+   */
+  #initializeConfiguration(definition, services) {
+    this.#definition = definition;
+    this.#artifactId = definition.id || 'N/A';
+
+    // Initialize logger (maintaining existing ContextualLogger initialization pattern)
+    const BaseLogger = services.logger || console;
+    // Assumes ContextualLogger is available in scope
+    this.#logger = new ContextualLogger(`ArtifactProcessor:${this.#artifactId}`, BaseLogger);
+  }
+
+  // --- I/O Proxy Functions ---
+
+  async #delegateToHookExecutor(hookRef, context) {
+    return this.#hookExecutor.execute(hookRef, context);
+  }
+
+  async #delegateToDependencyResolver(dependencyList) {
+    return this.#resolver.resolve(dependencyList);
+  }
+
+  async #delegateToArtifactValidator(structure, runtimeArtifact) {
+    return this.#validator.validate(structure, runtimeArtifact);
+  }
+
+  async #delegateToCodeGenerator(generatorRef, generationPayload) {
+    return this.#generator.run(generatorRef, generationPayload);
+  }
+
+  // --- Orchestration Steps ---
 
   /**
    * Executes a named pipeline hook defined in the artifact definition.
@@ -71,7 +108,7 @@ class ArtifactProcessor {
     if (hookRef) {
       this.#logger.info(`Executing hook: ${hookName}`);
       try {
-        await this.#hookExecutor.execute(hookRef, context);
+        await this.#delegateToHookExecutor(hookRef, context);
       } catch (error) {
         this.#logger.error(`Failed to execute hook ${hookName}.`, error);
         // Throw structured hook error, allowing strict management of pipeline flow.
@@ -87,7 +124,7 @@ class ArtifactProcessor {
     this.#logger.info(`Resolving dependencies.`);
     const dependencyList = this.#definition.dependencies || [];
     try {
-        return await this.#resolver.resolve(dependencyList);
+        return await this.#delegateToDependencyResolver(dependencyList);
     } catch (error) {
         this.#logger.error(`Dependency resolution failed for artifact ${this.#artifactId}.`, error);
         throw new ResolutionError(`Dependency resolution failed.`, dependencyList);
@@ -99,7 +136,7 @@ class ArtifactProcessor {
    */
   async #stepValidate(runtimeArtifact) {
     this.#logger.info('Starting structural validation.');
-    return this.#validator.validate(this.#definition.structure, runtimeArtifact);
+    return this.#delegateToArtifactValidator(this.#definition.structure, runtimeArtifact);
   }
 
 
@@ -132,7 +169,7 @@ class ArtifactProcessor {
             inputs: context.inputs
         };
 
-        context.generatedArtifact = await this.#generator.run(
+        context.generatedArtifact = await this.#delegateToCodeGenerator(
             this.#definition.pipeline.generatorRef,
             generationPayload
         );
