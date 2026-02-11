@@ -54,6 +54,7 @@ class SystemStateVerifier {
         }
 
         // 2. Perform internal hash validation (Data integrity check)
+        // NOTE: The hash validation should precede signature verification for efficiency, as hashing is cheaper.
         const calculatedHash = this._calculateDataHash(bundle.data);
 
         if (calculatedHash !== bundle.attestedHash) {
@@ -61,6 +62,8 @@ class SystemStateVerifier {
         }
         
         // 3. Verify external signature (Authenticity check using cryptographic key store)
+        // Standard security practice often involves signing the attestedHash, not the raw data, 
+        // but we follow the defined interface using bundle.data as the message.
         const isValidSignature = this.crypto.verifySignature(bundle.data, bundle.signature, attestationKeyId);
         
         if (!isValidSignature) {
@@ -78,27 +81,24 @@ class SystemStateVerifier {
 
     /**
      * Retrieves the last attested hash for a specific artifact version from the internal cache or ledger.
-     * Used by GRS for runtime comparison or system monitoring.
+     * Crucially, this ensures the artifact has passed full integrity and authenticity checks 
+     * before returning its hash. The SSV guarantees that any returned hash is cryptographically verified.
      * @param {string} artifactId 
      * @returns {Promise<string>} The verified hash string.
+     * @throws {Error} If verification fails or the manifest cannot be loaded.
      */
     async getArtifactHash(artifactId) {
         if (this.cache.has(artifactId)) {
             return this.cache.get(artifactId).hash;
         }
         
-        // Fallback: Try fetching the full manifest to ensure verification before returning hash.
-        try {
-            await this.getVerifiedManifest(artifactId);
-            return this.cache.get(artifactId).hash;
-        } catch (error) {
-            // If manifest loading fails, attempt a direct metadata lookup on the ledger.
-            if (this.ledger.getAttestedHash) {
-                 return this.ledger.getAttestedHash(artifactId);
-            } else {
-                throw new Error(`SSV Error: Artifact ${artifactId} not verified and ledger does not support direct hash lookup.`);
-            }
-        }
+        // Force full verification (fetch, hash check, signature check) via getVerifiedManifest.
+        // If getVerifiedManifest fails (due to integrity, authenticity, or not found errors),
+        // the error propagates immediately, upholding the SSV's security contract.
+        await this.getVerifiedManifest(artifactId); 
+        
+        // Since getVerifiedManifest populates the cache upon success, we can safely retrieve the hash now.
+        return this.cache.get(artifactId).hash;
     }
 }
 
