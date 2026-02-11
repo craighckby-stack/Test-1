@@ -6,38 +6,8 @@ import {
     RemediationService,
     AuditStatus,
     CheckSeverity,
-} from './governance.interfaces'; // Import scaffolded types
-
-/**
- * Utility function that simulates the execution of the AuditActionExtractor plugin.
- * Extracts required mitigation actions from checks that failed but were not critical.
- */
-function extractConditionalActions(
-    gatingChecks: GatingIntegrityAuditReport['gatingChecks'],
-    FAIL_STATUS: AuditStatus,
-    CRITICAL_SEVERITY: CheckSeverity
-): string[] {
-    
-    const requiredActions: string[] = [];
-
-    for (const check of gatingChecks) {
-        // Criteria for conditional actions:
-        // 1. Status is FAIL
-        // 2. Severity is NOT CRITICAL (if critical, it would be a full FAIL status)
-        // 3. actionRequired exists and has content
-        if (
-            check.status === FAIL_STATUS &&
-            check.severity !== CRITICAL_SEVERITY &&
-            Array.isArray(check.actionRequired) &&
-            check.actionRequired.length > 0
-        ) {
-            requiredActions.push(...check.actionRequired);
-        }
-    }
-
-    // Deduplication
-    return Array.from(new Set(requiredActions));
-}
+    AuditActionExtractor
+} from './governance.interfaces'; // Import scaffolded types and the new AuditActionExtractor interface
 
 /**
  * GateDecisionHandler
@@ -50,17 +20,20 @@ export class GateDecisionHandler {
     private alertingService: AlertingService;
     private logger: Logger;
     private remediationService: RemediationService;
+    private actionExtractor: AuditActionExtractor; // Dependency Injection for logic extraction
 
     constructor(
         policyEngine: PolicyEngine,
         alertingService: AlertingService,
         logger: Logger,
-        remediationService: RemediationService
+        remediationService: RemediationService,
+        actionExtractor: AuditActionExtractor // Inject the logic extractor
     ) {
         this.policyEngine = policyEngine;
         this.alertingService = alertingService;
         this.logger = logger;
         this.remediationService = remediationService;
+        this.actionExtractor = actionExtractor;
     }
 
     /**
@@ -127,8 +100,8 @@ export class GateDecisionHandler {
     private async handleConditionalPass(report: GatingIntegrityAuditReport): Promise<void> {
         const entityId = report.entity.identifier;
         
-        // Use the extracted utility logic (simulating the plugin call) to gather required actions
-        const requiredActions = extractConditionalActions(
+        // Use the injected action extractor plugin to gather required actions
+        const requiredActions = this.actionExtractor.extractConditionalActions(
             report.gatingChecks,
             AuditStatus.FAIL,
             CheckSeverity.CRITICAL
