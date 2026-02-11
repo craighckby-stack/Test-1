@@ -1,20 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
-
-/**
- * Helper encapsulating the path exclusion logic, which aligns with the
- * SimplePathExclusionChecker tool. Checks if a given path contains any pattern.
- * @param {string} filePath The relative path to check.
- * @param {string[]} patterns List of exclusion strings.
- * @returns {boolean}
- */
-const isPathExcluded = (filePath, patterns) => {
-    if (!Array.isArray(patterns) || patterns.length === 0) {
-        return false;
-    }
-    // Delegation to the core logic extracted into SimplePathExclusionChecker
-    return patterns.some(pattern => typeof pattern === 'string' && filePath.includes(pattern));
-};
+const SimplePathExclusionChecker = require('./SimplePathExclusionChecker');
 
 /**
  * IntegrityScanner
@@ -46,8 +32,8 @@ class IntegrityScanner {
                     const entryPath = path.join(currentDir, entry.name);
                     const entryRelativePath = path.join(relativePath, entry.name);
 
-                    // Use the encapsulated exclusion check
-                    if (isPathExcluded(entryRelativePath, ignorePatterns)) {
+                    // Use the abstracted exclusion check
+                    if (SimplePathExclusionChecker.check(entryRelativePath, ignorePatterns)) {
                         continue;
                     }
 
