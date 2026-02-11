@@ -1,4 +1,3 @@
-const fs = require('fs/promises');
 const IntegrityHashUtility = require('./IntegrityHashUtility');
 const IntegrityManifestError = require('./IntegrityManifestError');
 
@@ -13,20 +12,22 @@ declare const AsyncBatchProcessor: {
     }>
 };
 
+// Assuming FileUtility is available (new extracted plugin)
+declare const FileUtility: {
+    loadJson: (path: string) => Promise<any>,
+    saveJson: (path: string, data: any) => Promise<void>
+};
+
 /**
  * IntegrityManifestManager
  * Manages the creation, loading, and comprehensive validation of system integrity manifests.
  * A manifest (e.g., integrity.json) maps relative file paths to their expected cryptographic hashes (SHA-256 assumed).
- * 
- * NOTE: Hashing and validation operations are performed concurrently for maximum efficiency using AsyncBatchProcessor.
  */
 class IntegrityManifestManager {
     
     /**
      * Generates a manifest for a list of file paths.
-     * All provided paths should be relative to a known root if the manifest is intended for portability.
-     * Processes files concurrently using AsyncBatchProcessor.
-     * 
+     *
      * @param {string[]} filePaths Array of relative file paths.
      * @returns {Promise<Record<string, string>>} A map of relativePath -> hash.
      * @throws {IntegrityManifestError} If any file fails to hash.
@@ -71,8 +72,8 @@ class IntegrityManifestManager {
      * @param {Record<string, string>} manifest The manifest object (relativePath -> hash).
      */
     static async saveManifest(manifestPath, manifest) {
-        const jsonContent = JSON.stringify(manifest, null, 2);
-        await fs.writeFile(manifestPath, jsonContent, 'utf8');
+        // Abstracted file saving using the new FileUtility plugin
+        await FileUtility.saveJson(manifestPath, manifest);
     }
 
     /**
@@ -87,9 +88,8 @@ class IntegrityManifestManager {
         let expectedManifest;
         
         try {
-            const data = await fs.readFile(manifestPath, 'utf8');
-            // Manifest structure is { filePath: hashString }
-            expectedManifest = JSON.parse(data);
+            // Abstracted file loading using the new FileUtility plugin
+            expectedManifest = await FileUtility.loadJson(manifestPath);
         } catch (e) {
             const error = e instanceof Error ? e.message : String(e);
             throw new IntegrityManifestError(
