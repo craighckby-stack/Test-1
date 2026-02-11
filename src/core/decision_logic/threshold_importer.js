@@ -8,11 +8,8 @@
  */
 
 import THRESHOLD_MANIFEST from '../../../config/core_failure_thresholds_manifest_v2.json';
-
-// Assuming the execution environment provides access to declared AGI-KERNEL tools.
-declare const ImmutableConfigurationLoader: {
-    execute(args: { configData: any }): any;
-};
+// Import the abstracted configuration loading plugin
+import { ImmutableConfigImporter } from 'AGI_PLUGINS/ImmutableConfigImporter'; 
 
 // Step 1: Structure the raw configuration manifest data.
 const RawCoreConfigData = {
@@ -29,12 +26,10 @@ const RawCoreConfigData = {
 };
 
 /**
- * Use the ImmutableConfigurationLoader tool to deep-freeze the structured configuration.
+ * Use the ImmutableConfigImporter plugin to deep-freeze the structured configuration.
  * This prevents runtime modification, upholding the Axiomatic contract (COF/P-01).
  */
-export const CoreFailureManifest = ImmutableConfigurationLoader.execute({
-    configData: RawCoreConfigData
-});
+export const CoreFailureManifest = ImmutableConfigImporter.load(RawCoreConfigData);
 
 // Example Usage:
 // import { CoreFailureManifest } from './threshold_importer';
