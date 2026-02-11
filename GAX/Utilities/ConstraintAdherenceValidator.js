@@ -15,9 +15,16 @@ async validate(configuration, requiredConstraintCodes) {
         };
     }
     
-    // 2. Synergy Registry Access Check (Refactored using Synergy concept)
-    if (typeof KERNEL_SYNERGY_CAPABILITIES === 'undefined' || !KERNEL_SYNERGY_CAPABILITIES[SERVICE_KEY]) {
-        const details = `Required synergy service ${SERVICE_KEY} is unavailable in KERNEL_SYNERGY_CAPABILITIES.`;
+    // 2. Synergy Registry Access (Refactored to use the standardized Synergy API)
+    let ConstraintExecutionService;
+
+    if (typeof Synergy === 'object' && typeof Synergy.get === 'function') {
+        // Access the service via the standardized Synergy Registry interface
+        ConstraintExecutionService = Synergy.get(SERVICE_KEY);
+    }
+
+    if (!ConstraintExecutionService) {
+        const details = `Required synergy service ${SERVICE_KEY} is unavailable. Synergy Registry access failed or service not found.`;
         console.error(`${VALIDATION_CONTEXT} ${details}`);
         return { 
             isAdherent: false, 
@@ -25,7 +32,6 @@ async validate(configuration, requiredConstraintCodes) {
         };
     }
 
-    const ConstraintExecutionService = KERNEL_SYNERGY_CAPABILITIES[SERVICE_KEY];
     const violations = [];
 
     // 3. Local Dependency Check (Taxonomy Map)
