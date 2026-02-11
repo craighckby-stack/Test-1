@@ -4,26 +4,40 @@ import { SecureExpressionEvaluator } from '../utils/SecureExpressionEvaluator';
  * @class ConflictResolutionEngine
  * Manages the evaluation of competing operational requests against the CRCM (Conflict Resolution Constraint Model).
  * Utilizes a SecureExpressionEvaluator to safely execute complex weighting formulas.
- * Delegation: Domain-specific control evaluation is handled by the ConflictModelEvaluator plugin.
+ * Delegation: Domain-specific control evaluation is handled by the injected ConflictModelEvaluator.
  */
 class ConflictResolutionEngine {
+  // Rigorous encapsulation for core dependencies and state
+  #crcm;
+  #evaluator;
+  #conflictModelEvaluator;
+  #domainMap;
+  #evaluatorFn;
+
   /**
    * @param {Object} crcm - The Conflict Resolution Constraint Model structure.
    * @param {SecureExpressionEvaluator} evaluator - Secure utility for running dynamic CRCM formulas.
+   * @param {Object} conflictModelEvaluator - The required plugin/utility to execute CRCM controls.
    */
-  constructor(crcm, evaluator) {
+  constructor(crcm, evaluator, conflictModelEvaluator) {
     if (!evaluator || typeof evaluator.evaluate !== 'function') {
-        throw new Error("ConflictResolutionEngine requires a SecureExpressionEvaluator instance.");
+      throw new Error("ConflictResolutionEngine requires a SecureExpressionEvaluator instance.");
     }
-    this.crcm = crcm;
-    this.evaluator = evaluator;
-    // Pre-process CRCM for O(1) domain lookup, storing the full domain object.
-    this.domainMap = this._buildDomainMap(crcm.domains);
-    // Bind the evaluator function for easy passing to the plugin
-    this._evaluatorFn = this.evaluator.evaluate.bind(this.evaluator);
+    if (!conflictModelEvaluator || typeof conflictModelEvaluator.execute !== 'function') {
+      // Enforce explicit dependency injection for the core evaluation logic
+      throw new Error("ConflictResolutionEngine requires a ConflictModelEvaluator instance with an 'execute' method.");
+    }
+
+    // 1. Immutability contract: Freeze the CRCM to ensure conflict rules cannot be modified at runtime.
+    this.#crcm = Object.freeze(crcm);
+    this.#evaluator = evaluator;
+    this.#conflictModelEvaluator = conflictModelEvaluator;
     
-    // Assume ConflictModelEvaluator is globally available or imported via AGI Kernel plugin system
-    this.ConflictModelEvaluator = typeof ConflictModelEvaluator !== 'undefined' ? ConflictModelEvaluator : null;
+    // Pre-process CRCM for O(1) domain lookup, storing the full domain object.
+    this.#domainMap = this.#buildDomainMap(crcm.domains);
+    
+    // Bind the secure evaluator function once for reliable passing to the plugin
+    this.#evaluatorFn = this.#evaluator.evaluate.bind(this.#evaluator);
   }
 
   /**
@@ -31,15 +45,15 @@ class ConflictResolutionEngine {
    * @param {Array<Object>} domains
    * @returns {Map<string, Object>} Map of domain_id to the full domain object.
    */
-  _buildDomainMap(domains) {
+  #buildDomainMap(domains) {
     const map = new Map();
     if (domains && Array.isArray(domains)) {
-        for (const domain of domains) {
-            if (domain.domain_id) {
-                // Store the entire domain object for context access (e.g., aggregation type)
-                map.set(domain.domain_id, domain);
-            }
+      for (const domain of domains) {
+        if (domain.domain_id) {
+          // Store the entire domain object for context access (e.g., aggregation type)
+          map.set(domain.domain_id, domain);
         }
+      }
     }
     return map;
   }
@@ -54,35 +68,35 @@ class ConflictResolutionEngine {
    */
   resolveConflict(competingRequests, currentContext) {
     if (!Array.isArray(competingRequests) || competingRequests.length === 0) {
-        return { winningRequest: null, resolutionWeight: -Infinity, resolutionMetadata: { reason: "No competing requests provided." } };
+      return { winningRequest: null, resolutionWeight: -Infinity, resolutionMetadata: { reason: "No competing requests provided." } };
     }
     if (!currentContext || typeof currentContext !== 'object') {
-        console.warn("Context missing or invalid in ConflictResolutionEngine.");
-    }
-    if (!this.ConflictModelEvaluator || typeof this.ConflictModelEvaluator.execute !== 'function') {
-        throw new Error("ConflictModelEvaluator plugin is required but not available.");
+      // Note: Warning remains, but engine proceeds with potentially incomplete context.
+      console.warn("Context missing or invalid in ConflictResolutionEngine.");
     }
     
+    // Plugin availability is guaranteed by the constructor check.
+
     let winningRequest = null;
     let highestWeight = -Infinity;
     let resolutionMetadata = {};
 
     for (const request of competingRequests) {
       const domainId = request.appliesTo;
-      const domain = this.domainMap.get(domainId);
+      // Use private domain map
+      const domain = this.#domainMap.get(domainId);
 
       if (!domain || !Array.isArray(domain.controls)) continue;
 
       const applicableControls = domain.controls;
-      // Note: Default aggregation method handled internally by the plugin if not specified.
       const aggregationMethod = domain.aggregation_method;
 
-      // Delegate scoring and constraint checking to the ConflictModelEvaluator plugin
-      const evaluationResult = this.ConflictModelEvaluator.execute({
-          controls: applicableControls,
-          context: currentContext,
-          aggregationMethod: aggregationMethod,
-          evaluatorFn: this._evaluatorFn // Pass the secure evaluator function bound in the constructor
+      // Delegate scoring and constraint checking to the injected plugin
+      const evaluationResult = this.#conflictModelEvaluator.execute({
+        controls: applicableControls,
+        context: currentContext,
+        aggregationMethod: aggregationMethod,
+        evaluatorFn: this.#evaluatorFn // Pass the secure evaluator function
       });
       
       const { score, isViable, violationDetails, appliedControls } = evaluationResult;
@@ -92,24 +106,24 @@ class ConflictResolutionEngine {
         highestWeight = score;
         winningRequest = request;
         resolutionMetadata = { 
-            appliedControls: appliedControls,
-            domainAggregation: aggregationMethod || 'MAX', 
-            violationDetails: null // Clear previous violations
+          appliedControls: appliedControls,
+          domainAggregation: aggregationMethod || 'MAX', 
+          violationDetails: null // Clear previous violations
         };
       } else if (!isViable) {
         // Capture rejection metadata for debugging/learning
         if (!resolutionMetadata.rejectedRequests) resolutionMetadata.rejectedRequests = [];
         resolutionMetadata.rejectedRequests.push({ 
-            requestId: request.id || 'unknown',
-            domainId: domainId,
-            violation: violationDetails
+          requestId: request.id || 'unknown',
+          domainId: domainId,
+          violation: violationDetails
         });
       }
     }
     
     // Cleanup metadata if a winner was found
     if (winningRequest && resolutionMetadata.rejectedRequests) {
-        delete resolutionMetadata.rejectedRequests;
+      delete resolutionMetadata.rejectedRequests;
     }
 
     return {
