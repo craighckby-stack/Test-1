@@ -2,7 +2,7 @@
  * Defines standard Exponential Moving Average (EMA) alpha values for common system metrics.
  * Using a centralized configuration ensures consistency and traceability of averaging policies.
  */
-const MetricPresets = {
+const MetricPresets = Object.freeze({
     // --- High sensitivity (quick decay, fast adaptation) ---
     LATENCY_REALTIME: {
         alpha: 0.8,
@@ -25,6 +25,6 @@ const MetricPresets = {
         alpha: 0.05,
         description: "Smoothed average for memory utilization, filtering out short-lived garbage collection effects."
     }
-};
+});
 
 module.exports = MetricPresets;
