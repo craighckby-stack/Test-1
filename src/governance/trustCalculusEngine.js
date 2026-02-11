@@ -1,48 +1,55 @@
 /**
- * Trust Calculus Engine (TCE) - src/governance/trustCalculusEngine.js
- * ID: TCE v94.3 (Refactored for delegated calculation)
- * Role: Configurable Decision Scoring / Weighted Metric Aggregation Orchestrator
+ * Trust Calculus Engine Kernel (TCEK) - src/governance/TrustCalculusEngineKernel.js
+ * ID: TCEK v100.0 (AIA Compliant)
+ * Role: Asynchronous Configurable Decision Scoring Orchestrator
  *
- * TCE delegates calculation logic to the WeightedTransformationScorer plugin,
- * focusing solely on configuration management and input validation.
+ * TCEK is responsible for loading governance model configurations and delegating
+ * all complex metric aggregation, transformation, and normalization logic to the
+ * specialized IMaturityMetricDeriverToolKernel, strictly adhering to AIA mandates
+ * for non-blocking execution and Maximum Recursive Abstraction.
  */
 
-class TrustCalculusEngine {
+class TrustCalculusEngineKernel {
     /**
-     * @param {object} [config={}] - Initial configuration. Ideally, loaded dynamically via init().
+     * @param {TrustModelConfigurationStoreKernel} trustModelStore - Kernel for loading trust models.
+     * @param {IMaturityMetricDeriverToolKernel} metricDeriverTool - Kernel for performing weighted calculation and normalization.
      */
-    constructor(config = {}) {
-        // Default internal models (used if external configuration fails or hasn't loaded)
-        this.models = config.models || {
-            'RETIREMENT_CALCULUS': {
-                metrics: {
-                    // Metric 1: Higher redundancy score is beneficial (PROFIT)
-                    redundancyScore: { weight: 0.4, type: 'PROFIT' }, 
-                    // Metric 2: Higher complexity reduction is beneficial (PROFIT)
-                    complexityReductionEstimate: { weight: 0.3, type: 'PROFIT' },
-                    // Metric 3: Higher dependency exposure is risky (RISK). Automatically inverted during calculation.
-                    criticalDependencyExposure: { weight: 0.3, type: 'RISK' } 
-                }
-            }
-        };
+    constructor({ trustModelStore, metricDeriverTool }) {
+        if (!trustModelStore || !metricDeriverTool) {
+            throw new Error("TCE Kernel requires TrustModelConfigurationStoreKernel and IMaturityMetricDeriverToolKernel.");
+        }
+        this.trustModelStore = trustModelStore;
+        this.metricDeriverTool = metricDeriverTool;
+        this.models = {}; // Internal cache for loaded models. Loaded asynchronously.
     }
 
     /**
-     * Initializes the engine, optionally loading dynamic weights or external configurations.
-     * Typically called with configuration data loaded from TrustModelConfigurationStore.
-     * @param {object} configData - Configuration data containing governance model definitions.
+     * Initializes the kernel, loading governance model definitions asynchronously from the store.
+     * @async
      */
-    async init(configData) {
-        if (configData && configData.models) {
-            // Merge or overwrite internal models based on external configuration
-            Object.assign(this.models, configData.models);
+    async initialize() {
+        // Load configurations dynamically and asynchronously from the dedicated store
+        try {
+            // Assuming TrustModelConfigurationStoreKernel provides a method to retrieve all models.
+            const configData = await this.trustModelStore.getTrustModels(); 
+            
+            if (configData && configData.models) {
+                this.models = configData.models;
+            } else {
+                console.warn("[TCEK] Trust model configuration loaded, but models key is missing or empty. Using empty set.");
+            }
+            console.log(`[TrustCalculusEngineKernel] Initialized, loaded ${Object.keys(this.models).length} governance models.`);
+        } catch (error) {
+            console.error("[TCEK] CRITICAL: Failed to initialize trust models from configuration store.", error);
+            throw new Error("TCE Kernel initialization failed: Trust model data could not be retrieved.");
         }
-        console.log(`[TCE v94.3] Initialized with ${Object.keys(this.models).length} governance models.`);
     }
 
     /**
      * Calculates a composite score based on defined weights, explicit metric transformation,
      * and input metrics for a specific governance model.
+     * 
+     * This method delegates all computational complexity to the IMaturityMetricDeriverToolKernel.
      * 
      * @param {string} modelId - The specific model to use (e.g., 'RETIREMENT_CALCULUS').
      * @param {object} metricData - Input metrics (key/value pairs, assumed 0.0 to 1.0 range).
@@ -51,78 +58,27 @@ class TrustCalculusEngine {
     async calculateScore(modelId, metricData) {
         const model = this.models[modelId];
         if (!model || !model.metrics) {
-            throw new Error(`TCE Error: Trust Calculus Model '${modelId}' not configured or missing metric definitions.`);
+            throw new Error(`TCEK Error: Trust Calculus Model '${modelId}' not configured or missing metric definitions. Models must be loaded via initialize().`);
         }
         
         const calculationArgs = {
-            modelMetrics: model.metrics,
-            metricData: metricData
+            metricDefinitions: model.metrics, // The weight and type definitions (PROFIT/RISK)
+            metricData: metricData            // The raw input values
         };
 
-        // ACTIVATE_PLUGIN: WeightedTransformationScorer
-        // Delegate the complex aggregation, transformation (RISK/PROFIT inversion),
-        // and normalization logic to the external tool.
-        
-        let normalizedScore;
-        
-        // --- Placeholder for kernel plugin invocation ---
-        // normalizedScore = await kernel.plugins.WeightedTransformationScorer.execute(calculationArgs);
-        
-        // NOTE: For the purpose of providing a working source file output, 
-        // we must simulate the plugin execution or rely on a helper if external kernel 
-        // APIs are not available within the immediate scope.
-        // Assuming successful external tool execution:
         try {
-            // In a real environment, this is the plugin call.
-            normalizedScore = await this._simulatePluginExecution(calculationArgs);
+            // Delegation to the specialized Tool Kernel for all aggregation, transformation, and normalization.
+            const normalizedScore = await this.metricDeriverTool.deriveMaturityMetric(calculationArgs);
+            
+            return normalizedScore; 
+            
         } catch (error) {
-            console.error(`[TCE] Critical failure during score calculation for model '${modelId}'.`, error);
-            throw new Error(`TCE Calculation failed: ${error.message}`);
+            console.error(`[TCEK] Critical failure during score calculation for model '${modelId}'. Delegation failed.`, error);
+            // Re-throw standardized error
+            throw new Error(`TCE Kernel Calculation failed for model ${modelId}: ${error.message}`);
         }
-
-        return normalizedScore;
-    }
-
-    /**
-     * Internal simulation of the WeightedTransformationScorer logic for demonstration.
-     * In production, this would be a direct kernel plugin invocation.
-     * @private
-     */
-    async _simulatePluginExecution(args) {
-        const modelMetrics = args.modelMetrics;
-        const metricData = args.metricData;
-
-        let weightedScore = 0;
-        let totalWeight = 0;
-        
-        const transformMetric = (value, type) => {
-            const clampedValue = Math.min(1.0, Math.max(0.0, value || 0.0));
-            return (type === 'RISK') ? 1.0 - clampedValue : clampedValue;
-        };
-
-        for (const metricKey in modelMetrics) {
-            const definition = modelMetrics[metricKey];
-            const rawValue = metricData[metricKey];
-            
-            if (typeof definition.weight !== 'number' || !definition.type) continue;
-
-            if (rawValue === undefined || rawValue === null) {
-                // Skip metrics missing data
-                continue; 
-            }
-            
-            const transformedFactor = transformMetric(rawValue, definition.type);
-            weightedScore += (transformedFactor * definition.weight);
-            totalWeight += definition.weight;
-        }
-
-        if (totalWeight === 0) return 0.0;
-
-        const normalizedScore = weightedScore / totalWeight;
-        return Math.min(1.0, Math.max(0.0, normalizedScore));
     }
 }
 
-export const trustCalculusEngine = new TrustCalculusEngine();
-// Export the class to allow dependency injection or advanced external configuration loading setup
-export { TrustCalculusEngine };
+// AIA Mandate: Do not export a synchronously instantiated singleton.
+export { TrustCalculusEngineKernel };
