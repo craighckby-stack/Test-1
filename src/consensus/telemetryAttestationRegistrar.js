@@ -1,39 +1,54 @@
 /**
- * Telemetry Input Attestation Registrar (TIAR V94.1 - Refactored)
+ * Telemetry Input Attestation Registrar Kernel (TIAR V94.1 - Refactored)
  *
  * Role: Ensures non-repudiation and cryptographic integrity of decision input vectors 
  * (S-01, S-02) immediately prior to P-01 execution by the OGT. Guarantees the
  * Irreversible Mutation Gate operates on provably attested data.
  *
- * Dependencies: KeyManager, AttestationStore, DataIntegrityProcessor (Plugin), [Optional: Logger].
+ * Dependencies: KeyManager, AttestationStore, DataIntegrityProcessor, TelemetryAttestationConfigRegistryKernel, [Optional: Logger].
  * GSEP Alignment: Stage 3 (Pre-P-01 Gate Execution)
  */
 
-const PROTOCOL_VERSION = 'TIAR-V94.1';
-const DEFAULT_HASH_ALGORITHM = 'sha256';
-
-class TelemetryInputAttestationRegistrar {
+class TelemetryInputAttestationRegistrarKernel {
     
     /**
      * @param {object} dependencies 
      * @param {KeyManagementService} dependencies.keyManager - Service for signing/verifying.
      * @param {AttestationStoreInterface} dependencies.attestationStore - Persistence layer for commitments.
      * @param {DataIntegrityProcessor} dependencies.dataIntegrityProcessor - Plugin for deterministic data fingerprinting (canonicalization + hashing).
+     * @param {TelemetryAttestationConfigRegistryKernel} dependencies.configRegistry - Configuration constants.
+     * @param {string} [dependencies.hashAlgorithm] - Optional runtime hash algorithm override.
      * @param {Logger} [dependencies.logger] - Structured logger interface.
      */
     constructor(dependencies) {
-        // Note: Renamed 'integrityTool' to 'dataIntegrityProcessor' to reflect the abstracted plugin.
-        const { keyManager, attestationStore, dataIntegrityProcessor, hashAlgorithm, logger } = dependencies;
+        this._dependencies = dependencies;
+        this.#setupDependencies();
+    }
 
-        if (!keyManager || !attestationStore || !dataIntegrityProcessor) {
-            throw new Error("TIAR Initialization Failure: Core dependencies missing (keyManager, attestationStore, dataIntegrityProcessor).");
+    /**
+     * Isolates dependency initialization and configuration loading.
+     * All configuration constants are retrieved from the injected registry.
+     */
+    #setupDependencies() {
+        const { keyManager, attestationStore, dataIntegrityProcessor, configRegistry, hashAlgorithm, logger } = this._dependencies;
+
+        if (!keyManager || !attestationStore || !dataIntegrityProcessor || !configRegistry) {
+            throw new Error("TIAR Initialization Failure: Core dependencies missing (keyManager, attestationStore, dataIntegrityProcessor, configRegistry).");
         }
 
+        // Core immutable dependencies
         this.keyManager = Object.freeze(keyManager);
         this.attestationStore = Object.freeze(attestationStore);
         this.dataIntegrityProcessor = Object.freeze(dataIntegrityProcessor); 
+        this.configRegistry = configRegistry;
+        
+        // Configuration derived from registry
+        const defaultHashAlgorithm = this.configRegistry.getDefaultHashAlgorithm();
+        this.protocolVersion = this.configRegistry.getProtocolVersion();
+        
+        // Allow runtime override for the hash algorithm
+        this.hashAlgorithm = hashAlgorithm || defaultHashAlgorithm;
         this.logger = logger || console;
-        this.hashAlgorithm = hashAlgorithm || DEFAULT_HASH_ALGORITHM;
     }
 
     /**
@@ -59,7 +74,7 @@ class TelemetryInputAttestationRegistrar {
             signature: signature,
             timestamp: Date.now(), // Local time approximation
             signerId: this.keyManager.getIdentityId(), 
-            protocolVersion: PROTOCOL_VERSION
+            protocolVersion: this.protocolVersion // Use injected constant
         };
         
         // Note: Only the small cryptographic commitment goes into the store.
@@ -116,4 +131,4 @@ class TelemetryInputAttestationRegistrar {
     }
 }
 
-module.exports = TelemetryInputAttestationRegistrar;
+module.exports = TelemetryInputAttestationRegistrarKernel;
