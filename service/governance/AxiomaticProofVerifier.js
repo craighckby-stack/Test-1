@@ -1,86 +1,150 @@
-// Purpose: Validates the complex 'validationProof' defined in the FinalAxiomaticStateValidation schema.
-
-import { GovernanceConfig } from '../../config/GovernanceConfig.js';
-import { ValidatorRegistry } from './ValidatorRegistry.js';
-import { verifySignature } from '../crypto/SignatureService.js';
 import { ProofVerificationError } from '../../utils/errors/ProofVerificationError.js';
-import { DataIndexer } from '../../plugins/DataIndexer.js'; // Utilized the abstracted DataIndexer plugin
 
 /**
- * Verifies the consensus proof attached to a finalized state record.
- * Executes optimized validation for cryptographic integrity and weighted consensus threshold.
- *
- * @param {object} proof - The ValidationProofStructure object (must contain signatures and thresholdMet).
- * @param {string} stateHash - The hash of the validated data.
- * @returns {boolean} True if the proof meets all axiomatic requirements.
- * @throws {ProofVerificationError} If the proof is structurally invalid.
+ * AxiomaticProofVerifierKernel
+ * Handles the verification of axiomatic consensus proofs, including cryptographic integrity and weighted consensus threshold checks.
+ * Dependencies must be injected: validatorRegistry, dataIndexer (for optimized lookup), and a signature verification utility.
  */
-export async function verifyAxiomaticProof(proof, stateHash) {
-    if (!proof || !stateHash || !proof.signatures || typeof proof.thresholdMet !== 'number') {
-        throw new ProofVerificationError("Proof structure or state hash is invalid or incomplete.");
+export class AxiomaticProofVerifierKernel {
+    #validatorRegistry;
+    #dataIndexer;
+    #signatureVerifier;
+    #ProofVerificationError;
+
+    /**
+     * @param {object} dependencies
+     * @param {object} dependencies.validatorRegistry - Tool for accessing eligible validators (e.g., ValidatorRegistry).
+     * @param {object} dependencies.dataIndexer - Tool for optimizing data structure lookups (e.g., DataIndexer).
+     * @param {function} dependencies.signatureVerifier - Utility function (async) for cryptographic signature verification.
+     * @param {Error} dependencies.ProofVerificationError - The custom error class for proof verification failures.
+     */
+    constructor(dependencies) {
+        this.#validatorRegistry = dependencies.validatorRegistry;
+        this.#dataIndexer = dependencies.dataIndexer;
+        this.#signatureVerifier = dependencies.signatureVerifier;
+        this.#ProofVerificationError = dependencies.ProofVerificationError || ProofVerificationError;
+        this.#setupDependencies();
     }
-    
-    // 1. Prepare Validator Lookup and Calculate Total Weight
-    const requiredThreshold = proof.thresholdMet;
-    const eligibleValidators = await ValidatorRegistry.getEligibleValidators();
 
-    if (eligibleValidators.length === 0) {
-        // Cannot verify proof if there are no eligible validators registered.
-        return false;
-    }
-
-    // Optimize lookup using the DataIndexer utility
-    // Field 'id' is used as the key.
-    const validatorMap = DataIndexer.indexArray(eligibleValidators, 'id');
-    
-    const totalVotingWeight = eligibleValidators.reduce((sum, v) => sum + v.weight, 0);
-    const requiredWeight = totalVotingWeight * requiredThreshold;
-
-    let accumulatedWeight = 0;
-    const validatedValidatorIds = new Set(); // Tracks unique validators that provided a valid signature (Crucial for preventing double-counting)
-
-    // 2. Iterate and Verify Signatures
-    for (const signatureAttestation of proof.signatures) {
-        const validatorId = signatureAttestation.validatorId;
-
-        // Basic validation
-        if (!validatorId || !signatureAttestation.signature) {
-            continue;
+    /**
+     * Ensures all required dependencies are available and valid.
+     * (Satisfies synchronous setup extraction goal).
+     */
+    #setupDependencies() {
+        if (!this.#validatorRegistry || !this.#validatorRegistry.getEligibleValidators) {
+            this.#throwSetupError("validatorRegistry dependency is missing or lacks getEligibleValidators method.");
         }
+        if (!this.#dataIndexer || !this.#dataIndexer.indexArray) {
+            this.#throwSetupError("dataIndexer dependency is missing or lacks indexArray method.");
+        }
+        if (typeof this.#signatureVerifier !== 'function') {
+            this.#throwSetupError("signatureVerifier must be a verification function.");
+        }
+    }
 
-        const validatorInfo = validatorMap[validatorId];
+    // --- I/O Proxy Functions ---
+
+    #throwSetupError(message) {
+        throw new Error(`AxiomaticProofVerifierKernel setup error: ${message}`);
+    }
+
+    #throwProofVerificationError(message) {
+        throw new this.#ProofVerificationError(message);
+    }
+
+    /** Delegates fetching eligible validators from the registry. */
+    async #delegateToValidatorRegistry() {
+        return this.#validatorRegistry.getEligibleValidators();
+    }
+
+    /** Delegates array indexing to the DataIndexer tool. */
+    #delegateToDataIndexer(array, key) {
+        return this.#dataIndexer.indexArray(array, key);
+    }
+
+    /** Delegates cryptographic signature verification. */
+    async #delegateToSignatureService(message, signature, publicKey) {
+        return this.#signatureVerifier(message, signature, publicKey);
+    }
+
+    // --- Internal Logic Proxies ---
+
+    #checkProofStructureAndThrow(proof, stateHash) {
+        if (!proof || !stateHash || !proof.signatures || typeof proof.thresholdMet !== 'number') {
+            this.#throwProofVerificationError("Proof structure or state hash is invalid or incomplete.");
+        }
+    }
+
+    #calculateRequiredWeight(eligibleValidators, thresholdMet) {
+        const totalVotingWeight = eligibleValidators.reduce((sum, v) => sum + v.weight, 0);
+        return totalVotingWeight * thresholdMet;
+    }
+
+    /**
+     * Verifies the consensus proof attached to a finalized state record.
+     * @param {object} proof - The ValidationProofStructure object.
+     * @param {string} stateHash - The hash of the validated data.
+     * @returns {Promise<boolean>} True if the proof meets all axiomatic requirements.
+     */
+    async verifyAxiomaticProof(proof, stateHash) {
+        this.#checkProofStructureAndThrow(proof, stateHash);
         
-        // Check 1: Validator must be active/known
-        if (!validatorInfo) {
-             continue;
+        // 1. Prepare Validator Lookup and Calculate Total Weight
+        const eligibleValidators = await this.#delegateToValidatorRegistry();
+
+        if (eligibleValidators.length === 0) {
+            // Cannot verify proof if there are no eligible validators registered.
+            return false;
         }
 
-        // Check 2: Prevent double-counting (must only count weight once per unique validator ID)
-        if (validatedValidatorIds.has(validatorId)) {
-            continue; 
-        }
+        const requiredThreshold = proof.thresholdMet;
+        const validatorMap = this.#delegateToDataIndexer(eligibleValidators, 'id');
+        const requiredWeight = this.#calculateRequiredWeight(eligibleValidators, requiredThreshold);
 
-        // 3. Verify cryptographic signature
-        // Message binding ensures signature is valid for this specific state, mechanism, and nonce.
-        const messageToVerify = `${stateHash}:${proof.consensusMechanism}:${signatureAttestation.nonce}`;
+        let accumulatedWeight = 0;
+        const validatedValidatorIds = new Set(); 
 
-        const isValidSignature = await verifySignature(
-            messageToVerify,
-            signatureAttestation.signature,
-            validatorInfo.publicKey
-        );
+        // 2. Iterate and Verify Signatures
+        for (const signatureAttestation of proof.signatures) {
+            const validatorId = signatureAttestation.validatorId;
 
-        if (isValidSignature) {
-            accumulatedWeight += validatorInfo.weight;
-            validatedValidatorIds.add(validatorId); 
+            if (!validatorId || !signatureAttestation.signature) {
+                continue;
+            }
+
+            const validatorInfo = validatorMap[validatorId];
             
-            // Optimization: Early exit if threshold is reached
-            if (accumulatedWeight >= requiredWeight) {
-                return true;
+            // Check 1: Validator must be active/known
+            if (!validatorInfo) {
+                 continue;
+            }
+
+            // Check 2: Prevent double-counting
+            if (validatedValidatorIds.has(validatorId)) {
+                continue; 
+            }
+
+            // 3. Verify cryptographic signature (I/O Proxy)
+            const messageToVerify = `${stateHash}:${proof.consensusMechanism}:${signatureAttestation.nonce}`;
+
+            const isValidSignature = await this.#delegateToSignatureService(
+                messageToVerify,
+                signatureAttestation.signature,
+                validatorInfo.publicKey
+            );
+
+            if (isValidSignature) {
+                accumulatedWeight += validatorInfo.weight;
+                validatedValidatorIds.add(validatorId); 
+                
+                // Optimization: Early exit if threshold is reached
+                if (accumulatedWeight >= requiredWeight) {
+                    return true;
+                }
             }
         }
-    }
 
-    // 4. Final Check 
-    return accumulatedWeight >= requiredWeight;
+        // 4. Final Check 
+        return accumulatedWeight >= requiredWeight;
+    }
 }
