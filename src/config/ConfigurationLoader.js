@@ -1,27 +1,15 @@
-// Assuming dependency injection or module system provides the utility.
-// Note: In a production kernel, the tool below would be imported/injected.
+/**
+ * Assuming dependency injection or module system provides the utility.
+ * The concrete implementation (ObjectPathResolverUtility) is now provided by the kernel via the 'ObjectPathResolver' plugin.
+ */
 
 interface PathResolverTool {
     execute(args: { obj: any, path: string, defaultValue?: any }): any;
 }
 
-// Placeholder definition for the injected utility interface
-const ObjectPathResolverUtility: PathResolverTool = {
-    execute: (args) => {
-        // Fallback logic, the actual execution is handled by the kernel loading the plugin
-        const parts = args.path.split('.');
-        let current = args.obj;
-
-        for (const part of parts) {
-            if (current && typeof current === 'object' && current[part] !== undefined) {
-                current = current[part];
-            } else {
-                return args.defaultValue;
-            }
-        }
-        return current;
-    }
-};
+// NOTE: ObjectPathResolverUtility is declared here as an external dependency
+// provided by the AGI-KERNEL runtime via the abstracted plugin.
+declare const ObjectPathResolverUtility: PathResolverTool;
 
 /**
  * Configuration Loader for Sovereign AGI v94.1
@@ -33,7 +21,7 @@ class ConfigurationLoader {
     private pathResolver: PathResolverTool; 
 
     constructor() {
-        // Inject the reusable path resolution tool
+        // Inject the reusable path resolution tool (now an external dependency)
         this.pathResolver = ObjectPathResolverUtility;
         // Load configuration from all sources (e.g., environment variables, static files, defaults)
         this.config = this._loadDefaultConfig(); 
