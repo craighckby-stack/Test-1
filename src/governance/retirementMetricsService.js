@@ -1,140 +1,132 @@
 /**
- * Retirement Metrics Service (RMS) - src/governance/retirementMetricsService.js
- * ID: RMS_V94
- * Role: Data Provisioning / Metric Calculation & Weighting
- *
- * RMS calculates and aggregates highly specific, weighted metrics required by CORE
- * (Component Obsolescence Review Engine) to perform P-01 Trust Calculus adjudication.
- * It focuses on system Safety (Redundancy), Risk (Dependency Exposure), and Overhead (Complexity).
+ * Retirement Metrics Kernel (RMK) - src/governance/RetirementMetricsKernel.js
+ * ID: RMK_A12
+ * Role: High-Integrity Asynchronous Metric Calculation & Weighting
+ * 
+ * RMK orchestrates the non-blocking calculation and weighting of specific metrics 
+ * required for CORE's P-01 Trust Calculus adjudication, ensuring strict adherence 
+ * to AIA enforcement layer mandates for data provenance and abstraction.
  */
 
-import { systemStateMonitor } from '../core/systemStateMonitor.js';
-import { dependencyGraph } from '../analysis/dependencyGraph.js';
-import { usageTelemetry } from '../analysis/usageTelemetry.js';
-import { StaticAnalysisEngine } from '../analysis/staticAnalysisEngine.js'; // New dedicated dependency for structural metrics
-import { Logger } from '../utils/logger.js';
-import { METRIC_WEIGHTS } from './retirementMetricWeights.js';
-// Integration of existing structural plugin for complex scoring
-import { WeightedConstraintScorer } from '../plugins/WeightedConstraintScorer.js';
+import { MetricPresetRegistryKernel } from "./MetricPresetRegistryKernel";
+import { IExternalMetricExecutionToolKernel } from "../tools/IExternalMetricExecutionToolKernel";
+import { MetricNormalizerToolKernel } from "../tools/MetricNormalizerToolKernel";
+import { MultiTargetAuditDisperserToolKernel } from "../tools/MultiTargetAuditDisperserToolKernel";
+import { EnvironmentTypeDecoderInterfaceKernel } from "../tools/EnvironmentTypeDecoderInterfaceKernel";
 
-const logger = new Logger('RMS');
+// Strategic Constants defined for abstraction and auditability
+const RETIREMENT_TRUST_CALCULUS_PRESET = 'RETIREMENT_P01_TC_V1';
+const RAW_METRIC_GROUP_ID = 'COMP_OBSOLESCENCE_RAW_V1';
 
-export const retirementMetricsService = {
+export class RetirementMetricsKernel {
+    #metricPresetRegistry;
+    #externalMetricExecutionTool;
+    #metricNormalizerTool;
+    #auditDisperser;
+    #environmentDecoder;
+    #retirementMetricPreset;
+    #isInitialized = false;
 
     /**
-     * Helper function to robustly fetch all raw, unweighted metric scores in parallel.
-     * Integrates the StaticAnalysisEngine for complexity metrics.
-     * @param {string} componentId - The component to analyze.
-     * @returns {Promise<object>} Raw metric scores.
+     * @param {{ 
+     *  metricPresetRegistry: MetricPresetRegistryKernel,
+     *  externalMetricExecutionTool: IExternalMetricExecutionToolKernel,
+     *  metricNormalizerTool: MetricNormalizerToolKernel,
+     *  auditDisperser: MultiTargetAuditDisperserToolKernel,
+     *  environmentDecoder: EnvironmentTypeDecoderInterfaceKernel
+     * }} dependencies 
      */
-    async _fetchRawMetrics(componentId) {
-        logger.debug(`Fetching raw metrics concurrently for ${componentId}.`);
-
-        // Execute independent asynchronous metrics calculations in parallel using Promise.all.
-        const [
-            redundancyScore,
-            criticalDependencyExposure,
-            usageRate,
-            complexityMetrics
-        ] = await Promise.all([
-            // 1. Safety Metric (Redundancy): Higher score means safer removal.
-            systemStateMonitor.calculateRedundancy(componentId),
-
-            // 2. Risk Metric (Exposure): Higher score means higher downstream risk.
-            dependencyGraph.analyzeCriticalDownstreamRisk(componentId),
-
-            // 3. Operational Metric (Usage Rate): Should be normalized 0.0 to 1.0
-            usageTelemetry.getHistoricalAverage(componentId),
-
-            // 4. Overhead Metric (Complexity): Replaced heuristic with dedicated engine.
-            StaticAnalysisEngine.analyzeComplexityBenefit(componentId)
-        ]);
-
-        // Note: StaticAnalysisEngine.analyzeComplexityBenefit must return an object containing 'complexityReductionEstimate'
-
-        return {
-            redundancyScore,
-            criticalDependencyExposure,
-            usageRate: Math.max(0, Math.min(1, usageRate)), // Ensure strict normalization
-            complexityReductionEstimate: complexityMetrics.complexityReductionEstimate
-        };
-    },
+    constructor(dependencies) {
+        // Strict adherence to dependency injection for maximum recursive abstraction
+        this.#metricPresetRegistry = dependencies.metricPresetRegistry;
+        this.#externalMetricExecutionTool = dependencies.externalMetricExecutionTool;
+        this.#metricNormalizerTool = dependencies.metricNormalizerTool;
+        this.#auditDisperser = dependencies.auditDisperser;
+        this.#environmentDecoder = dependencies.environmentDecoder; // Standard dependency
+    }
 
     /**
-     * Processes raw metric scores into normalized, weighted inputs for the CORE Trust Calculus.
-     * This ensures standardized, governed input based on current policy (METRIC_WEIGHTS).
-     * Uses WeightedConstraintScorer for transparent aggregation.
-     * @param {object} rawMetrics - Raw scores (assumed 0.0 to 1.0).
-     * @returns {object} Weighted scores encapsulated as Trust Calculus Input factors.
+     * Mandatory asynchronous initialization, eliminating synchronous configuration loading.
+     * @returns {Promise<void>}
      */
-    _processAndWeighMetrics(rawMetrics) {
-        const scorer = new WeightedConstraintScorer();
+    async initialize() {
+        if (this.#isInitialized) return;
+        
+        // Configuration loading is delegated asynchronously
+        this.#retirementMetricPreset = await this.#metricPresetRegistry.getPreset(RETIREMENT_TRUST_CALCULUS_PRESET);
 
-        // 1. Prepare data for scoring, handling required transformations (e.g., converting usage rate to a penalty input).
-        const scoringData = {
-            redundancyScore: rawMetrics.redundancyScore,
-            complexityReductionEstimate: rawMetrics.complexityReductionEstimate,
-            criticalDependencyExposure: rawMetrics.criticalDependencyExposure,
-            // Usage Penalty input: High score means low usage (1 - usageRate)
-            usagePenaltyInput: 1 - rawMetrics.usageRate
-        };
+        if (!this.#retirementMetricPreset) {
+            throw new Error(`RMK failed to load critical preset: ${RETIREMENT_TRUST_CALCULUS_PRESET}`);
+        }
 
-        // 2. Define the scoring constraints (MetricKey -> Weight).
-        // Risk factor is configured with a negative weight to represent detraction.
-        const scoringConstraints = {
-            redundancyScore: METRIC_WEIGHTS.REDUNDANCY, // Safety Factor (Pushes retirement)
-            complexityReductionEstimate: METRIC_WEIGHTS.COMPLEXITY_REDUCTION, // Overhead Factor (Pushes retirement)
-            criticalDependencyExposure: METRIC_WEIGHTS.DEPENDENCY_EXPOSURE * -1, // Risk Factor (Pulls away from retirement)
-            usagePenaltyInput: METRIC_WEIGHTS.USAGE_RATE_PENALTY // Usage Penalty (Pushes retirement if usage is low)
-        };
-
-        // 3. Execute the scoring calculation
-        const result = scorer.execute(scoringData, scoringConstraints);
-
-        // 4. Map the results back to the required output structure.
-        // Assuming result.total is the sum and result.factors holds the weighted contributions
-        const trustCalculusInput = result.total;
-
-        const adjudicationInput = {
-            // Main normalized input for CORE's P-01 function
-            trustCalculusInput: trustCalculusInput,
-
-            // Detailed Weighted Factors for auditing and traceability
-            safetyFactor: result.factors.redundancyScore,
-            riskFactor: result.factors.criticalDependencyExposure, // Includes the negative weight
-            overheadFactor: result.factors.complexityReductionEstimate,
-            usagePenalty: result.factors.usagePenaltyInput
-        };
-
-        return {
-            raw: rawMetrics,
-            adjudicationInput: adjudicationInput
-        };
-    },
+        this.#isInitialized = true;
+        this.#auditDisperser.publish('SYSTEM', 'RMK_INIT_SUCCESS', { 
+            presetId: RETIREMENT_TRUST_CALCULUS_PRESET, 
+            environment: this.#environmentDecoder.getEnvironmentType() 
+        });
+    }
 
     /**
-     * Gathers all necessary weighted data points for a retirement review.
+     * Gathers all necessary weighted data points for a retirement review, utilizing
+     * specialized Tool Kernels for data fetching and processing.
      * @param {string} componentId - The component to analyze.
      * @returns {Promise<object>} Calculated and weighted metrics ready for CORE consumption.
      */
     async getComponentMetrics(componentId) {
-        if (!componentId || typeof componentId !== 'string') {
-            logger.error('Invalid componentId provided to RMS.', { componentId });
-            throw new Error('RMS requires a valid component identifier.');
+        if (!this.#isInitialized) {
+            throw new Error('RetirementMetricsKernel must be initialized before use.');
         }
-
-        logger.info(`Orchestrating detailed retirement metrics calculation for ${componentId}.`);
+        if (!componentId || typeof componentId !== 'string') {
+            this.#auditDisperser.publish('ERROR', 'RMK_INVALID_INPUT', { context: 'getComponentMetrics' });
+            throw new Error('RMK requires a valid component identifier.');
+        }
 
         try {
-            // Step 1: Fetch raw data (decoupled)
-            const rawMetrics = await this._fetchRawMetrics(componentId);
+            // Step 1: Fetch raw data. Logic is delegated to IExternalMetricExecutionToolKernel,
+            // abstracting away systemStateMonitor, dependencyGraph, usageTelemetry, and StaticAnalysisEngine.
+            const rawMetrics = await this.#externalMetricExecutionTool.fetchMetrics(
+                RAW_METRIC_GROUP_ID, 
+                { targetId: componentId }
+            );
 
-            // Step 2: Apply normalization, weights, and calculate final composite score
-            return this._processAndWeighMetrics(rawMetrics);
+            // Step 2: Apply normalization, transformations (e.g., 1-usageRate), weights, and calculate final composite score.
+            // Logic previously in _processAndWeighMetrics and WeightedConstraintScorer is delegated.
+            const normalizedResult = await this.#metricNormalizerTool.normalizeAndWeigh({
+                rawMetrics: rawMetrics,
+                presetId: RETIREMENT_TRUST_CALCULUS_PRESET,
+                // Assuming the tool's internal configuration (via preset) defines how 
+                // raw metrics map to weighted factors (safety, risk, overhead, usagePenalty).
+            });
+
+            const adjudicationInput = {
+                // Main normalized input for CORE's P-01 function (Trust Calculus composite score)
+                trustCalculusInput: normalizedResult.compositeScore,
+
+                // Detailed Weighted Factors for auditing and traceability
+                safetyFactor: normalizedResult.weightedFactors.redundancyScore,
+                riskFactor: normalizedResult.weightedFactors.criticalDependencyExposure, 
+                overheadFactor: normalizedResult.weightedFactors.complexityReductionEstimate,
+                usagePenalty: normalizedResult.weightedFactors.usagePenaltyInput
+            };
+
+            this.#auditDisperser.publish('INFO', 'RMK_METRIC_GENERATED', {
+                componentId,
+                compositeScore: normalizedResult.compositeScore,
+                raw: rawMetrics,
+                adjudicationInput
+            });
+
+            return {
+                raw: rawMetrics,
+                adjudicationInput: adjudicationInput
+            };
 
         } catch (error) {
-            logger.error(`Critical failure in RMS orchestration for ${componentId}.`, error);
-            throw new Error(`RMS Calculation Orchestration Failure: ${error.message}`);
+            this.#auditDisperser.publish('CRITICAL', 'RMK_ORCHESTRATION_FAILURE', { 
+                componentId, 
+                error: error.message 
+            });
+            throw new Error(`RMK Calculation Orchestration Failure: ${error.message}`);
         }
     }
-};
+}
