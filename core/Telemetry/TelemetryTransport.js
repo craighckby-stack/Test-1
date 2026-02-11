@@ -4,37 +4,31 @@
  * for queue management and network delivery.
  */
 
-declare const _TP: {
-    TimedBatchProcessorUtility: {
-        create: (config: any) => {
-            queueItem: (item: any) => void;
-            stop: () => Promise<void>;
-        }
-    }
-};
+// Resolve dependency once at the module scope for performance and clarity
+const HttpBatchTransport = require('./HttpBatchTransport');
 
 /**
  * Using composition with HttpBatchTransport plugin to manage core logic.
  */
 class TelemetryTransport {
-    private httpTransport: ReturnType<typeof require('./HttpBatchTransport')>;
+    // Rigorously enforce encapsulation using private class fields
+    #httpTransport;
 
-    constructor(config: { endpoint: string, batchSize?: number, flushInterval?: number }) {
+    constructor(config) {
         // Initialize the abstracted transport layer
-        const HttpBatchTransport = require('./HttpBatchTransport');
-        this.httpTransport = new HttpBatchTransport(config);
+        this.#httpTransport = new HttpBatchTransport(config);
     }
 
-    queueEvent(packet: any): void {
+    queueEvent(packet) {
         // Delegate queuing to the transport layer
-        this.httpTransport.queueItem(packet);
+        this.#httpTransport.queueItem(packet);
     }
 
     /**
      * Shuts down the transport and attempts a final flush.
      */
-    async shutdown(): Promise<void> {
-        await this.httpTransport.shutdown();
+    async shutdown() {
+        await this.#httpTransport.shutdown();
     }
 }
 
