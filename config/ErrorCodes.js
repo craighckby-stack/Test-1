@@ -4,11 +4,6 @@
  * aiding integration with logging systems and API error mapping middleware.
  */
 
-// NOTE: The former CodeRegistryLookupUtility logic has been extracted into the 
-// 'RegistryLookupTool' plugin for use in complex, dynamic lookup scenarios.
-// However, for this static configuration file, the lookup logic is implemented locally
-// to ensure immediate availability and remove reliance on external kernel capabilities.
-
 export const ERROR_CODES = Object.freeze({
     // System / General
     SYSTEM_UNKNOWN: 'SYS_0000',
@@ -31,18 +26,14 @@ export const ERROR_CODES = Object.freeze({
 /**
  * Utility function to quickly access a standardized code.
  * Provides safe lookup with a mandatory fallback to SYSTEM_UNKNOWN if the key is not found.
+ * 
+ * Performance Refactor: Using the logical OR operator for concise, safe fallback lookup,
+ * relying on the fact that all codes are non-empty, truthy strings.
+ * 
  * @param {string} key - The key from ERROR_CODES (e.g., 'AUDIT_GENERIC').
  * @returns {string}
  */
 export function getStandardCode(key: string): string {
-    // Cast key to the expected type for type safety when accessing the frozen object.
-    const code = ERROR_CODES[key as keyof typeof ERROR_CODES];
-    
-    // Check if the value exists in the registry. (Object.freeze prevents prototype pollution checks.)
-    if (code) {
-        return code;
-    }
-
-    // Fallback to the mandatory default code.
-    return ERROR_CODES.SYSTEM_UNKNOWN;
+    // Use Record<string, string> for generic access to the frozen object.
+    return (ERROR_CODES as Record<string, string>)[key] || ERROR_CODES.SYSTEM_UNKNOWN;
 }
