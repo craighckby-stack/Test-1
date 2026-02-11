@@ -1,25 +1,48 @@
 /**
- * HandlerServiceResolver (HSR)
+ * HandlerServiceResolverKernel (HSRK)
  * Mission: Dynamically resolves and instantiates handler services defined in the configuration,
  * associating them with necessary execution metadata (e.g., timeouts, retries).
  *
- * Refactoring Note: Dependency loading logic has been abstracted out and injected
- * via the 'serviceLoader' function to decouple HSR from specific module resolution methods (e.g., synchronous 'require').
+ * Refactoring Note: Decoupled dependency loading and configuration access using
+ * IServiceResolutionToolKernel and IHandlerServiceConfigRegistryKernel.
  */
 
-class HandlerServiceResolver {
+const KernelSymbols = {
+    Logger: 'ILoggerToolKernel',
+    ConfigRegistry: 'IHandlerServiceConfigRegistryKernel',
+    ServiceResolver: 'IServiceResolutionToolKernel'
+};
+
+class HandlerServiceResolverKernel {
     /**
-     * @param {Object} handlerRegistryConfig - Configuration mapping handler IDs to paths and metadata.
-     * @param {function(string): Object} serviceLoader - Function to load a module/service instance by name (e.g., using a DI container).
+     * @param {object} dependencies - Injected dependencies map.
+     * @param {ILoggerToolKernel} dependencies.ILoggerToolKernel
+     * @param {IHandlerServiceConfigRegistryKernel} dependencies.IHandlerServiceConfigRegistryKernel
+     * @param {IServiceResolutionToolKernel} dependencies.IServiceResolutionToolKernel
      */
-    constructor(handlerRegistryConfig, serviceLoader) {
-        if (typeof serviceLoader !== 'function') {
-            throw new TypeError("HSR requires a callable serviceLoader function for dependency resolution.");
-        }
-        this.registry = handlerRegistryConfig;
-        this.loadService = serviceLoader;
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
         this.cache = new Map();
         this.isInitialized = false;
+    }
+
+    #setupDependencies(dependencies) {
+        const {
+            [KernelSymbols.Logger]: logger,
+            [KernelSymbols.ConfigRegistry]: configRegistry,
+            [KernelSymbols.ServiceResolver]: serviceResolver
+        } = dependencies;
+
+        if (!logger || !configRegistry || !serviceResolver) {
+            throw new Error("HandlerServiceResolverKernel requires ILoggerToolKernel, IHandlerServiceConfigRegistryKernel, and IServiceResolutionToolKernel.");
+        }
+
+        /** @type {ILoggerToolKernel} */
+        this.logger = logger;
+        /** @type {IHandlerServiceConfigRegistryKernel} */
+        this.configRegistry = configRegistry;
+        /** @type {IServiceResolutionToolKernel} */
+        this.serviceResolver = serviceResolver;
     }
 
     /**
@@ -27,27 +50,35 @@ class HandlerServiceResolver {
      */
     async initialize() {
         if (this.isInitialized) return; 
-        const handlerCount = Object.keys(this.registry).length;
-        console.log(`[HSR] Starting initialization of ${handlerCount} execution handlers...`);
         
-        const resolutions = Object.entries(this.registry).map(([id, definition]) => 
-            this._resolveAndRegister(id, definition)
+        const handlerRegistryConfig = await this.configRegistry.getHandlerRegistryConfig();
+
+        const handlerCount = Object.keys(handlerRegistryConfig).length;
+        this.logger.info(`[HSRK] Starting initialization of ${handlerCount} execution handlers...`);
+        
+        const resolutions = Object.entries(handlerRegistryConfig).map(([id, definition]) => 
+            this.#resolveAndRegister(id, definition)
         );
 
         // Resolve all concurrently to speed up startup
         await Promise.all(resolutions);
         this.isInitialized = true;
-        console.log("[HSR] Initialization complete.");
+        this.logger.info("[HSRK] Initialization complete.");
     }
 
     /**
      * Retrieves a prepared execution handler object by its ID.
      * @param {string} handlerId - The symbolic ID from the handler configuration.
-     * @returns {{handler: Function, metadata: Object}} The callable handler function wrapped with execution metadata.
+     * @returns {Promise<{handler: Function, metadata: Object}>} The callable handler function wrapped with execution metadata.
      */
-    getHandler(handlerId) {
+    async getHandler(handlerId) {
+        if (!this.isInitialized) {
+             throw new Error("HandlerServiceResolverKernel is not initialized. Call initialize() first.");
+        }
+        
         const handler = this.cache.get(handlerId);
         if (!handler) {
+            this.logger.error(`Handler ID not found or not initialized: ${handlerId}`);
             throw new Error(`Handler ID not found or not initialized: ${handlerId}`);
         }
         return handler;
@@ -55,40 +86,46 @@ class HandlerServiceResolver {
 
     /**
      * Internal function to load the service, bind execution metadata, and cache the result.
+     * @private
      */
-    async _resolveAndRegister(id, definition) {
+    async #resolveAndRegister(id, definition) {
         // Destructure definition, providing a default empty object for metadata
         const { path, execution_metadata = {} } = definition; 
         
         const [serviceName, methodName] = path.split('.');
 
         if (!serviceName || !methodName) {
-             throw new Error(`[HSR Error] Invalid definition for handler '${id}': Path '${path}' must be in 'Service.Method' format.`);
+             const errorMsg = `Invalid definition for handler '${id}': Path '${path}' must be in 'Service.Method' format.`;
+             this.logger.error(`[HSRK Error] ${errorMsg}`);
+             throw new Error(errorMsg);
         }
 
-        // Use the injected loader for dependency resolution
-        const ServiceModule = this.loadService(serviceName);
+        // Use the injected asynchronous service resolver
+        const ServiceModule = await this.serviceResolver.resolveService(serviceName);
         
         if (!ServiceModule) {
-             throw new Error(`[HSR Error] Service module not resolvable for handler '${id}': Service '${serviceName}' not found.`);
+             const errorMsg = `Service module not resolvable for handler '${id}': Service '${serviceName}' not found.`;
+             this.logger.error(`[HSRK Error] ${errorMsg}`);
+             throw new Error(errorMsg);
         }
 
         const handlerFunction = ServiceModule[methodName];
 
         if (typeof handlerFunction !== 'function') {
-            throw new Error(`[HSR Error] Invalid handler definition for '${id}': Path ${path} does not point to a callable function.`);
+            const errorMsg = `Invalid handler definition for '${id}': Path ${path} does not point to a callable function.`;
+            this.logger.error(`[HSRK Error] ${errorMsg}`);
+            throw new Error(errorMsg);
         }
 
         // Wrap the handler function with metadata 
-        // Ensure 'this' context is preserved (ServiceModule might be a class instance or plain object)
         const executableWrapper = {
             handler: handlerFunction.bind(ServiceModule), 
             metadata: execution_metadata
         };
         
         this.cache.set(id, executableWrapper);
-        console.log(`[HSR] Registered handler: ${id} (Path: ${path})`);
+        this.logger.info(`[HSRK] Registered handler: ${id} (Path: ${path})`);
     }
 }
 
-module.exports = HandlerServiceResolver;
+module.exports = HandlerServiceResolverKernel;
