@@ -1,14 +1,12 @@
 /**
- * @fileoverview ProposalArtifactResolver
- * This utility provides abstraction for fetching and resolving code artifacts
+ * @fileoverview ProposalArtifactResolverKernel
+ * This kernel provides abstraction for fetching and resolving code artifacts
  * (file content, metadata, historical versions) needed during the Conceptual
- * Integrity check process.
- * It abstracts away filesystem details or mutation staging access for the Policy Evaluator.
+ * Integrity check process, specifically against a pending proposal's staged state.
+ * It enforces strict Dependency Injection and asynchronous operation.
  */
 
-import { FileSystemAdapter } from '../../services/FileSystemAdapter.js'; // Assumed dependency
-import { ProposalChangeResolverTool } from './ProposalChangeResolverTool.js'; // New dependency
-import { ProposalContentResolver } from './ProposalContentResolver.js'; // New dependency (the abstracted plugin)
+import { IProposalContentResolverToolKernel } from './IProposalContentResolverToolKernel';
 
 interface ProposalFileChange {
     path: string;
@@ -26,31 +24,45 @@ interface ResolutionContext {
     [key: string]: any;
 }
 
-// Dependencies required by the core content resolution logic
-const RESOLUTION_DEPENDENCIES = {
-    FileSystemAdapter,
-    ProposalChangeResolverTool
-};
+export class ProposalArtifactResolverKernel {
+    #contentResolver: IProposalContentResolverToolKernel;
 
-export const ProposalArtifactResolver = {
+    /**
+     * @param contentResolver The kernel responsible for resolving content based on proposal changes.
+     */
+    constructor(contentResolver: IProposalContentResolverToolKernel) {
+        this.#setupDependencies(contentResolver);
+    }
+
+    /**
+     * Ensures all required dependencies are present and assigns them.
+     * Enforces the synchronous setup extraction mandate.
+     * @param contentResolver The injected content resolver tool.
+     */
+    #setupDependencies(contentResolver: IProposalContentResolverToolKernel): void {
+        if (!contentResolver || typeof contentResolver.resolveContent !== 'function') {
+            throw new Error("Dependency Injection Error: IProposalContentResolverToolKernel is required.");
+        }
+        this.#contentResolver = contentResolver;
+    }
 
     /**
      * Fetches the current content of a file based on the proposal context.
-     * Delegates content resolution to the abstracted plugin.
+     * Delegates content resolution to the injected tool.
      * @param {string} path
      * @param {ProposalContext} proposal The overall proposal context.
-     * @returns {string|null}
+     * @returns {Promise<string|null>} The content string or null if not found.
      */
-    getCurrentContent(path: string, proposal: ProposalContext): string | null {
-        return ProposalContentResolver.resolveContent(path, proposal, RESOLUTION_DEPENDENCIES);
-    },
+    public async getCurrentContent(path: string, proposal: ProposalContext): Promise<string | null> {
+        return this.#contentResolver.resolveContent(path, proposal);
+    }
 
     /**
      * Fetches content required for a policy evaluation against a specific context.
      * @param {ResolutionContext} context The context object provided by CIE (contains proposal details, filePath, scope).
-     * @returns {{ content: string | null, exists: boolean }}
+     * @returns {Promise<{ content: string | null, exists: boolean }>} The artifact context.
      */
-    resolveArtifactContext(context: ResolutionContext): { content: string | null, exists: boolean } {
+    public async resolveArtifactContext(context: ResolutionContext): Promise<{ content: string | null, exists: boolean }> {
         const path = context.filePath;
 
         if (!path) {
@@ -60,13 +72,11 @@ export const ProposalArtifactResolver = {
         // Default proposal details if missing
         const proposalDetails: ProposalContext = context.proposalDetails || {};
         
-        const content = ProposalArtifactResolver.getCurrentContent(path, proposalDetails);
+        const content = await this.getCurrentContent(path, proposalDetails);
 
         return {
             content: content,
             exists: content !== null
         };
     }
-    
-    // Future extensions: getContentBeforeMutation(path, proposalId), getRelatedFiles(path)
-};
+}
