@@ -1,13 +1,9 @@
+import { SealingReceipt } from "#plugin:IntegrityCoreTypes";
+
 interface GFTReportV94 {
     report_id: string;
     timestamp: number;
     // ... extensive forensic data specific to V94 terminal failure
-}
-
-interface PIAMSealingReceipt {
-    state_hash: string;
-    sealing_key_id: string;
-    sealing_timestamp: number;
 }
 
 /**
@@ -25,12 +21,12 @@ export interface PIAM_Interface {
      * @param failureId report_id associated with the terminal event.
      * @returns A receipt confirming the successful sealing operation, including the state hash.
      */
-    captureAndSealTerminalState(failureId: string): Promise<PIAMSealingReceipt>;
+    captureAndSealTerminalState(failureId: string): Promise<SealingReceipt>;
 
     /**
      * Initiates the Physical/Logical Terminal Isolation Sequence. This renders the
      * active execution environment immutable and prepares for hibernation/deep sleep.
-     * Requires the hash of the sealed state to ensure isolation is chained to integrity validation.
+     * Requires the hash of the sealed state (data_hash) to ensure isolation is chained to integrity validation.
      * @param stateSealHash The hash of the sealed state package, linking isolation to integrity.
      * @returns True if isolation protocols were secured successfully.
      */
