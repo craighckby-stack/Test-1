@@ -1,15 +1,14 @@
 /**
- * Internal recursive function to sort object keys and detect circular dependencies.
- * This prepares the data structure for deterministic JSON stringification.
+ * Internal recursive function to sort object keys and detect circular dependencies,
+ * generating a stable data structure ready for deterministic JSON stringification.
+ * This helper serves as the synchronous data preparation step, isolating complex 
+ * recursive logic from the primary execution function (`stableStringify`).
  * 
- * The function is prefixed with '_' to clearly denote its internal module scope 
- * and reliance solely on 'stableStringify'.
- *
  * @param value The object or array to process.
  * @param seen WeakSet tracking visited objects to prevent cycles.
  * @returns The deterministically sorted and cycle-free representation, or undefined if a cycle is hit.
  */
-function _prepareDeterministicSerialization(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown | undefined {
+function _generateStableStructure(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown | undefined {
     
     // Check 1: Primitives
     if (value === null || typeof value !== 'object') {
@@ -25,7 +24,7 @@ function _prepareDeterministicSerialization(value: unknown, seen: WeakSet<object
     if (Array.isArray(value)) {
         // Handle arrays: recurse and filter out circular branches (undefined)
         return value
-            .map(item => _prepareDeterministicSerialization(item, seen))
+            .map(item => _generateStableStructure(item, seen))
             .filter(item => item !== undefined);
             
     } else {
@@ -34,7 +33,7 @@ function _prepareDeterministicSerialization(value: unknown, seen: WeakSet<object
         const cleanedObject: Record<string, unknown> = {};
 
         for (const key of keys) {
-            const processedValue = _prepareDeterministicSerialization((value as Record<string, unknown>)[key], seen);
+            const processedValue = _generateStableStructure((value as Record<string, unknown>)[key], seen);
             
             // Only include non-undefined values (omits cycle branches)
             if (processedValue !== undefined) {
@@ -61,7 +60,7 @@ export function stableStringify(value: unknown, replacer?: (key: string, value: 
     
     try {
         // Step 1: Prepare the data for deterministic serialization (sort keys, remove cycles).
-        const sortedValue = _prepareDeterministicSerialization(value);
+        const sortedValue = _generateStableStructure(value);
         
         // If the entire root structure was deemed unrepresentable (e.g., circular self-reference), return stable 'null'.
         if (sortedValue === undefined) {
