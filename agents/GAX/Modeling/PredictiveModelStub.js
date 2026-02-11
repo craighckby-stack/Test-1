@@ -36,10 +36,15 @@ class PredictiveModelStub {
      */
     async predict(features) {
         const capabilityKey = PredictiveModelStub.REQUIRED_CAPABILITY;
-        const registry = globalThis.KERNEL_SYNERGY_CAPABILITIES;
 
         // Use the centralized executor logic to handle lookup, validation, and delegation.
-        return PredictiveModelStub.#executeCapability(capabilityKey, 'predict', features, registry);
+        // The global registry access is inlined to streamline the dispatch function.
+        return PredictiveModelStub.#executeCapability(
+            capabilityKey, 
+            'predict', 
+            features, 
+            globalThis.KERNEL_SYNERGY_CAPABILITIES
+        );
     }
 
     /**
