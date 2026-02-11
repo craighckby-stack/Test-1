@@ -61,26 +61,38 @@ class DTM_AdaptiveEngine {
   }
 
   /**
+   * Delegates the actual weighted scoring calculation to the external utility.
+   */
+  private #executeWeightedScoreCalculation(inputs: Record<string, number>): number {
+    return DTM_AdaptiveEngine.#WeightedScorerUtility.calculate(
+      inputs, 
+      DTM_AdaptiveEngine.#SCORING_WEIGHTS, 
+      true
+    );
+  }
+
+  /**
    * Calculates the overall normalized trust score for a proposed modification.
    */
   calculateTrustScore(proposedModificationPayload: { metrics: { depth: number } }): number {
     const inputs = this.#prepareScoringInputs(proposedModificationPayload);
 
-    // Use the statically resolved utility and frozen weights.
-    const score = DTM_AdaptiveEngine.#WeightedScorerUtility.calculate(
-      inputs, 
-      DTM_AdaptiveEngine.#SCORING_WEIGHTS, 
-      true
-    );
-    
-    return score;
+    // Delegate the prepared data to the core utility
+    return this.#executeWeightedScoreCalculation(inputs);
+  }
+
+  /**
+   * Retrieves the current environmental context necessary for adaptive adjustments (entropy factor).
+   */
+  private #getEntropyContext(): number {
+    return this.#telemetry.getEnvironmentalEntropy();
   }
 
   /**
    * Calculates the minimum required trust, adjusting upward based on system entropy.
    */
   MinTrustRequired(baseline: number): number {
-    const entropyFactor = this.#telemetry.getEnvironmentalEntropy();
+    const entropyFactor = this.#getEntropyContext();
     
     // Use the statically resolved utility and static sensitivity.
     return DTM_AdaptiveEngine.#AdaptiveThresholdAdjuster.calculateAdjustment(
