@@ -8,19 +8,37 @@ import { executeValidation, ValidationResult } from './plugins/ValidationExecuti
  * to generate validation and normalization pipelines (using Zod internally).
  */
 export class TEDSFieldValidator {
-  private compiledSchema: ZodSchema<any>;
+  #compiledSchema: ZodSchema<any>;
 
   constructor() {
-    // Casting to ZodSchema<any> to satisfy internal typing, as the compileSchema placeholder is generic.
-    this.compiledSchema = this.compileSchema(TEDS_SCHEMA.domains) as ZodSchema<any>;
-    Logger.info('TEDS Schema compiled successfully.');
+    this.#initializeEngine();
+  }
+
+  // --- Initialization and Setup ---
+
+  /**
+   * Extracts synchronous initialization logic from the constructor.
+   */
+  #initializeEngine(): void {
+    // TEDS_SCHEMA consumption and schema compilation logic delegated to private methods.
+    this.#compiledSchema = this.#compileTedsSchema(TEDS_SCHEMA.domains) as ZodSchema<any>;
+    this.#logInfo('TEDS Schema compiled successfully.');
+  }
+
+  // --- Private Proxies (I/O & Internal Logic) ---
+
+  /** 
+   * Proxy for Logger.info, strictly isolating logging operations.
+   */
+  #logInfo(message: string): void {
+    Logger.info(message);
   }
 
   /**
-   * Iteratively compiles the JSON definitions into a robust Zod validation schema.
+   * Proxy for Zod Schema compilation logic, using external Zod dependency.
    * (Requires extensive domain mapping logic not fully detailed here).
    */
-  private compileSchema(domains: any): ZodSchema {
+  #compileTedsSchema(domains: any): ZodSchema {
     let primaryDomainSchema: { [key: string]: ZodSchema } = {};
 
     // For demonstration, return a basic, conceptual compilation wrapper:
@@ -31,6 +49,15 @@ export class TEDSFieldValidator {
   }
 
   /**
+   * Proxy for external ValidationExecutionUtility tool, strictly isolating
+   * the delegation to the external execution environment.
+   */
+  #delegateToValidationExecution(validatorFn: (data: unknown) => unknown, rawData: unknown): ValidationResult<any> {
+    // Note: The Logger dependency is passed through this proxy.
+    return executeValidation(validatorFn, rawData, Logger);
+  }
+
+  /**
    * Validates and attempts to normalize raw input data against the TEDS standard.
    */
   public processAndValidate(rawData: unknown): ValidationResult<any> {
@@ -38,12 +65,11 @@ export class TEDSFieldValidator {
     // 1. Define the specific validation function (Zod parsing logic).
     const zodValidatorFunction = (data: unknown) => {
         // The validator must throw the exception (ZodError) for the utility to catch and parse.
-        return this.compiledSchema.parse(data);
+        return this.#compiledSchema.parse(data);
     };
 
     // 2. Delegate execution, standardized error handling, and result formatting
-    // to the external ValidationExecutionUtility plugin.
-    // Note: We pass the local Logger instance to the utility for internal error logging.
-    return executeValidation(zodValidatorFunction, rawData, Logger);
+    // using the I/O proxy.
+    return this.#delegateToValidationExecution(zodValidatorFunction, rawData);
   }
 }
