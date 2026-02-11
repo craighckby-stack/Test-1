@@ -34,13 +34,22 @@ export interface IntentPayload {
  */
 export class IntentValidator {
     // Private fields for strict encapsulation and structural integrity.
-    #validator: ICriticalSchemaValidator;
+    #validator!: ICriticalSchemaValidator; // Definite assignment via #setupDependencies
     #schemaId: string = INTENT_SCHEMA_ID;
     
     /**
      * @param validator The kernel's ICriticalSchemaValidator instance (Dependency Injection).
      */
     constructor(validator: ICriticalSchemaValidator) {
+        this.#setupDependencies(validator);
+        this.#performSynchronousSchemaLoad();
+    }
+
+    /**
+     * 1. Extracts dependency validation and assignment into a dedicated helper function.
+     * Enforces Dependency Encapsulation.
+     */
+    #setupDependencies(validator: ICriticalSchemaValidator): void {
         // Ensure all required interface methods are present upon injection.
         if (!validator || 
             typeof validator.validate !== 'function' || 
@@ -49,23 +58,40 @@ export class IntentValidator {
             throw new Error("IntentValidator instantiation failed: A valid ICriticalSchemaValidator instance must be provided via constructor injection, guaranteeing validate() and isInitialized() methods.");
         }
         this.#validator = validator;
-        
-        // Guarantee the schema is loaded immediately upon instantiation.
-        this.#initializeSchema();
     }
 
     /**
-     * Ensures the critical intent validation schema is loaded and compiled once.
-     * @private
+     * 2. Extracts synchronous schema configuration loading, utilizing I/O proxies for external interaction.
+     * Satisfies Synchronous Setup Extraction.
      */
-    #initializeSchema(): void {
-        // Only trigger initialization if the validator utility reports it is not yet initialized.
+    #performSynchronousSchemaLoad(): void {
         // We rely on the utility's implementation to handle idempotent schema registration.
-        if (!this.#validator.isInitialized()) {
-            this.#validator.initialize({
-                schemas: [intentSchema]
-            });
+        if (!this.#checkValidatorInitializationStatus()) {
+            this.#delegateToValidatorInitialization(intentSchema);
         }
+    }
+
+    /**
+     * 3a. I/O Proxy: Delegates checking initialization status to the external dependency.
+     */
+    #checkValidatorInitializationStatus(): boolean {
+        return this.#validator.isInitialized();
+    }
+
+    /**
+     * 3b. I/O Proxy: Delegates schema initialization to the external dependency.
+     */
+    #delegateToValidatorInitialization(schema: any): void {
+        this.#validator.initialize({
+            schemas: [schema]
+        });
+    }
+
+    /**
+     * 3c. I/O Proxy: Delegates the validation execution to the external dependency.
+     */
+    #delegateToValidatorValidation(schemaId: string, data: any): ReturnType<ICriticalSchemaValidator['validate']> {
+        return this.#validator.validate(schemaId, data);
     }
 
     /**
@@ -76,7 +102,7 @@ export class IntentValidator {
      */
     public validateIntent(intent: any): intent is IntentPayload {
         
-        const validationResult = this.#validator.validate(this.#schemaId, intent);
+        const validationResult = this.#delegateToValidatorValidation(this.#schemaId, intent);
         
         if (!validationResult.valid) {
             const errors = validationResult.errors;
