@@ -1,47 +1,85 @@
 /**
- * @fileoverview ConceptualPolicyEvaluator
- * Executes complex, concept-specific validation policies defined within the Concept Registry.
- * It dynamically dispatches execution requests to specific Policy Handlers registered 
- * in the ConceptualPolicyRegistry based on the constraint type, preventing monolithic logic.
+ * @fileoverview ConceptualPolicyEvaluatorKernel
+ * Executes complex, concept-specific validation policies defined within the Concept Registry
+ * using the injected Rule Evaluation Engine and Policy Registry.
  */
 
-import { ConceptualPolicyRegistry } from './ConceptualPolicyRegistry.js';
-
-// NOTE: executeConstraint logic has been extracted into the PolicyExecutionEngine plugin.
-// We assume the PolicyExecutionEngine utility is available in the execution context.
+// Note: Assuming AbstractKernel and standard interfaces are available via DI context or imports.
+// Placeholder definitions for architectural consistency:
 
 /**
- * Executes a single conceptual constraint by looking up the appropriate handler.
  * @typedef {{ruleId: string, detail: string, severity: string}} Violation
  */
 
-/**
- * Interface definition for the required Policy Execution Utility (provided by AGI kernel plugins)
- * @typedef {{execute: (args: { constraint: Object, context: Object, registry: Object }) => (Violation | null)}} PolicyExecutionEngineInterface
- */
-declare const PolicyExecutionEngine: PolicyExecutionEngineInterface;
+// Placeholder for the Registry containing Policy Handler definitions
+class IConceptualPolicyRegistryKernel {}
 
+// Placeholder for the Tool responsible for executing specific rules/policies
+class IRuleEvaluationEngineToolKernel {}
 
-export const ConceptualPolicyEvaluator = {
+// Placeholder for the required base class
+class AbstractKernel { constructor() {} }
+
+class ConceptualPolicyEvaluatorKernel extends AbstractKernel {
+
+    /** @type {IConceptualPolicyRegistryKernel} */
+    #policyRegistry;
+    
+    /** @type {IRuleEvaluationEngineToolKernel} */
+    #ruleEvaluationEngine;
+
+    /**
+     * @param {IConceptualPolicyRegistryKernel} policyRegistry - Source for policy handlers (replaces ConceptualPolicyRegistry).
+     * @param {IRuleEvaluationEngineToolKernel} ruleEvaluationEngine - Tool for constraint execution (replaces PolicyExecutionEngine).
+     */
+    constructor(policyRegistry, ruleEvaluationEngine) {
+        super();
+        this.#policyRegistry = policyRegistry;
+        this.#ruleEvaluationEngine = ruleEvaluationEngine;
+        this.#setupDependencies();
+    }
+
+    /**
+     * Isolates dependency validation and assignment for strict synchronous setup compliance.
+     * @private
+     */
+    #setupDependencies() {
+        if (!this.#policyRegistry || !(this.#policyRegistry instanceof IConceptualPolicyRegistryKernel)) {
+            throw new Error("ConceptualPolicyEvaluatorKernel requires a valid IConceptualPolicyRegistryKernel dependency.");
+        }
+        if (!this.#ruleEvaluationEngine || !(this.#ruleEvaluationEngine instanceof IRuleEvaluationEngineToolKernel)) {
+            throw new Error("ConceptualPolicyEvaluatorKernel requires a valid IRuleEvaluationEngineToolKernel dependency.");
+        }
+        // Enforce immutability
+        Object.freeze(this);
+    }
+
+    /**
+     * Initializes the kernel.
+     * @returns {Promise<void>}
+     */
+    async initialize() {
+        return Promise.resolve();
+    }
 
     /**
      * Executes all defined constraints and policies for a given concept against the current context.
-     * @param {Object} concept The conceptual definition object (from ConceptRegistry).
-     * @param {Object} context The operational context (e.g., file path, diff content, metadata).
-     * @returns {{isValid: boolean, violations: Array<Violation>}}
+     * @param {Object} concept The conceptual definition object.
+     * @param {Object} context The operational context.
+     * @returns {Promise<{isValid: boolean, violations: Array<Violation>}>}
      */
-    executePolicies(concept, context) {
+    async executePolicies(concept, context) {
         let violations = [];
 
-        // Execution logic is now purely declarative dispatch.
-        if (concept.constraints && Array.isArray(concept.constraints)) {
+        if (concept?.constraints && Array.isArray(concept.constraints)) {
             for (const constraint of concept.constraints) {
                 
-                // CRITICAL: Delegating execution, error handling, and violation formatting to the plugin.
-                const violation = PolicyExecutionEngine.execute({
+                // Delegation to the injected, asynchronous Rule Evaluation Engine (replacing the global utility).
+                const violation = await this.#ruleEvaluationEngine.executeRule({
                     constraint: constraint,
                     context: context,
-                    registry: ConceptualPolicyRegistry // Pass the handler lookup table
+                    // Pass the policy handler lookup table
+                    ruleHandlerRegistry: this.#policyRegistry 
                 });
 
                 if (violation) {
@@ -50,13 +88,9 @@ export const ConceptualPolicyEvaluator = {
             }
         }
 
-        // Potential integration point for broader systemic checks:
-        // const systemicViolations = executeSystemicPolicies(concept, context);
-        // violations = violations.concat(systemicViolations);
-
         return {
             isValid: violations.length === 0,
             violations: violations
         };
     }
-};
+}
