@@ -1,22 +1,22 @@
 /**
- * E-01 Interface: IPolicyFetcher
- * Role: Defines the mandatory interface for any secure dependency injection used by the ExternalPolicyIndex (EPI).
- * 
- * Implementations of this interface MUST handle all aspects of secure communication, including cryptographic verification 
- * (e.g., checking digital signatures, integrity hashes) before resolving.
+ * AGI-KERNEL Interface: ISecurePolicyLoaderToolKernel
+ * Role: Defines the high-integrity, asynchronous interface for securely fetching and cryptographically
+ * verifying external governance policies (E-01).
+ *
+ * Implementations of this kernel MUST delegate cryptographic verification (signature checking, integrity hashing)
+ * to dedicated, audited Crypto Utility Kernels before resolving the mandates.
  */
-
-class IPolicyFetcher {
+class ISecurePolicyLoaderToolKernel {
     /**
-     * Fetches and cryptographically verifies the latest governance policies from the external source.
-     * 
-     * @param {string} sourceUrl - The URL pointing to the governance mandate source.
-     * @returns {Promise<{mandates: Object, tag: string}>} A promise resolving to the verified policy mandates object and its version tag.
-     * @throws {Error} Throws if fetching fails or if cryptographic verification fails (i.e., data is corrupted or unauthorized).
+     * Asynchronously fetches and cryptographically verifies the latest governance policies from the external source.
+     *
+     * @param {string} sourceUrl - The secured URL pointing to the governance mandate source.
+     * @returns {Promise<{mandates: Readonly<Object>, tag: string}>} A promise resolving to the verified, immutable policy mandates object and its version tag.
+     * @throws {Error} Throws if fetching fails or if cryptographic verification fails (e.g., data corruption, unauthorized source).
      */
-    async fetch(sourceUrl) {
-        throw new Error('IPolicyFetcher: fetch method must be implemented by the dependency.');
+    async fetchVerifiedPolicies(sourceUrl) {
+        throw new Error('ISecurePolicyLoaderToolKernel: fetchVerifiedPolicies method must be implemented by the dependency.');
     }
 }
 
-module.exports = IPolicyFetcher;
+module.exports = ISecurePolicyLoaderToolKernel;
