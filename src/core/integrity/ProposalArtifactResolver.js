@@ -8,6 +8,7 @@
 
 import { FileSystemAdapter } from '../../services/FileSystemAdapter.js'; // Assumed dependency
 import { ProposalChangeResolverTool } from './ProposalChangeResolverTool.js'; // New dependency
+import { ProposalContentResolver } from './ProposalContentResolver.js'; // New dependency (the abstracted plugin)
 
 interface ProposalFileChange {
     path: string;
@@ -25,31 +26,23 @@ interface ResolutionContext {
     [key: string]: any;
 }
 
+// Dependencies required by the core content resolution logic
+const RESOLUTION_DEPENDENCIES = {
+    FileSystemAdapter,
+    ProposalChangeResolverTool
+};
+
 export const ProposalArtifactResolver = {
 
     /**
      * Fetches the current content of a file based on the proposal context.
-     * If the file is part of the proposal, returns the modified/new content (if applicable).
+     * Delegates content resolution to the abstracted plugin.
      * @param {string} path
      * @param {ProposalContext} proposal The overall proposal context.
      * @returns {string|null}
      */
     getCurrentContent(path: string, proposal: ProposalContext): string | null {
-        // 1. Check if the file is part of the active proposal/mutation stage using the dedicated tool.
-        const stagedContent = ProposalChangeResolverTool.resolveStagedContent(path, proposal.affectedFiles);
-
-        if (stagedContent !== null) {
-            return stagedContent;
-        }
-        
-        // 2. If unaffected by the proposal, fetch from the current stable filesystem/repository view.
-        try {
-            // @ts-ignore: Assuming FileSystemAdapter returns string or throws
-            return FileSystemAdapter.readFile(path);
-        } catch (e) {
-            console.warn(`[ArtifactResolver] Could not read file content for path: ${path}`);
-            return null;
-        }
+        return ProposalContentResolver.resolveContent(path, proposal, RESOLUTION_DEPENDENCIES);
     },
 
     /**
