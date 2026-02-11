@@ -4,7 +4,7 @@
  * Ensures type safety and consistent defaults across all modules by utilizing the EnvironmentConfigLoader.
  */
 
-// --- Type Definitions (TypeScript allowed in improved code) ---
+// --- Type Definitions ---
 interface ConfigDefinitionItem {
     type: 'string' | 'number' | 'boolean';
     default: any;
@@ -12,6 +12,9 @@ interface ConfigDefinitionItem {
 }
 
 type ConfigDefinition = Record<string, ConfigDefinitionItem>;
+
+// Define keys for internal consistency and type hinting
+type CoreConfigKeys = 'AGI_VERSION' | 'ENVIRONMENT' | 'LOG_LEVEL' | 'LOG_DESTINATION' | 'API_PORT';
 
 // Assuming the plugin interface is available via __AGI_PLUGINS__
 declare const __AGI_PLUGINS__: {
@@ -21,8 +24,6 @@ declare const __AGI_PLUGINS__: {
 };
 
 class ConfigService {
-    private _config: Record<string, any>;
-    
     // Declarative schema for configuration
     private readonly CONFIG_DEFINITION: ConfigDefinition = {
         // Core System Settings
@@ -38,6 +39,8 @@ class ConfigService {
         // ... other system settings (SRM limits, Memory capacity, etc.)
     };
 
+    private _config: Record<string, any>;
+
     constructor() {
         this._config = this._loadConfiguration();
     }
@@ -51,31 +54,35 @@ class ConfigService {
             const loader = __AGI_PLUGINS__.EnvironmentConfigLoader;
             return loader.load(this.CONFIG_DEFINITION, process.env);
         } catch (e) {
-            console.error("FATAL: EnvironmentConfigLoader plugin missing or failed to initialize.", e);
             // Fallback to basic defaults if plugin loading fails
+            console.error(
+                `[ConfigService] FATAL: EnvironmentConfigLoader plugin failed. Falling back to default configuration. Error: ${e instanceof Error ? e.message : String(e)}`
+            );
+
             return Object.keys(this.CONFIG_DEFINITION).reduce((acc, key) => {
                 acc[key] = this.CONFIG_DEFINITION[key].default;
                 return acc;
-            }, {});
+            }, {} as Record<string, any>);
         }
     }
 
     /**
-     * Gets a configuration value by key.
-     * @param {string} key - The configuration key (e.g., 'LOG_LEVEL').
-     * @returns {any} The configuration value.
+     * Retrieves a configuration value by key.
+     * @param {CoreConfigKeys | string} key - The configuration key (e.g., 'LOG_LEVEL').
+     * @returns {T | null} The configuration value, typed generic T, or null if key is undefined.
      */
-    public get(key: string): any {
-        if (!this._config.hasOwnProperty(key)) {
-            console.warn(`Configuration key not found: ${key}. This should be defined in CONFIG_DEFINITION.`);
+    public get<T = any>(key: CoreConfigKeys | string): T | null {
+        if (!Object.prototype.hasOwnProperty.call(this._config, key)) {
+            console.warn(`[ConfigService] Attempted access to undefined configuration key: ${key}. This should be defined in CONFIG_DEFINITION.`);
             return null; 
         }
-        return this._config[key];
+        return this._config[key] as T;
     }
 }
 
 // Enforce Singleton Pattern
 const instance = new ConfigService();
+// Freeze the instance to prevent external modification of methods/properties
 Object.freeze(instance);
 
 module.exports = instance;
