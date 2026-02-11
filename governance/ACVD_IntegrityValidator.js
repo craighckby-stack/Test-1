@@ -1,14 +1,6 @@
 import { SchemaValidator, HashService } from './utilities/services'; 
 
 /**
- * Interface for the ValidationPipelineRunner plugin.
- */
-interface ValidationPipelineRunner {
-  run(syncTasks: Array<{ id: string, fn: () => object[], critical: boolean }>, asyncTasks: Array<{ id: string, fn: () => Promise<object[]> }>, errorName?: string): Promise<boolean>;
-  createCompositeError(errors: object[], summary: string, errorName?: string): Error;
-}
-
-/**
  * ACVD_IntegrityValidator is responsible for ensuring that an Autonomous Code Versioning Document
  * (ACVD) is valid against its schema, consistent with the system's operational context, and
  * verifiable against the resulting filesystem state (post-change).
@@ -20,14 +12,17 @@ class ACVD_IntegrityValidator {
   private schemaValidator: SchemaValidator;
   private hashService: HashService;
   private acvdSchema: object;
-  private validationRunner: ValidationPipelineRunner;
+  private validationRunner: { 
+    run(syncTasks: Array<{ id: string, fn: () => object[], critical: boolean }>, asyncTasks: Array<{ id: string, fn: () => Promise<object[]> }>, errorName?: string): Promise<boolean>;
+    createCompositeError(errors: object[], summary: string, errorName?: string): Error;
+  }; // Type definition for documentation
   
   /**
    * @param {object} dependencies 
    * @param {SchemaValidator} dependencies.schemaValidator Instance of a robust schema validation utility.
    * @param {HashService} dependencies.hashService Instance of the hashing utility (must provide calculateSHA256 and hashFile).
    * @param {object} dependencies.acvdSchema The parsed ACVD JSON schema object definition.
-   * @param {ValidationPipelineRunner} dependencies.validationRunner Tool for running structured validation sequences.
+   * @param {object} dependencies.validationRunner Tool for running structured validation sequences (Must conform to ValidationPipelineRunner interface).
    */
   constructor({ schemaValidator, hashService, acvdSchema, validationRunner }) {
     if (!schemaValidator || !hashService || !acvdSchema || !validationRunner) {
@@ -121,7 +116,7 @@ class ACVD_IntegrityValidator {
             operation: artifact.operation,
             message: `Filesystem access failure or artifact state inconsistent post-change.`,
             detail: `Error: ${e.message}`
-          }; 
+          };
         }
     });
 
