@@ -4,9 +4,8 @@
  * Ensures all outgoing telemetry adheres to type, format, and constraint specifications.
  */
 
-// Assuming the extracted tool is available via a standardized module path.
 const DeclarativeEventSchemaValidator = require('@kernel/tools/DeclarativeEventSchemaValidator'); 
-const GAXEventSchema = require('./GAXEventSchema');
+const GAXEventSchema = Object.freeze(require('./GAXEventSchema'));
 
 class TelemetryValidator {
     /**
@@ -16,6 +15,7 @@ class TelemetryValidator {
      * @returns {Object} { isValid: boolean, errors: Array<string> }
      */
     static validate(eventName, payload) {
+        // Using the frozen GAXEventSchema ensures read-only access to the validation rules.
         const definition = GAXEventSchema[eventName];
         
         if (!definition) {
