@@ -92,6 +92,33 @@ class TrajectorySimulationEngine {
     }
 
     /**
+     * Executes input checks, comprehensive validation, and feature vector generation.
+     * Consolidates all necessary steps to prepare data structures for model execution.
+     * @param {Object} inputManifest
+     * @returns {Promise<{features: Object, entityId: string}>}
+     */
+    async #prepareExecutionData(inputManifest) {
+        // 1. Critical Minimal Input Check
+        if (!inputManifest?.entityId) {
+             throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
+        }
+        const entityId = inputManifest.entityId;
+
+        // 2. Comprehensive Input Validation (using encapsulated utility)
+        await TrajectorySimulationEngine.#validate(
+            this.validator,
+            inputManifest, 
+            TrajectorySimulationEngine.MANIFEST_SCHEMA, 
+            'Input Manifest'
+        );
+
+        // 3. Feature Vector Generation
+        const features = await this.#extractFeatures(inputManifest);
+        
+        return { features, entityId };
+    }
+
+    /**
      * Runs the full trajectory simulation by extracting features and calling the model handler.
      * @param {Object} inputManifest
      * @returns {Promise<{predictedTEMM: number, predictedECVM: boolean}>}
@@ -100,23 +127,11 @@ class TrajectorySimulationEngine {
         let entityId = 'unknown';
 
         try {
-            // 1. Critical Minimal Input Check
-            if (!inputManifest?.entityId) {
-                 throw new Error("Invalid Manifest: 'entityId' is required and must be a string for simulation.");
-            }
-            entityId = inputManifest.entityId;
+            // 1. Prepare and Validate Input
+            const { features, entityId: preparedEntityId } = await this.#prepareExecutionData(inputManifest);
+            entityId = preparedEntityId; // Update for logging/context
 
-            // 2. Comprehensive Input Validation (using encapsulated utility)
-            await TrajectorySimulationEngine.#validate(
-                this.validator,
-                inputManifest, 
-                TrajectorySimulationEngine.MANIFEST_SCHEMA, 
-                'Input Manifest'
-            );
-
-            const features = await this.#extractFeatures(inputManifest);
-
-            // Execute asynchronous model inference
+            // 2. Execute asynchronous model inference
             const results = await this.model.predict(features);
 
             // 3. Comprehensive Output Validation (using encapsulated utility)
