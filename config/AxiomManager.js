@@ -13,11 +13,25 @@ class AxiomManager {
     }
 
     /**
+     * Internal helper to retrieve and validate the required external computation invoker.
+     * This enforces architectural consistency by separating dependency setup and failure logic.
+     * 
+     * (Requires AxiomKernelInvoker to be available in scope)
+     * @returns {object} The validated AxiomKernelInvoker object.
+     * @private
+     */
+    #getValidatedInvoker() {
+        if (typeof AxiomKernelInvoker?.calculate !== 'function') {
+             throw new Error("AxiomKernelInvoker is required and must expose a 'calculate' method.");
+        }
+        return AxiomKernelInvoker;
+    }
+
+    /**
      * Executes the abstracted and optimized computational process 
      * by delegating the complex, recursive calculation to the specialized kernel invoker.
      * Implements memoization to prevent redundant, expensive computations.
      * 
-     * (Requires AxiomKernelInvoker to be available in scope)
      * @param {boolean} forceRecalculation Skips the memoization check if true.
      * @returns {object} The optimized and abstracted result set, or a cached result wrapper.
      */
@@ -31,12 +45,10 @@ class AxiomManager {
             };
         }
 
-        // Defensive check for external dependency
-        if (typeof AxiomKernelInvoker?.calculate !== 'function') {
-             throw new Error("AxiomKernelInvoker is required and must expose a 'calculate' method.");
-        }
+        // Dependency validation is now encapsulated
+        const invoker = this.#getValidatedInvoker();
 
-        const result = AxiomKernelInvoker.calculate(this.axioms);
+        const result = invoker.calculate(this.axioms);
 
         console.log(`[AxiomManager]: Abstraction complete. Level: ${result.abstractionLevel}`);
         this.lastResult = result.optimizedResults;
