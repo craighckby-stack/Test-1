@@ -16,6 +16,18 @@ const riskData = {
 };
 
 /**
+ * Executes the secondary analysis by loading and running the RiskThresholdChecker plugin.
+ * This encapsulates the I/O dependency lookup and execution for result validation.
+ * @param {Object} enforcementResult - The result from the primary RiskEnforcer calculation.
+ * @param {Object} policies - The configuration policies.
+ * @returns {Object} The analysis report.
+ */
+function _analyzeEnforcementReport(enforcementResult, policies) {
+    const thresholdChecker = KERNEL_SYNERGY_CAPABILITIES.Plugin.load("RiskThresholdChecker");
+    return thresholdChecker.execute(enforcementResult, policies);
+}
+
+/**
  * Executes the risk enforcement calculation and processes the result.
  * The threshold checking logic is delegated to the RiskThresholdChecker plugin (or equivalent logic).
  */
@@ -32,9 +44,8 @@ function executeRiskWorkflow(data, policies) {
 
         console.log("Risk Enforcement Map Calculation Result:", enforcementResult);
 
-        // 2. Use the abstracted threshold checking logic (simulating plugin usage)
-        const thresholdChecker = KERNEL_SYNERGY_CAPABILITIES.Plugin.load("RiskThresholdChecker");
-        const analysisReport = thresholdChecker.execute(enforcementResult, policies);
+        // 2. Use the abstracted threshold checking logic (delegated via helper)
+        const analysisReport = _analyzeEnforcementReport(enforcementResult, policies);
 
         if (analysisReport.exceeded) {
             console.warn(`[THRESHOLD EXCEEDED] ${analysisReport.message}`);
