@@ -35,53 +35,106 @@ export interface IConstraintChecker {
     execute(constraint: ConstraintDefinition, request: unknown): ConstraintCheckResult;
 }
 
-// --- Gax Constraint Enforcer (Refactored) ---
+// --- Gax Constraint Enforcer Kernel ---
 
-export class GaxConstraintEnforcer {
-  private indexedConstraints: IndexedConstraintMap;
-  private checkers: Map<string, IConstraintChecker>;
+export class GaxConstraintEnforcerKernel {
+  #indexedConstraints: IndexedConstraintMap;
+  #checkers: Map<string, IConstraintChecker>;
 
   /**
-   * Initializes the enforcer with pre-indexed constraints and a set of constraint checkers.
-   * Indexing logic (inheritance, merging) must occur externally.
+   * Initializes the kernel with pre-indexed constraints and a set of constraint checkers.
    */
   constructor(indexedConstraints: IndexedConstraintMap, checkers: IConstraintChecker[]) {
-    this.indexedConstraints = indexedConstraints;
-    this.checkers = new Map();
-    for (const checker of checkers) {
-      this.checkers.set(checker.constraintType, checker);
-    }
+    this.#setupDependencies(indexedConstraints, checkers);
   }
+
+  // --- Setup and Initialization ---
+
+  /**
+   * Synchronously validates dependencies and initializes internal state.
+   * (Satisfies the synchronous setup extraction goal.)
+   */
+  #setupDependencies(indexedConstraints: IndexedConstraintMap, checkers: IConstraintChecker[]): void {
+    if (!indexedConstraints || !checkers) {
+      this.#throwSetupError("Indexed constraints and checkers list must be provided.");
+    }
+    this.#indexedConstraints = indexedConstraints;
+    
+    const checkerMap = new Map<string, IConstraintChecker>();
+    for (const checker of checkers) {
+      if (!checker || !checker.constraintType) {
+        this.#throwSetupError("Invalid checker provided; must implement IConstraintChecker.");
+      }
+      checkerMap.set(checker.constraintType, checker);
+    }
+    this.#checkers = checkerMap;
+  }
+
+  // I/O Proxy: Setup Error Handling
+  #throwSetupError(message: string): never {
+    throw new Error(`[GaxConstraintEnforcerKernel Setup Error] ${message}`);
+  }
+
+  // --- Public Interface ---
 
   /**
    * Retrieves and enforces all relevant constraints for a specific API call.
    */
   public enforce(serviceName: string, methodName: string, request: unknown): void {
-    const constraints = this.getEffectiveConstraints(serviceName, methodName);
+    const constraints = this.#delegateToConstraintLookup(serviceName, methodName);
 
     for (const constraint of constraints) {
-      const checker = this.checkers.get(constraint.type);
+      const checker = this.#delegateToCheckerLookup(constraint.type);
 
       if (!checker) {
-        // If a constraint is defined but no checker exists, skip it but log a warning
-        console.warn(`[GaxConstraintEnforcer] Skipping constraint '${constraint.type}'. No checker registered.`);
+        this.#logMissingCheckerWarning(constraint.type);
         continue;
       }
 
-      const result = checker.execute(constraint, request);
+      const result = this.#executeChecker(checker, constraint, request);
 
       if (result.isViolated) {
-        const message = result.violationMessage || `Constraint violation of type '${constraint.type}' detected.`;
-        throw new ConstraintViolationError(message, constraint.type);
+        this.#throwViolationError(constraint, result);
       }
     }
   }
 
+  // --- I/O Proxies ---
+
   /**
-   * Calculates the effective constraints. O(1) lookup since constraints are pre-indexed by method.
+   * I/O Proxy: Calculates the effective constraints by accessing private state.
    */
-  private getEffectiveConstraints(serviceName: string, methodName: string): ConstraintDefinition[] {
+  #delegateToConstraintLookup(serviceName: string, methodName: string): ConstraintDefinition[] {
     const key = `${serviceName}/${methodName}`;
-    return this.indexedConstraints.get(key) || [];
+    return this.#indexedConstraints.get(key) || [];
+  }
+  
+  /**
+   * I/O Proxy: Looks up a registered checker by type.
+   */
+  #delegateToCheckerLookup(constraintType: string): IConstraintChecker | undefined {
+      return this.#checkers.get(constraintType);
+  }
+
+  /**
+   * I/O Proxy: Executes the constraint check (External Tool Delegation).
+   */
+  #executeChecker(checker: IConstraintChecker, constraint: ConstraintDefinition, request: unknown): ConstraintCheckResult {
+    return checker.execute(constraint, request);
+  }
+  
+  /**
+   * I/O Proxy: Handles logging a warning for an unregistered checker.
+   */
+  #logMissingCheckerWarning(constraintType: string): void {
+    console.warn(`[GaxConstraintEnforcerKernel] Skipping constraint '${constraintType}'. No checker registered.`);
+  }
+
+  /**
+   * I/O Proxy: Handles throwing a ConstraintViolationError (Control Flow Isolation).
+   */
+  #throwViolationError(constraint: ConstraintDefinition, result: ConstraintCheckResult): never {
+    const message = result.violationMessage || `Constraint violation of type '${constraint.type}' detected.`;
+    throw new ConstraintViolationError(message, constraint.type);
   }
 }
