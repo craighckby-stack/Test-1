@@ -1,11 +1,15 @@
 /**
- * @file AxiomStageConstants.ts
- * @description Provides strictly typed and frozen canonical stage identifiers
+ * @file IAxiomStageConfigRegistryKernel.ts
+ * @description Defines the interface for retrieving canonical stage identifiers
  *              for the Sovereign AGI Governance Pipeline (CRoT).
- * Derived from config/schemas/AxiomStageIDs.schema.json (V94.1).
+ * This replaces the synchronous constant file AxiomStageConstants.ts.
  */
 
-import { deepFreeze } from '@kernel/utils/DeepFreezer';
+import { Kernel } from '@strategic/Kernel';
+import { ILoggerToolKernel } from '@tools/ILoggerToolKernel';
+import { IConfigurationDeepFreezeToolKernel } from '@tools/IConfigurationDeepFreezeToolKernel';
+
+// --- Public Types (Extracted from old file) ---
 
 export type StageID =
   | 'S0'
@@ -25,7 +29,23 @@ export interface StageDefinition {
   description: string;
 }
 
-export const AXIOM_STAGES: Readonly<Record<StageID, Readonly<StageDefinition>>> = deepFreeze({
+// --- Registry Interface ---
+
+export interface IAxiomStageConfigRegistryKernel {
+  /**
+   * Retrieves the canonical map of all AGI Axiom Governance Pipeline stages.
+   */
+  getAxiomStages(): Readonly<Record<StageID, Readonly<StageDefinition>>>;
+
+  /**
+   * Retrieves a strictly ordered array of all canonical Stage IDs.
+   */
+  getStageIDs(): ReadonlyArray<StageID>;
+}
+
+// --- Configuration Data (Internalized) ---
+
+const RAW_AXIOM_STAGES: Record<StageID, StageDefinition> = {
   S0: {
     name: "Initialization",
     description: "Transition commencement and ID generation."
@@ -70,11 +90,67 @@ export const AXIOM_STAGES: Readonly<Record<StageID, Readonly<StageDefinition>>> 
     name: "State Commit",
     description: "Commitment of the next state artifact (Psi_N+1) prior to execution."
   }
-});
+};
 
-/**
- * A strictly ordered array of all canonical Stage IDs.
- */
-export const AXIOM_STAGE_IDS: ReadonlyArray<StageID> = deepFreeze(
-    Object.keys(AXIOM_STAGES) as StageID[]
-);
+// --- Registry Implementation ---
+
+export class AxiomStageConfigRegistryKernel extends Kernel implements IAxiomStageConfigRegistryKernel {
+  protected readonly name: string = 'AxiomStageConfigRegistryKernel';
+  
+  private _frozenStages!: Readonly<Record<StageID, Readonly<StageDefinition>>>;
+  private _frozenStageIDs!: ReadonlyArray<StageID>;
+
+  private deepFreezeTool: IConfigurationDeepFreezeToolKernel;
+  private logger: ILoggerToolKernel;
+
+  constructor(dependencies: {
+    deepFreezeTool: IConfigurationDeepFreezeToolKernel; // New required tool for immutability
+    logger: ILoggerToolKernel;
+  }) {
+    super();
+    this.#setupDependencies(dependencies);
+  }
+
+  #setupDependencies(dependencies: {
+    deepFreezeTool: IConfigurationDeepFreezeToolKernel;
+    logger: ILoggerToolKernel;
+  }): void {
+    if (!dependencies.deepFreezeTool) {
+      throw new Error(`${this.name}: Missing required dependency 'deepFreezeTool'.`);
+    }
+    if (!dependencies.logger) {
+      // Synchronous console logging violation prevented by enforcing DI here.
+      throw new Error(`${this.name}: Missing required dependency 'logger'.`);
+    }
+    this.deepFreezeTool = dependencies.deepFreezeTool;
+    this.logger = dependencies.logger;
+  }
+
+  public async initialize(): Promise<void> {
+    this.logger.debug(`${this.name}: Initializing Axiom Stage definitions...`);
+    
+    // 1. Freeze the main stage map using the injected tool
+    this._frozenStages = this.deepFreezeTool.deepFreeze(RAW_AXIOM_STAGES) as 
+        Readonly<Record<StageID, Readonly<StageDefinition>>>;
+
+    // 2. Freeze the ID array
+    const rawIDs: StageID[] = Object.keys(RAW_AXIOM_STAGES) as StageID[];
+    this._frozenStageIDs = this.deepFreezeTool.deepFreeze(rawIDs);
+
+    this.logger.info(`${this.name}: Successfully loaded and froze ${rawIDs.length} Axiom Stage definitions.`);
+  }
+
+  public getAxiomStages(): Readonly<Record<StageID, Readonly<StageDefinition>>> {
+    if (!this._frozenStages) {
+      throw new Error(`${this.name}: Configuration not initialized. Call initialize() first.`);
+    }
+    return this._frozenStages;
+  }
+
+  public getStageIDs(): ReadonlyArray<StageID> {
+    if (!this._frozenStageIDs) {
+      throw new Error(`${this.name}: Configuration not initialized. Call initialize() first.`);
+    }
+    return this._frozenStageIDs;
+  }
+}
