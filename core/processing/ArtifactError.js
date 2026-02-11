@@ -16,16 +16,32 @@ class ArtifactBaseError extends CanonicalBaseError {
 class ResolutionError extends ArtifactBaseError {
     static ERROR_NAME = 'ResolutionError';
 
+    /**
+     * @param {any} dependencies
+     * @returns {{dependencies: any}}
+     */
+    #initializeDetails(dependencies) {
+        return { dependencies };
+    }
+
     constructor(message, dependencies) {
-        super(message, { dependencies });
+        super(message, this.#initializeDetails(dependencies));
     }
 }
 
 class GenerationError extends ArtifactBaseError {
     static ERROR_NAME = 'GenerationError';
 
+    /**
+     * @param {string} generatorRef
+     * @returns {{generatorRef: string}}
+     */
+    #initializeDetails(generatorRef) {
+        return { generatorRef };
+    }
+
     constructor(message, generatorRef) {
-        super(message, { generatorRef });
+        super(message, this.#initializeDetails(generatorRef));
     }
 }
 
@@ -34,16 +50,32 @@ class ValidationError extends ArtifactBaseError {
     // 400 is used here as validation typically implies the input artifact/data was malformed or non-compliant.
     static HTTP_STATUS_CODE = 400;
 
+    /**
+     * @param {Array<Object>} errors
+     * @returns {{validationErrors: Array<Object>}}
+     */
+    #initializeDetails(errors) {
+        return { validationErrors: errors };
+    }
+
     constructor(message, errors) {
-        super(message, { validationErrors: errors });
+        super(message, this.#initializeDetails(errors));
     }
 }
 
 class HookExecutionError extends ArtifactBaseError {
     static ERROR_NAME = 'HookExecutionError';
 
+    /**
+     * @param {string} hookName
+     * @returns {{hookName: string}}
+     */
+    #initializeDetails(hookName) {
+        return { hookName };
+    }
+
     constructor(message, hookName) {
-        super(message, { hookName });
+        super(message, this.#initializeDetails(hookName));
     }
 }
 
