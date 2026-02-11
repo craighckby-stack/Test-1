@@ -16,81 +16,126 @@ interface ErrorFormatterTool {
 type TSchemaCompilationAndValidationService = CompilationTool;
 type TSchemaErrorFormatterTool = ErrorFormatterTool;
 
-class SchemaCompilationService {
-  private registry: SchemaRegistry;
-  private validatorCache: Map<string, Function>;
-  private compilationService: TSchemaCompilationAndValidationService;
-  private errorFormatter: TSchemaErrorFormatterTool;
+const ENFORCEMENT_SCHEMA_ID = 'enforcement_schema.json';
 
-  constructor(
-    schemaRegistry: SchemaRegistry,
-    compilationService: TSchemaCompilationAndValidationService, // Delegating AJV/compilation logic
-    errorFormatter: TSchemaErrorFormatterTool // Delegating error formatting
-  ) {
-    this.registry = schemaRegistry;
-    this.validatorCache = new Map();
-    this.compilationService = compilationService;
-    this.errorFormatter = errorFormatter;
-  }
+class SchemaCompilationKernel {
+    #registry: SchemaRegistry;
+    #validatorCache: Map<string, Function>;
+    #compilationService: TSchemaCompilationAndValidationService;
+    #errorFormatter: TSchemaErrorFormatterTool;
 
-  /**
-   * Compiles and caches a schema validator function, delegating the heavy lifting.
-   * @param schemaId The ID of the schema to load and compile.
-   * @returns The compiled validator function (e.g., an Ajv validator function).
-   */
-  async compileSchema(schemaId: string): Promise<Function> {
-    if (this.validatorCache.has(schemaId)) {
-      return this.validatorCache.get(schemaId)!;
+    constructor(
+        schemaRegistry: SchemaRegistry,
+        compilationService: TSchemaCompilationAndValidationService, // Delegating AJV/compilation logic
+        errorFormatter: TSchemaErrorFormatterTool // Delegating error formatting
+    ) {
+        this.#setupDependencies({ schemaRegistry, compilationService, errorFormatter });
     }
-    
-    const schema = await this.registry.getSchema(schemaId);
-    
-    // Delegate high-performance compilation to SchemaCompilationAndValidationService
-    const validate = this.compilationService.compile(schema); 
-    
-    this.validatorCache.set(schemaId, validate);
 
-    return validate;
-  }
+    #throwSetupError(message: string): never {
+        throw new Error(`SchemaCompilationKernel Setup Error: ${message}`);
+    }
 
-  /**
-   * Internal helper to execute validation and handle errors consistently, throwing 
-   * a formatted error on failure.
-   * @param validator The compiled validator function.
-   * @param data Data to validate.
-   * @param errorPrefix The descriptive prefix for the error message.
-   */
-  private validateAndThrow(validator: Function, data: any, errorPrefix: string): boolean {
-      // Standard validator execution: returns boolean, errors attached to function object
-      const isValid = validator(data);
-      
-      if (!isValid) {
-          // Note: In Ajv/similar validators, errors are attached to the function instance.
-          const errors = validator.errors || [];
-          
-          // Use SchemaErrorFormatterTool for standardized error reporting
-          const formattedErrorDetails = this.errorFormatter.format(errors);
+    /**
+     * Goal 1: Extracts synchronous dependency assignment and initialization.
+     */
+    #setupDependencies(deps: {
+        schemaRegistry: SchemaRegistry,
+        compilationService: TSchemaCompilationAndValidationService,
+        errorFormatter: TSchemaErrorFormatterTool
+    }) {
+        if (!deps.schemaRegistry || !deps.compilationService || !deps.errorFormatter) {
+            this.#throwSetupError("Missing required dependencies (Registry, Compilation Service, or Error Formatter).");
+        }
+        this.#registry = deps.schemaRegistry;
+        this.#compilationService = deps.compilationService;
+        this.#errorFormatter = deps.errorFormatter;
+        this.#validatorCache = new Map();
+    }
 
-          throw new Error(`${errorPrefix}: ${formattedErrorDetails}`);
-      }
-      return true;
-  }
+    // --- Goal 2: I/O Proxies for Cache Management ---
 
-  /**
-   * Loads the enforcement schema, compiles it if necessary, and validates the context data.
-   * @param contextData Data to validate against the enforcement schema.
-   * @throws Error if validation fails, using formatted error details.
-   */
-  async validateEnforcement(contextData: any): Promise<boolean> {
-    const ENFORCEMENT_SCHEMA_ID = 'enforcement_schema.json';
-    const enforcementValidator = await this.compileSchema(ENFORCEMENT_SCHEMA_ID);
-    
-    return this.validateAndThrow(
-      enforcementValidator,
-      contextData,
-      'Enforcement context validation failed'
-    );
-  }
+    #delegateToCacheLookup(schemaId: string): Function | undefined {
+        return this.#validatorCache.get(schemaId);
+    }
+
+    #delegateToCacheStore(schemaId: string, validate: Function): void {
+        this.#validatorCache.set(schemaId, validate);
+    }
+
+    // --- Goal 2: I/O Proxies for External Tool Delegation ---
+
+    async #delegateToSchemaRegistry(schemaId: string): Promise<any> {
+        return this.#registry.getSchema(schemaId);
+    }
+
+    #delegateToCompilationService(schema: any): Function {
+        return this.#compilationService.compile(schema);
+    }
+
+    #delegateToErrorFormatter(errors: any[]): string {
+        return this.#errorFormatter.format(errors);
+    }
+
+    #executeValidator(validator: Function, data: any): boolean {
+        return validator(data);
+    }
+
+    #throwFormattedValidationError(errorPrefix: string, errors: any[]): never {
+        const formattedErrorDetails = this.#delegateToErrorFormatter(errors);
+        throw new Error(`${errorPrefix}: ${formattedErrorDetails}`);
+    }
+
+    /**
+     * Compiles and caches a schema validator function, delegating the heavy lifting.
+     * @param schemaId The ID of the schema to load and compile.
+     * @returns The compiled validator function.
+     */
+    async compileSchema(schemaId: string): Promise<Function> {
+        const cachedValidator = this.#delegateToCacheLookup(schemaId);
+        if (cachedValidator) {
+            return cachedValidator;
+        }
+
+        const schema = await this.#delegateToSchemaRegistry(schemaId);
+
+        // Delegation for heavy lifting
+        const validate = this.#delegateToCompilationService(schema);
+
+        this.#delegateToCacheStore(schemaId, validate);
+
+        return validate;
+    }
+
+    /**
+     * Internal helper to execute validation and handle errors consistently, throwing 
+     * a formatted error on failure.
+     */
+    private #validateAndThrow(validator: Function, data: any, errorPrefix: string): boolean {
+        const isValid = this.#executeValidator(validator, data);
+
+        if (!isValid) {
+            // Note: Errors are often attached to the function instance (e.g., Ajv)
+            const errors = validator.errors || [];
+            this.#throwFormattedValidationError(errorPrefix, errors);
+        }
+        return true;
+    }
+
+    /**
+     * Loads the enforcement schema, compiles it if necessary, and validates the context data.
+     * @param contextData Data to validate against the enforcement schema.
+     * @throws Error if validation fails, using formatted error details.
+     */
+    async validateEnforcement(contextData: any): Promise<boolean> {
+        const enforcementValidator = await this.compileSchema(ENFORCEMENT_SCHEMA_ID);
+
+        return this.#validateAndThrow(
+            enforcementValidator,
+            contextData,
+            'Enforcement context validation failed'
+        );
+    }
 }
 
-module.exports = SchemaCompilationService;
+module.exports = SchemaCompilationKernel;
