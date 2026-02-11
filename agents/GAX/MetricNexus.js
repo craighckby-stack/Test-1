@@ -1,17 +1,20 @@
+        /**
+         * Safely extracts the standardized Equilibrium Metric (EQM).
+         * Falls back sequentially to MQM_EQM, or 0 if metrics object is unavailable or fields are missing.
+         * This method adheres to the Synergy Registry principle of high functional cohesion.
+         */
+        const extractEquilibriumMetric = (metrics) => metrics?.EQM ?? metrics?.MQM_EQM ?? 0;
+
+        // Identify the preceding historical metric snapshot.
         const previousMetrics = historicalTrends[1];
 
-        // Functional metric extractor: ensures safe retrieval of EQM or fallback metric.
-        // Uses Optional Chaining (?.) and Nullish Coalescing (??) for maximum compatibility and safety.
-        const getEQM = (metrics) => metrics?.EQM ?? metrics?.MQM_EQM ?? 0;
+        // Calculate standardized scores for current and previous states.
+        const currentEQM = extractEquilibriumMetric(currentMetrics);
+        const previousEQM = extractEquilibriumMetric(previousMetrics);
 
-        // Calculate current and previous standardized EQM scores.
-        // Note: Assumes 'currentMetrics' is available in the execution scope.
-        const currentEQM = getEQM(currentMetrics);
-        const previousEQM = getEQM(previousMetrics);
-
+        // Determine the directional change.
         const delta = currentEQM - previousEQM;
 
-        // Use property value shorthand for cleaner return object construction.
         return { delta, previousEQM };
     }
 }
