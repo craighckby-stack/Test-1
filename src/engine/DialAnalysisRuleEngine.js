@@ -1,36 +1,59 @@
 /**
- * AGI-KERNEL v7.9.2 - DialAnalysisRuleEngine
- * Optimized for maximum computational efficiency by pre-compiling regexes and using Map-based prefix indexing.
- * Rule execution logic is abstracted into the RuleExecution plugin.
+ * AGI-KERNEL v7.11.3 - DialAnalysisRuleEngineKernel
+ * Handles specialized rule compilation, prefix indexing, and delegates execution
+ * to an injected IRuleEvaluationEngineToolKernel.
  */
-class DialAnalysisRuleEngine {
-    /**
-     * @param {Array<Object>} rawRules - Array of rule definitions.
-     */
-    constructor(rawRules) {
-        // ruleSets maps a prefix (up to 3 characters) to an array of pre-compiled rules.
-        this.ruleSets = new Map(); 
-        this._compileRules(rawRules);
-        
-        // Assume an AGI_KERNEL environment provides a mechanism to load abstracted components.
-        // In a standard environment, this would be imported/injected.
-        this.ruleExecutor = globalThis.AGI_KERNEL?.loadPlugin('RuleExecution') || {
-            execute: (dial, rule) => this._defaultRuleExecutor(dial, rule)
-        };
+class DialAnalysisRuleEngineKernel {
+    #ruleSets;
+    #ruleEvaluationEngine;
+    #logger;
 
-        if (!this.ruleExecutor) {
-             throw new Error("Required 'RuleExecution' plugin not available.");
-        }
+    /**
+     * @param {object} dependencies
+     * @param {IRuleEvaluationEngineToolKernel} dependencies.ruleEvaluationEngine - Tool for executing individual rules.
+     * @param {ILoggerToolKernel} dependencies.logger - Tool for logging warnings and errors.
+     */
+    constructor(dependencies) {
+        this.#ruleSets = new Map();
+        this.#setupDependencies(dependencies);
     }
 
     /**
-     * Pre-processes and indexes raw rules for fast lookup.
+     * Strictly validates and assigns required strategic dependencies.
+     * Ensures the synchronous setup extraction mandate is satisfied.
+     * @param {object} dependencies 
+     */
+    #setupDependencies(dependencies) {
+        if (!dependencies.ruleEvaluationEngine) {
+            throw new Error('DialAnalysisRuleEngineKernel: Missing required dependency: ruleEvaluationEngine (IRuleEvaluationEngineToolKernel).');
+        }
+        if (!dependencies.logger) {
+            throw new Error('DialAnalysisRuleEngineKernel: Missing required dependency: logger (ILoggerToolKernel).');
+        }
+        this.#ruleEvaluationEngine = dependencies.ruleEvaluationEngine;
+        this.#logger = dependencies.logger;
+    }
+
+    /**
+     * Initializes the kernel by compiling and indexing the provided rules.
+     * This satisfies the mandate for asynchronous initialization of strategic data.
+     * @param {Array<Object>} rawRules - Array of rule definitions.
+     * @returns {Promise<void>}
+     */
+    async initialize(rawRules) {
+        if (!Array.isArray(rawRules)) {
+             this.#logger.warn('DialAnalysisRuleEngineKernel initialized without rules array.');
+             return;
+        }
+        this.#compileRules(rawRules);
+    }
+
+    /**
+     * Pre-processes and indexes raw rules for fast lookup using prefix optimization.
      * Pre-compiles regex strings into RegExp objects.
      * @param {Array<Object>} rawRules 
      */
-    _compileRules(rawRules) {
-        if (!Array.isArray(rawRules)) return;
-
+    #compileRules(rawRules) {
         rawRules.forEach(rule => {
             // 1. Pre-compile Regex object if present
             if (rule.regex && typeof rule.regex === 'string') {
@@ -38,7 +61,7 @@ class DialAnalysisRuleEngine {
                     // Store the compiled regex on the rule object itself for reuse
                     rule._compiledRegex = new RegExp(rule.regex);
                 } catch (e) {
-                    console.warn(`[RuleEngine] Skipping invalid regex in rule ${rule.id || 'unknown'}: ${e.message}`);
+                    this.#logger.warn(`[DialAnalysisRuleEngineKernel] Skipping invalid regex in rule ${rule.id || 'unknown'}: ${e.message}`);
                     return; 
                 }
             }
@@ -46,36 +69,20 @@ class DialAnalysisRuleEngine {
             // 2. Determine indexing key (prefix up to 3 chars or 'default')
             const prefix = rule.prefix ? String(rule.prefix).substring(0, 3) : 'default';
 
-            if (!this.ruleSets.has(prefix)) {
-                this.ruleSets.set(prefix, []);
+            if (!this.#ruleSets.has(prefix)) {
+                this.#ruleSets.set(prefix, []);
             }
-            this.ruleSets.get(prefix).push(rule);
+            this.#ruleSets.get(prefix).push(rule);
         });
     }
 
     /**
-     * Fallback executor if the plugin environment is not strictly available.
-     * This logic is inherently less abstract and should be handled by the plugin.
-     */
-    _defaultRuleExecutor(normalizedDial, rule) {
-        if (rule._compiledRegex) {
-            if (rule._compiledRegex.test(normalizedDial)) {
-                return { match: true };
-            }
-        } else if (rule.prefix && normalizedDial.startsWith(rule.prefix)) {
-            if (rule.minLen && normalizedDial.length < rule.minLen) return { match: false };
-            if (rule.maxLen && normalizedDial.length > rule.maxLen) return { match: false };
-            return { match: true };
-        }
-        return { match: false };
-    }
-
-    /**
      * Analyzes a dial string against all rules using prefix optimization.
+     * Core logic is now asynchronous, aligning with strategic execution mandates.
      * @param {string} dialString
-     * @returns {{input: string, normalized: string, match: boolean, ruleId?: string, metadata?: Object}}
+     * @returns {Promise<{input: string, normalized: string, match: boolean, ruleId?: string, metadata?: Object}>}
      */
-    analyze(dialString) {
+    async analyze(dialString) {
         if (!dialString) return { input: '', normalized: '', match: false };
         
         // Step 1: Normalize input (remove non-dialing characters immediately)
@@ -86,23 +93,27 @@ class DialAnalysisRuleEngine {
         
         // Combine specific prefix rules with any 'default' global rules
         const candidateRules = [
-            ...(this.ruleSets.get(prefixKey) || []),
-            ...(prefixKey !== 'default' ? (this.ruleSets.get('default') || []) : [])
+            ...(this.#ruleSets.get(prefixKey) || []),
+            ...(prefixKey !== 'default' ? (this.#ruleSets.get('default') || []) : [])
         ];
 
         // Step 3: Execute rules sequentially using the abstracted executor
         for (const rule of candidateRules) {
-            // The ruleExecutor uses the pre-compiled regex or structure.
-            const result = this.ruleExecutor.execute(normalizedDial, rule);
-            
-            if (result.match) {
-                return {
-                    input: dialString,
-                    normalized: normalizedDial,
-                    match: true,
-                    ruleId: rule.id,
-                    metadata: result.metadata || rule.metadata,
-                };
+            try {
+                // The injected ruleEvaluationEngine handles the actual execution logic.
+                const result = await this.#ruleEvaluationEngine.execute(normalizedDial, rule);
+                
+                if (result.match) {
+                    return {
+                        input: dialString,
+                        normalized: normalizedDial,
+                        match: true,
+                        ruleId: rule.id,
+                        metadata: result.metadata || rule.metadata,
+                    };
+                }
+            } catch (error) {
+                this.#logger.error(`[DialAnalysisRuleEngineKernel] Failed to execute rule ID ${rule.id}:`, error);
             }
         }
 
