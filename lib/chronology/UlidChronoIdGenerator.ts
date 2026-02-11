@@ -19,7 +19,7 @@ export class UlidChronoIdGenerator implements ChronoIdGenerator {
      * Generates a new ULID string using the 'ulid' library for secure randomness.
      */
     public generateId(): ChronoId {
-        return ulid() as ChronoId;
+        return this.#delegateToUlidGeneration();
     }
 
     /**
@@ -28,9 +28,7 @@ export class UlidChronoIdGenerator implements ChronoIdGenerator {
      * @returns The associated Unix epoch timestamp (milliseconds).
      */
     public extractTimestamp(chronoId: ChronoId): number {
-        const timestamp = UlidChronoUtility.execute({ action: 'decodeTime', value: chronoId });
-        // The plugin returns the number directly (or NaN if invalid).
-        return timestamp as number;
+        return this.#delegateToExtractTimestamp(chronoId);
     }
 
     /**
@@ -39,6 +37,33 @@ export class UlidChronoIdGenerator implements ChronoIdGenerator {
      * @returns True if the string looks like a valid ULID.
      */
     public isValid(value: string): value is ChronoId {
+        return this.#delegateToValidationExecution(value);
+    }
+
+    // --- Private I/O Proxy Functions ---
+
+    /**
+     * I/O Proxy: Delegates execution to the external ULID generation library (`ulid`).
+     */
+    #delegateToUlidGeneration(): ChronoId {
+        // External interaction: Calling 'ulid' library
+        return ulid() as ChronoId;
+    }
+
+    /**
+     * I/O Proxy: Delegates the timestamp extraction logic to the standardized utility plugin (`UlidChronoUtility`).
+     */
+    #delegateToExtractTimestamp(chronoId: ChronoId): number {
+        // External interaction: Calling the global utility plugin
+        const timestamp = UlidChronoUtility.execute({ action: 'decodeTime', value: chronoId });
+        return timestamp as number;
+    }
+
+    /**
+     * I/O Proxy: Delegates the validation check to the standardized utility plugin (`UlidChronoUtility`).
+     */
+    #delegateToValidationExecution(value: string): boolean {
+        // External interaction: Calling the global utility plugin
         const result = UlidChronoUtility.execute({ action: 'validate', value: value });
         return result === true;
     }
