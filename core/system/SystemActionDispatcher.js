@@ -4,81 +4,131 @@
  * Role: Interface between the Governance Plane (PCE) and the Execution Plane. Handles logging, auditing, and sequencing of complex actions.
  */
 
-// Mock implementation of external services for registration readability
-const executionPlane = { enforceIsolation: (id: string) => console.log(`[EXEC] Enforcing isolation on ${id}`) };
-const systemManager = { executeSecureTermination: (score: number) => console.log(`[EXEC] Initiating secure termination (Score: ${score})`) };
-const resourceAllocator = { adjustCapacity: (delta: number) => console.log(`[EXEC] Adjusting capacity by ${delta}`) };
-const AuditService = { recordPolicyViolation: (code: string, details: any) => console.log(`[AUDIT] Violation recorded: ${code}`) };
+// --- Interfaces and Mock Implementations (External Dependencies) ---
 
-// Assume global accessor for the plugin, defined in the plugin block below.
-declare var MandatedActionExecutionTool: {
+interface IExecutionPlane { enforceIsolation: (id: string) => any; }
+interface ISystemManager { executeSecureTermination: (score: number) => any; }
+interface IResourceAllocator { adjustCapacity: (delta: number) => any; }
+interface IAuditService { recordPolicyViolation: (code: string, details: any) => any; }
+interface IMandatedActionExecutionTool {
     register: (code: string, executor: (details: any) => any) => boolean;
     execute: (args: { actionCode: string, details: any }) => { success: boolean, result?: any, error?: string };
-};
-
-/**
- * Initializes the Action Dispatcher by registering all mandated actions 
- * with the underlying execution tool.
- */
-function initializeActionRegistry() {
-    if (typeof MandatedActionExecutionTool === 'undefined' || !MandatedActionExecutionTool.register) {
-        console.error("MandatedActionExecutionTool is unavailable. Dispatcher is inert.");
-        return;
-    }
-
-    // 1. ISOLATE_SUBSYSTEM
-    MandatedActionExecutionTool.register('ISOLATE_SUBSYSTEM', (details) => {
-        AuditService.recordPolicyViolation('ISOLATE_SUBSYSTEM', details);
-        // High-security operation: Notify Security Module, trigger firewall changes, limit data egress.
-        const subsystemId = details?.context?.subsystemId || 'UNKNOWN_SUB';
-        return executionPlane.enforceIsolation(subsystemId);
-    });
-
-    // 2. SELF_TERMINATE_MISSION
-    MandatedActionExecutionTool.register('SELF_TERMINATE_MISSION', (details) => {
-        AuditService.recordPolicyViolation('SELF_TERMINATE_MISSION', details);
-        // Critical failure protocol: Initiate secure shutdown, erase volatile state, trigger external alert.
-        const score = details?.score || 0;
-        return systemManager.executeSecureTermination(score);
-    });
-
-    // 3. ADAPTIVE_SCALE_DOWN
-    MandatedActionExecutionTool.register('ADAPTIVE_SCALE_DOWN', (details) => {
-        AuditService.recordPolicyViolation('ADAPTIVE_SCALE_DOWN', details);
-        // Standard adjustment: Resource optimization (e.g., scale down by 10%)
-        return resourceAllocator.adjustCapacity(-0.1);
-    });
-
-    console.log("[SAD] Action registry initialization complete.");
 }
+
+// Mock implementations of external services
+const executionPlane: IExecutionPlane = { enforceIsolation: (id: string) => console.log(`[EXEC] Enforcing isolation on ${id}`) };
+const systemManager: ISystemManager = { executeSecureTermination: (score: number) => console.log(`[EXEC] Initiating secure termination (Score: ${score})`) };
+const resourceAllocator: IResourceAllocator = { adjustCapacity: (delta: number) => console.log(`[EXEC] Adjusting capacity by ${delta}`) };
+const AuditService: IAuditService = { recordPolicyViolation: (code: string, details: any) => console.log(`[AUDIT] Violation recorded: ${code}`) };
+
+// Assume global accessor for the plugin (MandatedActionExecutionTool)
+declare var MandatedActionExecutionTool: IMandatedActionExecutionTool;
 
 
 class SystemActionDispatcher {
     
-    // Ensure initialization runs once when the class is loaded.
+    // Private static dependencies (Dependency Encapsulation)
+    static #tool: IMandatedActionExecutionTool;
+    static #executionPlane: IExecutionPlane;
+    static #systemManager: ISystemManager;
+    static #resourceAllocator: IResourceAllocator;
+    static #auditService: IAuditService;
+    static #isInitialized = false;
+
+    /**
+     * Synchronous setup block: resolves dependencies and registers all actions.
+     */
     static {
-        initializeActionRegistry();
+        // Simulate dependency resolution for synchronous setup
+        const dependencies = {
+            tool: MandatedActionExecutionTool,
+            executionPlane: executionPlane,
+            systemManager: systemManager,
+            resourceAllocator: resourceAllocator,
+            auditService: AuditService,
+        };
+        try {
+            SystemActionDispatcher.#setupDependenciesAndInitialize(dependencies);
+            SystemActionDispatcher.#isInitialized = true;
+        } catch (e) {
+            console.error("SystemActionDispatcher initialization failed:", e);
+        }
+    }
+
+    /**
+     * Extracts synchronous dependency assignment and action registration.
+     * (Strategic Goal: Synchronous Setup Extraction & Dependency Encapsulation)
+     */
+    static #setupDependenciesAndInitialize(deps: {
+        tool: IMandatedActionExecutionTool,
+        executionPlane: IExecutionPlane,
+        systemManager: ISystemManager,
+        resourceAllocator: IResourceAllocator,
+        auditService: IAuditService
+    }) {
+        if (typeof deps.tool === 'undefined' || !deps.tool.register) {
+            throw new Error("MandatedActionExecutionTool dependency is unavailable. Dispatcher is inert.");
+        }
+
+        SystemActionDispatcher.#tool = deps.tool;
+        SystemActionDispatcher.#executionPlane = deps.executionPlane;
+        SystemActionDispatcher.#systemManager = deps.systemManager;
+        SystemActionDispatcher.#resourceAllocator = deps.resourceAllocator;
+        SystemActionDispatcher.#auditService = deps.auditService;
+
+        const { #tool, #executionPlane, #systemManager, #resourceAllocator, #auditService } = SystemActionDispatcher;
+
+        // 1. ISOLATE_SUBSYSTEM
+        #tool.register('ISOLATE_SUBSYSTEM', (details) => {
+            #auditService.recordPolicyViolation('ISOLATE_SUBSYSTEM', details);
+            // High-security operation
+            const subsystemId = details?.context?.subsystemId || 'UNKNOWN_SUB';
+            return #executionPlane.enforceIsolation(subsystemId);
+        });
+
+        // 2. SELF_TERMINATE_MISSION
+        #tool.register('SELF_TERMINATE_MISSION', (details) => {
+            #auditService.recordPolicyViolation('SELF_TERMINATE_MISSION', details);
+            // Critical failure protocol
+            const score = details?.score || 0;
+            return #systemManager.executeSecureTermination(score);
+        });
+
+        // 3. ADAPTIVE_SCALE_DOWN
+        #tool.register('ADAPTIVE_SCALE_DOWN', (details) => {
+            #auditService.recordPolicyViolation('ADAPTIVE_SCALE_DOWN', details);
+            // Standard adjustment
+            return #resourceAllocator.adjustCapacity(-0.1);
+        });
+
+        console.log("[SAD] Action registry initialization complete.");
+    }
+
+    /**
+     * I/O Proxy for external tool execution.
+     * (Strategic Goal: I/O Proxy Creation)
+     */
+    static #delegateToToolExecution(actionCode: string, details: any) {
+        return SystemActionDispatcher.#tool.execute({
+            actionCode: actionCode,
+            details: details
+        });
     }
 
     /**
      * Executes the specific mandated system action based on policy evaluation.
      * The execution logic is delegated to the MandatedActionExecutionTool.
-     * @param {string} actionCode - The policy mandated action (e.g., 'ISOLATE_SUBSYSTEM').
-     * @param {Object} details - Contextual details leading to the action (metrics, score, context, etc.).
      */
     static dispatchAction(actionCode: string, details: any) {
         console.log(`[SAD] Initiating mandated action: ${actionCode}`);
         
-        if (typeof MandatedActionExecutionTool === 'undefined') {
-             console.error(`[SAD] Failed to dispatch ${actionCode}: Execution tool not loaded.`);
+        if (!SystemActionDispatcher.#isInitialized) {
+             console.error(`[SAD] Failed to dispatch ${actionCode}: Dispatcher is not initialized.`);
              return;
         }
 
-        // Use the tool to execute the pre-registered action
-        const result = MandatedActionExecutionTool.execute({ 
-            actionCode: actionCode, 
-            details: details 
-        });
+        // Use the I/O proxy to execute the pre-registered action
+        const result = SystemActionDispatcher.#delegateToToolExecution(actionCode, details);
 
         if (!result.success) {
             console.error(`[SAD] Action dispatch failed for ${actionCode}. Reason: ${result.error || 'Action failed unexpectedly.'}`);
