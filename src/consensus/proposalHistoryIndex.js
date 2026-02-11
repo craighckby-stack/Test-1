@@ -4,7 +4,6 @@
  * Utilizes indexed maps for O(1) access. Refactored to eliminate O(N) operations in high-throughput paths (pruning, aggregation lookups).
  * Supports rapid recalibration of ARCH-ATM (agent trust) and AGI-C-12 CIW (contextual weighting).
  */
-
 class ProposalHistoryIndex {
     /**
      * @param {object} [config] - Configuration options.
@@ -16,19 +15,11 @@ class ProposalHistoryIndex {
         this.maxHistorySize = config.maxHistorySize || 5000;
         this.decayFactor = config.decayFactor || 0.05; // Used for weighted long-term stats
 
-        // Initialize EMA Calculator Plugin (requires global EMA_Calculator class)
-        if (typeof EMA_Calculator === 'function') {
-            this.emaCalculator = new EMA_Calculator(this.decayFactor);
-        } else {
-            // Fallback implementation if plugin environment fails
-            this.emaCalculator = {
-                calculate: (oldValue, newValue) => {
-                    // EMA formula: EMA_t = (Value_t * alpha) + (EMA_{t-1} * (1 - alpha))
-                    const alpha = this.decayFactor;
-                    return (newValue * alpha) + (oldValue * (1 - alpha));
-                }
-            };
+        // Initialize EMA Calculator Plugin (now required and abstracted)
+        if (typeof ExponentialMovingAverage !== 'function') {
+             throw new Error("ExponentialMovingAverage plugin must be available globally or injected.");
         }
+        this.emaCalculator = new ExponentialMovingAverage(this.decayFactor);
 
         // Index 1: Primary data store by proposal ID (O(1) access)
         this.proposalsById = new Map();
@@ -127,7 +118,7 @@ class ProposalHistoryIndex {
             const excessCount = this.temporalQueueIds.length - this.maxHistorySize;
             
             for (let i = 0; i < excessCount; i++) {
-                const oldestId = this.temporalQueueIds.shift(); // O(N) replaced with efficient O(1) on small ID array
+                const oldestId = this.temporalQueueIds.shift(); // Standard JS Array shift (O(N)), optimized by small array size relative to overall system throughput.
                 const oldEvent = this.proposalsById.get(oldestId);
                 
                 if (oldEvent) {
@@ -184,30 +175,12 @@ class ProposalHistoryIndex {
         const recentWeight = stats.recentScores.length > 0
             ? stats.recentScores.reduce((a, b) => a + b, 0) / stats.recentScores.length
             : 0;
-        
+            
         return {
             rawRate: rawRate,
             recentWeight: recentWeight,
             totalProposals: total,
-            // Weighted average combines historical magnitude and quality decay
-            weightedTrustScore: stats.weightedAverageRate 
+            weightedTrustScore: stats.weightedAverageRate
         };
     }
-
-    /**
-     * Retrieves bias data for specific failure topologies/contexts.
-     * Efficiency: O(1) retrieval using Index 4.
-     * @param {string} topologyType - E.g., 'API_Schema_Misalignment', 'Memory_Leak_Pattern'.
-     * @returns {number} Bias metric (Ratio of this failure type to all failures tracked).
-     */
-    getFailurePatternBias(topologyType) {
-        const matchCount = this.failureTopologyIndex.get(topologyType) || 0;
-        
-        if (this.totalFailureCount === 0) return 0;
-        
-        // Bias = Count of Specific Failure / Total Failures tracked in the temporal window
-        return matchCount / this.totalFailureCount; 
-    }
 }
-
-module.exports = ProposalHistoryIndex;
