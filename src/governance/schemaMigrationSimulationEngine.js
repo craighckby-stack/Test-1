@@ -1,79 +1,110 @@
 /**
- * Schema Migration Simulation Engine (SMSE) V1.0
+ * AGI-KERNEL: SchemaMigrationSimulationKernel (SMSK) V1.0
  * MISSION: Execute complex differential analysis and transactional simulation 
- *          for proposed architectural mutations (M-02 payloads).
+ *          for proposed architectural mutations (M-02 payloads), adhering to AIA mandates.
+ *
+ * Refactored from the synchronous SchemaMigrationSimulationEngine (SMSE).
  */
 
-import { MCR } from './mutationChainRegistrar.js';
-import { ArchitectureStateLedger } from '../state/architectureStateLedger.js'; 
-// Note: ArchitectureStateLedger is assumed to hold historical schema states based on hash.
+// NOTE: Required Tool Kernels are injected via the constructor.
 
-// Define the expected output structure from the differential analysis tool
-interface DifferentialAnalysisResult {
-    deltaSize: number;
-    complexityMetric: number;
-    necessaryMutations: Array<object>;
-}
-
-// Declare the external tool interface for type safety (assuming kernel injection)
-declare const SchemaDifferentialAnalyzerTool: {
-    execute: (args: { currentSchema: object, proposedSchema: object }) => Promise<DifferentialAnalysisResult>;
-};
-
-
-export class SchemaMigrationSimulationEngine {
+export class SchemaMigrationSimulationKernel {
 
     /**
-     * Runs deep semantic differential analysis between the current state and proposed schema.
-     * Delegates the core differential calculation to the SchemaDifferentialAnalyzerTool.
-     * @param {string} currentSchemaHash - Hash identifying the active schema in the Ledger.
-     * @param {object} proposedSchema - The new schema definition.
-     * @returns {Promise<DifferentialAnalysisResult>}
+     * @param {ActiveStateContextManagerKernel} activeStateContextManagerKernel - For secure, non-blocking schema state retrieval.
+     * @param {IShallowObjectDiffUtilityToolKernel} iShallowObjectDiffUtilityToolKernel - For performing deep structural differential analysis.
+     * @param {EvolutionaryRiskAssessorKernel} evolutionaryRiskAssessorKernel - For quantifying simulation risk and deriving integrity scores.
+     * @param {ITraceableIdGeneratorToolKernel} iTraceableIdGeneratorToolKernel - For generating auditable, cryptographically secure rollback IDs.
+     * @param {MultiTargetAuditDisperserToolKernel} multiTargetAuditDisperserToolKernel - For centralized, auditable logging.
      */
-    static async runDeepSchemaDiff(currentSchemaHash: string, proposedSchema: object): Promise<DifferentialAnalysisResult> {
-        // Step 1: Lookup current state
-        const currentSchema = await ArchitectureStateLedger.getSchemaByHash(currentSchemaHash);
-        
-        if (!currentSchema) {
-             // Return a zero-impact result if the base schema cannot be found, or throw an error based on policy.
-             console.warn(`Current schema not found for hash: ${currentSchemaHash}. Assuming empty baseline.`);
-             const emptySchema = {};
+    constructor(
+        activeStateContextManagerKernel,
+        iShallowObjectDiffUtilityToolKernel,
+        evolutionaryRiskAssessorKernel,
+        iTraceableIdGeneratorToolKernel,
+        multiTargetAuditDisperserToolKernel
+    ) {
+        this.activeStateContextManager = activeStateContextManagerKernel;
+        this.diffUtility = iShallowObjectDiffUtilityToolKernel;
+        this.riskAssessor = evolutionaryRiskAssessorKernel;
+        this.idGenerator = iTraceableIdGeneratorToolKernel;
+        this.auditDisperser = multiTargetAuditDisperserToolKernel;
+        this.isInitialized = false;
+    }
 
-             // Step 2: Delegate complex differential calculation to the specialized tool
-             return await SchemaDifferentialAnalyzerTool.execute({
-                currentSchema: emptySchema,
-                proposedSchema: proposedSchema
-            });
-        }
+    /**
+     * Mandatory asynchronous initialization method.
+     */
+    async initialize() {
+        // Delegate initialization checks or required setup to underlying tools if necessary.
+        this.isInitialized = true;
+    }
 
-        // Step 2: Delegate complex differential calculation to the specialized tool
-        const analysisResult = await SchemaDifferentialAnalyzerTool.execute({
-            currentSchema: currentSchema,
-            proposedSchema: proposedSchema
+    /**
+     * Executes deep semantic differential analysis between the current state 
+     * identified by hash and the proposed schema definition.
+     * @param {string} currentSchemaHash - Hash identifying the active schema.
+     * @param {object} proposedSchema - The new schema definition.
+     * @returns {Promise<object>} 
+     */
+    async runDeepSchemaDiff(currentSchemaHash, proposedSchema) {
+        if (!this.isInitialized) throw new Error("SMSK Kernel not initialized.");
+
+        // Step 1: Securely retrieve the current schema state, eliminating direct Ledger access.
+        const currentSchemaContext = await this.activeStateContextManager.getSchemaContext(currentSchemaHash);
+        const currentSchema = currentSchemaContext?.schema || {}; // Handle missing baseline via secured context access
+
+        // Step 2: Delegate complex differential calculation.
+        const analysisResult = await this.diffUtility.calculateDeepDiff({
+            source: currentSchema,
+            target: proposedSchema,
+            strategy: 'SCHEMA_MIGRATION_SEMANTIC_V1'
+        });
+
+        await this.auditDisperser.log({
+            level: 'INFO',
+            message: `Deep Schema Differential Analysis complete for ${currentSchemaHash}`,
+            metadata: { deltaSize: analysisResult.deltaSize, complexity: analysisResult.complexityMetric }
         });
         
         return analysisResult;
     }
 
     /**
-     * Attempts a stateless simulation of the migration path using the calculated diff.
-     * This verifies data integrity and operational continuity during transition.
-     * @param {DifferentialAnalysisResult} diffAnalysis - Output from runDeepSchemaDiff.
+     * Attempts a stateless simulation of the migration path and quantifies the associated risk.
+     * @param {object} diffAnalysis - Output from runDeepSchemaDiff.
      * @param {object} proposedSchema - The target schema.
-     * @returns {Promise<{integrity: number, rollbackPlanHash: string}>}
+     * @returns {Promise<{integrityScore: number, rollbackPlanId: string}>}
      */
-    static async simulateMigrationPath(diffAnalysis: DifferentialAnalysisResult, proposedSchema: object): Promise<{integrity: number, rollbackPlanHash: string}> {
-        // Placeholder for heavy, transactional, state-agnostic simulation run.
-        
-        // Calculate integrity based on potential data loss/breaking changes identified in simulation.
-        const integrityScore = 1.0 - (diffAnalysis.complexityMetric * 0.05); // Calculation based on complexity
-        
-        // Generate a cryptographically secure hash for the deterministic rollback procedure.
-        const rollbackPlanHash = `RBH-${Math.floor(Math.random() * 99999)}G`; 
+    async simulateMigrationPath(diffAnalysis, proposedSchema) {
+        if (!this.isInitialized) throw new Error("SMSK Kernel not initialized.");
 
-        return {
-            integrity: integrityScore, 
-            rollbackPlanHash: rollbackPlanHash
+        // Step 1: Quantify integrity/risk using the specialized assessor. Eliminates ad-hoc scoring logic.
+        const riskAssessment = await this.riskAssessor.assessArchitecturalRisk({
+            payload: proposedSchema,
+            context: { differentialAnalysis: diffAnalysis }
+        });
+        
+        const integrityScore = riskAssessment.calculatedScore; 
+        
+        // Step 2: Generate a cryptographically secure, traceable ID for the rollback procedure. 
+        // Eliminates random/untraceable ID generation.
+        const rollbackPlanId = await this.idGenerator.generateTraceableId({
+            type: 'ROLLBACK_PLAN',
+            context: { targetSchemaHash: proposedSchema.hash || 'N/A' }
+        });
+
+        const simulationOutcome = {
+            integrityScore: integrityScore, 
+            rollbackPlanId: rollbackPlanId
         };
+        
+        await this.auditDisperser.log({
+            level: 'AUDIT',
+            message: 'Migration Simulation Results Quantified',
+            metadata: simulationOutcome
+        });
+
+        return simulationOutcome;
     }
 }
