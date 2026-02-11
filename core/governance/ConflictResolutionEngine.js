@@ -20,6 +20,16 @@ class ConflictResolutionEngine {
    * @param {Object} conflictModelEvaluator - The required plugin/utility to execute CRCM controls.
    */
   constructor(crcm, evaluator, conflictModelEvaluator) {
+    this.#setupDependencies(evaluator, conflictModelEvaluator);
+    this.#initializeConfiguration(crcm);
+  }
+
+  /**
+   * Sets up and validates core dependencies, encapsulating injection logic.
+   * @param {SecureExpressionEvaluator} evaluator 
+   * @param {Object} conflictModelEvaluator 
+   */
+  #setupDependencies(evaluator, conflictModelEvaluator) {
     if (!evaluator || typeof evaluator.evaluate !== 'function') {
       throw new Error("ConflictResolutionEngine requires a SecureExpressionEvaluator instance.");
     }
@@ -27,17 +37,24 @@ class ConflictResolutionEngine {
       // Enforce explicit dependency injection for the core evaluation logic
       throw new Error("ConflictResolutionEngine requires a ConflictModelEvaluator instance with an 'execute' method.");
     }
-
-    // 1. Immutability contract: Freeze the CRCM to ensure conflict rules cannot be modified at runtime.
-    this.#crcm = Object.freeze(crcm);
+    
     this.#evaluator = evaluator;
     this.#conflictModelEvaluator = conflictModelEvaluator;
     
-    // Pre-process CRCM for O(1) domain lookup, storing the full domain object.
-    this.#domainMap = this.#buildDomainMap(crcm.domains);
-    
     // Bind the secure evaluator function once for reliable passing to the plugin
     this.#evaluatorFn = this.#evaluator.evaluate.bind(this.#evaluator);
+  }
+
+  /**
+   * Initializes and prepares the CRCM configuration (freezing and mapping), fulfilling synchronous setup extraction.
+   * @param {Object} crcm
+   */
+  #initializeConfiguration(crcm) {
+    // 1. Immutability contract: Freeze the CRCM to ensure conflict rules cannot be modified at runtime.
+    this.#crcm = Object.freeze(crcm);
+    
+    // Pre-process CRCM for O(1) domain lookup, storing the full domain object.
+    this.#domainMap = this.#buildDomainMap(crcm.domains);
   }
 
   /**
@@ -59,6 +76,23 @@ class ConflictResolutionEngine {
   }
 
   /**
+   * Executes the external Conflict Model Evaluator plugin, serving as an I/O proxy.
+   * @param {Array<Object>} controls
+   * @param {Object} context
+   * @param {string} aggregationMethod
+   * @returns {Object} evaluationResult
+   */
+  #delegateToConflictModelEvaluator({ controls, context, aggregationMethod }) {
+    // Delegate scoring and constraint checking to the injected plugin
+    return this.#conflictModelEvaluator.execute({
+        controls: controls,
+        context: context,
+        aggregationMethod: aggregationMethod,
+        evaluatorFn: this.#evaluatorFn // Pass the secure evaluator function
+    });
+  }
+
+  /**
    * Evaluates competing requests against CRCM constraints and calculates resolution weight.
    * Finds the single request with the highest calculated priority weight that meets all constraints.
    * 
@@ -75,8 +109,6 @@ class ConflictResolutionEngine {
       console.warn("Context missing or invalid in ConflictResolutionEngine.");
     }
     
-    // Plugin availability is guaranteed by the constructor check.
-
     let winningRequest = null;
     let highestWeight = -Infinity;
     let resolutionMetadata = {};
@@ -91,12 +123,11 @@ class ConflictResolutionEngine {
       const applicableControls = domain.controls;
       const aggregationMethod = domain.aggregation_method;
 
-      // Delegate scoring and constraint checking to the injected plugin
-      const evaluationResult = this.#conflictModelEvaluator.execute({
+      // Use I/O Proxy for delegation
+      const evaluationResult = this.#delegateToConflictModelEvaluator({
         controls: applicableControls,
         context: currentContext,
         aggregationMethod: aggregationMethod,
-        evaluatorFn: this.#evaluatorFn // Pass the secure evaluator function
       });
       
       const { score, isViable, violationDetails, appliedControls } = evaluationResult;
