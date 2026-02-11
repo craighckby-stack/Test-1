@@ -1,10 +1,3 @@
-// src/core/conceptValidator.js
-
-import { CONCEPT_REGISTRY } from './conceptRegistry.js';
-import { CodebaseAccessor } from '../system/codebaseAccessor.js';
-import { ValidatorMessages } from './validatorMessages.js';
-import { ResourceIntegrityCheckerPlugin } from '../plugins/ResourceIntegrityChecker.js';
-
 /**
  * @typedef {Object} ValidationResult
  * @property {boolean} valid - True if the validation succeeded.
@@ -13,23 +6,82 @@ import { ResourceIntegrityCheckerPlugin } from '../plugins/ResourceIntegrityChec
  */
 
 /**
- * @fileoverview Utility class for validating references to core AGI and Architectural Concepts.
- * Ensures integrity and verifies file existence using the CodebaseAccessor.
- * Utilizes asynchronous checks (where supported) to prevent event loop blocking (v94.1 optimization).
+ * Interface for the concept ID registry.
+ * @interface IConceptIdRegistryKernel
  */
 
-export class ConceptValidator {
+/**
+ * Interface for codebase file access.
+ * @interface ICodebaseAccessorToolKernel
+ * @property {(path: string) => Promise<boolean>} fileExistsAsync - Asynchronous file existence check.
+ * @property {(path: string) => boolean} fileExists - Synchronous file existence check.
+ */
+
+/**
+ * Interface for checking resource integrity (abstracting plugin logic).
+ * @interface IResourceIntegrityCheckerToolKernel
+ * @method check
+ */
+
+/**
+ * Interface for structured validation messages.
+ * @interface IConceptValidationMessagesToolKernel
+ * @method INVALID_ID
+ * @method DECLARATIVE
+ * @method MISSING_IMPLEMENTATION
+ * @method SUCCESS
+ */
+
+export class ConceptValidatorKernel {
+    #conceptRegistry;
+    #codebaseAccessor;
+    #integrityChecker;
+    #messages;
+
+    /**
+     * @param {IConceptIdRegistryKernel} conceptRegistry
+     * @param {ICodebaseAccessorToolKernel} codebaseAccessor
+     * @param {IResourceIntegrityCheckerToolKernel} integrityChecker
+     * @param {IConceptValidationMessagesToolKernel} messages
+     */
+    constructor(conceptRegistry, codebaseAccessor, integrityChecker, messages) {
+        this.#conceptRegistry = conceptRegistry;
+        this.#codebaseAccessor = codebaseAccessor;
+        this.#integrityChecker = integrityChecker;
+        this.#messages = messages;
+        this.#setupDependencies();
+    }
+
+    /**
+     * Isolates synchronous dependency setup and validation.
+     * @private
+     */
+    #setupDependencies() {
+        if (!this.#conceptRegistry || typeof this.#conceptRegistry.hasConceptId !== 'function') {
+            throw new Error("ConceptValidatorKernel requires a valid IConceptIdRegistryKernel.");
+        }
+        if (!this.#codebaseAccessor || typeof this.#codebaseAccessor.fileExistsAsync !== 'function') {
+            throw new Error("ConceptValidatorKernel requires a valid ICodebaseAccessorToolKernel.");
+        }
+        if (!this.#integrityChecker || typeof this.#integrityChecker.check !== 'function') {
+            throw new Error("ConceptValidatorKernel requires a valid IResourceIntegrityCheckerToolKernel.");
+        }
+        if (!this.#messages || typeof this.#messages.INVALID_ID !== 'function') {
+            throw new Error("ConceptValidatorKernel requires a valid IConceptValidationMessagesToolKernel.");
+        }
+    }
 
     /**
      * Checks if a given concept ID exists in the registry.
      * @param {string} conceptId - The ID to validate (e.g., 'AGI-C-04').
      * @returns {boolean}
      */
-    static isValidConceptId(conceptId: string): boolean {
+    isValidConceptId(conceptId) {
         if (typeof conceptId !== 'string' || !conceptId) {
              return false;
         }
-        return Object.prototype.hasOwnProperty.call(CONCEPT_REGISTRY, conceptId);
+        // Use injected registry method
+        return this.#conceptRegistry.hasConceptId(conceptId);
     }
 
     /**
@@ -38,16 +90,18 @@ export class ConceptValidator {
      * @param {string} conceptId - The ID of the concept.
      * @returns {Promise<ValidationResult>}
      */
-    static async validateImplementation(conceptId: string): Promise<ValidationResult> {
-        if (!ConceptValidator.isValidConceptId(conceptId)) {
+    async validateImplementation(conceptId) {
+        const messages = this.#messages;
+
+        if (!this.isValidConceptId(conceptId)) {
             return { 
                 valid: false, 
                 path: null, 
-                reason: ValidatorMessages.INVALID_ID(conceptId) 
+                reason: messages.INVALID_ID(conceptId) 
             };
         }
 
-        const concept = CONCEPT_REGISTRY[conceptId];
+        const concept = this.#conceptRegistry.getConceptDefinition(conceptId);
         const path = concept.implementationPath;
 
         // Case 1: Concept is purely philosophical/declarative
@@ -55,17 +109,17 @@ export class ConceptValidator {
             return {
                 valid: true,
                 path: null,
-                reason: ValidatorMessages.DECLARATIVE(conceptId, concept.name)
+                reason: messages.DECLARATIVE(conceptId, concept.name)
             };
         }
 
         // Case 2: Concrete Implementation Path Defined. Check existence.
         
-        // Use the ResourceIntegrityCheckerPlugin to handle robust async/sync resource existence verification
-        const integrityCheck = await ResourceIntegrityCheckerPlugin.check({
+        // Use the injected integrity checker tool, passing required accessor methods
+        const integrityCheck = await this.#integrityChecker.check({
             path,
-            fileExistsAsync: CodebaseAccessor.fileExistsAsync,
-            fileExists: CodebaseAccessor.fileExists
+            fileExistsAsync: this.#codebaseAccessor.fileExistsAsync.bind(this.#codebaseAccessor),
+            fileExists: this.#codebaseAccessor.fileExists.bind(this.#codebaseAccessor)
         });
 
         if (!integrityCheck.exists) {
@@ -73,7 +127,7 @@ export class ConceptValidator {
                 valid: false,
                 path,
                 // Include the reason provided by the utility for better debugging
-                reason: ValidatorMessages.MISSING_IMPLEMENTATION(path) + ` (${integrityCheck.reason})`
+                reason: messages.MISSING_IMPLEMENTATION(path) + ` (${integrityCheck.reason})`
             };
         }
 
@@ -81,7 +135,7 @@ export class ConceptValidator {
         return { 
             valid: true, 
             path, 
-            reason: ValidatorMessages.SUCCESS(path) 
+            reason: messages.SUCCESS(path) 
         };
     }
 }
