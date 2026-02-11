@@ -38,14 +38,8 @@ class IntegrityCorrelatorModule {
      * @returns {Promise<Object>} Analysis results including proposed policy adjustments.
      */
     async executeCorrelation() {
-        // Step 1: Feature Extraction from TEDS (Temporal Pattern Matching)
-        const temporalSkewMagnitude = this.#analyzeTemporalSkew();
-
-        // Step 2: Constraint Validation against PCSS (Integrity Check)
-        const axiomBreaches = this.#analyzeAxiomBreaches();
-
-        // Step 3: Aggregate data for Derivation Service Input
-        const derivationInput = this.#aggregateDerivationInput(temporalSkewMagnitude, axiomBreaches);
+        // Orchestration: Preparation, I/O, and Result Formatting
+        const { derivationInput, axiomBreaches } = this.#prepareAnalysisData();
 
         // Step 4: Derive Mandatory Policy Correction based on composite severity using the KERNEL Service.
         const derivationResult = await this.policyDeriverService.execute(
@@ -60,6 +54,25 @@ class IntegrityCorrelatorModule {
             logicErrors: derivationResult.logicError ? [derivationResult.logicError].flat() : []
         };
     }
+    
+    /**
+     * Executes Steps 1, 2, and 3: Feature Extraction, Validation, and Input Aggregation.
+     * Separates synchronous internal analysis from external asynchronous execution.
+     * @returns {{derivationInput: Object, axiomBreaches: Array<string>}}
+     */
+    #prepareAnalysisData() {
+        // Step 1: Feature Extraction from TEDS (Temporal Pattern Matching)
+        const temporalSkewMagnitude = this.#analyzeTemporalSkew();
+
+        // Step 2: Constraint Validation against PCSS (Integrity Check)
+        const axiomBreaches = this.#analyzeAxiomBreaches();
+
+        // Step 3: Aggregate data for Derivation Service Input
+        const derivationInput = this.#aggregateDerivationInput(temporalSkewMagnitude, axiomBreaches);
+
+        return { derivationInput, axiomBreaches };
+    }
+
     
     /**
      * Aggregates inputs from internal analysis stages into the required format 
