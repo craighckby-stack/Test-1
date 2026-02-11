@@ -1,16 +1,3 @@
-// Defining Schemas outside the class for clarity
-const MANIFEST_SCHEMA = {
-    entityId: { type: 'string', required: true },
-    // Added optional fields expected in features for clarity
-    transactionId: { type: 'string', required: false },
-    complexity: { type: 'number', required: false }
-};
-
-const PREDICTION_RESULT_SCHEMA = {
-    temm: { type: 'number', required: true }, // Trajectory Execution Mitigation Metric
-    ecvm: { type: 'boolean', required: true }  // Execution Constraint Verification Metric
-};
-
 /**
  * The Trajectory Simulation Engine (TSE) is responsible for running high-fidelity,
  * asynchronous simulations of P3/P4 execution outcomes based on the current
@@ -22,6 +9,19 @@ const PREDICTION_RESULT_SCHEMA = {
  * comprehensive input/output schema enforcement.
  */
 class TrajectorySimulationEngine {
+    // Defining Schemas as static properties for modern class structure and clarity
+    static MANIFEST_SCHEMA = {
+        entityId: { type: 'string', required: true },
+        // Added optional fields expected in features for clarity
+        transactionId: { type: 'string', required: false },
+        complexity: { type: 'number', required: false }
+    };
+
+    static PREDICTION_RESULT_SCHEMA = {
+        temm: { type: 'number', required: true }, // Trajectory Execution Mitigation Metric
+        ecvm: { type: 'boolean', required: true }  // Execution Constraint Verification Metric
+    };
+
     /**
      * @param {Object} ACVD_Store - Data store containing historical execution metrics and constraints (assumed to expose async methods).
      * @param {Object} Configuration - System configuration and load factors (assumed to expose sync methods).
@@ -38,12 +38,31 @@ class TrajectorySimulationEngine {
         this.model = ModelHandler;
         
         // Dependency Initialization: Resolve the SchemaValidationService once upon construction
-        // This optimization removes runtime lookup overhead from runSimulation.
         this.validator = (SynergyRegistry && typeof SynergyRegistry.getService === 'function')
             ? SynergyRegistry.getService('SchemaValidationService')
             : null;
         
         this.synergyRegistry = SynergyRegistry;
+    }
+
+    /**
+     * Private helper to standardize schema validation execution and error throwing.
+     * @param {Object} data - The object to validate.
+     * @param {Object} schema - The schema definition.
+     * @param {string} context - Descriptive name for the error message (e.g., 'Input Manifest', 'Model Output').
+     * @private
+     */
+    async #validate(data, schema, context) {
+        if (!this.validator) {
+            return; // Skip if validation service is not injected
+        }
+
+        const validationResult = await this.validator.execute('validate', data, schema);
+
+        if (!validationResult || !validationResult.isValid) {
+            const errors = validationResult && validationResult.errors ? validationResult.errors.join('; ') : 'Unknown validation error.';
+            throw new Error(`${context} Validation Failed: ${errors}`);
+        }
     }
 
     /**
@@ -55,14 +74,15 @@ class TrajectorySimulationEngine {
     async #extractFeatures(inputManifest) {
         // Detailed logic for feature engineering (e.g., transaction complexity, data volume, historical entity risk)
         try {
+            const { entityId, transactionId, complexity } = inputManifest;
+            
             // ACVD interaction is assumed to be async due to potential database or service calls
-            const entityId = inputManifest.entityId;
             // Using default 0 if risk fetching fails temporarily, prioritizing prediction over crash
             const historyRisk = await this.ACVD.getHistoricalRisk(entityId).catch(() => 0);
 
             return {
-                transactionId: inputManifest.transactionId || 'N/A',
-                complexity_score: inputManifest.complexity || 5, // Default complexity
+                transactionId: transactionId || 'N/A',
+                complexity_score: complexity || 5, // Default complexity
                 history_risk: historyRisk, // Value derived asynchronously
                 current_load_factor: this.config.getCurrentLoadFactor() 
             };
@@ -82,8 +102,6 @@ class TrajectorySimulationEngine {
     async runSimulation(inputManifest) {
         let entityId = 'unknown';
 
-        // The ValidationService is now pre-resolved as this.validator
-
         try {
             // 1. Critical Minimal Input Check
             if (!inputManifest || typeof inputManifest.entityId !== 'string') {
@@ -91,33 +109,20 @@ class TrajectorySimulationEngine {
             }
             entityId = inputManifest.entityId;
 
-            // 2. Comprehensive Input Validation using pre-resolved validator
-            if (this.validator) {
-                // NOTE: Validation Service executes validation logic against the schema.
-                const validationResult = await this.validator.execute('validate', inputManifest, MANIFEST_SCHEMA);
-                
-                if (!validationResult || !validationResult.isValid) {
-                    const errorMsg = validationResult && validationResult.errors ? validationResult.errors.join('; ') : 'Unknown validation error.';
-                    throw new Error(`Comprehensive Input Validation Failed: ${errorMsg}`);
-                }
-            } 
+            // 2. Comprehensive Input Validation (using private helper)
+            await this.#validate(inputManifest, TrajectorySimulationEngine.MANIFEST_SCHEMA, 'Input Manifest');
 
             const features = await this.#extractFeatures(inputManifest);
 
             // Execute asynchronous model inference
             const results = await this.model.predict(features);
 
-            // 3. Output Validation
-            if (this.validator) {
-                const outputValidation = await this.validator.execute('validate', results, PREDICTION_RESULT_SCHEMA);
-                
-                if (!outputValidation || !outputValidation.isValid) {
-                     const errorMsg = outputValidation && outputValidation.errors ? outputValidation.errors.join('; ') : 'Unknown validation error.';
-                     throw new Error(`Model output format invalid (Comprehensive Check). Errors: ${errorMsg}`);
-                }
-            } else if (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean') {
-                 // Fallback to manual check if validator is absent
-                 throw new Error("Model output format invalid: Expected {temm: number, ecvm: boolean}.");
+            // 3. Comprehensive Output Validation (using private helper)
+            await this.#validate(results, TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA, 'Model Output');
+
+            // Fallback manual check if validator is absent
+            if (!this.validator && (typeof results.temm !== 'number' || typeof results.ecvm !== 'boolean')) {
+                 throw new Error("Model output format invalid (No Validator): Expected {temm: number, ecvm: boolean}.");
             }
 
             return {
@@ -125,17 +130,20 @@ class TrajectorySimulationEngine {
                 predictedECVM: results.ecvm
             };
         } catch (error) {
-            // Propagate specialized errors or wrap general exceptions
+            // Propagate specialized errors (like validation or feature extraction errors) without wrapping them again.
             console.error(`TSE Simulation Failed for Entity ${entityId}:`, error.message);
-            // Ensure error message is clean and actionable.
+            
             const errorMessage = (error instanceof Error) ? error.message : String(error);
+            
+            // If the error is already descriptive (from #validate or #extractFeatures), re-throw it directly.
+            if (errorMessage.includes('Validation Failed') || errorMessage.includes('Feature extraction failed')) {
+                throw error; 
+            }
+
+            // Otherwise, wrap the general prediction system error.
             throw new Error(`Trajectory simulation failed due to prediction system error. Details: ${errorMessage}`);
         }
     }
 }
-
-// Export constants attached to the class for external inspection
-TrajectorySimulationEngine.MANIFEST_SCHEMA = MANIFEST_SCHEMA;
-TrajectorySimulationEngine.PREDICTION_RESULT_SCHEMA = PREDICTION_RESULT_SCHEMA;
 
 module.exports = TrajectorySimulationEngine;
