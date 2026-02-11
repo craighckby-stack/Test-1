@@ -3,45 +3,42 @@
  * Provides structured, context-aware logging, leveraging StructuralLogFormatterUtility.
  */
 
-// ==================================================================
-// TYPE DEFINITIONS (Simulating kernel environment declarations)
-// ==================================================================
+// --- Module-level Dependency Resolution ---
 
-interface StructuralLoggerInterface {
-    execute: (level: string, context: string, message: string, data?: any) => void;
-}
+// Assuming StructuralLogFormatterUtility is globally injected by the kernel environment.
+const KernelLogUtility = (typeof StructuralLogFormatterUtility !== 'undefined' && typeof StructuralLogFormatterUtility.execute === 'function') 
+    ? StructuralLogFormatterUtility 
+    : null;
 
-// Simulate access to the external logging utility function provided by the kernel.
-declare const StructuralLogFormatterUtility: StructuralLoggerInterface;
-
-type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'SUCCESS';
+const USE_KERNEL_UTILITY = !!KernelLogUtility;
 
 export default class Logger {
-    private context: string;
+    #context;
 
     /**
      * Maps custom log levels to standard browser/node console methods for fallback.
+     * Frozen to ensure immutability of core logging configuration.
      */
-    private static CONSOLE_METHOD_MAP: Record<LogLevel, keyof Console> = {
+    static #CONSOLE_METHOD_MAP = Object.freeze({
         INFO: 'info',
         WARN: 'warn',
         ERROR: 'error',
         FATAL: 'error', 
         SUCCESS: 'log' 
-    };
+    });
 
     /**
      * @param {string} context - The module or service initiating the log (e.g., 'SpecificationLoader').
      */
-    constructor(context: string = 'System') {
-        this.context = context;
+    constructor(context = 'System') {
+        this.#context = context;
     }
 
     /**
      * Retrieves the appropriate console function for fallback logging based on the LogLevel.
      */
-    private _getConsoleMethod(level: LogLevel): (message?: any, ...optionalParams: any[]) => void {
-        const methodKey = Logger.CONSOLE_METHOD_MAP[level];
+    #getConsoleMethod(level) {
+        const methodKey = Logger.#CONSOLE_METHOD_MAP[level];
         // Ensure we always return a callable function, falling back to console.log
         return console[methodKey] || console.log;
     }
@@ -50,12 +47,12 @@ export default class Logger {
      * Handles core logging by delegating formatting and output to the external utility,
      * or using a structured console fallback.
      */
-    private _log(level: LogLevel, message: string, data?: any): void {
+    #log(level, message, data) {
         const levelStr = level.toUpperCase();
 
-        // 1. Primary Path: Use kernel utility
-        if (typeof StructuralLogFormatterUtility !== 'undefined' && StructuralLogFormatterUtility.execute) {
-            StructuralLogFormatterUtility.execute(levelStr, this.context, message, data);
+        // 1. Primary Path: Use kernel utility (checked once at module load)
+        if (USE_KERNEL_UTILITY) {
+            KernelLogUtility.execute(levelStr, this.#context, message, data);
             return;
         }
 
@@ -63,17 +60,18 @@ export default class Logger {
         const timestamp = new Date().toISOString();
         
         const dataOutput = data ? ` (Data: ${JSON.stringify(data)})` : '';
-        const logMethod = this._getConsoleMethod(level);
+        const logMethod = this.#getConsoleMethod(level);
         
         // Format: [TIMESTAMP] [LEVEL] (CONTEXT): MESSAGE DATA
-        logMethod(`[${timestamp}] [${levelStr}] (${this.context}): ${message}${dataOutput}`);
+        logMethod(`[${timestamp}] [${levelStr}] (${this.#context}): ${message}${dataOutput}`);
     }
 
-    info(message: string, data?: any): void { this._log('INFO', message, data); }
-    warn(message: string, data?: any): void { this._log('WARN', message, data); }
-    error(message: string, data?: any): void { this._log('ERROR', message, data); }
+    // Public API
+    info(message, data) { this.#log('INFO', message, data); }
+    warn(message, data) { this.#log('WARN', message, data); }
+    error(message, data) { this.#log('ERROR', message, data); }
     
     // Specialized severe logging
-    fatal(message: string, data?: any): void { this._log('FATAL', message, data); }
-    success(message: string, data?: any): void { this._log('SUCCESS', message, data); }
+    fatal(message, data) { this.#log('FATAL', message, data); }
+    success(message, data) { this.#log('SUCCESS', message, data); }
 }
