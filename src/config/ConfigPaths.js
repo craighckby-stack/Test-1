@@ -1,32 +1,72 @@
-import path from 'path';
-
 /**
- * System-wide Configuration Path Constants.
- * Centralizes paths to critical configuration files.
+ * SystemPathResolverKernel
+ * Encapsulates system path resolution logic, replacing static path constants.
+ * Enforces Dependency Injection for path utilities and isolates environment context determination.
  */
+class SystemPathResolverKernel {
+    #pathUtility;
+    #appRoot;
 
-// We assume execution context starts from the project root for critical startup config resolution.
-const APP_ROOT = process.cwd(); 
-
-/**
- * Helper function to resolve paths relative to the application root (process.cwd()).
- * @param {string} relativePath 
- * @returns {string} Absolute path
- */
-const resolveRootPath = (relativePath) => {
-    // path.resolve automatically handles joining and ensures an absolute path.
-    return path.resolve(APP_ROOT, relativePath);
-};
-
-const ConfigPaths = {
-    // Critical Governance Thresholds (Essential for Sovereign AGI startup)
-    GOVERNANCE_CONFIG: resolveRootPath('config/governance.yaml'),
+    /**
+     * @param {object} pathUtility - The Node.js 'path' module or equivalent utility exposing a 'resolve' function.
+     * @param {string} [appRoot] - Optional root directory override. If null, process.cwd() is used via I/O proxy.
+     */
+    constructor(pathUtility, appRoot = null) {
+        this.#pathUtility = pathUtility;
+        this.#appRoot = appRoot; 
+        
+        this.#setupDependencies();
+    }
     
-    // Standard Logger Output Location
-    LOG_DIR: resolveRootPath('logs'),
+    #setupDependencies() {
+        if (!this.#pathUtility || typeof this.#pathUtility.resolve !== 'function') {
+            throw new Error('SystemPathResolverKernel requires a valid path utility exposing a resolve method.');
+        }
+        
+        // Determine the application root context if not explicitly injected.
+        if (!this.#appRoot) {
+            this.#appRoot = this.#delegateToEnvironmentGetCwd();
+        }
+    }
     
-    // Add other critical paths here as needed (e.g., memory, temporary artifacts)
-    ARTIFACT_TEMP_DIR: resolveRootPath('tmp/artifacts'),
-};
+    // I/O Proxy: Encapsulates interaction with the environment (getting CWD).
+    // This is an environment-specific I/O operation and must be isolated.
+    #delegateToEnvironmentGetCwd() {
+        // Note: Assumes execution environment provides process.cwd()
+        if (typeof process === 'undefined' || typeof process.cwd !== 'function') {
+            throw new Error('Cannot determine application root: process.cwd() is unavailable.');
+        }
+        return process.cwd();
+    }
 
-export default ConfigPaths;
+    // I/O Proxy: Resolves paths relative to the stored application root.
+    #delegateToPathResolve(relativePath) {
+        return this.#pathUtility.resolve(this.#appRoot, relativePath);
+    }
+    
+    /**
+     * Resolves the absolute path for the critical Governance Thresholds configuration.
+     * @returns {string}
+     */
+    getGovernanceConfigPath() {
+        return this.#delegateToPathResolve('config/governance.yaml');
+    }
+
+    /**
+     * Resolves the absolute path for the standard logger output directory.
+     * @returns {string}
+     */
+    getLogDirectoryPath() {
+        return this.#delegateToPathResolve('logs');
+    }
+
+    /**
+     * Resolves the absolute path for temporary artifact storage.
+     * @returns {string}
+     */
+    getArtifactTempDirectoryPath() {
+        return this.#delegateToPathResolve('tmp/artifacts');
+    }
+}
+
+export default SystemPathResolverKernel;
