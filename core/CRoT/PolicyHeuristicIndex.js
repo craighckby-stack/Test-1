@@ -11,19 +11,23 @@ const { ICRoTIndexClient } = require('./CRoTIndexClientInterface'); // Dependenc
 class PolicyHeuristicIndex {
 
     static TELEMETRY_PREFIX = 'CRoT.PHI';
+    static SETUP_PREFIX = '[PolicyHeuristicIndex Setup]';
 
     /** @type {ICRoTIndexClient} */
-    indexClient;
+    #indexClient;
 
     /**
      * @param {ICRoTIndexClient} indexClient - An instance of a CRoT index client conforming to the interface.
      */
     constructor(indexClient) {
-        // Enhanced validation leveraging knowledge of the proposed interface contract
-        if (!indexClient || typeof indexClient.getAnchorsByFingerprint !== 'function' || typeof indexClient.indexCommit !== 'function') {
-            throw new Error("PolicyHeuristicIndex requires a valid CRoT Index Client instance implementing getAnchorsByFingerprint and indexCommit.");
+        // Enforce strong dependency validation and encapsulation via private fields.
+        if (!indexClient || 
+            typeof indexClient.getAnchorsByFingerprint !== 'function' || 
+            typeof indexClient.indexCommit !== 'function') {
+            
+            throw new Error(`${PolicyHeuristicIndex.SETUP_PREFIX} Requires a valid CRoT Index Client instance implementing getAnchorsByFingerprint and indexCommit.`);
         }
-        this.indexClient = indexClient;
+        this.#indexClient = indexClient;
         GAXTelemetry.system(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.INIT`, { component: 'PolicyHeuristicIndex' });
     }
 
@@ -56,7 +60,7 @@ class PolicyHeuristicIndex {
         GAXTelemetry.debug(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.QUERY_START`, { hash: shortFingerprint });
 
         try {
-            const anchors = await this.indexClient.getAnchorsByFingerprint(fingerprint);
+            const anchors = await this.#indexClient.getAnchorsByFingerprint(fingerprint);
             GAXTelemetry.debug(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.QUERY_SUCCESS`, { hash: shortFingerprint, count: anchors.length });
             return anchors;
         } catch (error) {
@@ -83,8 +87,8 @@ class PolicyHeuristicIndex {
         });
         
         try {
-            // Delegate persistence logic to the injected client.
-            await this.indexClient.indexCommit(fingerprint, txId);
+            // Delegate persistence logic to the injected client via private field.
+            await this.#indexClient.indexCommit(fingerprint, txId);
             GAXTelemetry.publish(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.INDEX_COMMIT_SUCCESS`, { hash: shortFingerprint });
         } catch (error) {
              GAXTelemetry.critical(`${PolicyHeuristicIndex.TELEMETRY_PREFIX}.INDEX_COMMIT_FAILURE`, { hash: shortFingerprint, txId, error: error.message });
