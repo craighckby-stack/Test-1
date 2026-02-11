@@ -8,9 +8,9 @@ const { RobustCustomError } = require('@core/errors/RobustCustomError');
  */
 
 class PolicyVerificationError extends RobustCustomError {
-    public status: string;
+    static STATUS_CODE = 'PVF_ERROR';
 
-    constructor(message: string, status: string = 'PVF_ERROR') {
+    constructor(message, status = PolicyVerificationError.STATUS_CODE) {
         super(message);
         // RobustCustomError handles stack trace capture and setting the name.
         this.status = status;
@@ -18,20 +18,26 @@ class PolicyVerificationError extends RobustCustomError {
 }
 
 class PolicyConfigError extends PolicyVerificationError {
-    constructor(message: string = "Configuration required for verification failed to load or was invalid.") {
-        super(message, 'CONFIG_LOAD_FAILURE');
+    static STATUS_CODE = 'CONFIG_LOAD_FAILURE';
+
+    constructor(message = "Configuration required for verification failed to load or was invalid.") {
+        super(message, PolicyConfigError.STATUS_CODE);
     }
 }
 
 class PolicySchemaValidationError extends PolicyVerificationError {
-    constructor(message: string = "Proposed policy update failed structural schema validation.") {
-        super(message, 'SCHEMA_VIOLATION');
+    static STATUS_CODE = 'SCHEMA_VIOLATION';
+
+    constructor(message = "Proposed policy update failed structural schema validation.") {
+        super(message, PolicySchemaValidationError.STATUS_CODE);
     }
 }
 
 class PolicyAxiomaticViolationError extends PolicyVerificationError {
-    constructor(message: string = "Formal Verification Engine detected a violation of core policy axioms.") {
-        super(message, 'FAILURE_AXIOMATIC');
+    static STATUS_CODE = 'FAILURE_AXIOMATIC';
+
+    constructor(message = "Formal Verification Engine detected a violation of core policy axioms.") {
+        super(message, PolicyAxiomaticViolationError.STATUS_CODE);
     }
 }
 
