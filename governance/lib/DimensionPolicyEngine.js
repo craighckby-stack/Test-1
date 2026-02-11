@@ -1,6 +1,3 @@
-// governance/lib/DimensionPolicyEngine.js
-
-// Removed: const MetricOperator = require('../utils/MetricOperator'); 
 const DEFAULT_OPERATOR = 'GT';
 
 /**
@@ -10,7 +7,7 @@ const DEFAULT_OPERATOR = 'GT';
  * {
  *   dim_key: string,
  *   breach_threshold: number,
- *   operator: string (e.g., 'GT', 'LT'), 
+ *   operator: string (e.g., 'GT', 'LT'),
  *   governance_action: string,
  *   fail_fast_enabled: boolean
  * }
@@ -21,7 +18,7 @@ class DimensionPolicyEngine {
      * @param {object} dependencies.configSource - Source to load dimensional policies.
      * @param {object} dependencies.actionExecutor - Component responsible for executing remediation actions.
      * @param {object} dependencies.logger - Structured logging utility.
-     * @param {object} dependencies.metricThresholdValidator - Extracted tool for metric comparison logic.
+     * @param {object} dependencies.metricThresholdValidator - Extracted tool for metric comparison logic (See Plugin).
      * @param {object} [dependencies.metricsClient] - Client for fetching metrics (optional if metrics are provided externally).
      */
     constructor({ configSource, actionExecutor, logger, metricsClient, metricThresholdValidator }) {
@@ -29,13 +26,14 @@ class DimensionPolicyEngine {
             throw new Error("DimensionPolicyEngine requires configSource, actionExecutor, logger, and metricThresholdValidator dependencies.");
         }
 
-        this.config = configSource.loadConfig('dim_operational_config');
+        this.config = configSource.loadConfig('dim_operational_config') || {};
+        this.policies = Array.isArray(this.config.dimension_definitions) ? this.config.dimension_definitions : [];
         this.actions = actionExecutor;
         this.logger = logger;
-        this.metrics = metricsClient;
+        this.metrics = metricsClient; // Optional
         this.validator = metricThresholdValidator;
 
-        if (!Array.isArray(this.config.dimension_definitions) || this.config.dimension_definitions.length === 0) {
+        if (this.policies.length === 0) {
             this.logger.warn('DimensionPolicyEngine initialized but no dimension policies were loaded.');
         }
     }
@@ -47,7 +45,6 @@ class DimensionPolicyEngine {
      * @returns {boolean}
      */
     checkDimensionBreach(metricValue, definition) {
-        // Use local default operator, as MetricOperator dependency was removed.
         const { breach_threshold, operator = DEFAULT_OPERATOR } = definition;
 
         if (typeof metricValue !== 'number' || isNaN(metricValue)) {
@@ -55,14 +52,19 @@ class DimensionPolicyEngine {
             return false;
         }
         
-        // Use the injected validator tool
-        return this.validator.validate(metricValue, operator, breach_threshold);
+        try {
+            // Use the injected validator tool
+            return this.validator.validate(metricValue, operator, breach_threshold);
+        } catch (error) {
+             this.logger.error(`Validation error for dimension ${definition.dim_key}: ${error.message}`, { operator });
+             return false;
+        }
     }
 
     /**
      * Evaluates real-time metrics against all configured dimensional policies.
      * @param {Map<string, number>} realTimeMetrics - Metrics keyed by dim_key.
-     * @returns {Promise<{ status: 'Operational' | 'CriticalFailure', key?: string }>}
+     * @returns {Promise<{ status: 'Operational' | 'CriticalFailure', key?: string }>} 
      */
     async evaluateAllDimensions(realTimeMetrics) {
         if (!(realTimeMetrics instanceof Map)) {
@@ -70,7 +72,12 @@ class DimensionPolicyEngine {
              return { status: 'Operational' };
         }
         
-        for (const definition of this.config.dimension_definitions) {
+        if (this.policies.length === 0) {
+            this.logger.debug('No policies configured to evaluate.');
+            return { status: 'Operational' };
+        }
+
+        for (const definition of this.policies) {
             const dimKey = definition.dim_key;
             const metricValue = realTimeMetrics.get(dimKey);
             
@@ -79,6 +86,7 @@ class DimensionPolicyEngine {
                 continue;
             }
 
+            const operatorUsed = definition.operator || DEFAULT_OPERATOR;
             const isBreached = this.checkDimensionBreach(metricValue, definition);
 
             if (isBreached) {
@@ -86,7 +94,7 @@ class DimensionPolicyEngine {
                     dimension: dimKey,
                     value: metricValue,
                     threshold: definition.breach_threshold,
-                    operator: definition.operator || DEFAULT_OPERATOR,
+                    operator: operatorUsed,
                     action: definition.governance_action
                 });
                 
