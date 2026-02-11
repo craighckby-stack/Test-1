@@ -1,20 +1,12 @@
 /**
- * @fileoverview The Conceptual Integrity Engine (CIE).
- * This service enforces consistency between the codified AGI/ARCH concepts defined in conceptRegistry.js
- * and the actual code artifacts, system states, or proposed mutations.
- *
- * Its primary role is to prevent 'concept drift' by ensuring that core concepts are actively accounted for.
- * The enforcement is delegated to the ConceptualPolicyEvaluator for declarative execution.
- *
- * Refactoring Rationale:
- * 1. Converted to a static class for enhanced architectural rigor and encapsulation.
- * 2. Helper functions converted to private static methods (`#`).
- * 3. Centralized concept filtering (`#groupConcepts`) for efficiency, avoiding redundant iteration.
- * 4. Improved context passing and clarity.
+ * @fileoverview The Conceptual Integrity Kernel (CIK).
+ * This service enforces consistency between codified AGI/ARCH concepts and code artifacts, 
+ * system states, or proposed mutations by delegating policy enforcement.
+ * 
+ * It ensures 'concept drift' is prevented.
  */
 
-import { ConceptRegistry } from '../conceptRegistry.js';
-import { ConceptualPolicyEvaluator } from './ConceptualPolicyEvaluator.js';
+// NOTE: Dependencies are injected via the constructor.
 
 const CRITICAL_STATUSES = ['Critical Core', 'Critical Consensus'];
 const SCOPE = {
@@ -23,13 +15,40 @@ const SCOPE = {
 };
 
 /**
- * The Conceptual Integrity Engine (CIE).
+ * The Conceptual Integrity Kernel (CIK).
  * Central service for enforcing core architectural and code concepts during mutations.
  */
-class ConceptualIntegrityEngine {
+class ConceptualIntegrityKernel {
+    
+    /** @type {IConceptIdRegistryKernel} */
+    #conceptRegistry;
+    /** @type {IConceptualPolicyEvaluatorKernel} */
+    #policyEvaluator;
 
     static CRITICAL_STATUSES = CRITICAL_STATUSES;
     static SCOPE = SCOPE;
+
+    /**
+     * @param {{conceptRegistry: IConceptIdRegistryKernel, policyEvaluator: IConceptualPolicyEvaluatorKernel}} dependencies 
+     */
+    constructor(dependencies) {
+        this.#setupDependencies(dependencies);
+    }
+    
+    async initialize() {
+        // Mandatory async initialization hook
+    }
+
+    #setupDependencies(dependencies) {
+        if (!dependencies.conceptRegistry) {
+            throw new Error("ConceptualIntegrityKernel: Missing IConceptIdRegistryKernel dependency ('conceptRegistry').");
+        }
+        if (!dependencies.policyEvaluator) {
+            throw new Error("ConceptualIntegrityKernel: Missing IConceptualPolicyEvaluatorKernel dependency ('policyEvaluator').");
+        }
+        this.#conceptRegistry = dependencies.conceptRegistry;
+        this.#policyEvaluator = dependencies.policyEvaluator;
+    }
 
     /**
      * Executes fast-fail checks (critical path modification) and delegates policy execution.
@@ -37,7 +56,7 @@ class ConceptualIntegrityEngine {
      * @param {Object} context The operational context, including file path if applicable.
      * @returns {{isValid: boolean, message: string, violations: Array<Object>}}
      */
-    static #executeValidation(concept, context) {
+    #executeValidation(concept, context) {
         const { scope, filePath, requiresCriticalReview } = context;
 
         // 1. Critical Implementation Path Check (Fast failure if unflagged review needed)
@@ -54,7 +73,7 @@ class ConceptualIntegrityEngine {
         }
 
         // 2. Execution of Declarative Conceptual Policies
-        const policyResult = ConceptualPolicyEvaluator.executePolicies(concept, context);
+        const policyResult = this.#policyEvaluator.executePolicies(concept, context);
 
         if (!policyResult.isValid) {
             return {
@@ -70,7 +89,7 @@ class ConceptualIntegrityEngine {
     /**
      * Groups all relevant concepts into artifact-specific and systemic categories in one iteration.
      */
-    static #groupConcepts(allConcepts) {
+    #groupConcepts(allConcepts) {
         const relevantConcepts = allConcepts.filter(c => 
             c.implementationPath || c.constraints || c.scope
         );
@@ -90,7 +109,7 @@ class ConceptualIntegrityEngine {
     /**
      * Processes concepts tied to specific file artifacts against the proposal's changes.
      */
-    static #runArtifactChecks(proposal, artifactConcepts) {
+    #runArtifactChecks(proposal, artifactConcepts) {
         const driftReports = [];
         const affectedFiles = proposal.affectedFiles || [];
         
@@ -114,11 +133,11 @@ class ConceptualIntegrityEngine {
                     filePath: fileChange.path,
                     mutationType: fileChange.type, // ADD, MODIFY, DELETE
                     contentDiff: fileChange.diff,
-                    contentBefore: fileChange.contentBefore, // Assumes standardization
+                    contentBefore: fileChange.contentBefore, 
                     contentAfter: fileChange.contentAfter
                 };
 
-                const adherenceResult = ConceptualIntegrityEngine.#executeValidation(concept, context);
+                const adherenceResult = this.#executeValidation(concept, context);
 
                 if (!adherenceResult.isValid) {
                     driftReports.push({
@@ -141,7 +160,7 @@ class ConceptualIntegrityEngine {
     /**
      * Processes concepts that are systemic (architectural invariants, configuration changes).
      */
-    static #runSystemicChecks(proposal, systemicConcepts) {
+    #runSystemicChecks(proposal, systemicConcepts) {
         const driftReports = [];
 
         const context = {
@@ -154,7 +173,7 @@ class ConceptualIntegrityEngine {
 
         for (const concept of systemicConcepts) {
             // Systemic checks use the general proposal context, no specific filePath trigger.
-            const adherenceResult = ConceptualIntegrityEngine.#executeValidation(concept, context);
+            const adherenceResult = this.#executeValidation(concept, context);
 
             if (!adherenceResult.isValid) {
                 driftReports.push({
@@ -175,19 +194,25 @@ class ConceptualIntegrityEngine {
 
     /**
      * Public interface for validating a single concept against a context.
+     * @param {string} conceptId
+     * @param {Object} context
+     * @returns {Promise<Object>}
      */
-    static validateConcept(conceptId, context) {
-        const concept = ConceptRegistry.getConceptById(conceptId);
+    async validateConcept(conceptId, context) {
+        const concept = this.#conceptRegistry.getConceptById(conceptId);
         if (!concept) {
             return { isValid: false, message: `Concept ID ${conceptId} is undefined.`, violations: [] };
         }
-        return ConceptualIntegrityEngine.#executeValidation(concept, context);
+        // Policy execution remains synchronous unless delegated policy execution is async.
+        return this.#executeValidation(concept, context);
     }
 
     /**
      * Scans a mutation proposal for concept drift.
+     * @param {Object} proposal
+     * @returns {Promise<Array<Object>>}
      */
-    static scanProposalForConceptDrift(proposal) {
+    async scanProposalForConceptDrift(proposal) {
         if (!proposal || typeof proposal !== 'object') {
              return [{
                 conceptId: 'CIE_INIT',
@@ -199,15 +224,14 @@ class ConceptualIntegrityEngine {
             }];
         }
         
-        const allConcepts = ConceptRegistry.getAllConcepts();
+        const allConcepts = this.#conceptRegistry.getAllConcepts();
+        
         // Group concepts once for optimized iteration
-        const { artifactConcepts, systemicConcepts } = ConceptualIntegrityEngine.#groupConcepts(allConcepts);
+        const { artifactConcepts, systemicConcepts } = this.#groupConcepts(allConcepts);
 
-        const artifactDrifts = ConceptualIntegrityEngine.#runArtifactChecks(proposal, artifactConcepts);
-        const systemicDrifts = ConceptualIntegrityEngine.#runSystemicChecks(proposal, systemicConcepts);
-
-        return [...artifactDrifts, ...systemicDrifts];
+        const artifactReports = this.#runArtifactChecks(proposal, artifactConcepts);
+        const systemicReports = this.#runSystemicChecks(proposal, systemicConcepts);
+        
+        return [...artifactReports, ...systemicReports];
     }
 }
-
-export { ConceptualIntegrityEngine };
