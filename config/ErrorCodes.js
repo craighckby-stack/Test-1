@@ -4,7 +4,8 @@
  * aiding integration with logging systems and API error mapping middleware.
  */
 
-export const ERROR_CODES = Object.freeze({
+// Internal, immutable definition of all error codes.
+const _CODES_MAP = Object.freeze({
     // System / General
     SYSTEM_UNKNOWN: 'SYS_0000',
 
@@ -24,16 +25,23 @@ export const ERROR_CODES = Object.freeze({
 });
 
 /**
- * Utility function to quickly access a standardized code.
- * Provides safe lookup with a mandatory fallback to SYSTEM_UNKNOWN if the key is not found.
- * 
- * Performance Refactor: Using the logical OR operator for concise, safe fallback lookup,
- * relying on the fact that all codes are non-empty, truthy strings.
- * 
- * @param {string} key - The key from ERROR_CODES (e.g., 'AUDIT_GENERIC').
- * @returns {string}
+ * Standardized registry interface for accessing machine-readable error codes.
+ * This unified interface provides safe lookup utilities and access to the immutable code enumeration.
+ * @type {Readonly<{Codes: Readonly<Record<string, string>>, get: function(string): string}>}
  */
-export function getStandardCode(key: string): string {
-    // Use Record<string, string> for generic access to the frozen object.
-    return (ERROR_CODES as Record<string, string>)[key] || ERROR_CODES.SYSTEM_UNKNOWN;
-}
+export const ErrorCodeRegistry = Object.freeze({
+    /** The immutable map of all defined error codes. */
+    Codes: _CODES_MAP,
+
+    /**
+     * Utility function to quickly access a standardized code.
+     * Provides safe lookup with a mandatory fallback to SYSTEM_UNKNOWN if the key is not found.
+     * 
+     * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
+     * @returns {string}
+     */
+    get(key) {
+        // Uses direct property access on the internal map with logical OR fallback.
+        return _CODES_MAP[key] || _CODES_MAP.SYSTEM_UNKNOWN;
+    }
+});
