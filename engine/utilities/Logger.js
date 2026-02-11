@@ -52,29 +52,44 @@ class Logger {
         this.#context = context;
         this.#level = level;
     }
-    
+
     /**
-     * Internal method to process and output logs via the active processor.
+     * Resolves the active log processor, checking the global hook.
+     * This acts as an I/O proxy for accessing the global scope dependency.
+     * @returns {{execute: function}}
+     */
+    #resolveLogProcessor() {
+        if (typeof __CANONICAL_LOG_PROCESSOR__ !== 'undefined' && typeof __CANONICAL_LOG_PROCESSOR__.execute === 'function') {
+            return __CANONICAL_LOG_PROCESSOR__;
+        }
+        return DefaultLogProcessor;
+    }
+
+    /**
+     * Delegates the log processing request to the provided processor.
+     * This acts as an I/O proxy for executing the external dependency.
+     * @param {{execute: function}} processor 
      * @param {string} levelName 
      * @param {number} levelValue 
-     * @param {...any} args 
+     * @param {any[]} args 
+     * @returns {{shouldLog: boolean, consoleMethod: string, prefix: string, payload: any[]}}
      */
-    _output(levelName, levelValue, ...args) {
-        
-        // Use the global Canonical Log Processor if injected, otherwise use the internal default.
-        const processor = (typeof __CANONICAL_LOG_PROCESSOR__ !== 'undefined' && typeof __CANONICAL_LOG_PROCESSOR__.execute === 'function')
-            ? __CANONICAL_LOG_PROCESSOR__
-            : DefaultLogProcessor;
-        
-        // Process log data using the selected processor
-        const result = processor.execute({
+    #delegateToProcessorExecution(processor, levelName, levelValue, args) {
+        return processor.execute({
             context: this.#context,
             levelName: levelName,
             configLevel: this.#level,
             messageArgs: args,
             levelValue: levelValue
         });
+    }
 
+    /**
+     * Outputs the final log message using the console API.
+     * This acts as an I/O proxy for interaction with the external `console` API.
+     * @param {{shouldLog: boolean, consoleMethod: string, prefix: string, payload: any[]}} result
+     */
+    #delegateToConsoleOutput(result) {
         if (result.shouldLog) {
             // Safely retrieve the console method determined by the plugin
             const consoleMethod = console[result.consoleMethod] || console.log;
@@ -88,20 +103,42 @@ class Logger {
         }
     }
 
+    /**
+     * Internal method to process and output logs via the active processor.
+     * @param {string} levelName 
+     * @param {number} levelValue 
+     * @param {...any} args 
+     */
+    #output(levelName, levelValue, ...args) {
+        // 1. Resolve Processor (I/O Proxy)
+        const processor = this.#resolveLogProcessor();
+        
+        // 2. Execute Processor (I/O Proxy)
+        const result = this.#delegateToProcessorExecution(
+            processor,
+            levelName,
+            levelValue,
+            args
+        );
+        
+        // 3. Output to Console (I/O Proxy)
+        this.#delegateToConsoleOutput(result);
+    }
+
     debug(...args) {
-        this._output('DEBUG', LOG_LEVELS.DEBUG, ...args);
+        this.#output('DEBUG', LOG_LEVELS.DEBUG, ...args);
     }
 
     info(...args) {
-        this._output('INFO', LOG_LEVELS.INFO, ...args);
+        this.#output('INFO', LOG_LEVELS.INFO, ...args);
     }
 
     warn(...args) {
-        this._output('WARN', LOG_LEVELS.WARN, ...args);
+        this.#output('WARN', LOG_LEVELS.WARN, ...args);
     }
 
     error(...args) {
-        this._output('ERROR', LOG_LEVELS.ERROR, ...args);
+        this.#output('ERROR', LOG_LEVELS.ERROR, ...args);
     }
 }
 
