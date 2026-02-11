@@ -20,6 +20,8 @@ const CONFIG_CONSTRAINTS = {
     // Note: Complex structural validation should utilize dedicated schema checking utilities (e.g., schemaGuard).
 };
 
+const DEPENDENCY_FAILURE_MSG = "Critical AGI dependency missing: ConfigurationConstraintValidator plugin is required for config validation.";
+
 /**
  * Validates the provided configuration object against predefined constraints.
  * Throws a comprehensive error if any constraint is violated.
@@ -28,7 +30,7 @@ const CONFIG_CONSTRAINTS = {
  */
 function validateConfig(config: Record<string, any>): boolean {
     if (typeof ConfigurationConstraintValidator === 'undefined' || typeof ConfigurationConstraintValidator.execute !== 'function') {
-        throw new Error("Critical AGI dependency missing: ConfigurationConstraintValidator plugin is required for config validation.");
+        throw new Error(DEPENDENCY_FAILURE_MSG);
     }
     
     const errors = ConfigurationConstraintValidator.execute({
