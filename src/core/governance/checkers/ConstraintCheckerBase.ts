@@ -6,15 +6,19 @@ import { TxContext, GAXConstraintSet, ConstraintViolation } from '../types';
  * of checks dynamically, decoupled from the core execution loop.
  */
 export interface IConstraintChecker {
-    // Initializes the checker with relevant parts of the GAX constraint set
+    /** Identifier for debugging and logging. Should be unique across checkers. */
+    checkerId: string;
+
+    /**
+     * Initializes the checker with relevant parts of the GAX constraint set.
+     * @param constraints The global set of constraints used for validation logic.
+     */
     initialize(constraints: GAXConstraintSet): void;
 
-    // Runs the specific category of checks against the transaction context
+    /**
+     * Runs the specific category of checks against the transaction context.
+     * @param txContext The context (including metadata and state) of the transaction being checked.
+     * @returns A list of violations found. Returns an empty array if no violations exist.
+     */
     check(txContext: TxContext): ConstraintViolation[];
-
-    // Identifier for debugging and logging
-    checkerId: string;
 }
-
-// Future plan: ConstraintEnforcer will hold an array of IConstraintChecker instances
-// and iterate through them in `checkTransaction`, promoting full decoupling.
