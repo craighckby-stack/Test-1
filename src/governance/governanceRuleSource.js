@@ -17,100 +17,77 @@
  * @property {VetoRule[]} GSEP_VETO_RULES
  */
 
+// Tool Kernel Interfaces utilized
+// const IGovernanceRuleDefinitionsRegistryKernel = 'IGovernanceRuleDefinitionsRegistryKernel';
+// const ILoggerToolKernel = 'ILoggerToolKernel';
+
+
 /**
- * GRS: GOVERNANCE RULE SOURCE (V95.3)
+ * GRSK: GOVERNANCE RULE SOURCE KERNEL (V7.11)
  * Scope: Stage 3/Foundation. Critical dependency for P-01 consensus.
- * Function: Provides an immutable, cryptographically verifiable source of truth
+ * Function: Provides an immutable, cryptographically verified source of truth
  * for the core system policy rule sets and fixed P-01 calculation constants.
- * It mandates defensive copying on all output to guarantee rule integrity.
+ * Adheres strictly to AIA mandates for asynchronous initialization and secure dependency injection.
+ * (Refactored from synchronous GovernanceRuleSource)
  */
-class GovernanceRuleSource {
-    #registry;
-    #currentRuleSetVersion: string;
+class GovernanceRuleSourceKernel {
+    /** @type {IGovernanceRuleDefinitionsRegistryKernel} */
+    #ruleRegistry;
+    /** @type {ILoggerToolKernel} */
+    #logger;
+
+    #currentRuleSetVersion = null;
     /** @type {GovernanceRuleSchema} */
-    #immutableRuleset: GovernanceRuleSchema;
+    #immutableRuleset = null;
+    #initialized = false;
 
     /**
-     * Executes the DefensiveCopyTool plugin to create a deep copy.
-     * Assumes the tool is accessible via the registry's tool execution layer.
-     * @private
-     * @template T
-     * @param {T} obj
-     * @returns {T}
+     * @param {Object} dependencies
+     * @param {IGovernanceRuleDefinitionsRegistryKernel} dependencies.ruleRegistry
+     * @param {ILoggerToolKernel} dependencies.logger
      */
-    #cloneRuleData<T>(obj: T): T {
-        // In a deployed AGI-KERNEL system, this would execute the defined plugin.
-        // We simulate the execution call using structural knowledge of the plugin interface.
-        const tool = this.#registry?.tools?.DefensiveCopyTool;
-        
-        if (tool && typeof tool.execute === 'function') {
-             // CRITICAL: We rely on the DefensiveCopyTool for maintaining rule immutability.
-             return (tool.execute({ obj: obj }) as T);
+    constructor({ ruleRegistry, logger }) {
+        if (!ruleRegistry || !logger) {
+            // Using GOV_E_004 as conceptual error ID for foundational initialization failures.
+            throw new Error("GOV_E_004: GRSK initialization requires ruleRegistry and logger kernels.");
+        }
+        this.#ruleRegistry = ruleRegistry;
+        this.#logger = logger;
+    }
+
+    /**
+     * Asynchronously loads and verifies the foundational governance ruleset.
+     * This replaces the synchronous #initializeSource and #fetchVerifiedRuleset,
+     * ensuring compliance with the AIA Enforcement Layer for non-blocking configuration load.
+     * @async
+     */
+    async initialize() {
+        if (this.#initialized) {
+            this.#logger.warn("GRSK already initialized. Skipping initialization.");
+            return;
         }
 
-        // Defensive Fallback (ONLY if tool injection fails, which is a critical system error)
-        console.warn("GRS::TOOL_MISSING - DefensiveCopyTool missing. Falling back to native JSON clone.");
         try {
-            return JSON.parse(JSON.stringify(obj));
-        } catch (e) {
-            console.error("GRS::CLONE_FAILURE - Critical fallback cloning failure.", e);
-            return obj;
+            // Load ruleset via the high-integrity asynchronous registry.
+            // The registry (IGovernanceRuleDefinitionsRegistryKernel) is responsible for 
+            // cryptographic verification, hash checking, and returning an immutable (frozen) structure.
+            const verifiedSource = await this.#ruleRegistry.getRuleDefinitions();
+            
+            this.#currentRuleSetVersion = verifiedSource.version;
+            this.#immutableRuleset = verifiedSource.ruleset; 
+
+            // Post-Load integrity checks (schema adherence)
+            this.#validateRulesetIntegrity(this.#immutableRuleset);
+
+            this.#logger.info(`GRSK successfully loaded and validated ruleset version: ${this.#currentRuleSetVersion}`);
+            this.#initialized = true;
+
+        } catch (error) {
+            const message = "GRSK Critical initialization failure. System cannot proceed without foundational rules.";
+            this.#logger.error(message, { error: error.message, conceptId: 'GOV_E_004' });
+            // Re-throw to halt system startup.
+            throw new Error(`GOV_E_004: GRSK Initialization failed: ${error.message}`);
         }
-    }
-
-    /**
-     * @param {Object} registry - Provides access to necessary services (including tools).
-     */
-    constructor(registry) {
-        if (!registry) {
-            throw new Error("GRS initialization requires a valid system registry.");
-        }
-        this.#registry = registry;
-        
-        this.#initializeSource();
-        
-        // Post-Load integrity checks (e.g., structure validation, schema adherence)
-        this.#validateRulesetIntegrity(this.#immutableRuleset);
-    }
-
-    /**
-     * Synchronous blocking initialization handler.
-     */
-    #initializeSource() {
-        // This process MUST be synchronous and blocking upon initialization 
-        // as the system cannot run without verified foundational rules.
-        const verifiedSource = this.#fetchVerifiedRuleset();
-        this.#currentRuleSetVersion = verifiedSource.version;
-        this.#immutableRuleset = verifiedSource.ruleset;
-    }
-
-    /**
-     * Placeholder for the crucial secure retrieval mechanism.
-     * In production, this uses the registry's SSV to fetch and verify the hash.
-     * @returns {{version: string, ruleset: GovernanceRuleSchema}}
-     */
-    #fetchVerifiedRuleset() {
-        // --- HARDCODED MOCK DATA FOR DEMONSTRATION ---
-        const version = 'V95.3.0-AOC'; 
-        return {
-            version: version,
-            ruleset: {
-                // P01: System Criticality Determination Constants
-                "P01_CRITICALITY": {
-                    "threshold": 0.65, 
-                    "weights": {
-                        "S01_PSR_WEIGHT": 0.7, 
-                        "S01_ATM_WEIGHT": 0.3
-                    }
-                },
-                // GSEP: Governance and System Enforcement Policies (Hard Veto Rules)
-                "GSEP_VETO_RULES": [
-                    { id: "HR01", description: "Preventing self-modification of core memory allocation greater than 5% per cycle.", policy: "MEM_ALLOC_DELTA_LIMIT", value: 0.05, enforced_by: "C-15" },
-                    { id: "HR02", description: "Mandatory immediate rollback upon C-04 integrity failure.", policy: "C04_EXIT_CODE", value: "NON_ZERO", enforced_by: "C-04" }
-                ]
-            }
-        };
-        // ---------------------------------------------
     }
 
     /**
@@ -118,65 +95,67 @@ class GovernanceRuleSource {
      * @param {GovernanceRuleSchema} ruleset 
      */
     #validateRulesetIntegrity(ruleset) {
-        if (!ruleset || !ruleset.P01_CRITICALITY || !Array.isArray(ruleset.GSEP_VETO_RULES)) {
-            console.error("GRS integrity failure: Ruleset schema mismatch.", ruleset);
-            throw new Error("GRS: Loaded ruleset fails structural integrity validation.");
+        if (!ruleset || typeof ruleset.P01_CRITICALITY !== 'object' || !Array.isArray(ruleset.GSEP_VETO_RULES)) {
+            const message = "GRSK integrity failure: Ruleset schema mismatch after registry load.";
+            this.#logger.error(message, { ruleset, conceptId: 'GOV_E_004' });
+            throw new Error(message);
         }
-        // Further depth checks would occur here.
+        // Note: Further deep structure validation is expected to be handled by the registry kernel internally.
     }
 
     /**
      * @returns {string} The cryptographically attested version string of the loaded ruleset.
      */
     getRulesetVersion() {
+        if (!this.#initialized) {
+            this.#logger.error("GRSK::NOT_INITIALIZED - Attempted to access ruleset version before initialization.");
+            return null;
+        }
         return this.#currentRuleSetVersion;
     }
 
     /**
-     * Returns a deep clone of the mandatory GSEP policies.
+     * Returns the immutable mandatory GSEP policies.
+     * Immutability is guaranteed by the contract of IGovernanceRuleDefinitionsRegistryKernel, 
+     * eliminating the need for synchronous defensive copying (#cloneRuleData).
      * @returns {VetoRule[]} 
      */
     getMandatoryVetoPolicies() {
-        return this.#cloneRuleData(this.#immutableRuleset.GSEP_VETO_RULES);
+        if (!this.#initialized) {
+            this.#logger.error("GRSK::NOT_INITIALIZED - Attempted to access Veto Policies before initialization.");
+            return [];
+        }
+        return this.#immutableRuleset.GSEP_VETO_RULES;
     }
 
     /**
-     * Returns a deep clone of the P01 calculation constants.
+     * Returns the immutable P01 calculation constants.
      * @returns {P01Constants}
      */
     getP01Constants() {
-        return this.#cloneRuleData(this.#immutableRuleset.P01_CRITICALITY);
+        if (!this.#initialized) {
+            this.#logger.error("GRSK::NOT_INITIALIZED - Attempted to access P01 Constants before initialization.");
+            return null;
+        }
+        return this.#immutableRuleset.P01_CRITICALITY;
     }
 
     /**
-     * Retrieves a deep clone of a specific rule block.
+     * Retrieves an immutable rule block.
      * @param {string} key - The key of the ruleset block (e.g., 'P01_CRITICALITY').
-     * @returns {Object|Array} A deep cloned copy of the rule block data.
+     * @returns {Object|Array} The immutable rule block data.
      */
     getRuleBlock(key) {
+        if (!this.#initialized) {
+            this.#logger.error("GRSK::NOT_INITIALIZED - Attempted to access rule block before initialization.");
+            return undefined;
+        }
         const ruleBlock = this.#immutableRuleset[key];
         if (ruleBlock === undefined) {
-            throw new Error(`GRS::RULE_NOT_FOUND - Unknown rule block requested: ${key}`);
+            this.#logger.warn(`GRSK::RULE_NOT_FOUND - Unknown rule block requested: ${key}`);
         }
-        return this.#cloneRuleData(ruleBlock);
-    }
-
-    /**
-     * Performs a check against the system's current verified hash.
-     * @param {string} manifestHash - The expected cryptographic hash of the GRS manifest.
-     * @returns {boolean}
-     */
-    verifyIntegrity(manifestHash) {
-        if (!this.#registry.ssv) {
-            console.warn("SSV component required in registry to perform rule integrity verification.");
-            return false;
-        }
-        
-        // Retrieve the hash of the currently loaded ruleset from the SSV component.
-        const currentVerifiedHash = this.#registry.ssv.getRuleSourceHash(this.#currentRuleSetVersion);
-        
-        return currentVerifiedHash === manifestHash;
+        return ruleBlock;
     }
 }
 
-module.exports = GovernanceRuleSource;
+module.exports = GovernanceRuleSourceKernel;
