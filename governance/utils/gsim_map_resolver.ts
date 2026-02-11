@@ -6,22 +6,33 @@
 import { GsimEnforcementMap, EnforcementRule } from '../types/gsim_types';
 
 /**
- * Define the interface for the extracted tool for type checking.
- * In a full kernel environment, this interface would be globally defined.
+ * Define the interface for the extracted tools.
  */
 interface IPayloadIntegrityVerifier {
     verify(args: { payload: any, expectedChecksum: string }): Promise<{ isValid: boolean, calculatedChecksum: string | null }>;
 }
 
+/**
+ * New interface for Dependency Resolution.
+ * Abstracts the logic for fetching schemas, configs, and key references.
+ */
+interface IDependencyResolver {
+    resolveDependencies(dependencies: EnforcementRule['dependencies']): Promise<void>;
+}
+
+
 interface GSIMResolverTools {
     payloadIntegrityVerifier: IPayloadIntegrityVerifier;
+    dependencyResolver: IDependencyResolver;
 }
 
 export class GSIMMapResolver {
     private integrityVerifier: IPayloadIntegrityVerifier;
+    private dependencyResolver: IDependencyResolver;
 
     constructor(tools: GSIMResolverTools) {
         this.integrityVerifier = tools.payloadIntegrityVerifier;
+        this.dependencyResolver = tools.dependencyResolver;
     }
 
     /**
@@ -43,39 +54,14 @@ export class GSIMMapResolver {
             throw new Error(`Integrity Check Failed for ${mapData.map_id}. Hash mismatch. Expected: ${mapData.metadata.checksum}, Calculated: ${calculated}.`);
         }
 
-        // 2. Dependency Resolution Loop
+        // 2. Dependency Resolution Loop (Delegated to plugin)
         for (const rule of mapData.enforcement_map) {
             if (rule.dependencies) {
-                await this.loadDependencies(rule);
+                await this.dependencyResolver.resolveDependencies(rule.dependencies);
             }
         }
 
         console.log(`[GSIM] Map ${mapData.map_id} resolved successfully.`);
         return mapData.enforcement_map;
     }
-
-    private async loadDependencies(rule: EnforcementRule): Promise<void> {
-        for (const dep of rule.dependencies!) {
-            switch (dep.dependency_type) {
-                case 'SCHEMA':
-                    // Logic to fetch, cache, and compile external schema definition
-                    await this.fetchSchema(dep.uri);
-                    break;
-                case 'CONFIG':
-                    // Logic to fetch mandatory configuration file
-                    await this.fetchConfig(dep.uri);
-                    break;
-                case 'KEY_VAULT_REFERENCE':
-                    // Secure key retrieval and injection logic
-                    await this.retrieveKeyReference(dep.uri);
-                    break;
-                // ... other types
-            }
-        }
-    }
-
-    // Placeholder functions...
-    private async fetchSchema(uri: string) { /* ... */ }
-    private async fetchConfig(uri: string) { /* ... */ }
-    private async retrieveKeyReference(uri: string) { /* ... */ }
 }
