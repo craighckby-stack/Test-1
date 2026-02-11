@@ -54,25 +54,42 @@ class SchemaCompilationService {
   }
 
   /**
+   * Internal helper to execute validation and handle errors consistently, throwing 
+   * a formatted error on failure.
+   * @param validator The compiled validator function.
+   * @param data Data to validate.
+   * @param errorPrefix The descriptive prefix for the error message.
+   */
+  private validateAndThrow(validator: Function, data: any, errorPrefix: string): boolean {
+      // Standard validator execution: returns boolean, errors attached to function object
+      const isValid = validator(data);
+      
+      if (!isValid) {
+          // Note: In Ajv/similar validators, errors are attached to the function instance.
+          const errors = validator.errors || [];
+          
+          // Use SchemaErrorFormatterTool for standardized error reporting
+          const formattedErrorDetails = this.errorFormatter.format(errors);
+
+          throw new Error(`${errorPrefix}: ${formattedErrorDetails}`);
+      }
+      return true;
+  }
+
+  /**
    * Loads the enforcement schema, compiles it if necessary, and validates the context data.
    * @param contextData Data to validate against the enforcement schema.
    * @throws Error if validation fails, using formatted error details.
    */
   async validateEnforcement(contextData: any): Promise<boolean> {
-    const enforcementValidator = await this.compileSchema('enforcement_schema.json');
+    const ENFORCEMENT_SCHEMA_ID = 'enforcement_schema.json';
+    const enforcementValidator = await this.compileSchema(ENFORCEMENT_SCHEMA_ID);
     
-    // Standard validator execution: returns boolean, errors attached to function object
-    const isValid = enforcementValidator(contextData);
-    
-    if (!isValid) {
-      const errors = enforcementValidator.errors || [];
-      
-      // Use SchemaErrorFormatterTool for standardized error reporting
-      const formattedErrorDetails = this.errorFormatter.format(errors);
-
-      throw new Error(`Enforcement context validation failed: ${formattedErrorDetails}`);
-    }
-    return true;
+    return this.validateAndThrow(
+      enforcementValidator,
+      contextData,
+      'Enforcement context validation failed'
+    );
   }
 }
 
