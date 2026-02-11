@@ -5,8 +5,13 @@
  * This module translates runtime configuration keys into stable, exported constants.
  */
 
-// 1. Dependency Resolution and Encapsulation
-const CONFIG_LOADER = (() => {
+/**
+ * Validates and retrieves the required configuration access plugin dependency.
+ * This encapsulates synchronous dependency lookup and validation.
+ * @returns {Object} The ConfigurationAccessPlugin instance.
+ * @private
+ */
+const _getValidatedConfigLoader = () => {
     try {
         // Resolve the plugin once upon module initialization
         const { ConfigurationAccessPlugin } = KERNEL_SYNERGY_CAPABILITIES.Plugin.get("ConfigurationAccessPlugin");
@@ -18,7 +23,11 @@ const CONFIG_LOADER = (() => {
         // Centralized failure handling for critical dependencies
         throw new Error(`[TelecomStandards] Critical dependency failure during initialization: ${error.message}`);
     }
-})();
+};
+
+
+// 1. Dependency Resolution and Encapsulation
+const CONFIG_LOADER = _getValidatedConfigLoader();
 
 // 2. Load the configuration object once
 const telecommConfig = CONFIG_LOADER.loadConfig("TelecommConfig");
