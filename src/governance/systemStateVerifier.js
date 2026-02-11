@@ -1,62 +1,73 @@
 /**
- * Component ID: SSV
- * Component Name: System State Verifier
- * GSEP Role: EPDP D (Verification Lock)
- * Location: src/governance/systemStateVerifier.js
+ * Component ID: SSVK
+ * Component Name: System State Verifier Kernel
+ * GSEP Role: EPDP D (Verification Lock) - AIA ENFORCED
+ * Location: src/governance/systemStateVerifierKernel.js
  *
- * Function: Generates and validates cryptographic state hashes of the critical operating environment (Codebase + Config + Context).
- * This module ensures a verifiable root-of-trust mapping before an architectural mutation is staged or deployed.
- * It provides the absolute reference point for atomic rollback operations by registering the System State Hash (SSH).
+ * Function: Generates and validates cryptographic state hashes (SSH) of the critical operating environment (Codebase + Config + Context).
+ * This Kernel ensures a verifiable root-of-trust mapping before an architectural mutation is staged or deployed, providing
+ * the absolute reference point for atomic rollback operations.
  */
 
-import * as crypto from 'crypto';
-// Import Logger as standard practice for a v94.1 component
-import { Logger } from '../utility/logger'; 
-// Note: CanonicalStateHasher is logically injected via constructor in modern kernel architectures
+import { IProposalHistoryConfigRegistryKernel } from '../registry/IProposalHistoryConfigRegistryKernel';
+import { IMutationChainPersistenceToolKernel } from '../tools/IMutationChainPersistenceToolKernel';
+import { ResourceAttestationKernel } from '../tools/ResourceAttestationKernel';
+import { HashIntegrityCheckerToolKernel } from '../tools/HashIntegrityCheckerToolKernel';
+import { AIAKernel } from '../kernel/AIAKernel'; // Mandatory AIA Inheritance
 
-export class SystemStateVerifier {
+interface SystemStateVerifierDependencies {
+    proposalHistoryRegistry: IProposalHistoryConfigRegistryKernel;
+    mutationChainPersistence: IMutationChainPersistenceToolKernel;
+    resourceAttestationKernel: ResourceAttestationKernel;
+    hashIntegrityChecker: HashIntegrityCheckerToolKernel;
+}
+
+export class SystemStateVerifierKernel extends AIAKernel {
     
-    // HASH_ALGORITHM and STATE_PROTOCOL_VERSION are now defined within the CanonicalStateHasher plugin.
+    private proposalHistoryRegistry: IProposalHistoryConfigRegistryKernel;
+    private mutationChainPersistence: IMutationChainPersistenceToolKernel;
+    private resourceAttestationKernel: ResourceAttestationKernel;
+    private hashIntegrityChecker: HashIntegrityCheckerToolKernel;
 
-    private hasher: any; // Type reference for CanonicalStateHasher
+    constructor(dependencies: SystemStateVerifierDependencies) {
+        super('SSVK');
+        this.proposalHistoryRegistry = dependencies.proposalHistoryRegistry;
+        this.mutationChainPersistence = dependencies.mutationChainPersistence;
+        this.resourceAttestationKernel = dependencies.resourceAttestationKernel;
+        this.hashIntegrityChecker = dependencies.hashIntegrityChecker;
+    }
 
     /**
-     * @param {object} dependencies
-     * @param {object} dependencies.mutationChainRegistrar - MCR instance (for registration).
-     * @param {object} dependencies.stateSnapshotRepository - SSR instance (for audit/persistence).
-     * @param {object} dependencies.governanceContextService - GCS instance (for resolving C, H, P).
-     * @param {object} dependencies.canonicalStateHasher - The instantiated CanonicalStateHasher plugin instance.
+     * Mandatory asynchronous initialization.
+     * @returns {Promise<void>}
      */
-    constructor({ mutationChainRegistrar, stateSnapshotRepository, governanceContextService, canonicalStateHasher }: any) {
-        this.mcr = mutationChainRegistrar;
-        this.ssr = stateSnapshotRepository;
-        this.contextService = governanceContextService; 
-        this.hasher = canonicalStateHasher; // Dependency Injection
-
-        if (!this.mcr || !this.ssr || !this.contextService || !this.hasher) {
-             throw new Error("[SSV] Missing core dependency initialization, including CanonicalStateHasher.");
+    async initialize(): Promise<void> {
+        this.logger.debug('SSVK initializing...');
+        
+        if (!this.proposalHistoryRegistry || !this.mutationChainPersistence || !this.resourceAttestationKernel || !this.hashIntegrityChecker) {
+             throw new Error("[SSVK] Initialization failed: Missing core asynchronous tool kernel dependencies.");
         }
-        this.logger = Logger.get('SSV');
+
+        // All dependencies are tool kernels and should already be initialized or initialized by the framework.
+        this.logger.info('System State Verifier Kernel initialized successfully.');
     }
 
     /**
-     * Helper to call the CanonicalStateHasher plugin.
-     * @param {{configHash: string, codeHash: string, proposalID: string}} context
-     * @returns {string}
+     * Helper to call the HashIntegrityCheckerToolKernel to calculate the definitive System State Hash (SSH).
+     * This abstracts the underlying cryptographic mechanism (e.g., crypto, hashing algorithm).
+     * @param {{ configHash: string, codeHash: string, proposalID: string }} context
+     * @returns {Promise<string>}
      */
-    private calculateSystemStateHash(context: { configHash: string, codeHash: string, proposalID: string }): string {
-        // Execute the plugin, passing the necessary context and the 'crypto' library instance.
-        return this.hasher.execute({
-            context: context,
-            crypto: crypto // Explicitly inject the imported crypto module
-        });
+    private async calculateSystemStateHash(context: { configHash: string, codeHash: string, proposalID: string }): Promise<string> {
+        // Delegate calculation to the specialized, asynchronous Tool Kernel.
+        return this.hashIntegrityChecker.calculateHashForObject(context);
     }
     
     /**
-     * 1. Fetches canonical context (C, H, P) using GovernanceContextService.
-     * 2. Calculates the definitive System State Hash (SSH).
-     * 3. Persists the detailed snapshot to the SSR.
-     * 4. Registers this state hash with the MCR, locking the verifiable state.
+     * 1. Fetches canonical context (C, H, P) using ResourceAttestationKernel.
+     * 2. Calculates the definitive System State Hash (SSH) using HashIntegrityCheckerToolKernel.
+     * 3. Persists the detailed snapshot to the IProposalHistoryConfigRegistryKernel.
+     * 4. Registers this state hash with the IMutationChainPersistenceToolKernel, locking the verifiable state.
      * @param {string} proposalID - The identifier for the mutation proposal being verified/locked.
      * @returns {Promise<string>} The verified system state hash.
      */
@@ -66,15 +77,24 @@ export class SystemStateVerifier {
         }
         
         try {
-            // Step 1 & 2: Gather context and calculate definitive SSH using the plugin
-            const context = await this.contextService.resolveVerificationContext(proposalID);
-            const ssh = this.calculateSystemStateHash(context);
+            // Step 1: Gather context (Asynchronous)
+            const context = await this.resourceAttestationKernel.resolveVerificationContext(proposalID);
+            
+            // Step 2: Calculate definitive SSH (Asynchronous)
+            const ssh = await this.calculateSystemStateHash(context);
 
-            // Step 3: Snapshot Persistence (for audit trail)
-            await this.ssr.saveSnapshot({ ...context, ssh, timestamp: Date.now() });
+            // Step 3: Snapshot Persistence (Asynchronous Audit Trail)
+            const snapshotPayload = {
+                proposalID: context.proposalID,
+                configHash: context.configHash,
+                codeHash: context.codeHash,
+                systemStateHash: ssh, 
+                timestamp: Date.now() 
+            }; 
+            await this.proposalHistoryRegistry.saveStateSnapshot(snapshotPayload); // Delegates to high-integrity SSRK abstraction
     
-            // Step 4: Register SSH on the ledger via MCR (State commitment)
-            await this.mcr.registerSystemStateHash(proposalID, ssh);
+            // Step 4: Register SSH on the ledger (State commitment via MCR abstraction)
+            await this.mutationChainPersistence.registerSystemStateHash(proposalID, ssh);
             
             this.logger.info(`State locked for ${proposalID}. SSH=${ssh.substring(0, 10)}...`);
     
@@ -87,27 +107,29 @@ export class SystemStateVerifier {
 
     /**
      * Verifies if the current deployed live state matches an expected/registered state hash.
-     * If expectedHash is null, it retrieves the active registered hash from MCR using the active ProposalID.
      * @param {string | null} [expectedHash=null] - The hash registered during the lock phase (EPDP D).
      * @returns {Promise<boolean>}
      */
     async validateCurrentStateAgainstHash(expectedHash: string | null = null): Promise<boolean> {
         
         try {
-            // Step 1: Gather context based on live operational environment
-            const context = await this.contextService.resolveVerificationContext();
-            const activeProposalID = context.proposalID;
+            // Step 1: Gather context based on live operational environment (Asynchronous)
+            const context = await this.resourceAttestationKernel.resolveVerificationContext();
+            const activeProposalID = context.proposalID; // Use resolved proposal ID if not provided
 
-            // Determine the target hash for comparison
-            const targetHash = expectedHash || await this.mcr.fetchRegisteredSystemStateHash(activeProposalID);
+            // Determine the target hash for comparison (Asynchronous fetching)
+            let targetHash = expectedHash;
+            if (!targetHash && activeProposalID) {
+                targetHash = await this.mutationChainPersistence.fetchRegisteredSystemStateHash(activeProposalID);
+            }
             
             if (!targetHash) {
                 this.logger.warn(`Cannot validate state for ID ${activeProposalID}. No expected hash found (neither provided nor registered).`);
                 return false;
             }
 
-            // Step 2: Recalculate hash based on current live state using the plugin
-            const liveRecalculatedHash = this.calculateSystemStateHash(context);
+            // Step 2: Recalculate hash based on current live state (Asynchronous)
+            const liveRecalculatedHash = await this.calculateSystemStateHash(context);
 
             if (liveRecalculatedHash === targetHash) {
                 this.logger.verified(`State Integrity verified successfully. Context ID: ${activeProposalID}`);
