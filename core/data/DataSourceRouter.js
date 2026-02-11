@@ -28,17 +28,84 @@ class DataSourceRouter {
      * @param {object} dependencies - External utilities for routing operations.
      */
     constructor(dependencies = {}) {
-        // Guarantee immutability for core configuration
-        this.#primitives = Object.freeze(DataSourcePrimitives); 
-        
-        // Dependency Injection and encapsulation
+        this.#primitives = this.#setupPrimitives(); 
+        this.#resolveCoreDependencies(dependencies);
+        this.#setupStrategyResolver();
+    }
+
+    /**
+     * Defines and guarantees immutability for the core configuration primitives.
+     * @private
+     * @returns {object}
+     */
+    #setupPrimitives() {
+        return Object.freeze(DataSourcePrimitives); 
+    }
+
+    /**
+     * Resolves and encapsulates core dependencies (Logger, CacheManager, DataTransformer).
+     * @private
+     * @param {object} dependencies - External dependencies.
+     */
+    #resolveCoreDependencies(dependencies) {
         this.#logger = dependencies.Logger || Logger.module('DataSourceRouter');
         this.#cacheManager = dependencies.CacheManager || CacheManager;
         this.#dataTransformer = dependencies.DataTransformer || DataTransformer;
-        
-        // Initialize Strategy Resolver
+    }
+
+    /**
+     * Initializes the Strategy Resolver dependency.
+     * @private
+     */
+    #setupStrategyResolver() {
         const resolverDependencies = { Logger: this.#logger };
         this.#strategyResolver = new StrategyResolver(DataSourceHandlersMap, resolverDependencies);
+    }
+
+    /**
+     * Delegates to the StrategyResolver and handles specific error mapping for handler setup failures.
+     * @private
+     * @param {string} retrieval_method - The handler name.
+     * @returns {object} The instantiated handler object.
+     */
+    #resolveHandlerStrategy(retrieval_method) {
+        try {
+            return this.#strategyResolver.resolve(retrieval_method);
+        } catch (e) {
+            // Map generic StrategyResolver errors to specific domain errors
+            this.#logger.error(`Strategy resolution failed for ${retrieval_method}:`, e);
+            
+            if (e.message.includes('Unsupported strategy')) {
+                throw new RetrievalError(
+                    `Unsupported retrieval method: ${retrieval_method}. Check DataSourceHandlersMap.`,
+                    'CONFIGURATION_MISSING'
+                );
+            } else if (e.message.includes('instantiation error')) {
+                throw new HandlerInstantiationError(`Handler configuration error for ${retrieval_method}. Details: ${e.message}`);
+            } else {
+                 // Re-throw unexpected errors
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Executes the external data handler (I/O proxy) and encapsulates error handling.
+     * @private
+     * @param {object} handler - The instantiated data handler strategy.
+     * @param {string} key - The data source key.
+     * @param {object} sourceConfig - The configuration for the data source.
+     * @param {string} retrieval_method - The handler name (for logging).
+     * @returns {Promise<any>} Raw data retrieved from the source.
+     */
+    async #executeRetrievalHandler(handler, key, sourceConfig, retrieval_method) {
+        try {
+            // Handlers must implement a consistent interface: handle(key, source_config)
+            return await handler.handle(key, sourceConfig); 
+        } catch (error) {
+            this.#logger.error(`Handler execution failed for ${key} (${retrieval_method}):`, error);
+            throw new RetrievalError(`Data retrieval failed for ${key}. Source Handler Error: ${error.message}`, 'HANDLER_EXECUTION_FAILED');
+        }
     }
 
     /**
@@ -65,37 +132,12 @@ class DataSourceRouter {
         }
 
         // 2. Determine and Instantiate Retrieval Strategy (Handler)
-        let handler;
-        try {
-            handler = this.#strategyResolver.resolve(retrieval_method);
-        } catch (e) {
-            // Map generic StrategyResolver errors to specific domain errors
-            this.#logger.error(`Strategy resolution failed for ${retrieval_method}:`, e);
-            
-            if (e.message.includes('Unsupported strategy')) {
-                throw new RetrievalError(
-                    `Unsupported retrieval method: ${retrieval_method}. Check DataSourceHandlersMap.`,
-                    'CONFIGURATION_MISSING'
-                );
-            } else if (e.message.includes('instantiation error')) {
-                throw new HandlerInstantiationError(`Handler configuration error for ${retrieval_method}. Details: ${e.message}`);
-            } else {
-                 // Re-throw unexpected errors
-                throw e;
-            }
-        }
+        const handler = this.#resolveHandlerStrategy(retrieval_method);
 
         this.#logger.info(`Fetching data for ${key} using strategy: ${retrieval_method}`);
 
-        // 3. Execute Handler Retrieval
-        let rawData;
-        try {
-            // Handlers must implement a consistent interface: handle(key, source_config)
-            rawData = await handler.handle(key, sourceConfig); 
-        } catch (error) {
-            this.#logger.error(`Handler execution failed for ${key} (${retrieval_method}):`, error);
-            throw new RetrievalError(`Data retrieval failed for ${key}. Source Handler Error: ${error.message}`, 'HANDLER_EXECUTION_FAILED');
-        }
+        // 3. Execute Handler Retrieval (via I/O proxy)
+        const rawData = await this.#executeRetrievalHandler(handler, key, sourceConfig, retrieval_method); 
 
         // 4. Apply Security and Transformation Logic
         const transformedData = this.#dataTransformer.transform(rawData, sourceConfig);
