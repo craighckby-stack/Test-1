@@ -6,9 +6,9 @@
  * Naming Convention: E_COMPONENT_FAILURETYPE
  */
 
-// Assuming ImmutableConstantRegistryUtility is available via the AGI kernel
-declare const ImmutableConstantRegistryUtility: {
-    defineAndFreeze: (registry: Record<string, string>) => Readonly<Record<string, string>>;
+// Assuming the ImmutableRegistry plugin is available via the AGI kernel
+declare const ImmutableRegistry: { 
+    create: (registry: Record<string, string>) => Readonly<Record<string, string>>; 
 };
 
 const ConsensusErrorCodesDefinition = {
@@ -33,7 +33,7 @@ const ConsensusErrorCodesDefinition = {
     E_NON_VALIDATOR_VOTE: 'E_NON_VALIDATOR_VOTE',
 };
 
-// Use the utility to define the final, immutable registry.
-const ConsensusErrorCodes = ImmutableConstantRegistryUtility.defineAndFreeze(ConsensusErrorCodesDefinition);
+// Use the plugin to define the final, immutable registry.
+const ConsensusErrorCodes = ImmutableRegistry.create(ConsensusErrorCodesDefinition);
 
 module.exports = { ConsensusErrorCodes };
