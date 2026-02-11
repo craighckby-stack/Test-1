@@ -2,28 +2,31 @@
 // Defines the required interface for ledger persistence used by the MutationChainRegistrar (MCR).
 
 /**
- * @interface LedgerPersistence
- * @description Handles asynchronous I/O operations for the mutation chain ledger, ensuring non-blocking persistence.
+ * @interface IMutationChainPersistenceToolKernel
+ * @description A high-integrity, asynchronous Tool Kernel responsible for
+ * managing I/O operations for the core Mutation Chain Ledger. This replaces
+ * the generic LedgerPersistence interface, ensuring auditable, non-blocking
+ * persistence compliant with AIA Enforcement Layer mandates.
  */
-class LedgerPersistence {
+class IMutationChainPersistenceToolKernel {
 
     /**
-     * Asynchronously loads the entire history of MutationRecords.
-     * @returns {Promise<MutationRecord[]>}
+     * Asynchronously loads the entire validated history of MutationRecords from persistent storage.
+     * @returns {Promise<ReadonlyArray<MutationRecord>>} A promise that resolves to an immutable array of records.
      */
     async loadChainHistory() {
-        throw new Error("Method 'loadChainHistory' must be implemented by the persistence layer.");
+        throw new Error("Kernel method 'loadChainHistory' must be implemented.");
     }
 
     /**
-     * Asynchronously appends a single, fully formed MutationRecord to the ledger.
+     * Asynchronously commits a single, validated MutationRecord to persistent storage.
      * This ensures efficient, atomic commitment for new chain links.
-     * @param {MutationRecord} record - The new record to commit, including the calculated selfHash.
+     * @param {MutationRecord} record - The immutable record to commit, containing cryptographic hashes.
      * @returns {Promise<void>}
      */
     async persistRecord(record) {
-        throw new Error("Method 'persistRecord' must be implemented by the persistence layer.");
+        throw new Error("Kernel method 'persistRecord' must be implemented.");
     }
 }
 
-module.exports = LedgerPersistence;
+module.exports = IMutationChainPersistenceToolKernel;
