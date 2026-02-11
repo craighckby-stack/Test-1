@@ -1,25 +1,29 @@
 class TraceAnalysisEngine {
+  db;
+  processor;
+
   constructor(traceLogDatabase) {
     this.db = traceLogDatabase;
     // Initialize processor: attempts to load the concurrent plugin, otherwise provides a safe sequential fallback.
-    this.processor = this._initializeProcessor();
+    this.processor = this.#initializeProcessor();
   }
 
   /**
-   * Creates a Sequential Fallback Processor if the ConcurrentProcessor plugin is unavailable.
+   * Standardized safe lookup for Kernel Capabilities.
+   * @param {string} name 
+   * @returns {any | null}
    */
-  _initializeProcessor() {
-    const ConcurrentProcessor = 
-      (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES.ConcurrentProcessor)
-        ? KERNEL_SYNERGY_CAPABILITIES.ConcurrentProcessor
-        : null;
+  static #getCapability(name) {
+    return (
+      typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && 
+      KERNEL_SYNERGY_CAPABILITIES[name]
+    ) ? KERNEL_SYNERGY_CAPABILITIES[name] : null;
+  }
 
-    if (ConcurrentProcessor) {
-      return ConcurrentProcessor;
-    }
-
-    // Sequential Fallback Implementation
-    console.warn('TraceAnalysisEngine: Using internal sequential fallback processor. Performance may be suboptimal.');
+  /**
+   * Creates a Sequential Fallback Processor structure that mimics the ConcurrentProcessor interface.
+   */
+  static #createSequentialFallbackProcessor() {
     return {
       /**
        * @param {string} capabilityName
@@ -27,11 +31,12 @@ class TraceAnalysisEngine {
        * @param {(item: any, Capability: any) => Promise<any>} itemMapper
        */
       execute: async (capabilityName, dataArray, itemMapper) => {
-        const Capability = (typeof KERNEL_SYNERGY_CAPABILITIES !== 'undefined' && KERNEL_SYNERGY_CAPABILITIES[capabilityName])
-          ? KERNEL_SYNERGY_CAPABILITIES[capabilityName]
-          : null;
+        const Capability = TraceAnalysisEngine.#getCapability(capabilityName);
         
-        if (!Capability) return [];
+        if (!Capability) {
+            console.warn(`TAE Fallback: Capability '${capabilityName}' not found.`);
+            return [];
+        }
 
         const results = [];
         for (const item of dataArray) {
@@ -41,6 +46,21 @@ class TraceAnalysisEngine {
         return results;
       }
     };
+  }
+
+  /**
+   * Initializes the processor: attempts to load the concurrent plugin, otherwise provides a safe sequential fallback.
+   */
+  #initializeProcessor() {
+    const ConcurrentProcessor = TraceAnalysisEngine.#getCapability('ConcurrentProcessor');
+
+    if (ConcurrentProcessor) {
+      return ConcurrentProcessor;
+    }
+
+    // Sequential Fallback Implementation
+    console.warn('TraceAnalysisEngine: Using internal sequential fallback processor. Performance may be suboptimal.');
+    return TraceAnalysisEngine.#createSequentialFallbackProcessor();
   }
 
   /**
@@ -54,19 +74,23 @@ class TraceAnalysisEngine {
       'evolutionOutcome.architecturalImpact': true
     });
 
-    const bottleneckFilesPromise = this.db.aggregate([/* Aggregation pipeline to find bottlenecks */]);
+    // Aggregation pipeline to find bottlenecks (example structure)
+    const bottleneckFilesPromise = this.db.aggregate([
+      { $match: { 'performance.latency': { $gt: 100 } } },
+      { $group: { _id: '$contextPath', totalLatency: { $sum: '$performance.latency' }, count: { $sum: 1 } } },
+      { $sort: { totalLatency: -1 } },
+      { $limit: 10 }
+    ]);
     
-    const [highRiskStructuralChanges] = await Promise.all([
+    // FIX: Ensure both results are captured from the concurrent promise execution.
+    const [highRiskStructuralChanges, bottleneckFiles] = await Promise.all([
         highRiskStructuralChangesPromise,
-        bottleneckFilesPromise // Run aggregation concurrently, result ignored for this block but waited on.
+        bottleneckFilesPromise
     ]);
 
     const analysisMapper = async (trace, TraceRiskAnalyzer) => {
         // Maps the trace item using the specific interface required by the TraceRiskAnalyzer
-        if (TraceRiskAnalyzer) {
-            return await TraceRiskAnalyzer.execute('analyze', trace);
-        }
-        return null;
+        return await TraceRiskAnalyzer.execute('analyze', trace);
     };
 
     // 2. Utilize the processor for concurrent analysis of high-risk findings, replacing sequential loop.
@@ -82,12 +106,19 @@ class TraceAnalysisEngine {
       // Aggregate findings into a single high-priority mission
       missions.push({
         priority: highRiskFindings[0].priority, 
-        goal: highRiskFindings[0].goal,
+        goal: `Mitigate ${highRiskFindings.length} high-risk structural changes identified in trace logs.`, 
         targets: highRiskFindings.map(f => f.traceId)
       });
     }
     
-    // [Further detailed logic using bottleneckFiles result...]
+    // 3. Utilize bottleneck files data for further missions
+    if (bottleneckFiles && bottleneckFiles.length > 0) {
+        missions.push({
+            priority: 2,
+            goal: `Optimize ${bottleneckFiles.length} top-latency bottleneck files.`, 
+            targets: bottleneckFiles.map(b => b._id)
+        });
+    }
     
     return missions;
   }
