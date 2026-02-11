@@ -1,18 +1,7 @@
 import { GAXConstraintSet, TxContext, ConstraintViolation, ConstraintValidationResult } from './types';
 import rawConstraints from '../../../registry/protocol/gax_constraint_set.json';
 import { ConstraintValidator } from './ConstraintValidator';
-
-// Conceptual Plugin Import/Usage Definition
-// This utility abstracts the limit check and violation object creation.
-declare const LimitCheckAndViolationCreator: {
-    execute: (args: {
-        contextValue: number;
-        limitConfig: { limit: number, failure_mode: 'REJECT' | 'WARN' };
-        constraintName: string;
-        messageGenerator: (used: number, limit: number) => string;
-        details?: object;
-    }) => ConstraintViolation | null;
-};
+import { LimitCheckAndViolation } from '../plugins/LimitCheckAndViolation';
 
 
 /**
@@ -75,7 +64,7 @@ export class ConstraintEnforcer {
         // Check 1: Max Gas Units
         const gasUsed = txContext.resources?.gas || 0;
         
-        const gasViolation = LimitCheckAndViolationCreator.execute({
+        const gasViolation = LimitCheckAndViolation.execute({
             contextValue: gasUsed,
             limitConfig: limits.max_gas_units_per_tx,
             constraintName: 'MAX_GAS_UNITS',
@@ -87,7 +76,7 @@ export class ConstraintEnforcer {
         // Check 2: Max Payload Size
         const payloadSize = txContext.payload_size || 0;
         
-        const sizeViolation = LimitCheckAndViolationCreator.execute({
+        const sizeViolation = LimitCheckAndViolation.execute({
             contextValue: payloadSize,
             limitConfig: limits.max_payload_bytes,
             constraintName: 'MAX_PAYLOAD_SIZE',
