@@ -22,6 +22,12 @@ interface PolicyCache {
     usageProfiles: Record<string, UsageProfile>;
     globalPolicies: PolicyStructure['global_security_policies'];
 }
+
+// Interface for the prepared dependencies needed for validation
+interface ValidationContext {
+    identityEntry: IdentityMapEntry;
+    profile: UsageProfile;
+}
 // ===========================================
 
 /**
@@ -114,6 +120,17 @@ class KMSPolicyEngine {
   }
 
   /**
+   * Separates the data preparation phase: resolves the identity entry and usage profile
+   * which are critical dependencies for subsequent policy checks.
+   * Throws PolicyValidationError if dependencies cannot be resolved.
+   */
+  private #prepareValidationContext(identityId: string): ValidationContext {
+    const identityEntry = this.#getIdentityEntry(identityId);
+    const profile = this.#getUsageProfile(identityEntry);
+    return { identityEntry, profile };
+  }
+
+  /**
    * 1. Checks if the requested operation is permitted using the validation adapter.
    */
   private #checkAllowedUsage(identityId: string, profile: UsageProfile, operation: string): void {
@@ -164,11 +181,10 @@ class KMSPolicyEngine {
    * Throws PolicyValidationError on first failure.
    */
   public validate(request: KeyRequest): boolean {
-    // O(1) lookups improve validation startup time
-    const identityEntry = this.#getIdentityEntry(request.identityId);
-    const profile = this.#getUsageProfile(identityEntry);
+    // Step 1: Data Preparation/Dependency Resolution
+    const { profile } = this.#prepareValidationContext(request.identityId);
 
-    // Execute Checks (using encapsulated, private methods)
+    // Step 2: Policy Execution
     this.#checkAllowedUsage(request.identityId, profile, request.operation);
     this.#checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
     this.#checkGeospatialLock(request.identityId, request.geoCoordinate);
