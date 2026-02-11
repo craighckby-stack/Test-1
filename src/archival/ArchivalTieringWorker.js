@@ -6,42 +6,20 @@
 
 import { loadConfig } from '../system/ConfigLoader.js';
 import { StorageAdapter } from '../storage/StorageAdapter.js';
-
-// Conceptual Plugin Interface definition (for demonstration purposes)
-interface PolicyTimeDerivatorInterface {
-    execute(args: { method: 'calculateTTLCutoff', ttlSeconds: number, referenceTime?: number }): number;
-}
+import { PolicyTimeDerivator } from '../policies/PolicyTimeDerivator.js'; 
 
 export class ArchivalTieringWorker {
     private spec: any;
     private adapter: StorageAdapter;
     private interval: number;
     private timer: NodeJS.Timeout | undefined;
+    private policyDerivator: PolicyTimeDerivator; 
 
     constructor() {
         this.spec = loadConfig('epru_archival_spec');
         this.adapter = new StorageAdapter(); // Hypothetical storage interface
         this.interval = 3600000; // Run every hour
-    }
-
-    // CRITICAL: Helper method mock/stub to simulate plugin execution
-    private _getPlugin(name: 'PolicyTimeDerivator'): PolicyTimeDerivatorInterface {
-        // In a real AGI-KERNEL environment, this would retrieve the registered plugin instance.
-        if (name === 'PolicyTimeDerivator') {
-            return {
-                execute: (args) => {
-                    const ttlSeconds = args.ttlSeconds;
-                    const referenceTime = args.referenceTime || Date.now();
-                    
-                    if (typeof ttlSeconds !== 'number' || ttlSeconds <= 0) {
-                        return referenceTime; 
-                    }
-                    const ttlMilliseconds = ttlSeconds * 1000;
-                    return referenceTime - ttlMilliseconds;
-                }
-            };
-        }
-        throw new Error(`Plugin ${name} not found`);
+        this.policyDerivator = new PolicyTimeDerivator(); // Instantiate the reusable plugin
     }
 
     async execute() {
@@ -59,9 +37,7 @@ export class ArchivalTieringWorker {
         if (retention_policy === 'time_to_live' && ttl_seconds !== null) {
             
             // Utilize the extracted PolicyTimeDerivator utility for robust time calculation
-            const PolicyTimeDerivator = this._getPlugin('PolicyTimeDerivator');
-            
-            const cutoffTimestamp = PolicyTimeDerivator.execute({
+            const cutoffTimestamp = this.policyDerivator.execute({
                 method: 'calculateTTLCutoff',
                 ttlSeconds: ttl_seconds 
             });
