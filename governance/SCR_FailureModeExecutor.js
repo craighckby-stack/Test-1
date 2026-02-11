@@ -1,14 +1,17 @@
 /**
- * SCR_FailureModeExecutor v94.1
+ * SCR_FailureModeExecutor v94.2
  * Executes predefined policy actions (failure modes) upon confirmed integrity breaches.
  *
  * Integrates with system controls (e.g., logging, rollback utilities, process exit).
  */
 
+// Assuming AsyncActionDispatcher is available (provided as plugin)
+const AsyncActionDispatcher = global.AsyncActionDispatcher || require('./AsyncActionDispatcher');
+
 const logger = console; // Placeholder for a centralized logging utility
 
 // Define acceptable failure modes and their resulting system actions
-const MODES = {
+const FailureModesDefinition = {
     // Immediate termination of the AGI process (irreversible)
     HALT: async (file, details) => {
         logger.error(`[POLICY] HALT triggered due to breach in ${file}. Shutting down system.`);
@@ -25,12 +28,14 @@ const MODES = {
     NOTIFY: async (file, details) => {
         logger.info(`[POLICY] NOTIFY triggered for minor breach in ${file}. Reporting to surveillance.`);
     },
-    // Default action if mode is undefined or unrecognized
+    // Default action if mode is undefined or unrecognized. Delegates to NOTIFY.
     DEFAULT: async (file, details) => {
         logger.error(`[POLICY] Unknown failure mode encountered for ${file}. Defaulting to NOTIFY.`);
-        await MODES.NOTIFY(file, details);
+        await FailureModesDefinition.NOTIFY(file, details);
     }
 };
+
+const FailureModesDispatcher = new AsyncActionDispatcher(FailureModesDefinition);
 
 
 /**
@@ -40,10 +45,9 @@ const MODES = {
  * @param {Object} details - Contextual breach details.
  */
 async function execute(mode, filePath, details) {
-    const action = MODES[mode.toUpperCase()] || MODES.DEFAULT;
-    
+    // The dispatcher handles mode lookup, case conversion, and default fallback internally.
     try {
-        await action(filePath, details);
+        await FailureModesDispatcher.execute(mode, filePath, details);
     } catch (e) {
         logger.error(`Executor failed while attempting to run mode '${mode}' on ${filePath}: ${e.message}`);
     }
