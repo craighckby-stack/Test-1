@@ -32,7 +32,9 @@ class SystemRollbackCoordinator {
             return true;
         }
 
-        this.systemLogger.critical(`[ROLLBACK REQUIRED] Initiating state reversion due to integrity failure: ${proposalId}`);
+        // Enhancement: Log the full failure context immediately upon critical initiation.
+        const contextStr = JSON.stringify(failureContext || {}, null, 2);
+        this.systemLogger.critical(`[ROLLBACK REQUIRED] Initiating state reversion due to integrity failure: ${proposalId}. Failure Context:\n${contextStr}`);
 
         try {
             // 1. Analyze the scope of changes introduced by the failed proposal
@@ -45,7 +47,8 @@ class SystemRollbackCoordinator {
                 this.systemLogger.info(`Rollback complete for ${proposalId}. System returned to a known stable state.`);
                 return true;
             } else {
-                this.systemLogger.error(`Partial or failed rollback for ${proposalId}. Escalation required.`);
+                // Enhanced logging to include the scope that failed to revert, aiding diagnosis.
+                this.systemLogger.error(`Partial or failed rollback for ${proposalId}. Escalation required. Analyzed scope: ${JSON.stringify(scope)}`);
                 // Future step: Trigger immediate external alert/human intervention protocol
                 return false;
             }
