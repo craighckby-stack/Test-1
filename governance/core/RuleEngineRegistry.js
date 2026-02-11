@@ -6,20 +6,51 @@ const { ValidationResult } = require('../interfaces/ConfigValidator');
  * from the main ConfigValidator implementation.
  */
 class RuleEngineRegistry {
+    #rules;
+    #aggregatorTool;
+
     /**
      * @param {Object} [aggregatorTool] - Optional dependency injection for the concurrent execution aggregator.
      */
     constructor(aggregatorTool) {
-        /** @type {Array<Object>} */
-        this.rules = [];
+        this.#setupDependencies(aggregatorTool);
+    }
+
+    /**
+     * Extracts synchronous dependency resolution and initialization, including global dependency lookup.
+     * @param {Object} [aggregatorTool] 
+     */
+    #setupDependencies(aggregatorTool) {
+        this.#rules = [];
         
-        // Use injected tool or look up globally, preferring injection for testability.
-        // Note: The dependency is now strictly required for runAll to function.
-        this.aggregatorTool = aggregatorTool || (global.AGI_KERNEL_TOOLS ? global.AGI_KERNEL_TOOLS.ConcurrentValidationAggregator : null);
+        // Resolve the aggregator tool from injection or global scope.
+        this.#aggregatorTool = this.#resolveAggregatorTool(aggregatorTool);
         
-        if (!this.aggregatorTool) {
-             console.warn("RuleEngineRegistry initialized without 'ConcurrentValidationAggregator' tool. Execution of runAll() will fail if rules are present.");
+        if (!this.#aggregatorTool) {
+             this.#logWarning("RuleEngineRegistry initialized without 'ConcurrentValidationAggregator' tool. Execution of runAll() will fail if rules are present.");
         }
+    }
+
+    /**
+     * I/O Proxy for resolving the aggregator tool, prioritizing injection then global lookup.
+     * @param {Object} injectedTool
+     * @returns {Object | null}
+     */
+    #resolveAggregatorTool(injectedTool) {
+        if (injectedTool) {
+            return injectedTool;
+        }
+        
+        // Accessing the global runtime environment is treated as I/O.
+        return global.AGI_KERNEL_TOOLS ? global.AGI_KERNEL_TOOLS.ConcurrentValidationAggregator : null;
+    }
+    
+    /**
+     * I/O Proxy for console logging.
+     * @param {string} message 
+     */
+    #logWarning(message) {
+        console.warn(message);
     }
 
     /**
@@ -32,7 +63,7 @@ class RuleEngineRegistry {
         if (typeof ruleModule.execute !== 'function') {
             throw new Error(`Rule module ${ruleModule.constructor.name} must implement an async 'execute(config)' method.`);
         }
-        this.rules.push(ruleModule);
+        this.#rules.push(ruleModule);
     }
 
     /**
@@ -41,15 +72,24 @@ class RuleEngineRegistry {
      * @returns {Promise<ValidationResult>} Aggregated validation result.
      */
     async runAll(config) {
-        if (!this.aggregatorTool || typeof this.aggregatorTool.execute !== 'function') {
+        if (!this.#aggregatorTool || typeof this.#aggregatorTool.execute !== 'function') {
             throw new Error("Cannot run validations: Required ConcurrentValidationAggregator tool is unavailable or improperly defined.");
         }
         
         // Delegate the complex concurrent execution and aggregation logic to the plugin
-        return this.aggregatorTool.execute({
-            rules: this.rules,
+        return this.#delegateToAggregatorExecution({
+            rules: this.#rules,
             config: config
         });
+    }
+    
+    /**
+     * I/O Proxy for executing the external ConcurrentValidationAggregator tool.
+     * @param {{rules: Array<Object>, config: Object}} params
+     * @returns {Promise<ValidationResult>}
+     */
+    #delegateToAggregatorExecution(params) {
+        return this.#aggregatorTool.execute(params);
     }
 }
 
