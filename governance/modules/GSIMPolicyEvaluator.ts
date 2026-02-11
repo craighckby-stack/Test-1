@@ -35,16 +35,33 @@ declare const SecureExpressionEvaluator: {
  * against real-time operational context data, coordinating policy management and enforcement triggering.
  */
 class GSIMPolicyEvaluator {
-  private policies: Policy[]; 
+  private #policies: Policy[]; 
+  private #evaluator: typeof SecureExpressionEvaluator;
 
   constructor(schema: object) {
-    this.policies = this.loadPolicies(schema);
+    this.#setupDependencies();
+    this.#policies = this.#loadPolicies(schema);
   }
 
   /**
-   * Loads and validates policy definitions from a schema source.
+   * STEP 1: Extracts synchronous dependency resolution and initialization.
    */
-  private loadPolicies(_schema: object): Policy[] {
+  private #setupDependencies(): void {
+    this.#evaluator = this.#resolveExpressionEvaluator();
+  }
+
+  /**
+   * I/O Proxy: Resolves the external Secure Expression Evaluator dependency.
+   */
+  private #resolveExpressionEvaluator(): typeof SecureExpressionEvaluator {
+    // Assuming global scope access based on original `declare const` usage.
+    return SecureExpressionEvaluator;
+  }
+
+  /**
+   * I/O Proxy: Loads and validates policy definitions from a schema source.
+   */
+  private #loadPolicies(_schema: object): Policy[] {
     // Mock policy loading based on expected PolicyContext fields
     return [
       {
@@ -62,12 +79,29 @@ class GSIMPolicyEvaluator {
   }
 
   /**
-   * Checks policy preconditions (e.g., validity, external system status).
+   * Helper: Checks policy preconditions (e.g., validity, external system status).
    * @returns True if evaluation should proceed.
    */
-  private checkPreconditions(_policy: Policy, _context: PolicyContext): boolean {
+  private #checkPreconditions(_policy: Policy, _context: PolicyContext): boolean {
     // Placeholder: In a real system, this might check system clock sync or policy dependencies.
     return true;
+  }
+
+  /**
+   * I/O Proxy: Delegates execution to the secure expression evaluator.
+   */
+  private #delegateToEvaluatorExecution(expression: string, context: PolicyContext): boolean {
+    return this.#evaluator.execute({
+      expression: expression,
+      context: context
+    });
+  }
+
+  /**
+   * I/O Proxy: Logs evaluation errors.
+   */
+  private #logError(policyId: string, error: unknown): void {
+    console.error(`[GSIMPolicyEvaluator] Error evaluating policy ${policyId}:`, error);
   }
 
   /**
@@ -78,20 +112,18 @@ class GSIMPolicyEvaluator {
   public evaluate(context: PolicyContext): EnforcementResult[] {
     const results: EnforcementResult[] = [];
 
-    for (const policy of this.policies) {
-      if (!this.checkPreconditions(policy, context)) {
+    for (const policy of this.#policies) {
+      if (!this.#checkPreconditions(policy, context)) {
         continue;
       }
 
       let triggered = false;
       try {
-        // Delegate execution to the secure sandbox environment.
-        triggered = SecureExpressionEvaluator.execute({
-          expression: policy.triggerLogic,
-          context: context
-        });
+        // Delegate execution via I/O Proxy
+        triggered = this.#delegateToEvaluatorExecution(policy.triggerLogic, context);
       } catch (error) {
-        console.error(`[GSIMPolicyEvaluator] Error evaluating policy ${policy.policyId}:`, error);
+        // Log error via I/O Proxy
+        this.#logError(policy.policyId, error);
         // Safety: default to not triggered on error
         triggered = false;
       }
