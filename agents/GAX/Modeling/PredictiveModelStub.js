@@ -25,15 +25,8 @@ class PredictiveModelStub {
      */
     static REQUIRED_CAPABILITY = 'PredictiveStubEngine';
 
-    /**
-     * @type {boolean}
-     * @private
-     */
-    #isInitialized = false;
-
     constructor() {
-        // Assert immediate readiness for the stub.
-        this.#isInitialized = true;
+        // Stub is purely declarative; no runtime initialization state needed.
     }
 
     /**
@@ -42,33 +35,42 @@ class PredictiveModelStub {
      * @returns {Promise<PredictionResult>} Predicted metrics.
      */
     async predict(features) {
-        // 1. Assert readiness
-        if (!this.#isInitialized) {
-             throw new Error("Predictive Model Stub is uninitialized or failed initialization checks.");
-        }
-
         const capabilityKey = PredictiveModelStub.REQUIRED_CAPABILITY;
         const registry = globalThis.KERNEL_SYNERGY_CAPABILITIES;
-        const engine = registry?.[capabilityKey];
 
-        // 2. Validate KERNEL capability availability
+        // Use the centralized executor logic to handle lookup, validation, and delegation.
+        return PredictiveModelStub.#executeCapability(capabilityKey, 'predict', features, registry);
+    }
+
+    /**
+     * Handles lookup, validation, and execution delegation for KERNEL capabilities.
+     * This centralized logic replaces redundant checks in the original 'predict' method.
+     * @private
+     * @static
+     */
+    static async #executeCapability(capabilityKey, method, features, registry) {
+        // 1. Validate Registry presence
+        if (!registry) {
+             throw new Error("SYNERGY REGISTRY Error: KERNEL_SYNERGY_CAPABILITIES is missing entirely. Cannot delegate execution.");
+        }
+
+        // 2. Validate Capability presence
+        const engine = registry[capabilityKey];
         if (!engine) {
-            const registryStatus = registry ? `available, but capability '${capabilityKey}' is missing` : "missing entirely";
             throw new Error(
-                `SYNERGY REGISTRY Error: KERNEL_SYNERGY_CAPABILITIES is ${registryStatus}. Cannot delegate prediction.`
+                `SYNERGY REGISTRY Error: Capability '${capabilityKey}' is missing from the registry.`
             );
         }
 
-        // 3. Validate interface structure
+        // 3. Validate Interface structure
         if (typeof engine.execute !== 'function') {
             throw new Error(
-                `SYNERGY REGISTRY Interface Error: KERNEL capability '${capabilityKey}' found, but it does not expose the required 'execute(method, features)' function interface.`
+                `SYNERGY REGISTRY Interface Error: Capability '${capabilityKey}' found, but it does not expose the required 'execute(method, features)' function interface.`
             );
         }
 
-        // 4. Delegate the core stub calculation logic to the KERNEL Tooling system.
-        // The engine is expected to handle asynchronous operations.
-        return engine.execute('predict', features);
+        // 4. Delegate execution
+        return engine.execute(method, features);
     }
 }
 
