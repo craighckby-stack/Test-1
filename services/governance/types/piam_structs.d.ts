@@ -1,5 +1,7 @@
 /**
  * Standardized data structures for PIAM (Post-Mortem Integrity Assurance Module).
+ * 
+ * NOTE: Generic sealing receipt structures have been abstracted to the IntegrityReceipts plugin.
  */
 
 /**
@@ -12,15 +14,4 @@ export interface GFTReportV94 {
     system_version: string;
     sealed_state_hash: string;
     // Placeholder for required extensive forensic fields...
-}
-
-/**
- * Receipt confirming successful execution environment state sealing.
- * Critical for establishing forensic chain-of-custody.
- */
-export interface PIAMSealingReceipt {
-    state_hash: string;
-    sealing_key_id: string;
-    sealing_timestamp: number;
-    integrity_check_nonce: string;
 }
