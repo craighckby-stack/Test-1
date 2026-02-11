@@ -1,21 +1,31 @@
-const { 
-  ResolutionError, 
-  GenerationError, 
-  ValidationError, 
+const {
+  ResolutionError,
+  GenerationError,
+  ValidationError,
   HookExecutionError,
-  ArtifactBaseError 
-} = require('./ArtifactError'); 
+  ArtifactBaseError
+} = require('./ArtifactError');
 // NOTE: ContextualLogger dependency is assumed to be resolved (e.g., required from a utility path).
 
 /**
  * ArtifactProcessor.js
  * Orchestrates the lifecycle of an ArtifactStructuralDefinition:
  * Dependency resolution, hook execution, generation, and structural validation.
- * 
- * Refactor V94.2: Abstracted internal logging into a dedicated ContextualLogger plugin 
- * for standardized output and cleaner component separation.
+ *
+ * Refactor V94.3: Strict encapsulation enforced via private class fields (#).
  */
 class ArtifactProcessor {
+  // Core configuration and state (private)
+  #definition;
+  #artifactId;
+  #logger; 
+
+  // Core dependencies (private)
+  #validator;
+  #resolver;
+  #hookExecutor;
+  #generator;
+
   /**
    * @param {ArtifactStructuralDefinition} definition The artifact definition structure.
    * @param {Object} services
@@ -36,34 +46,34 @@ class ArtifactProcessor {
       throw new ArtifactBaseError(`Processor initialization failed: Missing required services: ${missing.join(', ')}.`);
     }
 
-    this.definition = definition;
-    this.artifactId = definition.id || 'N/A';
+    // 1. Assign configuration
+    this.#definition = definition;
+    this.#artifactId = definition.id || 'N/A';
 
-    // Use the ContextualLogger plugin for standardized logging
+    // 2. Initialize logger (maintaining existing ContextualLogger initialization pattern)
     const BaseLogger = services.logger || console;
-    // Assumes ContextualLogger is available in scope (e.g., via require or injection)
-    this.logger = new ContextualLogger(`ArtifactProcessor:${this.artifactId}`, BaseLogger);
-    
-    this._validator = services.validator;
+    // Assumes ContextualLogger is available in scope
+    this.#logger = new ContextualLogger(`ArtifactProcessor:${this.#artifactId}`, BaseLogger);
+
+    // 3. Assign dependencies
+    this.#validator = services.validator;
     // Standardize defaults to no-op methods returning expected structures
-    this._resolver = services.resolver || { resolve: async () => ({ inputs: {} }) };
-    this._hookExecutor = services.hookExecutor || { execute: async () => {} };
-    this._generator = services.generator;
-    
-    // Removed: this._logger
+    this.#resolver = services.resolver || { resolve: async () => ({ inputs: {} }) };
+    this.#hookExecutor = services.hookExecutor || { execute: async () => {} };
+    this.#generator = services.generator;
   }
 
   /**
    * Executes a named pipeline hook defined in the artifact definition.
    */
-  async _executeHooks(hookName, context) {
-    const hookRef = this.definition.pipeline?.hooks?.[hookName];
+  async #executeHooks(hookName, context) {
+    const hookRef = this.#definition.pipeline?.hooks?.[hookName];
     if (hookRef) {
-      this.logger.info(`Executing hook: ${hookName}`);
+      this.#logger.info(`Executing hook: ${hookName}`);
       try {
-        await this._hookExecutor.execute(hookRef, context);
+        await this.#hookExecutor.execute(hookRef, context);
       } catch (error) {
-        this.logger.error(`Failed to execute hook ${hookName}.`, error);
+        this.#logger.error(`Failed to execute hook ${hookName}.`, error);
         // Throw structured hook error, allowing strict management of pipeline flow.
         throw new HookExecutionError(`Hook ${hookName} failed`, hookName);
       }
@@ -73,13 +83,13 @@ class ArtifactProcessor {
   /**
    * Step 1: Fetches necessary dependencies required for generation.
    */
-  async _stepResolveDependencies() {
-    this.logger.info(`Resolving dependencies.`);
-    const dependencyList = this.definition.dependencies || [];
+  async #stepResolveDependencies() {
+    this.#logger.info(`Resolving dependencies.`);
+    const dependencyList = this.#definition.dependencies || [];
     try {
-        return await this._resolver.resolve(dependencyList);
+        return await this.#resolver.resolve(dependencyList);
     } catch (error) {
-        this.logger.error(`Dependency resolution failed for artifact ${this.artifactId}.`, error);
+        this.#logger.error(`Dependency resolution failed for artifact ${this.#artifactId}.`, error);
         throw new ResolutionError(`Dependency resolution failed.`, dependencyList);
     }
   }
@@ -87,9 +97,9 @@ class ArtifactProcessor {
   /**
    * Step 3: Validates the structure of the generated artifact.
    */
-  async _stepValidate(runtimeArtifact) {
-    this.logger.info('Starting structural validation.');
-    return this._validator.validate(this.definition.structure, runtimeArtifact);
+  async #stepValidate(runtimeArtifact) {
+    this.#logger.info('Starting structural validation.');
+    return this.#validator.validate(this.#definition.structure, runtimeArtifact);
   }
 
 
@@ -98,11 +108,11 @@ class ArtifactProcessor {
    * @returns {Promise<RuntimeArtifact>} The fully processed and validated artifact structure.
    */
   async generate() {
-    this.logger.info(`Starting pipeline.`);
+    this.#logger.info(`Starting pipeline.`);
 
     // Centralized context for sharing state between steps and hooks
     const context = { 
-        definition: this.definition, 
+        definition: this.#definition, 
         inputs: null,
         generatedArtifact: null,
         validationResult: null
@@ -110,41 +120,41 @@ class ArtifactProcessor {
 
     try {
         // 1. Resolve Dependencies
-        context.inputs = await this._stepResolveDependencies();
+        context.inputs = await this.#stepResolveDependencies();
 
         // 2. Pre-Generation Hook
-        await this._executeHooks('preGen', context);
+        await this.#executeHooks('preGen', context);
 
         // 3. Primary Generation Logic
-        this.logger.info('Executing generation.');
+        this.#logger.info('Executing generation.');
         const generationPayload = {
-            structure: this.definition.structure,
+            structure: this.#definition.structure,
             inputs: context.inputs
         };
 
-        context.generatedArtifact = await this._generator.run(
-            this.definition.pipeline.generatorRef,
+        context.generatedArtifact = await this.#generator.run(
+            this.#definition.pipeline.generatorRef,
             generationPayload
         );
         
         // 4. Validation
-        context.validationResult = await this._stepValidate(context.generatedArtifact);
+        context.validationResult = await this.#stepValidate(context.generatedArtifact);
 
         // 5. Post-Validation Hook 
-        await this._executeHooks('postValidation', context);
+        await this.#executeHooks('postValidation', context);
 
         if (!context.validationResult.success) {
             const validationErrors = context.validationResult.errors || [];
-            this.logger.warn(`Generation succeeded, but failed structural validation.`);
+            this.#logger.warn(`Generation succeeded, but failed structural validation.`);
             
             // Structured Error Throw
             throw new ValidationError(`Structural validation failed`, validationErrors);
         }
 
         // 6. Post-Generation Success Hook
-        await this._executeHooks('postGenSuccess', context.generatedArtifact);
+        await this.#executeHooks('postGenSuccess', context.generatedArtifact);
 
-        this.logger.info(`Pipeline completed successfully.`);
+        this.#logger.info(`Pipeline completed successfully.`);
         return context.generatedArtifact;
         
     } catch (error) {
@@ -154,8 +164,8 @@ class ArtifactProcessor {
         } 
         
         // Catch unexpected infrastructure/generation failures and type them.
-        this.logger.error(`Critical generation failure occurred.`, error);
-        throw new GenerationError(`Unexpected failure during generation step.`, this.definition.pipeline?.generatorRef);
+        this.#logger.error(`Critical generation failure occurred.`, error);
+        throw new GenerationError(`Unexpected failure during generation step.`, this.#definition.pipeline?.generatorRef);
     }
   }
 }
