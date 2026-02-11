@@ -13,34 +13,41 @@ import { C04_AutogenySandbox } from '../execution/autogenySandbox.js';
 // Dependency Injection / Plugin usage for integrity management
 import { PayloadIntegrityStager } from '../plugins/PayloadIntegrityStager'; 
 
+/**
+ * @typedef {Object} DecisionEnvelope
+ * @property {string} status - 'PASS', 'FAIL', etc.
+ * @property {string} rationale - Consensus justification.
+ */
+
+/**
+ * @typedef {Object} StagingEntry 
+ * @property {string} proposalId
+ * @property {Object} payload - The mutation manifest (Object.freeze applied).
+ * @property {DecisionEnvelope} decision
+ * @property {string} hash - Cryptographic hash of the payload.
+ * @property {number} timestamp
+ * @property {string} serialized - Internal serialized representation used for verification.
+ */
+
 export class ArchProposalManager {
-    constructor() {
+    /**
+     * @param {D01_AuditLogger} [auditLogger] 
+     * @param {typeof PayloadIntegrityStager} [integrityStager] 
+     */
+    constructor(auditLogger = new D01_AuditLogger(), integrityStager = PayloadIntegrityStager) {
         /** @type {Map<string, StagingEntry>} */
         this.stagingArea = new Map();
-        this.auditLogger = new D01_AuditLogger();
+        this.auditLogger = auditLogger;
+        this.integrityStager = integrityStager;
         
-        // Runtime check for essential plugin functions
-        if (typeof PayloadIntegrityStager === 'undefined' || typeof PayloadIntegrityStager.createVerifiableEntry !== 'function') {
-            // In a real kernel environment, this error would be handled by DI failure.
-            console.warn("A-01 WARNING: PayloadIntegrityStager utility not properly initialized.");
+        // Runtime check for essential plugin functions via DI
+        if (typeof this.integrityStager === 'undefined' || 
+            typeof this.integrityStager.createVerifiableEntry !== 'function' ||
+            typeof this.integrityStager.verifyIntegrity !== 'function') {
+            
+            throw new Error("A-01 Initialization Error: Required 'PayloadIntegrityStager' utility interface is incomplete or missing.");
         }
     }
-
-    /**
-     * @typedef {Object} DecisionEnvelope
-     * @property {string} status - 'PASS', 'FAIL', etc.
-     * @property {string} rationale - Consensus justification.
-     */
-    
-    /**
-     * @typedef {Object} StagingEntry 
-     * @property {string} proposalId
-     * @property {Object} payload - The mutation manifest.
-     * @property {DecisionEnvelope} decision
-     * @property {string} hash - Cryptographic hash of the payload.
-     * @property {number} timestamp
-     * @property {string} serialized - Internal serialized representation used for verification.
-     */
 
     /**
      * Stages a validated proposal payload upon successful OGT decision.
@@ -49,7 +56,7 @@ export class ArchProposalManager {
      * @param {string} proposalId 
      * @param {Object} proposalPayload - The mutation manifest (code changes, config updates).
      * @param {DecisionEnvelope} decisionEnvelope 
-     * @returns {string | boolean} The transaction hash on success, or false on failure.
+     * @returns {string | false} The transaction hash on success, or false on failure.
      */
     stageProposal(proposalId, proposalPayload, decisionEnvelope) {
         if (!decisionEnvelope || decisionEnvelope.status !== 'PASS') {
@@ -59,7 +66,7 @@ export class ArchProposalManager {
 
         // 1. Generate immutable, verifiable entry using the utility
         // The utility handles hashing, freezing the payload, and serialization.
-        const verifiableEntry = PayloadIntegrityStager.createVerifiableEntry(proposalPayload);
+        const verifiableEntry = this.integrityStager.createVerifiableEntry(proposalPayload);
         const transactionHash = verifiableEntry.hash;
         
         /** @type {StagingEntry} */
@@ -94,7 +101,7 @@ export class ArchProposalManager {
         }
         
         // Final integrity check: Delegate verification to the utility
-        const integrityCheckPassed = PayloadIntegrityStager.verifyIntegrity(stagedProposal);
+        const integrityCheckPassed = this.integrityStager.verifyIntegrity(stagedProposal);
         
         if (!integrityCheckPassed) {
             this.auditLogger.logFatalError(`A-01: Data integrity failure for ${proposalId}. HASH MISMATCH detected between stage and commit. Execution aborted.`);
@@ -105,6 +112,7 @@ export class ArchProposalManager {
 
         try {
             // Hand off to Autogeny Sandbox (C-04)
+            // Note: C04_AutogenySandbox is treated as a core static dependency (adjacent subsystem).
             const executionResult = C04_AutogenySandbox.executeMutation(stagedProposal.payload);
             
             if (executionResult) {
