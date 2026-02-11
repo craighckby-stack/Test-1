@@ -24,7 +24,14 @@ class BaseError extends Error {
     constructor(message: string, code: string, isFatal: boolean = false) {
         super(message);
         
-        // Delegate canonical property setting and stack capture to the utility
+        // Isolate external dependency interaction
+        this.#delegateToErrorInitializer(code, isFatal);
+    }
+
+    /**
+     * Dedicated private I/O proxy to delegate canonical property setting and stack capture to the utility.
+     */
+    #delegateToErrorInitializer(code: string, isFatal: boolean): void {
         ErrorInitializerUtility.initializeCanonicalError(this, code, isFatal, this.constructor);
     }
 }
@@ -33,8 +40,20 @@ class BaseError extends Error {
  * Error specifically for issues related to handler configuration or instantiation.
  */
 export class HandlerInstantiationError extends BaseError {
-    constructor(message: string, code: string = 'HANDLER_INSTANTIATION_FAILURE') {
-        super(message, code, true); // Fatal: Configuration is broken
+    
+    /**
+     * Synchronously prepares the canonical error metadata (code and fatal status).
+     */
+    #initializeDetails() {
+        return {
+            code: 'HANDLER_INSTANTIATION_FAILURE',
+            isFatal: true // Fatal: Configuration is broken
+        };
+    }
+
+    constructor(message: string) {
+        const details = this.#initializeDetails();
+        super(message, details.code, details.isFatal);
     }
 }
 
@@ -42,7 +61,19 @@ export class HandlerInstantiationError extends BaseError {
  * Error specifically for issues encountered during the retrieval attempt (I/O, network, strategy failures, or missing primitives).
  */
 export class RetrievalError extends BaseError {
-    constructor(message: string, code: string = 'DATA_RETRIEVAL_FAILURE') {
-        super(message, code, false);
+
+    /**
+     * Synchronously prepares the canonical error metadata (code and fatal status).
+     */
+    #initializeDetails() {
+        return {
+            code: 'DATA_RETRIEVAL_FAILURE',
+            isFatal: false
+        };
+    }
+
+    constructor(message: string) {
+        const details = this.#initializeDetails();
+        super(message, details.code, details.isFatal);
     }
 }
