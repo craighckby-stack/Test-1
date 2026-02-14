@@ -6,7 +6,7 @@
  */
 
 class EfficiencyDebtPrioritizer {
-    
+
     /**
      * Standard default configuration template.
      * Weights are used to define the contribution of normalized metrics (0.0 to 1.0).
@@ -30,9 +30,9 @@ class EfficiencyDebtPrioritizer {
         if (!seaInterface || typeof seaInterface.getMetrics !== 'function') {
              throw new Error("EDP requires a valid SEA interface with auditing capabilities.");
         }
-        
+
         this.sea = seaInterface;
-        
+
         // Deep merge configuration to preserve specific weight overrides
         this.config = {
             ...EfficiencyDebtPrioritizer.DEFAULT_CONFIG,
@@ -42,7 +42,7 @@ class EfficiencyDebtPrioritizer {
                 ...(scoringConfig.WEIGHTS || {})
             }
         };
-        
+
         this.prioritizedQueue = [];
     }
 
@@ -50,31 +50,31 @@ class EfficiencyDebtPrioritizer {
      * Calculates the overall priority score by summing weighted normalized metrics.
      * This logic is extracted into the RobustWeightedScorer plugin.
      * We use this static method as the access point for the external utility logic.
-     * Score = ∑ (Metric_N * Weight_N)
+     * Score = â (Metric_N * Weight_N)
      * @param {Object} metrics - Key-value pair of normalized metrics.
      * @param {Object} weights - Configuration weights.
      * @returns {number} Priority score (higher is better; can be negative).
      */
     static calculateScore(metrics, weights) {
         let score = 0;
-        
+
         for (const [metricKey, weight] of Object.entries(weights)) {
             // RobustWeightedScorer logic: handles missing metrics by defaulting to least favorable value.
             const isPenaltyMetric = weight < 0;
-            
+
             // Default to 1.0 (max penalty) if negative weight and metric missing; 0.0 otherwise.
             const defaultValue = isPenaltyMetric ? 1.0 : 0.0;
-            
+
             const rawMetricValue = metrics[metricKey];
-            
+
             // CRITICAL FIX: Ensure valid metric scores of 0.0 are not replaced by the default value.
             const metricValue = (rawMetricValue === undefined || rawMetricValue === null)
                 ? defaultValue
                 : rawMetricValue;
-            
+
             score += metricValue * weight;
         }
-        
+
         return score;
     }
 
@@ -97,7 +97,7 @@ class EfficiencyDebtPrioritizer {
             .filter(debt => (debt.risk_level || 1.0) <= this.config.RISK_THRESHOLD)
             .map(debt => {
                 const metrics = debt.metrics || {};
-                
+
                 return {
                     ...debt,
                     // Use the centralized (plugin-derived) scoring function
@@ -121,7 +121,7 @@ class EfficiencyDebtPrioritizer {
         if (this.prioritizedQueue.length === 0) {
             return [];
         }
-        
+
         return this.prioritizedQueue.slice(0, n).map(item => ({
             type: 'EfficiencyMutation',
             source: 'EDP/v94.1',
