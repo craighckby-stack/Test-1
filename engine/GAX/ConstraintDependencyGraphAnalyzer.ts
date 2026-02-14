@@ -4,10 +4,10 @@
  */
 
 import { ConstraintResolutionEngineDefinition } from "./types";
-import { 
-  DependencyGraphAnalyzer, 
-  GraphDiagnostic, 
-  AnalysisNode 
+import {
+  DependencyGraphAnalyzer,
+  GraphDiagnostic,
+  AnalysisNode
 } from 'AGI_KERNEL/DependencyGraphAnalyzer';
 
 /**
@@ -23,7 +23,7 @@ export class ConstraintDependencyGraphAnalyzer {
     this.#definition = definition;
     this.#setupDependencies();
   }
-  
+
   /**
    * Encapsulates dependency resolution and initialization.
    * Satisfies Synchronous Setup Extraction goal.
@@ -49,18 +49,18 @@ export class ConstraintDependencyGraphAnalyzer {
     // Synchronous data preparation: creating the configuration structure
     const analysisConfig = {
       // The input structure (resolutionPhases) matches the expected format
-      nodes: this.#definition.resolutionPhases as AnalysisNode[], 
+      nodes: this.#definition.resolutionPhases as AnalysisNode[],
       idKey: 'phaseId',
       depsKey: 'dependencies',
     };
-    
+
     // Delegate I/O to the proxy function
     return this.#delegateToGraphAnalyzer(analysisConfig);
   }
 
   public validateDefinition(): void {
     const diagnostics = this.analyzeForCycles();
-    
+
     // Error/Warning processing remains local validation logic.
     const errors = diagnostics.filter(d => d.severity === 'error');
     const warnings = diagnostics.filter(d => d.severity === 'warning');
