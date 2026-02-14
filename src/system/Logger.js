@@ -21,7 +21,7 @@ declare const LogEntryProcessor: {
 };
 
 class SystemLogger {
-    
+
     private componentName: string;
 
     /**
@@ -33,12 +33,12 @@ class SystemLogger {
 
     /**
      * Internal logging function to format and output the log entry using the LogEntryProcessor plugin.
-     * @param {string} level 
-     * @param {string} message 
+     * @param {string} level
+     * @param {string} message
      * @param {Record<string, any>} [context={}]
      */
     private _log(level: string, message: string, context: Record<string, any> = {}): void {
-        
+
         let processedLog;
         try {
             // Utilize the plugin to handle formatting, timestamping, and emission filtering.
@@ -81,44 +81,44 @@ class SystemLogger {
 
     /**
      * Logs an error message.
-     * @param {string} message 
+     * @param {string} message
      * @param {Record<string, any>} [context]
      */
-    public error(message: string, context?: Record<string, any>): void { 
-        this._log('error', message, context); 
+    public error(message: string, context?: Record<string, any>): void {
+        this._log('error', message, context);
     }
-    
+
     /**
      * Logs a warning message.
-     * @param {string} message 
+     * @param {string} message
      * @param {Record<string, any>} [context]
      */
-    public warn(message: string, context?: Record<string, any>): void { 
-        this._log('warn', message, context); 
+    public warn(message: string, context?: Record<string, any>): void {
+        this._log('warn', message, context);
     }
-    
+
     /**
      * Logs an informational message.
-     * @param {string} message 
+     * @param {string} message
      * @param {Record<string, any>} [context]
      */
-    public info(message: string, context?: Record<string, any>): void { 
-        this._log('info', message, context); 
+    public info(message: string, context?: Record<string, any>): void {
+        this._log('info', message, context);
     }
-    
+
     /**
      * Logs a debug message.
-     * @param {string} message 
+     * @param {string} message
      * @param {Record<string, any>} [context]
      */
-    public debug(message: string, context?: Record<string, any>): void { 
-        this._log('debug', message, context); 
+    public debug(message: string, context?: Record<string, any>): void {
+        this._log('debug', message, context);
     }
 }
 
 /**
  * Factory function to create a logger instance for a specific component.
- * @param {string} componentName 
+ * @param {string} componentName
  * @returns {SystemLogger}
  */
 const getLogger = (componentName: string): SystemLogger => new SystemLogger(componentName);
