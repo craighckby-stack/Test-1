@@ -10,4 +10,3 @@
     KERNEL_SYNERGY_CAPABILITIES.telemetry.log('AdaptiveSamplingDecision', decisionPayload);
 
     return finalRate;
-}
