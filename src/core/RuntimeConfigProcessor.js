@@ -32,7 +32,8 @@ export class RuntimeConfigProcessorKernel {
      */
     #setupDependencies(mergeTool: IConfigurationDeepMergeToolKernel): void {
         if (!mergeTool || typeof mergeTool.safeDeepMerge !== 'function') {
-            throw new Error("Initialization failed: Required IConfigurationDeepMergeToolKernel dependency is missing or invalid.");
+            // OPTIMIZATION: Standardized dependency validation error to TypeError.
+            throw new TypeError("Initialization failed: Required IConfigurationDeepMergeToolKernel dependency is missing or invalid (must implement safeDeepMerge function).");
         }
         this.mergeTool = mergeTool;
     }
