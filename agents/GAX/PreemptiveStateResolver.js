@@ -35,8 +35,6 @@ class PreemptiveStateResolver {
      * Simulation Engine interface (ACVD modeling).
      */
     #simEngine;
-    /** @type {{ execute: function(string, Object): Promise<number> }} */
-    #riskThresholdService;
     
     /** @type {RiskAccessors} */
     #riskAccessors;
@@ -63,14 +61,8 @@ class PreemptiveStateResolver {
             throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
         }
         
-        const requiredServiceKey = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
-        const thresholdServiceInstance = KernelCapabilities ? KernelCapabilities[requiredServiceKey] : null;
-        
-        if (!thresholdServiceInstance || typeof thresholdServiceInstance.execute !== 'function') {
-            throw new Error(`[PSR Init] Missing required KERNEL_SYNERGY_CAPABILITIES interface: ${requiredServiceKey}. Interface is invalid or missing 'execute' method.`);
-        }
-        
-        this.#riskThresholdService = thresholdServiceInstance; 
+        // NOTE: We rely on SecurePluginExecutorUtility for centralized execution and validation,
+        // so we no longer need to store the service instance or validate its 'execute' method here.
         
         const riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
         
@@ -113,12 +105,12 @@ class PreemptiveStateResolver {
 
     /**
      * Initiates the asynchronous calculation of the Risk Threshold (R_TH) 
-     * via the external Synergy Service, handling necessary input assembly 
-     * and critical error defaulting.
+     * via the external Synergy Service, utilizing SecurePluginExecutorUtility 
+     * for centralized execution and canonical error reporting.
      * 
      * @returns {Promise<number>} A Promise resolving to R_TH, or DEFAULT_SAFE_THRESHOLD on critical failure.
      */
-    #calculateRiskThresholdAsync() {
+    async #calculateRiskThresholdAsync() {
         const riskParams = {
             UFRM: this.#riskAccessors.getUFRM(),
             CFTM: this.#riskAccessors.getCFTM(),
@@ -126,12 +118,46 @@ class PreemptiveStateResolver {
         };
         
         const DEFAULT_SAFE_THRESHOLD = 0.0001;
+        const SERVICE_ID = PreemptiveStateResolver.SYNERGY_REQUIREMENTS.SERVICES.RiskThresholdCalculator;
 
-        return this.#riskThresholdService.execute('calculateThreshold', riskParams)
-            .catch(e => {
-                console.error("[PSR] Critical error calculating R_TH via Synergy Service. Defaulting to safe minimal threshold.", e);
-                return DEFAULT_SAFE_THRESHOLD;
-            });
+        try {
+            // Use SecurePluginExecutorUtility for centralized, secure capability invocation
+            const R_TH = await SecurePluginExecutorUtility.execute(
+                SERVICE_ID, 
+                'calculateThreshold', 
+                riskParams
+            );
+            
+            // Validate output integrity. Fail-secure mechanism requires dropping payload on transformation failure.
+            if (typeof R_TH !== 'number' || R_TH < 0) {
+                throw CanonicalErrorFactory.create(
+                    'TELEMETRY_TRANSFORMATION_FAILURE', 
+                    `R_TH calculation output from ${SERVICE_ID} was invalid or non-numeric.`, 
+                    { receivedValue: R_TH }
+                );
+            }
+            
+            return R_TH;
+
+        } catch (e) {
+            // Adhere to high-integrity logging standards and fail-secure mechanism.
+            const errorDetails = { 
+                serviceId: SERVICE_ID, 
+                method: 'calculateThreshold', 
+                originalError: e.message 
+            };
+            
+            // Log the failure using a canonical structure
+            const canonicalError = CanonicalErrorFactory.create(
+                'RISK_THRESHOLD_EXECUTION_FAILURE', 
+                `Secure execution failed for R_TH calculation. Defaulting to safe minimal threshold (${DEFAULT_SAFE_THRESHOLD}).`,
+                errorDetails
+            );
+            
+            console.error(canonicalError.toString()); 
+            
+            return DEFAULT_SAFE_THRESHOLD;
+        }
     }
 
     /**
