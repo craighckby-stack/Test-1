@@ -29,26 +29,26 @@ class ProtocolExecutionFSM {
     if (!failurePolicyHandler || typeof failurePolicyHandler.execute !== 'function') {
         throw new Error("ProtocolExecutionFSM requires a valid FailurePolicyHandler instance.");
     }
-    
+
     this.#protocol = protocolDefinition;
     this.#steps = protocolDefinition.required_steps;
     this.#currentState = 'READY';
     this.#currentStepIndex = 0;
-    
-    this.#failurePolicyHandler = failurePolicyHandler; 
+
+    this.#failurePolicyHandler = failurePolicyHandler;
   }
 
   /**
    * Delegates the execution of the failure policy to the external handler (I/O Proxy).
-   * @param {object} step 
-   * @param {object} result 
-   * @param {number} currentIndex 
+   * @param {object} step
+   * @param {object} result
+   * @param {number} currentIndex
    * @returns {object} policyResult
    */
   #delegateToFailurePolicyHandler(step, result, currentIndex) {
     return this.#failurePolicyHandler.execute({
         step: step,
-        result: result, 
+        result: result,
         currentIndex: currentIndex
     });
   }
@@ -67,9 +67,9 @@ class ProtocolExecutionFSM {
 
         this.#currentState = policyResult.newState;
         this.#currentStepIndex = policyResult.nextIndex;
-        
+
         if (this.#currentState === 'HALTED') break;
-        
+
       } else {
         this.#currentStepIndex++;
       }
