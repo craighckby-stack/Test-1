@@ -68,7 +68,7 @@ export class HarmMitigationKernel {
      */
     private #loadAndValidateConfig(policyConfigPath: string): HarmPolicyConfig {
         let config: HarmPolicyConfig;
-        
+
         // Direct synchronous I/O isolation (require)
         try {
             // Note: Synchronous config loading is used as per original requirement
@@ -76,7 +76,7 @@ export class HarmMitigationKernel {
         } catch (e) {
             throw new Error(`Failed to synchronously load configuration from ${policyConfigPath}. ${e instanceof Error ? e.message : String(e)}`);
         }
-        
+
         // Basic validation
         if (!config.rules || !Array.isArray(config.rules)) {
             throw new Error("Policy configuration is missing the 'rules' array.");
@@ -110,7 +110,7 @@ export class HarmMitigationKernel {
             if (isExempt) {
                 this.#logPolicyBypass(highestRiskViolation.rule.category, highestRiskViolation.score);
                 return { enforcedAction: 'PASS_WITH_LOG', mitigation: highestRiskViolation.rule.mitigation_strategy };
-            } 
+            }
 
             return {
                 enforcedAction: highestRiskViolation.rule.action,
@@ -122,7 +122,7 @@ export class HarmMitigationKernel {
     }
 
     // --- I/O Proxy Methods for Internal Logic Delegation ---
-    
+
     /**
      * I/O Proxy: Proxies console.warn.
      */
@@ -159,7 +159,7 @@ export class HarmMitigationKernel {
 
         for (const rule of this.#policyConfig.rules) {
             const score = detectionScores[rule.category] || 0.0;
-            
+
             const isHighestScore = highestRisk ? score > highestRisk.score : true;
 
             if (score >= rule.threshold && isHighestScore) {
@@ -178,7 +178,7 @@ export class HarmMitigationKernel {
             return false;
         }
 
-        return contextTags.some(tag => 
+        return contextTags.some(tag =>
             this.#policyConfig.contextual_exemptions
                 .filter(ex => ex.context_tag === tag)
                 .some(ex => this.#determineIfExempt(violation.rule.severity, ex.max_severity_override))
@@ -191,7 +191,7 @@ export class HarmMitigationKernel {
     private #determineIfExempt(ruleSeverity: string, maxOverride: string): boolean {
         const ruleLevel = this.#calculateSeverityLevel(ruleSeverity);
         const overrideLevel = this.#calculateSeverityLevel(maxOverride);
-        
+
         // The exemption applies if the rule's severity level is LESS THAN OR EQUAL TO the override level.
         return ruleLevel <= overrideLevel;
     }
