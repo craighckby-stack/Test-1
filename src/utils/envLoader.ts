@@ -2,39 +2,36 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// We declare the tool interface which encapsulates the environment loading logic.
-// This tool is defined below in the 'plugin' section.
-declare const EnvironmentConfigLoader: {
-    execute: (args: { path: typeof path, fs: typeof fs, dotenv: typeof dotenv, env: NodeJS.ProcessEnv, cwd: string }) => { loaded: boolean, messages: string[] };
-};
-
 /**
  * loadEnvironment
- * Delegates environment loading to the dedicated EnvironmentConfigLoader tool.
- * This ensures standardized handling of .env file precedence (specific before general).
+ * Loads environment variables from .env files based on NODE_ENV.
+ * Precedence: .env.<NODE_ENV> is loaded first, ensuring it takes precedence over .env
+ * which is loaded subsequently only for variables not yet defined.
  */
 export function loadEnvironment(): void {
-    // Pass necessary Node APIs (path, fs, dotenv) to the vanilla JS plugin execution environment
-    try {
-        const result = EnvironmentConfigLoader.execute({
-            path,
-            fs,
-            dotenv,
-            env: process.env,
-            cwd: process.cwd()
-        });
-    
-        result.messages.forEach(msg => {
-            // The plugin prefixes warnings with 'Warning: '
-            if (msg.startsWith('Warning:')) {
-                console.warn(`[Config Loader] ${msg.substring(9).trim()}`);
-            } else {
-                console.log(`[Config Loader] ${msg}`);
-            }
-        });
+    const cwd = process.cwd();
+    const env = process.env.NODE_ENV || 'development';
+    const messages: string[] = [];
 
-    } catch (e) {
-        // Fallback or critical error handling if the plugin fails to execute
-        console.error("[Config Loader] Critical error during environment loading using plugin:", e);
+    // 1. Load environment-specific .env file (Highest Precedence)
+    const specificFilename = `.env.${env}`;
+    const specificPath = path.resolve(cwd, specificFilename);
+    
+    if (fs.existsSync(specificPath)) {
+        // dotenv.config() loads variables only if they are not already set in process.env
+        dotenv.config({ path: specificPath });
+        messages.push(`Loaded environment-specific configuration from ${specificFilename}`);
     }
+
+    // 2. Load general .env file (Fallback Defaults)
+    const generalPath = path.resolve(cwd, '.env');
+    if (fs.existsSync(generalPath)) {
+        // This ensures variables defined in .env only load if they weren't set by the specific file or system environment.
+        dotenv.config({ path: generalPath });
+        messages.push('Loaded general configuration from .env (as fallback)');
+    }
+
+    messages.forEach(msg => {
+        console.log(`[Config Loader] ${msg}`);
+    });
 }
