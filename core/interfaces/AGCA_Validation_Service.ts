@@ -1,4 +1,4 @@
-import { AGCA_PCTM_V1_Asset, AGCA_PCTM_V1_ConfigurationData } from "../models/AGCA_Asset_Types";
+import { AGCA_PCTM_V1_Asset } from "../models/AGCA_Asset_Types";
 import { AGCA_IntegrityError, AGCA_SignatureVerificationError, AGCA_AuthorizationError } from "../errors/AGCA_Security_Errors";
 
 export interface AGCA_Validation_Service {
@@ -20,14 +20,10 @@ export interface AGCA_Validation_Service {
    * Ensures data integrity (proof of non-tampering).
    *
    * NOTE: Implementation must ensure consistent canonical serialization of configurationData prior to hashing.
-   * @param configurationData The raw configuration data object (the content being hashed/verified).
-   * @param expectedHash The hash_sha256 value from the asset's metadata.
+   * @param asset The AGCA Asset containing the configuration data and expected hash.
    * @throws {AGCA_IntegrityError} If hash mismatch occurs.
    */
-  verifyHashIntegrity(
-    configurationData: AGCA_PCTM_V1_ConfigurationData,
-    expectedHash: string
-  ): Promise<void>;
+  verifyHashIntegrity(asset: AGCA_PCTM_V1_Asset): Promise<void>;
 
   /**
    * Step 2: Validates the cryptographic signature against the referenced GKM key material.
@@ -36,25 +32,18 @@ export interface AGCA_Validation_Service {
    *
    * NOTE: Implementation must re-derive the signed canonical payload (usually the serialized configurationData)
    * before signature verification.
-   * @param configurationData The content that was originally signed (used to rebuild the signing payload).
-   * @param signature The gkm_signature value (e.g., base64 or similar encoded signature blob).
-   * @param keyReference The gkm_key_reference URI identifying the public key.
+   * @param asset The AGCA Asset containing the configuration data, signature, and key reference.
    * @throws {AGCA_SignatureVerificationError} If the signature is invalid or key is revoked.
    */
-  verifyCryptographicSignature(
-    configurationData: AGCA_PCTM_V1_ConfigurationData,
-    signature: string,
-    keyReference: string
-  ): Promise<void>;
+  verifyCryptographicSignature(asset: AGCA_PCTM_V1_Asset): Promise<void>;
 
   /**
    * Step 3: Checks if the owner_agent possesses the required permissions (policy/role) 
    * to issue/modify assets under this specific PCTM version/standard.
    * Ensures authorization (proof of legal standing).
    * Requires external Authorization Service (AAS) consultation.
-   * @param agentId The owner_agent identifier (Principal ID).
-   * @param standardId The pctm_standard_id (e.g., "AGCA_PCTM_V1").
+   * @param asset The AGCA Asset containing the agent ID and standard ID.
    * @throws {AGCA_AuthorizationError} If the agent is unauthorized.
    */
-  verifyAgentAuthorization(agentId: string, standardId: string): Promise<void>;
+  verifyAgentAuthorization(asset: AGCA_PCTM_V1_Asset): Promise<void>;
 }
