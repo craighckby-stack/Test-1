@@ -1,8 +1,12 @@
 import Ajv from 'ajv';
-import remediationPlanSchema from '../../spec/schemas/Remediation_Plan_Schema_v1.json'; // Note: Ensure this path correctly loads the v2 definition or register it manually.
+// IMPORTANT AGI-KERNEL OPTIMIZATION: Ensure the imported schema path matches the target version (v2).
+import remediationPlanSchema from '../../spec/schemas/Remediation_Plan_Schema_v2.json'; 
 
+// Initialize AJV once upon module load. Using strict mode is recommended for future compatibility.
 const ajv = new Ajv({ allErrors: true, schemas: [remediationPlanSchema] });
-const REMEDIATION_SCHEMA_ID = 'https://api.sovereign-agi.com/schemas/Remediation_Plan_Schema_v2.json';
+
+// Use the $id defined within the schema file for maximum reliability.
+const REMEDIATION_SCHEMA_ID = remediationPlanSchema.$id || 'https://api.sovereign-agi.com/schemas/Remediation_Plan_Schema_v2.json';
 
 export class SchemaValidator {
     /**
@@ -13,21 +17,22 @@ export class SchemaValidator {
      * @throws {Error} If validation fails.
      */
     static validate(schemaId, data) {
+        // Retrieve the pre-compiled validation function
         const validateFunction = ajv.getSchema(schemaId);
         
         if (!validateFunction) {
-            // Fallback for dynamically loaded schemas
-            // For production, all schemas should be pre-compiled/registered for speed.
-            throw new Error(`Schema ID not registered: ${schemaId}`);
+            throw new Error(`Schema ID not registered: ${schemaId}. Ensure the schema is loaded and its $id matches the requested ID.`);
         }
 
         const isValid = validateFunction(data);
 
         if (!isValid) {
-            const errors = validateFunction.errors.map(err => 
-                `Path: ${err.instancePath || '/'} | Keyword: ${err.keyword} | Message: ${err.message}`
-            );
-            throw new Error(`Schema validation failed for ${schemaId}: \n${errors.join('\n')}`);
+            const errors = validateFunction.errors.map(err => {
+                const path = err.instancePath || '/';
+                return `[${path}] ${err.message} (Keyword: ${err.keyword})`;
+            });
+            
+            throw new Error(`Schema validation failed for ${schemaId} (${validateFunction.errors.length} errors):\n${errors.join('\n')}`);
         }
 
         return true;
