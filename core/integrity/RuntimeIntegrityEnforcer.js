@@ -115,20 +115,44 @@ class RuntimeIntegrityEnforcer {
         this.#startResourceMonitoringLoop();
     }
 
-    reloadPolicy() {
-        this.#log('info', 'Attempting to reload policy dynamically.');
-        // Clear existing monitoring before reconfiguration
+    /**
+     * Clears active monitoring intervals and prepares for policy changes or shutdown.
+     */
+    #cleanupEnforcement() {
         if (this.#monitoringInterval) {
             clearInterval(this.#monitoringInterval);
             this.#monitoringInterval = null;
+            this.#log('debug', 'Cleared resource monitoring interval.');
         }
+        // Future enhancement: Add logic here to unregister SystemCallInterceptor handlers
+        // if the interface supports granular removal.
+    }
 
+    /**
+     * Gracefully shuts down the integrity enforcer, stopping all active monitoring loops.
+     */
+    shutdown() {
+        this.#log('info', 'Shutting down Runtime Integrity Enforcer.');
+        this.#cleanupEnforcement();
+        this.#isActive = false;
+    }
+
+    reloadPolicy() {
+        this.#log('info', 'Attempting to reload policy dynamically.');
+        
+        // 1. Cleanup existing enforcement mechanisms
+        this.#cleanupEnforcement();
+
+        // 2. Load new policy
         this.#policy = this.#delegateToPolicyLoader(this.#policyPath);
         this.#isActive = this.#policy.status === 'Active';
 
+        // 3. Re-initialize if active
         if (this.#isActive) {
             this.#setupSystemCallInterception();
             this.#startResourceMonitoringLoop();
+        } else {
+            this.#log('warn', 'New policy loaded but status is Inactive. Enforcement halted.');
         }
     }
 
@@ -176,10 +200,7 @@ class RuntimeIntegrityEnforcer {
         const protocol = this.#policy.breachResponse.protocol;
 
         // Crucial: Stop monitoring after a breach to prevent recursive triggering
-        if (this.#monitoringInterval) {
-            clearInterval(this.#monitoringInterval);
-            this.#monitoringInterval = null;
-        }
+        this.#cleanupEnforcement();
 
         // Implementation to handle breach (Halt, Isolation, Reporting).
         if (protocol === "ImmediateHaltAndIsolation") {
