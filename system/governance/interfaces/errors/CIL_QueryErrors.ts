@@ -14,8 +14,7 @@ export class CILQueryError extends Error {
     constructor(message: string) {
         super(message);
         this.name = 'CILQueryError';
-        // Ensures correct prototype chain for 'instanceof' checks in complex environments
-        Object.setPrototypeOf(this, CILQueryError.prototype);
+        // Removed manual Object.setPrototypeOf as modern ES6+ environments handle prototype chain correctly when extending Error.
     }
 }
 
