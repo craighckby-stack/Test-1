@@ -39,16 +39,11 @@ class VerificationProtocolExecutor {
         this.#rules = config.verification_rules;
     }
 
-    // --- I/O Proxies for External Interactions ---
+    // --- I/O Proxies for External Interactions (Optimized Set) ---
 
     #delegateToSystemAPIExecution(method, params) {
         // Proxy for SystemAPI.executeProtocol
         return this.#SystemAPI.executeProtocol(method, params);
-    }
-
-    #resolveSystemActions() {
-        // Proxy for SystemIntegrityActionsProvider.getActions
-        return this.#SystemIntegrityActionsProvider.getActions();
     }
 
     #delegateToPolicyEnforcement(ruleId, message, policy, enforcementActions) {
@@ -61,26 +56,6 @@ class VerificationProtocolExecutor {
         return null; // Indicates tool missing or unavailable
     }
     
-    #logError(message) {
-        // Proxy for console.error
-        console.error(message);
-    }
-
-    #logBreach(ruleId, message, severity, actions) {
-        // Proxy for actions.logBreach
-        actions.logBreach(ruleId, message, severity);
-    }
-
-    #initiateAudit(ruleId, severity, actions) {
-        // Proxy for actions.initiateAudit
-        actions.initiateAudit(ruleId, severity);
-    }
-
-    #emergencyHalt(payload, actions) {
-        // Proxy for actions.emergencyHalt
-        actions.emergencyHalt(payload);
-    }
-
     // --- Core Logic ---
 
     async executeAllChecks() {
@@ -112,30 +87,32 @@ class VerificationProtocolExecutor {
     }
 
     /**
-     * Handles failure based on policy using the IntegrityFailurePolicyEnforcer Tool via proxies.
+     * Handles failure based on policy using the IntegrityFailurePolicyEnforcer Tool.
+     * Optimized: Resolves actions directly and eliminates trivial action proxies.
      * @returns {boolean} True if the system was instructed to halt.
      */
     #handleFailure(ruleId, message, policy) {
-        // Resolve standardized system actions via proxy
-        const enforcementActions = this.#resolveSystemActions();
+        // 1. Resolve standardized system actions directly (eliminates #resolveSystemActions proxy)
+        const enforcementActions = this.#SystemIntegrityActionsProvider.getActions();
         
-        // Delegate to policy enforcement tool via proxy
+        // 2. Delegate to policy enforcement tool via proxy
         const result = this.#delegateToPolicyEnforcement(ruleId, message, policy, enforcementActions);
         
         if (result) {
              return result.halted;
         } else {
-             // CRITICAL: Fallback logic if tool is missing. Use I/O proxies for all runtime actions.
-             this.#logError("IntegrityFailurePolicyEnforcerTool missing. Executing manual failure policy.");
+             // CRITICAL: Fallback logic if tool is missing. 
+             // Eliminates #logError, #logBreach, #initiateAudit, #emergencyHalt proxies.
+             console.error("IntegrityFailurePolicyEnforcerTool missing. Executing manual failure policy.");
              
-             // Use standardized actions for fallback consistency via proxies
-             this.#logBreach(ruleId, message, policy.severity, enforcementActions);
+             // Execute standardized actions directly
+             enforcementActions.logBreach(ruleId, message, policy.severity);
              
              if (policy.trigger_audit) {
-                 this.#initiateAudit(ruleId, policy.severity, enforcementActions);
+                 enforcementActions.initiateAudit(ruleId, policy.severity);
              }
              if (policy.severity === 'CRITICAL' && policy.handler && policy.handler.includes('HALT')) {
-                 this.#emergencyHalt({ reason: 'ASGL_CRITICAL_FAILURE_MANUAL', ruleId }, enforcementActions);
+                 enforcementActions.emergencyHalt({ reason: 'ASGL_CRITICAL_FAILURE_MANUAL', ruleId });
                  return true;
              }
              return false;
