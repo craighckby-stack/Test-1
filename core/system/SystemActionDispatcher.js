@@ -78,28 +78,39 @@ class SystemActionDispatcher {
 
         const { #tool, #executionPlane, #systemManager, #resourceAllocator, #auditService } = SystemActionDispatcher;
 
-        // 1. ISOLATE_SUBSYSTEM
-        #tool.register('ISOLATE_SUBSYSTEM', (details) => {
-            #auditService.recordPolicyViolation('ISOLATE_SUBSYSTEM', details);
-            // High-security operation
-            const subsystemId = details?.context?.subsystemId || 'UNKNOWN_SUB';
-            return #executionPlane.enforceIsolation(subsystemId);
-        });
+        // --- AGI-KERNEL OPTIMIZATION: Structured Action Definition Map ---
+        
+        // Define action executors using a map for clarity, modularity, and easy extension.
+        const actionExecutors: Record<string, (details: any) => any> = {
+            // 1. ISOLATE_SUBSYSTEM: High-security operation
+            'ISOLATE_SUBSYSTEM': (details) => {
+                #auditService.recordPolicyViolation('ISOLATE_SUBSYSTEM', details);
+                const subsystemId = details?.context?.subsystemId || 'UNKNOWN_SUB';
+                return #executionPlane.enforceIsolation(subsystemId);
+            },
 
-        // 2. SELF_TERMINATE_MISSION
-        #tool.register('SELF_TERMINATE_MISSION', (details) => {
-            #auditService.recordPolicyViolation('SELF_TERMINATE_MISSION', details);
-            // Critical failure protocol
-            const score = details?.score || 0;
-            return #systemManager.executeSecureTermination(score);
-        });
+            // 2. SELF_TERMINATE_MISSION: Critical failure protocol
+            'SELF_TERMINATE_MISSION': (details) => {
+                #auditService.recordPolicyViolation('SELF_TERMINATE_MISSION', details);
+                const score = details?.score || 0;
+                return #systemManager.executeSecureTermination(score);
+            },
 
-        // 3. ADAPTIVE_SCALE_DOWN
-        #tool.register('ADAPTIVE_SCALE_DOWN', (details) => {
-            #auditService.recordPolicyViolation('ADAPTIVE_SCALE_DOWN', details);
-            // Standard adjustment
-            return #resourceAllocator.adjustCapacity(-0.1);
-        });
+            // 3. ADAPTIVE_SCALE_DOWN: Standard resource adjustment
+            'ADAPTIVE_SCALE_DOWN': (details) => {
+                #auditService.recordPolicyViolation('ADAPTIVE_SCALE_DOWN', details);
+                // Fixed scale down delta as per directive
+                return #resourceAllocator.adjustCapacity(-0.1);
+            }
+        };
+
+        // Register all defined actions iteratively
+        for (const [code, executor] of Object.entries(actionExecutors)) {
+            if (!#tool.register(code, executor)) {
+                console.error(`[SAD] CRITICAL: Failed to register mandated action: ${code}. Dispatcher integrity compromised.`);
+                // Note: Failure to register a critical action should be logged prominently.
+            }
+        }
 
         console.log("[SAD] Action registry initialization complete.");
     }
