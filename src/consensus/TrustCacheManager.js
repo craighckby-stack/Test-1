@@ -47,7 +47,7 @@ class TrustCacheManagerKernel {
     }
 
     /**
-     * Isolates dependency initialization and configuration resolution.
+     * Isolates dependency initialization and configuration resolution, adding robustness checks.
      * @private
      */
     #setupDependencies() {
@@ -61,8 +61,19 @@ class TrustCacheManagerKernel {
             ...this._runtimeConfig
         };
 
-        const ttlMs = resolvedConfig.ttlSeconds * 1000;
-        const cleanupIntervalMs = resolvedConfig.cleanupIntervalSeconds * 1000;
+        let { ttlSeconds, cleanupIntervalSeconds } = resolvedConfig;
+
+        // Robustness check: Ensure TTL and Cleanup intervals are positive, finite numbers.
+        // Fallback to defaults if runtime overrides are invalid.
+        if (typeof ttlSeconds !== 'number' || !isFinite(ttlSeconds) || ttlSeconds <= 0) {
+            ttlSeconds = defaultTTL;
+        }
+        if (typeof cleanupIntervalSeconds !== 'number' || !isFinite(cleanupIntervalSeconds) || cleanupIntervalSeconds <= 0) {
+            cleanupIntervalSeconds = defaultCleanup;
+        }
+
+        const ttlMs = ttlSeconds * 1000;
+        const cleanupIntervalMs = cleanupIntervalSeconds * 1000;
         
         /** @type {ITTLMapCacheToolKernel<string, number>} */
         this._cache = this._ttlMapCacheFactory.create(ttlMs, cleanupIntervalMs);
@@ -79,7 +90,8 @@ class TrustCacheManagerKernel {
         const defaultContext = this._configRegistry.getDefaultContext();
 
         if (!agentId || typeof agentId !== 'string') {
-            throw new Error("TCM Error: Agent ID must be a non-empty string.");
+            // Standardized input validation error type
+            throw new TypeError("TCM Error: Agent ID must be a non-empty string.");
         }
         
         // Uses defaultContext if currentContext is falsy (null, undefined, '')
@@ -118,7 +130,7 @@ class TrustCacheManagerKernel {
             return score !== undefined ? score : null;
             
         } catch (e) {
-            // Gracefully handle errors from _generateKey (e.g., invalid Agent ID)
+            // Gracefully handle input errors (e.g., invalid Agent ID from _generateKey)
             return null; 
         }
     }
