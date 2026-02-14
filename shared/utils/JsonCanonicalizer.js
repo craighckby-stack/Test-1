@@ -8,7 +8,7 @@ interface CanonicalizerToolKernel {
 
 /**
  * AGI-KERNEL v7.11.3 JsonCanonicalizerKernel
- * Standardizes JSON object serialization and provides integrity hashing 
+ * Standardizes JSON object serialization and provides integrity hashing
  * by delegating core functions to injected, architectural components.
  * The internal, environment-dependent hash calculation logic has been removed.
  */
@@ -19,7 +19,7 @@ class JsonCanonicalizerKernel {
 
   /**
    * Initializes the Kernel with required dependencies.
-   * 
+   *
    * @param canonicalizer The dependency providing the core canonicalization logic.
    * @param cryptoUtility The dependency providing cryptographic hashing functionality.
    */
@@ -64,7 +64,7 @@ class JsonCanonicalizerKernel {
 
   /**
    * Deeply sorts object keys alphabetically and stringifies the result.
-   * 
+   *
    * @param {any} data - The data structure to canonicalize.
    * @returns {string} The canonical JSON string.
    */
@@ -74,7 +74,7 @@ class JsonCanonicalizerKernel {
 
   /**
    * Calculates a cryptographic hash (SHA-256) of the canonicalized string.
-   * 
+   *
    * @param {string} canonicalString - Output of canonicalize().
    * @returns {string} SHA-256 hash in hex format.
    */
