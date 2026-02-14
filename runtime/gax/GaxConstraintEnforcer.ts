@@ -3,7 +3,7 @@ declare const PayloadSizeChecker: { execute: (args: { request: unknown, limit: n
 // --- Constraint Definitions ---
 export class ConstraintViolationError extends Error {
   public constraintType: string;
-  
+
   constructor(message: string, constraintType: string) {
     super(`Constraint violation detected: ${message}`);
     this.name = 'ConstraintViolationError';
@@ -19,7 +19,7 @@ export interface ConstraintDefinition {
 }
 
 // Defines the optimized lookup structure: Map<"serviceName/methodName", ConstraintDefinition[]>
-export type IndexedConstraintMap = Map<string, ConstraintDefinition[]>; 
+export type IndexedConstraintMap = Map<string, ConstraintDefinition[]>;
 
 // --- Plugin Interface Definitions ---
 
@@ -30,7 +30,7 @@ export interface ConstraintCheckResult {
 
 export interface IConstraintChecker {
     /** The type of constraint this checker handles (e.g., 'payload_size'). */
-    readonly constraintType: string; 
+    readonly constraintType: string;
     /** Executes the check against the request and constraint definition. */
     execute(constraint: ConstraintDefinition, request: unknown): ConstraintCheckResult;
 }
@@ -59,7 +59,7 @@ export class GaxConstraintEnforcerKernel {
       this.#throwSetupError("Indexed constraints and checkers list must be provided.");
     }
     this.#indexedConstraints = indexedConstraints;
-    
+
     const checkerMap = new Map<string, IConstraintChecker>();
     for (const checker of checkers) {
       if (!checker || !checker.constraintType) {
@@ -108,7 +108,7 @@ export class GaxConstraintEnforcerKernel {
     const key = `${serviceName}/${methodName}`;
     return this.#indexedConstraints.get(key) || [];
   }
-  
+
   /**
    * I/O Proxy: Looks up a registered checker by type.
    */
@@ -122,7 +122,7 @@ export class GaxConstraintEnforcerKernel {
   #executeChecker(checker: IConstraintChecker, constraint: ConstraintDefinition, request: unknown): ConstraintCheckResult {
     return checker.execute(constraint, request);
   }
-  
+
   /**
    * I/O Proxy: Handles logging a warning for an unregistered checker.
    */
