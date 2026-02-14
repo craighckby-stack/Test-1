@@ -27,11 +27,12 @@ class IsolatedFailureReporter {
      * @param {Class} ErrorSerializerClass 
      */
     #setupDependencies(transportFunction, ErrorSerializerClass) {
+        // Optimization: Standardize validation errors to TypeError for invalid input types/shapes.
         if (typeof transportFunction !== 'function') {
-            throw new Error("IsolatedFailureReporter requires a valid transport function.");
+            throw new TypeError("IsolatedFailureReporter requires a valid transport function (must be a function).");
         }
         if (!ErrorSerializerClass || typeof ErrorSerializerClass.safeSerialize !== 'function') {
-            throw new Error("IsolatedFailureReporter requires a valid ErrorSerializer plugin dependency.");
+            throw new TypeError("IsolatedFailureReporter requires a valid ErrorSerializer plugin dependency (must expose static safeSerialize).");
         }
         
         this.#transport = transportFunction;
