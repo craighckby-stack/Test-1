@@ -88,22 +88,18 @@ export abstract class TelemetryAggregationStrategyKernel<TEvent extends ITelemet
     public async aggregate(events: TEvent[], initialAggregate?: TAggregate): Promise<TAggregate> {
         // Handle empty input arrays gracefully
         if (!events || events.length === 0) {
-            // If we had no events but received an initial aggregate, finalize it and return.
-            if (initialAggregate) {
-                return this.finalize(initialAggregate);
-            }
-            // Otherwise, return an empty, initialized aggregate.
-            return this.finalize(await this.initializeAggregate());
+            const aggregateToFinalize = initialAggregate ?? await this.initializeAggregate();
+            return this.finalize(aggregateToFinalize);
         }
 
         // 1. Initialize
         let currentAggregate: TAggregate = initialAggregate ?? await this.initializeAggregate(events[0]);
 
-        // 2. Accumulate (The efficient single-pass O(N) reduction)
-        for (const event of events) {
-            // Use await since accumulation might involve complex or async storage operations
-            currentAggregate = await this.accumulate(currentAggregate, event);
-        }
+        // 2. Accumulate (The efficient single-pass O(N) asynchronous reduction)
+        currentAggregate = await events.reduce(async (aggregatePromise, event) => {
+            const aggregate = await aggregatePromise;
+            return this.accumulate(aggregate, event);
+        }, Promise.resolve(currentAggregate));
 
         // 3. Finalize
         return this.finalize(currentAggregate);
