@@ -41,14 +41,14 @@ interface PolicyConditionEvaluator {
 }
 
 // Assumed access to the global PolicyRuleMatcherTool defined in the plugin layer.
-declare const PolicyRuleMatcherTool: { 
+declare const PolicyRuleMatcherTool: {
     execute(args: {
         policies: RejectionPolicy[],
         context: Record<string, any>,
         evaluator: (condition: string, ctx: Record<string, any>) => boolean,
-        defaultAction: string 
-    }): string; 
-}; 
+        defaultAction: string
+    }): string;
+};
 
 export class TelemetryPolicyExecutorKernel {
     #policies: GovernancePolicies;
@@ -85,7 +85,7 @@ export class TelemetryPolicyExecutorKernel {
     }
 
     /**
-     * Internal Logic Proxy: Transforms VettingResults into a predictable key/value context 
+     * Internal Logic Proxy: Transforms VettingResults into a predictable key/value context
      * suitable for the expression evaluator.
      */
     #createEvaluationContext(results: VettingResult[]): Record<string, any> {
@@ -103,7 +103,7 @@ export class TelemetryPolicyExecutorKernel {
 
         return context;
     }
-    
+
     /**
      * I/O Proxy: Delegates condition evaluation using the injected evaluator tool.
      */
@@ -140,7 +140,7 @@ export class TelemetryPolicyExecutorKernel {
     public evaluate(results: VettingResult[]): string {
         // 1. Prepare a structured context from results
         const context = this.#createEvaluationContext(results);
-        
+
         // 2. Delegate policy matching to the external tool
         return this.#delegateToPolicyMatcher(context);
     }
