@@ -8,33 +8,14 @@ const CanonicalStateIntegrityTool = require('@agi-kernel/plugins/CanonicalStateI
 
 /**
  * Utility wrapper exposing core canonicalization and hashing functions 
- * from the underlying integrity tool via architectural I/O proxies.
+ * from the underlying integrity tool.
+ * 
+ * This utility acts as a direct architectural proxy to the CanonicalStateIntegrityTool,
+ * minimizing indirection for core state integrity operations.
  * 
  * @module JsonCanonicalizer_Util
  */
 class JsonCanonicalizerUtility {
-
-    /**
-     * Isolates the direct interaction with the external dependency (Tool.canonicalize)
-     * into a dedicated private static I/O proxy function.
-     * @param {*} data - The value to canonicalize.
-     * @returns {string} The canonical JSON string.
-     */
-    static #delegateToCanonicalizeTool(data) {
-        // Enforcing architectural separation between core utility orchestration and external tool delegation.
-        return CanonicalStateIntegrityTool.canonicalize(data);
-    }
-
-    /**
-     * Isolates the direct interaction with the external dependency (Tool.hash)
-     * into a dedicated private static I/O proxy function.
-     * @param {*} data - The data or pre-canonicalized string.
-     * @returns {string} The resulting SHA-256 hash (hex).
-     */
-    static #delegateToHashTool(data) {
-        // Enforcing architectural separation between core utility orchestration and external tool delegation.
-        return CanonicalStateIntegrityTool.hash(data);
-    }
 
     /**
      * Creates a canonical string representation of a JavaScript object (strict key order, no spacing).
@@ -42,7 +23,8 @@ class JsonCanonicalizerUtility {
      * @returns {string} The canonical JSON string.
      */
     static canonicalize(data) {
-        return JsonCanonicalizerUtility.#delegateToCanonicalizeTool(data);
+        // Direct delegation to the underlying integrity tool, removing unnecessary indirection layers.
+        return CanonicalStateIntegrityTool.canonicalize(data);
     }
     
     /**
@@ -51,7 +33,8 @@ class JsonCanonicalizerUtility {
      * @returns {string} The resulting SHA-256 hash (hex).
      */
     static hash(data) {
-        return JsonCanonicalizerUtility.#delegateToHashTool(data);
+        // Direct delegation to the underlying integrity tool, removing unnecessary indirection layers.
+        return CanonicalStateIntegrityTool.hash(data);
     }
 }
 
