@@ -19,7 +19,7 @@ class TaskSequencerEngine {
         }
 
         for (const task of sequence) {
-            
+
             // Define the worker function for the plugin
             const workerFn = async () => {
                 await this.runTask(task, incidentContext);
