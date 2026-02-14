@@ -26,24 +26,16 @@ declare const SYSTEM_SERIALIZER: ICanonicalSerializer;
 const ACVD_SERIALIZER = SYSTEM_SERIALIZER;
 
 /**
- * Executes the core canonical serialization via the kernel's injected utility.
- * This helper function enforces architectural consistency by separating the direct 
- * dependency interaction (I/O proxy) from the primary exported interface.
- * @param obj The object to serialize.
- * @returns A strictly canonicalized JSON string.
- */
-function _performSerialization(obj: object): string {
-    return ACVD_SERIALIZER.stringify(obj);
-}
-
-/**
  * Provides a standardized, deterministic string representation of an object 
  * required for cryptographic integrity checks (ACVD), leveraging the kernel's 
  * dedicated Canonical Serialization Plugin.
+ * 
+ * This function is optimized to directly proxy the call to the locally cached 
+ * ACVD_SERIALIZER instance, minimizing function call overhead.
+ * 
  * @param obj The object to canonicalize.
  * @returns A strictly canonicalized JSON string.
  */
 export function canonicalStringify(obj: object): string {
-    // Delegate the actual serialization task to the internal execution utility.
-    return _performSerialization(obj);
+    return ACVD_SERIALIZER.stringify(obj);
 }
