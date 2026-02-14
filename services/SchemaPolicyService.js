@@ -5,10 +5,10 @@
  */
 
 class SchemaPolicyKernel {
-    
+
     // Rigorously privatized state
     #policyStore;
-    #schemas = new Map(); 
+    #schemas = new Map();
 
     /**
      * @param {object} dependencies - Must contain a PolicyStore instance.
@@ -20,13 +20,13 @@ class SchemaPolicyKernel {
 
     /**
      * Step 1: Extracts and validates synchronous dependencies.
-     * @param {PolicyStore} policyStoreInstance 
+     * @param {PolicyStore} policyStoreInstance
      */
     #setupDependencies(policyStoreInstance) {
-        const isValid = policyStoreInstance && 
+        const isValid = policyStoreInstance &&
                         typeof policyStoreInstance.get === 'function' &&
                         typeof policyStoreInstance.define === 'function';
-        
+
         if (!isValid) {
             this.#throwSetupError("requires a valid PolicyStore instance with 'get' and 'define' methods.");
         }
@@ -36,7 +36,7 @@ class SchemaPolicyKernel {
 
     /**
      * I/O Proxy: Throws a standardized setup error.
-     * @param {string} message 
+     * @param {string} message
      */
     #throwSetupError(message) {
         throw new Error(`SchemaPolicyKernel Setup Error: ${message}`);
@@ -58,14 +58,14 @@ class SchemaPolicyKernel {
 
     /**
      * I/O Proxy: Executes synchronous rules and throws on violation.
-     * @param {string} resourceAction 
-     * @param {Array<Function>} rules 
-     * @param {object} context 
+     * @param {string} resourceAction
+     * @param {Array<Function>} rules
+     * @param {object} context
      */
     #executePolicyRulesAndThrow(resourceAction, rules, context) {
         for (const rule of rules) {
             const result = rule(context);
-            
+
             if (result === false) {
                 this.#throwPolicyViolationError(resourceAction);
             }
@@ -74,7 +74,7 @@ class SchemaPolicyKernel {
 
     /**
      * I/O Proxy: Throws a policy violation error.
-     * @param {string} resourceAction 
+     * @param {string} resourceAction
      */
     #throwPolicyViolationError(resourceAction) {
         throw new Error(`Policy violation: Operation '${resourceAction}' failed policy check.`);
@@ -88,11 +88,11 @@ class SchemaPolicyKernel {
         if (!schema) {
             return data; // No schema defined, validation skipped
         }
-        
+
         // NOTE: This is the integration point for external validation libraries (Joi/Zod).
         // Since no external validator is dependency-injected, we currently return the data.
-        
-        return data; 
+
+        return data;
     }
 
     /**
