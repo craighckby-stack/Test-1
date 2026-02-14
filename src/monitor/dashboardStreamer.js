@@ -7,15 +7,14 @@
 
 import { generateRuntimeReport } from './runtimeDashboard';
 
-// CRITICAL: Initialize the emitter using the extracted plugin
+// CRITICAL: Initialize the emitter and the poller using extracted plugins
 // @ts-ignore
 const emitter = AGI_KERNEL.plugins.ObserverPatternUtility.createInstance();
+// @ts-ignore
+const poller = AGI_KERNEL.plugins.ResilientPollerUtility.createInstance('DashboardStreamer');
 
 const POLL_INTERVAL_MS = 2500; // Update every 2.5 seconds
-// Using recursive setTimeout requires clearTimeout. This variable stores the handle for the next scheduled call.
-let intervalHandle: NodeJS.Timeout | null = null;
 let latestReport: Record<string, any> = {};
-let isPollingActive: boolean = false; // State flag for controlling the recursive loop
 
 /**
  * Notifies all subscribed listeners with the new report.
@@ -27,54 +26,35 @@ function notifySubscribers(report: Record<string, any>): void {
 }
 
 /**
- * Starts the continuous polling process using recursive setTimeout.
- * This pattern ensures that the next poll only starts after the previous one completes,
- * preventing overlap if generateRuntimeReport takes longer than POLL_INTERVAL_MS.
+ * The core asynchronous task executed by the ResilientPoller.
+ * Generates the report and notifies subscribers.
+ */
+const dashboardTask = async (): Promise<void> => {
+    // 1. Generate report and notify
+    const report = await generateRuntimeReport();
+    latestReport = report;
+    notifySubscribers(latestReport);
+    // Note: Error handling for generateRuntimeReport is now centralized in the ResilientPollerUtility
+};
+
+
+/**
+ * Starts the continuous polling process using the ResilientPollerUtility.
  */
 export function startDashboardStream(): void {
-    if (isPollingActive) {
+    if (poller.isActive()) {
         console.warn('Dashboard stream is already active.');
         return;
     }
-
-    isPollingActive = true;
-    console.log(`Starting dashboard stream (Interval: ${POLL_INTERVAL_MS}ms)`);
-
-    const pollAndSchedule = async () => {
-        if (!isPollingActive) return; // Exit condition 1
-
-        try {
-            // 1. Generate report and notify
-            latestReport = await generateRuntimeReport();
-            notifySubscribers(latestReport);
-        } catch (error) {
-            console.error("Error during runtime report generation:", error);
-            // Continue polling, but log the failure
-        }
-
-        // 2. Schedule the next poll only if the system is still active
-        if (isPollingActive) {
-            intervalHandle = setTimeout(pollAndSchedule, POLL_INTERVAL_MS);
-        }
-    };
-
-    // Initiate the process immediately
-    pollAndSchedule();
+    
+    poller.start(dashboardTask, POLL_INTERVAL_MS);
 }
 
 /**
  * Stops the continuous polling process.
  */
 export function stopDashboardStream(): void {
-    if (!isPollingActive) return;
-
-    isPollingActive = false; // Stop the recursive loop logic
-
-    if (intervalHandle) {
-        clearTimeout(intervalHandle);
-        intervalHandle = null;
-        console.log('Dashboard stream stopped.');
-    }
+    poller.stop();
 }
 
 /**
