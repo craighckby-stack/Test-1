@@ -14,9 +14,9 @@ import { ContentIntegrityVerifier } from 'plugins/ContentIntegrityVerifier';
 const POLICY_MANIFEST_PATH = 'governance/config/PolicyManifest.json';
 
 export class ConfigurationAuthService {
-    
+
     static #manifestCache = null;
-    
+
     // --- Synchronous Dependency Resolution Proxies ---
 
     static #resolveSystemFiles() { return SystemFiles; }
@@ -88,7 +88,7 @@ export class ConfigurationAuthService {
         try {
             const rawContent = await ConfigurationAuthService.#readSystemFile(filePath);
             const calculatedHash = await ConfigurationAuthService.#calculateHash(rawContent, requiredCheck.hash_type);
-            
+
             // Delegate integrity verification and JSON parsing to the ContentIntegrityVerifier tool
             return ConfigurationAuthService.#delegateToVerifierExecution({
                 rawContent: rawContent,
