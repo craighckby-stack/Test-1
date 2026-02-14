@@ -15,15 +15,17 @@ class ResourceAttestationKernel {
      * @param {MultiTargetAuditDisperserToolKernel} dependencies.multiTargetAuditDisperserTool
      * @param {IConsensusErrorCodesRegistryKernel} dependencies.consensusErrorCodesRegistry
      * @param {IExternalMetricExecutionToolKernel} dependencies.externalMetricExecutionTool
+     * @param {CanonicalErrorFactory} dependencies.errorFactory
      */
     constructor({
         telemetryAttestationConfigRegistry,
         asyncCheckExecutionWrapperTool,
         multiTargetAuditDisperserTool,
         consensusErrorCodesRegistry,
-        externalMetricExecutionTool
+        externalMetricExecutionTool,
+        errorFactory
     }) {
-        if (!telemetryAttestationConfigRegistry || !asyncCheckExecutionWrapperTool || !multiTargetAuditDisperserTool || !consensusErrorCodesRegistry || !externalMetricExecutionTool) {
+        if (!telemetryAttestationConfigRegistry || !asyncCheckExecutionWrapperTool || !multiTargetAuditDisperserTool || !consensusErrorCodesRegistry || !externalMetricExecutionTool || !errorFactory) {
             throw new Error("KRNL_INIT_FAILURE: ResourceAttestationKernel missing required Tool Kernel dependencies.");
         }
 
@@ -32,6 +34,7 @@ class ResourceAttestationKernel {
         this._auditor = multiTargetAuditDisperserTool;
         this._errorCodes = consensusErrorCodesRegistry;
         this._metricSource = externalMetricExecutionTool; 
+        this._errorFactory = errorFactory;
         
         this._attestationConfig = null;
     }
@@ -62,7 +65,10 @@ class ResourceAttestationKernel {
      */
     async executePreExecutionCheck(payloadMetadata) {
         if (!this._attestationConfig || !this._attestationConfig.checks) {
-            throw new Error(this._errorCodes.getErrorCode('RAM_NOT_CONFIGURED'));
+            throw this._errorFactory.create(
+                this._errorCodes.getErrorCode('RAM_NOT_CONFIGURED'),
+                'RAM configuration missing or invalid check definitions.'
+            );
         }
         
         const checksToRun = this._attestationConfig.checks;
@@ -118,7 +124,7 @@ class ResourceAttestationKernel {
                 checkId: result.id,
                 status: result.status,
                 details: result.details,
-                success: result.success
+                success: result: result.success
             }))
         };
         
@@ -138,10 +144,11 @@ class ResourceAttestationKernel {
             });
             
             // Throw standardized error referencing a registered code
-            const errorCode = this._errorCodes.getErrorCode('RAM_ATTESTATION_FAILURE');
-            const error = new Error(`${errorCode}: Resource attestation failed.`);
-            error.details = { report, payloadId };
-            throw error;
+            throw this._errorFactory.create(
+                this._errorCodes.getErrorCode('RAM_ATTESTATION_FAILURE'),
+                'Resource attestation failed due to critical resource checks failing.',
+                { report, payloadId }
+            );
         }
 
         await this._auditor.recordAudit({
