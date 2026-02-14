@@ -14,8 +14,11 @@ class SchemaValidatorKernel {
      * @param {ISpecValidatorKernel} tools.iSpecValidatorKernel
      */
     constructor({ iSpecValidatorKernel }) {
-        if (!iSpecValidatorKernel) {
-            throw new Error("[SchemaValidatorKernel] Initialization failure: ISpecValidatorKernel dependency is missing.");
+        // High-integrity check: Ensure the dependency exists and exposes required methods.
+        if (!iSpecValidatorKernel || 
+            typeof iSpecValidatorKernel.compile !== 'function' ||
+            typeof iSpecValidatorKernel.validate !== 'function') {
+            throw new Error("[SchemaValidatorKernel] Initialization failure: ISpecValidatorKernel dependency is missing or incomplete (missing compile/validate methods).");
         }
         /** @type {ISpecValidatorKernel} */
         this.specValidator = iSpecValidatorKernel;
@@ -24,11 +27,14 @@ class SchemaValidatorKernel {
     /**
      * Initializes the kernel and ensures dependencies are ready.
      * This method is mandatory for AIA compliance.
+     * It chains initialization to the underlying specialized kernel.
      * @returns {Promise<void>}
      */
     async initialize() {
-        // The underlying ISpecValidatorKernel handles its own complex asynchronous setup.
-        return Promise.resolve();
+        // Ensure the underlying specialized kernel is initialized and ready, if it exposes an initialize method.
+        if (typeof this.specValidator.initialize === 'function') {
+            await this.specValidator.initialize();
+        }
     }
 
     /**
