@@ -18,7 +18,7 @@ const _CODES_MAP = Object.freeze({
     // Authentication / Authorization Failures (401/403 series)
     AUTH_UNAUTHORIZED: 'AUTH_4010',
     AUTH_PERMISSION_DENIED: 'AUTH_4030',
-    
+
     // Data / Resource Failures (404/500 series)
     RESOURCE_NOT_FOUND: 'DATA_4040',
     DATABASE_ERROR: 'DATA_5001'
@@ -27,7 +27,7 @@ const _CODES_MAP = Object.freeze({
 /**
  * Private helper function to ensure safe lookup of an error code.
  * This function guarantees a fallback to SYSTEM_UNKNOWN if the key is invalid or undefined.
- * 
+ *
  * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
  * @returns {string} The corresponding error code, or SYSTEM_UNKNOWN if not found.
  */
