@@ -1,11 +1,12 @@
 import { IndexingStrategy, ArtifactMetadata } from '../types/ArtifactTypes';
 import { EmbeddingService } from './EmbeddingService';
 import { VectorDBClient } from '../data/VectorDBClient';
+import { CanonicalErrorFactory } from '../core/CanonicalErrorFactory';
+import { SecurePluginExecutorUtility } from '../core/SecurePluginExecutorUtility';
 
-// AGI_KERNEL Interface Stub for the extracted plugin
-interface ArtifactContentAggregatorTool {
-    execute(args: { artifact: ArtifactMetadata; targetFields: string[]; separator?: string }): string;
-}
+// Constants for the capability registration
+const ARTIFACT_TRANSFORMER_REGISTRY = 'ArtifactTransformer';
+const AGGREGATE_CONTENT_CAPABILITY = 'aggregateContent';
 
 /**
  * Manages the transformation, insertion, and querying of artifact content
@@ -13,17 +14,14 @@ interface ArtifactContentAggregatorTool {
  * This service is critical for enabling semantic search across the artifact history.
  */
 export class ArtifactVectorizationManager {
-  private artifactContentAggregator: ArtifactContentAggregatorTool;
 
-  constructor(private embeddingService: EmbeddingService, private dbClient: VectorDBClient) {
-    // Simulation of AGI-KERNEL plugin injection for Type Safety
-    this.artifactContentAggregator = (global as any).ArtifactContentAggregator || { 
-        execute: ({ artifact, targetFields }) => { 
-            return targetFields
-                .map(field => (artifact as any)[field] || '')
-                .join('\n\n---\n\n');
-        }
-    } as ArtifactContentAggregatorTool;
+  constructor(
+    private embeddingService: EmbeddingService, 
+    private dbClient: VectorDBClient,
+    private errorFactory: CanonicalErrorFactory,
+    private pluginExecutor: SecurePluginExecutorUtility
+  ) {
+    // Manual plugin simulation removed; dependencies injected for secure execution.
   }
 
   public async indexArtifact(artifact: ArtifactMetadata, policy: IndexingStrategy): Promise<void> {
@@ -33,12 +31,29 @@ export class ArtifactVectorizationManager {
 
     const { embeddingModel, targetFields, vectorStoreAlias } = policy.vectorIndexing;
     
-    // Using the extracted tool for content aggregation
-    const contentToEmbed = this.artifactContentAggregator.execute({
-        artifact: artifact,
-        targetFields: targetFields,
-        // Separator defaults to '\n\n---\n\n' within the plugin
-    });
+    let contentToEmbed: string;
+    
+    try {
+        // Use SecurePluginExecutorUtility for centralized, validated, and secure capability execution
+        contentToEmbed = await this.pluginExecutor.executeCapability<string>({
+            registryName: ARTIFACT_TRANSFORMER_REGISTRY,
+            capabilityName: AGGREGATE_CONTENT_CAPABILITY,
+            args: {
+                artifact: artifact,
+                targetFields: targetFields,
+                separator: '\n\n---\n\n' 
+            },
+        });
+    } catch (e) {
+        // Catch execution failures (including configuration/validation errors handled by the utility)
+        // Log canonically (TELEMETRY_TRANSFORMATION_FAILURE) and fail-securely.
+        this.errorFactory.create(
+            'TELEMETRY_TRANSFORMATION_FAILURE', 
+            `Failed to aggregate content for artifact ${artifact.id}. Skipping vectorization.`,
+            { artifactId: artifact.id, error: e }
+        ).report();
+        return;
+    }
 
     if (!contentToEmbed) {
         console.warn(`Artifact ${artifact.id}: No meaningful content found for vector indexing.`);
