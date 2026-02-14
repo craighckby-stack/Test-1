@@ -1,11 +1,13 @@
 // Sovereign AGI v94.1 Telemetry Vetting Pipeline Enforcer
 import { CryptoService } from '../security/CryptoService';
 import VettingConfig from '../../config/governance/TelemetryVettingSpec.json';
+import { CanonicalErrorFactory } from '../kernel/CanonicalErrorFactory';
 
 // Placeholder for an internal logging utility (assumes existence or falls back to console)
 const internalLogger = { 
     warn: (message: string) => console.warn(`[VETTING ENFORCER] ${message}`),
-    debug: (message: string) => process.env.NODE_ENV !== 'production' && console.log(`[VETTING ENFORCER DEBUG] ${message}`)
+    debug: (message: string) => process.env.NODE_ENV !== 'production' && console.log(`[VETTING ENFORCER DEBUG] ${message}`),
+    error: (error: any) => console.error(`[VETTING ENFORCER ERROR]`, error) // Added error logging
 };
 
 // Assuming the AGI Kernel makes the extracted plugin available
@@ -35,14 +37,27 @@ export class TelemetryVettingPipelineEnforcer {
     private globalSamplingRate: number;
     private crypto: CryptoService;
     private logger: typeof internalLogger;
+    private errorFactory: CanonicalErrorFactory;
 
     /**
      * @param {object} config - The telemetry vetting specification configuration.
      * @param {CryptoService} cryptoService - Dependency for secure data transformation (e.g., hashing).
+     * @param {CanonicalErrorFactory} errorFactory - Dependency for standardized error creation.
      */
-    constructor(config: any = VettingConfig, cryptoService = new CryptoService()) {
+    constructor(
+        config: any = VettingConfig, 
+        cryptoService = new CryptoService(),
+        errorFactory = new CanonicalErrorFactory()
+    ) {
+        this.errorFactory = errorFactory;
+
         if (!config.metrics || !config.defaultPolicy) {
-            throw new Error("TelemetryVettingSpec is improperly configured. Missing 'metrics' or 'defaultPolicy'.");
+            // Use CanonicalErrorFactory for configuration validation failures
+            throw this.errorFactory.create({
+                type: 'CONFIGURATION_ERROR',
+                message: "TelemetryVettingSpec is improperly configured.",
+                details: { missingKeys: ['metrics', 'defaultPolicy'].filter(k => !config[k]) }
+            });
         }
         this.vettingRules = config.metrics;
         this.defaultAction = config.defaultPolicy;
@@ -57,8 +72,6 @@ export class TelemetryVettingPipelineEnforcer {
 
     /**
      * Determines the appropriate action and sampling rate for a metric key.
-     * @param {string} metricKey
-     * @returns {{ rule: object, action: string, samplingRate: number }}
      * @private
      */
     private _getRuleAndAction(metricKey: string): { rule: any, action: string, samplingRate: number } {
@@ -73,21 +86,15 @@ export class TelemetryVettingPipelineEnforcer {
 
     /**
      * Executes necessary data transformation using the extracted TelemetryVettingTransformer plugin.
-     * @param {string} action
-     * @param {object} payload
-     * @param {object} rule - Specific rule details.
-     * @returns {object} The transformed payload.
      * @private
      */
     private _applyTransformation(action: string, payload: object, rule: object): object {
         if (typeof TelemetryVettingTransformer === 'undefined' || !TelemetryVettingTransformer.execute) {
-            // Safety fallback if plugin is unavailable
-            this.logger.warn(`Vetting transformation requested for action ${action}, but TelemetryVettingTransformer is unavailable.`);
-            return payload; 
+            // If the required transformer is missing, we throw an error to trigger the fail-secure drop.
+            throw new Error("Required TelemetryVettingTransformer plugin is unavailable.");
         }
 
         // We pass the hashing function (from CryptoService) directly to the plugin 
-        // to decouple the CryptoService dependency from the transformation logic itself.
         const hasher = (data: string, algorithm: string) => this.crypto.hash(data, algorithm);
 
         return TelemetryVettingTransformer.execute({
@@ -100,15 +107,12 @@ export class TelemetryVettingPipelineEnforcer {
 
     /**
      * Intercepts a telemetry event and enforces hygiene rules.
-     * @param {string} metricKey The name of the metric.
-     * @param {object} payload The raw event payload
-     * @returns {object | null} The processed payload, or null if dropped/sampled out.
      */
     public enforce(metricKey: string, payload: object): object | null {
         const { rule, action, samplingRate } = this._getRuleAndAction(metricKey);
 
         if (action === 'DROP_IMMEDIATELY') {
-            this.logger.warn(`Hard drop enforced for metric: ${metricKey}`);
+            this.logger.debug(`Hard drop enforced for metric: ${metricKey}`);
             return null;
         }
 
@@ -118,7 +122,21 @@ export class TelemetryVettingPipelineEnforcer {
             return null;
         }
 
-        return this._applyTransformation(action, payload, rule);
+        try {
+            return this._applyTransformation(action, payload, rule);
+        } catch (e) {
+            // High-Integrity Logging: Catch transformation failures and log canonically.
+            const canonicalError = this.errorFactory.create({
+                type: 'TELEMETRY_TRANSFORMATION_FAILURE',
+                message: `Vetting pipeline failed during transformation step for metric: ${metricKey}. Payload dropped for integrity.`, 
+                cause: e,
+                details: { metricKey, action, rule }
+            });
+            this.logger.error(canonicalError);
+            
+            // Fail-secure: If transformation fails (e.g., PII hashing fails), drop the payload.
+            return null;
+        }
     }
 }
 
