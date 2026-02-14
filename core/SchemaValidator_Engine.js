@@ -1,10 +1,10 @@
 // core/SchemaValidator_Engine.js
 import { XEL_Specification } from '../config/XEL_Specification.json';
-import Ajv from 'ajv'; 
+import Ajv from 'ajv';
 // IMPORTING EMERGENT CAPABILITY: Decouples navigation strategy synthesis from core validation
-import { SchemaFailureAnalyzer } from '../emergent/meta_tools/SchemaFailureAnalyzer.js'; 
+import { SchemaFailureAnalyzer } from '../emergent/meta_tools/SchemaFailureAnalyzer.js';
 // IMPORTING PLUGIN: Abstracts error keyword analysis for Meta-Reasoning
-import { ErrorCapabilityMapper } from '../plugins/ErrorCapabilityMapper.js'; 
+import { ErrorCapabilityMapper } from '../plugins/ErrorCapabilityMapper.js';
 
 /**
  * Custom error class for structured, machine-readable validation failures.
@@ -14,16 +14,16 @@ class SchemaValidationError extends Error {
         // Use a temporary Ajv instance to access the errorsText utility cleanly
         const tempAjv = new Ajv();
         // Fallback for potentially malformed errors structure
-        const errorText = errors && Array.isArray(errors) 
+        const errorText = errors && Array.isArray(errors)
             ? tempAjv.errorsText(errors, { separator: '; ', dataVar: schemaName })
             : 'Validation context missing or malformed.';
-        
+
         // LOGIC IMPROVEMENT: Include the most critical error keyword in the top-level message
         const criticalKeyword = errors && errors.length > 0 ? `[${errors[0].keyword}]` : '';
-        
+
         super(`XEL Validation Failed [${schemaName}] ${criticalKeyword}: ${errorText}`);
         this.name = 'SchemaValidationError';
-        this.schemaName = schemaName; 
+        this.schemaName = schemaName;
         this.validationErrors = errors; // Raw Ajv errors for programmatic handling
     }
 }
@@ -43,7 +43,7 @@ class SchemaValidationError extends Error {
  * It is designed for robustness (Error Handling) and dynamic updates (Autonomy).
  */
 class SchemaValidatorEngine {
-    
+
     // Private static field for configuration
     static #MAX_HISTORY = 100; // Store the last 100 failures
 
@@ -66,30 +66,30 @@ class SchemaValidatorEngine {
      * @param {function} [options.runtimeMapper] - Injectable function for mapping keywords to capabilities (overrides fallback).
      */
     constructor(options = {}) {
-        const { 
-            componentSchemas, 
+        const {
+            componentSchemas,
             onValidationFailure,
-            kernelVersion = 'N/A', 
+            kernelVersion = 'N/A',
             schemaComponentMap = {},
             runtimeMapper
         } = options;
-        
+
         // Expose error type publicly for consumer convenience/error handling compatibility
         this.SchemaValidationError = SchemaValidationError;
-        
+
         // Store dynamic runtime metadata privately
         this.#kernelVersion = kernelVersion;
         this.#schemaComponentMap = schemaComponentMap;
-        
+
         // INTEGRATION HOOK: Function provided by the kernel core
-        this.#onValidationFailure = onValidationFailure || (() => {}); 
+        this.#onValidationFailure = onValidationFailure || (() => {});
 
         // Refactored: Dependency resolution and setup logic extracted
         this.#setupRuntimeMapper(runtimeMapper);
 
         // Meta-Reasoning: Persistent tracking of validation failures for pattern recognition
-        this.#failureHistory = []; 
-        
+        this.#failureHistory = [];
+
         // Initialize validator using provided schemas or default imported ones
         this.#initializeValidator(componentSchemas || XEL_Specification.ComponentSchemas);
 
@@ -109,7 +109,7 @@ class SchemaValidatorEngine {
             this.#runtimeMapper = runtimeMapper;
             return;
         }
-        
+
         // Initialize private mapper dependency (fallback)
         this.#capabilityMapper = new ErrorCapabilityMapper();
         // Bind the method to ensure 'this' context works correctly within the mapper instance
@@ -125,7 +125,7 @@ class SchemaValidatorEngine {
         this.#validator = new Ajv({
             allErrors: true,
             strict: true,
-            removeAdditional: 'all' 
+            removeAdditional: 'all'
         });
 
         // Delegate repetitive schema loading loop
@@ -175,10 +175,10 @@ class SchemaValidatorEngine {
             keyword: e.keyword,
             message: e.message
         })) || [];
-        
+
         // Determine Capability Impact dynamically (Meta-Reasoning)
         const firstErrorKeyword = summary[0]?.keyword || 'N/A';
-        
+
         // REFACTORED: Use the private runtime mapper
         const capabilityImpact = this.#runtimeMapper(firstErrorKeyword);
 
