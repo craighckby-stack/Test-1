@@ -29,6 +29,7 @@
 
 /** @interface ILoggerToolKernel */
 /** @interface IMaturityMetricDeriverToolKernel */
+/** @interface ICanonicalErrorFactoryKernel */
 
 class ComponentMaturityIndexKernel {
     /** @type {Map<string, ComponentMetrics>} */
@@ -37,11 +38,14 @@ class ComponentMaturityIndexKernel {
     #logger;
     /** @type {IMaturityMetricDeriverToolKernel} */
     #metricDeriver;
+    /** @type {ICanonicalErrorFactoryKernel} */
+    #errorFactory;
 
     /**
      * @param {object} dependencies
      * @param {ILoggerToolKernel} dependencies.logger - Auditable logging utility.
      * @param {IMaturityMetricDeriverToolKernel} dependencies.metricDeriver - Specialized CMI calculation tool.
+     * @param {ICanonicalErrorFactoryKernel} dependencies.errorFactory - Standardized error creation utility.
      */
     constructor(dependencies) {
         this.#statusMap = new Map();
@@ -49,6 +53,7 @@ class ComponentMaturityIndexKernel {
         // Dependency Injection
         this.#logger = dependencies.logger;
         this.#metricDeriver = dependencies.metricDeriver;
+        this.#errorFactory = dependencies.errorFactory;
 
         this.#setupDependencies();
     }
@@ -58,8 +63,8 @@ class ComponentMaturityIndexKernel {
      * @private
      */
     #setupDependencies() {
-        if (!this.#logger || !this.#metricDeriver) {
-            throw new Error(`${this.constructor.name}: Missing critical dependencies (logger, metricDeriver).`);
+        if (!this.#logger || !this.#metricDeriver || !this.#errorFactory) {
+            throw new Error(`${this.constructor.name}: Missing critical dependencies (logger, metricDeriver, errorFactory).`);
         }
     }
 
@@ -101,8 +106,15 @@ class ComponentMaturityIndexKernel {
             this.#logger.info(`CMI updated for ${componentId}. New Stability Index: ${newMetrics.stabilityIndex}`);
             return newMetrics;
         } catch (error) {
-            // Use injected logger for auditable error reporting (replacing console.error)
-            this.#logger.error(`VETO: CMI Recalculation failed for ${componentId}. Error: ${error.message}. Returning cached metrics.`);
+            // Optimization: Use CanonicalErrorFactory for standardized, auditable error reporting (High-Integrity Logging Mandate).
+            const canonicalError = this.#errorFactory.create({
+                type: 'CMI_CALCULATION_FAILURE',
+                message: `VETO: CMI Recalculation failed for ${componentId}. Returning cached metrics.`,
+                cause: error,
+                details: { componentId }
+            });
+            
+            this.#logger.error(canonicalError.toString());
             return this.getMetrics(componentId);
         }
     }
