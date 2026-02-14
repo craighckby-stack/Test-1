@@ -31,14 +31,28 @@ class CryptographicFetcher {
      * @returns {Promise<Object>} Object containing mandates and a verifiable 'tag'.
      */
     async fetch(url) {
-        // Fetch data
-        const response = await this.#http.get(url);
+        let response;
+        
+        // 1. Secure Data Retrieval (Transport Layer)
+        try {
+            response = await this.#http.get(url);
+        } catch (error) {
+            // Explicitly catch and wrap transport/network errors, crucial for security context.
+            throw new Error(`CryptographicFetcher: Transport failure retrieving data from ${url}. Details: ${error.message}`);
+        }
+
+        // 2. Basic Response Integrity Check
+        if (!response || !response.data) {
+            throw new Error(`CryptographicFetcher: Received empty or malformed response structure from ${url}.`);
+        }
+        
         const rawData = response.data;
         
-        // Create the specific verification function using the private KeyRing
+        // 3. Create the specific verification function using the private KeyRing
+        // This closure ensures the KeyRing dependency is correctly scoped for the validator utility.
         const verificationFunction = (payload, signature) => this.#KeyRing.verify(payload, signature);
         
-        // Delegate structural validation, cryptographic verification, and parsing to the utility
+        // 4. Delegate structural validation, cryptographic verification, and parsing to the utility
         const verifiedData = await this.#SignedPayloadValidatorUtility.execute({
             rawData: rawData,
             verifyFunction: verificationFunction
