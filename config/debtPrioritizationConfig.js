@@ -4,14 +4,10 @@
  *
  * NOTE: This configuration adheres to the MetricWeightConfigurationValidator schema,
  * ensuring weights are normalized and thresholds are within [0, 1].
+ *
+ * Optimized for synchronous, immutable export using an IIFE pattern.
  */
-
-/**
- * Synchronously constructs the base configuration object.
- * This helper isolates data definition (preparation) from the module's export routine, 
- * aligning with architectural principles of separating synchronous data preparation from core module export/execution.
- */
-const _definePrioritizationConfig = () => ({
+module.exports = Object.freeze((() => ({
     // --- EDP Scoring Weights (W) - Must sum to 1.0 ---
 
     /** High weight on potential performance improvements/savings. */
@@ -32,12 +28,4 @@ const _definePrioritizationConfig = () => ({
      * Minimum calculated score required for a proposal to be forwarded to the Global Strategic Execution Pipeline (GSEP). 
      */
     MIN_PRIORITY_TO_INJECT: 0.05,
-});
-
-const DEBT_PRIORITIZATION_CONFIG = _definePrioritizationConfig();
-
-/**
- * Export the configuration as a frozen object to ensure immutability and
- * prevent runtime modification of critical strategic weights and thresholds.
- */
-module.exports = Object.freeze(DEBT_PRIORITIZATION_CONFIG);
+}))());
