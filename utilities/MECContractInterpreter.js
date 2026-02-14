@@ -1,7 +1,7 @@
 interface Rule {
     rule_id: string;
     applies_to: string;
-    condition: string; // The expression to evaluate
+    condition: string;
     action: string;
     severity: string;
 }
@@ -19,7 +19,6 @@ interface Contract {
 
 interface ExecutionContext extends Record<string, any> {}
 
-// Simplified Schema Definition for use with the validator tool
 const MEC_CONTRACT_SCHEMA = {
     $schema: "http://json-schema.org/draft-07/schema#",
     type: "object",
@@ -31,39 +30,50 @@ const MEC_CONTRACT_SCHEMA = {
     required: ["contract_id", "ruleset", "components"]
 };
 
-
-// Assuming SchemaValidationService and SecureExpressionEvaluatorTool are accessible globally
-declare const SchemaValidationService: {
-    execute: (args: { data: any, schema: any }) => { isValid: boolean, errors: string[] };
-};
-declare const SecureExpressionEvaluatorTool: {
-    execute: (args: { expression: string, context: Record<string, any> }) => boolean;
-};
-
-
 class MECContractInterpreter {
     private contract: Contract;
     private ruleIndex: Record<string, Rule> = {};
     private componentIndex: Record<string, Component> = {};
+    private schemaValidator;
+    private expressionEvaluator;
 
-    constructor(contractJson: Contract) {
+    constructor(
+        contractJson: Contract,
+        schemaValidator: any, // SchemaValidationService
+        expressionEvaluator: any // SecureExpressionEvaluatorTool
+    ) {
+        // AGI-KERNEL Dependency Validation: Immediate TypeError on invalid shape
+        if (!schemaValidator || typeof schemaValidator.execute !== 'function') {
+            throw new TypeError("MECContractInterpreter requires a valid SchemaValidationService dependency with an 'execute' function.");
+        }
+        if (!expressionEvaluator || typeof expressionEvaluator.execute !== 'function') {
+            throw new TypeError("MECContractInterpreter requires a valid SecureExpressionEvaluatorTool dependency with an 'execute' function.");
+        }
+
+        this.schemaValidator = schemaValidator;
+        this.expressionEvaluator = expressionEvaluator;
         this.contract = contractJson;
+        
         this.validateSchema();
         this.indexRules();
     }
 
     private validateSchema() {
-        // Replaced manual checks with SchemaValidationService
-        const validationResult = SchemaValidationService.execute({
+        const validationResult = this.schemaValidator.execute({
             data: this.contract,
             schema: MEC_CONTRACT_SCHEMA
         });
 
         if (!validationResult.isValid) {
-            const errors = validationResult.errors.map(e => (typeof e === 'string' ? e : e.message || 'Unknown error')).join(', ');
-            throw new Error(`MEC Contract failed structural validation: ${errors}`);
+            const errors = validationResult.errors.map(e => (typeof e === 'string' ? e : e.message || 'Unknown error')).join('; ');
+            
+            // Use CanonicalErrorFactory for standardized initialization failure reporting
+            throw CanonicalErrorFactory.create('ContractInitializationError', {
+                message: `MEC Contract failed structural validation during initialization.`,
+                details: errors,
+                code: 'CONTRACT_SCHEMA_INVALID'
+            });
         }
-        console.log(`Contract ${this.contract.contract_id} loaded successfully.`);
     }
 
     private indexRules() {
@@ -96,8 +106,7 @@ class MECContractInterpreter {
         };
 
         try {
-            // CRITICAL: Replaced insecure eval() with the SecureExpressionEvaluatorTool plugin
-            const result = SecureExpressionEvaluatorTool.execute({
+            const result = this.expressionEvaluator.execute({
                 expression: rule.condition,
                 context: environment
             });
@@ -109,8 +118,8 @@ class MECContractInterpreter {
 
         } catch (e) {
             const error = e as Error;
-            console.error(`Error executing rule ${ruleId}:`, error);
-            return { status: 'ERROR', message: 'Evaluation failed', details: error.message };
+            // Standardized error return
+            return { status: 'ERROR', message: 'Evaluation failed', details: error.message || String(error) };
         }
     }
 }
