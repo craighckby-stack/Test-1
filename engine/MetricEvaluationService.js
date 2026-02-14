@@ -51,9 +51,9 @@ class MetricEvaluationService {
   #contextMap: any;
   #dataProvider: Map<string, DataProvider>;
   // Assumed injection point for the plugin managing data aggregation
-  #asyncWeightedScorer: AsyncWeightedScorerInterface; 
+  #asyncWeightedScorer: AsyncWeightedScorerInterface;
   // Assumed injection point for the plugin managing value scaling
-  #normalizationUtility: NormalizationUtilityInterface; 
+  #normalizationUtility: NormalizationUtilityInterface;
 
   constructor(config: Config) {
     this.#initializeEngine(config);
@@ -66,11 +66,11 @@ class MetricEvaluationService {
     this.#config = config;
     this.#metricDefinitions = config.metrics;
     this.#contextMap = config.context_mapping;
-    this.#dataProvider = new Map<string, DataProvider>(); 
-    
+    this.#dataProvider = new Map<string, DataProvider>();
+
     // Initialize the plugin interface placeholders (runtime kernel will inject implementation)
-    this.#asyncWeightedScorer = {} as AsyncWeightedScorerInterface; 
-    this.#normalizationUtility = {} as NormalizationUtilityInterface; 
+    this.#asyncWeightedScorer = {} as AsyncWeightedScorerInterface;
+    this.#normalizationUtility = {} as NormalizationUtilityInterface;
   }
 
   // --- I/O Proxy and Validation Methods ---
@@ -123,7 +123,6 @@ class MetricEvaluationService {
     return this.#normalizationUtility.normalize(value, functionType);
   }
 
-
   // --- Public API ---
 
   async initializeDataProviders(providers: Record<string, DataProvider>) {
@@ -146,7 +145,7 @@ class MetricEvaluationService {
       console.warn(`Metric ID ${metricId} not defined.`);
       return { metricId, value: null, status: 'SKIPPED' };
     }
-    
+
     let rawValue: number;
     let successfulComponents: number;
     let totalComponents: number;
@@ -156,7 +155,7 @@ class MetricEvaluationService {
     // 1. Use the AsyncWeightedScorer plugin proxy to perform data fetching and aggregation.
     try {
         const result = await this.#delegateToWeightedScorer(
-            definition.calculation_components, 
+            definition.calculation_components,
             this.#dataProvider
         );
         rawValue = result.calculatedValue;
@@ -169,9 +168,8 @@ class MetricEvaluationService {
             console.error(e.message);
             return { metricId, value: null, status: 'CRITICAL_ERROR' };
         }
-        throw e; 
+        throw e;
     }
-
 
     if (successfulComponents === 0 && totalComponents > 0) {
         // Metric calculation failed completely due to lack of data
@@ -179,12 +177,12 @@ class MetricEvaluationService {
         return { metricId, value: null, status: 'FAILED_NO_DATA' };
     }
 
-    // 2. Apply normalization if defined 
+    // 2. Apply normalization if defined
     if (definition.normalization && definition.normalization.function) {
       calculatedValue = this.#delegateToNormalizationUtility(calculatedValue, definition.normalization.function);
       isNormalized = true;
     }
-    
+
     // 3. Check against risk thresholds for RISK metrics
     if (definition.type === 'RISK' && definition.thresholds && calculatedValue > definition.thresholds.static_max) {
       // Trigger alerts or mitigation logic (Future requirement)
@@ -194,8 +192,8 @@ class MetricEvaluationService {
     // 4. Log the result to Nexus memory immediately (Req #2)
     await this.#delegateToNexusStorage(metricId, calculatedValue);
 
-    return { 
-        metricId, 
+    return {
+        metricId,
         value: calculatedValue,
         status: 'SUCCESS',
         type: definition.type,
