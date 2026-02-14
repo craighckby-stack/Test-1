@@ -5,6 +5,8 @@
  * Delegates specific stub calculation logic to the KERNEL Synergy Registry.
  */
 
+// NOTE: Assumes SecurePluginExecutorUtility is available in scope.
+
 /**
  * @typedef {Object} PredictionFeatures
  * @property {number} complexity_score
@@ -36,59 +38,18 @@ class PredictiveModelStub {
      */
     async predict(features) {
         const capabilityKey = PredictiveModelStub.REQUIRED_CAPABILITY;
+        const registry = globalThis.KERNEL_SYNERGY_CAPABILITIES;
 
-        // Use the centralized executor logic to handle lookup, validation, and delegation.
-        // The global registry access is inlined to streamline the dispatch function.
-        return PredictiveModelStub.#executeCapability(
-            capabilityKey, 
-            'predict', 
-            features, 
-            globalThis.KERNEL_SYNERGY_CAPABILITIES
+        // Utilize the SecurePluginExecutorUtility.executeCapability.
+        // This utility encapsulates dependency validation, interface checks,
+        // secure execution, and ensures canonical error reporting for configuration failures,
+        // replacing the complex logic previously handled by #executeCapability and #getValidatedEngine.
+        return SecurePluginExecutorUtility.executeCapability(
+            registry,
+            capabilityKey,
+            'execute', // The required method name on the capability instance
+            ['predict', features] // Arguments passed to the capability's 'execute' method
         );
-    }
-
-    /**
-     * Handles lookup, validation, and execution delegation for KERNEL capabilities.
-     * This method now focuses purely on utilizing the validated engine instance.
-     * @private
-     * @static
-     */
-    static async #executeCapability(capabilityKey, method, features, registry) {
-        // 1. Run validation and retrieve the interface engine instance.
-        const engine = PredictiveModelStub.#getValidatedEngine(capabilityKey, registry);
-
-        // 2. Delegate execution
-        return engine.execute(method, features);
-    }
-    
-    /**
-     * Executes critical pre-flight checks and retrieves the validated KERNEL capability engine.
-     * Separates dependency validation (registry/capability presence and interface structure)
-     * from the execution delegation logic.
-     * @private
-     * @static
-     */
-    static #getValidatedEngine(capabilityKey, registry) {
-        // 1. Validate Registry presence
-        if (!registry) {
-             throw new Error("SYNERGY REGISTRY Error: KERNEL_SYNERGY_CAPABILITIES is missing entirely. Cannot delegate execution.");
-        }
-
-        // 2. Validate Capability presence
-        const engine = registry[capabilityKey];
-        if (!engine) {
-            throw new Error(
-                `SYNERGY REGISTRY Error: Capability '${capabilityKey}' is missing from the registry.`
-            );
-        }
-
-        // 3. Validate Interface structure
-        if (typeof engine.execute !== 'function') {
-            throw new Error(
-                `SYNERGY REGISTRY Interface Error: Capability '${capabilityKey}' found, but it does not expose the required 'execute(method, features)' function interface.`
-            );
-        }
-        return engine;
     }
 }
 
