@@ -14,6 +14,20 @@ class SystemError extends Error {
       Error.captureStackTrace(this, this.constructor);
     }
   }
+
+  /**
+   * Provides a structured representation of the error for serialization (e.g., logging or API response).
+   * This method is automatically called when JSON.stringify() is used on the error object.
+   */
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      metadata: this.metadata,
+      stack: this.stack
+    };
+  }
 }
 
 /**
