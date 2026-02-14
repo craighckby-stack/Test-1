@@ -57,6 +57,38 @@ class AtomicTransactionVerifierKernel {
     }
 
     /**
+     * Executes a specific audit step, handling delegation, result checking, and error logging.
+     * This centralizes delegation logic, error handling, and early exit.
+     * 
+     * @private
+     * @param {string} deploymentID
+     * @param {string} stepName - Descriptive name for logging.
+     * @param {function} auditDelegate - The function to execute (must be bound if necessary).
+     * @param {Array<any>} args - Arguments for the auditDelegate.
+     * @param {string} successKey - The key in the result object that indicates success ('isConsistent' or 'isValid').
+     * @param {string} failureReason - The public reason to return on failure.
+     * @returns {Promise<{isVerified: boolean, reason?: string} | null>} Returns failure object or null on success.
+     */
+    async #executeValidationStep(deploymentID, stepName, auditDelegate, args, successKey, failureReason) {
+        this.#logger.debug(`MTV: Executing validation step: ${stepName} for ${deploymentID}.`);
+        
+        let result;
+        try {
+            result = await auditDelegate(...args);
+        } catch (e) {
+            this.#logger.error(`MTV Execution Error in ${stepName}: ${e.message}`, { error: e });
+            return { isVerified: false, reason: `Internal error during ${stepName}.` };
+        }
+
+        if (!result || !result[successKey]) {
+            const detailedReason = result?.reason || "Validation failed without specific reason.";
+            this.#logger.error(`MTV Integrity Breach: ${stepName} failed for ${deploymentID}. Detailed Reason: ${detailedReason}`);
+            return { isVerified: false, reason: failureReason };
+        }
+        return null; // Success
+    }
+
+    /**
      * Executes the comprehensive integrity check of the transaction artifacts.
      * Ensures consistency between pre-state commitment, execution trace, and post-execution metrics.
      * 
@@ -70,7 +102,6 @@ class AtomicTransactionVerifierKernel {
         // 1. Retrieve the attested execution trace from storage
         let traceArtifact;
         try {
-            // Mapping 'retrieveTrace' to a generic SecureResourceLoader operation, assuming a path structure.
             traceArtifact = await this.#storageLoader.loadResource(`trace-artifact://${deploymentID}`);
         } catch (error) {
              this.#logger.error(`MTV Retrieval Error: Failed to load trace artifact for ${deploymentID}.`, { error });
@@ -81,37 +112,33 @@ class AtomicTransactionVerifierKernel {
             return { isVerified: false, reason: "Missing critical execution trace artifact." };
         }
 
-        // --- 2. Re-calculate and verify hash of the C-04 trace log using plugin ---
+        // --- 2. Re-calculate and verify hash of the C-04 trace log using centralized execution ---
         
-        // Passing the bound async hashing function from the Crypto kernel.
         const hashFunction = this.#crypto.hashArtifact.bind(this.#crypto);
 
-        const hashCheckResult = await this.#integrityAuditor.verifyHashConsistency(
-            traceArtifact.traceLog,
-            auditContext.expectedTraceHash,
-            hashFunction
+        const hashFailure = await this.#executeValidationStep(
+            deploymentID,
+            "C04 Trace Hash Check",
+            this.#integrityAuditor.verifyHashConsistency.bind(this.#integrityAuditor),
+            [traceArtifact.traceLog, auditContext.expectedTraceHash, hashFunction],
+            'isConsistent',
+            "C04 Execution Trace hash mismatch."
         );
-
-        if (!hashCheckResult.isConsistent) {
-             this.#logger.error(`MTV Integrity Breach: C04 Execution Trace hash mismatch for ${deploymentID}. Reason: ${hashCheckResult.reason}`);
-             return { isVerified: false, reason: "C04 Execution Trace hash mismatch." };
-        }
+        if (hashFailure) return hashFailure;
         
-        // --- 3. Verify SEA/FBA Audit Data Integrity (Signature check) using plugin ---
+        // --- 3. Verify SEA/FBA Audit Data Integrity (Signature check) using centralized execution ---
 
-        // Passing the bound async signature verification function from the Crypto kernel.
         const verifyFunction = this.#crypto.verifySignature.bind(this.#crypto);
 
-        const signatureCheckResult = await this.#integrityAuditor.verifySignatureIntegrity(
-            auditContext.metrics, 
-            auditContext.auditSignature,
-            verifyFunction
+        const signatureFailure = await this.#executeValidationStep(
+            deploymentID,
+            "Audit Data Signature Check",
+            this.#integrityAuditor.verifySignatureIntegrity.bind(this.#integrityAuditor),
+            [auditContext.metrics, auditContext.auditSignature, verifyFunction],
+            'isValid',
+            "SEA/FBA Audit data signature verification failed."
         );
-
-        if (!signatureCheckResult.isValid) {
-             this.#logger.error(`MTV Integrity Breach: Audit data signature failed verification for ${deploymentID}. Reason: ${signatureCheckResult.reason}`);
-            return { isVerified: false, reason: "SEA/FBA Audit data signature verification failed." };
-        }
+        if (signatureFailure) return signatureFailure;
 
         this.#logger.info(`MTV: Transaction integrity verified for ${deploymentID}.`);
         return { isVerified: true };
