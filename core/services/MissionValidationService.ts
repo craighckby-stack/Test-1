@@ -89,7 +89,8 @@ export class MissionValidationService {
         // Delegate validation execution to isolate external tool interaction
         return this.#delegateToValidationExecution(missionConfig, missionId);
     } catch (e) {
-        this.#handleValidationExecutionError(e);
+        // Pass missionId for enhanced logging/error message generation
+        this.#handleValidationExecutionError(e, missionId);
     }
   }
 
@@ -110,20 +111,30 @@ export class MissionValidationService {
       return this.validateMission(missionConfig, missionId);
   }
 
-  /** Handles and transforms errors originating from the validation delegation. */
-  #handleValidationExecutionError(e: unknown): never {
+  /** 
+   * Handles and transforms errors originating from the validation delegation.
+   * Optimization: Uses AjvErrorFormatterTool to generate a high-quality, actionable error message.
+   */
+  #handleValidationExecutionError(e: unknown, missionId: string): never {
       // The plugin throws a generic internal error (SchemaValidationError) with attached validationErrors.
       const validationError = e as any;
       
-      // Convert the generic internal error into the domain-specific MissionValidationError
-      if (validationError && validationError.message) {
+      // Check if the error structure contains the expected AJV errors array
+      if (validationError && Array.isArray(validationError.validationErrors)) {
+          const errors: ErrorObject[] = validationError.validationErrors;
+          
+          // CRITICAL OPTIMIZATION: Use the dedicated formatter tool to generate a high-quality, actionable message.
+          const formattedDetails = AjvErrorFormatterTool.format(errors);
+          
+          const message = `Mission Validation Failed for ID '${missionId}'. Structural violations detected: ${formattedDetails}`;
+
           throw new MissionValidationError(
-              validationError.message, 
-              validationError.validationErrors || []
+              message, 
+              errors
           );
       }
       
-      // Re-throw if it's an unexpected system error
+      // Re-throw if it's an unexpected system error or lacks validation details
       throw e; 
   }
 }
