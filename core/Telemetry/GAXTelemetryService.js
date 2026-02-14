@@ -12,7 +12,7 @@ export class GAXTelemetryService {
     #trackingId = null;
     #isEnabled = false;
     // Stores the resolved GA function (window.ga) or the NO_OP fallback.
-    #gaExecutor = NO_OP; 
+    #gaExecutor = NO_OP;
 
     /**
      * Delegates the command arguments to the resolved GA executor function.
@@ -47,7 +47,7 @@ export class GAXTelemetryService {
             console.log(`[GAXTelemetryService] Initialized but disabled.`);
             return;
         }
-        
+
         if (!this.#trackingId) {
             console.error('[GAXTelemetryService Setup Error] A trackingId is required.');
             this.#isEnabled = false;
@@ -71,7 +71,7 @@ export class GAXTelemetryService {
      */
     trackPageView(path, properties = {}) {
         if (!this.#isEnabled) return;
-        
+
         this.#executeGACommand('set', { page: path, ...properties });
         this.#executeGACommand('send', 'pageview');
     }
@@ -81,7 +81,7 @@ export class GAXTelemetryService {
      */
     trackEvent(eventName, properties) {
         if (!this.#isEnabled) return;
-        
+
         const category = properties.category || 'App Interaction';
         const action = eventName;
         const label = properties.label || JSON.stringify(properties);
@@ -90,15 +90,15 @@ export class GAXTelemetryService {
 
         this.#executeGACommand('send', 'event', category, action, label, value);
     }
-    
+
     /**
      * Identifies the current user by setting the GA User ID.
      */
     identify(userId, traits) {
         if (!this.#isEnabled) return;
 
-        this.#executeGACommand('set', 'userId', userId); 
-        
+        this.#executeGACommand('set', 'userId', userId);
+
         // In a complex implementation, traits would map to custom dimensions.
         if (traits) {
             // Example: this.#executeGACommand('set', 'dimension1', traits.accountType);
