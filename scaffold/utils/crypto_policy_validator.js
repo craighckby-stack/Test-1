@@ -44,13 +44,6 @@ class CryptoPolicyValidatorKernel {
     }
 
     /**
-     * I/O Proxy: Checks the availability status of the external validation tool.
-     */
-    #checkToolAvailability() {
-        return this.#toolAvailable;
-    }
-
-    /**
      * Helper: Returns the structured error response for when the tool is unavailable.
      */
     #getUnavailableToolError() {
@@ -58,25 +51,25 @@ class CryptoPolicyValidatorKernel {
     }
 
     /**
-     * I/O Proxy: Delegates hash compliance check to the external tool.
+     * Core delegation method. Handles tool availability check, argument wrapping, and delegation.
+     * This replaces the redundant #checkToolAvailability and specific #delegateTo* methods.
+     * @param {string} methodName - The method name on the policyValidatorTool to call.
+     * @param {object} args - Arguments specific to the validation method.
+     * @returns {{ compliant: boolean, reason: string }}
      */
-    #delegateToHashComplianceCheck(algorithmName, digestSizeBits) {
-        return this.#policyValidatorTool.isHashCompliant({
-            policy: this.#policy,
-            algorithmName,
-            digestSizeBits
-        });
-    }
+    #executeValidation(methodName, args) {
+        if (!this.#toolAvailable) {
+            return this.#getUnavailableToolError();
+        }
 
-    /**
-     * I/O Proxy: Delegates symmetric cipher compliance check to the external tool.
-     */
-    #delegateToSymmetricCipherComplianceCheck(algorithm, keySizeBits) {
-        return this.#policyValidatorTool.isSymmetricCipherCompliant({
+        // Construct the full input object including the policy
+        const input = {
             policy: this.#policy,
-            algorithm,
-            keySizeBits
-        });
+            ...args
+        };
+
+        // Delegate the call dynamically
+        return this.#policyValidatorTool[methodName](input);
     }
 
     /**
@@ -86,11 +79,10 @@ class CryptoPolicyValidatorKernel {
      * @returns {{ compliant: boolean, reason: string }}
      */
     isHashCompliant(algorithmName, digestSizeBits) {
-        if (!this.#checkToolAvailability()) {
-            return this.#getUnavailableToolError();
-        }
-
-        return this.#delegateToHashComplianceCheck(algorithmName, digestSizeBits);
+        return this.#executeValidation('isHashCompliant', {
+            algorithmName,
+            digestSizeBits
+        });
     }
 
     /**
@@ -100,11 +92,10 @@ class CryptoPolicyValidatorKernel {
      * @returns {{ compliant: boolean, reason: string }}
      */
     isSymmetricCipherCompliant(algorithm, keySizeBits) {
-        if (!this.#checkToolAvailability()) {
-            return this.#getUnavailableToolError();
-        }
-
-        return this.#delegateToSymmetricCipherComplianceCheck(algorithm, keySizeBits);
+        return this.#executeValidation('isSymmetricCipherCompliant', {
+            algorithm,
+            keySizeBits
+        });
     }
 
     // Implement additional methods for signingPolicy, keyManagement, etc., delegating to the tool.
