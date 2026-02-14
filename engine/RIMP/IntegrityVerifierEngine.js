@@ -87,6 +87,7 @@ class IntegrityVerifierEngine {
 
     /**
      * Executes the integrity scan.
+     * Optimized: Uses Promise.all for concurrent hashing, significantly reducing I/O wait time.
      * @param {number} maxPriority - Only components with priority <= this value are checked.
      * @param {boolean} differential - If true, only reports MODIFIED/ERROR results.
      * @returns {Promise<Object>} Results map.
@@ -97,40 +98,70 @@ class IntegrityVerifierEngine {
              throw new Error('Missing IntegrityHasher dependency.');
         }
 
-        this.#logInfo(`Starting Integrity Scan (Max P: ${maxPriority}, Differential: ${differential})`);
-        const results = {};
+        this.#logInfo(`Starting Integrity Scan (Max P: ${maxPriority}, Differential: ${differential}). Executing concurrent hashing.`);
         
+        const tasks = [];
+        
+        // 1. Collect all paths that need verification based on priority
         for (const key of this.#componentKeys) {
             const component = this.#baseline.components[key];
             if (component.priority <= maxPriority) {
-                this.#logDebug(`Verifying component: ${key} (P: ${component.priority})`);
-                
+                this.#logDebug(`Queueing component paths: ${key} (P: ${component.priority})`);
                 for (const [path, expectedHash] of Object.entries(component.hashes)) {
-                    let currentHash;
-                    try {
-                        // Use I/O proxy for external dependency execution
-                        currentHash = await this.#delegateToIntegrityHasherExecution(path);
-                    } catch (error) {
-                        results[path] = { status: RIMP_STATUS.ERROR, detail: error.message };
-                        this.#logError(`Error reading file ${path}: ${error.message}`);
-                        continue; // Move to the next file
-                    }
-
-                    if (currentHash !== expectedHash) {
-                        results[path] = {
-                            status: RIMP_STATUS.MODIFIED,
-                            current: currentHash,
-                            expected: expectedHash
-                        };
-                        this.#logWarn(`Integrity breach detected: ${path}`);
-                    } else if (!differential) {
-                        results[path] = { status: RIMP_STATUS.OK };
-                    }
+                    tasks.push({ path, expectedHash });
                 }
             }
         }
-        const issuesCount = Object.keys(results).filter(p => results[p].status !== RIMP_STATUS.OK).length;
-        this.#logInfo(`Scan complete. Found ${issuesCount} integrity issues.`);
+
+        // 2. Define the concurrent processing function
+        const processTask = async ({ path, expectedHash }) => {
+            let currentHash;
+            let status;
+            let resultDetails = {};
+
+            try {
+                // Delegate I/O operation
+                currentHash = await this.#delegateToIntegrityHasherExecution(path);
+                
+                if (currentHash !== expectedHash) {
+                    status = RIMP_STATUS.MODIFIED;
+                    resultDetails = { current: currentHash, expected: expectedHash };
+                    this.#logWarn(`Integrity breach detected: ${path}`);
+                } else {
+                    status = RIMP_STATUS.OK;
+                }
+            } catch (error) {
+                status = RIMP_STATUS.ERROR;
+                resultDetails = { detail: error.message };
+                this.#logError(`Error reading file ${path}: ${error.message}`);
+            }
+
+            // Return the full result object, or null if OK and differential mode is active
+            if (status !== RIMP_STATUS.OK || !differential) {
+                return { path, status, ...resultDetails };
+            }
+            return null;
+        };
+
+        // 3. Execute all tasks concurrently
+        const taskPromises = tasks.map(processTask);
+        const rawResults = await Promise.all(taskPromises);
+
+        // 4. Aggregate and filter results
+        const results = {};
+        let issuesCount = 0;
+
+        for (const result of rawResults) {
+            if (result) {
+                const { path, status, ...details } = result;
+                results[path] = { status, ...details };
+                if (status !== RIMP_STATUS.OK) {
+                    issuesCount++;
+                }
+            }
+        }
+        
+        this.#logInfo(`Scan complete. Processed ${tasks.length} files. Found ${issuesCount} integrity issues.`);
         return results;
     }
 }
