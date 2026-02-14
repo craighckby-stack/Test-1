@@ -1,7 +1,7 @@
 /**
- * Proposal Success History Index (PSHI) v94.2 - Ultra-Efficiency Indexing
+ * Proposal Success History Index (PSHI) v94.3 - Ultra-Efficiency Indexing (O(1) Pruning)
  * Stores and analyzes historical metadata concerning generated code proposals (AGI-C-14 output).
- * Utilizes indexed maps for O(1) access.
+ * Utilizes indexed maps for O(1) access and a Doubly Linked List for O(1) FIFO pruning.
  * Refactored to enforce Dependency Injection and configuration isolation.
  */
 
@@ -36,8 +36,11 @@ class ProposalHistoryIndexKernel {
         // Index 1: Primary data store by proposal ID (O(1) access)
         this.proposalsById = new Map();
 
-        // Index 2: Temporal Queue (FIFO) - Stores IDs only for efficient O(1) pruning 
-        this.temporalQueueIds = []; 
+        // Index 2: Temporal Queue (Doubly Linked List simulation for O(1) FIFO pruning)
+        // Replaces temporalQueueIds array to eliminate O(N) shift operation.
+        this._head = null; 
+        this._tail = null; 
+        this._currentSize = 0; 
 
         // Index 3: Agent Performance Aggregates
         // { agentId: { successCount: N, failureCount: M, weightedAverageRate: W, recentScores: [] } }
@@ -50,7 +53,6 @@ class ProposalHistoryIndexKernel {
 
     // Configuration and Tool setup isolated
     #setupDependencies() {
-        // Configuration retrieved via injected registry, eliminating hardcoded defaults and synchronous setup.
         this.maxHistorySize = this._configRegistry.getMaxHistorySize();
     }
 
@@ -78,6 +80,43 @@ class ProposalHistoryIndexKernel {
     }
 
     /**
+     * Helper to manage the O(1) FIFO ID queue (Doubly Linked List implementation).
+     * Appends a new ID to the tail.
+     * @param {string} id 
+     */
+    _appendId(id) {
+        const newNode = { id, prev: this._tail, next: null };
+        if (this._tail) {
+            this._tail.next = newNode;
+        } else {
+            this._head = newNode;
+        }
+        this._tail = newNode;
+        this._currentSize++;
+    }
+
+    /**
+     * Helper to manage the O(1) FIFO ID queue.
+     * Removes and returns the ID from the head (oldest).
+     * @returns {string | null} The oldest ID removed.
+     */
+    _removeHead() {
+        if (!this._head) return null;
+        
+        const removedNode = this._head;
+        this._head = removedNode.next;
+        
+        if (this._head) {
+            this._head.prev = null;
+        } else {
+            this._tail = null; // List is now empty
+        }
+        this._currentSize--;
+        return removedNode.id;
+    }
+
+
+    /**
      * Helper to update all auxiliary maps upon event insertion.
      * @param {object} normalizedEvent - The event object ready for indexing.
      */
@@ -86,7 +125,7 @@ class ProposalHistoryIndexKernel {
         const isSuccess = normalizedEvent.isSuccess;
         
         // 1. Update temporal history and lookups (O(1) insert)
-        this.temporalQueueIds.push(normalizedEvent.proposal_id);
+        this._appendId(normalizedEvent.proposal_id); // O(1)
         this.proposalsById.set(normalizedEvent.proposal_id, normalizedEvent);
 
         // 2. Update agent performance aggregates (O(1) lookup/update)
@@ -103,17 +142,15 @@ class ProposalHistoryIndexKernel {
 
         if (isSuccess) {
             stats.successCount++;
-            // Treat success as a perfect score (1.0) for EMA if no CIW score is present
             const rateValue = normalizedEvent.actual_score_ciw !== undefined ? normalizedEvent.actual_score_ciw : 1.0;
             stats.weightedAverageRate = this._emaCalculator.calculate(stats.weightedAverageRate, rateValue);
         } else {
             stats.failureCount++;
             this.totalFailureCount++;
-            // Treat failure as zero for EMA
             stats.weightedAverageRate = this._emaCalculator.calculate(stats.weightedAverageRate, 0);
         }
 
-        // Update recent CIW scores (essential for quick, un-decayed metric)
+        // Update recent CIW scores
         if (normalizedEvent.actual_score_ciw !== undefined) {
             stats.recentScores.push(normalizedEvent.actual_score_ciw);
             if (stats.recentScores.length > 50) {
@@ -130,14 +167,13 @@ class ProposalHistoryIndexKernel {
     }
 
     /**
-     * Implements an O(N) removal pruning mechanism using the ID queue (note: Array.shift is O(N)).
+     * Implements an O(1) removal pruning mechanism using the Doubly Linked List.
      */
     _pruneHistory() {
-        if (this.temporalQueueIds.length > this.maxHistorySize) {
-            const excessCount = this.temporalQueueIds.length - this.maxHistorySize;
+        while (this._currentSize > this.maxHistorySize) {
+            const oldestId = this._removeHead(); // O(1) operation
             
-            for (let i = 0; i < excessCount; i++) {
-                const oldestId = this.temporalQueueIds.shift(); 
+            if (oldestId) {
                 const oldEvent = this.proposalsById.get(oldestId);
                 
                 if (oldEvent) {
@@ -152,8 +188,6 @@ class ProposalHistoryIndexKernel {
                             }
                         }
                     }
-                    
-                    // NOTE: Agent counts are preserved for long-term stats unless complex PME decay is required.
                 }
             }
         }
