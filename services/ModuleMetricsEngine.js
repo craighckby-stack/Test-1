@@ -58,37 +58,17 @@ class ModuleMetricsKernel {
   }
 
   /**
-   * I/O Proxy: Delegates execution to the external analysis tool.
-   * @param {string} sourceCode
-   * @param {string} lang
-   * @returns {Promise<{dependencies: any, complexityScore: number}>}
-   */
-  async #delegateToAnalysisExecutor(sourceCode, lang) {
-    // Assumes the executor returns a raw metric object.
-    return await this.#analysisExecutor.execute(sourceCode, lang);
-  }
-
-  /**
-   * I/O Proxy: Delegates metric standardization to the external formatter tool.
-   * @param {object} rawMetrics
-   * @returns {object} Standardized metrics.
-   */
-  #delegateToMetricFormatter(rawMetrics) {
-    return this.#metricFormatter.format(rawMetrics);
-  }
-
-  /**
    * Analyzes source code to derive standardized metrics.
    * @param {string} sourceCode
    * @param {string} [lang='javascript']
    * @returns {Promise<object>} Standardized module metrics payload.
    */
   async analyze(sourceCode, lang = 'javascript') {
-    // 1. Calculate raw metrics using dedicated executor proxy
-    const rawMetrics = await this.#delegateToAnalysisExecutor(sourceCode, lang);
+    // 1. Calculate raw metrics using the executor.
+    const rawMetrics = await this.#analysisExecutor.execute(sourceCode, lang);
 
-    // 2. Format and standardize the payload using formatter proxy
-    return this.#delegateToMetricFormatter(rawMetrics);
+    // 2. Format and standardize the payload.
+    return this.#metricFormatter.format(rawMetrics);
   }
 
   // Methods for storing/retrieving historical scores...
