@@ -101,50 +101,67 @@ export class AxiomaticProofVerifierKernel {
         const validatorMap = this.#delegateToDataIndexer(eligibleValidators, 'id');
         const requiredWeight = this.#calculateRequiredWeight(eligibleValidators, requiredThreshold);
 
-        let accumulatedWeight = 0;
-        const validatedValidatorIds = new Set(); 
+        // 2. Asynchronously reduce signatures to calculate accumulated weight
+        const initialState = { 
+            weight: 0, 
+            validatedIds: new Set(), 
+            requiredWeight: requiredWeight,
+            thresholdReached: false
+        };
 
-        // 2. Iterate and Verify Signatures
-        for (const signatureAttestation of proof.signatures) {
-            const validatorId = signatureAttestation.validatorId;
+        const finalState = await proof.signatures.reduce(async (accumulatorPromise, attestation) => {
+            const acc = await accumulatorPromise;
 
-            if (!validatorId || !signatureAttestation.signature) {
-                continue;
+            // Optimization: Early exit if threshold is already reached
+            if (acc.thresholdReached) {
+                return acc;
+            }
+
+            const validatorId = attestation.validatorId;
+            
+            if (!validatorId || !attestation.signature) {
+                return acc;
             }
 
             const validatorInfo = validatorMap[validatorId];
             
             // Check 1: Validator must be active/known
             if (!validatorInfo) {
-                 continue;
+                 return acc;
             }
 
             // Check 2: Prevent double-counting
-            if (validatedValidatorIds.has(validatorId)) {
-                continue; 
+            if (acc.validatedIds.has(validatorId)) {
+                return acc; 
             }
 
-            // 3. Verify cryptographic signature (I/O Proxy)
-            const messageToVerify = `${stateHash}:${proof.consensusMechanism}:${signatureAttestation.nonce}`;
+            // 3. Verify cryptographic signature
+            const messageToVerify = `${stateHash}:${proof.consensusMechanism}:${attestation.nonce}`;
 
             const isValidSignature = await this.#delegateToSignatureService(
                 messageToVerify,
-                signatureAttestation.signature,
+                attestation.signature,
                 validatorInfo.publicKey
             );
 
             if (isValidSignature) {
-                accumulatedWeight += validatorInfo.weight;
-                validatedValidatorIds.add(validatorId); 
+                const newWeight = acc.weight + validatorInfo.weight;
                 
-                // Optimization: Early exit if threshold is reached
-                if (accumulatedWeight >= requiredWeight) {
-                    return true;
-                }
+                // Clone Set for functional purity, then add new ID
+                const newValidatedIds = new Set(acc.validatedIds).add(validatorId);
+                
+                return {
+                    weight: newWeight,
+                    validatedIds: newValidatedIds,
+                    requiredWeight: acc.requiredWeight,
+                    thresholdReached: newWeight >= acc.requiredWeight
+                };
             }
-        }
+            
+            return acc; // Signature invalid
+        }, Promise.resolve(initialState));
 
         // 4. Final Check 
-        return accumulatedWeight >= requiredWeight;
+        return finalState.thresholdReached;
     }
 }
