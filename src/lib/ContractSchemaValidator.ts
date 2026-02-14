@@ -40,7 +40,7 @@ export class EventContractValidator {
     // Stores compiled validation functions, replacing direct Ajv instance storage
     private validatorMap: Map<string, ValidateFunction>;
     private contract: TEDSContract;
-    
+
     // Allows contractPath injection for testing or flexible environment configuration
     constructor(contractPath: string = CONTRACT_PATH) {
         const parsedContract = this.loadContract(contractPath);
@@ -48,12 +48,12 @@ export class EventContractValidator {
 
         try {
             // 1. Configure Ajv Environment (TS responsibility, replacing static helper)
-            const ajv = new Ajv({ 
-                allErrors: true, 
-                useDefaults: true, 
+            const ajv = new Ajv({
+                allErrors: true,
+                useDefaults: true,
                 allowUnionTypes: true,
-                strict: true, 
-                removeAdditional: true 
+                strict: true,
+                removeAdditional: true
             });
             addFormats(ajv);
 
@@ -88,13 +88,13 @@ export class EventContractValidator {
     private compileSchemas(ajv: Ajv, contract: TEDSContract): Map<string, ValidateFunction> {
         const { eventTypes, defaultMetadataSchema } = contract;
         const validationMap = new Map<string, ValidateFunction>();
-        
+
         for (const eventName in eventTypes) {
             if (Object.prototype.hasOwnProperty.call(eventTypes, eventName)) {
-                
+
                 // Core structural logic: wrapping payload with default metadata
                 const fullSchema: Schema = {
-                    $id: eventName, 
+                    $id: eventName,
                     type: 'object',
                     properties: {
                         metadata: defaultMetadataSchema,
@@ -103,9 +103,9 @@ export class EventContractValidator {
                     required: ['metadata', 'payload'],
                     additionalProperties: false,
                 };
-                
+
                 ajv.addSchema(fullSchema, eventName);
-                
+
                 const validator = ajv.getSchema(eventName);
                 if (!validator) {
                     // If addSchema or getSchema fails, initialization should fail explicitly
@@ -114,29 +114,29 @@ export class EventContractValidator {
                 validationMap.set(eventName, validator as ValidateFunction);
             }
         }
-        
+
         return validationMap;
     }
 
     public validate(eventName: string, data: object): ValidationResult {
         const validate = this.validatorMap.get(eventName);
-        
+
         if (!validate) {
-            return { 
-                isValid: false, 
+            return {
+                isValid: false,
                 errors: [{
                     message: `Schema not compiled/found for event type: ${eventName}. Ensure the event name exists in the contract.`,
                     keyword: 'missingSchema',
                     instancePath: '',
                     schemaPath: '',
                     params: { eventName } as any
-                } as ErrorObject] 
+                } as ErrorObject]
             };
         }
-        
+
         // The validator modifies the 'data' object if useDefaults is true.
         const isValid = validate(data) as boolean;
-        
+
         return {
             isValid: isValid,
             errors: validate.errors
