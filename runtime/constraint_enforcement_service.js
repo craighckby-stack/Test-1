@@ -54,11 +54,9 @@ class ConstraintEnforcementKernel {
     /**
      * (Strategic Goal: I/O Proxy Creation - External Delegation)
      * Delegates efficient storage, caching, and integrity checks.
+     * NOTE: State clearing must be handled by the caller (getValidatedContract).
      */
     #delegateToContractCacheUtility(moduleId) {
-        // Must clear state before calling the utility based on its API contract.
-        this.#clearActiveContractMap();
-        
         // Utility handles caching, efficient lookup, and cycle detection.
         return this.#contractCacheUtility.execute({ 
             moduleId: moduleId,
@@ -109,6 +107,9 @@ class ConstraintEnforcementKernel {
      * @throws {Error} If a circular dependency or missing contract is found.
      */
     getValidatedContract(moduleId) {
+        // Ensure the context map is clear for a fresh dependency check scope, 
+        // as required by the ContractIntegrityAndCacheUtility API contract.
+        this.#clearActiveContractMap(); 
         return this.#delegateToContractCacheUtility(moduleId);
     }
 
