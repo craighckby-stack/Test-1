@@ -31,6 +31,11 @@ class FailureTraceLogger_Service {
             throw new Error("FailureTraceLogger_Service requires all three dependencies (serializer, certifier, storage) to be explicitly injected.");
         }
         
+        // Robustness Check: Ensure dependencies expose required methods.
+        if (typeof serializer.serialize !== 'function') throw new Error("Serializer dependency missing required 'serialize' method.");
+        if (typeof certifier.sign !== 'function') throw new Error("Certifier dependency missing required 'sign' method.");
+        if (typeof storage.store !== 'function') throw new Error("Storage dependency missing required 'store' method.");
+
         this.#serializer = serializer; 
         this.#certifier = certifier;   
         this.#storage = storage;
@@ -47,20 +52,22 @@ class FailureTraceLogger_Service {
 
     /**
      * Delegates asynchronous signing/certification to the external plugin.
+     * Optimization: Removed redundant 'async/await'. Returns the promise directly.
      * @param {string} canonicalTrace - The deterministic JSON string.
      * @returns {Promise<string>} The certified log data.
      */
-    async #delegateToCertifier(canonicalTrace) {
-        return await this.#certifier.sign(canonicalTrace);
+    #delegateToCertifier(canonicalTrace) {
+        return this.#certifier.sign(canonicalTrace);
     }
 
     /**
      * Delegates asynchronous immutable storage operation to the external connector.
+     * Optimization: Removed redundant 'async/await'. Returns the promise directly.
      * @param {string} certifiedLog - The certified log data.
      * @returns {Promise<object>} The storage receipt.
      */
-    async #delegateToStorage(certifiedLog) {
-        return await this.#storage.store(certifiedLog);
+    #delegateToStorage(certifiedLog) {
+        return this.#storage.store(certifiedLog);
     }
 
     /**
@@ -70,7 +77,7 @@ class FailureTraceLogger_Service {
      */
     async logFailure(traceData) {
         if (!traceData || typeof traceData !== 'object') {
-            throw new Error("Invalid trace data provided for logging.");
+            throw new Error("Invalid trace data provided for logging: Must be a non-null object.");
         }
 
         // 1. Canonical JSON Serialization
