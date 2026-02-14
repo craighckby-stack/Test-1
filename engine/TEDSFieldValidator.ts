@@ -27,7 +27,7 @@ export class TEDSFieldValidator {
 
   // --- Private Proxies (I/O & Internal Logic) ---
 
-  /** 
+  /**
    * Proxy for Logger.info, strictly isolating logging operations.
    */
   #logInfo(message: string): void {
@@ -42,7 +42,7 @@ export class TEDSFieldValidator {
     let primaryDomainSchema: { [key: string]: ZodSchema } = {};
 
     // For demonstration, return a basic, conceptual compilation wrapper:
-    return z.object({ 
+    return z.object({
       // Runtime generation happens here based on TEDS_SCHEMA
       core_transaction: z.record(z.string(), z.any())
     }).passthrough();
@@ -61,7 +61,7 @@ export class TEDSFieldValidator {
    * Validates and attempts to normalize raw input data against the TEDS standard.
    */
   public processAndValidate(rawData: unknown): ValidationResult<any> {
-    
+
     // 1. Define the specific validation function (Zod parsing logic).
     const zodValidatorFunction = (data: unknown) => {
         // The validator must throw the exception (ZodError) for the utility to catch and parse.
