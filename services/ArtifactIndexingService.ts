@@ -85,7 +85,7 @@ export class ArtifactIndexingKernel {
         // Initialize File Watcher
         this.#watcher = new FileWatcherClass();
     }
-    
+
     // I/O Proxy for Setup Errors
     #throwSetupError(message: string): never {
         throw new KernelSetupError(message);
@@ -121,7 +121,7 @@ export class ArtifactIndexingKernel {
     // I/O Proxy for core asynchronous work (processing)
     private async #delegateToProcessingAndIndexing(job: { path: string, rule: any, event: string }) {
         this.#logProcessingStart(job.path, job.rule.strategy);
-        
+
         // Implementation details involving #vectorDb interaction go here
         // e.g. await this.#vectorDb.insert(processedData);
     }
@@ -140,20 +140,20 @@ export class ArtifactIndexingKernel {
     #logIgnoreRule(path: string, rule: IndexingPolicy['policies'][number]): void {
         console.log(`[Indexing] Ignoring artifact: ${path} via priority ${rule.priority}`);
     }
-    
+
     // I/O Proxy for Logging Processing Start
     #logProcessingStart(path: string, strategy: string): void {
         console.log(`[Indexing] Processing ${path} using strategy ${strategy}.`);
     }
 
     private async #handleArtifactChange(path: string, event: 'added' | 'changed' | 'deleted') {
-        
+
         // 1. Find the applicable rule using the dedicated tool and cached rules
         const applicableRule = this.#delegateToRuleMatcher(
             path,
             this.#cachedRules // Optimized: Use cached rules
         );
-        
+
         if (!applicableRule) {
             // Optimized: Use cached default policy
             this.#logDefaultPolicyMatch(path, this.#cachedDefaultPolicy);
