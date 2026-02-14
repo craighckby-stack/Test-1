@@ -32,6 +32,10 @@ export class ArtifactIndexingKernel {
     #vectorDb: VectorDB;
     #ruleMatcher: PathPolicyRuleMatcherTool;
 
+    // Optimization: Cache static policy data for high-frequency access
+    #cachedRules: IndexingPolicy['policies'];
+    #cachedDefaultPolicy: string;
+
     /**
      * @param policyConfig The indexing policy configuration.
      * @param vectorDb The vector database instance.
@@ -70,6 +74,10 @@ export class ArtifactIndexingKernel {
         // Initialize Policy Manager (abstraction of policy configuration/sorting)
         this.#policyManager = new PolicyManagerClass(policyConfig);
 
+        // Optimization: Cache static policy data immediately after manager initialization
+        this.#cachedRules = this.#policyManager.getRules();
+        this.#cachedDefaultPolicy = this.#policyManager.getDefaultPolicy();
+
         // Assign remaining dependencies
         this.#vectorDb = vectorDb;
         this.#ruleMatcher = ruleMatcherTool;
@@ -103,16 +111,6 @@ export class ArtifactIndexingKernel {
     // I/O Proxy for Policy Access
     #delegateToPolicyManagerGetPolicy(): IndexingPolicy {
         return this.#policyManager.getPolicy();
-    }
-
-    // I/O Proxy for Rule Access
-    #delegateToPolicyManagerGetRules(): IndexingPolicy['policies'] {
-        return this.#policyManager.getRules();
-    }
-
-    // I/O Proxy for Default Policy Access
-    #delegateToPolicyManagerGetDefaultPolicy(): string {
-        return this.#policyManager.getDefaultPolicy();
     }
 
     // I/O Proxy for External Tool Execution (Rule Matcher)
@@ -150,14 +148,15 @@ export class ArtifactIndexingKernel {
 
     private async #handleArtifactChange(path: string, event: 'added' | 'changed' | 'deleted') {
         
-        // 1. Find the applicable rule using the dedicated tool and pre-sorted rules
+        // 1. Find the applicable rule using the dedicated tool and cached rules
         const applicableRule = this.#delegateToRuleMatcher(
             path,
-            this.#delegateToPolicyManagerGetRules()
+            this.#cachedRules // Optimized: Use cached rules
         );
         
         if (!applicableRule) {
-            this.#logDefaultPolicyMatch(path, this.#delegateToPolicyManagerGetDefaultPolicy());
+            // Optimized: Use cached default policy
+            this.#logDefaultPolicyMatch(path, this.#cachedDefaultPolicy);
             return;
         }
 
