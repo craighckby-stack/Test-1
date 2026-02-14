@@ -8,14 +8,7 @@
 class IDataSourceHandler {
     
     constructor() {
-        this.#ensureAbstractConstraint();
-    }
-
-    /**
-     * Enforces that this class cannot be instantiated directly, only subclassed.
-     * @private
-     */
-    #ensureAbstractConstraint() {
+        // Enforces that this class cannot be instantiated directly, only subclassed.
         if (new.target === IDataSourceHandler) {
             throw new TypeError("Cannot instantiate abstract class IDataSourceHandler directly.");
         }
