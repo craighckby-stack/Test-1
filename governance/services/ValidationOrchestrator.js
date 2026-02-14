@@ -40,7 +40,7 @@ class ValidationOrchestrator {
 
     /**
      * Extracts synchronous dependency resolution and initialization logic.
-     * @param {object} dependencies 
+     * @param {object} dependencies
      */
     #setupDependencies(dependencies) {
         // Use TaskAggregator interface. Support legacy name during transition.
