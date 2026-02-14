@@ -40,20 +40,9 @@ class BaseError extends Error {
  * Error specifically for issues related to handler configuration or instantiation.
  */
 export class HandlerInstantiationError extends BaseError {
-    
-    /**
-     * Synchronously prepares the canonical error metadata (code and fatal status).
-     */
-    #initializeDetails() {
-        return {
-            code: 'HANDLER_INSTANTIATION_FAILURE',
-            isFatal: true // Fatal: Configuration is broken
-        };
-    }
-
     constructor(message: string) {
-        const details = this.#initializeDetails();
-        super(message, details.code, details.isFatal);
+        // Optimized: Hardcode details directly, removing the redundant #initializeDetails method.
+        super(message, 'HANDLER_INSTANTIATION_FAILURE', true);
     }
 }
 
@@ -61,19 +50,8 @@ export class HandlerInstantiationError extends BaseError {
  * Error specifically for issues encountered during the retrieval attempt (I/O, network, strategy failures, or missing primitives).
  */
 export class RetrievalError extends BaseError {
-
-    /**
-     * Synchronously prepares the canonical error metadata (code and fatal status).
-     */
-    #initializeDetails() {
-        return {
-            code: 'DATA_RETRIEVAL_FAILURE',
-            isFatal: false
-        };
-    }
-
     constructor(message: string) {
-        const details = this.#initializeDetails();
-        super(message, details.code, details.isFatal);
+        // Optimized: Hardcode details directly, removing the redundant #initializeDetails method.
+        super(message, 'DATA_RETRIEVAL_FAILURE', false);
     }
 }
