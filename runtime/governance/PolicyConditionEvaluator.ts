@@ -3,7 +3,7 @@
  * Dedicated utility component responsible for robust and safe parsing and execution
  * of complex governance policy condition expressions (DSL).
  *
- * This implementation delegates execution to a sandboxed SecurePolicyEvaluatorTool 
+ * This implementation delegates execution to a sandboxed SecurePolicyEvaluatorTool
  * dependency provided upon initialization, ensuring security and isolation.
  */
 
@@ -63,11 +63,11 @@ export class PolicyConditionEvaluatorKernel implements PolicyConditionEvaluator 
     }
 
     /**
-     * Evaluates a complex conditional expression against a context of data points 
+     * Evaluates a complex conditional expression against a context of data points
      * by delegating the process to the sandboxed SecurePolicyEvaluatorTool.
      */
     public evaluate(conditionExpression: string, context: Record<string, any>): boolean {
-        
+
         try {
             // Delegate the substitution, keyword transformation, and safe execution.
             return this.#delegateToSecureEvaluator(conditionExpression, context);
