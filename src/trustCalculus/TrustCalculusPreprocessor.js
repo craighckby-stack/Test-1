@@ -23,24 +23,39 @@ declare const AGI: {
 export function calculateTrustContributions(rawMetrics: Record<string, number>): Record<string, number> {
     const contributions: Record<string, number> = {};
 
+    // Robustness check: Ensure the required AGI plugin is available.
+    if (!AGI || !AGI.plugins || !AGI.plugins.MetricContributionCalculator || typeof AGI.plugins.MetricContributionCalculator.execute !== 'function') {
+        console.error("AGI MetricContributionCalculator plugin is unavailable or improperly configured. Cannot calculate trust contributions.");
+        return contributions;
+    }
+
+    const calculator = AGI.plugins.MetricContributionCalculator;
+
     for (const [metricName, config] of Object.entries(METRIC_CONFIGURATIONS)) {
         const rawValue = rawMetrics[metricName];
 
-        if (rawValue === undefined || rawValue === null) {
-            console.warn(`Raw metric ${metricName} missing. Skipping calculation.`);
+        // Input Validation: Ensure rawValue is a finite number before processing.
+        if (typeof rawValue !== 'number' || !isFinite(rawValue)) {
+            console.warn(`Raw metric ${metricName} missing or invalid (${rawValue}). Skipping calculation.`);
             continue;
         }
 
         try {
             // Delegate normalization, weighting, and influence application to the dedicated utility plugin.
-            const contribution = AGI.plugins.MetricContributionCalculator.execute({
+            const contribution = calculator.execute({
                 rawValue,
                 config,
                 // historicalContext might be required for 'percentile_rank' strategy
                 historicalContext: undefined 
             });
             
-            contributions[metricName] = contribution;
+            // Output Validation: Ensure the result is a valid number.
+            if (typeof contribution === 'number' && isFinite(contribution)) {
+                contributions[metricName] = contribution;
+            } else {
+                console.warn(`Plugin returned invalid contribution for ${metricName}: ${contribution}. Setting to 0.`);
+                contributions[metricName] = 0;
+            }
             
         } catch (error) {
             console.error(`Error calculating contribution for ${metricName}:`, error);
