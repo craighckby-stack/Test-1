@@ -29,10 +29,13 @@ export class M01PolicySchemaKernel {
      * Defines the structure of the M01 Governance Refinement Proposal.
      * Translates the descriptive schema constraints into a serializable structure.
      * @returns {object} The structured schema definition compatible with the ConfigSchemaRegistry.
+     * @private
      */
     _defineSchemas() {
+        const POLICY_RULE_SCHEMA_ID = 'M01_POLICY_RULE_SCHEMA_ID';
+        const REFINEMENT_PROPOSAL_SCHEMA_ID = 'M01_REFINEMENT_PROPOSAL_SCHEMA_ID';
         
-        const PolicyRuleSchemaDefinition = {
+        const policyRuleSchema = {
             type: 'object',
             description: 'Defines the structure for a single, proposed governance rule change.',
             properties: {
@@ -56,7 +59,7 @@ export class M01PolicySchemaKernel {
             }
         };
 
-        const RefinementProposalSchemaDefinition = {
+        const refinementProposalSchema = {
             type: 'object',
             description: 'Defines the entire M01 Refinement Proposal payload from the GMRE.',
             properties: {
@@ -75,7 +78,7 @@ export class M01PolicySchemaKernel {
                 },
                 recommendedPolicyRules: { 
                     type: 'array', 
-                    items: PolicyRuleSchemaDefinition,
+                    items: policyRuleSchema,
                     optional: true,
                     description: 'Proposed additions or modifications to policy rules (VETO, WEIGHT, LIMIT).' 
                 },
@@ -89,8 +92,8 @@ export class M01PolicySchemaKernel {
         
         // Use standardized, auditable Concept IDs for registration
         return {
-            M01_POLICY_RULE_SCHEMA_ID: PolicyRuleSchemaDefinition,
-            M01_REFINEMENT_PROPOSAL_SCHEMA_ID: RefinementProposalSchemaDefinition
+            [POLICY_RULE_SCHEMA_ID]: policyRuleSchema,
+            [REFINEMENT_PROPOSAL_SCHEMA_ID]: refinementProposalSchema
         };
     }
 
@@ -107,11 +110,20 @@ export class M01PolicySchemaKernel {
         await Promise.all(registrationPromises);
     }
 
-    // Runtime retrieval methods (synchronous access to cached registry data)
+    /**
+     * Retrieves the policy rule schema from the registry.
+     * @param {string} [id='M01_POLICY_RULE_SCHEMA_ID'] - The schema ID to retrieve.
+     * @returns {object} The policy rule schema definition.
+     */
     getPolicyRuleSchema(id = 'M01_POLICY_RULE_SCHEMA_ID') {
         return this.configSchemaRegistry.get(id);
     }
     
+    /**
+     * Retrieves the refinement proposal schema from the registry.
+     * @param {string} [id='M01_REFINEMENT_PROPOSAL_SCHEMA_ID'] - The schema ID to retrieve.
+     * @returns {object} The refinement proposal schema definition.
+     */
     getRefinementProposalSchema(id = 'M01_REFINEMENT_PROPOSAL_SCHEMA_ID') {
         return this.configSchemaRegistry.get(id);
     }
