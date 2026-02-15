@@ -1,6 +1,6 @@
 import { Logger } from './Logger';
 import TEDS_SCHEMA from '../schema/teds_field_definitions.json';
-import { ZodSchema, z, ZodError } from 'zod';
+import { ZodSchema, z, ZodError, ZodType } from 'zod';
 import { executeValidation, ValidationResult } from './plugins/ValidationExecutionUtility';
 
 /**
@@ -59,19 +59,6 @@ export class TEDSFieldValidator {
   }
 
   /**
-   * Delegates validation to the external execution utility.
-   * @param validatorFn - The validation function to execute.
-   * @param rawData - The raw data to validate.
-   * @returns The validation result.
-   */
-  #delegateToValidationExecution(
-    validatorFn: (data: unknown) => unknown,
-    rawData: unknown
-  ): ValidationResult<unknown> {
-    return executeValidation(validatorFn, rawData, Logger);
-  }
-
-  /**
    * Validates and attempts to normalize raw input data against the TEDS standard.
    * @param rawData - The raw data to validate.
    * @returns A ValidationResult object containing the validation outcome.
@@ -95,6 +82,6 @@ export class TEDSFieldValidator {
       }
     };
 
-    return this.#delegateToValidationExecution(zodValidatorFunction, rawData);
+    return executeValidation(zodValidatorFunction, rawData, Logger);
   }
 }
