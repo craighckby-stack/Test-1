@@ -24,7 +24,7 @@ Documents immutable constraints. Operational docs describe *capability*; this do
 | Arch | Triple-layer (GH + FB Tools + FB Memory) |
 | Self-Mod | Every 50 cycles |
 | Milestones | ACTIVE |
-| Cerebras Loop | 🔲 Pending Implementation |
+| Cerebras Loop | 🔴 Pending Implementation |
 | Governance | ✅ This document |
 
 ---
