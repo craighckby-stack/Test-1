@@ -27,34 +27,33 @@ const INTERNAL_VALIDATOR_MESSAGES = Object.freeze({
  * This replaces the synchronous utility export with an architectural configuration registry.
  */
 export class ValidatorMessagesConfigRegistryKernel extends AbstractKernel {
-    
-    constructor() {
-        super('ValidatorMessagesConfigRegistryKernel');
-    }
+  constructor() {
+    super('ValidatorMessagesConfigRegistryKernel');
+  }
 
-    /**
-     * @inheritdoc
-     * No external dependencies are required for static message definitions.
-     */
-    async #setupDependencies() {
-        // Enforces the synchronous setup extraction mandate.
-    }
+  /**
+   * @inheritdoc
+   * No external dependencies are required for static message definitions.
+   */
+  async #setupDependencies() {
+    // Enforces the synchronous setup extraction mandate.
+  }
 
-    /**
-     * @inheritdoc
-     */
-    async initialize() {
-        await this.#setupDependencies();
-        // Message configuration is static, no further async initialization required.
-    }
+  /**
+   * @inheritdoc
+   */
+  async initialize() {
+    await this.#setupDependencies();
+    // Message configuration is static, no further async initialization required.
+  }
 
-    /**
-     * Retrieves the standardized validation message generators.
-     * @returns {Promise<Readonly<Object<string, Function>>>} An immutable map of rule names to message generation functions.
-     */
-    async getMessages() {
-        // Configuration access must be asynchronous to maintain architectural consistency,
-        // even for static data.
-        return Promise.resolve(INTERNAL_VALIDATOR_MESSAGES);
-    }
+  /**
+   * Retrieves the standardized validation message generators.
+   * @returns {Promise<Readonly<Record<string, Function>>>} An immutable map of rule names to message generation functions.
+   */
+  async getMessages() {
+    // Configuration access must be asynchronous to maintain architectural consistency,
+    // even for static data.
+    return Promise.resolve(INTERNAL_VALIDATOR_MESSAGES);
+  }
 }
