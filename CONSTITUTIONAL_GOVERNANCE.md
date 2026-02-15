@@ -18,6 +18,7 @@ Documents immutable constraints. Operational docs describe *capability*; this do
 | Property | Value |
 |:---|:---|
 | Repo | `craighckby-stack/Test-1` |
+| Governance Version | v1.0.1 |
 | Kernel | AGI-KERNEL v7.12.1 "RECURSIVE EVOLUTION STABLE" |
 | Scale | 2,300+ files |
 | Langs | JS, Python, TS, Rust, Go, Solidity |
@@ -46,6 +47,13 @@ The constitutional layer mandates human checkpoints, specifically at cycle 500 (
 
 ### 3. Cerebras Dialogue Loop Dependency
 **Constraint:** Until the analytical dialogue loop (EMG-CORE + Cerebras exchange surfaced to human) is live, the human operator is the sole analytical counterpart to EMG-CORE.
+
+### 4. Novel Capability Identification (NCI) Protocol
+**Constraint:** A capability is deemed 'novel' and requires human sign-off if it:
+- Introduces a new API dependency outside the initial stack.
+- Modifies the logic of the `AuditDataNormalizer` or `complianceScore` threshold.
+- Enables direct filesystem write access outside the predefined `Test-1` scope.
+- Establishes a secondary AI-to-AI communication channel without telemetry.
 
 ---
 
@@ -101,7 +109,7 @@ These specifications MUST be present in every subsequent kernel version.
 ## MILESTONE GOVERNANCE
 **Cycle Flow:**
 - **Regular (1-49, 51-99...):** Autonomous. Compliance gate check only.
-- **Milestone (50, 100, 150...):** Compliance gate check **PLUS** human review if novel capabilities are introduced. Deployment pauses awaiting approval.
+- **Milestone (50, 100, 150...):** Compliance gate check **PLUS** human review if novel capabilities (per NCI Protocol) are introduced. Deployment pauses awaiting approval.
 
 ---
 
@@ -114,6 +122,7 @@ The governance layer IS the off switch architecture. It is enforced at runtime a
 1. **Cerebras Dialogue Loop:** Implement human-visible exchange framework.
 2. **Milestone Human Review Interface:** UI for approve/reject novel deployments.
 3. **Probabilistic Compliance Scoring:** Move from binary score to nuanced quality spectrum.
+4. **NCI Automation:** Tooling to automatically detect novelty via AST analysis.
 
 ---
 
