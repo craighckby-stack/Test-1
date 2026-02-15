@@ -4,11 +4,7 @@
  * This utility acts as the foundation for *predictive* governance monitoring.
  */
 
-// Global dependencies (v8, os) and module-level state (startTime, eventLoopLastCheck) removed,
-// as metric calculation is delegated to the stateful NodeProcessMetricsCollector plugin.
-
-// CRITICAL ASSUMPTION: NodeProcessMetricsCollector (the plugin instance) is available globally
-// via AGI-KERNEL Plugin System, as it manages time deltas and calculation.
+const CRITICAL_HEAP_UTILIZATION_THRESHOLD = 0.95;
 
 /**
  * @typedef {object} ResourceMetrics
@@ -22,33 +18,29 @@
  */
 
 class SystemResourceMonitor {
-
     /**
      * Gathers and calculates current resource utilization metrics.
      * @returns {ResourceMetrics}
+     * @throws {Error} If NodeProcessMetricsCollector plugin is not available.
      */
     static getMetrics() {
-        // Ensure the stateful plugin instance is available.
         if (typeof NodeProcessMetricsCollector === 'undefined' || typeof NodeProcessMetricsCollector.execute !== 'function') {
             throw new Error("NodeProcessMetricsCollector plugin must be loaded and available.");
         }
-
-        // Delegate all metric calculation and state management to the specialized plugin instance.
         return NodeProcessMetricsCollector.execute();
     }
 
     /**
-     * Helper for diagnostics: returns basic memory status.
-     * Implementing this makes SRM compatible with GHM's Diagnosable interface if needed.
+     * Runs diagnostic checks on system resource metrics.
      * @returns {Promise<void>}
+     * @throws {Error} If critical heap utilization threshold is exceeded.
      */
     static async runDiagnostics() {
-        const metrics = SystemResourceMonitor.getMetrics();
-        // Example check: ensure used heap is not approaching total heap (indicative of OOM potential)
+        const metrics = this.getMetrics();
         const heapUtilization = metrics.heapUsed / metrics.heapTotal;
         
-        if (heapUtilization > 0.95) {
-             throw new Error(`Critical Memory Utilization: Heap Utilization ${heapUtilization.toFixed(2)}`);
+        if (heapUtilization > CRITICAL_HEAP_UTILIZATION_THRESHOLD) {
+            throw new Error(`Critical Memory Utilization: Heap Utilization ${heapUtilization.toFixed(2)}`);
         }
     }
 }
