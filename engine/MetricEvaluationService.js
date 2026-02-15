@@ -20,7 +20,7 @@ class MetricEvaluationService {
   }
 
   #validateAndSetDataProviders(providers: Record<string, DataProvider>) {
-    if (!providers || !providers.NEXUS) {
+    if (!providers?.NEXUS) {
       throw new Error("MQM Service Initialization Error: NEXUS data provider is required for persistent memory integration.");
     }
     this.#dataProvider = new Map(Object.entries(providers));
@@ -129,12 +129,6 @@ class MetricEvaluationService {
       }
     }
 
-    return results;
-  }
-}r during calculation of metric ${metricId}: ${(e as Error).message}`);
-        results[metricId] = { value: null, status: 'CRITICAL_ERROR' };
-      }
-    }
     return results;
   }
 }
