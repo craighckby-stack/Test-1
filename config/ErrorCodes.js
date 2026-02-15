@@ -4,50 +4,53 @@
  * aiding integration with logging systems and API error mapping middleware.
  */
 
-// Internal, immutable definition of all error codes.
-const _CODES_MAP = Object.freeze({
+// Error code categories
+const ERROR_CATEGORIES = {
+    SYSTEM: 'SYS',
+    AUDIT: 'AUDIT',
+    AUTH: 'AUTH',
+    DATA: 'DATA'
+};
+
+// Error code definitions with structured categories
+const ERROR_CODES = Object.freeze({
     // System / General
-    SYSTEM_UNKNOWN: 'SYS_0000',
-
+    SYSTEM_UNKNOWN: `${ERROR_CATEGORIES.SYSTEM}_0000`,
+    
     // Auditor / Validation Failures (typically 400 series)
-    AUDIT_GENERIC: 'AUDIT_4000',
-    AUDIT_REQUIRED_FIELD: 'AUDIT_4001',
-    AUDIT_CONSTRAINT_VIOLATION: 'AUDIT_4002',
-    AUDIT_TYPE_MISMATCH: 'AUDIT_4003',
-
+    AUDIT_GENERIC: `${ERROR_CATEGORIES.AUDIT}_4000`,
+    AUDIT_REQUIRED_FIELD: `${ERROR_CATEGORIES.AUDIT}_4001`,
+    AUDIT_CONSTRAINT_VIOLATION: `${ERROR_CATEGORIES.AUDIT}_4002`,
+    AUDIT_TYPE_MISMATCH: `${ERROR_CATEGORIES.AUDIT}_4003`,
+    
     // Authentication / Authorization Failures (401/403 series)
-    AUTH_UNAUTHORIZED: 'AUTH_4010',
-    AUTH_PERMISSION_DENIED: 'AUTH_4030',
-
+    AUTH_UNAUTHORIZED: `${ERROR_CATEGORIES.AUTH}_4010`,
+    AUTH_PERMISSION_DENIED: `${ERROR_CATEGORIES.AUTH}_4030`,
+    
     // Data / Resource Failures (404/500 series)
-    RESOURCE_NOT_FOUND: 'DATA_4040',
-    DATABASE_ERROR: 'DATA_5001'
+    RESOURCE_NOT_FOUND: `${ERROR_CATEGORIES.DATA}_4040`,
+    DATABASE_ERROR: `${ERROR_CATEGORIES.DATA}_5001`
 });
 
 /**
- * Private helper function to ensure safe lookup of an error code.
- * This function guarantees a fallback to SYSTEM_UNKNOWN if the key is invalid or undefined.
- *
- * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
- * @returns {string} The corresponding error code, or SYSTEM_UNKNOWN if not found.
+ * Safely retrieves an error code by key, falling back to SYSTEM_UNKNOWN if not found.
+ * @param {string} key - The error code key (e.g., 'AUDIT_GENERIC')
+ * @returns {string} The corresponding error code or SYSTEM_UNKNOWN if not found
  */
-const _getValidatedCode = (key) => {
-    return _CODES_MAP[key] || _CODES_MAP.SYSTEM_UNKNOWN;
-};
+const getErrorCode = (key) => ERROR_CODES[key] || ERROR_CODES.SYSTEM_UNKNOWN;
 
 /**
  * Standardized registry interface for accessing machine-readable error codes.
- * This unified interface provides safe lookup utilities and access to the immutable code enumeration.
- * @type {Readonly<{Codes: Readonly<Record<string, string>>, get: function(string): string}>}
+ * Provides safe lookup utilities and access to the immutable code enumeration.
  */
 export const ErrorCodeRegistry = Object.freeze({
     /** The immutable map of all defined error codes. */
-    Codes: _CODES_MAP,
-
+    Codes: ERROR_CODES,
+    
     /**
-     * Utility function to quickly access a standardized code.
-     * @param {string} key - The key from Codes (e.g., 'AUDIT_GENERIC').
-     * @returns {string}
+     * Retrieves a standardized error code by key.
+     * @param {string} key - The error code key (e.g., 'AUDIT_GENERIC')
+     * @returns {string} The corresponding error code
      */
-    get: _getValidatedCode
+    get: getErrorCode
 });
