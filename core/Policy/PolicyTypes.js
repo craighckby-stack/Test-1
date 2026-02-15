@@ -37,8 +37,10 @@ const createTypePlaceholder = () => Object.freeze({});
  * Explicitly exporting immutable placeholders for the types defined above.
  * This guarantees the consistency of type references across the Policy subsystem.
  */
-module.exports = {
+const typeExports = {
   Constraint: createTypePlaceholder(),
   PolicyDelta: createTypePlaceholder(),
   VerificationResult: createTypePlaceholder()
 };
+
+module.exports = typeExports;
