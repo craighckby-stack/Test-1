@@ -1,8 +1,3 @@
-/**
- * @fileoverview Manages and orchestrates the execution of multiple concrete ConfigValidator implementations.
- * Logic for concurrent execution and result aggregation is delegated to the TaskAggregator tool (plugin).
- */
-
 const { ConfigValidator, ValidationResult } = require('../interfaces/ConfigValidator');
 
 /**
@@ -15,35 +10,56 @@ class ValidationOrchestrator {
     /** @type {import('../plugins/TaskAggregator')} */
     #aggregator;
 
-    // --- Private I/O Proxies ---
+    // --- Private Constants ---
+    static DEPENDENCY_ERROR_PREFIX = '[ValidationOrchestrator] Dependency Error: ';
+    static REGISTRATION_ERROR_PREFIX = 'Registration Error: ';
 
+    // --- Private Methods ---
+
+    /**
+     * Throws a dependency error with the provided message.
+     * @param {string} message - The error message.
+     * @throws {Error}
+     */
     #throwDependencyError(message) {
-        throw new Error(`[ValidationOrchestrator] Dependency Error: ${message}`);
+        throw new Error(`${ValidationOrchestrator.DEPENDENCY_ERROR_PREFIX}${message}`);
     }
 
+    /**
+     * Throws a registration error with the provided message.
+     * @param {string} message - The error message.
+     * @throws {Error}
+     */
     #throwRegistrationError(message) {
-        // This encapsulates the throwing mechanism for registration failures.
-        throw new Error(message);
+        throw new Error(`${ValidationOrchestrator.REGISTRATION_ERROR_PREFIX}${message}`);
     }
 
+    /**
+     * Logs validator registration (placeholder for future debug implementation).
+     * @param {ConfigValidator} validatorInstance - The validator instance being registered.
+     */
     #logRegistration(validatorInstance) {
-        // I/O Proxy for logging registration event (currently silent, ready for debug implementation).
+        // Debug logging placeholder
         // console.debug(`[ValidationOrchestrator] Registered validator: ${validatorInstance.constructor.name}`);
     }
 
+    /**
+     * Delegates concurrent execution and result aggregation to the TaskAggregator.
+     * @param {Promise<ValidationResult>[]} promises - Array of validation promises.
+     * @returns {Promise<ValidationResult>} Aggregated validation results.
+     */
     #delegateToAggregatorExecution(promises) {
-        // Crucial I/O delegation to the external TaskAggregator tool
         return this.#aggregator.execute(promises);
     }
 
     // --- Setup and Initialization ---
 
     /**
-     * Extracts synchronous dependency resolution and initialization logic.
-     * @param {object} dependencies
+     * Initializes the orchestrator with required dependencies.
+     * @param {object} dependencies - Dependencies injected by the system.
+     * @param {import('../plugins/TaskAggregator')} dependencies.TaskAggregator - The tool for concurrent execution and result aggregation.
      */
     #setupDependencies(dependencies) {
-        // Use TaskAggregator interface. Support legacy name during transition.
         const aggregator = dependencies.TaskAggregator || dependencies.ConcurrentTaskAggregatorTool;
 
         if (!aggregator) {
@@ -57,8 +73,9 @@ class ValidationOrchestrator {
     // --- Public API ---
 
     /**
+     * Creates a new ValidationOrchestrator instance.
      * @param {object} dependencies - Dependencies injected by the system.
-     * @param {object} dependencies.TaskAggregator - The tool instance for concurrent execution and result aggregation.
+     * @param {import('../plugins/TaskAggregator')} dependencies.TaskAggregator - The tool for concurrent execution and result aggregation.
      */
     constructor(dependencies) {
         this.#setupDependencies(dependencies);
@@ -67,12 +84,13 @@ class ValidationOrchestrator {
     /**
      * Registers a concrete governance validator module.
      * @param {ConfigValidator} validatorInstance - An instance of a concrete ConfigValidator subclass.
+     * @throws {Error} If the validator instance doesn't implement the required interface.
      */
     registerValidator(validatorInstance) {
-        // Enforce duck typing check for the required 'validate' method.
         if (typeof validatorInstance.validate !== 'function') {
             this.#throwRegistrationError("Attempted to register object lacking the required 'validate' method (ConfigValidator interface).");
         }
+        
         this.#validators.push(validatorInstance);
         this.#logRegistration(validatorInstance);
     }
@@ -84,17 +102,11 @@ class ValidationOrchestrator {
      */
     async validateSystemConfig(config) {
         if (this.#validators.length === 0) {
-            // Default success when no rules are registered.
             return { isValid: true, errors: [] };
         }
 
-        // 1. Map validators to promises (tasks)
-        const promises = this.#validators.map(v => v.validate(config));
-
-        // 2. Use the injected tool to execute concurrently and aggregate results via I/O proxy.
-        const finalResult = await this.#delegateToAggregatorExecution(promises);
-
-        return finalResult;
+        const promises = this.#validators.map(validator => validator.validate(config));
+        return this.#delegateToAggregatorExecution(promises);
     }
 }
 
