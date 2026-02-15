@@ -51,7 +51,7 @@ class JsonCanonicalizerKernel {
     if (!canonicalizer || typeof canonicalizer.canonicalize !== 'function') {
         throw new Error("Invalid CanonicalizerToolKernel provided to JsonCanonicalizerKernel.");
     }
-    
+
     if (!cryptoUtility || typeof cryptoUtility.calculateHash !== 'function') {
         throw new Error("Invalid CryptoUtilityInterfaceKernel provided: Missing 'calculateHash' method.");
     }
