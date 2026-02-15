@@ -25,13 +25,11 @@ export class ConstraintDependencyGraphAnalyzer {
    * @returns An array of structured diagnostic messages.
    */
   public analyzeForCycles(): GraphDiagnostic[] {
-    const analysisConfig = {
+    return this.#graphAnalyzer.analyze({
       nodes: this.#definition.resolutionPhases as AnalysisNode[],
       idKey: this.#ID_KEY,
       depsKey: this.#DEPS_KEY,
-    };
-
-    return this.#graphAnalyzer.analyze(analysisConfig);
+    });
   }
 
   /**
@@ -44,15 +42,11 @@ export class ConstraintDependencyGraphAnalyzer {
     const warnings = diagnostics.filter(d => d.severity === 'warning');
 
     if (errors.length > 0) {
-      const errorMessages = errors.map(e => e.message).join('; ');
-      throw new Error(`Configuration Error: Structural issues found in resolution phases: ${errorMessages}`);
+      throw new Error(`Configuration Error: Structural issues found in resolution phases: ${errors.map(e => e.message).join('; ')}`);
     }
 
     if (warnings.length > 0) {
-      const warningMessages = warnings.map(w => w.message).join('; ');
-      console.warn(`Configuration Warnings during validation: ${warningMessages}`);
+      console.warn(`Configuration Warnings during validation: ${warnings.map(w => w.message).join('; ')}`);
     }
-
-    console.log("Constraint definition graph validated successfully.");
   }
 }
