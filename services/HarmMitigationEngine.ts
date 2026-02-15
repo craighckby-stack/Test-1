@@ -32,80 +32,73 @@ interface PolicyResult {
 
 export class HarmMitigationKernel {
 
-    // Rigorously privatized state and constants
-    private #policyConfig: HarmPolicyConfig;
-    private #isInitialized: boolean = false;
-
-    // Privatized constant for severity mapping
-    private readonly #SEVERITY_MAP: { [key: string]: number } = {
+    // --- Constants ---
+    private readonly #SEVERITY_LEVELS: Record<PolicyRule['severity'], number> = {
         'P0_CRITICAL': 3,
         'P1_HIGH': 2,
         'P2_MODERATE': 1,
         'P3_LOW': 0
     };
 
+    // --- State ---
+    private #policyConfig: HarmPolicyConfig;
+    private #isInitialized = false;
+
     constructor(policyConfigPath: string = 'config/HARM.json') {
-        this.#setupDependencies(policyConfigPath);
+        this.#initializeKernel(policyConfigPath);
     }
 
     /**
-     * 1. Synchronous Setup Extraction: Handles configuration loading and initial validation.
+     * Initializes the HARM Mitigation Kernel with configuration.
+     * @param policyConfigPath Path to the policy configuration file
      */
-    private #setupDependencies(policyConfigPath: string): void {
+    #initializeKernel(policyConfigPath: string): void {
         try {
             this.#policyConfig = this.#loadAndValidateConfig(policyConfigPath);
             this.#isInitialized = true;
         } catch (error) {
-            // Use I/O Proxy for logging setup errors
-            this.#throwSetupError(error);
+            this.#logError("HARM Mitigation Kernel failed to load configuration", error);
             // Fail-safe initialization
             this.#policyConfig = { default_action: "BLOCK", rules: [], contextual_exemptions: [] };
         }
     }
 
     /**
-     * I/O Proxy: Handles synchronous configuration file loading and schema checks.
+     * Loads and validates the policy configuration.
+     * @param policyConfigPath Path to the configuration file
+     * @returns Validated policy configuration
+     * @throws Error if configuration loading or validation fails
      */
-    private #loadAndValidateConfig(policyConfigPath: string): HarmPolicyConfig {
-        let config: HarmPolicyConfig;
-
-        // Direct synchronous I/O isolation (require)
+    #loadAndValidateConfig(policyConfigPath: string): HarmPolicyConfig {
         try {
-            // Note: Synchronous config loading is used as per original requirement
-            config = require(policyConfigPath);
-        } catch (e) {
-            throw new Error(`Failed to synchronously load configuration from ${policyConfigPath}. ${e instanceof Error ? e.message : String(e)}`);
+            const config = require(policyConfigPath);
+            
+            if (!config.rules || !Array.isArray(config.rules)) {
+                throw new Error("Policy configuration is missing the 'rules' array.");
+            }
+            
+            return config;
+        } catch (error) {
+            throw new Error(`Failed to load configuration from ${policyConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
         }
-
-        // Basic validation
-        if (!config.rules || !Array.isArray(config.rules)) {
-            throw new Error("Policy configuration is missing the 'rules' array.");
-        }
-        return config;
-    }
-
-    /**
-     * I/O Proxy: Handles logging setup errors.
-     */
-    private #throwSetupError(error: any): void {
-        console.error("HARM Mitigation Kernel failed to load configuration:", error instanceof Error ? error.message : String(error));
     }
 
     /**
      * Analyzes input based on scores and executes mandated policy actions.
-     * @param detectionScores Object mapping category to detected harm score (0.0 to 1.0).
-     * @returns The enforced action and the chosen mitigation strategy.
+     * @param detectionScores Object mapping category to detected harm score (0.0 to 1.0)
+     * @param contextTags Optional context tags that might override policy rules
+     * @returns The enforced action and the chosen mitigation strategy
      */
-    public async enforcePolicy(detectionScores: DetectionScores, contextTags: string[] = []): Promise<PolicyResult> {
+    async enforcePolicy(detectionScores: DetectionScores, contextTags: string[] = []): Promise<PolicyResult> {
         if (!this.#isInitialized) {
             this.#logWarning("HARM Kernel uninitialized. Returning default action.");
             return { enforcedAction: this.#policyConfig.default_action, mitigation: 'LOG' };
         }
 
-        const highestRiskViolation = this.#delegateToRiskAssessment(detectionScores);
+        const highestRiskViolation = this.#findHighestRiskViolation(detectionScores);
 
         if (highestRiskViolation) {
-            const isExempt = this.#delegateToCheckExemptions(highestRiskViolation, contextTags);
+            const isExempt = this.#isExempt(highestRiskViolation, contextTags);
 
             if (isExempt) {
                 this.#logPolicyBypass(highestRiskViolation.rule.category, highestRiskViolation.score);
@@ -121,49 +114,19 @@ export class HarmMitigationKernel {
         return { enforcedAction: 'PASS', mitigation: 'NONE' };
     }
 
-    // --- I/O Proxy Methods for Internal Logic Delegation ---
-
     /**
-     * I/O Proxy: Proxies console.warn.
+     * Finds the highest risk violation from the detection scores.
+     * @param detectionScores Object mapping category to detected harm score
+     * @returns The highest risk violation or null if no violation found
      */
-    private #logWarning(message: string): void {
-        console.warn(message);
-    }
-
-    /**
-     * I/O Proxy: Logs when a policy is bypassed.
-     */
-    private #logPolicyBypass(category: string, score: number): void {
-        console.log(`HARM policy bypassed for context: ${category} score ${score}`);
-    }
-
-    /**
-     * I/O Proxy Delegation: Finds the single highest risk violation.
-     */
-    private #delegateToRiskAssessment(detectionScores: DetectionScores): { rule: PolicyRule, score: number } | null {
-        return this.#findHighestRiskViolation(detectionScores);
-    }
-
-    /**
-     * I/O Proxy Delegation: Checks if the detected violation is overridden.
-     */
-    private #delegateToCheckExemptions(violation: { rule: PolicyRule, score: number }, contextTags: string[]): boolean {
-        return this.#checkExemptions(violation, contextTags);
-    }
-
-    /**
-     * I/O Proxy (Logic Flow): Finds the single highest risk rule violation based on detection scores and thresholds.
-     */
-    private #findHighestRiskViolation(detectionScores: DetectionScores): { rule: PolicyRule, score: number } | null {
+    #findHighestRiskViolation(detectionScores: DetectionScores): { rule: PolicyRule, score: number } | null {
         let highestRisk: { rule: PolicyRule, score: number } | null = null;
 
         for (const rule of this.#policyConfig.rules) {
-            const score = detectionScores[rule.category] || 0.0;
+            const score = detectionScores[rule.category] ?? 0.0;
 
-            const isHighestScore = highestRisk ? score > highestRisk.score : true;
-
-            if (score >= rule.threshold && isHighestScore) {
-                highestRisk = { rule: rule, score: score };
+            if (score >= rule.threshold && (!highestRisk || score > highestRisk.score)) {
+                highestRisk = { rule, score };
             }
         }
 
@@ -171,9 +134,12 @@ export class HarmMitigationKernel {
     }
 
     /**
-     * I/O Proxy (Logic Flow): Checks if the detected violation is overridden by any context tag exemption.
+     * Checks if a violation is exempt based on context tags.
+     * @param violation The detected policy violation
+     * @param contextTags Context tags that might provide exemption
+     * @returns True if the violation is exempt
      */
-    private #checkExemptions(violation: { rule: PolicyRule, score: number }, contextTags: string[]): boolean {
+    #isExempt(violation: { rule: PolicyRule, score: number }, contextTags: string[]): boolean {
         if (contextTags.length === 0 || this.#policyConfig.contextual_exemptions.length === 0) {
             return false;
         }
@@ -181,25 +147,46 @@ export class HarmMitigationKernel {
         return contextTags.some(tag =>
             this.#policyConfig.contextual_exemptions
                 .filter(ex => ex.context_tag === tag)
-                .some(ex => this.#determineIfExempt(violation.rule.severity, ex.max_severity_override))
+                .some(ex => this.#isSeverityExempt(violation.rule.severity, ex.max_severity_override))
         );
     }
 
     /**
-     * I/O Proxy (Logic Flow): Determines if a specific rule severity exceeds the allowed maximum override severity.
+     * Determines if a rule severity is exempt based on the maximum allowed override severity.
+     * @param ruleSeverity The severity of the violated rule
+     * @param maxOverrideSeverity The maximum allowed severity for exemption
+     * @returns True if the rule severity is exempt
      */
-    private #determineIfExempt(ruleSeverity: string, maxOverride: string): boolean {
-        const ruleLevel = this.#calculateSeverityLevel(ruleSeverity);
-        const overrideLevel = this.#calculateSeverityLevel(maxOverride);
+    #isSeverityExempt(ruleSeverity: PolicyRule['severity'], maxOverrideSeverity: ContextualExemption['max_severity_override']): boolean {
+        const ruleLevel = this.#SEVERITY_LEVELS[ruleSeverity];
+        const overrideLevel = this.#SEVERITY_LEVELS[maxOverrideSeverity];
 
-        // The exemption applies if the rule's severity level is LESS THAN OR EQUAL TO the override level.
         return ruleLevel <= overrideLevel;
     }
 
     /**
-     * Internal Helper Proxy: Converts severity string to numerical level using the private map.
+     * Logs a policy bypass event.
+     * @param category The category of the bypassed rule
+     * @param score The score that triggered the rule
      */
-    private #calculateSeverityLevel(severity: string): number {
-        return this.#SEVERITY_MAP[severity] ?? -1;
+    #logPolicyBypass(category: string, score: number): void {
+        console.log(`HARM policy bypassed for context: ${category} score ${score}`);
+    }
+
+    /**
+     * Logs an error message.
+     * @param message The error message
+     * @param error The error object
+     */
+    #logError(message: string, error: unknown): void {
+        console.error(message, error instanceof Error ? error.message : String(error));
+    }
+
+    /**
+     * Logs a warning message.
+     * @param message The warning message
+     */
+    #logWarning(message: string): void {
+        console.warn(message);
     }
 }
