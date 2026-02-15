@@ -22,12 +22,12 @@ declare const CanonicalIntegrityHashUtility: {
  *
  * @param proposal The raw GSC proposal object.
  * @returns The SHA-256 integrity hash string.
+ * @throws {Error} When the CanonicalIntegrityHashUtility plugin is not available.
  */
 export function calculateProposalChecksum(proposal: object): string {
-    if (typeof CanonicalIntegrityHashUtility === 'object' && typeof CanonicalIntegrityHashUtility.calculateProposalChecksum === 'function') {
-        return CanonicalIntegrityHashUtility.calculateProposalChecksum(proposal);
+    if (!CanonicalIntegrityHashUtility?.calculateProposalChecksum) {
+        throw new Error("CanonicalIntegrityHashUtility is not available in the runtime environment.");
     }
     
-    // This state indicates a critical failure in dependency injection or plugin loading.
-    throw new Error("CanonicalIntegrityHashUtility is not available in the runtime environment.");
+    return CanonicalIntegrityHashUtility.calculateProposalChecksum(proposal);
 }
