@@ -1,76 +1,73 @@
-// src/governance/AdaptiveConstantManagerKernel.js
+// src/governance/AdaptiveConstantManager.js
 
 /**
  * Manages and merges static governance constants with dynamic, runtime-adjusted overlays.
  * Provides asynchronous initialization and handles the lifecycle of dynamic configuration polling.
  */
-class AdaptiveConstantManagerKernel {
+class AdaptiveConstantManager {
     
     /**
      * @param {object} dependencies
-     * @param {IConfigurationMergerToolKernel} dependencies.configMergerToolKernel - Tool for deep merging configurations.
-     * @param {IPollingConfigurationSourceToolKernel} dependencies.pollingSourceToolKernel - Factory for dynamic configuration polling.
-     * @param {IGovernanceApiFetcherToolKernel} dependencies.governanceApiFetcherToolKernel - Interface for fetching dynamic constants.
-     * @param {ILoggerToolKernel} dependencies.loggerToolKernel - Standard logging utility.
-     * @param {IGovernanceConstantsV2ConfigRegistryKernel} dependencies.constantsRegistryKernel - Registry for static constants.
+     * @param {IConfigurationMergerTool} dependencies.configMergerTool - Tool for deep merging configurations.
+     * @param {IPollingConfigurationSourceTool} dependencies.pollingSourceTool - Factory for dynamic configuration polling.
+     * @param {IGovernanceApiFetcherTool} dependencies.governanceApiFetcherTool - Interface for fetching dynamic constants.
+     * @param {ILoggerTool} dependencies.loggerTool - Standard logging utility.
+     * @param {IGovernanceConstantsRegistry} dependencies.constantsRegistry - Registry for static constants.
      */
     constructor(dependencies) {
-        this.#setupDependencies(dependencies);
+        this.#validateAndSetDependencies(dependencies);
         
         /** @private {object} The current merged configuration (static + dynamic overlay). */
         this.currentConfig = {};
-        /** @private {object | null} An instance representing the active polling source, managed by the PollingSource tool. */
+        /** @private {object | null} An instance representing the active polling source. */
         this.dynamicSource = null; 
     }
 
     /**
-     * Synchronously validates and assigns all required dependencies.
+     * Validates and assigns all required dependencies.
      * @private
      */
-    #setupDependencies(dependencies) {
+    #validateAndSetDependencies(dependencies) {
         const required = [
-            'configMergerToolKernel', 'pollingSourceToolKernel', 
-            'governanceApiFetcherToolKernel', 'loggerToolKernel', 
-            'constantsRegistryKernel'
+            'configMergerTool', 'pollingSourceTool', 
+            'governanceApiFetcherTool', 'loggerTool', 
+            'constantsRegistry'
         ];
 
         for (const dep of required) {
             if (!dependencies[dep]) {
-                throw new Error(`AdaptiveConstantManagerKernel requires dependency: ${dep}.`);
+                throw new Error(`AdaptiveConstantManager requires dependency: ${dep}.`);
             }
         }
 
         /** @private */
-        this.configMerger = dependencies.configMergerToolKernel;
+        this.configMerger = dependencies.configMergerTool;
         /** @private */
-        this.PollingSource = dependencies.pollingSourceToolKernel;
+        this.pollingSourceTool = dependencies.pollingSourceTool;
         /** @private */
-        this.fetcher = dependencies.governanceApiFetcherToolKernel;
+        this.apiFetcher = dependencies.governanceApiFetcherTool;
         /** @private */
-        this.logger = dependencies.loggerToolKernel;
+        this.logger = dependencies.loggerTool;
         /** @private */
-        this.constantsRegistry = dependencies.constantsRegistryKernel;
+        this.constantsRegistry = dependencies.constantsRegistry;
     }
 
     /**
-     * Initializes the kernel by loading static constants and setting up dynamic polling.
+     * Initializes the manager by loading static constants and setting up dynamic polling.
      * @returns {Promise<void>}
      */
     async initialize() {
         try {
             const staticConstants = await this.constantsRegistry.getConstants();
-            
-            // Initialize config with a deep copy of static constants using the merger tool
             this.currentConfig = this.configMerger.deepMerge({}, staticConstants);
 
-            const overlaySource = this.getConstant('dynamic_overlay_source');
+            const overlayConfig = this.getConstant('dynamic_overlay_source');
             
-            if (overlaySource && overlaySource.enabled) {
-                await this.#setupDynamicFetching(overlaySource);
+            if (overlayConfig?.enabled) {
+                await this.#setupDynamicFetching(overlayConfig);
             }
         } catch (error) {
-            this.logger.error('AdaptiveConstantManagerKernel failed during initialization. Dynamic constants may be unavailable.', { error });
-            // Note: If initialization fails, the static config might still be partially loaded, but we re-throw critical errors.
+            this.logger.error('Failed to initialize AdaptiveConstantManager. Dynamic constants may be unavailable.', { error });
             throw error;
         }
     }
@@ -78,27 +75,24 @@ class AdaptiveConstantManagerKernel {
     /**
      * @private
      * Sets up the polling source for dynamic configuration updates.
-     * @param {object} source - Configuration for the polling source.
+     * @param {object} overlayConfig - Configuration for the polling source.
      * @returns {Promise<void>}
      */
-    async #setupDynamicFetching(source) {
-        const fallbackInterval = this.getConstant('governance_intervals.telemetry_reporting_ms') || 15000; 
+    async #setupDynamicFetching(overlayConfig) {
+        const fallbackInterval = this.getConstant('governance_intervals.telemetry_reporting_ms') ?? 15000; 
 
-        // Use the injected PollingSource tool to create and manage the polling instance.
-        this.dynamicSource = await this.PollingSource.create(
-            source, 
-            this.fetcher.fetchConstants, // Assuming the fetcher kernel exposes a suitable async method
-            (newConfig) => this.mergeConfig(newConfig), // Success Callback
+        this.dynamicSource = await this.pollingSourceTool.create(
+            overlayConfig, 
+            this.apiFetcher.fetchConstants,
+            (newConfig) => this.mergeConfig(newConfig),
             fallbackInterval
         );
 
-        // Start the polling process
         await this.dynamicSource.start();
     }
 
     /**
      * Merges a dynamic overlay into the current configuration state.
-     * Note: This remains synchronous, manipulating internal state via the injected tool.
      * @param {object} overlay - The new configuration snippet.
      * @returns {void}
      */
@@ -107,7 +101,7 @@ class AdaptiveConstantManagerKernel {
         this.currentConfig = this.configMerger.deepMerge(this.currentConfig, overlay);
         
         if (prevConfigJson !== JSON.stringify(this.currentConfig)) {
-            this.logger.info('AdaptiveConstantManagerKernel: Governance constants updated dynamically. Configuration delta applied.', { source: 'dynamic_overlay' });
+            this.logger.info('Governance constants updated dynamically.', { source: 'dynamic_overlay' });
         }
     }
 
@@ -120,14 +114,11 @@ class AdaptiveConstantManagerKernel {
         if (!path || typeof path !== 'string') return undefined;
 
         try {
-            // Use standard JS path reduction. Abstracting this to IJsonPathQueryToolKernel 
-            // is only necessary for complex, parameterized queries.
-            return path.split('.').reduce((o, i) => {
-                if (!o || typeof o !== 'object' || o === null) return undefined;
-                return o[i];
+            return path.split('.').reduce((obj, key) => {
+                return (obj && typeof obj === 'object' && obj !== null) ? obj[key] : undefined;
             }, this.currentConfig);
         } catch (e) {
-            this.logger.error(`Error during constant retrieval for path: ${path}`, { message: e.message });
+            this.logger.error(`Error retrieving constant for path: ${path}`, { error: e.message });
             return undefined;
         }
     }
@@ -140,9 +131,9 @@ class AdaptiveConstantManagerKernel {
         if (this.dynamicSource) {
             await this.dynamicSource.stop();
             this.dynamicSource = null;
-            this.logger.info('AdaptiveConstantManagerKernel polling management stopped.');
+            this.logger.info('Dynamic polling stopped.');
         }
     }
 }
 
-export default AdaptiveConstantManagerKernel;
+export default AdaptiveConstantManager;
