@@ -4,8 +4,11 @@ interface SecurePolicyEvaluatorTool {
 
 /**
  * Evaluates policy condition expressions using a sandboxed evaluator.
+ * Provides a secure and isolated environment for evaluating complex policy conditions.
  */
 export class PolicyConditionEvaluatorKernel {
+    private readonly SECURE_EVALUATOR_DEPENDENCY_ERROR = "SecurePolicyEvaluatorTool dependency is required for safe policy evaluation.";
+    
     private readonly secureEvaluator: SecurePolicyEvaluatorTool;
 
     /**
@@ -15,7 +18,7 @@ export class PolicyConditionEvaluatorKernel {
      */
     constructor(secureEvaluator: SecurePolicyEvaluatorTool) {
         if (!secureEvaluator) {
-            throw new Error("SecurePolicyEvaluatorTool dependency is required for safe policy evaluation.");
+            throw new Error(this.SECURE_EVALUATOR_DEPENDENCY_ERROR);
         }
         this.secureEvaluator = secureEvaluator;
     }
