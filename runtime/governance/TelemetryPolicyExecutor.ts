@@ -106,7 +106,7 @@ export class TelemetryPolicyExecutorKernel {
             spec &&
             typeof spec === 'object' &&
             'governance_responses' in spec &&
-            Array.isArray(spec.governance_responses.rejection_policies)
+            Array.isArray((spec as TelemetryVettingSpec).governance_responses.rejection_policies)
         );
     }
 
@@ -120,7 +120,7 @@ export class TelemetryPolicyExecutorKernel {
             evaluator &&
             typeof evaluator === 'object' &&
             'evaluate' in evaluator &&
-            typeof evaluator.evaluate === 'function'
+            typeof (evaluator as PolicyConditionEvaluator).evaluate === 'function'
         );
     }
 
