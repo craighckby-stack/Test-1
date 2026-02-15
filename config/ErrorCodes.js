@@ -7,7 +7,7 @@
 // Error code categories
 const ERROR_CATEGORIES = {
     SYSTEM: 'SYS',
-    AUDIT: 'AUDIT',
+    AUDIT: 'AUD',
     AUTH: 'AUTH',
     DATA: 'DATA'
 };
@@ -28,8 +28,8 @@ const ERROR_CODES = Object.freeze({
     AUTH_PERMISSION_DENIED: `${ERROR_CATEGORIES.AUTH}_4030`,
     
     // Data / Resource Failures (404/500 series)
-    RESOURCE_NOT_FOUND: `${ERROR_CATEGORIES.DATA}_4040`,
-    DATABASE_ERROR: `${ERROR_CATEGORIES.DATA}_5001`
+    DATA_RESOURCE_NOT_FOUND: `${ERROR_CATEGORIES.DATA}_4040`,
+    DATA_DATABASE_ERROR: `${ERROR_CATEGORIES.DATA}_5001`
 });
 
 /**
@@ -37,7 +37,7 @@ const ERROR_CODES = Object.freeze({
  * @param {string} key - The error code key (e.g., 'AUDIT_GENERIC')
  * @returns {string} The corresponding error code or SYSTEM_UNKNOWN if not found
  */
-const getErrorCode = (key) => ERROR_CODES[key] || ERROR_CODES.SYSTEM_UNKNOWN;
+const getErrorCode = (key) => ERROR_CODES[key] ?? ERROR_CODES.SYSTEM_UNKNOWN;
 
 /**
  * Standardized registry interface for accessing machine-readable error codes.
