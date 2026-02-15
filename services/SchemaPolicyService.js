@@ -17,21 +17,23 @@ class SchemaPolicyKernel {
      * @private
      */
     #validateDependencies(policyStoreInstance) {
-        const isValid = policyStoreInstance &&
-                        typeof policyStoreInstance.get === 'function' &&
-                        typeof policyStoreInstance.define === 'function';
-
-        if (!isValid) {
+        if (!policyStoreInstance || 
+            typeof policyStoreInstance.get !== 'function' || 
+            typeof policyStoreInstance.define !== 'function') {
             throw new Error("SchemaPolicyKernel requires a valid PolicyStore instance with 'get' and 'define' methods.");
         }
     }
 
     /**
-     * Delegates policy definition to the PolicyStore.
-     * @param {string} resourceAction - e.g., 'users:read', 'products:update'
+     * Defines a policy for a resource action.
+     * @param {string} resourceAction - The policy key (e.g., 'users:read', 'products:update')
      * @param {Array<Function>} rules - Array of synchronous policy functions (ctx) => boolean
      */
     definePolicy(resourceAction, rules) {
+        if (!Array.isArray(rules)) {
+            throw new TypeError('Rules must be provided as an array of functions');
+        }
+        
         this.#policyStore.define(resourceAction, rules);
     }
 
@@ -45,9 +47,9 @@ class SchemaPolicyKernel {
     }
 
     /**
-     * Enforces the policy rules for a given action and context.
+     * Enforces policy rules for a given action and context.
      * @param {string} resourceAction - The policy key (e.g., 'users:create')
-     * @param {object} context - Execution context (user info, request data, etc.)
+     * @param {object} [context={}] - Execution context (user info, request data, etc.)
      * @returns {boolean} True if all policies pass.
      * @throws {Error} If any policy rule returns false or throws.
      */
@@ -59,8 +61,16 @@ class SchemaPolicyKernel {
         }
 
         for (const rule of rules) {
-            if (rule(context) === false) {
-                throw new Error(`Policy violation: Operation '${resourceAction}' failed policy check.`);
+            if (typeof rule !== 'function') {
+                throw new TypeError(`Policy rule for '${resourceAction}' must be a function`);
+            }
+
+            try {
+                if (rule(context) === false) {
+                    throw new Error(`Policy violation: Operation '${resourceAction}' failed policy check.`);
+                }
+            } catch (error) {
+                throw new Error(`Policy evaluation error for '${resourceAction}': ${error.message}`);
             }
         }
 
