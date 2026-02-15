@@ -7,96 +7,100 @@
  */
 
 class SchemaValidator_Util {
-
-  // Define critical default schemas statically for clean separation from initialization logic
+  /**
+   * Default schemas for core system components.
+   * @private
+   */
   static #defaultSchemas = {
     'FailureTraceLog': {
       timestamp: { type: 'string', required: true },
       component: { type: 'string', required: true },
       trace_id: { type: 'string', required: true, description: 'Unique ID for error correlation' },
       error_details: { 
-          type: 'object', 
-          required: true,
-          // Nested schema to enforce structure of internal error payloads
-          subSchema: {
-              code: { type: 'number', required: true },
-              message: { type: 'string', required: true },
-              is_recoverable: { type: 'boolean', required: false }
-          }
+        type: 'object', 
+        required: true,
+        subSchema: {
+          code: { type: 'number', required: true },
+          message: { type: 'string', required: true },
+          is_recoverable: { type: 'boolean', required: false }
+        }
       }
     }
-    // Future schemas: 'TelemetryEvent', 'ConfigurationUpdate'
   };
 
   /**
-   * Initializes the validator utility, setting up dependencies and registering core schemas.
+   * Creates a new SchemaValidator_Util instance.
+   * @throws {Error} If the StructuralSchemaValidator plugin is not available.
    */
   constructor() {
-    this.#setupDependencies();
-    
-    // Register default schemas immediately upon initialization
+    this.#validatePluginAvailability();
     this.#initializeDefaultSchemas();
   }
 
   /**
-   * Isolates dependency resolution and validation.
+   * Validates that the required plugin is available in the runtime environment.
    * @private
+   * @throws {Error} If the StructuralSchemaValidator plugin is missing.
    */
-  #setupDependencies() {
-    // CRITICAL: Access the StructuralSchemaValidator plugin injected into the runtime environment.
+  #validatePluginAvailability() {
     if (typeof plugins === 'undefined' || !plugins.StructuralSchemaValidator) {
-        throw new Error("CRITICAL: StructuralSchemaValidator plugin missing. Cannot initialize SchemaValidator_Util.");
+      throw new Error("CRITICAL: StructuralSchemaValidator plugin missing. Cannot initialize SchemaValidator_Util.");
     }
     this.validatorPlugin = plugins.StructuralSchemaValidator;
   }
 
   /**
-   * Isolates the external execution call for registering a schema (I/O proxy).
+   * Registers a schema with the validation plugin.
    * @private
+   * @param {string} schemaName - The name of the schema.
+   * @param {Object} definition - The schema definition.
    */
-  #delegateToPluginRegistration(schemaName, definition) {
-      this.validatorPlugin.execute({
-          action: 'register',
-          schemaName: schemaName,
-          definition: definition
-      });
+  #registerSchema(schemaName, definition) {
+    this.validatorPlugin.execute({
+      action: 'register',
+      schemaName,
+      definition
+    });
   }
 
   /**
-   * Isolates the external execution call for validating data (I/O proxy).
+   * Validates data against a registered schema.
    * @private
+   * @param {string} schemaName - The name of the schema.
+   * @param {Object} data - The data to validate.
+   * @returns {Object} Validation result with isValid and properties.
    */
-  #delegateToPluginValidation(schemaName, data) {
-      // The plugin returns { isValid, errors } directly.
-      return this.validatorPlugin.execute({
-          action: 'validate',
-          schemaName: schemaName,
-          data: data
-      });
+  #validateData(schemaName, data) {
+    return this.validatorPlugin.execute({
+      action: 'validate',
+      schemaName,
+      data
+    });
   }
 
   /**
-   * Registers all predefined core schemas with the underlying validation engine.
+   * Registers all predefined core schemas with the validation engine.
    * @private
    */
   #initializeDefaultSchemas() {
-    const schemasToRegister = SchemaValidator_Util.#defaultSchemas;
-    
-    for (const schemaName in schemasToRegister) {
-        if (Object.hasOwnProperty.call(schemasToRegister, schemaName)) {
-            // Use the delegate directly during internal setup
-            this.#delegateToPluginRegistration(schemaName, schemasToRegister[schemaName]);
-        }
-    }
+    Object.entries(SchemaValidator_Util.#defaultSchemas).forEach(
+      ([schemaName, definition]) => this.#registerSchema(schemaName, definition)
+    );
   }
-  
+
   /**
    * Dynamically registers a new schema definition.
    * @param {string} schemaName - The unique name of the schema.
    * @param {Object} definition - The schema definition object.
    */
   registerSchema(schemaName, definition) {
-      this.#delegateToPluginRegistration(schemaName, definition);
+    if (typeof schemaName !== 'string' || !schemaName.trim()) {
+      throw new Error('Schema name must be a non-empty string');
+    }
+    if (typeof definition !== 'object' || definition === null) {
+      throw new Error('Schema definition must be an object');
+    }
+    this.#registerSchema(schemaName, definition);
   }
 
   /**
@@ -106,7 +110,13 @@ class SchemaValidator_Util {
    * @returns {Object} { isValid: boolean, errors: string[] }
    */
   validate(schemaName, data) {
-    return this.#delegateToPluginValidation(schemaName, data);
+    if (typeof schemaName !== 'string' || !schemaName.trim()) {
+      throw new Error('Schema name must be a non-empty string');
+    }
+    if (typeof data === 'undefined' || data === null) {
+      throw new Error('Data to validate cannot be null or undefined');
+    }
+    return this.#validateData(schemaName, data);
   }
 }
 
