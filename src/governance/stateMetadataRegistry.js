@@ -8,20 +8,19 @@ const { ActiveStateContextManagerKernel } = require('AGI-KERNEL');
  * and Maximum Recursive Abstraction.
  */
 class StateMetadataRegistryKernel {
-    
     /**
-     * @param {object} dependencies
-     * @param {ActiveStateContextManagerKernel} dependencies.ActiveStateContextManagerKernel
+     * Creates a new StateMetadataRegistryKernel instance.
+     * @param {object} dependencies - The required dependencies for the kernel.
+     * @param {ActiveStateContextManagerKernel} dependencies.stateManager - The state manager kernel.
      * @param {object} dependencies.logger - Standard logging utility.
      */
-    constructor({ ActiveStateContextManagerKernel, logger }) {
-        if (!ActiveStateContextManagerKernel || !logger) {
-            throw new Error("StateMetadataRegistryKernel initialization failed: Missing required tool kernels (ActiveStateContextManagerKernel, logger).");
+    constructor({ stateManager, logger }) {
+        if (!stateManager || !logger) {
+            throw new Error("StateMetadataRegistryKernel initialization failed: Missing required dependencies (stateManager, logger).");
         }
 
-        this.stateManager = ActiveStateContextManagerKernel;
+        this.stateManager = stateManager;
         this.logger = logger;
-        // Define a unique, auditable context path for this registry within the state manager.
         this.CONTEXT_PATH = 'governance/metadata/state_registry';
     }
 
@@ -30,56 +29,47 @@ class StateMetadataRegistryKernel {
      * @returns {Promise<void>}
      */
     async initialize() {
-        // Delegate initialization logic to ensure the underlying state manager is ready.
         this.logger.info(`StateMetadataRegistryKernel initialized. Context Path: ${this.CONTEXT_PATH}`);
     }
 
     /**
-     * Registers or completely overwrites metadata for a given key. Fully asynchronous.
-     * Delegation: Persistence, key validation, and versioning are handled by the ActiveStateContextManagerKernel.
+     * Registers or completely overwrites metadata for a given key.
      * @param {string} key - The state identifier.
      * @param {object} metadata - The associated metadata object.
      * @returns {Promise<boolean>}
      */
     async setMetadata(key, metadata) {
         try {
-            // The state manager automatically handles validation (key must be string, metadata must be non-array object).
             await this.stateManager.updateState(this.CONTEXT_PATH, key, metadata);
             return true;
         } catch (error) {
             this.logger.error(`[SMRK] Error setting metadata for key ${key}: ${error.message}`);
-            // Re-throw the error for upstream handling
             throw error;
         }
     }
 
     /**
-     * Retrieves metadata associated with a key. Fully asynchronous.
-     * Delegation: O(1) lookup efficiency and integrity checks are handled by the state manager.
+     * Retrieves metadata associated with a key.
      * @param {string} key - The state identifier.
      * @returns {Promise<object | null>} The metadata object or null if not found.
      */
     async getMetadata(key) {
         try {
-            const data = await this.stateManager.getState(this.CONTEXT_PATH, key);
-            // The state manager returns null if the key is not found, consistent with the original API.
-            return data || null;
+            return await this.stateManager.getState(this.CONTEXT_PATH, key) || null;
         } catch (error) {
             this.logger.warn(`[SMRK] Failed to retrieve metadata for key ${key}: ${error.message}`);
-            return null; // Return null on retrieval failure for resilience
+            return null;
         }
     }
 
     /**
-     * Deeply merges partial metadata into an existing entry. Fully asynchronous.
-     * Delegation: Atomic merge operation and versioning managed by the state manager's patch functionality.
+     * Deeply merges partial metadata into an existing entry.
      * @param {string} key - The state identifier.
      * @param {object} partialMetadata - The properties to merge.
      * @returns {Promise<boolean>}
      */
     async mergeMetadata(key, partialMetadata) {
         try {
-            // Use patchState for optimized, auditable merging
             await this.stateManager.patchState(this.CONTEXT_PATH, key, partialMetadata);
             return true;
         } catch (error) {
@@ -89,15 +79,13 @@ class StateMetadataRegistryKernel {
     }
 
     /**
-     * Checks the internal integrity of the registry state via the delegated persistence kernel.
-     * Delegation: Integrity checks (hashing, structural conformance) are handled by the ActiveStateContextManagerKernel.
+     * Checks the internal integrity of the registry state.
      * @returns {Promise<object>} A report detailing integrity status.
      */
     async checkStateIntegrity() {
         try {
             const report = await this.stateManager.getContextIntegrityReport(this.CONTEXT_PATH);
             
-            // Adapt the detailed report structure provided by the kernel to the expected output format.
             return {
                 integrity_ok: report.integrity_status === 'HEALTHY',
                 registry_version: report.current_version,
