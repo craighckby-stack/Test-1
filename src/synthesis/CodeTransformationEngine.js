@@ -1,73 +1,58 @@
-/**
- * Component ID: CTE (Code Transformation Engine)
- * Function: Handles all low-level, language-specific transformations required for synthesis.
- * Translates structured AST representations into executable code payloads (diffs, patches, new content).
- * Responsible for L-01 (Linguistic/Syntactical) integrity validation.
- *
- * Dependencies:
- * - Language Parsers (e.g., Babel/ESLint/SWC)
- * - Diffing/Patching Libraries
- * - LinguisticSyntaxValidatorTool (for L-01 checks)
- */
-
-interface ILinguisticSyntaxValidatorTool {
-    validateSyntax(codePayload: string, language?: string): { valid: boolean; reason: string };
-}
-
 class CodeTransformationEngine {
-    private parserService: any; 
-    private linguisticSyntaxValidator: ILinguisticSyntaxValidatorTool;
-
-    constructor(parserService: any, linguisticSyntaxValidator: ILinguisticSyntaxValidatorTool) {
-        // Dedicated service handles parsing and AST manipulation based on target language
-        this.parserService = parserService; 
-        this.linguisticSyntaxValidator = linguisticSyntaxValidator; // Injected Dependency
+    /**
+     * @param {any} parserService - Service for parsing and AST manipulation based on target language
+     * @param {ILinguisticSyntaxValidatorTool} linguisticSyntaxValidator - Tool for syntax validation
+     */
+    constructor(parserService, linguisticSyntaxValidator) {
+        this.parserService = parserService;
+        this.linguisticSyntaxValidator = linguisticSyntaxValidator;
     }
 
     /**
-     * Takes raw evolutionary intent (high-level instruction) and converts it into a structural,
-     * language-agnostic Abstract Syntax Tree (AST) representation.
-     * @param {object} rawIntent - The conceptual proposal.
-     * @returns {object} A preliminary AST representing the desired final code state.
+     * Converts raw evolutionary intent into a language-agnostic AST representation
+     * @param {object} rawIntent - The conceptual proposal with evolutionTarget and codeInstructions
+     * @returns {Promise<object>} A preliminary AST representing the desired final code state
      */
-    async intentToAST(rawIntent: any): Promise<any> {
-        // Implement complex linguistic analysis and preliminary AST construction here.
-        console.log(`CTE: Interpreting intent for target ${rawIntent.evolutionTarget}.`);
-        // Example: this.parserService.generateAST(rawIntent.codeInstructions);
-        return { 
+    async intentToAST(rawIntent) {
+        // In a real implementation, this would perform complex linguistic analysis
+        console.log(`CTE: Interpreting intent for target ${rawIntent.evolutionTarget}`);
+        
+        // Simulated AST generation - replace with actual implementation
+        return {
             type: 'SynthesizedAST',
-            // ... detailed AST nodes/structure ...
+            evolutionTarget: rawIntent.evolutionTarget,
+            instructions: rawIntent.codeInstructions
         };
     }
 
     /**
-     * Takes the validated AST and generates the concrete code modifications required to reach that state.
-     * Ensures the generated code is syntactically valid (L-01 validation).
-     * @param {object} preliminaryAST - The validated future state structure.
-     * @returns {Array<object>} A list of file operation payloads (e.g., { path: 'file.js', operation: 'patch', content: '...' })
+     * Generates code mutations from a validated AST
+     * @param {object} preliminaryAST - The validated future state structure
+     * @returns {Promise<Array<object>>} List of file operation payloads
+     * @throws {Error} If syntax validation fails
      */
-    async astToCodeMutations(preliminaryAST: any): Promise<Array<any>> {
+    async astToCodeMutations(preliminaryAST) {
+        console.log('CTE: Generating granular code operations (patches/adds)');
         
-        console.log("CTE: Generating granular code operations (patches/adds).");
+        // Generate code from AST (simplified for example)
+        const generatedCodeContent = this.parserService.generateCode(preliminaryAST);
         
-        // 1. AST Traversal and Code Generation (Simulated Output)
-        const generatedCodeContent = 'const synthesizedContent = getAstDetails(preliminaryAST);\nconsole.log(synthesizedContent);';
-
-        // 2. Syntax Validation (L-01 check) using the dedicated tool.
-        const language = 'javascript'; // Determine target language from AST or context
-        const validationResult = this.linguisticSyntaxValidator.validateSyntax(generatedCodeContent, language);
+        // Validate syntax using the dedicated tool
+        const validationResult = this.linguisticSyntaxValidator.validateSyntax(
+            generatedCodeContent, 
+            preliminaryAST.language || 'javascript'
+        );
         
         if (!validationResult.valid) {
-            throw new Error(`L-01 Linguistic Integrity Breach: Syntax validation failed for ${language}. Reason: ${validationResult.reason}`);
+            throw new Error(`L-01 Linguistic Integrity Breach: Syntax validation failed. Reason: ${validationResult.reason}`);
         }
 
-        // 3. Diff generation against existing codebase if patching, or direct content if new file.
-        // Example file operation structure:
+        // Return file operations
         return [
             {
-                file: 'src/module.js',
+                file: preliminaryAST.targetFile || 'src/module.js',
                 type: 'PATCH',
-                details: generatedCodeContent // Use validated content
+                content: generatedCodeContent
             }
         ];
     }
