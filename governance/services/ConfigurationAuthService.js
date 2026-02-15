@@ -10,31 +10,66 @@ const POLICY_MANIFEST_PATH = 'governance/config/PolicyManifest.json';
  * Root-of-Trust value before they are parsed and utilized by the system.
  */
 export class ConfigurationAuthService {
+    /** @type {object|null} */
     static #manifestCache = null;
+    
+    /** @type {SystemFiles|null} */
     static #systemFiles = null;
+    
+    /** @type {CRoTCrypto|null} */
     static #cryptoService = null;
+    
+    /** @type {ContentIntegrityVerifier|null} */
     static #integrityVerifier = null;
 
+    /**
+     * Gets the system files instance, creating it if necessary.
+     * @returns {SystemFiles}
+     */
     static #getSystemFiles() {
         return ConfigurationAuthService.#systemFiles ??= SystemFiles;
     }
 
+    /**
+     * Gets the crypto service instance, creating it if necessary.
+     * @returns {CRoTCrypto}
+     */
     static #getCryptoService() {
         return ConfigurationAuthService.#cryptoService ??= CRoTCrypto;
     }
 
+    /**
+     * Gets the integrity verifier instance, creating it if necessary.
+     * @returns {ContentIntegrityVerifier}
+     */
     static #getIntegrityVerifier() {
         return ConfigurationAuthService.#integrityVerifier ??= ContentIntegrityVerifier;
     }
 
+    /**
+     * Reads a file from the system.
+     * @param {string} path - The path to the file.
+     * @returns {Promise<string>}
+     */
     static async #readFile(path) {
         return ConfigurationAuthService.#getSystemFiles().read(path);
     }
 
+    /**
+     * Parses JSON content.
+     * @param {string} rawContent - The raw JSON string.
+     * @returns {object}
+     */
     static #parseJson(rawContent) {
         return JSON.parse(rawContent);
     }
 
+    /**
+     * Calculates a hash of the given content.
+     * @param {string} content - The content to hash.
+     * @param {string} hashType - The hash algorithm to use.
+     * @returns {Promise<string>}
+     */
     static async #calculateHash(content, hashType) {
         return ConfigurationAuthService.#getCryptoService().hash(content, hashType);
     }
