@@ -29,7 +29,7 @@ class AxiomManager {
      * @param {boolean} [forceRecalculation=false] - Skips memoization if true
      * @returns {object} The result set or cached result wrapper
      */
-    processRecursively(forceRecalculation = false) {
+    process(forceRecalculation = false) {
         if (this.processed && !forceRecalculation) {
             return {
                 cached: true,
