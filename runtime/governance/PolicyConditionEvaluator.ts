@@ -1,79 +1,37 @@
-/**
- * PolicyConditionEvaluatorKernel.ts
- * Dedicated utility component responsible for robust and safe parsing and execution
- * of complex governance policy condition expressions (DSL).
- *
- * This implementation delegates execution to a sandboxed SecurePolicyEvaluatorTool
- * dependency provided upon initialization, ensuring security and isolation.
- */
-
 interface SecurePolicyEvaluatorTool {
-    execute(args: { conditionExpression: string, context: Record<string, any> }): boolean;
+    execute(args: { conditionExpression: string; context: Record<string, unknown> }): boolean;
 }
 
-interface PolicyConditionEvaluator {
-    evaluate(conditionExpression: string, context: Record<string, any>): boolean;
-}
-
-export class PolicyConditionEvaluatorKernel implements PolicyConditionEvaluator {
+/**
+ * Evaluates policy condition expressions using a sandboxed evaluator.
+ */
+export class PolicyConditionEvaluatorKernel {
     private readonly secureEvaluator: SecurePolicyEvaluatorTool;
 
     /**
-     * Helper proxy function for throwing setup errors.
+     * Creates a new PolicyConditionEvaluatorKernel.
+     * @param secureEvaluator - The sandboxed evaluator to use for condition execution.
+     * @throws {Error} If secureEvaluator is not provided.
      */
-    private #throwSetupError(message: string): never {
-        throw new Error(`[PolicyConditionEvaluatorKernel] Setup Error: ${message}`);
-    }
-
-    /**
-     * Rigorously extracts synchronous dependency validation and assignment.
-     * Satisfies synchronous setup extraction goal.
-     */
-    private #setupDependencies(secureEvaluator: SecurePolicyEvaluatorTool): void {
+    constructor(secureEvaluator: SecurePolicyEvaluatorTool) {
         if (!secureEvaluator) {
-            this.#throwSetupError("SecurePolicyEvaluatorTool dependency is required for safe policy evaluation.");
+            throw new Error("SecurePolicyEvaluatorTool dependency is required for safe policy evaluation.");
         }
         this.secureEvaluator = secureEvaluator;
     }
 
     /**
-     * Initializes the evaluator with a required sandboxing tool.
+     * Evaluates a condition expression against the given context.
+     * @param conditionExpression - The policy condition to evaluate.
+     * @param context - The data context to evaluate against.
+     * @returns The evaluation result, or false if evaluation fails.
      */
-    constructor(secureEvaluator: SecurePolicyEvaluatorTool) {
-        this.#setupDependencies(secureEvaluator);
-    }
-
-    /**
-     * I/O Proxy function for error logging.
-     * Satisfies I/O proxy creation goal.
-     */
-    private #logEvaluationError(conditionExpression: string, error: unknown): void {
-        console.error(`Error delegating evaluation for condition '${conditionExpression}':`, error);
-    }
-
-    /**
-     * Delegation proxy function for external tool execution.
-     * Satisfies I/O proxy creation goal.
-     */
-    private #delegateToSecureEvaluator(conditionExpression: string, context: Record<string, any>): boolean {
-        return this.secureEvaluator.execute({
-            conditionExpression: conditionExpression,
-            context: context
-        });
-    }
-
-    /**
-     * Evaluates a complex conditional expression against a context of data points
-     * by delegating the process to the sandboxed SecurePolicyEvaluatorTool.
-     */
-    public evaluate(conditionExpression: string, context: Record<string, any>): boolean {
-
+    public evaluate(conditionExpression: string, context: Record<string, unknown>): boolean {
         try {
-            // Delegate the substitution, keyword transformation, and safe execution.
-            return this.#delegateToSecureEvaluator(conditionExpression, context);
-        } catch (e) {
-            this.#logEvaluationError(conditionExpression, e);
-            return false; // Default fail-safe behavior
+            return this.secureEvaluator.execute({ conditionExpression, context });
+        } catch (error) {
+            console.error(`Error evaluating condition '${conditionExpression}':`, error);
+            return false;
         }
     }
 }
