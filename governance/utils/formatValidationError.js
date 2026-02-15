@@ -1,64 +1,51 @@
-/**
- * Standardized function to transform validation library errors (e.g., Ajv errors) 
- * into the system's internal structured error format.
- * 
- * This module encapsulates dependency resolution and interaction with 
- * the SchemaErrorFormatterTool.
- */
-
-class SchemaErrorFormatterImpl {
+class SchemaErrorFormatter {
     #formatterTool;
 
+    /**
+     * Initializes the formatter with the required dependency.
+     * @private
+     */
     constructor() {
-        this.#setupDependencies();
+        this.#initializeFormatterTool();
     }
 
     /**
-     * Goal: Extract synchronous dependency resolution and initialization.
+     * Initializes the formatter tool from the dependency.
+     * @private
      */
-    #setupDependencies() {
+    #initializeFormatterTool() {
         try {
-            // Resolve SchemaErrorFormatterTool and extract the format function
             const { format } = require('SchemaErrorFormatterTool');
             this.#formatterTool = format;
         } catch (error) {
-            this.#throwDependencyError(error);
+            throw new Error(`Failed to initialize SchemaErrorFormatterTool: ${error.message}`);
         }
     }
 
     /**
-     * Goal: Isolate all interactions with external dependencies (tool execution).
-     * @param {Array<object>} rawErrors
-     * @returns {Array<object>} Structured error format.
+     * Formats validation errors using the initialized formatter tool.
+     * @private
+     * @param {Array<object>} rawErrors - Array of validation errors.
+     * @returns {Array<object>} Formatted errors.
      */
-    #delegateToFormatterExecution(rawErrors) {
-        // Executes the external formatting function
+    #formatErrors(rawErrors) {
         return this.#formatterTool(rawErrors);
-    }
-    
-    /**
-     * Goal: Isolate custom error instantiation/throwing.
-     */
-    #throwDependencyError(error) {
-        // Using a generic Error for dependency issues, maintaining consistency with separation goals.
-        throw new Error(`[SchemaErrorFormatter] Failed to initialize dependency: SchemaErrorFormatterTool. Details: ${error.message}`);
     }
 
     /**
-     * Public API method matching the original module export.
-     * 
-     * @param {Array<object>} rawErrors - Array of errors returned by the validation library.
+     * Transforms validation errors into the system's structured error format.
+     * @param {Array<object>} rawErrors - Array of errors from the validation library.
      * @returns {Array<{path: string, message: string, keyword: string, params: object, schemaPath: string}>}
      */
     formatValidationError(rawErrors) {
-        return this.#delegateToFormatterExecution(rawErrors);
+        return this.#formatErrors(rawErrors);
     }
 }
 
-// Ensure a single, private instance is used to manage state and dependencies
-const instance = new SchemaErrorFormatterImpl();
+// Create a singleton instance
+const errorFormatter = new SchemaErrorFormatter();
 
-// Export the original public API wrapper
+// Export the formatter function
 module.exports = {
-    formatValidationError: instance.formatValidationError.bind(instance)
+    formatValidationError: errorFormatter.formatValidationError.bind(errorFormatter)
 };
