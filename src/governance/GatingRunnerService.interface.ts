@@ -82,7 +82,7 @@ export interface IGatingRunnerToolKernel {
         context: IGovernanceExecutionContext,
         depth?: number
     ): Promise<GatingCheckResult>;
-    
+
     /**
      * Utility method to compute the canonical hash key for a check execution, aiding in memoization.
      * This key must uniquely identify the check definition and the immutable state slice from the context.
