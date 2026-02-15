@@ -5,8 +5,8 @@
 **Mandate:** RRP V4.0 enforces $V_{CRITICAL\ TRIGGER}$ management mandated by SGS V94.4 (Section 3.2). Activation is exclusive to irreversible systemic faults (GSEP-C classification S2, S4.5, S6.7, S8).
 
 **Core Definitions:**
-*   $\Omega_{Failure}$: The immutable failure state captured by ASG, forming the basis for the **RSCM**.
-*   $\Psi_{Target}$: The validated, predetermined safe state targeted for restoration (derived from the RT Matrix).
+* $\Omega_{Failure}$: The immutable failure state captured by ASG, forming the basis for the **RSCM**.
+* $\Psi_{Target}$: The validated, predetermined safe state targeted for restoration (derived from the RT Matrix).
 
 **Efficiency Constraint ($\tau$):** Achieve cryptographically attested state transition (Capture $ \rightarrow $ Validation $ \rightarrow $ Restoration) within $\tau_{TOTAL} < 1.5s$. $\tau_{RSCM} < 500ms$ remains the constraint for Atomic Snapshot Generation.
 
