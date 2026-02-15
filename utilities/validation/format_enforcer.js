@@ -4,22 +4,27 @@
  * This utility is critical for Stage 2 payload verification, as defined in EPSD.
  */
 
+/**
+ * External format validation utility
+ */
 declare const FormatEnforcerUtility: {
     validate(args: { value: string; formatKey: string }): boolean;
 };
 
+/**
+ * Validates that a value conforms to a specific format defined by a format key.
+ * This class serves as a wrapper around the FormatEnforcerUtility plugin.
+ */
 class FormatEnforcer {
-
     /**
-     * Validates a given value against a registered format key using the dedicated utility plugin.
-     * @param {string} value - The input data.
+     * Validates a given value against a registered format key.
+     * @param {string} value - The input data to validate.
      * @param {string} formatKey - Key defined in the schema (e.g., 'SEMVER').
-     * @returns {boolean}
+     * @returns {boolean} - True if the value matches the format, false otherwise.
      */
     validate(value: string, formatKey: string): boolean {
-        // Delegate validation to the dedicated FormatEnforcerUtility plugin
         return FormatEnforcerUtility.validate({ value, formatKey });
     }
 }
 
-module.exports = new FormatEnforcer();
+export default new FormatEnforcer();
