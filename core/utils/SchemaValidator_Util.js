@@ -1,8 +1,8 @@
 /**
  * AGI-KERNEL v7.11.3 Navigator Edition - Core Schema Validator Utility
- * Provides standardized, high-performance schema validation essential for data integrity 
+ * Provides standardized, high-performance schema validation essential for data integrity
  * across sensitive service boundaries.
- * 
+ *
  * Uses the StructuralSchemaValidator plugin for robust, recursive, and strict validation logic.
  */
 
@@ -16,8 +16,8 @@ class SchemaValidator_Util {
       timestamp: { type: 'string', required: true },
       component: { type: 'string', required: true },
       trace_id: { type: 'string', required: true, description: 'Unique ID for error correlation' },
-      error_details: { 
-        type: 'object', 
+      error_details: {
+        type: 'object',
         required: true,
         subSchema: {
           code: { type: 'number', required: true },
