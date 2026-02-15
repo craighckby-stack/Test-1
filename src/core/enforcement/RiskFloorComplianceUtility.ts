@@ -6,47 +6,50 @@ import { IRiskFloorConfigRegistryKernel } from '../../config/IRiskFloorConfigReg
  * Adheres to the Kernel pattern for dependency management and configuration separation.
  */
 export class RiskFloorComplianceKernel {
-    private checker!: IRiskThresholdChecker;
-    private configRegistry!: IRiskFloorConfigRegistryKernel;
+    private readonly checker: IRiskThresholdChecker;
+    private readonly configRegistry: IRiskFloorConfigRegistryKernel;
 
     /**
-     * @param dependencies Dependencies required for initialization.
+     * Initializes the RiskFloorComplianceKernel with required dependencies.
+     * @param checker - The risk threshold checker implementation.
+     * @param configRegistry - The configuration registry for risk floor settings.
+     * @throws {Error} If required dependencies are not provided.
      */
-    constructor(dependencies: {
-        checker: IRiskThresholdChecker;
-        configRegistry: IRiskFloorConfigRegistryKernel;
-    }) {
-        this.#setupDependencies(dependencies);
+    constructor(
+        { checker, configRegistry }: {
+            checker: IRiskThresholdChecker;
+            configRegistry: IRiskFloorConfigRegistryKernel;
+        }
+    ) {
+        this.validateDependencies(checker, configRegistry);
+        this.checker = checker;
+        this.configRegistry = configRegistry;
     }
 
     /**
-     * Isolates dependency assignment and validation to ensure synchronous setup extraction.
+     * Validates that all required dependencies are provided.
      * @private
      */
-    #setupDependencies(dependencies: {
-        checker: IRiskThresholdChecker;
-        configRegistry: IRiskFloorConfigRegistryKernel;
-    }): void {
-        if (!dependencies.checker) {
+    private validateDependencies(
+        checker: IRiskThresholdChecker | undefined,
+        configRegistry: IRiskFloorConfigRegistryKernel | undefined
+    ): void {
+        if (!checker) {
             throw new Error("IRiskThresholdChecker must be provided to RiskFloorComplianceKernel.");
         }
-        if (!dependencies.configRegistry) {
+        if (!configRegistry) {
             throw new Error("IRiskFloorConfigRegistryKernel must be provided to RiskFloorComplianceKernel.");
         }
-        this.checker = dependencies.checker;
-        this.configRegistry = dependencies.configRegistry;
     }
 
     /**
      * Checks a set of critical operational metrics against predefined minimum thresholds (Risk Floors).
      *
-     * @param currentOperationalMetrics Key/value pairs of current measured metrics.
+     * @param currentOperationalMetrics - Key/value pairs of current measured metrics.
      * @returns The result of the compliance check.
      */
     public checkCoreOperationalRisk(currentOperationalMetrics: Record<string, number>): ComplianceResult {
-        // Retrieve configuration from the injected registry, eliminating hardcoded values.
-        const CORE_RISK_FLOORS = this.configRegistry.getCoreRiskFloors();
-
-        return this.checker.evaluate(currentOperationalMetrics, CORE_RISK_FLOORS);
+        const coreRiskFloors = this.configRegistry.getCoreRiskFloors();
+        return this.checker.evaluate(currentOperationalMetrics, coreRiskFloors);
     }
 }
