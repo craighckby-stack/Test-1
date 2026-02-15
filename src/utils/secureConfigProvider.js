@@ -7,7 +7,6 @@ import { CryptographicUtil } from './cryptographicUtil.js';
  * if security configuration is missing or invalid at runtime.
  */
 export class SecureConfigProvider {
-
     /**
      * @type {string | null} Cached Master Encryption Key (AGI_MEK).
      */
@@ -19,7 +18,7 @@ export class SecureConfigProvider {
     constructor() {
         throw new Error("SecureConfigProvider is a static utility class and cannot be instantiated.");
     }
-    
+
     /**
      * Retrieves and validates the MEK from environment variables, caching it on first access.
      * Throws a fatal error if the key is missing or invalid, halting system initialization.
@@ -35,7 +34,6 @@ export class SecureConfigProvider {
         
         // A 32-byte key is required to be 64 characters in hex format
         if (!key || key.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)) {
-            // Standardizing FATAL message format for visibility during bootstrap
             throw new Error(
                 '[FATAL CONFIGURATION ERROR] AGI_MEK environment variable is required and must be a 64 character hexadecimal key (32 bytes).'
             );
@@ -49,7 +47,6 @@ export class SecureConfigProvider {
     /**
      * Attempts to parse the plaintext as JSON if the string structurally resembles 
      * an object ({}) or array ([]), falling back to the raw string if parsing fails.
-     * This logic corresponds to the extracted StructuralJsonParser tool.
      * @param {string} decryptedData 
      * @returns {any} The parsed object or the original string.
      * @private
@@ -62,7 +59,7 @@ export class SecureConfigProvider {
         if (isObjectLike || isArrayLike) {
             try {
                 return JSON.parse(decryptedData);
-            } catch (e) {
+            } catch {
                 // If JSON parse fails but the structure looked right, return raw string fallback.
             }
         }
@@ -78,7 +75,6 @@ export class SecureConfigProvider {
      */
     static getSecret(encryptedValue) {
         if (typeof encryptedValue !== 'string' || encryptedValue.trim() === '') {
-            // Return non-string/empty inputs as is, preventing unnecessary key loading/crypto calls.
             return encryptedValue; 
         }
         
@@ -86,12 +82,8 @@ export class SecureConfigProvider {
         
         try {
             const decrypted = CryptographicUtil.decryptData(encryptedValue, key);
-            
-            // Delegate parsing decision to the structural checker utility.
             return SecureConfigProvider.#parseIfStructurallyJson(decrypted);
-            
         } catch (error) {
-            // Re-throw with clear contextual security failure message
             throw new Error(`[SECURITY DECRYPTION FAILED] Secret decryption failed. Input might be corrupted or encrypted with an incompatible AGI_MEK. Details: ${error.message}`);
         }
     }
@@ -104,8 +96,9 @@ export class SecureConfigProvider {
     static encryptSecret(data) {
         const key = SecureConfigProvider.#getEncryptionKey();
         
-        // Ensure data is stringified for consistent encryption input and matching expected decryption output (JSON.parse attempt)
-        const dataToEncrypt = (typeof data === 'object' && data !== null) || typeof data === 'number' || typeof data === 'boolean'
+        const dataToEncrypt = (typeof data === 'object' && data !== null) || 
+                            typeof data === 'number' || 
+                            typeof data === 'boolean'
             ? JSON.stringify(data)
             : String(data);
 
