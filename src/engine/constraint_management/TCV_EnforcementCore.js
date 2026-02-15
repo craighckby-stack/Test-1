@@ -1,47 +1,29 @@
-/**
- * TCVEnforcementKernel.js
- * Handles the interpretation and execution of constraints defined for trust calculus validation (TCV).
- *
- * Note: The external configuration loading mechanism has been abstracted into ITCVConstraintRegistryKernel,
- * and core operations are now asynchronous to align with strategic kernel expectations.
- */
-
-// --- Interface Placeholders (assumed to be strategically defined elsewhere) ---
-
-// Assumed interface for the extracted threshold calculation logic
-// Note: Execution signature is transitioned to asynchronous for strategic consistency.
-/*
-interface IMetricThresholdEvaluatorToolKernel {
-    execute(args: { value: number, thresholds: any }): Promise<{ status: string, policy?: string, value: number }>;
-}
-
-// Assumed interface for configuration loading
-interface ITCVConstraintRegistryKernel {
-    getConstraints(): Promise<Record<string, any>>; // Returns constraints indexed by metric_id
-}
-
-// Assumed interface for robust logging
-interface ILoggerToolKernel {
-    info(message: string, context?: any): Promise<void>;
-    warn(message: string, context?: any): Promise<void>;
-    error(message: string, context?: any): Promise<void>;
-}
-*/
-
 class TCVEnforcementKernel {
-    /** @type {Record<string, any>} */
+    /**
+     * @type {Record<string, any>}
+     */
     #constraints;
-    /** @type {IMetricThresholdEvaluatorToolKernel} */
+    
+    /**
+     * @type {IMetricThresholdEvaluatorToolKernel}
+     */
     #metricThresholdEvaluatorTool;
-    /** @type {ILoggerToolKernel} */
+    
+    /**
+     * @type {ILoggerToolKernel}
+     */
     #loggerTool;
-    /** @type {ITCVConstraintRegistryKernel} */
+    
+    /**
+     * @type {ITCVConstraintRegistryKernel}
+     */
     #constraintRegistryKernel;
 
     /**
-     * @param {IMetricThresholdEvaluatorToolKernel} metricThresholdEvaluatorTool
-     * @param {ILoggerToolKernel} loggerTool
-     * @param {ITCVConstraintRegistryKernel} constraintRegistryKernel
+     * Creates an instance of TCVEnforcementKernel.
+     * @param {IMetricThresholdEvaluatorToolKernel} metricThresholdEvaluatorTool - Tool for evaluating metric thresholds
+     * @param {ILoggerToolKernel} loggerTool - Logger for enforcement actions
+     * @param {ITCVConstraintRegistryKernel} constraintRegistryKernel - Registry for constraint configurations
      */
     constructor(
         metricThresholdEvaluatorTool,
@@ -51,69 +33,102 @@ class TCVEnforcementKernel {
         this.#metricThresholdEvaluatorTool = metricThresholdEvaluatorTool;
         this.#loggerTool = loggerTool;
         this.#constraintRegistryKernel = constraintRegistryKernel;
-        this.#setupDependencies();
+        this.#validateDependencies();
     }
 
     /**
-     * Private method to enforce synchronous dependency validation.
+     * Validates that all required dependencies are injected.
      * @private
      */
-    #setupDependencies() {
-        if (!this.#metricThresholdEvaluatorTool || !this.#loggerTool || !this.#constraintRegistryKernel) {
-            throw new Error("TCVEnforcementKernel dependencies not fully injected.");
+    #validateDependencies() {
+        const missingDeps = [];
+        
+        if (!this.#metricThresholdEvaluatorTool) missingDeps.push('metricThresholdEvaluatorTool');
+        if (!this.#loggerTool) missingDeps.push('loggerTool');
+        if (!this.#constraintRegistryKernel) missingDeps.push('constraintRegistryKernel');
+        
+        if (missingDeps.length > 0) {
+            throw new Error(`TCVEnforcementKernel dependencies not fully injected. Missing: ${missingDeps.join(', ')}`);
         }
+        
         this.#constraints = {};
     }
 
     /**
      * Loads the constraints configuration asynchronously from the injected registry.
-     * Replaces the synchronous loadConstraints method.
      */
     async initialize() {
-        this.#constraints = await this.#constraintRegistryKernel.getConstraints();
+        try {
+            this.#constraints = await this.#constraintRegistryKernel.getConstraints();
+        } catch (error) {
+            await this.#loggerTool.error('Failed to load constraints', { error: error.message });
+            throw error;
+        }
     }
 
     /**
-     * Checks a metric against configured thresholds.
-     * @param {string} metricId
-     * @param {number} currentValue
-     * @returns {Promise<object>} Status and potentially the mandated policy.
+     * Evaluates a metric against its configured thresholds.
+     * @param {string} metricId - The identifier of the metric to evaluate
+     * @param {number} currentValue - The current value of the metric
+     * @returns {Promise<object>} - Status and potentially the mandated policy
      */
     async evaluateMetric(metricId, currentValue) {
+        if (!metricId || typeof currentValue !== 'number') {
+            await this.#loggerTool.warn('Invalid parameters for metric evaluation', { metricId, currentValue });
+            return { status: 'ERROR', message: 'Invalid parameters' };
+        }
+
         const thresholds = this.#constraints[metricId];
         
-        if (!thresholds) return { status: 'OK' };
+        if (!thresholds) {
+            return { status: 'OK' };
+        }
 
-        // Delegation to the extracted, asynchronous tool
-        return this.#metricThresholdEvaluatorTool.execute({
-            value: currentValue,
-            thresholds: thresholds
-        });
+        try {
+            return await this.#metricThresholdEvaluatorTool.execute({
+                value: currentValue,
+                thresholds: thresholds
+            });
+        } catch (error) {
+            await this.#loggerTool.error('Failed to evaluate metric', { 
+                metricId, 
+                currentValue, 
+                error: error.message 
+            });
+            return { status: 'ERROR', message: 'Evaluation failed' };
+        }
     }
 
     /**
-     * Executes the mandated action (e.g., TERMINATE_SCR, LOG_ALERT).
-     * @param {{policy: string, status: string, value: number}} result - The evaluation result.
+     * Executes the mandated policy based on evaluation results.
+     * @param {{policy: string, status: string, value: number}} result - The evaluation result
      */
     async executePolicy(result) {
-        if (!result.policy) {
+        if (!result || !result.policy) {
             return;
         }
 
-        // Replaced direct console logging with ILoggerToolKernel
-        await this.#loggerTool.info(
-            `Policy Enforcement: Policy ${result.policy} triggered by status ${result.status} at value ${result.value}.`,
-            {
-                metricValue: result.value,
-                policy: result.policy,
-                status: result.status
+        try {
+            await this.#loggerTool.info(
+                `Policy Enforcement: Policy ${result.policy} triggered by status ${result.status} at value ${result.value}.`,
+                {
+                    metricValue: result.value,
+                    policy: result.policy,
+                    status: result.status
+                }
+            );
+            
+            if (result.policy.startsWith('TERMINATE')) {
+                await this.#loggerTool.warn(`CRITICAL: System control action mandated: ${result.policy}`);
+                // TODO: Implement delegation to SystemControlKernel
             }
-        );
-        
-        // Implementation stubs for actual enforcement...
-        if (result.policy.startsWith('TERMINATE')) {
-            // initiate graceful shutdown sequence (Delegation to a SystemControlKernel expected here)
-            await this.#loggerTool.warn(`CRITICAL: System control action mandated: ${result.policy}`);
+            
+            // Additional policy handling can be implemented here
+        } catch (error) {
+            await this.#loggerTool.error('Failed to execute policy', { 
+                policy: result.policy, 
+                error: error.message 
+            });
         }
     }
 }
