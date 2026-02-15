@@ -2,24 +2,32 @@ import { ILoggerToolKernel } from 'AGI-Kernel/tools';
 import { IKernel } from 'AGI-Kernel/types';
 
 /**
- * Placeholder for external type definitions, inferred from original usage.
+ * Represents a constraint violation with details about the failed constraint.
  */
 export interface ConstraintViolation {
+    /** The name of the constraint that was violated */
     constraintName: string;
+    /** Human-readable description of the violation */
     message: string;
-    details?: any;
+    /** Additional context about the violation */
+    details?: unknown;
 }
 
 /**
- * Placeholder for external type definitions, inferred from original usage.
+ * A function that evaluates a subject against a constraint and returns a violation if the constraint is not met.
  */
 export type Constraint<T> = (subject: T) => ConstraintViolation | null;
 
-// Assuming IConstraintEvaluatorToolKernel is defined in the plugin section below
+/**
+ * Interface for the constraint evaluator tool kernel.
+ */
+export interface IConstraintEvaluatorToolKernel<T> {
+    /** Evaluates all constraints against a subject */
+    evaluate(constraints: Map<string, Constraint<T>>, subject: T): Promise<ConstraintViolation[]>;
+}
 
 /**
- * Optimized ConstraintEnforcementKernel utilizing a dedicated, injected IConstraintEvaluatorToolKernel 
- * for efficient and abstracted asynchronous rule checking.
+ * Enforces constraints on subjects using an injected evaluator for asynchronous rule checking.
  */
 export class ConstraintEnforcementKernel<T> implements IKernel {
     private readonly constraints: Map<string, Constraint<T>> = new Map();
@@ -27,8 +35,10 @@ export class ConstraintEnforcementKernel<T> implements IKernel {
     private readonly evaluator: IConstraintEvaluatorToolKernel<T>;
 
     /**
-     * @param dependencies.logger The kernel-compliant logger utility.
-     * @param dependencies.evaluator The kernel responsible for executing constraint evaluations asynchronously.
+     * Creates a new ConstraintEnforcementKernel instance.
+     * @param dependencies - Required dependencies for the kernel
+     * @param dependencies.logger - Kernel-compliant logger utility
+     * @param dependencies.evaluator - Kernel responsible for executing constraint evaluations asynchronously
      */
     constructor(
         dependencies: {
@@ -39,14 +49,13 @@ export class ConstraintEnforcementKernel<T> implements IKernel {
         this.logger = dependencies.logger;
         this.evaluator = dependencies.evaluator;
 
-        this.#setupDependencies();
+        this.#validateDependencies();
     }
 
     /**
-     * Ensures all required dependencies are present and properly initialized.
-     * Adheres to the mandate of isolating synchronous setup logic.
+     * Validates that all required dependencies are present and properly initialized.
      */
-    #setupDependencies(): void {
+    #validateDependencies(): void {
         if (!this.logger || typeof this.logger.warn !== 'function') {
             throw new Error("ConstraintEnforcementKernel requires a valid ILoggerToolKernel.");
         }
@@ -64,13 +73,12 @@ export class ConstraintEnforcementKernel<T> implements IKernel {
 
     /**
      * Registers a new constraint function.
-     * @param name The unique name of the constraint.
-     * @param constraint The function that evaluates the subject and returns a violation or null.
+     * @param name - The unique name of the constraint
+     * @param constraint - The function that evaluates the subject and returns a violation or null
      */
     registerConstraint(name: string, constraint: Constraint<T>): void {
         if (this.constraints.has(name)) {
-            // Replaced console.warn with logger
-            this.logger.warn(`ConstraintEnforcementKernel: Constraint "${name}" was overwritten.`);
+            this.logger.warn(`Constraint "${name}" was overwritten.`);
         }
         this.constraints.set(name, constraint);
     }
@@ -78,17 +86,15 @@ export class ConstraintEnforcementKernel<T> implements IKernel {
     /**
      * Checks the subject against all registered constraints using the abstracted
      * asynchronous evaluation logic (delegated to the injected evaluator).
-     * @param subject The data/state to validate.
-     * @returns A promise resolving to an array of violations, or an empty array if compliant.
+     * @param subject - The data/state to validate
+     * @returns A promise resolving to an array of violations, or an empty array if compliant
      */
     async enforce(subject: T): Promise<ConstraintViolation[]> {
         this.logger.debug("Starting constraint enforcement.");
         
-        // Use the injected, asynchronous evaluator
         const violations = await this.evaluator.evaluate(this.constraints, subject);
 
         if (violations.length > 0) {
-            // Replaced console.error with logger
             this.logger.error(
                 `Constraint Enforcement Failed: Detected ${violations.length} violations.`,
                 { 
