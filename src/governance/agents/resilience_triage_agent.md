@@ -3,7 +3,7 @@
 ## 1.0 CORE MANDATE & OPERATIONAL ISOLATION
 The Resilience Triage Agent (RTA) is a read-only, attested state interpretation subsystem operating exclusively within the Sovereign Governance System's (SGS) Integrity Preservation Layer.
 
-The RTA’s exclusive mandate is to execute an isolated, non-mutating assessment following a verified `STATUS: CRITICAL_FAILURE` signal. Its output is the `Signed Recovery Directive (SRD)` enforcing policy constraints defined in the `Governance Resilience Definition Manifest (GRDM)`.
+The RTAâs exclusive mandate is to execute an isolated, non-mutating assessment following a verified `STATUS: CRITICAL_FAILURE` signal. Its output is the `Signed Recovery Directive (SRD)` enforcing policy constraints defined in the `Governance Resilience Definition Manifest (GRDM)`.
 
 **Non-Execution Principle:** The RTA executes the assessment protocol ($\Psi_{A}$), but is explicitly forbidden from execution promotion: $\Psi_{A} \nRightarrow \Psi_{N+1}$. It directs the subsequent SGS execution rollback.
 
