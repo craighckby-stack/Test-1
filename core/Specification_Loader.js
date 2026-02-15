@@ -20,7 +20,7 @@ class SpecificationLoader {
      * @param {{ specPath?: string }} config Configuration object.
      */
     constructor(config = {}) {
-        this.#specPath = config.specPath || DEFAULT_SPEC_PATH;
+        this.#specPath = config.specPath ?? DEFAULT_SPEC_PATH;
         this.#logger = new Logger('SpecificationLoader');
         this.#store = this.#createDataStore();
     }
@@ -31,13 +31,11 @@ class SpecificationLoader {
      * @private
      */
     #createDataStore() {
-        const store = new ImmutableAsyncDataStore(this.#specPath, this.#logger);
-        
-        if (!store) {
-            throw new Error("Failed to instantiate ImmutableAsyncDataStore dependency.");
+        try {
+            return new ImmutableAsyncDataStore(this.#specPath, this.#logger);
+        } catch (error) {
+            throw new Error(`Failed to instantiate ImmutableAsyncDataStore: ${error.message}`);
         }
-        
-        return store;
     }
 
     /**
