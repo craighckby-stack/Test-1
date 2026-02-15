@@ -34,15 +34,14 @@ class MECContractInterpreter {
     private contract: Contract;
     private ruleIndex: Record<string, Rule> = {};
     private componentIndex: Record<string, Component> = {};
-    private schemaValidator;
-    private expressionEvaluator;
+    private schemaValidator: { execute: (args: { data: any; schema: any }) => { isValid: boolean; errors?: any[] } };
+    private expressionEvaluator: { execute: (args: { expression: string; context: Record<string, any> }) => boolean };
 
     constructor(
         contractJson: Contract,
-        schemaValidator: any, // SchemaValidationService
-        expressionEvaluator: any // SecureExpressionEvaluatorTool
+        schemaValidator: { execute: (args: { data: any; schema: any }) => { isValid: boolean; errors?: any[] } },
+        expressionEvaluator: { execute: (args: { expression: string; context: Record<string, any> }) => boolean }
     ) {
-        // AGI-KERNEL Dependency Validation: Immediate TypeError on invalid shape
         if (!schemaValidator || typeof schemaValidator.execute !== 'function') {
             throw new TypeError("MECContractInterpreter requires a valid SchemaValidationService dependency with an 'execute' function.");
         }
@@ -65,14 +64,11 @@ class MECContractInterpreter {
         });
 
         if (!validationResult.isValid) {
-            const errors = validationResult.errors.map(e => (typeof e === 'string' ? e : e.message || 'Unknown error')).join('; ');
+            const errors = validationResult.errors?.map(e => 
+                typeof e === 'string' ? e : e.message || 'Unknown error'
+            ).join('; ') || 'Unknown schema validation errors';
             
-            // Use CanonicalErrorFactory for standardized initialization failure reporting
-            throw CanonicalErrorFactory.create('ContractInitializationError', {
-                message: `MEC Contract failed structural validation during initialization.`,
-                details: errors,
-                code: 'CONTRACT_SCHEMA_INVALID'
-            });
+            throw new Error(`MEC Contract failed structural validation: ${errors}`);
         }
     }
 
@@ -91,35 +87,40 @@ class MECContractInterpreter {
 
     /**
      * Executes a rule based on an external execution context, using a secure evaluation tool.
+     * @param ruleId - The ID of the rule to execute
+     * @param executionContext - The context in which to evaluate the rule
+     * @returns An object containing the execution status and related information
      */
-    public executeRule(ruleId: string, executionContext: ExecutionContext): { status: string, message?: string, action?: string, severity?: string, details?: string } {
+    public executeRule(ruleId: string, executionContext: ExecutionContext): { 
+        status: 'TRIGGERED' | 'PASS' | 'ERROR'; 
+        message?: string; 
+        action?: string; 
+        severity?: string; 
+        details?: string 
+    } {
         const rule = this.ruleIndex[ruleId];
         if (!rule) return { status: 'ERROR', message: `Rule ${ruleId} not found.` };
 
         const component = this.componentIndex[rule.applies_to];
         if (!component) return { status: 'ERROR', message: `Component ${rule.applies_to} not defined.` };
 
-        // Construct the isolated execution environment
         const environment: Record<string, any> = { 
             ...executionContext, 
             parameters: component.parameters 
         };
 
         try {
-            const result = this.expressionEvaluator.execute({
+            const conditionMet = this.expressionEvaluator.execute({
                 expression: rule.condition,
                 context: environment
             });
 
-            if (result) {
-                return { status: 'TRIGGERED', action: rule.action, severity: rule.severity };
-            }
-            return { status: 'PASS' };
-
-        } catch (e) {
-            const error = e as Error;
-            // Standardized error return
-            return { status: 'ERROR', message: 'Evaluation failed', details: error.message || String(error) };
+            return conditionMet 
+                ? { status: 'TRIGGERED', action: rule.action, severity: rule.severity }
+                : { status: 'PASS' };
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return { status: 'ERROR', message: 'Evaluation failed', details: errorMessage };
         }
     }
 }
