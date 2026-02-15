@@ -1,8 +1,3 @@
-/**
- * ConstraintDependencyGraphAnalyzer.ts
- * Pre-validates the dependency graph defined in the ConstraintResolutionEngineDefinition.
- */
-
 import { ConstraintResolutionEngineDefinition } from "./types";
 import {
   DependencyGraphAnalyzer,
@@ -11,34 +6,18 @@ import {
 } from 'AGI_KERNEL/DependencyGraphAnalyzer';
 
 /**
- * ConstraintDependencyGraphAnalyzer
- * Delegates complex graph analysis (cycles, duplicates, missing dependencies)
- * to the reusable AGI_KERNEL:DependencyGraphAnalyzer plugin.
+ * Analyzes constraint dependency graphs for structural issues.
+ * Uses AGI_KERNEL:DependencyGraphAnalyzer for cycle, duplicate, and missing dependency detection.
  */
 export class ConstraintDependencyGraphAnalyzer {
   #definition: ConstraintResolutionEngineDefinition;
   #graphAnalyzer: DependencyGraphAnalyzer;
+  readonly #ID_KEY = 'phaseId';
+  readonly #DEPS_KEY = 'dependencies';
 
   constructor(definition: ConstraintResolutionEngineDefinition) {
     this.#definition = definition;
-    this.#setupDependencies();
-  }
-
-  /**
-   * Encapsulates dependency resolution and initialization.
-   * Satisfies Synchronous Setup Extraction goal.
-   */
-  #setupDependencies(): void {
-    // Dependency: AGI_KERNEL/DependencyGraphAnalyzer
     this.#graphAnalyzer = new DependencyGraphAnalyzer();
-  }
-
-  /**
-   * Isolates the direct interaction with the external DependencyGraphAnalyzer tool.
-   * Satisfies I/O Proxy Creation goal.
-   */
-  #delegateToGraphAnalyzer(config: { nodes: AnalysisNode[], idKey: string, depsKey: string }): GraphDiagnostic[] {
-    return this.#graphAnalyzer.analyze(config);
   }
 
   /**
@@ -46,22 +25,21 @@ export class ConstraintDependencyGraphAnalyzer {
    * @returns An array of structured diagnostic messages.
    */
   public analyzeForCycles(): GraphDiagnostic[] {
-    // Synchronous data preparation: creating the configuration structure
     const analysisConfig = {
-      // The input structure (resolutionPhases) matches the expected format
       nodes: this.#definition.resolutionPhases as AnalysisNode[],
-      idKey: 'phaseId',
-      depsKey: 'dependencies',
+      idKey: this.#ID_KEY,
+      depsKey: this.#DEPS_KEY,
     };
 
-    // Delegate I/O to the proxy function
-    return this.#delegateToGraphAnalyzer(analysisConfig);
+    return this.#graphAnalyzer.analyze(analysisConfig);
   }
 
+  /**
+   * Validates the constraint definition structure.
+   * @throws Error if structural issues are found in resolution phases.
+   */
   public validateDefinition(): void {
     const diagnostics = this.analyzeForCycles();
-
-    // Error/Warning processing remains local validation logic.
     const errors = diagnostics.filter(d => d.severity === 'error');
     const warnings = diagnostics.filter(d => d.severity === 'warning');
 
@@ -71,8 +49,8 @@ export class ConstraintDependencyGraphAnalyzer {
     }
 
     if (warnings.length > 0) {
-        const warningMessages = warnings.map(w => w.message).join('; ');
-        console.warn(`Configuration Warnings during validation: ${warningMessages}`);
+      const warningMessages = warnings.map(w => w.message).join('; ');
+      console.warn(`Configuration Warnings during validation: ${warningMessages}`);
     }
 
     console.log("Constraint definition graph validated successfully.");
