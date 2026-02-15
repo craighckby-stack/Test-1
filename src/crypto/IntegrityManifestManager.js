@@ -4,12 +4,11 @@
  * A manifest (e.g., integrity.json) maps relative file paths to their expected cryptographic hashes (SHA-256 assumed).
  */
 class IntegrityManifestKernel {
-    
     // Dependencies
     #integrityHashKernel;
     #batchProcessorTool;
     #secureResourceLoader;
-    #manifestErrorConstructor; // Reference to the IntegrityManifestError class/constructor
+    #manifestErrorConstructor;
 
     /**
      * @param {object} dependencies
@@ -34,18 +33,16 @@ class IntegrityManifestKernel {
             manifestErrorConstructor 
         } = dependencies;
 
-        if (!integrityHashKernel || typeof integrityHashKernel.hashFileAsync !== 'function') {
-            throw new Error(`${this.constructor.name}: Missing or invalid integrityHashKernel dependency.`);
-        }
-        if (!batchProcessorTool || typeof batchProcessorTool.execute !== 'function') {
-            throw new Error(`${this.constructor.name}: Missing or invalid batchProcessorTool dependency.`);
-        }
-        if (!secureResourceLoader || typeof secureResourceLoader.loadJson !== 'function' || typeof secureResourceLoader.saveJson !== 'function') {
-            throw new Error(`${this.constructor.name}: Missing or invalid secureResourceLoader dependency.`);
-        }
-        if (!manifestErrorConstructor || typeof manifestErrorConstructor !== 'function') {
-             throw new Error(`${this.constructor.name}: Missing or invalid manifestErrorConstructor dependency.`);
-        }
+        const validateDependency = (dep, name, methods) => {
+            if (!dep || !methods.every(method => typeof dep[method] === 'function')) {
+                throw new Error(`${this.constructor.name}: Missing or invalid ${name} dependency.`);
+            }
+        };
+
+        validateDependency(integrityHashKernel, 'integrityHashKernel', ['hashFileAsync']);
+        validateDependency(batchProcessorTool, 'batchProcessorTool', ['execute']);
+        validateDependency(secureResourceLoader, 'secureResourceLoader', ['loadJson', 'saveJson']);
+        validateDependency(manifestErrorConstructor, 'manifestErrorConstructor', []);
         
         this.#integrityHashKernel = integrityHashKernel;
         this.#batchProcessorTool = batchProcessorTool;
@@ -62,31 +59,26 @@ class IntegrityManifestKernel {
      *
      * @param {string[]} filePaths Array of relative file paths.
      * @returns {Promise<Record<string, string>>} A map of relativePath -> hash.
-     * @throws {this.#manifestErrorConstructor} If any file fails to hash.
+     * @throws {IntegrityManifestError} If any file fails to hash.
      */
     async generateManifest(filePaths) {
-        
         const workerFn = async (filePath) => {
-            // Use injected IntegrityHashKernel (previously IntegrityHashUtility)
             const hash = await this.#integrityHashKernel.hashFileAsync(filePath);
             return hash;
         };
 
-        // Use injected BatchProcessorTool (previously AsyncBatchProcessor)
         const { successes, failures } = await this.#batchProcessorTool.execute(filePaths, workerFn);
         
-        const manifest = {};
-        
-        successes.forEach(s => {
-            manifest[s.item] = s.result; 
-        });
+        const manifest = successes.reduce((acc, { item, result }) => {
+            acc[item] = result;
+            return acc;
+        }, {});
 
         if (failures.length > 0) {
-            const errors = failures.map(f => 
-                `${f.item}: Failed to hash file: ${f.error.message || f.error}`
+            const errors = failures.map(({ item, error }) => 
+                `${item}: Failed to hash file: ${error.message || error}`
             );
 
-            // Use injected error constructor
             throw new this.#manifestErrorConstructor(
                 `Manifest generation failed for ${failures.length} file(s).`,
                 errors,
@@ -103,7 +95,6 @@ class IntegrityManifestKernel {
      * @param {Record<string, string>} manifest The manifest object (relativePath -> hash).
      */
     async saveManifest(manifestPath, manifest) {
-        // Use injected SecureResourceLoaderInterfaceKernel (previously FileUtility)
         await this.#secureResourceLoader.saveJson(manifestPath, manifest);
     }
 
@@ -113,17 +104,15 @@ class IntegrityManifestKernel {
      * 
      * @param {string} manifestPath Path to the stored manifest file.
      * @returns {Promise<{valid: boolean, errors: string[]}>} Detailed validation result.
-     * @throws {this.#manifestErrorConstructor} If the manifest file cannot be loaded or parsed.
+     * @throws {IntegrityManifestError} If the manifest file cannot be loaded or parsed.
      */
     async validateManifest(manifestPath) {
         let expectedManifest;
         
         try {
-            // Use injected SecureResourceLoaderInterfaceKernel
             expectedManifest = await this.#secureResourceLoader.loadJson(manifestPath);
         } catch (e) {
             const error = e instanceof Error ? e.message : String(e);
-            // Use injected error constructor
             throw new this.#manifestErrorConstructor(
                 `Failed to load or parse manifest file ${manifestPath}.`,
                 [error],
@@ -131,32 +120,25 @@ class IntegrityManifestKernel {
             );
         }
 
-        const fileEntries = Object.entries(expectedManifest);
-
         const workerFn = async ([filePath, expectedHash]) => {
-            // Use injected IntegrityHashKernel
             const calculatedHash = await this.#integrityHashKernel.hashFileAsync(filePath);
             
             if (calculatedHash !== expectedHash) {
-                const truncatedExpected = expectedHash.substring(0, 10);
-                const truncatedCalculated = calculatedHash.substring(0, 10);
+                const truncatedHash = (hash) => hash.substring(0, 10);
                 
-                throw new Error(`Integrity mismatch. Expected: ${truncatedExpected}..., Got: ${truncatedCalculated}...`);
+                throw new Error(`Integrity mismatch. Expected: ${truncatedHash(expectedHash)}..., Got: ${truncatedHash(calculatedHash)}...`);
             }
             return true;
         };
 
-        // Use injected BatchProcessorTool
-        const { failures } = await this.#batchProcessorTool.execute(fileEntries, workerFn);
+        const { failures } = await this.#batchProcessorTool.execute(Object.entries(expectedManifest), workerFn);
         
-        const errors = failures.map(f => {
-            const [filePath] = f.item; 
-            
-            if (f.error.message.startsWith('Integrity mismatch')) {
-                 return `Integrity mismatch for ${filePath}. ${f.error.message}`;
+        const errors = failures.map(({ item: [filePath], error }) => {
+            if (error.message.startsWith('Integrity mismatch')) {
+                 return `Integrity mismatch for ${filePath}. ${error.message}`;
             }
             
-            return `Validation failure (file access/hashing) for ${filePath}: ${f.error.message}`;
+            return `Validation failure (file access/hashing) for ${filePath}: ${error.message}`;
         });
         
         return { valid: errors.length === 0, errors };
