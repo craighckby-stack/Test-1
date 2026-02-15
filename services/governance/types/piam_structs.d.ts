@@ -1,6 +1,6 @@
 /**
  * Standardized data structures for PIAM (Post-Mortem Integrity Assurance Module).
- * 
+ *
  * NOTE: Generic sealing receipt structures have been abstracted to the IntegrityReceipts plugin.
  */
 
