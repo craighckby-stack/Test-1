@@ -54,7 +54,7 @@ class ProtocolExecutionFSM {
    */
   async executeProtocol() {
     this.#currentState = 'RUNNING';
-    
+
     while (this.#currentStepIndex < this.#steps.length) {
       const step = this.#steps[this.#currentStepIndex];
       const result = await this.#runStep(step);
@@ -70,7 +70,7 @@ class ProtocolExecutionFSM {
         this.#currentStepIndex++;
       }
     }
-    
+
     this.#currentState = (this.#currentState === 'HALTED') ? 'FAILED' : 'COMPLETED';
     return this.#currentState;
   }
