@@ -35,15 +35,6 @@ class ValidationOrchestrator {
     }
 
     /**
-     * Logs validator registration (placeholder for future debug implementation).
-     * @param {ConfigValidator} validatorInstance - The validator instance being registered.
-     */
-    #logRegistration(validatorInstance) {
-        // Debug logging placeholder
-        // console.debug(`[ValidationOrchestrator] Registered validator: ${validatorInstance.constructor.name}`);
-    }
-
-    /**
      * Delegates concurrent execution and result aggregation to the TaskAggregator.
      * @param {Promise<ValidationResult>[]} promises - Array of validation promises.
      * @returns {Promise<ValidationResult>} Aggregated validation results.
@@ -60,13 +51,13 @@ class ValidationOrchestrator {
      * @param {import('../plugins/TaskAggregator')} dependencies.TaskAggregator - The tool for concurrent execution and result aggregation.
      */
     #setupDependencies(dependencies) {
-        const aggregator = dependencies.TaskAggregator || dependencies.ConcurrentTaskAggregatorTool;
+        const { TaskAggregator } = dependencies;
 
-        if (!aggregator) {
+        if (!TaskAggregator) {
             this.#throwDependencyError("TaskAggregator tool instance is missing.");
         }
 
-        this.#aggregator = aggregator;
+        this.#aggregator = TaskAggregator;
         this.#validators = [];
     }
 
@@ -87,12 +78,11 @@ class ValidationOrchestrator {
      * @throws {Error} If the validator instance doesn't implement the required interface.
      */
     registerValidator(validatorInstance) {
-        if (typeof validatorInstance.validate !== 'function') {
-            this.#throwRegistrationError("Attempted to register object lacking the required 'validate' method (ConfigValidator interface).");
+        if (!(validatorInstance instanceof ConfigValidator)) {
+            this.#throwRegistrationError("Attempted to register object that doesn't implement ConfigValidator interface.");
         }
         
         this.#validators.push(validatorInstance);
-        this.#logRegistration(validatorInstance);
     }
 
     /**
