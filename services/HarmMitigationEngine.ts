@@ -31,7 +31,6 @@ interface PolicyResult {
 }
 
 export class HarmMitigationKernel {
-
     // --- Constants ---
     private readonly #SEVERITY_LEVELS: Record<PolicyRule['severity'], number> = {
         'P0_CRITICAL': 3,
