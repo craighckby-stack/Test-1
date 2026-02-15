@@ -18,18 +18,21 @@ declare const ErrorInitializerUtility: {
  * Base error class ensuring canonical structure (code, isFatal) and proper stack trace capture.
  */
 class BaseError extends Error {
-    public code: string;
-    public isFatal: boolean;
+    public readonly code: string;
+    public readonly isFatal: boolean;
 
-    constructor(message: string, code: string, isFatal: boolean = false) {
+    constructor(
+        message: string,
+        code: string,
+        isFatal: boolean = false
+    ) {
         super(message);
         
-        // Isolate external dependency interaction
         this.#delegateToErrorInitializer(code, isFatal);
     }
 
     /**
-     * Dedicated private I/O proxy to delegate canonical property setting and stack capture to the utility.
+     * Delegates canonical property setting and stack capture to the utility.
      */
     #delegateToErrorInitializer(code: string, isFatal: boolean): void {
         ErrorInitializerUtility.initializeCanonicalError(this, code, isFatal, this.constructor);
@@ -37,21 +40,28 @@ class BaseError extends Error {
 }
 
 /**
- * Error specifically for issues related to handler configuration or instantiation.
+ * Error for issues related to handler configuration or instantiation.
  */
 export class HandlerInstantiationError extends BaseError {
+    /**
+     * Creates an error indicating handler instantiation failure.
+     * @param message - The error message describing the instantiation issue.
+     */
     constructor(message: string) {
-        // Optimized: Hardcode details directly, removing the redundant #initializeDetails method.
         super(message, 'HANDLER_INSTANTIATION_FAILURE', true);
     }
 }
 
 /**
- * Error specifically for issues encountered during the retrieval attempt (I/O, network, strategy failures, or missing primitives).
+ * Error for issues encountered during data retrieval attempts.
+ * This includes I/O errors, network failures, strategy errors, or missing required data.
  */
 export class RetrievalError extends BaseError {
+    /**
+     * Creates an error indicating data retrieval failure.
+     * @param message - The error message describing the retrieval issue.
+     */
     constructor(message: string) {
-        // Optimized: Hardcode details directly, removing the redundant #initializeDetails method.
         super(message, 'DATA_RETRIEVAL_FAILURE', false);
     }
 }
