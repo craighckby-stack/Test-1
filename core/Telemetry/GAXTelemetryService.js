@@ -1,9 +1,7 @@
 import { ITelemetryService } from '../Plugins/Telemetry/ITelemetryService';
 
-// Standard no-operation function to use as a fallback executor.
+// Constants
 const NO_OP = () => {};
-
-// Constants for GA configuration
 const GA_DEFAULT_CATEGORY = 'App Interaction';
 const GA_DEFAULT_DIMENSIONS = {};
 
@@ -15,12 +13,10 @@ const GA_DEFAULT_DIMENSIONS = {};
 export class GAXTelemetryService {
     #trackingId = null;
     #isEnabled = false;
-    // Stores the resolved GA function (window.ga) or the NO_OP fallback.
     #gaExecutor = NO_OP;
 
     /**
-     * Delegates the command arguments to the resolved GA executor function.
-     * This acts as the I/O proxy for the external GA dependency (window.ga).
+     * Executes a GA command using the resolved executor.
      * @private
      * @param {...any} args - Arguments to pass to the GA executor.
      */
@@ -29,7 +25,7 @@ export class GAXTelemetryService {
     }
 
     /**
-     * Helper to resolve the global GA function reference.
+     * Resolves the global GA function reference.
      * @private
      * @returns {function} The window.ga function or a NO_OP function.
      */
@@ -43,8 +39,13 @@ export class GAXTelemetryService {
      * Initializes the GA tracker.
      * @param {{ trackingId: string, enabled: boolean }} config - Configuration object.
      * @returns {Promise<void>}
+     * @throws {Error} If trackingId is missing or GA function is not available.
      */
     async init(config) {
+        if (!config) {
+            throw new Error('[GAXTelemetryService Setup Error] Configuration is required.');
+        }
+
         this.#trackingId = config.trackingId;
         this.#isEnabled = config.enabled;
 
@@ -56,14 +57,12 @@ export class GAXTelemetryService {
             throw new Error('[GAXTelemetryService Setup Error] A trackingId is required.');
         }
 
-        // Resolve dependency once upon initialization
         this.#gaExecutor = this.#resolveGAFunction();
 
         if (this.#gaExecutor === NO_OP) {
             throw new Error('[GAXTelemetryService Error] Global GA function (window.ga) not found. Tracking commands will be ignored.');
         }
 
-        // Initialize GA tracker
         this.#executeGACommand('create', this.#trackingId, 'auto');
     }
 
@@ -73,7 +72,7 @@ export class GAXTelemetryService {
      * @param {Object} [properties={}] - Additional properties to set.
      */
     trackPageView(path, properties = {}) {
-        if (!this.#isEnabled) return;
+        if (!this.#isEnabled || !path) return;
 
         this.#executeGACommand('set', { page: path, ...properties });
         this.#executeGACommand('send', 'pageview');
@@ -85,7 +84,7 @@ export class GAXTelemetryService {
      * @param {Object} [properties={}] - Event properties including category, label, and value.
      */
     trackEvent(eventName, properties = {}) {
-        if (!this.#isEnabled) return;
+        if (!this.#isEnabled || !eventName) return;
 
         const { category = GA_DEFAULT_CATEGORY, label, value, ...customDimensions } = properties;
         const action = eventName;
@@ -93,9 +92,8 @@ export class GAXTelemetryService {
 
         this.#executeGACommand('send', 'event', category, action, label, eventValue);
 
-        // Set custom dimensions if provided
-        Object.entries(customDimensions).forEach(([key, value]) => {
-            this.#executeGACommand('set', `dimension${key}`, value);
+        Object.entries(customDimensions).forEach(([key, dimensionValue]) => {
+            this.#executeGACommand('set', `dimension${key}`, dimensionValue);
         });
     }
 
@@ -105,13 +103,12 @@ export class GAXTelemetryService {
      * @param {Object} [traits={}] - User traits to set as custom dimensions.
      */
     identify(userId, traits = GA_DEFAULT_DIMENSIONS) {
-        if (!this.#isEnabled) return;
+        if (!this.#isEnabled || !userId) return;
 
         this.#executeGACommand('set', 'userId', userId);
 
-        // Set custom dimensions from traits
-        Object.entries(traits).forEach(([key, value]) => {
-            this.#executeGACommand('set', `dimension${key}`, value);
+        Object.entries(traits).forEach(([key, traitValue]) => {
+            this.#executeGACommand('set', `dimension${key}`, traitValue);
         });
     }
 }
