@@ -110,18 +110,20 @@ class SchemaValidatorEngine {
      * @param {object} componentSchemas - Map of schema names to JSON Schema definitions.
      */
     #registerComponentSchemas(componentSchemas) {
-        if (componentSchemas && typeof componentSchemas === 'object' && !Array.isArray(componentSchemas)) {
-            Object.entries(componentSchemas).forEach(([name, schema]) => {
-                try {
-                    if (this.#validator.getSchema(name)) {
-                        this.#validator.removeSchema(name);
-                    }
-                    this.#validator.addSchema(schema, name);
-                } catch (e) {
-                    console.error(`[SCHEMA_ENGINE]: Failed to register schema ${name}:`, e.message);
-                }
-            });
+        if (!componentSchemas || typeof componentSchemas !== 'object' || Array.isArray(componentSchemas)) {
+            return;
         }
+
+        Object.entries(componentSchemas).forEach(([name, schema]) => {
+            try {
+                if (this.#validator.getSchema(name)) {
+                    this.#validator.removeSchema(name);
+                }
+                this.#validator.addSchema(schema, name);
+            } catch (e) {
+                console.error(`[SCHEMA_ENGINE]: Failed to register schema ${name}:`, e.message);
+            }
+        });
     }
 
     /**
@@ -201,6 +203,64 @@ class SchemaValidatorEngine {
      */
     validateAsync(schemaName, data) {
         const validate = this.#validator.getSchema(schemaName);
+        if (!validate) {
+            throw new Error(`Schema [${schemaName}] not found in validator instance.`);
+        }
+
+        const isValid = validate(data);
+        if (!isValid) {
+            this.#trackFailure(schemaName, validate.errors, false, data);
+        }
+
+        return {
+            isValid,
+            errors: isValid ? undefined : validate.errors
+        };
+    }
+
+    /**
+     * Analyzes validation failures to provide suggestions for improvement.
+     * @param {string} schemaName - The identifier of the schema to use.
+     * @returns {NavigatorSuggestion[]} Array of suggestions for schema improvement.
+     */
+    analyze(schemaName) {
+        const relevantFailures = this.#failureHistory.filter(
+            entry => entry.schemaName === schemaName && entry.isCritical
+        );
+
+        if (relevantFailures.length === 0) {
+            return [];
+        }
+
+        return this.#analyzer.analyze(relevantFailures);
+    }
+
+    /**
+     * Retrieves the validation history for a given schema.
+     * @param {string} schemaName - The identifier of the schema to use.
+     * @returns {Array<Object>} Array of validation failure entries.
+     */
+    getValidationHistory(schemaName) {
+        return this.#failureHistory.filter(entry => entry.schemaName === schemaName);
+    }
+
+    /**
+     * Clears the validation history.
+     */
+    clearHistory() {
+        this.#failureHistory = [];
+    }
+
+    /**
+     * Returns the current number of tracked failures.
+     * @returns {number} Count of tracked failures.
+     */
+    getFailureCount() {
+        return this.#failureHistory.length;
+    }
+}
+
+export { SchemaValidatorEngine, SchemaValidationError };e = this.#validator.getSchema(schemaName);
         if (!validate) {
             return { isValid: false, errors: [{ keyword: 'missing_schema', message: `Schema [${schemaName}] not found.` }] };
         }
