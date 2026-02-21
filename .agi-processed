@@ -26,3 +26,4 @@ README.md
 VMO/SPDM_Integrity_Validator.py
 agent_specifications/FVM.md
 agents/GAX/DCCA_Policy_Compliance_Engine.json
+agents/GAX/DCCA_Policy_Source_Integrity_Manifest.json
