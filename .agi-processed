@@ -51,3 +51,4 @@ architectural/schemas/hese_calibrationfactor.json
 architecture/component_registry.md
 architecture/components/architectural_staging_harness.md
 assets/crot/gicm.json
+assets/config/attestationvalidationrules.json
