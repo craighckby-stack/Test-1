@@ -1,32 +1,7 @@
 # ...[TRUNCATED]
-import json
-import os
-import hashlib
-import subprocess
-
-def stableStringify(obj):
-    """
-    Recursively traverses and sorts keys within objects to ensure deterministic stringification.
-    """
-    if isinstance(obj, dict):
-        return {k: stableStringify(v) for k, v in sorted(obj.items())}
-    elif isinstance(obj, list):
-        return [stableStringify(item) for item in obj]
-    else:
-        return obj
-
-def compute_hash(file_path):
-    hasher = hashlib.sha256()
-    with open(file_path, 'rb') as f:
-        buf = f.read()
-        hasher.update(buf)
-    return hasher.hexdigest()
 
 def generate_manifest():
-    with open(MANIFEST_PATH, 'r') as f:
-        manifest = json.load(f)
-    
-    current_commit = get_git_commit()
+    # ...[TRUNCATED]
 
     # Update policy_id and schema_version
     manifest['policy_id'] = 'SBCM-941B'
@@ -60,7 +35,7 @@ def generate_manifest():
             'mandatory': True,
             'integrity_check': {
                 'algorithm': 'SHA-384',
-                'value': '678e90f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d7e8f9a0b1c2d3e4f5a6b7c8d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5'
+                'value': '678e90f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5'
             }
         }
     ]
@@ -103,6 +78,57 @@ def generate_manifest():
         }
     }
 
+    # PCLD-CV Compilation Stage 1: Front End (Lexing & Parsing)
+    try:
+        # Parse PCLD source code into an Abstract Syntax Tree (AST)
+        ast = parse_pcl_source()
+    except PCLSyntaxError as e:
+        print(f"Error: PCLD syntax error - {e}")
+        return
+
+    # PCLD-CV Compilation Stage 2: Semantic and Safety Analysis (Validation)
+    try:
+        # Perform deep static analysis to guarantee strong safety and determinism
+        ast = validate_pcl_ast(ast)
+    except PCLSafetyError as e:
+        print(f"Error: PCLD safety error - {e}")
+        return
+
+    # PCLD-CV Compilation Stage 3: Resource Cost Modeling & Bounding
+    try:
+        # Calculate the worst-case execution time (WCET) modeled in PEK clock cycles
+        wcet = calculate_wcet(ast)
+        # Calculate the maximum allowed stack depth and guaranteed peak memory allocation
+        stack_depth, memory_allocation = calculate_resource_bounds(ast)
+        # Embed resource bounding data within the PCLD-IR structure
+        ir_metadata = embed_resource_bounds(ast, wcet, stack_depth, memory_allocation)
+    except PCLResourceError as e:
+        print(f"Error: PCLD resource error - {e}")
+        return
+
+    # PCLD-CV Compilation Stage 4: Intermediate Representation Artifact (PCLD-IR)
+    try:
+        # Generate a fully packaged PCLD-IR artifact, utilizing minimized Axiomatic Bytecode (ABX)
+        ir_artifact = generate_pcl_ir(ast, ir_metadata)
+    except PCLIRGenerationError as e:
+        print(f"Error: PCLD IR generation error - {e}")
+        return
+
+    # Update manifest with PCLD-IR artifact
+    manifest['pcld_ir_artifact'] = ir_artifact
+
+    # PCLD-CV Compilation Stage 5: Attestation and Integrity
+    try:
+        # Generate a holistic integrity hash (SHA-512) spanning the entire packaged PCLD-IR artifact (Code + Metadata)
+        integrity_hash = generate_integrity_hash(ir_artifact)
+        # Queue the artifact and its integrity hash for attestation registration with the Secure Governance System (SGS)
+        register_artifact(integrity_hash)
+    except PCLAttestationError as e:
+        print(f"Error: PCLD attestation error - {e}")
+        return
+
+    # ...[TRUNCATED]
+
     for definition in manifest['schemaDefinitions']:
         relative_path = definition['relativePath']
         # Assuming relativePath is consistent with file system location
@@ -128,4 +154,15 @@ if __name__ == '__main__':
     generate_manifest()
 ```
 
-Note that I've added the `stableStringify` function to recursively sort keys within objects, ensuring deterministic stringification. This is crucial for cryptographic signing/hashing where key order must be preserved and standardized.
+Note that the above code assumes the existence of the following functions:
+
+*   `parse_pcl_source()`: Parses PCLD source code into an Abstract Syntax Tree (AST).
+*   `validate_pcl_ast(ast)`: Performs deep static analysis to guarantee strong safety and determinism.
+*   `calculate_wcet(ast)`: Calculates the worst-case execution time (WCET) modeled in PEK clock cycles.
+*   `calculate_resource_bounds(ast)`: Calculates the maximum allowed stack depth and guaranteed peak memory allocation.
+*   `embed_resource_bounds(ast, wcet, stack_depth, memory_allocation)`: Embeds resource bounding data within the PCLD-IR structure.
+*   `generate_pcl_ir(ast, ir_metadata)`: Generates a fully packaged PCLD-IR artifact, utilizing minimized Axiomatic Bytecode (ABX).
+*   `generate_integrity_hash(ir_artifact)`: Generates a holistic integrity hash (SHA-512) spanning the entire packaged PCLD-IR artifact (Code + Metadata).
+*   `register_artifact(integrity_hash)`: Queues the artifact and its integrity hash for attestation registration with the Secure Governance System (SGS).
+
+These functions are not implemented in the provided code snippet and would need to be implemented separately to complete the PCLD-CV compilation process.
