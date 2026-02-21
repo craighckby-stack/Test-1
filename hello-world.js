@@ -1,3 +1,4 @@
+CORE:
 {
   "asset_id": "VRRM-V3.0",
   "asset_type": "VRRM_CONFIGURATION",
@@ -58,6 +59,25 @@
             "violation_vector": "NEG_V_BEHAVIOR"
           },
           "remediation_plan_ref": "VRRP-2C"
+        }
+      ]
+    },
+    {
+      "policy_id": "GCP_104",
+      "policy_name": "Governance Emergency Interlock Definition",
+      "policy_target_asset": "GEIDM",
+      "constraints": [
+        {
+          "constraint_id": "GCM_2_4",
+          "priority": {
+            "risk_level": "CRITICAL",
+            "severity_score": 100
+          },
+          "trigger_condition": {
+            "asset_id": "GEIDM",
+            "violation_vector": "NEG_V_AUTHORIZATION"
+          },
+          "remediation_plan_ref": "VRRP-2D"
         }
       ]
     }
@@ -142,5 +162,17 @@
     "aggregation": "MAX",
     "storage_policy": "PERMANENT",
     "optimize_goal": "MAXIMIZE"
+  },
+  "add_configuration": {
+    "schema_id": "GEIDM_V1.0",
+    "description": "Governance Emergency Interlock Definition Manifest. Defines cryptographic requirements for HIL-T authorization, mandatory during SIH recovery.",
+    "attestation_policy": {
+      "minimum_signer_threshold": 3,
+      "required_key_type": ["Secp256k1", "Ed25519"],
+      "authorization_window_seconds": 300
+    },
+    "allowed_hac_identities": [
+      {"identity": "HIL_OVR-A01", "cryptographic_root_hash": "sha256:...", "required_factors": ["MF1_HardwareToken", "MF2_GeoFenced" ]}
+    ]
   }
 }
