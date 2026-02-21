@@ -114,3 +114,4 @@ config/components/policyverifier_schema.json
 config/consensus/gsep_commit_policy.yaml
 config/consensus_verification_harness.json
 config/constraint_policies.json
+config/constraint_policy_mapping.json
