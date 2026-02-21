@@ -1,41 +1,22 @@
 // ...[TRUNCATED]
 
     /**
-     * Phase G7.1.C: Apply algorithms to derive Trust Calibration Factor (TCF) and Risk Calibration Factor (RCF).
-     * @returns {{tcf: number, rcf: number}} Calculated TCF and RCF.
+     * Derive Trust Calibration Factor (TCF) and Risk Calibration Factor (RCF) from operational metrics.
+     * @returns {Object} An object containing the calculated TCF and RCF.
      */
     deriveCalibrationFactors() {
-        console.log("HESE: Deriving Trust and Risk Calibration Factors...");
-        const deltas = this.#calculateEvolutionDeltas();
-
-        if (deltas.length === 0) {
-            console.warn("HESE: No deltas to calculate calibration factors. Returning default values.");
-            return { tcf: 1.0, rcf: 0.0 }; // Default to high trust, low risk when no data
-        }
-
-        const avgDelta = deltas.reduce((sum, d) => sum + d, 0) / deltas.length;
-        const normalizedAvgDelta = this.#normalize(avgDelta, 0, 1); // Assuming deltas typically range 0 to 1, but can be higher
-
-        // TCF: Inversely proportional to averaged delta rate
-        const tcf = 1 - normalizedAvgDelta; // Range: 0.0 - 1.0. Lower TCF -> higher skepticism.
-
-        // RCF: Adjusts max allowable exposure based on variance and max delta
-        const variance = deltas.reduce((sum, d) => sum + Math.pow(d - avgDelta, 2), 0) / deltas.length;
-        const maxDelta = Math.max(...deltas);
-        
-        // f(Variance(ΔT), max(ΔEi)) - Simplified function for demonstration
-        const rcf = (variance * 0.5) + (maxDelta * 0.5); // Example weighting
-        
-        console.log(`HESE: Calculated TCF: ${tcf.toFixed(4)}, RCF: ${rcf.toFixed(4)}`);
-        return { tcf: Math.max(0, Math.min(1, tcf)), rcf: Math.max(0, rcf) }; // Ensure TCF is within [0,1], RCF is non-negative
+        // ...[TRUNCATED]
 
         // ADD: Integrity Halt (IH) Protocol Enforcement
-        const gaxI = this.#checkGAXI(deltas);
+        const gaxI = this.#checkGAXI([tcf, rcf]);
         if (gaxI) {
             console.log("HESE: Integrity Halt (IH) Protocol Triggered.");
             this.#triggerIHProtocol();
             return { tcf: 0.0, rcf: 0.0 }; // IH Protocol overrides all other calculations
         }
+
+        // ...[TRUNCATED]
+
     }
 
     /**
@@ -44,18 +25,144 @@
      * @returns {boolean} True if GAX I is violated, false otherwise.
      */
     #checkGAXI(deltas) {
-        // Simplified example: Check if any delta value exceeds a certain threshold
-        const threshold = 0.5;
-        return deltas.some(delta => delta > threshold);
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { V_DELTA, P_TOL } = this.#getDCMOutput();
+        const toleranceExceeded = V_DELTA.some((delta, index) => delta > P_TOL[index]);
+        return toleranceExceeded;
     }
 
     /**
-     * Trigger the Integrity Halt (IH) Protocol.
+     * Get output from the Delta Computation Module (DCM).
+     * @returns {Object} An object containing the delta vector and tolerance profile.
      */
-    #triggerIHProtocol() {
-        // Simplified example: Log a message and return
-        console.log("HESE: Integrity Halt (IH) Protocol triggered. System will be isolated.");
-        // In a real-world implementation, this would involve more complex logic and potentially involve external systems
+    #getDCMOutput() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { V_COM, V_RUN, P_TOL } = this.#getInputData();
+        const V_DELTA = V_RUN.map((value, index) => value - V_COM[index]);
+        return { V_DELTA, P_TOL };
+    }
+
+    /**
+     * Get input data for the Delta Computation Module (DCM).
+     * @returns {Object} An object containing the committed state vector, runtime metric vector, and tolerance profile.
+     */
+    #getInputData() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const V_COM = this.#getCommittedStateVector();
+        const V_RUN = this.#getRuntimeMetricVector();
+        const P_TOL = this.#getToleranceProfile();
+        return { V_COM, V_RUN, P_TOL };
+    }
+
+    /**
+     * Get the committed state vector.
+     * @returns {Array<number>} The committed state vector.
+     */
+    #getCommittedStateVector() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        return this.#getVSROutput().V_COM;
+    }
+
+    /**
+     * Get the runtime metric vector.
+     * @returns {Array<number>} The runtime metric vector.
+     */
+    #getRuntimeMetricVector() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        return this.#getPDFSOutput().V_RUN;
+    }
+
+    /**
+     * Get the tolerance profile.
+     * @returns {Array<number>} The tolerance profile.
+     */
+    #getToleranceProfile() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        return this.#getVSROutput().P_TOL;
+    }
+
+    /**
+     * Get the output from the VSR (Vector Signing and Retrieval) module.
+     * @returns {Object} An object containing the committed state vector and tolerance profile.
+     */
+    #getVSROutput() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { V_COM, P_TOL } = this.#getVSRInput();
+        return { V_COM, P_TOL };
+    }
+
+    /**
+     * Get the input for the VSR (Vector Signing and Retrieval) module.
+     * @returns {Object} An object containing the committed state vector and tolerance profile.
+     */
+    #getVSRInput() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const V_COM = this.#getD01CommitmentLog();
+        const P_TOL = this.#getToleranceProfile();
+        return { V_COM, P_TOL };
+    }
+
+    /**
+     * Get the committed state from the D-01 commitment log.
+     * @returns {Array<number>} The committed state.
+     */
+    #getD01CommitmentLog() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        return this.commitmentLogs[0].committedState;
+    }
+
+    /**
+     * Get the tolerance profile.
+     * @returns {Array<number>} The tolerance profile.
+     */
+    #getToleranceProfile() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        return this.#getPDFSOutput().P_TOL;
+    }
+
+    /**
+     * Get the output from the PDFS (Performance Data Feed Service) module.
+     * @returns {Object} An object containing the runtime metric vector and tolerance profile.
+     */
+    #getPDFSOutput() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { V_RUN, P_TOL } = this.#getPDFSInput();
+        return { V_RUN, P_TOL };
+    }
+
+    /**
+     * Get the input for the PDFS (Performance Data Feed Service) module.
+     * @returns {Object} An object containing the runtime metric vector and tolerance profile.
+     */
+    #getPDFSInput() {
+        // ...[TRUNCATED]
+
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const V_RUN = this.operationalMetrics[0].runtimeMetrics;
+        const P_TOL = this.#getToleranceProfile();
+        return { V_RUN, P_TOL };
     }
 
     // ...[TRUNCATED]
@@ -65,19 +172,16 @@
 // ...[TRUNCATED]
 
     /**
-     * Phase G7.1.D: Publish the standardized TCF/RCF metrics.
+     * Publish the standardized TCF/RCF metrics.
      * @param {number} tcf - The calculated Trust Calibration Factor.
      * @param {number} rcf - The calculated Risk Calibration Factor.
      */
     publishTelemetry(tcf, rcf) {
-        console.log("HESE: Publishing calibration telemetry to ATM and MCRA...");
-        // Assumed endpoints for telemetryPublisher
-        this.telemetryPublisher.publish('/telemetry/calibration/tcf', { TCF: tcf, timestamp: new Date().toISOString() });
-        this.telemetryPublisher.publish('/telemetry/calibration/rcf', { RCF: rcf, timestamp: new Date().toISOString() });
-        console.log("HESE: Telemetry published successfully.");
+        // ...[TRUNCATED]
 
-        // ADD: Integrity Halt (IH) Protocol Enforcement
-        const gaxI = this.#checkGAXI([tcf, rcf]);
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { V_DELTA, P_TOL } = this.#getDCMOutput();
+        const gaxI = this.#checkGAXI(V_DELTA);
         if (gaxI) {
             console.log("HESE: Integrity Halt (IH) Protocol Triggered.");
             this.#triggerIHProtocol();
@@ -92,24 +196,24 @@
 // ...[TRUNCATED]
 
     /**
-     * Executes the full HESE operational flow (Phase G7.1).
+     * Execute the full HESE operational flow (Phase G7.1).
      * @param {Array<Object>} commitmentLogs - D-01 Commitment Log entries.
      * @param {Array<Object>} operationalMetrics - D-02 Operational Metrics entries.
      */
     async runHESE(commitmentLogs, operationalMetrics) {
-        console.log("HESE: Initiating G7.1 Operational Flow...");
-        await this.ingestData(commitmentLogs, operationalMetrics);
-        const { tcf, rcf } = this.deriveCalibrationFactors();
-        this.publishTelemetry(tcf, rcf);
-        console.log("HESE: G7.1 Operational Flow Complete.");
+        // ...[TRUNCATED]
 
-        // ADD: Integrity Halt (IH) Protocol Enforcement
-        const gaxI = this.#checkGAXI([tcf, rcf]);
+        // ARBITER: Delta Computation Module (DCM) Integration
+        const { tcf, rcf } = this.deriveCalibrationFactors();
+        const { V_DELTA, P_TOL } = this.#getDCMOutput();
+        const gaxI = this.#checkGAXI(V_DELTA);
         if (gaxI) {
             console.log("HESE: Integrity Halt (IH) Protocol Triggered.");
             this.#triggerIHProtocol();
             return { tcf: 0.0, rcf: 0.0 }; // IH Protocol overrides all other calculations
         }
+        this.publishTelemetry(tcf, rcf);
+        console.log("HESE: G7.1 Operational Flow Complete.");
         return { tcf, rcf };
     }
 
