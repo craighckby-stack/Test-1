@@ -22,6 +22,7 @@ const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'conf
 const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'telemetry_source_schema.json'), 'utf8'));
 const VSEC = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'vsec.json'), 'utf8'));
 const CONSTRAINT_TAXONOMY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'constraint_taxonomy.json'), 'utf8'));
+const GDECM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gdecm_schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -46,6 +47,7 @@ class AdaptiveSamplingEngine {
       telemetrySourceSchema: TELEMETRY_SOURCE_SCHEMA,
       vsec: VSEC,
       constraintTaxonomy: CONSTRAINT_TAXONOMY,
+      gdecmSchema: GDECM_SCHEMA
     };
   }
 
@@ -122,6 +124,10 @@ class AdaptiveSamplingEngine {
       if (!validationResult.isAdherent) {
         throw new Error('Constraint adherence failed');
       }
+
+      // Validate GDECM compliance
+      const gdecm = new GDECMValidator(this.config.gdecmSchema);
+      await gdecm.validate(stage.configuration);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -354,164 +360,127 @@ class ES_Schema {
           const value = configuration[param];
           if (!action[param + '_enum'].includes(value)) {
             throw new Error(`Invalid enum value for parameter: ${param}`);
-          }
+      }
+    }
+  }
+
+  // GACR/GDECMValidator.ts
+  class GDECMValidator {
+    constructor(schema) {
+      this.schema = schema;
+    }
+
+    async validate(configuration) {
+      // Validate configuration against GDECM schema
+      const validator = new JSONSchemaValidator();
+      const validationResults = await validator.validate(configuration, this.schema);
+      return validationResults;
+    }
+  }
+
+  // GACR/ECVM_TIS.ts
+  class ECVM_TIS {
+    constructor(config) {
+      this.config = config;
+    }
+
+    async validate(executionTrace) {
+      // Validate telemetry inputs against config
+      const telemetryInputs = this.config.telemetry_inputs;
+      for (const input of telemetryInputs) {
+        // Validate source_id
+        if (!executionTrace[input.source_id]) {
+          throw new Error(`Missing telemetry input source: ${input.source_id}`);
+        }
+
+        // Validate data_path
+        const dataPath = input.data_path;
+        if (!executionTrace[input.source_id][dataPath]) {
+          throw new Error(`Missing telemetry data at path: ${dataPath}`);
+        }
+
+        // Validate retrieval_config
+        const retrievalConfig = input.retrieval_config;
+        if (retrievalConfig.protocol !== 'HTTP/2_PULL' && retrievalConfig.protocol !== 'IPC_MOCK' && retrievalConfig.protocol !== 'GRPC_BI_STREAM') {
+          throw new Error(`Invalid retrieval protocol: ${retrievalConfig.protocol}`);
+        }
+
+        // Validate schedule
+        const schedule = retrievalConfig.schedule;
+        if (schedule.type !== 'INTERVAL' && schedule.type !== 'FIXED_RATE' && schedule.type !== 'EVENT_DRIVEN') {
+          throw new Error(`Invalid schedule type: ${schedule.type}`);
         }
       }
     }
   }
-}
 
-// GACR/ECVM_TIS.ts
-class ECVM_TIS {
-  constructor(config) {
-    this.config = config;
-  }
+  // ISVA/ISVA.ts
+  class ISVA {
+    constructor(policy) {
+      this.policy = policy;
+    }
 
-  async validate(executionTrace) {
-    // Validate telemetry inputs against config
-    const telemetryInputs = this.config.telemetry_inputs;
-    for (const input of telemetryInputs) {
-      // Validate source_id
-      if (!executionTrace[input.source_id]) {
-        throw new Error(`Missing telemetry input source: ${input.source_id}`);
-      }
-
-      // Validate data_path
-      const dataPath = input.data_path;
-      if (!executionTrace[input.source_id][dataPath]) {
-        throw new Error(`Missing telemetry data at path: ${dataPath}`);
-      }
-
-      // Validate retrieval_config
-      const retrievalConfig = input.retrieval_config;
-      if (retrievalConfig.protocol !== 'HTTP/2_PULL' && retrievalConfig.protocol !== 'IPC_MOCK' && retrievalConfig.protocol !== 'GRPC_BI_STREAM') {
-        throw new Error(`Invalid retrieval protocol: ${retrievalConfig.protocol}`);
-      }
-
-      // Validate schedule
-      const schedule = retrievalConfig.schedule;
-      if (schedule.type !== 'INTERVAL' && schedule.type !== 'FIXED_RATE' && schedule.type !== 'EVENT_DRIVEN') {
-        throw new Error(`Invalid schedule type: ${schedule.type}`);
+    async validate(inputState) {
+      // Validate input state against policy
+      const validationResults = await this.policy.validate(inputState);
+      if (!validationResults.every((result) => result.valid)) {
+        throw new Error('Input state validation failed');
       }
     }
   }
-}
 
-// ISVA/ISVA.ts
-class ISVA {
-  constructor(policy) {
-    this.policy = policy;
-  }
-
-  async validate(inputState) {
-    // Validate input state against policy
-    const validationResults = await this.policy.validate(inputState);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('Input state validation failed');
+  // CMAC/CMAC.ts
+  class CMAC {
+    constructor(spec) {
+      this.spec = spec;
     }
-  }
-}
 
-// CMAC/CMAC.ts
-class CMAC {
-  constructor(spec) {
-    this.spec = spec;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against spec
-    const validationResults = await this.spec.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMAC validation failed');
-    }
-  }
-}
-
-// CMR/CMR.ts
-class CMR {
-  constructor(config, schema) {
-    this.config = config;
-    this.schema = schema;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against config and schema
-    const validationResults = await this.schema.validate(executionTrace, this.config);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR validation failed');
-    }
-  }
-}
-
-// ECVM/ECVM.ts
-class ECVM {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against config
-    const validationResults = await this.config.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('ECVM validation failed');
-    }
-  }
-}
-
-// PSCA/PSCA.ts
-class PSCA {
-  constructor(validationTargets) {
-    this.validationTargets = validationTargets;
-  }
-
-  async validate(configuration) {
-    // Validate configuration against targets
-    const validationResults = await this.validationTargets.validate(configuration);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('PSCA validation failed');
-    }
-  }
-}
-
-// GAR/GAR.ts
-class GAR {
-  constructor(keyRotationSchedule) {
-    this.keyRotationSchedule = keyRotationSchedule;
-  }
-
-  async sealAndAttest(artifactManifest) {
-    // Seal and attest artifact manifest
-    const sealedManifest = await this.keyRotationSchedule.sealAndAttest(artifactManifest);
-    return sealedManifest;
-  }
-}
-
-// GACR/GTEM.ts
-class GTEM {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(executionTrace) {
-    // Validate telemetry structure and transport constraints
-    const manifestId = this.config.manifest_id;
-    const description = this.config.description;
-    const signatureRequired = this.config.signature_required;
-    const telemetryFormatSpecification = this.config.telemetry_format_specification;
-    const transportConstraints = this.config.transport_constraints;
-
-    // Validate telemetry format specification
-    const requiredFields = telemetryFormatSpecification.required_fields;
-    for (const field of requiredFields) {
-      if (!executionTrace[field]) {
-        throw new Error(`Missing required telemetry field: ${field}`);
+    async validate(executionTrace) {
+      // Validate execution trace against spec
+      const validationResults = await this.spec.validate(executionTrace);
+      if (!validationResults.every((result) => result.valid)) {
+        throw new Error('CMAC validation failed');
       }
     }
+  }
 
-    // Validate checksum algorithm
-    const checksumAlgorithm = telemetryFormatSpecification.checksum_algorithm;
-    if (checksumAlgorithm !== 'SHA3-256') {
-      throw new Error(`Invalid checksum algorithm: ${checksumAlgorithm}`);
+  // CMR/CMR.ts
+  class CMR {
+    constructor(config, schema) {
+      this.config = config;
+      this.schema = schema;
     }
 
-    //
+    async validate(executionTrace) {
+      // Validate execution trace against config and schema
+      const validationResults = await this.schema.validate(executionTrace, this.config);
+      if (!validationResults.every((result) => result.valid)) {
+        throw new Error('CMR validation failed');
+      }
+    }
+  }
+
+  // ECVM/ECVM.ts
+  class ECVM {
+    constructor(config) {
+      this.config = config;
+    }
+
+    async validate(executionTrace) {
+      // Validate execution trace against config
+      const validationResults = await this.config.validate(executionTrace);
+      if (!validationResults.every((result) => result.valid)) {
+        throw new Error('ECVM validation failed');
+      }
+    }
+  }
+
+  // PSCA/PSCA.ts
+  class PSCA {
+    constructor(validationTargets) {
+      this.validationTargets = validationTargets;
+    }
+
+    async validate(configuration) {
+      // Validate configuration against targets
+      const validationResults = await this.validationTargets
