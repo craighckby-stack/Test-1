@@ -1,81 +1,47 @@
-# ...[TRUNCATED]
-(strategy["ACTION"] * 0.05) * 
-                              ((strategy["TRIGGER_LEVEL"] == "WARNING") + 
-                               (strategy["TRIGGER_LEVEL"] == "CRITICAL") + 
-                               (strategy["TRIGGER_LEVEL"] == "INTEGRITY_HALT")))
-
-# Apply Nexus branch synthesis based on ADD constraints
-constraints = add_schema["constraints"]
-for constraint in constraints:
-    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                              ((constraint["formula"].split(" ")[-1] > constraint["metric_dependency"].split(" ")[-1] * 0.05) * 
-                               ((constraint["severity"] == "CRITICAL") + 
-                                (constraint["severity"] == "HIGH") + 
-                                (constraint["severity"] == "LOW"))))
-
-# Apply Nexus branch synthesis based on ADD default policy
-default_policy = add_schema["default_policy"]
-nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                           ((default_policy["on_critical_failure"] == "HALT_IMMEDIATELY") + 
-                            (default_policy["on_high_failure"] == "LOG_AND_FLAG")) * 1 * 0.05)
-
 # Apply Nexus branch synthesis based on ADD evolution trigger interface
-entry_points = add_schema["entry_points"]
 nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                           ((entry_points["id"] == "INTENT_HUMAN_OVERSIGHT") + 
-                            (entry_points["id"] == "INTENT_SYSTEM_AUTOGENY")) * 1 * 0.05)
+                           ((add_schema["system"]["sag_version"] == "V98.1 R1.0") + 
+                            (add_schema["system"]["dse_anchor"] == "CSR")) * 1 * 0.05)
 
 # Apply Nexus branch synthesis based on ADD integrity checks
-integrity_checks = add_schema["integrity_checks"]
 nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                           ((integrity_checks["input_serialization_type"] == "JSON/CBOR") + 
-                            (integrity_checks["validation_module"] == "RSAM")) * 1 * 0.05)
+                           ((add_schema["configuration_roots"]["ACVD"]["critical_thresholds"]["uma_min_floor"]["reference"] == "UFRM") + 
+                            (add_schema["configuration_roots"]["ACVD"]["critical_thresholds"]["cf_modifier"]["reference"] == "CFTM")) * 1 * 0.05)
 
 # Apply Nexus branch synthesis based on ADD alerts
-alerts = add_schema["alerts"]
-for alert in alerts:
+for alert in add_schema["configuration_roots"]["FASV_DEFINITION"]["required_keys"]:
     nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                              ((alert["severity"] == "CRITICAL") + 
-                               (alert["severity"] == "WARNING") + 
-                               (alert["severity"] == "INFO")) * 
-                              ((alert["action_trigger"] == "LOG") + 
-                               (alert["action_trigger"] == "METRIC_EMIT") + 
-                               (alert["action_trigger"] == "NOTIFICATION")))
+                              ((alert == "execution_id") + 
+                               (alert == "timestamp_final") + 
+                               (alert == "TEMM_scalar") + 
+                               (alert == "ECVM_status") + 
+                               (alert == "P01_Constraint_Inputs")) * 
+                              ((alert == "PVLM") + 
+                               (alert == "MPAM") + 
+                               (alert == "ADTM")))
 
 # Apply Nexus branch synthesis based on ADD alerts (additional logic)
-for alert in alerts:
-    if alert["severity"] == "CRITICAL":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (1 * 0.1))
-    elif alert["severity"] == "WARNING":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (0.5 * 0.1))
-    elif alert["severity"] == "INFO":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (0.1 * 0.1))
+if add_schema["p01_calculus"]["axiom_dependencies"]["UMA_I"]["calculation"] == "TEMM >= UFRM + CFTM":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (1 * 0.1))
+elif add_schema["p01_calculus"]["axiom_dependencies"]["CA_II"]["calculation"] == "ECVM == True":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.5 * 0.1))
+elif add_schema["p01_calculus"]["axiom_dependencies"]["AI_III"]["calculation"] == "! (PVLM | MPAM | ADTM)":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.1 * 0.1))
 
 # Apply Nexus branch synthesis based on ADD alerts (action triggers)
-for alert in alerts:
-    if alert["action_trigger"] == "LOG":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (1 * 0.05))
-    elif alert["action_trigger"] == "METRIC_EMIT":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (0.5 * 0.05))
-    elif alert["action_trigger"] == "NOTIFICATION":
-        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                                  (0.1 * 0.05))
+if add_schema["lifecycle_control"]["p2_validation_fail"]["trigger"] == "RRP":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (1 * 0.05))
+elif add_schema["lifecycle_control"]["p4_metric_fail"]["trigger"] == "RRP":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.5 * 0.05))
 
 # Apply Nexus branch synthesis based on ADD preprocessors
-preprocessors = add_schema["preprocessors"]
-for preprocessor in preprocessors:
-    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                              ((preprocessor["description"] == "No preprocessing applied. Raw file content is hashed.") + 
-                               (preprocessor["description"] == "Removes C-style comments (// and /* */) from JSON files before hashing.") + 
-                               (preprocessor["description"] == "Standardizes source code whitespace/encoding to ensure byte-for-byte reproducibility regardless of development environment linting.")) * 
-                              ((preprocessor["implementation_path"] == "core/hashing/preprocessors/none.py") + 
-                               (preprocessor["implementation_path"] == "core/hashing/preprocessors/json_comment_stripper.py") + 
-                               (preprocessor["implementation_path"] == "core/hashing/preprocessors/source_normalizer.py")))
-
-# Return Nexus branch synthesis
-return nexus_branch_synthesis
+nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                           ((add_schema["configuration_roots"]["FASV_DEFINITION"]["description"] == "Schema mandated for ASM structure adherence (checked in S03)") + 
+                            (add_schema["configuration_roots"]["FASV_DEFINITION"]["description"] == "Schema mandated for ASM structure adherence (checked in S03)")) * 
+                           ((add_schema["configuration_roots"]["FASV_DEFINITION"]["required_keys"] == ["execution_id", "timestamp_final", "TEMM_scalar", "ECVM_status", "P01_Constraint_Inputs"]) + 
+                            (add_schema["configuration_roots"]["FASV_DEFINITION"]["required_keys"] == ["PVLM", "MPAM", "ADTM"])))
