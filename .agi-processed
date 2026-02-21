@@ -34,3 +34,4 @@ agents/GAX/PreemptiveStateResolver.js
 GACR/ModelTierMapping.schema.json
 GACR/TelemetryAggregatorConfig.json
 GACR/models/S0_Platform_Types.py
+GACR/verification/HETM_Verifier.py
