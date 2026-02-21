@@ -16,6 +16,7 @@ const ECVM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm.jso
 const ECVM_TIS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm_tis.json'), 'utf8'));
 const ES_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'es_schema.json'), 'utf8'));
 const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.json'), 'utf8'));
+const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'hetm.schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -34,6 +35,7 @@ class AdaptiveSamplingEngine {
       ecvmTis: ECVM_TIS,
       esSchema: ES_SCHEMA,
       gtem: GTEM,
+      hetmSchema: HETM_SCHEMA,
     };
   }
 
@@ -73,6 +75,10 @@ class AdaptiveSamplingEngine {
       // Validate GTEM compliance
       const gtem = new GTEM(this.config.gtem);
       await gtem.validate(stage.executionTrace);
+
+      // Validate HETM compliance
+      const hetm = new HETM(this.config.hetmSchema);
+      await hetm.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -338,6 +344,21 @@ class GTEM {
       if (maxLatencyMs > 500) {
         throw new Error(`Invalid max latency: ${maxLatencyMs}`);
       }
+    }
+  }
+}
+
+// GACR/HETM.ts
+class HETM {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against schema
+    const validationResults = await this.schema.validate(executionTrace);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('HETM validation failed');
     }
   }
 }
