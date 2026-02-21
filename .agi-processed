@@ -62,3 +62,4 @@ config/sgs/targetevolutionmandatemanifest.json
 config/sgs/schemas/mandatevalidationschema.json
 config/spdm.json
 config/spdm_schema.json
+config/stdm.json
