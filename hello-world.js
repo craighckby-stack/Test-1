@@ -31,13 +31,26 @@ for strategy in remediation_strategies.values():
     elif strategy["TRIGGER_LEVEL"] == "INTEGRITY_HALT":
         nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (strategy["ACTION"] * 0.05))
 
-# Apply Nexus branch synthesis based on ADD axiom II context
-axiom_ii_context = add_schema["components"]["P01_CRITERIA"]["AXIOM_II_CONTEXT"]
-nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((axiom_ii_context["ECVM_VALIDATION_TIMEOUT_MS"] > 500 * 0.05)))
+# Remove redundant code
+# Apply Nexus branch synthesis based on ADD axiom II context (removed)
+# Apply Nexus branch synthesis based on ADD axiom III integrity (removed)
 
-# Apply Nexus branch synthesis based on ADD axiom III integrity
-axiom_iii_integrity = add_schema["components"]["P01_CRITERIA"]["AXIOM_III_INTEGRITY"]
-nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((axiom_iii_integrity["ENFORCE_ZERO_MPAM_VIOLATIONS"] * 0.05)))
+# Apply Nexus branch synthesis based on ADD constraints
+constraints = add_schema["constraints"]
+for constraint in constraints:
+    if constraint["severity"] == "CRITICAL":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((constraint["formula"].split(" ")[-1] > constraint["metric_dependency"].split(" ")[-1] * 0.05)))
+    elif constraint["severity"] == "HIGH":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((constraint["formula"].split(" ")[-1] > constraint["metric_dependency"].split(" ")[-1] * 0.05)))
+    elif constraint["severity"] == "LOW":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((constraint["formula"].split(" ")[-1] > constraint["metric_dependency"].split(" ")[-1] * 0.05)))
+
+# Apply Nexus branch synthesis based on ADD default policy
+default_policy = add_schema["default_policy"]
+if default_policy["on_critical_failure"] == "HALT_IMMEDIATELY":
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
+elif default_policy["on_high_failure"] == "LOG_AND_FLAG":
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
 
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
