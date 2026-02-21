@@ -1,7 +1,9 @@
-// Updated CORE logic on the Nexus branch
-const nexusBranch = {
+// Updated CORE
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Core Configuration",
+  "description": "Core configuration for the system.",
   "type": "object",
-  "description": "Nexus branch configuration.",
   "properties": {
     "nexus_branch": {
       "type": "string",
@@ -11,6 +13,9 @@ const nexusBranch = {
       "type": "object",
       "description": "ADD logic.",
       "properties": {
+        "nexus_branch": {
+          "$ref": "#/properties/nexus_branch"
+        },
         "trust_protocol": {
           "type": "string",
           "description": "Trust protocol for ADD."
@@ -78,7 +83,7 @@ const nexusBranch = {
 };
 
 // Updated ADD logic
-const addLogic = {
+{
   "type": "object",
   "description": "ADD logic.",
   "properties": {
@@ -101,7 +106,7 @@ const addLogic = {
 };
 
 // Updated ADD specification
-const addSpecification = {
+{
   "type": "object",
   "description": "Specification for ADD.",
   "properties": {
@@ -119,12 +124,57 @@ const addSpecification = {
     }
   }
 };
-```
 
-This updated CORE logic includes the following changes:
-
-*   Added a new property `nexus_branch` to the `add_logic` object, which references the `nexus_branch` property in the `nexus_branch` object.
-*   Updated the `add_logic` object to include references to the `trust_protocol`, `verification_settings`, `provisioning`, and `failover_strategy` properties.
-*   Updated the `add_specification` object to include references to the `trust_protocol`, `verification_settings`, `provisioning`, and `failover_strategy` properties.
-
-These changes ensure that the `add_logic` and `add_specification` objects are properly linked to the `nexus_branch` object and its properties.
+// Updated ADD
+{
+  "kms_version": "1.0",
+  "description": "Configuration parameters for integration with the external Key Management System (KMS) for keys compliant with crit_crypto_policy.",
+  "kms_provider_type": "Hybrid_Cloud",
+  "default_kms_endpoint": "https://kms.crit.system.local",
+  "key_types_config": [
+    {
+      "use": "SIGNATURE",
+      "purpose": "JWT_Signing",
+      "algorithm_match": "ES384",
+      "kms_identifier": "alias/crit-production-signing-p384",
+      "rotation_policy": {
+        "enabled": true,
+        "period_days": 90,
+        "automated_retirement_delay_days": 7
+      }
+    },
+    {
+      "use": "ENCRYPTION",
+      "purpose": "Symmetric_Content_Encryption",
+      "algorithm_match": "A256GCM",
+      "kms_identifier": "alias/crit-production-aes256",
+      "rotation_policy": {
+        "enabled": true,
+        "period_days": 180
+      }
+    }
+  ],
+  "add_logic": {
+    "nexus_branch": "nexus-branch-name",
+    "trust_protocol": "trust-protocol-name",
+    "verification_settings": {
+      "key_path": "key-path-name",
+      "jwk_fetch_enabled": true,
+      "integrity_policy_ref": "integrity-policy-ref-name"
+    },
+    "provisioning": {
+      "endpoint": "endpoint-name",
+      "manifest_id_template": "manifest-id-template-name",
+      "expected_hash_field_template": "expected-hash-field-template-name",
+      "required_manifests": ["manifest-1", "manifest-2"]
+    },
+    "failover_strategy": {
+      "mode": "mode-name",
+      "path": "path-name"
+    }
+  },
+  "auditing_config": {
+    "logging_destination": "CloudTrail",
+    "minimum_audit_level": "CRITICAL"
+  }
+}
