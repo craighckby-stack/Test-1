@@ -164,3 +164,4 @@ assets/governance/policy_enforcement_definition_registry.json
 assets/governance/policy_evolution_schema.json
 assets/policies/audit/sbcm_audit_config.json
 assets/policies/audit/sbcm_audit_router_definition.json
+assets/policies/resource_allocation/pu_allocation_policies_941b.json
