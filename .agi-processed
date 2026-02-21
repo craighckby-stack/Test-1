@@ -71,3 +71,4 @@ config/teds.schema.yaml
 config/teds_config_v1.json
 config/teds_evolution_policy.json
 config/teds_schema.json
+config/teds_data_catalog.json
