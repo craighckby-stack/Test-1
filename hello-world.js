@@ -15,6 +15,11 @@ CORE:
     "default_goal": "STAY_UNDER_BUDGET",
     "priority_weight": 1.0,
     "alert_target": 0.9
+  },
+  "QUALITY": {
+    "default_goal": "MAXIMIZE_SUCCESS_RATE",
+    "priority_weight": 0.4,
+    "constraint": "MIN_SUCCESS_RATE: 0.9"
   }
 },
 "dynamic_policies": [
@@ -74,6 +79,20 @@ CORE:
       "message": "Financial alert: External API cost exceeded 90% of budget."
     },
     "revert_after_ms": null
+  },
+  {
+    "id": "DP_005_QUALITY_OPTIMIZATION",
+    "trigger": {
+      "metric": "success_rate_op",
+      "operator": "<",
+      "threshold": 0.95
+    },
+    "action": {
+      "type": "AdjustPriority",
+      "component": "ToolExecution",
+      "preset": "DEGRADE_MINOR"
+    },
+    "revert_after_ms": 300000
   }
 ],
 "metric_definitions": {
@@ -145,11 +164,102 @@ CORE:
     "aggregation": "AVERAGE",
     "storage_policy": "HOT_30D",
     "optimize_goal": "STABILIZE"
+  },
+  "latency_ms": {
+    "type": "PERFORMANCE",
+    "source": "ToolOrchestrator",
+    "unit": "MILLISECONDS",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "MINIMIZE"
+  },
+  "token_ratio_input_output": {
+    "type": "RESOURCE_USAGE",
+    "source": "InferenceCore",
+    "unit": "RATIO",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "MAXIMIZE"
+  },
+  "memory_footprint_mb": {
+    "type": "RESOURCE_USAGE",
+    "source": "InferenceCore",
+    "unit": "MEGABYTES",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "MINIMIZE"
+  },
+  "success_rate_op": {
+    "type": "QUALITY",
+    "source": "ToolOrchestrator",
+    "unit": "PERCENTAGE",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "MAXIMIZE"
   }
 },
 "metadata_dictionary": {
   "storage_policies": {
     "HOT_30D": "Data retained in high-speed storage for 30 days before archival.",
     "PERMANENT": "Data retained indefinitely for financial and audit trails."
+  }
+},
+"normalization": {
+  "strategy": "TARGET_DEVIATION",
+  "parameters": {
+    "max_deviation_score": 0.2
+  }
+},
+"profiles": {
+  "standard_operational": {
+    "description": "General task execution profile.",
+    "metric_multipliers": {}
+  },
+  "deep_planning": {
+    "description": "Prioritizes token and output quality over minor latency dips.",
+    "metric_multipliers": {
+      "latency_ms": 0.5,
+      "token_ratio_input_output": 1.5,
+      "success_rate_op": 1.2
+    }
+  },
+  "critical_runtime": {
+    "description": "High weight on hard performance metrics (latency, success rate).",
+    "metric_multipliers": {
+      "latency_ms": 1.8,
+      "success_rate_op": 1.5,
+      "memory_footprint_mb": 0.9
+    }
+  },
+  "default_profile": "standard_operational"
+},
+"metrics": {
+  "latency_ms": {
+    "type": "performance",
+    "direction": "minimize",
+    "target_value": 150,
+    "weight_base": 0.45
+  },
+  "token_ratio_input_output": {
+    "type": "resource_usage",
+    "direction": "maximize",
+    "target_value": 0.35,
+    "weight_base": 0.25
+  },
+  "memory_footprint_mb": {
+    "type": "resource_usage",
+    "direction": "minimize",
+    "target_value": 1024,
+    "weight_base": 0.15
+  },
+  "success_rate_op": {
+    "type": "quality",
+    "direction": "maximize",
+    "target_value": 0.99,
+    "weight_base": 0.15
   }
 }
