@@ -20,6 +20,7 @@ const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'h
 const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm.json'), 'utf8'));
 const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm_metric_catalog.json'), 'utf8'));
 const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'telemetry_source_schema.json'), 'utf8'));
+const VSEC = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'vsec.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -42,6 +43,7 @@ class AdaptiveSamplingEngine {
       mqmPolicy: MQM_POLICY,
       mqmMetricCatalog: MQM_METRIC_CATALOG,
       telemetrySourceSchema: TELEMETRY_SOURCE_SCHEMA,
+      vsec: VSEC,
     };
   }
 
@@ -108,6 +110,10 @@ class AdaptiveSamplingEngine {
         await telemetrySourceSchemaValidator.validate(telemetrySource);
       }
 
+      // Validate VSEC compliance
+      const vsec = new VSECValidator(this.config.vsec);
+      await vsec.validate(stage.executionTrace);
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
@@ -120,6 +126,93 @@ class AdaptiveSamplingEngine {
     // Seal and attest configuration
     const gar = new GAR(this.config.keyRotationSchedule);
     await gar.sealAndAttest(artifactManifest);
+  }
+}
+
+// GACR/VSECValidator.ts
+class VSECValidator {
+  constructor(vsec) {
+    this.vsec = vsec;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against VSEC
+    const violationTypes = this.vsec.violation_types;
+    for (const violationType in violationTypes) {
+      const severityLevel = violationTypes[violationType].severity_level;
+      const triggerBinding = violationTypes[violationType].trigger_binding;
+      const responseSequence = violationTypes[violationType].response_sequence;
+
+      // Validate trigger binding
+      for (const trigger of triggerBinding) {
+        if (!executionTrace[trigger]) {
+          throw new Error(`Missing trigger binding: ${trigger}`);
+        }
+      }
+
+      // Validate response sequence
+      for (const response of responseSequence) {
+        // Validate response type
+        if (response.type === 'LOGGING') {
+          // Validate logging parameters
+          const parameters = response.parameters;
+          if (!parameters.level) {
+            throw new Error('Missing logging level');
+          }
+          if (!parameters.retention_days) {
+            throw new Error('Missing retention days');
+          }
+        } else if (response.type === 'ISOLATION') {
+          // Validate isolation parameters
+          const parameters = response.parameters;
+          if (!parameters.mode) {
+            throw new Error('Missing isolation mode');
+          }
+          if (!parameters.duration_sec) {
+            throw new Error('Missing duration seconds');
+          }
+        } else if (response.type === 'TERMINATE') {
+          // Validate termination parameters
+          const parameters = response.parameters;
+          if (!parameters.mode) {
+            throw new Error('Missing termination mode');
+          }
+        } else if (response.type === 'NOTIFY') {
+          // Validate notification parameters
+          const parameters = response.parameters;
+          if (!parameters.target) {
+            throw new Error('Missing notification target');
+          }
+          if (!parameters.priority) {
+            throw new Error('Missing notification priority');
+          }
+        } else if (response.type === 'FALLBACK_ACTION') {
+          // Validate fallback action template
+          const template = response.template;
+          if (!template) {
+            throw new Error('Missing fallback action template');
+          }
+        } else if (response.type === 'THROTTLE') {
+          // Validate throttle parameters
+          const parameters = response.parameters;
+          if (!parameters.rate_limit_pct) {
+            throw new Error('Missing rate limit percentage');
+          }
+          if (!parameters.targets) {
+            throw new Error('Missing throttle targets');
+          }
+        } else if (response.type === 'KERNEL_TRAP') {
+          // Validate kernel trap parameters
+          const parameters = response.parameters;
+          if (!parameters.signal) {
+            throw new Error('Missing kernel trap signal');
+          }
+          if (!parameters.reason_code) {
+            throw new Error('Missing kernel trap reason code');
+          }
+        }
+      }
+    }
   }
 }
 
@@ -389,104 +482,4 @@ class GTEM {
   }
 }
 
-// GACR/HETM.ts
-class HETM {
-  constructor(schema) {
-    this.schema = schema;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against schema
-    const validationResults = await this.schema.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('HETM validation failed');
-    }
-  }
-}
-
-// GACR/MQM.ts
-class MQM {
-  constructor(policy) {
-    this.policy = policy;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against policy
-    const enforcementTiers = this.policy.enforcement_tiers;
-    const defaultTier = this.policy.default_tier;
-    const protocolId = executionTrace.protocol_id;
-    const tier = enforcementTiers[protocolId] || defaultTier;
-
-    // Validate failure criteria
-    const failureCriteria = this.policy.enforcement_tiers[tier].failure_criteria;
-    if (executionTrace.consecutive_reruns > failureCriteria.max_consecutive_reruns) {
-      throw new Error(`Consecutive reruns exceeded maximum allowed: ${failureCriteria.max_consecutive_reruns}`);
-    }
-    if (executionTrace.window_hrs > failureCriteria.window_hrs) {
-      throw new Error(`Window hours exceeded maximum allowed: ${failureCriteria.window_hrs}`);
-    }
-
-    // Validate monitoring rules
-    const monitoringRules = this.policy.enforcement_tiers[tier].monitoring_rules;
-    for (const rule of monitoringRules) {
-      const metricId = executionTrace[rule.metric_id];
-      if (rule.type === 'PERCENTILE_LIMIT') {
-        if (metricId < rule.limit) {
-          throw new Error(`Metric ${rule.metric_id} below threshold: ${rule.limit}`);
-        }
-      } else if (rule.type === 'ABSOLUTE_COUNT_MAX') {
-        if (metricId > rule.limit) {
-          throw new Error(`Metric ${rule.metric_id} exceeded maximum allowed: ${rule.limit}`);
-        }
-      }
-    }
-  }
-}
-
-// GACR/MQM_MetricValidator.ts
-class MQM_MetricValidator {
-  constructor(metricCatalog) {
-    this.metricCatalog = metricCatalog;
-  }
-
-  async validate(executionTrace) {
-    const metricDefinitions = this.metricCatalog.metric_definitions;
-    for (const metricDefinition of metricDefinitions) {
-      const metricId = metricDefinition.metric_id;
-      if (!executionTrace[metricId]) {
-        throw new Error(`Missing MQM metric: ${metricId}`);
-      }
-    }
-  }
-}
-
-// CMR/CMRValidator.ts
-class CMRValidator {
-  constructor(schema) {
-    this.schema = schema;
-  }
-
-  async validate(executionTrace, config) {
-    const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(executionTrace, this.schema);
-    return validationResults;
-  }
-}
-
-// JSONSchemaValidator.ts
-class JSONSchemaValidator {
-  async validate(data, schema) {
-    const Ajv = require('ajv');
-    const ajv = new Ajv();
-    const validate = ajv.compile(schema);
-    const valid = validate(data);
-    if (!valid) {
-      throw new Error(validate.errors[0].message);
-    }
-    return validate.errors;
-  }
-}
-
-// AdaptiveSamplingEngine instance
-const adaptiveSamplingEngine = new AdaptiveSamplingEngine();
-adaptiveSamplingEngine.execute();
+//
