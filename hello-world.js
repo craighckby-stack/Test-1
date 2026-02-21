@@ -42,6 +42,24 @@ elif status_code in [500, 503]:
     # Server/execution error, apply negative Nexus branch synthesis
     nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.1)
 
+# Extract relevant data from ADD schema
+add_data = add_schema["components"]["ADD_Data"]
+
+# Check if ADD data is not empty
+if not add_data:
+    raise ValueError("ADD data is empty")
+
+# Calculate Nexus branch synthesis based on ADD metrics
+# Use a weighted average of cpu_usage and memory_usage
+# Calculate the weighted average of cpu_usage and memory_usage for each metric in the array
+add_weighted_averages = [(metric["cpu_usage"] + metric["memory_usage"]) / 2 for metric in add_data]
+
+# Calculate the average of the weighted averages
+add_weighted_average = sum(add_weighted_averages) / len(add_weighted_averages)
+
+# Apply Nexus branch synthesis weight and metric to ADD weighted average
+nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * add_weighted_average / 100)
+
 # Check if recursive_abstraction_metrics array is not empty
 if recursive_abstraction_metrics:
     # Calculate the average of recursive abstraction metrics
