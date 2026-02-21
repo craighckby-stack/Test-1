@@ -1,5 +1,4 @@
-CORE:
-// ...[TRUNCATED]
+# ...[TRUNCATED]
            ((alert == "execution_id") + 
                                (alert == "timestamp_final") + 
                                (alert == "TEMM_scalar") + 
@@ -47,5 +46,30 @@ if (add_schema["linkage_rules"][0]["context_match"]["regulatory_zone"] == "GDPR"
    (add_schema["linkage_rules"][0]["context_match"]["data_sensitivity"] == "Level_4") and \
    (add_schema["linkage_rules"][1]["context_match"]["environment"] == "Production") and \
    (add_schema["linkage_rules"][1]["context_match"]["tier"] == "Critical_Infrastructure"):
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.01))
+
+# Apply Nexus branch synthesis based on ADD engine configuration
+if add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE":
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.05))
+
+# Apply Nexus branch synthesis based on ADD key schema
+if len(add_schema["key_schema"]) > 1:
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.01))
+
+# Apply Nexus branch synthesis based on ADD secondary indexes
+if len(add_schema["secondary_indexes"]) > 1:
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.01))
+
+# Apply Nexus branch synthesis based on ADD vector indexes
+if len(add_schema["vector_indexes"]) > 0:
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.01))
+
+# Apply Nexus branch synthesis based on ADD data lifecycle
+if add_schema["data_lifecycle"]["ttl_enabled"]:
     nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
                               (0.01))
