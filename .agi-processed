@@ -52,3 +52,4 @@ architecture/component_registry.md
 architecture/components/architectural_staging_harness.md
 assets/crot/gicm.json
 assets/config/attestationvalidationrules.json
+assets/config/schemaattestationpolicymap.json
