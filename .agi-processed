@@ -149,3 +149,4 @@ assets/gax/vrrp.json
 assets/geidm.json
 assets/config/audit_log_indexing_spec.json
 assets/config/audit_log_spec.json
+assets/config/cals_validation_rules.json
