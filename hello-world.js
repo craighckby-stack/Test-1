@@ -1,9 +1,8 @@
+CORE:
 // ...[TRUNCATED]
-"policy_registry_name": "TrustAnchorGovernancePolicies",
-"version": "V1.0.0",
-"policies": {
+"policyRegistry": {
   "POLICY_P_AGI_ROOT_L5": {
-    "description": "Critical AGI Root Policy, requiring annual rotation and HSM protection.",
+    "description": "Root of Trust Policy (Physical Root of Trust), annual rotation.",
     "security_level": "L5_CRITICAL",
     "renewal_policy": "Annual_Rotation",
     "enforcement": {
@@ -135,7 +134,24 @@
     "enabled": false,
     "severity_level": "medium"
   }
+},
+"policyRegistry": {
+  "POLICY_P_AGI_ROOT_L5": {
+    "description": "Root of Trust Policy (Physical Root of Trust), annual rotation.",
+    "security_level": "L5_CRITICAL",
+    "renewal_policy": "Annual_Rotation",
+    "enforcement": {
+      "min_key_length": 4096,
+      "signature_required": ["RootAttestor", "CoreSecurityTeam"]
+    }
+  },
+  "POLICY_P_HARDENED_L6": {
+    "description": "Master Commit Hardened Policy (Physical Root of Trust), emergency renewal only.",
+    "security_level": "L6_HARDENED",
+    "renewal_policy": "Emergency_Only",
+    "enforcement": {
+      "access_control": "MFA_PHYSICAL_ONLY",
+      "chain_of_custody_req": "ISO_27001"
+    }
+  }
 }
-```
-
-The updated CORE code now includes the policy registry and policies from the ADD logic, while maintaining the existing structure and data.
