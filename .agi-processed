@@ -85,3 +85,4 @@ config/action_registry.json
 config/acv_v97.1_constraints.json
 config/acvd_policy_constraints.json
 config/acvd_policy_schema.json
+config/acvd_remediation_map.json
