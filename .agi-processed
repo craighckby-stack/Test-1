@@ -169,3 +169,4 @@ assets/policies/resource_allocation/pu_registry_941a.json
 assets/policies/sbcm.json
 build/pipeline/geidm_manifestgenerator.py
 common/utils/json/stablestringify.ts
+component/gax/pcld_compilervalidator_spec.md
