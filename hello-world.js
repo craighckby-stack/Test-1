@@ -83,6 +83,34 @@
         }
       ],
       "operator": "EQ"
+    },
+    {
+      "id": "ADD_PROTOCOL_INDEX_MATCH",
+      "description": "ADD protocol index match",
+      "type": "string",
+      "value": "RRP_W_C-A_101",
+      "operator": "EQ"
+    },
+    {
+      "id": "ADD_RESOURCE_BUDGET_MATCH",
+      "description": "ADD resource budget match",
+      "type": "numeric",
+      "value": 8500.0,
+      "operator": "EQ"
+    },
+    {
+      "id": "ADD_TELEMETRY_STREAM_MATCH",
+      "description": "ADD telemetry stream match",
+      "type": "string",
+      "value": "AgentHealthStream",
+      "operator": "EQ"
+    },
+    {
+      "id": "ADD_REQUIRED_OPERATIONAL_METRICS_MATCH",
+      "description": "ADD required operational metrics match",
+      "type": "string",
+      "value": "Agent_Heartbeat_Latency",
+      "operator": "EQ"
     }
   ],
   "modifiers": [
@@ -112,6 +140,34 @@
       "description": "Synthesized weight",
       "type": "numeric",
       "value": 30,
+      "operator": "MUL"
+    },
+    {
+      "id": "ADD_PROTOCOL_INDEX_WEIGHT",
+      "description": "ADD protocol index weight",
+      "type": "numeric",
+      "value": 5,
+      "operator": "MUL"
+    },
+    {
+      "id": "ADD_RESOURCE_BUDGET_WEIGHT",
+      "description": "ADD resource budget weight",
+      "type": "numeric",
+      "value": 5,
+      "operator": "MUL"
+    },
+    {
+      "id": "ADD_TELEMETRY_STREAM_WEIGHT",
+      "description": "ADD telemetry stream weight",
+      "type": "numeric",
+      "value": 5,
+      "operator": "MUL"
+    },
+    {
+      "id": "ADD_REQUIRED_OPERATIONAL_METRICS_WEIGHT",
+      "description": "ADD required operational metrics weight",
+      "type": "numeric",
+      "value": 5,
       "operator": "MUL"
     }
   ]
