@@ -1,3 +1,4 @@
+CORE:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Nexus Branch",
@@ -58,19 +59,70 @@
                         },
                         "add_specification": {
                           "type": "object",
-                          "description": "Specification for ADD."
-                        },
-                        "gacr_manifest_chain_integrity": {
-                          "type": "object",
-                          "description": "Chain integrity for GACR manifest."
-                        },
-                        "harmonic_severity_matrix": {
-                          "type": "object",
-                          "description": "Harmonic severity matrix."
-                        },
-                        "chain_history_length": {
-                          "type": "integer",
-                          "description": "Length of chain history."
+                          "description": "Specification for ADD.",
+                          "properties": {
+                            "trust_protocol": {
+                              "type": "string",
+                              "description": "Trust protocol for ADD."
+                            },
+                            "verification_settings": {
+                              "type": "object",
+                              "description": "Verification settings for ADD.",
+                              "properties": {
+                                "key_path": {
+                                  "type": "string",
+                                  "description": "Path to key for ADD."
+                                },
+                                "jwk_fetch_enabled": {
+                                  "type": "boolean",
+                                  "description": "Enable JWK fetch for ADD."
+                                },
+                                "integrity_policy_ref": {
+                                  "type": "string",
+                                  "description": "Reference to integrity policy for ADD."
+                                }
+                              }
+                            },
+                            "provisioning": {
+                              "type": "object",
+                              "description": "Provisioning settings for ADD.",
+                              "properties": {
+                                "endpoint": {
+                                  "type": "string",
+                                  "description": "Endpoint for ADD."
+                                },
+                                "manifest_id_template": {
+                                  "type": "string",
+                                  "description": "Template for manifest ID for ADD."
+                                },
+                                "expected_hash_field_template": {
+                                  "type": "string",
+                                  "description": "Template for expected hash field for ADD."
+                                },
+                                "required_manifests": {
+                                  "type": "array",
+                                  "description": "Required manifests for ADD.",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            },
+                            "failover_strategy": {
+                              "type": "object",
+                              "description": "Failover strategy for ADD.",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "description": "Mode for failover strategy for ADD."
+                                },
+                                "path": {
+                                  "type": "string",
+                                  "description": "Path for failover strategy for ADD."
+                                }
+                              }
+                            }
+                          }
                         }
                       }
                     }
