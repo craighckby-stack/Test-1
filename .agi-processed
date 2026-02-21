@@ -207,3 +207,4 @@ config/asdm_artifactschemas.json
 config/artifactstandard.json
 config/axiommanager.js
 config/cfrh_failureschema.json
+config/cmo_definition.json
