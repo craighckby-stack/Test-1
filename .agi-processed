@@ -206,3 +206,4 @@ config/apte_tuning_observation_manifest.json
 config/asdm_artifactschemas.json
 config/artifactstandard.json
 config/axiommanager.js
+config/cfrh_failureschema.json
