@@ -36,6 +36,7 @@ const DCCA_POLICY_PURPOSE = DCCA_POLICY_SOURCE_INTEGRITY_MANIFEST.purpose;
 const DCCA_POLICY_REQUIRED_SOURCES = DCCA_POLICY_SOURCE_INTEGRITY_MANIFEST.required_sources;
 
 const MODEL_TIER_MAPPING_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'GACR', 'ModelTierMapping.schema.json'), 'utf8'));
+const TELEMETRY_AGGREGATOR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'GACR', 'TelemetryAggregatorConfig.json'), 'utf8'));
 
 // Artificial General Intelligence
 class AGI {
