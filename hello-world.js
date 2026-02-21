@@ -1,3 +1,4 @@
+CORE:
 {
   "name": "DynamicTrustScoringEngine_V1",
   "description": "Dynamic Trust Scoring Engine",
@@ -110,14 +111,103 @@
   "temporalDegradation": {
     "unverifiedAnchorDegradationScorePerHour": 10,
     "maxDegradationScore": 300
+  },
+  "nexusBranch": {
+    "name": "Nexus Branch",
+    "description": "Nexus branch configuration",
+    "rules": [
+      {
+        "id": "TRUST_SCORE_NEXUS",
+        "description": "Nexus trust score",
+        "type": "numeric",
+        "value": 0,
+        "operator": "EQ",
+        "conditions": [
+          {
+            "id": "NEXUS_BASLINE_ID",
+            "description": "Nexus baseline ID",
+            "type": "string",
+            "value": "GARC-2024Q3-001",
+            "operator": "EQ"
+          },
+          {
+            "id": "STORAGE_PROTOCOL",
+            "description": "Storage protocol",
+            "type": "string",
+            "value": "COLD_VAULT_IMMUTABLE_STORAGE_V3",
+            "operator": "EQ"
+          }
+        ],
+        "modifiers": [
+          {
+            "id": "NEXUS_BASLINE_ID_MATCH",
+            "description": "Nexus baseline ID match modifier",
+            "type": "numeric",
+            "value": 100,
+            "operator": "ADD"
+          },
+          {
+            "id": "STORAGE_PROTOCOL_MATCH",
+            "description": "Storage protocol match modifier",
+            "type": "numeric",
+            "value": 50,
+            "operator": "ADD"
+          }
+        ]
+      },
+      {
+        "id": "TRUST_SCORE_VERIFICATION_TARGETS",
+        "description": "Verification targets trust score",
+        "type": "numeric",
+        "value": 0,
+        "operator": "EQ",
+        "conditions": [
+          {
+            "id": "OS_KERNEL_HASH_MATCH",
+            "description": "OS kernel hash match",
+            "type": "boolean",
+            "value": true,
+            "operator": "EQ"
+          },
+          {
+            "id": "GAX_AUTH_POLICY_MANIFEST_MATCH",
+            "description": "GAX authorization policy manifest match",
+            "type": "boolean",
+            "value": true,
+            "operator": "EQ"
+          },
+          {
+            "id": "CRoT_TRUST_ANCHORS_MATCH",
+            "description": "CRoT trust anchors match",
+            "type": "boolean",
+            "value": true,
+            "operator": "EQ"
+          }
+        ],
+        "modifiers": [
+          {
+            "id": "OS_KERNEL_HASH_MATCH_MODIFIER",
+            "description": "OS kernel hash match modifier",
+            "type": "numeric",
+            "value": 20,
+            "operator": "ADD"
+          },
+          {
+            "id": "GAX_AUTH_POLICY_MANIFEST_MATCH_MODIFIER",
+            "description": "GAX authorization policy manifest match modifier",
+            "type": "numeric",
+            "value": 30,
+            "operator": "ADD"
+          },
+          {
+            "id": "CRoT_TRUST_ANCHORS_MATCH_MODIFIER",
+            "description": "CRoT trust anchors match modifier",
+            "type": "numeric",
+            "value": 40,
+            "operator": "ADD"
+          }
+        ]
+      }
+    ]
   }
 }
-```
-
-This updated CORE code includes the following changes:
-
-1.  **Rule Engine Name**: The rule engine name is now `DynamicTrustScoringEngine_V1`.
-2.  **Base Score Range**: The base score range is set to 0 to 1000.
-3.  **Threat Level Modifiers**: Threat level modifiers are applied for `HIGH_ADVERSARY_DETECTED` and `LOW_RESOURCE_MODE`.
-4.  **Temporal Degradation**: Temporal degradation is set with an unverified anchor degradation score per hour of 10 and a max degradation score of 300.
-5.  **Anomaly Detection**: Anomaly detection is enabled with dynamic weight adjustment and a confidence threshold percent of 90.
