@@ -12,3 +12,4 @@ GACR/MQM_MetricCatalog.json
 GACR/ModelTierMapping.json
 GACR/Schemas/APITelemetry.json
 GACR/TelemetrySourceSchema.json
+GACR/VSEC.json
