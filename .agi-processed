@@ -179,3 +179,4 @@ components/strategiccostindexer.js
 components/transient_vetting_staging_unit.yaml
 components/cryptography/commitmentkeyservice.yaml
 components/cth/cth.md
+components/cth/svu_spec.md
