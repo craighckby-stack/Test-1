@@ -1,13 +1,14 @@
 /**
- * AGI Core: Project "Hello World" - Evolved to v0.2.1-beta
+ * AGI Core: Project "Hello World" - Evolved to v0.3.0-alpha
  *
- * This version introduces the Component Manifest Registry (CMR) for defining
- * and managing the AGI's broader ecosystem of internal modules and external
- * service integrations. The AGI Core now actively simulates interactions
- * with these registered components, enhancing its awareness of the operational
- * environment beyond its immediate process. This expands the AGI's ability
- * to react to ecosystem changes, providing a more robust simulation of an
- * interconnected intelligence.
+ * This version significantly expands the AGI's internal architecture by introducing
+ * the Computational Model Registry (CMR V2.0). Beyond managing operational
+ * components, the AGI Core now also registers and tracks specific computational
+ * models (e.g., AI models, complex algorithms) that are utilized by these components.
+ * This separation allows for granular management, auditing, and lifecycle control
+ * over the intellectual building blocks of the AGI's decision-making and processing
+ * capabilities. The AGI Core now simulates not only component interactions but also
+ * the dynamic loading and validation of inputs against registered computational models.
  *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
@@ -19,9 +20,13 @@
  *   - Resource Utilization Monitoring (Simulated)
  *   - Dynamic Sampling Rate Calculation
  *   - Telemetry Load Management (Simulated)
- * - Component Manifest Registry (CMR) Framework
+ * - Component Manifest Registry (CMR V1.0) Framework
  *   - Component Lifecycle & Capability Management
  *   - Simulated Ecosystem Interaction & Health Checks
+ * - Computational Model Registry (CMR V2.0) Framework (NEW)
+ *   - Model Definition, Path, Version, and Status Management
+ *   - Input Schema Validation for Model Usage (Simulated)
+ *   - Audit Trail Metadata for Model Certification
  */
 
 // --- Global Configuration and Manifest Data ---
@@ -202,6 +207,72 @@ const GACR_CMR_MANIFEST = {
             }
         }
     }
+};
+
+// NEW: Computational Model Registry (CMR V2.0) Manifest
+const COMPUTATIONAL_MODEL_REGISTRY_MANIFEST = {
+    "manifest_id": "CMR_V2.0",
+    "owner": "AGI Core GACR",
+    "description": "Registry for certified computational models used across AGI components, including AI/ML models and complex algorithms.",
+    "integrity_hash": "SHA256:model_registry_v2_init_hash_gacr_001", // Simulated initial hash
+    "verification_protocol": "GACR-MGP-V1.2",
+    "models": [
+        {
+            "model_id": "AnomalyDetection_v1.2",
+            "path": "/opt/models/anomaly_detection/v1.2.py",
+            "version": "1.2",
+            "status": "Active",
+            "inputs_schema": {
+                "sensor_reading": { "type": "float", "unit": "C", "min": -50.0, "max": 150.0 },
+                "timestamp": { "type": "string", "unit": "ISO8601", "description": "Timestamp of the reading." },
+                "location_id": { "type": "string", "unit": "N/A", "description": "Identifier for sensor location." }
+            },
+            "audit_metadata": {
+                "mgp_protocol": "MGP-A-2023-001",
+                "approval_id": "GACR-MOD-AD-2023-001",
+                "approved_by": "GACR Compliance Board",
+                "certification_date": "2023-10-26T10:00:00Z"
+            },
+            "source_mdsm_link": "https://gacr.agi/mdsm/anomaly_detection_v1.2"
+        },
+        {
+            "model_id": "ResourceOptimizer_v0.9",
+            "path": "/opt/models/resource_optimizer/v0.9.bin",
+            "version": "0.9",
+            "status": "Staging",
+            "inputs_schema": {
+                "current_cpu": { "type": "float", "unit": "%", "min": 0.0, "max": 100.0 },
+                "current_memory_mb": { "type": "integer", "unit": "MB", "min": 0, "max": 8192 },
+                "task_priority": { "type": "string", "unit": "N/A", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] }
+            },
+            "audit_metadata": {
+                "mgp_protocol": "MGP-B-2023-002",
+                "approval_id": "GACR-MOD-RO-2023-002",
+                "approved_by": "GACR Engineering Lead",
+                "certification_date": "2023-11-15T14:30:00Z"
+            },
+            "source_mdsm_link": "https://gacr.agi/mdsm/resource_optimizer_v0.9"
+        },
+        {
+            "model_id": "ThreatClassifier_v2.1",
+            "path": "/opt/models/security/threat_classifier_v2.1.onnx",
+            "version": "2.1",
+            "status": "Active",
+            "inputs_schema": {
+                "packet_signature_hash": { "type": "string", "unit": "SHA256" },
+                "source_ip": { "type": "string", "unit": "IPv4/IPv6" },
+                "port": { "type": "integer", "unit": "N/A", "min": 1, "max": 65535 },
+                "payload_size": { "type": "integer", "unit": "bytes", "min": 0 }
+            },
+            "audit_metadata": {
+                "mgp_protocol": "MGP-C-2023-003",
+                "approval_id": "GACR-MOD-TC-2023-003",
+                "approved_by": "GACR Security Council",
+                "certification_date": "2023-09-01T08:00:00Z"
+            },
+            "source_mdsm_link": "https://gacr.agi/mdsm/threat_classifier_v2.1"
+        }
+    ]
 };
 
 // --- Utility Functions ---
@@ -629,7 +700,7 @@ class AdaptiveSamplingEngine {
     }
 }
 
-// --- Component Manifest Registry (CMR) System ---
+// --- Component Manifest Registry (CMR V1.0) System ---
 
 /**
  * Manages the loading and retrieval of component manifests from the registry.
@@ -637,12 +708,12 @@ class AdaptiveSamplingEngine {
 class ComponentRegistryManager {
     constructor(manifest) {
         if (!manifest || !manifest.components) {
-            throw new Error("Invalid CMR manifest provided.");
+            throw new Error("Invalid CMR V1.0 manifest provided for components.");
         }
         this.manifest = manifest;
         this.components = manifest.components;
         this.componentIds = Object.keys(this.components);
-        agiLogger('INFO', 'ComponentRegistryManager', `CMR Manifest v${manifest.schema_version} loaded. Discovered ${this.componentIds.length} components.`);
+        agiLogger('INFO', 'ComponentRegistryManager', `CMR V1.0 Manifest v${manifest.schema_version} loaded. Discovered ${this.componentIds.length} components.`);
     }
 
     /**
@@ -691,20 +762,182 @@ class ComponentRegistryManager {
     }
 }
 
+// NEW: Computational Model Registry (CMR V2.0) System
+/**
+ * Manages the loading and retrieval of computational model manifests.
+ * This registry focuses on the certified AI/ML models and complex algorithms used by AGI components.
+ */
+class ComputationalModelRegistryManager {
+    constructor(manifest) {
+        if (!manifest || !manifest.models || !Array.isArray(manifest.models)) {
+            throw new Error("Invalid CMR V2.0 manifest provided for computational models.");
+        }
+        this.manifest = manifest;
+        // Convert models array to a map for easier lookup by model_id
+        this.models = manifest.models.reduce((acc, model) => {
+            acc[model.model_id] = model;
+            return acc;
+        }, {});
+        this.modelIds = Object.keys(this.models);
+        agiLogger('INFO', 'ComputationalModelRegistryManager', `CMR V2.0 Manifest v${manifest.manifest_id} loaded. Discovered ${this.modelIds.length} computational models.`);
+    }
+
+    /**
+     * Retrieves a computational model's manifest details by its ID.
+     * @param {string} modelId - The ID of the computational model.
+     * @returns {object|null} The model manifest or null if not found.
+     */
+    getModel(modelId) {
+        const model = this.models[modelId];
+        if (!model) {
+            agiLogger('ERROR', 'ComputationalModelRegistryManager', `No computational model manifest found for ID: ${modelId}`);
+            return null;
+        }
+        return model;
+    }
+
+    /**
+     * Returns a list of all registered computational model IDs.
+     * @returns {string[]} An array of model IDs.
+     */
+    listModelIds() {
+        return this.modelIds;
+    }
+
+    /**
+     * Simulates the validation of input data against a model's defined schema.
+     * @param {string} modelId - The ID of the model.
+     * @param {object} inputData - The data to validate.
+     * @returns {object} Validation result { isValid: boolean, errors: string[] }.
+     */
+    _validateInputs(modelId, inputData) {
+        const model = this.getModel(modelId);
+        if (!model) {
+            return { isValid: false, errors: [`Model ${modelId} not found for input validation.`] };
+        }
+
+        const schema = model.inputs_schema;
+        const errors = [];
+        let isValid = true;
+
+        // Check for missing required inputs
+        for (const inputName in schema) {
+            if (inputData[inputName] === undefined) {
+                errors.push(`Missing required input: '${inputName}'`);
+                isValid = false;
+            }
+        }
+
+        // Validate types, min/max, and enum constraints
+        for (const inputName in inputData) {
+            const schemaDef = schema[inputName];
+            if (!schemaDef) {
+                errors.push(`Input '${inputName}' not defined in model schema.`);
+                isValid = false;
+                continue;
+            }
+
+            const value = inputData[inputName];
+            switch (schemaDef.type) {
+                case 'float':
+                case 'integer':
+                    if (typeof value !== 'number') {
+                        errors.push(`Input '${inputName}' expects type '${schemaDef.type}', got '${typeof value}'.`);
+                        isValid = false;
+                    } else {
+                        if (schemaDef.min !== null && value < schemaDef.min) {
+                            errors.push(`Input '${inputName}' (${value}) is below min '${schemaDef.min}'.`);
+                            isValid = false;
+                        }
+                        if (schemaDef.max !== null && value > schemaDef.max) {
+                            errors.push(`Input '${inputName}' (${value}) is above max '${schemaDef.max}'.`);
+                            isValid = false;
+                        }
+                        if (schemaDef.type === 'integer' && !Number.isInteger(value)) {
+                            errors.push(`Input '${inputName}' (${value}) expects integer, got float.`);
+                            isValid = false;
+                        }
+                    }
+                    break;
+                case 'string':
+                    if (typeof value !== 'string') {
+                        errors.push(`Input '${inputName}' expects type 'string', got '${typeof value}'.`);
+                        isValid = false;
+                    } else if (schemaDef.enum && !schemaDef.enum.includes(value)) {
+                        errors.push(`Input '${inputName}' ('${value}') is not one of the allowed enum values: [${schemaDef.enum.join(', ')}].`);
+                        isValid = false;
+                    }
+                    break;
+                case 'boolean':
+                    if (typeof value !== 'boolean') {
+                        errors.push(`Input '${inputName}' expects type 'boolean', got '${typeof value}'.`);
+                        isValid = false;
+                    }
+                    break;
+            }
+        }
+
+        return { isValid, errors };
+    }
+
+
+    /**
+     * Simulates the loading and usage of a computational model, including input validation.
+     * @param {string} modelId - The ID of the computational model to use.
+     * @param {object} inputData - Simulated input data for the model.
+     * @returns {object} A simulated result object.
+     */
+    simulateModelUsage(modelId, inputData) {
+        const model = this.getModel(modelId);
+        if (!model) {
+            return { status: 'ERROR', message: `Model ${modelId} not found.` };
+        }
+
+        if (model.status !== 'Active') {
+            agiLogger('WARN', 'ComputationalModelRegistryManager:Usage', `Attempted to use non-Active model '${modelId}' (Status: ${model.status}).`);
+            return { status: 'DENIED', message: `Model ${modelId} is not active.` };
+        }
+
+        const validation = this._validateInputs(modelId, inputData);
+        if (!validation.isValid) {
+            agiLogger('ERROR', 'ComputationalModelRegistryManager:Usage', `Input validation failed for model '${modelId}'.`, { errors: validation.errors, inputData });
+            return { status: 'INVALID_INPUT', message: `Input schema violation for model ${modelId}.`, errors: validation.errors };
+        }
+
+        const processingTime = Math.floor(Math.random() * 50) + 10; // Simulate 10-60ms processing
+        const success = Math.random() > 0.05; // 5% chance of simulated failure
+
+        if (success) {
+            agiLogger('INFO', 'ComputationalModelRegistryManager:Usage',
+                `Successfully simulated usage of model '${modelId}' (v${model.version}). Processed in ${processingTime}ms.`,
+                { modelId, inputData, output: "simulated_output_data" }
+            );
+            return { status: 'SUCCESS', message: `Model ${modelId} executed successfully.`, result: `Simulated result for ${modelId}`, processingTime };
+        } else {
+            agiLogger('ERROR', 'ComputationalModelRegistryManager:Usage',
+                `Simulated failure during usage of model '${modelId}'.`,
+                { modelId, inputData, error: "Simulated processing error" }
+            );
+            return { status: 'FAILURE', message: `Model ${modelId} execution failed.`, error: "Simulated processing error" };
+        }
+    }
+}
+
 
 // --- AGI Core System ---
 
 class AGICore {
-    constructor(agentId, aimManifest, telemetryConfig, cmrManifest) {
+    constructor(agentId, aimManifest, telemetryConfig, cmrManifest, computationalModelManifest) {
         this.agentId = agentId;
         this.integrityProfileManager = new IntegrityProfileManager(aimManifest);
         this.integrityMonitor = null;
         this.adaptiveSamplingEngine = new AdaptiveSamplingEngine(telemetryConfig.Processing.AdaptiveSampling);
-        this.componentRegistryManager = new ComponentRegistryManager(cmrManifest); // NEW
+        this.componentRegistryManager = new ComponentRegistryManager(cmrManifest);
+        this.computationalModelRegistryManager = new ComputationalModelRegistryManager(computationalModelManifest); // NEW
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
-        agiLogger('INFO', 'AGICore', `AGI Core v0.2.1-beta initializing for agent: ${this.agentId}`);
+        agiLogger('INFO', 'AGICore', `AGI Core v0.3.0-alpha initializing for agent: ${this.agentId}`);
     }
 
     /**
@@ -778,7 +1011,7 @@ class AGICore {
                  agiLogger('WARN', 'AGICore:Operation', 'Operations paused or limited due to integrity violations.');
             }
 
-            // 4. Component Ecosystem Interaction (NEW PHASE)
+            // 4. Component Ecosystem Interaction (CMR V1.0)
             if (this.componentRegistryManager.listComponentIds().length > 0) {
                 const componentIds = this.componentRegistryManager.listComponentIds();
                 const randomComponentId = componentIds[Math.floor(Math.random() * componentIds.length)];
@@ -789,6 +1022,54 @@ class AGICore {
                     const component = this.componentRegistryManager.getComponent(randomComponentId);
                     if (component) {
                         this._simulateSampledAGIOperation(`Adjusting behavior based on '${randomComponentId}' (${component.type}) status.`);
+                    }
+                }
+            }
+
+            // 5. Computational Model Usage Simulation (NEW PHASE - CMR V2.0)
+            if (this.computationalModelRegistryManager.listModelIds().length > 0) {
+                const modelIds = this.computationalModelRegistryManager.listModelIds();
+                const randomModelId = modelIds[Math.floor(Math.random() * modelIds.length)];
+                const model = this.computationalModelRegistryManager.getModel(randomModelId);
+
+                if (model) {
+                    let simulatedInput = {};
+                    // Generate random inputs based on model's schema
+                    for (const inputName in model.inputs_schema) {
+                        const schemaDef = model.inputs_schema[inputName];
+                        if (schemaDef.type === 'float' || schemaDef.type === 'integer') {
+                            const min = schemaDef.min !== null ? schemaDef.min : 0;
+                            const max = schemaDef.max !== null ? schemaDef.max : 100; // Default max if not specified
+                            let value = min + Math.random() * (max - min);
+                            simulatedInput[inputName] = schemaDef.type === 'integer' ? Math.floor(value) : parseFloat(value.toFixed(2));
+                        } else if (schemaDef.type === 'string') {
+                            if (schemaDef.enum && schemaDef.enum.length > 0) {
+                                simulatedInput[inputName] = schemaDef.enum[Math.floor(Math.random() * schemaDef.enum.length)];
+                            } else if (inputName === 'timestamp') {
+                                simulatedInput[inputName] = new Date().toISOString();
+                            } else {
+                                simulatedInput[inputName] = `simulated_string_${Math.random().toString(36).substring(2, 5)}`;
+                            }
+                        } else if (schemaDef.type === 'boolean') {
+                            simulatedInput[inputName] = Math.random() < 0.5;
+                        }
+                    }
+
+                    // Introduce an occasional invalid input for testing validation
+                    if (Math.random() < 0.1 && randomModelId === "AnomalyDetection_v1.2") { // 10% chance to make AD model input invalid
+                        simulatedInput["sensor_reading"] = 200.0; // Exceeds max 150.0
+                        agiLogger('DEBUG', 'AGICore:Simulation', `Injecting invalid input for model '${randomModelId}'.`);
+                    }
+                    if (Math.random() < 0.05 && randomModelId === "ResourceOptimizer_v0.9") { // 5% chance to make RO model input invalid
+                        simulatedInput["task_priority"] = "URGENT"; // Not in enum
+                        agiLogger('DEBUG', 'AGICore:Simulation', `Injecting invalid input for model '${randomModelId}'.`);
+                    }
+
+                    const modelUsageResult = this.computationalModelRegistryManager.simulateModelUsage(randomModelId, simulatedInput);
+                    if (modelUsageResult.status === 'SUCCESS') {
+                        this._simulateSampledAGIOperation(`Utilized computational model '${randomModelId}'.`);
+                    } else {
+                        agiLogger('WARN', 'AGICore:Operation', `Failed or denied using model '${randomModelId}': ${modelUsageResult.message}`, modelUsageResult);
                     }
                 }
             }
@@ -840,7 +1121,8 @@ async function main() {
         AGI_CORE_CONFIG.AGENT_ID,
         AIM_MANIFEST,
         TELEMETRY_AGGREGATION_CONFIG,
-        GACR_CMR_MANIFEST // NEW: Pass the Component Manifest Registry
+        GACR_CMR_MANIFEST,
+        COMPUTATIONAL_MODEL_REGISTRY_MANIFEST // NEW: Pass the Computational Model Registry
     );
     agiCore.start();
 
