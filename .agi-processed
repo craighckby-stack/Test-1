@@ -116,3 +116,4 @@ config/consensus_verification_harness.json
 config/constraint_policies.json
 config/constraint_policy_mapping.json
 config/core_failure_thresholds_manifest_v1.json
+config/core_failure_thresholds_manifest_v1.yaml
