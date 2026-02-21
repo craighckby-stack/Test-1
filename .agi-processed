@@ -46,3 +46,4 @@ arbiters/delta_computation_module.md
 arch_policy/aia_rollback_configuration.yaml
 architectural/state_attestation_layer_sal.md
 architectural/configs/hese_mhb_config.json
+architectural/schemas/aso_attestedstateobject.json
