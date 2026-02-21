@@ -1,11 +1,13 @@
 /**
- * AGI Core: Project "Hello World" - Evolved to v0.3.1-alpha
+ * AGI Core: Project "Hello World" - Evolved to v0.3.2-alpha
  *
- * This version further refines the AGI's internal architecture, specifically enhancing
- * the Adaptive Sampling Engine (ASE) by integrating a more direct proportional adjustment
- * logic from the GACR AdaptiveSamplingEngine data node, while retaining the
- * smoothing mechanisms for stable operation. This combines reactive adjustment
- * with gradual adaptation, improving the AGI's resource management under varying loads.
+ * This version significantly enhances the AGI's internal architecture by integrating
+ * an expanded Component Manifest Registry (CMR V1.1) from the GACR data node.
+ * This update includes new components (e.g., SecureKeyVault) and refined definitions
+ * for existing components, showcasing a more complex and interconnected AGI ecosystem.
+ * The Adaptive Sampling Engine (ASE) continues to utilize proportional adjustment
+ * logic for stable resource management, and the Computational Model Registry (CMR V2.0)
+ * ensures robust model lifecycle management.
  *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
@@ -17,8 +19,8 @@
  *   - Resource Utilization Monitoring (Simulated)
  *   - Dynamic Sampling Rate Calculation (Enhanced)
  *   - Telemetry Load Management (Simulated)
- * - Component Manifest Registry (CMR V1.0) Framework
- *   - Component Lifecycle & Capability Management
+ * - Component Manifest Registry (CMR V1.1) Framework (UPDATED)
+ *   - Component Lifecycle & Capability Management (Expanded)
  *   - Simulated Ecosystem Interaction & Health Checks
  * - Computational Model Registry (CMR V2.0) Framework
  *   - Model Definition, Path, Version, and Status Management
@@ -112,30 +114,33 @@ const TELEMETRY_AGGREGATION_CONFIG = {
     }
 };
 
+// UPDATED: GACR_CMR_MANIFEST (CMR V1.1) - Expanded with new components and capabilities
 const GACR_CMR_MANIFEST = {
-    "schema_version": "CMR_V1.0",
-    "description": "Component Manifest Registry. Defines registered AGI modules and external interfaces.",
+    "schema_version": "CMR_V1.1",
+    "description": "Component Manifest Registry. Defines registered AGI modules and external interfaces. Evolved to V1.1 with new components and enhanced capabilities.",
     "components": {
         "TelemetryProcessor": {
             "type": "processing_unit",
-            "purpose": "Processes raw telemetry, applies adaptive sampling.",
-            "capabilities": ["data_aggregation", "filtering", "sampling"],
+            "purpose": "Processes raw telemetry, applies adaptive sampling. Enhanced for real-time stream processing.",
+            "capabilities": ["data_aggregation", "filtering", "sampling", "stream_processing"],
             "communication": {
-                "input_protocols": ["UDP", "Kafka"],
-                "output_protocols": ["HTTP/S", "gRPC"],
+                "input_protocols": ["UDP", "Kafka", "AMQP"], // Added AMQP
+                "output_protocols": ["HTTP/S", "gRPC", "MQTT"], // Added MQTT
                 "endpoints": {
                     "telemetry_ingest": "udp://localhost:5000",
-                    "config_update": "http://localhost:8081/config"
+                    "config_update": "http://localhost:8081/config",
+                    "stream_output": "mqtt://broker.agi:1883/telemetry/processed" // New endpoint
                 }
             },
             "resource_profile": {
-                "expected_cpu_load_percentage_range": [10, 30],
-                "expected_memory_mb_range": [500, 1500]
+                "expected_cpu_load_percentage_range": [15, 35], // Slightly increased
+                "expected_memory_mb_range": [700, 2000] // Slightly increased
             },
-            "dependencies": ["DataStoreService", "AIM_Reporting"],
+            "dependencies": ["DataStoreService", "AIM_Reporting", "SecureKeyVault"], // Added SecureKeyVault
             "security_context": {
                 "required_auth": "TLS_MUTUAL",
-                "allowed_syscalls_subset": ["read", "write", "socket"]
+                "allowed_syscalls_subset": ["read", "write", "socket", "connect"], // Added connect
+                "data_integrity_protocol": "SHA256_HMAC" // New security context
             }
         },
         "SensorGatewayA": {
@@ -162,45 +167,72 @@ const GACR_CMR_MANIFEST = {
         "DecisionEngineX": {
             "type": "control_unit",
             "purpose": "Makes operational decisions based on processed data.",
-            "capabilities": ["decision_making", "policy_enforcement", "actuator_command"],
+            "capabilities": ["decision_making", "policy_enforcement", "actuator_command", "proactive_remediation"], // Added proactive_remediation
             "communication": {
-                "input_protocols": ["Kafka"],
-                "output_protocols": ["gRPC"],
+                "input_protocols": ["Kafka", "gRPC_Stream"], // Added gRPC_Stream
+                "output_protocols": ["gRPC", "REST_API"], // Added REST_API
                 "endpoints": {
                     "decision_input": "kafka://broker1:9092/decisions_topic",
-                    "command_output": "grpc://localhost:50051"
+                    "command_output": "grpc://localhost:50051",
+                    "remediation_api": "http://localhost:8083/remediate" // New endpoint
                 }
             },
             "resource_profile": {
-                "expected_cpu_load_percentage_range": [20, 40],
-                "expected_memory_mb_range": [1000, 2500]
+                "expected_cpu_load_percentage_range": [25, 50], // Slightly increased
+                "expected_memory_mb_range": [1200, 3000] // Slightly increased
             },
-            "dependencies": ["TelemetryProcessor", "KnowledgeBase"],
+            "dependencies": ["TelemetryProcessor", "KnowledgeBaseService", "PolicyEnforcementModule"], // Added PolicyEnforcementModule
             "security_context": {
                 "required_auth": "TLS_MUTUAL",
-                "integrity_check_frequency_sec": 30
+                "integrity_check_frequency_sec": 15, // Increased frequency
+                "access_control_level": "RBAC_Tier1" // New security context
             }
         },
         "KnowledgeBaseService": {
             "type": "data_store",
             "purpose": "Stores and retrieves contextual knowledge for decision-making.",
-            "capabilities": ["data_storage", "query_interface", "semantic_search"],
+            "capabilities": ["data_storage", "query_interface", "semantic_search", "inference_support"], // Added inference_support
             "communication": {
                 "input_protocols": ["gRPC", "REST"],
                 "output_protocols": ["gRPC", "REST"],
                 "endpoints": {
                     "query_interface": "grpc://localhost:50052",
-                    "management_api": "http://localhost:8082/kb"
+                    "management_api": "http://localhost:8082/kb",
+                    "inference_engine_hook": "http://localhost:8082/kb/infer" // New endpoint
                 }
             },
             "resource_profile": {
                 "expected_cpu_load_percentage_range": [15, 25],
                 "expected_memory_mb_range": [1000, 3000]
             },
-            "dependencies": [],
+            "dependencies": ["DataSyncService"], // Added DataSyncService
             "security_context": {
                 "required_auth": "TLS_MUTUAL",
-                "data_at_rest_encryption": "AES256"
+                "data_at_rest_encryption": "AES256",
+                "audit_log_level": "HIGH" // New security context
+            }
+        },
+        "SecureKeyVault": { // New Component
+            "type": "security_service",
+            "purpose": "Manages and securely stores cryptographic keys and secrets for other components.",
+            "capabilities": ["key_generation", "key_rotation", "secret_management", "attestation"],
+            "communication": {
+                "input_protocols": ["gRPC", "REST"],
+                "output_protocols": ["gRPC"],
+                "endpoints": {
+                    "key_retrieval": "grpc://localhost:50060",
+                    "secret_store": "https://localhost:8443/secrets"
+                }
+            },
+            "resource_profile": {
+                "expected_cpu_load_percentage_range": [5, 10],
+                "expected_memory_mb_range": [50, 200]
+            },
+            "dependencies": [],
+            "security_context": {
+                "required_auth": "MTLS",
+                "hardware_security_module": "TPM_2.0",
+                "audit_trail_immutable": true
             }
         }
     }
@@ -640,9 +672,9 @@ class ResourceMonitor {
  * defined in TelemetryAggregatorConfig. It dynamically calculates the necessary
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth).
  *
- * This version integrates the proportional adjustment logic from the GACR/AdaptiveSamplingEngine.ts
- * data node, combining it with the existing smoothing mechanism for robust and responsive
- * adaptive sampling.
+ * This version integrates the proportional adjustment logic from the DATA_NODE's
+ * `rate = targetCpu / currentCpu` formula, combining it with the existing
+ * smoothing mechanism for robust and responsive adaptive sampling.
  */
 class AdaptiveSamplingEngine {
     private config; // type: TelemetryAggregatorConfig['Processing']['AdaptiveSampling'];
@@ -713,7 +745,7 @@ class ComponentRegistryManager {
         this.manifest = manifest;
         this.components = manifest.components;
         this.componentIds = Object.keys(this.components);
-        agiLogger('INFO', 'ComponentRegistryManager', `CMR V1.0 Manifest v${manifest.schema_version} loaded. Discovered ${this.componentIds.length} components.`);
+        agiLogger('INFO', 'ComponentRegistryManager', `CMR V1.1 Manifest v${manifest.schema_version} loaded. Discovered ${this.componentIds.length} components.`);
     }
 
     /**
@@ -944,7 +976,7 @@ class AGICore {
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
-        agiLogger('INFO', 'AGICore', `AGI Core v0.3.1-alpha initializing for agent: ${this.agentId}`);
+        agiLogger('INFO', 'AGICore', `AGI Core v0.3.2-alpha initializing for agent: ${this.agentId}`);
     }
 
     /**
@@ -1018,7 +1050,7 @@ class AGICore {
                  agiLogger('WARN', 'AGICore:Operation', 'Operations paused or limited due to integrity violations.');
             }
 
-            // 4. Component Ecosystem Interaction (CMR V1.0)
+            // 4. Component Ecosystem Interaction (CMR V1.1)
             if (this.componentRegistryManager.listComponentIds().length > 0) {
                 const componentIds = this.componentRegistryManager.listComponentIds();
                 const randomComponentId = componentIds[Math.floor(Math.random() * componentIds.length)];
@@ -1128,7 +1160,7 @@ async function main() {
         AGI_CORE_CONFIG.AGENT_ID,
         AIM_MANIFEST,
         TELEMETRY_AGGREGATION_CONFIG,
-        GACR_CMR_MANIFEST,
+        GACR_CMR_MANIFEST, // Now references the updated CMR V1.1
         COMPUTATIONAL_MODEL_REGISTRY_MANIFEST // NEW: Pass the Computational Model Registry
     );
     agiCore.start();
