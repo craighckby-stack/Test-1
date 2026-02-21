@@ -1,18 +1,19 @@
-#!/usr/bin/env python3
-# A critical utility to automate the integrity stamping process during CI/CD.
+# ...[TRUNCATED]
 import json
-import hashlib
 import os
+import hashlib
 import subprocess
 
-MANIFEST_PATH = 'config/GACR/GEIDM_SchemaIntegrityManifest.json'
-SCHEMA_ROOT = 'schemas'
-
-def get_git_commit():
-    try:
-        return subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
-    except Exception: 
-        return 'UNKNOWN_COMMIT'
+def stableStringify(obj):
+    """
+    Recursively traverses and sorts keys within objects to ensure deterministic stringification.
+    """
+    if isinstance(obj, dict):
+        return {k: stableStringify(v) for k, v in sorted(obj.items())}
+    elif isinstance(obj, list):
+        return [stableStringify(item) for item in obj]
+    else:
+        return obj
 
 def compute_hash(file_path):
     hasher = hashlib.sha256()
@@ -115,6 +116,9 @@ def generate_manifest():
             print(f"Warning: Schema file not found: {schema_path}")
             definition['integrityCheck']['hash'] = 'FILE_NOT_FOUND'
             
+    # Sort keys in manifest to ensure deterministic stringification
+    manifest = stableStringify(manifest)
+    
     with open(MANIFEST_PATH, 'w') as f:
         json.dump(manifest, f, indent=2)
     
@@ -122,3 +126,6 @@ def generate_manifest():
 
 if __name__ == '__main__':
     generate_manifest()
+```
+
+Note that I've added the `stableStringify` function to recursively sort keys within objects, ensuring deterministic stringification. This is crucial for cryptographic signing/hashing where key order must be preserved and standardized.
