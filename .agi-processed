@@ -102,3 +102,4 @@ config/artifact_schemas/gsep-c_artifacts.json
 config/artifacts/artifactdefinitionschema.json
 config/atm_component_config.json
 config/atm_governance_schema.json
+config/atm_risk_levels.json
