@@ -59,11 +59,11 @@ const AIM_MANIFEST = {
                     "network_ports_disallowed": [
                         22,
                         23,
-                        8080 // Added for simulation purposes
+                        8080 // Added for simulation purposes to demonstrate violation
                     ],
                     "paths_immutable": [
                         "/opt/sgs/gacr/",
-                        "/var/log/agisys/" // Added for simulation purposes
+                        "/var/log/agisys/" // Added for simulation purposes to demonstrate violation
                     ],
                     "configuration_hash_mandate": AGI_CORE_CONFIG.MANDATED_CONFIG_HASH // Reference from AGI config
                 }
@@ -519,7 +519,7 @@ class AgentIntegrityMonitor {
         ) && compliant;
 
         // Network port simulation (hypothetical connection attempt to a disallowed port)
-        const attemptedPort = 8080; // Simulate an attempt for a forbidden port
+        const attemptedPort = 8080; // Simulate an attempt for a forbidden port (as per SGS_AGENT policy in CURRENT_CORE)
         const portCompliant = this._simulateNetworkConnectionCheck(attemptedPort);
         compliant = this._logCompliance('NETWORK_PORT_ACCESS', portCompliant,
             `Attempted network connection to port ${attemptedPort}. Disallowed: [${security_policy.network_ports_disallowed || 'N/A'}]`,
@@ -832,8 +832,11 @@ class ComputationalModelRegistryManager {
         for (const inputName in inputData) {
             const schemaDef = schema[inputName];
             if (!schemaDef) {
-                errors.push(`Input '${inputName}' not defined in model schema.`);
-                isValid = false;
+                // Allow additional inputs not defined in schema, but flag as a warning/debug info
+                // For strict validation, uncomment:
+                // errors.push(`Input '${inputName}' not defined in model schema.`);
+                // isValid = false;
+                agiLogger('DEBUG', 'ComputationalModelRegistryManager:Validation', `Input '${inputName}' not explicitly defined in schema for model '${modelId}'. Skipping validation.`);
                 continue;
             }
 
@@ -863,7 +866,7 @@ class ComputationalModelRegistryManager {
                     if (typeof value !== 'string') {
                         errors.push(`Input '${inputName}' expects type 'string', got '${typeof value}'.`);
                         isValid = false;
-                    } else if (schemaDef.enum && !schemaDef.enum.includes(value)) {
+                    } else if (schemaDef.enum && schemaDef.enum.length > 0 && !schemaDef.enum.includes(value)) {
                         errors.push(`Input '${inputName}' ('${value}') is not one of the allowed enum values: [${schemaDef.enum.join(', ')}].`);
                         isValid = false;
                     }
@@ -873,6 +876,10 @@ class ComputationalModelRegistryManager {
                         errors.push(`Input '${inputName}' expects type 'boolean', got '${typeof value}'.`);
                         isValid = false;
                     }
+                    break;
+                // Add other types as needed (e.g., array, object)
+                default:
+                    agiLogger('WARN', 'ComputationalModelRegistryManager:Validation', `Unsupported schema type '${schemaDef.type}' for input '${inputName}'.`);
                     break;
             }
         }
@@ -1081,7 +1088,7 @@ class AGICore {
                     { type: 'syscall', name: 'exec' },
                     { type: 'port', port: 22 },
                     { type: 'write', path: '/opt/sgs/gacr/malicious.js' },
-                    { type: 'port', port: 8080 } // Already in SGS_AGENT policy as disallowed
+                    { type: 'port', port: 8080 } // Already in SGS_AGENT policy as disallowed in CURRENT_CORE for simulation
                 ];
                 const action = forbiddenActions[Math.floor(Math.random() * forbiddenActions.length)];
                 agiLogger('DEBUG', 'AGICore:Simulation', `Simulating an attempted forbidden action: ${JSON.stringify(action)}`);
