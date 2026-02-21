@@ -1380,99 +1380,149 @@ class IntegrityCorrelatorModule {
 module.exports = IntegrityCorrelatorModule;
 
 /**
- * ARBITER: AIA Query Engine (AQE)
- * G-LEX Register Update: AQE is formally registered as a Level 5 Forensic Utility.
- * Acronym: AQE
- * Functional Definition: AIA Query Engine
- * Role Context: Provides read-only, high-speed forensic access to the AIA ledger for real-time audit correlation and VSR during Stage 6 Verification.
- *
- * Mission & Context:
- * The AIA Query Engine (AQE) is the dedicated, non-mutating forensic interface responsible for verifying operational integrity against the Atomic Immutable Architecture (AIA) ledger.
- * Its primary mission is to correlate real-time operational telemetry (D-02 data) provided by the PDFS against committed, cryptographically secured state artifacts (D-01 data).
- * AQE operates exclusively in a read-only capacity, ensuring no transaction modification is possible.
+ * Historic Evolution Scoring Engine (HESE) Contract - G7 Governance Layer
+ * HESE serves as the critical Stage 7 specialized architectural component within the Autonomous Operational Contract (AOC) framework.
+ * Its primary function is calculating and continuously managing predictive accuracy metrics, thereby acting as the final, quantitative governance loop.
+ * It generates required calibration telemetry to prevent model predictive drift within upstream arbiters (ATM and MCRA).
  */
-class AIAQueryEngine {
+class HistoricEvolutionScoringEngine {
     /**
-     * @param {Object} aiaLedger - The AIA Ledger, source of D-01 committed state artifacts. (Read-Only)
-     * @param {Object} pdfs - The PDFS (PDS Filter System), source of real-time D-02 operational telemetry. (Read/Ingress)
-     * @param {Object} dcm - The DCM (Delta Computation Module), calculates metric variance and generates formal Discrepancy Reports. (Execute)
+     * @param {Object} auditDataService - Interface to AIA/PDFS for D-01/D-02 logs.
+     * @param {Object} telemetryPublisher - Interface for publishing TCF/RCF to ATM/MCRA.
      */
-    constructor(aiaLedger, pdfs, dcm) {
-        if (!aiaLedger || !pdfs || !dcm) {
-            throw new Error("[AQE Init] Missing essential dependencies: aiaLedger, pdfs, or dcm.");
-        }
-        this.aiaLedger = aiaLedger;
-        this.pdfs = pdfs;
-        this.dcm = dcm;
-        console.log("AQE: Initialized with read-only access to AIA Ledger and PDFS, and DCM for delta computation.");
+    constructor(auditDataService, telemetryPublisher) {
+        this.auditDataService = auditDataService;
+        this.telemetryPublisher = telemetryPublisher;
+        this.operationalMetrics = []; // Stores historical evolution data
+        this.epochDeltaHistory = []; // Stores delta values for current epoch
     }
 
     /**
-     * Verifiable State Retrieval (VSR)
-     * Retrieves the fully committed D-01 state artifact (ledger entry), signed and hashed by the GCO.
-     * @param {string} vHash - Target AIA Version Hash.
-     * @param {Object} [tRange=null] - Optional timestamp range { start: Date, end: Date }.
-     * @returns {Promise<Object>} The committed D-01 state artifact.
-     * @throws {Error} If the state artifact cannot be retrieved or is invalid.
+     * Phase G7.1.A: Ingest canonical, immutable audit data.
+     * @param {Array<Object>} commitmentLogs - D-01 Commitment Log entries.
+     * @param {Array<Object>} operationalMetrics - D-02 Operational Metrics entries.
      */
-    async verifiableStateRetrieval(vHash, tRange = null) {
-        console.log(`AQE: Performing VSR for V_HASH: ${vHash}, T_RANGE: ${JSON.stringify(tRange)}`);
-        // Simulate retrieval from aiaLedger
-        const stateArtifact = await this.aiaLedger.retrieveState(vHash, tRange);
-        if (!stateArtifact) {
-            throw new Error(`[AQE VSR] Failed to retrieve state artifact for hash: ${vHash}`);
-        }
-        // Assume stateArtifact includes GCO signature and hash for integrity
-        console.log(`AQE: VSR successful for ${vHash}. Artifact size: ${JSON.stringify(stateArtifact).length} bytes.`);
-        return stateArtifact;
+    async ingestData(commitmentLogs, operationalMetrics) {
+        console.log("HESE: Ingesting audit data from AIA/PDFS...");
+        // In a real implementation, this would involve more complex data parsing and validation.
+        this.operationalMetrics = this.operationalMetrics.concat(
+            this.#mapAndCompare(commitmentLogs, operationalMetrics)
+        );
+        console.log(`HESE: Ingested ${commitmentLogs.length} commitment logs and ${operationalMetrics.length} operational metrics.`);
     }
 
     /**
-     * Delta Reporting Interface (DRI)
-     * Orchestrates the comparison between received D-02 metrics and the retrieved VSR state.
-     * Calls the Delta Computation Module (DCM) to execute high-fidelity variance calculation,
-     * identifying discrepancies (state drift, unauthorized metric deviation).
-     * @param {string} vHash - The V_HASH of the baseline D-01 state.
-     * @param {Object} d02Metrics - Real-time D-02 operational telemetry from PDFS.
-     * @returns {Promise<Object>} Discrepancy Report from DCM.
+     * Maps commitment logs to operational metrics and performs initial comparison.
+     * @private
+     * @param {Array<Object>} commitments - S-01 Predicted commitments.
+     * @param {Array<Object>} actuals - Performance Actual metrics.
+     * @returns {Array<Object>} Combined and mapped data points.
      */
-    async deltaReportingInterface(vHash, d02Metrics) {
-        console.log(`AQE: Initiating DRI for V_HASH: ${vHash} with D-02 metrics.`);
-        const d01State = await this.verifiableStateRetrieval(vHash);
-        
-        // Call DCM to calculate variance
-        const discrepancyReport = await this.dcm.calculateVariance(d01State, d02Metrics);
-        
-        if (discrepancyReport && discrepancyReport.hasDiscrepancies) {
-            console.warn(`AQE: DRI detected discrepancies for ${vHash}.`);
-        } else {
-            console.log(`AQE: DRI completed. No significant discrepancies found for ${vHash}.`);
-        }
-        return discrepancyReport;
+    #mapAndCompare(commitments, actuals) {
+        // Simplified mapping: assumes a 1:1 correlation based on some ID
+        // In reality, this would be a more robust join/lookup.
+        return commitments.map(commit => {
+            const actual = actuals.find(a => a.id === commit.id); // Assuming 'id' as common key
+            if (actual) {
+                return {
+                    id: commit.id,
+                    predicted: commit.S01_Predicted, // S-01_Predicted
+                    actual: actual.Performance_Actual, // Performance_Actual
+                };
+            }
+            return null;
+        }).filter(Boolean); // Filter out any unmatched entries
     }
 
     /**
-     * Audit Utility for GCO
-     * Serves as the mandated inspection conduit for the Governance Core Observer (GCO) and internal auditors.
-     * Confirms AIA integrity, validating the cryptographic chains of MCR transactions and overall state evolution.
-     * @param {Object} auditParameters - Parameters for the audit, e.g., scope, timeframes.
-     * @returns {Promise<Object>} Audit results including integrity validation status.
+     * Phase G7.1.B: Calculate the Evolution Delta Rate (Δ) for each performance entry.
+     * @returns {Array<number>} An array of calculated delta values.
      */
-    async auditUtilityForGCO(auditParameters) {
-        console.log(`AQE: Executing GCO Audit with parameters: ${JSON.stringify(auditParameters)}`);
-        // This method would interact with the AIA Ledger to trace cryptographic chains and validate state evolution.
-        // For a stub, we'll simulate a successful audit.
+    #calculateEvolutionDeltas() {
+        console.log("HESE: Calculating Evolution Deltas...");
+        const deltas = this.operationalMetrics.map(entry => {
+            const predicted = entry.predicted;
+            const actual = entry.actual;
+
+            if (predicted === 0) {
+                // Handle division by zero or undefined predicted value
+                console.warn(`HESE: Predicted value is zero for entry ID ${entry.id}. Delta calculation skipped.`);
+                return 0; // Or handle as an error/specific default
+            }
+            return Math.abs(predicted - actual) / predicted;
+        });
+        this.epochDeltaHistory = this.epochDeltaHistory.concat(deltas);
+        return deltas;
+    }
+
+    /**
+     * Phase G7.1.C: Apply algorithms to derive Trust Calibration Factor (TCF) and Risk Calibration Factor (RCF).
+     * @returns {{tcf: number, rcf: number}} Calculated TCF and RCF.
+     */
+    deriveCalibrationFactors() {
+        console.log("HESE: Deriving Trust and Risk Calibration Factors...");
+        const deltas = this.#calculateEvolutionDeltas();
+
+        if (deltas.length === 0) {
+            console.warn("HESE: No deltas to calculate calibration factors. Returning default values.");
+            return { tcf: 1.0, rcf: 0.0 }; // Default to high trust, low risk when no data
+        }
+
+        const avgDelta = deltas.reduce((sum, d) => sum + d, 0) / deltas.length;
+        const normalizedAvgDelta = this.#normalize(avgDelta, 0, 1); // Assuming deltas typically range 0 to 1, but can be higher
+
+        // TCF: Inversely proportional to averaged delta rate
+        const tcf = 1 - normalizedAvgDelta; // Range: 0.0 - 1.0. Lower TCF -> higher skepticism.
+
+        // RCF: Adjusts max allowable exposure based on variance and max delta
+        const variance = deltas.reduce((sum, d) => sum + Math.pow(d - avgDelta, 2), 0) / deltas.length;
+        const maxDelta = Math.max(...deltas);
         
-        const integrityStatus = await this.aiaLedger.validateIntegrityChain(auditParameters);
+        // f(Variance(ΔT), max(ΔEi)) - Simplified function for demonstration
+        const rcf = (variance * 0.5) + (maxDelta * 0.5); // Example weighting
         
-        const auditResult = {
-            timestamp: new Date().toISOString(),
-            auditor: "GCO/Internal_Auditor",
-            integrityConfirmed: integrityStatus,
-            details: integrityStatus ? "AIA cryptographic chain and state evolution confirmed." : "AIA integrity validation issues detected.",
-            // In a real scenario, this would include detailed logs, hashes, and validation reports.
-        };
-        console.log(`AQE: GCO Audit completed. Integrity Confirmed: ${integrityStatus}.`);
-        return auditResult;
+        console.log(`HESE: Calculated TCF: ${tcf.toFixed(4)}, RCF: ${rcf.toFixed(4)}`);
+        return { tcf: Math.max(0, Math.min(1, tcf)), rcf: Math.max(0, rcf) }; // Ensure TCF is within [0,1], RCF is non-negative
+    }
+
+    /**
+     * Simple normalization function.
+     * @private
+     * @param {number} value
+     * @param {number} min - Expected minimum possible value.
+     * @param {number} max - Expected maximum possible value.
+     * @returns {number} Normalized value between 0 and 1.
+     */
+    #normalize(value, min, max) {
+        if (value <= min) return 0;
+        if (value >= max) return 1;
+        return (value - min) / (max - min);
+    }
+
+    /**
+     * Phase G7.1.D: Publish the standardized TCF/RCF metrics.
+     * @param {number} tcf - The calculated Trust Calibration Factor.
+     * @param {number} rcf - The calculated Risk Calibration Factor.
+     */
+    publishTelemetry(tcf, rcf) {
+        console.log("HESE: Publishing calibration telemetry to ATM and MCRA...");
+        // Assumed endpoints for telemetryPublisher
+        this.telemetryPublisher.publish('/telemetry/calibration/tcf', { TCF: tcf, timestamp: new Date().toISOString() });
+        this.telemetryPublisher.publish('/telemetry/calibration/rcf', { RCF: rcf, timestamp: new Date().toISOString() });
+        console.log("HESE: Telemetry published successfully.");
+    }
+
+    /**
+     * Executes the full HESE operational flow (Phase G7.1).
+     * @param {Array<Object>} commitmentLogs - D-01 Commitment Log entries.
+     * @param {Array<Object>} operationalMetrics - D-02 Operational Metrics entries.
+     */
+    async runHESE(commitmentLogs, operationalMetrics) {
+        console.log("HESE: Initiating G7.1 Operational Flow...");
+        await this.ingestData(commitmentLogs, operationalMetrics);
+        const { tcf, rcf } = this.deriveCalibrationFactors();
+        this.publishTelemetry(tcf, rcf);
+        console.log("HESE: G7.1 Operational Flow Complete.");
+        return { tcf, rcf };
     }
 }
