@@ -12,6 +12,7 @@ const PROTOCOL_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'proto
 const ARTIFACT_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'artifact_manifest.json'), 'utf8'));
 const CMR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.json'), 'utf8'));
 const CMR_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.schema.json'), 'utf8'));
+const ECVM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -26,6 +27,7 @@ class AdaptiveSamplingEngine {
       artifactManifest: ARTIFACT_MANIFEST,
       cmrConfig: CMR_CONFIG,
       cmrSchema: CMR_SCHEMA,
+      ecvm: ECVM,
     };
   }
 
@@ -49,6 +51,10 @@ class AdaptiveSamplingEngine {
       // Validate CMR compliance
       const cmr = new CMR(this.config.cmrConfig, this.config.cmrSchema);
       await cmr.validate(stage.executionTrace);
+
+      // Validate ECVM compliance
+      const ecvm = new ECVM(this.config.ecvm);
+      await ecvm.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -107,6 +113,21 @@ class CMR {
     const validationResults = await this.schema.validate(executionTrace, this.config);
     if (!validationResults.every((result) => result.valid)) {
       throw new Error('CMR validation failed');
+    }
+  }
+}
+
+// ECVM/ECVM.ts
+class ECVM {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against config
+    const validationResults = await this.config.validate(executionTrace);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('ECVM validation failed');
     }
   }
 }
