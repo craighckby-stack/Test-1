@@ -197,3 +197,4 @@ config/acvdschema.js
 config/acvd_v97_2.json
 config/acvt/maintainabilitymetricsaggregator.json
 config/aicv_security_policy.yaml
+config/aitm_manifest.json
