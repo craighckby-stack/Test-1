@@ -141,3 +141,4 @@ config/efficiency/metric_definitions.json
 config/efficiency/optimization_goals.json
 config/efficiency_scoring_config.json
 assets/gacr/gmci.json
+assets/gacr/harm_severity_matrix.json
