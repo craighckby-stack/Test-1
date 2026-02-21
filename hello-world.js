@@ -25,6 +25,13 @@
         "type": "string",
         "value": "Nexus_Branch_Synthesis",
         "operator": "EQ"
+      },
+      {
+        "id": "ADD_SYSTEMIC_RISK_SYNTHESIS_METRIC",
+        "description": "ADD systemic risk synthesis metric",
+        "type": "string",
+        "value": "Systemic_Risk_Synthesis",
+        "operator": "EQ"
       }
     ],
     "modifiers": [
@@ -87,6 +94,13 @@
       {
         "id": "NEXUS_BRANCH_SYNTHESIS_WEIGHT",
         "description": "Nexus branch synthesis weight",
+        "type": "numeric",
+        "value": 10,
+        "operator": "MUL"
+      },
+      {
+        "id": "ADD_SYSTEMIC_RISK_SYNTHESIS_WEIGHT",
+        "description": "ADD systemic risk synthesis weight",
         "type": "numeric",
         "value": 10,
         "operator": "MUL"
