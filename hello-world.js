@@ -60,6 +60,12 @@ add_weighted_average = sum(add_weighted_averages) / len(add_weighted_averages)
 # Apply Nexus branch synthesis weight and metric to ADD weighted average
 nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * add_weighted_average / 100)
 
+# Extract relevant data from ADD schema
+add_config = add_schema["components"]["ADD_Config"]
+
+# Extract relevant data from ADD schema
+add_reporting = add_schema["components"]["ADD_Reporting"]
+
 # Check if recursive_abstraction_metrics array is not empty
 if recursive_abstraction_metrics:
     # Calculate the average of recursive abstraction metrics
@@ -67,6 +73,30 @@ if recursive_abstraction_metrics:
     
     # Apply Nexus branch synthesis weight and metric to recursive abstraction average
     nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * recursive_abstraction_average / 100)
+
+# Apply Nexus branch synthesis based on ADD reporting
+if add_reporting["enabled"]:
+    # Reporting is enabled, apply positive Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+else:
+    # Reporting is disabled, apply neutral Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis
+
+# Apply Nexus branch synthesis based on ADD caching
+if add_config["caching"]["enabled"]:
+    # Caching is enabled, apply positive Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+else:
+    # Caching is disabled, apply neutral Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis
+
+# Apply Nexus branch synthesis based on ADD configured artifact types
+if len(add_config["configuredArtifactTypes"]) > 0:
+    # Artifact types are configured, apply positive Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+else:
+    # Artifact types are not configured, apply neutral Nexus branch synthesis
+    nexus_branch_synthesis = nexus_branch_synthesis
 
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
