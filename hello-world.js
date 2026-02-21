@@ -1,44 +1,6 @@
 CORE:
 // ...[TRUNCATED]
-l": {
-            "const": "LOW"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "recursive_abstraction": {
-            "type": "boolean",
-            "default": true
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "debt_prioritization_config": {
-            "not": {
-              "required": ["impact_weight", "complexity_penalty", "risk_threshold", "min_priority_to_inject"]
-            }
-          }
-        }
-      },
-      "then": {
-        "required": ["debt_prioritization_config"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "verification_pipeline": {
-            "type": "string"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "verification_pipeline": {
+n_pipeline": {
             "type": "string",
             "description": "Verification pipeline used for artifact validation.",
             "default": ""
@@ -195,6 +157,29 @@ l": {
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "ADD": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ADD"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "ADD": {
+            "type": "array",
+            "description": "Additional configuration for artifact deployment.",
+            "items": {
+              "$ref": "#/definitions/ADD"
+            }
+          }
+        }
+      }
     }
   ],
   "required": [
@@ -214,6 +199,49 @@ l": {
     "notification_channel",
     "scaling_factor",
     "approval_gates",
-    "optimization_config"
+    "optimization_config",
+    "ADD"
   ]
+}
+
+// ...[TRUNCATED]
+
+// definitions
+{
+  "$id": "#/definitions/ADD",
+  "type": "object",
+  "properties": {
+    "object": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "object"
+        }
+      }
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "object"
+        }
+      }
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "object"
+        }
+      }
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "object": {
+          "type": "object"
+        }
+      }
+    }
+  }
 }
