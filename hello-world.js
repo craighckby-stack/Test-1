@@ -15,6 +15,7 @@ const CMR_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cm
 const ECVM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm.json'), 'utf8'));
 const ECVM_TIS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm_tis.json'), 'utf8'));
 const ES_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'es_schema.json'), 'utf8'));
+const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -32,6 +33,7 @@ class AdaptiveSamplingEngine {
       ecvm: ECVM,
       ecvmTis: ECVM_TIS,
       esSchema: ES_SCHEMA,
+      gtem: GTEM,
     };
   }
 
@@ -67,6 +69,10 @@ class AdaptiveSamplingEngine {
       // Validate ES compliance
       const es = new ES(this.config.esSchema);
       await es.validate(stage.configuration);
+
+      // Validate GTEM compliance
+      const gtem = new GTEM(this.config.gtem);
+      await gtem.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -277,6 +283,62 @@ class GAR {
     // Seal and attest artifact manifest
     const sealedManifest = await this.keyRotationSchedule.sealAndAttest(artifactManifest);
     return sealedManifest;
+  }
+}
+
+// GACR/GTEM.ts
+class GTEM {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async validate(executionTrace) {
+    // Validate telemetry structure and transport constraints
+    const manifestId = this.config.manifest_id;
+    const description = this.config.description;
+    const signatureRequired = this.config.signature_required;
+    const telemetryFormatSpecification = this.config.telemetry_format_specification;
+    const transportConstraints = this.config.transport_constraints;
+
+    // Validate telemetry format specification
+    const requiredFields = telemetryFormatSpecification.required_fields;
+    for (const field of requiredFields) {
+      if (!executionTrace[field]) {
+        throw new Error(`Missing required telemetry field: ${field}`);
+      }
+    }
+
+    // Validate checksum algorithm
+    const checksumAlgorithm = telemetryFormatSpecification.checksum_algorithm;
+    if (checksumAlgorithm !== 'SHA3-256') {
+      throw new Error(`Invalid checksum algorithm: ${checksumAlgorithm}`);
+    }
+
+    // Validate encoding
+    const encoding = telemetryFormatSpecification.encoding;
+    if (encoding !== 'JSON_L') {
+      throw new Error(`Invalid encoding: ${encoding}`);
+    }
+
+    // Validate transport constraints
+    for (const constraint of transportConstraints) {
+      // Validate endpoint ID
+      if (!executionTrace[constraint.endpoint_id]) {
+        throw new Error(`Missing transport constraint endpoint: ${constraint.endpoint_id}`);
+      }
+
+      // Validate protocol
+      const protocol = constraint.protocol;
+      if (protocol !== 'HTTPS/TLS_1_3') {
+        throw new Error(`Invalid transport protocol: ${protocol}`);
+      }
+
+      // Validate max latency
+      const maxLatencyMs = constraint.max_latency_ms;
+      if (maxLatencyMs > 500) {
+        throw new Error(`Invalid max latency: ${maxLatencyMs}`);
+      }
+    }
   }
 }
 
