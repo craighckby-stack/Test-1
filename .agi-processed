@@ -43,3 +43,4 @@ arbiters/aia_query_engine.md
 architectural/hese.md
 readme-main.md
 arbiters/delta_computation_module.md
+arch_policy/aia_rollback_configuration.yaml
