@@ -122,3 +122,4 @@ config/cpr_tool_config.json
 config/crypto_standards.ts
 config/data_artifact_registry_schema.json
 config/data_governance/artifact_validation_rules.json
+config/data_governance/operationaltelemetryindexingmap.json
