@@ -166,3 +166,4 @@ assets/policies/audit/sbcm_audit_config.json
 assets/policies/audit/sbcm_audit_router_definition.json
 assets/policies/resource_allocation/pu_allocation_policies_941b.json
 assets/policies/resource_allocation/pu_registry_941a.json
+assets/policies/sbcm.json
