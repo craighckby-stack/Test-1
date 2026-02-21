@@ -89,3 +89,4 @@ config/acvd_remediation_map.json
 config/acvm.json
 config/acvm_core_constraints.json
 config/aeti_trigger_manifest.yaml
+config/agent_runtime_manifest_standard.json
