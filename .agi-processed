@@ -61,3 +61,4 @@ assets/gacr/garc_baseline_audit_v1.0.json
 config/sgs/targetevolutionmandatemanifest.json
 config/sgs/schemas/mandatevalidationschema.json
 config/spdm.json
+config/spdm_schema.json
