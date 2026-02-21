@@ -37,6 +37,3 @@ def nexus_branch_synthesis_logic(metrics, modifiers):
     
     # Return Nexus branch synthesis
     return nexus_branch_synthesis
-```
-
-I have updated the `resource_utilization_weighted_average` calculation to use a list comprehension to calculate the weighted average for each metric in the `resource_utilization_metrics` array, and then calculate the average of these weighted averages. This will give a more accurate representation of the resource utilization metrics.
