@@ -52,8 +52,29 @@ for alert in alerts:
                                (alert["action_trigger"] == "METRIC_EMIT") + 
                                (alert["action_trigger"] == "NOTIFICATION")))
 
+# Apply Nexus branch synthesis based on ADD alerts (additional logic)
+for alert in alerts:
+    if alert["severity"] == "CRITICAL":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (1 * 0.1))
+    elif alert["severity"] == "WARNING":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (0.5 * 0.1))
+    elif alert["severity"] == "INFO":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (0.1 * 0.1))
+
+# Apply Nexus branch synthesis based on ADD alerts (action triggers)
+for alert in alerts:
+    if alert["action_trigger"] == "LOG":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (1 * 0.05))
+    elif alert["action_trigger"] == "METRIC_EMIT":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (0.5 * 0.05))
+    elif alert["action_trigger"] == "NOTIFICATION":
+        nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                                  (0.1 * 0.05))
+
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
-```
-
-The updated CORE code now includes the Nexus branch synthesis based on ADD alerts, which was missing from the original code. This addition allows the Nexus branch synthesis to take into account the severity and action triggers of the alerts defined in the ADD schema.
