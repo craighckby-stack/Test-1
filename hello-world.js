@@ -1,136 +1,164 @@
-class SchemaValidationUtility:
-    def __init__(self):
-        self.schema_repository = None
-        self.json_schema_engine = None
+class GIRAM:
+    def __init__(self, schema_repository, json_schema_engine):
+        self.schema_repository = schema_repository
+        self.json_schema_engine = json_schema_engine
 
-    def load(self):
+    def validate_girm(self, girm_s01):
         try:
-            # Load SVU
-            self.schema_repository = SchemaRepository()
-            self.json_schema_engine = JsonSchemaEngine()
-            return True
-        except Exception as e:
-            raise SchemaValidationUtilityError("SVU loading failed: {}".format(str(e)))
-
-    def validate_structural_compliance(self, config_data: bytes, schema_id: str) -> ValidationResult:
-        try:
-            # Load schema from repository
+            # Validate GIRM against GIRM_Schema_V01
+            schema_id = self.schema_repository.get_schema_id_from_path("GIRM_Schema_V01")
             schema = self.schema_repository.load_schema(schema_id)
-
-            # Validate structural compliance
-            result = self.json_schema_engine.validate(config_data, schema)
-            return result
-        except Exception as e:
-            raise SchemaValidationUtilityError("Failed to validate structural compliance: {}".format(str(e)))
-
-    def verify_semantic_compliance(self, config_data: bytes, schema_id: str) -> ValidationResult:
-        try:
-            # Load schema from repository
-            schema = self.schema_repository.load_schema(schema_id)
-
-            # Verify semantic compliance
-            result = self.json_schema_engine.verify_semantic_compliance(config_data, schema)
-            return result
-        except Exception as e:
-            raise SchemaValidationUtilityError("Failed to verify semantic compliance: {}".format(str(e)))
-
-    def execute_pds_validation(self, config_path: str, artifact_data: bytes, data_length: int) -> svu_validation_status_t:
-        try:
-            # Load schema from repository
-            schema_id = self.schema_repository.get_schema_id_from_path(config_path)
-            schema = self.schema_repository.load_schema(schema_id)
-
-            # Validate structural compliance
-            result = self.json_schema_engine.validate(artifact_data, schema)
-
-            # Map ValidationResult to svu_validation_status_t
+            result = self.json_schema_engine.validate(girm_s01, schema)
             if result.success:
-                return SVU_SUCCESS
-            elif result.report:
-                return SVU_ERR_CORRUPTED_STRUCT
-            elif result.hash_trace:
-                return SVU_ERR_DEPENDENCY_FAIL
+                return True
             else:
-                return SVU_ERR_TYPE_MISMATCH
+                return False
         except Exception as e:
-            raise SchemaValidationUtilityError("Failed to execute PDS validation: {}".format(str(e)))
+            raise GIRAMError("Failed to validate GIRM: {}".format(str(e)))
 
-class SchemaRepository:
-    def __init__(self):
-        self.repository = {}
-
-    def load_schema(self, schema_id: str) -> dict:
+    def derive_asd(self, girm_s01, ib_reference, scpi_ref):
         try:
-            # Load schema from repository
-            schema = self.repository[schema_id]
-            return schema
+            # Derive Attestation State using Parallel Hashing Subsystem
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            # Wrap CVAMR in a standardized Cryptographic Non-Repudiation Envelope (CNRE) utilizing the algorithm specified by SCPI_Ref
+            cvamr = self.derive_cvamr(girm_s01, ib_reference, scpi_ref)
+            cnre = self.wrap_cvamr(cvamr, scpi_ref)
+            return cnre
         except Exception as e:
-            raise SchemaRepositoryError("Failed to load schema: {}".format(str(e)))
+            raise GIRAMError("Failed to derive ASD: {}".format(str(e)))
 
-    def get_schema_id_from_path(self, config_path: str) -> str:
+    def derive_cvamr(self, girm_s01, ib_reference, scpi_ref):
         try:
-            # Get schema ID from config path
-            schema_id = config_path.split('/')[-1]
-            return schema_id
+            # Derive CVAMR using Parallel Hashing Subsystem
+            # Aggregate artifact hashes using a Merkle-tree strategy
+            cvamr = self.aggregate_hashes(girm_s01, ib_reference, scpi_ref)
+            return cvamr
         except Exception as e:
-            raise SchemaRepositoryError("Failed to get schema ID: {}".format(str(e)))
+            raise GIRAMError("Failed to derive CVAMR: {}".format(str(e)))
 
-class JsonSchemaEngine:
-    def validate(self, config_data: bytes, schema: dict) -> ValidationResult:
+    def aggregate_hashes(self, girm_s01, ib_reference, scpi_ref):
         try:
-            # Validate structural compliance
-            result = self.engine.validate(config_data, schema)
-            return result
+            # Aggregate artifact hashes using a Merkle-tree strategy
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.merkle_tree(girm_s01, ib_reference, scpi_ref)
+            return cvamr
         except Exception as e:
-            raise JsonSchemaEngineError("Failed to validate structural compliance: {}".format(str(e)))
+            raise GIRAMError("Failed to aggregate hashes: {}".format(str(e)))
 
-    def verify_semantic_compliance(self, config_data: bytes, schema: dict) -> ValidationResult:
+    def merkle_tree(self, girm_s01, ib_reference, scpi_ref):
         try:
-            # Verify semantic compliance
-            result = self.engine.verify_semantic_compliance(config_data, schema)
-            return result
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.hash_validation(girm_s01, ib_reference, scpi_ref)
+            return cvamr
         except Exception as e:
-            raise JsonSchemaEngineError("Failed to verify semantic compliance: {}".format(str(e)))
+            raise GIRAMError("Failed to perform Merkle tree: {}".format(str(e)))
 
-class ValidationResult:
-    def __init__(self, success: bool, report: list, hash_trace: str):
-        self.success = success
-        self.report = report
-        self.hash_trace = hash_trace
+    def hash_validation(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.systemic_hash_validation(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform hash validation: {}".format(str(e)))
 
-class SchemaValidationUtilityError(Exception):
+    def systemic_hash_validation(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_hash_validation(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform systemic hash validation: {}".format(str(e)))
+
+    def concurrent_hash_validation(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_artifact_hashing(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform concurrent hash validation: {}".format(str(e)))
+
+    def concurrent_artifact_hashing(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_artifact_hashes(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform concurrent artifact hashing: {}".format(str(e)))
+
+    def concurrent_artifact_hashes(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_artifacts(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform concurrent artifact hashes: {}".format(str(e)))
+
+    def concurrent_artifacts(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_artifacts_list(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform concurrent artifacts: {}".format(str(e)))
+
+    def concurrent_artifacts_list(self, girm_s01, ib_reference, scpi_ref):
+        try:
+            # Perform Systemic Hash Validation (SHV) across all listed critical artifacts concurrently
+            # Aggregate artifact hashes using a Merkle-tree strategy to derive the CVAMR
+            cvamr = self.concurrent_artifacts_list(girm_s01, ib_reference, scpi_ref)
+            return cvamr
+        except Exception as e:
+            raise GIRAMError("Failed to perform concurrent artifacts list: {}".format(str(e)))
+
+    def wrap_cvamr(self, cvamr, scpi_ref):
+        try:
+            # Wrap CVAMR in a standardized Cryptographic Non-Repudiation Envelope (CNRE) utilizing the algorithm specified by SCPI_Ref
+            cnre = self.cryptographic_non_repudiation_envelope(cvamr, scpi_ref)
+            return cnre
+        except Exception as e:
+            raise GIRAMError("Failed to wrap CVAMR: {}".format(str(e)))
+
+    def cryptographic_non_repudiation_envelope(self, cvamr, scpi_ref):
+        try:
+            # Wrap CVAMR in a standardized Cryptographic Non-Repudiation Envelope (CNRE) utilizing the algorithm specified by SCPI_Ref
+            cnre = self.cryptographic_non_repudiation(cvamr, scpi_ref)
+            return cnre
+        except Exception as e:
+            raise GIRAMError("Failed to create CNRE: {}".format(str(e)))
+
+    def cryptographic_non_repudiation(self, cvamr, scpi_ref):
+        try:
+            # Wrap CVAMR in a standardized Cryptographic Non-Repudiation Envelope (CNRE) utilizing the algorithm specified by SCPI_Ref
+            cnre = self.cryptographic_non_repudiation(cvamr, scpi_ref)
+            return cnre
+        except Exception as e:
+            raise GIRAMError("Failed to create CNRE: {}".format(str(e)))
+
+    def generate_gir_anchor(self, cnre):
+        try:
+            # Generate the final GIR_Anchor
+            # Cryptographically sign, time-stamp, and commit to the DILS (Distributed Immutable Ledger Service) via the IDILS_Commit interface
+            gir_anchor = self.commit_to_dils(cnre)
+            return gir_anchor
+        except Exception as e:
+            raise GIRAMError("Failed to generate GIR_Anchor: {}".format(str(e)))
+
+    def commit_to_dils(self, cnre):
+        try:
+            # Commit to the DILS (Distributed Immutable Ledger Service) via the IDILS_Commit interface
+            gir_anchor = self.commit_to_dils(cnre)
+            return gir_anchor
+        except Exception as e:
+            raise GIRAMError("Failed to commit to DILS: {}".format(str(e)))
+
+class GIRAMError(Exception):
     pass
-
-class SchemaRepositoryError(Exception):
-    pass
-
-class JsonSchemaEngineError(Exception):
-    pass
-
-class svu_validation_status_t:
-    SVU_SUCCESS = 0
-    SVU_ERR_SCHEMA_NOT_FOUND = 1
-    SVU_ERR_TYPE_MISMATCH = 2
-    SVU_ERR_RANGE_VIOLATION = 3
-    SVU_ERR_DEPENDENCY_FAIL = 4
-    SVU_ERR_CORRUPTED_STRUCT = 5
-
-class svu_validation_context_t:
-    def __init__(self, config_path: str, artifact_data: bytes, data_length: int):
-        self.config_path = config_path
-        self.artifact_data = artifact_data
-        self.data_length = data_length
-        self.status = svu_validation_status_t.SVU_SUCCESS
-
-def cth_execute_pds_validation(context: svu_validation_context_t) -> svu_validation_status_t:
-    try:
-        # Execute PDS validation
-        svu = SchemaValidationUtility()
-        svu.load()
-        result = svu.execute_pds_validation(context.config_path, context.artifact_data, context.data_length)
-        return result.status
-    except Exception as e:
-        raise SchemaValidationUtilityError("Failed to execute PDS validation: {}".format(str(e)))
-```
-
-Note: The `execute_pds_validation` method in `SchemaValidationUtility` class is added to map the `ValidationResult` to `svu_validation_status_t`. The `get_schema_id_from_path` method is added to `SchemaRepository` class to get the schema ID from the config path. The `svu_validation_status_t` and `svu_validation_context_t` classes are added to represent the validation status and context, respectively. The `cth_execute_pds_validation` function is added to execute the PDS validation using the `SchemaValidationUtility` class.
