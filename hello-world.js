@@ -1,21 +1,6 @@
 CORE:
 // ...[TRUNCATED]
-"EVERITY",
-  "harmonic_severity_matrix": {
-    "description": "Optimization strategy based on HARM_Severity_Matrix.json",
-    "metric_multipliers": {
-      "harm_severity": 1.2,
-      "latency_ms": 1.1,
-      "success_rate_op": 1.0,
-      "memory_footprint_mb": 0.9
-    }
-  },
-  "onds": {
-    "type": "RESOURCE_USAGE",
-    "source": "HardwareMonitor",
-    "unit": "SECONDS",
-    "data_type": "FLOAT",
-    "aggregation": "SUM",
+"SUM",
     "storage_policy": "HOT_30D",
     "is_critical": true
   },
@@ -159,7 +144,85 @@ CORE:
     "storage_policy": "PERMANENT",
     "optimize_goal": "MAXIMIZE"
   },
-  "action_mapping_ref": "assets/GACR/HARM_Severity_Matrix.json"
+  "action_mapping_ref": "assets/GACR/HARM_Severity_Matrix.json",
+  "vrrm_configuration": {
+    "type": "VRRM_CONFIGURATION",
+    "source": "assets/VRRM-V3.0",
+    "unit": "CONFIGURATION",
+    "data_type": "JSON",
+    "aggregation": "MAX",
+    "storage_policy": "PERMANENT",
+    "optimize_goal": "MAXIMIZE"
+  }
 }
 
 Nexus branch updated with new optimization goal for maximum computational efficiency and recursive abstraction on file assets/GAX/AHMID_VETO_TRIGGERS.json.
+
+ADD:
+{
+  "asset_id": "VRRM-V3.0",
+  "asset_type": "VRRM_CONFIGURATION",
+  "schema_version": "3.0",
+  "status": "AWAITING_REVIEW",
+  "veto_policies": [
+    {
+      "policy_id": "GCP_101",
+      "policy_name": "Axiomatic Safety Veto",
+      "policy_target_asset": "PVLM",
+      "constraints": [
+        {
+          "constraint_id": "GCM_2_1",
+          "priority": {
+            "risk_level": "CRITICAL",
+            "severity_score": 100
+          },
+          "trigger_condition": {
+            "asset_id": "PVLM",
+            "violation_vector": "NEG_V_POLICY"
+          },
+          "remediation_plan_ref": "VRRP-2A"
+        }
+      ]
+    },
+    {
+      "policy_id": "GCP_102",
+      "policy_name": "Stability Degradation Veto",
+      "policy_target_asset": "MPAM",
+      "constraints": [
+        {
+          "constraint_id": "GCM_2_2",
+          "priority": {
+            "risk_level": "HIGH",
+            "severity_score": 90
+          },
+          "trigger_condition": {
+            "asset_id": "MPAM",
+            "violation_vector": "NEG_V_STABILITY"
+          },
+          "remediation_plan_ref": "VRRP-2B"
+        }
+      ]
+    },
+    {
+      "policy_id": "GCP_103",
+      "policy_name": "Adaptive Behavior Monitoring",
+      "policy_target_asset": "ADTM",
+      "constraints": [
+        {
+          "constraint_id": "GCM_2_3",
+          "priority": {
+            "risk_level": "MODERATE",
+            "severity_score": 80
+          },
+          "trigger_condition": {
+            "asset_id": "ADTM",
+            "violation_vector": "NEG_V_BEHAVIOR"
+          },
+          "remediation_plan_ref": "VRRP-2C"
+        }
+      ]
+    }
+  ]
+}
+
+Updated CORE code with new VRRM configuration and veto policies.
