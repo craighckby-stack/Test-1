@@ -10,6 +10,11 @@
  * ensures robust model lifecycle management, with its architecture and validation
  * patterns fully integrated as per the GACR/CMR.schema.json specification.
  *
+ * NEW: Integrates the ECVM Telemetry Input Sources (TIS) manifest (GACR/ECVM_TIS.json) to standardize
+ * and manage how the AGI acquires necessary telemetry for validation and operational insights.
+ * This introduces a new layer of data source management, allowing the AGI to understand
+ * and simulate retrieval from defined telemetry endpoints with specified protocols and schedules.
+ *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
  * - Agent Integrity Monitoring (AIM) Framework
@@ -27,6 +32,10 @@
  *   - Model Definition, Path, Version, and Status Management
  *   - Input Schema Validation for Model Usage (Simulated, aligned with GACR/CMR.schema.json)
  *   - Audit Trail Metadata for Model Certification
+ * - Telemetry Input Sources (TIS) Management (NEW INTEGRATION)
+ *   - Normalized definition of telemetry input sources from ECVM.
+ *   - Simulated data retrieval based on defined protocols and schedules.
+ *   - Awareness of required telemetry for CVA validation checks.
  */
 
 // --- Global Configuration and Manifest Data ---
@@ -330,6 +339,67 @@ const COMPUTATIONAL_MODEL_REGISTRY_MANIFEST = {
         }
     ]
 };
+
+// NEW: ECVM_TIS_MANIFEST from GACR/ECVM_TIS.json
+const ECVM_TIS_MANIFEST = {
+    "manifest_version": "2.0.0",
+    "config_id": "ECVM_TIS",
+    "metadata": {
+        "gate_id": "S4.5",
+        "description": "Normalized definition of mandatory telemetry input sources (TIS) for ECVM validation checks."
+    },
+    "telemetry_inputs": [
+        {
+            "source_id": "API_PERF",
+            "source_name": "API_Performance_Monitor",
+            "data_path": "metrics.latency.ms",
+            "required_by": [
+                "CVA-201"
+            ],
+            "schema_ref": "GACR/Schemas/APITelemetry.json",
+            "retrieval_config": {
+                "protocol": "HTTP/2_PULL",
+                "schedule": {
+                    "type": "INTERVAL",
+                    "interval_ms": 500
+                }
+            }
+        },
+        {
+            "source_id": "DTEM_CACHE",
+            "source_name": "DTEM_Cache_Status",
+            "data_path": "cache_status.last_update_ts",
+            "required_by": [
+                "CVA-305"
+            ],
+            "schema_ref": "GACR/Schemas/DTEMCacheStatus.json",
+            "retrieval_config": {
+                "protocol": "IPC_MOCK",
+                "schedule": {
+                    "type": "FIXED_RATE",
+                    "rate_seconds": 30
+                }
+            }
+        },
+        {
+            "source_id": "RESOURCE_ALLOC",
+            "source_name": "Resource_Allocator_Feed",
+            "data_path": "resource_pool.utilization_summary",
+            "required_by": [
+                "CVA-412"
+            ],
+            "schema_ref": "GACR/Schemas/ResourceTelemetry.json",
+            "retrieval_config": {
+                "protocol": "GRPC_BI_STREAM",
+                "schedule": {
+                    "type": "EVENT_DRIVEN",
+                    "debounce_ms": 100
+                }
+            }
+        }
+    ]
+};
+
 
 // --- Utility Functions ---
 
@@ -989,11 +1059,117 @@ class ComputationalModelRegistryManager {
     }
 }
 
+// NEW: Telemetry Input Source (TIS) Manager
+/**
+ * Manages the loading and simulated retrieval of telemetry input sources as defined by ECVM_TIS.json.
+ * This class understands different retrieval protocols and schedules.
+ */
+class TelemetryInputSourceManager {
+    constructor(manifest) {
+        if (!manifest || !manifest.telemetry_inputs || !Array.isArray(manifest.telemetry_inputs)) {
+            throw new Error("Invalid ECVM_TIS manifest provided for telemetry input sources.");
+        }
+        this.manifest = manifest;
+        // Convert array to map for easy lookup
+        this.telemetryInputs = manifest.telemetry_inputs.reduce((acc, tis) => {
+            acc[tis.source_id] = tis;
+            return acc;
+        }, {});
+        this.sourceIds = Object.keys(this.telemetryInputs);
+        agiLogger('INFO', 'TelemetryInputSourceManager', `ECVM_TIS Manifest v${manifest.manifest_version} loaded. Discovered ${this.sourceIds.length} telemetry input sources.`);
+    }
+
+    /**
+     * Retrieves a telemetry input source definition by its ID.
+     * @param {string} sourceId - The ID of the telemetry input source.
+     * @returns {object|null} The TIS definition or null if not found.
+     */
+    getTIS(sourceId) {
+        const tis = this.telemetryInputs[sourceId];
+        if (!tis) {
+            agiLogger('ERROR', 'TelemetryInputSourceManager', `No telemetry input source found for ID: ${sourceId}`);
+            return null;
+        }
+        return tis;
+    }
+
+    /**
+     * Returns a list of all registered telemetry input source IDs.
+     * @returns {string[]} An array of source IDs.
+     */
+    listTISIds() {
+        return this.sourceIds;
+    }
+
+    /**
+     * Simulates the retrieval of data from a specified telemetry input source,
+     * respecting its defined protocol and schedule configuration.
+     * @param {string} sourceId - The ID of the telemetry input source.
+     * @returns {object} A simulated data retrieval result.
+     */
+    simulateDataRetrieval(sourceId) {
+        const tis = this.getTIS(sourceId);
+        if (!tis) {
+            return { status: 'ERROR', message: `Telemetry Input Source ${sourceId} not found.` };
+        }
+
+        const { protocol, schedule } = tis.retrieval_config;
+        let simulatedData = null;
+        let success = true;
+        let message = `Simulated data retrieval for ${sourceId} using ${protocol}.`;
+
+        // Simulate data based on path (very basic simulation)
+        switch (tis.data_path) {
+            case "metrics.latency.ms":
+                simulatedData = { latency_ms: Math.floor(Math.random() * 200) + 10 };
+                break;
+            case "cache_status.last_update_ts":
+                simulatedData = { last_update_ts: new Date().toISOString() };
+                break;
+            case "resource_pool.utilization_summary":
+                simulatedData = {
+                    cpu_util: parseFloat((Math.random() * 0.8 + 0.1).toFixed(2)), // 10-90%
+                    mem_util_mb: Math.floor(Math.random() * 2000) + 500
+                };
+                break;
+            default:
+                simulatedData = { value: Math.random() };
+                message = `Simulated generic data retrieval for ${sourceId}.`;
+                break;
+        }
+
+        // Simulate schedule specifics (without actual timing, just logging intent)
+        let scheduleDetails = '';
+        if (schedule.type === "INTERVAL" && schedule.interval_ms) {
+            scheduleDetails = ` (Interval: ${schedule.interval_ms}ms)`;
+        } else if (schedule.type === "FIXED_RATE" && schedule.rate_seconds) {
+            scheduleDetails = ` (Fixed Rate: ${schedule.rate_seconds}s)`;
+        } else if (schedule.type === "EVENT_DRIVEN" && schedule.debounce_ms) {
+            scheduleDetails = ` (Event Driven, debounce: ${schedule.debounce_ms}ms)`;
+        }
+
+        // Introduce occasional simulated failures
+        if (Math.random() < 0.05) { // 5% chance of failure
+            success = false;
+            message = `Simulated FAILURE to retrieve data for ${sourceId} via ${protocol}.`;
+            agiLogger('ERROR', 'TelemetryInputSourceManager:Retrieval', message, { sourceId, protocol, schedule, details: "Network or endpoint error" });
+            return { status: 'FAILURE', message, data: null };
+        }
+
+        agiLogger('INFO', 'TelemetryInputSourceManager:Retrieval',
+            `${message}${scheduleDetails} Retrieved: ${JSON.stringify(simulatedData)}`,
+            { sourceId, protocol, schedule, data_path: tis.data_path }
+        );
+
+        return { status: 'SUCCESS', message, data: simulatedData };
+    }
+}
+
 
 // --- AGI Core System ---
 
 class AGICore {
-    constructor(agentId, aimManifest, telemetryConfig, cmrManifest, computationalModelManifest) {
+    constructor(agentId, aimManifest, telemetryConfig, cmrManifest, computationalModelManifest, ecvmTISManifest) {
         this.agentId = agentId;
         this.integrityProfileManager = new IntegrityProfileManager(aimManifest);
         this.integrityMonitor = null;
@@ -1001,6 +1177,9 @@ class AGICore {
         this.componentRegistryManager = new ComponentRegistryManager(cmrManifest);
         // Initialize ComputationalModelRegistryManager using the manifest conforming to GACR/CMR.schema.json
         this.computationalModelRegistryManager = new ComputationalModelRegistryManager(computationalModelManifest);
+        // NEW: Initialize TelemetryInputSourceManager
+        this.telemetryInputSourceManager = new TelemetryInputSourceManager(ecvmTISManifest);
+
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
@@ -1141,6 +1320,22 @@ class AGICore {
                 }
             }
 
+            // 6. Telemetry Input Source Management (NEW PHASE - ECVM_TIS)
+            if (this.telemetryInputSourceManager.listTISIds().length > 0) {
+                const tisIds = this.telemetryInputSourceManager.listTISIds();
+                // Randomly select one TIS to simulate data retrieval
+                const randomTisId = tisIds[Math.floor(Math.random() * tisIds.length)];
+                const retrievalResult = this.telemetryInputSourceManager.simulateDataRetrieval(randomTisId);
+
+                if (retrievalResult.status === 'SUCCESS') {
+                    this._simulateSampledAGIOperation(`Processed telemetry from source '${randomTisId}'.`);
+                    // In a real system, this retrieved data would then be fed into other AGI components
+                    // for further processing, analysis, or integrity checks.
+                } else {
+                    agiLogger('WARN', 'AGICore:Operation', `Failed to retrieve telemetry from '${randomTisId}': ${retrievalResult.message}`);
+                }
+            }
+
 
             // Simulate sporadic attempts that might cause violations
             if (Math.random() < 0.2) { // 20% chance to simulate a forbidden action
@@ -1189,7 +1384,8 @@ async function main() {
         AIM_MANIFEST,
         TELEMETRY_AGGREGATION_CONFIG,
         GACR_CMR_MANIFEST, // Now references the updated CMR V1.2
-        COMPUTATIONAL_MODEL_REGISTRY_MANIFEST // Pass the Computational Model Registry, fully adhering to GACR/CMR.schema.json
+        COMPUTATIONAL_MODEL_REGISTRY_MANIFEST, // Pass the Computational Model Registry, fully adhering to GACR/CMR.schema.json
+        ECVM_TIS_MANIFEST // NEW: Pass the ECVM Telemetry Input Sources Manifest
     );
     agiCore.start();
 
