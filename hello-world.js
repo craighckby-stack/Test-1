@@ -26,7 +26,11 @@ def nexus_branch_synthesis_logic(metrics, modifiers):
     
     # Calculate Nexus branch synthesis based on ADD metrics
     # Use a weighted average of cpu_usage and memory_usage
-    resource_utilization_weighted_average = (resource_utilization_metrics[0]["cpu_usage"] + resource_utilization_metrics[0]["memory_usage"]) / 2
+    # Calculate the weighted average of cpu_usage and memory_usage for each metric in the array
+    resource_utilization_weighted_averages = [(metric["cpu_usage"] + metric["memory_usage"]) / 2 for metric in resource_utilization_metrics]
+    
+    # Calculate the average of the weighted averages
+    resource_utilization_weighted_average = sum(resource_utilization_weighted_averages) / len(resource_utilization_weighted_averages)
     
     # Apply Nexus branch synthesis weight and metric
     nexus_branch_synthesis = (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * resource_utilization_weighted_average) / 100
@@ -35,4 +39,4 @@ def nexus_branch_synthesis_logic(metrics, modifiers):
     return nexus_branch_synthesis
 ```
 
-Note that I've added error checking to ensure that the `resource_utilization_metrics` array is not empty and that the `cpu_usage` and `memory_usage` fields are present in each element of the array. If these conditions are not met, a `ValueError` is raised.
+I have updated the `resource_utilization_weighted_average` calculation to use a list comprehension to calculate the weighted average for each metric in the `resource_utilization_metrics` array, and then calculate the average of these weighted averages. This will give a more accurate representation of the resource utilization metrics.
