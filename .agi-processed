@@ -40,3 +40,4 @@ agent_specifications/FIA.md
 agents/TraceAnalysisEngine.js
 analysis/IntegrityCorrelatorModule.js
 arbiters/aia_query_engine.md
+architectural/HESE.md
