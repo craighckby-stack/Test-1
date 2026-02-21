@@ -19,7 +19,7 @@ const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.jso
 const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'hetm.schema.json'), 'utf8'));
 const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm.json'), 'utf8'));
 const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm_metric_catalog.json'), 'utf8'));
-const APITELEMETRY_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'schemas', 'apitelemetry.json'), 'utf8'));
+const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'telemetry_source_schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -41,7 +41,7 @@ class AdaptiveSamplingEngine {
       hetmSchema: HETM_SCHEMA,
       mqmPolicy: MQM_POLICY,
       mqmMetricCatalog: MQM_METRIC_CATALOG,
-      apitelemetrySchema: APITELEMETRY_SCHEMA,
+      telemetrySourceSchema: TELEMETRY_SOURCE_SCHEMA,
     };
   }
 
@@ -100,9 +100,13 @@ class AdaptiveSamplingEngine {
         }
       }
 
-      // Validate APITelemetry
-      const apitelemetry = new APITelemetry(this.config.apitelemetrySchema);
-      await apitelemetry.validate(stage.executionTrace);
+      // Validate telemetry structure
+      const telemetrySourceSchema = this.config.telemetrySourceSchema;
+      const telemetrySources = stage.executionTrace.telemetrySources;
+      for (const telemetrySource of telemetrySources) {
+        const telemetrySourceSchemaValidator = new TelemetrySourceSchemaValidator(telemetrySourceSchema);
+        await telemetrySourceSchemaValidator.validate(telemetrySource);
+      }
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -119,33 +123,16 @@ class AdaptiveSamplingEngine {
   }
 }
 
-// GACR/APITelemetry.ts
-class APITelemetry {
+// GACR/TelemetrySourceSchemaValidator.ts
+class TelemetrySourceSchemaValidator {
   constructor(schema) {
     this.schema = schema;
   }
 
-  async validate(executionTrace) {
-    // Validate APITelemetry against schema
+  async validate(telemetrySource) {
     const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(executionTrace, this.schema);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('APITelemetry validation failed');
-    }
-  }
-}
-
-// JSONSchemaValidator.ts
-class JSONSchemaValidator {
-  async validate(data, schema) {
-    const Ajv = require('ajv');
-    const ajv = new Ajv();
-    const validate = ajv.compile(schema);
-    const valid = validate(data);
-    if (!valid) {
-      throw new Error(validate.errors[0].message);
-    }
-    return validate.errors;
+    const validationResults = await validator.validate(telemetrySource, this.schema);
+    return validationResults;
   }
 }
 
