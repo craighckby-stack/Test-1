@@ -188,3 +188,4 @@ components/protocol/gaxschemadefinition.py
 components/risk_processor/risk_enforcement_map.js
 components/security/scpi_t03_spec.md
 components/system_core/asg_atomic_snapshot_generator.rs
+components/system_core/capture_api/defaultsystemcaptureprovider.rs
