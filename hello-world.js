@@ -25,6 +25,7 @@ const CONSTRAINT_TAXONOMY = JSON.parse(fs.readFileSync(path.join(__dirname, 'con
 const GDECM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gdecm_schema.json'), 'utf8'));
 const GEDM_DEFINITION = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_definition.json'), 'utf8'));
 const GEDM_CONSTRAINT_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_constraint_schema.json'), 'utf8'));
+const CISR_SERVICE_DEFINITION = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cisr_service_definition.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -51,7 +52,8 @@ class AdaptiveSamplingEngine {
       constraintTaxonomy: CONSTRAINT_TAXONOMY,
       gdecmSchema: GDECM_SCHEMA,
       gedmDefinition: GEDM_DEFINITION,
-      gedmConstraintSchema: GEDM_CONSTRAINT_SCHEMA
+      gedmConstraintSchema: GEDM_CONSTRAINT_SCHEMA,
+      cisrServiceDefinition: CISR_SERVICE_DEFINITION
     };
   }
 
@@ -137,6 +139,26 @@ class AdaptiveSamplingEngine {
       const gedm = new GEDMValidator(this.config.gedmDefinition, this.config.gedmConstraintSchema);
       await gedm.validate(stage.configuration, stage.inputState);
 
+      // Validate CISR service definition
+      const cisrServiceDefinition = this.config.cisrServiceDefinition;
+      const serviceId = cisrServiceDefinition.service_id;
+      const role = cisrServiceDefinition.role;
+      const purpose = cisrServiceDefinition.purpose;
+      const interfaceDefinition = cisrServiceDefinition.interface;
+      const registerStateSnapshot = interfaceDefinition.RegisterStateSnapshot;
+      const retrieveReference = interfaceDefinition.RetrieveReference;
+
+      // Validate RegisterStateSnapshot interface
+      const intermediateStateMap = stage.inputState.intermediateStateMap;
+      const verifierSignature = stage.inputState.verifierSignature;
+      const cismReferencePointer = await this.validateRegisterStateSnapshot(intermediateStateMap, verifierSignature, registerStateSnapshot);
+      const rootHash = cismReferencePointer.rootHash;
+
+      // Validate RetrieveReference interface
+      const stateUID = stage.inputState.stateUID;
+      const expectedRootHash = stage.inputState.expectedRootHash;
+      const cismReferencePointerRetrieved = await this.validateRetrieveReference(stateUID, expectedRootHash, retrieveReference);
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
@@ -149,6 +171,66 @@ class AdaptiveSamplingEngine {
       const gar = new GAR(this.config.keyRotationSchedule);
       await gar.sealAndAttest(artifactManifest);
     }
+  }
+
+  async validateRegisterStateSnapshot(intermediateStateMap, verifierSignature, registerStateSnapshot) {
+    // Validate input parameters
+    if (!intermediateStateMap) {
+      throw new Error('Missing intermediate state map');
+    }
+    if (!verifierSignature) {
+      throw new Error('Missing verifier signature');
+    }
+
+    // Validate output parameters
+    const cismReferencePointer = registerStateSnapshot.output[0];
+    const rootHash = registerStateSnapshot.output[1];
+
+    // Validate constraints
+    const requiresConsensusSignature = registerStateSnapshot.constraints[0];
+    const mustGenerateMerkleRootHash = registerStateSnapshot.constraints[1];
+
+    // Validate requires consensus signature constraint
+    if (requiresConsensusSignature && !verifierSignature) {
+      throw new Error('Missing consensus signature');
+    }
+
+    // Validate must generate Merkle root hash constraint
+    if (mustGenerateMerkleRootHash && !rootHash) {
+      throw new Error('Missing Merkle root hash');
+    }
+
+    return cismReferencePointer;
+  }
+
+  async validateRetrieveReference(stateUID, expectedRootHash, retrieveReference) {
+    // Validate input parameters
+    if (!stateUID) {
+      throw new Error('Missing state UID');
+    }
+    if (!expectedRootHash) {
+      throw new Error('Missing expected root hash');
+    }
+
+    // Validate output parameters
+    const cismReferencePointer = retrieveReference.output;
+
+    // Validate security mandate
+    const verifyRequestedRootHash = retrieveReference.security_mandate;
+    if (verifyRequestedRootHash) {
+      // Validate requested root hash against registered hash
+      const registeredRootHash = await this.getRegisteredRootHash(stateUID);
+      if (registeredRootHash !== expectedRootHash) {
+        throw new Error('Requested root hash does not match registered hash');
+      }
+    }
+
+    return cismReferencePointer;
+  }
+
+  async getRegisteredRootHash(stateUID) {
+    // TO DO: Implement logic to retrieve registered root hash
+    throw new Error('Not implemented');
   }
 }
 
@@ -403,4 +485,68 @@ class GEDMValidator {
     const cismReference = inputState.cismReference;
 
     // Validate presence and integrity of artifacts
-    const artifactPresenceValidator =
+    const artifactPresenceValidator = new ArtifactPresenceValidator();
+    await artifactPresenceValidator.validate(configuration, inputState);
+
+    // Validate CISR service definition
+    const cisrServiceDefinition = this.config.cisrServiceDefinition;
+    const serviceId = cisrServiceDefinition.service_id;
+    const role = cisrServiceDefinition.role;
+    const purpose = cisrServiceDefinition.purpose;
+    const interfaceDefinition = cisrServiceDefinition.interface;
+    const registerStateSnapshot = interfaceDefinition.RegisterStateSnapshot;
+    const retrieveReference = interfaceDefinition.RetrieveReference;
+
+    // Validate RegisterStateSnapshot interface
+    const intermediateStateMap = inputState.intermediateStateMap;
+    const verifierSignature = inputState.verifierSignature;
+    const cismReferencePointer = await this.validateRegisterStateSnapshot(intermediateStateMap, verifierSignature, registerStateSnapshot);
+    const rootHash = cismReferencePointer.rootHash;
+
+    // Validate RetrieveReference interface
+    const stateUID = inputState.stateUID;
+    const expectedRootHash = inputState.expectedRootHash;
+    const cismReferencePointerRetrieved = await this.validateRetrieveReference(stateUID, expectedRootHash, retrieveReference);
+
+    // Validate presence of required artifacts
+    const requiredArtifacts = artifactPresenceValidator.getRequiredArtifacts();
+    for (const artifact of requiredArtifacts) {
+      if (!configuration[artifact]) {
+        throw new Error(`Missing required artifact: ${artifact}`);
+      }
+    }
+  }
+}
+
+// GACR/ArtifactPresenceValidator.ts
+class ArtifactPresenceValidator {
+  async validate(configuration, inputState) {
+    // Validate presence of required artifacts
+    const requiredArtifacts = this.getRequiredArtifacts();
+    for (const artifact of requiredArtifacts) {
+      if (!configuration[artifact]) {
+        throw new Error(`Missing required artifact: ${artifact}`);
+      }
+    }
+  }
+
+  getRequiredArtifacts() {
+    // TO DO: Implement logic to retrieve required artifacts
+    throw new Error('Not implemented');
+  }
+}
+
+// GACR/CISR_Service_Validator.ts
+class CISR_Service_Validator {
+  constructor(serviceDefinition) {
+    this.serviceDefinition = serviceDefinition;
+  }
+
+  async validate(stage) {
+    // Validate CISR service definition
+    const serviceId = this.serviceDefinition.service_id;
+    const role = this.serviceDefinition.role;
+    const purpose = this.serviceDefinition.purpose;
+    const interfaceDefinition = this.serviceDefinition.interface;
+    const registerStateSnapshot = interfaceDefinition.RegisterStateSnapshot;
+    const retrieveReference = interfaceDefinition.RetrieveReference
