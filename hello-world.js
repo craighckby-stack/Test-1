@@ -1,3 +1,5 @@
+CORE:
+```python
 class SchemaRepositoryService:
     def __init__(self):
         self.schema_states = {
@@ -8,6 +10,7 @@ class SchemaRepositoryService:
         }
         self.schema_index = {}
         self.dependency_map = {}
+        self.gax_master_schema = None
 
     def isrs_request_by_hash(self, schema_name, version_hash):
         try:
@@ -61,6 +64,22 @@ class SchemaRepositoryService:
         # Get the latest version of the schema
         # Implementation omitted for brevity
 
+    def load_gax_master_schema(self, raw_yaml_data):
+        try:
+            self.gax_master_schema = GAXMasterSchema.parse_obj(raw_yaml_data)
+            return self.gax_master_schema
+        except Exception as e:
+            raise GIRAMError("Failed to load GAX Master Schema: {}".format(str(e)))
+
+    def validate_gax_master_schema(self):
+        try:
+            if self.gax_master_schema:
+                return self.gax_master_schema
+            else:
+                raise GIRAMError("GAX Master Schema not loaded")
+        except Exception as e:
+            raise GIRAMError("Failed to validate GAX Master Schema: {}".format(str(e)))
+
 class GIRAMIS01:
     def __init__(self):
         self.schema_repository_service = SchemaRepositoryService()
@@ -75,6 +94,36 @@ class GIRAMIS01:
                 return self.schema_repository_service.isrs_request_latest(schema_name)
         except Exception as e:
             raise GIRAMError("Failed to retrieve schema: {}".format(str(e)))
+
+    def load_gax_master_schema(self, raw_yaml_data):
+        try:
+            return self.schema_repository_service.load_gax_master_schema(raw_yaml_data)
+        except Exception as e:
+            raise GIRAMError("Failed to load GAX Master Schema: {}".format(str(e)))
+
+    def validate_gax_master_schema(self):
+        try:
+            return self.schema_repository_service.validate_gax_master_schema()
+        except Exception as e:
+            raise GIRAMError("Failed to validate GAX Master Schema: {}".format(str(e)))
 ```
 
-Note that the implementation of the `SchemaRepositoryService` class is incomplete and some methods are omitted for brevity. The `GIRAMIS01` class is updated to use the `SchemaRepositoryService` class to retrieve schemas.
+ADD:
+```python
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
+
+class GAXLimits(BaseModel):
+    severity_thresholds: Dict[str, float] = Field(description="Hard limits for acceptable severity levels in PIM.")
+
+class GAXProtocolMandates(BaseModel):
+    required_p_sets: List[str] = Field(description="Mandatory P-Set types that must be defined in PIM_CONSTRAINTS.")
+
+class GAXMasterSchema(BaseModel):
+    version: str
+    protocol_mandates: GAXProtocolMandates
+    limits: GAXLimits
+    architectural_mandate: str = Field(alias="GAX_II")
+
+class GIRAMError(Exception):
+    pass
