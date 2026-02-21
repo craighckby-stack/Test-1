@@ -81,3 +81,4 @@ config/traceability_data_schema.json
 config/validatorserviceconfiguration.json
 config/wcim_v1.0.json
 config/xel_specification.json
+config/action_registry.json
