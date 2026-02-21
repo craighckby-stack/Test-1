@@ -1,23 +1,6 @@
 CORE:
 // ...[TRUNCATED]
-          },
-          "remediation_plan_ref": "VRRP-2C"
-        }
-      ]
-    },
-    {
-      "policy_id": "GCP_104",
-      "policy_name": "Governance Emergency Interlock Definition",
-      "policy_target_asset": "GEIDM",
-      "constraints": [
-        {
-          "constraint_id": "GCM_2_4",
-          "priority": {
-            "risk_level": "CRITICAL",
-            "severity_score": 100
-          },
-          "trigger_condition": {
-            "asset_id": "GEIDM",
+  "asset_id": "GEIDM",
             "violation_vector": "NEG_V_AUTHORIZATION"
           },
           "remediation_plan_ref": "VRRP-2D"
@@ -133,5 +116,14 @@ CORE:
       {"target_use_case": "Tamper_Check_High_Velocity", "fields": ["transaction_hash", "gac_manifest_hash_at_time"]}
     ],
     "indexing_engine_id": "VectorDB/Quantum_Index_Engine_V5"
+  },
+  "add_logic": {
+    "type": "ADD_LOGIC",
+    "source": "assets/ADD/ADD_V1.0",
+    "unit": "LOGIC",
+    "data_type": "JSON",
+    "aggregation": "MAX",
+    "storage_policy": "PERMANENT",
+    "optimize_goal": "MAXIMIZE"
   }
 }
