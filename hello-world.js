@@ -32,6 +32,43 @@ CORE:
       "type": "boolean",
       "description": "Enable recursive abstraction for optimization.",
       "default": true
+    },
+    "verification_pipeline": {
+      "type": "string",
+      "description": "Verification pipeline to run.",
+      "enum": ["smoke_test", "integration_test_suite", "full_e2e_regression"]
+    },
+    "preflight_check": {
+      "type": "string",
+      "description": "Preflight check to run.",
+      "enum": ["dependency_check", "linting", "security_scan_minor", "security_scan_major", "compliance_audit"]
+    },
+    "deployment_strategy": {
+      "type": "string",
+      "description": "Deployment strategy to use.",
+      "enum": ["RollingUpdate", "Canary5Percent", "ImmediateDeploy"]
+    },
+    "target_infrastructure": {
+      "type": "string",
+      "description": "Target infrastructure to deploy to.",
+      "enum": ["EphemeralSandbox", "PersistentTestCluster", "ProductionMain"]
+    },
+    "notification_channel": {
+      "type": "string",
+      "description": "Notification channel to use.",
+      "enum": ["slack:alerts-deploy", "slack:alerts-dev", "slack:alerts-critical"]
+    },
+    "scaling_factor": {
+      "type": "number",
+      "description": "Scaling factor for deployment.",
+      "default": 0.0
+    },
+    "approval_gates": {
+      "type": "array",
+      "description": "Approval gates to pass.",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "allOf": [
@@ -137,5 +174,5 @@ CORE:
       }
     }
   ],
-  "required": ["ingestion_pipeline", "operational_metadata", "derivation_details", "schema_ref", "base_type", "indexing_strategy_id", "target_indexes", "transformation_hooks", "debt_prioritization_config"]
+  "required": ["ingestion_pipeline", "operational_metadata", "derivation_details", "schema_ref", "base_type", "indexing_strategy_id", "target_indexes", "transformation_hooks", "debt_prioritization_config", "verification_pipeline", "preflight_check", "deployment_strategy", "target_infrastructure", "notification_channel", "scaling_factor", "approval_gates"]
 }
