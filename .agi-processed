@@ -66,3 +66,4 @@ config/stdm.json
 config/security/cryptographyprotocolregistry.json
 config/systemstateconstants.json
 config/tcv_boundarysensitivitytuning.json
+config/tcv_mandateconstraints.json
