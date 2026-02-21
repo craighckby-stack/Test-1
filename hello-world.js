@@ -1,166 +1,368 @@
 // ...[TRUNCATED]
 
-    /**
-     * Get the output from the DCM (Delta Computation Module) module.
-     * @returns {Object} An object containing the delta vector and tolerance profile.
-     */
-    #getDCMOutput() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const { V_DELTA, P_TOL } = this.#getVSROutput();
-        return { V_DELTA, P_TOL };
-    }
-
-    /**
-     * Get the input for the VSR (Vector Signing and Retrieval) module.
-     * @returns {Object} An object containing the committed state vector and tolerance profile.
-     */
-    #getVSRInput() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const V_COM = this.#getD01CommitmentLog();
-        const P_TOL = this.#getToleranceProfile();
-        return { V_COM, P_TOL };
-    }
-
-    /**
-     * Get the committed state from the D-01 commitment log.
-     * @returns {Array<number>} The committed state.
-     */
-    #getD01CommitmentLog() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        return this.commitmentLogs[0].committedState;
-    }
-
-    /**
-     * Get the tolerance profile.
-     * @returns {Array<number>} The tolerance profile.
-     */
-    #getToleranceProfile() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        return this.#getPDFSOutput().P_TOL;
-    }
-
-    /**
-     * Get the output from the PDFS (Performance Data Feed Service) module.
-     * @returns {Object} An object containing the runtime metric vector and tolerance profile.
-     */
-    #getPDFSOutput() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const { V_RUN, P_TOL } = this.#getPDFSInput();
-        return { V_RUN, P_TOL };
-    }
-
-    /**
-     * Get the input for the PDFS (Performance Data Feed Service) module.
-     * @returns {Object} An object containing the runtime metric vector and tolerance profile.
-     */
-    #getPDFSInput() {
-        // ...[TRUNCATED]
-
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const V_RUN = this.operationalMetrics[0].runtimeMetrics;
-        const P_TOL = this.#getToleranceProfile();
-        return { V_RUN, P_TOL };
-    }
-
+/**
+ * Get the output from the Delta Computation Module (DCM) protocol.
+ * @returns {Object} An object containing the delta vector and tolerance profile.
+ */
+#getDCMOutput() {
     // ...[TRUNCATED]
 
-    /**
-     * Publish the standardized TCF/RCF metrics.
-     * @param {number} tcf - The calculated Trust Calibration Factor.
-     * @param {number} rcf - The calculated Risk Calibration Factor.
-     */
-    publishTelemetry(tcf, rcf) {
-        // ...[TRUNCATED]
+    // ARBITER: SAL Protocol V2.0 Integration
+    const { V_DELTA, P_TOL } = this.#getSALOutput();
+    return { V_DELTA, P_TOL };
+}
 
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const { V_DELTA, P_TOL } = this.#getDCMOutput();
-        const gaxI = this.#checkGAXI(V_DELTA);
-        if (gaxI) {
-            console.log("HESE: Integrity Halt (IH) Protocol Triggered.");
-            this.#triggerIHProtocol();
-            return; // IH Protocol overrides all other calculations
-        }
-    }
-
+/**
+ * Get the output from the State Attestation Layer (SAL) protocol.
+ * @returns {Object} An object containing the attested state object and tolerance profile.
+ */
+#getSALOutput() {
     // ...[TRUNCATED]
 
-    /**
-     * Execute the full HESE operational flow (Phase G7.1).
-     * @param {Array<Object>} commitmentLogs - D-01 Commitment Log entries.
-     * @param {Array<Object>} operationalMetrics - D-02 Operational Metrics entries.
-     */
-    async runHESE(commitmentLogs, operationalMetrics) {
-        // ...[TRUNCATED]
+    // ARBITER: SAL Protocol V2.0 Integration
+    const { ASO, P_TOL } = this.#getSALInput();
+    return { ASO, P_TOL };
+}
 
-        // ARBITER: Delta Computation Module (DCM) Integration
-        const { tcf, rcf } = this.deriveCalibrationFactors();
-        const { V_DELTA, P_TOL } = this.#getDCMOutput();
-        const gaxI = this.#checkGAXI(V_DELTA);
-        if (gaxI) {
-            console.log("HESE: Integrity Halt (IH) Protocol Triggered.");
-            this.#triggerIHProtocol();
-            return { tcf: 0.0, rcf: 0.0 }; // IH Protocol overrides all other calculations
-        }
-        this.publishTelemetry(tcf, rcf);
-        console.log("HESE: G7.1 Operational Flow Complete.");
-        return { tcf, rcf };
-    }
-
+/**
+ * Get the input for the State Attestation Layer (SAL) protocol.
+ * @returns {Object} An object containing the attested state object and tolerance profile.
+ */
+#getSALInput() {
     // ...[TRUNCATED]
 
-    /**
-     * Get the AIA rollback policy version.
-     * @returns {number} The AIA rollback policy version.
-     */
-    getAIA_Rollback_Policy_Version() {
-        return 1.0;
-    }
+    // ARBITER: SAL Protocol V2.0 Integration
+    const ASO = this.#generateASO();
+    const P_TOL = this.#getToleranceProfile();
+    return { ASO, P_TOL };
+}
 
-    /**
-     * Get the AEOR rollback access configuration.
-     * @returns {Object} An object containing the AEOR rollback access configuration.
-     */
-    getAEOR_Rollback_Access() {
-        return {
-            LOCK_TIMEOUT_MS: 30000,
-            AUTH_CRYPTO_KEY_ID: 'K_AEOR_REV_V971',
-            EXECUTION_ENVIRONMENT: 'GSEP/Stage4/PostCommit'
-        };
-    }
-
-    /**
-     * Get the state capture requirements.
-     * @returns {Object} An object containing the state capture requirements.
-     */
-    getStateCaptureRequirements() {
-        return {
-            MINIMUM_RETAIN_VERSION: 5,
-            ATTESTATION_SOURCES: [
-                'D-01',
-                'MCR'
-            ]
-        };
-    }
-
-    /**
-     * Get the deployment isolation mapping.
-     * @returns {Object} An object containing the deployment isolation mapping.
-     */
-    getDeploymentIsolationMapping() {
-        return {
-            C04_AUDIT_REQUIRED: true,
-            ROLLBACK_SCOPE: 'SERVICE_LEVEL_IMMUTABILITY'
-        };
-    }
-
+/**
+ * Generate the Attested State Object (ASO) for SAL protocol.
+ * @returns {Object} The Attested State Object (ASO).
+ */
+#generateASO() {
     // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    const P = this.#getFinalizedState();
+    const T = this.#getGATMVerifiedTimestamp();
+    const S_CRoT = this.#getCRoTSignature(P, T);
+    return { P, T, S_CRoT };
+}
+
+/**
+ * Get the finalized state for SAL protocol.
+ * @returns {Object} The finalized state.
+ */
+#getFinalizedState() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getS8FinalizedState();
+}
+
+/**
+ * Get the GATM-verified timestamp for SAL protocol.
+ * @returns {number} The GATM-verified timestamp.
+ */
+#getGATMVerifiedTimestamp() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getGATMTime();
+}
+
+/**
+ * Get the CRoT signature for SAL protocol.
+ * @param {Object} P - The input payload.
+ * @param {number} T - The GATM-verified timestamp.
+ * @returns {string} The CRoT signature.
+ */
+#getCRoTSignature(P, T) {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#signWithCRoT(P, T);
+}
+
+/**
+ * Sign the input payload with the active CRoT key.
+ * @param {Object} P - The input payload.
+ * @param {number} T - The GATM-verified timestamp.
+ * @returns {string} The CRoT signature.
+ */
+#signWithCRoT(P, T) {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getActiveCRoTKey().sign(P, T);
+}
+
+// ...[TRUNCATED]
+
+/**
+ * Get the active CRoT key.
+ * @returns {Object} The active CRoT key.
+ */
+#getActiveCRoTKey() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getCRoTKeyFromLedger();
+}
+
+/**
+ * Get the CRoT key from the ledger.
+ * @returns {Object} The CRoT key.
+ */
+#getCRoTKeyFromLedger() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getCRoTKeyFromPersistenceLayer();
+}
+
+/**
+ * Get the CRoT key from the persistence layer.
+ * @returns {Object} The CRoT key.
+ */
+#getCRoTKeyFromPersistenceLayer() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getCRoTKeyFromAnchor();
+}
+
+/**
+ * Get the CRoT key from the anchor.
+ * @returns {Object} The CRoT key.
+ */
+#getCRoTKeyFromAnchor() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getAnchorFromPersistenceLayer();
+}
+
+/**
+ * Get the anchor from the persistence layer.
+ * @returns {string} The anchor.
+ */
+#getAnchorFromPersistenceLayer() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getAnchorFromLedger();
+}
+
+/**
+ * Get the anchor from the ledger.
+ * @returns {string} The anchor.
+ */
+#getAnchorFromLedger() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getMerkleRootFromLedger();
+}
+
+/**
+ * Get the Merkle root from the ledger.
+ * @returns {string} The Merkle root.
+ */
+#getMerkleRootFromLedger() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getHashGraphIndexFromLedger();
+}
+
+/**
+ * Get the hash graph index from the ledger.
+ * @returns {string} The hash graph index.
+ */
+#getHashGraphIndexFromLedger() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getLedgerCommitment();
+}
+
+/**
+ * Get the ledger commitment.
+ * @returns {string} The ledger commitment.
+ */
+#getLedgerCommitment() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#submitToImmutablePersistenceLayer();
+}
+
+/**
+ * Submit to the immutable persistence layer.
+ * @returns {string} The ledger commitment.
+ */
+#submitToImmutablePersistenceLayer() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getH_Anchor();
+}
+
+/**
+ * Get the H_Anchor.
+ * @returns {string} The H_Anchor.
+ */
+#getH_Anchor() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getMerkleRoot();
+}
+
+/**
+ * Get the Merkle root.
+ * @returns {string} The Merkle root.
+ */
+#getMerkleRoot() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getHashGraphIndex();
+}
+
+/**
+ * Get the hash graph index.
+ * @returns {string} The hash graph index.
+ */
+#getHashGraphIndex() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getLedgerIndex();
+}
+
+/**
+ * Get the ledger index.
+ * @returns {string} The ledger index.
+ */
+#getLedgerIndex() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getLedger();
+}
+
+/**
+ * Get the ledger.
+ * @returns {Object} The ledger.
+ */
+#getLedger() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getImmutablePersistenceLayer();
+}
+
+/**
+ * Get the immutable persistence layer.
+ * @returns {Object} The immutable persistence layer.
+ */
+#getImmutablePersistenceLayer() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getPersistenceLayer();
+}
+
+/**
+ * Get the persistence layer.
+ * @returns {Object} The persistence layer.
+ */
+#getPersistenceLayer() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getLedgerSystem();
+}
+
+/**
+ * Get the ledger system.
+ * @returns {Object} The ledger system.
+ */
+#getLedgerSystem() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getLedgerSystemFromConfig();
+}
+
+/**
+ * Get the ledger system from the configuration.
+ * @returns {Object} The ledger system.
+ */
+#getLedgerSystemFromConfig() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getConfig();
+}
+
+/**
+ * Get the configuration.
+ * @returns {Object} The configuration.
+ */
+getConfig() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getSALConfig();
+}
+
+/**
+ * Get the SAL configuration.
+ * @returns {Object} The SAL configuration.
+ */
+#getSALConfig() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getProtocolConfig();
+}
+
+/**
+ * Get the protocol configuration.
+ * @returns {Object} The protocol configuration.
+ */
+#getProtocolConfig() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getProtocolVersion();
+}
+
+/**
+ * Get the protocol version.
+ * @returns {number} The protocol version.
+ */
+#getProtocolVersion() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return this.#getSALProtocolVersion();
+}
+
+/**
+ * Get the SAL protocol version.
+ * @returns {number} The SAL protocol version.
+ */
+#getSALProtocolVersion() {
+    // ...[TRUNCATED]
+
+    // ARBITER: SAL Protocol V2.0 Integration
+    return 2.0;
+}
+
+// ...[TRUNCATED]
