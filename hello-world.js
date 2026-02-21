@@ -1,3 +1,4 @@
+CORE:
 # Apply Nexus branch synthesis based on ADD key schema, secondary indexes, linkage rules, and engine configuration
 if (add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE" and \
    (add_schema["linkage_rules"][1]["data_scope"] == "system_keys" and \
@@ -25,3 +26,33 @@ if (add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE" and \
     len(add_schema["vector_indexes"]) > 0 and add_schema["data_lifecycle"]["ttl_enabled"])):
     nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
                               (0.04))
+
+# Apply Nexus branch synthesis based on ADD artifact types and schema version
+if (add_schema["schema_version"] == "1.0" and \
+   (len(add_schema["artifact_types"]) > 1 and 
+    any(artifact["required_fields"] == ["goal", "metrics_target"] for artifact in add_schema["artifact_types"].values()))):
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.01))
+
+# Apply Nexus branch synthesis based on ADD artifact types, engine configuration, and vector indexes
+if (add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE" and \
+   (len(add_schema["vector_indexes"]) > 0 and 
+    any(artifact["required_fields"] == ["binary_hash", "signature", "validator_list"] for artifact in add_schema["artifact_types"].values()))):
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.03))
+
+# Apply Nexus branch synthesis based on ADD artifact types, engine configuration, key schema, secondary indexes, and vector indexes
+if (add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE" and \
+   (len(add_schema["key_schema"]) > 1 and len(add_schema["secondary_indexes"]) > 1 and \
+    len(add_schema["vector_indexes"]) > 0 and 
+    any(artifact["required_fields"] == ["goal", "metrics_target"] for artifact in add_schema["artifact_types"].values()))):
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.06))
+
+# Apply Nexus branch synthesis based on ADD artifact types, engine configuration, key schema, secondary indexes, vector indexes, and data lifecycle
+if (add_schema["engine_configuration"]["engine_type"] == "VECTOR_DATABASE" and \
+   (len(add_schema["key_schema"]) > 1 and len(add_schema["secondary_indexes"]) > 1 and \
+    len(add_schema["vector_indexes"]) > 0 and add_schema["data_lifecycle"]["ttl_enabled"] and 
+    any(artifact["required_fields"] == ["goal", "metrics_target"] for artifact in add_schema["artifact_types"].values()))):
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              (0.06))
