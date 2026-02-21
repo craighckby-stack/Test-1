@@ -79,3 +79,4 @@ config/tracerouting_audit_logger_configuration.json
 config/trace_indexer_configuration.json
 config/traceability_data_schema.json
 config/validatorserviceconfiguration.json
+config/wcim_v1.0.json
