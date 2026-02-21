@@ -1,68 +1,4 @@
-// --- GIRAMIS01 Class Updates ---
-class GIRAMIS01:
-    // ...[TRUNCATED]
-
-    def get_risk_enforcement_map(self) -> Dict:
-        try:
-            return self.risk_enforcement_map_service.get_risk_enforcement_map()
-        except Exception as e:
-            raise GIRAMError("Failed to retrieve risk enforcement map: {}".format(str(e)))
-
-    def _get_system_cryptographic_policy_index(self) -> Dict:
-        try:
-            return self.schema_repository_service.get_system_cryptographic_policy_index()
-        except Exception as e:
-            raise GIRAMError("Failed to retrieve System Cryptographic Policy Index: {}".format(str(e)))
-
-    def _calculate_attestation_hash(self, schema_def: SchemaDef) -> str:
-        // Calculate the attestation hash using SHA3-512(SchemaDefinition + GRTA_Signature)
-        // Implementation omitted for brevity
-
-    def _get_latest_version(self, schema_name: str) -> str:
-        # Get the latest version of the schema
-        # Implementation omitted for brevity
-
-// --- RiskEnforcementMapService Class Updates ---
-class RiskEnforcementMapService:
-    def __init__(self):
-        self.risk_enforcement_map = OptimizedRiskEnforcementMap(self._get_risk_enforcement_map_data())
-
-    def get_risk_enforcement_map(self) -> Dict:
-        return self.risk_enforcement_map.get_risk_enforcement_map()
-
-    def _get_risk_enforcement_map_data(self) -> Dict:
-        try:
-            return self.schema_repository_service.get_risk_enforcement_map_data()
-        except Exception as e:
-            raise GIRAMError("Failed to retrieve risk enforcement map data: {}".format(str(e)))
-
-// --- OptimizedRiskEnforcementMap Class Updates ---
-class OptimizedRiskEnforcementMap(RiskEnforcementMap):
-    def __init__(self, risk_enforcement_map_data: Dict):
-        super().__init__(risk_enforcement_map_data)
-        self._risk_enforcement_map_cache = {}
-
-    def get_risk_enforcement_map(self) -> Dict:
-        if self._risk_enforcement_map_cache:
-            return self._risk_enforcement_map_cache
-        else:
-            risk_enforcement_map = super().get_risk_enforcement_map()
-            self._risk_enforcement_map_cache = self._optimize_risk_enforcement_map(risk_enforcement_map)
-            return self._risk_enforcement_map_cache
-
-    def _optimize_risk_enforcement_map(self, risk_enforcement_map: Dict) -> Dict:
-        # Implement recursive abstraction and maximum computational efficiency
-        # for the risk_enforcement_map
-        # For example:
-        optimized_map = {}
-        for key, value in risk_enforcement_map.items():
-            if isinstance(value, dict):
-                optimized_map[key] = self._optimize_risk_enforcement_map(value)
-            else:
-                optimized_map[key] = value
-        return optimized_map
-
-// --- SystemCaptureAPI Trait Updates ---
+// --- CORE Updates ---
 pub trait SystemCaptureAPI: Send + Sync + 'static {
     /// Checks for necessary execution privileges (e.g., kernel mode, specific capabilities).
     fn check_privilege() -> bool;
@@ -84,6 +20,9 @@ pub trait SystemCaptureAPI: Send + Sync + 'static {
     
     /// Retrieves the System Cryptographic Policy Index.
     fn get_system_cryptographic_policy_index() -> Dict;
+    
+    /// Optimizes the risk enforcement map for efficient computation.
+    fn optimize_risk_enforcement_map(&self, risk_enforcement_map: Dict) -> Dict;
 }
 
 // --- RscmPackage Struct Updates ---
@@ -122,12 +61,15 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
 
     hasher.update(&vm_dump);
     hasher.update(trace.as_bytes());
-hasher.update(&context_flags.to_le_bytes()); 
+    hasher.update(&context_flags.to_le_bytes()); 
     
     let hash = hasher.finalize().map_err(|_| SnapshotError::IntegrityHashingFailed)?; 
 
     // Retrieve the System Cryptographic Policy Index
     let system_cryptographic_policy_index = T::get_system_cryptographic_policy_index();
+
+    // Optimize the risk enforcement map for efficient computation
+    let optimized_risk_enforcement_map = T.optimize_risk_enforcement_map(system_cryptographic_policy_index);
 
     let duration = start_time.elapsed();
     let latency_ns = duration.as_nanos();
@@ -145,6 +87,80 @@ hasher.update(&context_flags.to_le_bytes());
         volatile_memory_dump: vm_dump,
         stack_trace: trace,
         context_flags,
-        risk_enforcement_map: system_cryptographic_policy_index,
+        risk_enforcement_map: optimized_risk_enforcement_map,
     })
+}
+
+// --- DefaultCaptureProvider Updates ---
+pub struct DefaultCaptureProvider;
+
+impl SystemCaptureAPI for DefaultCaptureProvider {
+    fn check_privilege() -> bool { 
+        // Mock successful privilege check
+        true 
+    }
+
+    fn capture_volatile_memory() -> Result<Vec<u8>, ()> { 
+        // Mocks a small, successful memory read operation (simulating kernel access)
+        Ok(vec![0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]) 
+    }
+
+    fn capture_execution_stack() -> String { 
+        // Mocks a quick stack trace
+        String::from("RT_THREAD_0x1A: MAIN_LOOP -> ASG_GENERATE_CALL")
+    }
+    
+    fn get_system_cryptographic_policy_index() -> Dict {
+        // Mocks a simple system cryptographic policy index
+        Dict::from([(String::from("policy_index"), 42)])
+    }
+    
+    fn optimize_risk_enforcement_map(&self, risk_enforcement_map: Dict) -> Dict {
+        // Implement recursive abstraction and maximum computational efficiency
+        // for the risk_enforcement_map
+        // For example:
+        let mut optimized_map = Dict::new();
+        for (key, value) in risk_enforcement_map {
+            if let Dict::Dict(value) = value {
+                optimized_map.insert(key.clone(), self.optimize_risk_enforcement_map(value));
+            } else {
+                optimized_map.insert(key, value);
+            }
+        }
+        optimized_map
+    }
+}
+
+// --- Updated tests ---
+#[cfg(test)]
+mod tests {
+    use super::DefaultCaptureProvider;
+    use crate::components::system_core::ASG_Atomic_Snapshot_Generator;
+    
+    #[test]
+    fn test_successful_snapshot_generation() {
+        let result = ASG_Atomic_Snapshot_Generator::generate_rscm_snapshot::<DefaultCaptureProvider>();
+        assert!(result.is_ok(), "Snapshot generation failed: {:?}", result.err());
+        
+        let pkg = result.unwrap();
+        assert!(!pkg.integrity_hash.is_empty());
+        assert_eq!(pkg.context_flags, 0x42);
+        assert!(pkg.capture_latency_ns < 5_000_000, "Snapshot exceeded temporal constraint.");
+    }
+
+    // A helper provider that simulates failure or timeout for testing
+    struct FailingCaptureProvider;
+    impl SystemCaptureAPI for FailingCaptureProvider {
+        fn check_privilege() -> bool { false }
+        fn capture_volatile_memory() -> Result<Vec<u8>, ()> { Err(()) }
+        fn capture_execution_stack() -> String { String::new() }
+        fn get_system_cryptographic_policy_index() -> Dict { Dict::new() }
+        fn optimize_risk_enforcement_map(&self, _risk_enforcement_map: Dict) -> Dict { Dict::new() }
+    }
+
+    #[test]
+    fn test_privilege_failure() {
+        let result = ASG_Atomic_Snapshot_Generator::generate_rscm_snapshot::<FailingCaptureProvider>();
+        assert!(matches!(result, Err(SnapshotError::PrivilegeRequired)));
+    }
 }
