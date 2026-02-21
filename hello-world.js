@@ -1,28 +1,6 @@
 # CORE:
 # ...[TRUNCATED]
-
-# PCLD-CV Compilation Stage 5: Attestation and Integrity
-try:
-    # Generate a holistic integrity hash (SHA-512) spanning the entire packaged PCLD-IR artifact (Code + Metadata)
-    integrity_hash = generate_integrity_hash(ir_artifact)
-    # Queue the artifact and its integrity hash for attestation registration with the Secure Governance System (SGS)
-    register_artifact(integrity_hash)
-except PCLAttestationError as e:
-    print(f"Error: PCLD attestation error - {e}")
-    return
-
-# ...[TRUNCATED]
-
-# Nexus Integration
-try:
-    # Import Nexus handler for deterministic data exchange
-    from component.governance.Nexus_Handler import DSEDataBridgeHandler
-    
-    # Initialize Nexus handler with storage connector and schema validator
-    nexus_handler = DSEDataBridgeHandler(storage_connector, schema_validator)
-    
-    # Retrieve validated manifest from Nexus handler
-    validated_manifest = nexus_handler.retrieve_validated_manifest(MANIFEST_PATH)
+H)
     
     # Update manifest with integrity checks
     for definition in validated_manifest['schemaDefinitions']:
@@ -47,104 +25,55 @@ try:
     
     print(f"Successfully updated {MANIFEST_PATH}. Linked to commit: {current_commit}")
     
-except NexusCompilationError as e:
-    print(f"Error: Nexus compilation error - {e}")
-    return
-except NexusLinkingError as e:
-    print(f"Error: Nexus linking error - {e}")
-    return
-except NexusVerificationError as e:
-    print(f"Error: Nexus verification error - {e}")
-    return
-except Exception as e:
-    print(f"Error: Unexpected error - {e}")
-    return
-
-# ADD Integration
-try:
-    # Import KMS Policy Engine for cryptographic operations validation
-    from component.cryptography.KMS_Policy_Engine import KMSPolicyEngine
-    
-    # Initialize KMS Policy Engine
-    kms_policy_engine = KMSPolicyEngine()
+    # Validate runtime environment against SEM constraints
+    try:
+        from component.runtime_validation import validateRuntime
+        constraints = load_sem_constraints()
+        if not validateRuntime(constraints):
+            raise NexusRuntimeError("Runtime environment failed constraint checks")
+    except Exception as e:
+        print(f"Error: Unexpected error - {e}")
+        raise
     
     # Validate KMS operations against policies
-    kms_policy_engine.validate(request)
-    
-except PolicyValidationError as e:
-    print(f"Error: Policy validation error - {e}")
-    return
+    try:
+        from component.cryptography.KMS_Policy_Engine import KMSPolicyEngine
+        kms_policy_engine = KMSPolicyEngine()
+        kms_policy_engine.validate(request)
+    except PolicyValidationError as e:
+        print(f"Error: Policy validation error - {e}")
+        raise
+    except Exception as e:
+        print(f"Error: Unexpected error - {e}")
+        raise
+
+except NexusCompilationError as e:
+    print(f"Error: Nexus compilation error - {e}")
+    raise
+except NexusLinkingError as e:
+    print(f"Error: Nexus linking error - {e}")
+    raise
+except NexusVerificationError as e:
+    print(f"Error: Nexus verification error - {e}")
+    raise
+except NexusRuntimeError as e:
+    print(f"Error: Nexus runtime error - {e}")
+    raise
 except Exception as e:
     print(f"Error: Unexpected error - {e}")
-    return
+    raise
 
-if __name__ == '__main__':
-    generate_manifest()
-```
-
-```python
 # Nexus branch:
-class NexusCompilationError(NexusError):
-    """Raised when Nexus compilation fails."""
+class NexusRuntimeError(NexusError):
+    """Raised when Nexus runtime environment fails constraint checks."""
     pass
 
-class NexusLinkingError(NexusError):
-    """Raised when Nexus linking fails."""
-    pass
-
-class NexusVerificationError(NexusError):
-    """Raised when Nexus verification fails."""
-    pass
-
+# ADD:
 class NexusIntegrationError(NexusError):
     """Raised when Nexus integration fails."""
     pass
 
-class PolicyValidationError(NexusError):
-    """Raised when policy validation fails."""
-    pass
-
-# ADD:
-/**
- * @file KMS_Policy_Engine.ts
- * @description Centralized policy enforcement component for cryptographic operations, 
- * responsible for validating signature integrity, usage compliance, and lifecycle state 
- * against defined policies.
- */
-
-import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
-import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
-
-/**
- * KMSPolicyEngine
- * Handles complex policy enforcement using strongly typed configuration.
- */
-class KMSPolicyEngine {
-  private policies: PolicyStructure;
-
-  constructor() {
-    // Cast the imported JSON structure to the defined interface for safety
-    this.policies = KMS_Identity_Mapping as unknown as PolicyStructure;
-  }
-
-  /**
-   * Validates a KeyRequest against all applicable policies.
-   * Throws PolicyValidationError on first failure.
-   */
-  public validate(request: KeyRequest): boolean {
-    const identityEntry = this.getIdentityEntry(request.identityId);
-    const profile = this.getUsageProfile(identityEntry);
-
-    // Execute Checks
-    this.checkAllowedUsage(request.identityId, profile, request.operation);
-    this.checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
-    this.checkGeospatialLock(request.identityId, request.geoCoordinate);
-
-    return true; // All policies passed
-  }
-
-  // ...[TRUNCATED]
-}
+# ...[TRUNCATED]
 ```
 
 ```python
@@ -152,3 +81,96 @@ class KMSPolicyEngine {
 class NexusError(Exception):
     """Base class for Nexus-related exceptions."""
     pass
+
+# ADD:
+import fs from 'fs';
+
+/**
+ * Validates the local host environment against the strict resource constraints
+ * defined in the SEM configuration prior to sandbox initialization.
+ * @param {object} constraints - ExecutionEnvironmentConstraints from SEM_config
+ * @returns {boolean} True if environment meets constraints.
+ */
+export function validateRuntime(constraints) {
+    // 1. Basic CPU/Memory Check (Placeholder: assumes basic resource checks are possible)
+    const availableCores = require('os').cpus().length;
+    if (availableCores < constraints.cpu_limit_cores) {
+        console.error(`CPU check failed: Needs ${constraints.cpu_limit_cores}, found ${availableCores}.`);
+        return false;
+    }
+
+    // 2. Accelerator Requirement Check
+    const accReq = constraints.accelerator_requirements;
+    if (accReq.type !== 'None' && accReq.count > 0) {
+        // NOTE: In a real system, this involves querying kernel/hardware APIs (e.g., nvidia-smi).
+        console.log(`Checking for ${accReq.count} ${accReq.type} devices...`);
+        if (accReq.type === 'GPU' && !checkGPUDevices(accReq.count, accReq.driver_version_tag)) {
+            return false;
+        }
+        // ... add logic for TPU/FPGA checks ...
+    }
+
+    console.log("Runtime environment passed constraint checks.");
+    return true;
+}
+
+function checkGPUDevices(requiredCount, requiredVersion) {
+    // --- Highly critical and platform-specific check required here ---
+    // e.g., shelling out to check device availability and CUDA/driver version compliance.
+    // Placeholder return for scaffolding:
+    if (requiredCount > 0) {
+        console.error(`ERROR: Placeholder GPU check failing for requirement: Count ${requiredCount}, Version ${requiredVersion}`);
+        return false; // Fails unless concrete hardware check passes
+    }
+    return true;
+}
+```
+
+```python
+# Nexus branch:
+class NexusIntegrationError(NexusError):
+    """Raised when Nexus integration fails."""
+    pass
+
+# ADD:
+import fs from 'fs';
+
+/**
+ * Validates the local host environment against the strict resource constraints
+ * defined in the SEM configuration prior to sandbox initialization.
+ * @param {object} constraints - ExecutionEnvironmentConstraints from SEM_config
+ * @returns {boolean} True if environment meets constraints.
+ */
+export function validateRuntime(constraints) {
+    // 1. Basic CPU/Memory Check (Placeholder: assumes basic resource checks are possible)
+    const availableCores = require('os').cpus().length;
+    if (availableCores < constraints.cpu_limit_cores) {
+        console.error(`CPU check failed: Needs ${constraints.cpu_limit_cores}, found ${availableCores}.`);
+        return false;
+    }
+
+    // 2. Accelerator Requirement Check
+    const accReq = constraints.accelerator_requirements;
+    if (accReq.type !== 'None' && accReq.count > 0) {
+        // NOTE: In a real system, this involves querying kernel/hardware APIs (e.g., nvidia-smi).
+        console.log(`Checking for ${accReq.count} ${accReq.type} devices...`);
+        if (accReq.type === 'GPU' && !checkGPUDevices(accReq.count, accReq.driver_version_tag)) {
+            return false;
+        }
+        // ... add logic for TPU/FPGA checks ...
+    }
+
+    console.log("Runtime environment passed constraint checks.");
+    return true;
+}
+
+function checkGPUDevices(requiredCount, requiredVersion) {
+    // --- Highly critical and platform-specific check required here ---
+    // e.g., shelling out to check device availability and CUDA/driver version compliance.
+    // Placeholder return for scaffolding:
+    if (requiredCount > 0) {
+        console.error(`ERROR: Placeholder GPU check failing for requirement: Count ${requiredCount}, Version ${requiredVersion}`);
+        return false; // Fails unless concrete hardware check passes
+    }
+    return true;
+}
