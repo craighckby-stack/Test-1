@@ -145,6 +145,11 @@ class AGI {
     fvm.commit = new CommitTEDS();
     fvm.retrieve_by_hash = new RetrieveTEDS();
     fvm.get_metadata = new GetMetadata();
+
+    // DCCA Policy Compliance Engine
+    const dccaPolicy = JSON.parse(fs.readFileSync(path.join(__dirname, 'agents', 'GAX', 'DCCA_Policy_Compliance_Engine.json'), 'utf8'));
+    const dccaEngine = new DCCAEngine(dccaPolicy);
+    dccaEngine.execute();
   }
 }
 
@@ -194,6 +199,19 @@ class GetMetadata {
     // Get metadata from FVM
     const fvm = new FVM();
     fvm.get_metadata(TEDS_hash);
+  }
+}
+
+// GACR/DCCAEngine.ts
+class DCCAEngine {
+  constructor(policy) {
+    this.policy = policy;
+  }
+
+  async execute() {
+    // Execute DCCA policy compliance engine
+    const dccaEngine = new DCCAEngine(this.policy);
+    // TODO: Implement DCCA policy compliance engine logic
   }
 }
 
@@ -548,46 +566,3 @@ class Origin {
   async execute() {
     // Execute origin pipeline
     const origin = new Origin();
-    origin.purpose.definedBefore = true;
-  }
-}
-
-// GACR/CommitTEDS.ts
-class CommitTEDS {
-  async commit(TEDS_archive, CRoT_signature) {
-    // Commit TEDS to FVM
-    const fvm = new FVM();
-    fvm.commit(TEDS_archive, CRoT_signature);
-  }
-}
-
-// GACR/RetrieveTEDS.ts
-class RetrieveTEDS {
-  async retrieve_by_hash(TEDS_hash) {
-    // Retrieve TEDS from FVM
-    const fvm = new FVM();
-    fvm.retrieve_by_hash(TEDS_hash);
-  }
-}
-
-// GACR/GetMetadata.ts
-class GetMetadata {
-  async get_metadata(TEDS_hash) {
-    // Get metadata from FVM
-    const fvm = new FVM();
-    fvm.get_metadata(TEDS_hash);
-  }
-}
-
-// GACR/InfiniteLoop.ts
-class InfiniteLoop {
-  constructor() {
-    this.loop = true;
-  }
-
-  async execute() {
-    // Execute infinite loop pipeline
-    const infiniteLoop = new InfiniteLoop();
-    infiniteLoop.loop = true;
-  }
-}
