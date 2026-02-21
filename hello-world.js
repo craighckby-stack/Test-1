@@ -19,7 +19,7 @@ const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.jso
 const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'hetm.schema.json'), 'utf8'));
 const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm.json'), 'utf8'));
 const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm_metric_catalog.json'), 'utf8'));
-const MODEL_TIER_MAPPING = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'model_tier_mapping.json'), 'utf8'));
+const APITELEMETRY_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'schemas', 'apitelemetry.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -41,7 +41,7 @@ class AdaptiveSamplingEngine {
       hetmSchema: HETM_SCHEMA,
       mqmPolicy: MQM_POLICY,
       mqmMetricCatalog: MQM_METRIC_CATALOG,
-      modelTierMapping: MODEL_TIER_MAPPING,
+      apitelemetrySchema: APITELEMETRY_SCHEMA,
     };
   }
 
@@ -100,26 +100,52 @@ class AdaptiveSamplingEngine {
         }
       }
 
+      // Validate APITelemetry
+      const apitelemetry = new APITelemetry(this.config.apitelemetrySchema);
+      await apitelemetry.validate(stage.executionTrace);
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
-
-      // Map model to tier
-      const modelTierMapping = this.config.modelTierMapping;
-      const modelId = stage.modelId;
-      const tierId = modelTierMapping[modelId];
-      if (!tierId) {
-        throw new Error(`Unknown model ID: ${modelId}`);
-      }
-
-      // Update artifact manifest
-      const artifactManifest = this.config.artifactManifest;
-      artifactManifest[stage.protocolId] = stage.executionTrace;
-
-      // Seal and attest configuration
-      const gar = new GAR(this.config.keyRotationSchedule);
-      await gar.sealAndAttest(artifactManifest);
     }
+
+    // Update artifact manifest
+    const artifactManifest = this.config.artifactManifest;
+    artifactManifest[stage.protocolId] = stage.executionTrace;
+
+    // Seal and attest configuration
+    const gar = new GAR(this.config.keyRotationSchedule);
+    await gar.sealAndAttest(artifactManifest);
+  }
+}
+
+// GACR/APITelemetry.ts
+class APITelemetry {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(executionTrace) {
+    // Validate APITelemetry against schema
+    const validator = new JSONSchemaValidator();
+    const validationResults = await validator.validate(executionTrace, this.schema);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('APITelemetry validation failed');
+    }
+  }
+}
+
+// JSONSchemaValidator.ts
+class JSONSchemaValidator {
+  async validate(data, schema) {
+    const Ajv = require('ajv');
+    const ajv = new Ajv();
+    const validate = ajv.compile(schema);
+    const valid = validate(data);
+    if (!valid) {
+      throw new Error(validate.errors[0].message);
+    }
+    return validate.errors;
   }
 }
 
@@ -471,21 +497,6 @@ class JSONSchemaValidator {
       throw new Error(validate.errors[0].message);
     }
     return validate.errors;
-  }
-}
-
-// GACR/ModelTierMapping.ts
-class ModelTierMapping {
-  constructor(mapping) {
-    this.mapping = mapping;
-  }
-
-  async validate(modelId) {
-    const tierId = this.mapping[modelId];
-    if (!tierId) {
-      throw new Error(`Unknown model ID: ${modelId}`);
-    }
-    return tierId;
   }
 }
 
