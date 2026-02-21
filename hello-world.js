@@ -18,6 +18,7 @@ const ES_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'es_
 const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.json'), 'utf8'));
 const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'hetm.schema.json'), 'utf8'));
 const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm.json'), 'utf8'));
+const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm_metric_catalog.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -38,6 +39,7 @@ class AdaptiveSamplingEngine {
       gtem: GTEM,
       hetmSchema: HETM_SCHEMA,
       mqmPolicy: MQM_POLICY,
+      mqmMetricCatalog: MQM_METRIC_CATALOG,
     };
   }
 
@@ -85,6 +87,16 @@ class AdaptiveSamplingEngine {
       // Validate MQM compliance
       const mqm = new MQM(this.config.mqmPolicy);
       await mqm.validate(stage.executionTrace);
+
+      // Validate MQM metrics
+      const mqmMetricCatalog = this.config.mqmMetricCatalog;
+      const metricDefinitions = mqmMetricCatalog.metric_definitions;
+      for (const metricDefinition of metricDefinitions) {
+        const metricId = metricDefinition.metric_id;
+        if (!stage.executionTrace[metricId]) {
+          throw new Error(`Missing MQM metric: ${metricId}`);
+        }
+      }
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -403,6 +415,23 @@ class MQM {
         if (metricId > rule.limit) {
           throw new Error(`Metric ${rule.metric_id} exceeded maximum allowed: ${rule.limit}`);
         }
+      }
+    }
+  }
+}
+
+// GACR/MQM_MetricValidator.ts
+class MQM_MetricValidator {
+  constructor(metricCatalog) {
+    this.metricCatalog = metricCatalog;
+  }
+
+  async validate(executionTrace) {
+    const metricDefinitions = this.metricCatalog.metric_definitions;
+    for (const metricDefinition of metricDefinitions) {
+      const metricId = metricDefinition.metric_id;
+      if (!executionTrace[metricId]) {
+        throw new Error(`Missing MQM metric: ${metricId}`);
       }
     }
   }
