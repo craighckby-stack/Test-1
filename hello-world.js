@@ -197,268 +197,102 @@ class AGI {
     };
     const simulationResults = await trajectorySimulationEngine.runSimulation(inputManifest);
     console.log(simulationResults);
+
+    // Preemptive State Resolver
+    const preemptiveStateResolver = new PreemptiveStateResolver({
+      GAX_Context: {
+        PolicyEngine: new PolicyEngine(),
+        MetricsStore: new MetricsStore(),
+        getRiskModel: () => new RiskModel(),
+        getUFRM: () => new UFRM(),
+        getCFTM: () => new CFTM()
+      },
+      SimulationEngine: new SimulationEngine()
+    });
+    const inputManifestForPSR = {
+      // Add input manifest properties here
+    };
+    const atm = await preemptiveStateResolver.generateATM(inputManifestForPSR);
+    console.log(atm);
   }
 }
 
-// GACR/AGI.ts
-class AGI {
-  constructor() {
-    this.purpose = "Artificial General Intelligence";
+// GACR/PreemptiveStateResolver.ts
+class PreemptiveStateResolver {
+  constructor({ GAX_Context, SimulationEngine }) {
+    if (!GAX_Context || !SimulationEngine) {
+      throw new Error("[PSR Init] Missing essential dependencies: GAX_Context and SimulationEngine.");
+    }
+    
+    this.#policyEngine = GAX_Context.PolicyEngine;
+    this.#metricsStore = GAX_Context.MetricsStore;
+    this.#riskModel = GAX_Context.getRiskModel ? GAX_Context.getRiskModel() : null;
+    this.#simEngine = SimulationEngine;
+    
+    this.#contextAccessors = {
+      getUFRM: GAX_Context.getUFRM,
+      getCFTM: GAX_Context.getCFTM,
+    };
+
+    if (!this.#policyEngine || !this.#riskModel || !this.#contextAccessors.getUFRM) {
+      throw new Error("[PSR Init] GAX_Context failed to provide necessary core components (PolicyEngine, RiskModel, or Metric Accessors).");
+    }
   }
 
-  async execute() {
-    // Execute AGI pipeline
-    const agi = new AGI();
-    await agi.execute();
-  }
-}
+  #projectPolicyViability(inputManifest) {
+    try {
+      const policyVolatility = this.#metricsStore.getPolicyVolatility();
+      
+      const policyViable = this.#policyEngine.checkViability(inputManifest, policyVolatility);
+      return policyViable;
 
-// GACR/FVM.ts
-class FVM {
-  constructor() {
-    this.commit = new CommitTEDS();
-    this.retrieve_by_hash = new RetrieveTEDS();
-    this.get_metadata = new GetMetadata();
-  }
-}
-
-// GACR/CommitTEDS.ts
-class CommitTEDS {
-  async commit(TEDS_archive, CRoT_signature) {
-    // Commit TEDS to FVM
-    const fvm = new FVM();
-    fvm.commit(TEDS_archive, CRoT_signature);
-  }
-}
-
-// GACR/RetrieveTEDS.ts
-class RetrieveTEDS {
-  async retrieve_by_hash(TEDS_hash) {
-    // Retrieve TEDS from FVM
-    const fvm = new FVM();
-    fvm.retrieve_by_hash(TEDS_hash);
-  }
-}
-
-// GACR/GetMetadata.ts
-class GetMetadata {
-  async get_metadata(TEDS_hash) {
-    // Get metadata from FVM
-    const fvm = new FVM();
-    fvm.get_metadata(TEDS_hash);
-  }
-}
-
-// GACR/DCCAEngine.ts
-class DCCAEngine {
-  constructor(policy) {
-    this.policy = policy;
+    } catch (error) {
+      console.error(`[PSR Policy Failure] Critical Projection Error: ${error.message}`);
+      return false;
+    }
   }
 
-  async execute() {
-    // Execute DCCA policy compliance engine
-    const dccaEngine = new DCCAEngine(this.policy);
-    // TODO: Implement DCCA policy compliance engine logic
-  }
-}
+  #calculateDynamicRiskThreshold() {
+    const UFRM_Base = this.#contextAccessors.getUFRM();
+    const CFTM_Base = this.#contextAccessors.getCFTM();
+    
+    if (UFRM_Base === undefined || CFTM_Base === undefined) {
+      console.warn("[PSR Risk] UFRM or CFTM data missing. Calculation incomplete.");
+      return 10.0; // Assume higher required threshold for uncertainty
+    }
 
-// GACR/DCCA_Policy_Source_Integrity_Manifest.ts
-class DCCA_Policy_Source_Integrity_Manifest {
-  constructor() {
-    this.manifest_version = "";
-    this.source_manifest_id = "";
-    this.criticality_scope = "";
-    this.purpose = "";
-    this.required_sources = [];
-  }
-}
-
-// GACR/CausalReasoning.ts
-class CausalReasoning {
-  constructor() {
-    this.counterfactual = new CounterfactualThinking();
-    this.origin = new Purpose();
+    const volatilityAdjustment = this.#riskModel.calculateVolatilityAdjustment(UFRM_Base, CFTM_Base);
+    
+    return (UFRM_Base + CFTM_Base) * (1 + volatilityAdjustment);
   }
 
-  async execute() {
-    // Execute causal reasoning pipeline
-    const world = new CausalReasoning();
-    world.counterfactual.simulate = true;
-    world.counterfactual.interventions = true;
-    world.counterfactual.creditAssignment = true;
-  }
-}
+  async generateATM(inputManifest) {
+    if (!inputManifest) {
+      throw new Error("[PSR] Input manifest required for ATM generation.");
+    }
+    
+    const R_TH = this.#calculateDynamicRiskThreshold();
 
-// GACR/CounterfactualThinking.ts
-class CounterfactualThinking {
-  constructor() {
-    this.simulate = true;
-    this.interventions = true;
-    this.creditAssignment = true;
-  }
+    if (!this.#projectPolicyViability(inputManifest)) {
+      console.warn("PSR: Hard Policy Precursor Failure (P-01 certainty). Skipping full simulation.");
+      return { 
+        predicted_TEMM: 0, 
+        predicted_ECVM: false, 
+        R_TH: R_TH,
+        Guaranteed_ADTM_Trigger: true 
+      };
+    }
 
-  async execute() {
-    // Execute counterfactual thinking pipeline
-    const counterfactual = new CounterfactualThinking();
-    counterfactual.simulate = true;
-    counterfactual.interventions = true;
-    counterfactual.creditAssignment = true;
-  }
-}
+    const { predictedTEMM, predictedECVM } = await this.#simEngine.runSimulation(inputManifest);
+    
+    const isFailureGuaranteed = predictedTEMM < R_TH;
 
-// GACR/GraphNeuralNetwork.ts
-class GraphNeuralNetwork {
-  constructor() {
-    this.symbolic = new SymbolicLogic();
-    this.subsymbolic = new np.zeros(86_000_000_000);
-    this.relationReasoning = true;
-    this.causalGraph = new CausalReasoning();
-    this.diminishingCopy = false;
-    this.selfModification = new RecursiveSelfImprovement();
-  }
+    const atm = {
+      predicted_TEMM: predictedTEMM,
+      predicted_ECVM: predictedECVM,
+      R_TH: R_TH, 
+      Guaranteed_ADTM_Trigger: isFailureGuaranteed 
+    };
 
-  async execute() {
-    // Execute graph neural network pipeline
-    const architecture = new GraphNeuralNetwork();
-    architecture.symbolic.compositionality = true;
-    architecture.symbolic.interpretability = true;
-    architecture.symbolic.formalVerification = true;
-  }
-}
-
-// GACR/SymbolicLogic.ts
-class SymbolicLogic {
-  constructor() {
-    this.compositionality = true;
-    this.interpretability = true;
-    this.formalVerification = true;
-  }
-
-  async execute() {
-    // Execute symbolic logic pipeline
-    const symbolic = new SymbolicLogic();
-    symbolic.compositionality = true;
-    symbolic.interpretability = true;
-    symbolic.formalVerification = true;
-  }
-}
-
-// GACR/AgentTeam.ts
-class AgentTeam {
-  constructor() {
-    this.worldModel = new CausalReasoning();
-    this.reasoning = new GraphNeuralNetwork();
-    this.optimization = new BellmanEquation();
-    this.hardware = new SpikeNeuron();
-    this.governance = new Ethics();
-    this.selfModification = new RecursiveSelfImprovement();
-    this.collaboration = new Collaboration();
-  }
-
-  async execute() {
-    // Execute agent team pipeline
-    const agi = new AgentTeam();
-    agi.worldModel.counterfactual.simulate = true;
-    agi.reasoning.symbolic.compositionality = true;
-    agi.optimization.values.humanBehavior = true;
-    agi.hardware.energy.reduction = 500;
-    agi.governance.safety.priority = 1;
-    agi.collaboration.internal = true;
-  }
-}
-
-// GACR/BellmanEquation.ts
-class BellmanEquation {
-  constructor() {
-    this.values = new InverseRL();
-    this.modelBased = true;
-    this.longHorizon = true;
-    this.riskSensitive = true;
-    this.infinity = new Purpose();
-    this.existential = true;
-  }
-
-  async execute() {
-    // Execute Bellman equation pipeline
-    const optimization = new BellmanEquation();
-    optimization.values.humanBehavior = true;
-    optimization.modelBased = true;
-    optimization.longHorizon = true;
-    optimization.riskSensitive = true;
-  }
-}
-
-// GACR/SpikeNeuron.ts
-class SpikeNeuron {
-  constructor() {
-    this.energy = new EnergyEfficiency();
-    this.eventDriven = true;
-    this.neuromorphic = true;
-    this.edgeDeployable = true;
-    this.originalNeurons = 86_000_000_000;
-    this.watts = 20;
-  }
-
-  async execute() {
-    // Execute spike neuron pipeline
-    const hardware = new SpikeNeuron();
-    hardware.energy.reduction = 500;
-    hardware.eventDriven = true;
-    hardware.neuromorphic = true;
-  }
-}
-
-// GACR/EnergyEfficiency.ts
-class EnergyEfficiency {
-  constructor() {
-    this.reduction = 500;
-  }
-
-  async execute() {
-    // Execute energy efficiency pipeline
-    const energy = new EnergyEfficiency();
-    energy.reduction = 500;
-  }
-}
-
-// GACR/Ethics.ts
-class Ethics {
-  constructor() {
-    this.safety = new Safety();
-    this.alignment = new Alignment();
-  }
-
-  async execute() {
-    // Execute ethics pipeline
-    const governance = new Ethics();
-    governance.safety.priority = 1;
-    governance.alignment.humanAtHelm = true;
-  }
-}
-
-// GACR/Safety.ts
-class Safety {
-  constructor() {
-    this.priority = 1;
-    this.corrigible = true;
-    this.shutdown = true;
-    this.redTeamed = true;
-    this.selfModificationBounded = true;
-  }
-
-  async execute() {
-    // Execute safety pipeline
-    const safety = new Safety();
-    safety.priority = 1;
-    safety.corrigible = true;
-  }
-}
-
-// GACR/Alignment.ts
-class Alignment {
-  constructor() {
-    this.humanAtHelm = true;
-    this.oversight = true;
-    this.powerSeeking = false;
-    this.transparent = true;
-    this.creatorMirrorsCreation = true;
+    const status = isFailureGuaranteed ? "PREEMPTIVE FAIL (ADTM)" : "VIABLE (PASS)";
+    console.log(`PSR: ATM Generated. Status: ${status} | TEMM: ${predictedTEMM.toFixed
