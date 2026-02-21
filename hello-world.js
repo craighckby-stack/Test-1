@@ -1,181 +1,17 @@
+// CORE:
 // ...[TRUNCATED]
-
-/**
- * Get the output from the Delta Computation Module (DCM) protocol.
- * @returns {Object} An object containing the delta vector and tolerance profile.
- */
-#getDCMOutput() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    const { V_DELTA, P_TOL } = this.#getSALOutput();
-    return { V_DELTA, P_TOL };
-}
-
-/**
- * Get the output from the State Attestation Layer (SAL) protocol.
- * @returns {Object} An object containing the attested state object and tolerance profile.
- */
-#getSALOutput() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    const { ASO, P_TOL } = this.#getSALInput();
-    return { ASO, P_TOL };
-}
-
-/**
- * Get the input for the State Attestation Layer (SAL) protocol.
- * @returns {Object} An object containing the attested state object and tolerance profile.
- */
-#getSALInput() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    const ASO = this.#generateASO();
-    const P_TOL = this.#getToleranceProfile();
-    return { ASO, P_TOL };
-}
-
-/**
- * Generate the Attested State Object (ASO) for SAL protocol.
- * @returns {Object} The Attested State Object (ASO).
- */
-#generateASO() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    const P = this.#getFinalizedState();
-    const T = this.#getGATMVerifiedTimestamp();
-    const S_CRoT = this.#getCRoTSignature(P, T);
-    return { P, T, S_CRoT };
-}
-
-/**
- * Get the finalized state for SAL protocol.
- * @returns {Object} The finalized state.
- */
-#getFinalizedState() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getS8FinalizedState();
-}
-
-/**
- * Get the GATM-verified timestamp for SAL protocol.
- * @returns {number} The GATM-verified timestamp.
- */
-#getGATMVerifiedTimestamp() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getGATMTime();
-}
-
-/**
- * Get the CRoT signature for SAL protocol.
- * @param {Object} P - The input payload.
- * @param {number} T - The GATM-verified timestamp.
- * @returns {string} The CRoT signature.
- */
-#getCRoTSignature(P, T) {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#signWithCRoT(P, T);
-}
-
-/**
- * Sign the input payload with the active CRoT key.
- * @param {Object} P - The input payload.
- * @param {number} T - The GATM-verified timestamp.
- * @returns {string} The CRoT signature.
- */
-#signWithCRoT(P, T) {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getActiveCRoTKey().sign(P, T);
-}
-
-// ...[TRUNCATED]
-
-/**
- * Get the active CRoT key.
- * @returns {Object} The active CRoT key.
- */
-#getActiveCRoTKey() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getCRoTKeyFromLedger();
-}
-
-/**
- * Get the CRoT key from the ledger.
- * @returns {Object} The CRoT key.
- */
-#getCRoTKeyFromLedger() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getCRoTKeyFromPersistenceLayer();
-}
-
-/**
- * Get the CRoT key from the persistence layer.
- * @returns {Object} The CRoT key.
- */
-#getCRoTKeyFromPersistenceLayer() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getCRoTKeyFromAnchor();
-}
-
-/**
- * Get the CRoT key from the anchor.
- * @returns {Object} The CRoT key.
- */
-#getCRoTKeyFromAnchor() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getAnchorFromPersistenceLayer();
-}
-
-/**
- * Get the anchor from the persistence layer.
- * @returns {string} The anchor.
- */
-#getAnchorFromPersistenceLayer() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getAnchorFromLedger();
-}
-
-/**
- * Get the anchor from the ledger.
- * @returns {string} The anchor.
- */
-#getAnchorFromLedger() {
-    // ...[TRUNCATED]
-
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getMerkleRootFromLedger();
-}
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getMerkleRootFromLedger();
 
 /**
  * Get the Merkle root from the ledger.
  * @returns {string} The Merkle root.
  */
 #getMerkleRootFromLedger() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getHashGraphIndexFromLedger();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getHashGraphIndexFromLedger();
 }
 
 /**
@@ -183,10 +19,10 @@
  * @returns {string} The hash graph index.
  */
 #getHashGraphIndexFromLedger() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getLedgerCommitment();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getLedgerCommitment();
 }
 
 /**
@@ -194,10 +30,10 @@
  * @returns {string} The ledger commitment.
  */
 #getLedgerCommitment() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#submitToImmutablePersistenceLayer();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#submitToImmutablePersistenceLayer();
 }
 
 /**
@@ -205,10 +41,10 @@
  * @returns {string} The ledger commitment.
  */
 #submitToImmutablePersistenceLayer() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getH_Anchor();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getH_Anchor();
 }
 
 /**
@@ -216,10 +52,10 @@
  * @returns {string} The H_Anchor.
  */
 #getH_Anchor() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getMerkleRoot();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getMerkleRoot();
 }
 
 /**
@@ -227,10 +63,10 @@
  * @returns {string} The Merkle root.
  */
 #getMerkleRoot() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getHashGraphIndex();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getHashGraphIndex();
 }
 
 /**
@@ -238,10 +74,10 @@
  * @returns {string} The hash graph index.
  */
 #getHashGraphIndex() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getLedgerIndex();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getLedgerIndex();
 }
 
 /**
@@ -249,10 +85,10 @@
  * @returns {string} The ledger index.
  */
 #getLedgerIndex() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getLedger();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getLedger();
 }
 
 /**
@@ -260,10 +96,10 @@
  * @returns {Object} The ledger.
  */
 #getLedger() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getImmutablePersistenceLayer();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getImmutablePersistenceLayer();
 }
 
 /**
@@ -271,10 +107,10 @@
  * @returns {Object} The immutable persistence layer.
  */
 #getImmutablePersistenceLayer() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getPersistenceLayer();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getPersistenceLayer();
 }
 
 /**
@@ -282,10 +118,10 @@
  * @returns {Object} The persistence layer.
  */
 #getPersistenceLayer() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getLedgerSystem();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getLedgerSystem();
 }
 
 /**
@@ -293,10 +129,10 @@
  * @returns {Object} The ledger system.
  */
 #getLedgerSystem() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getLedgerSystemFromConfig();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getLedgerSystemFromConfig();
 }
 
 /**
@@ -304,10 +140,10 @@
  * @returns {Object} The ledger system.
  */
 #getLedgerSystemFromConfig() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getConfig();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getConfig();
 }
 
 /**
@@ -315,10 +151,10 @@
  * @returns {Object} The configuration.
  */
 getConfig() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getSALConfig();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getSALConfig();
 }
 
 /**
@@ -326,10 +162,10 @@ getConfig() {
  * @returns {Object} The SAL configuration.
  */
 #getSALConfig() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getProtocolConfig();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getProtocolConfig();
 }
 
 /**
@@ -337,10 +173,10 @@ getConfig() {
  * @returns {Object} The protocol configuration.
  */
 #getProtocolConfig() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getProtocolVersion();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getProtocolVersion();
 }
 
 /**
@@ -348,10 +184,10 @@ getConfig() {
  * @returns {number} The protocol version.
  */
 #getProtocolVersion() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return this.#getSALProtocolVersion();
+  // ARBITER: SAL Protocol V2.0 Integration
+  return this.#getSALProtocolVersion();
 }
 
 /**
@@ -359,10 +195,66 @@ getConfig() {
  * @returns {number} The SAL protocol version.
  */
 #getSALProtocolVersion() {
-    // ...[TRUNCATED]
+  // ...[TRUNCATED]
 
-    // ARBITER: SAL Protocol V2.0 Integration
-    return 2.0;
+  // ARBITER: SAL Protocol V2.0 Integration
+  return 2.0;
 }
+
+// ...[TRUNCATED]
+
+// ADD:
+const salConfig = {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agiverse.ai/configs/HESE_MHB_Config/v1.0.0",
+  "title": "HESE Metric History Buffer Configuration",
+  "description": "Configuration parameters defining the rolling window and decay behavior for Delta prediction error calculation within HESE, providing the input metrics for Calibration Factors.",
+  "type": "object",
+  "properties": {
+    "window_size_seconds": {
+      "type": "integer",
+      "minimum": 300,
+      "maximum": 3600,
+      "default": 900,
+      "description": "Duration (in seconds) of the rolling window used for calculation of delta statistics (average and variance)."
+    },
+    "decay_alpha": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.05,
+      "description": "Exponential decay factor (alpha) applied to older samples within the window (0.0=simple average, 1.0=only newest data)."
+    },
+    "sampling_frequency_hz": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 10.0,
+      "default": 1.0,
+      "description": "Expected frequency (Hertz) at which prediction errors are ingested into the buffer."
+    },
+    "latency_threshold_ms": {
+      "type": "integer",
+      "minimum": 10,
+      "default": 100,
+      "description": "Maximum acceptable processing latency for a delta sample before it is discarded or weighted down significantly."
+    }
+  },
+  "required": [
+    "window_size_seconds",
+    "decay_alpha",
+    "sampling_frequency_hz"
+  ],
+  "additionalProperties": false
+};
+
+// MERGE ADD into CORE
+const mergedConfig = {
+  ...this.#getProtocolConfig(),
+  ...salConfig
+};
+
+// UPDATE CORE with mergedConfig
+this.#getProtocolConfig = () => mergedConfig;
+this.#getSALProtocolVersion = () => 2.0;
 
 // ...[TRUNCATED]
