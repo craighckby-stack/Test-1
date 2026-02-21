@@ -125,3 +125,4 @@ config/data_governance/artifact_validation_rules.json
 config/data_governance/operationaltelemetryindexingmap.json
 config/debtprioritizationconfig.js
 config/dependency_manifest.json
+config/deployment/acvd_profile_map.json
