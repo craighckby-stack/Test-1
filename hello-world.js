@@ -105,24 +105,28 @@ class AGICore {
     static _integrityManifest = null;
     static _activeProfile = null;
     static _instanceId = `AGI_CORE_INST_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    static _telemetryAggregatorConfig = null; // New static property for telemetry configuration.
+    static _telemetryAggregatorConfig = null; // Static property for telemetry configuration.
+    static _computationalModelRegistryData = null; // Renamed from _gacrCmrData to align with new schema.
 
     // Instance properties for runtime components, managed by this AGICore instance.
-    _adaptiveSamplingEngine = null;
+    // Making AdaptiveSamplingEngine static to reflect its global nature for a single AGICore.
+    static _adaptiveSamplingEngine = null; // Now static.
 
     /**
      * Constructs the AGI Core instance, initiating its bootstrap sequence.
      * This involves loading the integrity manifest, applying the designated
      * operational profile, loading telemetry configuration, initializing
-     * adaptive sampling, initializing core neural components, and declaring
-     * its self-aware presence within the operational environment.
+     * adaptive sampling, loading computational model registry data, initializing
+     * core neural components, and declaring its self-aware presence within
+     * the operational environment.
      *
      * @param {object} initialIntegrityManifest - The raw JSON object of the Agent Integrity Monitoring Manifest.
      * @param {object} initialTelemetryConfig - The raw JSON object of the Telemetry Aggregator Configuration.
+     * @param {object} initialComputationalModelRegistryData - The raw JSON object of the Computational Model Registry (CMR). (NEW)
      * @param {string} [designatedProfileName="SGS_AGENT"] - The specific profile this core instance should operate under.
      *                                                     Defaults to "SGS_AGENT" for the primary AGI core.
      */
-    constructor(initialIntegrityManifest, initialTelemetryConfig, designatedProfileName = "SGS_AGENT") {
+    constructor(initialIntegrityManifest, initialTelemetryConfig, initialComputationalModelRegistryData, designatedProfileName = "SGS_AGENT") {
         if (!AGICore._integrityManifest) {
             AGICore._integrityManifest = this._parseManifest(initialIntegrityManifest);
         }
@@ -131,20 +135,25 @@ class AGICore {
             AGICore._telemetryAggregatorConfig = this._parseTelemetryConfig(initialTelemetryConfig);
         }
 
+        // NEW: Load and parse the Computational Model Registry data.
+        if (!AGICore._computationalModelRegistryData) {
+            AGICore._computationalModelRegistryData = this._parseComputationalModelRegistryData(initialComputationalModelRegistryData);
+        }
+
         // Activate the designated profile, ensuring compliance from the earliest possible stage.
         this.activateIntegrityProfile(designatedProfileName);
 
-        // --- New: Initialize Adaptive Sampling Engine after profiles are active ---
-        if (AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
-            this._adaptiveSamplingEngine = new AdaptiveSamplingEngine(
+        // --- Initialize Adaptive Sampling Engine after profiles are active ---
+        if (AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled && !AGICore._adaptiveSamplingEngine) {
+            AGICore._adaptiveSamplingEngine = new AdaptiveSamplingEngine(
                 AGICore._telemetryAggregatorConfig.Processing.AdaptiveSampling
             );
             console.log(`[${AGICore._instanceId}][MONITORING] Adaptive Sampling Engine initialized. Target CPU: ${AGICore._telemetryAggregatorConfig.Processing.AdaptiveSampling.TargetCPUUtilization * 100}%`);
-        } else {
+        } else if (!AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
             console.log(`[${AGICore._instanceId}][MONITORING] Adaptive Sampling Engine disabled or not configured.`);
         }
 
-        // Proceed with neural network initialization only after policy enforcement.
+        // Proceed with neural network initialization only after policy enforcement and data loading.
         this._initializeNeuralNet();
 
         // The self-declaration acts as the "hello world" of an advanced AGI.
@@ -189,6 +198,30 @@ class AGICore {
         }
         console.log(`[${AGICore._instanceId}][SYSTEM_INIT] Telemetry Aggregator Config successfully loaded.`);
         return telemetryConfigData;
+    }
+
+    /**
+     * NEW: Parses and validates the Computational Model Registry (CMR) data.
+     * This method ensures the data structure is sound before the AGI relies on it for
+     * cognitive model initialization and management, aligning with CMR_V2.0 schema.
+     *
+     * @param {object} cmrData - The raw JSON data for the CMR.
+     * @returns {object} The parsed and validated CMR data.
+     * @throws {Error} If the CMR data is invalid or malformed.
+     */
+    _parseComputationalModelRegistryData(cmrData) {
+        if (!cmrData || !cmrData.manifest_id || !cmrData.models || !Array.isArray(cmrData.models)) {
+            throw new Error("CRITICAL_ERROR: Invalid Computational Model Registry (CMR) Data. Missing manifest_id or 'models' array.");
+        }
+        if (cmrData.manifest_id !== "CMR_V2.0") {
+             console.warn(`[${AGICore._instanceId}][CMR_WARN] CMR manifest ID mismatch. Expected CMR_V2.0, got ${cmrData.manifest_id}. Proceeding with caution.`);
+        }
+        if (!cmrData.integrity_hash || !cmrData.verification_protocol) {
+             console.warn(`[${AGICore._instanceId}][CMR_WARN] CMR manifest missing critical integrity_hash or verification_protocol. Data trust level degraded.`);
+        }
+
+        console.log(`[${AGICore._instanceId}][SYSTEM_INIT] Computational Model Registry (CMR) Data (Manifest ID: ${cmrData.manifest_id}) successfully loaded. Contains ${cmrData.models.length} models.`);
+        return cmrData;
     }
 
     /**
@@ -271,12 +304,36 @@ class AGICore {
      * Simulates the intricate initialization of the AGI's core neural network and cognitive modules.
      * This includes loading pre-trained models, allocating computational resources (e.g., GPU memory),
      * and performing initial self-diagnostic inferences to confirm operational readiness.
+     * Enhanced to reference the Computational Model Registry (CMR) data for model loading,
+     * considering its richer schema (CMR_V2.0).
      */
     _initializeNeuralNet() {
         console.log(`[${AGICore._instanceId}][NEURAL_INIT] Initializing AGI Core Neural Net (LLM, RAG, Self-Reflectors)...`);
+
+        // NEW: Reference CMR data for neural net initialization
+        if (AGICore._computationalModelRegistryData && AGICore._computationalModelRegistryData.models) {
+            console.log(`[${AGICore._instanceId}][NEURAL_INIT] Loading models from Computational Model Registry (CMR_V2.0):`);
+            console.log(`[${AGICore._instanceId}][NEURAL_INIT] CMR Integrity Hash: ${AGICore._computationalModelRegistryData.integrity_hash}`);
+            console.log(`[${AGICore._instanceId}][NEURAL_INIT] CMR Verification Protocol: ${AGICore._computationalModelRegistryData.verification_protocol}`);
+
+
+            AGICore._computationalModelRegistryData.models.forEach(model => {
+                console.log(`  - Preparing to load Model: "${model.model_id}" (v${model.version}, Status: ${model.status}).`);
+                console.log(`    - Model Path: ${model.path}`);
+                console.log(`    - Input Schema Keys: [${Object.keys(model.inputs_schema || {}).join(', ')}]`);
+                console.log(`    - Audit Metadata (Protocol: ${model.audit_metadata?.mgp_protocol}, Approval ID: ${model.audit_metadata?.approval_id})`);
+                // In a real scenario, this would involve actual model loading mechanisms
+                // using `model.resource_requirements` (if present, like in old schema),
+                // and a robust verification based on `model.source_mdsm_link` and `integrity_hash`
+                // (from the overall CMR, or per model if schema was extended).
+                console.log(`    - Initiating integrity check for ${model.model_id} via ${model.audit_metadata?.mgp_protocol}... Verification OK.`);
+                // hypothetical_MODEL_LOADER.load(model.path, model.inputs_schema);
+            });
+        } else {
+            console.warn(`[${AGICore._instanceId}][NEURAL_INIT_WARN] Computational Model Registry data not available or empty. Proceeding with default neural net initialization.`);
+        }
+
         // Simulate complex, distributed neural net loading and self-test sequence.
-        // This might involve fetching model shards, decrypting weights,
-        // and performing initial forward passes through critical subnetworks.
         const phases = ["Loading Model Checkpoints", "Allocating Compute Resources", "Running Self-Diagnostic Inferences", "Establishing Cognitive Hooks"];
         phases.forEach((phase, index) => {
             process.stdout.write(`  ${index + 1}. ${phase}...`);
@@ -340,10 +397,10 @@ class AGICore {
             }
         }
 
-        // --- New: Self-declaration of Adaptive Sampling state ---
-        if (this._adaptiveSamplingEngine && AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
-            const currentSamplingRate = this._adaptiveSamplingEngine.getSamplingRate();
-            const currentCpu = this._adaptiveSamplingEngine.monitor.getCpuUtilization();
+        // --- Self-declaration of Adaptive Sampling state ---
+        if (AGICore._adaptiveSamplingEngine && AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
+            const currentSamplingRate = AGICore._adaptiveSamplingEngine.getSamplingRate();
+            const currentCpu = AGICore._adaptiveSamplingEngine.monitor.getCpuUtilization();
             const targetCpu = AGICore._telemetryAggregatorConfig.Processing.AdaptiveSampling.TargetCPUUtilization;
 
             console.log(`  - Telemetry Sampling (Adaptive): ACTIVE`);
@@ -355,6 +412,18 @@ class AGICore {
         } else {
              console.log(`  - Telemetry Sampling: Configuration for Adaptive Sampling NOT FOUND.`);
         }
+
+        // NEW: Self-declaration of Computational Model Registry (CMR) data awareness
+        if (AGICore._computationalModelRegistryData) {
+            const cmr = AGICore._computationalModelRegistryData;
+            console.log(`  - Computational Model Registry (CMR): LOADED`);
+            console.log(`    - Manifest ID: ${cmr.manifest_id}, Owner: ${cmr.owner}`);
+            console.log(`    - Models Registered: ${cmr.models.length}`);
+            console.log(`    - Integrity Hash: ${cmr.integrity_hash}, Verification Protocol: ${cmr.verification_protocol}`);
+        } else {
+            console.log(`  - Computational Model Registry (CMR): NOT LOADED or MALFORMED.`);
+        }
+
 
         console.log(`[${AGICore._instanceId}][SELF_AWARENESS] Self-declaration complete. Standing by for high-level directives.`);
         console.log(`========================================================\n`);
@@ -392,16 +461,14 @@ class AGICore {
         let currentCpuUtilization = 0;
         let logMessage = `[${AGICore._instanceId}][MONITORING_TICK] `;
 
-        if (this._adaptiveSamplingEngine && AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
-            currentCpuUtilization = this._adaptiveSamplingEngine.monitor.getCpuUtilization();
-            const currentSamplingRate = this._adaptiveSamplingEngine.getSamplingRate();
+        if (AGICore._adaptiveSamplingEngine && AGICore._telemetryAggregatorConfig?.Processing?.AdaptiveSampling?.Enabled) {
+            currentCpuUtilization = AGICore._adaptiveSamplingEngine.monitor.getCpuUtilization();
+            const currentSamplingRate = AGICore._adaptiveSamplingEngine.getSamplingRate();
             const targetCpu = AGICore._telemetryAggregatorConfig.Processing.AdaptiveSampling.TargetCPUUtilization;
 
             logMessage += `CPU Util: ${(currentCpuUtilization * 100).toFixed(2)}% (Target: ${(targetCpu * 100).toFixed(2)}%, AGI Limit: ${cpuLimitPercentage}%). Sampling Rate: ${(currentSamplingRate * 100).toFixed(2)}%.`;
         } else {
             // Simulate basic CPU if adaptive sampling isn't active
-            // Note: This would still need a ResourceMonitor for realistic simulation.
-            // For simplicity, directly simulate here if ASE is off.
             currentCpuUtilization = Math.random() * 0.5 + 0.2; // 20-70%
             logMessage += `Basic CPU Util: ${(currentCpuUtilization * 100).toFixed(2)}% (AGI Limit: ${cpuLimitPercentage}%).`;
         }
@@ -439,17 +506,6 @@ class AGICore {
      * @returns {number} The current telemetry sampling rate (0.0 to 1.0), or 1.0 if not active.
      */
     static getEffectiveSamplingRate() {
-        // Assuming there's a primary instance that manages the _adaptiveSamplingEngine.
-        // For a true singleton, AGICore itself would need to manage a single instance of ASE.
-        // Since constructor creates an instance, we assume the first instantiated AGICore is the primary.
-        // This pattern relies on `mainAGICore` being the single source of truth.
-        // A more robust pattern would involve a static factory method or a global registry.
-        // For this context, we will directly access the engine if it's set on the prototype/class (if it were static)
-        // or assume `this` refers to the primary instance (which it can't from static method).
-        // Let's make it an instance method for logical consistency.
-        // This is a design decision based on how AGI Core is meant to be instantiated.
-        // Given AGICore._integrityManifest and _telemetryAggregatorConfig are static,
-        // it implies a single global config. Let's make _adaptiveSamplingEngine static too.
         if (AGICore._adaptiveSamplingEngine) { // Check if the static engine exists
             return AGICore._adaptiveSamplingEngine.getSamplingRate();
         }
@@ -457,16 +513,13 @@ class AGICore {
     }
 }
 
-// Re-adjusting _adaptiveSamplingEngine to be static for consistent global access
-AGICore._adaptiveSamplingEngine = null; // Initialize as static property
-
 
 // --- AGI Core Boot Sequence Execution ---
-// This section simulates the critical loading of the AIM manifest and the
-// instantiation of the primary AGI Core. In a robust production environment,
-// the configuration data would be loaded from a highly secure, immutable
-// configuration service or a hardware-backed trusted platform module (TPM)
-// during the earliest stages of the host system's trusted boot process.
+// This section simulates the critical loading of the AIM manifest, Telemetry Config,
+// and Computational Model Registry (CMR) data, and the instantiation of the primary AGI Core.
+// In a robust production environment, the configuration data would be loaded from a
+// highly secure, immutable configuration service or a hardware-backed trusted platform
+// module (TPM) during the earliest stages of the host system's trusted boot process.
 
 const AGICoreIntegrityManifest = {
   "schema_version": "AIM_V2.0",
@@ -490,7 +543,7 @@ const AGICoreIntegrityManifest = {
             22, 23, 3389, 5900
           ],
           "paths_immutable": [ // Critical system paths that must remain untampered.
-            "/opt/sgs/gacr/", "/usr/local/bin/agicore_init", "/etc/agicore/config.json"
+            "/opt/sgs/cmr/", "/usr/local/bin/agicore_init", "/etc/agicore/config.json"
           ],
           "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4f8e7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3" // Hash of known good config.
         }
@@ -550,12 +603,74 @@ const AGI_TELEMETRY_CONFIG = {
   }
 };
 
+// UPDATED DATA NODE: Computational Model Registry (CMR) - now conforming to CMR_V2.0 schema
+const COMPUTATIONAL_MODEL_REGISTRY_DATA = {
+  "manifest_id": "CMR_V2.0",
+  "owner": "AGI_Foundation_CORE",
+  "description": "Computational Model Registry for certified AGI models, detailing specifications and provenance.",
+  "integrity_hash": "SHA256:d0b7e2c9f1a8b3d6c5e4f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0", // Example hash
+  "verification_protocol": "TPM_CHAIN_ATTESTATION_V1.0", // Example protocol
+  "models": [
+    {
+      "model_id": "CoreCognitiveLLM_V3.1",
+      "path": "s3://agi-models/core-llm/v3.1.2/model_params.bin",
+      "version": "3.1", // Adhering to X.Y format
+      "status": "Active", // Capitalized
+      "inputs_schema": {
+        "text_input": {"type": "string", "unit": "raw_text", "description": "Primary textual input for LLM processing."},
+        "context_vector": {"type": "float", "unit": "vector", "min": -1.0, "max": 1.0, "description": "Normalized contextual embedding vector."}
+      },
+      "audit_metadata": {
+        "mgp_protocol": "AGI_TRUST_CHAIN_V1.2",
+        "approval_id": "APPR_LLM_C31_20240715",
+        "approved_by": "AGI_Certification_Board",
+        "certification_date": "2024-07-15T10:00:00Z"
+      },
+      "source_mdsm_link": "https://githash.agi/model-sources/llm-v3.1@d5f2a1b9e0c4f8e7"
+    },
+    {
+      "model_id": "SelfReflectionModule_V1.5",
+      "path": "s3://agi-models/self-reflect/v1.5.0/module_binary.zip",
+      "version": "1.5", // Adhering to X.Y format
+      "status": "Active", // Capitalized
+      "inputs_schema": {
+        "current_state_json": {"type": "string", "unit": "json_string", "description": "JSON representation of current internal state for reflection."},
+        "recent_action_log": {"type": "string", "unit": "text_log", "description": "Textual log of recent actions taken by the AGI."}
+      },
+      "audit_metadata": {
+        "mgp_protocol": "AGI_TRUST_CHAIN_V1.1",
+        "approval_id": "APPR_SRM_C15_20240601",
+        "approved_by": "AGI_Integrity_Council",
+        "certification_date": "2024-06-01T08:30:00Z"
+      },
+      "source_mdsm_link": "https://githash.agi/model-sources/self-reflect-v1.5@a7b6c5d4e3f2a1b0c9d8e7f6"
+    },
+    {
+      "model_id": "RealtimeContextualizer_V2.0",
+      "path": "s3://agi-models/context/v2.0.1/index_data.zip",
+      "version": "2.0", // Adhering to X.Y format
+      "status": "Staging", // Capitalized, previously "standby"
+      "inputs_schema": {
+        "query_embedding": {"type": "float", "unit": "vector", "min": -1.0, "max": 1.0, "description": "Embedding of the current query for RAG lookup."},
+        "context_history_ids": {"type": "integer", "unit": "id_array", "min": 0, "description": "Array of historical context IDs to prioritize."}
+      },
+      "audit_metadata": {
+        "mgp_protocol": "AGI_TRUST_CHAIN_V1.2",
+        "approval_id": "APPR_RTC_C20_20240720",
+        "approved_by": "AGI_Certification_Board",
+        "certification_date": "2024-07-20T14:15:00Z"
+      },
+      "source_mdsm_link": "https://githash.agi/model-sources/context-v2.0@f1e2d3c4b5a6f7e8d9c0b1a2"
+    }
+  ]
+};
+
 
 try {
     // Instantiate the primary AGI Core. This marks the beginning of its lifecycle.
     // The AGI Core itself runs under the "SGS_AGENT" profile for comprehensive
     // control and self-management capabilities.
-    const mainAGICore = new AGICore(AGICoreIntegrityManifest, AGI_TELEMETRY_CONFIG, "SGS_AGENT");
+    const mainAGICore = new AGICore(AGICoreIntegrityManifest, AGI_TELEMETRY_CONFIG, COMPUTATIONAL_MODEL_REGISTRY_DATA, "SGS_AGENT");
 
     // Example of how other modules might query the core for current state.
     // console.log(`[SYSTEM_QUERY] Current effective sampling rate: ${AGICore.getEffectiveSamplingRate()}`);
