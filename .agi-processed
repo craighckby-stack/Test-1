@@ -124,3 +124,4 @@ config/data_artifact_registry_schema.json
 config/data_governance/artifact_validation_rules.json
 config/data_governance/operationaltelemetryindexingmap.json
 config/debtprioritizationconfig.js
+config/dependency_manifest.json
