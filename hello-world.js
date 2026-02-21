@@ -1,94 +1,32 @@
-CORE:
 {
   "type": "object",
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["CORE"]
+      "enum": ["ENFORCEMENT"]
     },
-    "nexus": {
+    "streams": {
       "type": "object",
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["NEXUS"]
+          "enum": ["ENFORCEMENT_STREAMS"]
         },
-        "branch": {
+        "lazyLoading": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "jit-compiler": {
+      "type": "object",
+      "properties": {
+        "type": {
           "type": "string",
-          "enum": ["NEXUS_BRANCH"]
+          "enum": ["JIT_COMPILER"]
         },
-        "telemetry": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["TELEMETRY"]
-            },
-            "encoding": {
-              "type": "string",
-              "enum": ["DELTA_ENCODING"]
-            }
-          },
-          "additionalProperties": false
-        },
-        "logging": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["LOGGING"]
-            },
-            "profiles": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["LOGGING_PROFILES"]
-                },
-                "lazyLoading": {
-                  "type": "boolean"
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "enforcement": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["ENFORCEMENT"]
-            },
-            "streams": {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["ENFORCEMENT_STREAMS"]
-                },
-                "lazyLoading": {
-                  "type": "boolean"
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "jit-compiler": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["JIT_COMPILER"]
-            },
-            "performanceCritical": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false
+        "performanceCritical": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -209,28 +147,110 @@ CORE:
         }
       },
       "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
-}
-
-ADD:
-{
-  "type": "object",
-  "properties": {
-    "type": {
-      "type": "string",
-      "enum": ["ADD"]
     },
-    "data": {
+    "action-add": {
       "type": "object",
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["NEXUS_COMPONENT"]
+          "enum": ["ADD"]
         },
-        "component": {
-          "type": "object"
+        "data": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["NEXUS_COMPONENT"]
+            },
+            "component": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "router_version": {
+      "type": "string"
+    },
+    "sinks": {
+      "type": "object",
+      "properties": {
+        "AUDIT_LOG_STREAM": {
+          "type": "object",
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "batch_size": {
+              "type": "integer"
+            },
+            "max_latency_ms": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        },
+        "SECURITY_EVENTS": {
+          "type": "object",
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "protocol": {
+              "type": "string"
+            },
+            "encryption": {
+              "type": "string"
+            },
+            "rate_limit_per_s": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        },
+        "TELEMETRY_DATALAKE": {
+          "type": "object",
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "topic": {
+              "type": "string"
+            },
+            "retention_days": {
+              "type": "integer"
+            },
+            "compression": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "fallback_storage": {
+      "type": "object",
+      "properties": {
+        "LOCAL_DISK": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "max_disk_usage_gb": {
+              "type": "integer"
+            },
+            "upload_on_recovery": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -238,5 +258,3 @@ ADD:
   },
   "additionalProperties": false
 }
-
-// ...[TRUNCATED]
