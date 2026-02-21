@@ -1,15 +1,5 @@
-# Apply Nexus branch synthesis based on ADD axiom III integrity
-axiom_iii_integrity = add_schema["components"]["P01_CRITERIA"]["AXIOM_III_INTEGRITY"]
-nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                           ((axiom_iii_integrity["ENFORCE_ZERO_MPAM_VIOLATIONS"] * 0.05) + 
-                            (axiom_i_utility["MIN_EFFICACY_THRESHOLD_OMEGA"] > 0.5 * 0.05) + 
-                            (axiom_i_utility["MAX_ALLOWABLE_UTILITY_DEBT_LOGS"] > 10 * 0.05)))
-
-# Apply Nexus branch synthesis based on ADD remediation strategies
-remediation_strategies = add_schema["REMEDIATION_STRATEGIES"]
-for strategy in remediation_strategies.values():
-    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                              (strategy["ACTION"] * 0.05) * 
+# ...[TRUNCATED]
+(strategy["ACTION"] * 0.05) * 
                               ((strategy["TRIGGER_LEVEL"] == "WARNING") + 
                                (strategy["TRIGGER_LEVEL"] == "CRITICAL") + 
                                (strategy["TRIGGER_LEVEL"] == "INTEGRITY_HALT")))
@@ -75,6 +65,17 @@ for alert in alerts:
     elif alert["action_trigger"] == "NOTIFICATION":
         nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
                                   (0.1 * 0.05))
+
+# Apply Nexus branch synthesis based on ADD preprocessors
+preprocessors = add_schema["preprocessors"]
+for preprocessor in preprocessors:
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              ((preprocessor["description"] == "No preprocessing applied. Raw file content is hashed.") + 
+                               (preprocessor["description"] == "Removes C-style comments (// and /* */) from JSON files before hashing.") + 
+                               (preprocessor["description"] == "Standardizes source code whitespace/encoding to ensure byte-for-byte reproducibility regardless of development environment linting.")) * 
+                              ((preprocessor["implementation_path"] == "core/hashing/preprocessors/none.py") + 
+                               (preprocessor["implementation_path"] == "core/hashing/preprocessors/json_comment_stripper.py") + 
+                               (preprocessor["implementation_path"] == "core/hashing/preprocessors/source_normalizer.py")))
 
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
