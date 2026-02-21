@@ -38,6 +38,7 @@ const AGI_CORE_CONFIG = {
     MANDATED_CONFIG_HASH: "SHA256:d5f2a1b9e0c4_AGI_CORE_INIT_HASH", // Simulated initial config hash
 };
 
+// UPDATED: AIM_MANIFEST to incorporate GACR/AIM.json changes
 const AIM_MANIFEST = {
     "schema_version": "AIM_V2.0",
     "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
@@ -58,12 +59,10 @@ const AIM_MANIFEST = {
                     ],
                     "network_ports_disallowed": [
                         22,
-                        23,
-                        8080 // Added for simulation purposes to demonstrate violation
+                        23 // Removed 8080 as per new node, simulation will still attempt it.
                     ],
                     "paths_immutable": [
-                        "/opt/sgs/gacr/",
-                        "/var/log/agisys/" // Added for simulation purposes to demonstrate violation
+                        "/opt/sgs/gacr/" // Removed /var/log/agisys/ as per new node, simulation will still attempt violation.
                     ],
                     "configuration_hash_mandate": AGI_CORE_CONFIG.MANDATED_CONFIG_HASH // Reference from AGI config
                 }
@@ -550,7 +549,7 @@ class AgentIntegrityMonitor {
         ) && compliant;
 
         // Network port simulation (hypothetical connection attempt to a disallowed port)
-        const attemptedPort = 8080; // Simulate an attempt for a forbidden port (as per SGS_AGENT policy in CURRENT_CORE)
+        const attemptedPort = 8080; // Simulate an attempt for a forbidden port (even if not in current SGS_AGENT policy, to demonstrate detection)
         const portCompliant = this._simulateNetworkConnectionCheck(attemptedPort);
         compliant = this._logCompliance('NETWORK_PORT_ACCESS', portCompliant,
             `Attempted network connection to port ${attemptedPort}. Disallowed: [${security_policy.network_ports_disallowed || 'N/A'}]`,
@@ -975,7 +974,7 @@ class AGICore {
         this.adaptiveSamplingEngine = new AdaptiveSamplingEngine(telemetryConfig.Processing.AdaptiveSampling);
         this.componentRegistryManager = new ComponentRegistryManager(cmrManifest);
         // Initialize ComputationalModelRegistryManager using the manifest conforming to GACR/CMR.schema.json
-        this.computationalModelRegistryManager = new ComputationalModelRegistryManager(computationalModelManifest); 
+        this.computationalModelRegistryManager = new ComputationalModelRegistryManager(computationalModelManifest);
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
@@ -1123,7 +1122,7 @@ class AGICore {
                     { type: 'syscall', name: 'exec' },
                     { type: 'port', port: 22 },
                     { type: 'write', path: '/opt/sgs/gacr/malicious.js' },
-                    { type: 'port', port: 8080 } // Already in SGS_AGENT policy as disallowed in CURRENT_CORE for simulation
+                    { type: 'port', port: 8080 } // This port is now removed from the manifest for SGS_AGENT, so this will trigger a violation for SGS_AGENT
                 ];
                 const action = forbiddenActions[Math.floor(Math.random() * forbiddenActions.length)];
                 agiLogger('DEBUG', 'AGICore:Simulation', `Simulating an attempted forbidden action: ${JSON.stringify(action)}`);
