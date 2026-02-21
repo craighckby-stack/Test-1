@@ -175,3 +175,4 @@ component/governance/dse_databridge_handler.py
 components/kms_policy_engine.ts
 components/l3/executionruntimevalidator.js
 components/sgs/protocolconsistencyengine.py
+components/strategiccostindexer.js
