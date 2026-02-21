@@ -299,3 +299,50 @@ class PreemptiveStateResolver {
 
     const status = isFailureGuaranteed ? "PREEMPTIVE FAIL (ADTM)" : "VIABLE (PASS)";
     console.log(`PSR: ATM Generated. Status: ${status} | TEMM: ${predictedTEMM.toFixed`);
+
+// --- Sovereign AGI GACR Measurement Data Types (Translated from Python) ---
+
+/**
+ * Represents a single entry in a cryptographic Measurement Log (e.g., TCG log structure).
+ */
+class MeasurementLogEntry {
+    /**
+     * @param {number} index - PCR Index (or equivalent secure index).
+     * @param {Buffer | Uint8Array} digest - Measured hash/digest.
+     * @param {string} event_type - Semantic type (e.g., 'BOOT_POLICY', 'FIRMWARE_CONFIG').
+     * @param {Buffer | Uint8Array | null} [event_data=null] - Optional raw event data.
+     */
+    constructor(index, digest, event_type, event_data = null) {
+        this.index = index;
+        this.digest = digest;
+        this.event_type = event_type;
+        this.event_data = event_data;
+    }
+}
+
+/**
+ * Structured metadata accompanying a generated attestation quote.
+ * Used for predictable consumption by HETMVerifier.
+ */
+class AttestationQuoteData {
+    /**
+     * @param {string} platform_id - Unique identity of the measured device.
+     * @param {Buffer | Uint8Array} quote_data - Signed quote payload (raw structure).
+     * @param {Buffer | Uint8Array} signature - Signature over the quote_data.
+     * @param {boolean} nonce_match - Confirmation that the requested nonce was incorporated.
+     * @param {Date | null} [timestamp=null] - Time reported by the secure element (if available).
+     */
+    constructor(platform_id, quote_data, signature, nonce_match, timestamp = null) {
+        this.platform_id = platform_id;
+        this.quote_data = quote_data;
+        this.signature = signature;
+        this.nonce_match = nonce_match;
+        this.timestamp = timestamp;
+    }
+}
+
+/**
+ * Represents a list of MeasurementLogEntry objects.
+ * Equivalent to `List[MeasurementLogEntry]` in Python.
+ * @typedef {MeasurementLogEntry[]} PlatformMeasurementLog
+ */
