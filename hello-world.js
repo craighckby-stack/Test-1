@@ -15,12 +15,24 @@ def nexus_branch_synthesis_logic(metrics, modifiers):
     # Extract relevant metrics from Execution Environment Context
     resource_utilization_metrics = execution_environment_context["ResourceUtilizationMetrics"]
     
+    # Check if resource_utilization_metrics array is not empty
+    if not resource_utilization_metrics:
+        raise ValueError("Resource utilization metrics array is empty")
+    
+    # Check if cpu_usage and memory_usage fields are present in each element of the array
+    for metric in resource_utilization_metrics:
+        if "cpu_usage" not in metric or "memory_usage" not in metric:
+            raise ValueError("cpu_usage or memory_usage field is missing in resource utilization metrics")
+    
     # Calculate Nexus branch synthesis based on ADD metrics
-    nexus_branch_synthesis = (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
-                              (resource_utilization_metrics[0]["cpu_usage"] + resource_utilization_metrics[0]["memory_usage"]) / 2) / 100
+    # Use a weighted average of cpu_usage and memory_usage
+    resource_utilization_weighted_average = (resource_utilization_metrics[0]["cpu_usage"] + resource_utilization_metrics[0]["memory_usage"]) / 2
+    
+    # Apply Nexus branch synthesis weight and metric
+    nexus_branch_synthesis = (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * resource_utilization_weighted_average) / 100
     
     # Return Nexus branch synthesis
     return nexus_branch_synthesis
 ```
 
-Note that I've assumed that the `resource_utilization_metrics` array contains at least one element, and that the `cpu_usage` and `memory_usage` fields are present in each element of the array. You may need to modify the code to handle cases where these assumptions are not met.
+Note that I've added error checking to ensure that the `resource_utilization_metrics` array is not empty and that the `cpu_usage` and `memory_usage` fields are present in each element of the array. If these conditions are not met, a `ValueError` is raised.
