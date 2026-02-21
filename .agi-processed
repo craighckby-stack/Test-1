@@ -193,3 +193,4 @@ components/types/cnre_envelope_v1.json
 components/utilities/retv.py
 components/utilities/constraint_compliance_validator.py
 components/validation/psim.json
+config/acvdschema.js
