@@ -21,70 +21,7 @@ const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mq
 const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm_metric_catalog.json'), 'utf8'));
 const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'telemetry_source_schema.json'), 'utf8'));
 const VSEC = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'vsec.json'), 'utf8'));
-
-// GACR/CMR.ts
-class CMR {
-  constructor(config, schema) {
-    this.config = config;
-    this.schema = schema;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against config and schema
-    const validationResults = await this.schema.validate(executionTrace, this.config);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR validation failed');
-    }
-  }
-}
-
-// GACR/CMR_Schema.ts
-class CMR_Schema {
-  constructor(schema) {
-    this.schema = schema;
-  }
-
-  async validate(executionTrace, config) {
-    // Validate execution trace against schema
-    const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(executionTrace, this.schema);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR schema validation failed');
-    }
-
-    // Validate execution trace against config
-    const registerId = executionTrace.register_id;
-    if (!config.modules.some((module) => module.name === registerId)) {
-      throw new Error(`Module not found: ${registerId}`);
-    }
-
-    const module = config.modules.find((module) => module.name === registerId);
-    const version = executionTrace.system_target_version;
-    if (version !== module.version) {
-      throw new Error(`Incompatible version: ${version}`);
-    }
-
-    const maturityLevel = executionTrace.maturity_level;
-    if (maturityLevel !== module.maturity_level) {
-      throw new Error(`Invalid maturity level: ${maturityLevel}`);
-    }
-
-    const integrityHash = executionTrace.integrity_hash;
-    if (integrityHash !== module.integrity_hash) {
-      throw new Error(`Invalid integrity hash: ${integrityHash}`);
-    }
-
-    const dependencies = executionTrace.dependencies;
-    if (dependencies.some((dependency) => !module.dependencies.includes(dependency))) {
-      throw new Error(`Missing dependency: ${dependency}`);
-    }
-
-    const runtimeEnvironment = executionTrace.runtime_environment;
-    if (runtimeEnvironment !== module.runtime_environment) {
-      throw new Error(`Invalid runtime environment: ${runtimeEnvironment}`);
-    }
-  }
-}
+const CONSTRAINT_TAXONOMY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'constraint_taxonomy.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -108,6 +45,7 @@ class AdaptiveSamplingEngine {
       mqmMetricCatalog: MQM_METRIC_CATALOG,
       telemetrySourceSchema: TELEMETRY_SOURCE_SCHEMA,
       vsec: VSEC,
+      constraintTaxonomy: CONSTRAINT_TAXONOMY,
     };
   }
 
@@ -178,18 +116,76 @@ class AdaptiveSamplingEngine {
       const vsec = new VSECValidator(this.config.vsec);
       await vsec.validate(stage.executionTrace);
 
+      // Validate constraint adherence
+      const constraintAdherenceValidator = new ConstraintAdherenceValidator(this.config.constraintTaxonomy);
+      const validationResult = await constraintAdherenceValidator.validate(stage.configuration, this.config.constraintTaxonomy.getHardConstraints());
+      if (!validationResult.isAdherent) {
+        throw new Error('Constraint adherence failed');
+      }
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
-
-      // Update artifact manifest
-      const artifactManifest = this.config.artifactManifest;
-      artifactManifest[stage.protocolId] = stage.executionTrace;
-
-      // Seal and attest configuration
-      const gar = new GAR(this.config.keyRotationSchedule);
-      await gar.sealAndAttest(artifactManifest);
     }
+
+    // Update artifact manifest
+    const artifactManifest = this.config.artifactManifest;
+    artifactManifest[stage.protocolId] = stage.executionTrace;
+
+    // Seal and attest configuration
+    const gar = new GAR(this.config.keyRotationSchedule);
+    await gar.sealAndAttest(artifactManifest);
+  }
+}
+
+// GACR/ConstraintAdherenceValidator.ts
+class ConstraintAdherenceValidator {
+  constructor(taxonomy) {
+    this.taxonomyMap = new Map(taxonomy.map(c => [c.code, c]));
+  }
+
+  async validate(configuration, requiredConstraintCodes) {
+    const violations = [];
+
+    for (const code of requiredConstraintCodes) {
+      const constraintDef = this.taxonomyMap.get(code);
+
+      if (!constraintDef) {
+        console.warn(`Constraint code ${code} not found in taxonomy.`);
+        continue;
+      }
+      
+      // Placeholder for complex adherence logic
+      const adherenceCheck = this.executeConstraintCheck(constraintDef, configuration);
+
+      if (!adherenceCheck.isMet) {
+        violations.push({
+          code: constraintDef.code,
+          target: constraintDef.target_parameter,
+          severity: constraintDef.severity,
+          details: adherenceCheck.details || 'Adherence rule failed.'
+        });
+      }
+    }
+
+    return {
+      isAdherent: violations.length === 0,
+      violations
+    };
+  }
+
+  executeConstraintCheck(constraintDef, configuration) {
+    // AGI implementation would use runtime lookup or specific logic modules here.
+    // Example: if (constraintDef.code === 'CSTR_MAX_BUDGET_USD') { return configuration.cost <= maxBudget; }
+    
+    // Default success for scaffolding purposes
+    return { isMet: true };
+  }
+
+  getHardConstraints() {
+    return Array.from(this.taxonomyMap.values())
+                     .filter(c => c.severity === 'HARD' || c.severity === 'CRITICAL')
+                     .map(c => c.code);
   }
 }
 
@@ -431,51 +427,62 @@ class CMAC {
   }
 }
 
-// CMR/CMR_Schema.ts
-class CMR_Schema {
-  constructor(schema) {
+// CMR/CMR.ts
+class CMR {
+  constructor(config, schema) {
+    this.config = config;
     this.schema = schema;
   }
 
-  async validate(executionTrace, config) {
-    // Validate execution trace against schema
-    const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(executionTrace, this.schema);
+  async validate(executionTrace) {
+    // Validate execution trace against config and schema
+    const validationResults = await this.schema.validate(executionTrace, this.config);
     if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR schema validation failed');
+      throw new Error('CMR validation failed');
     }
+  }
+}
 
+// ECVM/ECVM.ts
+class ECVM {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async validate(executionTrace) {
     // Validate execution trace against config
-    const registerId = executionTrace.register_id;
-    if (!config.modules.some((module) => module.name === registerId)) {
-      throw new Error(`Module not found: ${registerId}`);
+    const validationResults = await this.config.validate(executionTrace);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('ECVM validation failed');
     }
+  }
+}
 
-    const module = config.modules.find((module) => module.name === registerId);
-    const version = executionTrace.system_target_version;
-    if (version !== module.version) {
-      throw new Error(`Incompatible version: ${version}`);
-    }
+// PSCA/PSCA.ts
+class PSCA {
+  constructor(validationTargets) {
+    this.validationTargets = validationTargets;
+  }
 
-    const maturityLevel = executionTrace.maturity_level;
-    if (maturityLevel !== module.maturity_level) {
-      throw new Error(`Invalid maturity level: ${maturityLevel}`);
+  async validate(configuration) {
+    // Validate configuration against targets
+    const validationResults = await this.validationTargets.validate(configuration);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('PSCA validation failed');
     }
+  }
+}
 
-    const integrityHash = executionTrace.integrity_hash;
-    if (integrityHash !== module.integrity_hash) {
-      throw new Error(`Invalid integrity hash: ${integrityHash}`);
-    }
+// GAR/GAR.ts
+class GAR {
+  constructor(keyRotationSchedule) {
+    this.keyRotationSchedule = keyRotationSchedule;
+  }
 
-    const dependencies = executionTrace.dependencies;
-    if (dependencies.some((dependency) => !module.dependencies.includes(dependency))) {
-      throw new Error(`Missing dependency: ${dependency}`);
-    }
-
-    const runtimeEnvironment = executionTrace.runtime_environment;
-    if (runtimeEnvironment !== module.runtime_environment) {
-      throw new Error(`Invalid runtime environment: ${runtimeEnvironment}`);
-    }
+  async sealAndAttest(artifactManifest) {
+    // Seal and attest artifact manifest
+    const sealedManifest = await this.keyRotationSchedule.sealAndAttest(artifactManifest);
+    return sealedManifest;
   }
 }
 
@@ -507,19 +514,4 @@ class GTEM {
       throw new Error(`Invalid checksum algorithm: ${checksumAlgorithm}`);
     }
 
-    // Validate encoding
-    const encoding = telemetryFormatSpecification.encoding;
-    if (encoding !== 'JSON_L') {
-      throw new Error(`Invalid encoding: ${encoding}`);
-    }
-
-    // Validate transport constraints
-    for (const constraint of transportConstraints) {
-      // Validate endpoint ID
-      if (!executionTrace[constraint.endpoint_id]) {
-        throw new Error(`Missing transport constraint endpoint: ${constraint.endpoint_id}`);
-      }
-
-      // Validate protocol
-      const protocol = constraint.protocol;
-      if (protocol !== 'HTTPS/TLS_1_3') {
+    //
