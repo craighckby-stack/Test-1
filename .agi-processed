@@ -184,3 +184,4 @@ components/cth/svu_interface.h
 components/governance/giram_v97_1.md
 components/governance/ibcm_s01.md
 components/governance/schemarepositoryservice_srs_v1_0.md
+components/protocol/gaxschemadefinition.py
