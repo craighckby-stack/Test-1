@@ -107,3 +107,4 @@ config/caim_error_codes.json
 config/chr_source_manifest.json
 config/cmac_compliance_spec.json
 config/cmanifest.schema.json
+config/codes/c-01_correction_codes.json
