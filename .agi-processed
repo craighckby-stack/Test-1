@@ -88,3 +88,4 @@ config/acvd_policy_schema.json
 config/acvd_remediation_map.json
 config/acvm.json
 config/acvm_core_constraints.json
+config/aeti_trigger_manifest.yaml
