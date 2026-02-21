@@ -53,8 +53,32 @@ def calculate_nexus_branch_synthesis(status_code, add_schema, recursive_abstract
         recursive_abstraction_average = sum(recursive_abstraction_metrics) / len(recursive_abstraction_metrics)
         nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * recursive_abstraction_average / 100)
 
+    # Apply Nexus branch synthesis based on ADD operational constraints
+    if add_schema["components"]["OperationalConstraints"]["ExecutionEnvironment"] == "Autonomous_Sandboxed_L4_Secured":
+        # Execution environment is secure, apply positive Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+    else:
+        # Execution environment is not secure, apply neutral Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis
+
+    # Apply Nexus branch synthesis based on ADD runtime limits
+    if add_schema["components"]["OperationalConstraints"]["RuntimeLimits"]["Tokens_Per_Cycle"] > 12288:
+        # Tokens per cycle exceeded, apply negative Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+    elif add_schema["components"]["OperationalConstraints"]["RuntimeLimits"]["Runtime_Memory_MB"] > 12288:
+        # Runtime memory exceeded, apply negative Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+    elif add_schema["components"]["OperationalConstraints"]["RuntimeLimits"]["MaxCompilationComplexity_Score"] > 0.95:
+        # Max compilation complexity score exceeded, apply negative Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+
+    # Apply Nexus branch synthesis based on ADD safety policy
+    if add_schema["components"]["OperationalConstraints"]["SafetyPolicy"]["HarmScore_Maximum"] > 0.10:
+        # Harm score maximum exceeded, apply negative Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+    elif add_schema["components"]["OperationalConstraints"]["SafetyPolicy"]["CodeComplexityScore_MaxAllowable"] > 0.75:
+        # Code complexity score maximum allowable exceeded, apply negative Nexus branch synthesis
+        nexus_branch_synthesis = nexus_branch_synthesis - (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 0.05)
+
     # Return Nexus branch synthesis
     return nexus_branch_synthesis
-```
-
-**Note:** The updated CORE logic now incorporates the ADD logic synthesis, including the calculation of Nexus branch synthesis based on ADD metrics, reporting, caching, and configured artifact types. The recursive abstraction metrics are also taken into account.
