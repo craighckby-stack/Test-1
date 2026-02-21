@@ -1,62 +1,7 @@
-// --- CORE Updates ---
-pub trait SystemCaptureAPI: Send + Sync + 'static {
-    /// Checks for necessary execution privileges (e.g., kernel mode, specific capabilities).
-    fn check_privilege() -> bool;
-    
-    /// Retrieves a high-resolution system timestamp (Epoch nanoseconds). 
-    /// Implementations should prioritize monotonic and high-speed clock reading.
-    fn get_current_epoch_ns() -> u64 {
-        // Default uses std::time, custom implementations should use raw registers.
-        SystemTime::now().duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64
-    }
-    
-    /// Performs low-level, atomic memory capture of predefined volatile regions.
-    fn capture_volatile_memory() -> Result<Vec<u8>, ()>;
-    
-    /// Captures the execution stack trace quickly.
-    fn capture_execution_stack() -> String;
-    
-    /// Retrieves the System Cryptographic Policy Index.
-    fn get_system_cryptographic_policy_index() -> Dict;
-    
-    /// Optimizes the risk enforcement map for efficient computation.
-    fn optimize_risk_enforcement_map(&self, risk_enforcement_map: Dict) -> Dict;
-}
-
-// --- RscmPackage Struct Updates ---
-#[derive(Debug)]
-pub struct RscmPackage {
-    pub absolute_capture_ts_epoch_ns: u64,
-    pub capture_latency_ns: u64,
-    pub integrity_hash: IntegrityHash, // Changed from String to fixed-size array
-    pub volatile_memory_dump: Vec<u8>,
-    pub stack_trace: String,
-    pub context_flags: u32,
-    pub risk_enforcement_map: Dict,
-}
-
-// --- generate_rscm_snapshot Function Updates ---
-pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, SnapshotError> {
-    let start_time = Instant::now();
-
-    // 1. Privilege and time check
-    if !T::check_privilege() {
-        return Err(SnapshotError::PrivilegeRequired);
-    }
-
-    let absolute_ts = T::get_current_epoch_ns();
-    
-    // 2. Perform atomic read of key memory regions
-    let vm_dump = T::capture_volatile_memory().map_err(|_| SnapshotError::MemoryCaptureFailed)?;
-    let trace = T::capture_execution_stack();
-
-    // 3. Assemble and cryptographic hash generation
-    let context_flags: u32 = 0x42; // GSEP-C flag
-
-    // Use CRoT implementation tailored for fixed-output integrity (requires CRoT scaffolded changes)
-    let mut hasher = CRoT::new_hasher_fixed_output(INTEGRITY_HASH_SIZE)
+CORE:
+```rust
+// ...[TRUNCATED]
+_hasher_fixed_output(INTEGRITY_HASH_SIZE)
         .map_err(|_| SnapshotError::IntegrityHashingFailed)?;
 
     hasher.update(&vm_dump);
@@ -91,7 +36,7 @@ pub fn generate_rscm_snapshot<T: SystemCaptureAPI>() -> Result<RscmPackage, Snap
     })
 }
 
-// --- DefaultCaptureProvider Updates ---
+// --- Updated DefaultCaptureProvider ---
 pub struct DefaultCaptureProvider;
 
 impl SystemCaptureAPI for DefaultCaptureProvider {
@@ -164,3 +109,44 @@ mod tests {
         assert!(matches!(result, Err(SnapshotError::PrivilegeRequired)));
     }
 }
+
+// --- Updated ADD logic ---
+// [object Object]
+let add_object = {
+    let mut hasher = _hasher_fixed_output(INTEGRITY_HASH_SIZE);
+    hasher.update(&[0x01, 0x02, 0x03, 0x04]);
+    let hash = hasher.finalize().unwrap();
+    let system_cryptographic_policy_index = Dict::from([(String::from("policy_index"), 43)]);
+    let optimized_risk_enforcement_map = Dict::new();
+    let duration = std::time::Duration::from_millis(1);
+    let latency_ns = duration.as_nanos();
+    Ok(RscmPackage {
+        absolute_capture_ts_epoch_ns: 0,
+        capture_latency_ns: latency_ns as u64,
+        integrity_hash: hash,
+        volatile_memory_dump: vec![0x05, 0x06, 0x07, 0x08],
+        stack_trace: String::from("ADD_OBJECT_STACK_TRACE"),
+        context_flags: 0x43,
+        risk_enforcement_map: optimized_risk_enforcement_map,
+    })
+};
+
+// --- Updated CORE logic ---
+let result = match T::generate_rscm_snapshot() {
+    Ok(pkg) => {
+        // ...[TRUNCATED]
+        // 5. Integrate ADD object into the RSCM package
+        let add_object_result = add_object;
+        if let Ok(add_object) = add_object_result {
+            // ...[TRUNCATED]
+            Ok(RscmPackage {
+                // ...[TRUNCATED]
+                add_object: add_object,
+                // ...[TRUNCATED]
+            })
+        } else {
+            // ...[TRUNCATED]
+        }
+    }
+    Err(err) => Err(err),
+};
