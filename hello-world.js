@@ -1,24 +1,6 @@
-// --- Updated CORE logic ---
-struct ADDObject {
-    // ...[TRUNCATED]
-    integrity_hash: String,
-    // ...[TRUNCATED]
-}
-
-// --- Updated CORE logic ---
-impl ADDObject {
-    fn new(
-        integrity_hash: String,
-        // ...[TRUNCATED]
-    ) -> Self {
-        Self {
-            integrity_hash,
-            // ...[TRUNCATED]
-        }
-    }
-}
-
-// --- Updated CORE logic ---
+CORE:
+// ...[TRUNCATED]
+CORE logic ---
 struct ComplianceReport {
     // ...[TRUNCATED]
     is_compliant: bool,
@@ -133,6 +115,43 @@ impl ConstraintComplianceValidator {
         self._validate_required_p_sets(&mut report);
         self._validate_severity_thresholds(&mut report);
         self._validate_orchestrator_limits(&mut report);
+
+        report
+    }
+}
+
+// --- Updated CORE logic ---
+fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = Dict::new();
+    let add_config_value = add_config.get("add_config");
+
+    if let Some(add_config_value) = add_config_value {
+        if add_config_value.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config_value = add_config_value.unwrap();
+            if add_config_value.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
 
         report
     }
