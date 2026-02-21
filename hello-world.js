@@ -1,11 +1,11 @@
 /**
- * AGI Core: Project "Hello World" - Evolved to v0.1.2-alpha
+ * AGI Core: Project "Hello World" - Evolved to v0.2.0-alpha
  *
- * This version integrates the Agent Integrity Monitoring (AIM) manifest,
- * introducing robust self-governance and operational constraint enforcement.
- * The AGI Core now understands its operational boundaries, resource limitations,
- * and security policies, ensuring stable and compliant execution within its
- * designated integrity profile.
+ * This version integrates the Agent Integrity Monitoring (AIM) manifest
+ * and introduces an Adaptive Sampling Engine for telemetry data.
+ * The AGI Core now dynamically adjusts its data processing load based on
+ * real-time resource utilization and defined operational constraints,
+ * ensuring stable execution and resource efficiency even under pressure.
  *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
@@ -13,13 +13,17 @@
  *   - Integrity Profile Management
  *   - Runtime Constraint Simulation & Reporting
  *   - Security Policy Enforcement Simulation
+ * - Adaptive Sampling Engine (ASE)
+ *   - Resource Utilization Monitoring (Simulated)
+ *   - Dynamic Sampling Rate Calculation
+ *   - Telemetry Load Management (Simulated)
  */
 
 // --- Global Configuration and Manifest Data ---
 const AGI_CORE_CONFIG = {
     AGENT_ID: "SGS_AGENT", // This AGI instance identifies as an 'SGS_AGENT'
     INTEGRITY_CHECK_INTERVAL_MS: 5000, // Perform integrity checks every 5 seconds
-    SIMULATED_CPU_LOAD_RANGE: [10, 80], // Min/Max simulated CPU usage percentage
+    SIMULATED_CPU_LOAD_RANGE: [10, 80], // Min/Max simulated CPU usage percentage (0-100)
     SIMULATED_MEMORY_LOAD_RANGE_MB: [500, 3500], // Min/Max simulated memory usage in MB
     MANDATED_CONFIG_HASH: "SHA256:d5f2a1b9e0c4_AGI_CORE_INIT_HASH", // Simulated initial config hash
 };
@@ -89,6 +93,18 @@ const AIM_MANIFEST = {
     }
 };
 
+const TELEMETRY_AGGREGATION_CONFIG = {
+    "Processing": {
+        "AdaptiveSampling": {
+            "Enabled": true,
+            "TargetCPUUtilization": 0.70, // Target CPU usage as a float (0.0 - 1.0)
+            "MaxSamplingRate": 1.0, // Don't sample more than 100% of data
+            "MinSamplingRate": 0.1, // Always sample at least 10% of data
+            "SamplingRateAdjustmentFactor": 0.05 // How aggressively to adjust the rate
+        }
+    }
+};
+
 // --- Utility Functions ---
 
 /**
@@ -103,12 +119,14 @@ function generateSHA256Hash(data) {
 }
 
 /**
- * Simulates current CPU usage percentage.
- * @returns {number} - A random number representing CPU usage.
+ * Simulates current CPU usage percentage (0-100).
+ * @returns {number} - A random number representing CPU usage (0-100).
  */
 function getCurrentCpuUsagePercentage() {
     const [min, max] = AGI_CORE_CONFIG.SIMULATED_CPU_LOAD_RANGE;
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+    // Introduce occasional spikes for more dynamic sampling behavior
+    const spike = Math.random() < 0.1 ? Math.floor(Math.random() * 30) : 0; // 10% chance of a spike up to 30%
+    return Math.min(100, Math.floor(Math.random() * (max - min + 1)) + min + spike);
 }
 
 /**
@@ -124,14 +142,15 @@ function getMemoryUsageBytes() {
 
 /**
  * A simple logger for AGI events.
- * @param {string} level - Log level (e.g., 'INFO', 'WARN', 'ERROR').
+ * @param {string} level - Log level (e.g., 'INFO', 'WARN', 'ERROR', 'DEBUG').
  * @param {string} component - The component emitting the log.
  * @param {string} message - The log message.
  * @param {object} [details] - Optional additional details.
  */
 function agiLogger(level, component, message, details = {}) {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [${level}] [${component}] ${message}`, details);
+    // Only log DEBUG if a debug flag were set in a real system. For now, log all.
+    console.log(`[${timestamp}] [${level}] [${component}] ${message}`, Object.keys(details).length > 0 ? details : '');
 }
 
 // --- Agent Integrity Monitoring (AIM) System ---
@@ -419,16 +438,110 @@ class AgentIntegrityMonitor {
     }
 }
 
+// --- Adaptive Sampling Engine (ASE) System ---
+
+/**
+ * Simulates a resource monitor providing CPU utilization data.
+ * This wraps existing global utility functions.
+ */
+class ResourceMonitor {
+    constructor() {
+        agiLogger('INFO', 'ResourceMonitor', 'ResourceMonitor initialized.');
+    }
+
+    /**
+     * Retrieves current CPU utilization as a float between 0.0 and 1.0.
+     * @returns {number} Current CPU utilization (e.g., 0.75 for 75%).
+     */
+    getCpuUtilization() {
+        return getCurrentCpuUsagePercentage() / 100.0;
+    }
+
+    /**
+     * Retrieves current memory utilization in bytes.
+     * @returns {number} Current memory usage in bytes.
+     */
+    getMemoryUtilizationBytes() {
+        return getMemoryUsageBytes();
+    }
+}
+
+/**
+ * AdaptiveSamplingEngine.ts
+ *
+ * Utility component required to implement the 'ResourceUtilization' AdaptiveSampling Policy
+ * defined in TelemetryAggregatorConfig. It dynamically calculates the necessary
+ * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth).
+ */
+class AdaptiveSamplingEngine {
+    private config; // type: TelemetryAggregatorConfig['Processing']['AdaptiveSampling'];
+    private monitor: ResourceMonitor;
+    private currentSamplingRate: number; // Keep track of the current rate for smooth adjustments
+
+    constructor(config) { // type: TelemetryAggregatorConfig['Processing']['AdaptiveSampling']
+        this.config = config;
+        this.monitor = new ResourceMonitor();
+        this.currentSamplingRate = config.MaxSamplingRate; // Start at max sampling
+        agiLogger('INFO', 'AdaptiveSamplingEngine', `Initialized with target CPU: ${config.TargetCPUUtilization * 100}%`);
+    }
+
+    /**
+     * Calculates and adjusts the current required sampling rate (0.0 to 1.0) based on CPU utilization.
+     * Uses a proportional adjustment to prevent erratic changes.
+     */
+    public getSamplingRate(): number {
+        if (!this.config.Enabled) {
+            return 1.0;
+        }
+
+        const currentCpu = this.monitor.getCpuUtilization(); // e.g., 0.95
+        const targetCpu = this.config.TargetCPUUtilization;
+        const adjustmentFactor = this.config.SamplingRateAdjustmentFactor || 0.05;
+
+        let desiredRate = this.currentSamplingRate;
+
+        if (currentCpu > targetCpu) {
+            // CPU is too high, reduce sampling rate
+            // Calculate a raw rate needed to bring CPU down, then adjust towards it
+            const rawReductionFactor = targetCpu / currentCpu; // e.g., 0.7 / 0.9 = 0.77
+            desiredRate = this.currentSamplingRate * rawReductionFactor;
+            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) > Target (${(targetCpu*100).toFixed(1)}%). Reducing sampling. Raw reduction factor: ${rawReductionFactor.toFixed(2)}`);
+        } else if (currentCpu < targetCpu * 0.9) { // A bit of a buffer before increasing
+            // CPU is low, increase sampling rate
+            const rawIncreaseFactor = targetCpu / currentCpu; // e.g., 0.7 / 0.5 = 1.4
+            desiredRate = this.currentSamplingRate * Math.min(rawIncreaseFactor, 1.0 + adjustmentFactor * 2); // Cap increase
+            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) < Target (${(targetCpu*100).toFixed(1)}%). Increasing sampling. Raw increase factor: ${rawIncreaseFactor.toFixed(2)}`);
+        }
+        // If CPU is close to target (target * 0.9 to target), maintain current rate.
+
+        // Smooth the adjustment: move currentSamplingRate gradually towards desiredRate
+        if (desiredRate > this.currentSamplingRate) {
+            this.currentSamplingRate = Math.min(desiredRate, this.currentSamplingRate + adjustmentFactor);
+        } else if (desiredRate < this.currentSamplingRate) {
+            this.currentSamplingRate = Math.max(desiredRate, this.currentSamplingRate - adjustmentFactor);
+        }
+
+
+        // Ensure the rate stays within defined boundaries
+        this.currentSamplingRate = Math.min(this.currentSamplingRate, this.config.MaxSamplingRate);
+        this.currentSamplingRate = Math.max(this.currentSamplingRate, this.config.MinSamplingRate);
+
+        return parseFloat(this.currentSamplingRate.toFixed(4));
+    }
+}
+
 // --- AGI Core System ---
 
 class AGICore {
-    constructor(agentId, aimManifest) {
+    constructor(agentId, aimManifest, telemetryConfig) {
         this.agentId = agentId;
         this.integrityProfileManager = new IntegrityProfileManager(aimManifest);
         this.integrityMonitor = null;
+        this.adaptiveSamplingEngine = new AdaptiveSamplingEngine(telemetryConfig.Processing.AdaptiveSampling);
         this.operationalLoopInterval = null;
         this.isOperational = false;
-        agiLogger('INFO', 'AGICore', `AGI Core v0.1.2-alpha initializing for agent: ${this.agentId}`);
+        this.currentSamplingRate = 1.0; // Initial sampling rate
+        agiLogger('INFO', 'AGICore', `AGI Core v0.2.0-alpha initializing for agent: ${this.agentId}`);
     }
 
     /**
@@ -446,17 +559,22 @@ class AGICore {
 
     /**
      * Simulates a core AGI operation or task.
+     * This operation is subject to adaptive sampling.
      * @param {string} task - Description of the simulated task.
      */
-    _simulateAGIOperation(task) {
-        agiLogger('INFO', 'AGICore:Operation', `Performing AGI task: "${task}"...`);
-        // In a real AGI, this would be complex decision-making, data processing, etc.
-        // For demonstration, we'll just log.
+    _simulateSampledAGIOperation(task) {
+        if (Math.random() < this.currentSamplingRate) {
+            agiLogger('INFO', 'AGICore:Operation', `Performing AGI task: "${task}" (Sampled: YES)`);
+            // In a real AGI, this would be complex decision-making, data processing, etc.
+        } else {
+            agiLogger('DEBUG', 'AGICore:Operation', `Skipped AGI task: "${task}" (Sampled: NO)`);
+        }
     }
 
     /**
      * The main operational loop of the AGI Core.
-     * Periodically performs integrity checks and simulates AGI operations.
+     * Periodically performs integrity checks and simulates AGI operations,
+     * adjusting operation frequency based on adaptive sampling.
      */
     _startOperationalLoop() {
         if (this.isOperational) {
@@ -483,10 +601,16 @@ class AGICore {
                 // - If critical, trigger self-shutdown or failover.
             }
 
-            // 2. Simulate AGI Operations (only if broadly compliant)
-            if (compliant || this.integrityMonitor.getViolations().length === 0) { // Still operate if no critical violations
-                 this._simulateAGIOperation("Analyzing input streams for anomalies.");
-                 this._simulateAGIOperation("Optimizing internal resource allocation.");
+            // 2. Determine Adaptive Sampling Rate
+            this.currentSamplingRate = this.adaptiveSamplingEngine.getSamplingRate();
+            agiLogger('INFO', 'AGICore:AdaptiveSampling', `Current Sampling Rate: ${this.currentSamplingRate.toFixed(4)}`);
+
+
+            // 3. Simulate AGI Operations (only if broadly compliant or minor violations)
+            if (compliant || this.integrityMonitor.getViolations().length === 0) {
+                 this._simulateSampledAGIOperation("Analyzing input streams for anomalies.");
+                 this._simulateSampledAGIOperation("Optimizing internal resource allocation.");
+                 this._simulateSampledAGIOperation("Generating predictive model updates.");
             } else {
                  agiLogger('WARN', 'AGICore:Operation', 'Operations paused or limited due to integrity violations.');
             }
@@ -532,7 +656,7 @@ class AGICore {
 async function main() {
     agiLogger('INFO', 'Main', 'Initializing AGI Core...');
 
-    const agiCore = new AGICore(AGI_CORE_CONFIG.AGENT_ID, AIM_MANIFEST);
+    const agiCore = new AGICore(AGI_CORE_CONFIG.AGENT_ID, AIM_MANIFEST, TELEMETRY_AGGREGATION_CONFIG);
     agiCore.start();
 
     // In a real application, you might have signal handlers for graceful shutdown.
