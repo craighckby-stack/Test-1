@@ -1378,3 +1378,101 @@ class IntegrityCorrelatorModule {
 }
 
 module.exports = IntegrityCorrelatorModule;
+
+/**
+ * ARBITER: AIA Query Engine (AQE)
+ * G-LEX Register Update: AQE is formally registered as a Level 5 Forensic Utility.
+ * Acronym: AQE
+ * Functional Definition: AIA Query Engine
+ * Role Context: Provides read-only, high-speed forensic access to the AIA ledger for real-time audit correlation and VSR during Stage 6 Verification.
+ *
+ * Mission & Context:
+ * The AIA Query Engine (AQE) is the dedicated, non-mutating forensic interface responsible for verifying operational integrity against the Atomic Immutable Architecture (AIA) ledger.
+ * Its primary mission is to correlate real-time operational telemetry (D-02 data) provided by the PDFS against committed, cryptographically secured state artifacts (D-01 data).
+ * AQE operates exclusively in a read-only capacity, ensuring no transaction modification is possible.
+ */
+class AIAQueryEngine {
+    /**
+     * @param {Object} aiaLedger - The AIA Ledger, source of D-01 committed state artifacts. (Read-Only)
+     * @param {Object} pdfs - The PDFS (PDS Filter System), source of real-time D-02 operational telemetry. (Read/Ingress)
+     * @param {Object} dcm - The DCM (Delta Computation Module), calculates metric variance and generates formal Discrepancy Reports. (Execute)
+     */
+    constructor(aiaLedger, pdfs, dcm) {
+        if (!aiaLedger || !pdfs || !dcm) {
+            throw new Error("[AQE Init] Missing essential dependencies: aiaLedger, pdfs, or dcm.");
+        }
+        this.aiaLedger = aiaLedger;
+        this.pdfs = pdfs;
+        this.dcm = dcm;
+        console.log("AQE: Initialized with read-only access to AIA Ledger and PDFS, and DCM for delta computation.");
+    }
+
+    /**
+     * Verifiable State Retrieval (VSR)
+     * Retrieves the fully committed D-01 state artifact (ledger entry), signed and hashed by the GCO.
+     * @param {string} vHash - Target AIA Version Hash.
+     * @param {Object} [tRange=null] - Optional timestamp range { start: Date, end: Date }.
+     * @returns {Promise<Object>} The committed D-01 state artifact.
+     * @throws {Error} If the state artifact cannot be retrieved or is invalid.
+     */
+    async verifiableStateRetrieval(vHash, tRange = null) {
+        console.log(`AQE: Performing VSR for V_HASH: ${vHash}, T_RANGE: ${JSON.stringify(tRange)}`);
+        // Simulate retrieval from aiaLedger
+        const stateArtifact = await this.aiaLedger.retrieveState(vHash, tRange);
+        if (!stateArtifact) {
+            throw new Error(`[AQE VSR] Failed to retrieve state artifact for hash: ${vHash}`);
+        }
+        // Assume stateArtifact includes GCO signature and hash for integrity
+        console.log(`AQE: VSR successful for ${vHash}. Artifact size: ${JSON.stringify(stateArtifact).length} bytes.`);
+        return stateArtifact;
+    }
+
+    /**
+     * Delta Reporting Interface (DRI)
+     * Orchestrates the comparison between received D-02 metrics and the retrieved VSR state.
+     * Calls the Delta Computation Module (DCM) to execute high-fidelity variance calculation,
+     * identifying discrepancies (state drift, unauthorized metric deviation).
+     * @param {string} vHash - The V_HASH of the baseline D-01 state.
+     * @param {Object} d02Metrics - Real-time D-02 operational telemetry from PDFS.
+     * @returns {Promise<Object>} Discrepancy Report from DCM.
+     */
+    async deltaReportingInterface(vHash, d02Metrics) {
+        console.log(`AQE: Initiating DRI for V_HASH: ${vHash} with D-02 metrics.`);
+        const d01State = await this.verifiableStateRetrieval(vHash);
+        
+        // Call DCM to calculate variance
+        const discrepancyReport = await this.dcm.calculateVariance(d01State, d02Metrics);
+        
+        if (discrepancyReport && discrepancyReport.hasDiscrepancies) {
+            console.warn(`AQE: DRI detected discrepancies for ${vHash}.`);
+        } else {
+            console.log(`AQE: DRI completed. No significant discrepancies found for ${vHash}.`);
+        }
+        return discrepancyReport;
+    }
+
+    /**
+     * Audit Utility for GCO
+     * Serves as the mandated inspection conduit for the Governance Core Observer (GCO) and internal auditors.
+     * Confirms AIA integrity, validating the cryptographic chains of MCR transactions and overall state evolution.
+     * @param {Object} auditParameters - Parameters for the audit, e.g., scope, timeframes.
+     * @returns {Promise<Object>} Audit results including integrity validation status.
+     */
+    async auditUtilityForGCO(auditParameters) {
+        console.log(`AQE: Executing GCO Audit with parameters: ${JSON.stringify(auditParameters)}`);
+        // This method would interact with the AIA Ledger to trace cryptographic chains and validate state evolution.
+        // For a stub, we'll simulate a successful audit.
+        
+        const integrityStatus = await this.aiaLedger.validateIntegrityChain(auditParameters);
+        
+        const auditResult = {
+            timestamp: new Date().toISOString(),
+            auditor: "GCO/Internal_Auditor",
+            integrityConfirmed: integrityStatus,
+            details: integrityStatus ? "AIA cryptographic chain and state evolution confirmed." : "AIA integrity validation issues detected.",
+            // In a real scenario, this would include detailed logs, hashes, and validation reports.
+        };
+        console.log(`AQE: GCO Audit completed. Integrity Confirmed: ${integrityStatus}.`);
+        return auditResult;
+    }
+}
