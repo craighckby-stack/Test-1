@@ -38,3 +38,4 @@ GACR/verification/HETM_Verifier.py
 Hello-world.js
 agent_specifications/FIA.md
 agents/TraceAnalysisEngine.js
+analysis/IntegrityCorrelatorModule.js
