@@ -1,62 +1,5 @@
 CORE:
-{
-  "asset_id": "VRRM-V3.0",
-  "asset_type": "VRRM_CONFIGURATION",
-  "schema_version": "3.0",
-  "status": "AWAITING_REVIEW",
-  "veto_policies": [
-    {
-      "policy_id": "GCP_101",
-      "policy_name": "Axiomatic Safety Veto",
-      "policy_target_asset": "PVLM",
-      "constraints": [
-        {
-          "constraint_id": "GCM_2_1",
-          "priority": {
-            "risk_level": "CRITICAL",
-            "severity_score": 100
-          },
-          "trigger_condition": {
-            "asset_id": "PVLM",
-            "violation_vector": "NEG_V_POLICY"
-          },
-          "remediation_plan_ref": "VRRP-2A"
-        }
-      ]
-    },
-    {
-      "policy_id": "GCP_102",
-      "policy_name": "Stability Degradation Veto",
-      "policy_target_asset": "MPAM",
-      "constraints": [
-        {
-          "constraint_id": "GCM_2_2",
-          "priority": {
-            "risk_level": "HIGH",
-            "severity_score": 90
-          },
-          "trigger_condition": {
-            "asset_id": "MPAM",
-            "violation_vector": "NEG_V_STABILITY"
-          },
-          "remediation_plan_ref": "VRRP-2B"
-        }
-      ]
-    },
-    {
-      "policy_id": "GCP_103",
-      "policy_name": "Adaptive Behavior Monitoring",
-      "policy_target_asset": "ADTM",
-      "constraints": [
-        {
-          "constraint_id": "GCM_2_3",
-          "priority": {
-            "risk_level": "MODERATE",
-            "severity_score": 80
-          },
-          "trigger_condition": {
-            "asset_id": "ADTM",
-            "violation_vector": "NEG_V_BEHAVIOR"
+// ...[TRUNCATED]
           },
           "remediation_plan_ref": "VRRP-2C"
         }
@@ -174,5 +117,21 @@ CORE:
     "allowed_hac_identities": [
       {"identity": "HIL_OVR-A01", "cryptographic_root_hash": "sha256:...", "required_factors": ["MF1_HardwareToken", "MF2_GeoFenced" ]}
     ]
+  },
+  "add_specification": {
+    "spec_id": "CALS_INDEX_V1.0",
+    "log_specification_reference": "CALS_V1.0",
+    "schema_definition_and_indexing": {
+      "transaction_hash": {"type": "SHA256", "required": true, "indexing_priority": "PrimaryPartitionKey"},
+      "timestamp_utc": {"type": "ISO8601", "required": true, "indexing_priority": "CompositeSortKey"},
+      "sgs_pipeline_stage_id": {"type": "STRING", "required": true, "indexing_priority": "SecondaryIndex"},
+      "triggering_input_digest": {"type": "SHA256", "required": true, "indexing_priority": "SecondaryIndex"},
+      "ga_x_finality_result": {"type": "BOOLEAN_ENUM", "required": true, "indexing_priority": "TernaryIndex"}
+    },
+    "query_optimization_targets": [
+      {"target_use_case": "Chronological_Replay", "fields": ["sgs_pipeline_stage_id", "timestamp_utc"]},
+      {"target_use_case": "Tamper_Check_High_Velocity", "fields": ["transaction_hash", "gac_manifest_hash_at_time"]}
+    ],
+    "indexing_engine_id": "VectorDB/Quantum_Index_Engine_V5"
   }
 }
