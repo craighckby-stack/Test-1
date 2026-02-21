@@ -173,3 +173,4 @@ component/gax/pcld_compilervalidator_spec.md
 component/governance/adep_exceptions.py
 component/governance/dse_databridge_handler.py
 components/kms_policy_engine.ts
+components/l3/executionruntimevalidator.js
