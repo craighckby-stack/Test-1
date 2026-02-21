@@ -1,3 +1,4 @@
+CORE:
 // ...[TRUNCATED]
 
   // ARBITER: SAL Protocol V2.0 Integration
@@ -141,6 +142,73 @@ getConfig() {
 
   // ARBITER: SAL Protocol V2.0 Integration
   return 2.0;
+}
+
+// ...[TRUNCATED]
+
+// ARBITER: ADD Integration
+this.#addHESECALProtocolConfig();
+
+/**
+ * Get the HESE Calibration Telemetry Contract (TCF/RCF) protocol configuration.
+ * @returns {Object} The HESE Calibration Telemetry Contract (TCF/RCF) protocol configuration.
+ */
+#addHESECALProtocolConfig() {
+  return {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://agiverse.ai/schemas/HESE_CalibrationFactor/v1.0.0",
+    "title": "HESE Calibration Telemetry Contract (TCF/RCF)",
+    "description": "Defines the required payload structure for Trust (TCF) and Risk (RCF) Calibration Factors broadcast by the High-Efficacy Stability Engine (HESE) to upstream arbiters.",
+    "type": "object",
+    "properties": {
+      "evolution_id": {
+        "type": "string",
+        "pattern": "^EVO-[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$",
+        "description": "UUID identifier for the autonomous code evolution batch contributing to the factor calculation."
+      },
+      "origin_system_id": {
+        "type": "string",
+        "description": "Identifier of the HESE instance generating this factor.",
+        "readOnly": true
+      },
+      "epoch_timestamp_ms": {
+        "type": "integer",
+        "minimum": 1000000000000,
+        "description": "High-precision UTC timestamp (milliseconds since epoch) of factor generation."
+      },
+      "TCF": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "exclusiveMaximum": true,
+        "description": "Trust Calibration Factor (0.0=Low Trust, approaching 1.0=Perfect Alignment)."
+      },
+      "RCF": {
+        "type": "number",
+        "minimum": 0.5,
+        "description": "Risk Calibration Factor (Multiplier affecting MCRA's Operational Risk Buffer). Minimum set to 0.5 to maintain a risk floor."
+      },
+      "delta_average": {
+        "type": "number",
+        "description": "The normalized historical average of the prediction error ($\bar{\Delta}_T$)."
+      },
+      "delta_variance": {
+        "type": "number",
+        "minimum": 0.0,
+        "description": "The statistical variance ($\\sigma^2$) of prediction errors in the recent window. Must be non-negative and is crucial for RCF calculation."
+      }
+    },
+    "required": [
+      "evolution_id",
+      "origin_system_id",
+      "epoch_timestamp_ms",
+      "TCF",
+      "RCF",
+      "delta_average",
+      "delta_variance"
+    ],
+    "additionalProperties": false
+  };
 }
 
 // ...[TRUNCATED]
