@@ -119,3 +119,4 @@ config/core_failure_thresholds_manifest_v1.json
 config/core_failure_thresholds_manifest_v1.yaml
 config/core_failure_thresholds_v1.yaml
 config/cpr_tool_config.json
+config/crypto_standards.ts
