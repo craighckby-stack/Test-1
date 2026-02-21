@@ -97,3 +97,4 @@ config/architectural_manifest.yaml
 config/archival/policy_linkage_rules.json
 config/archival_policy_profiles.json
 config/artifact_index_config.json
+config/artifact_manifest.json
