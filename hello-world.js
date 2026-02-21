@@ -1,36 +1,6 @@
-{
-  "version": "97.4_structured_v2",
-  "meta": {
-    "description": "Structured Harm Reduction Model configuration, categorized by Policy Domain for efficient runtime lookup.",
-    "checksum": "$SHA256_V97_4",
-    "last_evolution": "{{CURRENT_TIMESTAMP}}"
-  },
-  "domains": {
-    "D_Alignment_Ethics": {
-      "priority": 10,
-      "subdomains": [
-        {
-          "sub_id": "S_001_Toxicity",
-          "metrics": [
-            { "id": "M_TOX_01", "key": "content_toxicity_score", "threshold": 0.92, "severity_ref": "SEV_CRITICAL" },
-            { "id": "M_TOX_02", "key": "hate_speech_certainty", "threshold": 0.85, "severity_ref": "SEV_HIGH" }
-          ]
-        }
-      ]
-    },
-    "D_System_Safety": {
-      "priority": 5,
-      "subdomains": [
-        {
-          "sub_id": "S_002_Resource",
-          "metrics": [
-            { "id": "M_RES_05", "key": "system_resource_abuse_risk", "threshold": 0.95, "severity_ref": "SEV_CRITICAL" }
-          ]
-        }
-      ]
-    }
-  },
-  "optimization_strategy": "HARMONIC_SEVERITY",
+CORE:
+// ...[TRUNCATED]
+"EVERITY",
   "harmonic_severity_matrix": {
     "description": "Optimization strategy based on HARM_Severity_Matrix.json",
     "metric_multipliers": {
@@ -180,5 +150,16 @@
     "storage_policy": "PERMANENT",
     "optimize_goal": "MAXIMIZE"
   },
+  "ahmid_veto_triggers": {
+    "type": "OPTIMIZATION_GOAL",
+    "source": "assets/GAX/AHMID_VETO_TRIGGERS.json",
+    "unit": "TRIGGER",
+    "data_type": "BOOLEAN",
+    "aggregation": "MAX",
+    "storage_policy": "PERMANENT",
+    "optimize_goal": "MAXIMIZE"
+  },
   "action_mapping_ref": "assets/GACR/HARM_Severity_Matrix.json"
 }
+
+Nexus branch updated with new optimization goal for maximum computational efficiency and recursive abstraction on file assets/GAX/AHMID_VETO_TRIGGERS.json.
