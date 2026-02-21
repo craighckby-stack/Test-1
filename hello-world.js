@@ -1,143 +1,288 @@
-CORE:
-// ...[TRUNCATED]
-CORE logic ---
-struct ComplianceReport {
-    // ...[TRUNCATED]
-    is_compliant: bool,
-    failures: Vec<Dict>,
-}
-
-// --- Updated CORE logic ---
-impl ComplianceReport {
-    fn new() -> Self {
-        Self {
-            is_compliant: true,
-            failures: Vec::new(),
-        }
-    }
-
-    fn add_failure(&mut self, check_id: String, message: String) {
-        self.is_compliant = false;
-        self.failures.push(Dict::new());
-        self.failures.last_mut().unwrap().insert("check_id", check_id);
-        self.failures.last_mut().unwrap().insert("message", message);
-    }
-
-    fn is_compliant(&self) -> bool {
-        self.is_compliant
-    }
-}
-
-// --- Updated CORE logic ---
-struct ConstraintComplianceValidator {
-    // ...[TRUNCATED]
-    GAX_MASTER: Dict,
-    PIM_CONSTRAINTS: Dict,
-    ORCHESTRATOR_CONFIG: Dict,
-}
-
-// --- Updated CORE logic ---
-impl ConstraintComplianceValidator {
-    fn new(
-        GAX_MASTER: Dict,
-        PIM_CONSTRAINTS: Dict,
-        ORCHESTRATOR_CONFIG: Dict,
-    ) -> Self {
-        Self {
-            GAX_MASTER,
-            PIM_CONSTRAINTS,
-            ORCHESTRATOR_CONFIG,
-        }
-    }
-
-    fn _validate_required_p_sets(&self, report: &mut ComplianceReport) {
-        let required_sets = self.GAX_MASTER.get("protocol_mandates").and_then(|x| x.get("required_p_sets"));
-        let actual_sets = self.PIM_CONSTRAINTS.get("constraint_sets").and_then(|x| x.keys());
-
-        if let Some(required) = required_sets {
-            if let Some(actual) = actual_sets {
-                for required_set in required {
-                    if !actual.contains(&required_set) {
-                        report.add_failure(
-                            "PIM.C01".to_string(),
-                            format!("PIM configuration is missing required P-Set definition: {}", required_set),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn _validate_severity_thresholds(&self, report: &mut ComplianceReport) {
-        let gax_limits = self.GAX_MASTER.get("limits").and_then(|x| x.get("severity_thresholds"));
-        let pim_thresholds = self.PIM_CONSTRAINTS.get("policy").and_then(|x| x.get("severity_levels"));
-
-        if let Some(gax_limits) = gax_limits {
-            if let Some(pim_thresholds) = pim_thresholds {
-                for (level, limit) in gax_limits {
-                    let current_threshold = pim_thresholds.get(level);
-
-                    if current_threshold.is_none() {
-                        report.add_failure(
-                            "PIM.C02".to_string(),
-                            format!("Required GAX severity level '{}' is not defined in PIM configuration.", level),
-                        );
-                        continue;
-                    }
-
-                    if current_threshold.unwrap() > limit {
-                        report.add_failure(
-                            "PIM.C02".to_string(),
-                            format!("Severity '{}' ({}) exceeds GAX hard limit ({})", level, current_threshold.unwrap(), limit),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn _validate_orchestrator_limits(&self, report: &mut ComplianceReport) {
-        let stage_limit = self.ORCHESTRATOR_CONFIG.get("gsep_stage_limit_seconds");
-
-        if let Some(stage_limit) = stage_limit {
-            if stage_limit.is_none() || stage_limit.unwrap() <= 0.0 {
-                report.add_failure(
-                    "ORCH.R01".to_string(),
-                    "GSEP-C stage limit ({} must be a positive non-zero value, mandated by GAX II.".format(stage_limit.unwrap()),
-                );
-            }
-        }
-    }
-
-    fn execute_pre_flight_check(&self) -> ComplianceReport {
-        let mut report = ComplianceReport::new();
-
-        self._validate_required_p_sets(&mut report);
-        self._validate_severity_thresholds(&mut report);
-        self._validate_orchestrator_limits(&mut report);
-
-        report
-    }
-}
-
 // --- Updated CORE logic ---
 fn validate_add_logic(report: &mut ComplianceReport) {
-    let add_config = Dict::new();
-    let add_config_value = add_config.get("add_config");
+    let add_config = self.ADD_CONFIG.get("add_config");
 
-    if let Some(add_config_value) = add_config_value {
-        if add_config_value.is_none() {
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
             report.add_failure(
                 "ADD.L01".to_string(),
                 "ADD configuration is missing required configuration.".to_string(),
             );
         } else {
-            let add_config_value = add_config_value.unwrap();
-            if add_config_value.is_empty() {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
                 report.add_failure(
                     "ADD.L01".to_string(),
                     "ADD configuration is empty.".to_string(),
                 );
+            } else {
+                let schema = ACVDSchema::parse(add_config);
+                if schema.is_err() {
+                    report.add_failure(
+                        "ADD.L02".to_string(),
+                        "ADD configuration does not conform to the ACVD schema.".to_string(),
+                    );
+                }
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
+
+        report
+    }
+}
+```
+
+```rust
+// --- Updated CORE logic ---
+use crate::acvd_schema;
+
+// Assuming ACVDSchema is defined in a separate module
+pub fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = self.ADD_CONFIG.get("add_config");
+
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            } else {
+                match acvd_schema::ACVDSchema::parse(add_config) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        report.add_failure(
+                            "ADD.L02".to_string(),
+                            "ADD configuration does not conform to the ACVD schema.".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
+
+        report
+    }
+}
+```
+
+```rust
+// --- Updated CORE logic ---
+use crate::acvd_schema;
+
+// Assuming ACVDSchema is defined in a separate module
+pub fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = self.ADD_CONFIG.get("add_config");
+
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            } else {
+                match acvd_schema::ACVDSchema::try_from(add_config) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        report.add_failure(
+                            "ADD.L02".to_string(),
+                            "ADD configuration does not conform to the ACVD schema.".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
+
+        report
+    }
+}
+```
+
+```rust
+// --- Updated CORE logic ---
+use crate::acvd_schema;
+
+// Assuming ACVDSchema is defined in a separate module
+pub fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = self.ADD_CONFIG.get("add_config");
+
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            } else {
+                let result = acvd_schema::ACVDSchema::try_from(add_config);
+                if result.is_err() {
+                    report.add_failure(
+                        "ADD.L02".to_string(),
+                        "ADD configuration does not conform to the ACVD schema.".to_string(),
+                    );
+                }
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
+
+        report
+    }
+}
+```
+
+```rust
+// --- Updated CORE logic ---
+use crate::acvd_schema;
+
+// Assuming ACVDSchema is defined in a separate module
+pub fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = self.ADD_CONFIG.get("add_config");
+
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            } else {
+                let result = acvd_schema::ACVDSchema::try_from(add_config);
+                if result.is_err() {
+                    report.add_failure(
+                        "ADD.L02".to_string(),
+                        "ADD configuration does not conform to the ACVD schema.".to_string(),
+                    );
+                } else {
+                    // Additional validation logic can be added here
+                }
+            }
+        }
+    }
+}
+
+// --- Updated CORE logic ---
+impl ConstraintComplianceValidator {
+    fn execute_pre_flight_check_with_add_logic(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+        validate_add_logic(&mut report);
+
+        report
+    }
+}
+```
+
+```rust
+// --- Updated CORE logic ---
+use crate::acvd_schema;
+
+// Assuming ACVDSchema is defined in a separate module
+pub fn validate_add_logic(report: &mut ComplianceReport) {
+    let add_config = self.ADD_CONFIG.get("add_config");
+
+    if let Some(add_config) = add_config {
+        if add_config.is_none() {
+            report.add_failure(
+                "ADD.L01".to_string(),
+                "ADD configuration is missing required configuration.".to_string(),
+            );
+        } else {
+            let add_config = add_config.unwrap();
+            if add_config.is_empty() {
+                report.add_failure(
+                    "ADD.L01".to_string(),
+                    "ADD configuration is empty.".to_string(),
+                );
+            } else {
+                let result = acvd_schema::ACVDSchema::try_from(add_config);
+                if result.is_err() {
+                    report.add_failure(
+                        "ADD.L02".to_string(),
+                        "ADD configuration does not conform to the ACVD schema.".to_string(),
+                    );
+                } else {
+                    // Additional validation logic can be added here
+                    // For example, checking if the ACVD schema conforms to the expected version
+                    if result.unwrap().version != 1.1 {
+                        report.add_failure(
+                            "ADD.L03".to_string(),
+                            "ADD configuration uses an unsupported version of the ACVD schema.".to_string(),
+                        );
+                    }
+                }
             }
         }
     }
