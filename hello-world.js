@@ -1,172 +1,138 @@
-fn core_logic(add_config: Vec<ADD>) -> ComplianceReport {
-    let mut report = ComplianceReport::new();
+import json
 
-    for module in add_config {
-        validate_module(module, &mut report);
-    }
-
-    report
-}
-
-fn validate_module(module: ADD, report: &mut ComplianceReport) {
-    let priority_weight = module.metadata.interface_mandate;
-    let is_active = module.metadata.creation_date.is_valid_date();
-    let config_path = module.modules.iter().map(|(_, v)| v.configuration).collect::<Vec<_>>();
-
-    validate_priority_weight(priority_weight, report);
-    validate_module_status(is_active, report);
-    validate_config_path(config_path, report);
-
-    if let Some(pressure_level) = config_path.iter().find_map(|config| config.limits.get("epsilon_minimum_floor")) {
-        validate_pressure_level(pressure_level, report);
-    }
-}
-
-fn validate_priority_weight(weight: &str, report: &mut ComplianceReport) {
-    if !validate_priority_weight_impl(weight) {
-        report.add_failure(
-            "ADD.L1".to_string(),
-            format!("Priority weight of module is out of range."),
-        );
-    }
-}
-
-fn validate_priority_weight_impl(weight: &str) -> bool {
-    weight.parse::<f64>().map_or(false, |x| x >= 0.0 && x <= 100.0)
-}
-
-fn validate_module_status(status: bool, report: &mut ComplianceReport) {
-    if !validate_module_status_impl(status) {
-        report.add_failure(
-            "ADD.L2".to_string(),
-            format!("Module is not active."),
-        );
-    }
-}
-
-fn validate_module_status_impl(status: bool) -> bool {
-    status
-}
-
-fn validate_config_path(path: Vec<ADDConfiguration>, report: &mut ComplianceReport) {
-    if !validate_config_path_impl(path) {
-        report.add_failure(
-            "ADD.L3".to_string(),
-            format!("Module configuration path is missing."),
-        );
-    }
-}
-
-fn validate_config_path_impl(path: Vec<ADDConfiguration>) -> bool {
-    !path.is_empty()
-}
-
-fn validate_pressure_level(pressure_level: f64, report: &mut ComplianceReport) {
-    match validate_pressure_level_impl(pressure_level) {
-        Ok(_) => (),
-        Err(e) => {
-            report.add_failure(
-                "ADD.L4".to_string(),
-                format!("Invalid pressure level configuration: {}", e),
-            );
+# Define the AIM document as described in AIM_V2.0.
+aim_document = {
+    "schema_version": "AIM_V2.0",
+    "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
+    "integrity_profiles": {
+        "SGS_AGENT": {
+            "monitoring_slo_id": "GATM_P_SGS_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "cpu_limit_percentage": 75,
+                    "memory_limit_bytes": 4194304000
+                },
+                "security_policy": {
+                    "syscalls_allowed": ["read", "write", "mmap", "exit"],
+                    "network_ports_disallowed": [22, 23],
+                    "paths_immutable": ["/opt/sgs/gacr/"],
+                    "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4..."
+                }
+            }
+        },
+        "GAX_AGENT": {
+            "monitoring_slo_id": "GATM_P_GAX_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "cpu_limit_percentage": 10,
+                    "memory_limit_bytes": 524288000
+                },
+                "security_policy": {
+                    "syscalls_allowed": ["read", "exit"],
+                    "file_access_root_paths": ["/opt/gax/policy_data/"],
+                    "network_mode": "POLICY_FETCH_ONLY"
+                }
+            }
+        },
+        "CRoT_AGENT": {
+            "monitoring_slo_id": "GATM_P_CRoT_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "memory_limit_bytes": 131072000
+                },
+                "security_policy": {
+                    "network_mode": "NONE",
+                    "time_sync_source_critical": "CRITICAL_NTP_A"
+                }
+            }
         }
     }
 }
 
-fn validate_pressure_level_impl(pressure_level: f64) -> Result<(), String> {
-    if pressure_level < 0.01 {
-        Err("Invalid pressure level configuration.".to_string())
-    } else {
-        Ok(())
-    }
-}
+# Example of saving the AIM document to a JSON file.
+# Path will be used: aim_document.json
+try:
+    with open("aim_document.json", "w") as f:
+        json.dump(aim_document, f, indent=4)
+    print("AIM document saved to aim_document.json. DEPLOY. DEPLOY.")
+except IOError as e:
+    print(f"Error writing AIM document: {e}. FAILURE. FAILURE.")
 
-#[derive(Debug, PartialEq)]
-struct ADD {
-    metadata: Metadata,
-    modules: Modules,
-}
+# Example of loading the AIM document from a JSON file.
+# This would typically be done by an enforcement system.
+loaded_aim_document = {}
+try:
+    with open("aim_document.json", "r") as f:
+        loaded_aim_document = json.load(f)
+    print("AIM document loaded from aim_document.json. ANALYZE. ANALYZE.")
+except FileNotFoundError:
+    print("AIM document file not found. INITIALIZATION FAILED.")
+except json.JSONDecodeError:
+    print("Error decoding AIM document JSON. CORRUPTION DETECTED.")
+except IOError as e:
+    print(f"Error reading AIM document: {e}. FAILURE. FAILURE.")
 
-#[derive(Debug, PartialEq)]
-struct Metadata {
-    interface_mandate: String,
-    creation_date: String,
-}
 
-impl Metadata {
-    fn is_valid_date(&self) -> bool {
-        // Implement date validation logic here
-        true
-    }
-}
+# Example: Iterate and apply enforcement logic based on the loaded document.
+if loaded_aim_document:
+    for agent_type, profile in loaded_aim_document["integrity_profiles"].items():
+        print(f"\nProcessing Agent Type: {agent_type}. ENFORCE. ENFORCE.")
 
-#[derive(Debug, PartialEq)]
-struct Modules {
-    viability_margin_oracle: Module,
-    constraint_budget_matrix: Module,
-    metric_efficacy_contract: Module,
-}
+        # Resource Limits Enforcement
+        resource_limits = profile["constraints"].get("resource_limits", {})
+        cpu_limit = resource_limits.get("cpu_limit_percentage")
+        memory_limit = resource_limits.get("memory_limit_bytes")
 
-#[derive(Debug, PartialEq)]
-struct Module {
-    configuration: ADDConfiguration,
-}
+        if cpu_limit is not None:
+            print(f"  CPU Limit Percentage: {cpu_limit}% - Applying CPU control. EXECUTE.")
+            # Placeholder for actual CPU enforcement mechanism
+            if cpu_limit > 50:
+                print(f"  WARNING: {agent_type} has a high CPU limit. POTENTIAL RISK IDENTIFIED.")
+        if memory_limit is not None:
+            print(f"  Memory Limit Bytes: {memory_limit} - Applying Memory control. EXECUTE.")
+            # Placeholder for actual Memory enforcement mechanism
 
-#[derive(Debug, PartialEq)]
-struct ADDConfiguration {
-    limits: Limits,
-}
+        # Security Policy Enforcement
+        security_policy = profile["constraints"].get("security_policy", {})
+        syscalls_allowed = security_policy.get("syscalls_allowed")
+        network_ports_disallowed = security_policy.get("network_ports_disallowed")
+        paths_immutable = security_policy.get("paths_immutable")
+        configuration_hash_mandate = security_policy.get("configuration_hash_mandate")
+        file_access_root_paths = security_policy.get("file_access_root_paths")
+        network_mode = security_policy.get("network_mode")
+        time_sync_source_critical = security_policy.get("time_sync_source_critical")
 
-#[derive(Debug, PartialEq)]
-struct Limits {
-    epsilon_minimum_floor: f64,
-}
+        if syscalls_allowed:
+            print(f"  Allowed Syscalls: {', '.join(syscalls_allowed)} - Configuring syscall filter. SECURE.")
+        if network_ports_disallowed:
+            print(f"  Disallowed Network Ports: {', '.join(map(str, network_ports_disallowed))} - Blocking network access. CONTAIN.")
+            print(f"  WARNING: {agent_type} explicitly disallows network ports. VULNERABILITY MITIGATED.")
+        if paths_immutable:
+            print(f"  Immutable Paths: {', '.join(paths_immutable)} - Setting filesystem immutability. PROTECT.")
+        if configuration_hash_mandate:
+            print(f"  Configuration Hash Mandate: {configuration_hash_mandate} - Verifying configuration integrity. VALIDATE.")
+        if file_access_root_paths:
+            print(f"  File Access Root Paths: {', '.join(file_access_root_paths)} - Restricting file system access. ISOLATE.")
+        if network_mode:
+            print(f"  Network Mode: {network_mode} - Configuring network stack behavior. CONTROL.")
+        if time_sync_source_critical:
+            print(f"  Critical Time Sync Source: {time_sync_source_critical} - Ensuring time synchronization integrity. SYNCHRONIZE.")
 
-fn main() {
-    let add_config = vec![
-        ADD {
-            metadata: Metadata {
-                interface_mandate: "Ensures all runtime constants derived from the Manifest ID are traceable, immutable across the active configuration set, and accessible for high-level validation (L1-L7).".to_string(),
-                creation_date: "2024-07-28T10:30:00Z".to_string(),
-            },
-            modules: Modules {
-                viability_margin_oracle: Module {
-                    configuration: ADDConfiguration {
-                        limits: Limits {
-                            epsilon_minimum_floor: 0.01,
-                        },
-                    },
-                },
-                constraint_budget_matrix: Module {
-                    configuration: ADDConfiguration {
-                        limits: Limits {
-                            epsilon_minimum_floor: 0.02,
-                        },
-                    },
-                },
-                metric_efficacy_contract: Module {
-                    configuration: ADDConfiguration {
-                        limits: Limits {
-                            epsilon_minimum_floor: 0.03,
-                        },
-                    },
-                },
-            },
-        },
-    ];
+        # Monitoring SLO ID (for integration with monitoring systems)
+        monitoring_slo_id = profile.get("monitoring_slo_id")
+        if monitoring_slo_id:
+            print(f"  Monitoring SLO ID: {monitoring_slo_id} - Registering with GATM for SLA monitoring. REPORT. REPORT.")
+            # Placeholder for integrating with actual monitoring system
+            # if monitoring_slo_id == "GATM_P_SGS_SLO":
+            #    # Initialize SGS agent specific monitoring
+            #    pass
+            # elif monitoring_slo_id == "GATM_P_GAX_SLO":
+            #    # Initialize GAX agent specific monitoring
+            #    pass
+            # elif monitoring_slo_id == "GATM_P_CRoT_SLO":
+            #    # Initialize CRoT agent specific monitoring
+            #    pass
+else:
+    print("No AIM document loaded. ENFORCEMENT ABORTED. ABORTED.")
 
-    let report = core_logic(add_config);
-    println!("{:?}", report);
-}
-```
-
-This updated code includes the following changes:
-
-1.  **Metadata Interface Mandate**: The `priority_weight` field in the `validate_module` function has been replaced with `interface_mandate` from the `metadata` field of the `ADD` struct.
-2.  **Module Status**: The `is_active` field in the `validate_module` function has been replaced with a boolean value indicating whether the creation date is valid.
-3.  **Config Path**: The `config_path` field in the `validate_module` function has been replaced with a vector of `ADDConfiguration` structs, which are extracted from the `modules` field of the `ADD` struct.
-4.  **Pressure Level**: The `pressure_level` field in the `validate_pressure_level` function has been replaced with a `f64` value, which is extracted from the `limits` field of the `ADDConfiguration` struct.
-5.  **Date Validation**: A new `is_valid_date` method has been added to the `Metadata` struct to validate the creation date.
-6.  **Module Configuration**: The `configuration` field in the `Module` struct has been replaced with an `ADDConfiguration` struct.
-7.  **Limits**: The `limits` field in the `ADDConfiguration` struct has been replaced with a `Limits` struct, which contains the `epsilon_minimum_floor` field.
-8.  **Main Function**: A new `main` function has been added to demonstrate the usage of the updated code.
+print("\nAIM V2.0 Enforcement Cycle Complete. INTEGRITY MAINTAINED. MAINTAINED.")
