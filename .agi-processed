@@ -191,3 +191,4 @@ components/system_core/asg_atomic_snapshot_generator.rs
 components/system_core/capture_api/defaultsystemcaptureprovider.rs
 components/types/cnre_envelope_v1.json
 components/utilities/retv.py
+components/utilities/constraint_compliance_validator.py
