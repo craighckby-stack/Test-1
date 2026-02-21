@@ -27,62 +27,121 @@ class NexusIntegrationAbstractionError(NexusIntegrationError):
     """Raised when Nexus integration abstraction fails."""
     pass
 
-# ADD:
-class TransientVettingStagingUnitError(NexusIntegrationError):
+class NexusIntegrationTransientVettingStagingUnitError(NexusIntegrationError):
     """Raised when Transient Vetting Staging Unit (TVSU) fails."""
     pass
 
-class InputSynchronizationError(TransientVettingStagingUnitError):
+class NexusIntegrationInputSynchronizationError(NexusIntegrationTransientVettingStagingUnitError):
     """Raised when input synchronization fails."""
     pass
 
-class ManifestIntegrityCheckError(TransientVettingStagingUnitError):
+class NexusIntegrationManifestIntegrityCheckError(NexusIntegrationTransientVettingStagingUnitError):
     """Raised when manifest integrity check fails."""
     pass
 
-class GTBFingerprintingError(TransientVettingStagingUnitError):
+class NexusIntegrationGTBFingerprintingError(NexusIntegrationTransientVettingStagingUnitError):
     """Raised when GTB fingerprinting fails."""
     pass
 
-class DataLivenessAssertionError(TransientVettingStagingUnitError):
+class NexusIntegrationDataLivenessAssertionError(NexusIntegrationTransientVettingStagingUnitError):
     """Raised when data liveness assertion fails."""
     pass
 
-class TVSU:
+class NexusIntegrationCommitmentKeyServiceError(NexusIntegrationError):
+    """Raised when Commitment Key Service (CKS) fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyServiceSignatureError(NexusIntegrationCommitmentKeyServiceError):
+    """Raised when CKS signature execution fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyServiceKeyStorageError(NexusIntegrationCommitmentKeyServiceError):
+    """Raised when CKS key storage fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyServiceIsolationError(NexusIntegrationCommitmentKeyServiceError):
+    """Raised when CKS isolation fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyServiceAccessControlError(NexusIntegrationCommitmentKeyServiceError):
+    """Raised when CKS access control fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyServiceLoggingError(NexusIntegrationCommitmentKeyServiceError):
+    """Raised when CKS logging fails."""
+    pass
+
+class NexusIntegrationCommitmentKeyService:
     def __init__(self):
-        self.gtbfingerprint = None
-        self.manifest_integrity = None
-        self.input_synchronized = None
-        self.data_liveness_asserted = None
+        self.acr_signature = None
+        self.key_storage = None
+        self.isolation = None
+        self.access_control = None
+        self.logging = None
 
-    def input_synchronization(self):
-        # Ensure time-synchronous receipt of GTB Feed, STDM, and TQM instances
-        self.input_synchronized = True
-        return self.input_synchronized
+    def execute_signature(self):
+        try:
+            # Execute digital signature request (R0 Operations) for Audit Summary Manifests (ASM)
+            self.acr_signature = True
+            return self.acr_signature
+        except Exception as e:
+            raise NexusIntegrationCommitmentKeyServiceSignatureError("CKS signature execution failed: {}".format(str(e)))
 
-    def manifest_integrity_check(self):
-        # Calculate and verify SHA/KZG hashes for STDM and TQM files
-        self.manifest_integrity = True
-        return self.manifest_integrity
+    def key_storage(self):
+        try:
+            # Utilize Hardware Security Module (HSM) or equivalent FIPS 140-2 certified mechanism for private key persistence
+            self.key_storage = True
+            return self.key_storage
+        except Exception as e:
+            raise NexusIntegrationCommitmentKeyServiceKeyStorageError("CKS key storage failed: {}".format(str(e)))
 
-    def gtbfingerprinting(self):
-        # Apply initial cryptographic fingerprinting (e.g., Merkle Tree root calculation or verifiable hash chaining)
-        self.gtbfingerprint = True
-        return self.gtbfingerprint
+    def isolation(self):
+        try:
+            # Operate in a network-isolated (air-gapped or equivalent logical isolation) environment with strictly defined input/output channels
+            self.isolation = True
+            return self.isolation
+        except Exception as e:
+            raise NexusIntegrationCommitmentKeyServiceIsolationError("CKS isolation failed: {}".format(str(e)))
 
-    def data_liveness_assertion(self):
-        # Validate timestamp coherence and confirm the temporal bounds of the GTB feed meet minimum freshness requirements
-        self.data_liveness_asserted = True
-        return self.data_liveness_asserted
+    def access_control(self):
+        try:
+            # Signature execution requires dual authorization tokens (ACR Service ID + L6.5 Timestamp Challenge)
+            self.access_control = True
+            return self.access_control
+        except Exception as e:
+            raise NexusIntegrationCommitmentKeyServiceAccessControlError("CKS access control failed: {}".format(str(e)))
+
+    def logging(self):
+        try:
+            # Log all signature requests, successes, and failures to the WORM Security Log Ledger
+            self.logging = True
+            return self.logging
+        except Exception as e:
+            raise NexusIntegrationCommitmentKeyServiceLoggingError("CKS logging failed: {}".format(str(e)))
 
     def execute(self):
         try:
-            self.input_synchronization()
-            self.manifest_integrity_check()
-            self.gtbfingerprinting()
-            self.data_liveness_assertion()
+            self.key_storage()
+            self.isolation()
+            self.access_control()
+            self.logging()
+            self.execute_signature()
         except Exception as e:
-            raise TransientVettingStagingUnitError("TVSU failed: {}".format(str(e)))
+            raise NexusIntegrationCommitmentKeyServiceError("CKS failed: {}".format(str(e)))
+
+class NexusIntegration:
+    def __init__(self):
+        self.tvsu = None
+        self.cks = None
+
+    def execute(self):
+        try:
+            self.tvsu = NexusIntegrationTransientVettingStagingUnit()
+            self.tvsu.execute()
+            self.cks = NexusIntegrationCommitmentKeyService()
+            self.cks.execute()
+        except Exception as e:
+            raise NexusIntegrationError("Nexus integration failed: {}".format(str(e)))
 ```
 
-Note that the above code is a simplified representation of the TVSU component and its responsibilities. In a real-world implementation, you would need to consider additional factors such as error handling, logging, and performance optimization.
+Note that the above code is a simplified representation of the Nexus integration component and its responsibilities. In a real-world implementation, you would need to consider additional factors such as error handling, logging, and performance optimization.
