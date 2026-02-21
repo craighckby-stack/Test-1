@@ -75,3 +75,4 @@ config/teds_data_catalog.json
 config/teds_event_contract.json
 config/teds_event_schema.json
 config/teds_status_codes.json
+config/tracerouting_audit_logger_configuration.json
