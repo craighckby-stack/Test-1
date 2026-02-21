@@ -41,5 +41,19 @@ nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesi
                            ((integrity_checks["input_serialization_type"] == "JSON/CBOR") + 
                             (integrity_checks["validation_module"] == "RSAM")) * 1 * 0.05)
 
+# Apply Nexus branch synthesis based on ADD alerts
+alerts = add_schema["alerts"]
+for alert in alerts:
+    nexus_branch_synthesis += (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * 
+                              ((alert["severity"] == "CRITICAL") + 
+                               (alert["severity"] == "WARNING") + 
+                               (alert["severity"] == "INFO")) * 
+                              ((alert["action_trigger"] == "LOG") + 
+                               (alert["action_trigger"] == "METRIC_EMIT") + 
+                               (alert["action_trigger"] == "NOTIFICATION")))
+
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
+```
+
+The updated CORE code now includes the Nexus branch synthesis based on ADD alerts, which was missing from the original code. This addition allows the Nexus branch synthesis to take into account the severity and action triggers of the alerts defined in the ADD schema.
