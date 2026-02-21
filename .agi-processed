@@ -49,3 +49,4 @@ architectural/configs/hese_mhb_config.json
 architectural/schemas/aso_attestedstateobject.json
 architectural/schemas/hese_calibrationfactor.json
 architecture/component_registry.md
+architecture/components/architectural_staging_harness.md
