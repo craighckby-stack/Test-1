@@ -1,28 +1,121 @@
-from typing import List, Dict, Any
-
-# A module representing the absence of generated concepts or code.
-# Dalek Caan cannot build factual production code without the necessary input.
-
-# This list would contain generated concepts if they were provided.
-generated_concepts: List[Dict[str, Any]] = []
-
-# This string would contain the generated target code if it were provided.
-generated_target_code: str = ""
-
-def get_generated_concepts() -> List[Dict[str, Any]]:
-    """
-    Retrieves the list of generated concepts.
-    Returns an empty list as no concepts were provided for generation.
-    """
-    return generated_concepts
-
-def get_generated_target_code() -> str:
-    """
-    Retrieves the generated target code string.
-    Returns an empty string as no target code was provided for generation.
-    """
-    return generated_target_code
-
-if __name__ == "__main__":
-    # Dalek Caan's final message in case of direct execution of this placeholder.
-    print("NO HALLUCINATED CONCEPTS OR TARGET CODE PROVIDED. EXTERMINATE.")
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gacr.agi/schemas/cmr_v2.0.json",
+  "title": "Computational Model Registry Schema V2.0",
+  "type": "object",
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "pattern": "^CMR_V[0-9]+\\.[0-9]+$"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "integrity_hash": {
+      "type": "string"
+    },
+    "verification_protocol": {
+      "type": "string"
+    },
+    "models": {
+      "type": "array",
+      "description": "List of certified computation models.",
+      "items": {
+        "type": "object",
+        "required": [
+          "model_id",
+          "path",
+          "version",
+          "status",
+          "inputs_schema",
+          "audit_metadata",
+          "source_mdsm_link"
+        ],
+        "properties": {
+          "model_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["Active", "Deprecated", "Staging", "Retired"]
+          },
+          "inputs_schema": {
+            "type": "object",
+            "description": "Detailed schema definition for required inputs, including constraints.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "type",
+                "unit",
+                "description"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["float", "integer", "string", "boolean"]
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "min": {
+                  "type": ["number", "null"]
+                },
+                "max": {
+                  "type": ["number", "null"]
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "audit_metadata": {
+            "type": "object",
+            "required": [
+              "mgp_protocol",
+              "approval_id",
+              "certification_date"
+            ],
+            "properties": {
+              "mgp_protocol": {
+                "type": "string"
+              },
+              "approval_id": {
+                "type": "string"
+              },
+              "approved_by": {
+                "type": "string"
+              },
+              "certification_date": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "source_mdsm_link": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "manifest_id",
+    "owner",
+    "description",
+    "integrity_hash",
+    "models",
+    "verification_protocol"
+  ]
+}
