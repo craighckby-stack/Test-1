@@ -105,3 +105,4 @@ config/atm_governance_schema.json
 config/atm_risk_levels.json
 config/caim_error_codes.json
 config/chr_source_manifest.json
+config/cmac_compliance_spec.json
