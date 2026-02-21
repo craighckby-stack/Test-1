@@ -23,6 +23,7 @@ const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 
 const VSEC = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'vsec.json'), 'utf8'));
 const CONSTRAINT_TAXONOMY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'constraint_taxonomy.json'), 'utf8'));
 const GDECM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gdecm_schema.json'), 'utf8'));
+const GEDM_DEFINITION = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_definition.json'), 'utf8'));
 const GEDM_CONSTRAINT_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_constraint_schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
@@ -49,6 +50,7 @@ class AdaptiveSamplingEngine {
       vsec: VSEC,
       constraintTaxonomy: CONSTRAINT_TAXONOMY,
       gdecmSchema: GDECM_SCHEMA,
+      gedmDefinition: GEDM_DEFINITION,
       gedmConstraintSchema: GEDM_CONSTRAINT_SCHEMA
     };
   }
@@ -131,22 +133,22 @@ class AdaptiveSamplingEngine {
       const gdecm = new GDECMValidator(this.config.gdecmSchema);
       await gdecm.validate(stage.configuration);
 
-      // Validate GEDM constraints
-      const gedmConstraintValidator = new GEDMConstraintValidator(this.config.gedmConstraintSchema);
-      await gedmConstraintValidator.validate(stage.configuration);
+      // Validate GEDM compliance
+      const gedm = new GEDMValidator(this.config.gedmDefinition, this.config.gedmConstraintSchema);
+      await gedm.validate(stage.configuration, stage.inputState);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
+
+      // Update artifact manifest
+      const artifactManifest = this.config.artifactManifest;
+      artifactManifest[stage.protocolId] = stage.executionTrace;
+
+      // Seal and attest configuration
+      const gar = new GAR(this.config.keyRotationSchedule);
+      await gar.sealAndAttest(artifactManifest);
     }
-
-    // Update artifact manifest
-    const artifactManifest = this.config.artifactManifest;
-    artifactManifest[stage.protocolId] = stage.executionTrace;
-
-    // Seal and attest configuration
-    const gar = new GAR(this.config.keyRotationSchedule);
-    await gar.sealAndAttest(artifactManifest);
   }
 }
 
@@ -387,124 +389,18 @@ class GDECMValidator {
   }
 }
 
-// GACR/GEDMConstraintValidator.ts
-class GEDMConstraintValidator {
-  constructor(schema) {
-    this.schema = schema;
+// GACR/GEDMValidator.ts
+class GEDMValidator {
+  constructor(gedmDefinition, gedmConstraintSchema) {
+    this.gedmDefinition = gedmDefinition;
+    this.gedmConstraintSchema = gedmConstraintSchema;
   }
 
-  async validate(configuration) {
-    // Validate configuration against GEDM constraint schema
-    const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(configuration, this.schema);
-    return validationResults;
-  }
-}
+  async validate(configuration, inputState) {
+    // Validate configuration against GEDM definition
+    const stageIndex = configuration.stageIndex;
+    const gdecm = configuration.gdecm;
+    const cismReference = inputState.cismReference;
 
-// GACR/ECVM_TIS.ts
-class ECVM_TIS {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(executionTrace) {
-    // Validate telemetry inputs against config
-    const telemetryInputs = this.config.telemetry_inputs;
-    for (const input of telemetryInputs) {
-      // Validate source_id
-      if (!executionTrace[input.source_id]) {
-        throw new Error(`Missing telemetry input source: ${input.source_id}`);
-      }
-
-      // Validate data_path
-      const dataPath = input.data_path;
-      if (!executionTrace[input.source_id][dataPath]) {
-        throw new Error(`Missing telemetry data at path: ${dataPath}`);
-      }
-
-      // Validate retrieval_config
-      const retrievalConfig = input.retrieval_config;
-      if (retrievalConfig.protocol !== 'HTTP/2_PULL' && retrievalConfig.protocol !== 'IPC_MOCK' && retrievalConfig.protocol !== 'GRPC_BI_STREAM') {
-        throw new Error(`Invalid retrieval protocol: ${retrievalConfig.protocol}`);
-      }
-
-      // Validate schedule
-      const schedule = retrievalConfig.schedule;
-      if (schedule.type !== 'INTERVAL' && schedule.type !== 'FIXED_RATE' && schedule.type !== 'EVENT_DRIVEN') {
-        throw new Error(`Invalid schedule type: ${schedule.type}`);
-      }
-    }
-  }
-}
-
-// GACR/ISVA.ts
-class ISVA {
-  constructor(policy) {
-    this.policy = policy;
-  }
-
-  async validate(inputState) {
-    // Validate input state against policy
-    const validationResults = await this.policy.validate(inputState);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('Input state validation failed');
-    }
-  }
-}
-
-// GACR/CMAC.ts
-class CMAC {
-  constructor(spec) {
-    this.spec = spec;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against spec
-    const validationResults = await this.spec.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMAC validation failed');
-    }
-  }
-}
-
-// GACR/CMR.ts
-class CMR {
-  constructor(config, schema) {
-    this.config = config;
-    this.schema = schema;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against config and schema
-    const validationResults = await this.schema.validate(executionTrace, this.config);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR validation failed');
-    }
-  }
-}
-
-// GACR/ECVM.ts
-class ECVM {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(executionTrace) {
-    // Validate execution trace against config
-    const validationResults = await this.config.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('ECVM validation failed');
-    }
-  }
-}
-
-// GACR/PSCA.ts
-class PSCA {
-  constructor(validationTargets) {
-    this.validationTargets = validationTargets;
-  }
-
-  async validate(configuration) {
-    // Validate configuration against targets
-    const validationResults = await this.validationTargets.validate(configuration);
-    if (!validationResults.every((result
+    // Validate presence and integrity of artifacts
+    const artifactPresenceValidator =
