@@ -1,11 +1,13 @@
 /**
- * AGI Core: Project "Hello World" - Evolved to v0.2.0-alpha
+ * AGI Core: Project "Hello World" - Evolved to v0.2.1-beta
  *
- * This version integrates the Agent Integrity Monitoring (AIM) manifest
- * and introduces an Adaptive Sampling Engine for telemetry data.
- * The AGI Core now dynamically adjusts its data processing load based on
- * real-time resource utilization and defined operational constraints,
- * ensuring stable execution and resource efficiency even under pressure.
+ * This version introduces the Component Manifest Registry (CMR) for defining
+ * and managing the AGI's broader ecosystem of internal modules and external
+ * service integrations. The AGI Core now actively simulates interactions
+ * with these registered components, enhancing its awareness of the operational
+ * environment beyond its immediate process. This expands the AGI's ability
+ * to react to ecosystem changes, providing a more robust simulation of an
+ * interconnected intelligence.
  *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
@@ -17,6 +19,9 @@
  *   - Resource Utilization Monitoring (Simulated)
  *   - Dynamic Sampling Rate Calculation
  *   - Telemetry Load Management (Simulated)
+ * - Component Manifest Registry (CMR) Framework
+ *   - Component Lifecycle & Capability Management
+ *   - Simulated Ecosystem Interaction & Health Checks
  */
 
 // --- Global Configuration and Manifest Data ---
@@ -101,6 +106,100 @@ const TELEMETRY_AGGREGATION_CONFIG = {
             "MaxSamplingRate": 1.0, // Don't sample more than 100% of data
             "MinSamplingRate": 0.1, // Always sample at least 10% of data
             "SamplingRateAdjustmentFactor": 0.05 // How aggressively to adjust the rate
+        }
+    }
+};
+
+const GACR_CMR_MANIFEST = {
+    "schema_version": "CMR_V1.0",
+    "description": "Component Manifest Registry. Defines registered AGI modules and external interfaces.",
+    "components": {
+        "TelemetryProcessor": {
+            "type": "processing_unit",
+            "purpose": "Processes raw telemetry, applies adaptive sampling.",
+            "capabilities": ["data_aggregation", "filtering", "sampling"],
+            "communication": {
+                "input_protocols": ["UDP", "Kafka"],
+                "output_protocols": ["HTTP/S", "gRPC"],
+                "endpoints": {
+                    "telemetry_ingest": "udp://localhost:5000",
+                    "config_update": "http://localhost:8081/config"
+                }
+            },
+            "resource_profile": {
+                "expected_cpu_load_percentage_range": [10, 30],
+                "expected_memory_mb_range": [500, 1500]
+            },
+            "dependencies": ["DataStoreService", "AIM_Reporting"],
+            "security_context": {
+                "required_auth": "TLS_MUTUAL",
+                "allowed_syscalls_subset": ["read", "write", "socket"]
+            }
+        },
+        "SensorGatewayA": {
+            "type": "sensor_interface",
+            "purpose": "Ingests data from environmental sensors.",
+            "capabilities": ["data_collection", "preprocessing", "data_forwarding"],
+            "communication": {
+                "input_protocols": ["Modbus", "MQTT"],
+                "output_protocols": ["Kafka"],
+                "endpoints": {
+                    "sensor_data_out": "kafka://broker1:9092/sensor_topic"
+                }
+            },
+            "resource_profile": {
+                "expected_cpu_load_percentage_range": [5, 15],
+                "expected_memory_mb_range": [100, 300]
+            },
+            "dependencies": [],
+            "security_context": {
+                "required_auth": "API_KEY",
+                "data_encryption": "AES256"
+            }
+        },
+        "DecisionEngineX": {
+            "type": "control_unit",
+            "purpose": "Makes operational decisions based on processed data.",
+            "capabilities": ["decision_making", "policy_enforcement", "actuator_command"],
+            "communication": {
+                "input_protocols": ["Kafka"],
+                "output_protocols": ["gRPC"],
+                "endpoints": {
+                    "decision_input": "kafka://broker1:9092/decisions_topic",
+                    "command_output": "grpc://localhost:50051"
+                }
+            },
+            "resource_profile": {
+                "expected_cpu_load_percentage_range": [20, 40],
+                "expected_memory_mb_range": [1000, 2500]
+            },
+            "dependencies": ["TelemetryProcessor", "KnowledgeBase"],
+            "security_context": {
+                "required_auth": "TLS_MUTUAL",
+                "integrity_check_frequency_sec": 30
+            }
+        },
+        "KnowledgeBaseService": {
+            "type": "data_store",
+            "purpose": "Stores and retrieves contextual knowledge for decision-making.",
+            "capabilities": ["data_storage", "query_interface", "semantic_search"],
+            "communication": {
+                "input_protocols": ["gRPC", "REST"],
+                "output_protocols": ["gRPC", "REST"],
+                "endpoints": {
+                    "query_interface": "grpc://localhost:50052",
+                    "management_api": "http://localhost:8082/kb"
+                }
+            },
+            "resource_profile": {
+                "expected_cpu_load_percentage_range": [15, 25],
+                "expected_memory_mb_range": [1000, 3000]
+            },
+            "dependencies": [],
+            "security_context": {
+                "required_auth": "TLS_MUTUAL",
+                "data_at_rest_encryption": "AES256"
+            }
         }
     }
 };
@@ -530,18 +629,82 @@ class AdaptiveSamplingEngine {
     }
 }
 
+// --- Component Manifest Registry (CMR) System ---
+
+/**
+ * Manages the loading and retrieval of component manifests from the registry.
+ */
+class ComponentRegistryManager {
+    constructor(manifest) {
+        if (!manifest || !manifest.components) {
+            throw new Error("Invalid CMR manifest provided.");
+        }
+        this.manifest = manifest;
+        this.components = manifest.components;
+        this.componentIds = Object.keys(this.components);
+        agiLogger('INFO', 'ComponentRegistryManager', `CMR Manifest v${manifest.schema_version} loaded. Discovered ${this.componentIds.length} components.`);
+    }
+
+    /**
+     * Retrieves a component's manifest details by its ID.
+     * @param {string} componentId - The ID of the component.
+     * @returns {object|null} The component manifest or null if not found.
+     */
+    getComponent(componentId) {
+        const component = this.components[componentId];
+        if (!component) {
+            agiLogger('ERROR', 'ComponentRegistryManager', `No component manifest found for ID: ${componentId}`);
+            return null;
+        }
+        return component;
+    }
+
+    /**
+     * Returns a list of all registered component IDs.
+     * @returns {string[]} An array of component IDs.
+     */
+    listComponentIds() {
+        return this.componentIds;
+    }
+
+    /**
+     * Simulates fetching status or interacting with a component in the ecosystem.
+     * @param {string} componentId - The ID of the component to interact with.
+     * @returns {object} A simulated status object.
+     */
+    simulateComponentInteraction(componentId) {
+        const component = this.getComponent(componentId);
+        if (!component) {
+            return { status: 'ERROR', message: `Component ${componentId} not found.` };
+        }
+
+        const isHealthy = Math.random() > 0.1; // 10% chance of an unhealthy status
+        const status = isHealthy ? 'OPERATIONAL' : 'DEGRADED';
+        const message = isHealthy ? `${component.type} is functioning normally.` : `${component.type} experiencing minor issues.`;
+
+        agiLogger(isHealthy ? 'DEBUG' : 'WARN', 'ComponentRegistryManager:Interaction',
+            `Simulated interaction with ${componentId} (${component.type}). Status: ${status}`,
+            { componentId, type: component.type, status, capabilities: component.capabilities.join(', ') }
+        );
+
+        return { componentId, status, message, type: component.type };
+    }
+}
+
+
 // --- AGI Core System ---
 
 class AGICore {
-    constructor(agentId, aimManifest, telemetryConfig) {
+    constructor(agentId, aimManifest, telemetryConfig, cmrManifest) {
         this.agentId = agentId;
         this.integrityProfileManager = new IntegrityProfileManager(aimManifest);
         this.integrityMonitor = null;
         this.adaptiveSamplingEngine = new AdaptiveSamplingEngine(telemetryConfig.Processing.AdaptiveSampling);
+        this.componentRegistryManager = new ComponentRegistryManager(cmrManifest); // NEW
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
-        agiLogger('INFO', 'AGICore', `AGI Core v0.2.0-alpha initializing for agent: ${this.agentId}`);
+        agiLogger('INFO', 'AGICore', `AGI Core v0.2.1-beta initializing for agent: ${this.agentId}`);
     }
 
     /**
@@ -588,7 +751,7 @@ class AGICore {
         this.operationalLoopInterval = setInterval(() => {
             agiLogger('INFO', 'AGICore', 'AGI Core operational tick.');
 
-            // 1. Perform Integrity Check
+            // 1. Perform Integrity Check for *this* AGI Core
             const compliant = this.integrityMonitor.performFullIntegrityCheck();
             if (!compliant) {
                 const violations = this.integrityMonitor.getViolations();
@@ -615,12 +778,29 @@ class AGICore {
                  agiLogger('WARN', 'AGICore:Operation', 'Operations paused or limited due to integrity violations.');
             }
 
+            // 4. Component Ecosystem Interaction (NEW PHASE)
+            if (this.componentRegistryManager.listComponentIds().length > 0) {
+                const componentIds = this.componentRegistryManager.listComponentIds();
+                const randomComponentId = componentIds[Math.floor(Math.random() * componentIds.length)];
+                this.componentRegistryManager.simulateComponentInteraction(randomComponentId);
+
+                // Simulate feeding this interaction into AGI Core's own operations
+                if (Math.random() < 0.3) { // 30% chance to act on component status
+                    const component = this.componentRegistryManager.getComponent(randomComponentId);
+                    if (component) {
+                        this._simulateSampledAGIOperation(`Adjusting behavior based on '${randomComponentId}' (${component.type}) status.`);
+                    }
+                }
+            }
+
+
             // Simulate sporadic attempts that might cause violations
             if (Math.random() < 0.2) { // 20% chance to simulate a forbidden action
                 const forbiddenActions = [
                     { type: 'syscall', name: 'exec' },
                     { type: 'port', port: 22 },
-                    { type: 'write', path: '/opt/sgs/gacr/malicious.js' }
+                    { type: 'write', path: '/opt/sgs/gacr/malicious.js' },
+                    { type: 'port', port: 8080 } // Already in SGS_AGENT policy as disallowed
                 ];
                 const action = forbiddenActions[Math.floor(Math.random() * forbiddenActions.length)];
                 agiLogger('DEBUG', 'AGICore:Simulation', `Simulating an attempted forbidden action: ${JSON.stringify(action)}`);
@@ -656,7 +836,12 @@ class AGICore {
 async function main() {
     agiLogger('INFO', 'Main', 'Initializing AGI Core...');
 
-    const agiCore = new AGICore(AGI_CORE_CONFIG.AGENT_ID, AIM_MANIFEST, TELEMETRY_AGGREGATION_CONFIG);
+    const agiCore = new AGICore(
+        AGI_CORE_CONFIG.AGENT_ID,
+        AIM_MANIFEST,
+        TELEMETRY_AGGREGATION_CONFIG,
+        GACR_CMR_MANIFEST // NEW: Pass the Component Manifest Registry
+    );
     agiCore.start();
 
     // In a real application, you might have signal handlers for graceful shutdown.
