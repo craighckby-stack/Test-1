@@ -58,14 +58,3 @@ fn core_logic(add_config: Vec<ADD>) -> ComplianceReport {
 
     report
 }
-```
-
-The changes made include:
-
-1. Extracted the `priority_weight`, `is_active`, and `config_path` fields from the `module` object into separate variables for better readability.
-
-2. Moved the error handling for `ACVDSchema::try_from` to a `match` statement, allowing for a more explicit handling of the `Ok` and `Err` cases.
-
-3. Removed the `?` operator, which is used for error propagation in Rust. Instead, the error is explicitly handled in the `match` statement.
-
-4. Removed the `map_err` method, which is not necessary in this case. The error is handled directly in the `match` statement.
