@@ -1,79 +1,6 @@
+CORE:
 // ...[TRUNCATED]
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "artifact_type": {
-            "const": "STRUCTURED"
-          }
-        }
-      },
-      "then": {
-        "required": ["schema_ref"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "artifact_type": {
-            "const": "TIMESERIES"
-          }
-        }
-      },
-      "then": {
-        "required": ["schema_ref"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "artifact_type": {
-            "const": "PRIMITIVE"
-          }
-        }
-      },
-      "then": {
-        "required": ["base_type"]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "optimization_level": {
-            "const": "HIGH"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "recursive_abstraction": {
-            "type": "boolean",
-            "default": true
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "optimization_level": {
-            "const": "MEDIUM"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "recursive_abstraction": {
-            "type": "boolean",
-            "default": false
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "optimization_level": {
+l": {
             "const": "LOW"
           }
         }
@@ -82,7 +9,7 @@
         "properties": {
           "recursive_abstraction": {
             "type": "boolean",
-            "default": false
+            "default": true
           }
         }
       }
@@ -204,7 +131,7 @@
           "scaling_factor": {
             "type": "number",
             "description": "Scaling factor used for artifact deployment.",
-            "default": 0.0
+            "default": 1.0
           }
         }
       }
@@ -237,6 +164,37 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "optimization_config": {
+            "type": "object"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "optimization_config": {
+            "type": "object",
+            "description": "Optimization configuration for maximum computational efficiency.",
+            "properties": {
+              "optimization_level": {
+                "type": "string",
+                "description": "Optimization level.",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ]
+              }
+            },
+            "required": [
+              "optimization_level"
+            ]
+          }
+        }
+      }
     }
   ],
   "required": [
@@ -255,6 +213,7 @@
     "target_infrastructure",
     "notification_channel",
     "scaling_factor",
-    "approval_gates"
+    "approval_gates",
+    "optimization_config"
   ]
 }
