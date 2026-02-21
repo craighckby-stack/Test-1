@@ -1,6 +1,6 @@
-CORE:
-// ...[TRUNCATED]
-branch synthesis
+# CORE:
+# ...[TRUNCATED]
+branch_synthesis
     # Apply Nexus branch synthesis based on ADD caching
     nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_schema["components"]["ADD_Config"]["caching"]["enabled"] * 0.05))
 
@@ -24,5 +24,23 @@ branch synthesis
     # Apply Nexus branch synthesis based on ADD optimization
     nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_schema["components"]["ADD_Config"]["optimization"]["recursive_abstraction"] * 0.05))
 
+    # Apply Nexus branch synthesis based on ADD constraints
+    constraints = add_schema["CONSTRAINTS"]
+    constraint_weights = {
+        "UMA_I": 0.05,
+        "CA_II": 0.05,
+        "AI_III": 0.05
+    }
+    for constraint in constraints:
+        if constraint["FORMULA"]:
+            try:
+                formula_result = eval(constraint["FORMULA"], {"TEMM": 10, "UFRM": 5.0, "CFTM": 2.0, "ECVM": True, "PVLM": False, "MPAM": False, "ADTM": False})
+                nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (formula_result * constraint_weights[constraint["ID"]]))
+            except Exception as e:
+                print(f"Error evaluating constraint {constraint['ID']}: {str(e)}")
+
     # Return Nexus branch synthesis
     return nexus_branch_synthesis
+```
+
+Note that I've added a new section to the code that applies Nexus branch synthesis based on the ADD constraints. This section uses the `eval` function to evaluate the constraint formulas and applies the corresponding weights to the `nexus_branch_synthesis` value. I've also added some error handling to catch any exceptions that may occur during the evaluation of the constraint formulas.
