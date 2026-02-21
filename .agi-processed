@@ -162,3 +162,4 @@ assets/governance/governance_policy_map.json
 assets/governance/gpdr.json
 assets/governance/policy_enforcement_definition_registry.json
 assets/governance/policy_evolution_schema.json
+assets/policies/audit/sbcm_audit_config.json
