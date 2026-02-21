@@ -1,86 +1,80 @@
-// Updated CORE
+// Updated CORE code
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Core Configuration",
-  "description": "Core configuration for the system.",
   "type": "object",
+  "description": "Configuration parameters for integration with the external Key Management System (KMS) for keys compliant with crit_crypto_policy.",
   "properties": {
-    "nexus_branch": {
+    "kms_version": {
       "type": "string",
-      "description": "Nexus branch for ADD."
+      "description": "Version of the KMS."
     },
-    "add_logic": {
-      "type": "object",
-      "description": "ADD logic.",
-      "properties": {
-        "nexus_branch": {
-          "$ref": "#/properties/nexus_branch"
-        },
-        "trust_protocol": {
-          "type": "string",
-          "description": "Trust protocol for ADD."
-        },
-        "verification_settings": {
-          "type": "object",
-          "description": "Verification settings for ADD.",
-          "properties": {
-            "key_path": {
-              "type": "string",
-              "description": "Path to key for ADD."
-            },
-            "jwk_fetch_enabled": {
-              "type": "boolean",
-              "description": "Enable JWK fetch for ADD."
-            },
-            "integrity_policy_ref": {
-              "type": "string",
-              "description": "Reference to integrity policy for ADD."
-            }
-          }
-        },
-        "provisioning": {
-          "type": "object",
-          "description": "Provisioning settings for ADD.",
-          "properties": {
-            "endpoint": {
-              "type": "string",
-              "description": "Endpoint for ADD."
-            },
-            "manifest_id_template": {
-              "type": "string",
-              "description": "Template for manifest ID for ADD."
-            },
-            "expected_hash_field_template": {
-              "type": "string",
-              "description": "Template for expected hash field for ADD."
-            },
-            "required_manifests": {
-              "type": "array",
-              "description": "Required manifests for ADD.",
-              "items": {
-                "type": "string"
+    "kms_provider_type": {
+      "type": "string",
+      "description": "Type of the KMS provider."
+    },
+    "default_kms_endpoint": {
+      "type": "string",
+      "description": "Default endpoint for the KMS."
+    },
+    "key_types_config": {
+      "type": "array",
+      "description": "Configuration for key types.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "use": {
+            "type": "string",
+            "description": "Use of the key."
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Purpose of the key."
+          },
+          "algorithm_match": {
+            "type": "string",
+            "description": "Algorithm match for the key."
+          },
+          "kms_identifier": {
+            "type": "string",
+            "description": "Identifier for the KMS."
+          },
+          "rotation_policy": {
+            "type": "object",
+            "description": "Rotation policy for the key.",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Enabled status of the rotation policy."
+              },
+              "period_days": {
+                "type": "integer",
+                "description": "Period in days for the rotation policy."
+              },
+              "automated_retirement_delay_days": {
+                "type": "integer",
+                "description": "Automated retirement delay in days for the rotation policy."
               }
-            }
-          }
-        },
-        "failover_strategy": {
-          "type": "object",
-          "description": "Failover strategy for ADD.",
-          "properties": {
-            "mode": {
-              "type": "string",
-              "description": "Mode for failover strategy for ADD."
-            },
-            "path": {
-              "type": "string",
-              "description": "Path for failover strategy for ADD."
             }
           }
         }
       }
+    },
+    "add_logic": {
+      "$ref": "#/properties/add_logic"
+    },
+    "auditing_config": {
+      "$ref": "#/properties/auditing_config"
     }
-  }
-};
+  },
+  "required": [
+    "kms_version",
+    "kms_provider_type",
+    "default_kms_endpoint",
+    "key_types_config",
+    "add_logic",
+    "auditing_config"
+  ]
+}
 
 // Updated ADD logic
 {
@@ -88,22 +82,23 @@
   "description": "ADD logic.",
   "properties": {
     "nexus_branch": {
-      "$ref": "#/properties/nexus_branch"
+      "type": "string",
+      "description": "Name of the Nexus branch."
     },
     "trust_protocol": {
-      "$ref": "#/properties/add_logic/properties/trust_protocol"
+      "$ref": "#/properties/trust_protocol"
     },
     "verification_settings": {
-      "$ref": "#/properties/add_logic/properties/verification_settings"
+      "$ref": "#/properties/verification_settings"
     },
     "provisioning": {
-      "$ref": "#/properties/add_logic/properties/provisioning"
+      "$ref": "#/properties/provisioning"
     },
     "failover_strategy": {
-      "$ref": "#/properties/add_logic/properties/failover_strategy"
+      "$ref": "#/properties/failover_strategy"
     }
   }
-};
+}
 
 // Updated ADD specification
 {
@@ -123,7 +118,7 @@
       "$ref": "#/properties/add_logic/properties/failover_strategy"
     }
   }
-};
+}
 
 // Updated ADD
 {
@@ -177,4 +172,29 @@
     "logging_destination": "CloudTrail",
     "minimum_audit_level": "CRITICAL"
   }
+}
+
+ADD:
+{
+  "provider_id": "CRoT_MASTER_ENDPOINT_V1",
+  "description": "Configuration for Core Root of Trust (CRoT) Hash Retrieval Service.",
+  "service_type": "REMOTE_ATTESTATION",
+  "endpoints": {
+    "primary": {
+      "url": "https://trust.agi-core/v95/hashes",
+      "protocol": "HTTPS/JWT",
+      "timeout_ms": 3000
+    },
+    "fallback": {
+      "url": "tcp://secure.local_tee:4444",
+      "protocol": "TEE_CHANNEL",
+      "timeout_ms": 500
+    }
+  },
+  "security_parameters": {
+    "signature_algorithm": "ECC_P521",
+    "verification_key_id": "KID-AGI-V95-ROOT",
+    "certificate_expiry_threshold_days": 15
+  },
+  "data_format": "MANIFEST_HASH_LIST"
 }
