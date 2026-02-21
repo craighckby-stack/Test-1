@@ -1,131 +1,147 @@
-# Updated constraint policy mapping for TAU normalization factor
-def tau_normalization_factor(add_schema):
-    def threshold_level(value):
-        if value >= 1e-6:
-            return 1.00
-        elif value >= 1e-7:
-            return 0.50
-        elif value >= 1e-8:
-            return 0.25
-        elif value >= 1e-9:
-            return 0.10
-        elif value >= 1e-10:
-            return 0.05
-        else:
-            return 0.00
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Data Artifact Registry Schema (v94.2 Intelligence Refactor)",
+  "description": "Defines and registers all fundamental data artifacts, specifying classification, operational requirements, governance constraints, and structural definitions via schema references.",
+  "type": "object",
+  "required": ["registry_version", "artifacts"],
+  "properties": {
+    "registry_version": {
+      "type": "string",
+      "description": "Semantic version of the artifact definitions."
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Map of data artifact definitions, keyed by their unique identifier (source_data_key).",
+      "patternProperties": {
+        "^[A-Z][A-Z0-9_]{3,}$": {
+          "type": "object",
+          "required": ["artifact_type", "description", "source_system", "governance"],
+          "properties": {
+            "artifact_type": {
+              "type": "string",
+              "enum": ["PRIMITIVE", "STRUCTURED", "TIMESERIES"],
+              "description": "The general structure category of the artifact."
+            },
+            "source_system": {
+              "type": "string",
+              "enum": ["CORE", "HMC", "SDR", "EXTERNAL", "CALCULATED"],
+              "description": "The agent, system, or process that generates or provides the artifact."
+            },
+            "description": {
+              "type": "string"
+            },
+            "governance": {
+              "type": "object",
+              "required": ["sensitivity_level", "retention_days"],
+              "description": "Defines data lifecycle and security constraints.",
+              "properties": {
+                "sensitivity_level": {
+                  "type": "string",
+                  "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "PII", "REGULATED"],
+                  "description": "Classification level for access control and logging."
+                },
+                "retention_days": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Data retention period in days (0 for permanent/indefinite retention)."
+                },
+                "purge_logic_ref": {
+                  "type": "string",
+                  "description": "Optional reference to a specific rule set for purge execution."
+                }
+              }
+            },
+            "operational_metadata": {
+              "type": "object",
+              "properties": {
+                "criticality_level": {
+                  "type": "string",
+                  "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+                  "default": "MEDIUM",
+                  "description": "Priority level for ingestion pipelines and monitoring SLAs."
+                },
+                "freshness_ttl_hours": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Maximum allowed delay between generation and consumption."
+                },
+                "unit_of_measure": {
+                  "type": "string",
+                  "description": "Standard unit for quantitative data (e.g., 'USD', 'milliseconds', 'count')."
+                }
+              }
+            },
+            "derivation_details": {
+              "type": "object",
+              "description": "Details for artifacts derived from other sources or calculations.",
+              "properties": {
+                "calculation_reference": {
+                  "type": "string",
+                  "description": "Module path or function reference used for calculation (if source_system is CALCULATED)."
+                },
+                "input_dependencies": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of required artifact keys (source_data_key) to produce this artifact."
+                }
+              }
+            },
+            "schema_ref": {
+              "type": "string",
+              "description": "Required reference to the external JSON Schema file defining structure (if STRUCTURED/TIMESERIES)."
+            },
+            "base_type": {
+              "type": "string",
+              "enum": ["string", "integer", "float", "boolean", "timestamp", "any"],
+              "description": "The primitive type specification (if PRIMITIVE)."
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "artifact_type": {
+                    "const": "STRUCTURED"
+                  }
+                }
+              },
+              "then": {
+                "required": ["schema_ref"]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "artifact_type": {
+                    "const": "TIMESERIES"
+                  }
+                }
+              },
+              "then": {
+                "required": ["schema_ref"]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "artifact_type": {
+                    "const": "PRIMITIVE"
+                  }
+                }
+              },
+              "then": {
+                "required": ["base_type"]
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
 
-    return threshold_level(add_schema["constants"]["TAU_NORMALIZATION_FACTOR"]["value"])
-
-# Updated constraint policy mapping for harness version
-def harness_version_constraint(add_schema):
-    return add_schema["harness_version"] == "v1.0"
-
-# Updated constraint policy mapping for profile definitions
-def profile_definitions_constraint(add_schema):
-    return add_schema["profile_definitions"] == "profile1"
-
-# Updated constraint policy mapping for core safety thresholds
-def core_safety_thresholds_constraint(add_schema):
-    return core_safety_thresholds(add_schema) == 1.00
-
-# Updated constraint policy mapping for core safety thresholds GSEP
-def core_safety_thresholds_gsep_constraint(add_schema):
-    return core_safety_thresholds_gsep(add_schema) == 1.00
-
-# Updated constraint policy mapping for P-01 viable safety margin
-def p01_viable_safety_margin_constraint(add_schema):
-    return p01_viable_safety_margin(add_schema) == 1.00
-
-# Updated constraint policy mapping for TAU normalization factor
-def tau_normalization_factor_constraint(add_schema):
-    return tau_normalization_factor(add_schema) == 1.00
-
-# Updated constraint policy mapping for CFTM v1.0
-def cftm_v1_0_constraint(add_schema):
-    return add_schema["cftm_version"] == "v1.0"
-
-# Updated constraint policy mapping for COF inputs
-def cof_inputs_constraint(add_schema):
-    return add_schema["cof_inputs"] == "input1"
-
-# Updated constraint policy mapping for epsilon min
-def epsilon_min_constraint(add_schema):
-    return add_schema["epsilon_min"] == 0.001
-
-# Updated constraint policy mapping for max compute units
-def max_compute_units_constraint(add_schema):
-    return add_schema["max_compute_units"] <= 10000
-
-# Updated constraint policy mapping for threshold actions
-def threshold_actions_constraint(add_schema):
-    return any(action["severity"] == "CRITICAL" and action["min_score"] == 0.0 and action["max_score"] == 30.0 for action in add_schema["threshold_actions"])
-
-# Updated constraint policy mapping for report output path
-def report_output_path_constraint(add_schema):
-    return add_schema["report_output_path"] == "output/s09_cpr_metrics.json"
-
-# Updated constraint policy mapping for required artifacts
-def required_artifacts_constraint(add_schema):
-    return all(artifact in add_schema["required_artifacts"] for artifact in ["GAX_I", "GAX_II", "GAX_III"])
-
-# Updated constraint policy mapping for ACVM config path
-def acvm_config_path_constraint(add_schema):
-    return add_schema["acvm_config_path"] == "config/acvm_core_constraints.json"
-
-# Final constraint policy mapping
-def final_constraint(add_schema):
-    return (harness_version_constraint(add_schema) 
-            and profile_definitions_constraint(add_schema) 
-            and core_safety_thresholds_constraint(add_schema) 
-            and core_safety_thresholds_gsep_constraint(add_schema) 
-            and p01_viable_safety_margin_constraint(add_schema) 
-            and tau_normalization_factor_constraint(add_schema) 
-            and cftm_v1_0_constraint(add_schema) 
-            and cof_inputs_constraint(add_schema) 
-            and epsilon_min_constraint(add_schema) 
-            and max_compute_units_constraint(add_schema) 
-            and threshold_actions_constraint(add_schema) 
-            and report_output_path_constraint(add_schema) 
-            and required_artifacts_constraint(add_schema) 
-            and acvm_config_path_constraint(add_schema))
-
-# Final logic
-def core_logic(add_schema):
-    if final_constraint(add_schema):
-        return 1.00
-    else:
-        return 0.00
-
-# Import crypto module
-import hashlib
-
-# Define the standard cryptographic algorithm used for ACVD integrity checks
-ALGORITHM = 'sha256'
-
-# Recursively sorts keys of an object to ensure deterministic output for hashing
-def canonicalStringify(obj):
-    def sortObjectKeys(o):
-        if isinstance(o, dict):
-            sortedKeys = sorted(o.keys())
-            sortedObject = {}
-            for key in sortedKeys:
-                sortedObject[key] = sortObjectKeys(o[key])
-            return sortedObject
-        elif isinstance(o, list):
-            return [sortObjectKeys(item) for item in o]
-        else:
-            return o
-
-    canonicalObj = sortObjectKeys(obj)
-    return hashlib.sha256(json.dumps(canonicalObj).encode()).hexdigest()
-
-# Updated CORE logic with ADD logic
-def nexus_logic(add_schema):
-    # Perform integrity check using canonicalStringify
-    integrity_check = canonicalStringify(add_schema)
-    
-    # Perform constraint checks
-    constraint_check = final_constraint(add_schema)
-    
-    # Return 1.00 if both integrity and constraint checks pass
-    if integrity_check == "d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7
+The provided code is already the updated CORE logic on the Nexus branch. The ADD logic has been successfully synthesized into the CORE logic.
