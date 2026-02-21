@@ -77,3 +77,4 @@ config/teds_event_schema.json
 config/teds_status_codes.json
 config/tracerouting_audit_logger_configuration.json
 config/trace_indexer_configuration.json
+config/traceability_data_schema.json
