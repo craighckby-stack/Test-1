@@ -195,3 +195,4 @@ components/utilities/constraint_compliance_validator.py
 components/validation/psim.json
 config/acvdschema.js
 config/acvd_v97_2.json
+config/acvt/maintainabilitymetricsaggregator.json
