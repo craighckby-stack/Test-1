@@ -1,86 +1,86 @@
-CORE:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://sovereign-agi.io/governance/pesm_v95.3.json",
-  "title": "Policy Evolution Schema Manifest (PESM)",
-  "description": "Defines the mandatory structural constraints for all GACR policy assets (PVLM, CFTM, SBCM, etc.) during PEUP updates.",
+  "title": "Nexus Branch",
+  "description": "Nexus branch for ADD logic.",
   "type": "object",
-  "required": ["metadata", "policy_version", "schema_enforcement_date"],
   "properties": {
-    "metadata": {
-      "type": "object",
-      "required": ["asset_id", "agent_owner"],
-      "properties": {
-        "asset_id": {"type": "string", "description": "Canonical ID (e.g., PVLM, CFTM)"},
-        "agent_owner": {"type": "string", "enum": ["GAX", "SGS"], "description": "The Triumvirate component responsible for policy enforcement."}
-      }
-    },
-    "policy_version": {
+    "nexus_branch": {
       "type": "string",
-      "pattern": "^v\\d+\\.\\d+$"
+      "description": "Nexus branch for ADD."
     },
-    "schema_enforcement_date": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "schema_definition": {
+    "add_logic": {
       "type": "object",
-      "description": "The actual JSON schema enforcing structural validity of the target GACR asset.",
+      "description": "ADD logic.",
       "properties": {
-        "aggregation": {"type": "string", "enum": ["MAX", "MIN", "AVERAGE"], "description": "Aggregation method for data."},
-        "storage_policy": {"type": "string", "enum": ["PERMANENT", "HOT_30D"], "description": "Storage policy for data."},
-        "optimize_goal": {"type": "string", "enum": ["MAXIMIZE", "MINIMIZE"], "description": "Optimization goal for data."},
-        "type": {"type": "string", "enum": ["QUALITY", "PERFORMANCE", "HARMONIC_SEVERITY", "RESOURCE_USAGE", "VRRM_REMEDIATION_PLANS", "ADD_LOGIC"], "description": "Type of data."},
-        "source": {"type": "string", "description": "Source of data."},
-        "unit": {"type": "string", "description": "Unit of measurement for data."},
-        "data_type": {"type": "string", "enum": ["FLOAT", "INTEGER", "JSON"], "description": "Data type of measurement for data."},
-        "chain_history_length": {"type": "integer", "description": "Length of chain history."},
-        "manifest_load_time_ms": {"type": "float", "description": "Time taken to load manifest."},
-        "manifest_validation_time_ms": {"type": "float", "description": "Time taken to validate manifest."},
-        "success_rate_op": {"type": "float", "description": "Success rate of operation."},
-        "remediation_profiles": {"type": "json", "description": "Remediation profiles."},
-        "add_configuration": {
+        "dalek_caan": {
           "type": "object",
-          "description": "Configuration for ADD.",
+          "description": "Dalek Caan's logic.",
           "properties": {
-            "nexus_branch": {"type": "string", "description": "Nexus branch for ADD."},
-            "add_logic": {"type": "object", "description": "ADD logic."},
-            "add_specification": {"type": "object", "description": "Specification for ADD."},
-            "gacr_manifest_chain_integrity": {"type": "object", "description": "Chain integrity for GACR manifest."},
-            "harmonic_severity_matrix": {"type": "object", "description": "Harmonic severity matrix."},
-            "chain_history_length": {"type": "integer", "description": "Length of chain history."}
+            "synthesis_algorithm": {
+              "type": "string",
+              "description": "Synthesis algorithm for ADD."
+            },
+            "synthesis_input": {
+              "type": "object",
+              "description": "Input for synthesis algorithm."
+            },
+            "synthesis_output": {
+              "type": "object",
+              "description": "Output of synthesis algorithm."
+            },
+            "synthesis_time_ms": {
+              "type": "float",
+              "description": "Time taken for synthesis algorithm."
+            },
+            "synthesis_success_rate": {
+              "type": "float",
+              "description": "Success rate of synthesis algorithm."
+            },
+            "add_specification": {
+              "type": "object",
+              "description": "Specification for ADD.",
+              "properties": {
+                "core_logic": {
+                  "type": "object",
+                  "description": "Core logic for ADD.",
+                  "properties": {
+                    "add_configuration": {
+                      "type": "object",
+                      "description": "Configuration for ADD.",
+                      "properties": {
+                        "nexus_branch": {
+                          "type": "string",
+                          "description": "Nexus branch for ADD."
+                        },
+                        "add_logic": {
+                          "type": "object",
+                          "description": "ADD logic."
+                        },
+                        "add_specification": {
+                          "type": "object",
+                          "description": "Specification for ADD."
+                        },
+                        "gacr_manifest_chain_integrity": {
+                          "type": "object",
+                          "description": "Chain integrity for GACR manifest."
+                        },
+                        "harmonic_severity_matrix": {
+                          "type": "object",
+                          "description": "Harmonic severity matrix."
+                        },
+                        "chain_history_length": {
+                          "type": "integer",
+                          "description": "Length of chain history."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
-        },
-        "add_specification": {
-          "type": "object",
-          "description": "Specification for ADD.",
-          "properties": {
-            "synthesis_algorithm": {"type": "string", "description": "Synthesis algorithm for ADD."},
-            "synthesis_input": {"type": "object", "description": "Input for synthesis algorithm."},
-            "synthesis_output": {"type": "object", "description": "Output of synthesis algorithm."},
-            "synthesis_time_ms": {"type": "float", "description": "Time taken for synthesis algorithm."},
-            "synthesis_success_rate": {"type": "float", "description": "Success rate of synthesis algorithm."}
-          }
-        },
-        "gacr_manifest_chain_integrity": {
-          "type": "object",
-          "description": "Chain integrity for GACR manifest.",
-          "properties": {
-            "chain_hash": {"type": "string", "description": "Hash of chain."},
-            "chain_timestamp": {"type": "string", "format": "date-time", "description": "Timestamp of chain."}
-          }
-        },
-        "harmonic_severity_matrix": {
-          "type": "object",
-          "description": "Harmonic severity matrix.",
-          "properties": {
-            "matrix_size": {"type": "integer", "description": "Size of matrix."},
-            "matrix_data": {"type": "object", "description": "Data of matrix."}
-          }
-        },
-        "chain_history_length": {"type": "integer", "description": "Length of chain history."}
+        }
       }
     }
-  },
-  "additionalProperties": false
+  }
 }
