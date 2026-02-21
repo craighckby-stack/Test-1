@@ -13,6 +13,7 @@ const ARTIFACT_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'proto
 const CMR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.json'), 'utf8'));
 const CMR_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.schema.json'), 'utf8'));
 const ECVM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm.json'), 'utf8'));
+const ECVM_TIS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm_tis.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -28,6 +29,7 @@ class AdaptiveSamplingEngine {
       cmrConfig: CMR_CONFIG,
       cmrSchema: CMR_SCHEMA,
       ecvm: ECVM,
+      ecvmTis: ECVM_TIS,
     };
   }
 
@@ -56,6 +58,10 @@ class AdaptiveSamplingEngine {
       const ecvm = new ECVM(this.config.ecvm);
       await ecvm.validate(stage.executionTrace);
 
+      // Validate ECVM TIS compliance
+      const ecvmTis = new ECVM_TIS(this.config.ecvmTis);
+      await ecvmTis.validate(stage.executionTrace);
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
@@ -68,6 +74,42 @@ class AdaptiveSamplingEngine {
     // Seal and attest configuration
     const gar = new GAR(this.config.keyRotationSchedule);
     await gar.sealAndAttest(artifactManifest);
+  }
+}
+
+// GACR/ECVM_TIS.ts
+class ECVM_TIS {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async validate(executionTrace) {
+    // Validate telemetry inputs against config
+    const telemetryInputs = this.config.telemetry_inputs;
+    for (const input of telemetryInputs) {
+      // Validate source_id
+      if (!executionTrace[input.source_id]) {
+        throw new Error(`Missing telemetry input source: ${input.source_id}`);
+      }
+
+      // Validate data_path
+      const dataPath = input.data_path;
+      if (!executionTrace[input.source_id][dataPath]) {
+        throw new Error(`Missing telemetry data at path: ${dataPath}`);
+      }
+
+      // Validate retrieval_config
+      const retrievalConfig = input.retrieval_config;
+      if (retrievalConfig.protocol !== 'HTTP/2_PULL' && retrievalConfig.protocol !== 'IPC_MOCK' && retrievalConfig.protocol !== 'GRPC_BI_STREAM') {
+        throw new Error(`Invalid retrieval protocol: ${retrievalConfig.protocol}`);
+      }
+
+      // Validate schedule
+      const schedule = retrievalConfig.schedule;
+      if (schedule.type !== 'INTERVAL' && schedule.type !== 'FIXED_RATE' && schedule.type !== 'EVENT_DRIVEN') {
+        throw new Error(`Invalid schedule type: ${schedule.type}`);
+      }
+    }
   }
 }
 
