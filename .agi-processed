@@ -23,3 +23,4 @@ Governance/Services/CISR_Service_Definition.json
 Licence.md
 PROTOCOLS/GSUP.md
 README.md
+VMO/SPDM_Integrity_Validator.py
