@@ -103,3 +103,4 @@ config/artifacts/artifactdefinitionschema.json
 config/atm_component_config.json
 config/atm_governance_schema.json
 config/atm_risk_levels.json
+config/caim_error_codes.json
