@@ -128,3 +128,4 @@ config/dependency_manifest.json
 config/deployment/acvd_profile_map.json
 config/deployment/acvd_schema_v1.json
 config/deployment/profile_resolver.js
+config/dial_analysis_map.json
