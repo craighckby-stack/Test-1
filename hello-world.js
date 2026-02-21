@@ -10,6 +10,7 @@ const KEY_ROTATION_SCHEDULE = JSON.parse(fs.readFileSync(path.join(__dirname, 'c
 const PSCA_VALIDATION_TARGETS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'psca_validation_targets.json'), 'utf8'));
 const PROTOCOL_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'attestation_policy_map.json'), 'utf8'));
 const ARTIFACT_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'artifact_manifest.json'), 'utf8'));
+const CMR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -22,6 +23,7 @@ class AdaptiveSamplingEngine {
       pscaValidationTargets: PSCA_VALIDATION_TARGETS,
       protocolManifest: PROTOCOL_MANIFEST,
       artifactManifest: ARTIFACT_MANIFEST,
+      cmrConfig: CMR_CONFIG,
     };
   }
 
@@ -41,6 +43,10 @@ class AdaptiveSamplingEngine {
       // Validate PSCA compliance
       const psca = new PSCA(this.config.pscaValidationTargets);
       await psca.validate(stage.configuration);
+
+      // Validate CMR compliance
+      const cmr = new CMR(this.config.cmrConfig);
+      await cmr.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -83,6 +89,21 @@ class CMAC {
     const validationResults = await this.spec.validate(executionTrace);
     if (!validationResults.every((result) => result.valid)) {
       throw new Error('CMAC validation failed');
+    }
+  }
+}
+
+// CMR/CMR.ts
+class CMR {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against config
+    const validationResults = await this.config.validate(executionTrace);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('CMR validation failed');
     }
   }
 }
