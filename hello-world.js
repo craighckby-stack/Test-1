@@ -11,6 +11,7 @@ const PSCA_VALIDATION_TARGETS = JSON.parse(fs.readFileSync(path.join(__dirname, 
 const PROTOCOL_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'attestation_policy_map.json'), 'utf8'));
 const ARTIFACT_MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'artifact_manifest.json'), 'utf8'));
 const CMR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.json'), 'utf8'));
+const CMR_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -24,6 +25,7 @@ class AdaptiveSamplingEngine {
       protocolManifest: PROTOCOL_MANIFEST,
       artifactManifest: ARTIFACT_MANIFEST,
       cmrConfig: CMR_CONFIG,
+      cmrSchema: CMR_SCHEMA,
     };
   }
 
@@ -45,7 +47,7 @@ class AdaptiveSamplingEngine {
       await psca.validate(stage.configuration);
 
       // Validate CMR compliance
-      const cmr = new CMR(this.config.cmrConfig);
+      const cmr = new CMR(this.config.cmrConfig, this.config.cmrSchema);
       await cmr.validate(stage.executionTrace);
 
       // Update protocol manifest
@@ -95,13 +97,14 @@ class CMAC {
 
 // CMR/CMR.ts
 class CMR {
-  constructor(config) {
+  constructor(config, schema) {
     this.config = config;
+    this.schema = schema;
   }
 
   async validate(executionTrace) {
-    // Validate execution trace against config
-    const validationResults = await this.config.validate(executionTrace);
+    // Validate execution trace against config and schema
+    const validationResults = await this.schema.validate(executionTrace, this.config);
     if (!validationResults.every((result) => result.valid)) {
       throw new Error('CMR validation failed');
     }
@@ -133,6 +136,33 @@ class GAR {
     // Seal and attest artifact manifest
     const sealedManifest = await this.keyRotationSchedule.sealAndAttest(artifactManifest);
     return sealedManifest;
+  }
+}
+
+// CMR/CMRValidator.ts
+class CMRValidator {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(executionTrace, config) {
+    const validator = new JSONSchemaValidator();
+    const validationResults = await validator.validate(executionTrace, this.schema);
+    return validationResults;
+  }
+}
+
+// JSONSchemaValidator.ts
+class JSONSchemaValidator {
+  async validate(data, schema) {
+    const Ajv = require('ajv');
+    const ajv = new Ajv();
+    const validate = ajv.compile(schema);
+    const valid = validate(data);
+    if (!valid) {
+      throw new Error(validate.errors[0].message);
+    }
+    return validate.errors;
   }
 }
 
