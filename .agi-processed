@@ -199,3 +199,4 @@ config/acvt/maintainabilitymetricsaggregator.json
 config/aicv_security_policy.yaml
 config/aitm_manifest.json
 config/aitm_response_policy.json
+config/aoc_moduleregistry.json
