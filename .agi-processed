@@ -14,3 +14,4 @@ GACR/Schemas/APITelemetry.json
 GACR/TelemetrySourceSchema.json
 GACR/VSEC.json
 GACR/interfaces/S0_Platform_I.py
+GACR/schemas/cmrSchema.json
