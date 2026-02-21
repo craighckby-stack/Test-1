@@ -17,6 +17,7 @@ const ECVM_TIS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm
 const ES_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'es_schema.json'), 'utf8'));
 const GTEM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gtem.json'), 'utf8'));
 const HETM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'hetm.schema.json'), 'utf8'));
+const MQM_POLICY = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'mqm.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -36,6 +37,7 @@ class AdaptiveSamplingEngine {
       esSchema: ES_SCHEMA,
       gtem: GTEM,
       hetmSchema: HETM_SCHEMA,
+      mqmPolicy: MQM_POLICY,
     };
   }
 
@@ -79,6 +81,10 @@ class AdaptiveSamplingEngine {
       // Validate HETM compliance
       const hetm = new HETM(this.config.hetmSchema);
       await hetm.validate(stage.executionTrace);
+
+      // Validate MQM compliance
+      const mqm = new MQM(this.config.mqmPolicy);
+      await mqm.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -359,6 +365,45 @@ class HETM {
     const validationResults = await this.schema.validate(executionTrace);
     if (!validationResults.every((result) => result.valid)) {
       throw new Error('HETM validation failed');
+    }
+  }
+}
+
+// GACR/MQM.ts
+class MQM {
+  constructor(policy) {
+    this.policy = policy;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against policy
+    const enforcementTiers = this.policy.enforcement_tiers;
+    const defaultTier = this.policy.default_tier;
+    const protocolId = executionTrace.protocol_id;
+    const tier = enforcementTiers[protocolId] || defaultTier;
+
+    // Validate failure criteria
+    const failureCriteria = this.policy.enforcement_tiers[tier].failure_criteria;
+    if (executionTrace.consecutive_reruns > failureCriteria.max_consecutive_reruns) {
+      throw new Error(`Consecutive reruns exceeded maximum allowed: ${failureCriteria.max_consecutive_reruns}`);
+    }
+    if (executionTrace.window_hrs > failureCriteria.window_hrs) {
+      throw new Error(`Window hours exceeded maximum allowed: ${failureCriteria.window_hrs}`);
+    }
+
+    // Validate monitoring rules
+    const monitoringRules = this.policy.enforcement_tiers[tier].monitoring_rules;
+    for (const rule of monitoringRules) {
+      const metricId = executionTrace[rule.metric_id];
+      if (rule.type === 'PERCENTILE_LIMIT') {
+        if (metricId < rule.limit) {
+          throw new Error(`Metric ${rule.metric_id} below threshold: ${rule.limit}`);
+        }
+      } else if (rule.type === 'ABSOLUTE_COUNT_MAX') {
+        if (metricId > rule.limit) {
+          throw new Error(`Metric ${rule.metric_id} exceeded maximum allowed: ${rule.limit}`);
+        }
+      }
     }
   }
 }
