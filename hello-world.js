@@ -14,6 +14,7 @@ const CMR_CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cm
 const CMR_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'cmr.schema.json'), 'utf8'));
 const ECVM = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm.json'), 'utf8'));
 const ECVM_TIS = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'ecvm_tis.json'), 'utf8'));
+const ES_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'es_schema.json'), 'utf8'));
 
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
@@ -30,6 +31,7 @@ class AdaptiveSamplingEngine {
       cmrSchema: CMR_SCHEMA,
       ecvm: ECVM,
       ecvmTis: ECVM_TIS,
+      esSchema: ES_SCHEMA,
     };
   }
 
@@ -62,6 +64,10 @@ class AdaptiveSamplingEngine {
       const ecvmTis = new ECVM_TIS(this.config.ecvmTis);
       await ecvmTis.validate(stage.executionTrace);
 
+      // Validate ES compliance
+      const es = new ES(this.config.esSchema);
+      await es.validate(stage.configuration);
+
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
       protocolManifest[stage.protocolId] = stage.executionTrace;
@@ -74,6 +80,78 @@ class AdaptiveSamplingEngine {
     // Seal and attest configuration
     const gar = new GAR(this.config.keyRotationSchedule);
     await gar.sealAndAttest(artifactManifest);
+  }
+}
+
+// GACR/ES.ts
+class ES {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(configuration) {
+    // Validate configuration against schema
+    const actionType = configuration.action_type;
+    const action = this.schema.action_types[actionType];
+    if (!action) {
+      throw new Error(`Unknown action type: ${actionType}`);
+    }
+
+    // Validate mandatory parameters
+    for (const param of action.mandatory_params) {
+      if (!configuration[param]) {
+        throw new Error(`Missing mandatory parameter: ${param}`);
+      }
+    }
+
+    // Validate optional parameters
+    for (const param of action.optional_params || []) {
+      if (configuration[param]) {
+        // Validate enum values
+        if (action[param + '_enum']) {
+          const value = configuration[param];
+          if (!action[param + '_enum'].includes(value)) {
+            throw new Error(`Invalid enum value for parameter: ${param}`);
+          }
+        }
+      }
+    }
+  }
+}
+
+// GACR/ES_Schema.ts
+class ES_Schema {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(configuration) {
+    // Validate configuration against schema
+    const actionType = configuration.action_type;
+    const action = this.schema.action_types[actionType];
+    if (!action) {
+      throw new Error(`Unknown action type: ${actionType}`);
+    }
+
+    // Validate mandatory parameters
+    for (const param of action.mandatory_params) {
+      if (!configuration[param]) {
+        throw new Error(`Missing mandatory parameter: ${param}`);
+      }
+    }
+
+    // Validate optional parameters
+    for (const param of action.optional_params || []) {
+      if (configuration[param]) {
+        // Validate enum values
+        if (action[param + '_enum']) {
+          const value = configuration[param];
+          if (!action[param + '_enum'].includes(value)) {
+            throw new Error(`Invalid enum value for parameter: ${param}`);
+          }
+        }
+      }
+    }
   }
 }
 
