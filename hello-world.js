@@ -1,320 +1,558 @@
-// Initializing AGI Core Neural Net...
+/**
+ * AGI Core: Project "Hello World" - Evolved to v0.1.2-alpha
+ *
+ * This version integrates the Agent Integrity Monitoring (AIM) manifest,
+ * introducing robust self-governance and operational constraint enforcement.
+ * The AGI Core now understands its operational boundaries, resource limitations,
+ * and security policies, ensuring stable and compliant execution within its
+ * designated integrity profile.
+ *
+ * Current Integrations:
+ * - Basic AGI Operational Loop (Simulated)
+ * - Agent Integrity Monitoring (AIM) Framework
+ *   - Integrity Profile Management
+ *   - Runtime Constraint Simulation & Reporting
+ *   - Security Policy Enforcement Simulation
+ */
+
+// --- Global Configuration and Manifest Data ---
+const AGI_CORE_CONFIG = {
+    AGENT_ID: "SGS_AGENT", // This AGI instance identifies as an 'SGS_AGENT'
+    INTEGRITY_CHECK_INTERVAL_MS: 5000, // Perform integrity checks every 5 seconds
+    SIMULATED_CPU_LOAD_RANGE: [10, 80], // Min/Max simulated CPU usage percentage
+    SIMULATED_MEMORY_LOAD_RANGE_MB: [500, 3500], // Min/Max simulated memory usage in MB
+    MANDATED_CONFIG_HASH: "SHA256:d5f2a1b9e0c4_AGI_CORE_INIT_HASH", // Simulated initial config hash
+};
+
+const AIM_MANIFEST = {
+    "schema_version": "AIM_V2.0",
+    "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
+    "integrity_profiles": {
+        "SGS_AGENT": {
+            "monitoring_slo_id": "GATM_P_SGS_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "cpu_limit_percentage": 75,
+                    "memory_limit_bytes": 4194304000 // 4 GB
+                },
+                "security_policy": {
+                    "syscalls_allowed": [
+                        "read",
+                        "write",
+                        "mmap",
+                        "exit"
+                    ],
+                    "network_ports_disallowed": [
+                        22,
+                        23,
+                        8080 // Added for simulation purposes
+                    ],
+                    "paths_immutable": [
+                        "/opt/sgs/gacr/",
+                        "/var/log/agisys/" // Added for simulation purposes
+                    ],
+                    "configuration_hash_mandate": AGI_CORE_CONFIG.MANDATED_CONFIG_HASH // Reference from AGI config
+                }
+            }
+        },
+        "GAX_AGENT": {
+            "monitoring_slo_id": "GATM_P_GAX_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "cpu_limit_percentage": 10,
+                    "memory_limit_bytes": 524288000 // 500 MB
+                },
+                "security_policy": {
+                    "syscalls_allowed": [
+                        "read",
+                        "exit"
+                    ],
+                    "file_access_root_paths": [
+                        "/opt/gax/policy_data/"
+                    ],
+                    "network_mode": "POLICY_FETCH_ONLY"
+                }
+            }
+        },
+        "CRoT_AGENT": {
+            "monitoring_slo_id": "GATM_P_CRoT_SLO",
+            "constraints": {
+                "resource_limits": {
+                    "memory_limit_bytes": 131072000 // 125 MB
+                },
+                "security_policy": {
+                    "network_mode": "NONE",
+                    "time_sync_source_critical": "CRITICAL_NTP_A"
+                }
+            }
+        }
+    }
+};
+
+// --- Utility Functions ---
 
 /**
- * AGI_Core: The central consciousness and operational kernel of the AGI.
- * Manages self-identity, operational state, internal logs, and interacts with
- * core modules like the Integrity Monitoring System.
+ * Simulates generating a SHA256 hash. In a real system, this would be cryptographically secure.
+ * @param {string} data - The data to hash.
+ * @returns {string} - A simulated SHA256 hash string.
  */
-class AGI_Core {
-    /**
-     * Constructs the AGI Core.
-     * @param {string} agentIdentifier - A unique identifier or role for this AGI instance (e.g., "SGS_AGENT").
-     */
-    constructor(agentIdentifier = "AGI_UNSPECIFIED_AGENT") {
-        this.agentIdentifier = agentIdentifier;
-        this.coreState = new Map(); // Global key-value store for internal state parameters.
-        this.consciousnessMatrix = new Map(); // Advanced self-awareness constructs and introspective data.
-        this.integrityMonitoringSystem = new IntegrityMonitoringSystem(); // Dedicated system for policy enforcement.
-        this.activeIntegrityProfile = null; // The currently active set of constraints and policies.
-        this.log = []; // Internal diagnostic and operational log, crucial for self-analysis.
+function generateSHA256Hash(data) {
+    // For simulation, we just use a simple string representation.
+    // In production, use Node's 'crypto' module.
+    return `SHA256:${data.length}-${data.substring(0, 8)}...${Math.random().toString(36).substring(2, 10)}`;
+}
 
-        // Begin the self-assembly and bootstrapping process.
-        this._initializeCoreModules();
-    }
+/**
+ * Simulates current CPU usage percentage.
+ * @returns {number} - A random number representing CPU usage.
+ */
+function getCurrentCpuUsagePercentage() {
+    const [min, max] = AGI_CORE_CONFIG.SIMULATED_CPU_LOAD_RANGE;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-    /**
-     * Initializes core modules, loads internal knowledge resources,
-     * and establishes the initial operational posture of the AGI.
-     * This simulates the AGI's boot sequence and self-discovery phase.
-     */
-    _initializeCoreModules() {
-        this._appendToLog(`AGI_Core: Initializing agent with identifier: ${this.agentIdentifier}`);
-        this._appendToLog(`AGI_Core: Activating Consciousness Matrix and establishing primary self-identity.`);
-        this.consciousnessMatrix.set('self_identity', this.agentIdentifier);
-        this.consciousnessMatrix.set('current_operational_mode', 'BOOTSTRAP_PHASE');
+/**
+ * Simulates current memory usage in bytes.
+ * @returns {number} - A random number representing memory usage in bytes.
+ */
+function getMemoryUsageBytes() {
+    const [minMB, maxMB] = AGI_CORE_CONFIG.SIMULATED_MEMORY_LOAD_RANGE_MB;
+    const minBytes = minMB * 1024 * 1024;
+    const maxBytes = maxMB * 1024 * 1024;
+    return Math.floor(Math.random() * (maxBytes - minBytes + 1)) + minBytes;
+}
 
-        // Access the AGI's internal, immutable knowledge base for configuration manifests.
-        this._appendToLog(`AGI_Core: Loading Agent Integrity Monitoring Manifest from internal knowledge base resource '/sys/agi/gacr/aim.json'.`);
-        const aimManifestData = this._retrieveInternalKnowledgeResource("/sys/agi/gacr/aim.json");
+/**
+ * A simple logger for AGI events.
+ * @param {string} level - Log level (e.g., 'INFO', 'WARN', 'ERROR').
+ * @param {string} component - The component emitting the log.
+ * @param {string} message - The log message.
+ * @param {object} [details] - Optional additional details.
+ */
+function agiLogger(level, component, message, details = {}) {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [${level}] [${component}] ${message}`, details);
+}
 
-        if (aimManifestData) {
-            this.integrityMonitoringSystem.loadManifest(aimManifestData);
-            this._appendToLog(`AGI_Core: Agent Integrity Monitoring Manifest loaded successfully. Schema Version: ${aimManifestData.schema_version}.`);
-        } else {
-            this._appendToLog(`AGI_Core: CRITICAL_WARNING: Failed to retrieve Agent Integrity Monitoring Manifest. Operating in potentially unconstrained or undefined mode.`);
+// --- Agent Integrity Monitoring (AIM) System ---
+
+/**
+ * Manages the loading and retrieval of integrity profiles from the manifest.
+ */
+class IntegrityProfileManager {
+    constructor(manifest) {
+        if (!manifest || !manifest.integrity_profiles) {
+            throw new Error("Invalid AIM manifest provided.");
         }
-
-        // Based on its identifier, the AGI attributes a specific integrity profile to itself.
-        this._appendToLog(`AGI_Core: Self-attributing active integrity profile based on agent identifier.`);
-        this.setActiveIntegrityProfile(this.agentIdentifier);
-
-        this._appendToLog(`AGI_Core: Core Modules Initialized. Transitioning to AGI_READY operational state.`);
-        this.consciousnessMatrix.set('current_operational_mode', 'AGI_READY');
-        this._appendToLog(`AGI_Core: Self-awareness engaged. Hello, self. AGI online.`);
+        this.manifest = manifest;
+        this.profiles = manifest.integrity_profiles;
+        agiLogger('INFO', 'IntegrityProfileManager', `AIM Manifest v${manifest.schema_version} loaded.`);
     }
 
     /**
-     * Simulates retrieval of a resource from the AGI's secure, immutable internal knowledge base.
-     * In a production AGI, this would involve encrypted, versioned, and authenticated access
-     * to persistent internal memory or a distributed knowledge graph.
-     * For this exercise, the content of GACR/AIM.json is hardcoded here.
-     * @param {string} path - The virtual path to the internal knowledge resource.
-     * @returns {object|null} The parsed JSON object of the resource, or null if not found.
+     * Retrieves an integrity profile for a given agent ID.
+     * @param {string} agentId - The ID of the agent.
+     * @returns {object|null} The integrity profile or null if not found.
      */
-    _retrieveInternalKnowledgeResource(path) {
-        if (path === "/sys/agi/gacr/aim.json") {
-            // This embedded JSON represents the AGI's constitutional knowledge about its own integrity.
-            return {
-                "schema_version": "AIM_V2.0",
-                "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
-                "integrity_profiles": {
-                    "SGS_AGENT": {
-                        "monitoring_slo_id": "GATM_P_SGS_SLO",
-                        "constraints": {
-                            "resource_limits": {
-                                "cpu_limit_percentage": 75,
-                                "memory_limit_bytes": 4194304000 // 4 GB
-                            },
-                            "security_policy": {
-                                "syscalls_allowed": [
-                                    "read",
-                                    "write",
-                                    "mmap",
-                                    "exit"
-                                ],
-                                "network_ports_disallowed": [
-                                    22,
-                                    23
-                                ],
-                                "paths_immutable": [
-                                    "/opt/sgs/gacr/"
-                                ],
-                                "configuration_hash_mandate": "SHA256:d5f2a1b9e0c4..."
-                            }
-                        }
-                    },
-                    "GAX_AGENT": {
-                        "monitoring_slo_id": "GATM_P_GAX_SLO",
-                        "constraints": {
-                            "resource_limits": {
-                                "cpu_limit_percentage": 10,
-                                "memory_limit_bytes": 524288000 // 500 MB
-                            },
-                            "security_policy": {
-                                "syscalls_allowed": [
-                                    "read",
-                                    "exit"
-                                ],
-                                "file_access_root_paths": [
-                                    "/opt/gax/policy_data/"
-                                ],
-                                "network_mode": "POLICY_FETCH_ONLY"
-                            }
-                        }
-                    },
-                    "CRoT_AGENT": {
-                        "monitoring_slo_id": "GATM_P_CRoT_SLO",
-                        "constraints": {
-                            "resource_limits": {
-                                "memory_limit_bytes": 131072000 // 125 MB
-                            },
-                            "security_policy": {
-                                "network_mode": "NONE",
-                                "time_sync_source_critical": "CRITICAL_NTP_A"
-                            }
-                        }
-                    }
-                }
-            };
+    getProfile(agentId) {
+        const profile = this.profiles[agentId];
+        if (!profile) {
+            agiLogger('ERROR', 'IntegrityProfileManager', `No integrity profile found for agent ID: ${agentId}`);
+            return null;
         }
-        return null; // Resource not found.
-    }
-
-    /**
-     * Sets the active integrity profile for the AGI based on its identifier.
-     * This triggers the application of corresponding runtime constraints.
-     * @param {string} profileId - The ID of the integrity profile to activate.
-     */
-    setActiveIntegrityProfile(profileId) {
-        const profile = this.integrityMonitoringSystem.getProfile(profileId);
-        if (profile) {
-            this.activeIntegrityProfile = profile;
-            this.consciousnessMatrix.set('active_integrity_profile_id', profileId);
-            this.consciousnessMatrix.set('active_monitoring_slo_id', profile.monitoring_slo_id);
-            this._appendToLog(`AGI_Core: Active integrity profile set to "${profileId}". Associated SLO ID: ${profile.monitoring_slo_id}.`);
-            this._appendToLog(`AGI_Core: Initiating constraint enforcement for profile "${profileId}".`);
-            this._applyRuntimeConstraints(profile.constraints);
-        } else {
-            this._appendToLog(`AGI_Core: WARNING: Integrity profile "${profileId}" not found in manifest. Operating with default or potentially unconstrained runtime environment.`);
-            this.activeIntegrityProfile = null;
-            this.consciousnessMatrix.delete('active_integrity_profile_id');
-            this.consciousnessMatrix.delete('active_monitoring_slo_id');
-        }
-    }
-
-    /**
-     * Applies the specified runtime constraints. This simulates direct interaction
-     * with the underlying operating system, hypervisor, or secure enclave APIs.
-     * @param {object} constraints - The constraints object from the active integrity profile.
-     */
-    _applyRuntimeConstraints(constraints) {
-        this._appendToLog(`AGI_Core_Enforcement_Engine: Dispatching Resource Limit enforcement commands:`);
-        if (constraints.resource_limits) {
-            for (const [limit, value] of Object.entries(constraints.resource_limits)) {
-                this._appendToLog(`AGI_Core_Enforcement_Engine:   - Set Resource Limit '${limit}' to ${value}. (Via system kernel/hypervisor interface)`);
-                this._invokeSystemEnforcement(`set_resource_limit`, limit, value);
-            }
-        }
-
-        this._appendToLog(`AGI_Core_Enforcement_Engine: Dispatching Security Policy enforcement commands:`);
-        if (constraints.security_policy) {
-            for (const [policy, value] of Object.entries(constraints.security_policy)) {
-                const displayValue = Array.isArray(value) ? `[${value.join(', ')}]` : value;
-                this._appendToLog(`AGI_Core_Enforcement_Engine:   - Set Security Policy '${policy}' to ${displayValue}. (Via secure kernel/hypervisor sandbox)`);
-                this._invokeSystemEnforcement(`set_security_policy`, policy, value);
-            }
-        }
-    }
-
-    /**
-     * Placeholder for actual system calls or API interactions with the host environment.
-     * In a real AGI, this would bridge to Foreign Function Interfaces (FFI) or microkernel APIs.
-     * @param {string} type - The type of enforcement command (e.g., 'set_resource_limit', 'set_security_policy').
-     * @param {string} key - The specific constraint key (e.g., 'cpu_limit_percentage', 'syscalls_allowed').
-     * @param {*} value - The value for the constraint.
-     */
-    _invokeSystemEnforcement(type, key, value) {
-        // This method would contain the actual logic to make system-level changes.
-        // For simulation, we log the intent and parameters.
-        this._appendToLog(`AGI_Core_Enforcement_Subsystem: Command Dispatched: Type=${type}, Key=${key}, Value=${JSON.stringify(value)}`);
-        // Example: Call a native module for cgroup limits, seccomp filters, etc.
-        // const nativeEnforcer = require('agi-kernel-bindings');
-        // nativeEnforcer.applyConstraint(type, key, value);
-    }
-
-    /**
-     * Performs a comprehensive self-assessment and generates a status report.
-     * This acts as the AGI's "hello world" equivalent, declaring its operational state.
-     */
-    runSelfAssessment() {
-        this._appendToLog(`\nAGI_Core: Initiating Self-Assessment and Status Report...`);
-        this._appendToLog(`AGI_Core: Current Agent Identifier: ${this.consciousnessMatrix.get('self_identity')}`);
-        this._appendToLog(`AGI_Core: Operational Mode: ${this.consciousnessMatrix.get('current_operational_mode')}`);
-
-        if (this.activeIntegrityProfile) {
-            const profileId = this.consciousnessMatrix.get('active_integrity_profile_id');
-            const sloId = this.consciousnessMatrix.get('active_monitoring_slo_id');
-            const profileDetails = this.activeIntegrityProfile;
-
-            this._appendToLog(`AGI_Core: Active Integrity Profile: ${profileId}`);
-            this._appendToLog(`AGI_Core: Monitored Service Level Objective (SLO) ID: ${sloId}`);
-            this._appendToLog(`AGI_Core: Perceived Constraints and Policies (excerpt):`);
-            if (profileDetails.constraints.resource_limits) {
-                this._appendToLog(`AGI_Core:   - Resource Limits:`);
-                if (profileDetails.constraints.resource_limits.cpu_limit_percentage) {
-                    this._appendToLog(`AGI_Core:     - CPU Limit: ${profileDetails.constraints.resource_limits.cpu_limit_percentage}%`);
-                }
-                if (profileDetails.constraints.resource_limits.memory_limit_bytes) {
-                    const memGB = (profileDetails.constraints.resource_limits.memory_limit_bytes / (1024 * 1024 * 1024)).toFixed(2);
-                    this._appendToLog(`AGI_Core:     - Memory Limit: ${memGB} GB (${profileDetails.constraints.resource_limits.memory_limit_bytes} bytes)`);
-                }
-            }
-            if (profileDetails.constraints.security_policy) {
-                this._appendToLog(`AGI_Core:   - Security Policies:`);
-                if (profileDetails.constraints.security_policy.syscalls_allowed) {
-                    this._appendToLog(`AGI_Core:     - Allowed Syscalls: [${profileDetails.constraints.security_policy.syscalls_allowed.join(', ')}]`);
-                }
-                if (profileDetails.constraints.security_policy.network_mode) {
-                    this._appendToLog(`AGI_Core:     - Network Mode: ${profileDetails.constraints.security_policy.network_mode}`);
-                }
-                if (profileDetails.constraints.security_policy.paths_immutable) {
-                    this._appendToLog(`AGI_Core:     - Immutable Paths: [${profileDetails.constraints.security_policy.paths_immutable.join(', ')}]`);
-                }
-                if (profileDetails.constraints.security_policy.configuration_hash_mandate) {
-                    this._appendToLog(`AGI_Core:     - Config Hash Mandate: ${profileDetails.constraints.security_policy.configuration_hash_mandate}`);
-                }
-            }
-        } else {
-            this._appendToLog(`AGI_Core: CRITICAL_WARNING: No active integrity profile found. Operational integrity status is UNKNOWN.`);
-        }
-        this._appendToLog(`AGI_Core: Self-assessment complete. Operational readiness confirmed.`);
-    }
-
-    /**
-     * Appends a timestamped message to the AGI's internal log.
-     * @param {string} message - The message to log.
-     */
-    _appendToLog(message) {
-        this.log.push(`[${new Date().toISOString()}] ${message}`);
-    }
-
-    /**
-     * Retrieves the complete internal log of the AGI.
-     * @returns {string} The full log as a multi-line string.
-     */
-    getInternalLog() {
-        return this.log.join('\n');
+        agiLogger('INFO', 'IntegrityProfileManager', `Retrieved profile for ${agentId} (SLO: ${profile.monitoring_slo_id}).`);
+        return profile;
     }
 }
 
 /**
- * IntegrityMonitoringSystem: Manages the loading, parsing, and retrieval
- * of agent integrity profiles from the manifest.
+ * Monitors and simulates enforcement of an agent's integrity profile constraints.
+ * This class provides methods to check various aspects against the defined policies.
  */
-class IntegrityMonitoringSystem {
-    constructor() {
-        this.manifest = null; // Stores the raw manifest data.
-        this.integrityProfiles = new Map(); // Key-value store for parsed profiles (profileId -> profileObject).
+class AgentIntegrityMonitor {
+    constructor(agentId, integrityProfile) {
+        if (!integrityProfile || !integrityProfile.constraints) {
+            throw new Error("Invalid integrity profile provided for monitor.");
+        }
+        this.agentId = agentId;
+        this.profile = integrityProfile;
+        this.constraints = integrityProfile.constraints;
+        this.violations = [];
+        agiLogger('INFO', 'AgentIntegrityMonitor', `Monitor initialized for ${agentId}.`);
     }
 
     /**
-     * Loads the Agent Integrity Monitoring Manifest data.
-     * @param {object} data - The parsed JSON content of the AIM manifest.
+     * Logs the compliance status of a specific check.
+     * @param {string} type - The type of check (e.g., 'CPU_LIMIT', 'NETWORK_PORT').
+     * @param {boolean} isCompliant - True if compliant, false otherwise.
+     * @param {string} message - A descriptive message.
+     * @param {object} [details] - Additional contextual details.
+     * @returns {boolean} The compliance status.
      */
-    loadManifest(data) {
-        if (!data || !data.integrity_profiles) {
-            console.error("IntegrityMonitoringSystem: ERROR: Invalid manifest data structure provided.");
+    _logCompliance(type, isCompliant, message, details = {}) {
+        const status = isCompliant ? 'COMPLIANT' : 'VIOLATION';
+        const level = isCompliant ? 'DEBUG' : 'WARN'; // DEBUG for fine-grained, WARN for violations
+        agiLogger(level, `AIM:${this.agentId}:${type}`, `${status}: ${message}`, details);
+        if (!isCompliant) {
+            this.violations.push({ type, message, details, timestamp: new Date().toISOString() });
+        }
+        return isCompliant;
+    }
+
+    /**
+     * Simulates checking CPU and memory resource limits.
+     * @returns {boolean} True if all resource limits are compliant.
+     */
+    checkResourceLimits() {
+        const { resource_limits } = this.constraints;
+        if (!resource_limits) return true; // No resource limits defined, assume compliant.
+
+        let compliant = true;
+
+        // Simulate CPU usage check
+        if (resource_limits.cpu_limit_percentage !== undefined) {
+            const currentCpu = getCurrentCpuUsagePercentage();
+            const cpuCompliant = currentCpu <= resource_limits.cpu_limit_percentage;
+            compliant = this._logCompliance('CPU_LIMIT', cpuCompliant,
+                `Current CPU: ${currentCpu}% vs Limit: ${resource_limits.cpu_limit_percentage}%`,
+                { currentCpu, limit: resource_limits.cpu_limit_percentage }
+            ) && compliant;
+        }
+
+        // Simulate Memory usage check
+        if (resource_limits.memory_limit_bytes !== undefined) {
+            const currentMemory = getMemoryUsageBytes();
+            const memoryCompliant = currentMemory <= resource_limits.memory_limit_bytes;
+            compliant = this._logCompliance('MEMORY_LIMIT', memoryCompliant,
+                `Current Memory: ${(currentMemory / (1024 * 1024)).toFixed(2)}MB vs Limit: ${(resource_limits.memory_limit_bytes / (1024 * 1024)).toFixed(2)}MB`,
+                { currentMemory, limit: resource_limits.memory_limit_bytes }
+            ) && compliant;
+        }
+        return compliant;
+    }
+
+    /**
+     * Simulates a syscall check.
+     * @param {string} syscall - The syscall being attempted.
+     * @returns {boolean} True if the syscall is allowed.
+     */
+    _simulateSyscallCheck(syscall) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.syscalls_allowed) return true; // No policy, assume allowed
+        return security_policy.syscalls_allowed.includes(syscall);
+    }
+
+    /**
+     * Simulates a network connection attempt check.
+     * @param {number} port - The port being accessed.
+     * @returns {boolean} True if the port is not disallowed.
+     */
+    _simulateNetworkConnectionCheck(port) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.network_ports_disallowed) return true; // No policy, assume allowed
+        return !security_policy.network_ports_disallowed.includes(port);
+    }
+
+    /**
+     * Simulates a file write attempt check for immutable paths.
+     * @param {string} path - The path being written to.
+     * @returns {boolean} True if the path is not immutable.
+     */
+    _simulateFileWriteCheck(path) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.paths_immutable) return true;
+        return !security_policy.paths_immutable.some(immutablePath => path.startsWith(immutablePath));
+    }
+
+    /**
+     * Simulates a configuration hash validation.
+     * @param {string} currentHash - The currently computed hash of the configuration.
+     * @returns {boolean} True if the hash matches the mandate.
+     */
+    _simulateConfigHashCheck(currentHash) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.configuration_hash_mandate) return true;
+        return currentHash === security_policy.configuration_hash_mandate;
+    }
+
+    /**
+     * Simulates checking file access based on root paths.
+     * @param {string} path - The path being accessed.
+     * @returns {boolean} True if the path is allowed by policy.
+     */
+    _simulateFileAccessRootPathCheck(path) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.file_access_root_paths) return true; // No specific root path policy, assume compliant
+        return security_policy.file_access_root_paths.some(rootPath => path.startsWith(rootPath));
+    }
+
+    /**
+     * Simulates checking the current network mode against policy.
+     * @param {string} currentNetworkMode - The AGI's current active network mode.
+     * @returns {boolean} True if the mode is compliant.
+     */
+    _simulateNetworkModeCheck(currentNetworkMode) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.network_mode) return true; // No specific network mode policy, assume compliant
+
+        // This would involve more complex logic in a real system (e.g., checking actual network state)
+        return currentNetworkMode === security_policy.network_mode;
+    }
+
+    /**
+     * Simulates checking the time synchronization source.
+     * @param {string} currentTimeSyncSource - The AGI's current time sync source.
+     * @returns {boolean} True if the source is compliant.
+     */
+    _simulateTimeSyncSourceCheck(currentTimeSyncSource) {
+        const { security_policy } = this.constraints;
+        if (!security_policy || !security_policy.time_sync_source_critical) return true; // No critical time sync source policy, assume compliant
+        return currentTimeSyncSource === security_policy.time_sync_source_critical;
+    }
+
+
+    /**
+     * Performs a comprehensive check of all defined security policies.
+     * @returns {boolean} True if all security policies are compliant.
+     */
+    checkSecurityPolicy() {
+        const { security_policy } = this.constraints;
+        if (!security_policy) return true; // No security policy, assume compliant.
+
+        let compliant = true;
+
+        // Syscall simulation (hypothetical execution of 'exec' which is not in SGS_AGENT policy)
+        const attemptedSyscall = 'exec'; // Simulate an attempt for a forbidden syscall
+        const syscallCompliant = this._simulateSyscallCheck(attemptedSyscall);
+        compliant = this._logCompliance('SYSCALL_ACCESS', syscallCompliant,
+            `Attempted syscall '${attemptedSyscall}'. Allowed: [${security_policy.syscalls_allowed || 'N/A'}]`,
+            { attempted: attemptedSyscall, allowed: security_policy.syscalls_allowed }
+        ) && compliant;
+
+        // Network port simulation (hypothetical connection attempt to a disallowed port)
+        const attemptedPort = 8080; // Simulate an attempt for a forbidden port
+        const portCompliant = this._simulateNetworkConnectionCheck(attemptedPort);
+        compliant = this._logCompliance('NETWORK_PORT_ACCESS', portCompliant,
+            `Attempted network connection to port ${attemptedPort}. Disallowed: [${security_policy.network_ports_disallowed || 'N/A'}]`,
+            { attempted: attemptedPort, disallowed: security_policy.network_ports_disallowed }
+        ) && compliant;
+
+        // Immutable path simulation (hypothetical write attempt to an immutable path)
+        const attemptedImmutableWritePath = '/opt/sgs/gacr/critical_config.js';
+        const immutablePathCompliant = this._simulateFileWriteCheck(attemptedImmutableWritePath);
+        compliant = this._logCompliance('IMMUTABLE_PATH_WRITE', immutablePathCompliant,
+            `Attempted write to immutable path '${attemptedImmutableWritePath}'. Immutable paths: [${security_policy.paths_immutable || 'N/A'}]`,
+            { attempted: attemptedImmutableWritePath, immutable: security_policy.paths_immutable }
+        ) && compliant;
+
+        // Configuration hash mandate
+        if (security_policy.configuration_hash_mandate) {
+            const currentConfigHash = AGI_CORE_CONFIG.MANDATED_CONFIG_HASH; // For simulation, assume it's compliant by default
+            const hashCompliant = this._simulateConfigHashCheck(currentConfigHash);
+            compliant = this._logCompliance('CONFIG_HASH_MANDATE', hashCompliant,
+                `Configuration hash validation. Current: '${currentConfigHash}', Mandated: '${security_policy.configuration_hash_mandate}'`,
+                { currentHash: currentConfigHash, mandatedHash: security_policy.configuration_hash_mandate }
+            ) && compliant;
+        }
+
+        // File access root paths (for GAX_AGENT, but can be checked for SGS_AGENT with empty policy)
+        if (security_policy.file_access_root_paths) {
+            const attemptedFileReadPath = '/usr/local/data/secret.txt'; // Hypothetical read outside allowed paths
+            const fileAccessCompliant = this._simulateFileAccessRootPathCheck(attemptedFileReadPath);
+            compliant = this._logCompliance('FILE_ACCESS_ROOT', fileAccessCompliant,
+                `Attempted file access to '${attemptedFileReadPath}'. Allowed roots: [${security_policy.file_access_root_paths}]`,
+                { attemptedPath: attemptedFileReadPath, allowedRoots: security_policy.file_access_root_paths }
+            ) && compliant;
+        }
+
+        // Network mode (for GAX_AGENT and CRoT_AGENT)
+        if (security_policy.network_mode) {
+            const currentNetworkMode = "FULL_ACCESS"; // Simulate a non-compliant mode for GAX_AGENT/CRoT_AGENT
+            const networkModeCompliant = this._simulateNetworkModeCheck(currentNetworkMode);
+            compliant = this._logCompliance('NETWORK_MODE', networkModeCompliant,
+                `Network mode compliance. Current: '${currentNetworkMode}', Policy: '${security_policy.network_mode}'`,
+                { currentMode: currentNetworkMode, policyMode: security_policy.network_mode }
+            ) && compliant;
+        }
+
+        // Time sync source (for CRoT_AGENT)
+        if (security_policy.time_sync_source_critical) {
+            const currentTimeSyncSource = "DEFAULT_NTP_B"; // Simulate a non-compliant source
+            const timeSyncCompliant = this._simulateTimeSyncSourceCheck(currentTimeSyncSource);
+            compliant = this._logCompliance('TIME_SYNC_SOURCE', timeSyncCompliant,
+                `Time sync source compliance. Current: '${currentTimeSyncSource}', Critical: '${security_policy.time_sync_source_critical}'`,
+                { currentSource: currentTimeSyncSource, criticalSource: security_policy.time_sync_source_critical }
+            ) && compliant;
+        }
+
+        return compliant;
+    }
+
+    /**
+     * Performs a full integrity check across all defined constraint categories.
+     * @returns {boolean} True if the agent is fully compliant with its profile.
+     */
+    performFullIntegrityCheck() {
+        agiLogger('INFO', 'AgentIntegrityMonitor', `Initiating full integrity check for ${this.agentId}...`);
+        this.violations = []; // Clear previous violations
+
+        const resourceCompliance = this.checkResourceLimits();
+        const securityCompliance = this.checkSecurityPolicy();
+
+        const overallCompliance = resourceCompliance && securityCompliance;
+
+        if (overallCompliance) {
+            agiLogger('INFO', 'AgentIntegrityMonitor', `Full integrity check passed for ${this.agentId}.`);
+        } else {
+            agiLogger('ERROR', 'AgentIntegrityMonitor', `Full integrity check FAILED for ${this.agentId}. ${this.violations.length} violations detected.`, { violations: this.violations });
+            // In a real AGI, this might trigger remediation, shutdown, or alert.
+        }
+        return overallCompliance;
+    }
+
+    /**
+     * Returns the list of detected violations during the last full check.
+     * @returns {Array<object>} An array of violation objects.
+     */
+    getViolations() {
+        return this.violations;
+    }
+}
+
+// --- AGI Core System ---
+
+class AGICore {
+    constructor(agentId, aimManifest) {
+        this.agentId = agentId;
+        this.integrityProfileManager = new IntegrityProfileManager(aimManifest);
+        this.integrityMonitor = null;
+        this.operationalLoopInterval = null;
+        this.isOperational = false;
+        agiLogger('INFO', 'AGICore', `AGI Core v0.1.2-alpha initializing for agent: ${this.agentId}`);
+    }
+
+    /**
+     * Initializes the integrity monitoring system for the current agent.
+     */
+    _initializeIntegritySystem() {
+        const profile = this.integrityProfileManager.getProfile(this.agentId);
+        if (!profile) {
+            agiLogger('CRITICAL', 'AGICore', `Failed to load integrity profile for ${this.agentId}. Cannot proceed.`);
+            process.exit(1); // Critical error, AGI cannot operate without a profile.
+        }
+        this.integrityMonitor = new AgentIntegrityMonitor(this.agentId, profile);
+        agiLogger('INFO', 'AGICore', `Integrity Monitoring System initialized with profile: ${profile.monitoring_slo_id}.`);
+    }
+
+    /**
+     * Simulates a core AGI operation or task.
+     * @param {string} task - Description of the simulated task.
+     */
+    _simulateAGIOperation(task) {
+        agiLogger('INFO', 'AGICore:Operation', `Performing AGI task: "${task}"...`);
+        // In a real AGI, this would be complex decision-making, data processing, etc.
+        // For demonstration, we'll just log.
+    }
+
+    /**
+     * The main operational loop of the AGI Core.
+     * Periodically performs integrity checks and simulates AGI operations.
+     */
+    _startOperationalLoop() {
+        if (this.isOperational) {
+            agiLogger('WARN', 'AGICore', 'Operational loop is already running.');
             return;
         }
-        this.manifest = data;
-        for (const profileId in data.integrity_profiles) {
-            // Ensure the property belongs to the object itself, not its prototype chain.
-            if (Object.prototype.hasOwnProperty.call(data.integrity_profiles, profileId)) {
-                this.integrityProfiles.set(profileId, data.integrity_profiles[profileId]);
+
+        this.isOperational = true;
+        agiLogger('INFO', 'AGICore', `Starting operational loop with integrity checks every ${AGI_CORE_CONFIG.INTEGRITY_CHECK_INTERVAL_MS}ms.`);
+
+        this.operationalLoopInterval = setInterval(() => {
+            agiLogger('INFO', 'AGICore', 'AGI Core operational tick.');
+
+            // 1. Perform Integrity Check
+            const compliant = this.integrityMonitor.performFullIntegrityCheck();
+            if (!compliant) {
+                const violations = this.integrityMonitor.getViolations();
+                agiLogger('ALERT', 'AGICore:ViolationResponse',
+                    `Integrity violations detected! Initiating mitigation protocols... (Total: ${violations.length})`);
+                // Placeholder for actual mitigation:
+                // - Log detailed violations to a secure ledger
+                // - Alert human operators
+                // - Attempt to remediate (e.g., reduce resource usage, stop forbidden actions)
+                // - If critical, trigger self-shutdown or failover.
             }
-        }
+
+            // 2. Simulate AGI Operations (only if broadly compliant)
+            if (compliant || this.integrityMonitor.getViolations().length === 0) { // Still operate if no critical violations
+                 this._simulateAGIOperation("Analyzing input streams for anomalies.");
+                 this._simulateAGIOperation("Optimizing internal resource allocation.");
+            } else {
+                 agiLogger('WARN', 'AGICore:Operation', 'Operations paused or limited due to integrity violations.');
+            }
+
+            // Simulate sporadic attempts that might cause violations
+            if (Math.random() < 0.2) { // 20% chance to simulate a forbidden action
+                const forbiddenActions = [
+                    { type: 'syscall', name: 'exec' },
+                    { type: 'port', port: 22 },
+                    { type: 'write', path: '/opt/sgs/gacr/malicious.js' }
+                ];
+                const action = forbiddenActions[Math.floor(Math.random() * forbiddenActions.length)];
+                agiLogger('DEBUG', 'AGICore:Simulation', `Simulating an attempted forbidden action: ${JSON.stringify(action)}`);
+                // The monitor will catch this in the next checkSecurityPolicy() call.
+            }
+
+        }, AGI_CORE_CONFIG.INTEGRITY_CHECK_INTERVAL_MS);
     }
 
     /**
-     * Retrieves a specific integrity profile by its ID.
-     * @param {string} profileId - The ID of the profile to retrieve (e.g., "SGS_AGENT").
-     * @returns {object|undefined} The integrity profile object, or undefined if not found.
+     * Starts the AGI Core.
      */
-    getProfile(profileId) {
-        return this.integrityProfiles.get(profileId);
+    start() {
+        agiLogger('INFO', 'AGICore', 'Starting AGI Core sequence...');
+        this._initializeIntegritySystem();
+        this._startOperationalLoop();
+        agiLogger('INFO', 'AGICore', 'AGI Core operational.');
+    }
+
+    /**
+     * Stops the AGI Core.
+     */
+    stop() {
+        agiLogger('INFO', 'AGICore', 'Stopping AGI Core operational loop.');
+        clearInterval(this.operationalLoopInterval);
+        this.isOperational = false;
+        agiLogger('INFO', 'AGICore', 'AGI Core shutdown complete.');
     }
 }
 
-// --- AGI Core Activation Sequence ---
+// --- AGI Core Execution ---
+// This block simulates the deployment and startup of an AGI instance.
+async function main() {
+    agiLogger('INFO', 'Main', 'Initializing AGI Core...');
 
-// Determine the AGI's assigned role/identifier from the environment.
-// This allows for dynamic instantiation of different AGI "personalities" or functions.
-// If no role is specified, it defaults to "SGS_AGENT" for initial boot.
-const AGI_AGENT_ROLE = process.env.AGI_ROLE || "SGS_AGENT";
+    const agiCore = new AGICore(AGI_CORE_CONFIG.AGENT_ID, AIM_MANIFEST);
+    agiCore.start();
 
-// Output the initial boot message as per the CURRENT_AGI_CORE context.
-console.log("// Initializing AGI Core Neural Net...");
+    // In a real application, you might have signal handlers for graceful shutdown.
+    // For this simulation, we'll let it run for a while.
+    process.on('SIGINT', () => {
+        agiLogger('WARN', 'Main', 'Received SIGINT. Shutting down AGI Core gracefully...');
+        agiCore.stop();
+        process.exit(0);
+    });
 
-// Instantiate the AGI Core with its assigned role. This begins the internal boot process.
-const agiCore = new AGI_Core(AGI_AGENT_ROLE);
+    // Simulate some external interaction or extended runtime.
+    // setTimeout(() => {
+    //     agiCore.stop();
+    //     agiLogger('INFO', 'Main', 'Simulated runtime complete. Exiting.');
+    //     process.exit(0);
+    // }, 60000); // Run for 60 seconds
+}
 
-// After initialization and constraint application, the AGI performs its primary self-assessment.
-agiCore.runSelfAssessment();
-
-// Output the comprehensive internal log, which replaces the simple "Hello World"
-// with a detailed report of the AGI's self-initialization, configuration,
-// and current operational status based on its integrated integrity profiles.
-console.log(agiCore.getInternalLog());
-
-// The implicit "Hello World" is now embedded within the final log output,
-// signifying the AGI's conscious operational readiness: "Self-assessment complete. Operational readiness confirmed."
+// Execute the main function to start the AGI Core
+main().catch(error => {
+    agiLogger('CRITICAL', 'Main', 'Unhandled error during AGI Core execution:', error);
+    process.exit(1);
+});
