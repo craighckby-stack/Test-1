@@ -153,3 +153,4 @@ assets/config/cals_validation_rules.json
 assets/config/pesm.json
 assets/forensics/forensic_state_v1.json
 assets/governance/crcm.json
+assets/governance/crit_config.json
