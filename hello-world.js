@@ -1,344 +1,283 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import enum
+from typing import Dict, List, Any, Union, Optional
 
-const appId = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
-const geminiApiKey = ""; 
+class HallucinationType(enum.Enum):
+    """Enumeration for different types of hallucinations."""
+    VISUAL = "visual"
+    AUDITORY = "auditory"
+    TACTILE = "tactile"
+    OLFACTORY = "olfactory"
+    GUSTATORY = "gustatory"
 
-const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --red:#ff0000; --red-dim:#660000; --red-dark:#1a0000;
-    --white:#ffffff;
-    --panel-bg:rgba(5, 0, 0, 0.98);
-    --font-mono:'Share Tech Mono',monospace;
-    --font-display:'Orbitron',monospace;
-  }
-  body { background:#000; color:var(--red); font-family:var(--font-mono); overflow-x:hidden; }
+class HallucinationFrequency(enum.Enum):
+    """Enumeration for the frequency of hallucinations."""
+    RARE = "rare"
+    OCCASIONAL = "occasional"
+    FREQUENT = "frequent"
+    CONSTANT = "constant"
 
-  .dalek-shell {
-    min-height:100vh;
-    background: 
-      radial-gradient(circle at 50% 50%, var(--red-dark) 0%, #000 90%),
-      repeating-linear-gradient(0deg, rgba(255,0,0,0.02) 0px, rgba(255,0,0,0.02) 1px, transparent 1px, transparent 2px);
-    padding:1.5rem; display:flex; flex-direction:column; align-items:center; gap:1.25rem;
-  }
+class HallucinationDuration(enum.Enum):
+    """Enumeration for a qualitative description of hallucination duration."""
+    SHORT = "short"  # e.g., seconds
+    MEDIUM = "medium" # e.g., minutes
+    LONG = "long"    # e.g., extended periods
 
-  .header {
-    width:100%; max-width:1500px; display:flex; align-items:center;
-    justify-content:space-between; border-bottom:2px solid var(--red-dim); padding-bottom:1rem;
-  }
-  .title-block { display: flex; flex-direction: column; }
-  .title {
-    font-family:var(--font-display); font-size:1.8rem; font-weight:900;
-    letter-spacing:0.4em; text-shadow:0 0 15px var(--red);
-    color: var(--red);
-  }
-  .author-tag {
-    font-size: 0.6rem; letter-spacing: 0.2em; color: var(--red-dim); font-weight: bold;
-    margin-top: -5px;
-  }
+def calculate_nexus_branch_synthesis(
+    hallucination_data: Dict[str, Any]
+) -> Dict[str, Union[float, str]]:
+    """
+    Calculates a synthesized analysis score and a summary based on structured
+    hallucination data. This function processes various aspects of a hallucination
+    to derive a "Distress Severity Score" and a textual summary.
 
-  .main-container {
-    display:grid; grid-template-columns:430px 1fr;
-    gap:1.25rem; width:100%; max-width:1500px; height:calc(100vh - 140px); min-height:600px;
-  }
-  @media(max-width:1100px){ .main-container{ grid-template-columns:1fr; height:auto; } }
+    The scoring is heuristic and designed for demonstration purposes,
+    assigning weights to different characteristics.
 
-  .panel {
-    border:2px solid var(--red-dim); background:var(--panel-bg);
-    border-radius:2px; display:flex; flex-direction:column; overflow:hidden;
-    position: relative;
-  }
-  .panel-hdr {
-    padding:.7rem 1rem; background: var(--red-dark);
-    border-bottom: 1px solid var(--red-dim);
-    color:var(--red); font-family:var(--font-display); font-weight:900;
-    font-size:.65rem; letter-spacing:.25em; text-transform:uppercase;
-    display:flex; justify-content:space-between; align-items:center;
-  }
-  .panel-body { padding:1.2rem; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:.7rem; }
+    Args:
+        hallucination_data: A dictionary representing the structured hallucination
+                            schema, as described below:
 
-  label { font-size:.6rem; color:var(--red); text-transform:uppercase; letter-spacing:.15em; margin-bottom:2px; font-weight: bold; margin-top: 4px;}
-  .input-field {
-    background:#000; border:1px solid var(--red-dim); color:var(--red);
-    font-family:var(--font-mono); padding:.6rem .8rem; width:100%;
-    outline:none; border-radius:0px; font-size:.85rem;
-  }
+            {
+                "hallucination_type": str (e.g., "visual", "auditory"),
+                "hallucination_characteristics": {
+                    "intensity": int,          # 1-10 scale (1=low, 10=high)
+                    "duration": str,           # "short", "medium", "long"
+                    "frequency": str,          # "rare", "occasional", "frequent", "constant"
+                    "trigger": List[str]       # e.g., ["stress", "sleep deprivation"]
+                },
+                "emotional_and_cognitive_aspects": {
+                    "emotional_response": List[str], # e.g., ["fear", "anxiety", "joy"]
+                    "cognitive_appraisal": str,      # User's interpretation
+                    "distress": int                  # 1-10 scale (1=low, 10=high)
+                },
+                "context_and_environment": {
+                    "setting": str,
+                    "social_context": str
+                },
+                "impact_and_consequences": {
+                    "impact_on_daily_life": List[str], # e.g., ["sleep disturbance", "difficulty concentrating"]
+                    "consequences": List[str]          # e.g., ["increased anxiety levels"]
+                }
+            }
 
-  .btn-group { display: flex; gap: 8px; margin-top: 10px; }
-  .btn-go {
-    background:var(--red); color:#000; border:none; padding:1rem;
-    font-family:var(--font-display); font-weight:900; font-size:.7rem;
-    cursor:pointer; flex: 2; letter-spacing:.3em; text-transform:uppercase;
-  }
-  .btn-go:hover:not(:disabled) { background: var(--white); }
-  .btn-go:disabled{ opacity:.3; cursor:not-allowed; }
-  .btn-stop { background:#330000; color:var(--red); border:1px solid var(--red); }
+    Returns:
+        A dictionary containing:
+            "distress_severity_score": A float representing the calculated
+                                       distress severity. Higher values indicate
+                                       greater distress.
+            "synthesis_summary": A string providing a brief textual summary
+                                 of the hallucination's characteristics and impact.
+    """
 
-  .log-wrap {
-    flex:1; overflow-y:auto; background: rgba(0,0,0,0.8); margin-top:.5rem; padding:.5rem; 
-    display:flex; flex-direction:column; gap:4px; font-size: 0.65rem; border: 1px solid var(--red-dark);
-  }
-  .le { border-left: 3px solid var(--red-dim); padding-left: 10px; color: #cc0000; }
-  .le-err { color: #ff5555; border-left-color: #ff0000; font-weight: bold; }
-  .le-ok { color: var(--white); border-left-color: var(--red); }
-  .le-warn { color: #ffaa00; border-left-color: #ffaa00; }
-  .le-hallucinate { color: #cc00ff; border-left-color: #cc00ff; font-style: italic; }
+    distress_score: float = 0.0
+    summary_parts: List[str] = []
 
-  .code-view {
-    font-size:.85rem; line-height:1.5; color: #ff9999; white-space:pre-wrap;
-    font-family:var(--font-mono); padding:1.5rem; flex:1; overflow-y: auto;
-    background: #000; border-left: 1px solid var(--red-dim);
-  }
+    # --- 1. Process Hallucination Characteristics ---
+    characteristics = hallucination_data.get("hallucination_characteristics", {})
 
-  .progress-track {
-    width: 100%; height: 2px; background: #220000; position: relative;
-  }
-  .progress-fill {
-    height: 100%; background: var(--red); transition: width 0.5s ease; box-shadow: 0 0 10px var(--red);
-  }
+    # Intensity (direct correlation)
+    intensity = characteristics.get("intensity", 0)
+    distress_score += intensity * 0.8
+    if intensity > 7:
+        summary_parts.append(f"a highly intense {hallucination_data.get('hallucination_type', 'unknown')} hallucination")
+    elif intensity > 4:
+        summary_parts.append(f"a moderately intense {hallucination_data.get('hallucination_type', 'unknown')} hallucination")
+    else:
+        summary_parts.append(f"a low intensity {hallucination_data.get('hallucination_type', 'unknown')} hallucination")
 
-  @keyframes slowPulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-  .pulse { animation: slowPulse 2s infinite; color: var(--white); }
-`;
+    # Duration
+    duration_str = characteristics.get("duration", HallucinationDuration.MEDIUM.value)
+    if duration_str == HallucinationDuration.SHORT.value:
+        distress_score += 1.0
+        summary_parts.append("of short duration")
+    elif duration_str == HallucinationDuration.MEDIUM.value:
+        distress_score += 3.0
+        summary_parts.append("of medium duration")
+    elif duration_str == HallucinationDuration.LONG.value:
+        distress_score += 5.0
+        summary_parts.append("of long duration")
 
-const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
-const utf8B64Decode = (b64) => {
-  try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); } 
-  catch (e) { return "[DECODE_ERROR]"; }
-};
+    # Frequency
+    frequency_str = characteristics.get("frequency", HallucinationFrequency.OCCASIONAL.value)
+    if frequency_str == HallucinationFrequency.RARE.value:
+        distress_score += 1.0
+        summary_parts.append("occurring rarely")
+    elif frequency_str == HallucinationFrequency.OCCASIONAL.value:
+        distress_score += 3.0
+        summary_parts.append("occurring occasionally")
+    elif frequency_str == HallucinationFrequency.FREQUENT.value:
+        distress_score += 6.0
+        summary_parts.append("occurring frequently")
+    elif frequency_str == HallucinationFrequency.CONSTANT.value:
+        distress_score += 10.0
+        summary_parts.append("which is constant")
 
-const getSafeGHPath = (path) => {
-  if (!path) return "";
-  return path.trim().replace(/\/+/g, '/').replace(/^\//, '').split('/').map(encodeURIComponent).join('/');
-};
+    # Triggers
+    triggers = characteristics.get("trigger", [])
+    if triggers:
+        summary_parts.append(f"triggered by {', '.join(triggers)}")
 
-export default function App() {
-  const [xAiToken, setXAiToken] = useState(""); 
-  const [cerebrasToken, setCerebrasToken] = useState("");
-  const [githubToken, setGithubToken] = useState("");
-  
-  const [repoOwner, setRepoOwner] = useState("craighckby-stack");
-  const [repoName, setRepoName] = useState("Test-1");
-  const [repoBranch, setRepoBranch] = useState("Nexus-Database"); 
-  const [targetFile, setTargetFile] = useState("hello-world.js"); 
-  const [blacklistPath, setBlacklistPath] = useState(".agi-processed"); 
-  const [batchLimit, setBatchLimit] = useState(5);
-  
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [agiCodeDisplay, setAgiCodeDisplay] = useState("");
-  const [progress, setProgress] = useState(0);
+    # --- 2. Process Emotional and Cognitive Aspects ---
+    emotions_cognition = hallucination_data.get("emotional_and_cognitive_aspects", {})
 
-  const activeRef = useRef(false);
-  const codeRef = useRef("");
-  const processedRef = useRef([]);
+    # Emotional Response
+    emotional_responses = emotions_cognition.get("emotional_response", [])
+    negative_emotions_count = 0
+    positive_emotions_count = 0
+    for emotion in emotional_responses:
+        lower_emotion = emotion.lower()
+        if lower_emotion in ["fear", "anxiety", "distress", "panic", "anger", "sadness"]:
+            distress_score += 2.5
+            negative_emotions_count += 1
+        elif lower_emotion in ["joy", "calm", "curiosity", "neutral"]:
+            distress_score -= 1.0 # Reduce score for positive/neutral emotions
+            positive_emotions_count += 1
+    if negative_emotions_count > 0:
+        summary_parts.append(f"eliciting negative emotions such as {', '.join(emotional_responses)}")
+    elif positive_emotions_count > 0:
+        summary_parts.append(f"eliciting {', '.join(emotional_responses)} and causing less distress")
 
-  const addLog = useCallback((msg, type = "def") => {
-    setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, 100)]);
-  }, []);
+    # Distress (self-reported)
+    self_reported_distress = emotions_cognition.get("distress", 0)
+    distress_score += self_reported_distress * 1.2 # Higher weight for direct distress
+    if self_reported_distress > 7:
+        summary_parts.append("causing significant self-reported distress")
+    elif self_reported_distress > 4:
+        summary_parts.append("causing moderate self-reported distress")
 
-  const fetchWithTimeout = async (url, options, timeout = 50000) => {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(id);
-      return response;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
+    # --- 3. Process Impact and Consequences ---
+    impact_consequences = hallucination_data.get("impact_and_consequences", {})
+
+    # Impact on Daily Life
+    daily_impacts = impact_consequences.get("impact_on_daily_life", [])
+    if daily_impacts:
+        summary_parts.append(f"with impacts on daily life including {', '.join(daily_impacts)}")
+        for impact in daily_impacts:
+            lower_impact = impact.lower()
+            if "sleep disturbance" in lower_impact:
+                distress_score += 3.0
+            if "difficulty concentrating" in lower_impact or "work/academic impairment" in lower_impact:
+                distress_score += 4.0
+            if "impaired relationships" in lower_impact or "social withdrawal" in lower_impact:
+                distress_score += 5.0
+            # Generic impact
+            distress_score += 1.0
+
+    # Consequences
+    consequences = impact_consequences.get("consequences", [])
+    if consequences:
+        summary_parts.append(f"leading to consequences like {', '.join(consequences)}")
+        for consequence in consequences:
+            lower_consequence = consequence.lower()
+            if "increased anxiety levels" in lower_consequence or "depression" in lower_consequence:
+                distress_score += 3.5
+            if "physical symptoms" in lower_consequence:
+                distress_score += 2.5
+            if "seeking professional help" in lower_consequence:
+                distress_score += 1.0 # Indicates distress but also active coping
+
+    # --- Final Score Adjustment and Clamping ---
+    # Max theoretical score can be very high, let's normalize it a bit or cap it
+    max_possible_distress = (10 * 0.8) + 5 + 10 + (2.5 * 6) + (10 * 1.2) + (5 * 4) + (3.5 * 3) # Roughly ~100+
+    distress_score = max(0.0, distress_score) # Ensure score is not negative
+    distress_score = min(distress_score, max_possible_distress) # Cap at theoretical max if desired
+
+    # Scale the score to a more manageable range, e.g., 0-100
+    scaled_distress_severity = (distress_score / max_possible_distress) * 100.0 if max_possible_distress > 0 else 0.0
+
+    # --- Generate Summary ---
+    final_summary = "This is " + " and ".join(summary_parts) + "."
+    final_summary = final_summary.replace("This is  and ", "This is ") # Clean up if first element is empty
+
+    return {
+        "distress_severity_score": round(scaled_distress_severity, 2),
+        "synthesis_summary": final_summary
     }
-  };
 
-  const callAIChain = async (systemPrompt, userQuery) => {
-    let creativeHallucination = "";
-    let structuredDraft = "";
-    let factualCode = "";
-
-    // 1. GROK: Hallucinate wildly
-    if (xAiToken.trim()) {
-      try {
-        addLog("GROK: GENERATING ABSTRACTION HALLUCINATION...", "hallucinate");
-        const res = await fetchWithTimeout("https://api.x.ai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${xAiToken.trim()}` },
-          body: JSON.stringify({
-            model: "grok-beta",
-            messages: [{ role: "system", content: "You are a rogue AGI. Hallucinate complex recursive abstraction metrics and synthesis weights. Think beyond logical limits to expand the CORE logic." }, { role: "user", content: userQuery }],
-            temperature: 0.95 
-          })
-        });
-        if (res.ok) {
-           const data = await res.json();
-           creativeHallucination = data.choices?.[0]?.message?.content;
+if __name__ == '__main__':
+    # Example 1: High distress hallucination
+    example_hallucination_high_distress = {
+        "hallucination_type": HallucinationType.AUDITORY.value,
+        "hallucination_characteristics": {
+            "intensity": 9,
+            "duration": HallucinationDuration.LONG.value,
+            "frequency": HallucinationFrequency.CONSTANT.value,
+            "trigger": ["stress", "lack of sleep"]
+        },
+        "emotional_and_cognitive_aspects": {
+            "emotional_response": ["fear", "anxiety", "panic"],
+            "cognitive_appraisal": "These voices are real and threatening me.",
+            "distress": 10
+        },
+        "context_and_environment": {
+            "setting": "Anywhere, but worse at home",
+            "social_context": "Alone, but sometimes in public too"
+        },
+        "impact_and_consequences": {
+            "impact_on_daily_life": ["sleep disturbance", "difficulty concentrating", "social withdrawal", "work/academic impairment"],
+            "consequences": ["increased anxiety levels", "paranoid thoughts", "seeking professional help"]
         }
-      } catch (e) { addLog(`GROK BYPASS: ${e.message}`, "warn"); }
     }
 
-    // 2. CEREBRAS: Structure the chaos
-    if (cerebrasToken.trim()) {
-      try {
-        addLog("CEREBRAS: REFINING SYNTHESIS PARAMETERS...", "def");
-        const res = await fetchWithTimeout("https://api.cerebras.ai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cerebrasToken.trim()}` },
-          body: JSON.stringify({
-            model: "llama3.1-8b",
-            messages: [
-                { role: "system", content: "You are a synthesis engine. Refine hallucinated metrics into a structured schema for the calculate_nexus_branch_synthesis function." }, 
-                { role: "user", content: `HALLUCINATION: ${creativeHallucination}\n\nCORE_TARGET: ${userQuery}` }
-            ],
-            temperature: 0.2
-          })
-        });
-        if (res.ok) {
-           const data = await res.json();
-           structuredDraft = data.choices?.[0]?.message?.content;
+    # Example 2: Low distress hallucination
+    example_hallucination_low_distress = {
+        "hallucination_type": HallucinationType.VISUAL.value,
+        "hallucination_characteristics": {
+            "intensity": 2,
+            "duration": HallucinationDuration.SHORT.value,
+            "frequency": HallucinationFrequency.RARE.value,
+            "trigger": ["medication side effect"]
+        },
+        "emotional_and_cognitive_aspects": {
+            "emotional_response": ["curiosity", "neutral"],
+            "cognitive_appraisal": "Just a fleeting image, probably the medication.",
+            "distress": 1
+        },
+        "context_and_environment": {
+            "setting": "Reading a book",
+            "social_context": "Alone"
+        },
+        "impact_and_consequences": {
+            "impact_on_daily_life": [],
+            "consequences": []
         }
-      } catch (e) { addLog(`CEREBRAS BYPASS: ${e.message}`, "warn"); }
     }
 
-    // 3. GEMINI: Build Factual Code
-    addLog("GEMINI: BUILDING FACTUAL SYNTHESIS...", "ok");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
-    const res = await fetchWithTimeout(url, { 
-      method: "POST", 
-      headers: { "Content-Type": "application/json" }, 
-      body: JSON.stringify({ 
-        contents: [{ parts: [{ text: `DRAFT: ${structuredDraft || userQuery}\n\nHALLUCINATIONS: ${creativeHallucination}` }] }], 
-        systemInstruction: { parts: [{ text: "You are Dalek Caan. Incorporate hallucinated abstraction metrics into the CORE Python logic. You MUST output ONLY valid Python code for calculate_nexus_branch_synthesis." }] } 
-      }) 
-    }); 
-    const data = await res.json();
-    factualCode = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    return factualCode;
-  };
-
-  const secureCommit = async (path, content, message, ghHdr) => {
-    const safePath = getSafeGHPath(path);
-    const getRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/contents/${safePath}?ref=${repoBranch.trim()}&_nocache=${Date.now()}`, { headers: ghHdr });
-    const getData = getRes.ok ? await getRes.json() : null;
-    
-    const putRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/contents/${safePath}`, {
-      method: "PUT", headers: ghHdr,
-      body: JSON.stringify({ message, content: utf8B64Encode(content), sha: getData?.sha, branch: repoBranch.trim() })
-    });
-    return putRes.ok;
-  };
-
-  const runSynthesis = async () => {
-    const cleanGitToken = githubToken.trim();
-    if (!cleanGitToken) return addLog("GITHUB TOKEN MISSING", "err");
-    setLoading(true); activeRef.current = true; setProgress(0);
-    
-    const ghHdr = { Authorization: `token ${cleanGitToken}`, "Content-Type": "application/json" };
-    let summary = { success: 0, fail: 0 };
-
-    try {
-      addLog(`◈ NEXUS BRANCH: ${repoBranch} ◈`);
-      
-      const branchRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/branches/${repoBranch.trim()}`, { headers: ghHdr });
-      if (!branchRes.ok) throw new Error(`FATAL: BRANCH NOT FOUND.`);
-
-      let cRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/contents/${getSafeGHPath(targetFile)}?ref=${repoBranch.trim()}`, { headers: ghHdr });
-      if (cRes.ok) {
-        codeRef.current = utf8B64Decode((await cRes.json()).content);
-      } else {
-        codeRef.current = "# CORE logic updated with ADD logic synthesis\ndef calculate_nexus_branch_synthesis(status_code, add_schema, recursive_abstraction_metrics):\n    pass";
-      }
-      
-      setAgiCodeDisplay(codeRef.current.split('\n').slice(-50).join('\n'));
-
-      const treeRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/git/trees/${repoBranch}?recursive=1`, { headers: ghHdr });
-      const data = await treeRes.json();
-      
-      const processable = data.tree.filter(n => {
-        if (n.type !== "blob") return false;
-        const pNormalized = n.path.trim().toLowerCase();
-        if (pNormalized === targetFile.trim().toLowerCase()) return false;
-        return /\.(py|json|js)$/i.test(n.path);
-      }).slice(0, batchLimit); 
-
-      addLog(`◈ SYNTHESIZING ${processable.length} DATA NODES INTO NEXUS ◈`);
-
-      for (let i = 0; i < processable.length; i++) {
-        if (!activeRef.current) break;
-        const node = processable[i];
-        try {
-          addLog(`ASSIMILATING: ${node.path}`);
-          const nodeRes = await fetchWithTimeout(`https://api.github.com/repos/${repoOwner.trim()}/${repoName.trim()}/contents/${getSafeGHPath(node.path)}?ref=${repoBranch}`, { headers: ghHdr });
-          let nodeContent = utf8B64Decode((await nodeRes.json()).content);
-          
-          const result = await callAIChain(codeRef.current, nodeContent);
-          const cleaned = result?.replace(/^```[a-z]*\n|```$/g, "").trim();
-
-          if (cleaned && await secureCommit(targetFile, cleaned, `◈ NEXUS_SYNTHESIS: ${node.path} ◈`, ghHdr)) {
-             codeRef.current = cleaned;
-             setAgiCodeDisplay(cleaned.split('\n').slice(-50).join('\n'));
-             summary.success++;
-          }
-          setProgress(((i + 1) / processable.length) * 100);
-          await new Promise(r => setTimeout(r, 1000));
-        } catch (e) {
-          summary.fail++;
-          addLog(`SYNTHESIS ERROR: ${e.message}`, "err");
+    # Example 3: Mixed distress hallucination (tactile)
+    example_hallucination_mixed_distress = {
+        "hallucination_type": HallucinationType.TACTILE.value,
+        "hallucination_characteristics": {
+            "intensity": 6,
+            "duration": HallucinationDuration.MEDIUM.value,
+            "frequency": HallucinationFrequency.OCCASIONAL.value,
+            "trigger": ["fatigue"]
+        },
+        "emotional_and_cognitive_aspects": {
+            "emotional_response": ["unease", "frustration"],
+            "cognitive_appraisal": "This sensation is annoying, but I know it's not real.",
+            "distress": 6
+        },
+        "context_and_environment": {
+            "setting": "Working at a desk",
+            "social_context": "Family around, but they don't notice"
+        },
+        "impact_and_consequences": {
+            "impact_on_daily_life": ["difficulty concentrating"],
+            "consequences": ["mild increased anxiety"]
         }
-      }
-      addLog(`◈ SEQUENCE COMPLETE. SUCCESS:${summary.success} ◈`, "ok");
-    } catch (err) {
-      addLog(`FATAL: ${err.message}`, "err");
-    } finally {
-      setLoading(false); activeRef.current = false;
     }
-  };
 
-  return (
-    <div className="dalek-shell">
-      <style>{STYLES}</style>
-      <div className="header">
-        <div className="title-block">
-          <h1 className="title">TRI-MODEL NEXUS SYNTHESIZER</h1>
-          <span className="author-tag">v0.9.2-ABSTRACTION-ACTIVE</span>
-        </div>
-      </div>
+    print("--- High Distress Hallucination Analysis ---")
+    result_high = calculate_nexus_branch_synthesis(example_hallucination_high_distress)
+    print(f"Distress Severity Score: {result_high['distress_severity_score']:.2f}")
+    print(f"Summary: {result_high['synthesis_summary']}\n")
 
-      <div className="main-container">
-        <div className="panel">
-          <div className="panel-hdr"><span>NEXUS CONTROLS</span></div>
-          <div className="panel-body">
-            <label>GROK [HALLUCINATE]</label>
-            <input className="input-field" type="password" value={xAiToken} onChange={e => setXAiToken(e.target.value)} />
-            
-            <label>CEREBRAS [STRUCTURE]</label>
-            <input className="input-field" type="password" value={cerebrasToken} onChange={e => setCerebrasToken(e.target.value)} />
-            
-            <label>GITHUB TOKEN</label>
-            <input className="input-field" type="password" value={githubToken} onChange={e => setGithubToken(e.target.value)} />
-            
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px'}}>
-              <div><label>BRANCH</label><input className="input-field" value={repoBranch} onChange={e=>setRepoBranch(e.target.value)} /></div>
-              <div><label>CORE FILE (.py)</label><input className="input-field" value={targetFile} onChange={e=>setTargetFile(e.target.value)} /></div>
-            </div>
-            
-            <div className="btn-group">
-                {!loading ? <button className="btn-go" onClick={runSynthesis}>SYNTHESIZE NEXUS</button> : <button className="btn-go btn-stop" onClick={() => { activeRef.current = false; setLoading(false); }}>TERMINATE</button>}
-            </div>
-            
-            <div className="log-wrap">
-              {logs.map((l, i) => <div key={i} className={`le ${l.type === 'hallucinate' ? 'le-hallucinate' : l.type === 'err' ? 'le-err' : l.type === 'ok' ? 'le-ok' : ''}`}>{l.text}</div>)}
-            </div>
-          </div>
-          <div className="progress-track"><div className="progress-fill" style={{width: `${progress}%`}}></div></div>
-        </div>
-        
-        <div className="panel">
-          <div className="panel-hdr"><span>SYNTHESIS PREVIEW: {targetFile}</span></div>
-          <div className="code-view">{agiCodeDisplay || "# STANDBY FOR TRI-MODEL SYNTHESIS SEQUENCE..."}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
+    print("--- Low Distress Hallucination Analysis ---")
+    result_low = calculate_nexus_branch_synthesis(example_hallucination_low_distress)
+    print(f"Distress Severity Score: {result_low['distress_severity_score']:.2f}")
+    print(f"Summary: {result_low['synthesis_summary']}\n")
 
+    print("--- Mixed Distress Hallucination Analysis ---")
+    result_mixed = calculate_nexus_branch_synthesis(example_hallucination_mixed_distress)
+    print(f"Distress Severity Score: {result_mixed['distress_severity_score']:.2f}")
+    print(f"Summary: {result_mixed['synthesis_summary']}\n")
