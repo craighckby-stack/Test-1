@@ -54,3 +54,4 @@ assets/crot/gicm.json
 assets/config/attestationvalidationrules.json
 assets/config/schemaattestationpolicymap.json
 assets/config/trustanchorregistry.json
+assets/config/trustpolicydefinitions.json
