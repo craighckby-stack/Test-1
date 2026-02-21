@@ -1,155 +1,131 @@
-**CORE Logic Update**
-
-```json
+// CORE
 {
   "$id": "#/definitions/CORE",
   "type": "object",
   "properties": {
     "ingestion_pipeline": {
       "type": "string",
-      "description": "Ingestion pipeline for artifact deployment.",
-      "default": ""
+      "description": "Ingestion pipeline used for artifact deployment."
     },
     "operational_metadata": {
       "type": "object",
-      "description": "Operational metadata for artifact deployment.",
+      "description": "Operational metadata used for artifact deployment.",
       "properties": {
-        "operational_metadata": {
-          "type": "object",
-          "properties": {
-            "operational_metadata": {
-              "type": "object"
-            }
-          }
+        "deployment_id": {
+          "type": "string",
+          "description": "Deployment ID for artifact deployment."
+        },
+        "deployment_name": {
+          "type": "string",
+          "description": "Deployment name for artifact deployment."
         }
       }
     },
     "derivation_details": {
       "type": "object",
-      "description": "Derivation details for artifact deployment.",
+      "description": "Derivation details used for artifact deployment.",
       "properties": {
-        "derivation_details": {
-          "type": "object",
-          "properties": {
-            "derivation_details": {
-              "type": "object"
-            }
-          }
+        "derivation_id": {
+          "type": "string",
+          "description": "Derivation ID for artifact deployment."
+        },
+        "derivation_name": {
+          "type": "string",
+          "description": "Derivation name for artifact deployment."
         }
       }
     },
     "schema_ref": {
       "type": "string",
-      "description": "Schema reference for artifact deployment.",
-      "default": ""
+      "description": "Schema reference used for artifact deployment."
     },
     "base_type": {
       "type": "string",
-      "description": "Base type for artifact deployment.",
-      "default": ""
+      "description": "Base type used for artifact deployment."
     },
     "indexing_strategy_id": {
       "type": "string",
-      "description": "Indexing strategy ID for artifact deployment.",
-      "default": ""
+      "description": "Indexing strategy ID used for artifact deployment."
     },
     "target_indexes": {
       "type": "array",
-      "description": "Target indexes for artifact deployment.",
+      "description": "Target indexes used for artifact deployment.",
       "items": {
         "type": "string"
       }
     },
     "transformation_hooks": {
       "type": "array",
-      "description": "Transformation hooks for artifact deployment.",
+      "description": "Transformation hooks used for artifact deployment.",
       "items": {
         "type": "string"
       }
     },
     "debt_prioritization_config": {
       "type": "object",
-      "description": "Debt prioritization configuration for artifact deployment.",
+      "description": "Debt prioritization configuration used for artifact deployment.",
       "properties": {
-        "debt_prioritization_config": {
-          "type": "object",
-          "properties": {
-            "debt_prioritization_config": {
-              "type": "object"
-            }
-          }
+        "debt_threshold": {
+          "type": "number",
+          "description": "Debt threshold used for artifact deployment."
+        },
+        "debt_priority": {
+          "type": "string",
+          "description": "Debt priority used for artifact deployment."
         }
       }
     },
     "verification_pipeline": {
       "type": "string",
-      "description": "Verification pipeline for artifact deployment.",
-      "default": ""
+      "description": "Verification pipeline used for artifact deployment."
     },
     "preflight_check": {
       "type": "boolean",
-      "description": "Preflight check for artifact deployment.",
-      "default": false
+      "description": "Preflight check used for artifact deployment."
     },
     "deployment_strategy": {
       "type": "string",
-      "description": "Deployment strategy for artifact deployment.",
-      "default": ""
+      "description": "Deployment strategy used for artifact deployment."
     },
     "target_infrastructure": {
       "type": "string",
-      "description": "Target infrastructure for artifact deployment.",
-      "default": ""
+      "description": "Target infrastructure used for artifact deployment."
     },
     "notification_channel": {
       "type": "string",
-      "description": "Notification channel used for artifact deployment.",
-      "default": ""
+      "description": "Notification channel used for artifact deployment."
     },
     "scaling_factor": {
       "type": "number",
-      "description": "Scaling factor used for artifact deployment.",
-      "default": 1.0
+      "description": "Scaling factor used for artifact deployment."
     },
     "approval_gates": {
-      "type": "object",
+      "type": "array",
       "description": "Approval gates used for artifact deployment.",
-      "properties": {
-        "approval_gates": {
-          "type": "array",
-          "description": "List of approval gates.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "approval_gates"
-      ]
+      "items": {
+        "type": "string"
+      }
     },
     "optimization_config": {
       "type": "object",
-      "description": "Optimization configuration for maximum computational efficiency.",
+      "description": "Optimization configuration used for artifact deployment.",
       "properties": {
         "optimization_level": {
           "type": "string",
-          "description": "Optimization level.",
+          "description": "Optimization level used for artifact deployment.",
           "enum": [
             "LOW",
             "MEDIUM",
             "HIGH"
           ]
         }
-      },
-      "required": [
-        "optimization_level"
-      ]
+      }
     },
-    "ADD": {
+    "rules": {
       "type": "array",
-      "description": "Additional configuration for artifact deployment.",
+      "description": "Rules used for artifact deployment.",
       "items": {
-        "$ref": "#/definitions/ADD"
+        "$ref": "#/definitions/RULE"
       }
     }
   },
@@ -171,75 +147,58 @@
     "scaling_factor",
     "approval_gates",
     "optimization_config",
-    "ADD"
+    "rules"
   ]
 }
 
 // definitions
 {
-  "$id": "#/definitions/ADD",
+  "$id": "#/definitions/RULE",
   "type": "object",
   "properties": {
-    "resolver_id": {
+    "id": {
       "type": "string",
-      "description": "Resolver ID for artifact deployment."
+      "description": "Rule ID used for artifact deployment."
     },
-    "description": {
+    "name": {
       "type": "string",
-      "description": "Description for artifact deployment."
+      "description": "Rule name used for artifact deployment."
     },
-    "endpoint_template": {
+    "priority": {
+      "type": "number",
+      "description": "Rule priority used for artifact deployment."
+    },
+    "condition_type": {
       "type": "string",
-      "description": "Endpoint template for artifact deployment."
+      "description": "Condition type used for artifact deployment."
     },
-    "parameters": {
-      "type": "array",
-      "description": "Parameters for artifact deployment.",
-      "items": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string",
-            "description": "Key for parameter."
-          },
-          "source": {
-            "type": "string",
-            "description": "Source for parameter."
-          },
-          "description": {
-            "type": "string",
-            "description": "Description for parameter."
-          }
-        }
-      }
+    "artifact_key": {
+      "type": "string",
+      "description": "Artifact key used for artifact deployment."
     },
-    "validation_strategy": {
-      "type": "object",
-      "description": "Validation strategy for artifact deployment.",
-      "properties": {
-        "fetch_required": {
-          "type": "boolean",
-          "description": "Fetch required for validation strategy."
-        },
-        "integrity_check_algorithm": {
-          "type": "string",
-          "description": "Integrity check algorithm for validation strategy."
-        }
-      }
+    "expected_value": {
+      "type": "boolean",
+      "description": "Expected value used for artifact deployment."
+    },
+    "trace_log_key": {
+      "type": "string",
+      "description": "Trace log key used for artifact deployment."
+    },
+    "severity": {
+      "type": "string",
+      "description": "Severity used for artifact deployment."
+    },
+    "artifact_name": {
+      "type": "string",
+      "description": "Artifact name used for artifact deployment."
+    },
+    "threshold_key": {
+      "type": "string",
+      "description": "Threshold key used for artifact deployment."
+    },
+    "default_threshold": {
+      "type": "number",
+      "description": "Default threshold used for artifact deployment."
     }
   }
 }
-```
-
-**Explanation:**
-
-The provided code is a JSON schema definition for an artifact deployment configuration. The `CORE` definition has been updated to remove the recursive `object` properties and replace them with more specific properties. The `ADD` definition has been updated to include more specific properties for the resolver ID, description, endpoint template, parameters, and validation strategy.
-
-**Changes:**
-
-1. Removed recursive `object` properties from `CORE` definition.
-2. Added more specific properties to `CORE` definition.
-3. Updated `ADD` definition to include more specific properties.
-4. Removed unnecessary properties from `ADD` definition.
-
-**Note:** The updated code is a simplified version of the original code and may not include all the original properties and features.
