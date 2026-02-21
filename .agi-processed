@@ -135,3 +135,4 @@ config/dse_integrity_rules.json
 config/dse_schema_manifest.json
 config/economic_policy_v1.json
 config/efficiency/costpredictor_params.json
+config/efficiency/rcm.json
