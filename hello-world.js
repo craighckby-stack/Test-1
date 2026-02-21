@@ -1,6 +1,92 @@
 CORE:
-// ...[TRUNCATED]
+{
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["CORE"]
     },
+    "nexus": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["NEXUS"]
+        },
+        "branch": {
+          "type": "string",
+          "enum": ["NEXUS_BRANCH"]
+        },
+        "telemetry": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["TELEMETRY"]
+            },
+            "encoding": {
+              "type": "string",
+              "enum": ["DELTA_ENCODING"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "logging": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["LOGGING"]
+            },
+            "profiles": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["LOGGING_PROFILES"]
+                },
+                "lazyLoading": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "enforcement": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["ENFORCEMENT"]
+            },
+            "streams": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["ENFORCEMENT_STREAMS"]
+                },
+                "lazyLoading": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "jit-compiler": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["JIT_COMPILER"]
+            },
+            "performanceCritical": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         }
@@ -137,8 +223,20 @@ ADD:
       "enum": ["ADD"]
     },
     "data": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["NEXUS_COMPONENT"]
+        },
+        "component": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
 }
+
+// ...[TRUNCATED]
