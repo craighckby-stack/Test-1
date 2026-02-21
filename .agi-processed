@@ -178,3 +178,4 @@ components/sgs/protocolconsistencyengine.py
 components/strategiccostindexer.js
 components/transient_vetting_staging_unit.yaml
 components/cryptography/commitmentkeyservice.yaml
+components/cth/cth.md
