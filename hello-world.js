@@ -1,9 +1,6 @@
-elif add_logic["type"] == "XOR":
-    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_logic["enabled"] * 0.05))
-
-# Apply Nexus branch synthesis based on ADD operational behavior
-gsep_behavior = add_schema["components"]["GSEP_BEHAVIOR"]
-nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((gsep_behavior["IH_IMMEDIATE_ROLLBACK_REQUIRED"] * 0.05) + (gsep_behavior["IH_MAX_RRP_ATTEMPTS_BEFORE_FREEZE"] > 1 * 0.05) + (gsep_behavior["IH_TELEMETRY_LEVEL"] == "FORENSIC" * 0.05)))
+CORE:
+// ...[TRUNCATED]
+REEZE"] > 1 * 0.05) + (gsep_behavior["IH_TELEMETRY_LEVEL"] == "FORENSIC" * 0.05)))
 
 # Apply Nexus branch synthesis based on ADD DSE configuration
 dse_configuration = add_schema["components"]["DSE_CONFIGURATION"]
@@ -12,10 +9,6 @@ nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric
 # Apply Nexus branch synthesis based on ADD axiom I utility
 axiom_i_utility = add_schema["components"]["P01_CRITERIA"]["AXIOM_I_UTILITY"]
 nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((axiom_i_utility["MIN_EFFICACY_THRESHOLD_OMEGA"] > 0.5 * 0.05) + (axiom_i_utility["MAX_ALLOWABLE_UTILITY_DEBT_LOGS"] > 10 * 0.05)))
-
-# Apply Nexus branch synthesis based on ADD axiom II context
-axiom_ii_context = add_schema["components"]["P01_CRITERIA"]["AXIOM_II_CONTEXT"]
-nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * ((axiom_ii_context["ECVM_VALIDATION_TIMEOUT_MS"] > 500 * 0.05)))
 
 # Apply Nexus branch synthesis based on ADD axiom III integrity
 axiom_iii_integrity = add_schema["components"]["P01_CRITERIA"]["AXIOM_III_INTEGRITY"]
@@ -30,10 +23,6 @@ for strategy in remediation_strategies.values():
         nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (strategy["ACTION"] * 0.05))
     elif strategy["TRIGGER_LEVEL"] == "INTEGRITY_HALT":
         nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (strategy["ACTION"] * 0.05))
-
-# Remove redundant code
-# Apply Nexus branch synthesis based on ADD axiom II context (removed)
-# Apply Nexus branch synthesis based on ADD axiom III integrity (removed)
 
 # Apply Nexus branch synthesis based on ADD constraints
 constraints = add_schema["constraints"]
@@ -52,5 +41,24 @@ if default_policy["on_critical_failure"] == "HALT_IMMEDIATELY":
 elif default_policy["on_high_failure"] == "LOG_AND_FLAG":
     nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
 
+# Remove redundant code
+# Apply Nexus branch synthesis based on ADD axiom II context (removed)
+# Apply Nexus branch synthesis based on ADD axiom III integrity (removed)
+
 # Return Nexus branch synthesis
 return nexus_branch_synthesis
+
+# Apply Nexus branch synthesis based on ADD evolution trigger interface
+entry_points = add_schema["entry_points"]
+for entry_point in entry_points:
+    if entry_point["id"] == "INTENT_HUMAN_OVERSIGHT":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
+    elif entry_point["id"] == "INTENT_SYSTEM_AUTOGENY":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
+
+# Apply Nexus branch synthesis based on ADD integrity checks
+integrity_checks = add_schema["integrity_checks"]
+if integrity_checks["input_serialization_type"] == "JSON/CBOR":
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
+if integrity_checks["validation_module"] == "RSAM":
+    nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (1 * 0.05))
