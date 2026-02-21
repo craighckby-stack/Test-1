@@ -143,3 +143,4 @@ config/efficiency_scoring_config.json
 assets/gacr/gmci.json
 assets/gacr/harm_severity_matrix.json
 assets/gacr/harm_v97.3.json
+assets/gax/ahmid_veto_triggers.json
