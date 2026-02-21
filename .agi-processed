@@ -187,3 +187,4 @@ components/governance/schemarepositoryservice_srs_v1_0.md
 components/protocol/gaxschemadefinition.py
 components/risk_processor/risk_enforcement_map.js
 components/security/scpi_t03_spec.md
+components/system_core/asg_atomic_snapshot_generator.rs
