@@ -1,8 +1,6 @@
+CORE:
 // ...[TRUNCATED]
-  "conditions": [
-    {
-      "id": "CORE_ENABLED",
-      "description": "CORE enabled",
+"CORE enabled",
       "type": "boolean",
       "value": true,
       "operator": "EQ"
@@ -169,6 +167,114 @@
       "type": "numeric",
       "value": 5,
       "operator": "MUL"
+    },
+    {
+      "id": "NEXUS_BRANCH_SYNTHESIS",
+      "description": "Nexus branch synthesis",
+      "type": "numeric",
+      "value": 0,
+      "operator": "ADD"
     }
   ]
 }
+
+NEXUS_BRANCH:
+{
+  "id": "NEXUS_BRANCH",
+  "description": "Nexus branch",
+  "type": "array",
+  "value": [
+    {
+      "id": "ADD_LOGIC",
+      "description": "ADD logic",
+      "type": "object",
+      "value": {
+        "optimization": "maximum computational efficiency and recursive abstraction",
+        "registry_version": "v95.0.0",
+        "registry_type": "CryptographyProtocolRegistry.json",
+        "mandate_id": "SGS-EFF-KRNL-202409-001",
+        "required_agility_policy": "AnnualReview"
+      },
+      "operator": "EQ"
+    }
+  ],
+  "operator": "EQ"
+}
+
+SYNTHESIZED:
+{
+  "id": "SYNTHESIZED",
+  "description": "Synthesized",
+  "type": "numeric",
+  "value": 0,
+  "operator": "ADD"
+}
+
+NEXUS:
+{
+  "id": "NEXUS",
+  "description": "Nexus",
+  "type": "numeric",
+  "value": 0,
+  "operator": "ADD"
+}
+
+CORE_LOGIC:
+{
+  "id": "CORE_LOGIC",
+  "description": "CORE logic",
+  "type": "numeric",
+  "value": 0,
+  "operator": "ADD"
+}
+
+NEXUS_BRANCH_SYNTHESIS:
+{
+  "id": "NEXUS_BRANCH_SYNTHESIS",
+  "description": "Nexus branch synthesis",
+  "type": "numeric",
+  "value": 0,
+  "operator": "ADD"
+}
+
+// ...[TRUNCATED]
+
+// Synthesize ADD logic into CORE logic on the Nexus branch
+NEXUS_BRANCH_SYNTHESIS.value = NEXUS_BRANCH.value + ADD_WEIGHT.value;
+NEXUS_BRANCH_SYNTHESIS.operator = "ADD";
+
+CORE_LOGIC.value = CORE_WEIGHT.value + NEXUS_BRANCH_SYNTHESIS.value;
+CORE_LOGIC.operator = "ADD";
+
+NEXUS.value = NEXUS_WEIGHT.value + CORE_LOGIC.value;
+NEXUS.operator = "ADD";
+
+SYNTHESIZED.value = SYNTHESIZED_WEIGHT.value + NEXUS.value;
+SYNTHESIZED.operator = "ADD";
+
+// Update CORE modifiers
+modifiers = modifiers.filter(modifier => modifier.id !== "NEXUS_BRANCH_SYNTHESIS");
+modifiers.push(NEXUS_BRANCH_SYNTHESIS);
+
+// Update CORE
+CORE.modifiers = modifiers;
+
+// Update NEXUS_BRANCH
+NEXUS_BRANCH.value = NEXUS_BRANCH_SYNTHESIS.value;
+NEXUS_BRANCH.operator = "EQ";
+
+// Update SYNTHESIZED
+SYNTHESIZED.value = SYNTHESIZED.value;
+SYNTHESIZED.operator = "EQ";
+
+// Update NEXUS
+NEXUS.value = NEXUS.value;
+NEXUS.operator = "EQ";
+
+// Update CORE_LOGIC
+CORE_LOGIC.value = CORE_LOGIC.value;
+CORE_LOGIC.operator = "EQ";
+
+// Update NEXUS_BRANCH_SYNTHESIS
+NEXUS_BRANCH_SYNTHESIS.value = NEXUS_BRANCH_SYNTHESIS.value;
+NEXUS_BRANCH_SYNTHESIS.operator = "EQ";
