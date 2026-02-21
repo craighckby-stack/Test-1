@@ -204,3 +204,4 @@ config/aoc_runtimeconstants.json
 config/apte_pressure_mapping.json
 config/apte_tuning_observation_manifest.json
 config/asdm_artifactschemas.json
+config/artifactstandard.json
