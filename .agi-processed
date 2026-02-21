@@ -130,3 +130,4 @@ config/deployment/acvd_schema_v1.json
 config/deployment/profile_resolver.js
 config/dial_analysis_map.json
 config/dictionary/fma_catalog.json
+config/dse_client_resolver_config.json
