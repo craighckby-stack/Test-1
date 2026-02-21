@@ -18,3 +18,4 @@ GACR/schemas/cmrSchema.json
 GAX/Utilities/ConstraintAdherenceValidator.js
 Governance/Configuration/GDECM_Schema.json
 Governance/Protocol/GEDM_Constraint_Schema.json
+Governance/Protocol/GEDM_Definition.md
