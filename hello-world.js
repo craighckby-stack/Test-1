@@ -1,86 +1,6 @@
-{
-  "type": "object",
-  "properties": {
-    "type": {
-      "type": "string",
-      "enum": ["ENFORCEMENT"]
-    },
-    "streams": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["ENFORCEMENT_STREAMS"]
-        },
-        "lazyLoading": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "jit-compiler": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["JIT_COMPILER"]
-        },
-        "performanceCritical": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "action-execution": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["EXECUTION"]
-        },
-        "command": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "action-notification": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["NOTIFICATION"]
-        },
-        "channel": {
-          "type": "string",
-          "enum": ["GOV", "OPS", "SEC"]
-        },
-        "level": {
-          "type": "string",
-          "enum": ["HIGH", "MEDIUM", "LOW"]
-        }
-      },
-      "additionalProperties": false
-    },
-    "action-logging": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["LOGGING"]
-        },
-        "level": {
-          "type": "string",
-          "enum": ["WARNING"]
-        }
-      },
-      "additionalProperties": false
-    },
-    "action-database": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
+CORE:
+// ...[TRUNCATED]
+": "string",
           "enum": ["DATABASE"]
         },
         "command": {
@@ -251,6 +171,78 @@
             }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "policy_id": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "priority_tiers": {
+      "type": "object",
+      "properties": {
+        "P0_CRITICAL": {
+          "type": "object",
+          "properties": {
+            "security_minimum": {
+              "type": "integer"
+            },
+            "utilization_threshold_max": {
+              "type": "number"
+            },
+            "unit_type_preference": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "failure_mode": {
+              "type": "string",
+              "enum": ["WAIT", "FALLBACK_P2"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "P1_NORMAL": {
+          "type": "object",
+          "properties": {
+            "security_minimum": {
+              "type": "integer"
+            },
+            "utilization_threshold_max": {
+              "type": "number"
+            },
+            "unit_type_preference": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "failure_mode": {
+              "type": "string",
+              "enum": ["WAIT", "FALLBACK_P2"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "default_fallback": {
+      "type": "object",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["LEAST_UTILIZED_ANY_TYPE"]
+        },
+        "min_security": {
+          "type": "integer"
         }
       },
       "additionalProperties": false
