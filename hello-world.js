@@ -18,6 +18,13 @@
         "type": "string",
         "value": "Agent_Heartbeat_Latency",
         "operator": "EQ"
+      },
+      {
+        "id": "NEXUS_BRANCH_SYNTHESIS_METRIC",
+        "description": "Nexus branch synthesis metric",
+        "type": "string",
+        "value": "Nexus_Branch_Synthesis",
+        "operator": "EQ"
       }
     ],
     "modifiers": [
@@ -76,6 +83,13 @@
         "type": "numeric",
         "value": 0,
         "operator": "ADD"
+      },
+      {
+        "id": "NEXUS_BRANCH_SYNTHESIS_WEIGHT",
+        "description": "Nexus branch synthesis weight",
+        "type": "numeric",
+        "value": 10,
+        "operator": "MUL"
       }
     ]
   },
