@@ -137,3 +137,4 @@ config/economic_policy_v1.json
 config/efficiency/costpredictor_params.json
 config/efficiency/rcm.json
 config/efficiency/compute_class_definition.json
+config/efficiency/metric_definitions.json
