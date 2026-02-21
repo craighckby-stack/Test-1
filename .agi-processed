@@ -113,3 +113,4 @@ config/component_definition/grs_compiler.json
 config/components/policyverifier_schema.json
 config/consensus/gsep_commit_policy.yaml
 config/consensus_verification_harness.json
+config/constraint_policies.json
