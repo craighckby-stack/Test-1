@@ -25,6 +25,7 @@ const CONSTRAINT_TAXONOMY = JSON.parse(fs.readFileSync(path.join(__dirname, 'con
 const GDECM_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gdecm_schema.json'), 'utf8'));
 const GEDM_DEFINITION = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_definition.json'), 'utf8'));
 const GEDM_CONSTRAINT_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'gedm_constraint_schema.json'), 'utf8'));
+const GSUP_PROTOCOL = JSON.parse(fs.readFileSync(path.join(__dirname, 'protocol', 'gsup_protocol.json'), 'utf8'));
 
 // MIT License
 const LICENCE = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'licence.json'), 'utf8'));
@@ -55,7 +56,8 @@ class AdaptiveSamplingEngine {
       gdecmSchema: GDECM_SCHEMA,
       gedmDefinition: GEDM_DEFINITION,
       gedmConstraintSchema: GEDM_CONSTRAINT_SCHEMA,
-      licence: LICENCE
+      licence: LICENCE,
+      gsupProtocol: GSUP_PROTOCOL
     };
   }
 
@@ -140,6 +142,10 @@ class AdaptiveSamplingEngine {
       // Validate GEDM compliance
       const gedm = new GEDMValidator(this.config.gedmDefinition, this.config.gedmConstraintSchema);
       await gedm.validate(stage.configuration, stage.inputState);
+
+      // Validate GSUP compliance
+      const gsup = new GSUPValidator(this.config.gsupProtocol);
+      await gsup.validate(stage.executionTrace);
 
       // Update protocol manifest
       const protocolManifest = this.config.protocolManifest;
@@ -416,42 +422,21 @@ class GEDMValidator {
   }
 }
 
-// GACR/LicenceValidator.ts
-class LicenceValidator {
-  constructor(licence) {
-    this.licence = licence;
+// GACR/GSUPValidator.ts
+class GSUPValidator {
+  constructor(protocol) {
+    this.protocol = protocol;
   }
 
-  async validate() {
-    // Validate licence against MIT License
-    const licenceValidator = new LicenceValidator(this.licence);
-    const validationResults = await licenceValidator.validate();
-    return validationResults;
-  }
-}
+  async validate(executionTrace) {
+    // Validate execution trace against GSUP protocol
+    const phases = this.protocol.phases;
+    for (const phase of phases) {
+      // Validate phase 1: Preparation & Submission
+      if (phase.name === 'Preparation & Submission') {
+        const schemaDraft = executionTrace.schemaDraft;
+        const versionLock = executionTrace.versionLock;
+        const auditReview = executionTrace.auditReview;
 
-// GACR/LicenceValidator.ts
-class LicenceValidator {
-  constructor(licence) {
-    this.licence = licence;
-  }
-
-  async validate() {
-    // Validate licence against MIT License
-    if (this.licence.copyright_year !== 2026 || this.licence.copyright_holder !== 'Craig Huckerby') {
-      throw new Error('Invalid licence');
-    }
-    if (this.licence.permission !== 'free of charge') {
-      throw new Error('Invalid permission');
-    }
-    if (this.licence.conditions !== 'The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.') {
-      throw new Error('Invalid conditions');
-    }
-    if (this.licence.warranty !== 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.') {
-      throw new Error('Invalid warranty');
-    }
-    if (this.licence.liability !== 'IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.') {
-      throw new Error('Invalid liability');
-    }
-  }
-}
+        // Validate schema draft
+        if (!schemaDraft
