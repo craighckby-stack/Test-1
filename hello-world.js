@@ -1,6 +1,8 @@
-// CORE
+// Updated CORE code
 {
-  "$id": "#/definitions/CORE",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Distributed Schema Engine (DSE) Configuration",
+  "description": "Definitive manifest for all core DSE types.",
   "type": "object",
   "properties": {
     "ingestion_pipeline": {
@@ -11,13 +13,13 @@
       "type": "object",
       "description": "Operational metadata used for artifact deployment.",
       "properties": {
-        "deployment_id": {
+        "operational_metadata_id": {
           "type": "string",
-          "description": "Deployment ID for artifact deployment."
+          "description": "Operational metadata ID used for artifact deployment."
         },
-        "deployment_name": {
+        "operational_metadata_name": {
           "type": "string",
-          "description": "Deployment name for artifact deployment."
+          "description": "Operational metadata name used for artifact deployment."
         }
       }
     },
@@ -27,11 +29,11 @@
       "properties": {
         "derivation_id": {
           "type": "string",
-          "description": "Derivation ID for artifact deployment."
+          "description": "Derivation ID used for artifact deployment."
         },
         "derivation_name": {
           "type": "string",
-          "description": "Derivation name for artifact deployment."
+          "description": "Derivation name used for artifact deployment."
         }
       }
     },
@@ -148,57 +150,132 @@
     "approval_gates",
     "optimization_config",
     "rules"
-  ]
+  ],
+  "definitions": {
+    "RULE": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Rule ID used for artifact deployment."
+        },
+        "name": {
+          "type": "string",
+          "description": "Rule name used for artifact deployment."
+        },
+        "priority": {
+          "type": "number",
+          "description": "Rule priority used for artifact deployment."
+        },
+        "condition_type": {
+          "type": "string",
+          "description": "Condition type used for artifact deployment."
+        },
+        "artifact_key": {
+          "type": "string",
+          "description": "Artifact key used for artifact deployment."
+        },
+        "expected_value": {
+          "type": "boolean",
+          "description": "Expected value used for artifact deployment."
+        },
+        "trace_log_key": {
+          "type": "string",
+          "description": "Trace log key used for artifact deployment."
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity used for artifact deployment."
+        },
+        "artifact_name": {
+          "type": "string",
+          "description": "Artifact name used for artifact deployment."
+        },
+        "threshold_key": {
+          "type": "string",
+          "description": "Threshold key used for artifact deployment."
+        },
+        "default_threshold": {
+          "type": "number",
+          "description": "Default threshold used for artifact deployment."
+        }
+      }
+    }
+  }
 }
 
-// definitions
+// Updated ADD code
 {
-  "$id": "#/definitions/RULE",
-  "type": "object",
-  "properties": {
-    "id": {
-      "type": "string",
-      "description": "Rule ID used for artifact deployment."
+  "manifest_version": "2.0.0",
+  "system_id": "SOV-AGI-V94",
+  "environment": "CORE_EVOLUTIONARY_MATRIX",
+  "metadata": {
+    "api_schema_version": "v1.5",
+    "description": "Definitive manifest for all core Distributed Schema Engine (DSE) types.",
+    "generated_at": "$TIMESTAMP$"
+  },
+  "schemas": [
+    {
+      "id": "CORE.KernelState",
+      "name": "EvolutionaryKernelState",
+      "version": "4.5.1",
+      "domain": "CORE",
+      "target_entity": "KernelState",
+      "storage_path": "schemas/core/kernel_state_v4.json",
+      "integrity": {
+        "algorithm": "SHA-256",
+        "hash": "a1b2c3d4e5f678901234567890abcdef"
+      },
+      "lifecycle": {
+        "status": "ProductionReady",
+        "evolution_mode": "BackwardCompatibleDelta"
+      },
+      "dependencies": []
     },
-    "name": {
-      "type": "string",
-      "description": "Rule name used for artifact deployment."
+    {
+      "id": "EXEC.TaskGraph",
+      "name": "TaskExecutionGraph",
+      "version": "3.0.0",
+      "domain": "EXECUTION",
+      "target_entity": "TaskGraph",
+      "storage_path": "schemas/execution/task_graph_v3.json",
+      "integrity": {
+        "algorithm": "SHA-256",
+        "hash": "f0e9d8c7b6a54321fedcba9876543210"
+      },
+      "lifecycle": {
+        "status": "ProductionReady",
+        "evolution_mode": "RequiresAtomicSwap"
+      },
+      "dependencies": [
+        "CORE.KernelState"
+      ]
     },
-    "priority": {
-      "type": "number",
-      "description": "Rule priority used for artifact deployment."
-    },
-    "condition_type": {
-      "type": "string",
-      "description": "Condition type used for artifact deployment."
-    },
-    "artifact_key": {
-      "type": "string",
-      "description": "Artifact key used for artifact deployment."
-    },
-    "expected_value": {
-      "type": "boolean",
-      "description": "Expected value used for artifact deployment."
-    },
-    "trace_log_key": {
-      "type": "string",
-      "description": "Trace log key used for artifact deployment."
-    },
-    "severity": {
-      "type": "string",
-      "description": "Severity used for artifact deployment."
-    },
-    "artifact_name": {
-      "type": "string",
-      "description": "Artifact name used for artifact deployment."
-    },
-    "threshold_key": {
-      "type": "string",
-      "description": "Threshold key used for artifact deployment."
-    },
-    "default_threshold": {
-      "type": "number",
-      "description": "Default threshold used for artifact deployment."
+    {
+      "id": "LOG.TelemetryEntry",
+      "name": "TelemetryLogEntry",
+      "version": "1.2.0",
+      "domain": "LOGGING",
+      "target_entity": "TelemetryEntry",
+      "storage_path": "schemas/logging/telemetry_v1.json",
+      "integrity": {
+        "algorithm": "SHA-256",
+        "hash": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d"
+      },
+      "lifecycle": {
+        "status": "Superseded",
+        "evolution_mode": "MigrationToV2Required"
+      },
+      "dependencies": []
+    }
+  ],
+  "dse_policy": {
+    "consistency_level": "StrictAtomic",
+    "rollback_enabled": true,
+    "migration_timeout_ms": 5000,
+    "caching": {
+      "default_ttl_seconds": 3600,
+      "cache_validation_mode": "IntegrityCheckRequired"
     }
   }
 }
