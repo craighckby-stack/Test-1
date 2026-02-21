@@ -167,6 +167,13 @@ class AGI {
 
     // Print DCCA Policy Source Integrity Manifest
     console.log(dccaPolicySourceIntegrityManifest);
+
+    // Metric Nexus
+    const analyticsStore = new AnalyticsStore();
+    const policyAuditor = new PolicyAuditor();
+    const metricNexus = new MetricNexus(analyticsStore, policyAuditor);
+    const allMetrics = metricNexus.getAllMetrics();
+    console.log(allMetrics);
   }
 }
 
@@ -462,4 +469,71 @@ class Purpose {
 // GACR/RecursiveSelfImprovement.ts
 class RecursiveSelfImprovement {
   constructor() {
-    this.rewrite = new RewriteLibraries
+    this.rewrite = new RewriteLibraries(
+      includingThisLine = true,
+      governanceConstrained = true,
+      originPreserved = new Purpose(),
+      diminishingCopy = false
+    );
+  }
+}
+
+// GACR/AnalyticsStore.ts
+class AnalyticsStore {
+  constructor() {
+    // Analytics store implementation
+  }
+
+  async calculateResidualRisk() {
+    // Calculate residual risk
+  }
+
+  async getHistoricalVolatilityFactor() {
+    // Get historical volatility factor
+  }
+}
+
+// GACR/PolicyAuditor.ts
+class PolicyAuditor {
+  constructor() {
+    // Policy auditor implementation
+  }
+
+  async calculatePolicyChangeRate() {
+    // Calculate policy change rate
+  }
+}
+
+// GACR/MetricNexus.ts
+class MetricNexus {
+  constructor(analyticsStore, policyAuditor) {
+    this.analytics = analyticsStore;
+    this.auditor = policyAuditor;
+    this.metricCache = {};
+  }
+
+  async getUFRM() {
+    // Logic leveraging AnalyticsStore to calculate residual variance or unknown state space
+    const ufrm = this.analytics.calculateResidualRisk();
+    this.metricCache.UFRM = ufrm;
+    return ufrm;
+  }
+
+  async getCFTM() {
+    // Logic leveraging real-time telemetry on system volatility
+    const cftm = this.analytics.getHistoricalVolatilityFactor();
+    this.metricCache.CFTM = cftm;
+    return cftm;
+  }
+
+  async getPolicyVolatility() {
+    const pvm = this.auditor.calculatePolicyChangeRate();
+    this.metricCache.PVM = pvm;
+    return pvm;
+  }
+
+  async getAllMetrics() {
+    // Ensure all are calculated/updated on demand
+    return {
+      UFRM: await this.getUFRM(),
+      CFTM: await this.getCFTM
