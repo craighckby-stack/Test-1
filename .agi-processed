@@ -140,3 +140,4 @@ config/efficiency/compute_class_definition.json
 config/efficiency/metric_definitions.json
 config/efficiency/optimization_goals.json
 config/efficiency_scoring_config.json
+assets/gacr/gmci.json
