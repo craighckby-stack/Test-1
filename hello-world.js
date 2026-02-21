@@ -1,88 +1,3 @@
-// ...[TRUNCATED]
-fn generate_rscm_snapshot() -> Result<RscmPackage, SnapshotError> {
-    // ...[TRUNCATED]
-    // 5. Integrate ADD object into the RSCM package
-    let add_object_result = add_object();
-    if let Ok(add_object) = add_object_result {
-        // ...[TRUNCATED]
-        Ok(RscmPackage {
-            // ...[TRUNCATED]
-            add_object: add_object,
-            // ...[TRUNCATED]
-        })
-    } else {
-        // ...[TRUNCATED]
-        return Err(SnapshotError::ADDIntegrationFailure);
-    }
-}
-
-// ...[TRUNCATED]
-
-// --- Updated CORE logic ---
-let result = match T::generate_rscm_snapshot() {
-    Ok(pkg) => {
-        // ...[TRUNCATED]
-        // 6. Validate runtime trust using RETV
-        let retv = RETV::new(
-            l5_commit_metadata,
-            required_env_signature,
-            env_baseline_config,
-        );
-        let (is_trustworthy, integrity_report) = retv.validate_runtime_trust();
-        if !is_trustworthy {
-            return Err(SnapshotError::RuntimeTrustFailure(integrity_report));
-        }
-        // ...[TRUNCATED]
-    }
-    Err(err) => Err(err),
-};
-
-// --- Updated CORE logic ---
-struct RscmPackage {
-    // ...[TRUNCATED]
-    add_object: ADDObject,
-    // ...[TRUNCATED]
-}
-
-// --- Updated CORE logic ---
-enum SnapshotError {
-    // ...[TRUNCATED]
-    ADDIntegrationFailure,
-    RuntimeTrustFailure(Vec<Dict>),
-    // ...[TRUNCATED]
-}
-
-// --- Updated CORE logic ---
-struct RETV {
-    // ...[TRUNCATED]
-    l5_metadata: Dict,
-    required_env_signature: String,
-    env_baseline_config: Dict,
-    // ...[TRUNCATED]
-}
-
-// --- Updated CORE logic ---
-impl RETV {
-    fn new(
-        l5_commit_metadata: Dict,
-        required_env_signature: String,
-        env_baseline_config: Dict,
-    ) -> Self {
-        Self {
-            l5_metadata,
-            required_env_signature,
-            env_baseline_config,
-            // ...[TRUNCATED]
-        }
-    }
-
-    fn validate_runtime_trust(&self) -> (bool, Vec<Dict>) {
-        // ...[TRUNCATED]
-    }
-}
-```
-
-```rust
 // --- Updated CORE logic ---
 struct ADDObject {
     // ...[TRUNCATED]
@@ -102,33 +17,123 @@ impl ADDObject {
         }
     }
 }
-```
 
-```rust
 // --- Updated CORE logic ---
-struct Dict {
+struct ComplianceReport {
     // ...[TRUNCATED]
+    is_compliant: bool,
+    failures: Vec<Dict>,
 }
 
 // --- Updated CORE logic ---
-impl Dict {
+impl ComplianceReport {
     fn new() -> Self {
         Self {
-            // ...[TRUNCATED]
+            is_compliant: true,
+            failures: Vec::new(),
         }
     }
-}
-```
 
-```rust
+    fn add_failure(&mut self, check_id: String, message: String) {
+        self.is_compliant = false;
+        self.failures.push(Dict::new());
+        self.failures.last_mut().unwrap().insert("check_id", check_id);
+        self.failures.last_mut().unwrap().insert("message", message);
+    }
+
+    fn is_compliant(&self) -> bool {
+        self.is_compliant
+    }
+}
+
 // --- Updated CORE logic ---
-struct SnapshotError {
+struct ConstraintComplianceValidator {
     // ...[TRUNCATED]
+    GAX_MASTER: Dict,
+    PIM_CONSTRAINTS: Dict,
+    ORCHESTRATOR_CONFIG: Dict,
 }
 
 // --- Updated CORE logic ---
-impl SnapshotError {
-    fn RuntimeTrustFailure(integrity_report: Vec<Dict>) -> Self {
-        Self::RuntimeTrustFailure(integrity_report)
+impl ConstraintComplianceValidator {
+    fn new(
+        GAX_MASTER: Dict,
+        PIM_CONSTRAINTS: Dict,
+        ORCHESTRATOR_CONFIG: Dict,
+    ) -> Self {
+        Self {
+            GAX_MASTER,
+            PIM_CONSTRAINTS,
+            ORCHESTRATOR_CONFIG,
+        }
+    }
+
+    fn _validate_required_p_sets(&self, report: &mut ComplianceReport) {
+        let required_sets = self.GAX_MASTER.get("protocol_mandates").and_then(|x| x.get("required_p_sets"));
+        let actual_sets = self.PIM_CONSTRAINTS.get("constraint_sets").and_then(|x| x.keys());
+
+        if let Some(required) = required_sets {
+            if let Some(actual) = actual_sets {
+                for required_set in required {
+                    if !actual.contains(&required_set) {
+                        report.add_failure(
+                            "PIM.C01".to_string(),
+                            format!("PIM configuration is missing required P-Set definition: {}", required_set),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    fn _validate_severity_thresholds(&self, report: &mut ComplianceReport) {
+        let gax_limits = self.GAX_MASTER.get("limits").and_then(|x| x.get("severity_thresholds"));
+        let pim_thresholds = self.PIM_CONSTRAINTS.get("policy").and_then(|x| x.get("severity_levels"));
+
+        if let Some(gax_limits) = gax_limits {
+            if let Some(pim_thresholds) = pim_thresholds {
+                for (level, limit) in gax_limits {
+                    let current_threshold = pim_thresholds.get(level);
+
+                    if current_threshold.is_none() {
+                        report.add_failure(
+                            "PIM.C02".to_string(),
+                            format!("Required GAX severity level '{}' is not defined in PIM configuration.", level),
+                        );
+                        continue;
+                    }
+
+                    if current_threshold.unwrap() > limit {
+                        report.add_failure(
+                            "PIM.C02".to_string(),
+                            format!("Severity '{}' ({}) exceeds GAX hard limit ({})", level, current_threshold.unwrap(), limit),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    fn _validate_orchestrator_limits(&self, report: &mut ComplianceReport) {
+        let stage_limit = self.ORCHESTRATOR_CONFIG.get("gsep_stage_limit_seconds");
+
+        if let Some(stage_limit) = stage_limit {
+            if stage_limit.is_none() || stage_limit.unwrap() <= 0.0 {
+                report.add_failure(
+                    "ORCH.R01".to_string(),
+                    "GSEP-C stage limit ({} must be a positive non-zero value, mandated by GAX II.".format(stage_limit.unwrap()),
+                );
+            }
+        }
+    }
+
+    fn execute_pre_flight_check(&self) -> ComplianceReport {
+        let mut report = ComplianceReport::new();
+
+        self._validate_required_p_sets(&mut report);
+        self._validate_severity_thresholds(&mut report);
+        self._validate_orchestrator_limits(&mut report);
+
+        report
     }
 }
