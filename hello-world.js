@@ -1,39 +1,6 @@
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Data Artifact Registry Schema (v94.2 Intelligence Refactor)",
-  "description": "Defines and registers all fundamental data artifacts, specifying classification, operational requirements, governance constraints, and structural definitions via schema references.",
-  "type": "object",
-  "required": ["registry_version", "artifacts"],
-  "properties": {
-    "registry_version": {
-      "type": "string",
-      "description": "Semantic version of the artifact definitions."
-    },
-    "artifacts": {
-      "type": "object",
-      "description": "Map of data artifact definitions, keyed by their unique identifier (source_data_key).",
-      "patternProperties": {
-        "^[A-Z][A-Z0-9_]{3,}$": {
-          "type": "object",
-          "required": ["artifact_type", "description", "source_system", "governance"],
-          "properties": {
-            "artifact_type": {
-              "type": "string",
-              "enum": ["PRIMITIVE", "STRUCTURED", "TIMESERIES"],
-              "description": "The general structure category of the artifact."
-            },
-            "source_system": {
-              "type": "string",
-              "enum": ["CORE", "HMC", "SDR", "EXTERNAL", "CALCULATED"],
-              "description": "The agent, system, or process that generates or provides the artifact."
-            },
-            "description": {
-              "type": "string"
-            },
-            "governance": {
-              "type": "object",
-              "required": ["sensitivity_level", "retention_days"],
-              "description": "Defines data lifecycle and security constraints.",
+CORE:
+// ...[TRUNCATED]
+"description": "Defines data lifecycle and security constraints.",
               "properties": {
                 "sensitivity_level": {
                   "type": "string",
@@ -48,6 +15,15 @@
                 "purge_logic_ref": {
                   "type": "string",
                   "description": "Optional reference to a specific rule set for purge execution."
+                },
+                "optimization_level": {
+                  "type": "string",
+                  "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+                  "description": "Configuration for maximum computational efficiency."
+                },
+                "recursive_abstraction": {
+                  "type": "boolean",
+                  "description": "Enables recursive abstraction for complex data structures."
                 }
               }
             },
@@ -134,6 +110,23 @@
               "then": {
                 "required": ["base_type"]
               }
+            },
+            {
+              "if": {
+                "properties": {
+                  "optimization_level": {
+                    "const": "HIGH"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "recursive_abstraction": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
             }
           ]
         }
@@ -142,6 +135,3 @@
     }
   }
 }
-```
-
-The provided code is already the updated CORE logic on the Nexus branch. The ADD logic has been successfully synthesized into the CORE logic.
