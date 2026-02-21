@@ -55,3 +55,4 @@ assets/config/attestationvalidationrules.json
 assets/config/schemaattestationpolicymap.json
 assets/config/trustanchorregistry.json
 assets/config/trustpolicydefinitions.json
+assets/config/trustresolverpolicy.json
