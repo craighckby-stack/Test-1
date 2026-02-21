@@ -1,3 +1,4 @@
+CORE:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://sovereign-agi.io/governance/pesm_v95.3.json",
@@ -38,10 +39,45 @@
         "manifest_validation_time_ms": {"type": "float", "description": "Time taken to validate manifest."},
         "success_rate_op": {"type": "float", "description": "Success rate of operation."},
         "remediation_profiles": {"type": "json", "description": "Remediation profiles."},
-        "add_configuration": {"type": "object", "description": "Configuration for ADD."},
-        "add_specification": {"type": "object", "description": "Specification for ADD."},
-        "gacr_manifest_chain_integrity": {"type": "object", "description": "Chain integrity for GACR manifest."},
-        "harmonic_severity_matrix": {"type": "object", "description": "Harmonic severity matrix."},
+        "add_configuration": {
+          "type": "object",
+          "description": "Configuration for ADD.",
+          "properties": {
+            "nexus_branch": {"type": "string", "description": "Nexus branch for ADD."},
+            "add_logic": {"type": "object", "description": "ADD logic."},
+            "add_specification": {"type": "object", "description": "Specification for ADD."},
+            "gacr_manifest_chain_integrity": {"type": "object", "description": "Chain integrity for GACR manifest."},
+            "harmonic_severity_matrix": {"type": "object", "description": "Harmonic severity matrix."},
+            "chain_history_length": {"type": "integer", "description": "Length of chain history."}
+          }
+        },
+        "add_specification": {
+          "type": "object",
+          "description": "Specification for ADD.",
+          "properties": {
+            "synthesis_algorithm": {"type": "string", "description": "Synthesis algorithm for ADD."},
+            "synthesis_input": {"type": "object", "description": "Input for synthesis algorithm."},
+            "synthesis_output": {"type": "object", "description": "Output of synthesis algorithm."},
+            "synthesis_time_ms": {"type": "float", "description": "Time taken for synthesis algorithm."},
+            "synthesis_success_rate": {"type": "float", "description": "Success rate of synthesis algorithm."}
+          }
+        },
+        "gacr_manifest_chain_integrity": {
+          "type": "object",
+          "description": "Chain integrity for GACR manifest.",
+          "properties": {
+            "chain_hash": {"type": "string", "description": "Hash of chain."},
+            "chain_timestamp": {"type": "string", "format": "date-time", "description": "Timestamp of chain."}
+          }
+        },
+        "harmonic_severity_matrix": {
+          "type": "object",
+          "description": "Harmonic severity matrix.",
+          "properties": {
+            "matrix_size": {"type": "integer", "description": "Size of matrix."},
+            "matrix_data": {"type": "object", "description": "Data of matrix."}
+          }
+        },
         "chain_history_length": {"type": "integer", "description": "Length of chain history."}
       }
     }
