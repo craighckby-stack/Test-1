@@ -1,14 +1,11 @@
 /**
- * AGI Core: Project "Hello World" - Evolved to v0.3.0-alpha
+ * AGI Core: Project "Hello World" - Evolved to v0.3.1-alpha
  *
- * This version significantly expands the AGI's internal architecture by introducing
- * the Computational Model Registry (CMR V2.0). Beyond managing operational
- * components, the AGI Core now also registers and tracks specific computational
- * models (e.g., AI models, complex algorithms) that are utilized by these components.
- * This separation allows for granular management, auditing, and lifecycle control
- * over the intellectual building blocks of the AGI's decision-making and processing
- * capabilities. The AGI Core now simulates not only component interactions but also
- * the dynamic loading and validation of inputs against registered computational models.
+ * This version further refines the AGI's internal architecture, specifically enhancing
+ * the Adaptive Sampling Engine (ASE) by integrating a more direct proportional adjustment
+ * logic from the GACR AdaptiveSamplingEngine data node, while retaining the
+ * smoothing mechanisms for stable operation. This combines reactive adjustment
+ * with gradual adaptation, improving the AGI's resource management under varying loads.
  *
  * Current Integrations:
  * - Basic AGI Operational Loop (Simulated)
@@ -18,12 +15,12 @@
  *   - Security Policy Enforcement Simulation
  * - Adaptive Sampling Engine (ASE)
  *   - Resource Utilization Monitoring (Simulated)
- *   - Dynamic Sampling Rate Calculation
+ *   - Dynamic Sampling Rate Calculation (Enhanced)
  *   - Telemetry Load Management (Simulated)
  * - Component Manifest Registry (CMR V1.0) Framework
  *   - Component Lifecycle & Capability Management
  *   - Simulated Ecosystem Interaction & Health Checks
- * - Computational Model Registry (CMR V2.0) Framework (NEW)
+ * - Computational Model Registry (CMR V2.0) Framework
  *   - Model Definition, Path, Version, and Status Management
  *   - Input Schema Validation for Model Usage (Simulated)
  *   - Audit Trail Metadata for Model Certification
@@ -642,6 +639,10 @@ class ResourceMonitor {
  * Utility component required to implement the 'ResourceUtilization' AdaptiveSampling Policy
  * defined in TelemetryAggregatorConfig. It dynamically calculates the necessary
  * sampling rate based on monitored resource constraints (CPU/Memory/Queue Depth).
+ *
+ * This version integrates the proportional adjustment logic from the GACR/AdaptiveSamplingEngine.ts
+ * data node, combining it with the existing smoothing mechanism for robust and responsive
+ * adaptive sampling.
  */
 class AdaptiveSamplingEngine {
     private config; // type: TelemetryAggregatorConfig['Processing']['AdaptiveSampling'];
@@ -657,7 +658,7 @@ class AdaptiveSamplingEngine {
 
     /**
      * Calculates and adjusts the current required sampling rate (0.0 to 1.0) based on CPU utilization.
-     * Uses a proportional adjustment to prevent erratic changes.
+     * Integrates proportional adjustment from DATA_NODE for reduction, and maintains smoothing for stability.
      */
     public getSamplingRate(): number {
         if (!this.config.Enabled) {
@@ -668,21 +669,19 @@ class AdaptiveSamplingEngine {
         const targetCpu = this.config.TargetCPUUtilization;
         const adjustmentFactor = this.config.SamplingRateAdjustmentFactor || 0.05;
 
-        let desiredRate = this.currentSamplingRate;
+        let desiredRate;
 
         if (currentCpu > targetCpu) {
-            // CPU is too high, reduce sampling rate
-            // Calculate a raw rate needed to bring CPU down, then adjust towards it
-            const rawReductionFactor = targetCpu / currentCpu; // e.g., 0.7 / 0.9 = 0.77
-            desiredRate = this.currentSamplingRate * rawReductionFactor;
-            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) > Target (${(targetCpu*100).toFixed(1)}%). Reducing sampling. Raw reduction factor: ${rawReductionFactor.toFixed(2)}`);
-        } else if (currentCpu < targetCpu * 0.9) { // A bit of a buffer before increasing
-            // CPU is low, increase sampling rate
-            const rawIncreaseFactor = targetCpu / currentCpu; // e.g., 0.7 / 0.5 = 1.4
-            desiredRate = this.currentSamplingRate * Math.min(rawIncreaseFactor, 1.0 + adjustmentFactor * 2); // Cap increase
-            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) < Target (${(targetCpu*100).toFixed(1)}%). Increasing sampling. Raw increase factor: ${rawIncreaseFactor.toFixed(2)}`);
+            // CPU is too high, reduce sampling rate proportionally to bring CPU down to target.
+            // This is the core logic from the DATA_NODE's `rate = targetCpu / currentCpu`.
+            desiredRate = targetCpu / currentCpu;
+            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) > Target (${(targetCpu*100).toFixed(1)}%). Desired reduction factor: ${desiredRate.toFixed(2)}`);
+        } else {
+            // CPU is at or below target. We can increase sampling, up to MaxSamplingRate.
+            // Set the ultimate desired rate to MaxSamplingRate and let the smoothing adjust towards it.
+            desiredRate = this.config.MaxSamplingRate;
+            agiLogger('DEBUG', 'AdaptiveSamplingEngine', `CPU (${(currentCpu*100).toFixed(1)}%) <= Target (${(targetCpu*100).toFixed(1)}%). Desired rate: ${desiredRate.toFixed(2)}.`);
         }
-        // If CPU is close to target (target * 0.9 to target), maintain current rate.
 
         // Smooth the adjustment: move currentSamplingRate gradually towards desiredRate
         if (desiredRate > this.currentSamplingRate) {
@@ -690,6 +689,7 @@ class AdaptiveSamplingEngine {
         } else if (desiredRate < this.currentSamplingRate) {
             this.currentSamplingRate = Math.max(desiredRate, this.currentSamplingRate - adjustmentFactor);
         }
+        // If desiredRate is very close to currentSamplingRate, no significant change.
 
 
         // Ensure the rate stays within defined boundaries
@@ -944,7 +944,7 @@ class AGICore {
         this.operationalLoopInterval = null;
         this.isOperational = false;
         this.currentSamplingRate = 1.0; // Initial sampling rate
-        agiLogger('INFO', 'AGICore', `AGI Core v0.3.0-alpha initializing for agent: ${this.agentId}`);
+        agiLogger('INFO', 'AGICore', `AGI Core v0.3.1-alpha initializing for agent: ${this.agentId}`);
     }
 
     /**
