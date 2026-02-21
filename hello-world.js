@@ -60,6 +60,24 @@ except Exception as e:
     print(f"Error: Unexpected error - {e}")
     return
 
+# ADD Integration
+try:
+    # Import KMS Policy Engine for cryptographic operations validation
+    from component.cryptography.KMS_Policy_Engine import KMSPolicyEngine
+    
+    # Initialize KMS Policy Engine
+    kms_policy_engine = KMSPolicyEngine()
+    
+    # Validate KMS operations against policies
+    kms_policy_engine.validate(request)
+    
+except PolicyValidationError as e:
+    print(f"Error: Policy validation error - {e}")
+    return
+except Exception as e:
+    print(f"Error: Unexpected error - {e}")
+    return
+
 if __name__ == '__main__':
     generate_manifest()
 ```
@@ -80,4 +98,57 @@ class NexusVerificationError(NexusError):
 
 class NexusIntegrationError(NexusError):
     """Raised when Nexus integration fails."""
+    pass
+
+class PolicyValidationError(NexusError):
+    """Raised when policy validation fails."""
+    pass
+
+# ADD:
+/**
+ * @file KMS_Policy_Engine.ts
+ * @description Centralized policy enforcement component for cryptographic operations, 
+ * responsible for validating signature integrity, usage compliance, and lifecycle state 
+ * against defined policies.
+ */
+
+import { KMS_Identity_Mapping } from '../config/KMS_Identity_Mapping.json';
+import { PolicyStructure, KeyRequest, UsageProfile, IdentityMapEntry } from '../types/KMS_Policy_Types';
+
+/**
+ * KMSPolicyEngine
+ * Handles complex policy enforcement using strongly typed configuration.
+ */
+class KMSPolicyEngine {
+  private policies: PolicyStructure;
+
+  constructor() {
+    // Cast the imported JSON structure to the defined interface for safety
+    this.policies = KMS_Identity_Mapping as unknown as PolicyStructure;
+  }
+
+  /**
+   * Validates a KeyRequest against all applicable policies.
+   * Throws PolicyValidationError on first failure.
+   */
+  public validate(request: KeyRequest): boolean {
+    const identityEntry = this.getIdentityEntry(request.identityId);
+    const profile = this.getUsageProfile(identityEntry);
+
+    // Execute Checks
+    this.checkAllowedUsage(request.identityId, profile, request.operation);
+    this.checkSignatureTTL(request.identityId, request.signatureAgeMinutes);
+    this.checkGeospatialLock(request.identityId, request.geoCoordinate);
+
+    return true; // All policies passed
+  }
+
+  // ...[TRUNCATED]
+}
+```
+
+```python
+# Nexus branch:
+class NexusError(Exception):
+    """Base class for Nexus-related exceptions."""
     pass
