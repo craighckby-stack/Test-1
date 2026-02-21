@@ -133,3 +133,4 @@ config/dictionary/fma_catalog.json
 config/dse_client_resolver_config.json
 config/dse_integrity_rules.json
 config/dse_schema_manifest.json
+config/economic_policy_v1.json
