@@ -1,3 +1,4 @@
+CORE:
 // ...[TRUNCATED]
 "debt_prioritization_config": {
   "type": "object",
@@ -21,77 +22,120 @@
       "type": "number",
       "description": "Minimum calculated score required for a proposal to be forwarded to GSEP.",
       "default": 0.05
-    }
-  }
-},
-"allOf": [
-  {
-    "if": {
-      "properties": {
-        "artifact_type": {
-          "const": "STRUCTURED"
-        }
-      }
     },
-    "then": {
-      "required": ["schema_ref"]
+    "optimization_level": {
+      "type": "string",
+      "description": "Optimization level for computational efficiency.",
+      "enum": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "recursive_abstraction": {
+      "type": "boolean",
+      "description": "Enable recursive abstraction for optimization.",
+      "default": true
     }
   },
-  {
-    "if": {
-      "properties": {
-        "artifact_type": {
-          "const": "TIMESERIES"
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "artifact_type": {
+            "const": "STRUCTURED"
+          }
         }
+      },
+      "then": {
+        "required": ["schema_ref"]
       }
     },
-    "then": {
-      "required": ["schema_ref"]
-    }
-  },
-  {
-    "if": {
-      "properties": {
-        "artifact_type": {
-          "const": "PRIMITIVE"
+    {
+      "if": {
+        "properties": {
+          "artifact_type": {
+            "const": "TIMESERIES"
+          }
         }
+      },
+      "then": {
+        "required": ["schema_ref"]
       }
     },
-    "then": {
-      "required": ["base_type"]
-    }
-  },
-  {
-    "if": {
-      "properties": {
-        "optimization_level": {
-          "const": "HIGH"
+    {
+      "if": {
+        "properties": {
+          "artifact_type": {
+            "const": "PRIMITIVE"
+          }
         }
+      },
+      "then": {
+        "required": ["base_type"]
       }
     },
-    "then": {
-      "properties": {
-        "recursive_abstraction": {
-          "type": "boolean",
-          "default": true
+    {
+      "if": {
+        "properties": {
+          "optimization_level": {
+            "const": "HIGH"
+          }
         }
-      }
-    }
-  },
-  {
-    "if": {
-      "properties": {
-        "debt_prioritization_config": {
-          "not": {
-            "required": ["impact_weight", "complexity_penalty", "risk_threshold", "min_priority_to_inject"]
+      },
+      "then": {
+        "properties": {
+          "recursive_abstraction": {
+            "type": "boolean",
+            "default": true
           }
         }
       }
     },
-    "then": {
-      "required": ["debt_prioritization_config"]
+    {
+      "if": {
+        "properties": {
+          "optimization_level": {
+            "const": "MEDIUM"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "recursive_abstraction": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "optimization_level": {
+            "const": "LOW"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "recursive_abstraction": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "debt_prioritization_config": {
+            "not": {
+              "required": ["impact_weight", "complexity_penalty", "risk_threshold", "min_priority_to_inject"]
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["debt_prioritization_config"]
+      }
     }
-  }
-],
-"required": ["ingestion_pipeline", "operational_metadata", "derivation_details", "schema_ref", "base_type", "indexing_strategy_id", "target_indexes", "transformation_hooks", "debt_prioritization_config"]
+  ],
+  "required": ["ingestion_pipeline", "operational_metadata", "derivation_details", "schema_ref", "base_type", "indexing_strategy_id", "target_indexes", "transformation_hooks", "debt_prioritization_config"]
 }
