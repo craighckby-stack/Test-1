@@ -184,6 +184,19 @@ class AGI {
     };
     const predictedMetrics = await predictiveModelStub.predict(features);
     console.log(predictedMetrics);
+
+    // Trajectory Simulation Engine
+    const ACVD_Store = new ACVD_Store();
+    const Configuration = new Configuration();
+    const ModelHandler = new ModelHandler();
+    const trajectorySimulationEngine = new TrajectorySimulationEngine(ACVD_Store, Configuration, ModelHandler);
+    const inputManifest = {
+      entityId: "example_entity",
+      transactionId: "example_transaction",
+      complexity: 5
+    };
+    const simulationResults = await trajectorySimulationEngine.runSimulation(inputManifest);
+    console.log(simulationResults);
   }
 }
 
@@ -449,17 +462,3 @@ class Alignment {
     this.powerSeeking = false;
     this.transparent = true;
     this.creatorMirrorsCreation = true;
-  }
-
-  async execute() {
-    // Execute alignment pipeline
-    const alignment = new Alignment();
-    alignment.humanAtHelm = true;
-    alignment.oversight = true;
-  }
-}
-
-// GACR/Purpose.ts
-class Purpose {
-  constructor() {
-    this.
