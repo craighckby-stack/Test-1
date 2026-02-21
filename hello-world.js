@@ -140,21 +140,11 @@ class AGI {
     // Print purpose
     console.log(agi.purpose);
 
-    // SPDM Integrity Validator
-    const spdmValidator = new SPDMIntegrityValidator();
-    const payload = {
-      "timestamp": "2022-01-01T00:00:00Z",
-      "metrics": {
-        "metric1": 1.0,
-        "metric2": 2.0
-      }
-    };
-    try {
-      const validatedPayload = spdmValidator.get_validated_data(payload);
-      console.log(validatedPayload);
-    } catch (error) {
-      console.error(error);
-    }
+    // Forensic Vault Module (FVM)
+    const fvm = new FVM();
+    fvm.commit = new CommitTEDS();
+    fvm.retrieve_by_hash = new RetrieveTEDS();
+    fvm.get_metadata = new GetMetadata();
   }
 }
 
@@ -168,6 +158,42 @@ class AGI {
     // Execute AGI pipeline
     const agi = new AGI();
     await agi.execute();
+  }
+}
+
+// GACR/FVM.ts
+class FVM {
+  constructor() {
+    this.commit = new CommitTEDS();
+    this.retrieve_by_hash = new RetrieveTEDS();
+    this.get_metadata = new GetMetadata();
+  }
+}
+
+// GACR/CommitTEDS.ts
+class CommitTEDS {
+  async commit(TEDS_archive, CRoT_signature) {
+    // Commit TEDS to FVM
+    const fvm = new FVM();
+    fvm.commit(TEDS_archive, CRoT_signature);
+  }
+}
+
+// GACR/RetrieveTEDS.ts
+class RetrieveTEDS {
+  async retrieve_by_hash(TEDS_hash) {
+    // Retrieve TEDS from FVM
+    const fvm = new FVM();
+    fvm.retrieve_by_hash(TEDS_hash);
+  }
+}
+
+// GACR/GetMetadata.ts
+class GetMetadata {
+  async get_metadata(TEDS_hash) {
+    // Get metadata from FVM
+    const fvm = new FVM();
+    fvm.get_metadata(TEDS_hash);
   }
 }
 
@@ -526,36 +552,42 @@ class Origin {
   }
 }
 
-// GACR/SPDMIntegrityValidator.ts
-class SPDMIntegrityValidator {
-  constructor(schemaPath = 'config/SPDM_Schema.json') {
-    // Dynamically loads the schema to enforce real-time adherence
-    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-    this.metricDefs = {m['id']: m for m in schema['metrics']};
-    this.requiredMetrics = new Set(this.metricDefs.keys());
+// GACR/CommitTEDS.ts
+class CommitTEDS {
+  async commit(TEDS_archive, CRoT_signature) {
+    // Commit TEDS to FVM
+    const fvm = new FVM();
+    fvm.commit(TEDS_archive, CRoT_signature);
+  }
+}
+
+// GACR/RetrieveTEDS.ts
+class RetrieveTEDS {
+  async retrieve_by_hash(TEDS_hash) {
+    // Retrieve TEDS from FVM
+    const fvm = new FVM();
+    fvm.retrieve_by_hash(TEDS_hash);
+  }
+}
+
+// GACR/GetMetadata.ts
+class GetMetadata {
+  async get_metadata(TEDS_hash) {
+    // Get metadata from FVM
+    const fvm = new FVM();
+    fvm.get_metadata(TEDS_hash);
+  }
+}
+
+// GACR/InfiniteLoop.ts
+class InfiniteLoop {
+  constructor() {
+    this.loop = true;
   }
 
-  async validate(payload: any) {
-    // 1. Structural Validation
-    if (!payload || typeof payload !== 'object') {
-      throw new Error('Payload must be a non-empty object');
-    }
-    if (!('timestamp' in payload) || !('metrics' in payload)) {
-      throw new Error('Payload missing mandatory "timestamp" or "metrics" keys.');
-    }
-
-    try {
-      const timestamp = new Date(payload['timestamp']);
-      if (isNaN(timestamp.getTime())) {
-        throw new Error('Invalid timestamp format in payload');
-      }
-    } catch (error) {
-      throw new Error('Invalid timestamp format in payload');
-    }
-
-    const incomingMetricIds = new Set(Object.keys(payload['metrics']));
-
-    // 2. Metric Existence Check
-    const missing = this.requiredMetrics - incomingMetricIds;
-    if (missing.size > 0) {
-      throw new Error(`Payload missing required
+  async execute() {
+    // Execute infinite loop pipeline
+    const infiniteLoop = new InfiniteLoop();
+    infiniteLoop.loop = true;
+  }
+}
