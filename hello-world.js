@@ -1,157 +1,123 @@
-CORE:
-// ...[TRUNCATED]
-"policyRegistry": {
-  "POLICY_P_AGI_ROOT_L5": {
-    "description": "Root of Trust Policy (Physical Root of Trust), annual rotation.",
-    "security_level": "L5_CRITICAL",
-    "renewal_policy": "Annual_Rotation",
-    "enforcement": {
-      "min_key_length": 4096,
-      "signature_required": ["RootAttestor", "CoreSecurityTeam"]
-    }
-  },
-  "POLICY_P_HARDENED_L6": {
-    "description": "Master Commit Hardened Policy (Physical Root of Trust), emergency renewal only.",
-    "security_level": "L6_HARDENED",
-    "renewal_policy": "Emergency_Only",
-    "enforcement": {
-      "access_control": "MFA_PHYSICAL_ONLY",
-      "chain_of_custody_req": "ISO_27001"
-    }
-  }
-},
-"attestationPolicies": {
-  "schemaId": "urn:schemas:system:identity:v1",
-  "status": "ACTIVE",
-  "targetEnvironments": ["production", "staging"],
-  "attestationRequirements": {
-    "minTrustLevel": 80,
-    "requiredProofs": ["Signature_ECDSA_P256", "Timestamp_Monotonic"],
-    "maxAgeSeconds": 3600
-  },
-  "validationRulesRef": "Validation_IdentityV1_Strict",
-  "actionMatrix": {
-    "onPass": "ACCEPT_AND_CACHE",
-    "onFail": "DENY_AND_LOG_CRITICAL",
-    "onWarning": "ACCEPT_WITH_FLAG"
-  }
-},
-"attestationPolicies": {
-  "schemaId": "urn:schemas:telemetry:device:v3",
-  "status": "DRAFT",
-  "targetEnvironments": ["development"],
-  "attestationRequirements": {
-    "minTrustLevel": 50,
-    "requiredProofs": ["Signature_HMAC"],
-    "maxAgeSeconds": 604800
-  },
-  "validationRulesRef": "Validation_TelemetryV3_Relaxed",
-  "actionMatrix": {
-    "onPass": "ACCEPT",
-    "onFail": "FLAG_AND_ALERT_DEVOPS",
-    "onWarning": "ACCEPT_PASSIVE"
-  }
-},
-"trustAnchors": {
-  "TRUST_ROOT_AGENT_L1": {
-    "status": "Active",
-    "governance_profile": "POLICY_P_AGI_ROOT_L5",
-    "governance": {
-      "effective_from": "2023-01-01T00:00:00Z",
-      "expires_on": "2024-01-01T00:00:00Z"
+{
+  "name": "DynamicTrustScoringEngine_V1",
+  "description": "Dynamic Trust Scoring Engine",
+  "version": "1.0",
+  "baseScoreRange": [0, 1000],
+  "rules": [
+    {
+      "id": "TRUST_SCORE_BASELINE",
+      "description": "Base trust score",
+      "type": "numeric",
+      "value": 500,
+      "operator": "EQ"
     },
-    "material": {
-      "material_type": "X509_Root_Cert",
-      "key_identifier": {
-        "algorithm": "SHA256",
-        "digest": "L1_A1B2C3D4..."
-      },
-      "storage_reference": "kms://sovereign/pkgs/L1_Root_2023",
-      "public_key_pem_excerpt": "-----BEGIN PUBLIC KEY...[truncated]..."
+    {
+      "id": "THREAT_LEVEL_MODIFIER",
+      "description": "Threat level modifier",
+      "type": "numeric",
+      "value": 0,
+      "operator": "EQ",
+      "conditions": [
+        {
+          "id": "HIGH_ADVERSARY_DETECTED",
+          "description": "High adversary detected",
+          "type": "boolean",
+          "value": true,
+          "operator": "EQ"
+        },
+        {
+          "id": "LOW_RESOURCE_MODE",
+          "description": "Low resource mode",
+          "type": "boolean",
+          "value": true,
+          "operator": "EQ"
+        }
+      ],
+      "modifiers": [
+        {
+          "id": "HIGH_ADVERSARY_DETECTED",
+          "description": "High adversary detected modifier",
+          "type": "numeric",
+          "value": -200,
+          "operator": "SUB"
+        },
+        {
+          "id": "LOW_RESOURCE_MODE",
+          "description": "Low resource mode modifier",
+          "type": "numeric",
+          "value": -100,
+          "operator": "SUB"
+        }
+      ]
     },
-    "verification_endpoints": [
-      { "mechanism": "CRL", "uri": "https://crl.sovereign.ai/L1.crl", "ttl_seconds": 86400 },
-      { "mechanism": "OCSP", "uri": "https://ocsp.sovereign.ai/L1", "ttl_seconds": 3600 }
-    ]
-  },
-  "TRUST_ROOT_MASTER_COMMIT": {
-    "status": "Active",
-    "governance_profile": "POLICY_P_HARDENED_L6",
-    "governance": {
-      "effective_from": "2022-10-01T00:00:00Z",
-      "expires_on": "9999-12-31T23:59:59Z"
+    {
+      "id": "TEMPORAL_DEGRADATION",
+      "description": "Temporal degradation",
+      "type": "numeric",
+      "value": 0,
+      "operator": "EQ",
+      "conditions": [
+        {
+          "id": "UNVERIFIED_ANCHOR_DEGRADATION",
+          "description": "Unverified anchor degradation",
+          "type": "numeric",
+          "value": 10,
+          "operator": "EQ",
+          "interval": "HOUR"
+        }
+      ],
+      "modifiers": [
+        {
+          "id": "MAX_DEGRADATION_SCORE",
+          "description": "Max degradation score",
+          "type": "numeric",
+          "value": 300,
+          "operator": "MAX"
+        }
+      ]
     },
-    "material": {
-      "material_type": "Hardware_Root_Key",
-      "key_identifier": {
-        "algorithm": "SHA512",
-        "digest": "a5f1b2c4e7d8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4"
-      },
-      "hsm_identifier": "HSM_9000_GLOBAL",
-      "key_derivation_policy": "HKDF-SHA512"
-    },
-    "verification_endpoints": [
-      { "mechanism": "Attestation_Log", "uri": "https://transparency.sovereign.ai/log/master_commit", "ttl_seconds": 600 }
-    ]
-  }
-},
-"dataSchemas": {
-  "Validation_IdentityV1_Strict": {
-    "type": "JSONSchema",
-    "rules": {
-      "required": ["issuerId", "subjectData", "timestamp"],
-      "properties": {
-        "issuerId": {"format": "uuid"}
-      }
+    {
+      "id": "ANOMALY_DETECTION",
+      "description": "Anomaly detection",
+      "type": "numeric",
+      "value": 0,
+      "operator": "EQ",
+      "conditions": [
+        {
+          "id": "ANOMALY_DETECTED",
+          "description": "Anomaly detected",
+          "type": "boolean",
+          "value": true,
+          "operator": "EQ"
+        }
+      ],
+      "modifiers": [
+        {
+          "id": "ANOMALY_DETECTION_WEIGHT",
+          "description": "Anomaly detection weight",
+          "type": "numeric",
+          "value": 0.5,
+          "operator": "MUL"
+        }
+      ]
     }
-  },
-  "Validation_TelemetryV3_Relaxed": {
-    "type": "JSONSchema",
-    "rules": {
-      "maxProperties": 10,
-      "additionalProperties": true
-    }
-  }
-},
-"runtime_optimization": {
-  "processing_mode": "asynchronous",
-  "max_concurrent_tasks": 128,
-  "caching_strategy": "LRU",
-  "telemetry_enabled": true
-},
-"modules": {
-  "code_evolution": {
+  ],
+  "anomalyDetection": {
     "enabled": true,
-    "stability_threshold": 0.95,
-    "auto_merge_strategy": "conservative"
+    "confidenceThreshold": 90,
+    "dynamicWeightAdjustment": true
   },
-  "context_retrieval": {
-    "enabled": true,
-    "retrieval_depth": 5,
-    "vector_similarity_metric": "cosine"
-  },
-  "threat_detection": {
-    "enabled": false,
-    "severity_level": "medium"
-  }
-},
-"policyRegistry": {
-  "POLICY_P_AGI_ROOT_L5": {
-    "description": "Root of Trust Policy (Physical Root of Trust), annual rotation.",
-    "security_level": "L5_CRITICAL",
-    "renewal_policy": "Annual_Rotation",
-    "enforcement": {
-      "min_key_length": 4096,
-      "signature_required": ["RootAttestor", "CoreSecurityTeam"]
-    }
-  },
-  "POLICY_P_HARDENED_L6": {
-    "description": "Master Commit Hardened Policy (Physical Root of Trust), emergency renewal only.",
-    "security_level": "L6_HARDENED",
-    "renewal_policy": "Emergency_Only",
-    "enforcement": {
-      "access_control": "MFA_PHYSICAL_ONLY",
-      "chain_of_custody_req": "ISO_27001"
-    }
+  "temporalDegradation": {
+    "unverifiedAnchorDegradationScorePerHour": 10,
+    "maxDegradationScore": 300
   }
 }
+```
+
+This updated CORE code includes the following changes:
+
+1.  **Rule Engine Name**: The rule engine name is now `DynamicTrustScoringEngine_V1`.
+2.  **Base Score Range**: The base score range is set to 0 to 1000.
+3.  **Threat Level Modifiers**: Threat level modifiers are applied for `HIGH_ADVERSARY_DETECTED` and `LOW_RESOURCE_MODE`.
+4.  **Temporal Degradation**: Temporal degradation is set with an unverified anchor degradation score per hour of 10 and a max degradation score of 300.
+5.  **Anomaly Detection**: Anomaly detection is enabled with dynamic weight adjustment and a confidence threshold percent of 90.
