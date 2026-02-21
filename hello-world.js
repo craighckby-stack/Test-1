@@ -1,179 +1,155 @@
 CORE:
 // ...[TRUNCATED]
-"resource_cost_management": {
-  "cost_unit": "USD",
-  "budget_cycle_ms": 60000,
-  "cycle_budget_limit": 50000,
-  "target_utilization_percent": 85,
-  "max_concurrent_tasks": 100,
-  "priority_tiers": {
-    "P1_CRITICAL": { "value": 900, "description": "Guaranteed minimal resource allocation (e.g., 15% budget share). System stability tasks." },
-    "P2_HIGH": { "value": 700, "description": "High QoS objectives. Target preferential allocation (10%)." },
-    "P3_MEDIUM": { "value": 500, "description": "Standard operational tasks. Default setting." },
-    "P4_LOW": { "value": 300, "description": "Background analysis, maintenance, and opportunistic processing." }
+"optimization_strategies": {
+  "RESOURCE_USAGE": {
+    "default_goal": "MINIMIZE_COST",
+    "priority_weight": 0.8,
+    "constraint": "MAX_EFFICIENCY_DEGRADATION: 0.1"
   },
-  "cost_registry": {
-    "INFERENCE_TOKEN_PRICE": 0.00002,
-    "GPU_SEC_PRICE": 0.0001,
-    "MEMORY_READ_IOPS_PRICE": 0.000001,
-    "MEMORY_WRITE_IOPS_PRICE": 0.00001,
-    "TOOL_EXEC_MS_PRICE": 0.00005,
-    "EXTERNAL_TOOL_WEIGHT": 1.5
+  "PERFORMANCE": {
+    "default_goal": "MAXIMIZE_THROUGHPUT",
+    "priority_weight": 0.6,
+    "constraint": "MIN_LATENCY_PERCENTILE_99: 500ms"
   },
-  "components": {
-    "InferenceEngine": {
-      "priority_tier": "P2_HIGH",
-      "resource_reservation": {
-        "vram_mb": 4096,
-        "cpu_cores": 2
-      },
-      "rate_control": {
-        "token_limit_per_second": 10000,
-        "throttling_delay_ms": 50
-      },
-      "cost_model": {
-        "formula": "C = (T * ${INFERENCE_TOKEN_PRICE}) + (G * ${GPU_SEC_PRICE})",
-        "input_map": {
-          "T": "tokens_consumed",
-          "G": "gpu_seconds"
-        }
-      }
+  "FINANCIAL": {
+    "default_goal": "STAY_UNDER_BUDGET",
+    "priority_weight": 1.0,
+    "alert_target": 0.9
+  }
+},
+"dynamic_policies": [
+  {
+    "id": "DP_001_BUDGET_CTRL",
+    "trigger": {
+      "metric": "CumulativeCostPercentage",
+      "operator": ">",
+      "threshold": 0.8
     },
-    "MemoryAccess": {
-      "priority_tier": "P3_MEDIUM",
-      "iops_limit": 5000,
-      "max_read_latency_ms": 25,
-      "cost_model": {
-        "formula": "C = (R * ${MEMORY_READ_IOPS_PRICE}) + (W * ${MEMORY_WRITE_IOPS_PRICE})",
-        "input_map": {
-          "R": "data_read_count",
-          "W": "data_write_count"
-        }
-      }
+    "action": {
+      "type": "AdjustPriority",
+      "component": "ToolExecution",
+      "preset": "DEGRADE_MINOR"
     },
-    "ToolExecution": {
-      "priority_tier": "P4_LOW",
-      "timeout_ms": 5000,
-      "rate_control": {
-        "max_concurrent_calls": 5,
-        "rate_limit_ms": 100
-      },
-      "cost_model": {
-        "formula": "C = (E * ${EXTERNAL_TOOL_WEIGHT}) + (M * ${TOOL_EXEC_MS_PRICE})",
-        "input_map": {
-          "E": "external_api_cost",
-          "M": "tool_execution_time_ms"
-        }
-      }
-    }
+    "revert_after_ms": 300000
   },
-  "dynamic_policies": [
-    {
-      "id": "DP_001_BUDGET_CTRL",
-      "trigger": {
-        "metric": "CumulativeCostPercentage",
-        "operator": ">",
-        "threshold": 0.8
-      },
-      "action": {
-        "type": "AdjustPriority",
-        "component": "ToolExecution",
-        "preset": "DEGRADE_MINOR"
-      },
-      "revert_after_ms": 300000
+  {
+    "id": "DP_002_HIGH_LOAD_THROTTLE",
+    "trigger": {
+      "metric": "SystemUtilization",
+      "operator": ">",
+      "threshold_relative_to": "target_utilization_percent",
+      "offset": 10
     },
-    {
-      "id": "DP_002_HIGH_LOAD_THROTTLE",
-      "trigger": {
-        "metric": "SystemUtilization",
-        "operator": ">",
-        "threshold_relative_to": "target_utilization_percent",
-        "offset": 10
-      },
-      "action": {
-        "type": "AdjustRateControl",
-        "component": "InferenceEngine",
-        "property": "throttling_delay_ms",
-        "preset": "MULTIPLIER_3X"
-      },
-      "revert_after_ms": null
-    }
-  ],
-  "metric_definitions": {
-    "tokens_consumed": {
-      "type": "RESOURCE_USAGE",
-      "source": "InferenceCore",
-      "unit": "TOKEN",
-      "data_type": "INTEGER",
-      "aggregation": "SUM",
-      "storage_policy": "HOT_30D",
-      "is_critical": true
+    "action": {
+      "type": "AdjustRateControl",
+      "component": "InferenceEngine",
+      "property": "throttling_delay_ms",
+      "preset": "MULTIPLIER_3X"
     },
-    "gpu_seconds": {
-      "type": "RESOURCE_USAGE",
-      "source": "HardwareMonitor",
-      "unit": "SECONDS",
-      "data_type": "FLOAT",
-      "aggregation": "SUM",
-      "storage_policy": "HOT_30D",
-      "is_critical": true
-    },
-    "data_read_count": {
-      "type": "IO",
-      "source": "DataService",
-      "unit": "COUNT",
-      "data_type": "INTEGER",
-      "aggregation": "SUM",
-      "storage_policy": "HOT_30D"
-    },
-    "data_write_count": {
-      "type": "IO",
-      "source": "DataService",
-      "unit": "COUNT",
-      "data_type": "INTEGER",
-      "aggregation": "SUM",
-      "storage_policy": "HOT_30D"
-    },
-    "tool_execution_time_ms": {
-      "type": "PERFORMANCE",
-      "source": "ToolOrchestrator",
-      "unit": "MILLISECONDS",
-      "data_type": "FLOAT",
-      "aggregation": "AVERAGE",
-      "storage_policy": "HOT_30D",
-      "optimize_goal": "MINIMIZE"
-    },
-    "external_api_cost": {
-      "type": "FINANCIAL",
-      "source": "ToolOrchestrator/ExternalAPI",
-      "unit": "USD",
-      "data_type": "FLOAT",
-      "aggregation": "SUM",
-      "storage_policy": "PERMANENT",
-      "critical_threshold": 0.05
-    },
-    "current_budget_utilization_percent": {
-      "type": "POLICY_STATE",
-      "source": "RCM_PolicyEngine",
-      "unit": "PERCENTAGE",
-      "data_type": "FLOAT",
-      "aggregation": "MAX",
-      "storage_policy": "HOT_30D"
-    },
-    "system_cpu_utilization_percent": {
-      "type": "PERFORMANCE",
-      "source": "Kernel",
-      "unit": "PERCENTAGE",
-      "data_type": "FLOAT",
-      "aggregation": "AVERAGE",
-      "storage_policy": "HOT_30D",
-      "optimize_goal": "STABILIZE"
-    }
+    "revert_after_ms": null
   },
-  "metadata_dictionary": {
-    "storage_policies": {
-      "HOT_30D": "Data retained in high-speed storage for 30 days before archival.",
-      "PERMANENT": "Data retained indefinitely for financial and audit trails."
-    }
+  {
+    "id": "DP_003_PERFORMANCE_OPTIMIZATION",
+    "trigger": {
+      "metric": "tool_execution_time_ms",
+      "operator": ">",
+      "threshold": 500
+    },
+    "action": {
+      "type": "AdjustPriority",
+      "component": "ToolExecution",
+      "preset": "DEGRADE_MAJOR"
+    },
+    "revert_after_ms": 600000
+  },
+  {
+    "id": "DP_004_FINANCIAL_ALERT",
+    "trigger": {
+      "metric": "external_api_cost",
+      "operator": ">",
+      "threshold": 0.9
+    },
+    "action": {
+      "type": "Alert",
+      "message": "Financial alert: External API cost exceeded 90% of budget."
+    },
+    "revert_after_ms": null
+  }
+],
+"metric_definitions": {
+  "tokens_consumed": {
+    "type": "RESOURCE_USAGE",
+    "source": "InferenceCore",
+    "unit": "TOKEN",
+    "data_type": "INTEGER",
+    "aggregation": "SUM",
+    "storage_policy": "HOT_30D",
+    "is_critical": true
+  },
+  "gpu_seconds": {
+    "type": "RESOURCE_USAGE",
+    "source": "HardwareMonitor",
+    "unit": "SECONDS",
+    "data_type": "FLOAT",
+    "aggregation": "SUM",
+    "storage_policy": "HOT_30D",
+    "is_critical": true
+  },
+  "data_read_count": {
+    "type": "IO",
+    "source": "DataService",
+    "unit": "COUNT",
+    "data_type": "INTEGER",
+    "aggregation": "SUM",
+    "storage_policy": "HOT_30D"
+  },
+  "data_write_count": {
+    "type": "IO",
+    "source": "DataService",
+    "unit": "COUNT",
+    "data_type": "INTEGER",
+    "aggregation": "SUM",
+    "storage_policy": "HOT_30D"
+  },
+  "tool_execution_time_ms": {
+    "type": "PERFORMANCE",
+    "source": "ToolOrchestrator",
+    "unit": "MILLISECONDS",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "MINIMIZE"
+  },
+  "external_api_cost": {
+    "type": "FINANCIAL",
+    "source": "ToolOrchestrator/ExternalAPI",
+    "unit": "USD",
+    "data_type": "FLOAT",
+    "aggregation": "SUM",
+    "storage_policy": "PERMANENT",
+    "critical_threshold": 0.05
+  },
+  "current_budget_utilization_percent": {
+    "type": "POLICY_STATE",
+    "source": "RCM_PolicyEngine",
+    "unit": "PERCENTAGE",
+    "data_type": "FLOAT",
+    "aggregation": "MAX",
+    "storage_policy": "HOT_30D"
+  },
+  "system_cpu_utilization_percent": {
+    "type": "PERFORMANCE",
+    "source": "Kernel",
+    "unit": "PERCENTAGE",
+    "data_type": "FLOAT",
+    "aggregation": "AVERAGE",
+    "storage_policy": "HOT_30D",
+    "optimize_goal": "STABILIZE"
+  }
+},
+"metadata_dictionary": {
+  "storage_policies": {
+    "HOT_30D": "Data retained in high-speed storage for 30 days before archival.",
+    "PERMANENT": "Data retained indefinitely for financial and audit trails."
   }
 }
