@@ -10,3 +10,4 @@ GACR/HETM.schema.json
 GACR/MQM.json
 GACR/MQM_MetricCatalog.json
 GACR/ModelTierMapping.json
+GACR/Schemas/APITelemetry.json
