@@ -93,3 +93,4 @@ config/agent_runtime_manifest_standard.json
 config/alerts/gvdm_events.json
 config/amgs_artifact_registry.json
 config/amgs_hash_preprocessors.json
+config/architectural_manifest.yaml
