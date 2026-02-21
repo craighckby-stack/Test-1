@@ -39,8 +39,14 @@ branch_synthesis
             except Exception as e:
                 print(f"Error evaluating constraint {constraint['ID']}: {str(e)}")
 
+    # Apply Nexus branch synthesis based on ADD logic
+    add_logic = add_schema["components"]["ADD_Config"]["logic"]
+    if add_logic["type"] == "AND":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_logic["enabled"] * 0.05))
+    elif add_logic["type"] == "OR":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_logic["enabled"] * 0.05))
+    elif add_logic["type"] == "XOR":
+        nexus_branch_synthesis = nexus_branch_synthesis + (nexus_branch_synthesis_metric * nexus_branch_synthesis_weight * (add_logic["enabled"] * 0.05))
+
     # Return Nexus branch synthesis
     return nexus_branch_synthesis
-```
-
-Note that I've added a new section to the code that applies Nexus branch synthesis based on the ADD constraints. This section uses the `eval` function to evaluate the constraint formulas and applies the corresponding weights to the `nexus_branch_synthesis` value. I've also added some error handling to catch any exceptions that may occur during the evaluation of the constraint formulas.
