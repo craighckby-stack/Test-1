@@ -1,116 +1,57 @@
-CORE:
 {
-  "name": "DynamicTrustScoringEngine_V1",
-  "description": "Dynamic Trust Scoring Engine",
-  "version": "1.0",
-  "baseScoreRange": [0, 1000],
-  "rules": [
+  "schema_version": "v94.1",
+  "mandate_id": "SGS-EFF-KRNL-202409-001",
+  "priority_level": 90,
+  "status": "ACTIVE_MANDATE",
+  "metadata": {
+    "custodian": "SGS",
+    "issuance_timestamp": "2024-09-17T14:30:00Z",
+    "revision": 1,
+    "last_updated": "2024-09-17T14:30:00Z"
+  },
+  "target_summary": "Maximize computational efficiency across standard kernel operations by 1.5x (Target: 1500 MSR).",
+  "target_metrics": {
+    "primary_metric": {
+      "metric_name": "Kernel_Ops/Sec_Certified_MSR",
+      "unit": "MSR (Million System Runs)",
+      "function_reference": "lib/metrics/KernelEfficiencyV3.py::calculate_certified_msr",
+      "baseline_value": 1000.0,
+      "target_value": 1500.0
+    },
+    "validation_criteria": [
+      {
+        "criterion_id": "MIN_IMPROVEMENT_CERT",
+        "type": "MINIMUM_CERTIFIABLE_CHANGE",
+        "metric_ref": "primary_metric",
+        "operator": "GTE",
+        "required_delta": 10.0,
+        "description": "The minimum verifiable improvement over the baseline required to certify the evolution."
+      }
+    ]
+  },
+  "operational_constraints": [
     {
-      "id": "TRUST_SCORE_BASELINE",
-      "description": "Base trust score",
-      "type": "numeric",
-      "value": 500,
-      "operator": "EQ"
+      "constraint_id": "C-CPU-001",
+      "scope": "CPU_Utilization_Ratio",
+      "artifact_key": "MPAM",
+      "operator": "LTE",
+      "limit_value": 0.85
     },
     {
-      "id": "THREAT_LEVEL_MODIFIER",
-      "description": "Threat level modifier",
-      "type": "numeric",
-      "value": 0,
-      "operator": "EQ",
-      "conditions": [
-        {
-          "id": "HIGH_ADVERSARY_DETECTED",
-          "description": "High adversary detected",
-          "type": "boolean",
-          "value": true,
-          "operator": "EQ"
-        },
-        {
-          "id": "LOW_RESOURCE_MODE",
-          "description": "Low resource mode",
-          "type": "boolean",
-          "value": true,
-          "operator": "EQ"
-        }
-      ],
-      "modifiers": [
-        {
-          "id": "HIGH_ADVERSARY_DETECTED",
-          "description": "High adversary detected modifier",
-          "type": "numeric",
-          "value": -200,
-          "operator": "SUB"
-        },
-        {
-          "id": "LOW_RESOURCE_MODE",
-          "description": "Low resource mode modifier",
-          "type": "numeric",
-          "value": -100,
-          "operator": "SUB"
-        }
-      ]
-    },
-    {
-      "id": "TEMPORAL_DEGRADATION",
-      "description": "Temporal degradation",
-      "type": "numeric",
-      "value": 0,
-      "operator": "EQ",
-      "conditions": [
-        {
-          "id": "UNVERIFIED_ANCHOR_DEGRADATION",
-          "description": "Unverified anchor degradation",
-          "type": "numeric",
-          "value": 10,
-          "operator": "EQ",
-          "interval": "HOUR"
-        }
-      ],
-      "modifiers": [
-        {
-          "id": "MAX_DEGRADATION_SCORE",
-          "description": "Max degradation score",
-          "type": "numeric",
-          "value": 300,
-          "operator": "MAX"
-        }
-      ]
-    },
-    {
-      "id": "ANOMALY_DETECTION",
-      "description": "Anomaly detection",
-      "type": "numeric",
-      "value": 0,
-      "operator": "EQ",
-      "conditions": [
-        {
-          "id": "ANOMALY_DETECTED",
-          "description": "Anomaly detected",
-          "type": "boolean",
-          "value": true,
-          "operator": "EQ"
-        }
-      ],
-      "modifiers": [
-        {
-          "id": "ANOMALY_DETECTION_WEIGHT",
-          "description": "Anomaly detection weight",
-          "type": "numeric",
-          "value": 0.5,
-          "operator": "MUL"
-        }
-      ]
+      "constraint_id": "C-MEM-002",
+      "scope": "Memory_Footprint_Change",
+      "artifact_key": "PVLM",
+      "operator": "LTE",
+      "limit_value": 0.10,
+      "limit_type": "PERCENTAGE_DELTA_MAX",
+      "reference_state": "PREDECESSOR_STATE",
+      "description": "Maximum allowed increase (10%) relative to the state preceding the change."
     }
   ],
-  "anomalyDetection": {
-    "enabled": true,
-    "confidenceThreshold": 90,
-    "dynamicWeightAdjustment": true
-  },
-  "temporalDegradation": {
-    "unverifiedAnchorDegradationScorePerHour": 10,
-    "maxDegradationScore": 300
+  "governance_audit": {
+    "root_of_trust_signed": false,
+    "gax_approved": true,
+    "review_cycle": "Q3-2024"
   },
   "nexusBranch": {
     "name": "Nexus Branch",
@@ -207,7 +148,55 @@ CORE:
             "operator": "ADD"
           }
         ]
+      },
+      {
+        "id": "ADD_LOGIC",
+        "description": "ADD logic",
+        "type": "numeric",
+        "value": 0,
+        "operator": "EQ",
+        "conditions": [
+          {
+            "id": "ADD_ENABLED",
+            "description": "ADD enabled",
+            "type": "boolean",
+            "value": true,
+            "operator": "EQ"
+          },
+          {
+            "id": "CPU_UTILIZATION_RATIO",
+            "description": "CPU utilization ratio",
+            "type": "numeric",
+            "value": 0.85,
+            "operator": "LTE"
+          },
+          {
+            "id": "MEMORY_FOOTPRINT_CHANGE",
+            "description": "Memory footprint change",
+            "type": "numeric",
+            "value": 0.10,
+            "operator": "LTE"
+          }
+        ],
+        "modifiers": [
+          {
+            "id": "ADD_WEIGHT",
+            "description": "ADD weight",
+            "type": "numeric",
+            "value": 10,
+            "operator": "MUL"
+          }
+        ]
       }
     ]
+  },
+  "anomalyDetection": {
+    "enabled": true,
+    "confidenceThreshold": 90,
+    "dynamicWeightAdjustment": true
+  },
+  "temporalDegradation": {
+    "unverifiedAnchorDegradationScorePerHour": 10,
+    "maxDegradationScore": 300
   }
 }
