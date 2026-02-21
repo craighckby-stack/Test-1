@@ -111,3 +111,4 @@ config/codes/c-01_correction_codes.json
 config/component_definition/engine_pdl_parser.json
 config/component_definition/grs_compiler.json
 config/components/policyverifier_schema.json
+config/consensus/gsep_commit_policy.yaml
