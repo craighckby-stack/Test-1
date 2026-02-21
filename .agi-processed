@@ -109,3 +109,4 @@ config/cmac_compliance_spec.json
 config/cmanifest.schema.json
 config/codes/c-01_correction_codes.json
 config/component_definition/engine_pdl_parser.json
+config/component_definition/grs_compiler.json
