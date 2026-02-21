@@ -35,6 +35,8 @@ const DCCA_POLICY_CRITICALITY_SCOPE = DCCA_POLICY_SOURCE_INTEGRITY_MANIFEST.crit
 const DCCA_POLICY_PURPOSE = DCCA_POLICY_SOURCE_INTEGRITY_MANIFEST.purpose;
 const DCCA_POLICY_REQUIRED_SOURCES = DCCA_POLICY_SOURCE_INTEGRITY_MANIFEST.required_sources;
 
+const MODEL_TIER_MAPPING_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'GACR', 'ModelTierMapping.schema.json'), 'utf8'));
+
 // Artificial General Intelligence
 class AGI {
   constructor() {
@@ -295,4 +297,4 @@ class PreemptiveStateResolver {
     };
 
     const status = isFailureGuaranteed ? "PREEMPTIVE FAIL (ADTM)" : "VIABLE (PASS)";
-    console.log(`PSR: ATM Generated. Status: ${status} | TEMM: ${predictedTEMM.toFixed
+    console.log(`PSR: ATM Generated. Status: ${status} | TEMM: ${predictedTEMM.toFixed`);
