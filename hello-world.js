@@ -22,6 +22,70 @@ const MQM_METRIC_CATALOG = JSON.parse(fs.readFileSync(path.join(__dirname, 'conf
 const TELEMETRY_SOURCE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'telemetry_source_schema.json'), 'utf8'));
 const VSEC = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'vsec.json'), 'utf8'));
 
+// GACR/CMR.ts
+class CMR {
+  constructor(config, schema) {
+    this.config = config;
+    this.schema = schema;
+  }
+
+  async validate(executionTrace) {
+    // Validate execution trace against config and schema
+    const validationResults = await this.schema.validate(executionTrace, this.config);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('CMR validation failed');
+    }
+  }
+}
+
+// GACR/CMR_Schema.ts
+class CMR_Schema {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  async validate(executionTrace, config) {
+    // Validate execution trace against schema
+    const validator = new JSONSchemaValidator();
+    const validationResults = await validator.validate(executionTrace, this.schema);
+    if (!validationResults.every((result) => result.valid)) {
+      throw new Error('CMR schema validation failed');
+    }
+
+    // Validate execution trace against config
+    const registerId = executionTrace.register_id;
+    if (!config.modules.some((module) => module.name === registerId)) {
+      throw new Error(`Module not found: ${registerId}`);
+    }
+
+    const module = config.modules.find((module) => module.name === registerId);
+    const version = executionTrace.system_target_version;
+    if (version !== module.version) {
+      throw new Error(`Incompatible version: ${version}`);
+    }
+
+    const maturityLevel = executionTrace.maturity_level;
+    if (maturityLevel !== module.maturity_level) {
+      throw new Error(`Invalid maturity level: ${maturityLevel}`);
+    }
+
+    const integrityHash = executionTrace.integrity_hash;
+    if (integrityHash !== module.integrity_hash) {
+      throw new Error(`Invalid integrity hash: ${integrityHash}`);
+    }
+
+    const dependencies = executionTrace.dependencies;
+    if (dependencies.some((dependency) => !module.dependencies.includes(dependency))) {
+      throw new Error(`Missing dependency: ${dependency}`);
+    }
+
+    const runtimeEnvironment = executionTrace.runtime_environment;
+    if (runtimeEnvironment !== module.runtime_environment) {
+      throw new Error(`Invalid runtime environment: ${runtimeEnvironment}`);
+    }
+  }
+}
+
 // GACR/AdaptiveSamplingEngine.ts
 class AdaptiveSamplingEngine {
   constructor() {
@@ -126,152 +190,6 @@ class AdaptiveSamplingEngine {
       const gar = new GAR(this.config.keyRotationSchedule);
       await gar.sealAndAttest(artifactManifest);
     }
-  }
-}
-
-// GACR/S0_Platform_I.ts
-class S0_Platform_I {
-  constructor() {
-    this.platform = {
-      name: 'S0 Platform',
-      version: '1.0',
-      architecture: 'x86_64',
-      os: 'Linux',
-      kernel: '5.10.0-13-amd64',
-      cpu: 'Intel Core i7-11700K',
-      memory: '64 GB',
-      storage: '1 TB SSD',
-    };
-  }
-
-  async execute() {
-    // Initialize platform context
-    const platformContext = this.platform;
-
-    // Initialize platform configuration
-    const platformConfig = {
-      // Platform-specific configuration
-      platformName: platformContext.name,
-      platformVersion: platformContext.version,
-      platformArchitecture: platformContext.architecture,
-      platformOS: platformContext.os,
-      platformKernel: platformContext.kernel,
-      platformCPU: platformContext.cpu,
-      platformMemory: platformContext.memory,
-      platformStorage: platformContext.storage,
-    };
-
-    // Initialize platform telemetry
-    const platformTelemetry = {
-      // Platform-specific telemetry
-      platformName: platformContext.name,
-      platformVersion: platformContext.version,
-      platformArchitecture: platformContext.architecture,
-      platformOS: platformContext.os,
-      platformKernel: platformContext.kernel,
-      platformCPU: platformContext.cpu,
-      platformMemory: platformContext.memory,
-      platformStorage: platformContext.storage,
-    };
-
-    // Validate platform configuration
-    const platformValidator = new PlatformValidator(this.config.platformConfig);
-    await platformValidator.validate(platformConfig);
-
-    // Validate platform telemetry
-    const telemetryValidator = new TelemetryValidator(this.config.telemetrySourceSchema);
-    await telemetryValidator.validate(platformTelemetry);
-
-    // Update platform manifest
-    const platformManifest = this.config.platformManifest;
-    platformManifest[platformContext.name] = platformTelemetry;
-
-    // Seal and attest platform configuration
-    const gar = new GAR(this.config.keyRotationSchedule);
-    await gar.sealAndAttest(platformManifest);
-  }
-}
-
-// GACR/PlatformValidator.ts
-class PlatformValidator {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(platformConfig) {
-    // Validate platform configuration against schema
-    const validationResults = await this.config.validate(platformConfig);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('Platform configuration validation failed');
-    }
-  }
-}
-
-// GACR/TelemetryValidator.ts
-class TelemetryValidator {
-  constructor(schema) {
-    this.schema = schema;
-  }
-
-  async validate(telemetry) {
-    // Validate telemetry against schema
-    const validator = new JSONSchemaValidator();
-    const validationResults = await validator.validate(telemetry, this.schema);
-    return validationResults;
-  }
-}
-
-// GACR/Platform.ts
-class Platform {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async execute() {
-    // Initialize platform context
-    const platformContext = this.platform;
-
-    // Initialize platform configuration
-    const platformConfig = {
-      // Platform-specific configuration
-      platformName: platformContext.name,
-      platformVersion: platformContext.version,
-      platformArchitecture: platformContext.architecture,
-      platformOS: platformContext.os,
-      platformKernel: platformContext.kernel,
-      platformCPU: platformContext.cpu,
-      platformMemory: platformContext.memory,
-      platformStorage: platformContext.storage,
-    };
-
-    // Initialize platform telemetry
-    const platformTelemetry = {
-      // Platform-specific telemetry
-      platformName: platformContext.name,
-      platformVersion: platformContext.version,
-      platformArchitecture: platformContext.architecture,
-      platformOS: platformContext.os,
-      platformKernel: platformContext.kernel,
-      platformCPU: platformContext.cpu,
-      platformMemory: platformContext.memory,
-      platformStorage: platformContext.storage,
-    };
-
-    // Validate platform configuration
-    const platformValidator = new PlatformValidator(this.config.platformConfig);
-    await platformValidator.validate(platformConfig);
-
-    // Validate platform telemetry
-    const telemetryValidator = new TelemetryValidator(this.config.telemetrySourceSchema);
-    await telemetryValidator.validate(platformTelemetry);
-
-    // Update platform manifest
-    const platformManifest = this.config.platformManifest;
-    platformManifest[platformContext.name] = platformTelemetry;
-
-    // Seal and attest platform configuration
-    const gar = new GAR(this.config.keyRotationSchedule);
-    await gar.sealAndAttest(platformManifest);
   }
 }
 
@@ -513,62 +431,51 @@ class CMAC {
   }
 }
 
-// CMR/CMR.ts
-class CMR {
-  constructor(config, schema) {
-    this.config = config;
+// CMR/CMR_Schema.ts
+class CMR_Schema {
+  constructor(schema) {
     this.schema = schema;
   }
 
-  async validate(executionTrace) {
-    // Validate execution trace against config and schema
-    const validationResults = await this.schema.validate(executionTrace, this.config);
+  async validate(executionTrace, config) {
+    // Validate execution trace against schema
+    const validator = new JSONSchemaValidator();
+    const validationResults = await validator.validate(executionTrace, this.schema);
     if (!validationResults.every((result) => result.valid)) {
-      throw new Error('CMR validation failed');
+      throw new Error('CMR schema validation failed');
     }
-  }
-}
 
-// ECVM/ECVM.ts
-class ECVM {
-  constructor(config) {
-    this.config = config;
-  }
-
-  async validate(executionTrace) {
     // Validate execution trace against config
-    const validationResults = await this.config.validate(executionTrace);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('ECVM validation failed');
+    const registerId = executionTrace.register_id;
+    if (!config.modules.some((module) => module.name === registerId)) {
+      throw new Error(`Module not found: ${registerId}`);
     }
-  }
-}
 
-// PSCA/PSCA.ts
-class PSCA {
-  constructor(validationTargets) {
-    this.validationTargets = validationTargets;
-  }
-
-  async validate(configuration) {
-    // Validate configuration against targets
-    const validationResults = await this.validationTargets.validate(configuration);
-    if (!validationResults.every((result) => result.valid)) {
-      throw new Error('PSCA validation failed');
+    const module = config.modules.find((module) => module.name === registerId);
+    const version = executionTrace.system_target_version;
+    if (version !== module.version) {
+      throw new Error(`Incompatible version: ${version}`);
     }
-  }
-}
 
-// GAR/GAR.ts
-class GAR {
-  constructor(keyRotationSchedule) {
-    this.keyRotationSchedule = keyRotationSchedule;
-  }
+    const maturityLevel = executionTrace.maturity_level;
+    if (maturityLevel !== module.maturity_level) {
+      throw new Error(`Invalid maturity level: ${maturityLevel}`);
+    }
 
-  async sealAndAttest(artifactManifest) {
-    // Seal and attest artifact manifest
-    const sealedManifest = await this.keyRotationSchedule.sealAndAttest(artifactManifest);
-    return sealedManifest;
+    const integrityHash = executionTrace.integrity_hash;
+    if (integrityHash !== module.integrity_hash) {
+      throw new Error(`Invalid integrity hash: ${integrityHash}`);
+    }
+
+    const dependencies = executionTrace.dependencies;
+    if (dependencies.some((dependency) => !module.dependencies.includes(dependency))) {
+      throw new Error(`Missing dependency: ${dependency}`);
+    }
+
+    const runtimeEnvironment = executionTrace.runtime_environment;
+    if (runtimeEnvironment !== module.runtime_environment) {
+      throw new Error(`Invalid runtime environment: ${runtimeEnvironment}`);
+    }
   }
 }
 
@@ -603,4 +510,16 @@ class GTEM {
     // Validate encoding
     const encoding = telemetryFormatSpecification.encoding;
     if (encoding !== 'JSON_L') {
-      throw new Error(`Invalid encoding:
+      throw new Error(`Invalid encoding: ${encoding}`);
+    }
+
+    // Validate transport constraints
+    for (const constraint of transportConstraints) {
+      // Validate endpoint ID
+      if (!executionTrace[constraint.endpoint_id]) {
+        throw new Error(`Missing transport constraint endpoint: ${constraint.endpoint_id}`);
+      }
+
+      // Validate protocol
+      const protocol = constraint.protocol;
+      if (protocol !== 'HTTPS/TLS_1_3') {
