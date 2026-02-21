@@ -48,3 +48,4 @@ architectural/state_attestation_layer_sal.md
 architectural/configs/hese_mhb_config.json
 architectural/schemas/aso_attestedstateobject.json
 architectural/schemas/hese_calibrationfactor.json
+architecture/component_registry.md
