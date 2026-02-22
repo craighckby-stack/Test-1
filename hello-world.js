@@ -74,7 +74,7 @@ class LoggingError extends Error {
 const appConfig = {
   // Operational timings
   CYCLE_INTERVAL: 6000, // Time in ms between each processing cycle
-  MAX_API_RETRIES: 5, // Maximum retries for API calls
+  MAX_API_RETRIES: 5, // Maximum retries for API calls for Gemini
   GEMINI_INITIAL_BACKOFF_MS: 100, // Initial backoff delay for Gemini API retries
   GEMINI_BACKOFF_MULTIPLIER: 2, // Multiplier for exponential backoff
   GEMINI_MAX_BACKOFF_MS: 5000, // Maximum backoff delay
@@ -101,6 +101,18 @@ const appConfig = {
   GITHUB_API_BASE: 'https://api.github.com',
   GEMINI_API_BASE: 'https://generativelanguage.googleapis.com/v1beta',
 };
+
+// Batch processing configuration
+const batchConfig = {
+  maxRetries: 5,
+  backoffMultiplier: 2,
+  initialBackoffMs: 100,
+  rateLimitStatusCode: 429,
+  batchSize: 100,
+  maxBackoffMs: 5000,
+  apiEndpoint: 'https://api.sovereign.com/v1/batch', // Example batch API endpoint
+};
+
 
 // Pipeline steps define AI prompts for different file categories
 const pipelineSteps = {
@@ -189,17 +201,27 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // ============================================================================
-// 4. UTILITY FUNCTIONS
+// 4. UTILITY FUNCTIONS & MOCK SERVICES
 // ============================================================================
 
 /**
- * Calculates exponential backoff delay for retries.
+ * Calculates exponential backoff delay for Gemini API retries.
  * @param {number} retryCount - The current retry attempt number.
  * @returns {number} The delay in milliseconds.
  */
-function calculateBackoffDelay(retryCount) {
+function calculateGeminiBackoffDelay(retryCount) {
   const baseDelay = appConfig.GEMINI_INITIAL_BACKOFF_MS * Math.pow(appConfig.GEMINI_BACKOFF_MULTIPLIER, retryCount);
   return Math.min(baseDelay, appConfig.GEMINI_MAX_BACKOFF_MS);
+}
+
+/**
+ * Calculates exponential backoff delay for general batch API retries.
+ * @param {number} retryCount - The current retry attempt number.
+ * @returns {number} The delay in milliseconds.
+ */
+function calculateBatchBackoffDelay(retryCount) {
+  const baseDelay = batchConfig.initialBackoffMs * Math.pow(batchConfig.backoffMultiplier, retryCount);
+  return Math.min(baseDelay, batchConfig.maxBackoffMs);
 }
 
 /**
@@ -265,10 +287,39 @@ const getPipeline = (filePath) => {
   return pipelineSteps.CODE; // Default to CODE pipeline
 };
 
+/**
+ * MOCK SERVICE: Simulates sending a batch of items to an API.
+ */
+class ApiService {
+  async sendBatch(batch) {
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 40)); // Simulate network latency
+
+    if (Math.random() < 0.3) { // Simulate transient API failures
+      const isRateLimited = Math.random() < 0.1;
+      const statusCode = isRateLimited ? batchConfig.rateLimitStatusCode : 503;
+
+      throw new ApiError(
+        `API request failed with status ${statusCode}`,
+        statusCode, {
+          endpoint: batchConfig.apiEndpoint,
+          batchSize: batch.length
+        },
+      );
+    }
+
+    return {
+      success: true,
+      processedCount: batch.length
+    };
+  }
+}
+const apiServiceInstance = new ApiService(); // Singleton instance
+
 // ============================================================================
 // 5. STATE MANAGEMENT (Reducer and Core State - Enhanced with Logic Analyzer)
 // ============================================================================
 
+// Main Application State
 const initialState = {
   isLive: false, // Indicates if the AI loop is active
   isAcknowledged: false, // Firebase authentication status
@@ -378,6 +429,64 @@ const reducer = (state, action) => {
   }
 };
 
+// Batch Processing State and Reducer
+const batchActionTypes = {
+  ENQUEUE_ITEMS: 'ENQUEUE_ITEMS',
+  START_PROCESSING: 'START_PROCESSING',
+  FINISH_PROCESSING: 'FINISH_PROCESSING',
+  INCREMENT_SUCCESS: 'INCREMENT_SUCCESS',
+  INCREMENT_FAILURE: 'INCREMENT_FAILURE',
+  CLEAR_PROCESSED_QUEUE: 'CLEAR_PROCESSED_QUEUE',
+  SET_ITEM_PROCESSED: 'SET_ITEM_PROCESSED',
+};
+
+const initialBatchState = {
+  queue: [],
+  processedCount: 0,
+  failedCount: 0,
+  isProcessing: false,
+};
+
+function batchReducer(state, action) {
+  switch (action.type) {
+    case batchActionTypes.ENQUEUE_ITEMS:
+      return { ...state,
+        queue: [...state.queue, ...action.payload]
+      };
+    case batchActionTypes.CLEAR_PROCESSED_QUEUE:
+      return { ...state,
+        queue: state.queue.filter((item) => !item.processed)
+      };
+    case batchActionTypes.START_PROCESSING:
+      return { ...state,
+        isProcessing: true
+      };
+    case batchActionTypes.FINISH_PROCESSING:
+      return { ...state,
+        isProcessing: false
+      };
+    case batchActionTypes.INCREMENT_SUCCESS:
+      return { ...state,
+        processedCount: state.processedCount + action.payload
+      };
+    case batchActionTypes.INCREMENT_FAILURE:
+      return { ...state,
+        failedCount: state.failedCount + action.payload
+      };
+    case batchActionTypes.SET_ITEM_PROCESSED:
+      return {
+        ...state,
+        queue: state.queue.map(item =>
+          item.id === action.payload.id ? { ...item,
+            processed: true
+          } : item
+        )
+      };
+    default:
+      return state;
+  }
+}
+
 // ============================================================================
 // 6. REACT HOOKS AND COMPONENTS
 // ============================================================================
@@ -438,6 +547,7 @@ function SignalDisplay({
 
 const App = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [batchState, batchDispatch] = useReducer(batchReducer, initialBatchState); // New batch processing reducer
   const [user, loading, error] = useAuthState(getAuth());
 
   // Refs for managing state that shouldn't trigger re-renders
@@ -704,6 +814,100 @@ const App = () => {
     mutationsHistory.current = []; // Clear history after sync
   };
 
+
+  // Core batch processing logic (useCallback for stability)
+  const flushBatch = useCallback(async () => {
+    if (batchState.isProcessing || batchState.queue.length === 0) return;
+
+    batchDispatch({
+      type: batchActionTypes.START_PROCESSING
+    });
+    console.log(`[BATCHER] Starting flush for ${batchState.queue.length} items.`);
+
+    let workingQueueItems = batchState.queue.filter((item) => !item.processed);
+    let totalSuccessfulItems = 0;
+    let totalFailedItems = 0;
+
+    const processChunk = async (batch) => {
+      let retryCount = 0;
+      let chunkHandled = false;
+
+      while (!chunkHandled && retryCount < batchConfig.maxRetries) {
+        try {
+          await apiServiceInstance.sendBatch(batch);
+          totalSuccessfulItems += batch.length;
+          batch.forEach(item => batchDispatch({
+            type: batchActionTypes.SET_ITEM_PROCESSED,
+            payload: {
+              id: item.id
+            }
+          }));
+          chunkHandled = true;
+          console.log(`[BATCHER] Chunk processed successfully. Size: ${batch.length}`);
+        } catch (error) {
+          if (error instanceof ApiError && error.statusCode === batchConfig.rateLimitStatusCode && retryCount < batchConfig.maxRetries - 1) {
+            const delay = calculateBatchBackoffDelay(retryCount);
+            console.warn(`[BATCHER] Rate limit hit. Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${batchConfig.maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            retryCount++;
+          } else {
+            const reason = error instanceof ApiError ? `Max retries reached or permanent error (${error.statusCode || 'Unknown'})` : `Unexpected error: ${error.message}`;
+            console.error(`[BATCHER] Chunk failed (${reason}). Size: ${batch.length}.`);
+            totalFailedItems += batch.length;
+            batch.forEach(item => batchDispatch({ // Mark as processed/failed
+              type: batchActionTypes.SET_ITEM_PROCESSED,
+              payload: {
+                id: item.id
+              }
+            }));
+            chunkHandled = true;
+          }
+        }
+      }
+    };
+
+    while (workingQueueItems.length > 0) {
+      const batchData = workingQueueItems.slice(0, batchConfig.batchSize);
+      await processChunk(batchData);
+      // After processing a chunk, re-filter the queue to get remaining unprocessed items
+      workingQueueItems = batchState.queue.filter(item => !item.processed);
+    }
+
+    if (totalSuccessfulItems > 0) {
+      batchDispatch({
+        type: batchActionTypes.INCREMENT_SUCCESS,
+        payload: totalSuccessfulItems
+      });
+    }
+    if (totalFailedItems > 0) {
+      batchDispatch({
+        type: batchActionTypes.INCREMENT_FAILURE,
+        payload: totalFailedItems
+      });
+    }
+
+    batchDispatch({
+      type: batchActionTypes.CLEAR_PROCESSED_QUEUE
+    });
+    batchDispatch({
+      type: batchActionTypes.FINISH_PROCESSING
+    });
+    console.log(`[BATCHER] Flush complete. Successful: ${totalSuccessfulItems}, Failed: ${totalFailedItems}. Remaining in queue (unprocessed): ${batchState.queue.filter(item => !item.processed).length}`);
+  }, [batchState.isProcessing, batchState.queue, batchDispatch]);
+
+
+  // Effect to trigger batch flush when queue size changes or periodically
+  useEffect(() => {
+    // Only trigger flush if not already processing and there are items in the queue
+    if (!batchState.isProcessing && batchState.queue.length > 0) {
+      const timer = setTimeout(() => {
+        flushBatch();
+      }, 500); // Small delay to allow more items to accumulate before flushing
+      return () => clearTimeout(timer);
+    }
+  }, [batchState.queue.length, batchState.isProcessing, flushBatch]);
+
+
   // The main self-improvement loop cycle
   const runCycle = useCallback(async () => {
     if (!state.isLive || isBusy.current || !user || !github || !state.isAcknowledged) {
@@ -891,7 +1095,7 @@ const App = () => {
             signalValue: true
           });
           if (e.response && (e.response.status === appConfig.RATE_LIMIT_STATUS_CODE || e.response.status === 403) && retryCount < appConfig.MAX_API_RETRIES - 1) {
-            const delay = calculateBackoffDelay(retryCount);
+            const delay = calculateGeminiBackoffDelay(retryCount);
             dispatch({
               type: 'LOG',
               payload: {
@@ -1062,6 +1266,23 @@ const App = () => {
     return () => clearInterval(intervalId);
   }, [state.isLive, state.isAcknowledged, user, github, runCycle]);
 
+  const handleEnqueueBatchItems = () => {
+    const itemCount = Math.floor(Math.random() * 50) + 10;
+    const newItems = Array.from({
+      length: itemCount
+    }, (_, i) => ({
+      id: uuidv4(),
+      content: `Batch item ${Date.now()}-${i}`,
+      processed: false
+    }));
+    batchDispatch({
+      type: batchActionTypes.ENQUEUE_ITEMS,
+      payload: newItems
+    });
+    console.log(`Enqueued ${itemCount} batch items.`);
+  };
+
+
   // Main UI rendering
   return (
     <div style={{ fontFamily: 'monospace', padding: '20px', background: '#282c34', color: '#fff' }}>
@@ -1147,6 +1368,26 @@ const App = () => {
           </p>
         ))}
       </div>
+
+      <div style={{ marginTop: '20px', borderTop: '1px solid #61dafb', paddingTop: '10px' }}>
+        <h3>Batch Processing Status</h3>
+        <p>Queue Size: {batchState.queue.filter(item => !item.processed).length}</p>
+        <p>Currently Processing: {batchState.isProcessing ? 'Yes' : 'No'}</p>
+        <p>Successful Batches: {batchState.processedCount}</p>
+        <p>Failed Batches: {batchState.failedCount}</p>
+        <button onClick={handleEnqueueBatchItems} style={{
+          padding: '8px 15px',
+          fontSize: '14px',
+          backgroundColor: '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer'
+        }}>
+          Enqueue Random Batch Items
+        </button>
+      </div>
+
       <SignalDisplay signals={state.logicalSignals} />
     </div>
   );
