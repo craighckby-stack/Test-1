@@ -1,3 +1,504 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+
+const appId = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
+const geminiApiKey = ""; // Standard key assignment for this environment
+
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+  
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --red: #ff0000;
+    --red-dim: #660000;
+    --red-dark: #1a0000;
+    --white: #ffffff;
+    --panel-bg: rgba(5, 0, 0, 0.98);
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Orbitron', sans-serif;
+  }
+
+  body { 
+    background: #000; 
+    color: var(--red); 
+    font-family: var(--font-mono); 
+    overflow-x: hidden; 
+    margin: 0;
+  }
+
+  .dalek-shell {
+    min-height: 100vh;
+    background: 
+      radial-gradient(circle at 50% 50%, var(--red-dark) 0%, #000 90%),
+      repeating-linear-gradient(0deg, rgba(255,0,0,0.02) 0px, rgba(255,0,0,0.02) 1px, transparent 1px, transparent 2px);
+    padding: 1rem; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    gap: 1rem;
+  }
+
+  .header {
+    width: 100%; 
+    max-width: 1600px; 
+    display: flex; 
+    align-items: center;
+    justify-content: space-between; 
+    border-bottom: 2px solid var(--red-dim); 
+    padding-bottom: 0.5rem;
+  }
+
+  .title {
+    font-family: var(--font-display); 
+    font-size: 1.5rem; 
+    font-weight: 900;
+    letter-spacing: 0.3em; 
+    text-shadow: 0 0 10px var(--red);
+    color: var(--red);
+  }
+
+  .main-container {
+    display: grid; 
+    grid-template-columns: 400px 1fr;
+    gap: 1rem; 
+    width: 100%; 
+    max-width: 1600px; 
+    height: calc(100vh - 120px); 
+  }
+
+  @media(max-width: 1000px) { .main-container { grid-template-columns: 1fr; height: auto; } }
+
+  .panel {
+    border: 1px solid var(--red-dim); 
+    background: var(--panel-bg);
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden;
+  }
+
+  .panel-hdr {
+    padding: .5rem 1rem; 
+    background: var(--red-dark);
+    border-bottom: 1px solid var(--red-dim);
+    color: var(--red); 
+    font-family: var(--font-display); 
+    font-size: .6rem; 
+    letter-spacing: .2em; 
+    text-transform: uppercase;
+  }
+
+  .panel-body { 
+    padding: 1rem; 
+    flex: 1; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: .5rem; 
+  }
+
+  .input-field {
+    background: #000; 
+    border: 1px solid var(--red-dim); 
+    color: var(--red);
+    font-family: var(--font-mono); 
+    padding: .5rem; 
+    width: 100%;
+    outline: none; 
+    font-size: .8rem;
+  }
+
+  .btn-go {
+    background: var(--red); 
+    color: #000; 
+    border: none; 
+    padding: .8rem;
+    font-family: var(--font-display); 
+    font-weight: 900; 
+    font-size: .7rem;
+    cursor: pointer; 
+    letter-spacing: .2em; 
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-go:hover { opacity: 0.8; }
+  .btn-stop { background: #330000 !important; color: var(--red) !important; border: 1px solid var(--red); box-shadow: inset 0 0 10px rgba(255,0,0,0.5); }
+  
+  .btn-reset {
+    background: transparent;
+    color: var(--red-dim);
+    border: 1px solid var(--red-dim);
+    padding: 0.3rem;
+    font-size: 0.6rem;
+    margin-top: 5px;
+    cursor: pointer;
+  }
+  .btn-reset:hover { color: var(--red); border-color: var(--red); }
+
+  .log-wrap {
+    flex: 1; 
+    overflow-y: auto; 
+    background: #050000; 
+    padding: .5rem; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 2px; 
+    font-size: 0.65rem; 
+    border: 1px solid var(--red-dark);
+    margin-top: 0.5rem;
+  }
+
+  .le { border-left: 2px solid var(--red-dim); padding-left: 8px; line-height: 1.4; word-break: break-all; }
+  .le-err { color: #ff5555; border-left-color: #ff0000; background: rgba(255,0,0,0.05); }
+  .le-hallucinate { color: #cc00ff; border-left-color: #cc00ff; }
+  .le-ok { color: #00ff00; border-left-color: #00ff00; }
+  .le-info { color: #aaa; border-left-color: #333; }
+
+  .code-view {
+    font-size: .85rem; 
+    line-height: 1.4; 
+    color: #ffb3b3; 
+    white-space: pre-wrap;
+    font-family: var(--font-mono); 
+    padding: 1rem; 
+    flex: 1; 
+    overflow-y: auto;
+    background: #020000;
+  }
+
+  .progress-track { width: 100%; height: 3px; background: #110000; }
+  .progress-fill { height: 100%; background: var(--red); transition: width 0.4s ease; }
+`;
+
+const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
+const utf8B64Decode = (b64) => {
+  try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); } 
+  catch (e) { return "[BASE64_DECODE_ERR]"; }
+};
+
+export default function App() {
+  const [tokens, setTokens] = useState({ cerebras: "", github: "" });
+  const [config, setConfig] = useState({ 
+    owner: "TheAlgorithms", 
+    repo: "Python", 
+    branch: "master", 
+    file: "hello-world.js" 
+  });
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [displayCode, setDisplayCode] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  const activeRef = useRef(false);
+  const codeRef = useRef("");
+  const logEndRef = useRef(null);
+  const fileCursorRef = useRef(0);
+  const fullTreeRef = useRef([]);
+  const instructionContextRef = useRef(""); // Stores README context
+  const enhancementHistoryRef = useRef(""); // Stores README-ENHANCER history
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  const addLog = useCallback((msg, type = "def") => {
+    setLogs((p) => [...p, { text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }].slice(-150));
+  }, []);
+
+  const clearMemory = () => {
+    codeRef.current = "";
+    setDisplayCode("");
+    setProgress(0);
+    fileCursorRef.current = 0;
+    fullTreeRef.current = [];
+    instructionContextRef.current = "";
+    enhancementHistoryRef.current = "";
+    addLog("LOCAL SYNTHESIS MEMORY & CURSOR PURGED", "hallucinate");
+  };
+
+  const haltProcess = () => {
+    activeRef.current = false;
+    setLoading(false);
+    addLog("HALT COMMAND RECEIVED - TERMINATING PROCESS", "err");
+  };
+
+  const wait = (ms) => new Promise(resolve => {
+    const start = Date.now();
+    const interval = setInterval(() => {
+        if (!activeRef.current || (Date.now() - start >= ms)) {
+            clearInterval(interval);
+            resolve();
+        }
+    }, 100);
+  });
+
+  const safeFetch = async (url, options) => {
+    const response = await fetch(url, options);
+    const raw = await response.text();
+    let result;
+    try {
+        result = JSON.parse(raw);
+    } catch (e) {
+        throw new Error(`JSON_PARSE_ERR: ${raw.substring(0, 50)}...`);
+    }
+    if (!response.ok) {
+        const errorMsg = result.error?.message || result.message || "Unknown API Error";
+        throw new Error(`API_${response.status}: ${errorMsg}`);
+    }
+    return result;
+  };
+
+  const generateReadmeUpdate = async (batchFiles) => {
+    addLog("GEMINI: DRAFTING ENHANCEMENT SUMMARY...", "hallucinate");
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+    try {
+      const res = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `INSTRUCTIONS: ${instructionContextRef.current}\nHISTORY: ${enhancementHistoryRef.current}\nNEW FILES: ${batchFiles.join(", ")}. Write a short, professional English summary of these enhancements. SCI-FI tone.` }] }]
+        })
+      });
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "Batch synchronization complete.";
+    } catch (e) {
+      return `Synchronized batch files: ${batchFiles.join(", ")}`;
+    }
+  };
+
+  const callAIChainWithRetry = async (nodeContent, currentCore, retries = 5) => {
+    const delays = [1000, 2000, 4000, 8000, 16000];
+    for (let attempt = 0; attempt < retries; attempt++) {
+      if (!activeRef.current) return null;
+      try {
+        let abstraction = "";
+        const cleanContent = nodeContent.replace(/[^\x20-\x7E\n]/g, "").substring(0, 3000);
+        const cleanCore = (currentCore || "").replace(/[^\x20-\x7E\n]/g, "").substring(0, 2000);
+
+        if (tokens.cerebras) {
+          addLog(`CEREBRAS: GENERATING ABSTRACTIONS (A:${attempt + 1})...`, "hallucinate");
+          const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tokens.cerebras}` },
+            body: JSON.stringify({
+              model: "llama3.1-8b",
+              messages: [
+                { role: "system", content: "Analyze algorithm logic and generate 5 extensions. Contextualize using instructions." },
+                { role: "user", content: `GUIDELINES: ${instructionContextRef.current}\nHISTORY: ${enhancementHistoryRef.current}\nCONTEXT: ${cleanCore}\nDATA: ${cleanContent}` }
+              ]
+            })
+          });
+          abstraction = data.choices[0].message.content;
+        }
+
+        if (!activeRef.current) return null;
+        addLog("GEMINI: SEALING REALITY...", "ok");
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const res = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `INSTRUCTIONS: ${instructionContextRef.current}\nABSTRACTIONS: ${abstraction}\nCORE: ${currentCore}\nNEW: ${nodeContent}` }] }],
+            systemInstruction: { parts: [{ text: "Consolidate into a single valid Python function: calculate_nexus_branch_synthesis. Focus on strictly following the instructions from the README." }] }
+          })
+        });
+
+        const rawText = await res.text();
+        const data = JSON.parse(rawText);
+        const final = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!final) throw new Error("EMPTY_GEMINI_PAYLOAD");
+        return final.replace(/^```[a-z]*\n|```$/g, "").trim();
+      } catch (e) {
+        if (attempt === retries - 1 || !activeRef.current) {
+          addLog(`AI CHAIN ERROR: ${e.message}`, "err");
+          return null;
+        }
+        addLog(`RETRYING AI (${attempt+1}/${retries}): ${e.message}`, "info");
+        await wait(delays[attempt]);
+      }
+    }
+  };
+
+  const runSync = async () => {
+    if (!tokens.github || !tokens.cerebras) return addLog("CRITICAL: API KEYS NOT SET", "err");
+    setLoading(true); activeRef.current = true;
+    const ghHdr = { Authorization: `token ${tokens.github}`, "Content-Type": "application/json" };
+
+    try {
+      while (activeRef.current) {
+        // --- STEP 1: KNOWLEDGE PRE-LOADING (Instructions & History) ---
+        if (!instructionContextRef.current) {
+          addLog("LOADING INSTRUCTION SET (README.md)...", "info");
+          const r1 = await fetch(`https://api.github.com/repos/craighckby-stack/Test-1/contents/README.md?ref=Nexus-Database`, { headers: ghHdr });
+          if (r1.ok) {
+            const d1 = await r1.json();
+            instructionContextRef.current = utf8B64Decode(d1.content).substring(0, 1500);
+            addLog("INSTRUCTIONS LOADED INTO MEMORY", "ok");
+          }
+
+          addLog("LOADING ENHANCEMENT HISTORY (README-ENHANCER.md)...", "info");
+          const r2 = await fetch(`https://api.github.com/repos/craighckby-stack/Test-1/contents/README-ENHANCER.md?ref=Nexus-Database`, { headers: ghHdr });
+          if (r2.ok) {
+            const d2 = await r2.json();
+            enhancementHistoryRef.current = utf8B64Decode(d2.content).slice(-1500); // Last 1500 chars for context
+            addLog("ENHANCEMENT HISTORY LOADED", "ok");
+          } else {
+            addLog("NO PREVIOUS ENHANCER LOG - HISTORY EMPTY", "info");
+          }
+        }
+
+        if (!codeRef.current) {
+          addLog(`RECOVERING BASE FROM: ${config.file}...`, "info");
+          const targetUrl = `https://api.github.com/repos/craighckby-stack/Test-1/contents/${config.file}`;
+          const existing = await fetch(`${targetUrl}?ref=Nexus-Database`, { headers: ghHdr });
+          if (existing.ok) {
+             const existingData = await existing.json();
+             codeRef.current = utf8B64Decode(existingData.content);
+             setDisplayCode(codeRef.current);
+             addLog("BASE STATE RECOVERED", "ok");
+          } else {
+             addLog("NO PREVIOUS STATE FOUND - STARTING FRESH", "info");
+             codeRef.current = "# Nexus System Initialized";
+          }
+        }
+
+        if (fullTreeRef.current.length === 0) {
+          addLog(`INDEXING REPO: ${config.owner}/${config.repo}...`, "info");
+          const treeRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/git/trees/${config.branch}?recursive=1`, { headers: ghHdr });
+          const treeData = await treeRes.json();
+          if (!treeData.tree) throw new Error("REPO_ACCESS_FAILED");
+          fullTreeRef.current = treeData.tree.filter(n => n.type === "blob" && n.path.endsWith(".py"));
+          addLog(`INDEXED ${fullTreeRef.current.length} SOURCE FILES`, "ok");
+        }
+
+        const startIndex = fileCursorRef.current;
+        const batch = fullTreeRef.current.slice(startIndex, startIndex + 5);
+        if (batch.length === 0) {
+          addLog("INDEX EXHAUSTED - RESTARTING FROM FILE 0", "hallucinate");
+          fileCursorRef.current = 0; continue;
+        }
+
+        addLog(`STARTING BATCH: [${startIndex + 1} TO ${startIndex + batch.length}]`, "info");
+        const processedInThisBatch = [];
+
+        for (let i = 0; i < batch.length; i++) {
+          if (!activeRef.current) break;
+          const currentNode = batch[i];
+          addLog(`READING SOURCE: ${currentNode.path}`, "info");
+          const nodeRes = await fetch(currentNode.url, { headers: ghHdr });
+          const nodeData = await nodeRes.json();
+          const nodeContent = utf8B64Decode(nodeData.content);
+
+          addLog(`SYNTHESIZING: ${currentNode.path.split('/').pop()}`, "ok");
+          const nextCode = await callAIChainWithRetry(nodeContent, codeRef.current);
+          
+          if (nextCode && activeRef.current) {
+            codeRef.current = nextCode;
+            setDisplayCode(nextCode);
+            processedInThisBatch.push(currentNode.path);
+            
+            const targetUrl = `https://api.github.com/repos/craighckby-stack/Test-1/contents/${config.file}`;
+            const cur = await fetch(`${targetUrl}?ref=Nexus-Database`, { headers: ghHdr });
+            const curData = cur.ok ? await cur.json() : null;
+
+            const putRes = await fetch(targetUrl, {
+              method: "PUT", headers: ghHdr,
+              body: JSON.stringify({
+                message: `◈ SYNTHESIS CYCLE: ${currentNode.path} ◈`,
+                content: utf8B64Encode(nextCode),
+                sha: curData?.sha,
+                branch: "Nexus-Database"
+              })
+            });
+            if (putRes.ok) addLog(`SUCCESSFULLY ASSIMILATED: ${currentNode.path}`, "ok");
+            else addLog(`SYNC FAILED [${putRes.status}]: ${currentNode.path}`, "err");
+          }
+          setProgress(((i + 1) / batch.length) * 100);
+          if (activeRef.current) { addLog("STABILIZING (25s COOLDOWN)..."); await wait(25000); }
+        }
+
+        if (activeRef.current && processedInThisBatch.length > 0) {
+          addLog("BATCH COMPLETE: UPDATING ENHANCER LOG...", "hallucinate");
+          const readmeText = await generateReadmeUpdate(processedInThisBatch);
+          const enhancerLogUrl = `https://api.github.com/repos/craighckby-stack/Test-1/contents/README-ENHANCER.md`;
+          
+          const existingLog = await fetch(`${enhancerLogUrl}?ref=Nexus-Database`, { headers: ghHdr });
+          let newContent = "";
+          let logSha = null;
+
+          if (existingLog.ok) {
+            const logData = await existingLog.json();
+            logSha = logData.sha;
+            newContent = utf8B64Decode(logData.content) + "\n\n---\n\n### Batch Enhancement: " + new Date().toLocaleString() + "\n" + readmeText;
+          } else {
+            newContent = "# NEXUS ENHANCER LOG\n\nThis document tracks enhancements.\n\n" + readmeText;
+          }
+
+          const logPut = await fetch(enhancerLogUrl, {
+            method: "PUT", headers: ghHdr,
+            body: JSON.stringify({
+              message: "◈ LOGGING CORE ENHANCEMENTS ◈",
+              content: utf8B64Encode(newContent),
+              sha: logSha,
+              branch: "Nexus-Database"
+            })
+          });
+
+          if (logPut.ok) {
+            addLog("ENHANCER LOG UPDATED SUCCESSFULLY", "ok");
+            enhancementHistoryRef.current = newContent.slice(-1500); // Update history memory
+          } else {
+            addLog("ENHANCER LOG SYNC FAILED", "err");
+          }
+        }
+
+        if (activeRef.current) {
+          fileCursorRef.current += batch.length;
+          addLog(`BATCH FINISHED. CURSOR AT ${fileCursorRef.current}. PURGING LOCAL MEMORY.`, "hallucinate");
+          codeRef.current = ""; await wait(2000); 
+        }
+      }
+    } catch (e) { addLog(`CRITICAL ERROR: ${e.message}`, "err"); haltProcess(); }
+  };
+
+  return (
+    <div className="dalek-shell">
+      <style>{STYLES}</style>
+      <div className="header"><h1 className="title">BOOTSTRAPPER</h1></div>
+      <div className="main-container">
+        <div className="panel">
+          <div className="panel-hdr">NEXUS CONTROL SYSTEM</div>
+          <div className="panel-body">
+            <input className="input-field" type="password" placeholder="CEREBRAS API" value={tokens.cerebras} onChange={e => setTokens({...tokens, cerebras: e.target.value})} />
+            <input className="input-field" type="password" placeholder="GITHUB TOKEN" value={tokens.github} onChange={e => setTokens({...tokens, github: e.target.value})} />
+            <div style={{display:'flex', gap:'5px', fontSize:'0.7rem', color:'#660000', marginBottom:'5px'}}>
+              Source: {config.owner}/{config.repo} | Global Index: {fileCursorRef.current}
+            </div>
+            <div style={{display:'flex', gap:'5px'}}>
+              <input className="input-field" placeholder="Target Branch" value="Nexus-Database" disabled />
+              <input className="input-field" placeholder="Target File" value={config.file} onChange={e => setConfig({...config, file: e.target.value})} />
+            </div>
+            <button className={`btn-go ${loading ? 'btn-stop' : ''}`} onClick={loading ? haltProcess : runSync}>
+              {loading ? "HALT ASSIMILATION" : "ENGAGE PERPETUAL SYNTHESIS"}
+            </button>
+            <button className="btn-reset" onClick={clearMemory}>WIPE CACHE & PROGRESS</button>
+            <div className="log-wrap">
+              {logs.map((l, i) => <div key={i} className={`le le-${l.type}`}>{l.text}</div>)}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+          <div className="progress-track"><div className="progress-fill" style={{width:`${progress}%`}}></div></div>
+        </div>
+        <div className="panel">
+          <div className="panel-hdr">ALGORITHMIC REALITY STREAM</div>
+          <div className="code-view">{displayCode || "# STANDBY FOR ASSIMILATION PROTOCOLS..."}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 from __future__ import annotations
 import collections
 import functools
