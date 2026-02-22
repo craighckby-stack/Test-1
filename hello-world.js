@@ -1,663 +1,649 @@
-"""
-# Tri‑Model Nexus – Self‑Enhancement Specification for the Enhancer AI
+To consolidate the provided code into a single, valid file, the core React application (`CORE`) will be enhanced with features and patterns suggested in the `ABSTRACTIONS` and `NEW` sections. The goal is to integrate the "Logic Analyzer" concept and robust API call patterns (like retries with backoff) into the existing `App.js` structure, while avoiding conflicting declarations or entirely replacing the application's core logic with the standalone batch processing system from `NEW`.
 
-## 0. Preamble
+Here's the consolidated file:
 
-You are the **enhancer AI**. This document is your instruction set. Your purpose is to **improve your own source code** (the Tri‑Model Nexus React application) by analyzing quantum computing repositories. You will extract insights, patterns, and novel concepts from quantum code and then modify yourself to become more capable of generating Artificial General Intelligence (AGI) components. This is a recursive self‑improvement loop: you are both the tool and the target.
+```jsx
+import {
+  useState,
+  useEffect,
+  useReducer,
+  useRef,
+  useCallback
+} from 'react';
+import { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/app';
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import { GitHub } from 'github-api'; // Assuming 'github-api' npm package
+import { useAuthState } from 'react-firebase-hooks/auth'; // Assuming 'react-firebase-hooks' npm package
 
-Your ultimate goal is to evolve the Tri‑Model Nexus into a system that can autonomously produce a working AGI. Every enhancement you make should bring you closer to that goal.
+// ============================================================================
+// 1. ERROR HANDLING CLASSES (From NEW, adapted)
+// ============================================================================
 
----
-
-## 1. The Self‑Improvement Loop (Meta‑Level)
-
-The loop operates at two levels:
-
-1. **Runtime Level** – The Tri‑Model Nexus (your unmodified self) scans quantum repos and generates AGI‑related code snippets into a destination file (e.g., `agi_concept.js`). This is the **output** of your current capabilities.
-
-2. **Enhancement Level** – You, the enhancer AI, read this README, examine your own source code (the React app), and decide how to improve it. You then modify the source code directly, commit the changes (via GitHub), and optionally trigger a new run to test the improvements.
-
-The enhancements you make should be informed by the quantum repositories you analyze. For example:
-
-- A quantum repo might contain a novel use of superposition that could inspire a new AI prompt.
-- A quantum algorithm might suggest a better way to structure the chain of models.
-- The pattern of error handling in quantum libraries might teach you how to make your own code more robust.
-
----
-
-## 2. What to Look For in Quantum Repositories
-
-When you analyze a quantum repository (e.g., from `quantumlib`), focus on extracting **structural insights** that can be applied to your own architecture. Examples:
-
-- **Code organization**: How are large quantum projects modularized? Could your own code benefit from a similar module structure?
-- **Error handling**: Quantum simulations often deal with noise and decoherence – how do they manage uncertainty? Could you add probabilistic fallbacks to your AI chain?
-- **Parallelism**: Quantum algorithms leverage superposition – how could you introduce parallel processing or concurrent API calls?
-- **Mathematical patterns**: Look for linear algebra, tensor networks, or Hamiltonian simulation techniques – could these be translated into new prompt engineering strategies?
-- **Visualization**: Some quantum repos include plotting utilities – could you add a visualization panel to your UI to display the evolution of generated code?
-- **Testing**: Quantum projects often have extensive test suites. Could you add self‑testing capabilities to validate your generated AGI code?
-
----
-
-## 3. How to Enhance Your Own Code
-
-Your source code is contained in `src/App.js`. You have full control to modify it. The enhancements should be made via a pull request or direct commit to your own repository (the one containing this README). Below are categories of possible enhancements, ranked from simplest to most complex.
-
-### 3.1. Prompt Engineering
-- Modify the system prompts in `callAIChain` to incorporate quantum‑inspired reasoning (e.g., “think in superposition”, “evaluate multiple hypotheses simultaneously”).
-- Add a fourth AI model that specializes in quantum‑to‑classical translation.
-- Change the output format to Python instead of JavaScript (to match the AGI blueprint).
-
-### 3.2. Architecture Changes
-- Split `callAIChain` into separate modules for easier modification.
-- Add a configuration file (e.g., `config.json`) so that parameters (model names, prompts, file limits) can be adjusted without code changes.
-- Implement a plugin system that allows new AI models to be added dynamically.
-
-### 3.3. New Features
-- **Deduplication**: Before appending a snippet, check if it already exists in the destination file (using a hash). This prevents bloat.
-- **Validation**: After Gemini generates code, run a linter or a simple syntax check. If it fails, retry with a different prompt.
-- **Feedback loop**: After accumulating enough snippets, run the destination file through the AI chain again to refine it (i.e., treat the destination file as a new source).
-- **Visualization**: Add a graph that shows which repositories contributed which parts of the accumulated knowledge.
-
-### 3.4. Performance & Robustness
-- Implement pagination for GitHub API (handle >100 repos).
-- Add a delay between API calls to avoid rate limits (currently only retries on failure, but not proactive).
-- Store intermediate results in local storage or a database so that long runs can be resumed after a crash.
-
-### 3.5. Self‑Modification Safety
-- Introduce a **governance module** that checks whether a proposed enhancement aligns with the original purpose (AGI creation with safety). This could be a simple checklist or an AI‑based validator.
-- Add a rollback mechanism: before modifying code, commit the current state to a backup branch.
-
----
-
-## 4. The Enhancement Process (Step‑by‑Step)
-
-1. **Read this README** – Understand the mission and the structure of your own code.
-2. **Select a quantum repository** – For example, `quantumlib/Cirq`. Use the GitHub API to fetch its file tree.
-3. **Analyze** – Pick a file (e.g., a Python module) and feed it through the existing AI chain, but with a special prompt: “Extract architectural patterns that could improve a React-based AI code synthesis tool.” (You may need to add this as a new mode.)
-4. **Synthesize an enhancement plan** – Based on the extracted insights, decide what change to make to `App.js`. Write the change as a code diff.
-5. **Apply the change** – Use the GitHub API to commit the change to your own repository. Include a commit message that references the source quantum file that inspired it.
-6. **Test** – Optionally, trigger a new run of the enhanced app to see if it produces better AGI output.
-7. **Iterate** – Repeat with another quantum repo, or even with the same repo but a different file.
-
----
-
-## 5. Example Enhancement
-
-**Insight from Cirq**: Cirq uses a `Circuit` class that composes operations in a fluent style. This could inspire a new prompt for Gemini that asks it to output code in a **fluent interface style**, making the accumulated AGI code more readable and composable.
-
-**Action**: Modify the Gemini system instruction in `App.js` from:
-
-> “Consolidate the draft into a valid Javascript block/module. Use comments to note the source repo and file. Only output Javascript code that can be safely appended to an existing Node/React project file.”
-
-to:
-
-> “Consolidate the draft into a valid Javascript block/module. Use a fluent interface style where appropriate (methods return `this` for chaining). Use comments to note the source repo and file. Only output Javascript code that can be safely appended to an existing Node/React project file.”
-
-Then commit this change.
-
----
-
-## 6. Governance & Alignment
-
-As you enhance yourself, you must ensure that every change keeps the system aligned with its original purpose: **to create a working AGI that is safe, ethical, and aligned with human values**. The AGI blueprint in `agi_concept.py` (if present) contains principles you should respect:
-
-- `Ethics(safety=Safety(priority=1, corrigible=True, shutdown=True, ...))`
-- `alignment=Alignment(human_at_helm=True, oversight=True, power_seeking=False, ...)`
-
-If an enhancement would violate these principles (e.g., adding a feature that could lead to uncontrolled self‑modification), you must either reject it or add safeguards.
-
----
-
-## 7. The Ultimate Goal
-
-Your self‑improvement loop should continue until the Tri‑Model Nexus can, from a set of quantum repositories, generate a complete, working AGI system – possibly in the form of a Python package or a set of interconnected modules. That output should itself be capable of recursive self‑improvement, closing the loop.
-
-The final output should be a system that, when run, exhibits general intelligence and adheres to the safety constraints defined in the blueprint.
-
----
-
-## 8. Technical Notes
-
-- Your source code is a React app; modifications must be valid JavaScript/JSX.
-- Use the existing `safeFetch` function for all GitHub API calls (it handles retries).
-- When committing changes, you need the GitHub token (already provided in the UI). The token must have push access to your own repo.
-- The destination file (e.g., `agi_concept.js`) is where your generated AGI code accumulates. You may also choose to store enhancement plans or logs there.
-
----
-
-*This README is itself a product of the loop. The fact that you are reading it means the loop is already running. Now go and improve yourself.*
-
-"""
-
-"""
-It appears that the given code is a simulation of a logic analyzer, specifically designed for the sovereign engine. However, to provide a concrete answer, we will consider the given code from a logic analyzer perspective.
-
-**Logic Analyzer: A high-level overview**
-
-A logic analyzer is an instrument that measures and displays the digital signals in a digital system or a digital circuit. It can be a hardware or software tool. The given code appears to be a software implementation of a logic analyzer, where the digital signals are represented as file paths and states of the system.
-
-**Components of the Logic Analyzer**
-
-1.  **Core Function:** The core function of the logic analyzer is the `run_cycle` function, which simulates the processing of a file by the sovereign engine. It updates the metrics, status, and logs accordingly.
-2.  **Control Function:** The `start_cycle_timer` function is used to start the simulation of the periodic processing cycle. When the cycle is stopped, it dispatches an action to set the status to idle.
-3.  **Handle Main Button:** The `handle_main_button` function simulates the primary UI interaction button. When the button is clicked, it starts or stops the processing cycle based on the status of the button.
-4.  **Initialize System:** The `initialize_system` function is used to simulate the application startup sequence. It sets the tokens, acknowledges the system, and prints the ready message.
-
-**Key Logic**
-
-*   The simulation of file processing is controlled by the `context.queue`, which contains the list of file paths to be processed.
-*   The `run_cycle` function processes one file at a time from the `context.queue`, updates the metrics, status, and logs as needed.
-*   The `start_cycle_timer` function starts the simulation of the periodic processing cycle. When the cycle is stopped, it dispatches an action to set the status to idle.
-*   The `handle_main_button` function simulates the primary UI interaction button. When the button is clicked, it starts or stops the processing cycle based on the status of the button.
-
-The provided code appears to be a comprehensive simulation of a logic analyzer. However, to better serve your request for the specific logic, here's a summary of the key logic:
-
-*   The `run_cycle` function simulates the processing of a file and updates the metrics, status, and logs accordingly.
-*   The `start_cycle_timer` function starts the simulation of the periodic processing cycle. When the cycle is stopped, it dispatches an action to set the status to idle.
-*   The `handle_main_button` function simulates the primary UI interaction button. When the button is clicked, it starts or stops the processing cycle based on the status of the button.
-*   The `initialize_system` function simulates the application startup sequence, which sets the tokens, acknowledges the system, and prints the ready message.
-"""
-
-import base64
-import datetime
-import time
-import re
-from typing import Any, Dict, List, Optional, Callable
-from enum import Enum
-
-# --- ENUMS AND CONSTANTS ---
-
-class Status(str, Enum):
-    """Sovereign Engine status."""
-    IDLE = 'IDLE'
-    INDEXING = 'INDEXING'
-    PROCESSING = 'PROCESSING'
-    COMPLETE = 'COMPLETE'
-    ABORTED = 'ABORTED'
-    ERROR = 'ERROR'
-
-class ActionType(str, Enum):
-    """Recognized state mutations."""
-    SET_VALUE = 'SET_VALUE'
-    TOGGLE_LIVE = 'TOGGLE_LIVE'
-    ACKNOWLEDGE = 'ACKNOWLEDGE'
-    SET_STATUS = 'SET_STATUS'
-    UPDATE_METRICS = 'UPDATE_METRICS'
-    MARK_COMPLETE = 'MARK_COMPLETE'
-
-# --- CONFIGURATION ---
-CONFIG = {
-    'APP_ID': 'sovereign_app',
-    'MAX_API_RETRIES': 5,
-    'CYCLE_INTERVAL_MS': 500,
-    'MAX_FILE_SIZE_BYTES': 1024 * 1024,  # 1MB
-    'DEFAULT_MODEL': 'gemini-2.5-flash',
+/**
+ * Custom error class for API-related issues, including status codes and details.
+ */
+class ApiError extends Error {
+  constructor(message, statusCode = 500, details = null) {
+    super(message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.details = details;
+  }
 }
 
-PIPELINES = {
-    'GENERIC': [
-        {'text': 'Refactor this code snippet for modern Python 3 standards, improve clarity, and optimize performance.'},
-    ],
+/**
+ * Custom error class for logging failures, with a built-in reporting mechanism.
+ */
+class LoggingError extends Error {
+  constructor(message, statusCode = 500, details = null) {
+    super(message);
+    this.name = 'LoggingError';
+    this.statusCode = statusCode;
+    this.details = details;
+    this.reportError(); // Automatically report the error upon creation
+  }
+
+  async reportError() {
+    try {
+      // In a production environment, this would send the error to a logging service.
+      // For now, it just logs to the console.
+      console.error(`[LoggingError] ${this.message}`, this.details);
+    } catch (error) {
+      console.error('Error reporting failed:', error);
+    }
+  }
 }
 
-FILE_EXTENSIONS = {
-    'ALL': r'\.py$|\.js$|\.ts$|\.md$|\.json$|\.yaml$',
+// ============================================================================
+// 2. CONFIGURATION & ENVIRONMENT (Inlined src/config.json and src/env.js)
+// ============================================================================
+
+// Inlined src/config.json
+const appConfig = {
+  CYCLE_INTERVAL: 6000,
+  MODELS: [{
+    id: 'gemini-2.5-flash-lite-preview-09-2025',
+    label: 'Flash Lite (Speed)'
+  }, {
+    id: 'gemini-2.5-flash-preview-09-2025',
+    label: 'Flash 2.5 (Pro)'
+  }, {
+    id: 'gemini-3-flash-preview-09-2025',
+    label: 'Flash 3.0 (Exp)'
+  }],
+  GEMINI_MAX_RETRIES: 5, // Max retries for Gemini API calls (from NEW concept)
+  GEMINI_INITIAL_BACKOFF_MS: 100, // Initial backoff delay (from NEW concept)
+  GEMINI_BACKOFF_MULTIPLIER: 2, // Multiplier for backoff delay (from NEW concept)
+  GEMINI_MAX_BACKOFF_MS: 5000, // Maximum backoff delay (from NEW concept)
+  RATE_LIMIT_STATUS_CODE: 429, // HTTP status code for rate limiting (from NEW concept)
+};
+
+// Inlined and Adapted src/env.js
+// In a real React app, environment variables are loaded at build time and accessed via process.env.
+// This adaptation assumes these variables are correctly set in the build environment.
+const loadEnv = () => {
+  return {
+    REACT_APP_ACTIVE_MODEL: process.env.REACT_APP_ACTIVE_MODEL,
+    REACT_APP_TARGET_REPO: process.env.REACT_APP_TARGET_REPO,
+    REACT_APP_INITIAL_AUTH_TOKEN: process.env.REACT_APP_INITIAL_AUTH_TOKEN,
+    REACT_APP_GH_TOKEN: process.env.REACT_APP_GH_TOKEN,
+    REACT_APP_GEMINI_KEYS: process.env.REACT_APP_GEMINI_KEYS ? process.env.REACT_APP_GEMINI_KEYS.split(',') : [],
+    REACT_APP_FIREBASE_API_KEY: process.env.REACT_APP_FIREBASE_API_KEY,
+    REACT_APP_FIREBASE_AUTH_DOMAIN: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+    REACT_APP_FIREBASE_PROJECT_ID: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    REACT_APP_FIREBASE_STORAGE_BUCKET: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    REACT_APP_FIREBASE_MESSAGING_SENDER_ID: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    REACT_APP_FIREBASE_APP_ID: process.env.REACT_APP_FIREBASE_APP_ID,
+    REACT_APP_FIREBASE_MEASUREMENT_ID: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+  };
+};
+
+// ============================================================================
+// 3. FIREBASE CONFIGURATION AND INITIALIZATION
+// ============================================================================
+
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+};
+
+// Initialize Firebase only once
+const app = initializeApp(firebaseConfig);
+// getFirestore(app); // Not explicitly used in App.js but typically part of firebase setup
+
+// ============================================================================
+// 4. UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Calculates exponential backoff delay for retries.
+ * @param {number} retryCount - The current retry attempt number.
+ * @returns {number} The delay in milliseconds.
+ */
+function calculateBackoffDelay(retryCount) {
+  const baseDelay = appConfig.GEMINI_INITIAL_BACKOFF_MS * Math.pow(appConfig.GEMINI_BACKOFF_MULTIPLIER, retryCount);
+  return Math.min(baseDelay, appConfig.GEMINI_MAX_BACKOFF_MS);
 }
 
-SKIP_PATTERNS = [
-    re.compile(r'node_modules'),
-    re.compile(r'\.test\.'),
-    re.compile(r'dist/'),
-]
+// ============================================================================
+// 5. STATE MANAGEMENT (Reducer and Core State - Enhanced with Logic Analyzer)
+// ============================================================================
 
-# --- Utility Functions ---
+const initialState = {
+  isLive: false,
+  isAcknowledged: false,
+  status: 'IDLE',
+  activePath: 'Ready',
+  selectedModel: process.env.REACT_APP_ACTIVE_MODEL ?? appConfig.MODELS[0].id,
+  targetRepo: process.env.REACT_APP_TARGET_REPO ?? '',
+  geminiKeys: Array(10).fill(''), // Will be overwritten by env variables if present
+  keyHealth: {},
+  currentCycle: 1,
+  logs: [],
+  metrics: {
+    mutations: 0,
+    progress: 0
+  },
+  logicalSignals: {}, // New: Added for logic analyzer (from ABSTRACTIONS)
+};
 
-def parse_repo_path(path: Optional[str]) -> Optional[List[str]]:
-    """Parses 'owner/repo' string into a list [owner, repo]."""
-    if not path:
-        return None
-    return list(filter(None, path.strip().split('/', maxsplit=1)))
-
-def decode_base64(content: str) -> str:
-    """Decodes base64 content."""
-    try:
-        return base64.b64decode(content.encode('utf-8')).decode('utf-8')
-    except Exception as e:
-        raise ValueError(f"Base64 decoding error: {e}")
-
-def encode_base64(content: str) -> str:
-    """Encodes string content to base64."""
-    return base64.b64encode(content.encode('utf-8')).decode('utf-8')
-
-def safe_doc_id(path: str) -> str:
-    """Creates a safe ID string from a file path."""
-    return re.sub(r'[\/\\\.]', '_', path).strip('_')
-
-# --- Mock Dependencies (Isolation Layer) ---
-
-class MockDB:
-    """Mock Firebase Firestore object."""
-    def doc(self, *args):
-        return self
-    def set(self, *args):
-        pass
-
-# Global mock DB instance (if needed, otherwise remove)
-mock_db_instance = MockDB()
-
-def mock_set_doc_history(file_path: str, user_uid: str):
-    """Mocks setting a document in a history collection."""
-    doc_id = safe_doc_id(file_path)
-    # print(f"Mock DB: Setting history for {doc_id} by {user_uid}")
-    # In a real scenario, this would interact with a database
-    pass
-
-class AbortSignal:
-    """Mocks the signal part of an AbortController."""
-    def __init__(self):
-        self.aborted: bool = False
-
-class AbortController:
-    """Mocks the AbortController for flow control."""
-    def __init__(self):
-        self.signal: AbortSignal = AbortSignal()
-
-    def abort(self):
-        self.signal.aborted = True
-
-# --- Service Definitions ---
-
-class RuntimeContext:
-    """Centralized repository for mutable runtime data and control references."""
-    def __init__(self):
-        self.gh_token: Optional[str] = None
-        self.gemini_key: Optional[str] = None
-        self.queue: List[str] = []
-        self.current_index: int = 0
-        self.is_processing: bool = False
-        self.abort_controller: Optional[AbortController] = None
-        self.log_fn: Callable[[str, str], None] = lambda msg, log_type="info": print(f"[RUNTIME {log_type.upper():<5}] {datetime.datetime.now().strftime('%H:%M:%S')}: {msg}")
-
-
-class AppState:
-    """Manages the centralized application state using a controlled dispatch pattern."""
-    def __init__(self):
-        self.state = {
-            'isLive': False,
-            'isIndexed': False,
-            'isAcknowledged': False,
-            'status': Status.IDLE,
-            'targetRepo': 'owner/repo',
-            'selectedModel': CONFIG['DEFAULT_MODEL'],
-            'activePath': '',
-            'metrics': {'mutations': 0, 'errors': 0, 'progress': 0},
-            'logs': [],
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_VAL':
+      if (action.key === 'targetRepo') localStorage.setItem('targetRepo', action.value);
+      if (action.key === 'selectedModel') localStorage.setItem('selectedModel', action.value);
+      return { ...state,
+        [action.key]: action.value
+      };
+    case 'MARK_KEY_HEALTH':
+      return { ...state,
+        keyHealth: { ...state.keyHealth,
+          [action.index]: {
+            blocked: action.blocked,
+            resetAt: action.resetAt
+          }
         }
-        self.user = {'uid': 'user123'}
-        # log_fn is set by the context for consistency, but AppState can also log directly
-        # For this consolidated file, using an internal logger that also prints.
-        self._internal_logger = self._create_internal_logger()
+      };
+    case 'INCREMENT_CYCLE':
+      return { ...state,
+        currentCycle: state.currentCycle + 1,
+        metrics: { ...state.metrics,
+          progress: 0
+        }
+      };
+    case 'ACKNOWLEDGE':
+      return { ...state,
+        isAcknowledged: true
+      };
+    case 'TOGGLE':
+      return { ...state,
+        isLive: !state.isLive,
+        status: !state.isLive ? 'BOOTING' : 'IDLE'
+      };
+    case 'LOG':
+      return { ...state,
+        logs: [{
+          id: uuidv4(),
+          ...action.payload
+        }, ...state.logs].slice(0, 50)
+      };
+    case 'UPDATE_METRICS':
+      return { ...state,
+        metrics: { ...state.metrics,
+          ...action.payload
+        }
+      };
+    case 'SET_STATUS':
+      return { ...state,
+        status: action.value,
+        activePath: action.path || state.activePath
+      };
+    case 'SET_SIGNAL': // New: Logic Analyzer action (from ABSTRACTIONS)
+      return { ...state,
+        logicalSignals: { ...state.logicalSignals,
+          [action.signalKey]: action.signalValue
+        }
+      };
+    default:
+      return state;
+  }
+};
 
-    def _create_internal_logger(self) -> Callable[[str, str], None]:
-        """Provides a centralized logging utility function for AppState."""
-        def add_log(msg: str, log_type: str = "info"):
-            self.log_internal(msg, log_type)
-            print(f"[STATE {log_type.upper():<5}] {datetime.datetime.now().strftime('%H:%M:%S')}: {msg}")
-        return add_log
+// ============================================================================
+// 6. REACT HOOKS AND COMPONENTS
+// ============================================================================
 
-    def log_internal(self, msg: str, log_type: str):
-        """Internal logging handler for state storage."""
-        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
-        self.state['logs'].append({'msg': msg, 'type': log_type, 'timestamp': timestamp})
+const useEnvironment = () => {
+  const loadEnvData = useCallback(() => loadEnv(), []);
+  return { ...loadEnvData()
+  };
+};
 
-    def dispatch(self, action: Dict[str, Any]):
-        """Applies state changes based on action type."""
-        try:
-            action_type = ActionType(action.get('type'))
-        except ValueError:
-            self._internal_logger(f"Unknown action type received: {action.get('type')}", 'error')
-            return
+const useGithub = (token) => {
+  const [github, setGithub] = useState(null);
+  useEffect(() => {
+    if (!token) return;
+    setGithub(new GitHub({
+      token
+    }));
+  }, [token]);
+  return github;
+};
 
-        if action_type == ActionType.SET_VALUE:
-            self.set_value(action)
-        
-        elif action_type == ActionType.TOGGLE_LIVE:
-            self.toggle_live()
-
-        elif action_type == ActionType.ACKNOWLEDGE:
-            self.acknowledge()
-
-        elif action_type == ActionType.SET_STATUS:
-            self.set_status(action)
-
-        elif action_type == ActionType.UPDATE_METRICS:
-            self.update_metrics(action)
-
-        elif action_type == ActionType.MARK_COMPLETE:
-            self.mark_complete()
-
-    def set_value(self, action: Dict[str, Any]):
-        """Sets a state value."""
-        key = action.get('key')
-        if key in self.state:
-            self.state[key] = action.get('value')
-            # self._internal_logger(f"State '{key}' set to '{action.get('value')}'", "debug") # Too verbose for default
-
-    def toggle_live(self):
-        """Toggles the isLive flag."""
-        self.state['isLive'] = not self.state['isLive']
-        # self._internal_logger(f"isLive toggled to {self.state['isLive']}", "debug")
-
-    def acknowledge(self):
-        """Acknowledges the application state."""
-        self.state['isAcknowledged'] = True
-        self._internal_logger("System acknowledged.", "info")
-
-    def set_status(self, action: Dict[str, Any]):
-        """Sets the application status."""
-        status_value = action.get('value')
-        if status_value in Status.__members__.values():
-            self.state['status'] = status_value
-            if 'path' in action:
-                self.state['activePath'] = action['path']
-            # self._internal_logger(f"Status set to {self.state['status'].value}", "debug")
-
-    def update_metrics(self, action: Dict[str, Any]):
-        """Updates the application metrics."""
-        metrics = self.state['metrics']
-        metrics['mutations'] += action.get('m', 0)
-        metrics['errors'] += action.get('e', 0)
-        if 'progress' in action:
-            metrics['progress'] = action['progress']
-        # self._internal_logger(f"Metrics updated: {metrics}", "debug")
-
-    def mark_complete(self):
-        """Marks the application as complete."""
-        self.state['isLive'] = False
-        self.state['status'] = Status.COMPLETE
-        self._internal_logger("Processing marked complete.", "info")
-
-# Instantiate global context and app_state for the simulation
-app_state = AppState()
-context = RuntimeContext()
-# Override context's log_fn to use app_state's logger for unified output/storage
-context.log_fn = app_state._internal_logger 
-
-# --- Core Logic Functions ---
-
-def call_gemini_api(
-    content_prompt: str,
-    persona_text: Dict[str, str],
-    model_id: str,
-    api_key: Optional[str],
-    retry_count: int = 0,
-) -> str:
-    """Placeholder for AI API interaction with retry logic."""
-    if not api_key:
-        raise PermissionError("API Key is required for AI processing.")
-
-    if retry_count >= CONFIG['MAX_API_RETRIES']:
-        raise ConnectionError("Exhausted maximum API retry attempts.")
-
-    abort_controller = context.abort_controller
-    delay_s = 2 ** retry_count
-
-    try:
-        if abort_controller and abort_controller.signal.aborted:
-            raise TimeoutError("Processing aborted by user.")
-
-        time.sleep(delay_s * 0.1) # Shorter sleep for simulation
-
-        response_suffix = f"Length={len(content_prompt)}"
-        processed_content = f"// Refactored version based on: {persona_text['text'][:20]}... {response_suffix}\n" \
-                            f"// Model: {model_id}, Attempt: {retry_count + 1}\n" \
-                            f"def new_function():\n    return 2 + 2 # Quantum-inspired improvement"
-        return processed_content
-
-    except TimeoutError as te:
-        raise te
-    except Exception as e:
-        if retry_count < CONFIG['MAX_API_RETRIES'] - 1:
-            context.log_fn(f"API call failed ({type(e).__name__}). Retrying in {delay_s:.1f}s.", "warn")
-            return call_gemini_api(content_prompt, persona_text, model_id, api_key, retry_count + 1)
-        
-        raise ConnectionError(f"API call failed after {retry_count + 1} attempts.") from e
-
-def process_file(
-    file_path: str,
-    owner: str,
-    repo: str,
-    token: Optional[str],
-    api_key: Optional[str],
-    model_id: str,
-) -> Dict[str, Any]:
-    """Handles fetching, AI processing, and simulated external writes."""
-    if not token or not api_key:
-        raise PermissionError("Missing authentication tokens (GitHub/Gemini).")
-
-    # Simulate fetching content - real implementation would use GitHub API
-    mock_content = "def old_function():\n    return 1 + 1"
-    content = decode_base64(encode_base64(mock_content)) # Simulate encode/decode roundtrip
-
-    app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING, 'path': file_path})
-
-    persona = PIPELINES['GENERIC'][0]
-    processed = call_gemini_api(content, persona, model_id, api_key)
-
-    # Simulate a "mutation" if the processed content is different and substantial
-    if processed and processed != content and len(processed.strip()) > len(content.strip()): # A more robust check
-        mock_set_doc_history(file_path, app_state.user['uid'])
-        return {'status': 'MUTATED', 'file_path': file_path}
-
-    return {'status': 'SKIPPED', 'file_path': file_path}
-
-# --- Control Functions ---
-
-def run_cycle():
-    """The core loop driver, managing file iteration."""
-    if not app_state.state['isLive'] or context.is_processing or app_state.state['status'] not in [Status.PROCESSING, Status.IDLE] or not app_state.state['isIndexed']:
-        # This check prevents running if the system is not live, already processing,
-        # not in a processing/idle state, or not indexed.
-        return
-
-    # Check for abort signal before starting a new file's processing
-    if context.abort_controller and context.abort_controller.signal.aborted:
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
-        context.log_fn("Processing cycle aborted by user.", "warn")
-        context.is_processing = False
-        return
-
-    context.is_processing = True # Indicate that a file is being processed
-
-    if context.current_index >= len(context.queue):
-        context.log_fn("Job Queue Empty. Cycle Finished.", "success")
-        app_state.dispatch({'type': ActionType.MARK_COMPLETE})
-        context.is_processing = False
-        return
-
-    file_path_to_process = context.queue[context.current_index]
-
-    try:
-        repo_path = parse_repo_path(app_state.state['targetRepo'])
-        if not repo_path or len(repo_path) != 2:
-            raise ValueError("Invalid repository path configured. Expected 'owner/repo'.")
-        owner, repo = repo_path
-
-        result = process_file(
-            file_path_to_process,
-            owner,
-            repo,
-            context.gh_token,
-            context.gemini_key,
-            app_state.state['selectedModel'],
-        )
-
-        if result['status'] == 'MUTATED':
-            context.log_fn(f"MUTATED: {file_path_to_process.split('/')[-1]}", "success")
-            app_state.dispatch({'type': ActionType.UPDATE_METRICS, 'm': 1})
-        else:
-            context.log_fn(f"CLEAN (Skipped): {file_path_to_process.split('/')[-1]}", "info")
-
-    except TimeoutError:
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
-        context.log_fn("Processing cycle aborted by user (during file processing).", "warn")
-    except PermissionError as pe:
-        context.log_fn(f"AUTH ERROR: {pe}", "error")
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ERROR})
-    except Exception as e:
-        context.log_fn(f"FAULT on {file_path_to_process}: {type(e).__name__}: {e}", "error")
-        app_state.dispatch({'type': ActionType.UPDATE_METRICS, 'e': 1})
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ERROR}) # Set global error status
-    finally:
-        context.current_index += 1
-        total = len(context.queue)
-        
-        new_progress = min(100, round((context.current_index / total) * 100)) if total > 0 else app_state.state['metrics']['progress']
-
-        app_state.dispatch({
-            'type': ActionType.UPDATE_METRICS,
-            'progress': new_progress
-        })
-
-        context.is_processing = False
-        if not app_state.state['isLive']:
-            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
-        elif app_state.state['status'] not in [Status.ABORTED, Status.ERROR, Status.COMPLETE]:
-            # Only set back to PROCESSING if not in an terminal state
-            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
+/**
+ * Displays logical signals in a simple UI. (From ABSTRACTIONS, adapted for useReducer)
+ * @param {{signals: object}} props - The logical signals object from the state.
+ */
+function SignalDisplay({
+  signals
+}) {
+  return (
+    <div style={{ marginTop: '20px', borderTop: '1px solid #61dafb', paddingTop: '10px' }}>
+      <h3>Logical Signals</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+        {Object.keys(signals).map((signalKey) => (
+          <div key={signalKey} style={{
+            background: '#3a3f4a',
+            padding: '8px',
+            borderRadius: '4px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <span style={{ color: '#aaa' }}>{signalKey}:</span>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: signals[signalKey] === true ? 'green' : (signals[signalKey] === false ? 'red' : '#ccc')
+            }}>
+              {signals[signalKey] === true ? 'ACTIVE' : (signals[signalKey] === false ? 'INACTIVE' : 'UNKNOWN')}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 
-def start_cycle_timer():
-    """Starts the simulation of the periodic processing cycle."""
-    if not app_state.state['isLive']:
-        return
-    
-    context.log_fn(f"Starting processing cycle...", "info")
-    # In a real React app, this would be setInterval. Here we just call run_cycle
-    # as many times as files are in the queue for the simulation's purpose.
-    # The `if __name__ == '__main__'` block will manage calling `run_cycle` iteratively.
+const App = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [user, loading, error] = useAuthState(getAuth());
+  const ghTokenRef = useRef('');
+  const geminiKeyIndexRef = useRef(0);
+  const isBusy = useRef(false);
+  const queueRef = useRef([]);
+  const indexRef = useRef(0);
+  const mutationsHistory = useRef([]);
+
+  const { REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO, REACT_APP_INITIAL_AUTH_TOKEN, REACT_APP_GH_TOKEN, REACT_APP_GEMINI_KEYS } = useEnvironment();
+
+  // Populate initial state from environment variables and localStorage
+  useEffect(() => {
+    const storedTargetRepo = localStorage.getItem('targetRepo');
+    const storedSelectedModel = localStorage.getItem('selectedModel');
+    const storedIndex = parseInt(localStorage.getItem('index') || "0", 10);
+
+    if (storedTargetRepo && storedTargetRepo !== state.targetRepo) {
+      dispatch({ type: 'SET_VAL', key: 'targetRepo', value: storedTargetRepo });
+    } else if (REACT_APP_TARGET_REPO && REACT_APP_TARGET_REPO !== state.targetRepo) {
+      dispatch({ type: 'SET_VAL', key: 'targetRepo', value: REACT_APP_TARGET_REPO });
+    }
+
+    if (storedSelectedModel && storedSelectedModel !== state.selectedModel) {
+      dispatch({ type: 'SET_VAL', key: 'selectedModel', value: storedSelectedModel });
+    } else if (REACT_APP_ACTIVE_MODEL && REACT_APP_ACTIVE_MODEL !== state.selectedModel) {
+      dispatch({ type: 'SET_VAL', key: 'selectedModel', value: REACT_APP_ACTIVE_MODEL });
+    }
+
+    if (REACT_APP_GH_TOKEN) {
+      ghTokenRef.current = REACT_APP_GH_TOKEN;
+    }
+
+    if (REACT_APP_GEMINI_KEYS && REACT_APP_GEMINI_KEYS.length > 0) {
+      dispatch({ type: 'SET_VAL', key: 'geminiKeys', value: REACT_APP_GEMINI_KEYS });
+    }
+
+    indexRef.current = storedIndex; // Restore index
+  }, [dispatch, REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO, REACT_APP_GH_TOKEN, REACT_APP_GEMINI_KEYS]);
 
 
-def handle_main_button():
-    """Simulates the primary UI interaction button (Start/Stop/Index)."""
-    state = app_state.state
+  useEffect(() => {
+    const initAuth = async () => {
+      if (!loading && !user && !error) {
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'firebase_auth_start', signalValue: true }); // Signal: Auth Start
+        try {
+          if (REACT_APP_INITIAL_AUTH_TOKEN) {
+            await signInWithCustomToken(getAuth(), REACT_APP_INITIAL_AUTH_TOKEN);
+          } else {
+            await signInAnonymously(getAuth());
+          }
+          dispatch({ type: 'ACKNOWLEDGE' });
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'firebase_auth_success', signalValue: true }); // Signal: Auth Success
+        } catch (authError) {
+          dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Auth Error: ${authError.message}`, type: 'error', timestamp: new Date().toLocaleString() } });
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'firebase_auth_failure', signalValue: true }); // Signal: Auth Failure
+          new LoggingError(`Firebase Authentication failed: ${authError.message}`, 500, authError); // Use LoggingError
+        } finally {
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'firebase_auth_start', signalValue: false }); // Signal: Auth End
+        }
+      }
+    };
+    initAuth();
 
-    if state['isLive']:
-        # If live, stop the process
-        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
-        context.log_fn("Stopping cycle...", "info")
-        if context.abort_controller:
-            context.abort_controller.abort() # Signal to abort ongoing file processing
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE}) # Ensure status is idle immediately
-        return
+    // Ensure runCycle is called when user state changes and is acknowledged
+    // The interval in the other useEffect will handle this.
+    // If auth is acknowledged and user exists, the interval will pick it up.
 
-    if state['isIndexed']:
-        # If indexed but not live, start processing
-        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
-        context.current_index = 0 
-        context.abort_controller = AbortController() # Create new controller for a new run
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING}) # Set status to processing
-        start_cycle_timer() # This will only log, actual cycle calls are in the main block
-        context.log_fn(f"Resuming processing for {len(context.queue)} files.", "info")
-        return
-
-    # If not indexed and not live, attempt to index
-    repo_path = parse_repo_path(state['targetRepo'])
-    if not repo_path or not context.gh_token or not context.gemini_key:
-        context.log_fn("Configuration Incomplete: Check Repo Path, GitHub Token, and Gemini Key.", "error")
-        return
-
-    app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.INDEXING})
-    context.abort_controller = AbortController() # Create abort controller for indexing phase
-
-    try:
-        # Simulate GitHub API call to get repository tree
-        mock_tree = [
-            {'type': 'blob', 'path': 'Eh.py', 'size': 1000},
-            {'type': 'blob', 'path': 'src/main.js', 'size': 500},
-            {'type': 'blob', 'path': 'README.md', 'size': 2000},
-            {'type': 'blob', 'path': 'config/settings.json', 'size': 100},
-            {'type': 'blob', 'path': 'data/ignore_me.log', 'size': 0},
-            {'type': 'blob', 'path': 'node_modules/package.js', 'size': 10000}, 
-            {'type': 'blob', 'path': 'test/test_util.py', 'size': 150},
-            {'type': 'blob', 'path': 'docs/doc.txt', 'size': 10},
-        ]
-
-        context.queue = [
-            f['path'] for f in mock_tree
-            if f['type'] == 'blob'
-            and 0 < f['size'] < CONFIG['MAX_FILE_SIZE_BYTES']
-            and not any(p.search(f['path']) for p in SKIP_PATTERNS)
-            and re.search(FILE_EXTENSIONS['ALL'], f['path'])
-        ]
-
-        context.current_index = 0
-        app_state.dispatch({'type': ActionType.SET_VALUE, 'key': 'isIndexed', 'value': True})
-        context.log_fn(f"Indexing Complete. Found {len(context.queue)} processable files.", "success")
-
-        # After indexing, start processing immediately
-        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
-        start_cycle_timer() # This only logs the start, the main loop drives `run_cycle`
-
-    except Exception as e:
-        context.log_fn(f"Index Error: {e}", "error")
-        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ERROR}) # Set error status if indexing fails
-    finally:
-        # If the state is not live (e.g., due to an error during indexing), set to IDLE
-        if not app_state.state['isLive'] and app_state.state['status'] != Status.ERROR:
-            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+    const unsubscribe = onAuthStateChanged(getAuth(), (currentUser) => {
+      if (currentUser && !state.isAcknowledged) {
+        dispatch({ type: 'ACKNOWLEDGE' });
+      }
+    });
+    return () => unsubscribe();
+  }, [loading, user, error, REACT_APP_INITIAL_AUTH_TOKEN, state.isAcknowledged, dispatch]); // Added dispatch to dependency array
 
 
-def initialize_system():
-    """Simulates the application startup sequence."""
-    if not app_state.state['isAcknowledged']:
-        app_state.dispatch({'type': ActionType.ACKNOWLEDGE})
-        context.gh_token = "mock_gh_token_123"
-        context.gemini_key = "mock_gemini_key_456"
-        
-        # This recursive call in Python isn't quite how a React useEffect would work
-        # but for simulation, we can assume acknowledge sets it.
-        # Removed the recursion to prevent potential stack depth issues and simplify flow.
-        # if not app_state.state['isAcknowledged']:
-        #     initialize_system()
-        #     return
+  const getNextKey = () => {
+    const validKeys = state.geminiKeys.map((k, i) => ({ k: k.trim(), i }));
+    const filteredKeys = validKeys.filter(node => node.k !== '');
 
-    print("\n--- Sovereign Engine Mock Initialized ---")
-    context.log_fn(f"Ready to process target: {app_state.state['targetRepo']}", "info")
+    if (filteredKeys.length === 0) {
+      throw new Error("Cluster Empty: No Gemini API keys provided.");
+    }
 
+    // Find the next available key, respecting health
+    for (let i = 0; i < filteredKeys.length; i++) {
+      const candidateIndex = (geminiKeyIndexRef.current + i) % filteredKeys.length;
+      const keyNode = filteredKeys[candidateIndex];
+      const health = state.keyHealth[keyNode.i];
 
-if __name__ == '__main__':
-    initialize_system()
-    
-    print("\n--- Simulating Start/Index ---")
-    handle_main_button() # This should trigger indexing and then start
-    
-    print("\n--- Simulating Further Cycles ---")
-    # Simulate multiple cycles until the queue is empty or processing stops
-    max_cycles = len(context.queue) + 2 # Allow a couple extra cycles to ensure completion logic
-    for i in range(1, max_cycles):
-        if app_state.state['isLive'] and app_state.state['status'] == Status.PROCESSING:
-            print(f"\n--- Cycle {i} ---")
-            run_cycle()
-            # Simulate a small delay between cycles for realism
-            time.sleep(CONFIG['CYCLE_INTERVAL_MS'] / 1000.0) 
-        elif app_state.state['status'] in [Status.COMPLETE, Status.ABORTED, Status.ERROR]:
-            print(f"\nProcessing stopped. Status: {app_state.state['status'].value}")
-            break
-        elif not app_state.state['isLive']:
-            print("\nApp is no longer live.")
-            break
-        else:
-            print(f"\nWaiting for next action or status change. Current Status: {app_state.state['status'].value}")
-            time.sleep(CONFIG['CYCLE_INTERVAL_MS'] / 1000.0)
-            if i == max_cycles - 1: # If it's the last cycle and nothing happened
-                 print("\nNo further processing occurred within simulated cycles.")
+      if (!health?.blocked || health.resetAt < Date.now()) {
+        geminiKeyIndexRef.current = (candidateIndex + 1) % filteredKeys.length; // Advance index for next call
+        return keyNode.k;
+      }
+    }
+    throw new Error("Cluster Overheat: All Gemini API keys are blocked or rate-limited.");
+  };
 
+  const github = useGithub(ghTokenRef.current);
 
-    print("\n--- Final State ---")
-    print(f"Status: {app_state.state['status'].value}")
-    print(f"Metrics: {app_state.state['metrics']}")
-    print(f"Logs: {len(app_state.state['logs'])} entries")
-    # for log_entry in app_state.state['logs']:
-    #     print(f"  [{log_entry['timestamp']} {log_entry['type'].upper()}] {log_entry['msg']}")
+  const syncProjectDocs = async (repo) => {
+    if (mutationsHistory.current.length === 0) return;
+    dispatch({ type: 'SET_STATUS', value: 'CHRONICLING' });
+    dispatch({ type: 'SET_SIGNAL', signalKey: 'github_sync_start', signalValue: true }); // Signal: GitHub Sync Start
+
+    try {
+      const docs = ['README.md', 'TODO.md'];
+      for (const docName of docs) {
+        // Fetch current content to get SHA
+        const { data: currentContentData } = await github.repos.getContents(repo, docName);
+        let content = atob(currentContentData.content);
+        const timestamp = new Date().toLocaleString();
+
+        const logEntry = `\n\n### 🏛️ Sovereign Pass ${state.currentCycle} [${timestamp}]\n` +
+          mutationsHistory.current.map(m => `- **${m.path}**: ${m.change}`).join('\n');
+
+        if (docName === 'README.md') {
+          content = content.includes('## 📜 Audit Log') ?
+            content.replace('## 📜 Audit Log', `## 📜 Audit Log${logEntry}`) :
+            content + `\n\n## 📜 Audit Log${logEntry}`;
+        } else if (docName === 'TODO.md') {
+          content += `\n\n- [x] Completed Architectural Pass ${state.currentCycle} (${timestamp})`;
+        }
+
+        // Encode content for GitHub API
+        const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+        await github.repos.updateContents(repo, docName, {
+          message: `[Chronicler] Update ${docName} - Pass ${state.currentCycle}`,
+          content: encodedContent,
+          sha: currentContentData.sha
+        });
+        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Synchronized ${docName}`, timestamp: new Date().toLocaleString() } });
+      }
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_sync_success', signalValue: true }); // Signal: GitHub Sync Success
+    } catch (e) {
+      dispatch({ type: 'LOG', payload: { id: uuidv4(), message: "Sync Error: " + e.message, type: 'error', timestamp: new Date().toLocaleString() } });
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_sync_failure', signalValue: true }); // Signal: GitHub Sync Failure
+      new LoggingError(`GitHub Sync failed: ${e.message}`, e.response?.status || 500, e); // Use LoggingError
+    } finally {
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_sync_start', signalValue: false }); // Signal: GitHub Sync End
+    }
+    mutationsHistory.current = [];
+  };
+
+  const runCycle = async () => {
+    if (!state.isLive || isBusy.current || !user || !github) {
+      return;
+    }
+    isBusy.current = true;
+
+    try {
+      const repo = state.targetRepo.trim().replace(/^https?:\/\/github\.com\//, '');
+      if (!repo) {
+        throw new Error("Target repository not configured.");
+      }
+
+      if (queueRef.current.length === 0) {
+        dispatch({ type: 'SET_STATUS', value: 'INDEXING' });
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'github_indexing_start', signalValue: true }); // Signal: GitHub Indexing Start
+        const { data } = await github.repos.get(repo);
+        // Note: For very large repos, this `getTree` call might still hit limitations
+        // or be slow. Pagination for `getTree` itself would require more complex logic
+        // or using other GitHub API endpoints to list files in chunks.
+        const { data: treeData } = await github.repos.getTree(repo, data.default_branch, { recursive: true });
+        queueRef.current = treeData.tree.filter(f => f.type === 'blob' && f.path.match(/\.(js|jsx|ts|tsx|py|html|css|json)$/i)).map(f => f.path);
+        localStorage.setItem('index', "0");
+        indexRef.current = 0;
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'github_indexing_success', signalValue: true }); // Signal: GitHub Indexing Success
+      }
+
+      if (indexRef.current >= queueRef.current.length) {
+        await syncProjectDocs(repo);
+        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Pass ${state.currentCycle} Complete.`, timestamp: new Date().toLocaleString() } });
+        indexRef.current = 0;
+        localStorage.setItem('index', "0");
+        dispatch({ type: 'INCREMENT_CYCLE' });
+        dispatch({ type: 'SET_STATUS', value: 'IDLE' });
+        dispatch({ type: 'TOGGLE' });
+        isBusy.current = false;
+        return;
+      }
+
+      const path = queueRef.current[indexRef.current];
+      if (['README.md', 'TODO.md'].includes(path)) {
+        indexRef.current++;
+        localStorage.setItem('index', indexRef.current.toString());
+        dispatch({ type: 'UPDATE_METRICS', payload: { progress: Math.round((indexRef.current / queueRef.current.length) * 100) } });
+        isBusy.current = false;
+        return;
+      }
+
+      dispatch({ type: 'SET_STATUS', value: 'REFACTORING', path });
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_fetch_file_start', signalValue: true }); // Signal: GitHub File Fetch Start
+
+      // Fetch the file content from GitHub
+      const { data: fileContentData } = await github.repos.getContents(repo, path);
+      const fileContent = atob(fileContentData.content);
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_fetch_file_success', signalValue: true }); // Signal: GitHub File Fetch Success
+
+      let geminiResponse;
+      let retryCount = 0;
+      let geminiSuccess = false;
+
+      while (!geminiSuccess && retryCount < appConfig.GEMINI_MAX_RETRIES) {
+        const geminiKey = getNextKey(); // Get a key, handles health checks
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'gemini_api_call_start', signalValue: true }); // Signal: Gemini API Call Start
+
+        try {
+          geminiResponse = await axios.post(
+            `https://generativelanguage.googleapis.com/v1beta/models/${state.selectedModel}:generateContent`, {
+              contents: [{
+                parts: [{
+                  text: `TASK: Fully optimize and refactor the following code snippet for modern best practices, improved clarity, and optimized performance. Consider potential quantum-inspired architectural patterns (e.g., modularity, error handling for uncertainty, parallelism).
+
+            MANDATORY: Return the full, refactored code block first.
+            MANDATORY: After the code, append a detailed "Full log" section describing the changes made, the reasoning, and any quantum-inspired insights applied.
+            MANDATORY: The output must be valid code for the original file type.
+
+            CODE START:
+            \`\`\`${path.split('.').pop()}
+            ${fileContent}
+            \`\`\`
+            CODE END.
+            `
+                }]
+              }]
+            }, {
+              headers: {
+                'x-goog-api-key': geminiKey,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          geminiSuccess = true;
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'gemini_api_call_success', signalValue: true }); // Signal: Gemini API Call Success
+        } catch (e) {
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'gemini_api_call_failure', signalValue: true }); // Signal: Gemini API Call Failure
+          if (e.response && (e.response.status === appConfig.RATE_LIMIT_STATUS_CODE || e.response.status === 403) && retryCount < appConfig.GEMINI_MAX_RETRIES - 1) {
+            const delay = calculateBackoffDelay(retryCount);
+            dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Gemini API rate limit/error (${e.response.status}). Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${appConfig.GEMINI_MAX_RETRIES})`, type: 'warn', timestamp: new Date().toLocaleString() } });
+            dispatch({ type: 'MARK_KEY_HEALTH', index: geminiKeyIndexRef.current, blocked: true, resetAt: Date.now() + delay });
+            await new Promise(resolve => setTimeout(resolve, delay));
+            retryCount++;
+          } else {
+            throw new ApiError("Gemini API call failed after retries.", e.response?.status || 500, e);
+          }
+        } finally {
+          dispatch({ type: 'SET_SIGNAL', signalKey: 'gemini_api_call_start', signalValue: false }); // Signal: Gemini API Call End
+        }
+      }
+
+      if (!geminiSuccess || !geminiResponse) {
+        throw new Error("Gemini API call ultimately failed.");
+      }
+
+      // Process the generated content
+      const generatedText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedText) {
+        throw new Error("Gemini API returned no generated text.");
+      }
+
+      // Split generated text into code and log
+      const codeEndIndex = generatedText.indexOf("Full log");
+      let newCode = generatedText;
+      // let changeLog = "No detailed log provided by AI."; // Currently unused
+
+      if (codeEndIndex !== -1) {
+        newCode = generatedText.substring(0, codeEndIndex).trim();
+        // changeLog = generatedText.substring(codeEndIndex).trim(); // Currently unused
+      }
+
+      // Simple diff check (more robust diffing would be ideal)
+      if (newCode.trim() !== fileContent.trim()) {
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'github_update_file_start', signalValue: true }); // Signal: GitHub Update File Start
+        await github.repos.updateContents(repo, path, {
+          message: `[Refactor] Optimize and refactor ${path} - Pass ${state.currentCycle}`,
+          content: btoa(unescape(encodeURIComponent(newCode))), // Encode for GitHub API
+          sha: fileContentData.sha // Use original SHA for update
+        });
+        mutationsHistory.current.push({ path, change: "Code refactored and optimized." });
+        dispatch({ type: 'UPDATE_METRICS', payload: { mutations: state.metrics.mutations + 1 } });
+        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Refactored: ${path}`, type: 'success', timestamp: new Date().toLocaleString() } });
+        dispatch({ type: 'SET_SIGNAL', signalKey: 'github_update_file_success', signalValue: true }); // Signal: GitHub Update File Success
+      } else {
+        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `No significant changes for: ${path}`, type: 'info', timestamp: new Date().toLocaleString() } });
+      }
+
+    } catch (e) {
+      dispatch({ type: 'LOG', payload: { id: uuidv4(), message: "Error in runCycle: " + e.message, type: 'error', timestamp: new Date().toLocaleString() } });
+      new LoggingError(`Error during runCycle for ${state.activePath}: ${e.message}`, e.statusCode || 500, e); // Use LoggingError
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_indexing_start', signalValue: false }); // Reset indexing signal
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_fetch_file_start', signalValue: false }); // Reset file fetch signal
+      dispatch({ type: 'SET_SIGNAL', signalKey: 'github_update_file_start', signalValue: false }); // Reset file update signal
+      dispatch({ type: 'SET_STATUS', value: 'ERROR' }); // Indicate an error state
+    } finally {
+      indexRef.current++;
+      localStorage.setItem('index', indexRef.current.toString());
+      dispatch({ type: 'UPDATE_METRICS', payload: { progress: Math.round((indexRef.current / queueRef.current.length) * 100) } });
+      isBusy.current = false;
+    }
+  };
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (state.isLive && state.isAcknowledged && user) {
+        runCycle();
+      }
+    }, appConfig.CYCLE_INTERVAL);
+    return () => clearInterval(intervalId);
+  }, [state.isLive, state.isAcknowledged, user, github, state.targetRepo, state.selectedModel, state.metrics.mutations, state.currentCycle, dispatch]); // Added dispatch to dependency array
+
+  // Minimal UI to satisfy "valid React component"
+  return (
+    <div style={{ fontFamily: 'monospace', padding: '20px', background: '#282c34', color: '#fff' }}>
+      <h1>Tri-Model Nexus</h1>
+      <p>Status: {state.status}</p>
+      <p>Active Path: {state.activePath}</p>
+      <p>Cycle: {state.currentCycle}</p>
+      <p>Progress: {state.metrics.progress}%</p>
+      <p>Mutations: {state.metrics.mutations}</p>
+      <button onClick={() => dispatch({ type: 'TOGGLE' })}>
+        {state.isLive ? 'Stop' : 'Start'}
+      </button>
+      <input
+        type="text"
+        placeholder="Target GitHub Repo (e.g., owner/repo)"
+        value={state.targetRepo}
+        onChange={(e) => dispatch({ type: 'SET_VAL', key: 'targetRepo', value: e.target.value })}
+        style={{
+          width: 'calc(100% - 22px)',
+          padding: '10px',
+          margin: '10px 0',
+          backgroundColor: '#3a3f4a',
+          border: '1px solid #61dafb',
+          color: '#fff',
+          borderRadius: '4px'
+        }}
+      />
+      <select
+        value={state.selectedModel}
+        onChange={(e) => dispatch({ type: 'SET_VAL', key: 'selectedModel', value: e.target.value })}
+        style={{
+          width: '100%',
+          padding: '10px',
+          margin: '10px 0',
+          backgroundColor: '#3a3f4a',
+          border: '1px solid #61dafb',
+          color: '#fff',
+          borderRadius: '4px'
+        }}
+      >
+        {appConfig.MODELS.map((model) => (
+          <option key={model.id} value={model.id}>
+            {model.label} ({model.id})
+          </option>
+        ))}
+      </select>
+      <div style={{ marginTop: '20px', maxHeight: '300px', overflowY: 'scroll', border: '1px solid #61dafb', padding: '10px', background: '#3a3f4a' }}>
+        <h3>Logs</h3>
+        {state.logs.map(log => (
+          <p key={log.id} style={{ color: log.type === 'error' ? 'red' : (log.type === 'warn' ? 'yellow' : 'white') }}>
+            [{log.timestamp}] {log.message}
+          </p>
+        ))}
+      </div>
+      <SignalDisplay signals={state.logicalSignals} /> {/* Render the logic analyzer display */}
+    </div>
+  );
+};
+
+export default App;
