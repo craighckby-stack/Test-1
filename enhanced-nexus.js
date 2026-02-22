@@ -567,3 +567,23 @@ describe('Bloch sphere', () => {
     compareImages('e2e/bloch_sphere/bloch_sphere_expected_custom.png', `${newVectorOutputPath}.png`);
   });
 });
+
+_forceIdleTriggerAfter(duration) {
+        this._state = 'waiting';
+        if (this._waitWithRequestAnimationFrame) {
+            const startTime = performance.now();
+            const animate = () => {
+                if (performance.now() - startTime >= duration) {
+                    this._triggerIdle();
+                } else {
+                    requestAnimationFrame(animate);
+                }
+            };
+            requestAnimationFrame(animate);
+        } else {
+            setTimeout(() => {
+                this._triggerIdle();
+            }, duration);
+        }
+    }
+}
