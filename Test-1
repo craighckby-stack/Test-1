@@ -1,0 +1,525 @@
+import base64
+import datetime
+import time
+import re
+from typing import Any, Dict, List, Optional, Callable
+from enum import Enum
+
+# --- ENUMS AND CONSTANTS ---
+
+class Status(str, Enum):
+    """Sovereign Engine status."""
+    IDLE = 'IDLE'
+    INDEXING = 'INDEXING'
+    PROCESSING = 'PROCESSING'
+    COMPLETE = 'COMPLETE'
+    ABORTED = 'ABORTED'
+    ERROR = 'ERROR'
+
+class ActionType(str, Enum):
+    """Recognized state mutations."""
+    SET_VALUE = 'SET_VALUE'
+    TOGGLE_LIVE = 'TOGGLE_LIVE'
+    ACKNOWLEDGE = 'ACKNOWLEDGE'
+    SET_STATUS = 'SET_STATUS'
+    UPDATE_METRICS = 'UPDATE_METRICS'
+    MARK_COMPLETE = 'MARK_COMPLETE'
+
+# --- CONFIGURATION ---
+CONFIG = {
+    'APP_ID': 'sovereign_app',
+    'MAX_API_RETRIES': 5,
+    'CYCLE_INTERVAL_MS': 500,
+    'MAX_FILE_SIZE_BYTES': 1024 * 1024,  # 1MB
+    'DEFAULT_MODEL': 'gemini-2.5-flash',
+}
+
+PIPELINES = {
+    'GENERIC': [
+        {'text': 'Refactor this code snippet for modern Python 3 standards, improve clarity, and optimize performance.'},
+    ],
+}
+
+FILE_EXTENSIONS = {
+    'ALL': r'\.py$|\.js$|\.ts$|\.md$|\.json$|\.yaml$',
+}
+
+SKIP_PATTERNS = [
+    re.compile(r'node_modules'),
+    re.compile(r'\.test\.'),
+    re.compile(r'dist/'),
+]
+
+# --- Utility Functions ---
+
+def parse_repo_path(path: Optional[str]) -> Optional[List[str]]:
+    """Parses 'owner/repo' string into a list [owner, repo]."""
+    if not path:
+        return None
+    return list(filter(None, path.strip().split('/', maxsplit=1)))
+
+def decode_base64(content: str) -> str:
+    """Decodes base64 content."""
+    try:
+        return base64.b64decode(content.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        raise ValueError(f"Base64 decoding error: {e}")
+
+def encode_base64(content: str) -> str:
+    """Encodes string content to base64."""
+    return base64.b64encode(content.encode('utf-8')).decode('utf-8')
+
+def safe_doc_id(path: str) -> str:
+    """Creates a safe ID string from a file path."""
+    return re.sub(r'[\/\\\.]', '_', path).strip('_')
+
+# --- Mock Dependencies (Isolation Layer) ---
+
+class MockDB:
+    """Mock Firebase Firestore object."""
+    def doc(self, *args):
+        return self
+    def set(self, *args):
+        pass
+
+# This function is used by process_file, but its actual implementation (e.g., interacting with a real DB)
+# is outside the scope of this file. For the mock, it does nothing.
+def mock_set_doc_history(file_path: str, user_uid: str):
+    """Mocks setting a document history entry."""
+    # print(f"MOCK: Setting doc history for {file_path} by {user_uid}")
+    pass
+
+class AbortSignal:
+    """Mocks the signal part of an AbortController."""
+    def __init__(self):
+        self.aborted: bool = False
+
+class AbortController:
+    """Mocks the AbortController for flow control."""
+    def __init__(self):
+        self.signal: AbortSignal = AbortSignal()
+
+    def abort(self):
+        self.signal.aborted = True
+
+# --- Service Definitions ---
+
+class RuntimeContext:
+    """Centralized repository for mutable runtime data and control references."""
+    def __init__(self):
+        self.gh_token: Optional[str] = None
+        self.gemini_key: Optional[str] = None
+        self.queue: List[str] = []
+        self.current_index: int = 0
+        self.is_processing: bool = False
+        self.abort_controller: Optional[AbortController] = None
+        # Placeholder for log_fn, initialized later via AppState
+        self.log_fn: Callable[[str, str], None] = lambda msg, log_type: print(f"[INITIALIZING_LOG {log_type.upper():<5}] {msg}") 
+
+
+class AppState:
+    """Manages the centralized application state using a controlled dispatch pattern."""
+    def __init__(self, context: RuntimeContext):
+        self.state = {
+            'isLive': False,
+            'isIndexed': False,
+            'isAcknowledged': False,
+            'status': Status.IDLE,
+            'targetRepo': 'owner/repo',
+            'selectedModel': CONFIG['DEFAULT_MODEL'],
+            'activePath': '',
+            'metrics': {'mutations': 0, 'errors': 0, 'progress': 0},
+            'logs': [],
+        }
+        self.user = {'uid': 'user123'}
+        self.context = context # Reference to RuntimeContext
+
+        # Initialize log_fn and update context
+        self.log_fn: Callable[[str, str], None] = self.create_logger()
+        self.context.log_fn = self.log_fn # Inject logger into context
+
+    def create_logger(self) -> Callable[[str, str], None]:
+        """Provides a centralized logging utility function."""
+        def add_log(msg: str, log_type: str = "info"):
+            self.log(msg, log_type)
+            print(f"[LOG {log_type.upper():<5}] {datetime.datetime.now().strftime('%H:%M:%S')}: {msg}")
+        return add_log
+
+    def log(self, msg: str, log_type: str):
+        """Internal logging handler for state storage."""
+        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
+        self.state['logs'].append({'msg': msg, 'type': log_type, 'timestamp': timestamp})
+
+    def dispatch(self, action: Dict[str, Any]):
+        """Applies state changes based on action type."""
+        try:
+            action_type = ActionType(action.get('type'))
+        except ValueError:
+            self.log_fn(f"Unknown action type received: {action.get('type')}", 'error')
+            return
+
+        # Increment mutation count for most actions, except for updates to metrics themselves
+        if action_type not in [ActionType.UPDATE_METRICS]:
+            current_metrics = self.state['metrics']
+            current_metrics['mutations'] += 1 # Every dispatch is a state mutation
+
+        if action_type == ActionType.SET_VALUE:
+            self.set_value(action)
+        
+        elif action_type == ActionType.TOGGLE_LIVE:
+            self.toggle_live()
+
+        elif action_type == ActionType.ACKNOWLEDGE:
+            self.acknowledge()
+
+        elif action_type == ActionType.SET_STATUS:
+            self.set_status(action)
+
+        elif action_type == ActionType.UPDATE_METRICS:
+            self.update_metrics(action)
+
+        elif action_type == ActionType.MARK_COMPLETE:
+            self.mark_complete()
+
+    def set_value(self, action: Dict[str, Any]):
+        """Sets a state value."""
+        key = action.get('key')
+        if key in self.state:
+            self.state[key] = action.get('value')
+        else:
+            self.log_fn(f"Attempted to set unknown state key: {key}", 'warn')
+
+
+    def toggle_live(self):
+        """Toggles the isLive flag."""
+        self.state['isLive'] = not self.state['isLive']
+        self.log_fn(f"isLive set to: {self.state['isLive']}", 'info')
+
+
+    def acknowledge(self):
+        """Acknowledges the application state."""
+        self.state['isAcknowledged'] = True
+        self.log_fn("Application acknowledged.", 'info')
+
+
+    def set_status(self, action: Dict[str, Any]):
+        """Sets the application status."""
+        status_value = action.get('value')
+        if status_value in Status.__members__.values():
+            old_status = self.state['status']
+            self.state['status'] = status_value
+            self.log_fn(f"Status changed from {old_status.value} to {status_value.value}", 'info')
+            if 'path' in action:
+                self.state['activePath'] = action['path']
+        else:
+            self.log_fn(f"Attempted to set unknown status: {status_value}", 'warn')
+
+
+    def update_metrics(self, action: Dict[str, Any]):
+        """Updates the application metrics."""
+        metrics = self.state['metrics']
+        # 'm' (mutations) in action refers to *external* mutations (e.g., file changes), not internal state dispatches.
+        # Internal state dispatch mutations are handled by the dispatch method itself.
+        metrics['mutations'] += action.get('m', 0)
+        metrics['errors'] += action.get('e', 0)
+        if 'progress' in action:
+            metrics['progress'] = action['progress']
+        # No log_fn here to avoid excessive logging during rapid metric updates
+
+
+    def mark_complete(self):
+        """Marks the application as complete."""
+        self.state['isLive'] = False
+        self.state['status'] = Status.COMPLETE
+        self.log_fn("Processing marked complete.", 'success')
+
+
+# --- Global Instances ---
+# These are instantiated globally to simulate singletons in a real application context
+# and allow shared state/context across functions without explicit passing everywhere.
+context = RuntimeContext()
+app_state = AppState(context)
+
+
+# --- Core Logic Functions ---
+
+def call_gemini_api(
+    content_prompt: str,
+    persona_text: Dict[str, str],
+    model_id: str,
+    api_key: Optional[str],
+    retry_count: int = 0,
+) -> str:
+    """Placeholder for AI API interaction with retry logic."""
+    if not api_key:
+        raise PermissionError("API Key is required for AI processing.")
+
+    if retry_count >= CONFIG['MAX_API_RETRIES']:
+        raise ConnectionError("Exhausted maximum API retry attempts.")
+
+    # Use the context's abort_controller
+    abort_controller = context.abort_controller
+    delay_s = 2 ** retry_count
+
+    try:
+        if abort_controller and abort_controller.signal.aborted:
+            raise TimeoutError("Processing aborted by user.")
+
+        # Simulate network delay and AI processing time
+        time.sleep(delay_s)
+
+        response_suffix = f"Length={len(content_prompt)}"
+        processed_content = f"// Refactored version based on: {persona_text['text'][:20]}... {response_suffix}"
+        return processed_content
+
+    except TimeoutError as te:
+        raise te # Re-raise if it's an intentional abort
+    except Exception as e:
+        if retry_count < CONFIG['MAX_API_RETRIES'] - 1:
+            app_state.log_fn(f"API call failed ({type(e).__name__}). Retrying in {delay_s:.1f}s.", "warn")
+            return call_gemini_api(content_prompt, persona_text, model_id, api_key, retry_count + 1)
+        
+        raise ConnectionError(f"API call failed after {retry_count + 1} attempts.") from e
+
+def process_file(
+    file_path: str,
+    owner: str,
+    repo: str,
+    token: Optional[str],
+    api_key: Optional[str],
+    model_id: str,
+) -> Dict[str, Any]:
+    """Handles fetching, AI processing, and simulated external writes."""
+    if not token or not api_key:
+        raise PermissionError("Missing authentication tokens (GitHub/Gemini).")
+
+    # Simulate fetching file content (mocked here)
+    mock_content = "def old_function():\n    return 1 + 1"
+    # Decode then encode to simulate a full roundtrip for content
+    content = decode_base64(encode_base64(mock_content))
+
+    app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING, 'path': file_path})
+
+    persona = PIPELINES['GENERIC'][0]
+    processed = call_gemini_api(content, persona, model_id, api_key)
+
+    # Simulate condition for mutation: content changed and is significant
+    if processed and processed != content and len(processed.strip()) > 5:
+        mock_set_doc_history(file_path, app_state.user['uid'])
+        return {'status': 'MUTATED', 'file_path': file_path}
+
+    return {'status': 'SKIPPED', 'file_path': file_path}
+
+# --- Control Functions ---
+
+def run_cycle():
+    """The core loop driver, managing file iteration."""
+    # Check conditions to proceed with a cycle
+    if not app_state.state['isLive'] or context.is_processing or app_state.state['status'] != Status.PROCESSING or not app_state.state['isIndexed']:
+        if app_state.state['isLive'] and app_state.state['status'] == Status.IDLE and app_state.state['isIndexed']:
+            # This can happen if processing finished or was aborted, and app is still "live" but idle
+            # In a real UI, 'isLive' would likely be turned off here or status would change.
+            # For this simulation, we ensure we only run if status is PROCESSING.
+            pass
+        return
+
+    context.is_processing = True
+
+    if context.abort_controller and context.abort_controller.signal.aborted:
+        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
+        app_state.log_fn("Processing cycle aborted during iteration check.", "warn")
+        context.is_processing = False
+        return
+
+    if context.current_index >= len(context.queue):
+        app_state.log_fn("Job Queue Empty. Cycle Finished.", "success")
+        app_state.dispatch({'type': ActionType.MARK_COMPLETE})
+        context.is_processing = False
+        return
+
+    file_path_to_process = context.queue[context.current_index]
+
+    try:
+        repo_path = parse_repo_path(app_state.state['targetRepo'])
+        if not repo_path or len(repo_path) != 2:
+            raise ValueError("Invalid repository path configured. Expected 'owner/repo'.")
+        owner, repo = repo_path
+
+        result = process_file(
+            file_path_to_process,
+            owner,
+            repo,
+            context.gh_token,
+            context.gemini_key,
+            app_state.state['selectedModel'],
+        )
+
+        if result['status'] == 'MUTATED':
+            app_state.log_fn(f"MUTATED: {file_path_to_process.split('/')[-1]}", "success")
+            app_state.dispatch({'type': ActionType.UPDATE_METRICS, 'm': 1})
+        else:
+            app_state.log_fn(f"CLEAN (Skipped): {file_path_to_process.split('/')[-1]}", "info")
+
+    except TimeoutError:
+        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
+        app_state.log_fn("Processing cycle aborted by user.", "warn")
+    except Exception as e:
+        error_msg = f"FAULT on {file_path_to_process}: {type(e).__name__}: {e}"
+        app_state.log_fn(error_msg, "error")
+        app_state.dispatch({'type': ActionType.UPDATE_METRICS, 'e': 1})
+    finally:
+        context.current_index += 1
+        total = len(context.queue)
+        
+        # Ensure progress doesn't exceed 100%
+        new_progress = min(100, round((context.current_index / total) * 100)) if total > 0 else app_state.state['metrics']['progress']
+
+        app_state.dispatch({
+            'type': ActionType.UPDATE_METRICS,
+            'progress': new_progress
+        })
+
+        context.is_processing = False
+        # If the app is no longer live, or has been aborted, set status to IDLE/ABORTED
+        if not app_state.state['isLive']:
+            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+        elif app_state.state['status'] not in [Status.ABORTED, Status.COMPLETE]:
+            # If not aborted or complete, keep status as PROCESSING for the next cycle
+            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
+
+
+def start_cycle_timer():
+    """Simulates the initiation of a periodic processing cycle."""
+    # In a real async system, this would be a timer or a message queue listener.
+    # Here, it's a direct call, assuming it's triggered externally (e.g., UI event, actual timer).
+    if not app_state.state['isLive']:
+        app_state.log_fn("Cycle timer not started: app is not live.", "info")
+        return
+    
+    app_state.log_fn(f"Starting processing cycle...", "info")
+    # For a simulation, we call run_cycle directly. In a real app, this would schedule it.
+    run_cycle()
+
+def handle_main_button():
+    """Simulates the primary UI interaction button (Start/Stop/Index)."""
+    state = app_state.state
+
+    if state['isLive']:
+        # If live, the button means STOP
+        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
+        app_state.log_fn("Stopping cycle...", "info")
+        if context.abort_controller:
+            context.abort_controller.abort() # Signal processing to stop gracefully
+            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED}) # Indicate it was aborted
+        return
+
+    # If not live:
+    if state['isIndexed']:
+        # If indexed but not live, button means START processing
+        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
+        context.current_index = 0 # Reset index to start from the beginning
+        context.abort_controller = AbortController() # New controller for a new run
+        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING}) # Set status to processing
+        start_cycle_timer()
+        return
+
+    # If not live and not indexed, button means START INDEXING
+    repo_path = parse_repo_path(state['targetRepo'])
+    if not repo_path or len(repo_path) != 2 or not context.gh_token or not context.gemini_key:
+        app_state.log_fn("Configuration Incomplete: Check Repo Path ('owner/repo'), GitHub Token, and Gemini Key.", "error")
+        return
+
+    app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.INDEXING})
+    context.abort_controller = AbortController() # New controller for indexing phase
+
+    try:
+        # Simulate fetching repository tree from GitHub (mocked)
+        mock_tree = [
+            {'type': 'blob', 'path': 'Eh.py', 'size': 1000},
+            {'type': 'blob', 'path': 'src/main.js', 'size': 500},
+            {'type': 'blob', 'path': 'README.md', 'size': 2000},
+            {'type': 'blob', 'path': 'config/settings.json', 'size': 100},
+            {'type': 'blob', 'path': 'data/ignore_me.log', 'size': 0},
+            {'type': 'blob', 'path': 'node_modules/package.js', 'size': 10000}, 
+            {'type': 'blob', 'path': 'test/test_util.py', 'size': 150},
+            {'type': 'blob', 'path': 'another_file.ts', 'size': 700},
+            {'type': 'blob', 'path': 'docs/info.md', 'size': 300},
+            {'type': 'blob', 'path': 'large_file.py', 'size': CONFIG['MAX_FILE_SIZE_BYTES'] + 100}, # Too large
+            {'type': 'blob', 'path': 'dist/build.js', 'size': 500}, # Skip pattern
+        ]
+
+        # Filter files based on criteria
+        context.queue = [
+            f['path'] for f in mock_tree
+            if f['type'] == 'blob'
+            and 0 < f['size'] < CONFIG['MAX_FILE_SIZE_BYTES'] # Size constraint
+            and not any(p.search(f['path']) for p in SKIP_PATTERNS) # Skip patterns
+            and re.search(FILE_EXTENSIONS['ALL'], f['path']) # Extension match
+        ]
+
+        context.current_index = 0
+        app_state.dispatch({'type': ActionType.SET_VALUE, 'key': 'isIndexed', 'value': True})
+        app_state.log_fn(f"Indexing Complete. Found {len(context.queue)} processable files.", "success")
+
+        # After indexing, automatically start processing
+        app_state.dispatch({'type': ActionType.TOGGLE_LIVE})
+        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
+        start_cycle_timer()
+
+    except Exception as e:
+        app_state.log_fn(f"Index Error: {e}", "error")
+        app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ERROR})
+    finally:
+        # If for some reason 'isLive' wasn't set (e.g., error during start_cycle_timer),
+        # ensure status is not stuck in INDEXING.
+        if not state['isLive'] and app_state.state['status'] == Status.INDEXING:
+            app_state.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+
+
+def initialize_system():
+    """Simulates the application startup sequence."""
+    if not app_state.state['isAcknowledged']:
+        app_state.dispatch({'type': ActionType.ACKNOWLEDGE})
+        context.gh_token = "mock_gh_token_123"
+        context.gemini_key = "mock_gemini_key_456"
+        
+        # This recursive call is problematic if acknowledge fails or doesn't set isAcknowledged
+        # It's better to ensure isAcknowledged is set or handle initial setup clearly.
+        # For the purpose of this mock, we assume the first dispatch sets it.
+        # if not app_state.state['isAcknowledged']:
+        #     initialize_system()
+        #     return
+
+    print("\n--- Sovereign Engine Mock Initialized ---")
+    app_state.log_fn(f"Ready to process target: {app_state.state['targetRepo']}", "info")
+
+
+if __name__ == '__main__':
+    initialize_system()
+    
+    print("\n--- Simulating Main Button Click (Start/Index) ---")
+    handle_main_button() 
+    
+    print("\n--- Simulating Further Processing Cycles (Manual Trigger) ---")
+    # In a real app, `run_cycle` would be triggered periodically or by events.
+    # Here, we simulate multiple explicit calls until the queue is exhausted or stopped.
+    for i in range(1, 6): # Simulate 5 more cycles after initial start
+        if app_state.state['isLive'] and app_state.state['status'] == Status.PROCESSING:
+            print(f"\n--- Cycle {i} ---")
+            run_cycle()
+        else:
+            print(f"\n--- Processing stopped or completed after {i-1} cycles. ---")
+            break
+
+    # If the queue wasn't exhausted, we might manually stop it
+    if app_state.state['isLive']:
+        print("\n--- Simulating Main Button Click (Stop) ---")
+        handle_main_button() # This would trigger the stop logic
+        run_cycle() # Run one more cycle to process the abort signal if needed
+
+    print("\n--- Final State ---")
+    print(f"Status: {app_state.state['status'].value}")
+    print(f"Metrics: {app_state.state['metrics']}")
+    print("\n--- Last 3 Logs ---")
+    for log_entry in app_state.state['logs'][-3:]:
+        print(f"[{log_entry['timestamp']} {log_entry['type'].upper():<5}] {log_entry['msg']}")
