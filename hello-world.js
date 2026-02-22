@@ -2,7 +2,7 @@ from __future__ import annotations
 import collections
 import functools
 import nltk
-from typing import Dict, List, Optional, Set, Union, Literal
+from typing import Dict, List, Optional, Set, Union, Literal, Any, Callable, Tuple
 
 # --- NLTK Resource Downloads & Caching ---
 
@@ -207,10 +207,47 @@ def _combination_lists_itertools(n: int, k: int) -> list[list[int]]:
     from itertools import combinations # Import here to avoid polluting global namespace if not used
     return [list(x) for x in combinations(range(1, n + 1), k)]
 
+# --- Subsequence Generation Helpers (Integrated from NEW_DATA) ---
+
+def _generate_subsequences_recursive(
+    sequence: List[Any],
+    index: int,
+    current_subsequence: List[Any],
+    results: List[List[Any]],
+    selector: Optional[Callable[[int, Any, List[Any]], Tuple[bool, bool]]]
+) -> None:
+    """
+    Recursive helper function to generate all possible subsequences using backtracking.
+    This function collects the subsequences into the 'results' list.
+    """
+    # Base case: Reached the end of the sequence
+    if index == len(sequence):
+        results.append(current_subsequence[:]) # Append a copy of the current subsequence
+        return
+
+    element = sequence[index]
+    can_exclude, can_include = (True, True)
+
+    # Apply selector if provided (Complex Hallucinated Extension 1: Dynamic Subsequence Generation)
+    if selector:
+        can_exclude, can_include = selector(index, element, current_subsequence)
+
+    # Recursive step: Explore both paths (exclude and include) if allowed by the selector
+
+    # Path 1: Exclude the current element
+    if can_exclude:
+        _generate_subsequences_recursive(sequence, index + 1, current_subsequence, results, selector)
+    
+    # Path 2: Include the current element
+    if can_include:
+        current_subsequence.append(element)
+        _generate_subsequences_recursive(sequence, index + 1, current_subsequence, results, selector)
+        current_subsequence.pop() # Backtrack: remove the last added element for the next branch
+
 # --- Main Consolidated Function ---
 
 def calculate_nexus_branch_synthesis(
-    mode: Literal['text_analysis', 'combination_generation'] = 'text_analysis',
+    mode: Literal['text_analysis', 'combination_generation', 'subsequence_generation'] = 'text_analysis',
     
     # Text Analysis Parameters
     sentence: Optional[str] = None,
@@ -227,18 +264,29 @@ def calculate_nexus_branch_synthesis(
     use_backtracking_for_combinations: bool = False,
     generate_all_k_combinations: bool = False, # "Dynamic Combination Length" extension
     
-) -> Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]]]:
+    # Subsequence Generation Parameters (New: Based on NEW_DATA and Hallucinated Extensions)
+    input_sequence: Optional[List[Any]] = None, # The sequence for which to generate subsequences
+    subsequence_selector: Optional[Callable[[int, Any, List[Any]], Tuple[bool, bool]]] = None, # Dynamic Subsequence Generation
+    subsequence_min_length: Optional[int] = None, # Subsequence Filtering (min length)
+    subsequence_max_length: Optional[int] = None, # Subsequence Filtering (max length)
+    subsequence_filter_func: Optional[Callable[[List[Any]], bool]] = None, # Subsequence Filtering (arbitrary criteria)
+    subsequence_sort_key: Optional[Callable[[List[Any]], Any]] = None, # Subsequence Ordering
+    subsequence_reverse_sort: bool = False, # Subsequence Ordering
+
+) -> Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]], List[List[Any]]]:
     """
-    Consolidates various functionalities for text analysis and combination generation
-    into a single high-performance function.
+    Consolidates various functionalities for text analysis, combination generation,
+    and subsequence generation into a single high-performance function.
 
     Args:
-        mode (Literal['text_analysis', 'combination_generation']):
+        mode (Literal['text_analysis', 'combination_generation', 'subsequence_generation']):
             Determines the operation mode.
             - 'text_analysis': Performs word counting, stopword removal, and optionally
               Levenshtein distance-based similarity counting on a given sentence.
             - 'combination_generation': Generates all possible combinations of k numbers
               out of 1...n.
+            - 'subsequence_generation': Generates all possible subsequences of a given sequence,
+              with optional dynamic generation, filtering, and sorting.
 
         # --- Text Analysis Parameters (used when mode='text_analysis') ---
         sentence (Optional[str]): The input text sentence for 'text_analysis' mode.
@@ -272,13 +320,39 @@ def calculate_nexus_branch_synthesis(
         generate_all_k_combinations (bool): If True, generates combinations for all `k` from 0 to `n_combinations`.
                                             Overrides `k_combinations`. This is the "Dynamic Combination Length" extension.
 
+        # --- Subsequence Generation Parameters (used when mode='subsequence_generation') ---
+        input_sequence (Optional[List[Any]]): The input sequence for which to generate subsequences.
+                                              Required for 'subsequence_generation'.
+        subsequence_selector (Optional[Callable[[int, Any, List[Any]], Tuple[bool, bool]]]):
+            A function taking `(index, element_at_index, current_subsequence_built_so_far)`
+            and returning `(can_exclude_current_element: bool, can_include_current_element: bool)`.
+            Allows dynamic control over subsequence generation paths. Defaults to `(True, True)`
+            for all elements if not provided. (Extension: Dynamic Subsequence Generation)
+        subsequence_min_length (Optional[int]): Filters subsequences to include only those
+                                                with at least this length. None for no minimum.
+                                                (Extension: Subsequence Filtering)
+        subsequence_max_length (Optional[int]): Filters subsequences to include only those
+                                                with at most this length. None for no maximum.
+                                                (Extension: Subsequence Filtering)
+        subsequence_filter_func (Optional[Callable[[List[Any]], bool]]):
+            A custom function taking a generated subsequence (`List[Any]`) and returning `True`
+            if it should be included in the results, `False` otherwise. Applied after length filters.
+            (Extension: Subsequence Filtering)
+        subsequence_sort_key (Optional[Callable[[List[Any]], Any]]):
+            A key function for sorting the final list of subsequences (e.g., `len` for sorting by length).
+            (Extension: Subsequence Ordering)
+        subsequence_reverse_sort (bool): If True, sorts the subsequences in descending order.
+                                         Defaults to False. (Extension: Subsequence Ordering)
+
+
     Returns:
-        Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]]]:
+        Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]], List[List[Any]]]:
         - If `mode` is 'text_analysis': A dictionary where keys are words and values are their counts.
         - If `mode` is 'combination_generation' and `generate_all_k_combinations` is False:
           A list of lists, where each inner list is a combination of `k_combinations` numbers.
         - If `mode` is 'combination_generation' and `generate_all_k_combinations` is True:
           A dictionary mapping `k` (int) to a list of lists of combinations for that `k`.
+        - If `mode` is 'subsequence_generation': A list of lists, where each inner list is a subsequence.
 
     Raises:
         ValueError: If required parameters for a given mode are missing or invalid.
@@ -359,9 +433,6 @@ def calculate_nexus_branch_synthesis(
         if generate_all_k_combinations:
             # Implements "Dynamic Combination Length" extension
             if n_combinations == 0:
-                # Per the example generate_all_combinations(n=0, k=0) -> [[]]
-                # And generate_all_combinations(n=1, k=0) -> [[]]
-                # So for n=0, all k (only k=0) yields [[]]
                 return {0: [[]]} 
             
             all_combinations_by_k: Dict[int, List[List[int]]] = {}
@@ -377,5 +448,38 @@ def calculate_nexus_branch_synthesis(
             # k_combinations > n_combinations will result in an empty list from the helper functions.
             return combination_func(n_combinations, k_combinations)
 
+    elif mode == 'subsequence_generation':
+        if input_sequence is None:
+            raise ValueError("Parameter 'input_sequence' is required for 'subsequence_generation' mode.")
+        if not isinstance(input_sequence, list):
+            raise ValueError("Parameter 'input_sequence' must be a list.")
+        
+        all_subsequences: List[List[Any]] = []
+        _generate_subsequences_recursive(
+            sequence=input_sequence,
+            index=0,
+            current_subsequence=[],
+            results=all_subsequences,
+            selector=subsequence_selector # Pass the selector for dynamic generation
+        )
+
+        # Apply filtering (Complex Hallucinated Extension 2: Subsequence Filtering)
+        filtered_subsequences: List[List[Any]] = []
+        for subseq in all_subsequences:
+            length_ok = (subsequence_min_length is None or len(subseq) >= subsequence_min_length) and \
+                        (subsequence_max_length is None or len(subseq) <= subsequence_max_length)
+            filter_func_ok = (subsequence_filter_func is None or subsequence_filter_func(subseq))
+
+            if length_ok and filter_func_ok:
+                filtered_subsequences.append(subseq)
+
+        # Apply sorting (Complex Hallucinated Extension 4: Subsequence Ordering)
+        if subsequence_sort_key is not None:
+            filtered_subsequences.sort(key=subsequence_sort_key, reverse=subsequence_reverse_sort)
+        elif subsequence_reverse_sort: # Apply default lexicographical sort if only reverse is specified
+             filtered_subsequences.sort(reverse=True) 
+
+        return filtered_subsequences
+
     else:
-        raise ValueError(f"Invalid mode: '{mode}'. Must be 'text_analysis' or 'combination_generation'.")
+        raise ValueError(f"Invalid mode: '{mode}'. Must be 'text_analysis', 'combination_generation', or 'subsequence_generation'.")
