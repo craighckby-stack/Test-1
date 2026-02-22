@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import random
-from typing import Any, Dict, List, Tuple
+import math
+from typing import Any, Dict, Callable, Set
 
-# A small tolerance for floating point comparisons
+# A small tolerance for floating point comparisons to account for precision issues.
 _EPSILON = 1e-9
 
 
@@ -25,7 +26,9 @@ class UncertainValue:
 
     Inspired by quantum states, this value does not have a definite state
     until 'collapsed' (observed/measured). Operations can change the
-    probabilities of its possible states.
+    probabilities of its possible states. This class is designed to be a
+    foundational component for modeling probabilistic aspects within the
+    Tri-Model Nexus, aiding in the development of AGI components.
     """
 
     def __init__(self, states_probs: Dict[Any, float]):
@@ -34,333 +37,194 @@ class UncertainValue:
         Args:
             states_probs: A dictionary where keys are the possible states (any hashable type)
                           and values are their probabilities. Probabilities must be non-negative
-                          and will be normalized if they don't sum to 1.0.
+                          and will be normalized if they don't sum to 1.0. States with
+                          probabilities less than or equal to zero will be excluded.
 
         Raises:
-            ValueError: If probabilities are negative, if no states are provided,
-                        or if the sum of probabilities is zero.
+            ValueError: If states_probs is empty, or if all provided probabilities are zero,
+                        or if any probability is negative and not filtered out.
+            RuntimeError: If an internal error prevents proper probability normalization.
         """
         if not states_probs:
-            raise ValueError("UncertainValue must be initialized with at least one state.")
+            raise ValueError(
+                "states_probs cannot be empty; an UncertainValue must have at least one possible state."
+            )
 
-        for state, prob in states_probs.items():
-            if not isinstance(prob, (int, float)) or prob < 0:
-                raise ValueError(
-                    f"Probability for state '{state}' must be a non-negative number, got {prob}."
-                )
-
-        total_prob = sum(states_probs.values())
-        if total_prob < _EPSILON:  # Sum is effectively zero
-            raise ValueError("Sum of probabilities cannot be zero.")
-
-        # Normalize probabilities to ensure they sum to 1.0
-        self._states_probs: Dict[Any, float] = {
-            state: prob / total_prob for state, prob in states_probs.items()
+        # Filter out states with zero or negative probability to keep the representation
+        # clean and efficient, as these states do not contribute to outcomes.
+        filtered_states_probs = {
+            state: prob for state, prob in states_probs.items() if prob > 0
         }
-        self._current_value: Any = None  # Stores the definite value once collapsed
+
+        if not filtered_states_probs:
+            raise ValueError(
+                "All provided probabilities are zero or non-positive, resulting in no valid states."
+            )
+
+        total_prob = sum(filtered_states_probs.values())
+
+        if total_prob <= 0:
+            # This case should be mostly covered by the filter and previous check,
+            # but serves as a final safeguard against pathological inputs or float errors.
+            raise ValueError(
+                "Sum of probabilities is zero or negative, cannot normalize."
+            )
+
+        # Normalize probabilities if they don't sum to 1.0 within the tolerance.
+        normalized_states_probs = {}
+        if not math.isclose(total_prob, 1.0, rel_tol=_EPSILON, abs_tol=_EPSILON):
+            for state, prob in filtered_states_probs.items():
+                normalized_states_probs[state] = prob / total_prob
+            self._states_probs = normalized_states_probs
+        else:
+            self._states_probs = filtered_states_probs  # Already normalized and valid
+
+        # Final check to ensure probabilities sum to 1 after initialization.
+        if not math.isclose(
+            sum(self._states_probs.values()), 1.0, rel_tol=_EPSILON, abs_tol=_EPSILON
+        ):
+            # This indicates a severe internal error in probability handling.
+            raise RuntimeError("Internal error: probabilities did not normalize correctly.")
 
     @property
-    def possible_states(self) -> Dict[Any, float]:
-        """Returns a copy of the current state probabilities.
-
-        If the value has been collapsed, this will still reflect the state
-        probabilities *before* collapse, or the post-collapse distribution
-        if it was subsequently re-initialized or transformed from a collapsed state
-        (though current design prevents operations on collapsed states).
+    def states_probs(self) -> Dict[Any, float]:
+        """Returns a copy of the dictionary of states and their probabilities.
+        Returning a copy prevents external modification of the internal state.
         """
         return self._states_probs.copy()
 
     @property
-    def is_collapsed(self) -> bool:
-        """Returns True if the value has been collapsed to a single, definite state."""
-        return self._current_value is not None
+    def possible_states(self) -> Set[Any]:
+        """Returns a set of all possible states with non-zero probability."""
+        return set(self._states_probs.keys())
 
-    def collapse(self) -> Any:
-        """Simulates 'measuring' the value, forcing it into a single definite state.
-
-        Once collapsed, subsequent calls to `collapse()` will return the same value.
-        The underlying probabilities effectively reduce to 1.0 for the collapsed
-        state and 0.0 for all others, but the `_states_probs` property remains
-        the distribution *prior* to this specific measurement.
-
-        Returns:
-            The definite state that the value collapsed into.
-        """
-        if self._current_value is None:
-            states = list(self._states_probs.keys())
-            probabilities = list(self._states_probs.values())
-            # Use random.choices to select a state based on weights (probabilities)
-            self._current_value = random.choices(states, weights=probabilities, k=1)[0]
-        return self._current_value
-
-    def apply_stochastic_operation(
-        self, transition_matrix: Dict[Any, Dict[Any, float]]
-    ) -> None:
-        """Applies a stochastic operation (like a classical channel or filter)
-        to the uncertain value, updating its probabilities.
-
-        This models an operation that transforms probabilities from one state
-        to another. The operation can only be applied if the value has not
-        yet been collapsed.
-
-        Args:
-            transition_matrix: A dictionary where:
-                - Keys are 'from' states (must be present in the `UncertainValue`'s
-                  current possible states, or lead to a 0 probability path).
-                - Values are dictionaries mapping 'to' states to probabilities.
-                - For each 'from' state, the 'to' state probabilities must sum to 1.0.
-                  (e.g., `{'HIGH': {'HIGH': 0.7, 'LOW': 0.3}, 'LOW': {'HIGH': 0.2, 'LOW': 0.8}}`)
-
-        Raises:
-            ValueError: If the value has already been collapsed, or if the
-                        transition matrix is invalid (e.g., negative probabilities,
-                        probabilities not summing to 1 for a 'from' state).
-            RuntimeError: If the operation unexpectedly results in no possible states.
-        """
-        if self.is_collapsed:
-            raise ValueError("Cannot apply operation to an already collapsed value.")
-
-        new_states_probs: Dict[Any, float] = {}
-        all_possible_output_states = set()
-
-        # Validate transition matrix and gather all possible output states
-        for from_state, to_probs_map in transition_matrix.items():
-            if not to_probs_map:
-                raise ValueError(f"Transition map for 'from' state '{from_state}' cannot be empty.")
-            total_to_prob = 0.0
-            for to_state, prob in to_probs_map.items():
-                if not isinstance(prob, (int, float)) or prob < 0:
-                    raise ValueError(
-                        f"Transition probability for '{from_state}' -> '{to_state}' "
-                        f"must be non-negative, got {prob}."
-                    )
-                total_to_prob += prob
-                all_possible_output_states.add(to_state)
-            if abs(total_to_prob - 1.0) > _EPSILON:
-                raise ValueError(
-                    f"Transition probabilities for 'from' state '{from_state}' "
-                    f"do not sum to 1.0 (sum: {total_to_prob:.3f})."
-                )
-
-        # Calculate new probabilities using the law of total probability
-        # P(to_state) = sum(P(to_state | from_state) * P(from_state))
-        for to_state in all_possible_output_states:
-            new_prob = 0.0
-            for from_state, current_prob in self._states_probs.items():
-                if from_state in transition_matrix:
-                    new_prob += current_prob * transition_matrix[from_state].get(to_state, 0.0)
-            if new_prob > _EPSILON:  # Only add if probability is significant
-                new_states_probs[to_state] = new_prob
-
-        # Update internal state, re-normalize in case of tiny floating point errors
-        if not new_states_probs:
-            raise RuntimeError(
-                "Operation resulted in no possible states with non-zero probability. "
-                "This indicates an issue with the transition matrix or initial state."
-            )
-
-        total_new_prob = sum(new_states_probs.values())
-        if total_new_prob < _EPSILON:
-            raise RuntimeError("Sum of new probabilities is zero after operation. This should not happen.")
-        
-        self._states_probs = {s: p / total_new_prob for s, p in new_states_probs.items()}
-
-    def __repr__(self) -> str:
-        if self.is_collapsed:
-            return f"UncertainValue(Collapsed={self._current_value!r})"
-        return f"UncertainValue({self._states_probs!r})"
-
-    def __str__(self) -> str:
-        if self.is_collapsed:
-            return f"Collapsed to: {self._current_value}"
-        return (
-            "Possible states: "
-            + ", ".join(f"{s!r} ({p:.2f})" for s, p in self._states_probs.items())
+    @property
+    def is_definite(self) -> bool:
+        """Returns True if the value is in a definite state (only one possible state with probability 1.0)."""
+        return len(self._states_probs) == 1 and math.isclose(
+            list(self._states_probs.values())[0], 1.0, rel_tol=_EPSILON, abs_tol=_EPSILON
         )
 
-
-class QuantumInspiredSystem:
-    """A simple system to manage and operate on multiple UncertainValue instances.
-
-    This class serves as a conceptual "quantum-inspired circuit" or "simulator"
-    for classical uncertain variables, allowing users to define, transform,
-    and "measure" (collapse) them.
-    """
-
-    def __init__(self, name: str = "QuantumInspiredSystem"):
-        """Initializes the QuantumInspiredSystem.
-
-        Args:
-            name: An optional name for the system.
-        """
-        self.name = name
-        self._registers: Dict[str, UncertainValue] = {}
-        self._history: List[str] = []
-
-    def add_register(self, name: str, initial_states_probs: Dict[Any, float]) -> UncertainValue:
-        """Adds a new UncertainValue register to the system.
-
-        Args:
-            name: The unique name for the new register.
-            initial_states_probs: A dictionary defining the initial possible
-                                  states and their probabilities for this register.
+    def collapse(self) -> Any:
+        """Simulates the 'measurement' of the UncertainValue, collapsing it to a
+        single definite state based on the associated probabilities. This is
+        analogous to observing a quantum state.
 
         Returns:
-            The newly created and added UncertainValue instance.
-
-        Raises:
-            ValueError: If a register with the given name already exists.
+            The chosen state, sampled according to its probability.
         """
-        if name in self._registers:
-            raise ValueError(f"Register '{name}' already exists.")
-        register = UncertainValue(initial_states_probs)
-        self._registers[name] = register
-        self._history.append(f"Added register '{name}': {register}")
-        return register
+        states = list(self._states_probs.keys())
+        probabilities = list(self._states_probs.values())
+        # random.choices is suitable for weighted random selection.
+        return random.choices(states, weights=probabilities, k=1)[0]
 
-    def get_register(self, name: str) -> UncertainValue:
-        """Retrieves an UncertainValue register by name.
+    def map_states(self, func: Callable[[Any], Any]) -> 'UncertainValue':
+        """Applies a deterministic function to each possible state, creating a new
+        UncertainValue. If multiple original states map to the same new state,
+        their probabilities are summed. This operation transforms the possible
+        outcomes while preserving the overall probability distribution.
 
         Args:
-            name: The name of the register to retrieve.
+            func: A callable that takes a state (Any) and returns a new state (Any).
 
         Returns:
-            The UncertainValue instance associated with the given name.
-
-        Raises:
-            ValueError: If the register with the given name is not found.
+            A new UncertainValue instance representing the transformed states.
         """
-        if name not in self._registers:
-            raise ValueError(f"Register '{name}' not found.")
-        return self._registers[name]
+        new_states_probs: Dict[Any, float] = {}
+        for state, prob in self._states_probs.items():
+            new_state = func(state)
+            new_states_probs[new_state] = new_states_probs.get(new_state, 0.0) + prob
+        # The constructor will re-normalize if needed and handle any states with zero prob.
+        return UncertainValue(new_states_probs)
 
-    def apply_operation_to_register(
-        self,
-        register_name: str,
-        transition_matrix: Dict[Any, Dict[Any, float]],
-        op_name: str = "stochastic_op",
-    ) -> None:
-        """Applies a stochastic operation to a specified register.
+    def combine(self, other: 'UncertainValue', combine_func: Callable[[Any, Any], Any]) -> 'UncertainValue':
+        """Combines this UncertainValue with another, assuming the two are independent.
+
+        Each possible state of the new UncertainValue is a combination of a state
+        from `self` and a state from `other`. The probability of a combined state
+        is the product of their individual probabilities. This method is crucial
+        for modeling systems where multiple uncertain components interact.
 
         Args:
-            register_name: The name of the register to operate on.
-            transition_matrix: The stochastic transition matrix to apply.
-            op_name: An optional name for the operation, used in history tracking.
-
-        Raises:
-            ValueError: If the register is not found or if the operation fails.
-        """
-        register = self.get_register(register_name)
-        register.apply_stochastic_operation(transition_matrix)
-        self._history.append(f"Applied '{op_name}' to '{register_name}': {register}")
-
-    def measure_register(self, register_name: str) -> Any:
-        """Measures (collapses) a specified register and returns its outcome.
-
-        Args:
-            register_name: The name of the register to measure.
+            other: Another UncertainValue instance to combine with.
+            combine_func: A callable that takes two states (one from `self`, one from `other`)
+                          and returns their combined state.
 
         Returns:
-            The definite state that the register collapsed into.
-
-        Raises:
-            ValueError: If the register is not found.
+            A new UncertainValue instance representing the combined states.
         """
-        register = self.get_register(register_name)
-        result = register.collapse()
-        self._history.append(f"Measured '{register_name}', result: {result}")
-        return result
+        new_states_probs: Dict[Any, float] = {}
+        for s1, p1 in self._states_probs.items():
+            for s2, p2 in other._states_probs.items():
+                combined_state = combine_func(s1, s2)
+                combined_prob = p1 * p2
+                new_states_probs[combined_state] = new_states_probs.get(combined_state, 0.0) + combined_prob
+        # The constructor will normalize the probabilities.
+        return UncertainValue(new_states_probs)
 
-    def get_history(self) -> Tuple[str, ...]:
-        """Returns the operational history of the system as an immutable tuple."""
-        return tuple(self._history)
+    def get_probability(self, state: Any) -> float:
+        """Returns the probability of a specific state. Returns 0.0 if the state
+        is not among the possible states of this UncertainValue.
+        """
+        return self._states_probs.get(state, 0.0)
 
     def __str__(self) -> str:
-        s = f"--- {self.name} ---"
-        if not self._registers:
-            s += "\n  (No registers added yet)"
-        else:
-            for name, reg in self._registers.items():
-                s += f"\n  '{name}': {reg}"
-        return s
+        """Returns a user-friendly string representation of the UncertainValue.
+        Probabilities are formatted for readability.
+        """
+        # Sort items for consistent string representation
+        sorted_items = sorted(self._states_probs.items(), key=lambda item: str(item[0]))
+        formatted_probs = {f"{k}": f"{v:.4f}" for k, v in sorted_items}
+        return f"UncertainValue({formatted_probs})"
 
-# Example usage (demonstrating the module's capabilities):
-if __name__ == "__main__":
-    print("--- Initializing Quantum-Inspired System ---")
-    system = QuantumInspiredSystem("SensorNetworkSimulator")
+    def __repr__(self) -> str:
+        """Returns an unambiguous string representation of the UncertainValue,
+        suitable for debugging and recreation.
+        """
+        # Use direct internal dictionary representation for full detail.
+        return f"UncertainValue({self._states_probs})"
 
-    # Add a sensor register that is initially 50/50 HIGH/LOW due to noise
-    sensor_a = system.add_register("SensorA", {'HIGH': 0.5, 'LOW': 0.5})
-    print(system)
-    print(f"SensorA initially: {sensor_a}")
+    def __eq__(self, other: Any) -> bool:
+        """Checks for equality with another UncertainValue instance.
 
-    # Add another sensor register, initially biased towards 'ON'
-    sensor_b = system.add_register("SensorB", {'ON': 0.8, 'OFF': 0.2})
-    print(system)
-    print(f"SensorB initially: {sensor_b}")
+        Two UncertainValue instances are considered equal if they have the same
+        set of possible states and their corresponding probabilities are
+        approximately equal, accounting for floating-point inaccuracies.
+        """
+        if not isinstance(other, UncertainValue):
+            return NotImplemented
 
-    print("\n--- Applying operations ---")
-    # Define a 'filter' operation for SensorA
-    # If HIGH, mostly stays HIGH (0.9), sometimes flips to LOW (0.1)
-    # If LOW, mostly stays LOW (0.8), sometimes flips to HIGH (0.2)
-    filter_op_matrix = {
-        'HIGH': {'HIGH': 0.9, 'LOW': 0.1},
-        'LOW': {'HIGH': 0.2, 'LOW': 0.8}
-    }
-    system.apply_operation_to_register("SensorA", filter_op_matrix, "ApplyFilter")
-    print(f"SensorA after filter: {sensor_a}")
+        # First, compare the sets of possible states (keys).
+        if self.possible_states != other.possible_states:
+            return False
 
-    # Define a 'toggle' operation for SensorB
-    # Effectively flips the state with some uncertainty
-    toggle_op_matrix = {
-        'ON': {'ON': 0.3, 'OFF': 0.7},
-        'OFF': {'ON': 0.6, 'OFF': 0.4}
-    }
-    system.apply_operation_to_register("SensorB", toggle_op_matrix, "ApplyToggle")
-    print(f"SensorB after toggle: {sensor_b}")
+        # Then, compare the probabilities for each common state with tolerance.
+        for state in self.possible_states:
+            if not math.isclose(
+                self._states_probs.get(state, 0.0),
+                other._states_probs.get(state, 0.0),
+                rel_tol=_EPSILON,
+                abs_tol=_EPSILON,
+            ):
+                return False
+        return True
 
-    print("\n--- Measuring (Collapsing) Registers ---")
-    # Repeatedly measure SensorA to observe probabilistic outcomes
-    print("Simulating 5 measurements of SensorA:")
-    for i in range(5):
-        measurement_a = system.measure_register("SensorA")
-        print(f"  Measurement {i+1} of SensorA: {measurement_a}")
-        # Note: SensorA is now collapsed. Subsequent operations on it would fail.
-        # To simulate further operations, you would re-initialize a new UncertainValue.
-        # For this example, we'll only measure it once to demonstrate collapse.
+    def __hash__(self) -> int:
+        """Returns a hash for the UncertainValue.
 
-    print(f"SensorA state after collapse: {sensor_a}")
-    print(f"Is SensorA collapsed? {sensor_a.is_collapsed}")
+        Hashing floating-point numbers directly can be problematic due to precision.
+        This implementation sorts the states and their rounded probabilities to a
+        fixed precision, ensuring a consistent hash for numerically equivalent
+        UncertainValue instances. The rounding precision is derived from _EPSILON.
+        """
+        # Calculate rounding precision based on _EPSILON.
+        # e.g., if _EPSILON = 1e-9, round to 9 decimal places.
+        rounding_precision = int(-math.log10(_EPSILON)) if _EPSILON > 0 else 15 # Default for very small/zero epsilon
 
-    # Measure SensorB once
-    measurement_b = system.measure_register("SensorB")
-    print(f"\nMeasurement of SensorB: {measurement_b}")
-    print(f"SensorB state after collapse: {sensor_b}")
-    print(f"Is SensorB collapsed? {sensor_b.is_collapsed}")
-
-    print("\n--- System State and History ---")
-    print(system)
-    print("\n--- Operational History ---")
-    for event in system.get_history():
-        print(event)
-
-    print("\n--- Demonstrating Error Handling ---")
-    try:
-        # Try to apply an operation to a collapsed register
-        system.apply_operation_to_register("SensorA", filter_op_matrix, "AttemptFilterOnCollapsed")
-    except ValueError as e:
-        print(f"Caught expected error: {e}")
-
-    try:
-        # Try to initialize with invalid probabilities
-        UncertainValue({'X': -0.1, 'Y': 1.1})
-    except ValueError as e:
-        print(f"Caught expected error: {e}")
-
-    try:
-        # Try to apply operation with invalid transition matrix (probabilities don't sum to 1)
-        invalid_op = {'ON': {'ON': 0.5, 'OFF': 0.3}} # Sums to 0.8
-        system.add_register("TempSensor", {'ON': 1.0})
-        system.apply_operation_to_register("TempSensor", invalid_op, "InvalidOp")
-    except ValueError as e:
-        print(f"Caught expected error: {e}")
+        # Sort items by state (keys) to ensure a consistent order for hashing.
+        # Round probabilities to a fixed precision to handle floating point inaccuracies.
+        items_for_hash = tuple(
+            (state, round(prob, rounding_precision))
+            for state, prob in sorted(self._states_probs.items(), key=lambda item: str(item[0]))
+        )
+        return hash(items_for_hash)
