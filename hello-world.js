@@ -1,7 +1,8 @@
+from __future__ import annotations
 import collections
 import functools
 import nltk
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, Literal
 
 # --- NLTK Resource Downloads & Caching ---
 
@@ -156,106 +157,225 @@ def find_missing_number(numbers: List[int]) -> int:
     
     return expected_sum - actual_sum
 
+# --- Combination Generation Helpers (from NEW_DATA) ---
+
+def _create_all_state(
+    increment: int,
+    total_number: int,
+    level: int,
+    current_list: list[int],
+    total_list: list[list[int]],
+) -> None:
+    """
+    Helper function to recursively build all combinations using backtracking.
+    """
+    if level == 0:
+        total_list.append(current_list[:])
+        return
+
+    for i in range(increment, total_number - level + 2):
+        current_list.append(i)
+        _create_all_state(i + 1, total_number, level - 1, current_list, total_list)
+        current_list.pop()
+
+def _generate_all_combinations_backtracking(n: int, k: int) -> list[list[int]]:
+    """
+    Generates all possible combinations of k numbers out of 1 ... n using backtracking.
+    """
+    if k < 0:
+        raise ValueError("k must not be negative")
+    if n < 0:
+        raise ValueError("n must not be negative")
+    if k > n: # No combinations possible if k > n, return empty list
+        return []
+
+    result: list[list[int]] = []
+    _create_all_state(1, n, k, [], result)
+    return result
+
+def _combination_lists_itertools(n: int, k: int) -> list[list[int]]:
+    """
+    Generates all possible combinations of k numbers out of 1 ... n using itertools.
+    """
+    if k < 0:
+        raise ValueError("k must not be negative")
+    if n < 0:
+        raise ValueError("n must not be negative")
+    if k > n: # No combinations possible if k > n, return empty list
+        return []
+        
+    from itertools import combinations # Import here to avoid polluting global namespace if not used
+    return [list(x) for x in combinations(range(1, n + 1), k)]
+
 # --- Main Consolidated Function ---
 
 def calculate_nexus_branch_synthesis(
-    sentence: str,
-    *, 
+    mode: Literal['text_analysis', 'combination_generation'] = 'text_analysis',
+    
+    # Text Analysis Parameters
+    sentence: Optional[str] = None,
     case_insensitive: bool = True,
     remove_stopwords: bool = False,
     stopwords_language: str = 'english',
-    min_frequency: int = 0, 
-    max_frequency: Optional[int] = None, 
-    similarity_threshold: Optional[int] = None 
-) -> Dict[str, int]:
+    min_frequency: int = 0,
+    max_frequency: Optional[int] = None,
+    similarity_threshold: Optional[int] = None, # Uses _levenshtein_distance
+
+    # Combination Generation Parameters
+    n_combinations: Optional[int] = None,
+    k_combinations: Optional[int] = None,
+    use_backtracking_for_combinations: bool = False,
+    generate_all_k_combinations: bool = False, # "Dynamic Combination Length" extension
+    
+) -> Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]]]:
     """
-    Consolidates various word counting and analysis functionalities into a single function.
-    Focuses on high-performance algorithmic complexity where possible, while accurately
-    implementing the provided extensions, including those with higher complexity like
-    Levenshtein distance-based similarity.
+    Consolidates various functionalities for text analysis and combination generation
+    into a single high-performance function.
 
     Args:
-        sentence (str): The input text sentence.
-        case_insensitive (bool, optional): If True, converts all words to lowercase before counting.
-                                          Defaults to True.
-        remove_stopwords (bool, optional): If True, removes common words (stopwords) based on NLTK.
-                                           Defaults to False.
-        stopwords_language (str, optional): The language for stopwords (e.g., 'english').
-                                            Only used if `remove_stopwords` is True. Defaults to 'english'.
-        min_frequency (int, optional): Only counts words that occur at least `min_frequency` times.
-                                       A value of 0 (default) means no minimum frequency filter.
-        max_frequency (Optional[int], optional): Only counts words that occur at most `max_frequency` times.
-                                                 None (default) means no maximum frequency filter.
-        similarity_threshold (Optional[int], optional): If not None, calculates "similar word" counts
-                                                        using Levenshtein distance. A word's count
-                                                        will be the number of other *distinct tokens*
-                                                        in the sentence that are within this threshold
-                                                        of similarity.
-                                                        If set, this overrides basic frequency counting
-                                                        and performs a more computationally intensive
-                                                        similarity analysis (O(N_unique_tokens^2 * L^2)).
-                                                        None (default) means no similarity calculation.
+        mode (Literal['text_analysis', 'combination_generation']):
+            Determines the operation mode.
+            - 'text_analysis': Performs word counting, stopword removal, and optionally
+              Levenshtein distance-based similarity counting on a given sentence.
+            - 'combination_generation': Generates all possible combinations of k numbers
+              out of 1...n.
+
+        # --- Text Analysis Parameters (used when mode='text_analysis') ---
+        sentence (Optional[str]): The input text sentence for 'text_analysis' mode.
+                                  Required for 'text_analysis'.
+        case_insensitive (bool): If True, converts all words to lowercase before counting.
+                                 Defaults to True.
+        remove_stopwords (bool): If True, removes common words (stopwords) based on NLTK.
+                                 Defaults to False.
+        stopwords_language (str): The language for stopwords (e.g., 'english').
+                                  Only used if `remove_stopwords` is True. Defaults to 'english'.
+        min_frequency (int): Only counts words that occur at least `min_frequency` times.
+                             A value of 0 (default) means no minimum frequency filter.
+        max_frequency (Optional[int]): Only counts words that occur at most `max_frequency` times.
+                                       None (default) means no maximum frequency filter.
+        similarity_threshold (Optional[int]): If not None, calculates "similar word" counts
+                                                using Levenshtein distance. A word's count
+                                                will be the number of other *distinct tokens*
+                                                in the sentence that are within this threshold
+                                                of similarity. Overrides basic frequency counting.
+                                                None (default) means no similarity calculation.
+
+        # --- Combination Generation Parameters (used when mode='combination_generation') ---
+        n_combinations (Optional[int]): The upper limit number 'n' for combination generation (1...n).
+                                        Required for 'combination_generation'.
+        k_combinations (Optional[int]): The size 'k' of combinations to generate.
+                                        Required for 'combination_generation' unless
+                                        `generate_all_k_combinations` is True.
+        use_backtracking_for_combinations (bool): If True, uses the backtracking algorithm.
+                                                  If False (default), uses `itertools.combinations`
+                                                  which is generally faster.
+        generate_all_k_combinations (bool): If True, generates combinations for all `k` from 0 to `n_combinations`.
+                                            Overrides `k_combinations`. This is the "Dynamic Combination Length" extension.
 
     Returns:
-        Dict[str, int]: A dictionary where keys are words and values are their corresponding counts
-                        based on the applied filters and analysis.
+        Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]]]:
+        - If `mode` is 'text_analysis': A dictionary where keys are words and values are their counts.
+        - If `mode` is 'combination_generation' and `generate_all_k_combinations` is False:
+          A list of lists, where each inner list is a combination of `k_combinations` numbers.
+        - If `mode` is 'combination_generation' and `generate_all_k_combinations` is True:
+          A dictionary mapping `k` (int) to a list of lists of combinations for that `k`.
+
+    Raises:
+        ValueError: If required parameters for a given mode are missing or invalid.
     """
-    if not sentence:
-        return {}
 
-    # Step 1: Tokenization and initial processing (case_insensitive, remove_stopwords)
-    _download_nltk_punkt() # Ensure Punkt tokenizer is available
-    
-    raw_tokens = nltk.word_tokenize(sentence, language=stopwords_language)
+    if mode == 'text_analysis':
+        if sentence is None:
+            raise ValueError("Parameter 'sentence' is required for 'text_analysis' mode.")
+        if not sentence:
+            return {}
 
-    processed_words: List[str] = []
-    
-    if remove_stopwords:
-        stopwords_set = _get_stopwords_set(stopwords_language)
-        for token in raw_tokens:
-            current_token = token.lower() if case_insensitive else token
-            if current_token.isalpha() and current_token not in stopwords_set:
-                processed_words.append(current_token)
-    else:
-        for token in raw_tokens:
-            current_token = token.lower() if case_insensitive else token
-            if current_token.isalpha():
-                processed_words.append(current_token)
-
-    if not processed_words:
-        return {}
-
-    # Step 2: Determine the base occurrence dictionary (standard frequency or similarity-based)
-    final_occurrence_basis: collections.defaultdict[str, int]
-
-    if similarity_threshold is not None:
-        # Calculate similarity counts based on Levenshtein distance.
-        # This part has O(U^2 * L^2) complexity where U is unique tokens, L is avg word length.
-        final_occurrence_basis = collections.defaultdict(int)
+        # Step 1: Tokenization and initial processing (case_insensitive, remove_stopwords)
+        _download_nltk_punkt() # Ensure Punkt tokenizer is available
         
-        unique_processed_words = list(set(processed_words)) 
+        raw_tokens = nltk.word_tokenize(sentence, language=stopwords_language)
 
-        for word_token_outer in unique_processed_words:
-            for word_token_inner in unique_processed_words:
-                if word_token_outer != word_token_inner and \
-                   _levenshtein_distance(word_token_outer, word_token_inner) <= similarity_threshold:
-                    final_occurrence_basis[word_token_outer] += 1
-    else:
-        # Standard word frequency count. Time complexity: O(N_tokens).
-        final_occurrence_basis = collections.defaultdict(int)
-        for word in processed_words:
-            final_occurrence_basis[word] += 1
-    
-    # Step 3: Apply frequency filtering (min_frequency and max_frequency)
-    # Time complexity: O(U), where U is the number of unique words.
-    result_dict: Dict[str, int] = {}
-    
-    if min_frequency > 0 or max_frequency is not None:
-        for word, count in final_occurrence_basis.items():
-            if (min_frequency == 0 or count >= min_frequency) and \
-               (max_frequency is None or count <= max_frequency):
-                result_dict[word] = count
-    else:
-        result_dict = dict(final_occurrence_basis)
+        processed_words: List[str] = []
+        
+        if remove_stopwords:
+            stopwords_set = _get_stopwords_set(stopwords_language)
+            for token in raw_tokens:
+                current_token = token.lower() if case_insensitive else token
+                if current_token.isalpha() and current_token not in stopwords_set:
+                    processed_words.append(current_token)
+        else:
+            for token in raw_tokens:
+                current_token = token.lower() if case_insensitive else token
+                if current_token.isalpha():
+                    processed_words.append(current_token)
 
-    return result_dict
+        if not processed_words:
+            return {}
+
+        # Step 2: Determine the base occurrence dictionary (standard frequency or similarity-based)
+        final_occurrence_basis: collections.defaultdict[str, int]
+
+        if similarity_threshold is not None:
+            # Calculate similarity counts based on Levenshtein distance.
+            # This part has O(U^2 * L^2) complexity where U is unique tokens, L is avg word length.
+            # Using list(set(processed_words)) to avoid redundant comparisons on non-unique words
+            final_occurrence_basis = collections.defaultdict(int)
+            
+            unique_processed_words = list(set(processed_words)) 
+
+            for word_token_outer in unique_processed_words:
+                for word_token_inner in unique_processed_words:
+                    if word_token_outer != word_token_inner and \
+                       _levenshtein_distance(word_token_outer, word_token_inner) <= similarity_threshold:
+                        final_occurrence_basis[word_token_outer] += 1
+        else:
+            # Standard word frequency count. Time complexity: O(N_tokens).
+            final_occurrence_basis = collections.defaultdict(int)
+            for word in processed_words:
+                final_occurrence_basis[word] += 1
+        
+        # Step 3: Apply frequency filtering (min_frequency and max_frequency)
+        # Time complexity: O(U), where U is the number of unique words.
+        result_dict: Dict[str, int] = {}
+        
+        if min_frequency > 0 or max_frequency is not None:
+            for word, count in final_occurrence_basis.items():
+                if (min_frequency == 0 or count >= min_frequency) and \
+                   (max_frequency is None or count <= max_frequency):
+                    result_dict[word] = count
+        else:
+            result_dict = dict(final_occurrence_basis)
+
+        return result_dict
+
+    elif mode == 'combination_generation':
+        if n_combinations is None:
+            raise ValueError("Parameter 'n_combinations' is required for 'combination_generation' mode.")
+        if n_combinations < 0:
+            raise ValueError("Parameter 'n_combinations' must not be negative.")
+
+        combination_func = _generate_all_combinations_backtracking if use_backtracking_for_combinations else _combination_lists_itertools
+
+        if generate_all_k_combinations:
+            # Implements "Dynamic Combination Length" extension
+            if n_combinations == 0:
+                # Per the example generate_all_combinations(n=0, k=0) -> [[]]
+                # And generate_all_combinations(n=1, k=0) -> [[]]
+                # So for n=0, all k (only k=0) yields [[]]
+                return {0: [[]]} 
+            
+            all_combinations_by_k: Dict[int, List[List[int]]] = {}
+            for k_val in range(n_combinations + 1):
+                all_combinations_by_k[k_val] = combination_func(n_combinations, k_val)
+            return all_combinations_by_k
+        else:
+            if k_combinations is None:
+                raise ValueError("Parameter 'k_combinations' is required for 'combination_generation' mode "
+                                 "unless 'generate_all_k_combinations' is True.")
+            if k_combinations < 0:
+                raise ValueError("Parameter 'k_combinations' must not be negative.")
+            # k_combinations > n_combinations will result in an empty list from the helper functions.
+            return combination_func(n_combinations, k_combinations)
+
+    else:
+        raise ValueError(f"Invalid mode: '{mode}'. Must be 'text_analysis' or 'combination_generation'.")
