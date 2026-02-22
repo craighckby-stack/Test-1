@@ -66,7 +66,7 @@ def _levenshtein_distance(word1: str, word2: str) -> int:
 def _levenshtein_distance_matrix(words: List[str]) -> List[List[int]]:
     """
     Returns a matrix of Levenshtein distances between each pair of words in the input list.
-    (Extension 2)
+    (Extension 2 - as described in source)
     """
     matrix = [[0] * len(words) for _ in range(len(words))]
     for i, word1 in enumerate(words):
@@ -80,7 +80,7 @@ def _levenshtein_distance_matrix(words: List[str]) -> List[List[int]]:
 def longest_common_substring(text1: str, text2: str) -> str:
     """
     Finds the longest common substring between two input strings.
-    (Extension 5)
+    (Extension 5 - as described in source)
     """
     m, n = len(text1), len(text2)
     dp = [[0] * (n + 1) for _ in range(m + 1)]
@@ -111,8 +111,6 @@ def get_index_of_rightmost_set_bit(number: int) -> int:
     if number == 0:
         return -1
     
-    # This isolates the rightmost set bit
-    # e.g., number = 36 (0b100100) -> intermediate = 4 (0b000100)
     intermediate = number & ~(number - 1)
     
     index = 0
@@ -126,16 +124,13 @@ def get_index_of_first_set_bit(number: int) -> int:
     Takes in a positive integer 'number'.
     Returns the zero-based index of first set bit in that 'number' from left (Most Significant Bit).
     Returns -1, If no set bit found.
-    (Extension 3, corrected for "from left")
+    (Extension 3 - as described in source, corrected for "from left")
     """
     if not isinstance(number, int) or number < 0:
         raise ValueError("Input must be a non-negative integer")
     if number == 0:
         return -1
     
-    # bit_length() returns the number of bits required to represent an integer in binary,
-    # excluding the sign bit and leading zeros. For a positive integer, this is
-    # equivalent to 1 + the index of the most significant (leftmost) set bit.
     return number.bit_length() - 1
 
 # --- Numerical List Processing Helper ---
@@ -145,7 +140,7 @@ def find_missing_number(numbers: List[int]) -> int:
     Finds the missing number in a sorted list of positive integers.
     Assumes the list represents a consecutive sequence with exactly one number missing
     within the range defined by `min(numbers)` and `max(numbers)`.
-    (Extension 4)
+    (Extension 4 - as described in source)
     """
     if not numbers:
         raise ValueError("Input list cannot be empty")
@@ -154,9 +149,8 @@ def find_missing_number(numbers: List[int]) -> int:
 
     min_val = min(numbers)
     max_val = max(numbers)
-    n_expected = max_val - min_val + 1 # Count of numbers if none were missing
+    n_expected = max_val - min_val + 1 
     
-    # Sum of an arithmetic series: n * (first + last) / 2
     expected_sum = (n_expected * (min_val + max_val)) // 2
     actual_sum = sum(numbers)
     
@@ -166,13 +160,13 @@ def find_missing_number(numbers: List[int]) -> int:
 
 def calculate_nexus_branch_synthesis(
     sentence: str,
-    *, # Enforce keyword-only arguments for clarity and future extensibility
+    *, 
     case_insensitive: bool = True,
     remove_stopwords: bool = False,
     stopwords_language: str = 'english',
-    min_frequency: int = 0, # 0 means no minimum frequency filter
-    max_frequency: Optional[int] = None, # None means no maximum frequency filter
-    similarity_threshold: Optional[int] = None # None means no similarity calculation
+    min_frequency: int = 0, 
+    max_frequency: Optional[int] = None, 
+    similarity_threshold: Optional[int] = None 
 ) -> Dict[str, int]:
     """
     Consolidates various word counting and analysis functionalities into a single function.
@@ -199,7 +193,7 @@ def calculate_nexus_branch_synthesis(
                                                         of similarity.
                                                         If set, this overrides basic frequency counting
                                                         and performs a more computationally intensive
-                                                        similarity analysis (O(N_tokens^2 * L^2)).
+                                                        similarity analysis (O(N_unique_tokens^2 * L^2)).
                                                         None (default) means no similarity calculation.
 
     Returns:
@@ -210,8 +204,7 @@ def calculate_nexus_branch_synthesis(
         return {}
 
     # Step 1: Tokenization and initial processing (case_insensitive, remove_stopwords)
-    # Using NLTK's word_tokenize for robust tokenization (integrating Extension 1 logic).
-    _download_nltk_punkt()
+    _download_nltk_punkt() # Ensure Punkt tokenizer is available
     
     raw_tokens = nltk.word_tokenize(sentence, language=stopwords_language)
 
@@ -221,13 +214,11 @@ def calculate_nexus_branch_synthesis(
         stopwords_set = _get_stopwords_set(stopwords_language)
         for token in raw_tokens:
             current_token = token.lower() if case_insensitive else token
-            # Filter out punctuation and stopwords
             if current_token.isalpha() and current_token not in stopwords_set:
                 processed_words.append(current_token)
     else:
         for token in raw_tokens:
             current_token = token.lower() if case_insensitive else token
-            # Filter out punctuation
             if current_token.isalpha():
                 processed_words.append(current_token)
 
@@ -242,12 +233,10 @@ def calculate_nexus_branch_synthesis(
         # This part has O(U^2 * L^2) complexity where U is unique tokens, L is avg word length.
         final_occurrence_basis = collections.defaultdict(int)
         
-        # To count distinct tokens for similarity, operate on a set of unique words.
         unique_processed_words = list(set(processed_words)) 
 
         for word_token_outer in unique_processed_words:
             for word_token_inner in unique_processed_words:
-                # Count similarity against *other distinct tokens*.
                 if word_token_outer != word_token_inner and \
                    _levenshtein_distance(word_token_outer, word_token_inner) <= similarity_threshold:
                     final_occurrence_basis[word_token_outer] += 1
