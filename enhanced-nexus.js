@@ -754,3 +754,161 @@ function describe_Iterable(seq, limit) {
 assertThat(describe(s, 10)).isEqualTo(
         "Set{Set{Set{Set{Set{Set{Set{Set{Set{Set{!recursion-limit!}}}}}}}}}}");
 });
+
+const r = 3;
+const xType = d3.scaleLinear; // type of x-scale
+const yType = d3.scaleLinear; // type of y-scale
+const marginTop = 20; // top margin, in pixels
+const marginRight = 30; // right margin, in pixels
+const marginBottom = 30; // bottom margin, in pixels
+const marginLeft = 40; // left margin, in pixels
+const inset = r * 2; // inset the default range, in pixels
+const insetTop = inset; // inset the default y-range
+const insetRight = inset; // inset the default x-range
+const insetBottom = inset; // inset the default y-range
+const insetLeft = inset; // inset the default x-range
+
+const halfHeight = 14;
+const halfWidth = 22;
+
+// These variables are assumed to be defined elsewhere in the user's context.
+// For the purpose of completing the code, dummy values are used if not provided.
+const xDomain = typeof xDomain !== 'undefined' ? xDomain : [0, 10];
+const yDomain = typeof yDomain !== 'undefined' ? yDomain : [0, 10];
+
+const n_x = xDomain[1] - xDomain[0];
+const n_y = yDomain[1] - yDomain[0];
+const width = n_x * (halfWidth * 2.5) + marginLeft + marginRight + insetLeft + insetRight;
+const height = n_y * (3 * halfHeight) + marginBottom + insetBottom + marginTop + insetTop;
+const xRange = [marginLeft + insetLeft, width - marginRight - insetRight];
+const yRange = [height - marginBottom - insetBottom, marginTop + insetTop];
+
+// Construct scales and axes.
+const xScale = xType(xDomain, xRange);
+const yScale = yType([yDomain[1], yDomain[0]], yRange);
+const xAxis = d3.axisBottom(xScale).ticks(width / 80);
+const yAxis = d3.axisLeft(yScale).ticks(height / 50);
+
+// Placeholder for d3 if not globally available in this context.
+// In a typical browser environment with D3 loaded, this is not needed.
+const d3 = typeof d3 !== 'undefined' ? d3 : {
+  scaleLinear: (domain, range) => {
+    const scale = v => range[0] + (v - domain[0]) / (domain[1] - domain[0]) * (range[1] - range[0]);
+    scale.domain = () => domain;
+    scale.range = () => range;
+    return scale;
+  },
+  axisBottom: scale => ({
+    ticks: () => ({
+      call: () => ({
+        select: () => ({
+          remove: () => {}
+        })
+      })
+    })
+  }),
+  axisLeft: scale => ({
+    ticks: () => ({
+      call: () => ({
+        select: () => ({
+          remove: () => {}
+        })
+      })
+    })
+  }),
+  select: selector => {
+    if (typeof document === 'undefined') return { append: () => ({ attr: () => ({ attr: () => ({ attr: () => ({}) }) }) }) }; // Dummy for server-side
+    return d3.select(selector);
+  }
+};
+
+
+function makeCanvas(sel) {
+  const svg = sel.append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", [0, 0, width, height])
+    .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+
+  svg.append("g")
+    .attr("transform", `translate(0,${height - marginBottom})`)
+    .call(xAxis)
+    .call(g => g.select(".domain").remove())
+
+  svg.append("g")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .call(yAxis)
+    .call(g => g.select(".domain").remove())
+
+  const datag = svg.append("g")
+    .attr("id", "datag");
+
+  return [svg, datag];
+}
+
+// Assuming `d3.select("#content")` will work in the environment.
+// If run in a non-browser environment, this might need a mock or different initialization.
+const [canvas, DATA_G] = makeCanvas(d3.select("#content"));
+
+function drawVlines(vlines, tt) {
+  DATA_G.selectAll('line.v')
+    .data(vlines, d => d.x)
+    .join(
+      enter => enter.append("line")
+        .attr("class", "v")
+        .attr("stroke", "black")
+        .attr('x1', d => xScale(d.x))
+        .attr('x2', d => xScale(d.x))
+        .attr('y1', d => yScale(d.bottom_y))
+        .attr('y2', d => yScale(d.bottom_y))
+        .call(enter => enter.transition(tt)
+          .attr('y2', d => yScale(d.top_y))
+        )
+        .lower(),
+      update => update
+        .call(update => update.transition(tt)
+          .attr('x1', d => xScale(d.x))
+          .attr('x2', d => xScale(d.x))
+          .attr('y1', d => yScale(d.bottom_y))
+          .attr('y2', d => yScale(d.top_y))
+        )
+        .lower(),
+      exit => exit
+        .call(exit => exit.transition(tt)
+          .attr('y2', d => yScale(d.bottom_y))
+          .remove()
+        ),
+    );
+
+}
+
+function drawHlines(hlines, tt) {
+  DATA_G.selectAll('line.h')
+    .data(hlines, d => `${d.y}-${d.left_x}-${d.right_x}`) // Compound key for unique horizontal lines
+    .join(
+      enter => enter.append("line")
+        .attr("class", "h")
+        .attr("stroke", "black")
+        .attr('x1', d => xScale(d.left_x))
+        .attr('x2', d => xScale(d.left_x)) // Start from left edge for animation
+        .attr('y1', d => yScale(d.y))
+        .attr('y2', d => yScale(d.y))
+        .call(enter => enter.transition(tt)
+          .attr('x2', d => xScale(d.right_x)) // Animate to right_x
+        )
+        .lower(),
+      update => update
+        .call(update => update.transition(tt)
+          .attr('x1', d => xScale(d.left_x))
+          .attr('x2', d => xScale(d.right_x))
+          .attr('y1', d => yScale(d.y))
+          .attr('y2', d => yScale(d.y))
+        )
+        .lower(),
+      exit => exit
+        .call(exit => exit.transition(tt)
+          .attr('x2', d => xScale(d.left_x)) // Animate back to left_x before removing
+          .remove()
+        ),
+    );
+}
