@@ -484,3 +484,86 @@
   */
 
 })();
+
+const puppeteer = require('puppeteer');
+const {beforeAll, describe, it, expect} = require('vitest');
+const {readFileSync} = require('fs');
+const pixelmatch = require('pixelmatch');
+const PNG = require('pngjs').PNG;
+const temp = require('temp');
+const path = require('path');
+
+/**
+ * Generates an HTML script with the current repository bundle
+ * that we will use to compare.
+ */
+const bundleString = readFileSync('dist/bloch_sphere.bundle.js', 'utf8');
+
+function htmlContent(clientCode) {
+  return `
+    <!doctype html>
+    <meta charset="UTF-8">
+    <html lang="en">
+      <head>
+      <title>Cirq Web Development page</title>
+      </head>
+      <body>
+      <div id="container"></div>
+      <script>${bundleString}</script>
+      <script>${clientCode}</script>
+      </body>
+    </html>
+    `;
+}
+
+/**
+ * Helper to take a screenshot with a given client code.
+ */
+async function takeScreenshot(clientCode, outputPath) {
+  const browser = await puppeteer.launch({args: ['--app']});
+  const page = await browser.newPage();
+  await page.setContent(htmlContent(clientCode));
+  await page.screenshot({path: `${outputPath}.png`});
+  await browser.close();
+}
+
+/**
+ * Helper to compare two images using pixelmatch.
+ */
+function compareImages(expectedPath, actualPath) {
+  const expected = PNG.sync.read(readFileSync(expectedPath));
+  const actual = PNG.sync.read(readFileSync(actualPath));
+  const {width, height} = expected;
+  const diff = new PNG({width, height});
+
+  const pixels = pixelmatch(expected.data, actual.data, diff.data, width, height, {
+    threshold: 0.1,
+  });
+
+  expect(pixels).toBe(0);
+}
+
+// Automatically track and cleanup files on exit
+temp.track();
+
+describe('Bloch sphere', () => {
+  const dirPath = temp.mkdirSync('tmp');
+  const outputPath = path.join(dirPath, 'bloch_sphere');
+  const newVectorOutputPath = path.join(dirPath, 'bloch_sphere_vec');
+
+  beforeAll(async () => {
+    await takeScreenshot("renderBlochSphere('container')", outputPath);
+  });
+
+  it('with no vector matches the gold PNG', () => {
+    compareImages('e2e/bloch_sphere/bloch_sphere_expected.png', `${outputPath}.png`);
+  });
+
+  beforeAll(async () => {
+    await takeScreenshot("renderBlochSphere('container').addVector(0.5, 0.5, 0.5)", newVectorOutputPath);
+  });
+
+  it('with custom statevector matches the gold PNG', () => {
+    compareImages('e2e/bloch_sphere/bloch_sphere_expected_custom.png', `${newVectorOutputPath}.png`);
+  });
+});
