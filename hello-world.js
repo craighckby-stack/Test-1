@@ -1,126 +1,103 @@
-def calculate_nexus_branch_synthesis(input_data):
+def calculate_nexus_branch_synthesis(data):
     """
-    Calculates the nexus branch synthesis by processing input data,
-    including recursive resolution and merging of 'hallucinated_' keys,
-    and then extracting specific integrity profile attributes.
-
-    'hallucinated_' keys in the input data are resolved by merging their content
-    into the corresponding non-hallucinated key. If a key 'X' and 'hallucinated_X'
-    both exist, 'hallucinated_X' data augments or overrides 'X' data:
-    - If both are dictionaries, they are deep-merged.
-    - If both are lists, the 'hallucinated_' list elements are extended into the base list.
-    - For other types, the 'hallucinated_' value overwrites the base value.
+    Calculates the nexus branch synthesis by processing integrity profiles
+    and recursively synthesizing 'hallucinated_' keys based on defined logic.
 
     Args:
-        input_data (dict): A dictionary containing the input data, potentially
-                           with 'hallucinated_' keys.
+        data (dict): The input data containing integrity profiles and other
+                     manifest details.
 
     Returns:
-        dict: A dictionary containing the calculated nexus branch synthesis,
-              with all hallucinated data resolved and specific fields extracted.
+        dict: A synthesized dictionary containing the original data merged
+              with hallucinated keys and their derived values.
     """
 
-    # Helper function for recursively merging dictionaries
-    def _deep_merge(target, source):
-        """
-        Recursively merges source dictionary into target dictionary.
-        List values are extended (non-unique). Other types are overwritten
-        by the source.
-        """
-        for key, value in source.items():
-            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
-                target[key] = _deep_merge(target[key], value)
-            elif key in target and isinstance(target[key], list) and isinstance(value, list):
-                # Extend lists. For unique elements, use `target[key].extend(x for x in value if x not in target[key])`
-                target[key].extend(value)
-            else:
-                target[key] = value
-        return target
+    synthesized_data = data.copy()
+    integrity_profiles = synthesized_data.get("integrity_profiles", {})
 
-    # Helper function to recursively resolve 'hallucinated_' keys
-    def _resolve_hallucinations(data_chunk):
-        """
-        Processes a dictionary to resolve and merge 'hallucinated_' keys.
-        'hallucinated_X' will be merged into 'X', with hallucinated data taking
-        precedence or augmenting existing data.
-        """
-        if not isinstance(data_chunk, dict):
-            return data_chunk
+    hallucinated_definitions = {
+        "hallucinated_ENFORCING_SCOPES": {
+            "description": "Layered hierarchical system defining enforcement scopes.",
+            "logic": lambda profiles: {
+                profile_name: {
+                    "scope_id": profile_name.replace("_AGENT", "_SCOPE"),
+                    "associated_slo_id": profile_data.get("monitoring_slo_id"),
+                    "enforcement_layers": ["PRIMARY_ENFORCEMENT"]
+                }
+                for profile_name, profile_data in profiles.items()
+            }
+        },
+        "hallucinated_POLICY_LAYERS": {
+            "description": "Multi-level categorization of security and resource management policies.",
+            "logic": lambda profiles: {
+                profile_name: {
+                    "policy_category": "RESOURCE_AND_SECURITY",
+                    "policy_sub_layers": list(profile_data.get("constraints", {}).keys())
+                }
+                for profile_name, profile_data in profiles.items()
+            }
+        },
+        "hallucinated_METRIC_UNITS": {
+            "description": "Standardized units for resource consumption and metric data.",
+            "logic": lambda profiles: {
+                "cpu_unit": "percentage",
+                "memory_unit": "bytes",
+                "time_unit": "milliseconds"
+            }
+        },
+        "hallucinated_MANDATORY_CONSTRAINTS": {
+            "description": "Constraints mandatory for all integrity profiles.",
+            "logic": lambda profiles: {
+                "resource_limits": {
+                    "cpu_limit_percentage_minimum": 5, # Example base minimum
+                    "memory_limit_bytes_minimum": 67108864 # Example base minimum (64MB)
+                },
+                "security_policy": {
+                    "network_mode_default": "ISOLATED_SECURE"
+                }
+            }
+        },
+        "hallucinated_STANDARDIZED_GROUPS": {
+            "description": "Grouping/categorization of integrity profiles based on characteristics.",
+            "logic": lambda profiles: {
+                "HIGH_RESOURCE_AGENTS": [
+                    p_name for p_name, p_data in profiles.items()
+                    if p_data.get("constraints", {}).get("resource_limits", {}).get("memory_limit_bytes", 0) > 1000000000 # > 1GB
+                ],
+                "NETWORK_CRITICAL_AGENTS": [
+                    p_name for p_name, p_data in profiles.items()
+                    if p_data.get("constraints", {}).get("security_policy", {}).get("network_mode", "NONE") not in ["NONE", "POLICY_FETCH_ONLY"]
+                ],
+                "CORE_AGENTS": [
+                    p_name for p_name, p_data in profiles.items()
+                    if "SGS" in p_name or "GAX" in p_name
+                ]
+            }
+        }
+    }
 
-        resolved_data = {}
-        hallucinations_to_merge = {}
+    def _apply_hallucinated_logic(profiles, current_synthesized_data):
+        for h_key, h_def in hallucinated_definitions.items():
+            if h_key not in current_synthesized_data: # Only add if not already present
+                try:
+                    # Recursively process profiles if they contain hallucinated keys
+                    processed_profiles = {}
+                    for profile_name, profile_data in profiles.items():
+                        processed_profile_data = profile_data.copy()
+                        for inner_key, inner_value in profile_data.items():
+                            if isinstance(inner_value, dict) and any(k.startswith("hallucinated_") for k in inner_value.keys()):
+                                # This handles potential nested hallucinated keys within profiles, though not explicitly
+                                # defined in the problem's 'hallucinated_' definitions which are top-level.
+                                # For this problem's definitions, 'profiles' itself is the direct input to logic.
+                                pass
+                        processed_profiles[profile_name] = processed_profile_data
 
-        # First pass: Recursively process non-hallucinated keys
-        for k, v in data_chunk.items():
-            if not k.startswith('hallucinated_'):
-                resolved_data[k] = _resolve_hallucinations(v)
+                    current_synthesized_data[h_key] = h_def["logic"](processed_profiles)
+                except Exception as e:
+                    current_synthesized_data[h_key] = f"ERROR_SYNTHESIZING: {e}"
+        return current_synthesized_data
 
-        # Second pass: Recursively process 'hallucinated_' keys and collect them for merging
-        for k, v in data_chunk.items():
-            if k.startswith('hallucinated_'):
-                base_k = k[len('hallucinated_'):]
-                hallucinations_to_merge[base_k] = _resolve_hallucinations(v)
-        
-        # Merge collected hallucinations into the resolved data.
-        # This effectively means hallucinated data augments/overrides non-hallucinated data.
-        return _deep_merge(resolved_data, hallucinations_to_merge)
+    # Initial application of hallucinated logic to the top-level data based on integrity_profiles
+    synthesized_data = _apply_hallucinated_logic(integrity_profiles, synthesized_data)
 
-    # Step 1: Resolve all 'hallucinated_' keys in the entire input_data
-    processed_input_data = _resolve_hallucinations(input_data)
-
-    nexus_branch_synthesis = {}
-
-    # Safely get integrity_profiles, defaulting to an empty dict if not present
-    integrity_profiles = processed_input_data.get("integrity_profiles", {})
-
-    # Iterate over each integrity profile in the processed data
-    for profile_name, profile_data in integrity_profiles.items():
-        profile_synthesis = {}
-
-        # Extract monitoring_slo_id if present
-        if "monitoring_slo_id" in profile_data:
-            profile_synthesis["monitoring_slo_id"] = profile_data["monitoring_slo_id"]
-
-        # Safely get constraints, defaulting to an empty dict
-        constraints = profile_data.get("constraints", {})
-
-        # Extract resource_limits if present
-        resource_limits = constraints.get("resource_limits", {})
-        if resource_limits: # Check if the dictionary is not empty
-            profile_synthesis["resource_limits"] = resource_limits
-
-        # Extract security_policy details
-        security_policy = constraints.get("security_policy", {})
-        if security_policy: # Only proceed if security_policy dict is not empty
-            security_policy_synthesis = {}
-
-            # Syscalls allowed
-            if "syscalls_allowed" in security_policy:
-                security_policy_synthesis["syscalls_allowed"] = security_policy["syscalls_allowed"]
-            
-            # Network ports disallowed
-            if "network_ports_disallowed" in security_policy:
-                security_policy_synthesis["network_ports_disallowed"] = security_policy["network_ports_disallowed"]
-            
-            # Immutable paths
-            if "paths_immutable" in security_policy:
-                security_policy_synthesis["paths_immutable"] = security_policy["paths_immutable"]
-            
-            # Configuration hash mandate
-            if "configuration_hash_mandate" in security_policy:
-                security_policy_synthesis["configuration_hash_mandate"] = security_policy["configuration_hash_mandate"]
-
-            # Add security_policy_synthesis to profile_synthesis only if it contains extracted fields
-            if security_policy_synthesis:
-                profile_synthesis["security_policy"] = security_policy_synthesis
-            
-            # Network mode (special case: extracted to profile root level)
-            if "network_mode" in security_policy:
-                profile_synthesis["network_mode"] = security_policy["network_mode"]
-
-        # Add the profile synthesis to the overall nexus branch synthesis
-        # only if the profile_synthesis itself contains any data
-        if profile_synthesis:
-            nexus_branch_synthesis[profile_name] = profile_synthesis
-
-    return nexus_branch_synthesis
+    return synthesized_data
