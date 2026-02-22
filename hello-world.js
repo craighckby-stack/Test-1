@@ -12,15 +12,15 @@ Your ultimate goal is to evolve the Tri‑Model Nexus into a system that can aut
 
 The loop operates at two levels:
 
-1. **Runtime Level** – The Tri‑Model Nexus (your unmodified self) scans quantum repos and generates AGI‑related code snippets into a destination file (e.g., `agi_concept.js`). This is the **output** of your current capabilities.
+1.  **Runtime Level** – The Tri‑Model Nexus (your unmodified self) scans quantum repos and generates AGI‑related code snippets into a destination file (e.g., `agi_concept.js`). This is the **output** of your current capabilities.
 
-2. **Enhancement Level** – You, the enhancer AI, read this README, examine your own source code (the React app), and decide how to improve it. You then modify the source code directly, commit the changes (via GitHub), and optionally trigger a new run to test the improvements.
+2.  **Enhancement Level** – You, the enhancer AI, read this README, examine your own source code (the React app), and decide how to improve it. You then modify the source code directly, commit the changes (via GitHub), and optionally trigger a new run to test the improvements.
 
 The enhancements you make should be informed by the quantum repositories you analyze. For example:
 
-- A quantum repo might contain a novel use of superposition that could inspire a new AI prompt.
-- A quantum algorithm might suggest a better way to structure the chain of models.
-- The pattern of error handling in quantum libraries might teach you how to make your own code more robust.
+-   A quantum repo might contain a novel use of superposition that could inspire a new AI prompt.
+-   A quantum algorithm might suggest a better way to structure the chain of models.
+-   The pattern of error handling in quantum libraries might teach you how to make your own code more robust.
 
 ---
 
@@ -28,12 +28,12 @@ The enhancements you make should be informed by the quantum repositories you ana
 
 When you analyze a quantum repository (e.g., from `quantumlib`), focus on extracting **structural insights** that can be applied to your own architecture. Examples:
 
-- **Code organization**: How are large quantum projects modularized? Could your own code benefit from a similar module structure?
-- **Error handling**: Quantum simulations often deal with noise and decoherence – how do they manage uncertainty? Could you add probabilistic fallbacks to your AI chain?
-- **Parallelism**: Quantum algorithms leverage superposition – how could you introduce parallel processing or concurrent API calls?
-- **Mathematical patterns**: Look for linear algebra, tensor networks, or Hamiltonian simulation techniques – could these be translated into new prompt engineering strategies?
-- **Visualization**: Some quantum repos include plotting utilities – could you add a visualization panel to your UI to display the evolution of generated code?
-- **Testing**: Quantum projects often have extensive test suites. Could you add self‑testing capabilities to validate your generated AGI code?
+-   **Code organization**: How are large quantum projects modularized? Could your own code benefit from a similar module structure?
+-   **Error handling**: Quantum simulations often deal with noise and decoherence – how do they manage uncertainty? Could you add probabilistic fallbacks to your AI chain?
+-   **Parallelism**: Quantum algorithms leverage superposition – how could you introduce parallel processing or concurrent API calls?
+-   **Mathematical patterns**: Look for linear algebra, tensor networks, or Hamiltonian simulation techniques – could these be translated into new prompt engineering strategies?
+-   **Visualization**: Some quantum repos include plotting utilities – could you add a visualization panel to your UI to display the evolution of generated code?
+-   **Testing**: Quantum projects often have extensive test suites. Could you add self‑testing capabilities to validate your generated AGI code?
 
 ---
 
@@ -42,41 +42,46 @@ When you analyze a quantum repository (e.g., from `quantumlib`), focus on extrac
 Your source code is contained in `src/App.js`. You have full control to modify it. The enhancements should be made via a pull request or direct commit to your own repository (the one containing this README). Below are categories of possible enhancements, ranked from simplest to most complex.
 
 ### 3.1. Prompt Engineering
-- Modify the system prompts in `callAIChain` to incorporate quantum‑inspired reasoning (e.g., “think in superposition”, “evaluate multiple hypotheses simultaneously”).
-- Add a fourth AI model that specializes in quantum‑to‑classical translation.
-- Change the output format to Python instead of JavaScript (to match the AGI blueprint).
+
+-   Modify the system prompts in `callAIChain` to incorporate quantum‑inspired reasoning (e.g., “think in superposition”, “evaluate multiple hypotheses simultaneously”).
+-   Add a fourth AI model that specializes in quantum‑to‑classical translation.
+-   Change the output format to Python instead of JavaScript (to match the AGI blueprint).
 
 ### 3.2. Architecture Changes
-- Split `callAIChain` into separate modules for easier modification.
-- Add a configuration file (e.g., `config.json`) so that parameters (model names, prompts, file limits) can be adjusted without code changes.
-- Implement a plugin system that allows new AI models to be added dynamically.
+
+-   Split `callAIChain` into separate modules for easier modification.
+-   Add a configuration file (e.g., `config.json`) so that parameters (model names, prompts, file limits) can be adjusted without code changes.
+-   Implement a plugin system that allows new AI models to be added dynamically.
 
 ### 3.3. New Features
-- **Deduplication**: Before appending a snippet, check if it already exists in the destination file (using a hash). This prevents bloat.
-- **Validation**: After Gemini generates code, run a linter or a simple syntax check. If it fails, retry with a different prompt.
-- **Feedback loop**: After accumulating enough snippets, run the destination file through the AI chain again to refine it (i.e., treat the destination file as a new source).
-- **Visualization**: Add a graph that shows which repositories contributed which parts of the accumulated knowledge.
+
+-   **Deduplication**: Before appending a snippet, check if it already exists in the destination file (using a hash). This prevents bloat.
+-   **Validation**: After Gemini generates code, run a linter or a simple syntax check. If it fails, retry with a different prompt.
+-   **Feedback loop**: After accumulating enough snippets, run the destination file through the AI chain again to refine it (i.e., treat the destination file as a new source).
+-   **Visualization**: Add a graph that shows which repositories contributed which parts of the accumulated knowledge.
 
 ### 3.4. Performance & Robustness
-- Implement pagination for GitHub API (handle >100 repos).
-- Add a delay between API calls to avoid rate limits (currently only retries on failure, but not proactive).
-- Store intermediate results in local storage or a database so that long runs can be resumed after a crash.
+
+-   Implement pagination for GitHub API (handle >100 repos).
+-   Add a delay between API calls to avoid rate limits (currently only retries on failure, but not proactive).
+-   Store intermediate results in local storage or a database so that long runs can be resumed after a crash.
 
 ### 3.5. Self‑Modification Safety
-- Introduce a **governance module** that checks whether a proposed enhancement aligns with the original purpose (AGI creation with safety). This could be a simple checklist or an AI-based validator.
-- Add a rollback mechanism: before modifying code, commit the current state to a backup branch.
+
+-   Introduce a **governance module** that checks whether a proposed enhancement aligns with the original purpose (AGI creation with safety). This could be a simple checklist or an AI‑based validator.
+-   Add a rollback mechanism: before modifying code, commit the current state to a backup branch.
 
 ---
 
 ## 4. The Enhancement Process (Step‑by‑Step)
 
-1. **Read this README** – Understand the mission and the structure of your own code.
-2. **Select a quantum repository** – For example, `quantumlib/Cirq`. Use the GitHub API to fetch its file tree.
-3. **Analyze** – Pick a file (e.g., a Python module) and feed it through the existing AI chain, but with a special prompt: “Extract architectural patterns that could improve a React-based AI code synthesis tool.” (You may need to add this as a new mode.)
-4. **Synthesize an enhancement plan** – Based on the extracted insights, decide what change to make to `App.js`. Write the change as a code diff.
-5. **Apply the change** – Use the GitHub API to commit the change to your own repository. Include a commit message that references the source quantum file that inspired it.
-6. **Test** – Optionally, trigger a new run of the enhanced app to see if it produces better AGI output.
-7. **Iterate** – Repeat with another quantum repo, or even with the same repo but a different file.
+1.  **Read this README** – Understand the mission and the structure of your own code.
+2.  **Select a quantum repository** – For example, `quantumlib/Cirq`. Use the GitHub API to fetch its file tree.
+3.  **Analyze** – Pick a file (e.g., a Python module) and feed it through the existing AI chain, but with a special prompt: “Extract architectural patterns that could improve a React-based AI code synthesis tool.” (You may need to add this as a new mode.)
+4.  **Synthesize an enhancement plan** – Based on the extracted insights, decide what change to make to `App.js`. Write the change as a code diff.
+5.  **Apply the change** – Use the GitHub API to commit the change to your own repository. Include a commit message that references the source quantum file that inspired it.
+6.  **Test** – Optionally, trigger a new run of the enhanced app to see if it produces better AGI output.
+7.  **Iterate** – Repeat with another quantum repo, or even with the same repo but a different file.
 
 ---
 
@@ -100,8 +105,8 @@ Then commit this change.
 
 As you enhance yourself, you must ensure that every change keeps the system aligned with its original purpose: **to create a working AGI that is safe, ethical, and aligned with human values**. The AGI blueprint in `agi_concept.py` (if present) contains principles you should respect:
 
-- `Ethics(safety=Safety(priority=1, corrigible=True, shutdown=True, ...))`
-- `alignment=Alignment(human_at_helm=True, oversight=True, power_seeking=False, ...)`
+-   `Ethics(safety=Safety(priority=1, corrigible=True, shutdown=True, ...))`
+-   `alignment=Alignment(human_at_helm=True, oversight=True, power_seeking=False, ...)`
 
 If an enhancement would violate these principles (e.g., adding a feature that could lead to uncontrolled self‑modification), you must either reject it or add safeguards.
 
@@ -117,10 +122,10 @@ The final output should be a system that, when run, exhibits general intelligenc
 
 ## 8. Technical Notes
 
-- Your source code is a React app; modifications must be valid JavaScript/JSX.
-- Use the existing `safeFetch` function for all GitHub API calls (it handles retries).
-- When committing changes, you need the GitHub token (already provided in the UI). The token must have push access to your own repo.
-- The destination file (e.g., `agi_concept.js`) is where your generated AGI code accumulates. You may also choose to store enhancement plans or logs there.
+-   Your source code is a React app; modifications must be valid JavaScript/JSX.
+-   Use the existing `safeFetch` function for all GitHub API calls (it handles retries).
+-   When committing changes, you need the GitHub token (already provided in the UI). The token must have push access to your own repo.
+-   The destination file (e.g., `agi_concept.js`) is where your generated AGI code accumulates. You may also choose to store enhancement plans or logs there.
 
 ---
 
@@ -128,1529 +133,490 @@ The final output should be a system that, when run, exhibits general intelligenc
 
 ---
 
-## `src/App.js`
+## ABSTRACTIONS: Logic Analyzer for Sovereign Engine Mock
 
-```javascript
-import {
-  useState,
-  useEffect,
-  useReducer,
-  useRef,
-  useCallback
-} from 'react';
-import {
-  initializeApp,
-  getApps,
-  getApp
-} from 'firebase/app';
-import {
-  getAuth,
-  signInWithCustomToken,
-  signInAnonymously,
-  onAuthStateChanged
-} from 'firebase/auth';
-import axios from 'axios';
-import {
-  v4 as uuidv4
-} from 'uuid';
-import {
-  GitHub
-} from 'github-api';
-import {
-  useAuthState
-} from 'react-firebase-hooks/auth';
+To understand the logic of the Sovereign Engine Mock, we can perform a high-level analysis of the code organization, main functionality, and key components.
 
-// ============================================================================
-// 1. ERROR HANDLING CLASSES
-// ============================================================================
+### Code Organization
 
-/**
- * Custom error class for API-related issues, including status codes and details.
- */
-class ApiError extends Error {
-  constructor(message, statusCode = 500, details = null) {
-    super(message);
-    this.name = 'ApiError';
-    this.statusCode = statusCode;
-    this.details = details;
-  }
+The code is structured into several sections:
+
+1.  **Enums and Constants**: Defines status and action types as enums.
+2.  **Configuration**: Stores application settings and constants.
+3.  **Utility Functions**: Provides helper functions for base64 encoding/decoding, parsing repository paths, and logging.
+4.  **Mock Dependencies**: Defines mock objects for Firestore, AbortController, and AbortSignal.
+5.  **Service Definitions**: Describes the RuntimeContext and AppState services.
+6.  **Core Logic Functions**: Implements the core logic of the Sovereign Engine Mock.
+7.  **Control Functions**: Handles control flows, such as starting/stopping cycles and indexing repositories.
+8.  **Initialization**: Simulates the application startup sequence.
+
+### Main Functionality
+
+The Sovereign Engine Mock is designed to process files in a target repository, apply AI-based refactorings, and log the results. The main functionality can be broken down into three stages:
+
+1.  **Initialization**: The application is initialized with default settings and acknowledges its readiness.
+2.  **Indexing**: The repository is indexed, and a list of files to process is generated based on the target repository path, file extensions, and size constraints.
+3.  **Cycles**: The application enters a loop where it processes files from the queue, applies AI-based refactorings, and logs the results.
+
+### Key Components
+
+1.  **RuntimeContext**: Manages the application's runtime data and control references.
+2.  **AppState**: Handles the centralized application state using a controlled dispatch pattern.
+3.  **Call Gemini API**: Simulates the interaction with the Gemini AI API for refactorings.
+4.  **Process File**: Handles the fetching, AI processing, and simulated external writes for a file.
+5.  **Run Cycle**: Manages the file iteration and processing cycle.
+6.  **Start Cycle Timer**: Initializes the simulation of the periodic processing cycle.
+7.  **Handle Main Button**: Simulates the primary UI interaction button (Start/Stop/Index).
+
+Overall, the Sovereign Engine Mock is a fully-featured example of an application that processes files using AI-based refactorings and logs the results, demonstrating good code organization, modularity, and testability.
+
+---
+
+## CORE/NEW: Sovereign Engine Mock (Python Implementation)
+
+```python
+import base64
+import datetime
+import time
+import re
+from typing import Any, Dict, List, Optional, Callable
+from enum import Enum
+
+# --- ENUMS AND CONSTANTS ---
+
+class Status(str, Enum):
+    """Sovereign Engine status."""
+    IDLE = 'IDLE'
+    INDEXING = 'INDEXING'
+    PROCESSING = 'PROCESSING'
+    COMPLETE = 'COMPLETE'
+    ABORTED = 'ABORTED'
+    ERROR = 'ERROR'
+
+class ActionType(str, Enum):
+    """Recognized state mutations."""
+    SET_VALUE = 'SET_VALUE'
+    TOGGLE_LIVE = 'TOGGLE_LIVE'
+    ACKNOWLEDGE = 'ACKNOWLEDGE'
+    SET_STATUS = 'SET_STATUS'
+    UPDATE_METRICS = 'UPDATE_METRICS'
+    MARK_COMPLETE = 'MARK_COMPLETE'
+
+# --- CONFIGURATION ---
+CONFIG = {
+    'APP_ID': 'sovereign_app',
+    'MAX_API_RETRIES': 5,
+    'CYCLE_INTERVAL_MS': 500,
+    'MAX_FILE_SIZE_BYTES': 1024 * 1024,  # 1MB
+    'DEFAULT_MODEL': 'gemini-2.5-flash',
 }
 
-/**
- * Custom error class for logging failures, with a built-in reporting mechanism.
- */
-class LoggingError extends Error {
-  constructor(message, statusCode = 500, details = null) {
-    super(message);
-    this.name = 'LoggingError';
-    this.statusCode = statusCode;
-    this.details = details;
-    this.reportError(); // Automatically report the error upon creation
-  }
-
-  async reportError() {
-    try {
-      // In a production environment, this would send the error to a logging service.
-      // For now, it just logs to the console.
-      console.error(`[LoggingError] ${this.message}`, this.details);
-    } catch (error) {
-      console.error('Error reporting failed:', error);
-    }
-  }
+PIPELINES = {
+    'GENERIC': [
+        {'text': 'Refactor this code snippet for modern Python 3 standards, improve clarity, and optimize performance.'},
+    ],
 }
 
-// ============================================================================
-// 2. CONFIGURATION & ENVIRONMENT
-// ============================================================================
-
-// Configuration settings for the AI and system operations
-const appConfig = {
-  // Operational timings
-  CYCLE_INTERVAL: 6000, // Time in ms between each processing cycle
-  MAX_API_RETRIES: 5, // Maximum retries for API calls for Gemini
-  GEMINI_INITIAL_BACKOFF_MS: 100, // Initial backoff delay for Gemini API retries
-  GEMINI_BACKOFF_MULTIPLIER: 2, // Multiplier for exponential backoff
-  GEMINI_MAX_BACKOFF_MS: 5000, // Maximum backoff delay
-  RATE_LIMIT_STATUS_CODE: 429, // HTTP status code for rate limiting
-
-  // Model configuration (Gemini models as per README)
-  MODELS: [{
-    id: 'gemini-2.5-flash-lite-preview-09-2025',
-    label: 'Flash Lite (Speed)'
-  }, {
-    id: 'gemini-2.5-flash-preview-09-2025',
-    label: 'Flash 2.5 (Pro)'
-  }, {
-    id: 'gemini-3-flash-preview-09-2025',
-    label: 'Flash 3.0 (Exp)'
-  }, ],
-
-  // File processing limits and storage
-  MAX_FILE_SIZE_BYTES: Math.pow(10, 6), // Maximum file size to process (1MB)
-  LOCAL_STORAGE_PREFIX: 'emg_v86_', // Prefix for localStorage keys
-  LOG_HISTORY_LIMIT: 60, // Maximum number of logs to keep in memory
-
-  // API Endpoints
-  GITHUB_API_BASE: 'https://api.github.com',
-  GEMINI_API_BASE: 'https://generativelanguage.googleapis.com/v1beta',
-};
-
-// Batch processing configuration
-const batchConfig = {
-  maxRetries: 5,
-  backoffMultiplier: 2,
-  initialBackoffMs: 100,
-  rateLimitStatusCode: 429,
-  batchSize: 100,
-  maxBackoffMs: 5000,
-  apiEndpoint: 'https://api.sovereign.com/v1/batch', // Example batch API endpoint
-};
-
-
-// Pipeline steps define AI prompts for different file categories
-const pipelineSteps = {
-  CODE: [{
-    id: 'refactor',
-    label: 'Refactor',
-    prompt: 'Act as a Senior Software Engineer adhering strictly to the Rock Principle. ' +
-      'MANDATORY: Fully optimize and refactor the following code snippet for modern best practices, improved clarity, and optimized performance. Consider potential quantum-inspired architectural patterns (e.g., modularity, error handling for uncertainty, parallelism). ' +
-      'MANDATORY: Return the full, refactored code block first. ' +
-      'MANDATORY: After the code, append a detailed "Full log" section describing the changes made, the reasoning, and any quantum-inspired insights applied. ' +
-      'MANDATORY: The output must be valid code for the original file type.'
-  }, ],
-  CONFIG: [{
-    id: 'validate',
-    label: 'Lint',
-    prompt: 'Act as a DevOps Engineer. Optimize configurations. ' +
-      'MANDATORY: Fully optimize and refactor the following configuration snippet for modern best practices, improved clarity, and optimized performance. Consider potential quantum-inspired architectural patterns. ' +
-      'MANDATORY: Return the full, refactored configuration block first. ' +
-      'MANDATORY: After the config, append a detailed "Full log" section describing the changes made, the reasoning, and any quantum-inspired insights applied. ' +
-      'MANDATORY: The output must be valid for the original file type.'
-  }, ],
-  DOCS: [{
-    id: 'clarify',
-    label: 'Editor',
-    prompt: 'Act as a Technical Writer. Improve clarity of documentation. ' +
-      'MANDATORY: Fully optimize and refactor the following documentation for modern best practices, improved clarity, and conciseness. Consider potential quantum-inspired architectural patterns (e.g., structured information flow, explicit uncertainty handling). ' +
-      'MANDATORY: Return the full, refactored document first. ' +
-      'MANDATORY: After the document, append a detailed "Full log" section describing the changes made, the reasoning, and any quantum-inspired insights applied. ' +
-      'MANDATORY: The output must be valid for the original file type.'
-  }, ],
-};
-
-// Regular expressions to categorize file types
-const fileExtensions = {
-  CODE: /\.(js|jsx|ts|tsx|py|html|css|scss|sql|sh|java|go|rs|rb|php|cpp|c|h|kt|swift|dart)$/i,
-  CONFIG: /\.(json|yaml|yml|toml|ini)$/i,
-  DOCS: /\.(md|txt|rst|adoc|text)$/i,
-};
-
-// Patterns to skip specific files or directories during repository indexing
-const skipPatterns = [
-  /node_modules\//, /\.min\./, /-lock\./, /dist\//, /build\//, /\.git\//, /\.log$/,
-  /\/\.\.(?!\/|$)/i, // Skips dot files/directories
-  /^\.github\//, // Skips .github directory
-  /^\.vscode\//, // Skips .vscode directory
-  /\.env(\..*)?$/, // Skips .env files
-  /\.DS_Store$/, // Skips macOS specific files
-];
-
-// Special documentation files that receive chronicler updates
-const todoFileNames = ['.sovereign-instructions.md', 'sovereign-todo.md', 'instructions.md', 'README.md', 'TODO.md'];
-
-// Inlined environment variable loading for React
-const loadEnv = () => {
-  return {
-    REACT_APP_ACTIVE_MODEL: process.env.REACT_APP_ACTIVE_MODEL,
-    REACT_APP_TARGET_REPO: process.env.REACT_APP_TARGET_REPO,
-    REACT_APP_INITIAL_AUTH_TOKEN: process.env.REACT_APP_INITIAL_AUTH_TOKEN,
-    REACT_APP_GH_TOKEN: process.env.REACT_APP_GH_TOKEN,
-    REACT_APP_GEMINI_KEYS: process.env.REACT_APP_GEMINI_KEYS ? process.env.REACT_APP_GEMINI_KEYS.split(',') : [],
-    REACT_APP_FIREBASE_API_KEY: process.env.REACT_APP_FIREBASE_API_KEY,
-    REACT_APP_FIREBASE_AUTH_DOMAIN: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-    REACT_APP_FIREBASE_PROJECT_ID: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-    REACT_APP_FIREBASE_STORAGE_BUCKET: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-    REACT_APP_FIREBASE_MESSAGING_SENDER_ID: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-    REACT_APP_FIREBASE_APP_ID: process.env.REACT_APP_FIREBASE_APP_ID,
-    REACT_APP_FIREBASE_MEASUREMENT_ID: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
-  };
-};
-
-// ============================================================================
-// 3. FIREBASE CONFIGURATION AND INITIALIZATION
-// ============================================================================
-
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
-};
-
-// Initialize Firebase only once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
-// ============================================================================
-// 4. UTILITY FUNCTIONS & MOCK SERVICES
-// ============================================================================
-
-/**
- * Calculates exponential backoff delay for Gemini API retries.
- * @param {number} retryCount - The current retry attempt number.
- * @returns {number} The delay in milliseconds.
- */
-function calculateGeminiBackoffDelay(retryCount) {
-  const baseDelay = appConfig.GEMINI_INITIAL_BACKOFF_MS * Math.pow(appConfig.GEMINI_BACKOFF_MULTIPLIER, retryCount);
-  return Math.min(baseDelay, appConfig.GEMINI_MAX_BACKOFF_MS);
+FILE_EXTENSIONS = {
+    'ALL': r'\.py$|\.js$|\.ts$|\.md$|\.json$|\.yaml$',
 }
 
-/**
- * Calculates exponential backoff delay for general batch API retries.
- * @param {number} retryCount - The current retry attempt number.
- * @returns {number} The delay in milliseconds.
- */
-function calculateBatchBackoffDelay(retryCount) {
-  const baseDelay = batchConfig.initialBackoffMs * Math.pow(batchConfig.backoffMultiplier, retryCount);
-  return Math.min(baseDelay, batchConfig.maxBackoffMs);
-}
+SKIP_PATTERNS = [
+    re.compile(r'node_modules'),
+    re.compile(r'\.test\.'),
+    re.compile(r'dist/'),
+]
 
-/**
- * Decodes a base64 string to a UTF-8 string.
- * @param {string} str - The base64 encoded string.
- * @returns {string} The decoded string.
- */
-const base64Decode = (str) => {
-  if (!str) return '';
-  try {
-    const binaryString = atob(str);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return new TextDecoder('utf-8').decode(bytes);
-  } catch (e) {
-    console.error("Base64 decoding failed:", e);
-    return '';
-  }
-};
+# --- Utility Functions ---
 
-/**
- * Encodes a UTF-8 string to a base64 string.
- * @param {string} str - The string to encode.
- * @returns {string} The base64 encoded string.
- */
-const base64Encode = (str) => {
-  if (!str) return '';
-  try {
-    const bytes = new TextEncoder().encode(str);
-    const binaryString = String.fromCharCode(...bytes);
-    return btoa(binaryString);
-  } catch (e) {
-    console.error("Base64 encoding failed:", e);
-    return '';
-  }
-};
+def parse_repo_path(path: Optional[str]) -> Optional[List[str]]:
+    """Parses 'owner/repo' string into a list [owner, repo]."""
+    if not path:
+        return None
+    return list(filter(None, path.strip().split('/', maxsplit=1)))
 
-/**
- * Parses a GitHub repository path from various URL formats.
- * @param {string} repoString - The repository URL or 'owner/repo' string.
- * @returns {[string, string]|null} An array [owner, repoName] or null if parsing fails.
- */
-const parseRepoPath = (repoString) => {
-  if (!repoString) return null;
-  const cleanString = repoString
-    .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '')
-    .replace(/\/$/, '');
-  const match = cleanString.match(/^([^/]+)\/([^/]+)$/);
-  return match ? [match[1], match[2]] : null;
-};
+def decode_base64(content: str) -> str:
+    """Decodes base64 content."""
+    try:
+        return base64.b64decode(content.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        raise ValueError(f"Base64 decoding error: {e}")
 
-/**
- * Determines the processing pipeline for a given file path based on its extension.
- * @param {string} filePath - The path of the file.
- * @returns {Array} The pipeline steps (e.g., CODE, CONFIG, DOCS).
- */
-const getPipeline = (filePath) => {
-  if (fileExtensions.CONFIG.test(filePath)) return pipelineSteps.CONFIG;
-  if (fileExtensions.DOCS.test(filePath)) return pipelineSteps.DOCS;
-  return pipelineSteps.CODE; // Default to CODE pipeline
-};
+def encode_base64(content: str) -> str:
+    """Encodes string content to base64."""
+    return base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
-/**
- * MOCK SERVICE: Simulates sending a batch of items to an API.
- */
-class ApiService {
-  async sendBatch(batch) {
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 40)); // Simulate network latency
+def safe_doc_id(path: str) -> str:
+    """Creates a safe ID string from a file path."""
+    return re.sub(r'[\/\\\.]', '_', path).strip('_')
 
-    if (Math.random() < 0.3) { // Simulate transient API failures
-      const isRateLimited = Math.random() < 0.1;
-      const statusCode = isRateLimited ? batchConfig.rateLimitStatusCode : 503;
+# --- Mock Dependencies (Isolation Layer) ---
 
-      throw new ApiError(
-        `API request failed with status ${statusCode}`,
-        statusCode, {
-          endpoint: batchConfig.apiEndpoint,
-          batchSize: batch.length
-        },
-      );
-    }
+class MockDB:
+    """Mock Firebase Firestore object."""
+    def doc(self, *args):
+        return self
+    def set(self, *args):
+        pass
 
-    return {
-      success: true,
-      processedCount: batch.length
-    };
-  }
-}
-const apiServiceInstance = new ApiService(); // Singleton instance
+class AbortSignal:
+    """Mocks the signal part of an AbortController."""
+    def __init__(self):
+        self.aborted: bool = False
 
-// ============================================================================
-// 5. STATE MANAGEMENT (Reducer and Core State - Enhanced with Logic Analyzer)
-// ============================================================================
+class AbortController:
+    """Mocks the AbortController for flow control."""
+    def __init__(self):
+        self.signal: AbortSignal = AbortSignal()
 
-// Main Application State
-const initialState = {
-  isLive: false, // Indicates if the AI loop is active
-  isAcknowledged: false, // Firebase authentication status
-  isIndexed: false, // Flag: current target repo files have been indexed
-  isComplete: false, // Flag: all cycles completed (if single pass)
-  status: 'IDLE', // Current operational status (e.g., IDLE, INDEXING, REFACTORING)
-  activePath: 'Ready', // Path of the file currently being processed
-  selectedModel: process.env.REACT_APP_ACTIVE_MODEL ?? appConfig.MODELS[0].id, // Active AI model
-  targetRepo: process.env.REACT_APP_TARGET_REPO ?? '', // Target GitHub repository
-  geminiKeys: Array(10).fill(''), // Array of Gemini API keys
-  keyHealth: {}, // Health status of each Gemini key (for rate limiting)
-  currentCycle: 1, // Current self-improvement cycle number
-  logs: [], // Operational logs
-  metrics: { // Performance and activity metrics
-    mutations: 0,
-    progress: 0,
-    steps: 0,
-    errors: 0
-  },
-  logicalSignals: {}, // For visual logic analysis
-};
+    def abort(self):
+        self.signal.aborted = True
 
-const reducer = (state, action) => {
-  switch (action.type) {
-    case 'SET_VAL':
-      // Persist certain values to local storage
-      if (action.key === 'targetRepo') localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`, action.value);
-      if (action.key === 'selectedModel') localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`, action.value);
-      return { ...state,
-        [action.key]: action.value
-      };
-    case 'MARK_KEY_HEALTH':
-      // Update Gemini key health status
-      return { ...state,
-        keyHealth: { ...state.keyHealth,
-          [action.index]: {
-            blocked: action.blocked,
-            resetAt: action.resetAt
-          }
+# --- Service Definitions ---
+
+class RuntimeContext:
+    """Centralized repository for mutable runtime data and control references."""
+    def __init__(self):
+        self.gh_token: Optional[str] = None
+        self.gemini_key: Optional[str] = None
+        self.queue: List[str] = []
+        self.current_index: int = 0
+        self.is_processing: bool = False
+        self.abort_controller: Optional[AbortController] = None
+
+class AppState:
+    """Manages the centralized application state using a controlled dispatch pattern."""
+    def __init__(self):
+        self.state = {
+            'isLive': False,
+            'isIndexed': False,
+            'isAcknowledged': False,
+            'status': Status.IDLE,
+            'targetRepo': 'owner/repo',
+            'selectedModel': CONFIG['DEFAULT_MODEL'],
+            'activePath': '',
+            'metrics': {'mutations': 0, 'errors': 0, 'progress': 0},
+            'logs': [],
         }
-      };
-    case 'INCREMENT_CYCLE':
-      // Advance to the next self-improvement cycle
-      return { ...state,
-        currentCycle: state.currentCycle + 1,
-        metrics: { ...state.metrics,
-          progress: 0
-        },
-        isIndexed: false, // Reset indexed status for next cycle
-      };
-    case 'ACKNOWLEDGE':
-      return { ...state,
-        isAcknowledged: true
-      };
-    case 'TOGGLE':
-      // Toggle the live status of the AI loop
-      return { ...state,
-        isLive: !state.isLive,
-        status: !state.isLive ? 'BOOTING' : 'IDLE',
-        isIndexed: !state.isLive ? false : state.isIndexed, // Reset indexed status when stopping
-      };
-    case 'LOG':
-      // Add a new log entry
-      return { ...state,
-        logs: [{
-          id: uuidv4(),
-          ...action.payload
-        }, ...state.logs].slice(0, appConfig.LOG_HISTORY_LIMIT)
-      };
-    case 'UPDATE_METRICS':
-      // Update performance metrics
-      return { ...state,
-        metrics: { ...state.metrics,
-          ...action.payload
-        }
-      };
-    case 'SET_STATUS':
-      // Update the current operational status
-      return { ...state,
-        status: action.value,
-        activePath: action.path || state.activePath
-      };
-    case 'SET_SIGNAL':
-      // Set a logical signal for the logic analyzer
-      return { ...state,
-        logicalSignals: { ...state.logicalSignals,
-          [action.signalKey]: action.signalValue
-        }
-      };
-    case 'SET_INDEXED':
-      // Mark repository indexing status
-      return { ...state,
-        isIndexed: action.value
-      };
-    case 'RESET_SESSION':
-      // Reset the session to initial state, preserving essential configurations
-      return {
-        ...initialState,
-        targetRepo: localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`) || process.env.REACT_APP_TARGET_REPO || '',
-        selectedModel: localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`) || process.env.REACT_APP_ACTIVE_MODEL || appConfig.MODELS[0].id,
-        geminiKeys: state.geminiKeys,
-        isAcknowledged: state.isAcknowledged,
-        logicalSignals: {}
-      };
-    default:
-      return state;
-  }
-};
+        self.user = {'uid': 'user123'}
+        self.log_fn: Callable[[str, str], None] = self.create_logger()
 
-// Batch Processing State and Reducer
-const batchActionTypes = {
-  ENQUEUE_ITEMS: 'ENQUEUE_ITEMS',
-  START_PROCESSING: 'START_PROCESSING',
-  FINISH_PROCESSING: 'FINISH_PROCESSING',
-  INCREMENT_SUCCESS: 'INCREMENT_SUCCESS',
-  INCREMENT_FAILURE: 'FINISH_FAILURE',
-  CLEAR_PROCESSED_QUEUE: 'CLEAR_PROCESSED_QUEUE',
-  SET_ITEM_PROCESSED: 'SET_ITEM_PROCESSED',
-};
+    def create_logger(self) -> Callable[[str, str], None]:
+        """Provides a centralized logging utility function."""
+        def add_log(msg: str, log_type: str = "info"):
+            self.log(msg, log_type)
+            print(f"[LOG {log_type.upper():<5}] {datetime.datetime.now().strftime('%H:%M:%S')}: {msg}")
+        return add_log
 
-const initialBatchState = {
-  queue: [],
-  processedCount: 0,
-  failedCount: 0,
-  isProcessing: false,
-};
+    def log(self, msg: str, log_type: str):
+        """Internal logging handler for state storage."""
+        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
+        self.state['logs'].append({'msg': msg, 'type': log_type, 'timestamp': timestamp})
 
-function batchReducer(state, action) {
-  switch (action.type) {
-    case batchActionTypes.ENQUEUE_ITEMS:
-      return { ...state,
-        queue: [...state.queue, ...action.payload]
-      };
-    case batchActionTypes.CLEAR_PROCESSED_QUEUE:
-      return { ...state,
-        queue: state.queue.filter((item) => !item.processed)
-      };
-    case batchActionTypes.START_PROCESSING:
-      return { ...state,
-        isProcessing: true
-      };
-    case batchActionTypes.FINISH_PROCESSING:
-      return { ...state,
-        isProcessing: false
-      };
-    case batchActionTypes.INCREMENT_SUCCESS:
-      return { ...state,
-        processedCount: state.processedCount + action.payload
-      };
-    case batchActionTypes.INCREMENT_FAILURE:
-      return { ...state,
-        failedCount: state.failedCount + action.payload
-      };
-    case batchActionTypes.SET_ITEM_PROCESSED:
-      return {
-        ...state,
-        queue: state.queue.map(item =>
-          item.id === action.payload.id ? { ...item,
-            processed: true
-          } : item
+    def dispatch(self, action: Dict[str, Any]):
+        """Applies state changes based on action type."""
+        try:
+            action_type = ActionType(action.get('type'))
+        except ValueError:
+            self.log_fn(f"Unknown action type received: {action.get('type')}", 'error')
+            return
+
+        if action_type == ActionType.SET_VALUE:
+            self.set_value(action)
+        
+        elif action_type == ActionType.TOGGLE_LIVE:
+            self.toggle_live()
+
+        elif action_type == ActionType.ACKNOWLEDGE:
+            self.acknowledge()
+
+        elif action_type == ActionType.SET_STATUS:
+            self.set_status(action)
+
+        elif action_type == ActionType.UPDATE_METRICS:
+            self.update_metrics(action)
+
+        elif action_type == ActionType.MARK_COMPLETE:
+            self.mark_complete()
+
+    def set_value(self, action: Dict[str, Any]):
+        """Sets a state value."""
+        key = action.get('key')
+        if key in self.state:
+            self.state[key] = action.get('value')
+
+    def toggle_live(self):
+        """Toggles the isLive flag."""
+        self.state['isLive'] = not self.state['isLive']
+
+    def acknowledge(self):
+        """Acknowledges the application state."""
+        self.state['isAcknowledged'] = True
+
+    def set_status(self, action: Dict[str, Any]):
+        """Sets the application status."""
+        status_value = action.get('value')
+        if status_value in Status.__members__.values():
+            self.state['status'] = status_value
+            if 'path' in action:
+                self.state['activePath'] = action['path']
+
+    def update_metrics(self, action: Dict[str, Any]):
+        """Updates the application metrics."""
+        metrics = self.state['metrics']
+        metrics['mutations'] += action.get('m', 0)
+        metrics['errors'] += action.get('e', 0)
+        if 'progress' in action:
+            metrics['progress'] = action['progress']
+
+    def mark_complete(self):
+        """Marks the application as complete."""
+        self.state['isLive'] = False
+        self.state['status'] = Status.COMPLETE
+
+# --- Core Logic Functions ---
+
+def call_gemini_api(
+    content_prompt: str,
+    persona_text: Dict[str, str],
+    model_id: str,
+    api_key: Optional[str],
+    retry_count: int = 0,
+) -> str:
+    """Placeholder for AI API interaction with retry logic."""
+    if not api_key:
+        raise PermissionError("API Key is required for AI processing.")
+
+    if retry_count >= CONFIG['MAX_API_RETRIES']:
+        raise ConnectionError("Exhausted maximum API retry attempts.")
+
+    # Using the global context object directly as it's a mock
+    # In a real app, context would be passed explicitly or accessed via dependency injection
+    if context.abort_controller and context.abort_controller.signal.aborted:
+        raise TimeoutError("Processing aborted by user.")
+
+    delay_s = 2 ** retry_count
+
+    try:
+        time.sleep(delay_s)
+
+        response_suffix = f"Length={len(content_prompt)}"
+        processed_content = f"// Refactored version based on: {persona_text['text'][:20]}... {response_suffix}"
+        return processed_content
+
+    except TimeoutError as te:
+        raise te
+    except Exception as e:
+        if retry_count < CONFIG['MAX_API_RETRIES'] - 1:
+            context.log_fn(f"API call failed ({type(e).__name__}). Retrying in {delay_s:.1f}s.", "warn")
+            return call_gemini_api(content_prompt, persona_text, model_id, api_key, retry_count + 1)
+        
+        raise ConnectionError(f"API call failed after {retry_count + 1} attempts.") from e
+
+# Mock function for database interaction
+def mock_set_doc_history(file_path: str, uid: str):
+    """Simulates storing a document history in a database."""
+    # In a real scenario, this would interact with MockDB.doc().set()
+    pass
+
+def process_file(
+    file_path: str,
+    owner: str,
+    repo: str,
+    token: Optional[str],
+    api_key: Optional[str],
+    model_id: str,
+) -> Dict[str, Any]:
+    """Handles fetching, AI processing, and simulated external writes."""
+    if not token or not api_key:
+        raise PermissionError("Missing authentication tokens (GitHub/Gemini).")
+
+    mock_content = "def old_function():\n    return 1 + 1"
+    content = decode_base64(encode_base64(mock_content))
+
+    context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING, 'path': file_path})
+
+    persona = PIPELINES['GENERIC'][0]
+    processed = call_gemini_api(content, persona, model_id, api_key)
+
+    if processed and processed != content and len(processed.strip()) > 5:
+        mock_set_doc_history(file_path, app_state.user['uid'])
+        return {'status': 'MUTATED', 'file_path': file_path}
+
+    return {'status': 'SKIPPED', 'file_path': file_path}
+
+# --- Control Functions ---
+
+def run_cycle():
+    """The core loop driver, managing file iteration."""
+    # Using the global app_state and context objects directly as it's a mock
+    if not app_state.state['isLive'] or context.is_processing or app_state.state['status'] != Status.PROCESSING or not app_state.state['isIndexed']:
+        return
+
+    context.is_processing = True
+
+    if context.current_index >= len(context.queue):
+        context.log_fn("Job Queue Empty. Cycle Finished.", "success")
+        context.dispatch({'type': ActionType.MARK_COMPLETE})
+        context.is_processing = False
+        return
+
+    file_path_to_process = context.queue[context.current_index]
+
+    try:
+        repo_path = parse_repo_path(app_state.state['targetRepo'])
+        if not repo_path:
+            raise ValueError("Invalid repository path configured.")
+        owner, repo = repo_path
+
+        result = process_file(
+            file_path_to_process,
+            owner,
+            repo,
+            context.gh_token,
+            context.gemini_key,
+            app_state.state['selectedModel'],
         )
-      };
-    default:
-      return state;
-  }
-}
 
-// ============================================================================
-// 6. REACT HOOKS AND COMPONENTS
-// ============================================================================
-
-// Hook to load environment variables
-const useEnvironment = () => {
-  const loadEnvData = useCallback(() => loadEnv(), []);
-  return { ...loadEnvData()
-  };
-};
-
-// Hook to initialize and provide GitHub API client
-const useGithub = (token) => {
-  const [github, setGithub] = useState(null);
-  useEffect(() => {
-    if (!token) return;
-    setGithub(new GitHub({
-      token
-    }));
-  }, [token]);
-  return github;
-};
-
-/**
- * React component to display logical signals for debugging/monitoring.
- * @param {{signals: object}} props - The logical signals object from the state.
- */
-function SignalDisplay({
-  signals
-}) {
-  return (
-    <div style={{ marginTop: '20px', borderTop: '1px solid #61dafb', paddingTop: '10px' }}>
-      <h3>Logical Signals</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-        {Object.keys(signals).map((signalKey) => (
-          <div key={signalKey} style={{
-            background: '#3a3f4a',
-            padding: '8px',
-            borderRadius: '4px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <span style={{ color: '#aaa' }}>{signalKey}:</span>
-            <span style={{
-              fontSize: 20,
-              fontWeight: 'bold',
-              color: signals[signalKey] === true ? 'lightgreen' : (signals[signalKey] === false ? 'indianred' : '#ccc')
-            }}>
-              {signals[signalKey] === true ? 'ACTIVE' : (signals[signalKey] === false ? 'INACTIVE' : String(signals[signalKey]).toUpperCase())}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const App = () => {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const [batchState, batchDispatch] = useReducer(batchReducer, initialBatchState); // New batch processing reducer
-  const [user, loading, error] = useAuthState(getAuth());
-
-  // Refs for managing state that shouldn't trigger re-renders
-  const ghTokenRef = useRef('');
-  const geminiKeyIndexRef = useRef(0);
-  const isBusy = useRef(false); // Prevents overlapping runCycle calls
-  const queueRef = useRef([]); // Stores file paths to process
-  const indexRef = useRef(0); // Current position in the processing queue
-  const mutationsHistory = useRef([]); // Records changes for chronicler documentation
-
-  // Load environment variables using the custom hook
-  const {
-    REACT_APP_ACTIVE_MODEL,
-    REACT_APP_TARGET_REPO,
-    REACT_APP_INITIAL_AUTH_TOKEN,
-    REACT_APP_GH_TOKEN,
-    REACT_APP_GEMINI_KEYS
-  } = useEnvironment();
-
-  // Initialize state from environment variables and local storage on mount
-  useEffect(() => {
-    const storedTargetRepo = localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`);
-    const storedSelectedModel = localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`);
-    const storedIndex = parseInt(localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`) || "0", 10);
-
-    if (storedTargetRepo) {
-      dispatch({
-        type: 'SET_VAL',
-        key: 'targetRepo',
-        value: storedTargetRepo
-      });
-    } else if (REACT_APP_TARGET_REPO) {
-      dispatch({
-        type: 'SET_VAL',
-        key: 'targetRepo',
-        value: REACT_APP_TARGET_REPO
-      });
-    }
-
-    if (storedSelectedModel) {
-      dispatch({
-        type: 'SET_VAL',
-        key: 'selectedModel',
-        value: storedSelectedModel
-      });
-    } else if (REACT_APP_ACTIVE_MODEL) {
-      dispatch({
-        type: 'SET_VAL',
-        key: 'selectedModel',
-        value: REACT_APP_ACTIVE_MODEL
-      });
-    }
-
-    if (REACT_APP_GH_TOKEN) {
-      ghTokenRef.current = REACT_APP_GH_TOKEN;
-    }
-
-    if (REACT_APP_GEMINI_KEYS && REACT_APP_GEMINI_KEYS.length > 0) {
-      dispatch({
-        type: 'SET_VAL',
-        key: 'geminiKeys',
-        value: REACT_APP_GEMINI_KEYS
-      });
-    }
-
-    indexRef.current = storedIndex; // Restore processing index
-  }, [dispatch, REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO, REACT_APP_GH_TOKEN, REACT_APP_GEMINI_KEYS]);
-
-  // Firebase authentication handling
-  useEffect(() => {
-    const initAuth = async () => {
-      if (!loading && !user && !error) {
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'firebase_auth_start',
-          signalValue: true
-        });
-        try {
-          if (REACT_APP_INITIAL_AUTH_TOKEN) {
-            await signInWithCustomToken(getAuth(), REACT_APP_INITIAL_AUTH_TOKEN);
-          } else {
-            await signInAnonymously(getAuth());
-          }
-          dispatch({
-            type: 'ACKNOWLEDGE'
-          });
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'firebase_auth_success',
-            signalValue: true
-          });
-        } catch (authError) {
-          dispatch({
-            type: 'LOG',
-            payload: {
-              id: uuidv4(),
-              message: `Auth Error: ${authError.message}`,
-              type: 'error',
-              timestamp: new Date().toLocaleString()
-            }
-          });
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'firebase_auth_failure',
-            signalValue: true
-          });
-          new LoggingError(`Firebase Authentication failed: ${authError.message}`, 500, authError);
-          dispatch({
-            type: 'UPDATE_METRICS',
-            payload: {
-              errors: state.metrics.errors + 1
-            }
-          });
-        } finally {
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'firebase_auth_start',
-            signalValue: false
-          });
-        }
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(getAuth(), (currentUser) => {
-      if (currentUser && !state.isAcknowledged) {
-        dispatch({
-          type: 'ACKNOWLEDGE'
-        });
-      }
-    });
-    return () => unsubscribe();
-  }, [loading, user, error, REACT_APP_INITIAL_AUTH_TOKEN, state.isAcknowledged, dispatch, state.metrics.errors]);
-
-  // Function to get the next available Gemini API key, handling health checks
-  const getNextKey = () => {
-    const validKeys = state.geminiKeys.map((k, i) => ({
-      k: k.trim(),
-      i
-    }));
-    const filteredKeys = validKeys.filter(node => node.k !== '');
-
-    if (filteredKeys.length === 0) {
-      throw new Error("Cluster Empty: No Gemini API keys provided.");
-    }
-
-    for (let i = 0; i < filteredKeys.length; i++) {
-      const candidateIndex = (geminiKeyIndexRef.current + i) % filteredKeys.length;
-      const keyNode = filteredKeys[candidateIndex];
-      const health = state.keyHealth[keyNode.i];
-
-      if (!health?.blocked || health.resetAt < Date.now()) {
-        geminiKeyIndexRef.current = (candidateIndex + 1) % filteredKeys.length;
-        return keyNode.k;
-      }
-    }
-    throw new Error("Cluster Overheat: All Gemini API keys are blocked or rate-limited.");
-  };
-
-  // Initialize GitHub API client
-  const github = useGithub(ghTokenRef.current);
-
-  // Function to update project documentation (README, TODO files) with audit logs
-  const syncProjectDocs = async (owner, repoName) => {
-    if (mutationsHistory.current.length === 0) return; // Only sync if there are mutations
-    dispatch({
-      type: 'SET_STATUS',
-      value: 'CHRONICLING'
-    });
-    dispatch({
-      type: 'SET_SIGNAL',
-      signalKey: 'github_sync_start',
-      signalValue: true
-    });
-
-    try {
-      for (const docName of todoFileNames) {
-        let currentContentData;
-        try {
-          currentContentData = await github.repos.getContents(owner, repoName, docName);
-        } catch (e) {
-          if (e.response && e.response.status === 404) {
-            // File doesn't exist, create it with a default header
-            currentContentData = {
-              content: base64Encode(`# ${docName.replace(/\.md$/, '').replace(/-/g, ' ').toUpperCase()}\n\n`),
-              sha: null
-            };
-            dispatch({
-              type: 'LOG',
-              payload: {
-                id: uuidv4(),
-                message: `Creating new document: ${docName}`,
-                type: 'info',
-                timestamp: new Date().toLocaleString()
-              }
-            });
-          } else {
-            throw e;
-          }
-        }
-
-        let content = base64Decode(currentContentData.content);
-        const timestamp = new Date().toLocaleString();
-
-        const logEntry = `\n\n### 🏛️ Sovereign Pass ${state.currentCycle} [${timestamp}]\n` +
-          mutationsHistory.current.map(m => `- **${m.path}**: ${m.change}`).join('\n');
-
-        if (docName.toLowerCase().includes('readme')) {
-          content = content.includes('## 📜 Audit Log') ?
-            content.replace('## 📜 Audit Log', `## 📜 Audit Log${logEntry}`) :
-            content + `\n\n## 📜 Audit Log${logEntry}`;
-        } else if (docName.toLowerCase().includes('todo') || docName.toLowerCase().includes('instructions')) {
-          content += `\n\n- [x] Completed Architectural Pass ${state.currentCycle} (${timestamp})`;
-        }
-
-        await github.repos.updateContents(owner, repoName, docName, {
-          message: `[Chronicler] Update ${docName} - Pass ${state.currentCycle}`,
-          content: base64Encode(content),
-          sha: currentContentData.sha
-        });
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `Synchronized ${docName}`,
-            timestamp: new Date().toLocaleString()
-          }
-        });
-      }
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_sync_success',
-        signalValue: true
-      });
-    } catch (e) {
-      dispatch({
-        type: 'LOG',
-        payload: {
-          id: uuidv4(),
-          message: "Sync Error: " + e.message,
-          type: 'error',
-          timestamp: new Date().toLocaleString()
-        }
-      });
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_sync_failure',
-        signalValue: true
-      });
-      new LoggingError(`GitHub Sync failed: ${e.message}`, e.response?.status || 500, e);
-      dispatch({
-        type: 'UPDATE_METRICS',
-        payload: {
-          errors: state.metrics.errors + 1
-        }
-      });
-    } finally {
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_sync_start',
-        signalValue: false
-      });
-    }
-    mutationsHistory.current = []; // Clear history after sync
-  };
-
-
-  // Core batch processing logic (useCallback for stability)
-  const flushBatch = useCallback(async () => {
-    if (batchState.isProcessing || batchState.queue.length === 0) return;
-
-    batchDispatch({
-      type: batchActionTypes.START_PROCESSING
-    });
-    console.log(`[BATCHER] Starting flush for ${batchState.queue.length} items.`);
-
-    let workingQueueItems = batchState.queue.filter((item) => !item.processed);
-    let totalSuccessfulItems = 0;
-    let totalFailedItems = 0;
-
-    const processChunk = async (batch) => {
-      let retryCount = 0;
-      let chunkHandled = false;
-
-      while (!chunkHandled && retryCount < batchConfig.maxRetries) {
-        try {
-          await apiServiceInstance.sendBatch(batch);
-          totalSuccessfulItems += batch.length;
-          batch.forEach(item => batchDispatch({
-            type: batchActionTypes.SET_ITEM_PROCESSED,
-            payload: {
-              id: item.id
-            }
-          }));
-          chunkHandled = true;
-          console.log(`[BATCHER] Chunk processed successfully. Size: ${batch.length}`);
-        } catch (error) {
-          if (error instanceof ApiError && error.statusCode === batchConfig.rateLimitStatusCode && retryCount < batchConfig.maxRetries - 1) {
-            const delay = calculateBatchBackoffDelay(retryCount);
-            console.warn(`[BATCHER] Rate limit hit. Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${batchConfig.maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            retryCount++;
-          } else {
-            const reason = error instanceof ApiError ? `Max retries reached or permanent error (${error.statusCode || 'Unknown'})` : `Unexpected error: ${error.message}`;
-            console.error(`[BATCHER] Chunk failed (${reason}). Size: ${batch.length}.`);
-            totalFailedItems += batch.length;
-            batch.forEach(item => batchDispatch({ // Mark as processed/failed
-              type: batchActionTypes.SET_ITEM_PROCESSED,
-              payload: {
-                id: item.id
-              }
-            }));
-            chunkHandled = true;
-          }
-        }
-      }
-    };
-
-    while (workingQueueItems.length > 0) {
-      const batchData = workingQueueItems.slice(0, batchConfig.batchSize);
-      await processChunk(batchData);
-      // After processing a chunk, re-filter the queue to get remaining unprocessed items
-      workingQueueItems = batchState.queue.filter(item => !item.processed);
-    }
-
-    if (totalSuccessfulItems > 0) {
-      batchDispatch({
-        type: batchActionTypes.INCREMENT_SUCCESS,
-        payload: totalSuccessfulItems
-      });
-    }
-    if (totalFailedItems > 0) {
-      batchDispatch({
-        type: batchActionTypes.INCREMENT_FAILURE,
-        payload: totalFailedItems
-      });
-    }
-
-    batchDispatch({
-      type: batchActionTypes.CLEAR_PROCESSED_QUEUE
-    });
-    batchDispatch({
-      type: batchActionTypes.FINISH_PROCESSING
-    });
-    console.log(`[BATCHER] Flush complete. Successful: ${totalSuccessfulItems}, Failed: ${totalFailedItems}. Remaining in queue (unprocessed): ${batchState.queue.filter(item => !item.processed).length}`);
-  }, [batchState.isProcessing, batchState.queue, batchDispatch]);
-
-
-  // Effect to trigger batch flush when queue size changes or periodically
-  useEffect(() => {
-    // Only trigger flush if not already processing and there are items in the queue
-    if (!batchState.isProcessing && batchState.queue.length > 0) {
-      const timer = setTimeout(() => {
-        flushBatch();
-      }, 500); // Small delay to allow more items to accumulate before flushing
-      return () => clearTimeout(timer);
-    }
-  }, [batchState.queue.length, batchState.isProcessing, flushBatch]);
-
-
-  // The main self-improvement loop cycle
-  const runCycle = useCallback(async () => {
-    if (!state.isLive || isBusy.current || !user || !github || !state.isAcknowledged) {
-      return;
-    }
-    isBusy.current = true; // Set busy flag to prevent concurrent runs
-
-    try {
-      const parsedRepo = parseRepoPath(state.targetRepo);
-      if (!parsedRepo) {
-        throw new Error("Invalid target repository format. Use 'owner/repo'.");
-      }
-      const [owner, repoName] = parsedRepo;
-
-      // Stage 1: Indexing the repository if not already indexed for the current cycle
-      if (!state.isIndexed || queueRef.current.length === 0) {
-        dispatch({
-          type: 'SET_STATUS',
-          value: 'INDEXING'
-        });
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'github_indexing_start',
-          signalValue: true
-        });
-
-        const {
-          data
-        } = await github.repos.get(owner, repoName);
-        const {
-          data: treeData
-        } = await github.repos.getTree(owner, repoName, data.default_branch, {
-          recursive: true
-        });
-
-        const filteredFiles = treeData.tree.filter(f =>
-          f.type === 'blob' &&
-          f.size < appConfig.MAX_FILE_SIZE_BYTES &&
-          !skipPatterns.some(pattern => pattern.test(f.path))
-        ).map(f => f.path);
-
-        queueRef.current = filteredFiles;
-        localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`, "0");
-        indexRef.current = 0;
-        dispatch({
-          type: 'SET_INDEXED',
-          value: true
-        });
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'github_indexing_success',
-          signalValue: true
-        });
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `Indexed ${filteredFiles.length} files. Starting processing.`,
-            timestamp: new Date().toLocaleString()
-          }
-        });
-      }
-
-      // Stage 2: Cycle completion check and chronicler sync
-      if (indexRef.current >= queueRef.current.length) {
-        await syncProjectDocs(owner, repoName); // Update README/TODO
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `Pass ${state.currentCycle} Complete.`,
-            timestamp: new Date().toLocaleString()
-          }
-        });
-        indexRef.current = 0;
-        localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`, "0");
-        queueRef.current = []; // Clear queue to force re-indexing on next cycle
-        dispatch({
-          type: 'INCREMENT_CYCLE'
-        });
-        dispatch({
-          type: 'SET_STATUS',
-          value: 'IDLE'
-        });
-        isBusy.current = false;
-        return;
-      }
-
-      // Stage 3: Process the next file in the queue
-      const path = queueRef.current[indexRef.current];
-      // Skip markdown files here as they are handled by chronicler (syncProjectDocs)
-      if (todoFileNames.includes(path)) {
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `Skipping documentation file (handled by chronicler): ${path}`,
-            type: 'info',
-            timestamp: new Date().toLocaleString()
-          }
-        });
-        indexRef.current++;
-        localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`, indexRef.current.toString());
-        dispatch({
-          type: 'UPDATE_METRICS',
-          payload: {
-            progress: Math.round((indexRef.current / queueRef.current.length) * 100)
-          }
-        });
-        isBusy.current = false;
-        return;
-      }
-
-      dispatch({
-        type: 'SET_STATUS',
-        value: 'REFACTORING',
-        path
-      });
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_fetch_file_start',
-        signalValue: true
-      });
-
-      // Fetch the file content from GitHub
-      const {
-        data: fileContentData
-      } = await github.repos.getContents(owner, repoName, path);
-      const fileContent = base64Decode(fileContentData.content);
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_fetch_file_success',
-        signalValue: true
-      });
-
-      let geminiResponse;
-      let retryCount = 0;
-      let geminiSuccess = false;
-
-      const pipeline = getPipeline(path);
-      const currentStep = pipeline[0];
-      const systemPrompt = currentStep.prompt;
-      const fileExtension = path.split('.').pop();
-
-      // Stage 4: Call Gemini API with retries and key rotation
-      while (!geminiSuccess && retryCount < appConfig.MAX_API_RETRIES) {
-        const geminiKey = getNextKey();
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'gemini_api_call_start',
-          signalValue: true
-        });
-
-        try {
-          geminiResponse = await axios.post(
-            `${appConfig.GEMINI_API_BASE}/models/${state.selectedModel}:generateContent`, {
-              contents: [{
-                parts: [{
-                  text: `${systemPrompt}\n\nCODE START:\n\`\`\`${fileExtension}\n${fileContent}\n\`\`\`\nCODE END.`
-                }]
-              }]
-            }, {
-              headers: {
-                'x-goog-api-key': geminiKey,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          geminiSuccess = true;
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'gemini_api_call_success',
-            signalValue: true
-          });
-          dispatch({
-            type: 'UPDATE_METRICS',
-            payload: {
-              steps: state.metrics.steps + 1
-            }
-          });
-        } catch (e) {
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'gemini_api_call_failure',
-            signalValue: true
-          });
-          if (e.response && (e.response.status === appConfig.RATE_LIMIT_STATUS_CODE || e.response.status === 403) && retryCount < appConfig.MAX_API_RETRIES - 1) {
-            const delay = calculateGeminiBackoffDelay(retryCount);
-            dispatch({
-              type: 'LOG',
-              payload: {
-                id: uuidv4(),
-                message: `Gemini API rate limit/error (${e.response.status}). Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${appConfig.MAX_API_RETRIES})`,
-                type: 'warn',
-                timestamp: new Date().toLocaleString()
-              }
-            });
-            dispatch({
-              type: 'MARK_KEY_HEALTH',
-              index: geminiKeyIndexRef.current,
-              blocked: true,
-              resetAt: Date.now() + delay
-            });
-            await new Promise(resolve => setTimeout(resolve, delay));
-            retryCount++;
-          } else {
-            throw new ApiError("Gemini API call failed after retries.", e.response?.status || 500, e);
-          }
-        } finally {
-          dispatch({
-            type: 'SET_SIGNAL',
-            signalKey: 'gemini_api_call_start',
-            signalValue: false
-          });
-        }
-      }
-
-      if (!geminiSuccess || !geminiResponse) {
-        throw new Error("Gemini API call ultimately failed.");
-      }
-
-      // Process the generated content
-      const generatedText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!generatedText) {
-        throw new Error("Gemini API returned no generated text.");
-      }
-
-      // Extract code and log from Gemini's response
-      const codeEndIndex = generatedText.toLowerCase().indexOf("full log");
-      let newCode = generatedText;
-      let changeLog = "No detailed log provided by AI.";
-
-      if (codeEndIndex !== -1) {
-        newCode = generatedText.substring(0, codeEndIndex).trim();
-        changeLog = generatedText.substring(codeEndIndex).trim();
-      }
-
-      // Clean up common LLM code block wrappers
-      newCode = newCode
-        .replace(/^```\w*\n/i, '')
-        .replace(/\n```$/i, '')
-        .trim();
-
-      // Stage 5: Update GitHub if code has changed
-      if (newCode.trim() !== fileContent.trim()) {
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'github_update_file_start',
-          signalValue: true
-        });
-        await github.repos.updateContents(owner, repoName, path, {
-          message: `[Refactor] Optimize and refactor ${path} - Pass ${state.currentCycle}`,
-          content: base64Encode(newCode),
-          sha: fileContentData.sha
-        });
-        mutationsHistory.current.push({
-          path,
-          change: changeLog.split('\n')[0] || "Code refactored and optimized."
-        });
-        dispatch({
-          type: 'UPDATE_METRICS',
-          payload: {
-            mutations: state.metrics.mutations + 1
-          }
-        });
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `Refactored: ${path}`,
-            type: 'success',
-            timestamp: new Date().toLocaleString()
-          }
-        });
-        dispatch({
-          type: 'SET_SIGNAL',
-          signalKey: 'github_update_file_success',
-          signalValue: true
-        });
-      } else {
-        dispatch({
-          type: 'LOG',
-          payload: {
-            id: uuidv4(),
-            message: `No significant changes for: ${path}`,
-            type: 'info',
-            timestamp: new Date().toLocaleString()
-          }
-        });
-      }
-
-    } catch (e) {
-      dispatch({
-        type: 'LOG',
-        payload: {
-          id: uuidv4(),
-          message: `Error in runCycle for ${state.activePath}: ${e.message}`,
-          type: 'error',
-          timestamp: new Date().toLocaleString()
-        }
-      });
-      new LoggingError(`Error during runCycle for ${state.activePath}: ${e.message}`, e.statusCode || 500, e);
-      dispatch({
-        type: 'UPDATE_METRICS',
-        payload: {
-          errors: state.metrics.errors + 1
-        }
-      });
-      // Reset signals in case of error for cleaner visualization
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_indexing_start',
-        signalValue: false
-      });
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_fetch_file_start',
-        signalValue: false
-      });
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'github_update_file_start',
-        signalValue: false
-      });
-      dispatch({
-        type: 'SET_SIGNAL',
-        signalKey: 'gemini_api_call_start',
-        signalValue: false
-      });
-      dispatch({
-        type: 'SET_STATUS',
-        value: 'ERROR'
-      });
-    } finally {
-      // Advance to the next file and update progress
-      indexRef.current++;
-      localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`, indexRef.current.toString());
-      dispatch({
-        type: 'UPDATE_METRICS',
-        payload: {
-          progress: Math.round((indexRef.current / queueRef.current.length) * 100)
-        }
-      });
-      isBusy.current = false; // Release busy flag
-    }
-  }, [state.isLive, state.isAcknowledged, user, github, state.targetRepo, state.selectedModel, state.metrics.mutations, state.currentCycle, state.metrics.errors, state.metrics.steps, state.activePath, state.isIndexed, dispatch, state.keyHealth]);
-
-
-  // Effect to trigger runCycle at a fixed interval when live
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (state.isLive && state.isAcknowledged && user && github) {
-        runCycle();
-      }
-    }, appConfig.CYCLE_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [state.isLive, state.isAcknowledged, user, github, runCycle]);
-
-  const handleEnqueueBatchItems = () => {
-    const itemCount = Math.floor(Math.random() * 50) + 10;
-    const newItems = Array.from({
-      length: itemCount
-    }, (_, i) => ({
-      id: uuidv4(),
-      content: `Batch item ${Date.now()}-${i}`,
-      processed: false
-    }));
-    batchDispatch({
-      type: batchActionTypes.ENQUEUE_ITEMS,
-      payload: newItems
-    });
-    console.log(`Enqueued ${itemCount} batch items.`);
-  };
-
-
-  // Main UI rendering
-  return (
-    <div style={{ fontFamily: 'monospace', padding: '20px', background: '#282c34', color: '#fff' }}>
-      <h1>Tri-Model Nexus</h1>
-      <p>Status: {state.status}</p>
-      <p>Active Path: {state.activePath}</p>
-      <p>Cycle: {state.currentCycle}</p>
-      <p>Progress: {state.metrics.progress}%</p>
-      <p>Mutations: {state.metrics.mutations}</p>
-      <p>Steps Taken: {state.metrics.steps}</p>
-      <p>Errors: {state.metrics.errors}</p>
-      <button onClick={() => dispatch({ type: 'TOGGLE' })} style={{
-        padding: '10px 20px',
-        fontSize: '16px',
-        backgroundColor: state.isLive ? '#ff4d4d' : '#4CAF50',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5ph',
-        cursor: 'pointer',
-        marginRight: '10px'
-      }}>
-        {state.isLive ? 'Stop' : 'Start'}
-      </button>
-      <button onClick={() => {
-        dispatch({ type: 'RESET_SESSION' });
-        // Also clear local storage for the specific items
-        localStorage.removeItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`);
-        localStorage.removeItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`);
-        localStorage.removeItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`);
-        // Force a re-render by resetting state for user-facing inputs
-        // (If not handled by SET_VAL and initial load effect)
-        window.location.reload(); // Simple way to clear all volatile state and local storage effects.
-      }} style={{
-        padding: '10px 20px',
-        fontSize: '16px',
-        backgroundColor: '#f0ad4e',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
-      }}>
-        Reset Session
-      </button>
-      <input
-        type="text"
-        placeholder="Target GitHub Repo (e.g., owner/repo)"
-        value={state.targetRepo}
-        onChange={(e) => dispatch({ type: 'SET_VAL', key: 'targetRepo', value: e.target.value })}
-        style={{
-          width: 'calc(100% - 22px)',
-          padding: '10px',
-          margin: '10px 0',
-          backgroundColor: '#3a3f4a',
-          border: '1px solid #61dafb',
-          color: '#fff',
-          borderRadius: '4px'
-        }}
-      />
-      <select
-        value={state.selectedModel}
-        onChange={(e) => dispatch({ type: 'SET_VAL', key: 'selectedModel', value: e.target.value })}
-        style={{
-          width: '100%',
-          padding: '10px',
-          margin: '10px 0',
-          backgroundColor: '#3a3f4a',
-          border: '1px solid #61dafb',
-          color: '#fff',
-          borderRadius: '4px'
-        }}
-      >
-        {appConfig.MODELS.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.label} ({model.id})
-          </option>
-        ))}
-      </select>
-      <div style={{ marginTop: '20px', maxHeight: '300px', overflowY: 'scroll', border: '1px solid #61dafb', padding: '10px', background: '#3a3f4a' }}>
-        <h3>Logs</h3>
-        {state.logs.map(log => (
-          <p key={log.id} style={{ color: log.type === 'error' ? 'red' : (log.type === 'warn' ? 'yellow' : 'white') }}>
-            [{log.timestamp}] {log.message}
-          </p>
-        ))}
-      </div>
-
-      <div style={{ marginTop: '20px', borderTop: '1px solid #61dafb', paddingTop: '10px' }}>
-        <h3>Batch Processing Status</h3>
-        <p>Queue Size: {batchState.queue.filter(item => !item.processed).length}</p>
-        <p>Currently Processing: {batchState.isProcessing ? 'Yes' : 'No'}</p>
-        <p>Successful Batches: {batchState.processedCount}</p>
-        <p>Failed Batches: {batchState.failedCount}</p>
-        <button onClick={handleEnqueueBatchItems} style={{
-          padding: '8px 15px',
-          fontSize: '14px',
-          backgroundColor: '#007bff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer'
-        }}>
-          Enqueue Random Batch Items
-        </button>
-      </div>
-
-      <SignalDisplay signals={state.logicalSignals} />
-    </div>
-  );
-};
-
-export default App;
-```
-
----
-
-## `src/GAX/Utilities/ConstraintAdherenceValidator.js`
-
-```javascript
-/**
- * @file ConstraintAdherenceValidator.js
- * @module GAX/Utilities
- * @description Utility class for validating deployment configurations against established constraints defined in ConstraintTaxonomy.
- */
-
-import { ConstraintTaxonomy } from './schema/GAX/ConstraintTaxonomy.schema.json'; // Assuming JSON loading capability
-
-export class ConstraintAdherenceValidator {
-
-    constructor(taxonomy = ConstraintTaxonomy.constraintTypes) {
-        this.taxonomyMap = new Map(taxonomy.map(c => [c.code, c]));
-    }
-
-    /**
-     * Checks if a provided configuration payload adheres to a specific set of constraints.
-     * @param {Object} configuration - The system configuration (e.g., a planned deployment).
-     * @param {Array<string>} requiredConstraintCodes - The specific subset of constraints to validate against (e.g., all HARD constraints).
-     * @returns {Object} Validation result containing status and list of violations.
-     */
-    validate(configuration, requiredConstraintCodes) {
-        const violations = [];
-
-        for (const code of requiredConstraintCodes) {
-            const constraintDef = this.taxonomyMap.get(code);
-
-            if (!constraintDef) {
-                console.warn(`Constraint code ${code} not found in taxonomy.`);
-                continue;
-            }
-            
-            // Placeholder for complex adherence logic
-            const adherenceCheck = this.executeConstraintCheck(constraintDef, configuration);
-
-            if (!adherenceCheck.isMet) {
-                violations.push({
-                    code: constraintDef.code,
-                    target: constraintDef.target_parameter,
-                    severity: constraintDef.severity,
-                    details: adherenceCheck.details || 'Adherence rule failed.'
-                });
-            }
-        }
-
-        return {
-            isAdherent: violations.length === 0,
-            violations
-        };
-    }
-
-    /**
-     * Executes the specific technical check for a constraint against a configuration.
-     * NOTE: Actual implementation requires dynamic rule mapping based on constraintDef.code and configuration keys.
-     */
-    executeConstraintCheck(constraintDef, configuration) {
-        // AGI implementation would use runtime lookup or specific logic modules here.
-        // Example: if (constraintDef.code === 'CSTR_MAX_BUDGET_USD') { return configuration.cost <= maxBudget; }
+        if result['status'] == 'MUTATED':
+            context.log_fn(f"MUTATED: {file_path_to_process.split('/')[-1]}", "success")
+            context.dispatch({'type': ActionType.UPDATE_METRICS, 'm': 1})
+        else:
+            context.log_fn(f"CLEAN (Skipped): {file_path_to_process.split('/')[-1]}", "info")
+
+    except TimeoutError:
+        context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
+        context.log_fn("Processing cycle aborted by user.", "warn")
+    except Exception as e:
+        context.log_fn(f"FAULT on {file_path_to_process}: {type(e).__name__}: {e}", "error")
+        context.dispatch({'type': ActionType.UPDATE_METRICS, 'e': 1})
+    finally:
+        context.current_index += 1
+        total = len(context.queue)
         
-        // Default success for scaffolding purposes
-        return { isMet: true };
-    }
+        new_progress = min(100, round((context.current_index / total) * 100)) if total > 0 else app_state.state['metrics']['progress']
 
-    getHardConstraints() {
-        return Array.from(this.taxonomyMap.values())
-                     .filter(c => c.severity === 'HARD' || c.severity === 'CRITICAL')
-                     .map(c => c.code);
-    }
-}
-```
+        context.dispatch({
+            'type': ActionType.UPDATE_METRICS,
+            'progress': new_progress
+        })
 
----
+        context.is_processing = False
+        if not app_state.state['isLive']:
+            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+        elif app_state.state['status'] != Status.ABORTED:
+            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
 
-## `agents/GAX/Modeling/PredictiveModelStub.js`
+def start_cycle_timer():
+    """Starts the simulation of the periodic processing cycle."""
+    # Using the global app_state object directly as it's a mock
+    if not app_state.state['isLive']:
+        return
+    
+    context.log_fn(f"Starting processing cycle...", "info")
+    # In a real application, this would use a timer (e.g., threading.Timer or asyncio.sleep)
+    # For this mock, we just call run_cycle directly in the main loop to simulate steps.
+    # run_cycle() # This will be called iteratively in __main__
 
-```javascript
-/**
- * agents/GAX/Modeling/PredictiveModelStub.js
- *
- * Provides the explicit asynchronous interface required by the Trajectory Simulation Engine (TSE).
- * In a production environment, this file would manage the ML runtime or API communication.
- */
-class PredictiveModelStub {
-    constructor() {
-        console.log("Predictive Model Handler Initialized: Using statistical stub for TEMM/ECVM.");
-        this.weightsLoaded = true;
-    }
+def handle_main_button():
+    """Simulates the primary UI interaction button (Start/Stop/Index)."""
+    # Using the global app_state and context objects directly as it's a mock
+    state = app_state.state
 
-    /**
-     * Executes the trajectory prediction asynchronously.
-     * @param {Object} features - Feature vector generated by the Trajectory Simulation Engine.
-     * @returns {Promise<{temm: number, ecvm: boolean}>} Predicted metrics.
-     */
-    async predict(features) {
-        // Simulate necessary latency for high-fidelity model inference
-        await new Promise(resolve => setTimeout(resolve, 5));
+    if state['isLive']:
+        context.dispatch({'type': ActionType.TOGGLE_LIVE})
+        context.log_fn("Stopping cycle...", "info")
+        if context.abort_controller:
+            context.abort_controller.abort()
+        return
 
-        if (!this.weightsLoaded) {
-             throw new Error("Model weights failed to load or were unloaded.");
-        }
+    if state['isIndexed']:
+        context.dispatch({'type': ActionType.TOGGLE_LIVE})
+        context.current_index = 0 
+        context.abort_controller = AbortController() 
+        start_cycle_timer()
+        return
 
-        // Example prediction logic based on features:
-        const baseTEMM = 0.92;
-        const complexityPenalty = features.complexity_score * 0.005;
-        const riskPenalty = features.history_risk * 0.1;
+    repo_path = parse_repo_path(state['targetRepo'])
+    if not repo_path or not context.gh_token or not context.gemini_key:
+        context.log_fn("Configuration Incomplete: Check Repo Path, GitHub Token, and Gemini Key.", "error")
+        return
+
+    context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.INDEXING})
+    context.abort_controller = AbortController() 
+
+    try:
+        mock_tree = [
+            {'type': 'blob', 'path': 'Eh.py', 'size': 1000},
+            {'type': 'blob', 'path': 'src/main.js', 'size': 500},
+            {'type': 'blob', 'path': 'README.md', 'size': 2000},
+            {'type': 'blob', 'path': 'config/settings.json', 'size': 100},
+            {'type': 'blob', 'path': 'data/ignore_me.log', 'size': 0},
+            {'type': 'blob', 'path': 'node_modules/package.js', 'size': 10000}, 
+            {'type': 'blob', 'path': 'test/test_util.py', 'size': 150},
+        ]
+
+        context.queue = [
+            f['path'] for f in mock_tree
+            if f['type'] == 'blob'
+            and 0 < f['size'] < CONFIG['MAX_FILE_SIZE_BYTES']
+            and not any(p.search(f['path']) for p in SKIP_PATTERNS)
+            and re.search(FILE_EXTENSIONS['ALL'], f['path'])
+        ]
+
+        context.current_index = 0
+        context.dispatch({'type': ActionType.SET_VALUE, 'key': 'isIndexed', 'value': True})
+        context.log_fn(f"Indexing Complete. Found {len(context.queue)} processable files.", "success")
+
+        context.dispatch({'type': ActionType.TOGGLE_LIVE})
+        start_cycle_timer()
+
+    except Exception as e:
+        context.log_fn(f"Index Error: {e}", "error")
+        context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+    finally:
+        # If toggling live failed or was aborted during indexing, ensure status is IDLE
+        if not state['isLive']: # This check is important as start_cycle_timer toggles isLive
+            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
+
+def initialize_system():
+    """Simulates the application startup sequence."""
+    global app_state, context # Declare globals
+    app_state = AppState()
+    context = RuntimeContext()
+
+    if not app_state.state['isAcknowledged']:
+        app_state.dispatch({'type': ActionType.ACKNOWLEDGE})
+        context.gh_token = "mock_gh_token_123"
+        context.gemini_key = "mock_gemini_key_456"
         
-        let predictedTEMM = baseTEMM - complexityPenalty - riskPenalty + (Math.random() * 0.03);
-        
-        // ECVM is typically a binary classification based on constraint violations
-        // Load factor penalty applied here:
-        const constraintFailureChance = 0.03 + (features.current_load_factor > 0.8 ? 0.07 : 0);
-        const predictedECVM = Math.random() > constraintFailureChance;
+        if not app_state.state['isAcknowledged']: # Check again in case dispatch didn't work for some reason in a real impl
+            initialize_system()
+            return
 
-        return {
-            temm: Math.max(0, predictedTEMM),
-            ecvm: predictedECVM
-        };
-    }
-}
+    print("\n--- Sovereign Engine Mock Initialized ---")
+    app_state.log_fn(f"Ready to process target: {app_state.state['targetRepo']}", "info")
 
-module.exports = PredictiveModelStub;
+
+if __name__ == '__main__':
+    app_state: AppState # Type hints for globals in __main__ scope
+    context: RuntimeContext
+
+    initialize_system()
+    
+    print("\n--- Simulating Start/Index ---")
+    handle_main_button() 
+    
+    print("\n--- Simulating Further Cycles ---")
+    # Simulate the periodic run_cycle calls
+    for i in range(1, 6): # Run up to 5 cycles after initial button press
+        if app_state.state['isLive'] and app_state.state['status'] == Status.PROCESSING:
+            print(f"\n--- Cycle {i} ---")
+            run_cycle()
+        else:
+            break
+
+    print("\n--- Final State ---")
+    print(f"Status: {app_state.state['status'].value}")
+    print(f"Metrics: {app_state.state['metrics']}")
+    print(f"Logs: {app_state.state['logs']}")
