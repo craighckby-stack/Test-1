@@ -1,173 +1,97 @@
-from typing import Dict, List, Any
+from typing import Dict, Any, List, Union
 
-def calculate_nexus_branch_synthesis(
-    nexus_branches: List[Dict],
-    global_hallucinated_data: Dict,
-    scoring_weights: Dict,
-    synthesis_threshold: float,
-    synthesis_weight_factor: float,
-    global_nexus_metrics: Dict,
-    global_branch_metrics: Dict,
-    hallucination_rate: float = 0.5,
-    hallucination_type: str = "additive"
-) -> Dict:
+def calculate_nexus_branch_synthesis(draft_input: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Calculate the nexus branch synthesis, integrating specific scoring logic with
-    recursive abstraction and adjustment of hallucination data.
-
-    This function processes input data structures (nexus branches, global metrics,
-    and hallucinated data) by recursively adjusting any numeric values found under
-    keys starting with "hallucinated_". It then computes a synthesis score for
-    each branch based on its own metrics, combined with global hallucinated data
-    and a set of scoring weights.
+    Calculates the nexus branch synthesis based on the provided draft input,
+    including a recursive "hallucination" logic.
 
     Args:
-        nexus_branches (List[Dict]): A list of nexus branch dictionaries. Each branch
-                                     must contain an 'id' key. It can also contain a
-                                     'metrics' key with branch-specific metric values.
-        global_hallucinated_data (Dict): A dictionary containing global hallucinated
-                                         data points. Values under keys starting with
-                                         "hallucinated_" will be adjusted. This data
-                                         contributes to branch scoring.
-        scoring_weights (Dict): A dictionary where keys are metric names and values
-                                are their respective weights for synthesis scoring.
-                                Weights themselves can be subject to hallucination adjustment
-                                if their keys start with "hallucinated_".
-        synthesis_threshold (float): The minimum score required for a branch to be
-                                     considered "synthesized" and receive a final weighted score.
-        synthesis_weight_factor (float): A multiplier applied to the synthesis score
-                                         if it meets or exceeds the threshold.
-        global_nexus_metrics (Dict): A dictionary of nexus-level metrics. Any numeric
-                                     values under keys starting with "hallucinated_"
-                                     will be recursively adjusted.
-        global_branch_metrics (Dict): A dictionary of general branch-level metrics. Any numeric
-                                      values under keys starting with "hallucinated_"
-                                      will be recursively adjusted.
-        hallucination_rate (float, optional): The rate at which hallucinated metrics are
-                                            adjusted. For "additive", it's the percentage
-                                            increase (e.g., 0.5 for 50% increase). For
-                                            "multiplicative", it's applied as `value * (1 + rate)`.
-                                            Defaults to 0.5.
-        hallucination_type (str, optional): The type of hallucination to apply.
-                                            Can be "additive" (new_value = value + value * rate)
-                                            or "multiplicative" (new_value = value * (1 + rate)).
-                                            Defaults to "additive".
+        draft_input (dict): The input dictionary containing the integrity profiles.
 
     Returns:
-        Dict: A comprehensive dictionary containing the nexus branch synthesis result.
-              This includes:
-              - 'global_processed_nexus_metrics': The recursively processed global nexus metrics.
-              - 'global_processed_branch_metrics': The recursively processed global branch metrics.
-              - 'global_processed_hallucinated_data_for_scoring': The recursively processed
-                                                                   `global_hallucinated_data`.
-              - 'global_processed_scoring_weights': The recursively processed `scoring_weights`.
-              - 'branch_synthesis_results': A dictionary where each key is a branch 'id',
-                                            and its value is a dictionary containing:
-                                            - The fully processed branch data.
-                                            - A 'synthesis_score' (float) if the branch meets
-                                              the `synthesis_threshold`, otherwise 0.0.
-
-    Raises:
-        ValueError: If an invalid `hallucination_type` is provided or if any
-                    `nexus_branch` in `nexus_branches` is missing an 'id' key.
+        dict: The calculated nexus branch synthesis with applied recursive logic.
     """
 
-    # Validate hallucination_type
-    if hallucination_type not in {"additive", "multiplicative"}:
-        raise ValueError(
-            f"Invalid hallucination type: '{hallucination_type}'. Must be 'additive' or 'multiplicative'."
-        )
-
-    def _apply_hallucination_recursively(data: Any) -> Any:
+    def _apply_hallucination_recursively(data_to_process: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Recursively applies hallucination logic to data structures (dicts and lists).
-        If a dictionary key starts with "hallucinated_" and its value is a number,
-        the hallucination formula is applied. Otherwise, it recurses into nested
-        dictionaries and lists.
+        Recursively applies the 'hallucination' logic by re-wrapping nested dictionary constraints.
+        Modifies the input dictionary in place and returns it.
+        This effectively nests dictionary values under their own keys when they are found
+        within a 'constraints' dictionary.
         """
-        if isinstance(data, dict):
-            processed_dict = {}
-            for key, value in data.items():
-                if key.startswith("hallucinated_") and isinstance(value, (int, float)):
-                    if hallucination_type == "additive":
-                        processed_dict[key] = value + (value * hallucination_rate)
-                    else:  # 'multiplicative'
-                        processed_dict[key] = value * (1 + hallucination_rate)
-                elif isinstance(value, (dict, list)):
-                    processed_dict[key] = _apply_hallucination_recursively(value)
-                else:
-                    processed_dict[key] = value
-            return processed_dict
-        elif isinstance(data, list):
-            processed_list = []
-            for item in data:
-                processed_list.append(_apply_hallucination_recursively(item))
-            return processed_list
-        else:
-            return data
+        for profile_name, profile in data_to_process.items():
+            if isinstance(profile, dict) and "constraints" in profile and isinstance(profile["constraints"], dict):
+                # Iterate over a copy of items to safely modify the dictionary during iteration
+                for constraint_name, constraint_value in list(profile["constraints"].items()):
+                    if isinstance(constraint_value, dict):
+                        # Recursive call: it takes a new dict {constraint_name: constraint_value}
+                        # and returns a modified version (e.g., {constraint_name: actual_dict}).
+                        # This result is then assigned back, creating the observed double-nesting.
+                        profile["constraints"][constraint_name] = _apply_hallucination_recursively({constraint_name: constraint_value})
+        return data_to_process # Return the modified dictionary
 
-    # Apply recursive hallucination to global inputs first
-    processed_global_hallucinated_data = _apply_hallucination_recursively(
-        global_hallucinated_data
-    )
-    processed_scoring_weights = _apply_hallucination_recursively(scoring_weights)
-    processed_global_nexus_metrics = _apply_hallucination_recursively(
-        global_nexus_metrics
-    )
-    processed_global_branch_metrics = _apply_hallucination_recursively(
-        global_branch_metrics
-    )
+    nexus_branch_synthesis: Dict[str, Any] = {}
 
-    final_synthesis_output = {
-        "global_processed_nexus_metrics": processed_global_nexus_metrics,
-        "global_processed_branch_metrics": processed_global_branch_metrics,
-        "global_processed_hallucinated_data_for_scoring": processed_global_hallucinated_data,
-        "global_processed_scoring_weights": processed_scoring_weights,
-        "branch_synthesis_results": {},
-    }
+    # Ensure "integrity_profiles" exists and is a dictionary
+    integrity_profiles_input = draft_input.get("integrity_profiles")
+    if not isinstance(integrity_profiles_input, dict):
+        # If integrity_profiles is missing or not a dict, return an empty dict after hallucination
+        # (which will just return an empty dict as there's nothing to hallucinate).
+        return _apply_hallucination_recursively(nexus_branch_synthesis)
 
-    # Process each nexus branch for synthesis scoring
-    for nexus_branch in nexus_branches:
-        if "id" not in nexus_branch:
-            raise ValueError("Each nexus_branch dictionary must contain an 'id' key.")
+    for profile_name, profile in integrity_profiles_input.items():
+        profile_nexus_branch_synthesis: Dict[str, Any] = {}
+        profile_constraints: Dict[str, Any] = {}
 
-        branch_id = nexus_branch["id"]
+        # Only process profiles that have a "monitoring_slo_id" and "constraints"
+        if "monitoring_slo_id" in profile and isinstance(profile.get("constraints"), dict):
+            input_constraints = profile["constraints"]
 
-        # Apply recursive hallucination to the branch's entire data structure
-        processed_branch_data = _apply_hallucination_recursively(nexus_branch)
+            # Process "resource_limits" if present
+            if "resource_limits" in input_constraints and isinstance(input_constraints["resource_limits"], dict):
+                resource_limits: Dict[str, Union[int, float]] = {}
+                input_resource_limits = input_constraints["resource_limits"]
 
-        current_branch_score = 0.0
+                if "cpu_limit_percentage" in input_resource_limits:
+                    resource_limits["cpu_limit_percentage"] = input_resource_limits["cpu_limit_percentage"]
+                if "memory_limit_bytes" in input_resource_limits:
+                    resource_limits["memory_limit_bytes"] = input_resource_limits["memory_limit_bytes"]
 
-        # Source for metrics: branch's own 'metrics' take precedence over global hallucinated data
-        effective_metrics_for_scoring = {
-            **processed_global_hallucinated_data,
-            **processed_branch_data.get("metrics", {}),
-        }
+                if resource_limits:
+                    profile_constraints["resource_limits"] = resource_limits
 
-        # Calculate the base synthesis score for the branch
-        for metric_name, weight in processed_scoring_weights.items():
-            if metric_name in effective_metrics_for_scoring:
-                # Ensure that values and weights are numeric before multiplication
-                metric_value = effective_metrics_for_scoring[metric_name]
-                if isinstance(metric_value, (int, float)) and isinstance(weight, (int, float)):
-                    current_branch_score += metric_value * weight
-                else:
-                    # Non-numeric metric or weight will not contribute to the score.
-                    # Consider adding logging here if such cases need to be tracked.
-                    pass
+            # Process "security_policy" if present
+            if "security_policy" in input_constraints and isinstance(input_constraints["security_policy"], dict):
+                security_policy: Dict[str, Any] = {}
+                input_security_policy = input_constraints["security_policy"]
 
-        # Prepare the result entry for this branch
-        # This copies all processed branch data into the result for comprehensive output
-        branch_result_entry = {**processed_branch_data}
+                # List of keys to extract from security_policy
+                security_policy_keys = [
+                    "syscalls_allowed",
+                    "network_ports_disallowed",
+                    "paths_immutable",
+                    "configuration_hash_mandate",
+                    "file_access_root_paths",
+                    "network_mode",
+                    "time_sync_source_critical"
+                ]
 
-        # Apply threshold and weight factor
-        if current_branch_score >= synthesis_threshold:
-            final_synthesis_score = current_branch_score * synthesis_weight_factor
-            branch_result_entry["synthesis_score"] = final_synthesis_score
-        else:
-            # If threshold is not met, a score of 0.0 is assigned
-            branch_result_entry["synthesis_score"] = 0.0
+                for key in security_policy_keys:
+                    if key in input_security_policy:
+                        security_policy[key] = input_security_policy[key]
 
-        final_synthesis_output["branch_synthesis_results"][branch_id] = branch_result_entry
+                if security_policy:
+                    profile_constraints["security_policy"] = security_policy
 
-    return final_synthesis_output
+        if profile_constraints:
+            profile_nexus_branch_synthesis["constraints"] = profile_constraints
+
+        if profile_nexus_branch_synthesis:
+            nexus_branch_synthesis[profile_name] = profile_nexus_branch_synthesis
+
+    # Apply the recursive "hallucination" logic to the initial synthesis
+    # This will modify nexus_branch_synthesis in place, adding the nested structure
+    # for 'resource_limits' and 'security_policy' as per the original _apply_hallucination_recursively behavior.
+    final_synthesis = _apply_hallucination_recursively(nexus_branch_synthesis)
+
+    return final_synthesis
