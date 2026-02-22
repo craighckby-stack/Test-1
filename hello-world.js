@@ -139,7 +139,6 @@ def calculate_nexus_branch_synthesis(
         current_branch_score = 0.0
 
         # Source for metrics: branch's own 'metrics' take precedence over global hallucinated data
-        # if a metric is present in both.
         effective_metrics_for_scoring = {
             **processed_global_hallucinated_data,
             **processed_branch_data.get("metrics", {}),
@@ -148,12 +147,20 @@ def calculate_nexus_branch_synthesis(
         # Calculate the base synthesis score for the branch
         for metric_name, weight in processed_scoring_weights.items():
             if metric_name in effective_metrics_for_scoring:
-                current_branch_score += effective_metrics_for_scoring[metric_name] * weight
+                # Ensure that values and weights are numeric before multiplication
+                metric_value = effective_metrics_for_scoring[metric_name]
+                if isinstance(metric_value, (int, float)) and isinstance(weight, (int, float)):
+                    current_branch_score += metric_value * weight
+                else:
+                    # Non-numeric metric or weight will not contribute to the score.
+                    # Consider adding logging here if such cases need to be tracked.
+                    pass
 
         # Prepare the result entry for this branch
-        branch_result_entry = {**processed_branch_data}  # Include all processed branch data
+        # This copies all processed branch data into the result for comprehensive output
+        branch_result_entry = {**processed_branch_data}
 
-        # Apply threshold and weight factor as per DRAFT's scoring logic
+        # Apply threshold and weight factor
         if current_branch_score >= synthesis_threshold:
             final_synthesis_score = current_branch_score * synthesis_weight_factor
             branch_result_entry["synthesis_score"] = final_synthesis_score
