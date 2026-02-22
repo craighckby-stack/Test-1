@@ -587,3 +587,166 @@ _forceIdleTriggerAfter(duration) {
         }
     }
 }
+
+const COLLECTION_CUTOFF = 1000;
+const BAD_TO_STRING_RESULT = new (function(){})().toString();
+const RECURSE_LIMIT_DESCRIPTION = "!recursion-limit!";
+const DEFAULT_RECURSION_LIMIT = 10;
+
+function try_describe_atomic(value) {
+    if (value === null) {
+        return "null";
+    }
+    if (value === undefined) {
+        return "undefined";
+    }
+    if (typeof value === "string") {
+        return `"${value}"`;
+    }
+    if (typeof value === "number") {
+        return "" + value;
+    }
+    if (typeof value === "bigint") {
+        return `${value}n`;
+    }
+    if (typeof value === "boolean") {
+        return String(value);
+    }
+    if (typeof value === "symbol") {
+        return String(value);
+    }
+    return undefined;
+}
+
+function try_describe_collection(value, recursionLimit) {
+    if (recursionLimit === 0) {
+        return RECURSE_LIMIT_DESCRIPTION;
+    }
+    if (value instanceof Map) {
+        return describe_Map(value, recursionLimit);
+    }
+    if (value instanceof Set) {
+        return describe_Set(value, recursionLimit);
+    }
+    if (typeof value === 'object' && value !== null && typeof value[Symbol.iterator] === 'function') {
+        return describe_Iterable(value, recursionLimit);
+    }
+    return undefined;
+}
+
+function describe_Object(value, recursionLimit) {
+    if (recursionLimit === 0) {
+        return RECURSE_LIMIT_DESCRIPTION;
+    }
+    const properties = [];
+    try {
+        for (let k in value) {
+            if (properties.length > COLLECTION_CUTOFF) {
+                properties.push("[...]");
+                break;
+            }
+            // Check if the property is directly on the object (not prototype chain)
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+                let keyDesc = describe(k, recursionLimit - 1);
+                let valDesc = describe(value[k], recursionLimit - 1);
+                properties.push(`${keyDesc}: ${valDesc}`);
+            }
+        }
+    } catch (e) {
+        // Fallback if iterating properties fails (e.g., proxy that throws)
+        return `Object{<error getting properties: ${e.message}>}`;
+    }
+    const constructorName = value.constructor ? value.constructor.name : 'Object';
+    return `${constructorName}{${properties.join(", ")}}`;
+}
+
+function describe_fallback(value, recursionLimit) {
+    try {
+        let defaultString = String(value);
+        if (defaultString !== BAD_TO_STRING_RESULT) {
+            return defaultString;
+        }
+    } catch {
+        // ignored
+    }
+    return describe_Object(value, recursionLimit);
+}
+
+/**
+ * Attempts to give a useful and unambiguous description of the given value.
+ *
+ * @param {*} value
+ * @param {!number=} recursionLimit
+ * @returns {!string}
+ */
+function describe(value, recursionLimit = DEFAULT_RECURSION_LIMIT) {
+    return try_describe_atomic(value) ||
+        try_describe_collection(value, recursionLimit) ||
+        describe_fallback(value, recursionLimit);
+}
+
+/**
+ * @param {!Map} map
+ * @param {!number} limit
+ * @returns {!string}
+ */
+function describe_Map(map, limit) {
+    let entries = [];
+    for (let [k, v] of map.entries()) {
+        if (entries.length > COLLECTION_CUTOFF) {
+            entries.push("[...]");
+            break;
+        }
+        let keyDesc = describe(k, limit - 1);
+        let valDesc = describe(v, limit - 1);
+        entries.push(`${keyDesc}: ${valDesc}`);
+    }
+    return `Map{${entries.join(", ")}}`;
+}
+
+/**
+ * @param {!Set} set
+ * @param {!number} limit
+ * @returns {!string}
+ */
+function describe_Set(set, limit) {
+    let entries = [];
+    for (let e of set) {
+        if (entries.length > COLLECTION_CUTOFF) {
+            entries.push("[...]");
+            break;
+        }
+        entries.push(describe(e, limit - 1));
+    }
+    return `Set{${entries.join(", ")}}`;
+}
+
+/**
+ * @param {!Iterable} seq
+ * @param {!number} limit
+ * @returns {!string}
+ */
+function describe_Iterable(seq, limit) {
+    let entries = [];
+    try {
+        for (let e of seq) {
+            if (entries.length > COLLECTION_CUTOFF) {
+                entries.push("[...]");
+                break;
+            }
+            entries.push(describe(e, limit - 1));
+        }
+    } catch (e) {
+        return `Iterable{<error getting entries: ${e.message}>}`;
+    }
+
+    const constructorName = seq.constructor && seq.constructor.name !== 'Object' ? seq.constructor.name : 'Iterable';
+    return `${constructorName}{${entries.join(", ")}}`;
+}
+
+// Export describe for external use if this is a module.
+// This example assumes a global context or explicit export later.
+// For CommonJS:
+// module.exports = { describe };
+// For ES Modules:
+// export { describe };
