@@ -1376,3 +1376,283 @@ const runRecursiveImprovement = () => {
 
 runRecursiveImprovement();
 closeLoop(); // Initiate the closed-loop feedback mechanism
+
+/**
+ * @file This module defines the core classes for the TriModel Nexus and Enhancer AI.
+ *       It provides functionalities for scanning external repositories, generating AGI components,
+ *       and dynamically enhancing source code through structural insight extraction and application.
+ *       The design emphasizes modularity, allowing for independent use and integration of its components.
+ */
+
+// Importing Node.js file system module for file operations.
+// This module assumes a Node.js environment due to the use of 'fs'.
+// For browser environments, these file operations would need to be replaced
+// with browser-compatible alternatives (e.g., in-memory string manipulation or web APIs).
+const fs = require('fs');
+
+/**
+ * @class TriModelNexus
+ * @description Represents the runtime level of the TriModel Nexus, responsible for
+ *   interacting with external repositories and generating AGI components.
+ */
+class TriModelNexus {
+  /**
+   * Scans external repositories (conceptualized as 'quantum') for domain-specific artifacts,
+   * which are treated as AGI components.
+   *
+   * @param {string} codebasePath - Path or URL to the quantum repository.
+   * @returns {Promise<Array<Object>>} A promise that resolves to a list of AGI components.
+   *                                  Returns an empty array on error.
+   */
+  async scanQuantumRepository(codebasePath) {
+    console.log(`[TriModelNexus] Scanning quantum repository at: ${codebasePath}`);
+    try {
+      // Simulate external repository scanning (e.g., network request or DFS traversal).
+      // In a real-world scenario, 'fetch' in Node.js might require a polyfill (e.g., node-fetch)
+      // for older Node.js versions, or it could be a custom internal data retrieval mechanism.
+      // For this example, we'll simulate a successful fetch that returns mock data.
+      // If codebasePath were a file path, fs.readFileSync could be used here.
+      if (codebasePath.includes('quantum-repos')) {
+        const mockArtifacts = [
+          { type: 'ComponentA', attributes: { version: '1.0', status: 'stable' } },
+          { type: 'ComponentB', attributes: { config: 'default', size: 'medium' } },
+        ];
+        console.log(`[TriModelNexus] Simulated scan of ${codebasePath} successful.`);
+        // Simulate async operation
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return mockArtifacts; // Assuming `fetch` would return JSON directly or similar.
+      } else {
+        console.warn(`[TriModelNexus] No mock data for ${codebasePath}. Returning empty array.`);
+        return [];
+      }
+    } catch (err) {
+      console.error(`[TriModelNexus] Error scanning quantum repository at ${codebasePath}: ${err.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Generates domain-specific artifacts (AGI components) based on scanned results.
+   * This method essentially processes and structures the scanned artifacts.
+   *
+   * @param {Array<Object>} scannedArtifacts - List of raw AGI components obtained from scanning.
+   * @returns {Array<Object>} A list of processed AGI components. Returns an empty array on error.
+   */
+  generateAGIComponents(scannedArtifacts) {
+    console.log(`[TriModelNexus] Generating AGI components from ${scannedArtifacts.length} artifacts.`);
+    try {
+      if (!Array.isArray(scannedArtifacts)) {
+        throw new Error('Input for generateAGIComponents must be an array.');
+      }
+      const generated = scannedArtifacts.map((component) => ({
+        type: component.type,
+        attributes: { ...component.attributes, generatedAt: new Date().toISOString() }, // Add a new attribute
+      }));
+      console.log(`[TriModelNexus] Generated ${generated.length} AGI components.`);
+      return generated;
+    } catch (err) {
+      console.error(`[TriModelNexus] Error generating AGI components: ${err.message}`);
+      return [];
+    }
+  }
+}
+
+/**
+ * @class EnhancerAI
+ * @description Represents the enhancement level AI, capable of monitoring, analyzing,
+ *   and metaprogrammatically modifying source code based on extracted insights.
+ */
+class EnhancerAI {
+  /**
+   * Monitors, analyzes, and modifies the target source code by applying structural insights.
+   * This simulates metaprogrammatic modification of source code.
+   *
+   * @param {string} sourceCodePath - Path to the TriModel Nexus or other target source code file.
+   * @param {Object} structuralInsights - Map of extracted abstract "structural insights"
+   *                                    (e.g., `{ insightKey: { replacement: 'new code' } }`).
+   * @returns {Promise<void>} A promise that resolves when the source code is enhanced.
+   */
+  async enhanceSourceCode(sourceCodePath, structuralInsights) {
+    console.log(`[EnhancerAI] Enhancing source code at: ${sourceCodePath}`);
+    if (!fs.existsSync(sourceCodePath)) {
+      console.warn(`[EnhancerAI] Source code file not found at ${sourceCodePath}. Skipping enhancement.`);
+      return;
+    }
+
+    try {
+      const sourceCode = fs.readFileSync(sourceCodePath, 'utf8');
+      let updatedSourceCode = sourceCode;
+
+      // Apply extracted structural insights to source code as pattern-based code generation/transformation.
+      // Iterates through each insight and applies its replacement to the entire source code.
+      for (const insightKey in structuralInsights) {
+        if (Object.prototype.hasOwnProperty.call(structuralInsights, insightKey)) {
+          const { replacement } = structuralInsights[insightKey];
+          // Ensure that the original insight string is what we are looking for in the code.
+          // The `insight` property in structuralInsights defines what to search for.
+          const searchPattern = structuralInsights[insightKey].insight || insightKey;
+          if (updatedSourceCode.includes(searchPattern)) {
+            updatedSourceCode = updatedSourceCode.replace(new RegExp(searchPattern, 'g'), replacement);
+            console.log(`[EnhancerAI] Applied insight "${insightKey}" to source code.`);
+          }
+        }
+      }
+
+      // Commit changes directly to source code
+      fs.writeFileSync(sourceCodePath, updatedSourceCode);
+      console.log(`[EnhancerAI] Source code at ${sourceCodePath} enhanced successfully.`);
+    } catch (err) {
+      console.error(`[EnhancerAI] Error enhancing source code at ${sourceCodePath}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Extracts abstract structural insights from an external codebase.
+   * This simulates pattern recognition or machine learning for insight extraction.
+   *
+   * @param {string} codebasePath - Path to the external codebase (e.g., quantum repository).
+   * @returns {Object} A map of extracted structural insights. Returns an empty object on error.
+   */
+  extractStructuralInsights(codebasePath) {
+    console.log(`[EnhancerAI] Extracting structural insights from: ${codebasePath}`);
+    if (!fs.existsSync(codebasePath)) {
+      console.warn(`[EnhancerAI] Codebase file not found at ${codebasePath}. Cannot extract insights.`);
+      return {};
+    }
+
+    try {
+      const code = fs.readFileSync(codebasePath, 'utf8');
+      const insights = {};
+
+      // Simulate identification of abstract "structural insights"
+      // (e.g., superposition for prompts, algorithm chaining).
+      // This is a simplified example; real extraction would be more complex.
+      const superpositionMatch = code.match(/superposition|prompt/);
+      if (superpositionMatch) {
+        insights.superposition = {
+          insight: 'superposition', // The string to find
+          replacement: `/* Enhanced with superposition insight */ prompt: ${superpositionMatch[0]}`, // The replacement
+        };
+        console.log(`[EnhancerAI] Extracted 'superposition' insight.`);
+      }
+
+      const algorithmChainMatch = code.match(/algorithm\.chain\(/);
+      if (algorithmChainMatch) {
+        insights.algorithmChaining = {
+          insight: 'algorithm.chain(',
+          replacement: 'enhancedAlgorithm.pipeline(', // Example transformation
+        };
+        console.log(`[EnhancerAI] Extracted 'algorithmChaining' insight.`);
+      }
+
+      console.log(`[EnhancerAI] Finished extracting insights. Found ${Object.keys(insights).length} insights.`);
+      return insights;
+    } catch (err) {
+      console.error(`[EnhancerAI] Error extracting structural insights from ${codebasePath}: ${err.message}`);
+      return {};
+    }
+  }
+}
+
+// Export the classes for modular use
+module.exports = { TriModelNexus, EnhancerAI };
+
+// --- Example Usage ---
+// This self-executing async function demonstrates how to use the classes.
+// In a real application, you would import these classes and use them within your application logic.
+void async function main() {
+  console.log('\n--- Starting TriModel Nexus & Enhancer AI Simulation ---\n');
+
+  const nexus = new TriModelNexus();
+  const enhancer = new EnhancerAI();
+
+  // Create mock files for demonstration purposes if they don't exist
+  const quantumRepoPath = './mock-quantum-repo.js';
+  const triModelNexusSourcePath = './mock-tri-model-nexus-source.js';
+
+  if (!fs.existsSync(quantumRepoPath)) {
+    fs.writeFileSync(quantumRepoPath, `
+// Mock Quantum Repository Code
+class QuantumProcessor {
+  process(data) {
+    // Original processing logic
+    if (data.includes('superposition')) {
+      return 'Processing superposition data';
+    }
+    return 'Regular quantum processing';
+  }
+}
+function complexAlgorithm() {
+  // Simulating an algorithm chain
+  console.log("Starting algorithm.chain(step1, step2)");
+}
+`, 'utf8');
+    console.log(`[Main] Created mock quantum repository at: ${quantumRepoPath}`);
+  }
+
+  if (!fs.existsSync(triModelNexusSourcePath)) {
+    fs.writeFileSync(triModelNexusSourcePath, `
+// Mock TriModel Nexus Source Code
+class CoreLogic {
+  execute(task) {
+    console.log("Executing task: " + task);
+  }
+}
+// Placeholder for future enhancements
+function someFunctionality() {
+  let param = "initial value";
+  // The EnhancerAI will target 'superposition' related text here.
+  // We'll also target 'algorithm.chain(' to transform it.
+  if (param.includes('superposition')) {
+    // ... logic related to superposition ...
+  }
+  complexAlgorithm(); // This will be transformed
+}
+`, 'utf8');
+    console.log(`[Main] Created mock TriModel Nexus source at: ${triModelNexusSourcePath}`);
+  }
+
+  try {
+    // --- Phase 1: Incremental Enhancement ---
+
+    // 1. Scan external repository for AGI components
+    const scannedArtifacts = await nexus.scanQuantumRepository('./quantum-repos-url'); // Using mock URL path
+    const agiComponents = nexus.generateAGIComponents(scannedArtifacts);
+    console.log('\n[Main] Initial AGI Components:', agiComponents);
+
+    // 2. Extract structural insights from the mock quantum codebase
+    const structuralInsights = enhancer.extractStructuralInsights(quantumRepoPath);
+    console.log('\n[Main] Extracted Structural Insights:', structuralInsights);
+
+    // 3. Modify the mock TriModel Nexus source code directly based on insights
+    await enhancer.enhanceSourceCode(triModelNexusSourcePath, structuralInsights);
+
+    // 4. Validate enhancement by reading the modified file (optional, for demonstration)
+    const modifiedSource = fs.readFileSync(triModelNexusSourcePath, 'utf8');
+    console.log('\n[Main] --- Modified TriModel Nexus Source Code (Excerpt) ---');
+    console.log(modifiedSource);
+    console.log('--- End Modified Source Excerpt ---\n');
+
+    // 5. Re-scan and re-generate after enhancement (simulates system adaptation)
+    // Note: scannedArtifacts is from the *initial* scan. A real re-scan would get new artifacts.
+    // For this example, we'll re-use the initially scanned artifacts for demonstration simplicity,
+    // assuming the *generation logic* might be implicitly influenced by the enhanced system.
+    const updatedAgis = nexus.generateAGIComponents(scannedArtifacts);
+    console.log('[Main] AGI Components after system enhancement (re-generation):', updatedAgis);
+
+    // --- Phase 2: Analogical Pattern Transfer (demonstrated as part of the above flow) ---
+    // The previous steps effectively covered analogical pattern transfer:
+    // - Insights were identified (from quantum-repo).
+    // - These insights were applied as pattern-based transformations (to tri-model-nexus-source).
+    // - The system is now implicitly "enhanced" to generate artifacts based on these new patterns
+    //   (though the `generateAGIComponents` method itself is generic, the *context* it runs in changes).
+
+  } catch (error) {
+    console.error('[Main] An error occurred during the simulation:', error.message);
+  } finally {
+    // Clean up mock files after demonstration
+    // fs.unlinkSync(quantumRepoPath);
+    // fs.unlinkSync(triModelNexusSourcePath);
+    console.log('\n--- TriModel Nexus & Enhancer AI Simulation Finished ---');
+  }
+}();
