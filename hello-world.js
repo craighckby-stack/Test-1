@@ -9,7 +9,7 @@ import {
   initializeApp,
   getApps,
   getApp
-} from 'firebase/app'; // Ensure getApps and getApp are imported
+} from 'firebase/app';
 import {
   getAuth,
   signInWithCustomToken,
@@ -22,13 +22,13 @@ import {
 } from 'uuid';
 import {
   GitHub
-} from 'github-api'; // Assuming 'github-api' npm package
+} from 'github-api';
 import {
   useAuthState
-} from 'react-firebase-hooks/auth'; // Assuming 'react-firebase-hooks' npm package
+} from 'react-firebase-hooks/auth';
 
 // ============================================================================
-// 1. ERROR HANDLING CLASSES (From NEW, adapted)
+// 1. ERROR HANDLING CLASSES
 // ============================================================================
 
 /**
@@ -67,12 +67,20 @@ class LoggingError extends Error {
 }
 
 // ============================================================================
-// 2. CONFIGURATION & ENVIRONMENT (Consolidated from CORE and NEW)
+// 2. CONFIGURATION & ENVIRONMENT
 // ============================================================================
 
+// Configuration settings for the AI and system operations
 const appConfig = {
-  // CORE's original config values
-  CYCLE_INTERVAL: 6000,
+  // Operational timings
+  CYCLE_INTERVAL: 6000, // Time in ms between each processing cycle
+  MAX_API_RETRIES: 5, // Maximum retries for API calls
+  GEMINI_INITIAL_BACKOFF_MS: 100, // Initial backoff delay for Gemini API retries
+  GEMINI_BACKOFF_MULTIPLIER: 2, // Multiplier for exponential backoff
+  GEMINI_MAX_BACKOFF_MS: 5000, // Maximum backoff delay
+  RATE_LIMIT_STATUS_CODE: 429, // HTTP status code for rate limiting
+
+  // Model configuration (Gemini models as per README)
   MODELS: [{
     id: 'gemini-2.5-flash-lite-preview-09-2025',
     label: 'Flash Lite (Speed)'
@@ -82,24 +90,19 @@ const appConfig = {
   }, {
     id: 'gemini-3-flash-preview-09-2025',
     label: 'Flash 3.0 (Exp)'
-  }],
+  }, ],
 
-  // NEW's config values, integrated and prioritized
-  MAX_FILE_SIZE_BYTES: Math.pow(10, 6),
-  MAX_API_RETRIES: 5, // Replaces GEMINI_MAX_RETRIES for consistency
-  LOCAL_STORAGE_PREFIX: 'emg_v86_',
-  LOG_HISTORY_LIMIT: 60,
+  // File processing limits and storage
+  MAX_FILE_SIZE_BYTES: Math.pow(10, 6), // Maximum file size to process (1MB)
+  LOCAL_STORAGE_PREFIX: 'emg_v86_', // Prefix for localStorage keys
+  LOG_HISTORY_LIMIT: 60, // Maximum number of logs to keep in memory
+
+  // API Endpoints
   GITHUB_API_BASE: 'https://api.github.com',
   GEMINI_API_BASE: 'https://generativelanguage.googleapis.com/v1beta',
-
-  // CORE's retry values, adapted to NEW's MAX_API_RETRIES
-  GEMINI_INITIAL_BACKOFF_MS: 100,
-  GEMINI_BACKOFF_MULTIPLIER: 2,
-  GEMINI_MAX_BACKOFF_MS: 5000,
-  RATE_LIMIT_STATUS_CODE: 429, // HTTP status code for rate limiting
 };
 
-// Pipeline steps from NEW
+// Pipeline steps define AI prompts for different file categories
 const pipelineSteps = {
   CODE: [{
     id: 'refactor',
@@ -130,28 +133,27 @@ const pipelineSteps = {
   }, ],
 };
 
-// File extension categories from NEW
+// Regular expressions to categorize file types
 const fileExtensions = {
-  CODE: /\.(js|jsx|ts|tsx|py|html|css|scss|sql|sh|java|go|rs|rb|php|cpp|c|h)$/i,
+  CODE: /\.(js|jsx|ts|tsx|py|html|css|scss|sql|sh|java|go|rs|rb|php|cpp|c|h|kt|swift|dart)$/i,
   CONFIG: /\.(json|yaml|yml|toml|ini)$/i,
   DOCS: /\.(md|txt|rst|adoc|text)$/i,
 };
 
-// Skip patterns for files/directories from NEW
+// Patterns to skip specific files or directories during repository indexing
 const skipPatterns = [
   /node_modules\//, /\.min\./, /-lock\./, /dist\//, /build\//, /\.git\//, /\.log$/,
-  /\/\.\.(?!\/|$)/i, // Added pattern to skip dot files
-  /^\.github\//, // Skip .github directory
-  /^\.vscode\//, // Skip .vscode directory
-  /\.env(\..*)?$/, // Skip .env files
-  /\.DS_Store$/, // Skip macOS specific files
+  /\/\.\.(?!\/|$)/i, // Skips dot files/directories
+  /^\.github\//, // Skips .github directory
+  /^\.vscode\//, // Skips .vscode directory
+  /\.env(\..*)?$/, // Skips .env files
+  /\.DS_Store$/, // Skips macOS specific files
 ];
 
+// Special documentation files that receive chronicler updates
 const todoFileNames = ['.sovereign-instructions.md', 'sovereign-todo.md', 'instructions.md', 'README.md', 'TODO.md'];
 
-// Inlined and Adapted src/env.js
-// In a real React app, environment variables are loaded at build time and accessed via process.env.
-// This adaptation assumes these variables are correctly set in the build environment.
+// Inlined environment variable loading for React
 const loadEnv = () => {
   return {
     REACT_APP_ACTIVE_MODEL: process.env.REACT_APP_ACTIVE_MODEL,
@@ -184,12 +186,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase only once
-// Check if a Firebase app instance already exists to prevent re-initialization in dev mode
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-// getFirestore(app); // Not explicitly used in App.js but typically part of firebase setup
 
 // ============================================================================
-// 4. UTILITY FUNCTIONS (Consolidated from CORE and NEW)
+// 4. UTILITY FUNCTIONS
 // ============================================================================
 
 /**
@@ -203,7 +203,7 @@ function calculateBackoffDelay(retryCount) {
 }
 
 /**
- * Decodes a base64 string to a UTF-8 string. (From NEW, adapted)
+ * Decodes a base64 string to a UTF-8 string.
  * @param {string} str - The base64 encoded string.
  * @returns {string} The decoded string.
  */
@@ -219,12 +219,12 @@ const base64Decode = (str) => {
     return new TextDecoder('utf-8').decode(bytes);
   } catch (e) {
     console.error("Base64 decoding failed:", e);
-    return ''; // Return empty string or throw error based on desired behavior
+    return '';
   }
 };
 
 /**
- * Encodes a UTF-8 string to a base64 string. (From NEW, adapted)
+ * Encodes a UTF-8 string to a base64 string.
  * @param {string} str - The string to encode.
  * @returns {string} The base64 encoded string.
  */
@@ -236,12 +236,12 @@ const base64Encode = (str) => {
     return btoa(binaryString);
   } catch (e) {
     console.error("Base64 encoding failed:", e);
-    return ''; // Return empty string or throw error based on desired behavior
+    return '';
   }
 };
 
 /**
- * Parses a GitHub repository path from various URL formats. (From NEW)
+ * Parses a GitHub repository path from various URL formats.
  * @param {string} repoString - The repository URL or 'owner/repo' string.
  * @returns {[string, string]|null} An array [owner, repoName] or null if parsing fails.
  */
@@ -255,7 +255,7 @@ const parseRepoPath = (repoString) => {
 };
 
 /**
- * Determines the processing pipeline for a given file path based on its extension. (From NEW)
+ * Determines the processing pipeline for a given file path based on its extension.
  * @param {string} filePath - The path of the file.
  * @returns {Array} The pipeline steps (e.g., CODE, CONFIG, DOCS).
  */
@@ -270,36 +270,38 @@ const getPipeline = (filePath) => {
 // ============================================================================
 
 const initialState = {
-  isLive: false,
-  isAcknowledged: false, // Firebase auth acknowledged
-  isIndexed: false, // NEW: Indexing of repo files complete for current cycle
-  isComplete: false, // NEW: All cycles completed (or if only one cycle, then after that)
-  status: 'IDLE',
-  activePath: 'Ready',
-  selectedModel: process.env.REACT_APP_ACTIVE_MODEL ?? appConfig.MODELS[0].id,
-  targetRepo: process.env.REACT_APP_TARGET_REPO ?? '',
-  geminiKeys: Array(10).fill(''), // Will be overwritten by env variables if present
-  keyHealth: {},
-  currentCycle: 1,
-  logs: [],
-  metrics: {
+  isLive: false, // Indicates if the AI loop is active
+  isAcknowledged: false, // Firebase authentication status
+  isIndexed: false, // Flag: current target repo files have been indexed
+  isComplete: false, // Flag: all cycles completed (if single pass)
+  status: 'IDLE', // Current operational status (e.g., IDLE, INDEXING, REFACTORING)
+  activePath: 'Ready', // Path of the file currently being processed
+  selectedModel: process.env.REACT_APP_ACTIVE_MODEL ?? appConfig.MODELS[0].id, // Active AI model
+  targetRepo: process.env.REACT_APP_TARGET_REPO ?? '', // Target GitHub repository
+  geminiKeys: Array(10).fill(''), // Array of Gemini API keys
+  keyHealth: {}, // Health status of each Gemini key (for rate limiting)
+  currentCycle: 1, // Current self-improvement cycle number
+  logs: [], // Operational logs
+  metrics: { // Performance and activity metrics
     mutations: 0,
     progress: 0,
-    steps: 0, // NEW: Number of processing steps taken
-    errors: 0 // NEW: Number of errors encountered
+    steps: 0,
+    errors: 0
   },
-  logicalSignals: {}, // New: Added for logic analyzer (from ABSTRACTIONS)
+  logicalSignals: {}, // For visual logic analysis
 };
 
 const reducer = (state, action) => {
   switch (action.type) {
     case 'SET_VAL':
+      // Persist certain values to local storage
       if (action.key === 'targetRepo') localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`, action.value);
       if (action.key === 'selectedModel') localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`, action.value);
       return { ...state,
         [action.key]: action.value
       };
     case 'MARK_KEY_HEALTH':
+      // Update Gemini key health status
       return { ...state,
         keyHealth: { ...state.keyHealth,
           [action.index]: {
@@ -309,6 +311,7 @@ const reducer = (state, action) => {
         }
       };
     case 'INCREMENT_CYCLE':
+      // Advance to the next self-improvement cycle
       return { ...state,
         currentCycle: state.currentCycle + 1,
         metrics: { ...state.metrics,
@@ -321,13 +324,14 @@ const reducer = (state, action) => {
         isAcknowledged: true
       };
     case 'TOGGLE':
+      // Toggle the live status of the AI loop
       return { ...state,
         isLive: !state.isLive,
         status: !state.isLive ? 'BOOTING' : 'IDLE',
-        // Reset isIndexed when stopping, so it re-indexes on next start
-        isIndexed: !state.isLive ? false : state.isIndexed,
+        isIndexed: !state.isLive ? false : state.isIndexed, // Reset indexed status when stopping
       };
     case 'LOG':
+      // Add a new log entry
       return { ...state,
         logs: [{
           id: uuidv4(),
@@ -335,35 +339,39 @@ const reducer = (state, action) => {
         }, ...state.logs].slice(0, appConfig.LOG_HISTORY_LIMIT)
       };
     case 'UPDATE_METRICS':
+      // Update performance metrics
       return { ...state,
         metrics: { ...state.metrics,
           ...action.payload
         }
       };
     case 'SET_STATUS':
+      // Update the current operational status
       return { ...state,
         status: action.value,
         activePath: action.path || state.activePath
       };
-    case 'SET_SIGNAL': // New: Logic Analyzer action (from ABSTRACTIONS)
+    case 'SET_SIGNAL':
+      // Set a logical signal for the logic analyzer
       return { ...state,
         logicalSignals: { ...state.logicalSignals,
           [action.signalKey]: action.signalValue
         }
       };
-    case 'SET_INDEXED': // NEW: Action for indexing status
+    case 'SET_INDEXED':
+      // Mark repository indexing status
       return { ...state,
         isIndexed: action.value
       };
-    case 'RESET_SESSION': // NEW: Reset state for a new session
+    case 'RESET_SESSION':
+      // Reset the session to initial state, preserving essential configurations
       return {
         ...initialState,
-        // Preserve values that might come from env or local storage
         targetRepo: localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`) || process.env.REACT_APP_TARGET_REPO || '',
         selectedModel: localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`) || process.env.REACT_APP_ACTIVE_MODEL || appConfig.MODELS[0].id,
-        geminiKeys: state.geminiKeys, // Preserve keys
-        isAcknowledged: state.isAcknowledged, // Preserve auth status
-        logicalSignals: {} // Clear signals
+        geminiKeys: state.geminiKeys,
+        isAcknowledged: state.isAcknowledged,
+        logicalSignals: {}
       };
     default:
       return state;
@@ -374,12 +382,14 @@ const reducer = (state, action) => {
 // 6. REACT HOOKS AND COMPONENTS
 // ============================================================================
 
+// Hook to load environment variables
 const useEnvironment = () => {
   const loadEnvData = useCallback(() => loadEnv(), []);
   return { ...loadEnvData()
   };
 };
 
+// Hook to initialize and provide GitHub API client
 const useGithub = (token) => {
   const [github, setGithub] = useState(null);
   useEffect(() => {
@@ -392,7 +402,7 @@ const useGithub = (token) => {
 };
 
 /**
- * Displays logical signals in a simple UI. (From ABSTRACTIONS, adapted for useReducer)
+ * React component to display logical signals for debugging/monitoring.
  * @param {{signals: object}} props - The logical signals object from the state.
  */
 function SignalDisplay({
@@ -426,17 +436,19 @@ function SignalDisplay({
   );
 }
 
-
 const App = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [user, loading, error] = useAuthState(getAuth());
+
+  // Refs for managing state that shouldn't trigger re-renders
   const ghTokenRef = useRef('');
   const geminiKeyIndexRef = useRef(0);
-  const isBusy = useRef(false);
-  const queueRef = useRef([]); // Files to process
-  const indexRef = useRef(0); // Current index in queueRef
-  const mutationsHistory = useRef([]); // Logs for README/TODO updates
+  const isBusy = useRef(false); // Prevents overlapping runCycle calls
+  const queueRef = useRef([]); // Stores file paths to process
+  const indexRef = useRef(0); // Current position in the processing queue
+  const mutationsHistory = useRef([]); // Records changes for chronicler documentation
 
+  // Load environment variables using the custom hook
   const {
     REACT_APP_ACTIVE_MODEL,
     REACT_APP_TARGET_REPO,
@@ -445,19 +457,19 @@ const App = () => {
     REACT_APP_GEMINI_KEYS
   } = useEnvironment();
 
-  // Populate initial state from environment variables and localStorage
+  // Initialize state from environment variables and local storage on mount
   useEffect(() => {
     const storedTargetRepo = localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}targetRepo`);
     const storedSelectedModel = localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}selectedModel`);
     const storedIndex = parseInt(localStorage.getItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`) || "0", 10);
 
-    if (storedTargetRepo && storedTargetRepo !== state.targetRepo) {
+    if (storedTargetRepo) {
       dispatch({
         type: 'SET_VAL',
         key: 'targetRepo',
         value: storedTargetRepo
       });
-    } else if (REACT_APP_TARGET_REPO && REACT_APP_TARGET_REPO !== state.targetRepo) {
+    } else if (REACT_APP_TARGET_REPO) {
       dispatch({
         type: 'SET_VAL',
         key: 'targetRepo',
@@ -465,13 +477,13 @@ const App = () => {
       });
     }
 
-    if (storedSelectedModel && storedSelectedModel !== state.selectedModel) {
+    if (storedSelectedModel) {
       dispatch({
         type: 'SET_VAL',
         key: 'selectedModel',
         value: storedSelectedModel
       });
-    } else if (REACT_APP_ACTIVE_MODEL && REACT_APP_ACTIVE_MODEL !== state.selectedModel) {
+    } else if (REACT_APP_ACTIVE_MODEL) {
       dispatch({
         type: 'SET_VAL',
         key: 'selectedModel',
@@ -491,10 +503,10 @@ const App = () => {
       });
     }
 
-    indexRef.current = storedIndex; // Restore index
-  }, [dispatch, REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO, REACT_APP_GH_TOKEN, REACT_APP_GEMINI_KEYS, state.targetRepo, state.selectedModel]);
+    indexRef.current = storedIndex; // Restore processing index
+  }, [dispatch, REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO, REACT_APP_GH_TOKEN, REACT_APP_GEMINI_KEYS]);
 
-
+  // Firebase authentication handling
   useEffect(() => {
     const initAuth = async () => {
       if (!loading && !user && !error) {
@@ -502,7 +514,7 @@ const App = () => {
           type: 'SET_SIGNAL',
           signalKey: 'firebase_auth_start',
           signalValue: true
-        }); // Signal: Auth Start
+        });
         try {
           if (REACT_APP_INITIAL_AUTH_TOKEN) {
             await signInWithCustomToken(getAuth(), REACT_APP_INITIAL_AUTH_TOKEN);
@@ -516,7 +528,7 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'firebase_auth_success',
             signalValue: true
-          }); // Signal: Auth Success
+          });
         } catch (authError) {
           dispatch({
             type: 'LOG',
@@ -531,8 +543,8 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'firebase_auth_failure',
             signalValue: true
-          }); // Signal: Auth Failure
-          new LoggingError(`Firebase Authentication failed: ${authError.message}`, 500, authError); // Use LoggingError
+          });
+          new LoggingError(`Firebase Authentication failed: ${authError.message}`, 500, authError);
           dispatch({
             type: 'UPDATE_METRICS',
             payload: {
@@ -544,7 +556,7 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'firebase_auth_start',
             signalValue: false
-          }); // Signal: Auth End
+          });
         }
       }
     };
@@ -560,7 +572,7 @@ const App = () => {
     return () => unsubscribe();
   }, [loading, user, error, REACT_APP_INITIAL_AUTH_TOKEN, state.isAcknowledged, dispatch, state.metrics.errors]);
 
-
+  // Function to get the next available Gemini API key, handling health checks
   const getNextKey = () => {
     const validKeys = state.geminiKeys.map((k, i) => ({
       k: k.trim(),
@@ -572,24 +584,25 @@ const App = () => {
       throw new Error("Cluster Empty: No Gemini API keys provided.");
     }
 
-    // Find the next available key, respecting health
     for (let i = 0; i < filteredKeys.length; i++) {
       const candidateIndex = (geminiKeyIndexRef.current + i) % filteredKeys.length;
       const keyNode = filteredKeys[candidateIndex];
       const health = state.keyHealth[keyNode.i];
 
       if (!health?.blocked || health.resetAt < Date.now()) {
-        geminiKeyIndexRef.current = (candidateIndex + 1) % filteredKeys.length; // Advance index for next call
+        geminiKeyIndexRef.current = (candidateIndex + 1) % filteredKeys.length;
         return keyNode.k;
       }
     }
     throw new Error("Cluster Overheat: All Gemini API keys are blocked or rate-limited.");
   };
 
+  // Initialize GitHub API client
   const github = useGithub(ghTokenRef.current);
 
+  // Function to update project documentation (README, TODO files) with audit logs
   const syncProjectDocs = async (owner, repoName) => {
-    if (mutationsHistory.current.length === 0) return;
+    if (mutationsHistory.current.length === 0) return; // Only sync if there are mutations
     dispatch({
       type: 'SET_STATUS',
       value: 'CHRONICLING'
@@ -598,21 +611,31 @@ const App = () => {
       type: 'SET_SIGNAL',
       signalKey: 'github_sync_start',
       signalValue: true
-    }); // Signal: GitHub Sync Start
+    });
 
     try {
-      for (const docName of todoFileNames) { // Iterate through all potential doc files
+      for (const docName of todoFileNames) {
         let currentContentData;
         try {
-          // Fetch current content to get SHA
           currentContentData = await github.repos.getContents(owner, repoName, docName);
         } catch (e) {
           if (e.response && e.response.status === 404) {
-            // File doesn't exist, create it from scratch with a default header
-            currentContentData = { content: base64Encode(`# ${docName.replace(/\.md$/, '').replace(/-/g, ' ').toUpperCase()}\n\n`), sha: null };
-            dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Creating new document: ${docName}`, type: 'info', timestamp: new Date().toLocaleString() } });
+            // File doesn't exist, create it with a default header
+            currentContentData = {
+              content: base64Encode(`# ${docName.replace(/\.md$/, '').replace(/-/g, ' ').toUpperCase()}\n\n`),
+              sha: null
+            };
+            dispatch({
+              type: 'LOG',
+              payload: {
+                id: uuidv4(),
+                message: `Creating new document: ${docName}`,
+                type: 'info',
+                timestamp: new Date().toLocaleString()
+              }
+            });
           } else {
-            throw e; // Re-throw other errors
+            throw e;
           }
         }
 
@@ -630,13 +653,10 @@ const App = () => {
           content += `\n\n- [x] Completed Architectural Pass ${state.currentCycle} (${timestamp})`;
         }
 
-        // Encode content for GitHub API
-        const encodedContent = base64Encode(content);
-
         await github.repos.updateContents(owner, repoName, docName, {
           message: `[Chronicler] Update ${docName} - Pass ${state.currentCycle}`,
-          content: encodedContent,
-          sha: currentContentData.sha // Will be null if new file, GitHub API handles it
+          content: base64Encode(content),
+          sha: currentContentData.sha
         });
         dispatch({
           type: 'LOG',
@@ -651,7 +671,7 @@ const App = () => {
         type: 'SET_SIGNAL',
         signalKey: 'github_sync_success',
         signalValue: true
-      }); // Signal: GitHub Sync Success
+      });
     } catch (e) {
       dispatch({
         type: 'LOG',
@@ -666,8 +686,8 @@ const App = () => {
         type: 'SET_SIGNAL',
         signalKey: 'github_sync_failure',
         signalValue: true
-      }); // Signal: GitHub Sync Failure
-      new LoggingError(`GitHub Sync failed: ${e.message}`, e.response?.status || 500, e); // Use LoggingError
+      });
+      new LoggingError(`GitHub Sync failed: ${e.message}`, e.response?.status || 500, e);
       dispatch({
         type: 'UPDATE_METRICS',
         payload: {
@@ -679,16 +699,17 @@ const App = () => {
         type: 'SET_SIGNAL',
         signalKey: 'github_sync_start',
         signalValue: false
-      }); // Signal: GitHub Sync End
+      });
     }
-    mutationsHistory.current = [];
+    mutationsHistory.current = []; // Clear history after sync
   };
 
+  // The main self-improvement loop cycle
   const runCycle = useCallback(async () => {
     if (!state.isLive || isBusy.current || !user || !github || !state.isAcknowledged) {
       return;
     }
-    isBusy.current = true;
+    isBusy.current = true; // Set busy flag to prevent concurrent runs
 
     try {
       const parsedRepo = parseRepoPath(state.targetRepo);
@@ -697,6 +718,7 @@ const App = () => {
       }
       const [owner, repoName] = parsedRepo;
 
+      // Stage 1: Indexing the repository if not already indexed for the current cycle
       if (!state.isIndexed || queueRef.current.length === 0) {
         dispatch({
           type: 'SET_STATUS',
@@ -706,13 +728,11 @@ const App = () => {
           type: 'SET_SIGNAL',
           signalKey: 'github_indexing_start',
           signalValue: true
-        }); // Signal: GitHub Indexing Start
+        });
+
         const {
           data
         } = await github.repos.get(owner, repoName);
-
-        // Fetch the full tree recursively. This might hit API limits for *extremely* large repos
-        // or be slow, but it's the simplest way to get all file paths.
         const {
           data: treeData
         } = await github.repos.getTree(owner, repoName, data.default_branch, {
@@ -720,9 +740,9 @@ const App = () => {
         });
 
         const filteredFiles = treeData.tree.filter(f =>
-          f.type === 'blob' && // Only files
-          f.size < appConfig.MAX_FILE_SIZE_BYTES && // Skip excessively large files
-          !skipPatterns.some(pattern => pattern.test(f.path)) // Skip files matching patterns
+          f.type === 'blob' &&
+          f.size < appConfig.MAX_FILE_SIZE_BYTES &&
+          !skipPatterns.some(pattern => pattern.test(f.path))
         ).map(f => f.path);
 
         queueRef.current = filteredFiles;
@@ -731,12 +751,12 @@ const App = () => {
         dispatch({
           type: 'SET_INDEXED',
           value: true
-        }); // Mark as indexed
+        });
         dispatch({
           type: 'SET_SIGNAL',
           signalKey: 'github_indexing_success',
           signalValue: true
-        }); // Signal: GitHub Indexing Success
+        });
         dispatch({
           type: 'LOG',
           payload: {
@@ -747,8 +767,9 @@ const App = () => {
         });
       }
 
+      // Stage 2: Cycle completion check and chronicler sync
       if (indexRef.current >= queueRef.current.length) {
-        await syncProjectDocs(owner, repoName);
+        await syncProjectDocs(owner, repoName); // Update README/TODO
         dispatch({
           type: 'LOG',
           payload: {
@@ -767,14 +788,13 @@ const App = () => {
           type: 'SET_STATUS',
           value: 'IDLE'
         });
-        // Optionally toggle off or mark as complete if it's a single pass loop
-        // dispatch({ type: 'TOGGLE' }); // This would stop the process after one full pass
         isBusy.current = false;
         return;
       }
 
+      // Stage 3: Process the next file in the queue
       const path = queueRef.current[indexRef.current];
-      // Skip markdown files during the main processing loop, they are handled by syncProjectDocs
+      // Skip markdown files here as they are handled by chronicler (syncProjectDocs)
       if (todoFileNames.includes(path)) {
         dispatch({
           type: 'LOG',
@@ -797,7 +817,6 @@ const App = () => {
         return;
       }
 
-
       dispatch({
         type: 'SET_STATUS',
         value: 'REFACTORING',
@@ -807,35 +826,36 @@ const App = () => {
         type: 'SET_SIGNAL',
         signalKey: 'github_fetch_file_start',
         signalValue: true
-      }); // Signal: GitHub File Fetch Start
+      });
 
       // Fetch the file content from GitHub
       const {
         data: fileContentData
       } = await github.repos.getContents(owner, repoName, path);
-      const fileContent = base64Decode(fileContentData.content); // Use robust decoder
+      const fileContent = base64Decode(fileContentData.content);
       dispatch({
         type: 'SET_SIGNAL',
         signalKey: 'github_fetch_file_success',
         signalValue: true
-      }); // Signal: GitHub File Fetch Success
+      });
 
       let geminiResponse;
       let retryCount = 0;
       let geminiSuccess = false;
 
       const pipeline = getPipeline(path);
-      const currentStep = pipeline[0]; // Assuming only one step per file type for now
+      const currentStep = pipeline[0];
       const systemPrompt = currentStep.prompt;
       const fileExtension = path.split('.').pop();
 
+      // Stage 4: Call Gemini API with retries and key rotation
       while (!geminiSuccess && retryCount < appConfig.MAX_API_RETRIES) {
-        const geminiKey = getNextKey(); // Get a key, handles health checks
+        const geminiKey = getNextKey();
         dispatch({
           type: 'SET_SIGNAL',
           signalKey: 'gemini_api_call_start',
           signalValue: true
-        }); // Signal: Gemini API Call Start
+        });
 
         try {
           geminiResponse = await axios.post(
@@ -857,7 +877,7 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'gemini_api_call_success',
             signalValue: true
-          }); // Signal: Gemini API Call Success
+          });
           dispatch({
             type: 'UPDATE_METRICS',
             payload: {
@@ -869,7 +889,7 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'gemini_api_call_failure',
             signalValue: true
-          }); // Signal: Gemini API Call Failure
+          });
           if (e.response && (e.response.status === appConfig.RATE_LIMIT_STATUS_CODE || e.response.status === 403) && retryCount < appConfig.MAX_API_RETRIES - 1) {
             const delay = calculateBackoffDelay(retryCount);
             dispatch({
@@ -897,7 +917,7 @@ const App = () => {
             type: 'SET_SIGNAL',
             signalKey: 'gemini_api_call_start',
             signalValue: false
-          }); // Signal: Gemini API Call End
+          });
         }
       }
 
@@ -907,12 +927,11 @@ const App = () => {
 
       // Process the generated content
       const generatedText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
       if (!generatedText) {
         throw new Error("Gemini API returned no generated text.");
       }
 
-      // Split generated text into code and log
+      // Extract code and log from Gemini's response
       const codeEndIndex = generatedText.toLowerCase().indexOf("full log");
       let newCode = generatedText;
       let changeLog = "No detailed log provided by AI.";
@@ -928,17 +947,17 @@ const App = () => {
         .replace(/\n```$/i, '')
         .trim();
 
-      // Simple diff check (more robust diffing would be ideal)
+      // Stage 5: Update GitHub if code has changed
       if (newCode.trim() !== fileContent.trim()) {
         dispatch({
           type: 'SET_SIGNAL',
           signalKey: 'github_update_file_start',
           signalValue: true
-        }); // Signal: GitHub Update File Start
+        });
         await github.repos.updateContents(owner, repoName, path, {
           message: `[Refactor] Optimize and refactor ${path} - Pass ${state.currentCycle}`,
-          content: base64Encode(newCode), // Use robust encoder
-          sha: fileContentData.sha // Use original SHA for update
+          content: base64Encode(newCode),
+          sha: fileContentData.sha
         });
         mutationsHistory.current.push({
           path,
@@ -963,7 +982,7 @@ const App = () => {
           type: 'SET_SIGNAL',
           signalKey: 'github_update_file_success',
           signalValue: true
-        }); // Signal: GitHub Update File Success
+        });
       } else {
         dispatch({
           type: 'LOG',
@@ -986,14 +1005,14 @@ const App = () => {
           timestamp: new Date().toLocaleString()
         }
       });
-      new LoggingError(`Error during runCycle for ${state.activePath}: ${e.message}`, e.statusCode || 500, e); // Use LoggingError
+      new LoggingError(`Error during runCycle for ${state.activePath}: ${e.message}`, e.statusCode || 500, e);
       dispatch({
         type: 'UPDATE_METRICS',
         payload: {
           errors: state.metrics.errors + 1
         }
       });
-      // Reset signals in case of error
+      // Reset signals in case of error for cleaner visualization
       dispatch({
         type: 'SET_SIGNAL',
         signalKey: 'github_indexing_start',
@@ -1017,8 +1036,9 @@ const App = () => {
       dispatch({
         type: 'SET_STATUS',
         value: 'ERROR'
-      }); // Indicate an error state
+      });
     } finally {
+      // Advance to the next file and update progress
       indexRef.current++;
       localStorage.setItem(`${appConfig.LOCAL_STORAGE_PREFIX}index`, indexRef.current.toString());
       dispatch({
@@ -1027,11 +1047,12 @@ const App = () => {
           progress: Math.round((indexRef.current / queueRef.current.length) * 100)
         }
       });
-      isBusy.current = false;
+      isBusy.current = false; // Release busy flag
     }
-  }, [state.isLive, state.isAcknowledged, user, github, state.targetRepo, state.selectedModel, state.metrics.mutations, state.currentCycle, state.metrics.errors, state.metrics.steps, state.activePath, state.isIndexed, dispatch]); // Added dispatch to dependency array
+  }, [state.isLive, state.isAcknowledged, user, github, state.targetRepo, state.selectedModel, state.metrics.mutations, state.currentCycle, state.metrics.errors, state.metrics.steps, state.activePath, state.isIndexed, dispatch, state.keyHealth]);
 
 
+  // Effect to trigger runCycle at a fixed interval when live
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (state.isLive && state.isAcknowledged && user && github) {
@@ -1041,7 +1062,7 @@ const App = () => {
     return () => clearInterval(intervalId);
   }, [state.isLive, state.isAcknowledged, user, github, runCycle]);
 
-  // Minimal UI to satisfy "valid React component"
+  // Main UI rendering
   return (
     <div style={{ fontFamily: 'monospace', padding: '20px', background: '#282c34', color: '#fff' }}>
       <h1>Tri-Model Nexus</h1>
@@ -1126,7 +1147,7 @@ const App = () => {
           </p>
         ))}
       </div>
-      <SignalDisplay signals={state.logicalSignals} /> {/* Render the logic analyzer display */}
+      <SignalDisplay signals={state.logicalSignals} />
     </div>
   );
 };
