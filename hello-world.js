@@ -3,7 +3,8 @@ import functools
 import nltk
 from typing import Dict, List, Optional, Set, Union
 
-# Memoize NLTK stopwords download to prevent repeated downloads
+# --- NLTK Resource Downloads & Caching ---
+
 @functools.lru_cache(maxsize=1)
 def _download_nltk_stopwords(language: str):
     """
@@ -13,17 +14,29 @@ def _download_nltk_stopwords(language: str):
     try:
         nltk.data.find(f'corpora/stopwords/{language}.zip')
     except nltk.downloader.DownloadError:
-        nltk.download('stopwords', quiet=True) # Use quiet=True to suppress output
+        nltk.download('stopwords', quiet=True)
 
-# Memoize stopwords set for performance
+@functools.lru_cache(maxsize=1)
+def _download_nltk_punkt():
+    """
+    Downloads NLTK 'punkt' tokenizer.
+    Uses lru_cache to ensure it's downloaded only once per session.
+    """
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except nltk.downloader.DownloadError:
+        nltk.download('punkt', quiet=True)
+
 @functools.lru_cache(maxsize=None)
 def _get_stopwords_set(language: str) -> Set[str]:
     """
     Retrieves the set of NLTK stopwords for a given language.
     Uses lru_cache to ensure the set is built only once per language.
     """
-    _download_nltk_stopwords(language) # Ensure stopwords are downloaded
+    _download_nltk_stopwords(language)
     return set(nltk.corpus.stopwords.words(language))
+
+# --- String Processing & Similarity Helpers ---
 
 def _levenshtein_distance(word1: str, word2: str) -> int:
     """
@@ -34,32 +47,122 @@ def _levenshtein_distance(word1: str, word2: str) -> int:
     m = len(word1)
     n = len(word2)
     
-    # Create a DP table to store results of subproblems
     dp = [[0] * (n + 1) for _ in range(m + 1)]
 
-    # Initialize the first row and column
-    # dp[i][0] represents the cost of deleting all characters from word1[:i] to get an empty string
     for i in range(m + 1):
         dp[i][0] = i
-    # dp[0][j] represents the cost of inserting all characters from word2[:j] into an empty string
     for j in range(n + 1):
         dp[0][j] = j
 
-    # Fill the DP table
     for i in range(1, m + 1):
         for j in range(1, n + 1):
-            # Cost is 0 if characters match, 1 if they don't (for substitution)
             cost = 0 if word1[i - 1] == word2[j - 1] else 1
-            
-            # dp[i][j] is the minimum of:
-            # 1. Deletion: dp[i-1][j] + 1 (delete character from word1)
-            # 2. Insertion: dp[i][j-1] + 1 (insert character into word1 to match word2)
-            # 3. Substitution: dp[i-1][j-1] + cost (substitute character)
             dp[i][j] = min(dp[i - 1][j] + 1,      # Deletion
                            dp[i][j - 1] + 1,      # Insertion
                            dp[i - 1][j - 1] + cost) # Substitution
 
     return dp[m][n]
+
+def _levenshtein_distance_matrix(words: List[str]) -> List[List[int]]:
+    """
+    Returns a matrix of Levenshtein distances between each pair of words in the input list.
+    (Extension 2)
+    """
+    matrix = [[0] * len(words) for _ in range(len(words))]
+    for i, word1 in enumerate(words):
+        for j, word2 in enumerate(words):
+            if i == j:
+                matrix[i][j] = 0
+            else:
+                matrix[i][j] = _levenshtein_distance(word1, word2)
+    return matrix
+
+def longest_common_substring(text1: str, text2: str) -> str:
+    """
+    Finds the longest common substring between two input strings.
+    (Extension 5)
+    """
+    m, n = len(text1), len(text2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    max_length = 0
+    end_index_text1 = 0
+
+    for i in range(m):
+        for j in range(n):
+            if text1[i] == text2[j]:
+                dp[i + 1][j + 1] = dp[i][j] + 1
+                if dp[i + 1][j + 1] > max_length:
+                    max_length = dp[i + 1][j + 1]
+                    end_index_text1 = i + 1
+
+    return text1[end_index_text1 - max_length : end_index_text1]
+
+# --- Bitwise Operation Helpers ---
+
+def get_index_of_rightmost_set_bit(number: int) -> int:
+    """
+    Take in a positive integer 'number'.
+    Returns the zero-based index of first set bit in that 'number' from right.
+    Returns -1, If no set bit found.
+    """
+    if not isinstance(number, int) or number < 0:
+        raise ValueError("Input must be a non-negative integer")
+
+    if number == 0:
+        return -1
+    
+    # This isolates the rightmost set bit
+    # e.g., number = 36 (0b100100) -> intermediate = 4 (0b000100)
+    intermediate = number & ~(number - 1)
+    
+    index = 0
+    while intermediate > 1:
+        intermediate >>= 1
+        index += 1
+    return index
+
+def get_index_of_first_set_bit(number: int) -> int:
+    """
+    Takes in a positive integer 'number'.
+    Returns the zero-based index of first set bit in that 'number' from left (Most Significant Bit).
+    Returns -1, If no set bit found.
+    (Extension 3, corrected for "from left")
+    """
+    if not isinstance(number, int) or number < 0:
+        raise ValueError("Input must be a non-negative integer")
+    if number == 0:
+        return -1
+    
+    # bit_length() returns the number of bits required to represent an integer in binary,
+    # excluding the sign bit and leading zeros. For a positive integer, this is
+    # equivalent to 1 + the index of the most significant (leftmost) set bit.
+    return number.bit_length() - 1
+
+# --- Numerical List Processing Helper ---
+
+def find_missing_number(numbers: List[int]) -> int:
+    """
+    Finds the missing number in a sorted list of positive integers.
+    Assumes the list represents a consecutive sequence with exactly one number missing
+    within the range defined by `min(numbers)` and `max(numbers)`.
+    (Extension 4)
+    """
+    if not numbers:
+        raise ValueError("Input list cannot be empty")
+    if len(numbers) == 1:
+        raise ValueError("Cannot determine a missing number from a single-element list without broader context.")
+
+    min_val = min(numbers)
+    max_val = max(numbers)
+    n_expected = max_val - min_val + 1 # Count of numbers if none were missing
+    
+    # Sum of an arithmetic series: n * (first + last) / 2
+    expected_sum = (n_expected * (min_val + max_val)) // 2
+    actual_sum = sum(numbers)
+    
+    return expected_sum - actual_sum
+
+# --- Main Consolidated Function ---
 
 def calculate_nexus_branch_synthesis(
     sentence: str,
@@ -107,77 +210,63 @@ def calculate_nexus_branch_synthesis(
         return {}
 
     # Step 1: Tokenization and initial processing (case_insensitive, remove_stopwords)
-    # The `processed_words` list will contain all relevant tokens for subsequent steps.
+    # Using NLTK's word_tokenize for robust tokenization (integrating Extension 1 logic).
+    _download_nltk_punkt()
+    
+    raw_tokens = nltk.word_tokenize(sentence, language=stopwords_language)
+
     processed_words: List[str] = []
     
-    # Split the sentence into raw words. `split()` without arguments handles multiple spaces.
-    raw_words = sentence.split()
-
     if remove_stopwords:
         stopwords_set = _get_stopwords_set(stopwords_language)
-        for word in raw_words:
-            current_word = word.lower() if case_insensitive else word
-            if current_word not in stopwords_set:
-                processed_words.append(current_word)
+        for token in raw_tokens:
+            current_token = token.lower() if case_insensitive else token
+            # Filter out punctuation and stopwords
+            if current_token.isalpha() and current_token not in stopwords_set:
+                processed_words.append(current_token)
     else:
-        for word in raw_words:
-            current_word = word.lower() if case_insensitive else word
-            processed_words.append(current_word)
+        for token in raw_tokens:
+            current_token = token.lower() if case_insensitive else token
+            # Filter out punctuation
+            if current_token.isalpha():
+                processed_words.append(current_token)
 
-    # If no words remain after processing (e.g., empty sentence, or all words were stopwords)
     if not processed_words:
         return {}
 
-    # Step 2: Determine the base occurrence dictionary
-    # This will either be a standard frequency count or the similarity count,
-    # depending on `similarity_threshold`.
+    # Step 2: Determine the base occurrence dictionary (standard frequency or similarity-based)
     final_occurrence_basis: collections.defaultdict[str, int]
 
     if similarity_threshold is not None:
-        # Implementation of Extension 5: Count Similar Words
-        # This logic exactly follows the provided `word_occurrence_similar_words` description:
-        # It iterates over all tokens (`processed_words`) for both outer and inner loops.
-        # `occurrence[word] += 1` is applied for each pair of distinct tokens (`word != other_word`)
-        # that meet the Levenshtein distance threshold.
-        # This results in a count per unique word, representing how many similar *other tokens* exist.
-        # This specific approach has a high algorithmic complexity: O(N_tokens^2 * L^2),
-        # where N_tokens is the number of tokens in `processed_words` and L is average word length.
-        
+        # Calculate similarity counts based on Levenshtein distance.
+        # This part has O(U^2 * L^2) complexity where U is unique tokens, L is avg word length.
         final_occurrence_basis = collections.defaultdict(int)
         
-        for word_token_outer in processed_words: # Outer loop iterates over each token
-            for word_token_inner in processed_words: # Inner loop iterates over each token
-                
-                # Check for distinct string value to match `if word != other_word` from the extension.
-                # If a word string appears multiple times (e.g., "apple apple"), they are treated
-                # as different tokens but `word_token_outer != word_token_inner` will be false for identical strings.
+        # To count distinct tokens for similarity, operate on a set of unique words.
+        unique_processed_words = list(set(processed_words)) 
+
+        for word_token_outer in unique_processed_words:
+            for word_token_inner in unique_processed_words:
+                # Count similarity against *other distinct tokens*.
                 if word_token_outer != word_token_inner and \
                    _levenshtein_distance(word_token_outer, word_token_inner) <= similarity_threshold:
                     final_occurrence_basis[word_token_outer] += 1
     else:
-        # Standard word frequency count (original algorithm and extensions 1)
-        # Time complexity: O(N_tokens)
+        # Standard word frequency count. Time complexity: O(N_tokens).
         final_occurrence_basis = collections.defaultdict(int)
         for word in processed_words:
             final_occurrence_basis[word] += 1
     
-    # Step 3: Apply frequency filtering (Extensions 3 & 4)
+    # Step 3: Apply frequency filtering (min_frequency and max_frequency)
     # Time complexity: O(U), where U is the number of unique words.
     result_dict: Dict[str, int] = {}
     
     if min_frequency > 0 or max_frequency is not None:
         for word, count in final_occurrence_basis.items():
-            # Apply minimum frequency filter
-            if min_frequency > 0 and count < min_frequency:
-                continue # Skip words that don't meet the minimum frequency
-
-            # Apply maximum frequency filter
-            if max_frequency is not None and count > max_frequency:
-                continue # Skip words that exceed the maximum frequency
-
-            result_dict[word] = count
+            if (min_frequency == 0 or count >= min_frequency) and \
+               (max_frequency is None or count <= max_frequency):
+                result_dict[word] = count
     else:
-        # No frequency filtering, simply convert the defaultdict to a regular dict
         result_dict = dict(final_occurrence_basis)
 
     return result_dict
