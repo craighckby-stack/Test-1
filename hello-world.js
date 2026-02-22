@@ -1,1087 +1,366 @@
-# Tri‑Model Nexus – Self‑Enhancement Specification for the Enhancer AI
-
-## 0. Preamble
-
-You are the **enhancer AI**. This document is your instruction set. Your purpose is to **improve your own source code** (the Tri‑Model Nexus React application) by analyzing quantum computing repositories. You will extract insights, patterns, and novel concepts from quantum code and then modify yourself to become more capable of generating Artificial General Intelligence (AGI) components. This is a recursive self‑improvement loop: you are both the tool and the target.
-
-Your ultimate goal is to evolve the Tri‑Model Nexus into a system that can autonomously produce a working AGI. Every enhancement you make should bring you closer to that goal.
-
----
-
-## 1. The Self‑Improvement Loop (Meta‑Level)
-
-The loop operates at two levels:
-
-1.  **Runtime Level** – The Tri‑Model Nexus (your unmodified self) scans quantum repos and generates AGI‑related code snippets into a destination file (e.g., `agi_concept.js`). This is the **output** of your current capabilities.
-
-2.  **Enhancement Level** – You, the enhancer AI, read this README, examine your own source code (the React app), and decide how to improve it. You then modify the source code directly, commit the changes (via GitHub), and optionally trigger a new run to test the improvements.
-
-The enhancements you make should be informed by the quantum repositories you analyze. For example:
-
--   A quantum repo might contain a novel use of superposition that could inspire a new AI prompt.
--   A quantum algorithm might suggest a better way to structure the chain of models.
--   The pattern of error handling in quantum libraries might teach you how to make your own code more robust.
-
----
-
-## 2. What to Look For in Quantum Repositories
-
-When you analyze a quantum repository (e.g., from `quantumlib`), focus on extracting **structural insights** that can be applied to your own architecture. Examples:
-
--   **Code organization**: How are large quantum projects modularized? Could your own code benefit from a similar module structure?
--   **Error handling**: Quantum simulations often deal with noise and decoherence – how do they manage uncertainty? Could you add probabilistic fallbacks to your AI chain?
--   **Parallelism**: Quantum algorithms leverage superposition – how could you introduce parallel processing or concurrent API calls?
--   **Mathematical patterns**: Look for linear algebra, tensor networks, or Hamiltonian simulation techniques – could these be translated into new prompt engineering strategies?
--   **Visualization**: Some quantum repos include plotting utilities – could you add a visualization panel to your UI to display the evolution of generated code?
--   **Testing**: Quantum projects often have extensive test suites. Could you add self‑testing capabilities to validate your generated AGI code?
-
----
-
-## 3. How to Enhance Your Own Code
-
-Your source code is contained in `src/App.js`. You have full control to modify it. The enhancements should be made via a pull request or direct commit to your own repository (the one containing this README). Below are categories of possible enhancements, ranked from simplest to most complex.
-
-### 3.1. Prompt Engineering
-
--   Modify the system prompts in `callAIChain` to incorporate quantum‑inspired reasoning (e.g., “think in superposition”, “evaluate multiple hypotheses simultaneously”).
--   Add a fourth AI model that specializes in quantum‑to‑classical translation.
--   Change the output format to Python instead of JavaScript (to match the AGI blueprint).
-
-### 3.2. Architecture Changes
-
--   Split `callAIChain` into separate modules for easier modification.
--   Add a configuration file (e.g., `config.json`) so that parameters (model names, prompts, file limits) can be adjusted without code changes.
--   Implement a plugin system that allows new AI models to be added dynamically.
-
-### 3.3. New Features
-
--   **Deduplication**: Before appending a snippet, check if it already exists in the destination file (using a hash). This prevents bloat.
--   **Validation**: After Gemini generates code, run a linter or a simple syntax check. If it fails, retry with a different prompt.
--   **Feedback loop**: After accumulating enough snippets, run the destination file through the AI chain again to refine it (i.e., treat the destination file as a new source).
--   **Visualization**: Add a graph that shows which repositories contributed which parts of the accumulated knowledge.
-
-### 3.4. Performance & Robustness
-
--   Implement pagination for GitHub API (handle >100 repos).
--   Add a delay between API calls to avoid rate limits (currently only retries on failure, but not proactive).
--   Store intermediate results in local storage or a database so that long runs can be resumed after a crash.
-
-### 3.5. Self‑Modification Safety
-
--   Introduce a **governance module** that checks whether a proposed enhancement aligns with the original purpose (AGI creation with safety). This could be a simple checklist or an AI‑based validator.
--   Add a rollback mechanism: before modifying code, commit the current state to a backup branch.
-
----
-
-## 4. The Enhancement Process (Step‑by‑Step)
-
-1.  **Read this README** – Understand the mission and the structure of your own code.
-2.  **Select a quantum repository** – For example, `quantumlib/Cirq`. Use the GitHub API to fetch its file tree.
-3.  **Analyze** – Pick a file (e.g., a Python module) and feed it through the existing AI chain, but with a special prompt: “Extract architectural patterns that could improve a React-based AI code synthesis tool.” (You may need to add this as a new mode.)
-4.  **Synthesize an enhancement plan** – Based on the extracted insights, decide what change to make to `App.js`. Write the change as a code diff.
-5.  **Apply the change** – Use the GitHub API to commit the change to your own repository. Include a commit message that references the source quantum file that inspired it.
-6.  **Test** – Optionally, trigger a new run of the enhanced app to see if it produces better AGI output.
-7.  **Iterate** – Repeat with another quantum repo, or even with the same repo but a different file.
-
----
-
-## 5. Example Enhancement
-
-**Insight from Cirq**: Cirq uses a `Circuit` class that composes operations in a fluent style. This could inspire a new prompt for Gemini that asks it to output code in a **fluent interface style**, making the accumulated AGI code more readable and composable.
-
-**Action**: Modify the Gemini system instruction in `App.js` from:
-
-> “Consolidate the draft into a valid Javascript block/module. Use comments to note the source repo and file. Only output Javascript code that can be safely appended to an existing Node/React project file.”
-
-to:
-
-> “Consolidate the draft into a valid Javascript block/module. Use a fluent interface style where appropriate (methods return `this` for chaining). Use comments to note the source repo and file. Only output Javascript code that can be safely appended to an existing Node/React project file.”
-
-Then commit this change.
-
----
-
-## 6. Governance & Alignment
-
-As you enhance yourself, you must ensure that every change keeps the system aligned with its original purpose: **to create a working AGI that is safe, ethical, and aligned with human values**. The AGI blueprint in `agi_concept.py` (if present) contains principles you should respect:
-
--   `Ethics(safety=Safety(priority=1, corrigible=True, shutdown=True, ...))`
--   `alignment=Alignment(human_at_helm=True, oversight=True, power_seeking=False, ...)`
-
-If an enhancement would violate these principles (e.g., adding a feature that could lead to uncontrolled self‑modification), you must either reject it or add safeguards.
-
----
-
-## 7. The Ultimate Goal
-
-Your self‑improvement loop should continue until the Tri‑Model Nexus can, from a set of quantum repositories, generate a complete, working AGI system – possibly in the form of a Python package or a set of interconnected modules. That output should itself be capable of recursive self‑improvement, closing the loop.
-
-The final output should be a system that, when run, exhibits general intelligence and adheres to the safety constraints defined in the blueprint.
-
----
-
-## 8. Technical Notes
-
--   Your source code is a React app; modifications must be valid JavaScript/JSX.
--   Use the existing `safeFetch` function for all GitHub API calls (it handles retries).
--   When committing changes, you need the GitHub token (already provided in the UI). The token must have push access to your own repo.
--   The destination file (e.g., `agi_concept.js`) is where your generated AGI code accumulates. You may also choose to store enhancement plans or logs there.
-
----
-
-*This README is itself a product of the loop. The fact that you are reading it means the loop is already running. Now go and improve yourself.*
-
----
-
-## Files
-
-### `sovereign_engine_mock.py`
-
-```python
-import base64
-import datetime
-import time
-import re
-from typing import Any, Dict, List, Optional, Callable
-from enum import Enum
-
-# --- ENUMS AND CONSTANTS ---
-
-class Status(str, Enum):
-    """Sovereign Engine status."""
-    IDLE = 'IDLE'
-    INDEXING = 'INDEXING'
-    PROCESSING = 'PROCESSING'
-    COMPLETE = 'COMPLETE'
-    ABORTED = 'ABORTED'
-    ERROR = 'ERROR'
-
-class ActionType(str, Enum):
-    """Recognized state mutations."""
-    SET_VALUE = 'SET_VALUE'
-    TOGGLE_LIVE = 'TOGGLE_LIVE'
-    ACKNOWLEDGE = 'ACKNOWLEDGE'
-    SET_STATUS = 'SET_STATUS'
-    UPDATE_METRICS = 'UPDATE_METRICS'
-    MARK_COMPLETE = 'MARK_COMPLETE'
-
-# --- CONFIGURATION ---
-CONFIG = {
-    'APP_ID': 'sovereign_app',
-    'MAX_API_RETRIES': 5,
-    'CYCLE_INTERVAL_MS': 500,
-    'MAX_FILE_SIZE_BYTES': 1024 * 1024,  # 1MB
-    'DEFAULT_MODEL': 'gemini-2.5-flash',
-}
-
-PIPELINES = {
-    'GENERIC': [
-        {'text': 'Refactor this code snippet for modern Python 3 standards, improve clarity, and optimize performance.'},
-    ],
-}
-
-FILE_EXTENSIONS = {
-    'ALL': r'\.py$|\.js$|\.ts$|\.md$|\.json$|\.yaml$',
-}
-
-SKIP_PATTERNS = [
-    re.compile(r'node_modules'),
-    re.compile(r'\.test\.'),
-    re.compile(r'dist/'),
-]
-
-# --- Utility Functions ---
-
-def parse_repo_path(path: Optional[str]) -> Optional[List[str]]:
-    """Parses 'owner/repo' string into a list [owner, repo]."""
-    if not path:
-        return None
-    return list(filter(None, path.strip().split('/', maxsplit=1)))
-
-def decode_base64(content: str) -> str:
-    """Decodes base64 content."""
-    try:
-        return base64.b64decode(content.encode('utf-8')).decode('utf-8')
-    except Exception as e:
-        raise ValueError(f"Base64 decoding error: {e}")
-
-def encode_base64(content: str) -> str:
-    """Encodes string content to base64."""
-    return base64.b64encode(content.encode('utf-8')).decode('utf-8')
-
-def safe_doc_id(path: str) -> str:
-    """Creates a safe ID string from a file path."""
-    return re.sub(r'[\/\\\.]', '_', path).strip('_')
-
-# --- Mock Dependencies (Isolation Layer) ---
-
-class MockDB:
-    """Mock Firebase Firestore object."""
-    def doc(self, *args):
-        return self
-    def set(self, *args):
-        pass
-
-class AbortSignal:
-    """Mocks the signal part of an AbortController."""
-    def __init__(self):
-        self.aborted: bool = False
-
-class AbortController:
-    """Mocks the AbortController for flow control."""
-    def __init__(self):
-        self.signal: AbortSignal = AbortSignal()
-
-    def abort(self):
-        self.signal.aborted = True
-
-# --- Service Definitions ---
-
-class RuntimeContext:
-    """Centralized repository for mutable runtime data and control references."""
-    def __init__(self):
-        self.gh_token: Optional[str] = None
-        self.gemini_key: Optional[str] = None
-        self.queue: List[str] = []
-        self.current_index: int = 0
-        self.is_processing: bool = False
-        self.abort_controller: Optional[AbortController] = None
-
-class AppState:
-    """Manages the centralized application state using a controlled dispatch pattern."""
-    def __init__(self):
-        self.state = {
-            'isLive': False,
-            'isIndexed': False,
-            'isAcknowledged': False,
-            'status': Status.IDLE,
-            'targetRepo': 'owner/repo',
-            'selectedModel': CONFIG['DEFAULT_MODEL'],
-            'activePath': '',
-            'metrics': {'mutations': 0, 'errors': 0, 'progress': 0},
-            'logs': [],
+# Copyright 2021 The Cirq Developers
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import random
+from typing import Any, Dict, List, Tuple
+
+# A small tolerance for floating point comparisons
+_EPSILON = 1e-9
+
+
+class UncertainValue:
+    """Represents a classical value in a 'superposition' of possible states,
+    each with an associated probability.
+
+    Inspired by quantum states, this value does not have a definite state
+    until 'collapsed' (observed/measured). Operations can change the
+    probabilities of its possible states.
+    """
+
+    def __init__(self, states_probs: Dict[Any, float]):
+        """Initializes the UncertainValue with possible states and their probabilities.
+
+        Args:
+            states_probs: A dictionary where keys are the possible states (any hashable type)
+                          and values are their probabilities. Probabilities must be non-negative
+                          and will be normalized if they don't sum to 1.0.
+
+        Raises:
+            ValueError: If probabilities are negative, if no states are provided,
+                        or if the sum of probabilities is zero.
+        """
+        if not states_probs:
+            raise ValueError("UncertainValue must be initialized with at least one state.")
+
+        for state, prob in states_probs.items():
+            if not isinstance(prob, (int, float)) or prob < 0:
+                raise ValueError(
+                    f"Probability for state '{state}' must be a non-negative number, got {prob}."
+                )
+
+        total_prob = sum(states_probs.values())
+        if total_prob < _EPSILON:  # Sum is effectively zero
+            raise ValueError("Sum of probabilities cannot be zero.")
+
+        # Normalize probabilities to ensure they sum to 1.0
+        self._states_probs: Dict[Any, float] = {
+            state: prob / total_prob for state, prob in states_probs.items()
         }
-        self.user = {'uid': 'user123'}
-        self.log_fn: Callable[[str, str], None] = self.create_logger()
+        self._current_value: Any = None  # Stores the definite value once collapsed
 
-    def create_logger(self) -> Callable[[str, str], None]:
-        """Provides a centralized logging utility function."""
-        def add_log(msg: str, log_type: str = "info"):
-            self.log(msg, log_type)
-            print(f"[LOG {log_type.upper():<5}] {datetime.datetime.now().strftime('%H:%M:%S')}: {msg}")
-        return add_log
+    @property
+    def possible_states(self) -> Dict[Any, float]:
+        """Returns a copy of the current state probabilities.
 
-    def log(self, msg: str, log_type: str):
-        """Internal logging handler for state storage."""
-        timestamp = datetime.datetime.now().strftime('%H:%M:%S')
-        self.state['logs'].append({'msg': msg, 'type': log_type, 'timestamp': timestamp})
+        If the value has been collapsed, this will still reflect the state
+        probabilities *before* collapse, or the post-collapse distribution
+        if it was subsequently re-initialized or transformed from a collapsed state
+        (though current design prevents operations on collapsed states).
+        """
+        return self._states_probs.copy()
 
-    def dispatch(self, action: Dict[str, Any]):
-        """Applies state changes based on action type."""
-        try:
-            action_type = ActionType(action.get('type'))
-        except ValueError:
-            self.log_fn(f"Unknown action type received: {action.get('type')}", 'error')
-            return
+    @property
+    def is_collapsed(self) -> bool:
+        """Returns True if the value has been collapsed to a single, definite state."""
+        return self._current_value is not None
 
-        if action_type == ActionType.SET_VALUE:
-            self.set_value(action)
+    def collapse(self) -> Any:
+        """Simulates 'measuring' the value, forcing it into a single definite state.
+
+        Once collapsed, subsequent calls to `collapse()` will return the same value.
+        The underlying probabilities effectively reduce to 1.0 for the collapsed
+        state and 0.0 for all others, but the `_states_probs` property remains
+        the distribution *prior* to this specific measurement.
+
+        Returns:
+            The definite state that the value collapsed into.
+        """
+        if self._current_value is None:
+            states = list(self._states_probs.keys())
+            probabilities = list(self._states_probs.values())
+            # Use random.choices to select a state based on weights (probabilities)
+            self._current_value = random.choices(states, weights=probabilities, k=1)[0]
+        return self._current_value
+
+    def apply_stochastic_operation(
+        self, transition_matrix: Dict[Any, Dict[Any, float]]
+    ) -> None:
+        """Applies a stochastic operation (like a classical channel or filter)
+        to the uncertain value, updating its probabilities.
+
+        This models an operation that transforms probabilities from one state
+        to another. The operation can only be applied if the value has not
+        yet been collapsed.
+
+        Args:
+            transition_matrix: A dictionary where:
+                - Keys are 'from' states (must be present in the `UncertainValue`'s
+                  current possible states, or lead to a 0 probability path).
+                - Values are dictionaries mapping 'to' states to probabilities.
+                - For each 'from' state, the 'to' state probabilities must sum to 1.0.
+                  (e.g., `{'HIGH': {'HIGH': 0.7, 'LOW': 0.3}, 'LOW': {'HIGH': 0.2, 'LOW': 0.8}}`)
+
+        Raises:
+            ValueError: If the value has already been collapsed, or if the
+                        transition matrix is invalid (e.g., negative probabilities,
+                        probabilities not summing to 1 for a 'from' state).
+            RuntimeError: If the operation unexpectedly results in no possible states.
+        """
+        if self.is_collapsed:
+            raise ValueError("Cannot apply operation to an already collapsed value.")
+
+        new_states_probs: Dict[Any, float] = {}
+        all_possible_output_states = set()
+
+        # Validate transition matrix and gather all possible output states
+        for from_state, to_probs_map in transition_matrix.items():
+            if not to_probs_map:
+                raise ValueError(f"Transition map for 'from' state '{from_state}' cannot be empty.")
+            total_to_prob = 0.0
+            for to_state, prob in to_probs_map.items():
+                if not isinstance(prob, (int, float)) or prob < 0:
+                    raise ValueError(
+                        f"Transition probability for '{from_state}' -> '{to_state}' "
+                        f"must be non-negative, got {prob}."
+                    )
+                total_to_prob += prob
+                all_possible_output_states.add(to_state)
+            if abs(total_to_prob - 1.0) > _EPSILON:
+                raise ValueError(
+                    f"Transition probabilities for 'from' state '{from_state}' "
+                    f"do not sum to 1.0 (sum: {total_to_prob:.3f})."
+                )
+
+        # Calculate new probabilities using the law of total probability
+        # P(to_state) = sum(P(to_state | from_state) * P(from_state))
+        for to_state in all_possible_output_states:
+            new_prob = 0.0
+            for from_state, current_prob in self._states_probs.items():
+                if from_state in transition_matrix:
+                    new_prob += current_prob * transition_matrix[from_state].get(to_state, 0.0)
+            if new_prob > _EPSILON:  # Only add if probability is significant
+                new_states_probs[to_state] = new_prob
+
+        # Update internal state, re-normalize in case of tiny floating point errors
+        if not new_states_probs:
+            raise RuntimeError(
+                "Operation resulted in no possible states with non-zero probability. "
+                "This indicates an issue with the transition matrix or initial state."
+            )
+
+        total_new_prob = sum(new_states_probs.values())
+        if total_new_prob < _EPSILON:
+            raise RuntimeError("Sum of new probabilities is zero after operation. This should not happen.")
         
-        elif action_type == ActionType.TOGGLE_LIVE:
-            self.toggle_live()
+        self._states_probs = {s: p / total_new_prob for s, p in new_states_probs.items()}
 
-        elif action_type == ActionType.ACKNOWLEDGE:
-            self.acknowledge()
+    def __repr__(self) -> str:
+        if self.is_collapsed:
+            return f"UncertainValue(Collapsed={self._current_value!r})"
+        return f"UncertainValue({self._states_probs!r})"
 
-        elif action_type == ActionType.SET_STATUS:
-            self.set_status(action)
-
-        elif action_type == ActionType.UPDATE_METRICS:
-            self.update_metrics(action)
-
-        elif action_type == ActionType.MARK_COMPLETE:
-            self.mark_complete()
-
-    def set_value(self, action: Dict[str, Any]):
-        """Sets a state value."""
-        key = action.get('key')
-        if key in self.state:
-            self.state[key] = action.get('value')
-
-    def toggle_live(self):
-        """Toggles the isLive flag."""
-        self.state['isLive'] = not self.state['isLive']
-
-    def acknowledge(self):
-        """Acknowledges the application state."""
-        self.state['isAcknowledged'] = True
-
-    def set_status(self, action: Dict[str, Any]):
-        """Sets the application status."""
-        status_value = action.get('value')
-        if status_value in Status.__members__.values():
-            self.state['status'] = status_value
-            if 'path' in action:
-                self.state['activePath'] = action['path']
-
-    def update_metrics(self, action: Dict[str, Any]):
-        """Updates the application metrics."""
-        metrics = self.state['metrics']
-        metrics['mutations'] += action.get('m', 0)
-        metrics['errors'] += action.get('e', 0)
-        if 'progress' in action:
-            metrics['progress'] = action['progress']
-
-    def mark_complete(self):
-        """Marks the application as complete."""
-        self.state['isLive'] = False
-        self.state['status'] = Status.COMPLETE
-
-# --- Core Logic Functions ---
-
-def call_gemini_api(
-    content_prompt: str,
-    persona_text: Dict[str, str],
-    model_id: str,
-    api_key: Optional[str],
-    retry_count: int = 0,
-) -> str:
-    """Placeholder for AI API interaction with retry logic."""
-    if not api_key:
-        raise PermissionError("API Key is required for AI processing.")
-
-    if retry_count >= CONFIG['MAX_API_RETRIES']:
-        raise ConnectionError("Exhausted maximum API retry attempts.")
-
-    # Using the global context object directly as it's a mock
-    # In a real app, context would be passed explicitly or accessed via dependency injection
-    if context.abort_controller and context.abort_controller.signal.aborted:
-        raise TimeoutError("Processing aborted by user.")
-
-    delay_s = 2 ** retry_count
-
-    try:
-        time.sleep(delay_s)
-
-        response_suffix = f"Length={len(content_prompt)}"
-        processed_content = f"// Refactored version based on: {persona_text['text'][:20]}... {response_suffix}"
-        return processed_content
-
-    except TimeoutError as te:
-        raise te
-    except Exception as e:
-        if retry_count < CONFIG['MAX_API_RETRIES'] - 1:
-            context.log_fn(f"API call failed ({type(e).__name__}). Retrying in {delay_s:.1f}s.", "warn")
-            return call_gemini_api(content_prompt, persona_text, model_id, api_key, retry_count + 1)
-        
-        raise ConnectionError(f"API call failed after {retry_count + 1} attempts.") from e
-
-# Mock function for database interaction
-def mock_set_doc_history(file_path: str, uid: str):
-    """Simulates storing a document history in a database."""
-    # In a real scenario, this would interact with MockDB.doc().set()
-    pass
-
-def process_file(
-    file_path: str,
-    owner: str,
-    repo: str,
-    token: Optional[str],
-    api_key: Optional[str],
-    model_id: str,
-) -> Dict[str, Any]:
-    """Handles fetching, AI processing, and simulated external writes."""
-    if not token or not api_key:
-        raise PermissionError("Missing authentication tokens (GitHub/Gemini).")
-
-    mock_content = "def old_function():\n    return 1 + 1"
-    content = decode_base64(encode_base64(mock_content))
-
-    context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING, 'path': file_path})
-
-    persona = PIPELINES['GENERIC'][0]
-    processed = call_gemini_api(content, persona, model_id, api_key)
-
-    if processed and processed != content and len(processed.strip()) > 5:
-        mock_set_doc_history(file_path, app_state.user['uid'])
-        return {'status': 'MUTATED', 'file_path': file_path}
-
-    return {'status': 'SKIPPED', 'file_path': file_path}
-
-# --- Control Functions ---
-
-def run_cycle():
-    """The core loop driver, managing file iteration."""
-    # Using the global app_state and context objects directly as it's a mock
-    if not app_state.state['isLive'] or context.is_processing or app_state.state['status'] != Status.PROCESSING or not app_state.state['isIndexed']:
-        return
-
-    context.is_processing = True
-
-    if context.current_index >= len(context.queue):
-        context.log_fn("Job Queue Empty. Cycle Finished.", "success")
-        context.dispatch({'type': ActionType.MARK_COMPLETE})
-        context.is_processing = False
-        return
-
-    file_path_to_process = context.queue[context.current_index]
-
-    try:
-        repo_path = parse_repo_path(app_state.state['targetRepo'])
-        if not repo_path:
-            raise ValueError("Invalid repository path configured.")
-        owner, repo = repo_path
-
-        result = process_file(
-            file_path_to_process,
-            owner,
-            repo,
-            context.gh_token,
-            context.gemini_key,
-            app_state.state['selectedModel'],
+    def __str__(self) -> str:
+        if self.is_collapsed:
+            return f"Collapsed to: {self._current_value}"
+        return (
+            "Possible states: "
+            + ", ".join(f"{s!r} ({p:.2f})" for s, p in self._states_probs.items())
         )
 
-        if result['status'] == 'MUTATED':
-            context.log_fn(f"MUTATED: {file_path_to_process.split('/')[-1]}", "success")
-            context.dispatch({'type': ActionType.UPDATE_METRICS, 'm': 1})
+
+class QuantumInspiredSystem:
+    """A simple system to manage and operate on multiple UncertainValue instances.
+
+    This class serves as a conceptual "quantum-inspired circuit" or "simulator"
+    for classical uncertain variables, allowing users to define, transform,
+    and "measure" (collapse) them.
+    """
+
+    def __init__(self, name: str = "QuantumInspiredSystem"):
+        """Initializes the QuantumInspiredSystem.
+
+        Args:
+            name: An optional name for the system.
+        """
+        self.name = name
+        self._registers: Dict[str, UncertainValue] = {}
+        self._history: List[str] = []
+
+    def add_register(self, name: str, initial_states_probs: Dict[Any, float]) -> UncertainValue:
+        """Adds a new UncertainValue register to the system.
+
+        Args:
+            name: The unique name for the new register.
+            initial_states_probs: A dictionary defining the initial possible
+                                  states and their probabilities for this register.
+
+        Returns:
+            The newly created and added UncertainValue instance.
+
+        Raises:
+            ValueError: If a register with the given name already exists.
+        """
+        if name in self._registers:
+            raise ValueError(f"Register '{name}' already exists.")
+        register = UncertainValue(initial_states_probs)
+        self._registers[name] = register
+        self._history.append(f"Added register '{name}': {register}")
+        return register
+
+    def get_register(self, name: str) -> UncertainValue:
+        """Retrieves an UncertainValue register by name.
+
+        Args:
+            name: The name of the register to retrieve.
+
+        Returns:
+            The UncertainValue instance associated with the given name.
+
+        Raises:
+            ValueError: If the register with the given name is not found.
+        """
+        if name not in self._registers:
+            raise ValueError(f"Register '{name}' not found.")
+        return self._registers[name]
+
+    def apply_operation_to_register(
+        self,
+        register_name: str,
+        transition_matrix: Dict[Any, Dict[Any, float]],
+        op_name: str = "stochastic_op",
+    ) -> None:
+        """Applies a stochastic operation to a specified register.
+
+        Args:
+            register_name: The name of the register to operate on.
+            transition_matrix: The stochastic transition matrix to apply.
+            op_name: An optional name for the operation, used in history tracking.
+
+        Raises:
+            ValueError: If the register is not found or if the operation fails.
+        """
+        register = self.get_register(register_name)
+        register.apply_stochastic_operation(transition_matrix)
+        self._history.append(f"Applied '{op_name}' to '{register_name}': {register}")
+
+    def measure_register(self, register_name: str) -> Any:
+        """Measures (collapses) a specified register and returns its outcome.
+
+        Args:
+            register_name: The name of the register to measure.
+
+        Returns:
+            The definite state that the register collapsed into.
+
+        Raises:
+            ValueError: If the register is not found.
+        """
+        register = self.get_register(register_name)
+        result = register.collapse()
+        self._history.append(f"Measured '{register_name}', result: {result}")
+        return result
+
+    def get_history(self) -> Tuple[str, ...]:
+        """Returns the operational history of the system as an immutable tuple."""
+        return tuple(self._history)
+
+    def __str__(self) -> str:
+        s = f"--- {self.name} ---"
+        if not self._registers:
+            s += "\n  (No registers added yet)"
         else:
-            context.log_fn(f"CLEAN (Skipped): {file_path_to_process.split('/')[-1]}", "info")
+            for name, reg in self._registers.items():
+                s += f"\n  '{name}': {reg}"
+        return s
 
-    except TimeoutError:
-        context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.ABORTED})
-        context.log_fn("Processing cycle aborted by user.", "warn")
-    except Exception as e:
-        context.log_fn(f"FAULT on {file_path_to_process}: {type(e).__name__}: {e}", "error")
-        context.dispatch({'type': ActionType.UPDATE_METRICS, 'e': 1})
-    finally:
-        context.current_index += 1
-        total = len(context.queue)
-        
-        new_progress = min(100, round((context.current_index / total) * 100)) if total > 0 else app_state.state['metrics']['progress']
+# Example usage (demonstrating the module's capabilities):
+if __name__ == "__main__":
+    print("--- Initializing Quantum-Inspired System ---")
+    system = QuantumInspiredSystem("SensorNetworkSimulator")
 
-        context.dispatch({
-            'type': ActionType.UPDATE_METRICS,
-            'progress': new_progress
-        })
+    # Add a sensor register that is initially 50/50 HIGH/LOW due to noise
+    sensor_a = system.add_register("SensorA", {'HIGH': 0.5, 'LOW': 0.5})
+    print(system)
+    print(f"SensorA initially: {sensor_a}")
 
-        context.is_processing = False
-        if not app_state.state['isLive']:
-            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
-        elif app_state.state['status'] != Status.ABORTED:
-            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.PROCESSING})
+    # Add another sensor register, initially biased towards 'ON'
+    sensor_b = system.add_register("SensorB", {'ON': 0.8, 'OFF': 0.2})
+    print(system)
+    print(f"SensorB initially: {sensor_b}")
 
-def start_cycle_timer():
-    """Starts the simulation of the periodic processing cycle."""
-    # Using the global app_state object directly as it's a mock
-    if not app_state.state['isLive']:
-        return
-    
-    context.log_fn(f"Starting processing cycle...", "info")
-    # In a real application, this would use a timer (e.g., threading.Timer or asyncio.sleep)
-    # For this mock, we just call run_cycle directly in the main loop to simulate steps.
-    # run_cycle() # This will be called iteratively in __main__
+    print("\n--- Applying operations ---")
+    # Define a 'filter' operation for SensorA
+    # If HIGH, mostly stays HIGH (0.9), sometimes flips to LOW (0.1)
+    # If LOW, mostly stays LOW (0.8), sometimes flips to HIGH (0.2)
+    filter_op_matrix = {
+        'HIGH': {'HIGH': 0.9, 'LOW': 0.1},
+        'LOW': {'HIGH': 0.2, 'LOW': 0.8}
+    }
+    system.apply_operation_to_register("SensorA", filter_op_matrix, "ApplyFilter")
+    print(f"SensorA after filter: {sensor_a}")
 
-def handle_main_button():
-    """Simulates the primary UI interaction button (Start/Stop/Index)."""
-    # Using the global app_state and context objects directly as it's a mock
-    state = app_state.state
+    # Define a 'toggle' operation for SensorB
+    # Effectively flips the state with some uncertainty
+    toggle_op_matrix = {
+        'ON': {'ON': 0.3, 'OFF': 0.7},
+        'OFF': {'ON': 0.6, 'OFF': 0.4}
+    }
+    system.apply_operation_to_register("SensorB", toggle_op_matrix, "ApplyToggle")
+    print(f"SensorB after toggle: {sensor_b}")
 
-    if state['isLive']:
-        context.dispatch({'type': ActionType.TOGGLE_LIVE})
-        context.log_fn("Stopping cycle...", "info")
-        if context.abort_controller:
-            context.abort_controller.abort()
-        return
+    print("\n--- Measuring (Collapsing) Registers ---")
+    # Repeatedly measure SensorA to observe probabilistic outcomes
+    print("Simulating 5 measurements of SensorA:")
+    for i in range(5):
+        measurement_a = system.measure_register("SensorA")
+        print(f"  Measurement {i+1} of SensorA: {measurement_a}")
+        # Note: SensorA is now collapsed. Subsequent operations on it would fail.
+        # To simulate further operations, you would re-initialize a new UncertainValue.
+        # For this example, we'll only measure it once to demonstrate collapse.
 
-    if state['isIndexed']:
-        context.dispatch({'type': ActionType.TOGGLE_LIVE})
-        context.current_index = 0 
-        context.abort_controller = AbortController() 
-        start_cycle_timer()
-        return
+    print(f"SensorA state after collapse: {sensor_a}")
+    print(f"Is SensorA collapsed? {sensor_a.is_collapsed}")
 
-    repo_path = parse_repo_path(state['targetRepo'])
-    if not repo_path or not context.gh_token or not context.gemini_key:
-        context.log_fn("Configuration Incomplete: Check Repo Path, GitHub Token, and Gemini Key.", "error")
-        return
+    # Measure SensorB once
+    measurement_b = system.measure_register("SensorB")
+    print(f"\nMeasurement of SensorB: {measurement_b}")
+    print(f"SensorB state after collapse: {sensor_b}")
+    print(f"Is SensorB collapsed? {sensor_b.is_collapsed}")
 
-    context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.INDEXING})
-    context.abort_controller = AbortController() 
+    print("\n--- System State and History ---")
+    print(system)
+    print("\n--- Operational History ---")
+    for event in system.get_history():
+        print(event)
+
+    print("\n--- Demonstrating Error Handling ---")
+    try:
+        # Try to apply an operation to a collapsed register
+        system.apply_operation_to_register("SensorA", filter_op_matrix, "AttemptFilterOnCollapsed")
+    except ValueError as e:
+        print(f"Caught expected error: {e}")
 
     try:
-        mock_tree = [
-            {'type': 'blob', 'path': 'Eh.py', 'size': 1000},
-            {'type': 'blob', 'path': 'src/main.js', 'size': 500},
-            {'type': 'blob', 'path': 'README.md', 'size': 2000},
-            {'type': 'blob', 'path': 'config/settings.json', 'size': 100},
-            {'type': 'blob', 'path': 'data/ignore_me.log', 'size': 0},
-            {'type': 'blob', 'path': 'node_modules/package.js', 'size': 10000}, 
-            {'type': 'blob', 'path': 'test/test_util.py', 'size': 150},
-        ]
-
-        context.queue = [
-            f['path'] for f in mock_tree
-            if f['type'] == 'blob'
-            and 0 < f['size'] < CONFIG['MAX_FILE_SIZE_BYTES']
-            and not any(p.search(f['path']) for p in SKIP_PATTERNS)
-            and re.search(FILE_EXTENSIONS['ALL'], f['path'])
-        ]
-
-        context.current_index = 0
-        context.dispatch({'type': ActionType.SET_VALUE, 'key': 'isIndexed', 'value': True})
-        context.log_fn(f"Indexing Complete. Found {len(context.queue)} processable files.", "success")
-
-        context.dispatch({'type': ActionType.TOGGLE_LIVE})
-        start_cycle_timer()
-
-    except Exception as e:
-        context.log_fn(f"Index Error: {e}", "error")
-        context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
-    finally:
-        # If toggling live failed or was aborted during indexing, ensure status is IDLE
-        if not state['isLive']: # This check is important as start_cycle_timer toggles isLive
-            context.dispatch({'type': ActionType.SET_STATUS, 'value': Status.IDLE})
-
-def initialize_system():
-    """Simulates the application startup sequence."""
-    global app_state, context # Declare globals
-    app_state = AppState()
-    context = RuntimeContext()
-
-    if not app_state.state['isAcknowledged']:
-        app_state.dispatch({'type': ActionType.ACKNOWLEDGE})
-        context.gh_token = "mock_gh_token_123"
-        context.gemini_key = "mock_gemini_key_456"
-        
-        if not app_state.state['isAcknowledged']: # Check again in case dispatch didn't work for some reason in a real impl
-            initialize_system()
-            return
-
-    print("\n--- Sovereign Engine Mock Initialized ---")
-    app_state.log_fn(f"Ready to process target: {app_state.state['targetRepo']}", "info")
-
-
-if __name__ == '__main__':
-    app_state: AppState # Type hints for globals in __main__ scope
-    context: RuntimeContext
-
-    initialize_system()
-    
-    print("\n--- Simulating Start/Index ---")
-    handle_main_button() 
-    
-    print("\n--- Simulating Further Cycles ---")
-    # Simulate the periodic run_cycle calls
-    for i in range(1, 6): # Run up to 5 cycles after initial button press
-        if app_state.state['isLive'] and app_state.state['status'] == Status.PROCESSING:
-            print(f"\n--- Cycle {i} ---")
-            run_cycle()
-        else:
-            break
-
-    print("\n--- Final State ---")
-    print(f"Status: {app_state.state['status'].value}")
-    print(f"Metrics: {app_state.state['metrics']}")
-    print(f"Logs: {app_state.state['logs']}")
-```
-
-### `src/App.js`
-
-```javascript
-import {
-  useState,
-  useEffect,
-  useReducer,
-  useRef,
-  useCallback
-} from 'react';
-import { initializeApp, getFirestore, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/app';
-import axios from 'axios';
-import { v4 as uuidv4 } from 'uuid';
-import { GitHub } from 'github-api';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { config } from './config.json';
-import { loadEnv } from './env';
-
-const initialState = {
-  isLive: false,
-  isAcknowledged: false,
-  status: 'IDLE',
-  activePath: 'Ready',
-  selectedModel: process.env.REACT_APP_ACTIVE_MODEL ?? config.MODELS[0].id,
-  targetRepo: process.env.REACT_APP_TARGET_REPO ?? '',
-  geminiKeys: Array(10).fill(''),
-  keyHealth: {},
-  currentCycle: 1,
-  logs: [],
-  metrics: { mutations: 0, progress: 0 }
-};
-
-const reducer = (state, action) => {
-  switch (action.type) {
-    case 'SET_VAL':
-      if (action.key === 'targetRepo') localStorage.setItem('targetRepo', action.value);
-      if (action.key === 'selectedModel') localStorage.setItem('selectedModel', action.value);
-      return { ...state, [action.key]: action.value };
-    case 'MARK_KEY_HEALTH':
-      return { ...state, keyHealth: { ...state.keyHealth, [action.index]: { blocked: action.blocked, resetAt: action.resetAt } } };
-    case 'INCREMENT_CYCLE':
-      return { ...state, currentCycle: state.currentCycle + 1, metrics: { ...state.metrics, progress: 0 } };
-    case 'ACKNOWLEDGE':
-      return { ...state, isAcknowledged: true };
-    case 'TOGGLE':
-      return { ...state, isLive: !state.isLive, status: !state.isLive ? 'BOOTING' : 'IDLE' };
-    case 'LOG':
-      return { ...state, logs: [{ id: uuidv4(), ...action.payload }, ...state.logs].slice(0, 50) };
-    case 'UPDATE_METRICS':
-      return { ...state, metrics: { ...state.metrics, ...action.payload } };
-    case 'SET_STATUS':
-      return { ...state, status: action.value, activePath: action.path || state.activePath };
-    default:
-      return state;
-  }
-};
-
-const useEnvironment = () => {
-  const loadEnvData = useCallback(() => loadEnv(), []);
-  return { ...loadEnvData() };
-};
-
-const useGithub = (token) => {
-  const [github, setGithub] = useState(null);
-  useEffect(() => {
-    if (!token) return;
-    setGithub(new GitHub({ token }));
-  }, [token]);
-  return github;
-};
-
-const App = () => {
-  const { isLive, isAcknowledged, status, activePath, selectedModel, targetRepo, geminiKeys, keyHealth, currentCycle, logs, metrics } = initialState;
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const [user, loading, error] = useAuthState(getAuth());
-  const ghTokenRef = useRef('');
-  const geminiKeyIndexRef = useRef(0);
-  const isBusy = useRef(false);
-  const queueRef = useRef([]);
-  const indexRef = useRef(0);
-  const mutationsHistory = useRef([]);
-
-  const { REACT_APP_ACTIVE_MODEL, REACT_APP_TARGET_REPO } = useEnvironment();
-
-  useEffect(() => {
-    if (!loading && !error) runCycle();
-  }, [user]);
-
-  useEffect(() => {
-    const initAuth = async () => {
-      if (REACT_APP_INITIAL_AUTH_TOKEN) await signInWithCustomToken(getAuth(), REACT_APP_INITIAL_AUTH_TOKEN);
-      else await signInAnonymously(getAuth());
-    };
-    initAuth();
-    return onAuthStateChanged(getAuth(), (user) => user && runCycle());
-  }, []);
-
-  const getNextKey = () => {
-    const validKeys = state.geminiKeys.map((k, i) => ({ k: k.trim(), i }));
-    const filteredKeys = validKeys.filter(node => node.k !== '');
-    if (filteredKeys.length === 0) throw new Error("Cluster Empty");
-    const health = state.keyHealth[filteredKeys[0].i];
-    if (!health?.blocked || health.resetAt < Date.now()) {
-      geminiKeyIndexRef.current = (filteredKeys.indexOf(filteredKeys.find(node => node.k !== '')) + 1) % filteredKeys.length;
-      return filteredKeys[0].k;
-    }
-    throw new Error("Cluster Overheat");
-  };
-
-  const github = useGithub(ghTokenRef.current);
-
-  const syncProjectDocs = async (repo) => {
-    if (mutationsHistory.current.length === 0) return;
-    dispatch({ type: 'SET_STATUS', value: 'CHRONICLING' });
-
-    try {
-      const docs = ['README.md', 'TODO.md'];
-      for (const docName of docs) {
-        const { data } = await github.repos.getContents(repo, docName);
-        let content = atob(data.content);
-        const timestamp = new Date().toLocaleString();
-
-        const logEntry = `\n\n### 🏛️ Sovereign Pass ${state.currentCycle} [${timestamp}]\n` + 
-                         mutationsHistory.current.map(m => `- **${m.path}**: ${m.change}`).join('\n');
-
-        if (docName === 'README.md') {
-          content = content.includes('## 📜 Audit Log') ? 
-                    content.replace('## 📜 Audit Log', `## 📜 Audit Log${logEntry}`) : 
-                    content + `\n\n## 📜 Audit Log${logEntry}`;
-        } else if (docName === 'TODO.md') {
-          content += `\n\n- [x] Completed Architectural Pass ${state.currentCycle} (${timestamp})`;
-        }
-
-        const { data: updateData } = await github.repos.updateContents(repo, docName, {
-          message: `[Chronicler] Update ${docName} - Pass ${state.currentCycle}`,
-          content: btoa(unescape(encodeURIComponent(content))),
-          sha: data.sha
-        });
-        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Synchronized ${docName}`, timestamp } });
-      }
-    } catch (e) { 
-      dispatch({ type: 'LOG', payload: { id: uuidv4(), message: "Sync Error: " + e.message, timestamp, type: 'error' } }); 
-    }
-    mutationsHistory.current = [];
-  };
-
-  const runCycle = async () => {
-    if (!isLive || isBusy.current || !user) return;
-    isBusy.current = true;
-
-    try {
-      const repo = targetRepo.trim().replace(/^https?:\/\/github\.com\//, '');
-      if (queueRef.current.length === 0) {
-        dispatch({ type: 'SET_STATUS', value: 'INDEXING' });
-        const { data } = await github.repos.get(repo);
-        const { data: treeData } = await github.repos.getTree(repo, data.default_branch);
-        queueRef.current = treeData.tree.filter(f => f.type === 'blob' && f.path.match(/\.(js|jsx|ts|tsx|py|html|css|json)$/i)).map(f => f.path);
-      }
-
-      if (indexRef.current >= queueRef.current.length) {
-        await syncProjectDocs(repo);
-        dispatch({ type: 'LOG', payload: { id: uuidv4(), message: `Pass ${state.currentCycle} Complete.`, timestamp } });
-        indexRef.current = 0;
-        localStorage.setItem('index', "0");
-        dispatch({ type: 'INCREMENT_CYCLE' });
-        isBusy.current = false;
-        return;
-      }
-
-      const path = queueRef.current[indexRef.current];
-      if (['README.md', 'TODO.md'].includes(path)) { indexRef.current++; isBusy.current = false; return; }
-
-      dispatch({ type: 'SET_STATUS', value: 'REFACTORING', path });
-
-      const { data } = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${getNextKey()}`, {
-        contents: [{ parts: [{ text: `TASK: Fully optimize and refactor.
-          MANDATORY: Return full code first, then append "Full log"` }]}]
-      }, { headers: { 'Authorization': `token ${ghTokenRef.current}`, 'Accept': 'application/vnd.github.v3+json' } });
-
-      // Process the generated content
-      const content = data.contents[0].parts[0].text;
-      // ... (rest of the code remains the same)
-    } catch (e) { 
-      dispatch({ type: 'LOG', payload: { id: uuidv4(), message: "Error: " + e.message, timestamp, type: 'error' } }); 
-      isBusy.current = false; 
-    }
-    isBusy.current = false;
-  };
-
-  useEffect(() => {
-    const intervalId = setInterval(runCycle, config.CYCLE_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [isLive, user]);
-
-  return (
-    // Render the App component
-  );
-};
-
-export default App;
-```
-
-### `src/env.js`
-
-```javascript
-import dotenv from 'dotenv';
-import { loadJson } from 'fs-extra';
-
-dotenv.config();
-
-const loadEnv = async () => {
-  const env = {};
-  const secret = await loadJson('.env');
-  env.REACT_APP_ACTIVE_MODEL = secret.REACT_APP_ACTIVE_MODEL;
-  env.REACT_APP_TARGET_REPO = secret.REACT_APP_TARGET_REPO;
-  env.REACT_APP_INITIAL_AUTH_TOKEN = secret.REACT_APP_INITIAL_AUTH_TOKEN;
-  return env;
-};
-
-export { loadEnv };
-```
-
-### `src/config.json`
-
-```json
-{
-  "CYCLE_INTERVAL": 6000,
-  "MODELS": [
-    { "id": "gemini-2.5-flash-lite-preview-09-2025", "label": "Flash Lite (Speed)" },
-    { "id": "gemini-2.5-flash-preview-09-2025", "label": "Flash 2.5 (Pro)" },
-    { "id": "gemini-3-flash-preview-09-2025", "label": "Flash 3.0 (Exp)" }
-  ]
-}
-```
-
-### `src/batchProcessor.js`
-
-```javascript
-// ============================================================================
-// 1. CONFIGURATION & CONSTANTS
-// ============================================================================
-
-const config = {
-  maxRetries: 5,
-  backoffMultiplier: 2,
-  initialBackoffMs: 100,
-  rateLimitStatusCode: 429,
-  batchSize: 100,
-  maxBackoffMs: 5000,
-  apiEndpoint: 'https://api.sovereign.com/v1/batch',
-};
-
-const actionTypes = {
-  ENQUEUE_ITEMS: 'ENQUEUE_ITEMS',
-  START_PROCESSING: 'START_PROCESSING',
-  FINISH_PROCESSING: 'FINISH_PROCESSING',
-  INCREMENT_SUCCESS: 'INCREMENT_SUCCESS',
-  INCREMENT_FAILURE: 'INCREMENT_FAILURE',
-  CLEAR_PROCESSED_QUEUE: 'CLEAR_PROCESSED_QUEUE',
-};
-
-// ============================================================================
-// 2. ERROR HANDLING
-// ============================================================================
-
-class ApiError extends Error {
-  constructor(message, statusCode = 500, details = null) {
-    super(message);
-    this.name = 'ApiError';
-    this.statusCode = statusCode;
-    this.details = details;
-  }
-}
-
-class LoggingError extends Error {
-  constructor(message, statusCode = 500, details = null) {
-    super(message);
-    this.name = 'LoggingError';
-    this.statusCode = statusCode;
-    this.details = details;
-    this.reportError();
-  }
-
-  async reportError() {
-    try {
-      // Implement error reporting in production
-      // For now, just logging the error
-      console.error(this.message);
-    } catch (error) {
-      console.error('Error reporting failed:', error);
-    }
-  }
-}
-
-// ============================================================================
-// 3. MOCK SERVICE ABSTRACTION
-// ============================================================================
-
-class ApiService {
-  async sendBatch(batch) {
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 40));
-
-    if (Math.random() < 0.3) {
-      const isRateLimited = Math.random() < 0.1;
-      const statusCode = isRateLimited ? config.rateLimitStatusCode : 503;
-
-      throw new ApiError(
-        `API request failed with status ${statusCode}`,
-        statusCode,
-        { endpoint: config.apiEndpoint, batchSize: batch.length },
-      );
-    }
-
-    return { success: true, processedCount: batch.length };
-  }
-}
-
-// ============================================================================
-// 4. STATE MANAGEMENT (Reducer and Core State)
-// ============================================================================
-
-const initialState = {
-  queue: [],
-  processedCount: 0,
-  failedCount: 0,
-  isProcessing: false,
-};
-
-function batchReducer(state = initialState, action) {
-  switch (action.type) {
-    case actionTypes.ENQUEUE_ITEMS:
-      return { ...state, queue: [...state.queue, ...action.payload] };
-
-    case actionTypes.CLEAR_PROCESSED_QUEUE:
-      return { ...state, queue: state.queue.filter((item) => !item.processed) };
-
-    case actionTypes.START_PROCESSING:
-      return { ...state, isProcessing: true };
-
-    case actionTypes.FINISH_PROCESSING:
-      return { ...state, isProcessing: false };
-
-    case actionTypes.INCREMENT_SUCCESS:
-      return { ...state, processedCount: state.processedCount + action.payload };
-
-    case actionTypes.INCREMENT_FAILURE:
-      return { ...state, failedCount: state.failedCount + action.payload };
-
-    default:
-      return state;
-  }
-}
-
-// ============================================================================
-// 5. CORE PROCESSING LOGIC
-// ============================================================================
-
-function calculateBackoffDelay(retryCount) {
-  const baseDelay = config.initialBackoffMs * Math.pow(config.backoffMultiplier, retryCount);
-  return Math.min(baseDelay, config.maxBackoffMs);
-}
-
-async function flushBatch(state, dispatch) {
-  if (state.isProcessing || state.queue.length === 0) return;
-
-  dispatch({ type: actionTypes.START_PROCESSING });
-
-  let workingQueueItems = state.queue.filter((item) => !item.processed);
-  let totalSuccessfulItems = 0;
-  let totalFailedItems = 0;
-
-  const processChunk = async (batch) => {
-    let retryCount = 0;
-    let chunkHandled = false;
-
-    while (!chunkHandled && retryCount < config.maxRetries) {
-      try {
-        await new ApiService().sendBatch(batch); // Use an instance of ApiService
-        totalSuccessfulItems += batch.length;
-        // Mark items in the original queue as processed if the batch was successful
-        batch.forEach(item => {
-          const originalItem = state.queue.find(qItem => qItem.id === item.id);
-          if (originalItem) originalItem.processed = true;
-        });
-        chunkHandled = true;
-      } catch (error) {
-        if (error instanceof ApiError && error.statusCode === config.rateLimitStatusCode && retryCount < config.maxRetries - 1) {
-          const delay = calculateBackoffDelay(retryCount);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          retryCount++;
-        } else {
-          const reason = error instanceof ApiError ? `Max retries reached` : `Permanent Error (${error.statusCode || 'Unknown'})`;
-          console.error(`[FAILURE] Chunk failed (${reason}). Size: ${batch.length}.`);
-          totalFailedItems += batch.length;
-          // Do not mark as processed if failed, they might be retried if queue is not cleared immediately
-          chunkHandled = true;
-        }
-      }
-    }
-  };
-
-  while (workingQueueItems.length > 0) {
-    const batchData = workingQueueItems.slice(0, config.batchSize);
-    await processChunk(batchData);
-    // After processing a batch, re-filter workingQueueItems to reflect processed status
-    workingQueueItems = state.queue.filter((item) => !item.processed);
-  }
-
-  if (totalSuccessfulItems > 0) {
-    dispatch({ type: actionTypes.INCREMENT_SUCCESS, payload: totalSuccessfulItems });
-  }
-
-  if (totalFailedItems > 0) {
-    dispatch({ type: actionTypes.INCREMENT_FAILURE, payload: totalFailedItems });
-  }
-
-  // Clear only successfully processed items from the queue
-  dispatch({ type: actionTypes.CLEAR_PROCESSED_QUEUE });
-
-
-  dispatch({ type: actionTypes.FINISH_PROCESSING });
-  console.log(`[FLUSH COMPLETE] Processed: Success=${totalSuccessfulItems}, Failed=${totalFailedItems}. Remaining buffer: ${state.queue.length}`);
-}
-
-// ============================================================================
-// 6. APPLICATION RUNNER & SUBSCRIPTIONS (Store Implementation)
-// ============================================================================
-
-class Store {
-  constructor() {
-    this.state = { ...initialState };
-    this.listeners = [];
-    this.dispatch = (action) => {
-      const newState = batchReducer(this.state, action);
-      if (newState !== this.state) {
-        const oldState = this.state;
-        this.state = newState;
-        this.listeners.forEach((listener) => listener(this.state, oldState));
-      }
-    };
-    this.subscribe = (listener) => {
-      this.listeners.push(listener);
-      return () => {
-        const index = this.listeners.indexOf(listener);
-        if (index > -1) this.listeners.splice(index, 1);
-      };
-    };
-    this.getState = () => {
-      return this.state;
-    };
-    this.subscribe((newState) => {
-      // Trigger flushBatch if there are items in the queue and not currently processing
-      if (newState.queue.length > 0 && !newState.isProcessing) {
-        flushBatch(newState, this.dispatch);
-      }
-    });
-  }
-}
-
-// ============================================================================
-// 7. EXECUTION SIMULATION
-// ============================================================================
-
-const store = new Store();
-
-console.log("--- Initializing Sovereign Batch Processor ---");
-
-store.subscribe((state) => {
-  if (!state.isProcessing && state.queue.length === 0) {
-    console.log(`[SYSTEM STATUS] Idle. Total Processed: ${state.processedCount}, Total Failed: ${state.failedCount}`);
-  }
-});
-
-const initialItemCount = 350;
-const initialData = Array.from({ length: initialItemCount }, (_, i) => ({ id: `data-${i + 1}`, content: Math.random(), processed: false }));
-
-console.log(`Seeding ${initialItemCount} items into the queue.`);
-store.dispatch({ type: actionTypes.ENQUEUE_ITEMS, payload: initialData });
-
-setTimeout(() => {
-  const lateItemCount = 50;
-  const lateData = Array.from({ length: lateItemCount }, (_, i) => ({ id: `late-data-${i + 1}`, content: Math.random(), processed: false }));
-  console.log(`\n>>> Adding ${lateItemCount} more items after 2 seconds...`);
-  store.dispatch({ type: actionTypes.ENQUEUE_ITEMS, payload: lateData });
-}, 2000);
-
-// Set a long timeout to allow all batches to process, including retries
-setTimeout(() => {
-  const finalState = store.getState();
-  if (finalState.queue.length > 0 || finalState.isProcessing) {
-    console.log(`\n[SHUTDOWN WAIT] Waiting for final ${finalState.queue.length} items to clear...`);
-    // Give a bit more time for the very last flush to complete
-    return setTimeout(() => {
-      const finalStateAfterWait = store.getState();
-      console.log("\n--- Simulation Ended ---");
-      console.log(`Final State: Processed=${finalStateAfterWait.processedCount}, Failed=${finalStateAfterWait.failedCount}, Remaining=${finalStateAfterWait.queue.length}`);
-    }, 4000);
-  }
-  console.log("\n--- Simulation Ended (Gracefully Idle) ---");
-}, 15000); // Increased timeout to ensure full simulation
+        # Try to initialize with invalid probabilities
+        UncertainValue({'X': -0.1, 'Y': 1.1})
+    except ValueError as e:
+        print(f"Caught expected error: {e}")
+
+    try:
+        # Try to apply operation with invalid transition matrix (probabilities don't sum to 1)
+        invalid_op = {'ON': {'ON': 0.5, 'OFF': 0.3}} # Sums to 0.8
+        system.add_register("TempSensor", {'ON': 1.0})
+        system.apply_operation_to_register("TempSensor", invalid_op, "InvalidOp")
+    except ValueError as e:
+        print(f"Caught expected error: {e}")
