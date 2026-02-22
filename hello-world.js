@@ -2,6 +2,8 @@ from __future__ import annotations
 import collections
 import functools
 import nltk
+import math
+import itertools
 from typing import Dict, List, Optional, Set, Union, Literal, Any, Callable, Tuple
 
 # --- NLTK Resource Downloads & Caching ---
@@ -28,6 +30,17 @@ def _download_nltk_punkt():
     except nltk.downloader.DownloadError:
         nltk.download('punkt', quiet=True)
 
+@functools.lru_cache(maxsize=1)
+def _download_nltk_wordnet():
+    """
+    Downloads NLTK WordNet lexical database.
+    Uses lru_cache to ensure it's downloaded only once per session.
+    """
+    try:
+        nltk.data.find('corpora/wordnet')
+    except nltk.downloader.DownloadError:
+        nltk.download('wordnet', quiet=True)
+
 @functools.lru_cache(maxsize=None)
 def _get_stopwords_set(language: str) -> Set[str]:
     """
@@ -36,6 +49,27 @@ def _get_stopwords_set(language: str) -> Set[str]:
     """
     _download_nltk_stopwords(language)
     return set(nltk.corpus.stopwords.words(language))
+
+@functools.lru_cache(maxsize=None)
+def _get_wordnet_synonyms(word: str, language: str) -> Set[str]:
+    """
+    Retrieves the set of WordNet synonyms for a given word and language.
+    Uses lru_cache to ensure the set is built only once per (word, language) pair.
+    """
+    _download_nltk_wordnet()
+    from nltk.corpus import wordnet as wn
+    # NLTK WordNet expects language codes like 'eng'
+    # Defaulting to 'eng' if the provided language is not directly supported by WordNet lemmas
+    # or requires a specific conversion.
+    # For simplicity, we assume NLTK's stopwords_language is compatible or default.
+    wordnet_lang = language[:3].lower() if len(language) >= 3 else 'eng' 
+
+    synsets = list(wn.synsets(word))
+    synonyms = set()
+    for synset in synsets:
+        for lemma in synset.lemmas(lang=wordnet_lang):
+            synonyms.add(lemma.name())
+    return synonyms
 
 # --- String Processing & Similarity Helpers ---
 
@@ -67,21 +101,20 @@ def _levenshtein_distance(word1: str, word2: str) -> int:
 def _levenshtein_distance_matrix(words: List[str]) -> List[List[int]]:
     """
     Returns a matrix of Levenshtein distances between each pair of words in the input list.
-    (Extension 2 - as described in source)
     """
     matrix = [[0] * len(words) for _ in range(len(words))]
     for i, word1 in enumerate(words):
         for j, word2 in enumerate(words):
             if i == j:
                 matrix[i][j] = 0
-            else:
+            elif i < j: # Calculate only upper triangle to avoid redundant calculations
                 matrix[i][j] = _levenshtein_distance(word1, word2)
+                matrix[j][i] = matrix[i][j] # Mirror for symmetry
     return matrix
 
 def longest_common_substring(text1: str, text2: str) -> str:
     """
     Finds the longest common substring between two input strings.
-    (Extension 5 - as described in source)
     """
     m, n = len(text1), len(text2)
     dp = [[0] * (n + 1) for _ in range(m + 1)]
@@ -97,6 +130,26 @@ def longest_common_substring(text1: str, text2: str) -> str:
                     end_index_text1 = i + 1
 
     return text1[end_index_text1 - max_length : end_index_text1]
+
+def _cosine_similarity(vector1: List[float], vector2: List[float]) -> float:
+    """
+    Calculates the cosine similarity between two vectors.
+    """
+    if not vector1 or not vector2 or len(vector1) != len(vector2):
+        raise ValueError("Vectors must be non-empty and of equal length.")
+
+    dot_product = sum(a * b for a, b in zip(vector1, vector2))
+    magnitude1 = math.sqrt(sum(a ** 2 for a in vector1))
+    magnitude2 = math.sqrt(sum(a ** 2 for a in vector2))
+    return dot_product / (magnitude1 * magnitude2) if magnitude1 * magnitude2 != 0 else 0
+
+def _jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
+    """
+    Calculates the Jaccard similarity between two sets.
+    """
+    intersection = set1.intersection(set2)
+    union = set1.union(set2)
+    return len(intersection) / len(union) if union else 1 # If union is empty (both sets empty), similarity is 1.0
 
 # --- Bitwise Operation Helpers ---
 
@@ -125,7 +178,6 @@ def get_index_of_first_set_bit(number: int) -> int:
     Takes in a positive integer 'number'.
     Returns the zero-based index of first set bit in that 'number' from left (Most Significant Bit).
     Returns -1, If no set bit found.
-    (Extension 3 - as described in source, corrected for "from left")
     """
     if not isinstance(number, int) or number < 0:
         raise ValueError("Input must be a non-negative integer")
@@ -138,10 +190,9 @@ def get_index_of_first_set_bit(number: int) -> int:
 
 def find_missing_number(numbers: List[int]) -> int:
     """
-    Finds the missing number in a sorted list of positive integers.
+    Finds the missing number in a list of positive integers.
     Assumes the list represents a consecutive sequence with exactly one number missing
     within the range defined by `min(numbers)` and `max(numbers)`.
-    (Extension 4 - as described in source)
     """
     if not numbers:
         raise ValueError("Input list cannot be empty")
@@ -150,14 +201,19 @@ def find_missing_number(numbers: List[int]) -> int:
 
     min_val = min(numbers)
     max_val = max(numbers)
-    n_expected = max_val - min_val + 1 
     
-    expected_sum = (n_expected * (min_val + max_val)) // 2
+    # If the list itself is complete, and no number is missing.
+    if len(numbers) == (max_val - min_val + 1):
+        # This case implicitly contradicts "exactly one number missing",
+        # but is a good robustness check.
+        raise ValueError("No number is missing in the provided sequence within its min-max range.")
+
+    expected_sum = (max_val - min_val + 1) * (min_val + max_val) // 2
     actual_sum = sum(numbers)
     
     return expected_sum - actual_sum
 
-# --- Combination Generation Helpers (from NEW_DATA) ---
+# --- Combination Generation Helpers ---
 
 def _create_all_state(
     increment: int,
@@ -186,7 +242,7 @@ def _generate_all_combinations_backtracking(n: int, k: int) -> list[list[int]]:
         raise ValueError("k must not be negative")
     if n < 0:
         raise ValueError("n must not be negative")
-    if k > n: # No combinations possible if k > n, return empty list
+    if k > n:
         return []
 
     result: list[list[int]] = []
@@ -201,13 +257,12 @@ def _combination_lists_itertools(n: int, k: int) -> list[list[int]]:
         raise ValueError("k must not be negative")
     if n < 0:
         raise ValueError("n must not be negative")
-    if k > n: # No combinations possible if k > n, return empty list
+    if k > n:
         return []
         
-    from itertools import combinations # Import here to avoid polluting global namespace if not used
-    return [list(x) for x in combinations(range(1, n + 1), k)]
+    return [list(x) for x in itertools.combinations(range(1, n + 1), k)]
 
-# --- Subsequence Generation Helpers (Integrated from NEW_DATA) ---
+# --- Subsequence Generation Helpers ---
 
 def _generate_subsequences_recursive(
     sequence: List[Any],
@@ -222,17 +277,21 @@ def _generate_subsequences_recursive(
     """
     # Base case: Reached the end of the sequence
     if index == len(sequence):
-        results.append(current_subsequence[:]) # Append a copy of the current subsequence
+        results.append(current_subsequence[:])
         return
 
     element = sequence[index]
     can_exclude, can_include = (True, True)
 
-    # Apply selector if provided (Complex Hallucinated Extension 1: Dynamic Subsequence Generation)
     if selector:
-        can_exclude, can_include = selector(index, element, current_subsequence)
-
-    # Recursive step: Explore both paths (exclude and include) if allowed by the selector
+        try:
+            selector_result = selector(index, element, current_subsequence)
+            if not isinstance(selector_result, tuple) or len(selector_result) != 2 or \
+               not isinstance(selector_result[0], bool) or not isinstance(selector_result[1], bool):
+                raise TypeError("Subsequence selector must return a tuple of two booleans (can_exclude, can_include).")
+            can_exclude, can_include = selector_result
+        except Exception as e:
+            raise ValueError(f"Error executing subsequence_selector at index {index} with element {element}: {e}")
 
     # Path 1: Exclude the current element
     if can_exclude:
@@ -242,9 +301,7 @@ def _generate_subsequences_recursive(
     if can_include:
         current_subsequence.append(element)
         _generate_subsequences_recursive(sequence, index + 1, current_subsequence, results, selector)
-        current_subsequence.pop() # Backtrack: remove the last added element for the next branch
-
-# --- Main Consolidated Function ---
+        current_subsequence.pop()
 
 def calculate_nexus_branch_synthesis(
     mode: Literal['text_analysis', 'combination_generation', 'subsequence_generation'] = 'text_analysis',
@@ -256,22 +313,22 @@ def calculate_nexus_branch_synthesis(
     stopwords_language: str = 'english',
     min_frequency: int = 0,
     max_frequency: Optional[int] = None,
-    similarity_threshold: Optional[int] = None, # Uses _levenshtein_distance
+    similarity_threshold: Optional[int] = None,
 
     # Combination Generation Parameters
     n_combinations: Optional[int] = None,
     k_combinations: Optional[int] = None,
     use_backtracking_for_combinations: bool = False,
-    generate_all_k_combinations: bool = False, # "Dynamic Combination Length" extension
+    generate_all_k_combinations: bool = False,
     
-    # Subsequence Generation Parameters (New: Based on NEW_DATA and Hallucinated Extensions)
-    input_sequence: Optional[List[Any]] = None, # The sequence for which to generate subsequences
-    subsequence_selector: Optional[Callable[[int, Any, List[Any]], Tuple[bool, bool]]] = None, # Dynamic Subsequence Generation
-    subsequence_min_length: Optional[int] = None, # Subsequence Filtering (min length)
-    subsequence_max_length: Optional[int] = None, # Subsequence Filtering (max length)
-    subsequence_filter_func: Optional[Callable[[List[Any]], bool]] = None, # Subsequence Filtering (arbitrary criteria)
-    subsequence_sort_key: Optional[Callable[[List[Any]], Any]] = None, # Subsequence Ordering
-    subsequence_reverse_sort: bool = False, # Subsequence Ordering
+    # Subsequence Generation Parameters
+    input_sequence: Optional[List[Any]] = None,
+    subsequence_selector: Optional[Callable[[int, Any, List[Any]], Tuple[bool, bool]]] = None,
+    subsequence_min_length: Optional[int] = None,
+    subsequence_max_length: Optional[int] = None,
+    subsequence_filter_func: Optional[Callable[[List[Any]], bool]] = None,
+    subsequence_sort_key: Optional[Callable[[List[Any]], Any]] = None,
+    subsequence_reverse_sort: bool = False,
 
 ) -> Union[Dict[str, int], List[List[int]], Dict[int, List[List[int]]], List[List[Any]]]:
     """
@@ -318,7 +375,7 @@ def calculate_nexus_branch_synthesis(
                                                   If False (default), uses `itertools.combinations`
                                                   which is generally faster.
         generate_all_k_combinations (bool): If True, generates combinations for all `k` from 0 to `n_combinations`.
-                                            Overrides `k_combinations`. This is the "Dynamic Combination Length" extension.
+                                            Overrides `k_combinations`.
 
         # --- Subsequence Generation Parameters (used when mode='subsequence_generation') ---
         input_sequence (Optional[List[Any]]): The input sequence for which to generate subsequences.
@@ -327,22 +384,18 @@ def calculate_nexus_branch_synthesis(
             A function taking `(index, element_at_index, current_subsequence_built_so_far)`
             and returning `(can_exclude_current_element: bool, can_include_current_element: bool)`.
             Allows dynamic control over subsequence generation paths. Defaults to `(True, True)`
-            for all elements if not provided. (Extension: Dynamic Subsequence Generation)
+            for all elements if not provided.
         subsequence_min_length (Optional[int]): Filters subsequences to include only those
                                                 with at least this length. None for no minimum.
-                                                (Extension: Subsequence Filtering)
         subsequence_max_length (Optional[int]): Filters subsequences to include only those
                                                 with at most this length. None for no maximum.
-                                                (Extension: Subsequence Filtering)
         subsequence_filter_func (Optional[Callable[[List[Any]], bool]]):
             A custom function taking a generated subsequence (`List[Any]`) and returning `True`
             if it should be included in the results, `False` otherwise. Applied after length filters.
-            (Extension: Subsequence Filtering)
         subsequence_sort_key (Optional[Callable[[List[Any]], Any]]):
             A key function for sorting the final list of subsequences (e.g., `len` for sorting by length).
-            (Extension: Subsequence Ordering)
         subsequence_reverse_sort (bool): If True, sorts the subsequences in descending order.
-                                         Defaults to False. (Extension: Subsequence Ordering)
+                                         Defaults to False.
 
 
     Returns:
@@ -356,32 +409,28 @@ def calculate_nexus_branch_synthesis(
 
     Raises:
         ValueError: If required parameters for a given mode are missing or invalid.
+        TypeError: If a provided selector or filter function returns an unexpected type.
     """
 
     if mode == 'text_analysis':
         if sentence is None:
             raise ValueError("Parameter 'sentence' is required for 'text_analysis' mode.")
-        if not sentence:
+        if not sentence.strip():
             return {}
 
         # Step 1: Tokenization and initial processing (case_insensitive, remove_stopwords)
-        _download_nltk_punkt() # Ensure Punkt tokenizer is available
+        _download_nltk_punkt()
         
         raw_tokens = nltk.word_tokenize(sentence, language=stopwords_language)
 
         processed_words: List[str] = []
         
-        if remove_stopwords:
-            stopwords_set = _get_stopwords_set(stopwords_language)
-            for token in raw_tokens:
-                current_token = token.lower() if case_insensitive else token
-                if current_token.isalpha() and current_token not in stopwords_set:
-                    processed_words.append(current_token)
-        else:
-            for token in raw_tokens:
-                current_token = token.lower() if case_insensitive else token
-                if current_token.isalpha():
-                    processed_words.append(current_token)
+        stopwords_set = _get_stopwords_set(stopwords_language) if remove_stopwords else set()
+
+        for token in raw_tokens:
+            current_token = token.lower() if case_insensitive else token
+            if current_token.isalpha() and current_token not in stopwords_set:
+                processed_words.append(current_token)
 
         if not processed_words:
             return {}
@@ -391,15 +440,14 @@ def calculate_nexus_branch_synthesis(
 
         if similarity_threshold is not None:
             # Calculate similarity counts based on Levenshtein distance.
-            # This part has O(U^2 * L^2) complexity where U is unique tokens, L is avg word length.
-            # Using list(set(processed_words)) to avoid redundant comparisons on non-unique words
+            # O(U^2 * L^2) where U is unique tokens, L is avg word length.
             final_occurrence_basis = collections.defaultdict(int)
             
             unique_processed_words = list(set(processed_words)) 
 
-            for word_token_outer in unique_processed_words:
-                for word_token_inner in unique_processed_words:
-                    if word_token_outer != word_token_inner and \
+            for i, word_token_outer in enumerate(unique_processed_words):
+                for j, word_token_inner in enumerate(unique_processed_words):
+                    if i != j and \
                        _levenshtein_distance(word_token_outer, word_token_inner) <= similarity_threshold:
                         final_occurrence_basis[word_token_outer] += 1
         else:
@@ -412,13 +460,10 @@ def calculate_nexus_branch_synthesis(
         # Time complexity: O(U), where U is the number of unique words.
         result_dict: Dict[str, int] = {}
         
-        if min_frequency > 0 or max_frequency is not None:
-            for word, count in final_occurrence_basis.items():
-                if (min_frequency == 0 or count >= min_frequency) and \
-                   (max_frequency is None or count <= max_frequency):
-                    result_dict[word] = count
-        else:
-            result_dict = dict(final_occurrence_basis)
+        for word, count in final_occurrence_basis.items():
+            if (min_frequency == 0 or count >= min_frequency) and \
+               (max_frequency is None or count <= max_frequency):
+                result_dict[word] = count
 
         return result_dict
 
@@ -431,7 +476,6 @@ def calculate_nexus_branch_synthesis(
         combination_func = _generate_all_combinations_backtracking if use_backtracking_for_combinations else _combination_lists_itertools
 
         if generate_all_k_combinations:
-            # Implements "Dynamic Combination Length" extension
             if n_combinations == 0:
                 return {0: [[]]} 
             
@@ -445,7 +489,6 @@ def calculate_nexus_branch_synthesis(
                                  "unless 'generate_all_k_combinations' is True.")
             if k_combinations < 0:
                 raise ValueError("Parameter 'k_combinations' must not be negative.")
-            # k_combinations > n_combinations will result in an empty list from the helper functions.
             return combination_func(n_combinations, k_combinations)
 
     elif mode == 'subsequence_generation':
@@ -460,20 +503,26 @@ def calculate_nexus_branch_synthesis(
             index=0,
             current_subsequence=[],
             results=all_subsequences,
-            selector=subsequence_selector # Pass the selector for dynamic generation
+            selector=subsequence_selector
         )
 
-        # Apply filtering (Complex Hallucinated Extension 2: Subsequence Filtering)
+        # Apply filtering
         filtered_subsequences: List[List[Any]] = []
         for subseq in all_subsequences:
             length_ok = (subsequence_min_length is None or len(subseq) >= subsequence_min_length) and \
                         (subsequence_max_length is None or len(subseq) <= subsequence_max_length)
-            filter_func_ok = (subsequence_filter_func is None or subsequence_filter_func(subseq))
+            
+            filter_func_ok = True
+            if subsequence_filter_func:
+                try:
+                    filter_func_ok = subsequence_filter_func(subseq)
+                except Exception as e:
+                    raise ValueError(f"Error executing subsequence_filter_func for subsequence {subseq}: {e}")
 
             if length_ok and filter_func_ok:
                 filtered_subsequences.append(subseq)
 
-        # Apply sorting (Complex Hallucinated Extension 4: Subsequence Ordering)
+        # Apply sorting
         if subsequence_sort_key is not None:
             filtered_subsequences.sort(key=subsequence_sort_key, reverse=subsequence_reverse_sort)
         elif subsequence_reverse_sort: # Apply default lexicographical sort if only reverse is specified
