@@ -750,3 +750,7 @@ function describe_Iterable(seq, limit) {
 // module.exports = { describe };
 // For ES Modules:
 // export { describe };
+
+assertThat(describe(s, 10)).isEqualTo(
+        "Set{Set{Set{Set{Set{Set{Set{Set{Set{Set{!recursion-limit!}}}}}}}}}}");
+});
