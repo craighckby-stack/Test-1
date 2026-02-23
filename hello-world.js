@@ -19,18 +19,18 @@ const APP_CONFIG = {
   API: {
     GEMINI: {
       MODEL: "gemini-2.5-flash-preview-09-2025",
-      ENDPOINT_PATH: "/v1beta/models/{model}:generateContent",
+      ENDPOINT: "/v1beta/models/{model}:generateContent", // Renamed for consistency
+      BASE_URL: "https://generativelanguage.googleapis.com", // Moved into GEMINI object
       DEFAULT_KEY: APP_EMBEDDED_API_KEYS.GEMINI
     },
     CEREBRAS: {
       MODEL: "llama3.1-70b",
-      ENDPOINT_PATH: "/v1/chat/completions"
+      ENDPOINT: "/v1/chat/completions",
+      BASE_URL: "https://api.cerebras.ai" // Moved into CEREBRAS object
     },
     GITHUB: {
-      API_BASE_URL: "https://api.github.com"
-    },
-    GEMINI_BASE_URL: "https://generativelanguage.googleapis.com",
-    CEREBRAS_BASE_URL: "https://api.cerebras.ai"
+      BASE_URL: "https://api.github.com" // Renamed for consistency
+    }
   }
 };
 
@@ -402,7 +402,7 @@ const useAIIntegrations = (tokens, addLog) => {
       };
     }
     const githubClient = createApiClient(
-      APP_CONFIG.API.GITHUB.API_BASE_URL,
+      APP_CONFIG.API.GITHUB.BASE_URL, // Updated
       addLog,
       {
         Authorization: `token ${githubToken.trim()}`,
@@ -441,12 +441,12 @@ const useAIIntegrations = (tokens, addLog) => {
       };
     }
     const geminiClient = createApiClient(
-      APP_CONFIG.API.GEMINI_BASE_URL,
+      APP_CONFIG.API.GEMINI.BASE_URL, // Updated
       addLog,
       { "Content-Type": "application/json" }
     );
 
-    const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT_PATH.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey.trim()}`;
+    const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey.trim()}`; // Updated
 
     const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
       contents: [{ parts: userParts }],
@@ -474,7 +474,7 @@ const useAIIntegrations = (tokens, addLog) => {
       };
     }
     const cerebrasClient = createApiClient(
-      APP_CONFIG.API.CEREBRAS_BASE_URL,
+      APP_CONFIG.API.CEREBRAS.BASE_URL, // Updated
       addLog,
       {
         "Content-Type": "application/json",
@@ -493,7 +493,7 @@ const useAIIntegrations = (tokens, addLog) => {
     return {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
         const body = buildCerebrasChatCompletionBody(systemContent, userContent);
-        const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT_PATH, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
+        const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
         const content = data.choices?.[0]?.message?.content || "";
         if (!content) {
           throw new AppError(`Cerebras returned empty content or no valid choice found for ${stepName}.`, 'CEREBRAS_EMPTY_RESPONSE');
