@@ -233,14 +233,14 @@ const LogActionTypes = {
 };
 
 const EvolutionActionTypes = {
-  START_EVOLUTION: 'START_EVOLUTION', // Still valid for potential partial activation
+  START_EVOLUTION: 'START_EVOLUTION',
   STOP_EVOLUTION: 'STOP_EVOLUTION',
   SET_STATUS: 'SET_STATUS',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_EVOLVED_CODE: 'SET_EVOLVED_CODE',
   SET_ERROR: 'SET_ERROR',
-  RESET_STATE: 'RESET_STATE', // Still valid for clearing state without activating
-  RESTART_EVOLUTION: 'RESTART_EVOLUTION', // New, atomic action to reset and start
+  RESET_STATE: 'RESET_STATE',
+  RESTART_EVOLUTION: 'RESTART_EVOLUTION',
 };
 
 const EvolutionStatus = {
@@ -255,7 +255,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS - Upgraded to handle RESTART_EVOLUTION
+// REDUCERS - Upgraded to handle RESTART_EVOLUTION and store full error object
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -272,7 +272,7 @@ const initialEvolutionState = {
   isEvolutionActive: false,
   currentCoreCode: '',
   evolvedCode: '',
-  error: null,
+  error: null, // Store full error object
 };
 
 const evolutionReducer = (state, action) => {
@@ -291,7 +291,7 @@ const evolutionReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, evolvedCode: '' };
     case EvolutionActionTypes.RESET_STATE:
       return { ...initialEvolutionState };
-    case EvolutionActionTypes.RESTART_EVOLUTION: // New atomic action for a fresh start
+    case EvolutionActionTypes.RESTART_EVOLUTION:
       return { ...initialEvolutionState, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null };
     default:
       return state;
@@ -424,17 +424,15 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
 
 // New hook for abstracting pipeline execution logic - Preserved, this is a core architectural upgrade
 const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
-  const abortControllerRef = useRef(null); // Ref for the current cycle's AbortController
+  const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async (initialContext = {}) => {
     let success = false;
     let commitPerformed = false;
 
-    // Create a new AbortController for this pipeline run
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Initialize pipeline context
     const pipelineContext = { ...initialContext, commitPerformed: false };
 
     try {
@@ -442,10 +440,8 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
       for (const stepDef of steps) {
-        // Check for termination signal before executing each step
         if (signal.aborted) {
           addLog("EVOLUTION: Abort signal received. Terminating pipeline.", "warn");
-          // An abort is not a "failure" in terms of retry logic for the loop, but it stops the current pipeline
           throw Object.assign(new Error("Pipeline aborted."), { name: "AbortError" });
         }
 
@@ -458,28 +454,26 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
              addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
-             throw stepError; // Re-throw abort error to outer catch
+             throw stepError;
           }
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
           if (!stepDef.allowFailure) {
-            throw stepError; // Critical failure, stop the pipeline
+            throw stepError;
           }
-          // If failure is allowed, log it and continue to next step
         }
       }
       success = true;
-      commitPerformed = pipelineContext.commitPerformed; // Capture if commit happened
+      commitPerformed = pipelineContext.commitPerformed;
     } catch (e) {
       if (e.name === 'AbortError') {
-        success = true; // An abort is considered a "successful" termination for the loop logic
+        success = true;
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
       } else {
-        dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
+        dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e }); // Store full error object
         addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${e.message}`, "le-err");
         success = false;
       }
     } finally {
-      // Clean up abort controller reference
       abortControllerRef.current = null;
     }
     return { success, commitPerformed };
@@ -562,10 +556,10 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI);
 
-  // Memoized display code for efficiency
+  // Memoized display code for efficiency and improved error display
   const displayCode = useMemo(() => {
     if (error) {
-      return currentCoreCode || "// ERROR: Failed to retrieve core logic or evolution failed. Check logs.";
+      return currentCoreCode || `// ERROR: ${error.message || String(error)}. Failed to retrieve core logic or evolution failed. Check logs.`;
     }
     return evolvedCode || currentCoreCode || "// Awaiting sequence initialization...";
   }, [error, evolvedCode, currentCoreCode]);
@@ -610,7 +604,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       "pattern extraction",
       signal
     );
-    if (!patterns || patterns.trim().length < 10) { // Arbitrary minimum length for meaningful patterns
+    if (!patterns || patterns.trim().length < 10) {
         addLog("AI: No meaningful quantum patterns extracted by Gemini. Synthesis might be less effective.", "warn");
         ctx.quantumPatterns = null;
     } else {
@@ -716,7 +710,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     committingCodeAction
   ]);
 
-  // Use the new pipeline executor
   const { runPipeline, abortPipeline } = usePipelineExecutor(EVOLUTION_PIPELINE_STEPS, dispatch, addLog);
 
   // Main evolution cycle orchestration, now much simpler due to pipeline executor
@@ -730,8 +723,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     };
     const { success, commitPerformed } = await runPipeline(initialContext);
 
-    // If the pipeline ran successfully (including aborts which are 'success' for loop control),
-    // revert status to IDLE. If runPipeline itself dispatched an ERROR, it remains.
     if (success) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     }
@@ -751,16 +742,16 @@ const useEvolutionEngine = (tokens, addLog) => {
       dispatch({ type: EvolutionActionTypes.RESTART_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
-      dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
+      dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e }); // Store full error object
     }
   }, [tokens.github, addLog, dispatch]);
 
   // Public function to terminate evolution
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      abortPipeline(); // Use the pipeline's abort mechanism
+      abortPipeline();
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
-      dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION }); // Update UI state immediately
+      dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
@@ -874,7 +865,7 @@ export default function App() {
   // Effect to log engine errors
   useEffect(() => {
     if (error) {
-      addLog(`ENGINE ERROR: ${error}`, "le-err");
+      addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
     }
   }, [error, addLog]);
 
