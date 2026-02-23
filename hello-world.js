@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-// Centralized embedded API keys for potential fallback or defaults
 const APP_EMBEDDED_API_KEYS = {
   GEMINI: "",
 };
@@ -21,7 +20,7 @@ const APP_CONFIG = {
     GEMINI: {
       MODEL: "gemini-2.5-flash-preview-09-2025",
       ENDPOINT_PATH: "/v1beta/models/{model}:generateContent",
-      DEFAULT_KEY: APP_EMBEDDED_API_KEYS.GEMINI // Fallback embedded key
+      DEFAULT_KEY: APP_EMBEDDED_API_KEYS.GEMINI
     },
     CEREBRAS: {
       MODEL: "llama3.1-70b",
@@ -196,7 +195,6 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// --- Utility Functions ---
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -232,7 +230,6 @@ const validateJavaScriptSyntax = (code) => {
   try { new Function(code); return true; } catch (e) { return false; } // eslint-disable-line no-new-func
 };
 
-// --- Log System Hook ---
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -260,7 +257,6 @@ const useLogSystem = () => {
   return { logs, addLog, clearLogs };
 };
 
-// --- Token Management Hook ---
 const useAppTokens = () => {
   const [tokens, setTokens] = useState(() => {
     const savedGithub = localStorage.getItem('dalek_token_github') || "";
@@ -280,7 +276,6 @@ const useAppTokens = () => {
   return { tokens, handleTokenChange };
 };
 
-// --- Evolution Engine State Management Hook ---
 const EvolutionStatus = {
   IDLE: 'IDLE',
   PAUSED: 'PAUSED',
@@ -319,9 +314,9 @@ const EvolutionActionTypes = {
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT', // Used to update the internal pipeline context
-  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE', // Used for the last committed code
-  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE', // Used for the code currently being processed/displayed
+  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
+  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
+  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
 };
 
 const evolutionEngineReducer = (state, action) => {
@@ -337,9 +332,9 @@ const evolutionEngineReducer = (state, action) => {
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState };
     case EvolutionActionTypes.SET_PIPELINE_CONTEXT:
-      return { ...state, pipeline: { ...action.payload } }; // Overwrite/merge pipeline context
+      return { ...state, pipeline: { ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
-      return { ...state, currentCoreCode: action.payload, displayCode: action.payload }; // Also updates display when currentCoreCode is set
+      return { ...state, currentCoreCode: action.payload, displayCode: action.payload };
     case EvolutionActionTypes.SET_DISPLAY_CODE:
       return { ...state, displayCode: action.payload };
     default:
@@ -352,7 +347,6 @@ const useEvolutionState = () => {
   return { engineState, dispatchEvolution };
 };
 
-// --- API Client Factory ---
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -380,7 +374,6 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// --- AI Integrations Hook ---
 const useAIIntegrations = (tokens, addLog) => {
   const githubService = useMemo(() => {
     const githubToken = tokens.github;
@@ -495,8 +488,6 @@ const useAIIntegrations = (tokens, addLog) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// --- Pipeline Step Definitions (now return context updates and display data) ---
-// Each step now returns an object `{ context: updatedPipelineContext, ...uiUpdateData }`
 const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, signal) => {
   addLog("NEXUS: Fetching current core logic from GitHub...", "nexus");
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
@@ -509,9 +500,8 @@ const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, sign
       fetchedCode: fetchedCode,
       fileRef: result
     },
-    // Indicate what UI state should be updated
     currentCoreCode: fetchedCode,
-    displayCode: fetchedCode, // Initially display the fetched code
+    displayCode: fetchedCode,
   };
 };
 
@@ -608,7 +598,7 @@ const finalizingCodeLogic = async (pipelineContext, { clients, addLog, config, p
 
     return {
       context: { ...pipelineContext, evolvedCode: cleanedFinalCode },
-      displayCode: cleanedFinalCode, // Update display to show the finalized code
+      displayCode: cleanedFinalCode,
     };
   } catch (e) {
     if (e.code === 'NO_GEMINI_KEY') {
@@ -657,8 +647,8 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
       
       return {
         context: { ...pipelineContext, commitPerformed: true },
-        currentCoreCode: pipelineContext.evolvedCode, // Update current core
-        displayCode: '', // Clear display after successful commit
+        currentCoreCode: pipelineContext.evolvedCode,
+        displayCode: '',
       };
     } catch (e) {
       if (e.code === 'NO_GITHUB_TOKEN') {
@@ -701,15 +691,13 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
         try {
           const stepResult = await stepDef.action(
             currentPipelineContext,
-            globalDependencies, // Pass global dependencies without `dispatchEvolution`
+            globalDependencies,
             signal
           );
           
-          // Update the pipeline context for the next step
           currentPipelineContext = { ...currentPipelineContext, ...stepResult.context };
           dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: currentPipelineContext });
 
-          // Dispatch UI-specific updates based on stepResult
           if (stepResult.currentCoreCode !== undefined) {
               dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: stepResult.currentCoreCode });
           }
@@ -760,7 +748,6 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
   return { runPipeline, abortPipeline };
 };
 
-// --- Continuous Evolution Loop Hook ---
 const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true); 
@@ -831,8 +818,6 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
   }, [isActive, performEvolutionCallback, addLog]);
 };
 
-
-// --- Main Dalek Core Orchestration Hook ---
 const useDalekCore = () => {
   const { logs, addLog, clearLogs } = useLogSystem();
   const { tokens, handleTokenChange } = useAppTokens();
@@ -868,12 +853,12 @@ const useDalekCore = () => {
     config: APP_CONFIG,
     prompts: PROMPT_INSTRUCTIONS,
     isCodeSafeToCommitCheck: isCodeSafeToCommit,
-  }), [clients, addLog, isCodeSafeToCommit]); // dispatchEvolution is removed here
+  }), [clients, addLog, isCodeSafeToCommit]);
 
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
     globalPipelineDependencies,
-    dispatchEvolution // Pass dispatchEvolution directly to the executor for its own state orchestration
+    dispatchEvolution
   );
 
   const performEvolutionCycle = useCallback(async () => {
@@ -910,7 +895,6 @@ const useDalekCore = () => {
     }
   }, [isEvolutionActive, addLog, dispatchEvolution, abortPipeline]);
 
-  // Initial token checks and error logging
   useEffect(() => {
     clearLogs();
 
@@ -946,7 +930,7 @@ const useDalekCore = () => {
   return {
     logs,
     tokens,
-    setTokens: handleTokenChange, // Expose unified handler
+    setTokens: handleTokenChange,
     status,
     isEvolutionActive,
     displayCode,
@@ -957,7 +941,6 @@ const useDalekCore = () => {
   };
 };
 
-// --- React Components ---
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -1002,7 +985,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github}
+          disabled={!tokens.github && !isEvolutionActive}
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
