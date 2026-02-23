@@ -212,6 +212,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
           const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
         } catch (jsonParseError) {
+          // If response is not JSON, use default message
         }
         throw new Error(errorMessage);
       }
@@ -247,22 +248,18 @@ const validateJavaScriptSyntax = (code) => {
   }
 };
 
-const buildGeminiGenerateContentBody = (systemInstruction, userParts) => {
-  return {
-    contents: [{ parts: userParts }],
-    systemInstruction: { parts: [{ text: systemInstruction }] }
-  };
-};
+const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
+  contents: [{ parts: userParts }],
+  systemInstruction: { parts: [{ text: systemInstruction }] }
+});
 
-const buildCerebrasChatCompletionBody = (systemContent, userContent) => {
-  return {
-    model: APP_CONFIG.API.CEREBRAS.MODEL,
-    messages: [
-      { role: "system", content: systemContent },
-      { role: "user", content: userContent }
-    ]
-  };
-};
+const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
+  model: APP_CONFIG.API.CEREBRAS.MODEL,
+  messages: [
+    { role: "system", content: systemContent },
+    { role: "user", content: userContent }
+  ]
+});
 
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
@@ -676,9 +673,9 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && updatedContext.commitPerformed) {
             successfulCommitThisCycle = true;
             callbacks.setCurrentCoreCode(updatedContext.evolvedCode);
-            callbacks.setEvolvedCodeToDisplay('');
+            callbacks.setEvolvedCodeToDisplay(''); // Clear evolved code from display after commit
           } else if (stepDef.name === EvolutionStatus.COMMITTING_CODE && !updatedContext.commitPerformed) {
-            callbacks.setEvolvedCodeToDisplay('');
+            callbacks.setEvolvedCodeToDisplay(''); // Clear if not committed
           }
 
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
@@ -767,10 +764,11 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
+      // Clear any existing timeout before setting a new one to avoid double-triggers
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0);
+      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -871,7 +869,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     displayCode,
     runEvolution,
     terminateEvolution,
-    error
+    error,
+    currentCoreCode // Expose currentCoreCode for potential debug or other uses
   };
 };
 
@@ -993,6 +992,7 @@ export default function App() {
 
   useEffect(() => {
     if (error) {
+      // Ensure error is always logged when it changes
       addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
     }
   }, [error, addLog]);
