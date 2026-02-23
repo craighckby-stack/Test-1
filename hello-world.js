@@ -16,6 +16,21 @@ const APP_CONFIG = {
   LOG_HISTORY_LIMIT: 40,
   MIN_EVOLVED_CODE_LENGTH: 500,
   MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
+  API: {
+    GEMINI: {
+      MODEL: "gemini-2.5-flash-preview-09-2025",
+      ENDPOINT: "/v1beta/models/{model}:generateContent"
+    },
+    CEREBRAS: {
+      MODEL: "llama3.1-70b",
+      ENDPOINT: "/v1/chat/completions"
+    },
+    GITHUB: {
+      API_BASE_URL: "https://api.github.com"
+    },
+    GEMINI_BASE_URL: "https://generativelanguage.googleapis.com",
+    CEREBRAS_BASE_URL: "https://api.cerebras.ai"
+  }
 };
 
 const PROMPT_INSTRUCTIONS = {
@@ -223,6 +238,17 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
+const validateJavaScriptSyntax = (code) => {
+  try {
+    // Attempt to parse the code as a function body to catch basic syntax errors.
+    new Function(code);
+    return true;
+  } catch (e) {
+    console.error("Syntax Validation Error:", e);
+    return false;
+  }
+};
+
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -248,6 +274,7 @@ const EvolutionStatus = {
   EXTRACTING_PATTERNS: 'EXTRACTING_PATTERNS',
   SYNTHESIZING_DRAFT: 'SYNTHESIZING_DRAFT',
   FINALIZING_CODE: 'FINALIZING_CODE',
+  VALIDATING_SYNTAX: 'VALIDATING_SYNTAX',
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
@@ -324,7 +351,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
     const githubClient = createApiClient(
-      "https://api.github.com",
+      APP_CONFIG.API.GITHUB.API_BASE_URL,
       addLog,
       {
         Authorization: `token ${tokens.github.trim()}`,
@@ -358,14 +385,14 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const geminiService = useMemo(() => {
     if (!geminiApiKey) return null;
     const geminiClient = createApiClient(
-      "https://generativelanguage.googleapis.com",
+      APP_CONFIG.API.GEMINI_BASE_URL,
       addLog,
       { "Content-Type": "application/json" }
     );
 
     return {
       generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
-        const endpoint = `/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+        const endpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
         const res = await geminiClient.post(endpoint, {
           body: JSON.stringify({
             contents: [{ parts }],
@@ -384,7 +411,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const cerebrasService = useMemo(() => {
     if (!tokens.cerebras) return null;
     const cerebrasClient = createApiClient(
-      "https://api.cerebras.ai",
+      APP_CONFIG.API.CEREBRAS_BASE_URL,
       addLog,
       {
         "Content-Type": "application/json",
@@ -394,9 +421,9 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
 
     return {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
-        const data = await cerebrasClient.post("/v1/chat/completions", {
+        const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, {
           body: JSON.stringify({
-            model: "llama3.1-70b",
+            model: APP_CONFIG.API.CEREBRAS.MODEL,
             messages: [
               { role: "system", content: systemContent },
               { role: "user", content: userContent }
@@ -674,8 +701,33 @@ const useEvolutionEngine = (tokens, addLog) => {
     addLog("AI: Finalized code generated.", "quantum");
   }, [gemini, addLog, dispatch]);
 
+  const validatingSyntaxAction = useCallback(async (ctx, signal) => {
+    if (signal.aborted) throw Object.assign(new Error("Pipeline aborted."), { name: "AbortError" });
+
+    if (!ctx.evolvedCode) {
+      addLog("SYNTAX VALIDATION: No evolved code to validate. Skipping.", "warn");
+      ctx.isSyntaxValid = false;
+      return;
+    }
+
+    const isValid = validateJavaScriptSyntax(ctx.evolvedCode);
+    if (!isValid) {
+      throw new Error("Evolved code contains JavaScript syntax errors. Preventing commit.");
+    }
+    ctx.isSyntaxValid = true;
+    addLog("SYNTAX VALIDATION: Evolved code is syntactically valid.", "ok");
+  }, [addLog]);
+
   const committingCodeAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
+    
+    if (!ctx.isSyntaxValid) {
+      addLog("AI: Code failed syntax validation. No commit.", "le-err");
+      dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: '' });
+      ctx.commitPerformed = false;
+      return;
+    }
+
     if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
       if (!ctx.fileRef || !ctx.fileRef.sha) {
         throw new Error("Missing file reference (SHA) for committing code.");
@@ -697,12 +749,14 @@ const useEvolutionEngine = (tokens, addLog) => {
     { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true, action: extractingPatternsAction },
     { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true, action: synthesizingDraftAction },
     { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false, action: finalizingCodeAction },
+    { name: EvolutionStatus.VALIDATING_SYNTAX, allowFailure: false, action: validatingSyntaxAction },
     { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false, action: committingCodeAction }
   ], [
     fetchCoreAction,
     extractingPatternsAction,
     synthesizingDraftAction,
     finalizingCodeAction,
+    validatingSyntaxAction,
     committingCodeAction
   ]);
 
@@ -715,6 +769,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       quantumPatterns: null,
       draftCode: null,
       evolvedCode: null,
+      isSyntaxValid: false,
     };
     const { success, commitPerformed } = await runPipeline(initialContext);
 
@@ -821,7 +876,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-));
+);
 
 export default function App() {
   const [tokens, setTokens] = useState(() => {
