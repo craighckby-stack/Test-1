@@ -237,7 +237,7 @@ const EvolutionActionTypes = {
   STOP_EVOLUTION: 'STOP_EVOLUTION',
   SET_STATUS: 'SET_STATUS',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
-  SET_EVOLVED_CODE: 'SET_EVOLVED_CODE', // New action type
+  SET_EVOLVED_CODE: 'SET_EVOLVED_CODE',
   SET_ERROR: 'SET_ERROR',
   RESET_STATE: 'RESET_STATE',
 };
@@ -269,8 +269,8 @@ const logReducer = (state, action) => {
 const initialEvolutionState = {
   status: EvolutionStatus.IDLE,
   isEvolutionActive: false,
-  currentCoreCode: '', // Holds the initially fetched code
-  evolvedCode: '',     // Holds the AI-generated code, if any
+  currentCoreCode: '',
+  evolvedCode: '',
   error: null,
 };
 
@@ -284,10 +284,10 @@ const evolutionReducer = (state, action) => {
       return { ...state, status: action.payload };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
       return { ...state, currentCoreCode: action.payload };
-    case EvolutionActionTypes.SET_EVOLVED_CODE: // Handle new action
+    case EvolutionActionTypes.SET_EVOLVED_CODE:
       return { ...state, evolvedCode: action.payload };
     case EvolutionActionTypes.SET_ERROR:
-      return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, evolvedCode: '' }; // Clear evolvedCode on error
+      return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, evolvedCode: '' };
     case EvolutionActionTypes.RESET_STATE:
       return { ...initialEvolutionState, status: EvolutionStatus.IDLE };
     default:
@@ -309,10 +309,10 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
     } catch (e) {
       if (e.name === 'AbortError') {
         logger(`API ${stepName.toUpperCase()} ABORTED.`, "warn");
-        throw e; // Re-throw AbortError to be handled upstream
+        throw e;
       }
       logger(`API ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
-      throw e; // Re-throw other errors
+      throw e;
     }
   };
 
@@ -400,7 +400,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
         const data = await cerebrasClient.post("/v1/chat/completions", {
           body: JSON.stringify({
-            model: "llama3.1-70b", // Use a suitable Cerebras model
+            model: "llama3.1-70b",
             messages: [
               { role: "system", content: systemContent },
               { role: "user", content: userContent }
@@ -462,7 +462,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
+      timeoutRef.current = setTimeout(runCycle, 0);
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -485,11 +485,10 @@ const useEvolutionEngine = (tokens, addLog) => {
   const { status, isEvolutionActive, currentCoreCode, evolvedCode, error } = engineState;
 
   const isEvolutionTerminatedRef = useRef(false);
-  const abortControllerRef = useRef(null); // Centralized AbortController for the current pipeline run
+  const abortControllerRef = useRef(null);
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI);
 
-  // Derived displayCode - now calculated based on state
   const displayCode = useMemo(() => {
     if (error) {
       return currentCoreCode || "// ERROR: Failed to retrieve core logic or evolution failed. Check logs.";
@@ -509,7 +508,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     return true;
   }, [addLog]);
 
-  // --- Pipeline Step Implementations ---
   const fetchCoreAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
@@ -605,7 +603,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       throw new Error("Finalized code was empty after cleanup, indicating a critical AI failure.");
     }
     ctx.evolvedCode = cleanedFinalCode;
-    dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: ctx.evolvedCode }); // Set evolved code
+    dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: ctx.evolvedCode });
     addLog("AI: Finalized code generated.", "quantum");
   }, [gemini, addLog, dispatch]);
 
@@ -622,12 +620,11 @@ const useEvolutionEngine = (tokens, addLog) => {
       ctx.commitPerformed = true;
     } else {
       addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-      dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: '' }); // Clear evolvedCode if no commit, to display original
+      dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: '' });
       ctx.commitPerformed = false;
     }
   }, [github, addLog, dispatch, isCodeSafeToCommit]);
 
-  // Define the evolution pipeline steps with their functions and properties
   const EVOLUTION_PIPELINE_STEPS = useMemo(() => [
     { name: EvolutionStatus.FETCHING_CORE, allowFailure: false, action: fetchCoreAction },
     { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true, action: extractingPatternsAction },
@@ -642,7 +639,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     committingCodeAction
   ]);
 
-  // The main evolution cycle executor function
   const performEvolutionCycle = useCallback(async () => {
     let success = false;
     let commitPerformed = false;
@@ -655,7 +651,6 @@ const useEvolutionEngine = (tokens, addLog) => {
       commitPerformed: false,
     };
 
-    // Create a new AbortController for each cycle execution
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
@@ -664,7 +659,6 @@ const useEvolutionEngine = (tokens, addLog) => {
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
       for (const stepDef of EVOLUTION_PIPELINE_STEPS) {
-        // Check for global termination signal or local abort signal
         if (isEvolutionTerminatedRef.current || signal.aborted) {
           addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
           throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
@@ -673,18 +667,17 @@ const useEvolutionEngine = (tokens, addLog) => {
         addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
-          await stepDef.action(pipelineContext, signal); // Pass the abort signal to the action
+          await stepDef.action(pipelineContext, signal);
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
              addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
-             throw stepError; // Re-throw to be caught by the main try/catch
+             throw stepError;
           }
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
           if (!stepDef.allowFailure) {
-            throw stepError; // Re-throw if critical step failed
+            throw stepError;
           }
-          // If a non-critical step failed, the pipeline continues
         }
       }
       success = true;
@@ -692,7 +685,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
     } catch (e) {
       if (e.name === 'AbortError') {
-        success = true; // Report success to useEvolutionLoop to avoid immediate retry
+        success = true;
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
@@ -700,10 +693,8 @@ const useEvolutionEngine = (tokens, addLog) => {
         success = false;
       }
     } finally {
-      // Clear the abort controller reference
       abortControllerRef.current = null;
 
-      // Determine final state after cycle or termination
       if (isEvolutionTerminatedRef.current) {
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
       } else if (success) {
@@ -713,9 +704,8 @@ const useEvolutionEngine = (tokens, addLog) => {
       }
     }
     return { success, commitPerformed };
-  }, [EVOLUTION_PIPELINE_STEPS, dispatch, addLog, isEvolutionTerminatedRef]); // Removed isCodeSafeToCommit as it's not directly used here, but in committingCodeAction
+  }, [EVOLUTION_PIPELINE_STEPS, dispatch, addLog, isEvolutionTerminatedRef]);
 
-  // The Evolution Loop is now simpler, just calling the main cycle executor
   useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
 
   const runEvolution = useCallback(() => {
@@ -723,7 +713,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
-      isEvolutionTerminatedRef.current = false; // Reset termination flag
+      isEvolutionTerminatedRef.current = false;
       dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
@@ -733,9 +723,9 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      isEvolutionTerminatedRef.current = true; // Signal the loop to stop
+      isEvolutionTerminatedRef.current = true;
       if (abortControllerRef.current) {
-        abortControllerRef.current.abort(); // Signal the current cycle to abort its operations
+        abortControllerRef.current.abort();
       }
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
       dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
@@ -746,7 +736,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   return {
     status,
-    isLoading: isEvolutionActive,
+    isEvolutionActive,
     displayCode,
     runEvolution,
     terminateEvolution,
@@ -765,7 +755,7 @@ const DalekHeader = memo(({ status }) => (
 
 const NexusControlPanel = memo(({
   tokens, setTokens, repoConfig,
-  isLoading, logs, runEvolution, terminateEvolution
+  isEvolutionActive, logs, runEvolution, terminateEvolution
 }) => {
   return (
     <div className="panel">
@@ -790,10 +780,10 @@ const NexusControlPanel = memo(({
         <div style={{ fontSize: '0.6rem', color: 'var(--red-dim)' }}>TARGET: {`${repoConfig.owner}/${repoConfig.repo}/${repoConfig.file}`}</div>
 
         <button
-          className={`btn-go ${isLoading ? 'btn-stop' : ''}`}
-          onClick={isLoading ? terminateEvolution : runEvolution}
+          className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
+          onClick={isEvolutionActive ? terminateEvolution : runEvolution}
         >
-          {isLoading ? "TERMINATE" : "EVOLVE"}
+          {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
 
         <div className="log-wrap">
@@ -822,7 +812,7 @@ export default function App() {
     dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
   }, []);
 
-  const { isLoading, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
+  const { isEvolutionActive, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
     tokens, addLog
   );
 
@@ -854,7 +844,7 @@ export default function App() {
   }, [error, addLog]);
 
   const startEvolutionProcess = useCallback(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS }); // Clear logs on new evolution start
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
     runEvolution();
   }, [runEvolution]);
 
@@ -868,7 +858,7 @@ export default function App() {
           tokens={tokens}
           setTokens={setTokens}
           repoConfig={APP_CONFIG.GITHUB_REPO}
-          isLoading={isLoading}
+          isEvolutionActive={isEvolutionActive}
           logs={logs}
           runEvolution={startEvolutionProcess}
           terminateEvolution={terminateEvolution}
