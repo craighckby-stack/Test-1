@@ -229,14 +229,17 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
       return await response.json();
     } catch (e) {
       if (e.name === 'AbortError') throw e;
-      if (e.isAppError && e.code === 'HTTP_REQUEST_FAILED') {
-          if (i === retries - 1) throw e;
-      } else if (i === retries - 1) {
-          throw new AppError(`Network or unexpected error on ${url}: ${e.message}`, 'NETWORK_ERROR', e);
+      if (e.isAppError && e.code === 'HTTP_REQUEST_FAILED' && i < retries - 1) {
+          // Retry HTTP specific errors
+          await wait(1000 * (i + 1));
+          continue;
       }
-      await wait(1000 * (i + 1));
+      // For network errors or last retry of HTTP errors, re-throw or wrap
+      if (e.isAppError) throw e; // Re-throw AppErrors directly
+      throw new AppError(`Network or unexpected error on ${url}: ${e.message}`, 'NETWORK_ERROR', e);
     }
   }
+  // Should ideally not reach here if retries > 0, but as a safeguard
   throw new AppError("safeFetch exhausted all retries.", 'FETCH_RETRY_EXHAUSTED');
 };
 
@@ -275,16 +278,25 @@ const useLogSystem = () => {
 
 const useAppTokens = () => {
   const [tokens, setTokens] = useState(() => {
-    const savedGithub = localStorage.getItem('dalek_token_github') || "";
-    const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
-    const savedGemini = localStorage.getItem('dalek_token_gemini') || "";
-    return { github: savedGithub, cerebras: savedCerebras, gemini: savedGemini };
+    try {
+      const savedGithub = localStorage.getItem('dalek_token_github') || "";
+      const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
+      const savedGemini = localStorage.getItem('dalek_token_gemini') || "";
+      return { github: savedGithub, cerebras: savedCerebras, gemini: savedGemini };
+    } catch (e) {
+      console.error("Failed to read tokens from localStorage:", e);
+      return { github: "", cerebras: "", gemini: "" };
+    }
   });
 
   const handleTokenChange = useCallback((key, value) => {
     setTokens(prev => {
       const newTokens = { ...prev, [key]: value };
-      localStorage.setItem(`dalek_token_${key}`, value);
+      try {
+        localStorage.setItem(`dalek_token_${key}`, value);
+      } catch (e) {
+        console.error(`Failed to save token ${key} to localStorage:`, e);
+      }
       return newTokens;
     });
   }, []);
@@ -311,7 +323,7 @@ const initialEvolutionEngineState = {
   error: null,
   currentCoreCode: '',
   displayCode: '',
-  pipeline: { // Centralized pipeline context within engine state
+  pipeline: {
     fileRef: null,
     fetchedCode: '',
     quantumPatterns: null,
@@ -328,16 +340,16 @@ const EvolutionActionTypes = {
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  UPDATE_PIPELINE_CONTEXT: 'UPDATE_PIPELINE_CONTEXT', // Renamed for clarity
+  UPDATE_PIPELINE_CONTEXT: 'UPDATE_PIPELINE_CONTEXT',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
-  UPDATE_STATE_FROM_STEP: 'UPDATE_STATE_FROM_STEP', // New action for pipeline steps
+  UPDATE_STATE_FROM_STEP: 'UPDATE_STATE_FROM_STEP',
 };
 
 const evolutionEngineReducer = (state, action) => {
   switch (action.type) {
     case EvolutionActionTypes.START_EVOLUTION:
-      return { ...state, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null, pipeline: initialEvolutionEngineState.pipeline }; // Reset pipeline on start
+      return { ...state, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null, pipeline: { ...initialEvolutionEngineState.pipeline } };
     case EvolutionActionTypes.STOP_EVOLUTION:
       return { ...state, isEvolutionActive: false, status: EvolutionStatus.PAUSED, error: null };
     case EvolutionActionTypes.SET_STATUS:
@@ -346,13 +358,13 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode || '' };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState };
-    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT: // Direct update to nested pipeline state
+    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT:
       return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
       return { ...state, currentCoreCode: action.payload };
     case EvolutionActionTypes.SET_DISPLAY_CODE:
       return { ...state, displayCode: action.payload };
-    case EvolutionActionTypes.UPDATE_STATE_FROM_STEP: // Handles comprehensive updates from a step
+    case EvolutionActionTypes.UPDATE_STATE_FROM_STEP:
       return {
         ...state,
         ...(action.payload.pipeline ? { pipeline: { ...state.pipeline, ...action.payload.pipeline } } : {}),
@@ -436,7 +448,7 @@ const useAIIntegrations = (tokens, addLog) => {
         await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
     };
-  }, [tokens.github, addLog]); // Only re-create if github token changes
+  }, [tokens.github, addLog]);
 
   const geminiService = useMemo(() => {
     const geminiApiKey = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
@@ -469,7 +481,7 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.gemini, addLog]); // Only re-create if gemini token changes
+  }, [tokens.gemini, addLog]);
 
   const cerebrasService = useMemo(() => {
     const cerebrasToken = tokens.cerebras;
@@ -506,12 +518,12 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.cerebras, addLog]); // Only re-create if cerebras token changes
+  }, [tokens.cerebras, addLog]);
 
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// Pipeline Step Definitions - now return full state updates, not just contexts
+// Pipeline Step Definitions - return partial state updates
 const fetchCoreLogic = async (currentEngineState, { clients, addLog, config }, signal) => {
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
   const fetchedCode = utf8B64Decode(result.content);
@@ -537,7 +549,7 @@ const extractingPatternsLogic = async (currentEngineState, { clients, addLog, co
     "pattern extraction",
     signal
   );
-  if (!patterns || patterns.trim().length < 10) {
+  if (!patterns || patterns.trim().length < 10) { // Arbitrary minimum length for "meaningful" patterns
     throw new AppError("No meaningful quantum patterns extracted by Gemini.", "NO_QUANTUM_PATTERNS", null, false);
   }
   return { pipeline: { quantumPatterns: patterns } };
@@ -634,11 +646,11 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
   }
 };
 
-const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispatchEvolution) => {
+const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) => {
   const abortControllerRef = useRef(null);
+  const { addLog } = globalServices;
 
   const runPipeline = useCallback(async () => {
-    // Reset pipeline context at the start of a new run
     dispatchEvolution({ type: EvolutionActionTypes.RESET_ENGINE_STATE });
     
     abortControllerRef.current = new AbortController();
@@ -649,7 +661,9 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
 
     try {
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
-      globalServices.addLog("AI: PROCESSING EVOLUTION...", "nexus");
+      addLog("AI: PROCESSING EVOLUTION...", "nexus");
+
+      let currentState = initialEvolutionEngineState; // Start with initial state for the pipeline run
 
       for (const stepDef of steps) {
         if (signal.aborted) {
@@ -659,17 +673,24 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
 
         const stepDisplayName = stepDef.name.replace(/_/g, ' ');
         dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
-        globalServices.addLog(`NEXUS: ${stepDisplayName} initiated.`, "nexus");
+        addLog(`NEXUS: ${stepDisplayName} initiated.`, "nexus");
 
         try {
-          // Pass the current *full* engine state to the step action
+          // Pass the current accumulated state for the pipeline execution to the step action
           const stepResult = await stepDef.action(
-            engineState, // Pass the entire engineState for steps to access pipeline context
+            currentState, // Pass the current state accumulated from previous steps
             globalServices,             
             signal
           );
           
-          // Dispatch a single action to update the engine state based on stepResult
+          // Apply the step result to update the state within this pipeline run
+          // and dispatch to update the global engine state for UI/external consumption
+          currentState = {
+            ...currentState,
+            ...(stepResult.pipeline ? { pipeline: { ...currentState.pipeline, ...stepResult.pipeline } } : {}),
+            ...(stepResult.currentCoreCode !== undefined ? { currentCoreCode: stepResult.currentCoreCode } : {}),
+            ...(stepResult.displayCode !== undefined ? { displayCode: stepResult.displayCode } : {}),
+          };
           dispatchEvolution({ type: EvolutionActionTypes.UPDATE_STATE_FROM_STEP, payload: stepResult });
 
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.pipeline?.commitPerformed) {
@@ -677,32 +698,32 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
           }
 
           if (stepDef.name !== EvolutionStatus.COMMITTING_CODE) { 
-              globalServices.addLog(`NEXUS: ${stepDisplayName} completed.`, "ok");
+              addLog(`NEXUS: ${stepDisplayName} completed.`, "ok");
           }
         } catch (stepError) {
           if (stepError.name === 'AbortError' || (stepError.isAppError && stepError.code === "PIPELINE_ABORTED")) {
             pipelineAborted = true;
-            globalServices.addLog(`NEXUS: ${stepDisplayName} ABORTED.`, "warn");
+            addLog(`NEXUS: ${stepDisplayName} ABORTED.`, "warn");
             throw stepError;
           }
           
-          globalServices.addLog(`NEXUS: ${stepDisplayName} FAILED: ${stepError.message || String(stepError)}. Code: ${stepError.code || 'N/A'}`, "le-err");
+          addLog(`NEXUS: ${stepDisplayName} FAILED: ${stepError.message || String(stepError)}. Code: ${stepError.code || 'N/A'}`, "le-err");
           if (!stepDef.allowFailure) {
             throw stepError;
           } else {
-            globalServices.addLog(`NEXUS: ${stepDisplayName} failed but allowed to continue.`, "warn");
+            addLog(`NEXUS: ${stepDisplayName} failed but allowed to continue.`, "warn");
           }
         }
       }
       return { success: true, commitPerformed: successfulCommitThisCycle, aborted: false };
     } catch (e) {
       if (pipelineAborted || e.name === 'AbortError' || (e.isAppError && e.code === "PIPELINE_ABORTED")) {
-        globalServices.addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
+        addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
         return { success: false, commitPerformed: false, aborted: true };
       } else {
         dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
         const errorMsg = e.isAppError ? `${e.message} (Code: ${e.code})` : e.message || String(e);
-        globalServices.addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${errorMsg}`, "le-err");
+        addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${errorMsg}`, "le-err");
         return { success: false, commitPerformed: false, aborted: false };
       }
     } finally {
@@ -710,14 +731,14 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         abortControllerRef.current = null;
       }
     }
-  }, [steps, globalServices, engineState, dispatchEvolution]); // engineState is now a dependency for pipeline steps to access
+  }, [steps, globalServices, dispatchEvolution, addLog]); // globalServices and dispatchEvolution are stable
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      globalServices.addLog("PIPELINE: Explicit abort requested.", "nexus");
+      addLog("PIPELINE: Explicit abort requested.", "nexus");
     }
-  }, [globalServices.addLog]);
+  }, [addLog]);
 
   return { runPipeline, abortPipeline };
 };
@@ -740,7 +761,6 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
   useEffect(() => {
     const runCycle = async () => {
       if (!isMountedRef.current || !isActive) {
-        // If not mounted or not active, just ensure no pending timer and exit.
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
@@ -748,7 +768,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
-      if (!isMountedRef.current) { // Component unmounted during async operation
+      if (!isMountedRef.current) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
@@ -756,10 +776,10 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 
       if (aborted) {
           addLog("NEXUS CYCLE ABORTED. Loop suspended.", "warn");
-          return; // Do not schedule next cycle if explicitly aborted
+          return;
       }
 
-      if (isActive) { // Only schedule next cycle if still active
+      if (isActive) {
         const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
         const message = success
           ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit). Waiting in ${delay / 1000}s.`)
@@ -774,26 +794,25 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      if (timeoutRef.current) { // Clear any existing timer to prevent duplicates
+      if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
+      timeoutRef.current = setTimeout(runCycle, 0);
     } else {
-      if (timeoutRef.current) { // Clear timer if deactivating
+      if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         addLog("NEXUS CYCLE PAUSED.", "nexus");
       }
     }
 
-    // Cleanup on component unmount or isActive changes
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
     };
-  }, [isActive, performEvolutionCallback, addLog]); // Dependencies: isActive, performEvolutionCallback, addLog
+  }, [isActive, performEvolutionCallback, addLog]);
 };
 
 const useDalekCore = () => {
@@ -836,7 +855,6 @@ const useDalekCore = () => {
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
     globalServices,
-    engineState, // Pass engineState directly
     dispatchEvolution
   );
 
@@ -847,7 +865,6 @@ const useDalekCore = () => {
     } else if (aborted) {
         dispatchEvolution({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
-        // Error state already set by executor, just confirm status
         dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
     }
     return { success, commitPerformed, aborted };
@@ -971,7 +988,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github && !isEvolutionActive} // Disable if no github token and not active
+          disabled={!tokens.github && !isEvolutionActive}
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
