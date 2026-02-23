@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // --- CONFIGURATION ---
-const appId = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
-const geminiApiKey = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
+const APP_ID = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
+const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
 
-const STYLES = `
+// --- STYLES ---
+const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
   
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -165,9 +166,139 @@ const utf8B64Decode = (b64) => {
 };
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
+const safeFetch = async (url, options, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      const result = await response.json();
+      if (!response.ok) {
+        const errorMessage = result.message || JSON.stringify(result) || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+      return result;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await wait(1000 * (i + 1));
+    }
+  }
+};
+
+// --- API UTILITIES ---
+const githubRequest = async (token, owner, repo, filePath, method, body = {}, sha = null, branch = "main") => {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+  const headers = {
+    Authorization: `token ${token.trim()}`,
+    Accept: "application/vnd.github.v3+json",
+    "Content-Type": "application/json"
+  };
+
+  const options = { method, headers };
+
+  if (method === "PUT") {
+    options.body = JSON.stringify({
+      message: body.message || `DALEK_EVOLUTION_${Date.now()}`,
+      content: utf8B64Encode(body.content),
+      sha,
+      branch
+    });
+  }
+
+  return safeFetch(url, options);
+};
+
+const geminiRequest = async (systemInstruction, parts) => {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+  const res = await safeFetch(geminiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      systemInstruction: { parts: [{ text: systemInstruction }] }
+    })
+  });
+  return res.candidates?.[0]?.content?.parts?.[0]?.text || "";
+};
+
+const cerebrasRequest = async (token, systemContent, userContent) => {
+  if (!token) throw new Error("Cerebras API key is not configured.");
+  const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json", 
+      "Authorization": `Bearer ${token.trim()}` 
+    },
+    body: JSON.stringify({
+      model: "llama3.1-70b",
+      messages: [
+        { role: "system", content: systemContent }, 
+        { role: "user", content: userContent }
+      ]
+    })
+  });
+  return data.choices[0].message.content;
+};
+
+// --- COMPONENTS ---
+const DalekHeader = ({ isLoading }) => (
+  <div className="header">
+    <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
+    <div style={{fontSize: '0.7rem'}}>{isLoading ? "REWRITING..." : "CORE_STABLE"}</div>
+  </div>
+);
+
+const NexusControlPanel = ({
+  tokens, setTokens, config, 
+  isLoading, logs, addLog, runEvolution, terminateEvolution
+}) => {
+  return (
+    <div className="panel">
+      <div className="panel-hdr">Nexus Configuration</div>
+      <div className="panel-body">
+        <input 
+          className="input-field" 
+          placeholder="GitHub Token" 
+          type="password" 
+          onChange={e => setTokens(p => ({...p, github: e.target.value}))} 
+          value={tokens.github}
+        />
+        <input 
+          className="input-field" 
+          placeholder="Cerebras Key" 
+          type="password" 
+          onChange={e => setTokens(p => ({...p, cerebras: e.target.value}))} 
+          value={tokens.cerebras}
+        />
+        <div style={{fontSize: '0.6rem', color: 'var(--red-dim)'}}>TARGET: {`${config.owner}/${config.repo}/${config.file}`}</div>
+
+        <button 
+          className={`btn-go ${isLoading ? 'btn-stop' : ''}`} 
+          onClick={isLoading ? terminateEvolution : runEvolution}
+        >
+          {isLoading ? "TERMINATE" : "EVOLVE"}
+        </button>
+
+        <div className="log-wrap">
+          {logs.map((l, i) => (
+            <div key={i} className={`le le-${l.type}`}>{l.text}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CoreDisplayPanel = ({ displayCode }) => (
+  <div className="panel">
+    <div className="panel-hdr">Live Core Logic</div>
+    <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
+  </div>
+);
+
+// --- MAIN APP COMPONENT ---
 export default function App() {
   const [tokens, setTokens] = useState({ cerebras: "", github: "" });
-  const [config, setConfig] = useState({ 
+  const [config] = useState({ // Fixed config, not directly user-editable via UI in this version
     owner: "craighckby-stack", 
     repo: "Test-1", 
     branch: "Nexus-Database", 
@@ -178,180 +309,151 @@ export default function App() {
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
-  const codeRef = useRef("");
+  const codeRef = useRef(""); // Stores the current code from GitHub for AI processing
 
   const addLog = useCallback((msg, type = "def") => {
     setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, 40)]);
   }, []);
 
-  const safeFetch = async (url, options, retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(url, options);
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || "API Error");
-        return result;
-      } catch (e) {
-        if (i === retries - 1) throw e;
-        await wait(1000 * (i + 1));
-      }
-    }
-  };
-
-  const callAIChain = async (nodeContent) => {
+  const callAIChain = useCallback(async (nodeContent) => {
+    addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
     let quantumPatterns = "";
-    let draft = "";
+    let draftCode = "";
     
     const cleanContent = nodeContent.replace(/[^\x20-\x7E\n]/g, "").substring(0, 4000);
     const cleanCore = codeRef.current.replace(/[^\x20-\x7E\n]/g, "").substring(0, 3000);
 
-    addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
+    // 1. Gemini: Extract Patterns
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
-      const res = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `CORE: ${cleanCore}\nSOURCE: ${cleanContent}` }] }],
-          systemInstruction: { parts: [{ text: "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY." }] }
-        })
-      });
-      const data = await res.json();
-      quantumPatterns = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    } catch (e) { addLog("GEMINI PATTERN FAIL", "le-err"); }
-
-    if (tokens.cerebras) {
-      addLog("CEREBRAS: SYNTHESIZING...", "def");
-      try {
-        const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json", 
-            "Authorization": `Bearer ${tokens.cerebras.trim()}` 
-          },
-          body: JSON.stringify({
-            model: "llama3.1-70b",
-            messages: [
-              { role: "system", content: "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY." }, 
-              { role: "user", content: `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCore}` }
-            ]
-          })
-        });
-        draft = data.choices[0].message.content;
-      } catch (e) { addLog("CEREBRAS FAIL", "le-err"); }
+      addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
+      quantumPatterns = await geminiRequest(
+        "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.",
+        [{ text: `CORE: ${cleanCore}\nSOURCE: ${cleanContent}` }]
+      );
+      if (!quantumPatterns) throw new Error("No patterns extracted.");
+      addLog("GEMINI: PATTERNS EXTRACTED", "ok");
+    } catch (e) { 
+      addLog(`GEMINI PATTERN FAIL: ${e.message}`, "le-err"); 
+      // Continue without patterns if extraction fails critically
     }
 
-    addLog("GEMINI: SEALING CORE...", "ok");
+    // 2. Cerebras: Synthesize Draft
+    if (tokens.cerebras && quantumPatterns) { // Only call Cerebras if token and patterns exist
+      try {
+        addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
+        draftCode = await cerebrasRequest(
+          tokens.cerebras,
+          "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY.",
+          `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCore}`
+        );
+        if (!draftCode) throw new Error("No draft code synthesized.");
+        addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
+      } catch (e) { 
+        addLog(`CEREBRAS FAIL: ${e.message}`, "le-err"); 
+      }
+    } else if (tokens.cerebras && !quantumPatterns) {
+      addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
+    } else {
+      addLog("CEREBRAS skipped: API key missing.", "le-err");
+    }
+
+    // Fallback to existing core if no draft was produced
+    if (!draftCode) {
+        draftCode = cleanCore;
+        addLog("Using existing core as draft due to previous failures.", "def");
+    }
+
+    // 3. Gemini: Finalize and Seal Core
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
-      const res = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `DRAFT_CODE: ${draft}\nEXISTING_CORE: ${cleanCore}` }] }],
-          systemInstruction: {
-            parts: [{
-              text: "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript."
-            }]
-          }
-        })
-      });
-      const data = await res.json();
-      const finalCode = data.candidates?.[0]?.content?.parts?.[0]?.text || draft;
+      addLog("GEMINI: SEALING CORE...", "ok");
+      const finalCode = await geminiRequest(
+        "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript.",
+        [{ text: `DRAFT_CODE: ${draftCode}\nEXISTING_CORE: ${cleanCore}` }]
+      );
+      // Clean markdown if it somehow slips through despite instructions
       return finalCode.replace(/^```[a-z]*\n|```$/g, "").trim();
     } catch (e) {
-      addLog("GEMINI SEAL FAIL", "le-err");
-      return draft;
+      addLog(`GEMINI SEAL FAIL: ${e.message}`, "le-err");
+      return draftCode.replace(/^```[a-z]*\n|```$/g, "").trim(); // Return best effort
     }
-  };
+  }, [addLog, tokens.cerebras]); // Depend on addLog and cerebras token
 
-  const runEvolution = async () => {
-    if (!tokens.github || !geminiApiKey) {
-      addLog("MISSING API KEYS/TOKENS", "le-err");
+  const runEvolution = useCallback(async () => {
+    if (!tokens.github || !GEMINI_API_KEY) {
+      addLog("MISSING API KEYS/TOKENS. Evolution halted.", "le-err");
       return;
     }
 
     activeRef.current = true;
     setLoading(true);
+    addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     while (activeRef.current) {
-      addLog("INITIATING NEXUS CYCLE...", "nexus");
       try {
-        const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.file}`;
-        const headers = {
-          Authorization: `token ${tokens.github.trim()}`,
-          Accept: "application/vnd.github.v3+json"
-        };
-
-        const fileRef = await safeFetch(url, { headers });
+        // 1. Fetch current file
+        addLog("GITHUB: FETCHING CORE...", "nexus");
+        const fileRef = await githubRequest(
+          tokens.github, config.owner, config.repo, config.file, "GET"
+        );
         const currentCode = utf8B64Decode(fileRef.content);
-        codeRef.current = currentCode;
-        setDisplayCode(currentCode);
+        codeRef.current = currentCode; // Update ref for AI chain
+        setDisplayCode(currentCode); // Display current code
 
-        const evolved = await callAIChain(currentCode);
+        // 2. Call AI Chain for evolution
+        addLog("AI: PROCESSING EVOLUTION...", "nexus");
+        const evolvedCode = await callAIChain(currentCode);
 
-        if (!evolved || evolved.length < 500) {
-          throw new Error("Evolution safety trigger: Code too short.");
+        // Safety check for code integrity
+        if (!evolvedCode || evolvedCode.length < 500) {
+          throw new Error("Evolution safety trigger: Evolved code too short or empty.");
+        }
+        if (evolvedCode === currentCode) {
+            addLog("AI: Code unchanged, awaiting new patterns.", "def");
+        } else {
+            addLog("AI: Evolution complete. New code generated.", "ok");
+            // 3. Commit evolved code back to GitHub
+            addLog("GITHUB: COMMITTING EVOLVED CORE...", "nexus");
+            await githubRequest(
+                tokens.github, config.owner, config.repo, config.file, "PUT",
+                { content: evolvedCode, message: `DALEK_EVOLUTION_${Date.now()}` },
+                fileRef.sha, config.branch
+            );
+            addLog("NEXUS EVOLVED SUCCESSFULLY", "ok");
         }
 
-        await safeFetch(url, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({
-            message: `DALEK_EVOLUTION_${Date.now()}`,
-            content: utf8B64Encode(evolved),
-            sha: fileRef.sha,
-            branch: config.branch
-          })
-        });
-
-        addLog("NEXUS EVOLVED SUCCESSFULLY", "ok");
-        await wait(30000); 
+        await wait(30000); // Wait 30 seconds before next cycle
       } catch (e) {
-        addLog(`CRITICAL: ${e.message}`, "le-err");
-        activeRef.current = false;
+        addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
+        activeRef.current = false; // Stop the loop on critical error
       }
     }
     setLoading(false);
-  };
+    addLog("NEXUS CYCLE TERMINATED.", "nexus");
+  }, [addLog, tokens.github, config, callAIChain]);
+
+  const terminateEvolution = useCallback(() => {
+    activeRef.current = false;
+    addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
+  }, [addLog]);
 
   return (
     <div className="dalek-shell">
-      <style>{STYLES}</style>
-      <div className="header">
-        <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
-        <div style={{fontSize: '0.7rem'}}>{loading ? "REWRITING..." : "CORE_STABLE"}</div>
-      </div>
+      <style>{GLOBAL_STYLES}</style>
+      <DalekHeader isLoading={loading} />
 
       <div className="main-container">
-        <div className="panel">
-          <div className="panel-hdr">Nexus Configuration</div>
-          <div className="panel-body">
-            <input className="input-field" placeholder="GitHub Token" type="password" onChange={e => setTokens({...tokens, github: e.target.value})} />
-            <input className="input-field" placeholder="Cerebras Key" type="password" onChange={e => setTokens({...tokens, cerebras: e.target.value})} />
-            <div style={{fontSize: '0.6rem', color: 'var(--red-dim)'}}>TARGET: {`${config.owner}/${config.repo}`}</div>
-
-            <button className={`btn-go ${loading ? 'btn-stop' : ''}`} onClick={() => {
-              if (loading) activeRef.current = false;
-              else runEvolution();
-            }}>
-              {loading ? "TERMINATE" : "EVOLVE"}
-            </button>
-
-            <div className="log-wrap">
-              {logs.map((l, i) => (
-                <div key={i} className={`le le-${l.type}`}>{l.text}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-hdr">Live Core Logic</div>
-          <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
-        </div>
+        <NexusControlPanel 
+          tokens={tokens} 
+          setTokens={setTokens} 
+          config={config}
+          isLoading={loading} 
+          logs={logs} 
+          addLog={addLog}
+          runEvolution={runEvolution}
+          terminateEvolution={terminateEvolution}
+        />
+        <CoreDisplayPanel displayCode={displayCode} />
       </div>
     </div>
   );
 }
-
