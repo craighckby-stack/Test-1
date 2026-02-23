@@ -1,1 +1,7 @@
-Command Pattern
+- **Factory Pattern**: The `select_simulator_device` function acts as a factory to create a simulator device object based on the platform.
+- **Strategy Pattern**: The function `xcode_test` is an example of a strategy, a strategy function that allows different ways of testing or running the code.
+- **Service Pattern**: The functions in the code are services that can be used independently, like the string manipulation service in `LOG_PREFIX_REGEX`.
+- **Repository Pattern**: The function `json.loads` in `select_simulator_device` acts as a data repository.
+- **Dependency Injection**: The function `xcode_test` receives the required components (in this case, `location`, `platform`, `simulator`, and `verbose`) as arguments, enabling dependency injection.
+- **Observer Pattern**: The subprocess calls in the `xcode_test` function, such as `subprocess.run`, can be seen as a form of event observer.
+- **Command Pattern**: The `main` function dispatches actions (`clone_testbed` and `run_testbed`) based on parsed subcommands, treating each action as a distinct command to be executed.
