@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-const APP_EMBEDDED_KEYS = {
-  GEMINI: "", // Consider externalizing this for production deployments
-};
+// APP_EMBEDDED_KEYS is removed. API keys should be managed via environment variables (e.g., REACT_APP_GEMINI_API_KEY) or user input.
 
 const APP_CONFIG = {
   GITHUB_REPO: {
@@ -417,7 +415,8 @@ const useExternalClients = (tokens, addLog) => {
   }, [tokens.github, addLog]);
 
   const geminiService = useMemo(() => {
-    const geminiApiKey = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
+    // Prioritize user-provided token, then environment variable
+    const geminiApiKey = tokens.gemini || process.env.REACT_APP_GEMINI_API_KEY;
     if (!geminiApiKey) {
       return {
         generateContent: async () => { throw Object.assign(new Error("Gemini client not ready: API key missing."), { code: 'NO_GEMINI_KEY' }); }
@@ -1004,11 +1003,11 @@ export default function App() {
       addLog("GitHub token detected. Repository access enabled.", "ok");
     }
 
-    // Check Gemini key (either explicit or embedded)
-    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
+    // Check Gemini key (either user-provided or from environment variables)
+    const geminiKeyPresent = tokens.gemini || process.env.REACT_APP_GEMINI_API_KEY;
     if (!geminiKeyPresent) { 
       addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
-      addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
+      addLog("Please insert your Google AI Studio key or set REACT_APP_GEMINI_API_KEY to enable full AI capabilities.", "le-err");
     } else {
       addLog("Gemini API Key detected. Gemini services enabled.", "ok");
     }
