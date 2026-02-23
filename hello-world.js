@@ -231,7 +231,9 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
 };
 
 const cleanMarkdownCodeBlock = (code) => {
-  if (!code) return "";
+  if (typeof code !== 'string') {
+    return "";
+  }
   return code.replace(/^```[a-z]*\n|```$/gi, "").trim();
 };
 
@@ -764,11 +766,10 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      // Clear any existing timeout before setting a new one to avoid double-triggers
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
+      timeoutRef.current = setTimeout(runCycle, 0); 
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -870,7 +871,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     runEvolution,
     terminateEvolution,
     error,
-    currentCoreCode // Expose currentCoreCode for potential debug or other uses
+    currentCoreCode 
   };
 };
 
@@ -992,7 +993,6 @@ export default function App() {
 
   useEffect(() => {
     if (error) {
-      // Ensure error is always logged when it changes
       addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
     }
   }, [error, addLog]);
