@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-const APP_EMBEDDED_KEYS = {
+// Centralized embedded API keys for potential fallback or defaults
+const APP_EMBEDDED_API_KEYS = {
   GEMINI: "",
 };
 
@@ -19,7 +20,8 @@ const APP_CONFIG = {
   API: {
     GEMINI: {
       MODEL: "gemini-2.5-flash-preview-09-2025",
-      ENDPOINT_PATH: "/v1beta/models/{model}:generateContent"
+      ENDPOINT_PATH: "/v1beta/models/{model}:generateContent",
+      DEFAULT_KEY: APP_EMBEDDED_API_KEYS.GEMINI // Fallback embedded key
     },
     CEREBRAS: {
       MODEL: "llama3.1-70b",
@@ -229,17 +231,6 @@ const sanitizeContent = (content, maxLength) => content ? content.replace(/[^\x2
 const validateJavaScriptSyntax = (code) => {
   try { new Function(code); return true; } catch (e) { return false; } // eslint-disable-line no-new-func
 };
-const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
-  contents: [{ parts: userParts }],
-  systemInstruction: { parts: [{ text: systemInstruction }] }
-});
-const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
-  model: APP_CONFIG.API.CEREBRAS.MODEL,
-  messages: [
-    { role: "system", content: systemContent },
-    { role: "user", content: userContent }
-  ]
-});
 
 // --- Log System Hook ---
 const LogActionTypes = {
@@ -284,9 +275,9 @@ const useAppTokens = () => {
       localStorage.setItem(`dalek_token_${key}`, value);
       return newTokens;
     });
-  }, [setTokens]);
+  }, []);
 
-  return { tokens, setTokens, handleTokenChange };
+  return { tokens, handleTokenChange };
 };
 
 // --- Evolution Engine State Management Hook ---
@@ -432,7 +423,7 @@ const useAIIntegrations = (tokens, addLog) => {
   }, [tokens.github, addLog]);
 
   const geminiService = useMemo(() => {
-    const geminiApiKey = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
+    const geminiApiKey = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
     if (!geminiApiKey) {
       return {
         generateContent: async () => { throw Object.assign(new Error("Gemini client not ready: API key missing."), { code: 'NO_GEMINI_KEY' }); }
@@ -445,6 +436,12 @@ const useAIIntegrations = (tokens, addLog) => {
     );
 
     const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT_PATH.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey.trim()}`;
+
+    // Helper for Gemini body construction, scoped to the service
+    const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
+      contents: [{ parts: userParts }],
+      systemInstruction: { parts: [{ text: systemInstruction }] }
+    });
 
     return {
       generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
@@ -474,6 +471,15 @@ const useAIIntegrations = (tokens, addLog) => {
         "Authorization": `Bearer ${cerebrasToken.trim()}`
       }
     );
+
+    // Helper for Cerebras body construction, scoped to the service
+    const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
+      model: APP_CONFIG.API.CEREBRAS.MODEL,
+      messages: [
+        { role: "system", content: systemContent },
+        { role: "user", content: userContent }
+      ]
+    });
 
     return {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
@@ -815,7 +821,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 // --- Main Dalek Core Orchestration Hook ---
 const useDalekCore = () => {
   const { logs, addLog, clearLogs } = useLogSystem();
-  const { tokens, setTokens, handleTokenChange } = useAppTokens();
+  const { tokens, handleTokenChange } = useAppTokens();
   const { engineState, dispatchEvolution } = useEvolutionState();
   const { status, isEvolutionActive, displayCode, error } = engineState;
 
@@ -901,7 +907,7 @@ const useDalekCore = () => {
       addLog("GitHub token detected. Repository access enabled.", "ok");
     }
 
-    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
+    const geminiKeyPresent = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
     if (!geminiKeyPresent) { 
       addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
