@@ -544,14 +544,20 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         success = false;
       }
     } finally {
-      if (!signal.aborted) { // Ensure controller is aborted if not already
+      // Ensure the abort controller is always cleaned up.
+      if (!signal.aborted) {
         abortController.abort();
       }
 
-      if (isTerminatedRef.current && !signal.aborted) { // If terminated by ref, ensure consistent state
+      if (isTerminatedRef.current) {
+        // If user initiated termination, set status to PAUSED
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
-      } else if (!isTerminatedRef.current) { // Only set status if not terminated
-        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: success ? EvolutionStatus.IDLE : EvolutionStatus.ERROR });
+      } else if (success) {
+        // Natural successful completion (including successful aborts handled above)
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
+      } else {
+        // Natural failure (not user-terminated, not AbortError)
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
       }
     }
     return { success, commitPerformed };
@@ -732,7 +738,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
-      // The useEvolutionPipeline's finally block and useEvolutionLoop's useEffect(isActive) handle the state update
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
