@@ -427,6 +427,10 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -458,7 +462,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0);
+      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -467,6 +471,8 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       }
     }
 
+    // Cleanup is handled by the initial useEffect for unmount.
+    // Explicitly clearing here handles `isActive` changing from true to false.
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -810,7 +816,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-));
+);
 
 // Main App Component
 export default function App() {
@@ -853,7 +859,7 @@ export default function App() {
   }, [error, addLog]);
 
   const startEvolutionProcess = useCallback(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS }); // Clear logs on new evolution start
     runEvolution();
   }, [runEvolution]);
 
