@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // --- CONFIGURATION ---
-// const APP_ID = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper"; // APP_ID appears unused
 const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
 
 // --- CONSTANTS ---
@@ -357,7 +356,7 @@ export default function App() {
       quantumPatterns = ""; // Ensure it's empty on critical failure
     }
 
-    // 2. Cerebras: Synthesize Draft
+    // 2. Cerebras: Synthesize Draft - Only if Cerebras token and patterns are available
     if (tokens.cerebras) {
       if (quantumPatterns) {
         try {
@@ -377,13 +376,13 @@ export default function App() {
           draftCode = ""; // Ensure it's empty on critical failure
         }
       } else {
-        addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
+        addLog("CEREBRAS skipped: No quantum patterns detected for synthesis.", "def");
       }
     } else {
       addLog("CEREBRAS skipped: API key missing.", "le-err");
     }
 
-    // Determine the code to send to Gemini for finalization
+    // Determine the code to send to Gemini for finalization (fallback to current code if no draft)
     let codeToFinalize = draftCode || cleanCurrentCode;
     if (!draftCode) {
         addLog("AI: Using current core as base for finalization due to Cerebras failure or skip.", "def");
