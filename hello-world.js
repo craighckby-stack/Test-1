@@ -288,7 +288,7 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY (Optimized)
+// API CLIENT FACTORY
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -316,7 +316,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS (Optimized to use the new createApiClient)
+// CUSTOM HOOKS
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
@@ -415,7 +415,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
 const useEvolutionLoop = (callback, isActive, addLog) => {
   const savedCallback = useRef();
   const timeoutRef = useRef();
-  const isActiveRef = useRef(isActive); // Track isActive changes
+  const isActiveRef = useRef(isActive);
 
   useEffect(() => {
     savedCallback.current = callback;
@@ -454,12 +454,12 @@ const useEvolutionLoop = (callback, isActive, addLog) => {
         addLog(`NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`, "le-err");
       }
       
-      if (isActiveRef.current) { // Check isActiveRef again before scheduling
+      if (isActiveRef.current) {
         timeoutRef.current = setTimeout(tick, delay);
       }
     };
 
-    if (isActive && !timeoutRef.current) { // Only start if isActive and not already running
+    if (isActive && !timeoutRef.current) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
       tick(); 
     }
@@ -470,8 +470,7 @@ const useEvolutionLoop = (callback, isActive, addLog) => {
         timeoutRef.current = null;
       }
     };
-  }, [isActive]); // Depend only on isActive to trigger start/stop logic, not addLog
-
+  }, [isActive]);
 };
 
 // Defines the structure and metadata of the evolution pipeline steps
@@ -543,7 +542,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
     } catch (e) {
       if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Consider termination as a "successful" exit from the loop, not an error state
+        success = true;
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -551,13 +550,14 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         success = false;
       }
     } finally {
-      if (!signal.aborted) { // Ensure controller is aborted if not already
+      // Ensure controller is aborted if not already
+      if (!signal.aborted) { 
         abortController.abort();
       }
 
-      if (isTerminatedRef.current && !signal.aborted) { // If terminated by ref, ensure consistent state
+      if (isTerminatedRef.current) { // If terminated by ref, ensure consistent state
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
-      } else if (!isTerminatedRef.current) { // Only set status if not terminated
+      } else if (!isTerminatedRef.current && !signal.aborted) { // Only set status if not terminated or explicitly aborted
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: success ? EvolutionStatus.IDLE : EvolutionStatus.ERROR });
       }
     }
@@ -739,7 +739,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
-      // The useEvolutionPipeline's finally block and useEvolutionLoop's useEffect(isActive) handle the state update
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
