@@ -765,7 +765,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
       const message = success
         ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit needed). Waiting for next evolution in ${delay / 1000}s.`)
-        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
+        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`
       addLog(message, success ? "nexus" : "le-err");
 
       timeoutRef.current = setTimeout(runCycle, delay);
