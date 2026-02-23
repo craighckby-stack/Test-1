@@ -298,17 +298,6 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-const EvolutionActionTypes = {
-  START_EVOLUTION: 'START_EVOLUTION',
-  STOP_EVOLUTION: 'STOP_EVOLUTION',
-  SET_STATUS: 'SET_STATUS',
-  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
-  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
-  SET_ERROR: 'SET_ERROR',
-  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT', // Unified action for pipeline context updates
-};
-
 const initialPipelineContext = {
   fileRef: null, // GitHub file reference including SHA
   fetchedCode: '',
@@ -798,7 +787,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
       const message = success
         ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit needed). Waiting for next evolution in ${delay / 1000}s.`)
-        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
+        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`
       addLog(message, success ? "nexus" : "le-err");
 
       timeoutRef.current = setTimeout(runCycle, delay);
