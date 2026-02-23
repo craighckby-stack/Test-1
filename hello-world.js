@@ -41,7 +41,6 @@ const PROMPT_INSTRUCTIONS = {
 };
 
 // --- Global Styles ---
-// This is intentionally kept as a string for direct <style> injection.
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
   
@@ -184,7 +183,6 @@ const GLOBAL_STYLES = `
   .le-warn { color: #ffcc00; border-left-color: #ffcc00; }
   .le-def { color: var(--red-dim); border-left-color: var(--red-dim); }
 
-
   .code-view {
     font-size: .85rem; 
     line-height: 1.4; 
@@ -297,18 +295,6 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-const EvolutionActionTypes = {
-  START_EVOLUTION: 'START_EVOLUTION',
-  STOP_EVOLUTION: 'STOP_EVOLUTION',
-  SET_STATUS: 'SET_STATUS',
-  SET_ERROR: 'SET_ERROR',
-  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
-  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
-  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
-  SET_COMMIT_PERFORMED: 'SET_COMMIT_PERFORMED',
-};
-
 const initialPipelineContext = {
   fileRef: null, // GitHub file reference including SHA
   fetchedCode: '',
@@ -352,6 +338,18 @@ const evolutionEngineReducer = (state, action) => {
     default:
       return state;
   }
+};
+
+const EvolutionActionTypes = {
+  START_EVOLUTION: 'START_EVOLUTION',
+  STOP_EVOLUTION: 'STOP_EVOLUTION',
+  SET_STATUS: 'SET_STATUS',
+  SET_ERROR: 'SET_ERROR',
+  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
+  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
+  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
+  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
+  SET_COMMIT_PERFORMED: 'SET_COMMIT_PERFORMED',
 };
 
 // --- API Client Factory ---
@@ -630,8 +628,6 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
 
   if (!pipelineContext.isSyntaxValid) {
     addLog("AI: Code failed syntax validation. No commit.", "le-err");
-    dispatchEvolution({ type: EvolutionActionTypes.SET_COMMIT_PERFORMED, payload: false });
-    dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' }); // Clear display on no commit
     return { ...pipelineContext, commitPerformed: false };
   }
 
@@ -649,8 +645,6 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
       // Update main engine state after successful commit
       dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: pipelineContext.evolvedCode }); // New core is the evolved code
       dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' }); // Clear evolved code from display after commit
-      dispatchEvolution({ type: EvolutionActionTypes.SET_COMMIT_PERFORMED, payload: true });
-
       return { ...pipelineContext, commitPerformed: true };
     } catch (e) {
       if (e.code === 'NO_GITHUB_TOKEN') {
@@ -661,8 +655,6 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
     }
   } else {
     addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-    dispatchEvolution({ type: EvolutionActionTypes.SET_COMMIT_PERFORMED, payload: false });
-    dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' }); // Clear display on no commit
     return { ...pipelineContext, commitPerformed: false };
   }
 }
@@ -672,13 +664,13 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
   const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async () => {
-    // Reset pipeline context at the start of each cycle
+    // Reset pipeline context at the start of each cycle in the main engine state
     dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: initialPipelineContext });
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    let currentPipelineContext = { ...initialPipelineContext }; // Internal, mutable context for steps
+    let currentPipelineContext = { ...initialPipelineContext }; // Internal, mutable context for steps within this run
     let successfulCommitThisCycle = false;
 
     try {
@@ -706,11 +698,10 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
             dispatchEvolution: dispatchEvolution // Pass main dispatch for steps to update engine-level state
           });
           
-          currentPipelineContext = updatedContext; // Update internal pipeline context
+          currentPipelineContext = updatedContext; // Update internal pipeline context for the next step
           // Update the global engine state with the current pipeline context snapshot
           dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: updatedContext });
 
-          // Check if commit was performed (managed by the committingCodeLogic step itself now)
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && updatedContext.commitPerformed) {
               successfulCommitThisCycle = true;
           }
@@ -725,7 +716,9 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
           if (!stepDef.allowFailure) {
             throw stepError; // Re-throw to halt pipeline if this step is critical
           }
-          // If step allows failure, we log and continue. pipelineContext will reflect the failure.
+          // If step allows failure, currentPipelineContext remains unchanged for its specific output,
+          // but subsequent steps can still access other parts of the context.
+          // The error is logged, and pipeline continues if allowFailure is true.
         }
       }
       return { success: true, commitPerformed: successfulCommitThisCycle };
@@ -739,8 +732,7 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
         return { success: false, commitPerformed: false, aborted: false };
       }
     } finally {
-      // Clean up abort controller reference
-      abortControllerRef.current = null;
+      abortControllerRef.current = null; // Clean up abort controller reference
     }
   }, [steps, dispatchEvolution, addLog, clients, config, prompts, isCodeSafeToCommitCheck]);
 
@@ -772,6 +764,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
   useEffect(() => {
     const runCycle = async () => {
+      // Check if component is still mounted and evolution is active
       if (!isMountedRef.current || !isActive) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -780,6 +773,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
+      // Re-check state after async operation, as component might have unmounted or isActive changed
       if (!isMountedRef.current || !isActive) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -805,7 +799,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        clearTimeout(timeoutRef.current); // Clear any existing timeout if isActive just turned true
       }
       timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
     } else {
@@ -842,7 +836,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
       return false;
     }
-    // Add more safety checks here if needed (e.g., specific keyword checks, diff analysis)
+    // Additional safety checks can be added here (e.g., diff analysis, keyword checks)
     return true;
   }, [addLog]);
 
@@ -854,7 +848,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false, action: finalizingCodeLogic },
     { name: EvolutionStatus.VALIDATING_SYNTAX, allowFailure: false, action: validatingSyntaxLogic },
     { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false, action: committingCodeLogic }
-  ], []);
+  ], []); // Dependencies are constant here
 
   // Initialize pipeline executor
   const { runPipeline, abortPipeline } = usePipelineExecutor(
@@ -874,6 +868,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     if (success) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     }
+    // Regardless of success, if commit was attempted and failed or passed, ensure displayCode clears if not committed.
+    // The `committingCodeLogic` handles setting `displayCode` to '' directly based on commit outcome.
     return { success, commitPerformed, aborted };
   }, [runPipeline, dispatch]);
 
@@ -886,6 +882,8 @@ const useEvolutionEngine = (tokens, addLog) => {
       if (!tokens.github) {
         throw Object.assign(new Error("GitHub token missing. Evolution cannot start."), { code: 'NO_GITHUB_TOKEN_INIT' });
       }
+      // Gemini and Cerebras keys are checked in their respective hooks,
+      // and steps handle their absence gracefully by skipping or warning.
       dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
