@@ -194,6 +194,7 @@ const GLOBAL_STYLES = `
   }
 `;
 
+// --- Utility Functions ---
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -210,7 +211,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
         try {
           const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
-        } catch (jsonParseError) { }
+        } catch (jsonParseError) { /* ignore */ }
         throw Object.assign(new Error(errorMessage), { httpStatus: response.status });
       }
       return await response.json();
@@ -240,6 +241,7 @@ const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
   ]
 });
 
+// --- Log System Hook ---
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -256,6 +258,38 @@ const logReducer = (state, action) => {
   }
 };
 
+const useLogSystem = () => {
+  const [logs, dispatchLog] = useReducer(logReducer, []);
+  const addLog = useCallback((msg, type = "def") => {
+    dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
+  }, []);
+  const clearLogs = useCallback(() => {
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
+  }, []);
+  return { logs, addLog, clearLogs };
+};
+
+// --- Token Management Hook ---
+const useAppTokens = () => {
+  const [tokens, setTokens] = useState(() => {
+    const savedGithub = localStorage.getItem('dalek_token_github') || "";
+    const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
+    const savedGemini = localStorage.getItem('dalek_token_gemini') || "";
+    return { github: savedGithub, cerebras: savedCerebras, gemini: savedGemini };
+  });
+
+  const handleTokenChange = useCallback((key, value) => {
+    setTokens(prev => {
+      const newTokens = { ...prev, [key]: value };
+      localStorage.setItem(`dalek_token_${key}`, value);
+      return newTokens;
+    });
+  }, [setTokens]);
+
+  return { tokens, setTokens, handleTokenChange };
+};
+
+// --- Evolution Engine State Management Hook ---
 const EvolutionStatus = {
   IDLE: 'IDLE',
   PAUSED: 'PAUSED',
@@ -322,6 +356,12 @@ const evolutionEngineReducer = (state, action) => {
   }
 };
 
+const useEvolutionState = () => {
+  const [engineState, dispatchEvolution] = useReducer(evolutionEngineReducer, initialEvolutionEngineState);
+  return { engineState, dispatchEvolution };
+};
+
+// --- API Client Factory ---
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -349,7 +389,8 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-const useExternalClients = (tokens, addLog) => {
+// --- AI Integrations Hook ---
+const useAIIntegrations = (tokens, addLog) => {
   const githubService = useMemo(() => {
     const githubToken = tokens.github;
     if (!githubToken) {
@@ -450,6 +491,7 @@ const useExternalClients = (tokens, addLog) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
+// --- Pipeline Step Definitions ---
 const fetchCoreLogic = async (pipelineContext, { clients, addLog, config, dispatchEvolution }, signal) => {
   addLog("NEXUS: Fetching current core logic from GitHub...", "nexus");
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
@@ -605,7 +647,7 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
       addLog("NEXUS: EVOLVED SUCCESSFULLY AND COMMITTED.", "ok");
       
       dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: pipelineContext.evolvedCode });
-      dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' });
+      dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' }); // Clear display after successful commit
       return { ...pipelineContext, commitPerformed: true };
     } catch (e) {
       if (e.code === 'NO_GITHUB_TOKEN') {
@@ -620,20 +662,11 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
   }
 };
 
-const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, prompts, isCodeSafeToCommitCheck) => {
+const useEvolutionPipelineExecutor = (steps, globalDependencies) => {
   const abortControllerRef = useRef(null);
 
-  const globalDependencies = useMemo(() => ({
-    clients,
-    addLog,
-    config,
-    prompts,
-    isCodeSafeToCommitCheck,
-    dispatchEvolution,
-  }), [clients, addLog, config, prompts, isCodeSafeToCommitCheck, dispatchEvolution]);
-
   const runPipeline = useCallback(async () => {
-    dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: initialPipelineContext });
+    globalDependencies.dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: initialPipelineContext });
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
@@ -642,17 +675,17 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
     let successfulCommitThisCycle = false;
 
     try {
-      dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
-      addLog("AI: PROCESSING EVOLUTION...", "nexus");
+      globalDependencies.dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
+      globalDependencies.addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
       for (const stepDef of steps) {
         if (signal.aborted) {
-          addLog("EVOLUTION: Abort signal received. Terminating pipeline.", "warn");
+          globalDependencies.addLog("EVOLUTION: Abort signal received. Terminating pipeline.", "warn");
           throw Object.assign(new Error("Pipeline aborted."), { name: "AbortError" });
         }
 
-        dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
-        addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
+        globalDependencies.dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
+        globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
           const updatedContext = await stepDef.action(
@@ -662,19 +695,19 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
           );
           
           currentPipelineContext = updatedContext;
-          dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: updatedContext });
+          globalDependencies.dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: updatedContext });
 
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && updatedContext.commitPerformed) {
               successfulCommitThisCycle = true;
           }
 
-          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
+          globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
-            addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
+            globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
             throw stepError;
           }
-          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
+          globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
           if (!stepDef.allowFailure) {
             throw stepError;
           }
@@ -683,11 +716,11 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
       return { success: true, commitPerformed: successfulCommitThisCycle };
     } catch (e) {
       if (e.name === 'AbortError') {
-        addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
+        globalDependencies.addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
         return { success: false, commitPerformed: false, aborted: true };
       } else {
-        dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
-        addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${e.message}`, "le-err");
+        globalDependencies.dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
+        globalDependencies.addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${e.message}`, "le-err");
         return { success: false, commitPerformed: false, aborted: false };
       }
     } finally {
@@ -695,19 +728,20 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
         abortControllerRef.current = null;
       }
     }
-  }, [steps, globalDependencies, dispatchEvolution, addLog]);
+  }, [steps, globalDependencies]);
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      addLog("PIPELINE: Explicit abort requested.", "nexus");
+      globalDependencies.addLog("PIPELINE: Explicit abort requested.", "nexus");
     }
-  }, [addLog]);
+  }, [globalDependencies.addLog]);
 
   return { runPipeline, abortPipeline };
 };
 
-const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
+// --- Continuous Evolution Loop Hook ---
+const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true); 
 
@@ -777,11 +811,15 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   }, [isActive, performEvolutionCallback, addLog]);
 };
 
-const useEvolutionEngine = (tokens, addLog) => {
-  const [engineState, dispatch] = useReducer(evolutionEngineReducer, initialEvolutionEngineState);
+
+// --- Main Dalek Core Orchestration Hook ---
+const useDalekCore = () => {
+  const { logs, addLog, clearLogs } = useLogSystem();
+  const { tokens, setTokens, handleTokenChange } = useAppTokens();
+  const { engineState, dispatchEvolution } = useEvolutionState();
   const { status, isEvolutionActive, displayCode, error } = engineState;
 
-  const { github, gemini, cerebras } = useExternalClients(tokens, addLog);
+  const clients = useAIIntegrations(tokens, addLog);
 
   const isCodeSafeToCommit = useCallback((code, originalCode) => {
     if (!code || code.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
@@ -804,51 +842,91 @@ const useEvolutionEngine = (tokens, addLog) => {
     { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false, action: committingCodeLogic }
   ], []);
 
-  const { runPipeline, abortPipeline } = usePipelineExecutor(
-    EVOLUTION_PIPELINE_STEPS,
-    dispatch,
+  const globalPipelineDependencies = useMemo(() => ({
+    clients,
     addLog,
-    { github, gemini, cerebras },
-    APP_CONFIG,
-    PROMPT_INSTRUCTIONS,
-    isCodeSafeToCommit
+    config: APP_CONFIG,
+    prompts: PROMPT_INSTRUCTIONS,
+    isCodeSafeToCommitCheck: isCodeSafeToCommit,
+    dispatchEvolution,
+  }), [clients, addLog, isCodeSafeToCommit, dispatchEvolution]);
+
+  const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
+    EVOLUTION_PIPELINE_STEPS,
+    globalPipelineDependencies
   );
 
   const performEvolutionCycle = useCallback(async () => {
     const { success, commitPerformed, aborted } = await runPipeline();
     if (success && !aborted) { 
-      dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
+      dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     } else if (aborted) {
-        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
+        dispatchEvolution({ type: EvolutionActionTypes.STOP_EVOLUTION });
     }
     return { success, commitPerformed, aborted };
-  }, [runPipeline, dispatch]);
+  }, [runPipeline, dispatchEvolution]);
 
-  useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
+  useContinuousEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
 
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
         throw Object.assign(new Error("GitHub token missing. Evolution cannot start."), { code: 'NO_GITHUB_TOKEN_INIT' });
       }
-      dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
+      dispatchEvolution({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
-      dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e });
+      dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
     }
-  }, [tokens.github, addLog, dispatch]);
+  }, [tokens.github, addLog, dispatchEvolution]);
 
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       abortPipeline();
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
-      dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
+      dispatchEvolution({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
-  }, [isEvolutionActive, addLog, dispatch, abortPipeline]);
+  }, [isEvolutionActive, addLog, dispatchEvolution, abortPipeline]);
+
+  // Initial token checks and error logging
+  useEffect(() => {
+    clearLogs();
+
+    if (!tokens.github) {
+      addLog("WARNING: GitHub token is missing. Core evolution and commits are disabled.", "le-err");
+      addLog("Please provide a GitHub Personal Access Token with 'repo' scope.", "le-err");
+    } else {
+      addLog("GitHub token detected. Repository access enabled.", "ok");
+    }
+
+    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
+    if (!geminiKeyPresent) { 
+      addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
+      addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
+    } else {
+      addLog("Gemini API Key detected. Gemini services enabled.", "ok");
+    }
+
+    if (!tokens.cerebras) {
+      addLog("WARNING: Cerebras AI key is missing. The code synthesis step will be skipped, impacting code generation.", "warn");
+      addLog("Please provide a Cerebras API Key to enable advanced code synthesis.", "warn");
+    } else {
+      addLog("Cerebras AI key detected. Cerebras synthesis enabled.", "ok");
+    }
+  }, [addLog, clearLogs, tokens.cerebras, tokens.github, tokens.gemini]);
+
+  useEffect(() => {
+    if (error) {
+      addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
+    }
+  }, [error, addLog]);
 
   return {
+    logs,
+    tokens,
+    setTokens: handleTokenChange, // Expose unified handler
     status,
     isEvolutionActive,
     displayCode,
@@ -859,6 +937,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   };
 };
 
+// --- React Components ---
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -870,14 +949,6 @@ const NexusControlPanel = memo(({
   tokens, setTokens, repoConfig,
   isEvolutionActive, logs, runEvolution, terminateEvolution
 }) => {
-  const handleTokenChange = useCallback((key, value) => {
-    setTokens(prev => {
-      const newTokens = { ...prev, [key]: value };
-      localStorage.setItem(`dalek_token_${key}`, value);
-      return newTokens;
-    });
-  }, [setTokens]);
-
   return (
     <div className="panel">
       <div className="panel-hdr">Nexus Configuration</div>
@@ -886,7 +957,7 @@ const NexusControlPanel = memo(({
           className="input-field"
           placeholder="GitHub Token"
           type="password"
-          onChange={e => handleTokenChange('github', e.target.value)}
+          onChange={e => setTokens('github', e.target.value)}
           value={tokens.github}
           spellCheck="false"
         />
@@ -894,7 +965,7 @@ const NexusControlPanel = memo(({
           className="input-field"
           placeholder="Gemini API Key (Required for patterns & finalization)"
           type="password"
-          onChange={e => handleTokenChange('gemini', e.target.value)}
+          onChange={e => setTokens('gemini', e.target.value)}
           value={tokens.gemini}
           spellCheck="false"
         />
@@ -902,7 +973,7 @@ const NexusControlPanel = memo(({
           className="input-field"
           placeholder="Cerebras Key (Optional for synthesis)"
           type="password"
-          onChange={e => handleTokenChange('cerebras', e.target.value)}
+          onChange={e => setTokens('cerebras', e.target.value)}
           value={tokens.cerebras}
           spellCheck="false"
         />
@@ -934,53 +1005,16 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
 )); 
 
 export default function App() {
-  const [tokens, setTokens] = useState(() => {
-    const savedGithub = localStorage.getItem('dalek_token_github') || "";
-    const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
-    const savedGemini = localStorage.getItem('dalek_token_gemini') || "";
-    return { github: savedGithub, cerebras: savedCerebras, gemini: savedGemini };
-  });
-
-  const [logs, dispatchLog] = useReducer(logReducer, []);
-  const addLog = useCallback((msg, type = "def") => {
-    dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
-  }, []);
-
-  const { isEvolutionActive, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
-    tokens, addLog
-  );
-
-  useEffect(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
-
-    if (!tokens.github) {
-      addLog("WARNING: GitHub token is missing. Core evolution and commits are disabled.", "le-err");
-      addLog("Please provide a GitHub Personal Access Token with 'repo' scope.", "le-err");
-    } else {
-      addLog("GitHub token detected. Repository access enabled.", "ok");
-    }
-
-    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
-    if (!geminiKeyPresent) { 
-      addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
-      addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
-    } else {
-      addLog("Gemini API Key detected. Gemini services enabled.", "ok");
-    }
-
-    if (!tokens.cerebras) {
-      addLog("WARNING: Cerebras AI key is missing. The code synthesis step will be skipped, impacting code generation.", "warn");
-      addLog("Please provide a Cerebras API Key to enable advanced code synthesis.", "warn");
-    } else {
-      addLog("Cerebras AI key detected. Cerebras synthesis enabled.", "ok");
-    }
-  }, [addLog, tokens.cerebras, tokens.github, tokens.gemini]);
-
-  useEffect(() => {
-    if (error) {
-      addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
-    }
-  }, [error, addLog]);
+  const {
+    logs,
+    tokens,
+    setTokens,
+    status,
+    isEvolutionActive,
+    displayCode,
+    runEvolution,
+    terminateEvolution,
+  } = useDalekCore();
 
   return (
     <div className="dalek-shell">
