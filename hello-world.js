@@ -226,20 +226,21 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
-// REDUCER ACTION TYPES - Preserved, already well-defined
+// REDUCER ACTION TYPES - Upgraded with RESTART_EVOLUTION
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
 };
 
 const EvolutionActionTypes = {
-  START_EVOLUTION: 'START_EVOLUTION',
+  START_EVOLUTION: 'START_EVOLUTION', // Still valid for potential partial activation
   STOP_EVOLUTION: 'STOP_EVOLUTION',
   SET_STATUS: 'SET_STATUS',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_EVOLVED_CODE: 'SET_EVOLVED_CODE',
   SET_ERROR: 'SET_ERROR',
-  RESET_STATE: 'RESET_STATE',
+  RESET_STATE: 'RESET_STATE', // Still valid for clearing state without activating
+  RESTART_EVOLUTION: 'RESTART_EVOLUTION', // New, atomic action to reset and start
 };
 
 const EvolutionStatus = {
@@ -254,7 +255,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS - Preserved, already optimized
+// REDUCERS - Upgraded to handle RESTART_EVOLUTION
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -289,7 +290,9 @@ const evolutionReducer = (state, action) => {
     case EvolutionActionTypes.SET_ERROR:
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, evolvedCode: '' };
     case EvolutionActionTypes.RESET_STATE:
-      return { ...initialEvolutionState }; // Reset to initial state, but keep initial status (IDLE)
+      return { ...initialEvolutionState };
+    case EvolutionActionTypes.RESTART_EVOLUTION: // New atomic action for a fresh start
+      return { ...initialEvolutionState, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null };
     default:
       return state;
   }
@@ -740,14 +743,14 @@ const useEvolutionEngine = (tokens, addLog) => {
   // Hook to manage the continuous evolution loop
   useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
 
-  // Public function to initiate evolution
+  // Public function to initiate evolution - Upgraded to use RESTART_EVOLUTION for atomicity
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
-      dispatch({ type: EvolutionActionTypes.RESET_STATE }); // Reset state for a clean start
-      dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
+      // Use RESTART_EVOLUTION to atomically reset state and initiate the evolution cycle
+      dispatch({ type: EvolutionActionTypes.RESTART_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
       dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
