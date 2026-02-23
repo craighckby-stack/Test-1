@@ -442,7 +442,7 @@ const useExternalClients = (tokens, addLog) => {
   };
 };
 
-const useEvolutionLoop = (callback, interval, isActive, addLog) => {
+const useEvolutionLoop = (callback, isActive, addLog) => { // 'interval' parameter removed
   const savedCallback = useRef();
   const timeoutRef = useRef();
 
@@ -464,7 +464,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         return;
       }
 
-      let delay = APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS;
+      let delay = APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS; // Directly using constant
       if (success) {
         const message = commitPerformed
           ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.`
@@ -497,7 +497,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         timeoutRef.current = null;
       }
     };
-  }, [isActive, addLog, interval]); // `interval` is not used directly inside `tick` but can affect behavior if passed dynamically
+  }, [isActive, addLog]); // 'interval' removed from dependencies
 };
 
 // Defines the structure and metadata of the evolution pipeline steps
@@ -602,9 +602,6 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog);
 
-  // No need for a separate `validateEvolutionEnvironment` here, as client checks are in `useExternalClients`
-  // and in individual action functions. This removes redundant validation.
-
   const isCodeSafeToCommit = useCallback((evolvedCode, originalCode) => {
     if (!evolvedCode || evolvedCode.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
@@ -618,7 +615,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [addLog]);
 
   const fetchingCoreAction = useCallback(async (ctx, signal) => {
-    // Client check is implicitly handled by github.getFile
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
     ctx.fetchedCode = utf8B64Decode(result.content);
     ctx.fileRef = result;
@@ -626,7 +622,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [github, dispatch]);
 
   const extractingPatternsAction = useCallback(async (ctx, signal) => {
-    // Client availability is handled within gemini.generateContent
     if (!gemini.generateContent) { 
       addLog("AI: Gemini client not initialized (API key missing). Skipping pattern extraction.", "warn");
       ctx.quantumPatterns = null;
@@ -654,7 +649,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [gemini, addLog]);
 
   const synthesizingDraftAction = useCallback(async (ctx, signal) => {
-    // Client availability is handled within cerebras.completeChat
     if (!cerebras.completeChat) { 
       addLog("AI: Cerebras client not initialized (API key missing). Skipping synthesis.", "warn");
       ctx.draftCode = null; 
@@ -689,7 +683,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [cerebras, addLog]);
 
   const finalizingCodeAction = useCallback(async (ctx, signal) => {
-    // Client availability is handled within gemini.generateContent
     if (!gemini.generateContent) { 
       throw new Error("AI: Gemini client not initialized (API key missing). Cannot finalize code.");
     }
@@ -724,7 +717,6 @@ const useEvolutionEngine = (tokens, addLog) => {
       if (!ctx.fileRef || !ctx.fileRef.sha) {
         throw new Error("Missing file reference (SHA) for committing code.");
       }
-      // Client check is implicitly handled by github.updateFile
       await github.updateFile(
         APP_CONFIG.GITHUB_REPO.file, ctx.evolvedCode, ctx.fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`, signal
       );
@@ -759,11 +751,10 @@ const useEvolutionEngine = (tokens, addLog) => {
     EVOLUTION_STEP_DEFINITIONS, addLog, dispatch, isEvolutionTerminatedRef, getStepAction
   );
 
-  useEvolutionLoop(performSingleEvolutionStep, APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS, isEvolutionActive, addLog);
+  useEvolutionLoop(performSingleEvolutionStep, isEvolutionActive, addLog); // 'interval' argument removed
 
   const runEvolution = useCallback(() => {
     try {
-      // Validate only what's absolutely needed for initiation (e.g., GitHub for fetching)
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
