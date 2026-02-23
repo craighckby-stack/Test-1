@@ -242,7 +242,7 @@ const evolutionReducer = (state, action) => {
       return { ...state, displayCode: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, status: 'ERROR', isEvolutionActive: false };
-    case 'RESET_STATE':
+    case 'RESET_STATE': // Currently unused but good for full reset
       return { ...initialEvolutionState, status: 'IDLE' };
     default:
       return state;
@@ -272,60 +272,71 @@ const createApiClient = (addLog, defaultHeaders = {}) => {
   };
 };
 
-// Encapsulates GitHub API interactions using the generic API client
-const useGithubClient = (token, owner, repo, branch, addLog) => {
-  const apiClient = useRef(null);
+// Consolidates initialization and interaction logic for all external API clients
+const useExternalClients = (tokens, githubConfig, addLog) => {
+  const githubApiClient = useRef(null);
+  const geminiApiClient = useRef(null);
+  const cerebrasApiClient = useRef(null);
 
+  // GitHub client initialization
   useEffect(() => {
-    if (token) {
-      apiClient.current = createApiClient(addLog, {
-        Authorization: `token ${token.trim()}`,
+    if (tokens.github) {
+      githubApiClient.current = createApiClient(addLog, {
+        Authorization: `token ${tokens.github.trim()}`,
         Accept: "application/vnd.github.v3+json",
         "Content-Type": "application/json"
       });
     } else {
-      apiClient.current = null;
+      githubApiClient.current = null;
     }
-  }, [token, addLog]);
+  }, [tokens.github, addLog]);
 
-  const getFile = useCallback(async (filePath) => {
-    if (!apiClient.current) throw new Error("GitHub client not initialized (missing token?).");
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
-    const response = await apiClient.current(url, { method: "GET" }, `GitHub Fetch ${filePath}`, "nexus");
+  // Gemini client initialization
+  useEffect(() => {
+    geminiApiClient.current = createApiClient(addLog, { "Content-Type": "application/json" });
+  }, [addLog]);
+
+  // Cerebras client initialization
+  useEffect(() => {
+    if (tokens.cerebras) {
+      cerebrasApiClient.current = createApiClient(addLog, {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${tokens.cerebras.trim()}`
+      });
+    } else {
+      cerebrasApiClient.current = null;
+    }
+  }, [tokens.cerebras, addLog]);
+
+  // GitHub operations
+  const getFile = useCallback(async (filePath = githubConfig.file) => {
+    if (!githubApiClient.current) throw new Error("GitHub client not initialized (missing token?).");
+    const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${filePath}`;
+    const response = await githubApiClient.current(url, { method: "GET" }, `GitHub Fetch ${filePath}`, "nexus");
     if (!response || !response.content) {
       throw new Error(`Failed to fetch file content for ${filePath}.`);
     }
     return response;
-  }, [owner, repo, apiClient, addLog]);
+  }, [githubApiClient, githubConfig.owner, githubConfig.repo, githubConfig.file, addLog]);
 
   const updateFile = useCallback(async (filePath, content, sha, message) => {
-    if (!apiClient.current) throw new Error("GitHub client not initialized (missing token?).");
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+    if (!githubApiClient.current) throw new Error("GitHub client not initialized (missing token?).");
+    const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${filePath}`;
     const body = {
       message: message || `DALEK_EVOLUTION_${Date.now()}`,
       content: utf8B64Encode(content),
       sha,
-      branch
+      branch: githubConfig.branch
     };
-    await apiClient.current(url, { method: "PUT", body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus");
-  }, [owner, repo, branch, apiClient, addLog]);
+    await githubApiClient.current(url, { method: "PUT", body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus");
+  }, [githubApiClient, githubConfig.owner, githubConfig.repo, githubConfig.branch, addLog]);
 
-  return { getFile, updateFile };
-};
-
-// Encapsulates Gemini API interactions using the generic API client
-const useGeminiClient = (addLog) => {
-  const apiClient = useRef(null);
-
-  useEffect(() => {
-    apiClient.current = createApiClient(addLog, { "Content-Type": "application/json" });
-  }, [addLog]);
-
+  // Gemini operations
   const generateContent = useCallback(async (systemInstruction, parts, stepName = "content generation") => {
     if (!GEMINI_API_KEY) throw new Error("Gemini API key is missing. Cannot generate content.");
-    if (!apiClient.current) throw new Error("Gemini client not initialized."); // Should always be initialized if addLog is present
+    if (!geminiApiClient.current) throw new Error("Gemini client not initialized.");
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
-    const res = await apiClient.current(geminiUrl, {
+    const res = await geminiApiClient.current(geminiUrl, {
       method: "POST",
       body: JSON.stringify({
         contents: [{ parts }],
@@ -337,30 +348,13 @@ const useGeminiClient = (addLog) => {
       throw new Error("Gemini returned empty content or no valid candidate found.");
     }
     return content;
-  }, [apiClient, addLog]);
+  }, [geminiApiClient, addLog]);
 
-  return { generateContent };
-};
-
-// Encapsulates Cerebras API interactions using the generic API client
-const useCerebrasClient = (token, addLog) => {
-  const apiClient = useRef(null);
-
-  useEffect(() => {
-    if (token) {
-      apiClient.current = createApiClient(addLog, {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token.trim()}`
-      });
-    } else {
-      apiClient.current = null;
-    }
-  }, [token, addLog]);
-
+  // Cerebras operations
   const completeChat = useCallback(async (systemContent, userContent, stepName = "chat completion") => {
-    if (!token) throw new Error("Cerebras API key is missing. Cannot complete chat.");
-    if (!apiClient.current) throw new Error("Cerebras client not initialized (missing token?).");
-    const data = await apiClient.current("https://api.cerebras.ai/v1/chat/completions", {
+    if (!tokens.cerebras) throw new Error("Cerebras API key is missing. Cannot complete chat.");
+    if (!cerebrasApiClient.current) throw new Error("Cerebras client not initialized (missing token?).");
+    const data = await cerebrasApiClient.current("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
       body: JSON.stringify({
         model: "llama3.1-70b",
@@ -375,9 +369,13 @@ const useCerebrasClient = (token, addLog) => {
       throw new Error("Cerebras returned empty content or no valid choice found.");
     }
     return content;
-  }, [apiClient, addLog]);
+  }, [cerebrasApiClient, addLog, tokens.cerebras]); // tokens.cerebras is needed for the early exit validation
 
-  return { completeChat };
+  return {
+    github: { getFile, updateFile },
+    gemini: { generateContent },
+    cerebras: { completeChat }
+  };
 };
 
 // Orchestrates the evolution cycle timing
@@ -386,6 +384,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
   const timeoutRef = useRef();
 
   useEffect(() => {
+    // Always keep the latest callback in the ref
     savedCallback.current = callback;
   }, [callback]);
 
@@ -396,7 +395,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         return;
       }
 
-      const { success, commitPerformed } = await savedCallback.current();
+      const { success, commitPerformed } = await savedCallback.current(); // Use the latest callback
 
       if (!isActive) { // Re-check isActive after callback, in case it was terminated during the async operation
         addLog("NEXUS CYCLE TERMINATED.", "nexus");
@@ -434,7 +433,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [isActive, addLog, interval]);
+  }, [isActive, addLog, interval]); // This effect does NOT depend on 'callback' directly, ensuring stable timer
 };
 
 // Pipeline runner for sequential execution of evolution steps
@@ -513,10 +512,8 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const isEvolutionTerminatedRef = useRef(false);
 
-  // Initialize specific API clients
-  const githubClient = useGithubClient(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
-  const geminiClient = useGeminiClient(addLog);
-  const cerebrasClient = useCerebrasClient(tokens.cerebras, addLog);
+  // Initialize all external API clients in a consolidated hook
+  const { github, gemini, cerebras } = useExternalClients(tokens, GITHUB_REPO_CONFIG, addLog);
 
   const validateEvolutionEnvironment = useCallback(() => {
     if (!tokens.github) { throw new Error("Missing GitHub token. Evolution halted."); }
@@ -541,7 +538,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     {
       name: 'FETCHING_CORE',
       action: async (ctx) => {
-        const result = await githubClient.getFile(GITHUB_REPO_CONFIG.file);
+        const result = await github.getFile(GITHUB_REPO_CONFIG.file);
         ctx.fetchedCode = utf8B64Decode(result.content);
         ctx.fileRef = result;
         dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: ctx.fetchedCode });
@@ -552,7 +549,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       name: 'EXTRACTING_PATTERNS',
       action: async (ctx) => {
         const cleanCode = sanitizeContent(ctx.fetchedCode, CORE_CONTENT_MAX_LENGTH);
-        ctx.quantumPatterns = await geminiClient.generateContent(
+        ctx.quantumPatterns = await gemini.generateContent(
           GEMINI_PATTERN_INSTRUCTION,
           [{ text: `CORE: ${cleanCode}` }],
           "pattern extraction"
@@ -566,20 +563,20 @@ const useEvolutionEngine = (tokens, addLog) => {
     {
       name: 'SYNTHESIZING_DRAFT',
       action: async (ctx) => {
-        if (!tokens.cerebras || !cerebrasClient.completeChat) { 
+        if (!tokens.cerebras) { // Check for Cerebras token again before attempting to call client
           addLog("AI: Cerebras client not available or key missing. Skipping synthesis.", "warn");
           return;
         }
         const sanitizedFetchedCode = sanitizeContent(ctx.fetchedCode, CORE_CONTENT_MAX_LENGTH);
         if (!ctx.quantumPatterns) {
           addLog("AI: No quantum patterns available for synthesis. Synthesizing directly from core.", "warn");
-          ctx.draftCode = await cerebrasClient.completeChat(
+          ctx.draftCode = await cerebras.completeChat(
             CEREBRAS_SYNTHESIS_INSTRUCTION,
             `CORE: ${sanitizedFetchedCode}`,
             "code synthesis"
           );
         } else {
-            ctx.draftCode = await cerebrasClient.completeChat(
+            ctx.draftCode = await cerebras.completeChat(
               CEREBRAS_SYNTHESIS_INSTRUCTION,
               `IMPROVEMENTS: ${ctx.quantumPatterns}\nCORE: ${sanitizedFetchedCode}`,
               "code synthesis"
@@ -601,7 +598,7 @@ const useEvolutionEngine = (tokens, addLog) => {
             throw new Error("No code available for finalization. This indicates a critical upstream failure.");
         }
         addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-        const rawFinalCode = await geminiClient.generateContent(
+        const rawFinalCode = await gemini.generateContent(
           GEMINI_FINALIZATION_INSTRUCTION,
           [{ text: `DRAFT_CODE: ${sanitizeContent(codeForFinalization, CORE_CONTENT_MAX_LENGTH)}\nEXISTING_CORE: ${sanitizeContent(ctx.fetchedCode, CORE_CONTENT_MAX_LENGTH)}` }],
           "core finalization"
@@ -616,7 +613,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       name: 'COMMITTING_CODE',
       action: async (ctx) => {
         if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
-          await githubClient.updateFile(
+          await github.updateFile(
             GITHUB_REPO_CONFIG.file, ctx.evolvedCode, ctx.fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
           addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
@@ -630,7 +627,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       }
     }
   ]), [
-    githubClient, geminiClient, cerebrasClient,
+    github, gemini, cerebras, // Clients are stable due to useRef and their own useEffects
     addLog, dispatch, isCodeSafeToCommit, tokens.cerebras
   ]);
 
