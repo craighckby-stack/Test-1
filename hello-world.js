@@ -690,8 +690,8 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
 
         try {
           const stepResult = await stepDef.action(
-            pipelineContextRef.current, // Pass current pipeline context
-            globalServices,             // Pass static global services
+            pipelineContextRef.current, 
+            globalServices,             
             signal
           );
           
