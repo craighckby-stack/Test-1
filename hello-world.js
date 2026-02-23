@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // --- CONFIGURATION ---
-const APP_ID = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
+// const APP_ID = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper"; // APP_ID appears unused
 const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
 
 // --- CONSTANTS ---
@@ -9,6 +9,11 @@ const EVOLUTION_CYCLE_INTERVAL_MS = 30000; // 30 seconds
 const GITHUB_CONTENT_MAX_LENGTH = 4000;
 const CORE_CONTENT_MAX_LENGTH = 3000;
 const LOG_HISTORY_LIMIT = 40;
+
+// AI System Instructions
+const GEMINI_PATTERN_INSTRUCTION = "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.";
+const CEREBRAS_SYNTHESIS_INSTRUCTION = "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY.";
+const GEMINI_FINALIZATION_INSTRUCTION = "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript.";
 
 // --- STYLES ---
 const GLOBAL_STYLES = `
@@ -218,7 +223,7 @@ const githubRequest = async (token, owner, repo, filePath, method, body = {}, sh
 
 const geminiRequest = async (systemInstruction, parts) => {
   if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured. Please insert your Google AI Studio key.");
+    throw new Error("GEMINI_API_KEY is not configured.");
   }
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
   const res = await safeFetch(geminiUrl, {
@@ -321,7 +326,6 @@ export default function App() {
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
-  const codeRef = useRef(""); // Stores the current code from GitHub for AI processing
 
   const addLog = useCallback((msg, type = "def") => {
     setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, LOG_HISTORY_LIMIT -1)]);
@@ -333,71 +337,80 @@ export default function App() {
     let quantumPatterns = "";
     let draftCode = "";
     
-    // Sanitize and truncate inputs for AI
     const cleanCurrentCode = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
-    // Note: If an external 'nodeContent' was provided, it would be sanitized here
-    // For this app, the 'source' is the 'core' itself for self-evolution.
     const cleanSourceContent = sanitizeContent(currentCodeFromGithub, GITHUB_CONTENT_MAX_LENGTH); 
 
     // 1. Gemini: Extract Patterns
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
       quantumPatterns = await geminiRequest(
-        "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.",
+        GEMINI_PATTERN_INSTRUCTION,
         [{ text: `CORE: ${cleanCurrentCode}\nSOURCE: ${cleanSourceContent}` }]
       );
-      if (!quantumPatterns) throw new Error("No useful patterns extracted.");
-      addLog("GEMINI: PATTERNS EXTRACTED", "ok");
+      if (!quantumPatterns) {
+        addLog("GEMINI: No useful patterns extracted, proceeding without specific improvements.", "def");
+      } else {
+        addLog("GEMINI: PATTERNS EXTRACTED", "ok");
+      }
     } catch (e) { 
-      addLog(`GEMINI PATTERN FAIL: ${e.message}`, "le-err"); 
+      addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}`, "le-err"); 
       quantumPatterns = ""; // Ensure it's empty on critical failure
     }
 
-    // 2. Cerebras: Synthesize Draft (only if Cerebras key and patterns are available)
-    if (tokens.cerebras && quantumPatterns) {
-      try {
-        addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
-        draftCode = await cerebrasRequest(
-          tokens.cerebras,
-          "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY.",
-          `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
-        );
-        if (!draftCode) throw new Error("No draft code synthesized.");
-        addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
-      } catch (e) { 
-        addLog(`CEREBRAS FAIL: ${e.message}`, "le-err"); 
-        draftCode = ""; // Ensure it's empty on critical failure
+    // 2. Cerebras: Synthesize Draft
+    if (tokens.cerebras) {
+      if (quantumPatterns) {
+        try {
+          addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
+          draftCode = await cerebrasRequest(
+            tokens.cerebras,
+            CEREBRAS_SYNTHESIS_INSTRUCTION,
+            `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
+          );
+          if (!draftCode) {
+            addLog("CEREBRAS: No draft code synthesized.", "def");
+          } else {
+            addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
+          }
+        } catch (e) { 
+          addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}`, "le-err"); 
+          draftCode = ""; // Ensure it's empty on critical failure
+        }
+      } else {
+        addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
       }
-    } else if (!tokens.cerebras) {
+    } else {
       addLog("CEREBRAS skipped: API key missing.", "le-err");
-    } else { // !quantumPatterns
-      addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
     }
 
     // Determine the code to send to Gemini for finalization
     let codeToFinalize = draftCode || cleanCurrentCode;
     if (!draftCode) {
-        addLog("AI: Using current core as base for finalization due to previous failures or skips.", "def");
+        addLog("AI: Using current core as base for finalization due to Cerebras failure or skip.", "def");
     }
 
     // 3. Gemini: Finalize and Seal Core
     try {
       addLog("GEMINI: SEALING CORE...", "ok");
       const finalCode = await geminiRequest(
-        "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript.",
+        GEMINI_FINALIZATION_INSTRUCTION,
         [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
       );
-      // Even with strict instructions, a final cleanup is a good safeguard.
       return cleanMarkdownCodeBlock(finalCode);
     } catch (e) {
-      addLog(`GEMINI SEAL FAIL: ${e.message}. Returning best effort.`, "le-err");
+      addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort.`, "le-err");
       return cleanMarkdownCodeBlock(codeToFinalize); // Return best effort, cleaned.
     }
-  }, [addLog, tokens.cerebras]); // Depend on addLog and cerebras token
+  }, [addLog, tokens.cerebras]);
 
   const runEvolution = useCallback(async () => {
-    if (!tokens.github || !GEMINI_API_KEY) {
-      addLog("MISSING REQUIRED API KEYS/TOKENS. Evolution halted. Check GitHub Token and GEMINI_API_KEY.", "le-err");
+    // Initial prerequisite checks
+    if (!tokens.github) {
+      addLog("MISSING GITHUB TOKEN. Evolution halted.", "le-err");
+      return;
+    }
+    if (!GEMINI_API_KEY) {
+      addLog("MISSING GEMINI_API_KEY. Evolution halted. Please insert your Google AI Studio key.", "le-err");
       return;
     }
 
@@ -406,15 +419,17 @@ export default function App() {
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     while (activeRef.current) {
+      let fileRef = null;
+      let currentCode = "";
       try {
-        // 1. Fetch current file
+        // 1. Fetch current file from GitHub
         addLog("GITHUB: FETCHING CORE...", "nexus");
-        const fileRef = await githubRequest(
+        fileRef = await githubRequest(
           tokens.github, config.owner, config.repo, config.file, "GET"
         );
-        const currentCode = utf8B64Decode(fileRef.content);
-        codeRef.current = currentCode; // Update ref for AI chain
+        currentCode = utf8B64Decode(fileRef.content);
         setDisplayCode(currentCode); // Display current code
+        addLog("GITHUB: CORE FETCHED", "ok");
 
         // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
@@ -427,8 +442,8 @@ export default function App() {
           continue; // Skip commit, try again sooner
         }
 
-        if (evolvedCode === currentCode) {
-            addLog("AI: Code unchanged, awaiting new patterns or external stimulus.", "def");
+        if (evolvedCode.trim() === currentCode.trim()) { // Trim for robust comparison
+            addLog("AI: Core logic unchanged. Awaiting new patterns or external stimulus.", "def");
         } else {
             addLog("AI: Evolution complete. New code generated.", "ok");
             // 3. Commit evolved code back to GitHub
@@ -442,6 +457,7 @@ export default function App() {
         }
 
         await wait(EVOLUTION_CYCLE_INTERVAL_MS); // Wait before next cycle
+
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}. Halting cycle.`, "le-err");
         activeRef.current = false; // Stop the loop on critical error
@@ -460,11 +476,11 @@ export default function App() {
     }
   }, [addLog]);
 
-  // Initial check for global GEMINI_API_KEY
+  // Initial warning for missing Gemini API key on load
   useEffect(() => {
     if (!GEMINI_API_KEY) {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
-      addLog("Please insert your Google AI Studio key in the CONFIGURATION section.", "le-err");
+      addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
     }
   }, [addLog]);
 
