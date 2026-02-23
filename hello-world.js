@@ -418,11 +418,12 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
       { "Content-Type": "application/json" }
     );
 
+    const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
+
     return {
       generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
-        const endpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
         const body = buildGeminiGenerateContentBody(systemInstruction, parts);
-        const res = await geminiClient.post(endpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal);
+        const res = await geminiClient.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal);
         const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!content) {
           throw new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`);
@@ -549,23 +550,21 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
   useEffect(() => {
     const runCycle = async () => {
+      // Check before starting async work
       if (!isMountedRef.current || !isActive) {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        addLog("NEXUS: Loop terminated due to unmount or deactivation.", "warn");
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        addLog("NEXUS: Loop terminated due to component unmount or deactivation.", "warn");
         return;
       }
 
       const { success, commitPerformed } = await performEvolutionCallback();
 
+      // Check after async work completes
       if (!isMountedRef.current || !isActive) {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        addLog("NEXUS: Loop terminated after cycle completion due to unmount or deactivation.", "warn");
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        addLog("NEXUS: Loop terminated after cycle completion due to component unmount or deactivation.", "warn");
         return;
       }
 
@@ -792,8 +791,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     committingCodeAction
   ]);
 
-  const { runPipeline, abortPipeline } = usePipelineExecutor(EVOLUTION_PIPELINE_STEPS, dispatch, addLog);
-
   const initialPipelineContext = useMemo(() => ({ 
     fileRef: null,
     fetchedCode: '',
@@ -803,6 +800,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     isSyntaxValid: false,
     commitPerformed: false,
   }), []);
+
+  const { runPipeline, abortPipeline } = usePipelineExecutor(EVOLUTION_PIPELINE_STEPS, dispatch, addLog);
 
   const performEvolutionCycle = useCallback(async () => {
     const { success, commitPerformed } = await runPipeline(initialPipelineContext);
@@ -910,7 +909,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-);
+)); // Added closing parenthesis and semicolon
 
 export default function App() {
   const [tokens, setTokens] = useState(() => {
