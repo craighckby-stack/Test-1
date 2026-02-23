@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useReducer } from "react";
 
 // --- CONFIGURATION ---
 const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
@@ -8,11 +8,12 @@ const EVOLUTION_CYCLE_INTERVAL_MS = 30000; // 30 seconds
 const GITHUB_CONTENT_MAX_LENGTH = 4000;
 const CORE_CONTENT_MAX_LENGTH = 3000;
 const LOG_HISTORY_LIMIT = 40;
+const MIN_EVOLVED_CODE_LENGTH = 500; // Safety check for generated code
 
 // AI System Instructions
 const GEMINI_PATTERN_INSTRUCTION = "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.";
-const CEREBRAS_SYNTHESIS_INSTRUCTION = "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY.";
-const GEMINI_FINALIZATION_INSTRUCTION = "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript.";
+const CEREBRAS_SYNTHESIS_INSTRUCTION = "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY. Ensure all original React structure, API keys, and configurations are preserved and correctly integrated, especially if they are at the top-level of the module. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.";
+const GEMINI_FINALIZATION_INSTRUCTION = "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.";
 
 // --- STYLES ---
 const GLOBAL_STYLES = `
@@ -197,62 +198,115 @@ const cleanMarkdownCodeBlock = (code) => code.replace(/^```[a-z]*\n|```$/g, "").
 const sanitizeContent = (content, maxLength) => 
   content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength);
 
-// --- API UTILITIES ---
-const githubRequest = async (token, owner, repo, filePath, method, body = {}, sha = null, branch = "main") => {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
-  const headers = {
-    Authorization: `token ${token.trim()}`,
-    Accept: "application/vnd.github.v3+json",
-    "Content-Type": "application/json"
-  };
+// --- STATE MANAGEMENT ---
+const logReducer = (state, action) => {
+  switch (action.type) {
+    case 'ADD_LOG':
+      return [{ text: `[${new Date().toLocaleTimeString()}] ${action.payload.msg}`, type: action.payload.type }, ...state.slice(0, LOG_HISTORY_LIMIT - 1)];
+    case 'CLEAR_LOGS':
+      return [];
+    default:
+      return state;
+  }
+};
 
-  const options = { method, headers };
+// --- API UTILITIES (CUSTOM HOOKS) ---
 
-  if (method === "PUT") {
-    options.body = JSON.stringify({
-      message: body.message || `DALEK_EVOLUTION_${Date.now()}`,
-      content: utf8B64Encode(body.content),
-      sha,
-      branch
+const useGithubApi = (token, owner, repo, branch, addLog) => {
+  const request = useCallback(async (filePath, method, body = {}, sha = null) => {
+    if (!token) {
+      throw new Error("GitHub token is not configured.");
+    }
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+    const headers = {
+      Authorization: `token ${token.trim()}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    };
+
+    const options = { method, headers };
+
+    if (method === "PUT") {
+      options.body = JSON.stringify({
+        message: body.message || `DALEK_EVOLUTION_${Date.now()}`,
+        content: utf8B64Encode(body.content),
+        sha,
+        branch
+      });
+    }
+
+    return safeFetch(url, options);
+  }, [token, owner, repo, branch]);
+
+  const getFile = useCallback(async (filePath) => {
+    addLog(`GITHUB: Fetching ${filePath}...`, "nexus");
+    const response = await request(filePath, "GET");
+    addLog(`GITHUB: Fetched ${filePath}`, "ok");
+    return response;
+  }, [request, addLog]);
+
+  const updateFile = useCallback(async (filePath, content, sha, message) => {
+    addLog(`GITHUB: Committing ${filePath}...`, "nexus");
+    await request(filePath, "PUT", { content, message }, sha);
+    addLog(`GITHUB: Committed ${filePath}`, "ok");
+  }, [request, addLog]);
+
+  return { getFile, updateFile };
+};
+
+const useGeminiApi = (apiKey, addLog) => {
+  const generateContent = useCallback(async (systemInstruction, parts) => {
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
+    addLog("GEMINI: Generating content...", "quantum");
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const res = await safeFetch(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        systemInstruction: { parts: [{ text: systemInstruction }] }
+      })
     });
-  }
+    const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!content) {
+      addLog("GEMINI: No content generated.", "def");
+    }
+    return content;
+  }, [apiKey, addLog]);
 
-  return safeFetch(url, options);
+  return { generateContent };
 };
 
-const geminiRequest = async (systemInstruction, parts) => {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured.");
-  }
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await safeFetch(geminiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      systemInstruction: { parts: [{ text: systemInstruction }] }
-    })
-  });
-  return res.candidates?.[0]?.content?.parts?.[0]?.text || "";
-};
+const useCerebrasApi = (token, addLog) => {
+  const completeChat = useCallback(async (systemContent, userContent) => {
+    if (!token) {
+      throw new Error("Cerebras API key is not configured.");
+    }
+    addLog("CEREBRAS: Completing chat...", "def");
+    const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${token.trim()}` 
+      },
+      body: JSON.stringify({
+        model: "llama3.1-70b",
+        messages: [
+          { role: "system", content: systemContent }, 
+          { role: "user", content: userContent }
+        ]
+      })
+    });
+    const content = data.choices[0].message.content;
+    if (!content) {
+      addLog("CEREBRAS: No content generated.", "def");
+    }
+    return content;
+  }, [token, addLog]);
 
-const cerebrasRequest = async (token, systemContent, userContent) => {
-  if (!token) throw new Error("Cerebras API key is not configured.");
-  const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json", 
-      "Authorization": `Bearer ${token.trim()}` 
-    },
-    body: JSON.stringify({
-      model: "llama3.1-70b",
-      messages: [
-        { role: "system", content: systemContent }, 
-        { role: "user", content: userContent }
-      ]
-    })
-  });
-  return data.choices[0].message.content;
+  return { completeChat };
 };
 
 // --- COMPONENTS ---
@@ -320,15 +374,19 @@ export default function App() {
     branch: "Nexus-Database", 
     file: "hello-world.js" 
   });
-  const [logs, setLogs] = useState([]);
+  const [logs, dispatchLog] = useReducer(logReducer, []);
   const [loading, setLoading] = useState(false);
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
 
   const addLog = useCallback((msg, type = "def") => {
-    setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, LOG_HISTORY_LIMIT -1)]);
-  }, []);
+    dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
+  }, [dispatchLog]);
+
+  const githubApi = useGithubApi(tokens.github, config.owner, config.repo, config.branch, addLog);
+  const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
+  const cerebrasApi = useCerebrasApi(tokens.cerebras, addLog);
 
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
@@ -342,7 +400,7 @@ export default function App() {
     // 1. Gemini: Extract Patterns
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
-      quantumPatterns = await geminiRequest(
+      quantumPatterns = await geminiApi.generateContent(
         GEMINI_PATTERN_INSTRUCTION,
         [{ text: `CORE: ${cleanCurrentCode}\nSOURCE: ${cleanSourceContent}` }]
       );
@@ -361,8 +419,7 @@ export default function App() {
       if (quantumPatterns) {
         try {
           addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
-          draftCode = await cerebrasRequest(
-            tokens.cerebras,
+          draftCode = await cerebrasApi.completeChat(
             CEREBRAS_SYNTHESIS_INSTRUCTION,
             `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
           );
@@ -391,7 +448,7 @@ export default function App() {
     // 3. Gemini: Finalize and Seal Core
     try {
       addLog("GEMINI: SEALING CORE...", "ok");
-      const finalCode = await geminiRequest(
+      const finalCode = await geminiApi.generateContent(
         GEMINI_FINALIZATION_INSTRUCTION,
         [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
       );
@@ -400,16 +457,31 @@ export default function App() {
       addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort.`, "le-err");
       return cleanMarkdownCodeBlock(codeToFinalize); // Return best effort, cleaned.
     }
-  }, [addLog, tokens.cerebras]);
+  }, [addLog, tokens.cerebras, cerebrasApi, geminiApi]);
 
-  const runEvolution = useCallback(async () => {
-    // Initial prerequisite checks
+  const validateInitialEvolutionConfig = useCallback(() => {
     if (!tokens.github) {
       addLog("MISSING GITHUB TOKEN. Evolution halted.", "le-err");
-      return;
+      return false;
     }
     if (!GEMINI_API_KEY) {
       addLog("MISSING GEMINI_API_KEY. Evolution halted. Please insert your Google AI Studio key.", "le-err");
+      return false;
+    }
+    return true;
+  }, [addLog, tokens.github]);
+
+  const isCodeSafeToCommit = useCallback((evolvedCode, currentCode) => {
+    if (!evolvedCode || evolvedCode.length < MIN_EVOLVED_CODE_LENGTH) {
+      addLog(`Evolution safety trigger: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars) or empty. Retaining current core.`, "le-err");
+      return false;
+    }
+    // Further checks could be added here, e.g., linting, basic parsing, etc.
+    return true;
+  }, [addLog]);
+
+  const runEvolution = useCallback(async () => {
+    if (!validateInitialEvolutionConfig()) {
       return;
     }
 
@@ -417,28 +489,22 @@ export default function App() {
     setLoading(true);
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
-    while (activeRef.current) {
+    const performSingleEvolutionStep = async () => {
       let fileRef = null;
       let currentCode = "";
       try {
         // 1. Fetch current file from GitHub
-        addLog("GITHUB: FETCHING CORE...", "nexus");
-        fileRef = await githubRequest(
-          tokens.github, config.owner, config.repo, config.file, "GET"
-        );
+        fileRef = await githubApi.getFile(config.file);
         currentCode = utf8B64Decode(fileRef.content);
         setDisplayCode(currentCode); // Display current code
-        addLog("GITHUB: CORE FETCHED", "ok");
 
         // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
         const evolvedCode = await callAIChain(currentCode);
 
         // Safety check for code integrity
-        if (!evolvedCode || evolvedCode.length < 500) { // Minimum reasonable code length
-          addLog("Evolution safety trigger: Evolved code too short or empty. Retaining current core.", "le-err");
-          await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Short wait before re-attempt
-          continue; // Skip commit, try again sooner
+        if (!isCodeSafeToCommit(evolvedCode, currentCode)) {
+          return false; // Indicates an issue, but not a full critical failure
         }
 
         if (evolvedCode.trim() === currentCode.trim()) { // Trim for robust comparison
@@ -446,25 +512,31 @@ export default function App() {
         } else {
             addLog("AI: Evolution complete. New code generated.", "ok");
             // 3. Commit evolved code back to GitHub
-            addLog("GITHUB: COMMITTING EVOLVED CORE...", "nexus");
-            await githubRequest(
-                tokens.github, config.owner, config.repo, config.file, "PUT",
-                { content: evolvedCode, message: `DALEK_EVOLUTION_${Date.now()}` },
-                fileRef.sha, config.branch
+            await githubApi.updateFile(
+                config.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
             );
             addLog("NEXUS EVOLVED SUCCESSFULLY", "ok");
         }
-
-        await wait(EVOLUTION_CYCLE_INTERVAL_MS); // Wait before next cycle
-
+        return true; // Step successful
       } catch (e) {
-        addLog(`CRITICAL NEXUS FAILURE: ${e.message}. Halting cycle.`, "le-err");
-        activeRef.current = false; // Stop the loop on critical error
+        addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
+        return false; // Step failed critically
+      }
+    };
+
+    while (activeRef.current) {
+      const stepSuccessful = await performSingleEvolutionStep();
+      if (!stepSuccessful) {
+        // If a step failed (e.g., API error or safety check), log and wait, then try again
+        addLog("NEXUS CYCLE PAUSED DUE TO STEP FAILURE. Attempting restart after delay.", "nexus");
+        await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Shorter wait for recovery
+      } else {
+        await wait(EVOLUTION_CYCLE_INTERVAL_MS); // Regular interval after a successful step
       }
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, tokens.github, config, callAIChain]);
+  }, [addLog, config, tokens.github, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi]);
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
