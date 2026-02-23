@@ -4,6 +4,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 const APP_ID = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-bootstrapper";
 const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
 
+// --- CONSTANTS ---
+const EVOLUTION_CYCLE_INTERVAL_MS = 30000; // 30 seconds
+const GITHUB_CONTENT_MAX_LENGTH = 4000;
+const CORE_CONTENT_MAX_LENGTH = 3000;
+const LOG_HISTORY_LIMIT = 40;
+
 // --- STYLES ---
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
@@ -178,10 +184,14 @@ const safeFetch = async (url, options, retries = 3) => {
       return result;
     } catch (e) {
       if (i === retries - 1) throw e;
-      await wait(1000 * (i + 1));
+      await wait(1000 * (i + 1)); // Exponential backoff
     }
   }
 };
+
+const cleanMarkdownCodeBlock = (code) => code.replace(/^```[a-z]*\n|```$/g, "").trim();
+const sanitizeContent = (content, maxLength) => 
+  content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength);
 
 // --- API UTILITIES ---
 const githubRequest = async (token, owner, repo, filePath, method, body = {}, sha = null, branch = "main") => {
@@ -207,7 +217,9 @@ const githubRequest = async (token, owner, repo, filePath, method, body = {}, sh
 };
 
 const geminiRequest = async (systemInstruction, parts) => {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured. Please insert your Google AI Studio key.");
+  }
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
   const res = await safeFetch(geminiUrl, {
     method: "POST",
@@ -249,7 +261,7 @@ const DalekHeader = ({ isLoading }) => (
 
 const NexusControlPanel = ({
   tokens, setTokens, config, 
-  isLoading, logs, addLog, runEvolution, terminateEvolution
+  isLoading, logs, runEvolution, terminateEvolution
 }) => {
   return (
     <div className="panel">
@@ -312,55 +324,60 @@ export default function App() {
   const codeRef = useRef(""); // Stores the current code from GitHub for AI processing
 
   const addLog = useCallback((msg, type = "def") => {
-    setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, 40)]);
+    setLogs((p) => [{ text: `[${new Date().toLocaleTimeString()}] ${msg}`, type }, ...p.slice(0, LOG_HISTORY_LIMIT -1)]);
   }, []);
 
-  const callAIChain = useCallback(async (nodeContent) => {
+  const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
+    
     let quantumPatterns = "";
     let draftCode = "";
     
-    const cleanContent = nodeContent.replace(/[^\x20-\x7E\n]/g, "").substring(0, 4000);
-    const cleanCore = codeRef.current.replace(/[^\x20-\x7E\n]/g, "").substring(0, 3000);
+    // Sanitize and truncate inputs for AI
+    const cleanCurrentCode = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
+    // Note: If an external 'nodeContent' was provided, it would be sanitized here
+    // For this app, the 'source' is the 'core' itself for self-evolution.
+    const cleanSourceContent = sanitizeContent(currentCodeFromGithub, GITHUB_CONTENT_MAX_LENGTH); 
 
     // 1. Gemini: Extract Patterns
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
       quantumPatterns = await geminiRequest(
         "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.",
-        [{ text: `CORE: ${cleanCore}\nSOURCE: ${cleanContent}` }]
+        [{ text: `CORE: ${cleanCurrentCode}\nSOURCE: ${cleanSourceContent}` }]
       );
-      if (!quantumPatterns) throw new Error("No patterns extracted.");
+      if (!quantumPatterns) throw new Error("No useful patterns extracted.");
       addLog("GEMINI: PATTERNS EXTRACTED", "ok");
     } catch (e) { 
       addLog(`GEMINI PATTERN FAIL: ${e.message}`, "le-err"); 
-      // Continue without patterns if extraction fails critically
+      quantumPatterns = ""; // Ensure it's empty on critical failure
     }
 
-    // 2. Cerebras: Synthesize Draft
-    if (tokens.cerebras && quantumPatterns) { // Only call Cerebras if token and patterns exist
+    // 2. Cerebras: Synthesize Draft (only if Cerebras key and patterns are available)
+    if (tokens.cerebras && quantumPatterns) {
       try {
         addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
         draftCode = await cerebrasRequest(
           tokens.cerebras,
           "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY.",
-          `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCore}`
+          `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
         );
         if (!draftCode) throw new Error("No draft code synthesized.");
         addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
       } catch (e) { 
         addLog(`CEREBRAS FAIL: ${e.message}`, "le-err"); 
+        draftCode = ""; // Ensure it's empty on critical failure
       }
-    } else if (tokens.cerebras && !quantumPatterns) {
-      addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
-    } else {
+    } else if (!tokens.cerebras) {
       addLog("CEREBRAS skipped: API key missing.", "le-err");
+    } else { // !quantumPatterns
+      addLog("CEREBRAS skipped: No quantum patterns to apply.", "def");
     }
 
-    // Fallback to existing core if no draft was produced
+    // Determine the code to send to Gemini for finalization
+    let codeToFinalize = draftCode || cleanCurrentCode;
     if (!draftCode) {
-        draftCode = cleanCore;
-        addLog("Using existing core as draft due to previous failures.", "def");
+        addLog("AI: Using current core as base for finalization due to previous failures or skips.", "def");
     }
 
     // 3. Gemini: Finalize and Seal Core
@@ -368,19 +385,19 @@ export default function App() {
       addLog("GEMINI: SEALING CORE...", "ok");
       const finalCode = await geminiRequest(
         "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript.",
-        [{ text: `DRAFT_CODE: ${draftCode}\nEXISTING_CORE: ${cleanCore}` }]
+        [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
       );
-      // Clean markdown if it somehow slips through despite instructions
-      return finalCode.replace(/^```[a-z]*\n|```$/g, "").trim();
+      // Even with strict instructions, a final cleanup is a good safeguard.
+      return cleanMarkdownCodeBlock(finalCode);
     } catch (e) {
-      addLog(`GEMINI SEAL FAIL: ${e.message}`, "le-err");
-      return draftCode.replace(/^```[a-z]*\n|```$/g, "").trim(); // Return best effort
+      addLog(`GEMINI SEAL FAIL: ${e.message}. Returning best effort.`, "le-err");
+      return cleanMarkdownCodeBlock(codeToFinalize); // Return best effort, cleaned.
     }
   }, [addLog, tokens.cerebras]); // Depend on addLog and cerebras token
 
   const runEvolution = useCallback(async () => {
     if (!tokens.github || !GEMINI_API_KEY) {
-      addLog("MISSING API KEYS/TOKENS. Evolution halted.", "le-err");
+      addLog("MISSING REQUIRED API KEYS/TOKENS. Evolution halted. Check GitHub Token and GEMINI_API_KEY.", "le-err");
       return;
     }
 
@@ -404,11 +421,14 @@ export default function App() {
         const evolvedCode = await callAIChain(currentCode);
 
         // Safety check for code integrity
-        if (!evolvedCode || evolvedCode.length < 500) {
-          throw new Error("Evolution safety trigger: Evolved code too short or empty.");
+        if (!evolvedCode || evolvedCode.length < 500) { // Minimum reasonable code length
+          addLog("Evolution safety trigger: Evolved code too short or empty. Retaining current core.", "le-err");
+          await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Short wait before re-attempt
+          continue; // Skip commit, try again sooner
         }
+
         if (evolvedCode === currentCode) {
-            addLog("AI: Code unchanged, awaiting new patterns.", "def");
+            addLog("AI: Code unchanged, awaiting new patterns or external stimulus.", "def");
         } else {
             addLog("AI: Evolution complete. New code generated.", "ok");
             // 3. Commit evolved code back to GitHub
@@ -421,9 +441,9 @@ export default function App() {
             addLog("NEXUS EVOLVED SUCCESSFULLY", "ok");
         }
 
-        await wait(30000); // Wait 30 seconds before next cycle
+        await wait(EVOLUTION_CYCLE_INTERVAL_MS); // Wait before next cycle
       } catch (e) {
-        addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
+        addLog(`CRITICAL NEXUS FAILURE: ${e.message}. Halting cycle.`, "le-err");
         activeRef.current = false; // Stop the loop on critical error
       }
     }
@@ -432,8 +452,20 @@ export default function App() {
   }, [addLog, tokens.github, config, callAIChain]);
 
   const terminateEvolution = useCallback(() => {
-    activeRef.current = false;
-    addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
+    if (activeRef.current) {
+      activeRef.current = false;
+      addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
+    } else {
+      addLog("NEXUS CYCLE NOT ACTIVE.", "def");
+    }
+  }, [addLog]);
+
+  // Initial check for global GEMINI_API_KEY
+  useEffect(() => {
+    if (!GEMINI_API_KEY) {
+      addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
+      addLog("Please insert your Google AI Studio key in the CONFIGURATION section.", "le-err");
+    }
   }, [addLog]);
 
   return (
@@ -448,7 +480,6 @@ export default function App() {
           config={config}
           isLoading={loading} 
           logs={logs} 
-          addLog={addLog}
           runEvolution={runEvolution}
           terminateEvolution={terminateEvolution}
         />
