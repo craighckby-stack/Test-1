@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
+// Centralized API keys (PLACEHOLDER - in a real app, use environment variables)
 const APP_EMBEDDED_API_KEYS = {
   GEMINI: "", // Placeholder for embedded key
 };
 
+// Core application configuration
 const APP_CONFIG = {
   GITHUB_REPO: {
     owner: "craighckby-stack",
@@ -15,7 +17,7 @@ const APP_CONFIG = {
   CORE_CONTENT_MAX_LENGTH: 3000,
   LOG_HISTORY_LIMIT: 40,
   MIN_EVOLVED_CODE_LENGTH: 500,
-  MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
+    MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
   API: {
     GEMINI: {
       MODEL: "gemini-2.5-flash-preview-09-2025",
@@ -34,12 +36,14 @@ const APP_CONFIG = {
   }
 };
 
+// AI prompt instructions
 const PROMPT_INSTRUCTIONS = {
   GEMINI_PATTERN: "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.",
   CEREBRAS_SYNTHESIS: "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY. Ensure all original React structure, API keys, and configurations are preserved and correctly integrated, especially if they are at the top-level of the module. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.",
   GEMINI_FINALIZATION: "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.",
 };
 
+// Global CSS styles for the application
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
   
@@ -195,6 +199,7 @@ const GLOBAL_STYLES = `
   }
 `;
 
+// Custom error class for application-specific errors
 class AppError extends Error {
   constructor(message, code = 'GENERIC_ERROR', originalError = null, httpStatus = null, isUserAbort = false) {
     super(message);
@@ -207,6 +212,7 @@ class AppError extends Error {
   }
 }
 
+// Utility functions
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -250,6 +256,7 @@ const validateJavaScriptSyntax = (code) => {
   try { new Function(code); return true; } catch (e) { return false; }
 };
 
+// Log system reducer and hook
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -277,6 +284,7 @@ const useLogSystem = () => {
   return { logs, addLog, clearLogs };
 };
 
+// Application token management hook
 const useAppTokens = () => {
   const [tokens, setTokens] = useState(() => {
     try {
@@ -305,6 +313,7 @@ const useAppTokens = () => {
   return { tokens, handleTokenChange };
 };
 
+// Evolution engine status definitions
 const EvolutionStatus = {
   IDLE: 'IDLE',
   PAUSED: 'PAUSED',
@@ -318,6 +327,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
+// Initial state for the evolution engine
 const initialEvolutionEngineState = {
   status: EvolutionStatus.IDLE,
   isEvolutionActive: false,
@@ -335,18 +345,17 @@ const initialEvolutionEngineState = {
   },
 };
 
+// Evolution engine action types
 const EvolutionActionTypes = {
   START_EVOLUTION: 'START_EVOLUTION',
   STOP_EVOLUTION: 'STOP_EVOLUTION',
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  UPDATE_PIPELINE_CONTEXT: 'UPDATE_PIPELINE_CONTEXT', // Deprecated, replaced by UPDATE_STATE_FROM_STEP
-  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
-  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
-  UPDATE_STATE_FROM_STEP: 'UPDATE_STATE_FROM_STEP',
+  UPDATE_STATE_FROM_STEP: 'UPDATE_STATE_FROM_STEP', // Unified update action
 };
 
+// Evolution engine reducer
 const evolutionEngineReducer = (state, action) => {
   switch (action.type) {
     case EvolutionActionTypes.START_EVOLUTION:
@@ -359,12 +368,6 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode || '' };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState, currentCoreCode: state.currentCoreCode, displayCode: state.currentCoreCode };
-    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT: 
-      return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
-    case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
-      return { ...state, currentCoreCode: action.payload };
-    case EvolutionActionTypes.SET_DISPLAY_CODE:
-      return { ...state, displayCode: action.payload };
     case EvolutionActionTypes.UPDATE_STATE_FROM_STEP:
       return {
         ...state,
@@ -379,11 +382,13 @@ const evolutionEngineReducer = (state, action) => {
   }
 };
 
+// Hook for evolution engine state management
 const useEvolutionState = () => {
   const [engineState, dispatchEvolution] = useReducer(evolutionEngineReducer, initialEvolutionEngineState);
   return { engineState, dispatchEvolution };
 };
 
+// Generic API client creation factory
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -412,43 +417,57 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
+// Hook for AI service integrations (GitHub, Gemini, Cerebras)
 const useAIIntegrations = (tokens, addLog) => {
-  const getApiClientInstance = useCallback((apiConfig, token, name, defaultHeaders = {}, isKeyInUrl = false) => {
-    const effectiveToken = token.trim() || apiConfig.DEFAULT_KEY;
+  // Memoize API client instances based on tokens
+  const clients = useMemo(() => {
+    const getApiClientInstance = (apiConfig, token, name, defaultHeaders = {}, isKeyInUrl = false) => {
+      const effectiveToken = token.trim() || apiConfig.DEFAULT_KEY;
 
-    if (!effectiveToken && apiConfig.DEFAULT_KEY === '' && name !== "GitHub") {
-      addLog(`WARNING: ${name} client not ready: API key missing or not embedded.`, `NO_${name.toUpperCase()}_KEY_WARN`);
-      return null;
-    }
-    
-    let authHeader = {};
-    if (effectiveToken && !isKeyInUrl) {
-        authHeader = { Authorization: `Bearer ${effectiveToken}` };
-    }
+      if (!effectiveToken && apiConfig.DEFAULT_KEY === '' && name !== "GitHub") {
+        addLog(`WARNING: ${name} client not ready: API key missing or not embedded.`, `NO_${name.toUpperCase()}_KEY_WARN`);
+        return null;
+      }
+      
+      let authHeader = {};
+      if (effectiveToken && !isKeyInUrl) {
+          authHeader = { Authorization: `Bearer ${effectiveToken}` };
+      }
 
-    return createApiClient(
-      apiConfig.BASE_URL,
-      addLog,
-      { ...defaultHeaders, ...authHeader }
-    );
-  }, [addLog]);
+      return createApiClient(
+        apiConfig.BASE_URL,
+        addLog,
+        { ...defaultHeaders, ...authHeader }
+      );
+    };
 
-  const githubService = useMemo(() => {
-    const client = getApiClientInstance(
+    const githubClient = getApiClientInstance(
       APP_CONFIG.API.GITHUB,
       tokens.github,
       "GitHub",
       { Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" }
     );
-    
-    if (!client) {
-        return null;
-    }
 
-    return {
+    const geminiClient = getApiClientInstance(
+      APP_CONFIG.API.GEMINI,
+      tokens.gemini,
+      "Gemini",
+      { "Content-Type": "application/json" },
+      true
+    );
+
+    const cerebrasClient = getApiClientInstance(
+      APP_CONFIG.API.CEREBRAS,
+      tokens.cerebras,
+      "Cerebras",
+      { "Content-Type": "application/json" }
+    );
+
+    // GitHub Service
+    const githubService = githubClient ? {
       getFile: async (filePath = APP_CONFIG.GITHUB_REPO.file, signal = null) => {
         const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}?ref=${APP_CONFIG.GITHUB_REPO.branch}`;
-        const response = await client.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
+        const response = await githubClient.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
         if (!response || !response.content) {
           throw new AppError(`Failed to fetch file content for ${filePath}.`, 'GITHUB_FETCH_FAILED');
         }
@@ -462,81 +481,59 @@ const useAIIntegrations = (tokens, addLog) => {
           sha,
           branch: APP_CONFIG.GITHUB_REPO.branch
         };
-        await client.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
+        await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
-    };
-  }, [tokens.github, getApiClientInstance]);
+    } : null;
 
-  const geminiService = useMemo(() => {
-    const client = getApiClientInstance(
-      APP_CONFIG.API.GEMINI,
-      tokens.gemini,
-      "Gemini",
-      { "Content-Type": "application/json" },
-      true
-    );
-    
-    if (!client) {
-        return null;
-    }
+    // Gemini Service
+    const geminiService = geminiClient ? (() => {
+      const geminiApiKey = tokens.gemini.trim() || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
+      const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
 
-    const geminiApiKey = tokens.gemini.trim() || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
-    const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
+      const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
+        contents: [{ parts: userParts }],
+        systemInstruction: { parts: [{ text: systemInstruction }] }
+      });
 
-    const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
-      contents: [{ parts: userParts }],
-      systemInstruction: { parts: [{ text: systemInstruction }] }
-    });
-
-    return {
-      generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
-        const body = buildGeminiGenerateContentBody(systemInstruction, parts);
-        const res = await client.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal); 
-        const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (!content) {
-          throw new AppError(`Gemini returned empty content or no valid candidate found for ${stepName}.`, 'GEMINI_EMPTY_RESPONSE');
+      return {
+        generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
+          const body = buildGeminiGenerateContentBody(systemInstruction, parts);
+          const res = await geminiClient.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal); 
+          const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (!content) {
+            throw new AppError(`Gemini returned empty content or no valid candidate found for ${stepName}.`, 'GEMINI_EMPTY_RESPONSE');
+          }
+          return content;
         }
-        return content;
-      }
-    };
-  }, [tokens.gemini, getApiClientInstance]);
+      };
+    })() : null;
 
-  const cerebrasService = useMemo(() => {
-    const client = getApiClientInstance(
-      APP_CONFIG.API.CEREBRAS,
-      tokens.cerebras,
-      "Cerebras",
-      { "Content-Type": "application/json" }
-    );
-    
-    if (!client) {
-        return null;
-    }
-
-    const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
-      model: APP_CONFIG.API.CEREBRAS.MODEL,
-      messages: [
-        { role: "system", content: systemContent },
-        { role: "user", content: userContent }
-      ]
-    });
-
-    return {
+    // Cerebras Service
+    const cerebrasService = cerebrasClient ? {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
-        const body = buildCerebrasChatCompletionBody(systemContent, userContent);
-        const data = await client.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
+        const body = {
+          model: APP_CONFIG.API.CEREBRAS.MODEL,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent }
+          ]
+        };
+        const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
         const content = data.choices?.[0]?.message?.content || "";
         if (!content) {
           throw new AppError(`Cerebras returned empty content or no valid choice found for ${stepName}.`, 'CEREBRAS_EMPTY_RESPONSE');
         }
         return content;
       }
-    };
-  }, [tokens.cerebras, getApiClientInstance]);
+    } : null;
 
-  return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
+    return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
+  }, [tokens.github, tokens.gemini, tokens.cerebras, addLog]);
+
+  return clients;
 };
 
+// Pipeline Step Definitions
 const fetchCoreLogic = async (currentEngineState, { clients, config, addLog }, signal) => {
   if (!clients.github) {
     throw new AppError("GitHub client not available. Cannot fetch core logic.", "GITHUB_CLIENT_UNAVAILABLE");
@@ -561,7 +558,7 @@ const extractingPatternsLogic = async (currentEngineState, { clients, config, pr
   }
   if (!clients.gemini) {
     addLog("WARNING: Gemini client not available. Skipping pattern extraction.", "warn");
-    return { pipeline: { quantumPatterns: null } }; // Allow failure
+    return { pipeline: { quantumPatterns: null } }; 
   }
 
   const cleanCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
@@ -585,7 +582,7 @@ const synthesizingDraftLogic = async (currentEngineState, { clients, config, pro
   }
   if (!clients.cerebras) {
     addLog("WARNING: Cerebras client not available. Skipping synthesis step.", "warn");
-    return { pipeline: { draftCode: null } }; // Allow failure
+    return { pipeline: { draftCode: null } }; 
   }
 
   const sanitizedFetchedCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
@@ -610,7 +607,7 @@ const synthesizingDraftLogic = async (currentEngineState, { clients, config, pro
 
 const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config, prompts }, signal) => {
   const { draftCode, fetchedCode } = currentEngineState.pipeline;
-  const codeForFinalization = draftCode || fetchedCode;
+  const codeForFinalization = draftCode || fetchedCode; // Use draft if available, else original
   if (!codeForFinalization) {
     throw new AppError("No code available for finalization. Critical upstream failure.", 'NO_CODE_TO_FINALIZE');
   }
@@ -688,10 +685,11 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
   };
 };
 
+// Hook for executing the evolution pipeline
 const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispatchEvolution) => {
   const abortControllerRef = useRef(null);
   const { addLog } = globalServices;
-  const engineStateRef = useRef(engineState);
+  const engineStateRef = useRef(engineState); // Keep a ref to the latest engineState for internal pipeline logic
 
   useEffect(() => {
       engineStateRef.current = engineState;
@@ -706,7 +704,10 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
     let successfulCommitThisCycle = false;
     let pipelineAborted = false;
 
-    let currentLocalState = { ...engineStateRef.current };
+    // Use a local mutable state for the pipeline execution to ensure sequential updates
+    // before dispatching to the global state. This prevents race conditions or stale
+    // state being passed between synchronous step actions within the loop.
+    let currentPipelineLocalState = { ...engineStateRef.current }; 
 
     try {
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
@@ -723,15 +724,18 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         addLog(`NEXUS: ${stepDisplayName} initiated.`, "nexus");
 
         try {
-          const stepResult = await stepDef.action(currentLocalState, globalServices, signal);
+          // Pass the current *local* state to the step action
+          const stepResult = await stepDef.action(currentPipelineLocalState, globalServices, signal);
           
-          currentLocalState = {
-            ...currentLocalState,
-            ...(stepResult.pipeline && { pipeline: { ...currentLocalState.pipeline, ...stepResult.pipeline } }),
+          // Update the local state with the results for subsequent steps
+          currentPipelineLocalState = {
+            ...currentPipelineLocalState,
+            ...(stepResult.pipeline && { pipeline: { ...currentPipelineLocalState.pipeline, ...stepResult.pipeline } }),
             ...(stepResult.currentCoreCode !== undefined && { currentCoreCode: stepResult.currentCoreCode }),
             ...(stepResult.displayCode !== undefined && { displayCode: stepResult.displayCode }),
           };
           
+          // Dispatch the result to update the global React state for UI reflection
           dispatchEvolution({ type: EvolutionActionTypes.UPDATE_STATE_FROM_STEP, payload: stepResult });
 
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.pipeline?.commitPerformed) {
@@ -784,6 +788,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
   return { runPipeline, abortPipeline };
 };
 
+// Hook for managing the continuous evolution loop
 const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true); 
@@ -809,7 +814,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current) { // Check mount status again after async operation
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
@@ -840,9 +845,9 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        clearTimeout(timeoutRef.current); // Clear any existing timeouts before starting a new one
       }
-      timeoutRef.current = setTimeout(runCycle, 0); 
+      timeoutRef.current = setTimeout(runCycle, 0); // Start the first cycle immediately
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -858,8 +863,10 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
       }
     };
   }, [isActive, performEvolutionCallback, addLog]);
+
 };
 
+// Main application logic hook
 const useDalekCore = () => {
   const { logs, addLog, clearLogs } = useLogSystem();
   const { tokens, handleTokenChange } = useAppTokens();
@@ -979,6 +986,7 @@ const useDalekCore = () => {
   };
 };
 
+// UI Components (memoized for performance)
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -1047,6 +1055,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
   </div>
 )); 
 
+// Main App component
 export default function App() {
   const {
     logs,
