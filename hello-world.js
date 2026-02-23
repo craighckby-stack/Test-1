@@ -476,104 +476,12 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   }, [isActive, performEvolutionCallback, addLog]);
 };
 
-const EVOLUTION_STEP_DEFINITIONS = [
-  { name: EvolutionStatus.FETCHING_CORE, allowFailure: false },
-  { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true },
-  { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true },
-  { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false },
-  { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false }
-];
-
-const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef, stepActions) => {
-  const runPipeline = useCallback(async () => {
-    let success = false;
-    let commitPerformed = false;
-    const pipelineContext = {
-      fileRef: null,
-      fetchedCode: '',
-      quantumPatterns: null,
-      draftCode: null,
-      evolvedCode: null,
-      commitPerformed: false,
-    };
-
-    const abortController = new AbortController();
-    const signal = abortController.signal;
-
-    try {
-      dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
-      addLog("AI: PROCESSING EVOLUTION...", "nexus");
-
-      for (const stepDef of stepDefinitions) {
-        if (isTerminatedRef.current || signal.aborted) {
-          addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-          throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
-        }
-        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
-        addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
-
-        try {
-          const action = stepActions[stepDef.name];
-          if (!action) throw new Error(`Action for step ${stepDef.name} not found.`);
-          await action(pipelineContext, signal);
-
-          if (isTerminatedRef.current || signal.aborted) {
-            addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-            throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
-          }
-
-          if (stepDef.name === EvolutionStatus.FINALIZING_CODE && pipelineContext.evolvedCode) {
-            dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.evolvedCode });
-          } else if (stepDef.name === EvolutionStatus.FETCHING_CORE && pipelineContext.fetchedCode) {
-            dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.fetchedCode });
-          }
-          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
-        } catch (stepError) {
-          if (stepError.name === 'AbortError') {
-             addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
-             throw stepError;
-          }
-          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
-          if (!stepDef.allowFailure) {
-            throw stepError;
-          }
-        }
-      }
-      success = true;
-      commitPerformed = pipelineContext.commitPerformed;
-
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        success = true;
-      } else {
-        dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
-        addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
-        dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.fetchedCode || "// ERROR: Failed to retrieve core logic or evolution failed. Check logs." });
-        success = false;
-      }
-    } finally {
-      if (!signal.aborted) {
-        abortController.abort();
-      }
-
-      if (isTerminatedRef.current) {
-        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
-      } else if (success) {
-        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
-      } else {
-        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
-      }
-    }
-    return { success, commitPerformed };
-  }, [stepDefinitions, addLog, dispatch, isTerminatedRef, stepActions]);
-  return runPipeline;
-};
-
 const useEvolutionEngine = (tokens, addLog) => {
   const [engineState, dispatch] = useReducer(evolutionReducer, initialEvolutionState);
   const { status, isEvolutionActive, displayCode, error } = engineState;
 
   const isEvolutionTerminatedRef = useRef(false);
+  const abortControllerRef = useRef(null); // Centralized AbortController for the current pipeline run
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI);
 
@@ -589,7 +497,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     return true;
   }, [addLog]);
 
-  const fetchingCoreAction = useCallback(async (ctx, signal) => {
+  // --- Pipeline Step Implementations ---
+  const fetchCoreAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
     ctx.fetchedCode = utf8B64Decode(result.content);
@@ -706,32 +615,114 @@ const useEvolutionEngine = (tokens, addLog) => {
     }
   }, [github, addLog, dispatch, isCodeSafeToCommit]);
 
-  const stepActions = useMemo(() => ({
-    [EvolutionStatus.FETCHING_CORE]: fetchingCoreAction,
-    [EvolutionStatus.EXTRACTING_PATTERNS]: extractingPatternsAction,
-    [EvolutionStatus.SYNTHESIZING_DRAFT]: synthesizingDraftAction,
-    [EvolutionStatus.FINALIZING_CODE]: finalizingCodeAction,
-    [EvolutionStatus.COMMITTING_CODE]: committingCodeAction,
-  }), [
-    fetchingCoreAction,
+  // Define the evolution pipeline steps with their functions and properties
+  const EVOLUTION_PIPELINE_STEPS = useMemo(() => [
+    { name: EvolutionStatus.FETCHING_CORE, allowFailure: false, action: fetchCoreAction },
+    { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true, action: extractingPatternsAction },
+    { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true, action: synthesizingDraftAction },
+    { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false, action: finalizingCodeAction },
+    { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false, action: committingCodeAction }
+  ], [
+    fetchCoreAction,
     extractingPatternsAction,
     synthesizingDraftAction,
     finalizingCodeAction,
     committingCodeAction
   ]);
 
-  const performSingleEvolutionStep = useEvolutionPipeline(
-    EVOLUTION_STEP_DEFINITIONS, addLog, dispatch, isEvolutionTerminatedRef, stepActions
-  );
+  // The main evolution cycle executor function
+  const performEvolutionCycle = useCallback(async () => {
+    let success = false;
+    let commitPerformed = false;
+    const pipelineContext = {
+      fileRef: null,
+      fetchedCode: '',
+      quantumPatterns: null,
+      draftCode: null,
+      evolvedCode: null,
+      commitPerformed: false,
+    };
 
-  useEvolutionLoop(performSingleEvolutionStep, isEvolutionActive, addLog);
+    // Create a new AbortController for each cycle execution
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    try {
+      dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
+      addLog("AI: PROCESSING EVOLUTION...", "nexus");
+
+      for (const stepDef of EVOLUTION_PIPELINE_STEPS) {
+        // Check for global termination signal or local abort signal
+        if (isEvolutionTerminatedRef.current || signal.aborted) {
+          addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
+          throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
+        }
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
+        addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
+
+        try {
+          await stepDef.action(pipelineContext, signal); // Pass the abort signal to the action
+          
+          // Update display code after certain key steps
+          if (stepDef.name === EvolutionStatus.FINALIZING_CODE && pipelineContext.evolvedCode) {
+            dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.evolvedCode });
+          } else if (stepDef.name === EvolutionStatus.FETCHING_CORE && pipelineContext.fetchedCode) {
+            dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.fetchedCode });
+          }
+          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
+        } catch (stepError) {
+          if (stepError.name === 'AbortError') {
+             addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
+             throw stepError; // Re-throw to be caught by the main try/catch
+          }
+          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
+          if (!stepDef.allowFailure) {
+            throw stepError; // Re-throw if critical step failed
+          }
+          // If a non-critical step failed, the pipeline continues
+        }
+      }
+      success = true;
+      commitPerformed = pipelineContext.commitPerformed;
+
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        // This means the user terminated the cycle mid-execution.
+        // It's not a 'failure' in terms of logic, but a user action.
+        success = true; // Report success to useEvolutionLoop to avoid immediate retry
+        addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
+      } else {
+        dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
+        addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
+        dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.fetchedCode || "// ERROR: Failed to retrieve core logic or evolution failed. Check logs." });
+        success = false;
+      }
+    } finally {
+      // Clear the abort controller reference
+      abortControllerRef.current = null;
+
+      // Determine final state after cycle or termination
+      if (isEvolutionTerminatedRef.current) {
+        // If global termination was requested, ensure state reflects paused
+        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
+      } else if (success) {
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
+      } else {
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
+      }
+    }
+    return { success, commitPerformed };
+  }, [EVOLUTION_PIPELINE_STEPS, dispatch, addLog, isEvolutionTerminatedRef, isCodeSafeToCommit]);
+
+  // The Evolution Loop is now simpler, just calling the main cycle executor
+  useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
 
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
-      isEvolutionTerminatedRef.current = false;
+      isEvolutionTerminatedRef.current = false; // Reset termination flag
       dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
@@ -741,7 +732,10 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      isEvolutionTerminatedRef.current = true;
+      isEvolutionTerminatedRef.current = true; // Signal the loop to stop
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort(); // Signal the current cycle to abort its operations
+      }
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
       dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
