@@ -163,6 +163,7 @@ const GLOBAL_STYLES = `
   .le-quantum { color: #00ffff; border-left-color: #00ffff; }
   .le-nexus { color: #ffaa00; border-left-color: #ffaa00; }
   .le-ok { color: #00ff00; border-left-color: #00ff00; }
+  .le-warn { color: #ffcc00; border-left-color: #ffcc00; }
 
   .code-view {
     font-size: .85rem; 
@@ -181,7 +182,7 @@ const GLOBAL_STYLES = `
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
-  catch (e) { return "[BASE64_DECODE_ERR]"; }
+  catch (e) { return `[BASE64_DECODE_ERR: ${e.message}]`; } // More informative error
 };
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
@@ -222,6 +223,9 @@ const logReducer = (state, action) => {
 
 const useGithubApi = (token, owner, repo, branch, addLog) => {
   const request = useCallback(async (filePath, method, body = {}, sha = null) => {
+    if (!token) {
+      throw new Error("GitHub token is missing. Cannot perform API request.");
+    }
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
     const headers = {
       Authorization: `token ${token.trim()}`,
@@ -246,14 +250,14 @@ const useGithubApi = (token, owner, repo, branch, addLog) => {
   const getFile = useCallback(async (filePath) => {
     addLog(`GITHUB: Fetching ${filePath}...`, "nexus");
     const response = await request(filePath, "GET");
-    addLog(`GITHUB: Fetched ${filePath}`, "ok");
+    addLog(`GITHUB: Fetched ${filePath} (SHA: ${response.sha.substring(0, 7)}...)`, "ok");
     return response;
   }, [request, addLog]);
 
   const updateFile = useCallback(async (filePath, content, sha, message) => {
     addLog(`GITHUB: Committing ${filePath}...`, "nexus");
     await request(filePath, "PUT", { content, message }, sha);
-    addLog(`GITHUB: Committed ${filePath}`, "ok");
+    addLog(`GITHUB: Committed ${filePath} successfully.`, "ok");
   }, [request, addLog]);
 
   return { getFile, updateFile };
@@ -261,6 +265,9 @@ const useGithubApi = (token, owner, repo, branch, addLog) => {
 
 const useGeminiApi = (apiKey, addLog) => {
   const generateContent = useCallback(async (systemInstruction, parts) => {
+    if (!apiKey) {
+      throw new Error("Gemini API key is missing. Cannot generate content.");
+    }
     addLog("GEMINI: Generating content...", "quantum");
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
     const res = await safeFetch(geminiUrl, {
@@ -273,7 +280,7 @@ const useGeminiApi = (apiKey, addLog) => {
     });
     const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!content) {
-      addLog("GEMINI: No content generated.", "def");
+      addLog("GEMINI: No content generated. AI response was empty.", "def");
     }
     return content;
   }, [apiKey, addLog]);
@@ -283,6 +290,9 @@ const useGeminiApi = (apiKey, addLog) => {
 
 const useCerebrasApi = (token, addLog) => {
   const completeChat = useCallback(async (systemContent, userContent) => {
+    if (!token) {
+      throw new Error("Cerebras API key is missing. Cannot complete chat.");
+    }
     addLog("CEREBRAS: Completing chat...", "def");
     const data = await safeFetch("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
@@ -300,7 +310,7 @@ const useCerebrasApi = (token, addLog) => {
     });
     const content = data.choices[0].message.content;
     if (!content) {
-      addLog("CEREBRAS: No content generated.", "def");
+      addLog("CEREBRAS: No content generated. AI response was empty.", "def");
     }
     return content;
   }, [token, addLog]);
@@ -333,7 +343,7 @@ const NexusControlPanel = memo(({
         />
         <input
           className="input-field"
-          placeholder="Cerebras Key"
+          placeholder="Cerebras Key (Optional for synthesis)"
           type="password"
           onChange={e => setTokens(p => ({ ...p, cerebras: e.target.value }))}
           value={tokens.cerebras}
@@ -384,8 +394,9 @@ export default function App() {
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
-    let quantumPatterns = "";
-    let draftCode = "";
+    let quantumPatterns = null; // Use null to distinguish between empty string and failure
+    let draftCode = null;
+    let codeToFinalize = currentCodeFromGithub; // Default to current code
 
     const cleanCurrentCode = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
     const cleanSourceContent = sanitizeContent(currentCodeFromGithub, GITHUB_CONTENT_MAX_LENGTH);
@@ -398,54 +409,59 @@ export default function App() {
         [{ text: `CORE: ${cleanCurrentCode}\nSOURCE: ${cleanSourceContent}` }]
       );
       if (!quantumPatterns) {
-        addLog("GEMINI: No useful patterns extracted, proceeding without specific improvements.", "def");
+        addLog("GEMINI: Pattern extraction yielded no results.", "def");
       } else {
         addLog("GEMINI: PATTERNS EXTRACTED", "ok");
       }
     } catch (e) {
-      addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}`, "le-err");
-      quantumPatterns = ""; // Ensure it's empty on critical failure
+      addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}. Skipping pattern application.`, "le-err");
+      quantumPatterns = null; // Mark as failed
     }
 
     // 2. Cerebras: Synthesize Draft - Only if Cerebras token and patterns are available
-    if (tokens.cerebras && quantumPatterns) { // Only attempt if key and patterns are present
-      try {
-        addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
-        draftCode = await cerebrasApi.completeChat(
-          CEREBRAS_SYNTHESIS_INSTRUCTION,
-          `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
-        );
-        if (!draftCode) {
-          addLog("CEREBRAS: No draft code synthesized.", "def");
-        } else {
-          addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
+    if (tokens.cerebras) {
+      if (quantumPatterns) {
+        try {
+          addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
+          draftCode = await cerebrasApi.completeChat(
+            CEREBRAS_SYNTHESIS_INSTRUCTION,
+            `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
+          );
+          if (!draftCode) {
+            addLog("CEREBRAS: No draft code synthesized.", "def");
+          } else {
+            addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
+          }
+        } catch (e) {
+          addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}. Falling back to original core.`, "le-err");
+          draftCode = null; // Mark as failed
         }
-      } catch (e) {
-        addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}`, "le-err");
-        draftCode = ""; // Ensure it's empty on critical failure
+      } else {
+        addLog("CEREBRAS: Synthesis skipped. No quantum patterns available for merging.", "def");
       }
-    } else if (!tokens.cerebras) {
-      addLog("CEREBRAS skipped: API key missing.", "le-err");
-    } else { // !quantumPatterns
-      addLog("CEREBRAS skipped: No quantum patterns detected for synthesis.", "def");
+    } else {
+      addLog("CEREBRAS: Synthesis skipped. API key missing.", "warn");
     }
 
-    // Determine the code to send to Gemini for finalization (fallback to current code if no draft)
-    let codeToFinalize = draftCode || cleanCurrentCode;
-    if (!draftCode) {
-      addLog("AI: Using current core as base for finalization due to Cerebras failure or skip.", "def");
+    // Determine the code to send to Gemini for finalization
+    if (draftCode) {
+      codeToFinalize = draftCode;
+      addLog("AI: Proceeding with Cerebras draft for finalization.", "def");
+    } else {
+      addLog("AI: Using current core as base for finalization due to failed/skipped synthesis.", "def");
     }
 
     // 3. Gemini: Finalize and Seal Core
     try {
-      addLog("GEMINI: SEALING CORE...", "ok");
+      addLog("GEMINI: SEALING CORE...", "quantum");
       const finalCode = await geminiApi.generateContent(
         GEMINI_FINALIZATION_INSTRUCTION,
         [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
       );
+      addLog("GEMINI: CORE SEALED", "ok");
       return cleanMarkdownCodeBlock(finalCode);
     } catch (e) {
-      addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort.`, "le-err");
+      addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (potentially unfinalized code).`, "le-err");
       return cleanMarkdownCodeBlock(codeToFinalize); // Return best effort, cleaned.
     }
   }, [addLog, tokens.cerebras, cerebrasApi, geminiApi]);
@@ -459,16 +475,17 @@ export default function App() {
       addLog("MISSING GEMINI_API_KEY. Evolution halted. Please insert your Google AI Studio key.", "le-err");
       return false;
     }
-    if (!tokens.cerebras) {
-      addLog("WARNING: CEREBRAS API KEY is missing. Synthesis step will be skipped.", "def");
-    }
     return true;
-  }, [addLog, tokens.github, tokens.cerebras]);
+  }, [addLog, tokens.github]); // Removed tokens.cerebras as it's optional
 
-  const isCodeSafeToCommit = useCallback((evolvedCode) => {
+  const isCodeSafeToCommit = useCallback((evolvedCode, currentCode) => {
     if (!evolvedCode || evolvedCode.length < MIN_EVOLVED_CODE_LENGTH) {
-      addLog(`Evolution safety trigger: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars) or empty. Retaining current core.`, "le-err");
+      addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
       return false;
+    }
+    if (evolvedCode.trim() === currentCode.trim()) {
+      addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
+      return false; // Not unsafe, but not worth committing
     }
     // Further checks could be added here, e.g., linting, basic parsing, etc.
     return true;
@@ -481,47 +498,54 @@ export default function App() {
 
     activeRef.current = true;
     setLoading(true);
+    dispatchLog({ type: 'CLEAR_LOGS' }); // Clear logs on new run
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     const performSingleEvolutionStep = async () => {
       let fileRef = null;
       let currentCode = "";
+      let evolvedCode = "";
       try {
         // 1. Fetch current file from GitHub
         fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         currentCode = utf8B64Decode(fileRef.content);
-        setDisplayCode(currentCode); // Display current code
+        setDisplayCode(currentCode); // Display current code from GitHub
 
         // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
-        const evolvedCode = await callAIChain(currentCode);
+        evolvedCode = await callAIChain(currentCode);
 
-        // Safety check for code integrity
-        if (!isCodeSafeToCommit(evolvedCode)) {
-          return false; // Indicates an issue, but not a full critical failure
+        // 3. Safety check for code integrity and change detection
+        if (!isCodeSafeToCommit(evolvedCode, currentCode)) {
+          return true; // Step considered successful if no commit needed or code is unsafe to commit
         }
 
-        if (evolvedCode.trim() === currentCode.trim()) { // Trim for robust comparison
-          addLog("AI: Core logic unchanged. Awaiting new patterns or external stimulus.", "def");
-        } else {
-          addLog("AI: Evolution complete. New code generated.", "ok");
-          // 3. Commit evolved code back to GitHub
-          await githubApi.updateFile(
-            GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
-          );
-          addLog("NEXUS EVOLVED SUCCESSFULLY", "ok");
-        }
+        // 4. Commit evolved code back to GitHub
+        addLog("AI: Evolution complete. New code generated and validated.", "ok");
+        setDisplayCode(evolvedCode); // Display the newly evolved code immediately
+        await githubApi.updateFile(
+          GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
+        );
+        addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
         return true; // Step successful
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
+        // Optionally revert display if error occurred during commit
+        if (evolvedCode && evolvedCode !== displayCode) { // if evolvedCode was generated, but failed to commit
+          addLog("Display reverted to last known stable code due to commit failure.", "le-err");
+          setDisplayCode(currentCode);
+        }
         return false; // Step failed critically
       }
     };
 
     while (activeRef.current) {
       const stepSuccessful = await performSingleEvolutionStep();
+      if (!activeRef.current) { // Check again if termination was requested during the step
+        break;
+      }
       if (!stepSuccessful) {
-        // If a step failed (e.g., API error or safety check), log and wait, then try again
+        // If a step failed (e.g., API error), log and wait, then try again
         addLog("NEXUS CYCLE PAUSED DUE TO STEP FAILURE. Attempting restart after delay.", "nexus");
         await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Shorter wait for recovery
       } else {
@@ -530,7 +554,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, tokens.github, tokens.cerebras, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi]);
+  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi, displayCode]);
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
@@ -541,13 +565,16 @@ export default function App() {
     }
   }, [addLog]);
 
-  // Initial warning for missing Gemini API key on load
+  // Initial warnings on load
   useEffect(() => {
     if (!GEMINI_API_KEY) {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
     }
-  }, [addLog]);
+    if (!tokens.cerebras) {
+      addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
+    }
+  }, [addLog, tokens.cerebras]); // Add tokens.cerebras to dependencies
 
   return (
     <div className="dalek-shell">
