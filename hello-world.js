@@ -501,7 +501,9 @@ const usePipelineExecutor = (steps, evolutionState, dispatchEvolution, addLog) =
   const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async () => {
-    let commitPerformed = false; // Track commit success for this specific pipeline run
+    // Reset commit status for this specific pipeline run at the start
+    dispatchEvolution({ type: EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT, payload: { commitPerformed: false }});
+    let currentCommitPerformed = false; 
 
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
@@ -520,16 +522,17 @@ const usePipelineExecutor = (steps, evolutionState, dispatchEvolution, addLog) =
         addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
+          // Pass a callback to update context, allowing steps to update their own state
           await stepDef.action(
-            evolutionState.pipeline, // Pass current pipeline context
+            evolutionState.pipeline, // Current pipeline context from the reducer state
             signal,
             (payload) => dispatchEvolution({ type: EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT, payload }) // Callback to update pipeline context
           );
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
 
-          // Explicitly check for commitPerformed from pipeline state after the step
+          // Update local commit tracking if the committing step completes successfully
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && evolutionState.pipeline.commitPerformed) {
-              commitPerformed = true;
+              currentCommitPerformed = true;
           }
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
@@ -543,7 +546,7 @@ const usePipelineExecutor = (steps, evolutionState, dispatchEvolution, addLog) =
           // If allowed to fail, pipeline continues, but state might reflect failure
         }
       }
-      return { success: true, commitPerformed };
+      return { success: true, commitPerformed: currentCommitPerformed };
     } catch (e) {
       if (e.name === 'AbortError') {
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
@@ -801,7 +804,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   const committingCodeAction = useCallback(async (pipelineState, signal, updateContext) => {
     if (signal.aborted) throw Object.assign(new Error("Pipeline aborted."), { name: "AbortError" });
 
-    // Reset commit status for the current run
+    // Reset commit status for the current run within the pipeline context
     updateContext({ commitPerformed: false });
 
     if (!pipelineState.isSyntaxValid) {
@@ -819,7 +822,7 @@ const useEvolutionEngine = (tokens, addLog) => {
           APP_CONFIG.GITHUB_REPO.file, pipelineState.evolvedCode, pipelineState.fileRef.sha, `DALEK_EVOLUTION_${new Date().toISOString()}`, signal
         );
         addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-        updateContext({ commitPerformed: true });
+        updateContext({ commitPerformed: true }); // Mark commit as performed for this cycle
       } catch (e) {
         if (e.code === 'NO_GITHUB_TOKEN') {
             addLog("GitHub token missing. Cannot commit.", "le-err");
