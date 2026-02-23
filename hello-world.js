@@ -507,6 +507,10 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   useEffect(() => {
     const runCycle = async () => {
       if (!isMountedRef.current || !isActive) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         addLog("NEXUS: Loop terminated due to unmount or deactivation.", "warn");
         return;
       }
@@ -514,6 +518,10 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       const { success, commitPerformed } = await performEvolutionCallback();
 
       if (!isMountedRef.current || !isActive) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         addLog("NEXUS: Loop terminated after cycle completion due to unmount or deactivation.", "warn");
         return;
       }
@@ -780,6 +788,14 @@ const NexusControlPanel = memo(({
   tokens, setTokens, repoConfig,
   isEvolutionActive, logs, runEvolution, terminateEvolution
 }) => {
+  const handleTokenChange = useCallback((key, value) => {
+    setTokens(prev => {
+      const newTokens = { ...prev, [key]: value };
+      localStorage.setItem(`dalek_token_${key}`, value); // Persist token
+      return newTokens;
+    });
+  }, [setTokens]);
+
   return (
     <div className="panel">
       <div className="panel-hdr">Nexus Configuration</div>
@@ -788,7 +804,7 @@ const NexusControlPanel = memo(({
           className="input-field"
           placeholder="GitHub Token"
           type="password"
-          onChange={e => setTokens(p => ({ ...p, github: e.target.value }))}
+          onChange={e => handleTokenChange('github', e.target.value)}
           value={tokens.github}
           spellCheck="false"
         />
@@ -796,7 +812,7 @@ const NexusControlPanel = memo(({
           className="input-field"
           placeholder="Cerebras Key (Optional for synthesis)"
           type="password"
-          onChange={e => setTokens(p => ({ ...p, cerebras: e.target.value }))}
+          onChange={e => handleTokenChange('cerebras', e.target.value)}
           value={tokens.cerebras}
           spellCheck="false"
         />
@@ -828,7 +844,12 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
 
 // Main App Component
 export default function App() {
-  const [tokens, setTokens] = useState({ cerebras: "", github: "" });
+  const [tokens, setTokens] = useState(() => {
+    // Initialize tokens from localStorage for persistence
+    const savedGithub = localStorage.getItem('dalek_token_github') || "";
+    const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
+    return { github: savedGithub, cerebras: savedCerebras };
+  });
   const [logs, dispatchLog] = useReducer(logReducer, []);
 
   // Memoized callback for adding logs
