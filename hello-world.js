@@ -385,16 +385,19 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [displayCode, setDisplayCode] = useState("");
 
+  // useRef to hold the latest displayCode value for use inside the long-running
+  // `runEvolution` loop without stale closure issues.
   const activeRef = useRef(false);
   const displayCodeRef = useRef(""); 
 
   useEffect(() => {
+    // Keep displayCodeRef always updated with the latest displayCode state.
     displayCodeRef.current = displayCode;
   }, [displayCode]);
 
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
-  }, []);
+  }, []); // `addLog` itself is stable
 
   const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
@@ -480,8 +483,6 @@ export default function App() {
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
-    let evolvedCode = currentCodeFromGithub; // Start with the current code as a base
-
     // Step 1: Gemini - Extract Architectural Patterns
     const quantumPatterns = await extractPatterns(currentCodeFromGithub);
 
@@ -498,7 +499,7 @@ export default function App() {
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
     
     // Step 4: Gemini - Finalize and Seal Core
-    evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
+    const evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
     
     return evolvedCode; 
   }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
@@ -533,7 +534,7 @@ export default function App() {
       return;
     }
 
-    activeRef.current = true;
+    activeRef.current = true; // Signal that the evolution loop is active
     setLoading(true);
     dispatchLog({ type: 'CLEAR_LOGS' });
     addLog("INITIATING NEXUS CYCLE...", "nexus");
@@ -544,20 +545,27 @@ export default function App() {
       let evolvedCode = "";
       let stepSuccessful = false;
       let commitPerformed = false;
-      let codeToDisplayAtEndOfStep = displayCodeRef.current; // Initial fallback to current UI state
+      
+      // `codeToDisplayAtEndOfStep` tracks what should be shown in the UI after this step completes.
+      // It starts with the currently displayed code (from ref to avoid stale closure).
+      let codeToDisplayAtEndOfStep = displayCodeRef.current; 
 
       try {
+        // --- Step 1: Fetch the current code from GitHub ---
         addLog("GITHUB: Fetching current core logic...", "nexus");
         fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         currentCodeFromGithub = utf8B64Decode(fileRef.content);
         
-        // This is the new baseline for display. Update immediately to show the fetched code.
-        codeToDisplayAtEndOfStep = currentCodeFromGithub; 
-        setDisplayCode(currentCodeFromGithub); 
+        // Immediately update the display with the freshly fetched code.
+        // This provides feedback while AI processing happens.
+        setDisplayCode(currentCodeFromGithub);
+        codeToDisplayAtEndOfStep = currentCodeFromGithub; // This is our current stable base for display.
 
+        // --- Step 2: Engage AI Chain for Evolution ---
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
         evolvedCode = await callAIChain(currentCodeFromGithub);
         
+        // --- Step 3: Validate and Commit Evolved Code ---
         if (!isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
           addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
           // If unsafe/unchanged, `codeToDisplayAtEndOfStep` correctly remains `currentCodeFromGithub`
@@ -568,22 +576,23 @@ export default function App() {
             GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
           addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-          codeToDisplayAtEndOfStep = evolvedCode; // Update to show the committed evolved code
+          codeToDisplayAtEndOfStep = evolvedCode; // Display the newly committed evolved code.
           commitPerformed = true;
           stepSuccessful = true;
         }
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
-        // On error, revert the display to the last successfully fetched code from GitHub (if available)
-        // or the previous UI state if even fetching failed.
+        stepSuccessful = false;
+        // On error, try to revert the display to the last successfully fetched code from GitHub.
+        // If even fetching failed, `codeToDisplayAtEndOfStep` falls back to the state at the start of this step.
         if (currentCodeFromGithub) {
           codeToDisplayAtEndOfStep = currentCodeFromGithub;
         } else {
           codeToDisplayAtEndOfStep = displayCodeRef.current; // Fallback to what was last seen in UI
         }
-        stepSuccessful = false;
       } finally {
-        // Ensure display is updated if the final state for display is different from what was shown post-fetch
+        // Ensure the UI's displayCode state reflects the final `codeToDisplayAtEndOfStep` for this cycle.
+        // This check prevents unnecessary renders if the code didn't actually change.
         if (displayCodeRef.current !== codeToDisplayAtEndOfStep) {
           setDisplayCode(codeToDisplayAtEndOfStep);
         }
@@ -591,9 +600,10 @@ export default function App() {
       return { stepSuccessful, commitPerformed };
     };
 
+    // Main evolution loop
     while (activeRef.current) {
       const { stepSuccessful, commitPerformed } = await performSingleEvolutionStep();
-      if (!activeRef.current) { // Check again if termination was requested during the step
+      if (!activeRef.current) { // Check if termination was requested during the step
         break;
       }
       
@@ -607,7 +617,7 @@ export default function App() {
       } else {
         // If a step failed (e.g., API error), log and wait, then try again
         addLog(`NEXUS CYCLE FAILED. Retrying in ${EVOLUTION_CYCLE_INTERVAL_MS / 2 / 1000}s.`, "nexus");
-        await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Shorter wait for recovery
+        await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Shorter wait for quicker recovery attempts
       }
     }
     setLoading(false);
@@ -623,7 +633,7 @@ export default function App() {
     }
   }, [addLog]);
 
-  // Initial warnings on load
+  // Initial warnings on load for missing API keys
   useEffect(() => {
     if (!GEMINI_API_KEY) {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
