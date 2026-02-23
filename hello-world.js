@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo } from "react";
 
-const GEMINI_API_KEY = "";
+const GEMINI_API_KEY = ""; // EXTERMINATE: Provide your Gemini API key here.
 const GITHUB_REPO_CONFIG = {
   owner: "craighckby-stack",
   repo: "Test-1",
@@ -435,6 +435,8 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const synthesizeDraft = useCallback(async (patterns, currentCode) => {
     if (!patterns || !tokens.cerebras) {
+      // This check is duplicated in performSingleEvolutionStep's conditional logic,
+      // but it's good to have here as a failsafe if this hook is called directly.
       throw new Error("Synthesis skipped: No quantum patterns or Cerebras key available.");
     }
     const cleanCurrentCode = sanitizeContent(currentCode, CORE_CONTENT_MAX_LENGTH);
@@ -480,27 +482,27 @@ const useEvolutionEngine = (tokens, addLog) => {
     };
 
     // Helper to wrap each asynchronous step with status updates and termination checks
-    const wrapStep = async (stepName, action, allowFailure = false) => {
-      checkTermination();
+    const pipelineStep = async (stepName, action, allowFailure = false) => {
+      checkTermination(); // Check before starting the step
       dispatch({ type: 'SET_STATUS', payload: stepName });
       try {
         const result = await action();
+        checkTermination(); // Check after action, especially if action was long-running
         return result;
       } catch (e) {
         addLog(`${stepName.replace(/_/g, ' ')} FAILED: ${e.message}`, "le-err");
         if (!allowFailure) {
-          throw e; // Re-throw critical errors
+          throw e; // Re-throw critical errors for the main try/catch block
         }
-        return null; // Return null for optional steps that failed
+        return null; // Return null for optional steps that failed but don't halt the process
       }
     };
 
     try {
-      checkTermination();
-      validateEvolutionEnvironment();
+      validateEvolutionEnvironment(); // Initial hard stop checks
 
       // Step 1: Fetch Core Code
-      const fetchedFileData = await wrapStep('FETCHING_CORE', async () => {
+      const fetchedFileData = await pipelineStep('FETCHING_CORE', async () => {
         const result = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         fetchedCode = utf8B64Decode(result.content);
         dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: fetchedCode });
@@ -510,33 +512,33 @@ const useEvolutionEngine = (tokens, addLog) => {
       fileRef = fetchedFileData;
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
-      // Step 2: Extract Patterns (Allow failure, as synthesis might use original code)
-      let quantumPatterns = await wrapStep('EXTRACTING_PATTERNS', async () => {
+      // Step 2: Extract Patterns (Allow failure, as synthesis might use original code if no patterns)
+      const quantumPatterns = await pipelineStep('EXTRACTING_PATTERNS', async () => {
         return await extractPatterns(fetchedCode);
-      }, true); // Allow failure
+      }, true); // Allow failure for pattern extraction
 
-      // Step 3: Synthesize Draft (Allow failure, can use original code if no patterns or Cerebras key)
+      // Step 3: Synthesize Draft (Conditional based on Cerebras key and patterns)
       let draftCode = null;
-      if (quantumPatterns && tokens.cerebras) {
-        draftCode = await wrapStep('SYNTHESIZING_DRAFT', async () => {
+      if (tokens.cerebras && quantumPatterns) {
+        draftCode = await pipelineStep('SYNTHESIZING_DRAFT', async () => {
           return await synthesizeDraft(quantumPatterns, fetchedCode);
-        }, true); // Allow failure
+        }, true); // Allow failure for synthesis
       } else if (!tokens.cerebras) {
         addLog("CEREBRAS: Synthesis skipped. Cerebras key not provided.", "warn");
       } else if (!quantumPatterns) {
         addLog("AI: No quantum patterns extracted. Skipping synthesis.", "warn");
       }
 
-      // Step 4: Finalize Core
+      // Step 4: Finalize Core (Uses draft if available, otherwise original fetched code)
       const codeForFinalization = draftCode || fetchedCode;
       addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-      evolvedCode = await wrapStep('FINALIZING_CODE', async () => {
+      evolvedCode = await pipelineStep('FINALIZING_CODE', async () => {
         return await finalizeCore(codeForFinalization, fetchedCode);
       });
 
       // Step 5: Commit if Safe
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, fetchedCode)) {
-        await wrapStep('COMMITTING_CODE', async () => {
+        await pipelineStep('COMMITTING_CODE', async () => {
           await githubApi.updateFile(
             GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
@@ -561,10 +563,11 @@ const useEvolutionEngine = (tokens, addLog) => {
         success = false;
       }
     } finally {
+      // Ensure status is reset or updated appropriately after the cycle
       if (!isEvolutionTerminatedRef.current) {
         dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
       } else {
-        dispatch({ type: 'STOP_EVOLUTION' });
+        dispatch({ type: 'STOP_EVOLUTION' }); // Explicitly set to PAUSED/STOPPED
       }
     }
     return { success, commitPerformed };
@@ -584,7 +587,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const runEvolution = useCallback(() => {
     try {
-      validateEvolutionEnvironment();
+      validateEvolutionEnvironment(); // Pre-check before starting loop
       isEvolutionTerminatedRef.current = false;
       dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
@@ -596,7 +599,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
-      dispatch({ type: 'STOP_EVOLUTION' }); // Set state immediately for UI
+      dispatch({ type: 'STOP_EVOLUTION' }); // Set state immediately for UI responsiveness
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE.", "def");
