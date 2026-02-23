@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-// TOP-LEVEL CONFIGURATION
+// TOP-LEVEL CONFIGURATION - PRESERVED AS IS
 const API_KEYS = {
   GEMINI: "", // Provide your Gemini API key here.
 };
@@ -181,7 +181,7 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// UTILITY FUNCTIONS
+// UTILITY FUNCTIONS - PRESERVED AND OPTIMIZED
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -218,7 +218,7 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
-// REDUCER ACTION TYPES
+// REDUCER ACTION TYPES - PRESERVED
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -246,7 +246,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS
+// REDUCERS - PRESERVED AND OPTIMIZED
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -288,7 +288,7 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY (Optimized)
+// API CLIENT FACTORY - PRESERVED AND OPTIMIZED
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -316,7 +316,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS (Optimized to use the new createApiClient)
+// CUSTOM HOOKS - PRESERVED AND OPTIMIZED
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
@@ -350,7 +350,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
         await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
     };
-  }, [tokens.github, addLog]);
+  }, [tokens.github, addLog]); // Dependencies: Recreate client if github token or logger changes.
 
   const geminiService = useMemo(() => {
     if (!geminiApiKey) return null;
@@ -376,7 +376,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
         return content;
       }
     };
-  }, [geminiApiKey, addLog]);
+  }, [geminiApiKey, addLog]); // Dependencies: Recreate client if gemini key or logger changes.
 
   const cerebrasService = useMemo(() => {
     if (!tokens.cerebras) return null;
@@ -407,43 +407,46 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
         return content;
       }
     };
-  }, [tokens.cerebras, addLog]);
+  }, [tokens.cerebras, addLog]); // Dependencies: Recreate client if cerebras token or logger changes.
 
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
 // Optimized useEvolutionLoop for clarity and standard React hook patterns
 const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
-  const timeoutRef = useRef(null);
+  const timeoutRef = useRef(null); // Ref to hold the timeout ID for cleanup.
 
   useEffect(() => {
     const runCycle = async () => {
-      // Ensure the loop should still be active *before* and *after* the async operation
-      if (!isActive) { // Check isActive from the closure
+      // Immediate check if evolution should still be active before starting work
+      if (!isActive) {
         addLog("NEXUS: Loop terminated during execution decision.", "warn");
         return;
       }
 
       const { success, commitPerformed } = await performEvolutionCallback();
 
-      if (!isActive) { // Re-check isActive after the async task completes
+      // Re-check isActive after the async task completes to handle quick terminations
+      if (!isActive) {
         addLog("NEXUS: Loop terminated after cycle completion.", "warn");
         return;
       }
 
+      // Determine next delay and log message based on cycle outcome
       let delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
       const message = success
         ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit needed). Waiting for next evolution in ${delay / 1000}s.`)
         : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
       addLog(message, success ? "nexus" : "le-err");
 
+      // Schedule the next cycle
       timeoutRef.current = setTimeout(runCycle, delay);
     };
 
     // Effect logic for starting/stopping the loop
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      // Clear any existing timer just in case, then set a new one for the first run
+      // Clear any existing timer before starting a new one to prevent duplicates
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -464,14 +467,14 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
         timeoutRef.current = null;
       }
     };
-  }, [isActive, performEvolutionCallback, addLog]); // Dependencies
+  }, [isActive, performEvolutionCallback, addLog]); // Dependencies ensure hook reacts to changes in these values
 };
 
 // Defines the structure and metadata of the evolution pipeline steps
 const EVOLUTION_STEP_DEFINITIONS = [
   { name: EvolutionStatus.FETCHING_CORE, allowFailure: false },
-  { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true },
-  { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true },
+  { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true }, // Allow skipping if AI model is not available or provides no patterns
+  { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true }, // Allow skipping if AI model is not available or provides no valid draft
   { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false },
   { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false }
 ];
@@ -480,23 +483,25 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
   const runPipeline = useCallback(async () => {
     let success = false;
     let commitPerformed = false;
+    // Context object to pass mutable state between pipeline steps
     const pipelineContext = {
-      fileRef: null,
-      fetchedCode: '',
-      quantumPatterns: null,
-      draftCode: null,
-      evolvedCode: null,
-      commitPerformed: false,
+      fileRef: null,          // GitHub file metadata (e.g., SHA)
+      fetchedCode: '',        // Original code fetched from GitHub
+      quantumPatterns: null,  // Extracted patterns from Gemini
+      draftCode: null,        // Synthesized draft from Cerebras
+      evolvedCode: null,      // Finalized code from Gemini
+      commitPerformed: false, // Flag indicating if a commit was made
     };
 
     const abortController = new AbortController();
-    const signal = abortController.signal;
+    const signal = abortController.signal; // Signal to abort ongoing fetch/AI requests
 
     try {
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
       for (const stepDef of stepDefinitions) {
+        // Check for termination signal before executing each step
         if (isTerminatedRef.current || signal.aborted) {
           throw new Error("Evolution terminated by user.");
         }
@@ -506,8 +511,9 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         try {
           const action = stepActions[stepDef.name];
           if (!action) throw new Error(`Action for step ${stepDef.name} not found.`);
-          await action(pipelineContext, signal);
-          
+          await action(pipelineContext, signal); // Execute step action
+
+          // Re-check for termination after each async step
           if (isTerminatedRef.current || signal.aborted) {
             throw new Error("Evolution terminated by user.");
           }
@@ -522,46 +528,50 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
              addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
-             throw stepError; 
+             throw stepError; // Re-throw AbortError to be caught by the outer try-catch
           }
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
           if (!stepDef.allowFailure) {
-            throw stepError; 
+            throw stepError; // Critical failure, stop the pipeline
           }
+          // If failure is allowed, pipeline continues, but the step's output might be null/empty
         }
       }
-      success = true;
+      success = true; // All mandatory steps completed
       commitPerformed = pipelineContext.commitPerformed;
 
     } catch (e) {
       if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Consider termination as a "successful" exit from the loop, not an error state
+        // User termination is a "successful" exit in terms of not being an error state for the engine
+        success = true;
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
         dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.fetchedCode || "// ERROR: Failed to retrieve core logic or evolution failed. Check logs." });
-        success = false;
+        success = false; // Indicates an unrecoverable error for this cycle
       }
     } finally {
-      // Ensure the abort controller is always cleaned up.
+      // Ensure the abort controller is always cleaned up, regardless of success or failure
+      // Only abort if it hasn't been aborted already (e.g., by explicit throw of AbortError)
       if (!signal.aborted) {
         abortController.abort();
       }
 
+      // Set final status based on termination state or success/failure
       if (isTerminatedRef.current) {
-        // If user initiated termination, set status to PAUSED
+        // If user initiated termination during execution, set status to PAUSED
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
       } else if (success) {
-        // Natural successful completion (including successful aborts handled above)
+        // Natural successful completion or graceful abort
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
       } else {
         // Natural failure (not user-terminated, not AbortError)
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
       }
     }
-    return { success, commitPerformed };
-  }, [stepDefinitions, addLog, dispatch, isTerminatedRef, stepActions]);
+    return { success, commitPerformed }; // Report outcome to useEvolutionLoop
+  }, [stepDefinitions, addLog, dispatch, isTerminatedRef, stepActions]); // Dependencies for useCallback
   return runPipeline;
 };
 
@@ -569,10 +579,13 @@ const useEvolutionEngine = (tokens, addLog) => {
   const [engineState, dispatch] = useReducer(evolutionReducer, initialEvolutionState);
   const { status, isEvolutionActive, displayCode, error } = engineState;
 
+  // Ref to signal termination across asynchronous operations
   const isEvolutionTerminatedRef = useRef(false);
 
+  // Initialize external API clients
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI);
 
+  // Logic to determine if evolved code is safe and necessary to commit
   const isCodeSafeToCommit = useCallback((evolvedCode, originalCode) => {
     if (!evolvedCode || evolvedCode.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
@@ -583,20 +596,22 @@ const useEvolutionEngine = (tokens, addLog) => {
       return false;
     }
     return true;
-  }, [addLog]);
+  }, [addLog]); // addLog is stable from useCallback in App.
+
+  // --- Pipeline Step Actions (memoized for stability) ---
 
   const fetchingCoreAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
     ctx.fetchedCode = utf8B64Decode(result.content);
-    ctx.fileRef = result;
+    ctx.fileRef = result; // Store file metadata (like SHA) for later commit
     dispatch({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: ctx.fetchedCode });
-  }, [github, dispatch]);
+  }, [github, dispatch]); // Dependencies: github client, and dispatch (stable).
 
   const extractingPatternsAction = useCallback(async (ctx, signal) => {
-    if (!gemini) { 
+    if (!gemini) {
       addLog("AI: Gemini client not initialized (API key missing). Skipping pattern extraction.", "warn");
-      ctx.quantumPatterns = null;
+      ctx.quantumPatterns = null; // Ensure context is cleared if skipped
       return;
     }
     if (!ctx.fetchedCode) {
@@ -611,19 +626,19 @@ const useEvolutionEngine = (tokens, addLog) => {
       "pattern extraction",
       signal
     );
-    if (!patterns || patterns.trim().length < 10) {
+    if (!patterns || patterns.trim().length < 10) { // Check for minimal meaningful output
         addLog("AI: No meaningful quantum patterns extracted by Gemini. Synthesis might be less effective.", "warn");
-        ctx.quantumPatterns = null; 
+        ctx.quantumPatterns = null;
     } else {
         ctx.quantumPatterns = patterns;
         addLog("AI: Quantum patterns extracted.", "quantum");
     }
-  }, [gemini, addLog]);
+  }, [gemini, addLog]); // Dependencies: gemini client, addLog (stable).
 
   const synthesizingDraftAction = useCallback(async (ctx, signal) => {
-    if (!cerebras) { 
+    if (!cerebras) {
       addLog("AI: Cerebras client not initialized (API key missing). Skipping synthesis.", "warn");
-      ctx.draftCode = null; 
+      ctx.draftCode = null;
       return;
     }
     if (!ctx.fetchedCode) {
@@ -633,10 +648,10 @@ const useEvolutionEngine = (tokens, addLog) => {
     }
 
     const sanitizedFetchedCode = sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH);
-    const userContent = ctx.quantumPatterns 
+    const userContent = ctx.quantumPatterns
       ? `IMPROVEMENTS: ${ctx.quantumPatterns}\nCORE: ${sanitizedFetchedCode}`
       : `CORE: ${sanitizedFetchedCode}`;
-    
+
     const rawDraft = await cerebras.completeChat(
       PROMPT_INSTRUCTIONS.CEREBRAS_SYNTHESIS,
       userContent,
@@ -647,15 +662,15 @@ const useEvolutionEngine = (tokens, addLog) => {
 
     if (!cleanedDraft || cleanedDraft.trim().length < APP_CONFIG.MIN_SYNTHESIZED_DRAFT_LENGTH) {
       addLog(`AI: Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty after cleanup. Will proceed with original code for finalization.`, "warn");
-      ctx.draftCode = null; 
+      ctx.draftCode = null;
     } else {
       ctx.draftCode = cleanedDraft;
       addLog("AI: Draft code synthesized.", "quantum");
     }
-  }, [cerebras, addLog]);
+  }, [cerebras, addLog]); // Dependencies: cerebras client, addLog (stable).
 
   const finalizingCodeAction = useCallback(async (ctx, signal) => {
-    if (!gemini) { 
+    if (!gemini) {
       throw new Error("AI: Gemini client not initialized (API key missing). Cannot finalize code.");
     }
 
@@ -664,7 +679,7 @@ const useEvolutionEngine = (tokens, addLog) => {
         throw new Error("No code available for finalization. This indicates a critical upstream failure.");
     }
     addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-    
+
     const rawFinalCode = await gemini.generateContent(
       PROMPT_INSTRUCTIONS.GEMINI_FINALIZATION,
       [
@@ -681,7 +696,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     }
     ctx.evolvedCode = cleanedFinalCode;
     addLog("AI: Finalized code generated.", "quantum");
-  }, [gemini, addLog]);
+  }, [gemini, addLog]); // Dependencies: gemini client, addLog (stable).
 
   const committingCodeAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
@@ -694,14 +709,15 @@ const useEvolutionEngine = (tokens, addLog) => {
       );
       addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
       dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.evolvedCode });
-      ctx.commitPerformed = true;
+      ctx.commitPerformed = true; // Mark that a commit happened
     } else {
       addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-      dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode });
+      dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode }); // Revert display to original
       ctx.commitPerformed = false;
     }
-  }, [github, addLog, dispatch, isCodeSafeToCommit]);
+  }, [github, addLog, dispatch, isCodeSafeToCommit]); // Dependencies: github client, addLog, dispatch (stable), isCodeSafeToCommit (stable useCallback).
 
+  // Memoize the mapping of status to action functions
   const stepActions = useMemo(() => ({
     [EvolutionStatus.FETCHING_CORE]: fetchingCoreAction,
     [EvolutionStatus.EXTRACTING_PATTERNS]: extractingPatternsAction,
@@ -714,35 +730,39 @@ const useEvolutionEngine = (tokens, addLog) => {
     synthesizingDraftAction,
     finalizingCodeAction,
     committingCodeAction
-  ]);
+  ]); // Dependencies are the stable useCallback actions.
 
+  // Orchestrate the entire evolution pipeline
   const performSingleEvolutionStep = useEvolutionPipeline(
     EVOLUTION_STEP_DEFINITIONS, addLog, dispatch, isEvolutionTerminatedRef, stepActions
   );
 
+  // Manage the continuous evolution loop
   useEvolutionLoop(performSingleEvolutionStep, isEvolutionActive, addLog);
+
+  // --- Control functions (memoized) ---
 
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
-      isEvolutionTerminatedRef.current = false;
+      isEvolutionTerminatedRef.current = false; // Reset termination flag for a new run
       dispatch({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
       dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
     }
-  }, [tokens.github, addLog, dispatch]);
+  }, [tokens.github, addLog, dispatch]); // Dependencies: github token, addLog, dispatch (stable).
 
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      isEvolutionTerminatedRef.current = true;
+      isEvolutionTerminatedRef.current = true; // Set flag to terminate ongoing cycles
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
-  }, [isEvolutionActive, addLog]);
+  }, [isEvolutionActive, addLog]); // Dependencies: isEvolutionActive, addLog (stable).
 
   return {
     status,
@@ -753,6 +773,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     error
   };
 };
+
+// --- Presentational Components (memoized for performance) ---
 
 const DalekHeader = memo(({ status }) => (
   <div className="header">
@@ -811,20 +833,24 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
   </div>
 ));
 
+// Main App Component
 export default function App() {
   const [tokens, setTokens] = useState({ cerebras: "", github: "" });
   const [logs, dispatchLog] = useReducer(logReducer, []);
 
+  // Memoized callback for adding log entries, stable across renders
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
-  }, []);
+  }, []); // dispatchLog is stable from useReducer
 
+  // Core evolution engine hook
   const { isLoading, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
     tokens, addLog
   );
 
   // Centralized warnings for missing API keys/tokens upon component mount or token change
   useEffect(() => {
+    // Check global constant for Gemini API key
     if (!API_KEYS.GEMINI) {
       addLog("WARNING: GEMINI_API_KEY is not configured. Full AI capabilities (pattern extraction, finalization) will be disabled.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
@@ -832,33 +858,37 @@ export default function App() {
       addLog("GEMINI_API_KEY detected. Gemini services enabled.", "ok");
     }
 
+    // Check state for Cerebras token
     if (!tokens.cerebras) {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     } else {
       addLog("Cerebras AI key detected. Cerebras synthesis enabled.", "ok");
     }
 
+    // Check state for GitHub token
     if (!tokens.github) {
       addLog("WARNING: GitHub token is missing. Core evolution and commits will be disabled.", "le-err");
     } else {
       addLog("GitHub token detected. Repository access enabled.", "ok");
     }
-  }, [addLog, tokens.cerebras, tokens.github]);
+  }, [addLog, tokens.cerebras, tokens.github]); // Dependencies ensure warnings are re-evaluated when relevant tokens change
 
+  // Log engine-level errors to the UI
   useEffect(() => {
     if (error) {
       addLog(`ENGINE ERROR: ${error}`, "le-err");
     }
-  }, [error, addLog]);
+  }, [error, addLog]); // Dependencies: error state, addLog (stable).
 
+  // Memoized callback to clear logs and initiate evolution
   const startEvolutionProcess = useCallback(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
-    runEvolution();
-  }, [runEvolution]);
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS }); // Clear previous logs
+    runEvolution(); // Start the evolution cycle
+  }, [runEvolution]); // Dependency: runEvolution (stable useCallback from useEvolutionEngine).
 
   return (
     <div className="dalek-shell">
-      <style>{GLOBAL_STYLES}</style>
+      <style>{GLOBAL_STYLES}</style> {/* Global styles injected */}
       <DalekHeader status={status} />
 
       <div className="main-container">
