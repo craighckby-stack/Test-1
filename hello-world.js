@@ -196,13 +196,14 @@ const GLOBAL_STYLES = `
 `;
 
 class AppError extends Error {
-  constructor(message, code = 'GENERIC_ERROR', originalError = null, httpStatus = null) {
+  constructor(message, code = 'GENERIC_ERROR', originalError = null, httpStatus = null, isUserAbort = false) {
     super(message);
     this.name = 'AppError';
     this.code = code;
     this.originalError = originalError;
     this.httpStatus = httpStatus;
     this.isAppError = true;
+    this.isUserAbort = isUserAbort;
   }
 }
 
@@ -230,16 +231,13 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
     } catch (e) {
       if (e.name === 'AbortError') throw e;
       if (e.isAppError && e.code === 'HTTP_REQUEST_FAILED' && i < retries - 1) {
-          // Retry HTTP specific errors
           await wait(1000 * (i + 1));
           continue;
       }
-      // For network errors or last retry of HTTP errors, re-throw or wrap
-      if (e.isAppError) throw e; // Re-throw AppErrors directly
+      if (e.isAppError) throw e;
       throw new AppError(`Network or unexpected error on ${url}: ${e.message}`, 'NETWORK_ERROR', e);
     }
   }
-  // Should ideally not reach here if retries > 0, but as a safeguard
   throw new AppError("safeFetch exhausted all retries.", 'FETCH_RETRY_EXHAUSTED');
 };
 
@@ -392,7 +390,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
       logger(`API: ${stepName} completed.`, "ok");
       return response;
     } catch (e) {
-      if (e.name === 'AbortError') {
+      if (e.name === 'AbortError' || (e.isAppError && e.isUserAbort)) {
         throw e;
       }
       const errorMsg = e.isAppError ? e.message : `An unexpected API error occurred: ${e.message}`;
@@ -410,28 +408,37 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
 };
 
 const useAIIntegrations = (tokens, addLog) => {
-  const githubService = useMemo(() => {
-    const githubToken = tokens.github;
-    if (!githubToken) {
+  const getApiClient = useCallback((apiConfig, token, name, defaultHeaders = {}) => {
+    if (!token && !apiConfig.DEFAULT_KEY) {
       return {
-        getFile: async () => { throw new AppError("GitHub client not ready: GitHub token missing.", 'NO_GITHUB_TOKEN'); },
-        updateFile: async () => { throw new AppError("GitHub client not ready: GitHub token missing.", 'NO_GITHUB_TOKEN'); }
+        isReady: false,
+        client: null,
+        error: new AppError(`${name} client not ready: API key missing.`, `NO_${name.toUpperCase()}_KEY`)
       };
     }
-    const githubClient = createApiClient(
-      APP_CONFIG.API.GITHUB.BASE_URL,
-      addLog,
-      {
-        Authorization: `token ${githubToken.trim()}`,
-        Accept: "application/vnd.github.v3+json",
-        "Content-Type": "application/json"
-      }
+    return {
+      isReady: true,
+      client: createApiClient(
+        apiConfig.BASE_URL,
+        addLog,
+        { ...defaultHeaders, ...(token && { Authorization: `Bearer ${token.trim()}` }) }
+      )
+    };
+  }, [addLog]);
+
+  const githubService = useMemo(() => {
+    const { isReady, client, error } = getApiClient(
+      APP_CONFIG.API.GITHUB,
+      tokens.github,
+      "GitHub",
+      { Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" }
     );
+    if (!isReady) return { getFile: async () => { throw error; }, updateFile: async () => { throw error; } };
 
     return {
       getFile: async (filePath = APP_CONFIG.GITHUB_REPO.file, signal = null) => {
         const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}?ref=${APP_CONFIG.GITHUB_REPO.branch}`;
-        const response = await githubClient.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
+        const response = await client.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
         if (!response || !response.content) {
           throw new AppError(`Failed to fetch file content for ${filePath}.`, 'GITHUB_FETCH_FAILED');
         }
@@ -445,23 +452,20 @@ const useAIIntegrations = (tokens, addLog) => {
           sha,
           branch: APP_CONFIG.GITHUB_REPO.branch
         };
-        await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
+        await client.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
     };
-  }, [tokens.github, addLog]);
+  }, [tokens.github, getApiClient]);
 
   const geminiService = useMemo(() => {
     const geminiApiKey = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
-    if (!geminiApiKey) {
-      return {
-        generateContent: async () => { throw new AppError("Gemini client not ready: API key missing.", 'NO_GEMINI_KEY'); }
-      };
-    }
-    const geminiClient = createApiClient(
-      APP_CONFIG.API.GEMINI.BASE_URL,
-      addLog,
+    const { isReady, client, error } = getApiClient(
+      APP_CONFIG.API.GEMINI,
+      geminiApiKey,
+      "Gemini",
       { "Content-Type": "application/json" }
     );
+    if (!isReady) return { generateContent: async () => { throw error; } };
 
     const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey.trim()}`;
 
@@ -473,7 +477,7 @@ const useAIIntegrations = (tokens, addLog) => {
     return {
       generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
         const body = buildGeminiGenerateContentBody(systemInstruction, parts);
-        const res = await geminiClient.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal);
+        const res = await client.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal);
         const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!content) {
           throw new AppError(`Gemini returned empty content or no valid candidate found for ${stepName}.`, 'GEMINI_EMPTY_RESPONSE');
@@ -481,23 +485,16 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.gemini, addLog]);
+  }, [tokens.gemini, getApiClient]);
 
   const cerebrasService = useMemo(() => {
-    const cerebrasToken = tokens.cerebras;
-    if (!cerebrasToken) {
-      return {
-        completeChat: async () => { throw new AppError("Cerebras client not ready: API key missing.", 'NO_CEREBRAS_KEY'); }
-      };
-    }
-    const cerebrasClient = createApiClient(
-      APP_CONFIG.API.CEREBRAS.BASE_URL,
-      addLog,
-      {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${cerebrasToken.trim()}`
-      }
+    const { isReady, client, error } = getApiClient(
+      APP_CONFIG.API.CEREBRAS,
+      tokens.cerebras,
+      "Cerebras",
+      { "Content-Type": "application/json" }
     );
+    if (!isReady) return { completeChat: async () => { throw error; } };
 
     const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
       model: APP_CONFIG.API.CEREBRAS.MODEL,
@@ -510,7 +507,7 @@ const useAIIntegrations = (tokens, addLog) => {
     return {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
         const body = buildCerebrasChatCompletionBody(systemContent, userContent);
-        const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
+        const data = await client.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
         const content = data.choices?.[0]?.message?.content || "";
         if (!content) {
           throw new AppError(`Cerebras returned empty content or no valid choice found for ${stepName}.`, 'CEREBRAS_EMPTY_RESPONSE');
@@ -518,12 +515,11 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.cerebras, addLog]);
+  }, [tokens.cerebras, getApiClient]);
 
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// Pipeline Step Definitions - return partial state updates
 const fetchCoreLogic = async (currentEngineState, { clients, addLog, config }, signal) => {
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
   const fetchedCode = utf8B64Decode(result.content);
@@ -549,8 +545,8 @@ const extractingPatternsLogic = async (currentEngineState, { clients, addLog, co
     "pattern extraction",
     signal
   );
-  if (!patterns || patterns.trim().length < 10) { // Arbitrary minimum length for "meaningful" patterns
-    throw new AppError("No meaningful quantum patterns extracted by Gemini.", "NO_QUANTUM_PATTERNS", null, false);
+  if (!patterns || patterns.trim().length < 10) {
+    throw new AppError("No meaningful quantum patterns extracted by Gemini.", "NO_QUANTUM_PATTERNS");
   }
   return { pipeline: { quantumPatterns: patterns } };
 };
@@ -574,7 +570,7 @@ const synthesizingDraftLogic = async (currentEngineState, { clients, addLog, con
   const cleanedDraft = cleanMarkdownCodeBlock(rawDraft);
 
   if (!cleanedDraft || cleanedDraft.trim().length < config.MIN_SYNTHESIZED_DRAFT_LENGTH) {
-    throw new AppError(`Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty.`, "SYNTHESIS_TOO_SHORT", null, false);
+    throw new AppError(`Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty.`, "SYNTHESIS_TOO_SHORT");
   }
   return { pipeline: { draftCode: cleanedDraft } };
 };
@@ -642,7 +638,7 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
       displayCode: evolvedCode,
     };
   } else {
-    throw new AppError("Evolved code deemed unsafe or unchanged. No commit.", 'COMMIT_PREVENTED_SAFETY', null, false);
+    throw new AppError("Evolved code deemed unsafe or unchanged. No commit.", 'COMMIT_PREVENTED_SAFETY');
   }
 };
 
@@ -663,7 +659,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
-      let currentState = initialEvolutionEngineState; // Start with initial state for the pipeline run
+      let currentState = initialEvolutionEngineState;
 
       for (const stepDef of steps) {
         if (signal.aborted) {
@@ -676,15 +672,8 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
         addLog(`NEXUS: ${stepDisplayName} initiated.`, "nexus");
 
         try {
-          // Pass the current accumulated state for the pipeline execution to the step action
-          const stepResult = await stepDef.action(
-            currentState, // Pass the current state accumulated from previous steps
-            globalServices,             
-            signal
-          );
+          const stepResult = await stepDef.action(currentState, globalServices, signal);
           
-          // Apply the step result to update the state within this pipeline run
-          // and dispatch to update the global engine state for UI/external consumption
           currentState = {
             ...currentState,
             ...(stepResult.pipeline ? { pipeline: { ...currentState.pipeline, ...stepResult.pipeline } } : {}),
@@ -701,7 +690,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
               addLog(`NEXUS: ${stepDisplayName} completed.`, "ok");
           }
         } catch (stepError) {
-          if (stepError.name === 'AbortError' || (stepError.isAppError && stepError.code === "PIPELINE_ABORTED")) {
+          if (stepError.name === 'AbortError' || (stepError.isAppError && stepError.isUserAbort)) {
             pipelineAborted = true;
             addLog(`NEXUS: ${stepDisplayName} ABORTED.`, "warn");
             throw stepError;
@@ -717,7 +706,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
       }
       return { success: true, commitPerformed: successfulCommitThisCycle, aborted: false };
     } catch (e) {
-      if (pipelineAborted || e.name === 'AbortError' || (e.isAppError && e.code === "PIPELINE_ABORTED")) {
+      if (pipelineAborted || e.name === 'AbortError' || (e.isAppError && e.isUserAbort)) {
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
         return { success: false, commitPerformed: false, aborted: true };
       } else {
@@ -731,7 +720,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) 
         abortControllerRef.current = null;
       }
     }
-  }, [steps, globalServices, dispatchEvolution, addLog]); // globalServices and dispatchEvolution are stable
+  }, [steps, globalServices, dispatchEvolution, addLog]);
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
@@ -898,29 +887,15 @@ const useDalekCore = () => {
     clearLogs();
     addLog("NEXUS: System initializing...", "nexus");
 
-    const githubTokenPresent = tokens.github;
-    if (!githubTokenPresent) {
-      addLog("WARNING: GitHub token is missing. Core evolution and commits are disabled.", "le-err");
-      addLog("Please provide a GitHub Personal Access Token with 'repo' scope.", "le-err");
-    } else {
-      addLog("GitHub token detected. Repository access enabled.", "ok");
-    }
+    const tokenStatus = [
+      { key: 'github', present: !!tokens.github, required: true, name: "GitHub", messages: { present: "GitHub token detected. Repository access enabled.", missing: "WARNING: GitHub token is missing. Core evolution and commits are disabled.\nPlease provide a GitHub Personal Access Token with 'repo' scope." } },
+      { key: 'gemini', present: !!(tokens.gemini || APP_EMBEDDED_API_KEYS.GEMINI), required: true, name: "Gemini", messages: { present: "Gemini API Key detected. Gemini services enabled.", missing: "WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.\nPlease insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities." } },
+      { key: 'cerebras', present: !!tokens.cerebras, required: false, name: "Cerebras", messages: { present: "Cerebras AI key detected. Cerebras synthesis enabled.", missing: "WARNING: Cerebras AI key is missing. The code synthesis step will be skipped, impacting code generation.\nPlease provide a Cerebras API Key to enable advanced code synthesis." } },
+    ];
 
-    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_API_KEYS.GEMINI;
-    if (!geminiKeyPresent) { 
-      addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
-      addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
-    } else {
-      addLog("Gemini API Key detected. Gemini services enabled.", "ok");
-    }
-
-    const cerebrasKeyPresent = tokens.cerebras;
-    if (!cerebrasKeyPresent) {
-      addLog("WARNING: Cerebras AI key is missing. The code synthesis step will be skipped, impacting code generation.", "warn");
-      addLog("Please provide a Cerebras API Key to enable advanced code synthesis.", "warn");
-    } else {
-      addLog("Cerebras AI key detected. Cerebras synthesis enabled.", "ok");
-    }
+    tokenStatus.forEach(status => {
+      addLog(status.present ? status.messages.present : status.messages.missing, status.present ? "ok" : (status.required ? "le-err" : "warn"));
+    });
     addLog("NEXUS: System Ready.", "nexus");
   }, [addLog, clearLogs, tokens.cerebras, tokens.github, tokens.gemini]);
 
