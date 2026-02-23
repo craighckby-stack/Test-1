@@ -314,12 +314,24 @@ const initialEvolutionEngineState = {
   pipeline: initialPipelineContext, // Stores context relevant to the current pipeline run
 };
 
+const EvolutionActionTypes = {
+  START_EVOLUTION: 'START_EVOLUTION',
+  STOP_EVOLUTION: 'STOP_EVOLUTION',
+  SET_STATUS: 'SET_STATUS',
+  SET_ERROR: 'SET_ERROR',
+  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
+  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
+  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
+  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
+  SET_COMMIT_PERFORMED: 'SET_COMMIT_PERFORMED',
+};
+
 const evolutionEngineReducer = (state, action) => {
   switch (action.type) {
     case EvolutionActionTypes.START_EVOLUTION:
       return { ...state, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null, pipeline: initialPipelineContext };
     case EvolutionActionTypes.STOP_EVOLUTION:
-      return { ...state, isEvolutionActive: false, status: EvolutionStatus.PAUSED };
+      return { ...state, isEvolutionActive: false, status: EvolutionStatus.PAUSED, error: null }; // Clear error on stop
     case EvolutionActionTypes.SET_STATUS:
       return { ...state, status: action.payload };
     case EvolutionActionTypes.SET_ERROR:
@@ -340,17 +352,6 @@ const evolutionEngineReducer = (state, action) => {
   }
 };
 
-const EvolutionActionTypes = {
-  START_EVOLUTION: 'START_EVOLUTION',
-  STOP_EVOLUTION: 'STOP_EVOLUTION',
-  SET_STATUS: 'SET_STATUS',
-  SET_ERROR: 'SET_ERROR',
-  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
-  SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
-  SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
-  SET_COMMIT_PERFORMED: 'SET_COMMIT_PERFORMED',
-};
 
 // --- API Client Factory ---
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
@@ -423,6 +424,7 @@ const useExternalClients = (tokens, addLog) => {
   }, [tokens.github, addLog]);
 
   const geminiService = useMemo(() => {
+    // Prioritize user-provided key, then embedded key
     const geminiApiKey = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
     if (!geminiApiKey) {
       return {
@@ -526,7 +528,7 @@ async function extractingPatternsLogic({ pipelineContext, clients, addLog, signa
   } catch (e) {
     if (e.code === 'NO_GEMINI_KEY') {
       addLog("Gemini client not ready for pattern extraction. Skipping this step.", "le-warn");
-      return { ...pipelineContext, quantumPatterns: null };
+      return { ...pipelineContext, quantumPatterns: null }; // Allow pipeline to continue without patterns
     }
     throw e;
   }
@@ -562,7 +564,7 @@ async function synthesizingDraftLogic({ pipelineContext, clients, addLog, signal
   } catch (e) {
     if (e.code === 'NO_CEREBRAS_KEY') {
       addLog("Cerebras client not ready for synthesis. Skipping this step.", "le-warn");
-      return { ...pipelineContext, draftCode: null };
+      return { ...pipelineContext, draftCode: null }; // Allow pipeline to continue without draft
     }
     throw e;
   }
@@ -823,7 +825,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 // --- Main Evolution Engine Hook ---
 const useEvolutionEngine = (tokens, addLog) => {
   const [engineState, dispatch] = useReducer(evolutionEngineReducer, initialEvolutionEngineState);
-  const { status, isEvolutionActive, currentCoreCode, displayCode, error } = engineState;
+  const { status, isEvolutionActive, displayCode, error } = engineState;
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog);
 
@@ -868,8 +870,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     if (success) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     }
-    // Regardless of success, if commit was attempted and failed or passed, ensure displayCode clears if not committed.
-    // The `committingCodeLogic` handles setting `displayCode` to '' directly based on commit outcome.
     return { success, commitPerformed, aborted };
   }, [runPipeline, dispatch]);
 
