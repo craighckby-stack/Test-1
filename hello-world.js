@@ -242,7 +242,7 @@ const evolutionReducer = (state, action) => {
       return { ...state, displayCode: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, status: 'ERROR', isEvolutionActive: false };
-    case 'RESET_STATE': // For a full reset (not currently used, but good practice)
+    case 'RESET_STATE':
       return { ...initialEvolutionState, status: 'IDLE' };
     default:
       return state;
@@ -311,7 +311,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [isActive, addLog]); // Dependencies: isActive and addLog, interval is a constant
+  }, [isActive, addLog]);
 };
 
 // Encapsulates GitHub API interactions
@@ -339,7 +339,7 @@ const useGithubApi = (token, owner, repo, branch, addLog) => {
     }
 
     return safeFetch(url, options);
-  }, [token, owner, repo, branch]); // Dependencies for useCallback
+  }, [token, owner, repo, branch]);
 
   const getFile = useCallback(async (filePath) => {
     addLog(`GITHUB: Fetching ${filePath}...`, "nexus");
@@ -349,13 +349,13 @@ const useGithubApi = (token, owner, repo, branch, addLog) => {
     }
     addLog(`GITHUB: Fetched ${filePath} (SHA: ${response.sha.substring(0, 7)}...)`, "ok");
     return response;
-  }, [request, addLog]); // Dependencies for useCallback
+  }, [request, addLog]);
 
   const updateFile = useCallback(async (filePath, content, sha, message) => {
     addLog(`GITHUB: Committing ${filePath}...`, "nexus");
     await request(filePath, "PUT", { content, message }, sha);
     addLog(`GITHUB: Committed ${filePath} successfully.`, "ok");
-  }, [request, addLog]); // Dependencies for useCallback
+  }, [request, addLog]);
 
   return { getFile, updateFile };
 };
@@ -387,7 +387,7 @@ const useGeminiApi = (addLog) => {
       addLog(`GEMINI ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
       throw e;
     }
-  }, [addLog]); // Dependencies for useCallback
+  }, [addLog]);
 
   return { generateContent };
 };
@@ -396,7 +396,6 @@ const useGeminiApi = (addLog) => {
 const useCerebrasApi = (token, addLog) => {
   const completeChat = useCallback(async (systemContent, userContent, stepName = "chat completion") => {
     if (!token) {
-      // This error is caught upstream in validation, but good to have as a hard stop.
       throw new Error("CEREBRAS API key is missing. Cannot complete chat.");
     }
     addLog(`CEREBRAS: Initiating ${stepName}...`, "quantum");
@@ -425,7 +424,7 @@ const useCerebrasApi = (token, addLog) => {
       addLog(`CEREBRAS ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
       throw e;
     }
-  }, [token, addLog]); // Dependencies for useCallback
+  }, [token, addLog]);
 
   return { completeChat };
 };
@@ -624,7 +623,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     isCodeSafeToCommit,
     dispatch,
     validateEvolutionEnvironment,
-    tokens.cerebras, // Dependency for conditional synthesis
+    tokens.cerebras,
   ]);
 
   // Manage the continuous evolution loop
