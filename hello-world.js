@@ -835,7 +835,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-));
+);
 
 // Main App Component
 export default function App() {
