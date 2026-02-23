@@ -386,10 +386,8 @@ export default function App() {
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
-  // displayCodeRef is crucial for callbacks to read the *latest* displayCode without stale closures
   const displayCodeRef = useRef(""); 
 
-  // Update the ref whenever displayCode changes, ensuring callbacks have the freshest value
   useEffect(() => {
     displayCodeRef.current = displayCode;
   }, [displayCode]);
@@ -402,92 +400,109 @@ export default function App() {
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
   const cerebrasApi = useCerebrasApi(tokens.cerebras, addLog);
 
-  const callAIChain = useCallback(async (currentCodeFromGithub) => {
-    addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
-
-    let quantumPatterns = null;
-    let draftCode = null;
-    // finalCodeOutput defaults to the original code, providing a robust fallback
-    let finalCodeOutput = currentCodeFromGithub; 
-
-    // Sanitize current code for AI inputs, applying specific length limits
-    const cleanCurrentCodeForGemini = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
-    const cleanCurrentCodeForCerebras = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
-
-    // 1. Gemini: Extract Patterns
+  // Helper functions for AI chain steps, extracted for clarity
+  const extractPatterns = useCallback(async (code) => {
+    let patterns = null;
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
-      quantumPatterns = await geminiApi.generateContent(
+      const cleanCode = sanitizeContent(code, CORE_CONTENT_MAX_LENGTH);
+      patterns = await geminiApi.generateContent(
         GEMINI_PATTERN_INSTRUCTION,
-        [{ text: `CORE: ${cleanCurrentCodeForGemini}` }]
+        [{ text: `CORE: ${cleanCode}` }]
       );
-      if (!quantumPatterns || quantumPatterns.trim().length === 0) {
+      if (!patterns || patterns.trim().length === 0) {
         addLog("GEMINI: Pattern extraction yielded no results.", "def");
-        quantumPatterns = null; // Ensure it's explicitly null if empty
-      } else {
-        addLog("GEMINI: PATTERNS EXTRACTED", "ok");
+        return null;
       }
+      addLog("GEMINI: PATTERNS EXTRACTED", "ok");
+      return patterns;
     } catch (e) {
       addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}. Skipping pattern application.`, "le-err");
-      quantumPatterns = null;
+      return null;
     }
+  }, [addLog, geminiApi]);
 
-    // 2. Cerebras: Synthesize Draft - Only if Cerebras token and patterns are available
-    if (tokens.cerebras) {
-      if (quantumPatterns) {
-        try {
-          addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
-          const rawDraftCode = await cerebrasApi.completeChat(
-            CEREBRAS_SYNTHESIS_INSTRUCTION,
-            `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCodeForCerebras}`
-          );
-          draftCode = cleanMarkdownCodeBlock(rawDraftCode);
-          if (!draftCode || draftCode.trim().length === 0) {
-            addLog("CEREBRAS: No draft code synthesized. Using original core for finalization.", "def");
-            draftCode = null;
-          } else {
-            addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
-          }
-        } catch (e) {
-          addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}. Using original core for finalization.`, "le-err");
-          draftCode = null;
-        }
-      } else {
-        addLog("CEREBRAS: Synthesis skipped. No quantum patterns available for merging.", "def");
-      }
-    } else {
+  const synthesizeDraft = useCallback(async (patterns, currentCode) => {
+    if (!tokens.cerebras) {
       addLog("CEREBRAS: Synthesis skipped. Cerebras API key missing.", "warn");
+      return null;
+    }
+    if (!patterns) {
+      addLog("CEREBRAS: Synthesis skipped. No quantum patterns available for merging.", "def");
+      return null;
     }
 
-    // Determine the base code for Gemini finalization: prefer draft, fallback to original GitHub content
-    let codeToFinalize = draftCode || currentCodeFromGithub;
-    addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-    
-    // Sanitize the code chosen for finalization for Gemini, ensuring length limits
-    const cleanCodeToFinalize = sanitizeContent(codeToFinalize, CORE_CONTENT_MAX_LENGTH);
+    let draft = null;
+    try {
+      addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
+      const cleanCurrentCode = sanitizeContent(currentCode, CORE_CONTENT_MAX_LENGTH);
+      const rawDraftCode = await cerebrasApi.completeChat(
+        CEREBRAS_SYNTHESIS_INSTRUCTION,
+        `IMPROVEMENTS: ${patterns}\nCORE: ${cleanCurrentCode}`
+      );
+      draft = cleanMarkdownCodeBlock(rawDraftCode);
+      if (!draft || draft.trim().length === 0) {
+        addLog("CEREBRAS: No draft code synthesized.", "def");
+        return null;
+      }
+      addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
+      return draft;
+    } catch (e) {
+      addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}.`, "le-err");
+      return null;
+    }
+  }, [addLog, cerebrasApi, tokens.cerebras]);
 
-    // 3. Gemini: Finalize and Seal Core
+  const finalizeCore = useCallback(async (codeToFinalize, originalCode) => {
+    let finalCode = codeToFinalize; // Default to the input if finalization fails
     try {
       addLog("GEMINI: SEALING CORE...", "quantum");
+      const cleanCodeToFinalize = sanitizeContent(codeToFinalize, CORE_CONTENT_MAX_LENGTH);
+      const cleanOriginalCode = sanitizeContent(originalCode, CORE_CONTENT_MAX_LENGTH);
       const rawFinalCode = await geminiApi.generateContent(
         GEMINI_FINALIZATION_INSTRUCTION,
-        [{ text: `DRAFT_CODE: ${cleanCodeToFinalize}\nEXISTING_CORE: ${cleanCurrentCodeForGemini}` }]
+        [{ text: `DRAFT_CODE: ${cleanCodeToFinalize}\nEXISTING_CORE: ${cleanOriginalCode}` }]
       );
       const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode);
       if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
         addLog("GEMINI: Finalization yielded empty code. Reverting to prior state.", "le-err");
-        finalCodeOutput = codeToFinalize; // Fallback to the code that was supposed to be finalized
-      } else {
-        finalCodeOutput = cleanedFinalCode;
-        addLog("GEMINI: CORE SEALED", "ok");
+        return finalCode;
       }
+      addLog("GEMINI: CORE SEALED", "ok");
+      return cleanedFinalCode;
     } catch (e) {
       addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (prior state).`, "le-err");
-      finalCodeOutput = codeToFinalize; // Fallback to the code that was supposed to be finalized
+      return finalCode;
     }
+  }, [addLog, geminiApi]);
+
+
+  const callAIChain = useCallback(async (currentCodeFromGithub) => {
+    addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
+
+    let evolvedCode = currentCodeFromGithub; // Start with the current code as a base
+
+    // Step 1: Gemini - Extract Architectural Patterns
+    const quantumPatterns = await extractPatterns(currentCodeFromGithub);
+
+    // Step 2: Cerebras - Synthesize Draft Code (if patterns and Cerebras key available)
+    let draftCode = null;
+    if (quantumPatterns) {
+        draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
+    } else {
+        addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
+    }
+
+    // Step 3: Determine base for finalization: prefer draft, fallback to original GitHub content
+    const codeForFinalization = draftCode || currentCodeFromGithub;
+    addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
     
-    return finalCodeOutput; 
-  }, [addLog, tokens.cerebras, cerebrasApi, geminiApi]);
+    // Step 4: Gemini - Finalize and Seal Core
+    evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
+    
+    return evolvedCode; 
+  }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
+
 
   const validateInitialEvolutionConfig = useCallback(() => {
     if (!tokens.github) {
