@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo } from "react";
 
-const GEMINI_API_KEY = ""; // EXTERMINATE: Provide your Gemini API key here.
+const GEMINI_API_KEY = ""; // Provide your Gemini API key here.
 const GITHUB_REPO_CONFIG = {
   owner: "craighckby-stack",
   repo: "Test-1",
@@ -174,7 +174,7 @@ const GLOBAL_STYLES = `
 
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
-  try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
+  try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
   catch (e) { return `[BASE64_DECODE_ERR: ${e.message}]`; }
 };
 const wait = (ms) => new Promise(res => setTimeout(res, ms));
@@ -218,7 +218,7 @@ const logReducer = (state, action) => {
 const evolutionReducer = (state, action) => {
   switch (action.type) {
     case 'START_EVOLUTION':
-      return { ...state, isEvolutionActive: true, status: 'FETCHING', error: null };
+      return { ...state, isEvolutionActive: true, status: 'FETCHING_CORE', error: null };
     case 'STOP_EVOLUTION':
       return { ...state, isEvolutionActive: false, status: 'PAUSED' };
     case 'SET_STATUS':
@@ -246,37 +246,57 @@ const initialEvolutionState = {
 
 const useEvolutionLoop = (callback, interval, isActive, addLog) => {
   const savedCallback = useRef();
+  const timeoutRef = useRef();
 
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
 
   useEffect(() => {
-    if (isActive) {
-      addLog("NEXUS CYCLE INITIATED.", "nexus");
-      const tick = async () => {
-        if (!isActive) return;
-        const { success, commitPerformed } = await savedCallback.current();
-        if (!isActive) return; // Re-check after callback for external termination
+    const tick = async () => {
+      if (!isActive) {
+        addLog("NEXUS CYCLE TERMINATED.", "nexus");
+        return;
+      }
 
-        let delay = EVOLUTION_CYCLE_INTERVAL_MS;
-        if (success) {
-          const message = commitPerformed
-            ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.`
-            : `NEXUS CYCLE COMPLETE (no commit). Waiting for next evolution in ${delay / 1000}s.`;
-          addLog(message, "nexus");
-        } else {
-          delay = EVOLUTION_CYCLE_INTERVAL_MS / 2; // Shorter delay on failure
-          addLog(`NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`, "nexus");
-        }
-        if (isActive) { // Final check before scheduling next tick
-          setTimeout(tick, delay);
-        }
-      };
+      addLog("NEXUS CYCLE INITIATED.", "nexus");
+      const { success, commitPerformed } = await savedCallback.current();
+
+      if (!isActive) { // Re-check after callback for external termination
+        addLog("NEXUS CYCLE TERMINATED.", "nexus");
+        return;
+      }
+
+      let delay = EVOLUTION_CYCLE_INTERVAL_MS;
+      if (success) {
+        const message = commitPerformed
+          ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.`
+          : `NEXUS CYCLE COMPLETE (no commit). Waiting for next evolution in ${delay / 1000}s.`;
+        addLog(message, "nexus");
+      } else {
+        delay = EVOLUTION_CYCLE_INTERVAL_MS / 2; // Shorter delay on failure
+        addLog(`NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`, "nexus");
+      }
+      
+      if (isActive) { // Final check before scheduling next tick
+        timeoutRef.current = setTimeout(tick, delay);
+      }
+    };
+
+    if (isActive) {
       tick();
     } else {
-      addLog("NEXUS CYCLE TERMINATED.", "nexus");
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [isActive, addLog, interval]);
 };
 
@@ -359,6 +379,7 @@ const useGeminiApi = (addLog) => {
 const useCerebrasApi = (token, addLog) => {
   const completeChat = useCallback(async (systemContent, userContent, stepName = "chat completion") => {
     if (!token) {
+      // This error is caught upstream, but good to have as a hard stop if called directly.
       throw new Error("CEREBRAS API key is missing. Cannot complete chat.");
     }
     addLog(`CEREBRAS: Initiating ${stepName}...`, "quantum");
@@ -434,11 +455,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [geminiApi]);
 
   const synthesizeDraft = useCallback(async (patterns, currentCode) => {
-    if (!patterns || !tokens.cerebras) {
-      // This check is duplicated in performSingleEvolutionStep's conditional logic,
-      // but it's good to have here as a failsafe if this hook is called directly.
-      throw new Error("Synthesis skipped: No quantum patterns or Cerebras key available.");
-    }
+    // Note: Cerebras token check is performed in useCerebrasApi.
     const cleanCurrentCode = sanitizeContent(currentCode, CORE_CONTENT_MAX_LENGTH);
     const rawDraftCode = await cerebrasApi.completeChat(
       CEREBRAS_SYNTHESIS_INSTRUCTION,
@@ -450,7 +467,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       throw new Error("Synthesized draft was empty after cleanup.");
     }
     return draft;
-  }, [cerebrasApi, tokens.cerebras]);
+  }, [cerebrasApi]);
 
   const finalizeCore = useCallback(async (codeToFinalize, originalCode) => {
     const cleanCodeToFinalize = sanitizeContent(codeToFinalize, CORE_CONTENT_MAX_LENGTH);
@@ -474,34 +491,31 @@ const useEvolutionEngine = (tokens, addLog) => {
     let commitPerformed = false;
     let success = false;
 
-    // Centralized termination check
     const checkTermination = () => {
       if (isEvolutionTerminatedRef.current) {
         throw new Error("Evolution terminated by user.");
       }
     };
 
-    // Helper to wrap each asynchronous step with status updates and termination checks
     const pipelineStep = async (stepName, action, allowFailure = false) => {
-      checkTermination(); // Check before starting the step
+      checkTermination();
       dispatch({ type: 'SET_STATUS', payload: stepName });
       try {
         const result = await action();
-        checkTermination(); // Check after action, especially if action was long-running
+        checkTermination();
         return result;
       } catch (e) {
         addLog(`${stepName.replace(/_/g, ' ')} FAILED: ${e.message}`, "le-err");
         if (!allowFailure) {
-          throw e; // Re-throw critical errors for the main try/catch block
+          throw e;
         }
-        return null; // Return null for optional steps that failed but don't halt the process
+        return null;
       }
     };
 
     try {
-      validateEvolutionEnvironment(); // Initial hard stop checks
+      validateEvolutionEnvironment();
 
-      // Step 1: Fetch Core Code
       const fetchedFileData = await pipelineStep('FETCHING_CORE', async () => {
         const result = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         fetchedCode = utf8B64Decode(result.content);
@@ -512,31 +526,27 @@ const useEvolutionEngine = (tokens, addLog) => {
       fileRef = fetchedFileData;
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
-      // Step 2: Extract Patterns (Allow failure, as synthesis might use original code if no patterns)
       const quantumPatterns = await pipelineStep('EXTRACTING_PATTERNS', async () => {
         return await extractPatterns(fetchedCode);
-      }, true); // Allow failure for pattern extraction
+      }, true);
 
-      // Step 3: Synthesize Draft (Conditional based on Cerebras key and patterns)
       let draftCode = null;
-      if (tokens.cerebras && quantumPatterns) {
+      const canSynthesize = tokens.cerebras && quantumPatterns;
+      if (canSynthesize) {
         draftCode = await pipelineStep('SYNTHESIZING_DRAFT', async () => {
           return await synthesizeDraft(quantumPatterns, fetchedCode);
-        }, true); // Allow failure for synthesis
-      } else if (!tokens.cerebras) {
-        addLog("CEREBRAS: Synthesis skipped. Cerebras key not provided.", "warn");
-      } else if (!quantumPatterns) {
-        addLog("AI: No quantum patterns extracted. Skipping synthesis.", "warn");
+        });
+      } else {
+        const reason = !tokens.cerebras ? "Cerebras key not provided" : "no quantum patterns extracted";
+        addLog(`AI: Synthesis skipped (${reason}).`, "warn");
       }
 
-      // Step 4: Finalize Core (Uses draft if available, otherwise original fetched code)
       const codeForFinalization = draftCode || fetchedCode;
       addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
       evolvedCode = await pipelineStep('FINALIZING_CODE', async () => {
         return await finalizeCore(codeForFinalization, fetchedCode);
       });
 
-      // Step 5: Commit if Safe
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, fetchedCode)) {
         await pipelineStep('COMMITTING_CODE', async () => {
           await githubApi.updateFile(
@@ -548,14 +558,14 @@ const useEvolutionEngine = (tokens, addLog) => {
         commitPerformed = true;
       } else {
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-        dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode }); // Revert display to original
+        dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode });
       }
       success = true;
 
     } catch (e) {
       if (e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Soft success for loop control, as it was intentionally stopped
+        success = true;
       } else {
         dispatch({ type: 'SET_ERROR', payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -563,11 +573,10 @@ const useEvolutionEngine = (tokens, addLog) => {
         success = false;
       }
     } finally {
-      // Ensure status is reset or updated appropriately after the cycle
       if (!isEvolutionTerminatedRef.current) {
         dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
       } else {
-        dispatch({ type: 'STOP_EVOLUTION' }); // Explicitly set to PAUSED/STOPPED
+        dispatch({ type: 'STOP_EVOLUTION' });
       }
     }
     return { success, commitPerformed };
@@ -587,7 +596,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const runEvolution = useCallback(() => {
     try {
-      validateEvolutionEnvironment(); // Pre-check before starting loop
+      validateEvolutionEnvironment();
       isEvolutionTerminatedRef.current = false;
       dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
@@ -599,7 +608,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
-      dispatch({ type: 'STOP_EVOLUTION' }); // Set state immediately for UI responsiveness
+      dispatch({ type: 'STOP_EVOLUTION' });
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE.", "def");
@@ -619,7 +628,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
-    <div style={{ fontSize: '0.7rem' }}>{status === 'IDLE' ? "CORE_STABLE" : `STATUS: ${status.replace(/_/g, ' ')}...`}</div>
+    <div style={{ fontSize: '0.7rem' }}>{status === 'IDLE' || status === 'PAUSED' ? "CORE_STABLE" : `STATUS: ${status.replace(/_/g, ' ')}...`}</div>
   </div>
 ));
 
@@ -690,6 +699,9 @@ export default function App() {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
     }
+  }, [addLog]); // Only depend on addLog as GEMINI_API_KEY is constant
+
+  useEffect(() => {
     if (!tokens.cerebras) {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     }
