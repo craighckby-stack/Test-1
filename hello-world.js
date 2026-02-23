@@ -485,12 +485,19 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
   }, [isActive, addLog, interval]);
 };
 
-const useEvolutionPipeline = (steps, addLog, dispatch, isTerminatedRef) => {
+// Defines the structure and metadata of the evolution pipeline steps
+const EVOLUTION_STEP_DEFINITIONS = [
+  { name: EvolutionStatus.FETCHING_CORE, allowFailure: false },
+  { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true },
+  { name: EvolutionStatus.SYNTHESIZING_DRAFT, allowFailure: true },
+  { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false },
+  { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false }
+];
+
+const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef, getStepAction) => {
   const runPipeline = useCallback(async () => {
     let success = false;
     let commitPerformed = false;
-    // Pipeline context: mutable object passed through steps.
-    // Each step can update its properties.
     const pipelineContext = {
       fileRef: null,
       fetchedCode: '',
@@ -504,30 +511,30 @@ const useEvolutionPipeline = (steps, addLog, dispatch, isTerminatedRef) => {
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
-      for (const step of steps) {
-        // Check for termination signal before executing a step
+      for (const stepDef of stepDefinitions) {
         if (isTerminatedRef.current) {
           throw new Error("Evolution terminated by user.");
         }
-        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: step.name });
-        addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} initiated.`, "nexus");
+        dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
+        addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
-          await step.action(pipelineContext);
-          // Check for termination signal immediately after an async step completes
+          const action = getStepAction(stepDef.name);
+          if (!action) throw new Error(`Action for step ${stepDef.name} not found.`);
+          await action(pipelineContext);
+          
           if (isTerminatedRef.current) {
             throw new Error("Evolution terminated by user.");
           }
-          if (step.name === EvolutionStatus.FINALIZING_CODE && pipelineContext.evolvedCode) {
+          if (stepDef.name === EvolutionStatus.FINALIZING_CODE && pipelineContext.evolvedCode) {
             dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: pipelineContext.evolvedCode });
           }
-          addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} completed.`, "ok");
+          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
         } catch (stepError) {
-          addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
-          if (!step.allowFailure) {
-            throw stepError; // Re-throw to stop the pipeline if failure is not allowed
+          addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
+          if (!stepDef.allowFailure) {
+            throw stepError;
           }
-          // If failure is allowed, pipeline continues, but context might be incomplete for next steps.
         }
       }
       success = true;
@@ -536,7 +543,7 @@ const useEvolutionPipeline = (steps, addLog, dispatch, isTerminatedRef) => {
     } catch (e) {
       if (e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Consider user termination a "soft" success for loop continuation
+        success = true; 
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -551,7 +558,7 @@ const useEvolutionPipeline = (steps, addLog, dispatch, isTerminatedRef) => {
       }
     }
     return { success, commitPerformed };
-  }, [steps, addLog, dispatch, isTerminatedRef]);
+  }, [stepDefinitions, addLog, dispatch, isTerminatedRef, getStepAction]);
   return runPipeline;
 };
 
@@ -581,114 +588,111 @@ const useEvolutionEngine = (tokens, addLog) => {
     return true;
   }, [addLog]);
 
-  const evolutionPipelineSteps = useMemo(() => ([
-    {
-      name: EvolutionStatus.FETCHING_CORE,
-      action: async (ctx) => {
-        const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file);
-        ctx.fetchedCode = utf8B64Decode(result.content);
-        ctx.fileRef = result;
-        dispatch({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: ctx.fetchedCode });
-        dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode });
-      }
-    },
-    {
-      name: EvolutionStatus.EXTRACTING_PATTERNS,
-      allowFailure: true, 
-      action: async (ctx) => {
-        const cleanCode = sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH);
-        ctx.quantumPatterns = await gemini.generateContent(
-          PROMPT_INSTRUCTIONS.GEMINI_PATTERN,
-          [{ text: `CORE: ${cleanCode}` }],
-          "pattern extraction"
-        );
-        if (!ctx.quantumPatterns || ctx.quantumPatterns.trim().length < 10) {
-            addLog("AI: No meaningful quantum patterns extracted by Gemini. Synthesis might be less effective.", "warn");
-            ctx.quantumPatterns = null; 
-        } else {
-            addLog("AI: Quantum patterns extracted.", "quantum");
-        }
-      }
-    },
-    {
-      name: EvolutionStatus.SYNTHESIZING_DRAFT,
-      allowFailure: true, 
-      action: async (ctx) => {
-        if (!tokens.cerebras || !cerebras.completeChat) {
-          addLog("AI: Cerebras client not available or key missing. Skipping synthesis.", "warn");
-          ctx.draftCode = null; 
-          return;
-        }
-        const sanitizedFetchedCode = sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH);
-        const userContent = ctx.quantumPatterns 
-          ? `IMPROVEMENTS: ${ctx.quantumPatterns}\nCORE: ${sanitizedFetchedCode}`
-          : `CORE: ${sanitizedFetchedCode}`;
-        
-        ctx.draftCode = await cerebras.completeChat(
-          PROMPT_INSTRUCTIONS.CEREBRAS_SYNTHESIS,
-          userContent,
-          "code synthesis"
-        );
-        ctx.draftCode = cleanMarkdownCodeBlock(ctx.draftCode);
-        if (!ctx.draftCode || ctx.draftCode.trim().length < APP_CONFIG.MIN_SYNTHESIZED_DRAFT_LENGTH) {
-          addLog("AI: Synthesized draft was too short or empty after cleanup. Will proceed with original code for finalization.", "warn");
-          ctx.draftCode = null; 
-        } else {
-          addLog("AI: Draft code synthesized.", "quantum");
-        }
-      }
-    },
-    {
-      name: EvolutionStatus.FINALIZING_CODE,
-      action: async (ctx) => {
-        const codeForFinalization = ctx.draftCode || ctx.fetchedCode;
-        if (!codeForFinalization) {
-            throw new Error("No code available for finalization. This indicates a critical upstream failure.");
-        }
-        addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-        
-        const rawFinalCode = await gemini.generateContent(
-          PROMPT_INSTRUCTIONS.GEMINI_FINALIZATION,
-          [
-            { text: `DRAFT_CODE: ${sanitizeContent(codeForFinalization, APP_CONFIG.CORE_CONTENT_MAX_LENGTH)}` },
-            { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH)}` }
-          ],
-          "core finalization"
-        );
-        ctx.evolvedCode = cleanMarkdownCodeBlock(rawFinalCode);
-        if (!ctx.evolvedCode || ctx.evolvedCode.trim().length === 0) {
-          throw new Error("Finalized code was empty after cleanup, indicating a critical AI failure.");
-        }
-        addLog("AI: Finalized code generated.", "quantum");
-      }
-    },
-    {
-      name: EvolutionStatus.COMMITTING_CODE,
-      action: async (ctx) => {
-        if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
-          await github.updateFile(
-            APP_CONFIG.GITHUB_REPO.file, ctx.evolvedCode, ctx.fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
-          );
-          addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-          dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.evolvedCode });
-          ctx.commitPerformed = true;
-        } else {
-          addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-          dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode });
-          ctx.commitPerformed = false;
-        }
-      }
+  // Define each pipeline step's action as a useCallback to ensure stability
+  const fetchingCoreAction = useCallback(async (ctx) => {
+    const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file);
+    ctx.fetchedCode = utf8B64Decode(result.content);
+    ctx.fileRef = result;
+    dispatch({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: ctx.fetchedCode });
+    dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode });
+  }, [github, dispatch]);
+
+  const extractingPatternsAction = useCallback(async (ctx) => {
+    const cleanCode = sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH);
+    ctx.quantumPatterns = await gemini.generateContent(
+      PROMPT_INSTRUCTIONS.GEMINI_PATTERN,
+      [{ text: `CORE: ${cleanCode}` }],
+      "pattern extraction"
+    );
+    if (!ctx.quantumPatterns || ctx.quantumPatterns.trim().length < 10) {
+        addLog("AI: No meaningful quantum patterns extracted by Gemini. Synthesis might be less effective.", "warn");
+        ctx.quantumPatterns = null; 
+    } else {
+        addLog("AI: Quantum patterns extracted.", "quantum");
     }
-  ]), [
-    github, gemini, cerebras, 
-    addLog, dispatch, isCodeSafeToCommit, tokens.cerebras, 
-    APP_CONFIG.GITHUB_REPO.file, APP_CONFIG.GITHUB_REPO.owner, APP_CONFIG.GITHUB_REPO.repo, APP_CONFIG.GITHUB_REPO.branch,
-    APP_CONFIG.CORE_CONTENT_MAX_LENGTH, APP_CONFIG.MIN_EVOLVED_CODE_LENGTH, APP_CONFIG.MIN_SYNTHESIZED_DRAFT_LENGTH,
-    PROMPT_INSTRUCTIONS.GEMINI_PATTERN, PROMPT_INSTRUCTIONS.CEREBRAS_SYNTHESIS, PROMPT_INSTRUCTIONS.GEMINI_FINALIZATION
+  }, [gemini, addLog]);
+
+  const synthesizingDraftAction = useCallback(async (ctx) => {
+    if (!tokens.cerebras || !cerebras.completeChat) {
+      addLog("AI: Cerebras client not available or key missing. Skipping synthesis.", "warn");
+      ctx.draftCode = null; 
+      return;
+    }
+    const sanitizedFetchedCode = sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH);
+    const userContent = ctx.quantumPatterns 
+      ? `IMPROVEMENTS: ${ctx.quantumPatterns}\nCORE: ${sanitizedFetchedCode}`
+      : `CORE: ${sanitizedFetchedCode}`;
+    
+    ctx.draftCode = await cerebras.completeChat(
+      PROMPT_INSTRUCTIONS.CEREBRAS_SYNTHESIS,
+      userContent,
+      "code synthesis"
+    );
+    ctx.draftCode = cleanMarkdownCodeBlock(ctx.draftCode);
+    if (!ctx.draftCode || ctx.draftCode.trim().length < APP_CONFIG.MIN_SYNTHESIZED_DRAFT_LENGTH) {
+      addLog("AI: Synthesized draft was too short or empty after cleanup. Will proceed with original code for finalization.", "warn");
+      ctx.draftCode = null; 
+    } else {
+      addLog("AI: Draft code synthesized.", "quantum");
+    }
+  }, [tokens.cerebras, cerebras, addLog]);
+
+  const finalizingCodeAction = useCallback(async (ctx) => {
+    const codeForFinalization = ctx.draftCode || ctx.fetchedCode;
+    if (!codeForFinalization) {
+        throw new Error("No code available for finalization. This indicates a critical upstream failure.");
+    }
+    addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
+    
+    const rawFinalCode = await gemini.generateContent(
+      PROMPT_INSTRUCTIONS.GEMINI_FINALIZATION,
+      [
+        { text: `DRAFT_CODE: ${sanitizeContent(codeForFinalization, APP_CONFIG.CORE_CONTENT_MAX_LENGTH)}` },
+        { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(ctx.fetchedCode, APP_CONFIG.CORE_CONTENT_MAX_LENGTH)}` }
+      ],
+      "core finalization"
+    );
+    ctx.evolvedCode = cleanMarkdownCodeBlock(rawFinalCode);
+    if (!ctx.evolvedCode || ctx.evolvedCode.trim().length === 0) {
+      throw new Error("Finalized code was empty after cleanup, indicating a critical AI failure.");
+    }
+    addLog("AI: Finalized code generated.", "quantum");
+  }, [gemini, addLog]);
+
+  const committingCodeAction = useCallback(async (ctx) => {
+    if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
+      await github.updateFile(
+        APP_CONFIG.GITHUB_REPO.file, ctx.evolvedCode, ctx.fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
+      );
+      addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
+      dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.evolvedCode });
+      ctx.commitPerformed = true;
+    } else {
+      addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
+      dispatch({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: ctx.fetchedCode });
+      ctx.commitPerformed = false;
+    }
+  }, [github, addLog, dispatch, isCodeSafeToCommit]);
+
+  const getStepAction = useCallback((stepName) => {
+    switch (stepName) {
+      case EvolutionStatus.FETCHING_CORE: return fetchingCoreAction;
+      case EvolutionStatus.EXTRACTING_PATTERNS: return extractingPatternsAction;
+      case EvolutionStatus.SYNTHESIZING_DRAFT: return synthesizingDraftAction;
+      case EvolutionStatus.FINALIZING_CODE: return finalizingCodeAction;
+      case EvolutionStatus.COMMITTING_CODE: return committingCodeAction;
+      default: return null;
+    }
+  }, [
+    fetchingCoreAction,
+    extractingPatternsAction,
+    synthesizingDraftAction,
+    finalizingCodeAction,
+    committingCodeAction
   ]);
 
   const performSingleEvolutionStep = useEvolutionPipeline(
-    evolutionPipelineSteps, addLog, dispatch, isEvolutionTerminatedRef
+    EVOLUTION_STEP_DEFINITIONS, addLog, dispatch, isEvolutionTerminatedRef, getStepAction
   );
 
   useEvolutionLoop(performSingleEvolutionStep, APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS, isEvolutionActive, addLog);
