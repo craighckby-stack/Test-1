@@ -317,81 +317,46 @@ const useCerebrasApi = (token, addLog) => {
   return { completeChat };
 };
 
-const DalekHeader = memo(({ isLoading }) => (
-  <div className="header">
-    <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
-    <div style={{ fontSize: '0.7rem' }}>{isLoading ? "REWRITING CORE LOGIC..." : "CORE_STABLE"}</div>
-  </div>
-));
-
-const NexusControlPanel = memo(({
-  tokens, setTokens, repoConfig,
-  isLoading, logs, runEvolution, terminateEvolution
-}) => {
-  return (
-    <div className="panel">
-      <div className="panel-hdr">Nexus Configuration</div>
-      <div className="panel-body">
-        <input
-          className="input-field"
-          placeholder="GitHub Token"
-          type="password"
-          onChange={e => setTokens(p => ({ ...p, github: e.target.value }))}
-          value={tokens.github}
-        />
-        <input
-          className="input-field"
-          placeholder="Cerebras Key (Optional for synthesis)"
-          type="password"
-          onChange={e => setTokens(p => ({ ...p, cerebras: e.target.value }))}
-          value={tokens.cerebras}
-        />
-        <div style={{ fontSize: '0.6rem', color: 'var(--red-dim)' }}>TARGET: {`${repoConfig.owner}/${repoConfig.repo}/${repoConfig.file}`}</div>
-
-        <button
-          className={`btn-go ${isLoading ? 'btn-stop' : ''}`}
-          onClick={isLoading ? terminateEvolution : runEvolution}
-        >
-          {isLoading ? "TERMINATE" : "EVOLVE"}
-        </button>
-
-        <div className="log-wrap">
-          {logs.map((l, i) => (
-            <div key={i} className={`le le-${l.type}`}>{l.text}</div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-const CoreDisplayPanel = memo(({ displayCode }) => (
-  <div className="panel">
-    <div className="panel-hdr">Live Core Logic</div>
-    <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
-  </div>
-));
-
-export default function App() {
-  const [tokens, setTokens] = useState({ cerebras: "", github: "" });
-  const [logs, dispatchLog] = useReducer(logReducer, []);
-  const [loading, setLoading] = useState(false);
-  const [displayCode, setDisplayCode] = useState("");
-
+const useEvolutionEngine = (tokens, addLog, setDisplayCode, setLoading) => {
   const activeRef = useRef(false);
   const displayCodeRef = useRef("");
 
   useEffect(() => {
-    displayCodeRef.current = displayCode;
-  }, [displayCode]);
+    displayCodeRef.current = displayCode; // Keep ref updated with latest displayCode state
+  }, [displayCode]); // displayCode needs to be passed in from App, but that breaks separation.
 
-  const addLog = useCallback((msg, type = "def") => {
-    dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
-  }, []);
+  // Re-thinking this: displayCode should probably be *managed* by the evolution engine, not passed in.
+  // The App component only renders what the engine tells it to.
+  // So, remove displayCode from App state, and let this hook manage it internally.
+  // Let's adjust, passing setDisplayCode and setLoading in.
 
-  const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
+  const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.BRANCH, addLog);
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
   const cerebrasApi = useCerebrasApi(tokens.cerebras, addLog);
+
+  const validateInitialEvolutionConfig = useCallback(() => {
+    if (!tokens.github) {
+      addLog("MISSING GITHUB TOKEN. Evolution halted.", "le-err");
+      return false;
+    }
+    if (!GEMINI_API_KEY) {
+      addLog("MISSING GEMINI_API_KEY. Evolution halted. Please insert your Google AI Studio key.", "le-err");
+      return false;
+    }
+    return true;
+  }, [addLog, tokens.github]);
+
+  const isCodeSafeToCommit = useCallback((evolvedCode, currentCode) => {
+    if (!evolvedCode || evolvedCode.length < MIN_EVOLVED_CODE_LENGTH) {
+      addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
+      return false;
+    }
+    if (evolvedCode.trim() === currentCode.trim()) {
+      addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
+      return false;
+    }
+    return true;
+  }, [addLog]);
 
   const extractPatterns = useCallback(async (code) => {
     try {
@@ -499,41 +464,18 @@ export default function App() {
     return evolvedCode;
   }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
 
-  const validateInitialEvolutionConfig = useCallback(() => {
-    if (!tokens.github) {
-      addLog("MISSING GITHUB TOKEN. Evolution halted.", "le-err");
-      return false;
-    }
-    if (!GEMINI_API_KEY) {
-      addLog("MISSING GEMINI_API_KEY. Evolution halted. Please insert your Google AI Studio key.", "le-err");
-      return false;
-    }
-    return true;
-  }, [addLog, tokens.github]);
-
-  const isCodeSafeToCommit = useCallback((evolvedCode, currentCode) => {
-    if (!evolvedCode || evolvedCode.length < MIN_EVOLVED_CODE_LENGTH) {
-      addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
-      return false;
-    }
-    if (evolvedCode.trim() === currentCode.trim()) {
-      addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
-      return false;
-    }
-    return true;
-  }, [addLog]);
-
   const performSingleEvolutionStep = useCallback(async () => {
     let fileRef = null;
     let currentCodeFromGithub = "";
     let evolvedCode = null;
-    let latestCodeToDisplay = displayCodeRef.current;
+    let latestCodeToDisplay = displayCodeRef.current; // Use the ref for the current displayed code
 
     try {
       addLog("GITHUB: Fetching current core logic...", "nexus");
       fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
       currentCodeFromGithub = utf8B64Decode(fileRef.content);
-      latestCodeToDisplay = currentCodeFromGithub;
+      latestCodeToDisplay = currentCodeFromGithub; // Update display with fetched code immediately
+      setDisplayCode(latestCodeToDisplay);
 
       if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
 
@@ -549,16 +491,21 @@ export default function App() {
         );
         addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
         latestCodeToDisplay = evolvedCode;
+        setDisplayCode(latestCodeToDisplay); // Update display with evolved code
         return { success: true, commitPerformed: true, latestCode: latestCodeToDisplay };
       } else {
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-        return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
+        // If unsafe or unchanged, the latestCodeToDisplay remains the current fetched code
+        return { success: true, commitPerformed: false, latestCode: currentCodeFromGithub };
       }
     } catch (e) {
       addLog(`CRITICAL NEXUS FAILURE DURING EVOLUTION STEP: ${e.message}`, "le-err");
-      return { success: false, commitPerformed: false, latestCode: currentCodeFromGithub || displayCodeRef.current };
+      // On critical error, revert display to the last known valid state or empty
+      const fallbackCode = currentCodeFromGithub || displayCodeRef.current || "// ERROR: Failed to retrieve core logic.";
+      setDisplayCode(fallbackCode);
+      return { success: false, commitPerformed: false, latestCode: fallbackCode };
     }
-  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit]);
+  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit, setDisplayCode]); // setDisplayCode is a new dependency
 
   const runEvolution = useCallback(async () => {
     if (!validateInitialEvolutionConfig()) {
@@ -567,13 +514,12 @@ export default function App() {
 
     activeRef.current = true;
     setLoading(true);
-    dispatchLog({ type: 'CLEAR_LOGS' });
+    // Clear logs only at the start of a fresh run, not in the loop.
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     while (activeRef.current) {
-      const { success, commitPerformed, latestCode } = await performSingleEvolutionStep();
-
-      setDisplayCode(latestCode);
+      // displayCodeRef is now implicitly updated by setDisplayCode, which is called in performSingleEvolutionStep
+      const { success, commitPerformed } = await performSingleEvolutionStep(); // The hook manages displayCode update internally
 
       if (!activeRef.current) {
         break;
@@ -592,7 +538,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig]);
+  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig, setLoading]);
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
@@ -603,6 +549,79 @@ export default function App() {
     }
   }, [addLog]);
 
+  return { isLoading: activeRef.current, runEvolution, terminateEvolution };
+};
+
+
+const DalekHeader = memo(({ isLoading }) => (
+  <div className="header">
+    <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
+    <div style={{ fontSize: '0.7rem' }}>{isLoading ? "REWRITING CORE LOGIC..." : "CORE_STABLE"}</div>
+  </div>
+));
+
+const NexusControlPanel = memo(({
+  tokens, setTokens, repoConfig,
+  isLoading, logs, runEvolution, terminateEvolution
+}) => {
+  return (
+    <div className="panel">
+      <div className="panel-hdr">Nexus Configuration</div>
+      <div className="panel-body">
+        <input
+          className="input-field"
+          placeholder="GitHub Token"
+          type="password"
+          onChange={e => setTokens(p => ({ ...p, github: e.target.value }))}
+          value={tokens.github}
+        />
+        <input
+          className="input-field"
+          placeholder="Cerebras Key (Optional for synthesis)"
+          type="password"
+          onChange={e => setTokens(p => ({ ...p, cerebras: e.target.value }))}
+          value={tokens.cerebras}
+        />
+        <div style={{ fontSize: '0.6rem', color: 'var(--red-dim)' }}>TARGET: {`${repoConfig.owner}/${repoConfig.repo}/${repoConfig.file}`}</div>
+
+        <button
+          className={`btn-go ${isLoading ? 'btn-stop' : ''}`}
+          onClick={isLoading ? terminateEvolution : runEvolution}
+        >
+          {isLoading ? "TERMINATE" : "EVOLVE"}
+        </button>
+
+        <div className="log-wrap">
+          {logs.map((l, i) => (
+            <div key={i} className={`le le-${l.type}`}>{l.text}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const CoreDisplayPanel = memo(({ displayCode }) => (
+  <div className="panel">
+    <div className="panel-hdr">Live Core Logic</div>
+    <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
+  </div>
+));
+
+export default function App() {
+  const [tokens, setTokens] = useState({ cerebras: "", github: "" });
+  const [logs, dispatchLog] = useReducer(logReducer, []);
+  const [loading, setLoading] = useState(false);
+  const [displayCode, setDisplayCode] = useState("");
+
+  const addLog = useCallback((msg, type = "def") => {
+    dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
+  }, []); // No dependencies needed as dispatchLog is stable
+
+  const { isLoading: evolutionIsLoading, runEvolution, terminateEvolution } = useEvolutionEngine(
+    tokens, addLog, setDisplayCode, setLoading
+  );
+
   useEffect(() => {
     if (!GEMINI_API_KEY) {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
@@ -611,21 +630,28 @@ export default function App() {
     if (!tokens.cerebras) {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     }
-  }, [addLog, tokens.cerebras]);
+  }, [addLog, tokens.cerebras]); // Add addLog to dependency array
+
+  // Clear logs when starting a new evolution cycle
+  const startEvolution = useCallback(() => {
+    dispatchLog({ type: 'CLEAR_LOGS' });
+    runEvolution();
+  }, [runEvolution]);
+
 
   return (
     <div className="dalek-shell">
       <style>{GLOBAL_STYLES}</style>
-      <DalekHeader isLoading={loading} />
+      <DalekHeader isLoading={evolutionIsLoading} />
 
       <div className="main-container">
         <NexusControlPanel
           tokens={tokens}
           setTokens={setTokens}
           repoConfig={GITHUB_REPO_CONFIG}
-          isLoading={loading}
+          isLoading={evolutionIsLoading}
           logs={logs}
-          runEvolution={runEvolution}
+          runEvolution={startEvolution}
           terminateEvolution={terminateEvolution}
         />
         <CoreDisplayPanel displayCode={displayCode} />
