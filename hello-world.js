@@ -730,15 +730,13 @@ const useEvolutionEngine = (tokens, addLog) => {
     };
     const { success, commitPerformed } = await runPipeline(initialContext);
 
-    // After pipeline, update global state if not already handled by error/abort
-    if (success && engineState.status !== EvolutionStatus.ERROR) {
+    // If the pipeline ran successfully (including aborts which are 'success' for loop control),
+    // revert status to IDLE. If runPipeline itself dispatched an ERROR, it remains.
+    if (success) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
-    } else if (!success && engineState.status !== EvolutionStatus.ERROR) {
-      // If runPipeline reported failure but didn't set ERROR (e.g., specific step errors)
-      dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE }); // Return to idle for retry
     }
     return { success, commitPerformed };
-  }, [runPipeline, dispatch, engineState.status]);
+  }, [runPipeline, dispatch]);
 
   // Hook to manage the continuous evolution loop
   useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
@@ -835,7 +833,7 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-);
+));
 
 // Main App Component
 export default function App() {
