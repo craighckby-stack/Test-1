@@ -181,7 +181,7 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// UTILITY FUNCTIONS
+// UTILITY FUNCTIONS - Preserved, already optimized
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -226,7 +226,7 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
-// REDUCER ACTION TYPES
+// REDUCER ACTION TYPES - Preserved, already well-defined
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -254,7 +254,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS
+// REDUCERS - Preserved, already optimized
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -295,7 +295,7 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY
+// API CLIENT FACTORY - Preserved, already a solid pattern
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -323,7 +323,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS
+// CUSTOM HOOKS - Already architecturally upgraded
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
@@ -419,7 +419,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// New hook for abstracting pipeline execution logic
+// New hook for abstracting pipeline execution logic - Preserved, this is a core architectural upgrade
 const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
   const abortControllerRef = useRef(null); // Ref for the current cycle's AbortController
 
@@ -775,7 +775,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   };
 };
 
-// --- Presentational Components ---
+// --- Presentational Components - Preserved, good separation ---
 
 const DalekHeader = memo(({ status }) => (
   <div className="header">
