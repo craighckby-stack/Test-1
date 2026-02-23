@@ -359,7 +359,7 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode || '' };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState, currentCoreCode: state.currentCoreCode, displayCode: state.currentCoreCode };
-    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT: // Kept for backward compatibility if needed, but UPDATE_STATE_FROM_STEP is preferred.
+    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT: 
       return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
       return { ...state, currentCoreCode: action.payload };
@@ -491,7 +491,6 @@ const useAIIntegrations = (tokens, addLog) => {
     return {
       generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
         const body = buildGeminiGenerateContentBody(systemInstruction, parts);
-        // Removed redundant `headers: { Authorization: undefined }` as createApiClient already handles it when `isKeyInUrl` is true.
         const res = await client.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal); 
         const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!content) {
@@ -694,7 +693,6 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
   const { addLog } = globalServices;
   const engineStateRef = useRef(engineState);
 
-  // Keep ref updated with latest engineState without triggering effect for every state change
   useEffect(() => {
       engineStateRef.current = engineState;
   }, [engineState]);
@@ -708,8 +706,6 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
     let successfulCommitThisCycle = false;
     let pipelineAborted = false;
 
-    // Use a local mutable state for pipeline context within a single run
-    // to ensure subsequent steps receive immediate updates without waiting for React state update cycles.
     let currentLocalState = { ...engineStateRef.current };
 
     try {
@@ -729,7 +725,6 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         try {
           const stepResult = await stepDef.action(currentLocalState, globalServices, signal);
           
-          // Update local state for subsequent steps in this run
           currentLocalState = {
             ...currentLocalState,
             ...(stepResult.pipeline && { pipeline: { ...currentLocalState.pipeline, ...stepResult.pipeline } }),
@@ -737,7 +732,6 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
             ...(stepResult.displayCode !== undefined && { displayCode: stepResult.displayCode }),
           };
           
-          // Dispatch to update global React state, merging result
           dispatchEvolution({ type: EvolutionActionTypes.UPDATE_STATE_FROM_STEP, payload: stepResult });
 
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.pipeline?.commitPerformed) {
@@ -778,7 +772,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         abortControllerRef.current = null;
       }
     }
-  }, [steps, globalServices, dispatchEvolution, addLog]); // engineStateRef.current is stable as it's a ref.
+  }, [steps, globalServices, dispatchEvolution, addLog]);
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
@@ -832,7 +826,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
         const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
         const message = success
           ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit). Waiting in ${delay / 1000}s.`)
-          : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
+          : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.` ;
         addLog(message, success ? "nexus" : "le-err");
 
         timeoutRef.current = setTimeout(runCycle, delay);
@@ -848,7 +842,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start first cycle immediately or very soon
+      timeoutRef.current = setTimeout(runCycle, 0); 
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -888,8 +882,8 @@ const useDalekCore = () => {
 
   const EVOLUTION_PIPELINE_STEPS = useMemo(() => [
     { name: EvolutionStatus.FETCHING_CORE, action: fetchCoreLogic, allowFailure: false },
-    { name: EvolutionStatus.EXTRACTING_PATTERNS, action: extractingPatternsLogic, allowFailure: true }, // Allow skipping if Gemini client not available or fails
-    { name: EvolutionStatus.SYNTHESIZING_DRAFT, action: synthesizingDraftLogic, allowFailure: true }, // Allow skipping if Cerebras client not available or fails
+    { name: EvolutionStatus.EXTRACTING_PATTERNS, action: extractingPatternsLogic, allowFailure: true }, 
+    { name: EvolutionStatus.SYNTHESIZING_DRAFT, action: synthesizingDraftLogic, allowFailure: true }, 
     { name: EvolutionStatus.FINALIZING_CODE, action: finalizingCodeLogic, allowFailure: false },
     { name: EvolutionStatus.VALIDATING_SYNTAX, action: validatingSyntaxLogic, allowFailure: false },
     { name: EvolutionStatus.COMMITTING_CODE, action: committingCodeLogic, allowFailure: false }
@@ -906,7 +900,7 @@ const useDalekCore = () => {
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
     globalServices,
-    engineState, // Pass engineState directly, executor uses ref
+    engineState, 
     dispatchEvolution
   );
 
