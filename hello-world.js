@@ -288,18 +288,13 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY
-const createApiClient = (addLog, defaultHeaders = {}) => {
-  return async (url, options, stepName = "API Request", logType = "def", signal = null) => {
+// API CLIENT FACTORY (Optimized)
+const createApiClient = (baseURL, addLog) => {
+  const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
+    const url = `${baseURL}${endpoint}`;
     try {
       addLog(`API: Initiating ${stepName}...`, logType);
-      const response = await safeFetch(url, {
-        ...options,
-        headers: {
-          ...defaultHeaders,
-          ...options.headers,
-        },
-      }, 3, signal);
+      const response = await safeFetch(url, { method, ...options }, 3, signal);
       addLog(`API: ${stepName} completed.`, "ok");
       return response;
     } catch (e) {
@@ -311,119 +306,102 @@ const createApiClient = (addLog, defaultHeaders = {}) => {
       throw e;
     }
   };
-};
-
-// CUSTOM HOOKS
-const useExternalClients = (tokens, addLog) => {
-  const githubApiClientRef = useRef(null);
-  const geminiApiClientRef = useRef(null);
-  const cerebrasApiClientRef = useRef(null);
-
-  useEffect(() => {
-    githubApiClientRef.current = tokens.github 
-      ? createApiClient(addLog, { Authorization: `token ${tokens.github.trim()}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" })
-      : null;
-  }, [tokens.github, addLog]);
-
-  useEffect(() => {
-    geminiApiClientRef.current = API_KEYS.GEMINI
-      ? createApiClient(addLog, { "Content-Type": "application/json" })
-      : null;
-  }, [addLog]);
-
-  useEffect(() => {
-    cerebrasApiClientRef.current = tokens.cerebras
-      ? createApiClient(addLog, { "Content-Type": "application/json", "Authorization": `Bearer ${tokens.cerebras.trim()}` })
-      : null;
-  }, [tokens.cerebras, addLog]);
-
-  const getFile = useCallback(async (filePath = APP_CONFIG.GITHUB_REPO.file, signal = null) => {
-    const client = githubApiClientRef.current;
-    if (!client) {
-      const errorMsg = "GitHub client not initialized. Missing token?";
-      addLog(errorMsg, "le-err");
-      throw new Error(errorMsg);
-    }
-    const url = `https://api.github.com/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}`;
-    const response = await client(url, { method: "GET" }, `GitHub Fetch ${filePath}`, "nexus", signal);
-    if (!response || !response.content) {
-      throw new Error(`Failed to fetch file content for ${filePath}. Response: ${JSON.stringify(response)}`);
-    }
-    return response;
-  }, [addLog]);
-
-  const updateFile = useCallback(async (filePath, content, sha, message, signal = null) => {
-    const client = githubApiClientRef.current;
-    if (!client) {
-      const errorMsg = "GitHub client not initialized. Missing token?";
-      addLog(errorMsg, "le-err");
-      throw new Error(errorMsg);
-    }
-    const url = `https://api.github.com/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}`;
-    const body = {
-      message: message || `DALEK_EVOLUTION_${Date.now()}`,
-      content: utf8B64Encode(content),
-      sha,
-      branch: APP_CONFIG.GITHUB_REPO.branch
-    };
-    await client(url, { method: "PUT", body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
-  }, [addLog]);
-
-  const generateContent = useCallback(async (systemInstruction, parts, stepName = "content generation", signal = null) => {
-    const client = geminiApiClientRef.current;
-    if (!client) {
-      const errorMsg = "Gemini client not initialized. API key missing or invalid.";
-      addLog(errorMsg, "le-err");
-      throw new Error(errorMsg);
-    }
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEYS.GEMINI}`;
-    const res = await client(geminiUrl, {
-      method: "POST",
-      body: JSON.stringify({
-        contents: [{ parts }],
-        systemInstruction: { parts: [{ text: systemInstruction }] }
-      })
-    }, `Gemini ${stepName}`, "quantum", signal);
-    const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (!content) {
-      throw new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`);
-    }
-    return content;
-  }, [addLog]);
-
-  const completeChat = useCallback(async (systemContent, userContent, stepName = "chat completion", signal = null) => {
-    const client = cerebrasApiClientRef.current;
-    if (!client) {
-      const errorMsg = "Cerebras client not initialized. Missing token?";
-      addLog(errorMsg, "le-err");
-      throw new Error(errorMsg);
-    }
-    const data = await client("https://api.cerebras.ai/v1/chat/completions", {
-      method: "POST",
-      body: JSON.stringify({
-        model: "llama3.1-70b", // Use a suitable Cerebras model
-        messages: [
-          { role: "system", content: systemContent },
-          { role: "user", content: userContent }
-        ]
-      })
-    }, `Cerebras ${stepName}`, "quantum", signal);
-    const content = data.choices?.[0]?.message?.content || "";
-    if (!content) {
-      throw new Error(`Cerebras returned empty content or no valid choice found for ${stepName}.`);
-    }
-    return content;
-  }, [addLog]);
-
-  const githubService = useMemo(() => ({ getFile, updateFile }), [getFile, updateFile]);
-  const geminiService = useMemo(() => ({ generateContent }), [generateContent]);
-  const cerebrasService = useMemo(() => ({ completeChat }), [completeChat]);
 
   return {
-    github: githubService,
-    gemini: geminiService,
-    cerebras: cerebrasService
+    get: (endpoint, options = {}, stepName, logType, signal) => request("GET", endpoint, options, stepName, logType, signal),
+    post: (endpoint, options = {}, stepName, logType, signal) => request("POST", endpoint, options, stepName, logType, signal),
+    put: (endpoint, options = {}, stepName, logType, signal) => request("PUT", endpoint, options, stepName, logType, signal),
+    // Add other HTTP methods if needed
   };
+};
+
+// CUSTOM HOOKS (Optimized to use the new createApiClient)
+const useExternalClients = (tokens, addLog, geminiApiKey) => {
+  const githubService = useMemo(() => {
+    if (!tokens.github) return null;
+    const githubClient = createApiClient("https://api.github.com", addLog);
+    githubClient.defaultHeaders = { // Attach default headers after creation
+        Authorization: `token ${tokens.github.trim()}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json"
+    };
+
+    return {
+      getFile: async (filePath = APP_CONFIG.GITHUB_REPO.file, signal = null) => {
+        const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}`;
+        const response = await githubClient.get(urlPath, { headers: githubClient.defaultHeaders }, `GitHub Fetch ${filePath}`, "nexus", signal);
+        if (!response || !response.content) {
+          throw new Error(`Failed to fetch file content for ${filePath}. Response: ${JSON.stringify(response)}`);
+        }
+        return response;
+      },
+      updateFile: async (filePath, content, sha, message, signal = null) => {
+        const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}`;
+        const body = {
+          message: message || `DALEK_EVOLUTION_${Date.now()}`,
+          content: utf8B64Encode(content),
+          sha,
+          branch: APP_CONFIG.GITHUB_REPO.branch
+        };
+        await githubClient.put(urlPath, { headers: githubClient.defaultHeaders, body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
+      }
+    };
+  }, [tokens.github, addLog]);
+
+  const geminiService = useMemo(() => {
+    if (!geminiApiKey) return null;
+    const geminiClient = createApiClient("https://generativelanguage.googleapis.com", addLog);
+    geminiClient.defaultHeaders = { "Content-Type": "application/json" }; // Attach default headers
+
+    return {
+      generateContent: async (systemInstruction, parts, stepName = "content generation", signal = null) => {
+        const endpoint = `/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+        const res = await geminiClient.post(endpoint, {
+          headers: geminiClient.defaultHeaders,
+          body: JSON.stringify({
+            contents: [{ parts }],
+            systemInstruction: { parts: [{ text: systemInstruction }] }
+          })
+        }, `Gemini ${stepName}`, "quantum", signal);
+        const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!content) {
+          throw new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`);
+        }
+        return content;
+      }
+    };
+  }, [geminiApiKey, addLog]);
+
+  const cerebrasService = useMemo(() => {
+    if (!tokens.cerebras) return null;
+    const cerebrasClient = createApiClient("https://api.cerebras.ai", addLog);
+    cerebrasClient.defaultHeaders = { // Attach default headers
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${tokens.cerebras.trim()}`
+    };
+
+    return {
+      completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
+        const data = await cerebrasClient.post("/v1/chat/completions", {
+          headers: cerebrasClient.defaultHeaders,
+          body: JSON.stringify({
+            model: "llama3.1-70b", // Use a suitable Cerebras model
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: userContent }
+            ]
+          })
+        }, `Cerebras ${stepName}`, "quantum", signal);
+        const content = data.choices?.[0]?.message?.content || "";
+        if (!content) {
+          throw new Error(`Cerebras returned empty content or no valid choice found for ${stepName}.`);
+        }
+        return content;
+      }
+    };
+  }, [tokens.cerebras, addLog]);
+
+  return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
 const useEvolutionLoop = (callback, isActive, addLog) => {
@@ -437,13 +415,13 @@ const useEvolutionLoop = (callback, isActive, addLog) => {
   useEffect(() => {
     const tick = async () => {
       if (!isActive) {
-        return; // If isActive changed to false, simply exit. Cleanup effect will log "PAUSED".
+        return; 
       }
 
       const { success, commitPerformed } = await savedCallback.current();
 
-      if (!isActive) { // Re-check isActive after async operation, as it might have changed during execution
-        return; // If isActive changed to false, simply exit. Cleanup effect will log "PAUSED".
+      if (!isActive) { 
+        return; 
       }
 
       let delay = APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS;
@@ -464,12 +442,12 @@ const useEvolutionLoop = (callback, isActive, addLog) => {
 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      tick(); // Start immediately upon activation
+      tick(); 
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
-        addLog("NEXUS CYCLE PAUSED.", "nexus"); // Primary log for pausing the loop
+        addLog("NEXUS CYCLE PAUSED.", "nexus"); 
       }
     }
 
@@ -537,11 +515,11 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         } catch (stepError) {
           if (stepError.name === 'AbortError') {
              addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} ABORTED.`, "warn");
-             throw stepError; // Propagate AbortError to be caught by outer try-catch for global termination
+             throw stepError; 
           }
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
           if (!stepDef.allowFailure) {
-            throw stepError; // Re-throw if this step is critical and cannot be skipped
+            throw stepError; 
           }
         }
       }
@@ -551,7 +529,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
     } catch (e) {
       if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Graceful termination counts as "success" for loop control, not full cycle completion
+        success = true; 
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -559,12 +537,10 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         success = false;
       }
     } finally {
-      // Ensure the abort controller is always aborted after pipeline run or termination
       if (!signal.aborted) {
         abortController.abort();
       }
 
-      // If user terminated, dispatch stop; otherwise, set status based on success
       if (isTerminatedRef.current) {
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
       } else {
@@ -582,7 +558,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const isEvolutionTerminatedRef = useRef(false);
 
-  const { github, gemini, cerebras } = useExternalClients(tokens, addLog);
+  const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI); // Pass Gemini key directly
 
   const isCodeSafeToCommit = useCallback((evolvedCode, originalCode) => {
     if (!evolvedCode || evolvedCode.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
@@ -597,6 +573,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [addLog]);
 
   const fetchingCoreAction = useCallback(async (ctx, signal) => {
+    if (!github) throw new Error("GitHub client not initialized. Missing token?");
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
     ctx.fetchedCode = utf8B64Decode(result.content);
     ctx.fileRef = result;
@@ -604,7 +581,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [github, dispatch]);
 
   const extractingPatternsAction = useCallback(async (ctx, signal) => {
-    if (!gemini.generateContent) { 
+    if (!gemini) { 
       addLog("AI: Gemini client not initialized (API key missing). Skipping pattern extraction.", "warn");
       ctx.quantumPatterns = null;
       return;
@@ -631,7 +608,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [gemini, addLog]);
 
   const synthesizingDraftAction = useCallback(async (ctx, signal) => {
-    if (!cerebras.completeChat) { 
+    if (!cerebras) { 
       addLog("AI: Cerebras client not initialized (API key missing). Skipping synthesis.", "warn");
       ctx.draftCode = null; 
       return;
@@ -665,7 +642,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [cerebras, addLog]);
 
   const finalizingCodeAction = useCallback(async (ctx, signal) => {
-    if (!gemini.generateContent) { 
+    if (!gemini) { 
       throw new Error("AI: Gemini client not initialized (API key missing). Cannot finalize code.");
     }
 
@@ -675,7 +652,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     }
     addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
     
-    // Pass both draft and original as context for Gemini to ensure it preserves structure
     const rawFinalCode = await gemini.generateContent(
       PROMPT_INSTRUCTIONS.GEMINI_FINALIZATION,
       [
@@ -695,6 +671,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [gemini, addLog]);
 
   const committingCodeAction = useCallback(async (ctx, signal) => {
+    if (!github) throw new Error("GitHub client not initialized. Missing token?");
     if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
       if (!ctx.fileRef || !ctx.fileRef.sha) {
         throw new Error("Missing file reference (SHA) for committing code.");
