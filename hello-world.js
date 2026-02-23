@@ -194,7 +194,6 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// Utility Functions
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -211,47 +210,28 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
         try {
           const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
-        } catch (jsonParseError) {
-          // If response is not JSON or parsing fails, use the default message
-        }
+        } catch (jsonParseError) { }
         throw Object.assign(new Error(errorMessage), { httpStatus: response.status });
       }
       return await response.json();
     } catch (e) {
-      if (e.name === 'AbortError') {
-        throw e;
-      }
-      if (i === retries - 1) {
-        throw e;
-      }
+      if (e.name === 'AbortError') throw e;
+      if (i === retries - 1) throw e;
       await wait(1000 * (i + 1));
     }
   }
   throw new Error("safeFetch exhausted all retries.");
 };
 
-const cleanMarkdownCodeBlock = (code) => {
-  if (!code) return "";
-  return code.replace(/^```[a-z]*\n|```$/gi, "").trim();
-};
-
-const sanitizeContent = (content, maxLength) =>
-  content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
-
+const cleanMarkdownCodeBlock = (code) => code ? code.replace(/^```[a-z]*\n|```$/gi, "").trim() : "";
+const sanitizeContent = (content, maxLength) => content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 const validateJavaScriptSyntax = (code) => {
-  try {
-    new Function(code); // eslint-disable-line no-new-func
-    return true;
-  } catch (e) {
-    return false;
-  }
+  try { new Function(code); return true; } catch (e) { return false; } // eslint-disable-line no-new-func
 };
-
 const buildGeminiGenerateContentBody = (systemInstruction, userParts) => ({
   contents: [{ parts: userParts }],
   systemInstruction: { parts: [{ text: systemInstruction }] }
 });
-
 const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
   model: APP_CONFIG.API.CEREBRAS.MODEL,
   messages: [
@@ -260,7 +240,6 @@ const buildCerebrasChatCompletionBody = (systemContent, userContent) => ({
   ]
 });
 
-// Reducers for State Management
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -314,7 +293,7 @@ const EvolutionActionTypes = {
   STOP_EVOLUTION: 'STOP_EVOLUTION',
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
-  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE', // Not currently used, but good to have for full reset
+  RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
   SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
@@ -343,7 +322,6 @@ const evolutionEngineReducer = (state, action) => {
   }
 };
 
-// API Client Abstraction
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -410,7 +388,7 @@ const useExternalClients = (tokens, addLog) => {
         await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
     };
-  }, [tokens.github, addLog]); // Depend on tokens.github and addLog
+  }, [tokens.github, addLog]);
 
   const geminiService = useMemo(() => {
     const geminiApiKey = tokens.gemini || APP_EMBEDDED_KEYS.GEMINI;
@@ -438,7 +416,7 @@ const useExternalClients = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.gemini, addLog]); // Depend on tokens.gemini and addLog
+  }, [tokens.gemini, addLog]);
 
   const cerebrasService = useMemo(() => {
     const cerebrasToken = tokens.cerebras;
@@ -467,12 +445,11 @@ const useExternalClients = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.cerebras, addLog]); // Depend on tokens.cerebras and addLog
+  }, [tokens.cerebras, addLog]);
 
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// Evolution Pipeline Step Actions
 const fetchCoreLogic = async (pipelineContext, { clients, addLog, config, dispatchEvolution }, signal) => {
   addLog("NEXUS: Fetching current core logic from GitHub...", "nexus");
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
@@ -616,7 +593,6 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
     return { ...pipelineContext, commitPerformed: false };
   }
 
-  // Safety check before commit
   if (pipelineContext.evolvedCode && isCodeSafeToCommitCheck(pipelineContext.evolvedCode, pipelineContext.fetchedCode)) {
     if (!pipelineContext.fileRef || !pipelineContext.fileRef.sha) {
       throw Object.assign(new Error("Missing file reference (SHA) for committing code. Cannot proceed."), { code: 'MISSING_FILE_SHA' });
@@ -629,7 +605,7 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
       addLog("NEXUS: EVOLVED SUCCESSFULLY AND COMMITTED.", "ok");
       
       dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: pipelineContext.evolvedCode });
-      dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' }); // Clear display after commit
+      dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: '' });
       return { ...pipelineContext, commitPerformed: true };
     } catch (e) {
       if (e.code === 'NO_GITHUB_TOKEN') {
@@ -644,7 +620,6 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
   }
 };
 
-// Core Evolution Logic Hooks
 const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, prompts, isCodeSafeToCommitCheck) => {
   const abortControllerRef = useRef(null);
 
@@ -709,7 +684,6 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
     } catch (e) {
       if (e.name === 'AbortError') {
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
-        // No need to set error status in engine for user abort, just pause.
         return { success: false, commitPerformed: false, aborted: true };
       } else {
         dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
@@ -718,7 +692,6 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, 
       }
     } finally {
       if (abortControllerRef.current) {
-        // Clear the ref regardless of how the pipeline ended.
         abortControllerRef.current = null;
       }
     }
@@ -751,7 +724,6 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
   useEffect(() => {
     const runCycle = async () => {
-      // Check mounted status and active status BEFORE starting an async operation
       if (!isMountedRef.current || !isActive) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -760,7 +732,6 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
-      // Check mounted status and active status AGAIN after async operation
       if (!isMountedRef.current || !isActive) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -768,10 +739,10 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       }
 
       if (aborted) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current); // Ensure any scheduled timeout is cleared
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
           addLog("NEXUS CYCLE ABORTED. Loop suspended.", "warn");
-          return; // Stop the loop
+          return;
       }
 
       const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
@@ -786,9 +757,9 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current); // Clear any existing timeout to avoid multiple loops
+        clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
+      timeoutRef.current = setTimeout(runCycle, 0);
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -803,7 +774,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
         timeoutRef.current = null;
       }
     };
-  }, [isActive, performEvolutionCallback, addLog]); // Dependencies for useEffect
+  }, [isActive, performEvolutionCallback, addLog]);
 };
 
 const useEvolutionEngine = (tokens, addLog) => {
@@ -831,7 +802,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     { name: EvolutionStatus.FINALIZING_CODE, allowFailure: false, action: finalizingCodeLogic },
     { name: EvolutionStatus.VALIDATING_SYNTAX, allowFailure: false, action: validatingSyntaxLogic },
     { name: EvolutionStatus.COMMITTING_CODE, allowFailure: false, action: committingCodeLogic }
-  ], []); // No dependencies as these are constants and actions are pure or receive dependencies
+  ], []);
 
   const { runPipeline, abortPipeline } = usePipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
@@ -848,7 +819,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     if (success && !aborted) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     } else if (aborted) {
-        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION }); // Explicitly stop the engine if aborted
+        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
     }
     return { success, commitPerformed, aborted };
   }, [runPipeline, dispatch]);
@@ -888,7 +859,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   };
 };
 
-// React Components
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -906,7 +876,7 @@ const NexusControlPanel = memo(({
       localStorage.setItem(`dalek_token_${key}`, value);
       return newTokens;
     });
-  }, [setTokens]); // setTokens is stable from App component
+  }, [setTokens]);
 
   return (
     <div className="panel">
@@ -941,7 +911,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github} // Disable button if GitHub token is missing
+          disabled={!tokens.github}
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
@@ -965,7 +935,6 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
 
 export default function App() {
   const [tokens, setTokens] = useState(() => {
-    // Initialize tokens from localStorage once
     const savedGithub = localStorage.getItem('dalek_token_github') || "";
     const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
     const savedGemini = localStorage.getItem('dalek_token_gemini') || "";
@@ -975,15 +944,14 @@ export default function App() {
   const [logs, dispatchLog] = useReducer(logReducer, []);
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
-  }, []); // addLog is stable
+  }, []);
 
   const { isEvolutionActive, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
     tokens, addLog
   );
 
-  // Initial token status check and logging
   useEffect(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS }); // Clear logs on mount/token change for fresh status
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
 
     if (!tokens.github) {
       addLog("WARNING: GitHub token is missing. Core evolution and commits are disabled.", "le-err");
@@ -1006,14 +974,13 @@ export default function App() {
     } else {
       addLog("Cerebras AI key detected. Cerebras synthesis enabled.", "ok");
     }
-  }, [addLog, tokens.cerebras, tokens.github, tokens.gemini]); // Re-run if tokens change
+  }, [addLog, tokens.cerebras, tokens.github, tokens.gemini]);
 
-  // Log engine errors
   useEffect(() => {
     if (error) {
       addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
     }
-  }, [error, addLog]); // Re-run if error changes
+  }, [error, addLog]);
 
   return (
     <div className="dalek-shell">
