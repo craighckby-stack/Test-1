@@ -288,7 +288,7 @@ const useGeminiApi = (apiKey, addLog) => {
     const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!content) {
       addLog(`GEMINI: No content generated for ${stepName}. AI response was empty.`, "warn");
-      return null; // Explicitly return null if no content
+      return null;
     }
     return content;
   }, [apiKey, addLog]);
@@ -319,7 +319,7 @@ const useCerebrasApi = (token, addLog) => {
     const content = data.choices[0]?.message?.content || "";
     if (!content) {
       addLog(`CEREBRAS: No content generated for ${stepName}. AI response was empty.`, "warn");
-      return null; // Explicitly return null if no content
+      return null;
     }
     return content;
   }, [token, addLog]);
@@ -390,8 +390,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [displayCode, setDisplayCode] = useState("");
 
-  // useRef to hold the latest displayCode value for use inside the long-running
-  // `runEvolution` loop without stale closure issues, and to manage active state.
   const activeRef = useRef(false);
   const displayCodeRef = useRef(""); 
 
@@ -407,7 +405,6 @@ export default function App() {
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
   const cerebrasApi = useCerebrasApi(tokens.cerebras, addLog);
 
-  // Helper functions for AI chain steps, extracted for clarity
   const extractPatterns = useCallback(async (code) => {
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
@@ -476,18 +473,18 @@ export default function App() {
       );
       if (!rawFinalCode) {
         addLog("GEMINI: Finalization yielded no code. Reverting to prior state.", "warn");
-        return codeToFinalize; // Return the code that was passed for finalization, as a fallback
+        return codeToFinalize;
       }
       const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode);
       if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
         addLog("GEMINI: Finalized code was empty after cleanup. Reverting to prior state.", "warn");
-        return codeToFinalize; // Return the code that was passed for finalization
+        return codeToFinalize;
       }
       addLog("GEMINI: CORE SEALED", "ok");
       return cleanedFinalCode;
     } catch (e) {
       addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (input draft).`, "le-err");
-      return codeToFinalize; // Return the code that was passed for finalization
+      return codeToFinalize;
     }
   }, [addLog, geminiApi]);
 
@@ -495,26 +492,22 @@ export default function App() {
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
-    // Step 1: Gemini - Extract Architectural Patterns
     const quantumPatterns = await extractPatterns(currentCodeFromGithub);
-    if (!activeRef.current) return null; // Early exit if terminated
+    if (!activeRef.current) return null;
 
-    // Step 2: Cerebras - Synthesize Draft Code (if patterns and Cerebras key available)
     let draftCode = null;
     if (quantumPatterns) {
         draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
-        if (!activeRef.current) return null; // Early exit if terminated
+        if (!activeRef.current) return null;
     } else {
         addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
     }
 
-    // Step 3: Determine base for finalization: prefer draft, fallback to original GitHub content
     const codeForFinalization = draftCode || currentCodeFromGithub;
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
     
-    // Step 4: Gemini - Finalize and Seal Core
     const evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
-    if (!activeRef.current) return null; // Early exit if terminated
+    if (!activeRef.current) return null;
     
     return evolvedCode; 
   }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
@@ -548,41 +541,35 @@ export default function App() {
     let fileRef = null;
     let currentCodeFromGithub = "";
     let evolvedCode = null;
-    let latestCodeToDisplay = currentDisplayCodeFromUI; // Start with what's currently displayed in the UI
+    let latestCodeToDisplay = currentDisplayCodeFromUI;
 
     try {
-      // --- Step 1: Fetch the current code from GitHub ---
       addLog("GITHUB: Fetching current core logic...", "nexus");
       fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
       currentCodeFromGithub = utf8B64Decode(fileRef.content);
-      latestCodeToDisplay = currentCodeFromGithub; // Update display base with fresh GitHub code
+      latestCodeToDisplay = currentCodeFromGithub;
 
-      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay }; // Terminated after fetch
+      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
 
-      // --- Step 2: Engage AI Chain for Evolution ---
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
       evolvedCode = await callAIChain(currentCodeFromGithub);
 
-      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay }; // Terminated after AI chain
+      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
 
-      // --- Step 3: Validate and Commit Evolved Code ---
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
         addLog("AI: Evolution complete. New code generated and validated.", "ok");
         await githubApi.updateFile(
           GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
         );
         addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-        latestCodeToDisplay = evolvedCode; // Display the newly committed evolved code
+        latestCodeToDisplay = evolvedCode;
         return { success: true, commitPerformed: true, latestCode: latestCodeToDisplay };
       } else {
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-        // latestCodeToDisplay here is `currentCodeFromGithub` from Step 1, which is correct for no commit.
         return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
       }
     } catch (e) {
       addLog(`CRITICAL NEXUS FAILURE DURING EVOLUTION STEP: ${e.message}`, "le-err");
-      // If an error occurs, try to fall back to the last successfully fetched code,
-      // or what was displayed before if fetching also failed.
       return { success: false, commitPerformed: false, latestCode: currentCodeFromGithub || currentDisplayCodeFromUI };
     }
   }, [addLog, githubApi, callAIChain, isCodeSafeToCommit]);
@@ -593,19 +580,17 @@ export default function App() {
       return;
     }
 
-    activeRef.current = true; // Signal that the evolution loop is active
+    activeRef.current = true;
     setLoading(true);
     dispatchLog({ type: 'CLEAR_LOGS' });
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
-    // Main evolution loop
     while (activeRef.current) {
       const { success, commitPerformed, latestCode } = await performSingleEvolutionStep(displayCodeRef.current);
       
-      // Always update the UI with the determined latest code for this cycle
       setDisplayCode(latestCode); 
 
-      if (!activeRef.current) { // Check if termination was requested during the step or wait
+      if (!activeRef.current) {
         break;
       }
       
@@ -616,9 +601,8 @@ export default function App() {
         addLog(message, "nexus");
         await wait(EVOLUTION_CYCLE_INTERVAL_MS);
       } else {
-        // If a step failed (e.g., API error), log and wait, then try again
         addLog(`NEXUS CYCLE FAILED. Retrying in ${EVOLUTION_CYCLE_INTERVAL_MS / 2 / 1000}s.`, "nexus");
-        await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2); // Shorter wait for quicker recovery attempts
+        await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2);
       }
     }
     setLoading(false);
@@ -634,7 +618,6 @@ export default function App() {
     }
   }, [addLog]);
 
-  // Initial warnings on load for missing API keys
   useEffect(() => {
     if (!GEMINI_API_KEY) {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
