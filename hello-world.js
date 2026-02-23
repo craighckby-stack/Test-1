@@ -193,25 +193,29 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, { ...options, signal });
-      if (!response.ok) { // Check response.ok first for proper error handling
-        let errorMessage = `HTTP error! status: ${response.status}`;
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status} for ${url}`;
         try {
-          const errorBody = await response.json(); // Attempt to parse JSON error
+          const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
         } catch (jsonParseError) {
           // If response is not JSON, use default HTTP status message
         }
         throw new Error(errorMessage);
       }
-      return await response.json(); // Parse JSON only on successful response
+      return await response.json();
     } catch (e) {
       if (e.name === 'AbortError') {
         throw e;
       }
-      if (i === retries - 1) throw e;
-      await wait(1000 * (i + 1));
+      if (i === retries - 1) { // If it's the last retry, re-throw the error
+        throw e;
+      }
+      await wait(1000 * (i + 1)); // Exponential backoff
     }
   }
+  // This line should technically be unreachable if retries are handled, but good for completeness
+  throw new Error("safeFetch exhausted all retries.");
 };
 
 const cleanMarkdownCodeBlock = (code) => {
@@ -255,8 +259,8 @@ const EvolutionStatus = {
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
-      // Keep only APP_CONFIG.LOG_HISTORY_LIMIT entries
-      return [{ text: `[${new Date().toLocaleTimeString()}] ${action.payload.msg}`, type: action.payload.type || 'def' }, ...state.slice(0, APP_CONFIG.LOG_HISTORY_LIMIT - 1)];
+      // Ensure logs are immutable and trimmed to history limit
+      return [{ text: `[${new Date().toLocaleTimeString()}] ${action.payload.msg}`, type: action.payload.type || 'def' }, ...state].slice(0, APP_CONFIG.LOG_HISTORY_LIMIT);
     case LogActionTypes.CLEAR_LOGS:
       return [];
     default:
@@ -307,10 +311,10 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
     } catch (e) {
       if (e.name === 'AbortError') {
         logger(`API ${stepName.toUpperCase()} ABORTED.`, "warn");
-        throw e;
+        throw e; // Re-throw AbortError to be handled upstream
       }
       logger(`API ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
-      throw e;
+      throw e; // Re-throw other errors
     }
   };
 
@@ -324,7 +328,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
 // CUSTOM HOOKS - PRESERVED AND OPTIMIZED
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
-    if (!tokens.github) return null;
+    if (!tokens.github) return null; // Only create if token exists
     const githubClient = createApiClient(
       "https://api.github.com",
       addLog,
@@ -358,7 +362,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   }, [tokens.github, addLog]); // Dependencies: Recreate client if github token or logger changes.
 
   const geminiService = useMemo(() => {
-    if (!geminiApiKey) return null;
+    if (!geminiApiKey) return null; // Only create if key exists
     const geminiClient = createApiClient(
       "https://generativelanguage.googleapis.com",
       addLog,
@@ -384,7 +388,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   }, [geminiApiKey, addLog]); // Dependencies: Recreate client if gemini key or logger changes.
 
   const cerebrasService = useMemo(() => {
-    if (!tokens.cerebras) return null;
+    if (!tokens.cerebras) return null; // Only create if token exists
     const cerebrasClient = createApiClient(
       "https://api.cerebras.ai",
       addLog,
@@ -420,20 +424,28 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
 // Optimized useEvolutionLoop for clarity and standard React hook patterns
 const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   const timeoutRef = useRef(null); // Ref to hold the timeout ID for cleanup.
+  const isMountedRef = useRef(true); // Ref to track if the component is mounted.
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const runCycle = async () => {
-      // Immediate check if evolution should still be active before starting work
-      if (!isActive) {
-        addLog("NEXUS: Loop terminated during execution decision.", "warn");
+      // Ensure component is still mounted and evolution is active before running a cycle
+      if (!isMountedRef.current || !isActive) {
+        addLog("NEXUS: Loop terminated due to unmount or deactivation.", "warn");
         return;
       }
 
       const { success, commitPerformed } = await performEvolutionCallback();
 
-      // Re-check isActive after the async task completes to handle quick terminations
-      if (!isActive) {
-        addLog("NEXUS: Loop terminated after cycle completion.", "warn");
+      // Re-check isActive and mount status after the async task completes
+      if (!isMountedRef.current || !isActive) {
+        addLog("NEXUS: Loop terminated after cycle completion due to unmount or deactivation.", "warn");
         return;
       }
 
@@ -508,6 +520,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
       for (const stepDef of stepDefinitions) {
         // Check for termination signal before executing each step
         if (isTerminatedRef.current || signal.aborted) {
+          addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
           throw new Error("Evolution terminated by user.");
         }
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
@@ -520,6 +533,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
 
           // Re-check for termination after each async step
           if (isTerminatedRef.current || signal.aborted) {
+            addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
             throw new Error("Evolution terminated by user.");
           }
 
@@ -547,9 +561,8 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
 
     } catch (e) {
       if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
-        addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
         // User termination is a "successful" exit in terms of not being an error state for the engine
-        success = true;
+        success = true; // Mark as successful termination, not a crash
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -596,6 +609,8 @@ const useEvolutionEngine = (tokens, addLog) => {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
       return false;
     }
+    // Deep comparison of content after trimming whitespace.
+    // A simple `===` might fail due to minor formatting differences.
     if (evolvedCode.trim() === originalCode.trim()) {
       addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
       return false;
@@ -764,10 +779,12 @@ const useEvolutionEngine = (tokens, addLog) => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true; // Set flag to terminate ongoing cycles
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
+      // Explicitly set status to PAUSED if it's active and user terminates
+      dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
-  }, [isEvolutionActive, addLog]); // Dependencies: isEvolutionActive, addLog (stable).
+  }, [isEvolutionActive, addLog, dispatch]); // Dependencies: isEvolutionActive, addLog (stable), dispatch (stable).
 
   return {
     status,
