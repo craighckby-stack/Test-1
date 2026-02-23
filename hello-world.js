@@ -288,7 +288,7 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY
+// API CLIENT FACTORY (Optimized)
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -316,7 +316,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS
+// CUSTOM HOOKS (Optimized to use the new createApiClient)
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
@@ -412,65 +412,59 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-const useEvolutionLoop = (callback, isActive, addLog) => {
-  const savedCallback = useRef();
-  const timeoutRef = useRef();
-  const isActiveRef = useRef(isActive);
+// Optimized useEvolutionLoop for clarity and standard React hook patterns
+const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
-    savedCallback.current = callback;
-  }, [callback]);
-
-  useEffect(() => {
-    isActiveRef.current = isActive;
-    if (!isActive && timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-      addLog("NEXUS CYCLE PAUSED.", "nexus");
-    }
-  }, [isActive, addLog]);
-
-
-  useEffect(() => {
-    const tick = async () => {
-      if (!isActiveRef.current) {
-        return; 
+    const runCycle = async () => {
+      // Ensure the loop should still be active *before* and *after* the async operation
+      if (!isActive) { // Check isActive from the closure
+        addLog("NEXUS: Loop terminated during execution decision.", "warn");
+        return;
       }
 
-      const { success, commitPerformed } = await savedCallback.current();
+      const { success, commitPerformed } = await performEvolutionCallback();
 
-      if (!isActiveRef.current) { 
-        return; 
+      if (!isActive) { // Re-check isActive after the async task completes
+        addLog("NEXUS: Loop terminated after cycle completion.", "warn");
+        return;
       }
 
-      let delay = APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS;
-      if (success) {
-        const message = commitPerformed
-          ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.`
-          : `NEXUS CYCLE COMPLETE (no commit needed). Waiting for next evolution in ${delay / 1000}s.`;
-        addLog(message, "nexus");
-      } else {
-        delay = APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
-        addLog(`NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`, "le-err");
-      }
-      
-      if (isActiveRef.current) {
-        timeoutRef.current = setTimeout(tick, delay);
-      }
+      let delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
+      const message = success
+        ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit needed). Waiting for next evolution in ${delay / 1000}s.`)
+        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
+      addLog(message, success ? "nexus" : "le-err");
+
+      timeoutRef.current = setTimeout(runCycle, delay);
     };
 
-    if (isActive && !timeoutRef.current) {
+    // Effect logic for starting/stopping the loop
+    if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      tick(); 
+      // Clear any existing timer just in case, then set a new one for the first run
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(runCycle, 0); // Start the first cycle immediately
+    } else {
+      // If isActive is false, ensure the timer is cleared
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        addLog("NEXUS CYCLE PAUSED.", "nexus");
+      }
     }
 
+    // Cleanup function for when component unmounts or isActive becomes false
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
     };
-  }, [isActive]);
+  }, [isActive, performEvolutionCallback, addLog]); // Dependencies
 };
 
 // Defines the structure and metadata of the evolution pipeline steps
@@ -542,7 +536,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
     } catch (e) {
       if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true;
+        success = true; // Consider termination as a "successful" exit from the loop, not an error state
       } else {
         dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -550,14 +544,13 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         success = false;
       }
     } finally {
-      // Ensure controller is aborted if not already
-      if (!signal.aborted) { 
+      if (!signal.aborted) { // Ensure controller is aborted if not already
         abortController.abort();
       }
 
-      if (isTerminatedRef.current) { // If terminated by ref, ensure consistent state
+      if (isTerminatedRef.current && !signal.aborted) { // If terminated by ref, ensure consistent state
         dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
-      } else if (!isTerminatedRef.current && !signal.aborted) { // Only set status if not terminated or explicitly aborted
+      } else if (!isTerminatedRef.current) { // Only set status if not terminated
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: success ? EvolutionStatus.IDLE : EvolutionStatus.ERROR });
       }
     }
@@ -739,6 +732,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
+      // The useEvolutionPipeline's finally block and useEvolutionLoop's useEffect(isActive) handle the state update
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
