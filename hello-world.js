@@ -267,7 +267,6 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         return;
       }
 
-      addLog("NEXUS CYCLE INITIATED.", "nexus");
       const { success, commitPerformed } = await savedCallback.current();
 
       if (!isActive) { // Re-check isActive after callback, in case it was terminated during the async operation
@@ -307,6 +306,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
       }
     };
   }, [isActive, addLog, interval]); // Add interval to dependencies for robustness
+};
 
 // Encapsulates GitHub API interactions
 const useGithubApi = (token, owner, repo, branch, addLog) => {
@@ -494,123 +494,144 @@ const useEvolutionEngine = (tokens, addLog) => {
     return cleanedFinalCode;
   }, [geminiApi]);
 
-  // The main evolution pipeline function
-  const performSingleEvolutionStep = useCallback(async () => {
-    let commitPerformed = false;
-    let success = false;
-
-    // Central context object to pass through the pipeline
-    const pipelineContext = {
-        fileRef: null,
-        fetchedCode: '',
-        quantumPatterns: null,
-        draftCode: null,
-        evolvedCode: null,
-    };
-
-    // Helper to check for termination signal
-    const checkTermination = () => {
-      if (isEvolutionTerminatedRef.current) {
-        throw new Error("Evolution terminated by user.");
-      }
-    };
-
-    // Centralized pipeline step executor to handle status, logging, and termination checks
-    const executePipelineStep = async (stepName, action, allowFailure = false) => {
-      checkTermination(); // Check before starting any step
-      dispatch({ type: 'SET_STATUS', payload: stepName });
-      addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} initiated.`, "nexus");
-      try {
-        await action(pipelineContext); // Pass context, action modifies it
-        checkTermination(); // Re-check after action completes, especially for long-running ops
-        addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} completed.`, "ok");
-      } catch (e) {
-        addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} FAILED: ${e.message}`, "le-err");
-        if (!allowFailure) {
-          throw e; // Re-throw critical errors to stop the main pipeline
-        }
-        // For allowed failures, the context will simply not be updated for that specific part.
-      }
-    };
-
-    try {
-      // Step 1: Fetch the current core code from GitHub
-      await executePipelineStep('FETCHING_CORE', async (ctx) => {
-        const result = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
+  // Define the evolution pipeline steps declaratively
+  const evolutionPipelineSteps = useCallback((
+    _githubApi, _geminiApi, _cerebrasApi,
+    _extractPatterns, _synthesizeDraft, _finalizeCore, _isCodeSafeToCommit,
+    _tokens, _addLog, _dispatch, _isEvolutionTerminatedRef
+  ) => [
+    {
+      name: 'FETCHING_CORE',
+      action: async (ctx) => {
+        const result = await _githubApi.getFile(GITHUB_REPO_CONFIG.file);
         ctx.fetchedCode = utf8B64Decode(result.content);
-        ctx.fileRef = result; // Store file ref for SHA
-        dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: ctx.fetchedCode });
-        dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.fetchedCode }); // Display initial code
-      });
-      addLog("AI: PROCESSING EVOLUTION...", "nexus");
-
-      // Step 2: Extract architectural patterns using Gemini
-      await executePipelineStep('EXTRACTING_PATTERNS', async (ctx) => {
-        ctx.quantumPatterns = await extractPatterns(ctx.fetchedCode);
-      }, true); // Allow failure for pattern extraction, synthesis can proceed with original code
-
-      // Step 3: Synthesize a draft using Cerebras (conditional on token and patterns)
-      if (tokens.cerebras && pipelineContext.quantumPatterns) { // Check if Cerebras key is present and patterns were extracted
-        await executePipelineStep('SYNTHESIZING_DRAFT', async (ctx) => {
-          ctx.draftCode = await synthesizeDraft(ctx.quantumPatterns, ctx.fetchedCode);
-        });
-      } else {
-        const reason = !tokens.cerebras ? "Cerebras key not provided" : "no quantum patterns extracted";
-        addLog(`AI: Synthesis skipped (${reason}).`, "warn");
+        ctx.fileRef = result;
+        _dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: ctx.fetchedCode });
+        _dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.fetchedCode });
       }
-
-      // Step 4: Finalize the code using Gemini (either draft or original)
-      await executePipelineStep('FINALIZING_CODE', async (ctx) => {
-        const codeForFinalization = ctx.draftCode || ctx.fetchedCode; // Prioritize draft, fall back to original
-        addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-        ctx.evolvedCode = await finalizeCore(codeForFinalization, ctx.fetchedCode);
-      });
-
-      // Step 5: Commit the evolved code to GitHub (after safety checks)
-      await executePipelineStep('COMMITTING_CODE', async (ctx) => {
-        if (ctx.evolvedCode && isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
-          await githubApi.updateFile(
+    },
+    {
+      name: 'EXTRACTING_PATTERNS',
+      action: async (ctx) => {
+        ctx.quantumPatterns = await _extractPatterns(ctx.fetchedCode);
+      },
+      allowFailure: true
+    },
+    {
+      name: 'SYNTHESIZING_DRAFT',
+      action: async (ctx) => {
+        if (!_tokens.cerebras || !ctx.quantumPatterns) {
+          const reason = !_tokens.cerebras ? "Cerebras key not provided" : "no quantum patterns extracted";
+          _addLog(`AI: Synthesis skipped (${reason}).`, "warn");
+          return;
+        }
+        ctx.draftCode = await _synthesizeDraft(ctx.quantumPatterns, ctx.fetchedCode);
+      },
+    },
+    {
+      name: 'FINALIZING_CODE',
+      action: async (ctx) => {
+        const codeForFinalization = ctx.draftCode || ctx.fetchedCode;
+        _addLog(`AI: Proceeding with ${ctx.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
+        ctx.evolvedCode = await _finalizeCore(codeForFinalization, ctx.fetchedCode);
+      }
+    },
+    {
+      name: 'COMMITTING_CODE',
+      action: async (ctx) => {
+        if (ctx.evolvedCode && _isCodeSafeToCommit(ctx.evolvedCode, ctx.fetchedCode)) {
+          await _githubApi.updateFile(
             GITHUB_REPO_CONFIG.file, ctx.evolvedCode, ctx.fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
-          addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-          dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.evolvedCode }); // Display new code
-          commitPerformed = true;
+          _addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
+          _dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.evolvedCode });
+          ctx.commitPerformed = true;
         } else {
-          addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-          dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.fetchedCode }); // Revert display to original
+          _addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
+          _dispatch({ type: 'SET_DISPLAY_CODE', payload: ctx.fetchedCode });
+          ctx.commitPerformed = false;
         }
-      });
-      success = true; // Mark pipeline as successful if no critical errors occurred
+      }
+    }
+  ], [
+    _githubApi, _geminiApi, _cerebrasApi,
+    _extractPatterns, _synthesizeDraft, _finalizeCore, _isCodeSafeToCommit,
+    _tokens, _addLog, _dispatch, _isEvolutionTerminatedRef
+  ]);
+
+  // The main evolution pipeline function
+  const performSingleEvolutionStep = useCallback(async () => {
+    let success = false;
+    let commitPerformed = false;
+
+    const pipelineContext = {
+      fileRef: null,
+      fetchedCode: '',
+      quantumPatterns: null,
+      draftCode: null,
+      evolvedCode: null,
+      commitPerformed: false,
+    };
+
+    const steps = evolutionPipelineSteps(
+      githubApi, geminiApi, cerebrasApi,
+      extractPatterns, synthesizeDraft, finalizeCore, isCodeSafeToCommit,
+      tokens, addLog, dispatch, isEvolutionTerminatedRef
+    );
+
+    try {
+      dispatch({ type: 'SET_STATUS', payload: 'EVOLUTION_CYCLE_INITIATED' });
+      addLog("AI: PROCESSING EVOLUTION...", "nexus");
+
+      for (const step of steps) {
+        if (isEvolutionTerminatedRef.current) {
+          throw new Error("Evolution terminated by user.");
+        }
+        dispatch({ type: 'SET_STATUS', payload: step.name });
+        addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} initiated.`, "nexus");
+
+        try {
+          await step.action(pipelineContext);
+          if (isEvolutionTerminatedRef.current) {
+            throw new Error("Evolution terminated by user.");
+          }
+          addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} completed.`, "ok");
+        } catch (stepError) {
+          addLog(`NEXUS: ${step.name.replace(/_/g, ' ')} FAILED: ${stepError.message}`, "le-err");
+          if (!step.allowFailure) {
+            throw stepError;
+          }
+        }
+      }
+      success = true;
+      commitPerformed = pipelineContext.commitPerformed;
 
     } catch (e) {
       if (e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        // User termination is a planned stop, not a failure in the evolution process itself
-        success = true; 
+        success = true;
       } else {
-        dispatch({ type: 'SET_ERROR', payload: e.message }); // Set global error state
+        dispatch({ type: 'SET_ERROR', payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
         dispatch({ type: 'SET_DISPLAY_CODE', payload: pipelineContext.fetchedCode || "// ERROR: Failed to retrieve core logic or evolution failed." });
         success = false;
       }
     } finally {
-      // Ensure final state is clean after potential termination or error
       if (isEvolutionTerminatedRef.current) {
-        dispatch({ type: 'STOP_EVOLUTION' }); // Set to PAUSED via reducer if user terminated
+        dispatch({ type: 'STOP_EVOLUTION' });
       } else {
-        dispatch({ type: 'SET_STATUS', payload: success ? 'IDLE' : 'ERROR' }); // Go back to idle or error depending on outcome
+        dispatch({ type: 'SET_STATUS', payload: success ? 'IDLE' : 'ERROR' });
       }
     }
     return { success, commitPerformed };
   }, [
     addLog,
-    githubApi,
-    extractPatterns,
-    synthesizeDraft,
-    finalizeCore,
-    isCodeSafeToCommit,
+    githubApi, geminiApi, cerebrasApi,
+    extractPatterns, synthesizeDraft, finalizeCore, isCodeSafeToCommit,
     dispatch,
-    tokens.cerebras,
+    tokens,
+    isEvolutionTerminatedRef,
+    evolutionPipelineSteps
   ]);
 
   // Manage the continuous evolution loop
@@ -619,8 +640,8 @@ const useEvolutionEngine = (tokens, addLog) => {
   // Initiates the evolution process
   const runEvolution = useCallback(() => {
     try {
-      validateEvolutionEnvironment(); // Ensure tokens are present upfront
-      isEvolutionTerminatedRef.current = false; // Reset termination flag for a new run
+      validateEvolutionEnvironment();
+      isEvolutionTerminatedRef.current = false;
       dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
@@ -631,13 +652,12 @@ const useEvolutionEngine = (tokens, addLog) => {
   // Terminates the evolution process
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      isEvolutionTerminatedRef.current = true; // Set termination flag for immediate stop
-      // The `useEvolutionLoop` will detect `!isActive` and the `performSingleEvolutionStep` will catch `isEvolutionTerminatedRef.current`
+      isEvolutionTerminatedRef.current = true;
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE.", "def");
     }
-  }, [isEvolutionActive, addLog]); // Note: dispatch for STOP_EVOLUTION is handled in finally block of performSingleEvolutionStep or useEvolutionLoop's tick
+  }, [isEvolutionActive, addLog]);
 
   return {
     status,
