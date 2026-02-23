@@ -382,10 +382,16 @@ export default function App() {
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
+  const displayCodeRef = useRef(""); // Ref to hold the latest display code for stable callbacks
+
+  // Update the ref whenever displayCode changes
+  useEffect(() => {
+    displayCodeRef.current = displayCode;
+  }, [displayCode]);
 
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
-  }, []); // addLog is stable due to no dependencies
+  }, []);
 
   const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
@@ -476,7 +482,7 @@ export default function App() {
       return false;
     }
     return true;
-  }, [addLog, tokens.github]); // Removed tokens.cerebras as it's optional
+  }, [addLog, tokens.github]);
 
   const isCodeSafeToCommit = useCallback((evolvedCode, currentCode) => {
     if (!evolvedCode || evolvedCode.length < MIN_EVOLVED_CODE_LENGTH) {
@@ -487,7 +493,6 @@ export default function App() {
       addLog("AI: Core logic unchanged after evolution. No commit necessary.", "def");
       return false; // Not unsafe, but not worth committing
     }
-    // Further checks could be added here, e.g., linting, basic parsing, etc.
     return true;
   }, [addLog]);
 
@@ -505,38 +510,50 @@ export default function App() {
       let fileRef = null;
       let currentCode = "";
       let evolvedCode = "";
+      let newCodeToDisplay = displayCodeRef.current; // Start with current displayed code
+      let stepSuccessful = false;
+
       try {
         // 1. Fetch current file from GitHub
         fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         currentCode = utf8B64Decode(fileRef.content);
-        setDisplayCode(currentCode); // Display current code from GitHub
+        newCodeToDisplay = currentCode; // Update display code immediately after fetch
 
         // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
         evolvedCode = await callAIChain(currentCode);
-
+        
         // 3. Safety check for code integrity and change detection
         if (!isCodeSafeToCommit(evolvedCode, currentCode)) {
-          return true; // Step considered successful if no commit needed or code is unsafe to commit
+          stepSuccessful = true; // Still a successful "step" even if no commit
+          newCodeToDisplay = currentCode; // Revert display to current if no commit
+        } else {
+          // 4. Commit evolved code back to GitHub
+          addLog("AI: Evolution complete. New code generated and validated.", "ok");
+          newCodeToDisplay = evolvedCode; // Display the newly evolved code immediately
+          await githubApi.updateFile(
+            GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
+          );
+          addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
+          stepSuccessful = true;
         }
-
-        // 4. Commit evolved code back to GitHub
-        addLog("AI: Evolution complete. New code generated and validated.", "ok");
-        setDisplayCode(evolvedCode); // Display the newly evolved code immediately
-        await githubApi.updateFile(
-          GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
-        );
-        addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-        return true; // Step successful
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
-        // Optionally revert display if error occurred during commit
-        if (evolvedCode && evolvedCode !== displayCode) { // if evolvedCode was generated, but failed to commit
-          addLog("Display reverted to last known stable code due to commit failure.", "le-err");
-          setDisplayCode(currentCode);
+        // If an error occurred, ensure the display reverts to the last known good state
+        // (the code fetched from GitHub at the start of the step, if successful)
+        if (currentCode) { 
+          newCodeToDisplay = currentCode;
+        } else { // If even fetching current code failed
+          newCodeToDisplay = "// Error during evolution cycle. Displaying last known state or placeholder.";
         }
-        return false; // Step failed critically
+        stepSuccessful = false;
+      } finally {
+        // Always update the display with the determined newCodeToDisplay, if it changed
+        if (displayCodeRef.current !== newCodeToDisplay) { 
+          setDisplayCode(newCodeToDisplay);
+        }
       }
+      return stepSuccessful;
     };
 
     while (activeRef.current) {
@@ -554,7 +571,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi, displayCode]);
+  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi]); // Removed displayCode from dependencies
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
@@ -574,7 +591,7 @@ export default function App() {
     if (!tokens.cerebras) {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     }
-  }, [addLog, tokens.cerebras]); // Add tokens.cerebras to dependencies
+  }, [addLog, tokens.cerebras]);
 
   return (
     <div className="dalek-shell">
