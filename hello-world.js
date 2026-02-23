@@ -193,12 +193,17 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, { ...options, signal });
-      const result = await response.json();
-      if (!response.ok) {
-        const errorMessage = result.message || JSON.stringify(result) || `HTTP error! status: ${response.status}`;
+      if (!response.ok) { // Check response.ok first for proper error handling
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorBody = await response.json(); // Attempt to parse JSON error
+          errorMessage = errorBody.message || JSON.stringify(errorBody);
+        } catch (jsonParseError) {
+          // If response is not JSON, use default HTTP status message
+        }
         throw new Error(errorMessage);
       }
-      return result;
+      return await response.json(); // Parse JSON only on successful response
     } catch (e) {
       if (e.name === 'AbortError') {
         throw e;
