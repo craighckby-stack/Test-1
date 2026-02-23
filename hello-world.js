@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-// TOP-LEVEL CONFIGURATION - PRESERVED AS IS
 const API_KEYS = {
-  GEMINI: "", // Provide your Gemini API key here.
+  GEMINI: "",
 };
 
 const APP_CONFIG = {
@@ -13,10 +12,10 @@ const APP_CONFIG = {
     file: "hello-world.js"
   },
   EVOLUTION_CYCLE_INTERVAL_MS: 30000,
-  CORE_CONTENT_MAX_LENGTH: 3000, // Max length for AI prompts
+  CORE_CONTENT_MAX_LENGTH: 3000,
   LOG_HISTORY_LIMIT: 40,
-  MIN_EVOLVED_CODE_LENGTH: 500, // Minimum length for code to be considered valid for commit
-  MIN_SYNTHESIZED_DRAFT_LENGTH: 250, // Minimum length for synthesized draft to be considered valid
+  MIN_EVOLVED_CODE_LENGTH: 500,
+  MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
 };
 
 const PROMPT_INSTRUCTIONS = {
@@ -181,7 +180,6 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// UTILITY FUNCTIONS - Preserved, already optimized
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -199,22 +197,21 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
           const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
         } catch (jsonParseError) {
-          // If response is not JSON, use default HTTP status message
         }
         throw new Error(errorMessage);
       }
       return await response.json();
     } catch (e) {
       if (e.name === 'AbortError') {
-        throw e; // Propagate AbortError immediately
-      }
-      if (i === retries - 1) { // If it's the last retry, re-throw the error
         throw e;
       }
-      await wait(1000 * (i + 1)); // Exponential backoff
+      if (i === retries - 1) {
+        throw e;
+      }
+      await wait(1000 * (i + 1));
     }
   }
-  throw new Error("safeFetch exhausted all retries."); // Should not be reached
+  throw new Error("safeFetch exhausted all retries.");
 };
 
 const cleanMarkdownCodeBlock = (code) => {
@@ -226,7 +223,6 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
-// REDUCER ACTION TYPES - Upgraded with RESTART_EVOLUTION
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -255,7 +251,6 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS - Upgraded to handle RESTART_EVOLUTION and store full error object
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -272,7 +267,7 @@ const initialEvolutionState = {
   isEvolutionActive: false,
   currentCoreCode: '',
   evolvedCode: '',
-  error: null, // Store full error object
+  error: null,
 };
 
 const evolutionReducer = (state, action) => {
@@ -298,7 +293,6 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY - Preserved, already a solid pattern
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -312,7 +306,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
     } catch (e) {
       if (e.name === 'AbortError') {
         logger(`API ${stepName.toUpperCase()} ABORTED.`, "warn");
-        throw e; // Propagate AbortError immediately
+        throw e;
       }
       logger(`API ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
       throw e;
@@ -326,7 +320,6 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS - Already architecturally upgraded
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null;
@@ -403,7 +396,7 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
       completeChat: async (systemContent, userContent, stepName = "chat completion", signal = null) => {
         const data = await cerebrasClient.post("/v1/chat/completions", {
           body: JSON.stringify({
-            model: "llama3.1-70b", // Ensure this model is valid for the API key
+            model: "llama3.1-70b",
             messages: [
               { role: "system", content: systemContent },
               { role: "user", content: userContent }
@@ -422,7 +415,6 @@ const useExternalClients = (tokens, addLog, geminiApiKey) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// New hook for abstracting pipeline execution logic - Preserved, this is a core architectural upgrade
 const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
   const abortControllerRef = useRef(null);
 
@@ -469,7 +461,7 @@ const usePipelineExecutor = (steps, dispatchEvolution, addLog) => {
         success = true;
         addLog("NEXUS CYCLE INTERRUPTED BY USER.", "warn");
       } else {
-        dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e }); // Store full error object
+        dispatchEvolution({ type: EvolutionActionTypes.SET_ERROR, payload: e });
         addLog(`CRITICAL NEXUS PIPELINE FAILURE: ${e.message}`, "le-err");
         success = false;
       }
@@ -540,7 +532,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
+      timeoutRef.current = setTimeout(runCycle, 0);
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -564,7 +556,6 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog, API_KEYS.GEMINI);
 
-  // Memoized display code for efficiency and improved error display
   const displayCode = useMemo(() => {
     if (error) {
       return currentCoreCode || `// ERROR: ${error.message || String(error)}. Failed to retrieve core logic or evolution failed. Check logs.`;
@@ -572,7 +563,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     return evolvedCode || currentCoreCode || "// Awaiting sequence initialization...";
   }, [error, evolvedCode, currentCoreCode]);
 
-  // Callback for code commit safety validation
   const isCodeSafeToCommit = useCallback((evolvedCode, originalCode) => {
     if (!evolvedCode || evolvedCode.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${evolvedCode ? evolvedCode.length : 0} chars). Retaining current core.`, "le-err");
@@ -585,19 +575,18 @@ const useEvolutionEngine = (tokens, addLog) => {
     return true;
   }, [addLog]);
 
-  // --- Evolution Pipeline Actions ---
   const fetchCoreAction = useCallback(async (ctx, signal) => {
     if (!github) throw new Error("GitHub client not initialized. Missing token?");
     const result = await github.getFile(APP_CONFIG.GITHUB_REPO.file, signal);
     ctx.fetchedCode = utf8B64Decode(result.content);
-    ctx.fileRef = result; // Store file metadata including SHA
+    ctx.fileRef = result;
     dispatch({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: ctx.fetchedCode });
   }, [github, dispatch]);
 
   const extractingPatternsAction = useCallback(async (ctx, signal) => {
     if (!gemini) {
       addLog("AI: Gemini client not initialized (API key missing). Skipping pattern extraction.", "warn");
-      ctx.quantumPatterns = null; // Mark as null to indicate skipped step
+      ctx.quantumPatterns = null;
       return;
     }
     if (!ctx.fetchedCode) {
@@ -698,12 +687,11 @@ const useEvolutionEngine = (tokens, addLog) => {
       ctx.commitPerformed = true;
     } else {
       addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-      dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: '' }); // Clear evolved code if not committed
+      dispatch({ type: EvolutionActionTypes.SET_EVOLVED_CODE, payload: '' });
       ctx.commitPerformed = false;
     }
   }, [github, addLog, dispatch, isCodeSafeToCommit]);
 
-  // Memoized pipeline steps definition
   const EVOLUTION_PIPELINE_STEPS = useMemo(() => [
     { name: EvolutionStatus.FETCHING_CORE, allowFailure: false, action: fetchCoreAction },
     { name: EvolutionStatus.EXTRACTING_PATTERNS, allowFailure: true, action: extractingPatternsAction },
@@ -720,7 +708,6 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const { runPipeline, abortPipeline } = usePipelineExecutor(EVOLUTION_PIPELINE_STEPS, dispatch, addLog);
 
-  // Main evolution cycle orchestration, now much simpler due to pipeline executor
   const performEvolutionCycle = useCallback(async () => {
     const initialContext = {
       fileRef: null,
@@ -737,24 +724,20 @@ const useEvolutionEngine = (tokens, addLog) => {
     return { success, commitPerformed };
   }, [runPipeline, dispatch]);
 
-  // Hook to manage the continuous evolution loop
   useEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
 
-  // Public function to initiate evolution - Upgraded to use RESTART_EVOLUTION for atomicity
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
         throw new Error("Missing GitHub token. Evolution halted.");
       }
-      // Use RESTART_EVOLUTION to atomically reset state and initiate the evolution cycle
       dispatch({ type: EvolutionActionTypes.RESTART_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
-      dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e }); // Store full error object
+      dispatch({ type: EvolutionActionTypes.SET_ERROR, payload: e });
     }
   }, [tokens.github, addLog, dispatch]);
 
-  // Public function to terminate evolution
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       abortPipeline();
@@ -775,8 +758,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   };
 };
 
-// --- Presentational Components - Preserved, good separation ---
-
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -791,7 +772,7 @@ const NexusControlPanel = memo(({
   const handleTokenChange = useCallback((key, value) => {
     setTokens(prev => {
       const newTokens = { ...prev, [key]: value };
-      localStorage.setItem(`dalek_token_${key}`, value); // Persist token
+      localStorage.setItem(`dalek_token_${key}`, value);
       return newTokens;
     });
   }, [setTokens]);
@@ -842,17 +823,14 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
   </div>
 ));
 
-// Main App Component
 export default function App() {
   const [tokens, setTokens] = useState(() => {
-    // Initialize tokens from localStorage for persistence
     const savedGithub = localStorage.getItem('dalek_token_github') || "";
     const savedCerebras = localStorage.getItem('dalek_token_cerebras') || "";
     return { github: savedGithub, cerebras: savedCerebras };
   });
   const [logs, dispatchLog] = useReducer(logReducer, []);
 
-  // Memoized callback for adding logs
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: LogActionTypes.ADD_LOG, payload: { msg, type } });
   }, []);
@@ -861,7 +839,6 @@ export default function App() {
     tokens, addLog
   );
 
-  // Effect to provide initial configuration warnings and status
   useEffect(() => {
     if (!API_KEYS.GEMINI) {
       addLog("WARNING: GEMINI_API_KEY is not configured. Full AI capabilities (pattern extraction, finalization) will be disabled.", "le-err");
@@ -883,14 +860,12 @@ export default function App() {
     }
   }, [addLog, tokens.cerebras, tokens.github]);
 
-  // Effect to log engine errors
   useEffect(() => {
     if (error) {
       addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
     }
   }, [error, addLog]);
 
-  // Callback to clear logs and then start evolution
   const startEvolutionProcess = useCallback(() => {
     dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
     runEvolution();
