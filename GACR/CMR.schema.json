@@ -22,15 +22,33 @@
           "status": {"type": "string", "enum": ["Active", "Deprecated", "Staging", "Retired"]},
           "inputs_schema": {
             "type": "object",
-            "description": "Detailed schema definition for required inputs, including constraints.",
+            "description": "Detailed schema definition for required inputs, including constraints. Keys represent input parameter names.",
             "additionalProperties": {
               "type": "object",
               "required": ["type", "unit", "description"],
               "properties": {
                 "type": {"type": "string", "enum": ["float", "integer", "string", "boolean"]},
                 "unit": {"type": "string"},
-                "min": {"type": ["number", "null"]},
-                "max": {"type": ["number", "null"]}
+                "description": {"type": "string"}
+              },
+              "if": {
+                "properties": {
+                  "type": {
+                    "enum": ["float", "integer"]
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "min": {"type": "number"},
+                  "max": {"type": "number"}
+                }
+              },
+              "else": {
+                "properties": {
+                  "min": { "not": {} },
+                  "max": { "not": {} }
+                }
               }
             }
           },
@@ -44,7 +62,7 @@
                 "certification_date": {"type": "string", "format": "date-time"}
             }
           },
-          "source_mdsm_link": {"type": "string"}
+          "source_mdsm_link": {"type": "string", "format": "uri"}
         }
       }
     }
