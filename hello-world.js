@@ -305,23 +305,21 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-const initialPipelineContext = {
-  fileRef: null,
-  fetchedCode: '',
-  quantumPatterns: null,
-  draftCode: null,
-  isSyntaxValid: false,
-  commitPerformed: false,
-  evolvedCode: '',
-};
-
 const initialEvolutionEngineState = {
   status: EvolutionStatus.IDLE,
   isEvolutionActive: false,
   error: null,
   currentCoreCode: '',
   displayCode: '',
-  pipeline: initialPipelineContext,
+  pipeline: { // Centralized pipeline context within engine state
+    fileRef: null,
+    fetchedCode: '',
+    quantumPatterns: null,
+    draftCode: null,
+    isSyntaxValid: false,
+    commitPerformed: false,
+    evolvedCode: '',
+  },
 };
 
 const EvolutionActionTypes = {
@@ -330,15 +328,16 @@ const EvolutionActionTypes = {
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  MERGE_PIPELINE_CONTEXT: 'MERGE_PIPELINE_CONTEXT',
+  UPDATE_PIPELINE_CONTEXT: 'UPDATE_PIPELINE_CONTEXT', // Renamed for clarity
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
+  UPDATE_STATE_FROM_STEP: 'UPDATE_STATE_FROM_STEP', // New action for pipeline steps
 };
 
 const evolutionEngineReducer = (state, action) => {
   switch (action.type) {
     case EvolutionActionTypes.START_EVOLUTION:
-      return { ...state, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null, pipeline: initialPipelineContext };
+      return { ...state, isEvolutionActive: true, status: EvolutionStatus.EVOLUTION_CYCLE_INITIATED, error: null, pipeline: initialEvolutionEngineState.pipeline }; // Reset pipeline on start
     case EvolutionActionTypes.STOP_EVOLUTION:
       return { ...state, isEvolutionActive: false, status: EvolutionStatus.PAUSED, error: null };
     case EvolutionActionTypes.SET_STATUS:
@@ -347,12 +346,19 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode || '' };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState };
-    case EvolutionActionTypes.MERGE_PIPELINE_CONTEXT:
+    case EvolutionActionTypes.UPDATE_PIPELINE_CONTEXT: // Direct update to nested pipeline state
       return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
-      return { ...state, currentCoreCode: action.payload, displayCode: action.payload };
+      return { ...state, currentCoreCode: action.payload };
     case EvolutionActionTypes.SET_DISPLAY_CODE:
       return { ...state, displayCode: action.payload };
+    case EvolutionActionTypes.UPDATE_STATE_FROM_STEP: // Handles comprehensive updates from a step
+      return {
+        ...state,
+        ...(action.payload.pipeline ? { pipeline: { ...state.pipeline, ...action.payload.pipeline } } : {}),
+        ...(action.payload.currentCoreCode !== undefined ? { currentCoreCode: action.payload.currentCoreCode } : {}),
+        ...(action.payload.displayCode !== undefined ? { displayCode: action.payload.displayCode } : {}),
+      };
     default:
       return state;
   }
@@ -430,7 +436,7 @@ const useAIIntegrations = (tokens, addLog) => {
         await githubClient.put(urlPath, { body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus", signal);
       }
     };
-  }, [tokens.github, addLog]);
+  }, [tokens.github, addLog]); // Only re-create if github token changes
 
   const geminiService = useMemo(() => {
     const geminiApiKey = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
@@ -463,7 +469,7 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.gemini, addLog]);
+  }, [tokens.gemini, addLog]); // Only re-create if gemini token changes
 
   const cerebrasService = useMemo(() => {
     const cerebrasToken = tokens.cerebras;
@@ -500,16 +506,17 @@ const useAIIntegrations = (tokens, addLog) => {
         return content;
       }
     };
-  }, [tokens.cerebras, addLog]);
+  }, [tokens.cerebras, addLog]); // Only re-create if cerebras token changes
 
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, signal) => {
+// Pipeline Step Definitions - now return full state updates, not just contexts
+const fetchCoreLogic = async (currentEngineState, { clients, addLog, config }, signal) => {
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
   const fetchedCode = utf8B64Decode(result.content);
   return {
-    context: {
+    pipeline: {
       fetchedCode: fetchedCode,
       fileRef: result
     },
@@ -518,11 +525,12 @@ const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, sign
   };
 };
 
-const extractingPatternsLogic = async (pipelineContext, { clients, addLog, config, prompts }, signal) => {
-  if (!pipelineContext.fetchedCode) {
+const extractingPatternsLogic = async (currentEngineState, { clients, addLog, config, prompts }, signal) => {
+  const { fetchedCode } = currentEngineState.pipeline;
+  if (!fetchedCode) {
     throw new AppError("No core code available for pattern extraction.", "MISSING_FETCHED_CODE");
   }
-  const cleanCode = sanitizeContent(pipelineContext.fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
+  const cleanCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
   const patterns = await clients.gemini.generateContent(
     prompts.GEMINI_PATTERN,
     [{ text: `CORE: ${cleanCode}` }],
@@ -532,16 +540,17 @@ const extractingPatternsLogic = async (pipelineContext, { clients, addLog, confi
   if (!patterns || patterns.trim().length < 10) {
     throw new AppError("No meaningful quantum patterns extracted by Gemini.", "NO_QUANTUM_PATTERNS", null, false);
   }
-  return { context: { quantumPatterns: patterns } };
+  return { pipeline: { quantumPatterns: patterns } };
 };
 
-const synthesizingDraftLogic = async (pipelineContext, { clients, addLog, config, prompts }, signal) => {
-  if (!pipelineContext.fetchedCode) {
+const synthesizingDraftLogic = async (currentEngineState, { clients, addLog, config, prompts }, signal) => {
+  const { fetchedCode, quantumPatterns } = currentEngineState.pipeline;
+  if (!fetchedCode) {
     throw new AppError("No core code available for draft synthesis.", "MISSING_FETCHED_CODE");
   }
-  const sanitizedFetchedCode = sanitizeContent(pipelineContext.fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
-  const userContent = pipelineContext.quantumPatterns
-    ? `IMPROVEMENTS: ${pipelineContext.quantumPatterns}\nCORE: ${sanitizedFetchedCode}`
+  const sanitizedFetchedCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
+  const userContent = quantumPatterns
+    ? `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${sanitizedFetchedCode}`
     : `CORE: ${sanitizedFetchedCode}`;
 
   const rawDraft = await clients.cerebras.completeChat(
@@ -555,21 +564,22 @@ const synthesizingDraftLogic = async (pipelineContext, { clients, addLog, config
   if (!cleanedDraft || cleanedDraft.trim().length < config.MIN_SYNTHESIZED_DRAFT_LENGTH) {
     throw new AppError(`Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty.`, "SYNTHESIS_TOO_SHORT", null, false);
   }
-  return { context: { draftCode: cleanedDraft } };
+  return { pipeline: { draftCode: cleanedDraft } };
 };
 
-const finalizingCodeLogic = async (pipelineContext, { clients, addLog, config, prompts }, signal) => {
-  const codeForFinalization = pipelineContext.draftCode || pipelineContext.fetchedCode;
+const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config, prompts }, signal) => {
+  const { draftCode, fetchedCode } = currentEngineState.pipeline;
+  const codeForFinalization = draftCode || fetchedCode;
   if (!codeForFinalization) {
     throw new AppError("No code available for finalization. Critical upstream failure.", 'NO_CODE_TO_FINALIZE');
   }
-  addLog(`AI: Proceeding with ${pipelineContext.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
+  addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
 
   const rawFinalCode = await clients.gemini.generateContent(
     prompts.GEMINI_FINALIZATION,
     [
       { text: `DRAFT_CODE: ${sanitizeContent(codeForFinalization, config.CORE_CONTENT_MAX_LENGTH)}` },
-      { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(pipelineContext.fetchedCode, config.CORE_CONTENT_MAX_LENGTH)}` }
+      { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH)}` }
     ],
     "core finalization",
     signal
@@ -580,42 +590,44 @@ const finalizingCodeLogic = async (pipelineContext, { clients, addLog, config, p
     throw new AppError("Finalized code was empty after cleanup, indicating a critical AI failure.", 'GEMINI_EMPTY_RESPONSE_FINAL');
   }
   return {
-    context: { evolvedCode: cleanedFinalCode },
+    pipeline: { evolvedCode: cleanedFinalCode },
     displayCode: cleanedFinalCode,
   };
 };
 
-const validatingSyntaxLogic = async (pipelineContext, { addLog }, signal) => {
-  if (!pipelineContext.evolvedCode) {
+const validatingSyntaxLogic = async (currentEngineState, { addLog }, signal) => {
+  const { evolvedCode } = currentEngineState.pipeline;
+  if (!evolvedCode) {
     throw new AppError("No evolved code to validate.", 'NO_EVOLVED_CODE');
   }
 
-  const isValid = validateJavaScriptSyntax(pipelineContext.evolvedCode);
+  const isValid = validateJavaScriptSyntax(evolvedCode);
   if (!isValid) {
     throw new AppError("Evolved code contains JavaScript syntax errors. Preventing commit.", 'SYNTAX_ERROR');
   }
-  return { context: { isSyntaxValid: true } };
+  return { pipeline: { isSyntaxValid: true } };
 };
 
-const committingCodeLogic = async (pipelineContext, { clients, addLog, config, isCodeSafeToCommitCheck }, signal) => {
-  if (!pipelineContext.isSyntaxValid) {
+const committingCodeLogic = async (currentEngineState, { clients, addLog, config, isCodeSafeToCommitCheck }, signal) => {
+  const { isSyntaxValid, evolvedCode, fileRef, fetchedCode } = currentEngineState.pipeline;
+  if (!isSyntaxValid) {
     throw new AppError("Code failed syntax validation. No commit.", 'COMMIT_PREVENTED_SYNTAX');
   }
 
-  if (pipelineContext.evolvedCode && isCodeSafeToCommitCheck(pipelineContext.evolvedCode, pipelineContext.fetchedCode)) {
-    if (!pipelineContext.fileRef || !pipelineContext.fileRef.sha) {
+  if (evolvedCode && isCodeSafeToCommitCheck(evolvedCode, fetchedCode)) {
+    if (!fileRef || !fileRef.sha) {
       throw new AppError("Missing file reference (SHA) for committing code. Cannot proceed.", 'MISSING_FILE_SHA');
     }
     
     await clients.github.updateFile(
-      config.GITHUB_REPO.file, pipelineContext.evolvedCode, pipelineContext.fileRef.sha, `DALEK_EVOLUTION_${new Date().toISOString()}`, signal
+      config.GITHUB_REPO.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${new Date().toISOString()}`, signal
     );
     addLog("NEXUS: EVOLVED SUCCESSFULLY AND COMMITTED.", "ok");
     
     return {
-      context: { commitPerformed: true },
-      currentCoreCode: pipelineContext.evolvedCode,
-      displayCode: pipelineContext.evolvedCode,
+      pipeline: { commitPerformed: true },
+      currentCoreCode: evolvedCode,
+      displayCode: evolvedCode,
     };
   } else {
     throw new AppError("Evolved code deemed unsafe or unchanged. No commit.", 'COMMIT_PREVENTED_SAFETY', null, false);
@@ -626,6 +638,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
   const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async () => {
+    // Reset pipeline context at the start of a new run
     dispatchEvolution({ type: EvolutionActionTypes.RESET_ENGINE_STATE });
     
     abortControllerRef.current = new AbortController();
@@ -649,25 +662,17 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         globalServices.addLog(`NEXUS: ${stepDisplayName} initiated.`, "nexus");
 
         try {
-          // Pass the current pipeline context from the engine state
+          // Pass the current *full* engine state to the step action
           const stepResult = await stepDef.action(
-            engineState.pipeline, 
+            engineState, // Pass the entire engineState for steps to access pipeline context
             globalServices,             
             signal
           );
           
-          if (stepResult.context) {
-            dispatchEvolution({ type: EvolutionActionTypes.MERGE_PIPELINE_CONTEXT, payload: stepResult.context });
-          }
+          // Dispatch a single action to update the engine state based on stepResult
+          dispatchEvolution({ type: EvolutionActionTypes.UPDATE_STATE_FROM_STEP, payload: stepResult });
 
-          if (stepResult.currentCoreCode !== undefined) {
-              dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: stepResult.currentCoreCode });
-          }
-          if (stepResult.displayCode !== undefined) {
-              dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: stepResult.displayCode });
-          }
-
-          if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.context?.commitPerformed) {
+          if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.pipeline?.commitPerformed) {
             successfulCommitThisCycle = true;
           }
 
@@ -705,7 +710,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
         abortControllerRef.current = null;
       }
     }
-  }, [steps, globalServices, engineState.pipeline, dispatchEvolution]);
+  }, [steps, globalServices, engineState, dispatchEvolution]); // engineState is now a dependency for pipeline steps to access
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
@@ -735,6 +740,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
   useEffect(() => {
     const runCycle = async () => {
       if (!isMountedRef.current || !isActive) {
+        // If not mounted or not active, just ensure no pending timer and exit.
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
@@ -742,49 +748,52 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
-      if (!isMountedRef.current || !isActive) {
+      if (!isMountedRef.current) { // Component unmounted during async operation
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
       }
 
       if (aborted) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
           addLog("NEXUS CYCLE ABORTED. Loop suspended.", "warn");
-          return;
+          return; // Do not schedule next cycle if explicitly aborted
       }
 
-      const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
-      const message = success
-        ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit). Waiting in ${delay / 1000}s.`)
-        : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
-      addLog(message, success ? "nexus" : "le-err");
+      if (isActive) { // Only schedule next cycle if still active
+        const delay = success ? APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS : APP_CONFIG.EVOLUTION_CYCLE_INTERVAL_MS / 2;
+        const message = success
+          ? (commitPerformed ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${delay / 1000}s.` : `NEXUS CYCLE COMPLETE (no commit). Waiting in ${delay / 1000}s.`)
+          : `NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`;
+        addLog(message, success ? "nexus" : "le-err");
 
-      timeoutRef.current = setTimeout(runCycle, delay);
+        timeoutRef.current = setTimeout(runCycle, delay);
+      } else {
+        addLog("NEXUS CYCLE PAUSED.", "nexus");
+      }
     };
 
     if (isActive) {
       addLog("NEXUS CYCLE INITIATED. Preparing for first evolution.", "nexus");
-      if (timeoutRef.current) {
+      if (timeoutRef.current) { // Clear any existing timer to prevent duplicates
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0);
+      timeoutRef.current = setTimeout(runCycle, 0); // Start immediately
     } else {
-      if (timeoutRef.current) {
+      if (timeoutRef.current) { // Clear timer if deactivating
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         addLog("NEXUS CYCLE PAUSED.", "nexus");
       }
     }
 
+    // Cleanup on component unmount or isActive changes
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
     };
-  }, [isActive, performEvolutionCallback, addLog]);
+  }, [isActive, performEvolutionCallback, addLog]); // Dependencies: isActive, performEvolutionCallback, addLog
 };
 
 const useDalekCore = () => {
@@ -827,7 +836,7 @@ const useDalekCore = () => {
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
     globalServices,
-    engineState,
+    engineState, // Pass engineState directly
     dispatchEvolution
   );
 
@@ -838,6 +847,7 @@ const useDalekCore = () => {
     } else if (aborted) {
         dispatchEvolution({ type: EvolutionActionTypes.STOP_EVOLUTION });
     } else {
+        // Error state already set by executor, just confirm status
         dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.ERROR });
     }
     return { success, commitPerformed, aborted };
@@ -871,7 +881,8 @@ const useDalekCore = () => {
     clearLogs();
     addLog("NEXUS: System initializing...", "nexus");
 
-    if (!tokens.github) {
+    const githubTokenPresent = tokens.github;
+    if (!githubTokenPresent) {
       addLog("WARNING: GitHub token is missing. Core evolution and commits are disabled.", "le-err");
       addLog("Please provide a GitHub Personal Access Token with 'repo' scope.", "le-err");
     } else {
@@ -886,7 +897,8 @@ const useDalekCore = () => {
       addLog("Gemini API Key detected. Gemini services enabled.", "ok");
     }
 
-    if (!tokens.cerebras) {
+    const cerebrasKeyPresent = tokens.cerebras;
+    if (!cerebrasKeyPresent) {
       addLog("WARNING: Cerebras AI key is missing. The code synthesis step will be skipped, impacting code generation.", "warn");
       addLog("Please provide a Cerebras API Key to enable advanced code synthesis.", "warn");
     } else {
@@ -959,7 +971,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github && !isEvolutionActive}
+          disabled={!tokens.github && !isEvolutionActive} // Disable if no github token and not active
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
