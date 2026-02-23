@@ -534,8 +534,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     };
 
     try {
-      validateEvolutionEnvironment(); // Ensure tokens are present
-
       // Step 1: Fetch the current core code from GitHub
       await executePipelineStep('FETCHING_CORE', async (ctx) => {
         const result = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
@@ -611,8 +609,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     finalizeCore,
     isCodeSafeToCommit,
     dispatch,
-    validateEvolutionEnvironment,
-    tokens.cerebras, // Add tokens.cerebras as a dependency for the synthesis conditional logic
+    tokens.cerebras,
   ]);
 
   // Manage the continuous evolution loop
@@ -621,7 +618,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   // Initiates the evolution process
   const runEvolution = useCallback(() => {
     try {
-      validateEvolutionEnvironment();
+      validateEvolutionEnvironment(); // Ensure tokens are present upfront
       isEvolutionTerminatedRef.current = false; // Reset termination flag
       dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
