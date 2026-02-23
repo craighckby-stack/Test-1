@@ -576,7 +576,7 @@ export default function App() {
         return { success: true, commitPerformed: true, latestCode: latestCodeToDisplay };
       } else {
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-        // latestCodeToDisplay remains `currentCodeFromGithub` if no commit
+        // latestCodeToDisplay here is `currentCodeFromGithub` from Step 1, which is correct for no commit.
         return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
       }
     } catch (e) {
