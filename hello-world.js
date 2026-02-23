@@ -30,6 +30,20 @@ class UncertainValue:
     foundational component for modeling probabilistic aspects within the
     Tri-Model Nexus, aiding in the development of AGI components.
 
+    By mimicking quantum superposition, it allows the AGI to:
+    1.  **Explore multiple hypotheses simultaneously**: Rather than committing
+        to a single interpretation or action, an AGI component can maintain
+        a probability distribution over various possibilities.
+    2.  **Model uncertainty**: Real-world data and predictions are rarely
+        100% certain. This class provides a structured way to quantify
+        and propagate that uncertainty.
+    3.  **Facilitate "what-if" scenarios**: Operators can transform an
+        UncertainValue, allowing the AGI to simulate potential outcomes
+        of different actions or conditions without immediate commitment.
+    4.  **Incorporate quantum-inspired reasoning**: The 'collapse' mechanism
+        mirrors measurement, where an uncertain state resolves into a definite
+        outcome, reflecting a decision point or an observation.
+
     An `UncertainValue` is immutable after creation. Operations that transform
     its state (like `apply_operator`) return a new `UncertainValue` instance.
     """
@@ -44,217 +58,256 @@ class UncertainValue:
         Args:
             states_probs: A dictionary where keys are the possible states (any hashable type)
                           and values are their probabilities. Probabilities must be non-negative.
-                          States with probabilities less than or equal to `_EPSILON`
-                          will be excluded. The remaining probabilities will be normalized
-                          to sum to 1.0.
 
         Raises:
-            ValueError: If `states_probs` is empty, or if all provided probabilities are
-                        zero or negligibly small after filtering.
+            ValueError: If states_probs is empty or contains negative probabilities,
+                        or if all probabilities sum to zero.
         """
-        self._states_probs = self._normalize_probabilities(states_probs)
+        if not states_probs:
+            raise ValueError("states_probs cannot be empty.")
 
-    @staticmethod
-    def _normalize_probabilities(states_probs: Dict[Any, float]) -> Dict[Any, float]:
-        """Internal helper to filter out negligible probabilities and normalize the rest."""
-        # Filter out states with non-positive or negligibly small probabilities
-        filtered_states_probs = {
-            state: prob for state, prob in states_probs.items() if prob > _EPSILON
+        filtered_probs = {s: p for s, p in states_probs.items() if p > _EPSILON}
+        if not filtered_probs:
+            raise ValueError("All probabilities are zero or too small.")
+
+        total_prob = sum(filtered_probs.values())
+        if total_prob <= _EPSILON:
+            raise ValueError("Sum of probabilities is zero or too small to normalize.")
+
+        self._states_probs = {
+            state: prob / total_prob for state, prob in filtered_probs.items()
         }
 
-        if not filtered_states_probs:
-            raise ValueError(
-                "Initial 'states_probs' must contain at least one state with a positive "
-                "probability (greater than _EPSILON)."
-            )
-
-        # Use math.fsum for accurate summation of floats
-        total_prob = math.fsum(filtered_states_probs.values())
-
-        if total_prob <= _EPSILON:  # All remaining probabilities effectively sum to zero
-            raise ValueError(
-                "Sum of probabilities for initial states is zero or negligibly small "
-                "after filtering, indicating no valid states."
-            )
-
-        # Normalize the probabilities
-        normalized_states_probs = {
-            state: prob / total_prob for state, prob in filtered_states_probs.items()
-        }
-        return normalized_states_probs
-
-    @property
-    def states_with_probabilities(self) -> Dict[Any, float]:
+    def get_states_and_probabilities(self) -> Dict[Any, float]:
         """Returns a copy of the internal states and their normalized probabilities.
 
         Returns:
-            A dictionary mapping states to their probabilities. The returned dictionary
-            is a copy, so modifying it will not affect the `UncertainValue` instance.
+            A dictionary mapping states to their probabilities.
         """
         return self._states_probs.copy()
 
     def collapse(self) -> Any:
-        """Simulates observation by collapsing the UncertainValue into one definite state.
+        """Simulates the 'measurement' or 'observation' of the UncertainValue,
+        causing it to collapse into a single definite state based on its
+        probability distribution.
 
-        The chosen state is selected probabilistically based on the current
-        distribution of states.
+        This function is crucial for an AGI to make concrete decisions or
+        interpret observations from a probabilistic state.
 
         Returns:
-            The chosen state, which is one of the possible states of this
-            `UncertainValue`.
+            The chosen state from the distribution.
         """
-        states = list(self._states_probs.keys())
-        probabilities = list(self._states_probs.values())
-        # random.choices returns a list, so we take the first element
+        states, probabilities = zip(*self._states_probs.items())
         return random.choices(states, weights=probabilities, k=1)[0]
 
     def apply_operator(self, operator: Callable[[Any], Dict[Any, float]]) -> 'UncertainValue':
-        """Applies a probabilistic operator to the UncertainValue.
+        """Applies an 'operator' to the UncertainValue, transforming its
+        superposition of states into a new superposition.
 
-        The operator transforms each current state into a new set of states with
-        associated *conditional* probabilities. The probabilities of the resulting
-        new states are calculated by summing up the products of the original state's
-        probability and the conditional probability from the operator.
-
-        Example:
-            If `uv = UncertainValue({'A': 0.6, 'B': 0.4})`
-            And `operator(state)` returns:
-                `{'A': {'X': 0.7, 'Y': 0.3}}`
-                `{'B': {'X': 0.2, 'Z': 0.8}}`
-            Then the new state 'X' would have probability `0.6 * 0.7 + 0.4 * 0.2`.
-            The new state 'Y' would have probability `0.6 * 0.3`.
-            The new state 'Z' would have probability `0.4 * 0.8`.
+        This models how an AGI might process information, evaluate potential
+        actions, or propagate probabilistic changes. The operator itself can
+        be a function simulating a decision-making process, a probabilistic
+        transition, or a filtering mechanism.
 
         Args:
-            operator: A callable that takes a single current state (Any) and returns
-                      a dictionary mapping new states to their conditional probabilities.
-                      For example, `operator(old_state) -> {new_state1: prob1, new_state2: prob2, ...}`.
-                      The probabilities returned by the operator for a given `old_state`
-                      are treated as conditional and will be normalized internally if they
-                      do not sum to 1.0 (or contain non-positive values).
+            operator: A callable that takes a single state (Any) and returns
+                      a dictionary representing a new probability distribution
+                      for that state's transformation. The probabilities in the
+                      returned dictionary do not need to sum to 1, but they
+                      must be non-negative.
+
+                      Example: `operator(state_A)` might return `{state_X: 0.5, state_Y: 0.5}`.
+                      This implies that if the system was in `state_A`, it now
+                      transitions to `state_X` with 50% probability and `state_Y`
+                      with 50% probability.
 
         Returns:
-            A new `UncertainValue` instance representing the transformed state distribution.
-            This method is non-mutating.
+            A new `UncertainValue` instance representing the transformed superposition.
         """
-        new_raw_states_probs: Dict[Any, float] = {}
+        new_combined_probs: Dict[Any, float] = {}
 
-        for current_state, current_prob in self._states_probs.items():
-            # Apply the operator to get conditional probabilities for new states
-            conditional_probs_from_operator = operator(current_state)
+        for initial_state, initial_prob in self._states_probs.items():
+            if initial_prob <= _EPSILON:
+                continue  # Skip states with negligible probability
 
-            # Filter and normalize the conditional probabilities, as the operator might
-            # not return perfectly normalized or filtered values.
-            filtered_cond_probs = {
-                s: p for s, p in conditional_probs_from_operator.items() if p > _EPSILON
-            }
-            total_cond_prob_sum = math.fsum(filtered_cond_probs.values())
+            # Apply the operator to the initial state to get its potential outcomes
+            transformed_distribution = operator(initial_state)
 
-            if total_cond_prob_sum <= _EPSILON:
-                # If an operator yields no new states or only zero probabilities from a
-                # particular `current_state`, that branch effectively terminates.
-                continue
+            for outcome_state, outcome_prob in transformed_distribution.items():
+                if outcome_prob < -_EPSILON:
+                    raise ValueError(f"Operator returned negative probability for state {outcome_state}: {outcome_prob}")
+                if outcome_prob <= _EPSILON:
+                    continue
 
-            normalized_cond_probs = {
-                s: p / total_cond_prob_sum for s, p in filtered_cond_probs.items()
-            }
+                # The probability of reaching outcome_state via initial_state
+                path_prob = initial_prob * outcome_prob
 
-            for new_state, cond_prob in normalized_cond_probs.items():
-                # The probability of reaching `new_state` via `current_state` is
-                # `current_prob * cond_prob`.
-                # We sum probabilities if multiple paths lead to the same `new_state`.
-                new_raw_states_probs[new_state] = (
-                    new_raw_states_probs.get(new_state, 0.0) + current_prob * cond_prob
+                # Accumulate probabilities for the same outcome_state
+                new_combined_probs[outcome_state] = (
+                    new_combined_probs.get(outcome_state, 0.0) + path_prob
                 )
 
-        # The constructor's `_normalize_probabilities` will perform a final
-        # normalization and filtering, handling any precision errors or ensuring
-        # the robustness of the resulting `UncertainValue`.
-        return UncertainValue(new_raw_states_probs)
+        if not new_combined_probs:
+            # If all paths led to zero probability states, return a trivial uncertain value
+            # or raise an error depending on desired behavior. For now, we'll make it
+            # default to a "null" or "undefined" state with 100% probability.
+            return UncertainValue({"Undefined": 1.0})
 
-    def get_expected_value(self, value_extractor: Optional[Callable[[Any], float]] = None) -> float:
-        """Calculates the expected value of the UncertainValue.
+        # The constructor will normalize the new_combined_probs
+        return UncertainValue(new_combined_probs)
 
-        If `value_extractor` is provided, it's used to convert each state to a numerical value.
-        Otherwise, it assumes the states themselves are numerical (int or float).
-
-        Args:
-            value_extractor: An optional callable that takes a state (Any) and returns
-                             its numerical value (float). If `None`, the states are
-                             assumed to be numerical themselves.
-
-        Returns:
-            The expected value, calculated as the sum of (state_value * state_probability)
-            over all possible states.
-
-        Raises:
-            TypeError: If states are not numerical and no `value_extractor` is provided.
-        """
-        expected_val = 0.0
-        for state, prob in self._states_probs.items():
-            value: float
-            if value_extractor:
-                value = value_extractor(state)
-            else:
-                if not isinstance(state, (int, float)):
-                    raise TypeError(
-                        f"State '{state}' (type: {type(state)}) is not numerical. "
-                        "Provide a 'value_extractor' callable to convert states to numbers, "
-                        "or ensure all states are int or float."
-                    )
-                value = float(state)
-            expected_val += value * prob
-        return expected_val
-
-    def __repr__(self) -> str:
-        """Returns a machine-readable string representation of the UncertainValue."""
-        # Sort states for consistent representation, useful for testing and debugging.
-        # Uses string representation of state for sorting key, as states can be Any.
-        sorted_states = sorted(self._states_probs.items(), key=lambda item: str(item[0]))
-        probs_str = ", ".join([f"{repr(s)}: {p:.6f}" for s, p in sorted_states])
-        return f"UncertainValue({{{probs_str}}})"
-
-    def __str__(self) -> str:
-        """Returns a user-friendly string representation of the UncertainValue."""
-        # For UncertainValue, __repr__ is often sufficiently user-friendly.
-        return self.__repr__()
-
-    def __eq__(self, other: Any) -> bool:
-        """Compares two UncertainValue instances for approximate equality.
+    def __eq__(self, other: object) -> bool:
+        """Compares two UncertainValue instances for equality.
 
         Two UncertainValue instances are considered equal if they have the same
-        set of states and their corresponding probabilities are approximately
-        equal within `_EPSILON`.
+        states with probabilities that are approximately equal (within _EPSILON).
         """
         if not isinstance(other, UncertainValue):
             return NotImplemented
 
-        # Check if the sets of states are identical
-        if set(self._states_probs.keys()) != set(other._states_probs.keys()):
+        if len(self._states_probs) != len(other._states_probs):
             return False
 
-        # Check if probabilities for each state are approximately equal
-        for state, prob_self in self._states_probs.items():
-            prob_other = other._states_probs.get(state, 0.0)
-            if abs(prob_self - prob_other) > _EPSILON:
+        # Compare keys and values with tolerance
+        for state, prob in self._states_probs.items():
+            if state not in other._states_probs:
+                return False
+            if not math.isclose(prob, other._states_probs[state], abs_tol=_EPSILON):
                 return False
         return True
 
     def __hash__(self) -> int:
-        """Returns a hash value for the UncertainValue.
+        """Returns a hash value for the UncertainValue instance.
 
-        The hash is computed based on a canonical representation of the
-        states and their rounded probabilities to ensure consistency with `__eq__`.
+        This makes UncertainValue objects usable in sets or as dictionary keys.
+        The hash is based on the sorted (state, probability) pairs to ensure
+        consistency despite dictionary's arbitrary order. Due to floating
+        point precision, probabilities are quantized for hashing purposes.
         """
-        # Create a sorted tuple of (state, rounded_probability) pairs.
-        # Probabilities are rounded to a fixed precision to ensure that
-        # `abs(p1 - p2) <= _EPSILON` implies `round(p1, N) == round(p2, N)`.
-        # A rounding precision of 8-10 decimal places is usually sufficient
-        # given `_EPSILON` of 1e-9.
-        hashable_representation: Tuple[Tuple[Any, float], ...] = tuple(
+        # Quantize probabilities for hashing to reduce issues with float precision.
+        # This might lead to collisions if probabilities are very close but not equal
+        # within _EPSILON, but is necessary for practical hashing of floats.
+        quantization_factor = 1_000_000
+        hashed_items = tuple(
             sorted(
-                ((state, round(prob, 8)) for state, prob in self._states_probs.items()),
-                key=lambda item: str(item[0])  # Use string representation for consistent sorting
+                (state, round(prob * quantization_factor))
+                for state, prob in self._states_probs.items()
             )
         )
-        return hash(hashable_representation)
+        return hash(hashed_items)
+
+    def __repr__(self) -> str:
+        """Returns a string representation of the UncertainValue."""
+        items = sorted(self._states_probs.items(), key=lambda item: str(item[0]))
+        formatted_items = ", ".join(f"{state!r}: {prob:.4f}" for state, prob in items)
+        return f"UncertainValue({{{formatted_items}}})"
+
+# Example usage (for internal testing and demonstration within the AGI context):
+if __name__ == '__main__':
+    print("--- Demonstrating UncertainValue for AGI Component Modeling ---")
+
+    # Scenario 1: Initial AGI hypothesis generation
+    print("\n1. Initial Hypothesis Generation:")
+    initial_hypotheses = UncertainValue({
+        "Hypothesis_A": 0.6,
+        "Hypothesis_B": 0.3,
+        "Hypothesis_C": 0.1
+    })
+    print(f"Initial AGI Hypotheses: {initial_hypotheses}")
+
+    # Scenario 2: Processing new sensory input (applying an operator)
+    print("\n2. Processing Sensory Input (Operator Application):")
+
+    def sensory_input_processor(hypothesis: str) -> Dict[str, float]:
+        """Simulates how sensory input might refine or transform an AGI's hypothesis."""
+        if hypothesis == "Hypothesis_A":
+            return {"Refined_A1": 0.8, "Challenged_A2": 0.2}
+        elif hypothesis == "Hypothesis_B":
+            return {"Supported_B": 0.7, "Discarded_B": 0.3}
+        elif hypothesis == "Hypothesis_C":
+            # Very unlikely, but could lead to a breakthrough
+            return {"Breakthrough_C": 0.05, "Reinforced_A1": 0.95} # Cross-pollination
+        return {hypothesis: 1.0} # Default if no specific rule
+
+    refined_hypotheses = initial_hypotheses.apply_operator(sensory_input_processor)
+    print(f"Refined Hypotheses after Sensory Input: {refined_hypotheses}")
+
+    # Scenario 3: AGI makes a decision (collapsing the state)
+    print("\n3. AGI Decision Making (Collapse):")
+    for i in range(5):
+        decision = refined_hypotheses.collapse()
+        print(f"  AGI Decision {i+1}: {decision}")
+
+    # Scenario 4: Modeling uncertain environmental factors
+    print("\n4. Modeling Uncertain Environmental Factors:")
+    weather_forecast = UncertainValue({
+        "Sunny": 0.7,
+        "Cloudy": 0.2,
+        "Rainy": 0.1
+    })
+    print(f"Weather Forecast: {weather_forecast}")
+
+    def impact_on_travel_plan(weather: str) -> Dict[str, float]:
+        """Operator for how weather impacts a travel plan."""
+        if weather == "Sunny":
+            return {"Go_Hiking": 0.9, "Stay_Home": 0.1}
+        elif weather == "Cloudy":
+            return {"Go_Hiking": 0.4, "Visit_Museum": 0.5, "Stay_Home": 0.1}
+        elif weather == "Rainy":
+            return {"Visit_Museum": 0.7, "Stay_Home": 0.3}
+        return {"Uncertain_Plan": 1.0}
+
+    travel_plan = weather_forecast.apply_operator(impact_on_travel_plan)
+    print(f"Probabilistic Travel Plan: {travel_plan}")
+    print(f"Decided Travel Activity: {travel_plan.collapse()}")
+
+
+    # Scenario 5: Equality and Hashing
+    print("\n5. Equality and Hashing:")
+    uv1 = UncertainValue({"A": 0.5, "B": 0.5})
+    uv2 = UncertainValue({"B": 0.5, "A": 0.5}) # Same states, different order
+    uv3 = UncertainValue({"A": 0.4999999999, "B": 0.5000000001}) # Close values
+    uv4 = UncertainValue({"A": 0.6, "B": 0.4})
+    uv5 = UncertainValue({"A": 1.0})
+
+    print(f"uv1: {uv1}")
+    print(f"uv2: {uv2}")
+    print(f"uv3: {uv3}")
+    print(f"uv4: {uv4}")
+    print(f"uv5: {uv5}")
+
+    print(f"uv1 == uv2: {uv1 == uv2}") # Should be True
+    print(f"uv1 == uv3: {uv1 == uv3}") # Should be True due to _EPSILON
+    print(f"uv1 == uv4: {uv1 == uv4}") # Should be False
+    print(f"uv1 == uv5: {uv1 == uv5}") # Should be False
+
+    s = {uv1, uv2, uv3, uv4, uv5}
+    print(f"Set of UncertainValues (should only contain 3 unique, due to equality): {s}")
+    assert len(s) == 3 # uv1, uv4, uv5 (uv2 and uv3 are equal to uv1)
+    print("Assertion passed: Set length is 3.")
+
+    # Error handling
+    print("\n6. Error Handling:")
+    try:
+        UncertainValue({})
+    except ValueError as e:
+        print(f"  Caught expected error for empty states_probs: {e}")
+
+    try:
+        UncertainValue({"A": -0.1, "B": 1.1})
+    except ValueError as e:
+        print(f"  Caught expected error for negative/invalid states_probs: {e}")
+
+    try:
+        uv_zero_prob = UncertainValue({"A": 0.00000000001, "B": 0.000000000005})
+        print(f"  UncertainValue with very small probabilities, normalized: {uv_zero_prob}")
+        # This will be normalized if sum > _EPSILON, otherwise it will error out in init
+        _ = UncertainValue({"A": 1e-12, "B": 1e-13})
+    except ValueError as e:
+        print(f"  Caught expected error for sum of probabilities too small: {e}")
+
+
+    print("\n--- UncertainValue demonstration complete. ---")
+    print("This class provides a quantum-inspired mechanism for the Tri-Model Nexus")
+    print("to manage and transform probabilistic states, moving towards AGI by allowing")
+    print("more nuanced and flexible reasoning under uncertainty.")
