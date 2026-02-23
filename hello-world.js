@@ -284,7 +284,6 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
   }, [tokens.github, addLog]);
 
   useEffect(() => {
-    // Gemini API Key is a global constant, no token state dependency needed here.
     geminiApiClient.current = createApiClient(addLog, { "Content-Type": "application/json" });
   }, [addLog]);
 
@@ -299,6 +298,8 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
     }
   }, [tokens.cerebras, addLog]);
 
+  // These callbacks access `current` value of refs at execution time,
+  // making them stable across renders as long as their *other* dependencies don't change.
   const getFile = useCallback(async (filePath = githubConfig.file) => {
     if (!githubApiClient.current) throw new Error("GitHub client not initialized. Missing token?");
     const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${filePath}`;
@@ -307,7 +308,7 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
       throw new Error(`Failed to fetch file content for ${filePath}. Response: ${JSON.stringify(response)}`);
     }
     return response;
-  }, [githubApiClient, githubConfig.owner, githubConfig.repo, githubConfig.file]); // addLog is already in createApiClient dependencies
+  }, [githubConfig.owner, githubConfig.repo, githubConfig.file]);
 
   const updateFile = useCallback(async (filePath, content, sha, message) => {
     if (!githubApiClient.current) throw new Error("GitHub client not initialized. Missing token?");
@@ -319,7 +320,7 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
       branch: githubConfig.branch
     };
     await githubApiClient.current(url, { method: "PUT", body: JSON.stringify(body) }, `GitHub Commit ${filePath}`, "nexus");
-  }, [githubApiClient, githubConfig.owner, githubConfig.repo, githubConfig.branch]); // addLog is already in createApiClient dependencies
+  }, [githubConfig.owner, githubConfig.repo, githubConfig.branch]);
 
   const generateContent = useCallback(async (systemInstruction, parts, stepName = "content generation") => {
     if (!GEMINI_API_KEY) throw new Error("Gemini API key is missing. Cannot generate content.");
@@ -337,7 +338,7 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
       throw new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`);
     }
     return content;
-  }, [geminiApiClient]); // addLog is already in createApiClient dependencies
+  }, []); // No external dependencies beyond the stable geminiApiClient.current access
 
   const completeChat = useCallback(async (systemContent, userContent, stepName = "chat completion") => {
     if (!tokens.cerebras) throw new Error("Cerebras API key is missing. Cannot complete chat.");
@@ -345,7 +346,7 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
     const data = await cerebrasApiClient.current("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
       body: JSON.stringify({
-        model: "llama3.1-70b", // Model specific to Cerebras, ensure it's correct.
+        model: "llama3.1-70b",
         messages: [
           { role: "system", content: systemContent },
           { role: "user", content: userContent }
@@ -357,12 +358,16 @@ const useExternalClients = (tokens, githubConfig, addLog) => {
       throw new Error(`Cerebras returned empty content or no valid choice found for ${stepName}.`);
     }
     return content;
-  }, [cerebrasApiClient, tokens.cerebras]); // addLog is already in createApiClient dependencies
+  }, [tokens.cerebras]); // Only depends on tokens.cerebras as it's part of the pre-flight check
+
+  const githubService = useMemo(() => ({ getFile, updateFile }), [getFile, updateFile]);
+  const geminiService = useMemo(() => ({ generateContent }), [generateContent]);
+  const cerebrasService = useMemo(() => ({ completeChat }), [completeChat]);
 
   return {
-    github: { getFile, updateFile },
-    gemini: { generateContent },
-    cerebras: { completeChat }
+    github: githubService,
+    gemini: geminiService,
+    cerebras: cerebrasService
   };
 };
 
@@ -383,8 +388,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
 
       const { success, commitPerformed } = await savedCallback.current();
 
-      // Check isActive again after async operation, as it might have changed during await
-      if (!isActive) {
+      if (!isActive) { // Check isActive again after async operation, as it might have changed during await
         addLog("NEXUS CYCLE TERMINATED.", "nexus");
         return;
       }
@@ -617,8 +621,8 @@ const useEvolutionEngine = (tokens, addLog) => {
       }
     }
   ]), [
-    github, gemini, cerebras, // Clients depend on tokens/addLog already, but pipeline needs the instances
-    addLog, dispatch, isCodeSafeToCommit, tokens.cerebras // Explicit token for conditional logic in synthesis
+    github, gemini, cerebras, 
+    addLog, dispatch, isCodeSafeToCommit, tokens.cerebras 
   ]);
 
   const performSingleEvolutionStep = useEvolutionPipeline(
@@ -642,7 +646,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true;
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
-      // The useEvolutionLoop and useEvolutionPipeline will pick up the ref change
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
@@ -650,7 +653,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   return {
     status,
-    isLoading: isEvolutionActive, // More descriptive name for UI
+    isLoading: isEvolutionActive,
     displayCode,
     runEvolution,
     terminateEvolution,
@@ -713,7 +716,8 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
     <div className="panel-hdr">Live Core Logic</div>
     <pre className="code-view">{displayCode || "// Awaiting sequence initialization..."}</pre>
   </div>
-));
+);
+);
 
 export default function App() {
   const [tokens, setTokens] = useState({ cerebras: "", github: "" });
