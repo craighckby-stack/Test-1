@@ -319,18 +319,13 @@ const useCerebrasApi = (token, addLog) => {
 
 const useEvolutionEngine = (tokens, addLog, setDisplayCode, setLoading) => {
   const activeRef = useRef(false);
-  const displayCodeRef = useRef("");
+  const displayCodeRef = useRef(""); 
 
   useEffect(() => {
-    displayCodeRef.current = displayCode; // Keep ref updated with latest displayCode state
-  }, [displayCode]); // displayCode needs to be passed in from App, but that breaks separation.
+    displayCodeRef.current = setDisplayCode;
+  }, [setDisplayCode]);
 
-  // Re-thinking this: displayCode should probably be *managed* by the evolution engine, not passed in.
-  // The App component only renders what the engine tells it to.
-  // So, remove displayCode from App state, and let this hook manage it internally.
-  // Let's adjust, passing setDisplayCode and setLoading in.
-
-  const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.BRANCH, addLog);
+  const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
   const cerebrasApi = useCerebrasApi(tokens.cerebras, addLog);
 
@@ -468,21 +463,22 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode, setLoading) => {
     let fileRef = null;
     let currentCodeFromGithub = "";
     let evolvedCode = null;
-    let latestCodeToDisplay = displayCodeRef.current; // Use the ref for the current displayed code
+    
+    // We expect displayCode to be managed by the parent, so we don't read it here directly
+    // but rather ensure we update it.
 
     try {
       addLog("GITHUB: Fetching current core logic...", "nexus");
       fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
       currentCodeFromGithub = utf8B64Decode(fileRef.content);
-      latestCodeToDisplay = currentCodeFromGithub; // Update display with fetched code immediately
-      setDisplayCode(latestCodeToDisplay);
+      displayCodeRef.current(currentCodeFromGithub); // Update display with fetched code immediately
 
-      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
+      if (!activeRef.current) return { success: true, commitPerformed: false };
 
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
       evolvedCode = await callAIChain(currentCodeFromGithub);
 
-      if (!activeRef.current) return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
+      if (!activeRef.current) return { success: true, commitPerformed: false };
 
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
         addLog("AI: Evolution complete. New code generated and validated.", "ok");
@@ -490,22 +486,20 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode, setLoading) => {
           GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
         );
         addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-        latestCodeToDisplay = evolvedCode;
-        setDisplayCode(latestCodeToDisplay); // Update display with evolved code
-        return { success: true, commitPerformed: true, latestCode: latestCodeToDisplay };
+        displayCodeRef.current(evolvedCode); // Update display with evolved code
+        return { success: true, commitPerformed: true };
       } else {
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-        // If unsafe or unchanged, the latestCodeToDisplay remains the current fetched code
-        return { success: true, commitPerformed: false, latestCode: currentCodeFromGithub };
+        return { success: true, commitPerformed: false };
       }
     } catch (e) {
       addLog(`CRITICAL NEXUS FAILURE DURING EVOLUTION STEP: ${e.message}`, "le-err");
-      // On critical error, revert display to the last known valid state or empty
-      const fallbackCode = currentCodeFromGithub || displayCodeRef.current || "// ERROR: Failed to retrieve core logic.";
-      setDisplayCode(fallbackCode);
-      return { success: false, commitPerformed: false, latestCode: fallbackCode };
+      // On critical error, revert display to the last known valid state or empty.
+      // If currentCodeFromGithub is empty, we fall back to a generic error message.
+      displayCodeRef.current(currentCodeFromGithub || "// ERROR: Failed to retrieve core logic or evolution failed.");
+      return { success: false, commitPerformed: false };
     }
-  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit, setDisplayCode]); // setDisplayCode is a new dependency
+  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit]); 
 
   const runEvolution = useCallback(async () => {
     if (!validateInitialEvolutionConfig()) {
@@ -514,12 +508,10 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode, setLoading) => {
 
     activeRef.current = true;
     setLoading(true);
-    // Clear logs only at the start of a fresh run, not in the loop.
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     while (activeRef.current) {
-      // displayCodeRef is now implicitly updated by setDisplayCode, which is called in performSingleEvolutionStep
-      const { success, commitPerformed } = await performSingleEvolutionStep(); // The hook manages displayCode update internally
+      const { success, commitPerformed } = await performSingleEvolutionStep(); 
 
       if (!activeRef.current) {
         break;
@@ -616,7 +608,7 @@ export default function App() {
 
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
-  }, []); // No dependencies needed as dispatchLog is stable
+  }, []); 
 
   const { isLoading: evolutionIsLoading, runEvolution, terminateEvolution } = useEvolutionEngine(
     tokens, addLog, setDisplayCode, setLoading
@@ -630,7 +622,7 @@ export default function App() {
     if (!tokens.cerebras) {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     }
-  }, [addLog, tokens.cerebras]); // Add addLog to dependency array
+  }, [addLog, tokens.cerebras]); 
 
   // Clear logs when starting a new evolution cycle
   const startEvolution = useCallback(() => {
