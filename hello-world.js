@@ -215,7 +215,6 @@ const logReducer = (state, action) => {
   }
 };
 
-// New Reducer for Evolution Engine State
 const evolutionReducer = (state, action) => {
   switch (action.type) {
     case 'START_EVOLUTION':
@@ -230,7 +229,7 @@ const evolutionReducer = (state, action) => {
       return { ...state, displayCode: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, status: 'ERROR', isEvolutionActive: false };
-    case 'RESET_STATE':
+    case 'RESET_STATE': // Added for potential future use or explicit reset
       return { ...initialEvolutionState, status: 'IDLE' };
     default:
       return state;
@@ -392,7 +391,10 @@ const useEvolutionEngine = (tokens, addLog) => {
         [{ text: `CORE: ${cleanCode}` }],
         "pattern extraction"
       );
-      if (!internalIsActiveRef.current) return null; // Check ref
+      if (!internalIsActiveRef.current) {
+        addLog("NEXUS: Pattern extraction interrupted.", "warn");
+        return null;
+      }
       if (!patterns) {
         addLog("GEMINI: Pattern extraction yielded no results.", "warn");
         return null;
@@ -424,7 +426,10 @@ const useEvolutionEngine = (tokens, addLog) => {
         `IMPROVEMENTS: ${patterns}\nCORE: ${cleanCurrentCode}`,
         "code synthesis"
       );
-      if (!internalIsActiveRef.current) return null; // Check ref
+      if (!internalIsActiveRef.current) {
+        addLog("NEXUS: Draft synthesis interrupted.", "warn");
+        return null;
+      }
       if (!rawDraftCode) {
         addLog("CEREBRAS: No draft code synthesized.", "warn");
         return null;
@@ -453,14 +458,17 @@ const useEvolutionEngine = (tokens, addLog) => {
         [{ text: `DRAFT_CODE: ${cleanCodeToFinalize}\nEXISTING_CORE: ${cleanOriginalCode}` }],
         "core finalization"
       );
-      if (!internalIsActiveRef.current) return codeToFinalize; // Check ref
+      if (!internalIsActiveRef.current) {
+        addLog("NEXUS: Core finalization interrupted.", "warn");
+        return codeToFinalize; // Return best effort
+      }
       if (!rawFinalCode) {
-        addLog("GEMINI: Finalization yielded no code. Reverting to prior state.", "warn");
+        addLog("GEMINI: Finalization yielded no code. Reverting to prior state (draft).", "warn");
         return codeToFinalize;
       }
       const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode);
       if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
-        addLog("GEMINI: Finalized code was empty after cleanup. Reverting to prior state.", "warn");
+        addLog("GEMINI: Finalized code was empty after cleanup. Reverting to prior state (draft).", "warn");
         return codeToFinalize;
       }
       addLog("GEMINI: CORE SEALED", "ok");
@@ -475,12 +483,12 @@ const useEvolutionEngine = (tokens, addLog) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
     const quantumPatterns = await extractPatterns(currentCodeFromGithub);
-    if (!internalIsActiveRef.current) return null;
+    if (!internalIsActiveRef.current) return null; // Early exit if terminated
 
     let draftCode = null;
     if (quantumPatterns) {
       draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
-      if (!internalIsActiveRef.current) return null;
+      if (!internalIsActiveRef.current) return null; // Early exit if terminated
     } else {
       addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
     }
@@ -489,7 +497,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
 
     const evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
-    if (!internalIsActiveRef.current) return null;
+    if (!internalIsActiveRef.current) return null; // Early exit if terminated
 
     return evolvedCode;
   }, [addLog, extractPatterns, synthesizeDraft, finalizeCore, internalIsActiveRef]);
@@ -500,7 +508,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     let evolvedCode = null;
     
     try {
-      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false }; // Check before starting
 
       dispatch({ type: 'SET_STATUS', payload: 'FETCHING' });
       addLog("GITHUB: Fetching current core logic...", "nexus");
@@ -509,12 +517,12 @@ const useEvolutionEngine = (tokens, addLog) => {
       dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: fetchedCode });
       dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode });
 
-      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false }; // Check after fetch
 
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
       evolvedCode = await callAIChain(fetchedCode);
 
-      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false }; // Check after AI chain
 
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, fetchedCode)) {
         dispatch({ type: 'SET_STATUS', payload: 'COMMITTING' });
@@ -528,6 +536,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       } else {
         dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
+        dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode }); // Revert display to fetched if not committed
         return { success: true, commitPerformed: false };
       }
     } catch (e) {
@@ -551,7 +560,7 @@ const useEvolutionEngine = (tokens, addLog) => {
       const { success, commitPerformed } = await performSingleEvolutionStep(); 
 
       if (!internalIsActiveRef.current) {
-        break;
+        break; // Exit loop if termination was requested during the step
       }
 
       if (success) {
@@ -582,7 +591,7 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   return { 
     status,
-    isLoading: isEvolutionActive, // Use isEvolutionActive from reducer state for UI
+    isLoading: isEvolutionActive, 
     displayCode,
     runEvolution, 
     terminateEvolution,
@@ -612,6 +621,7 @@ const NexusControlPanel = memo(({
           type="password"
           onChange={e => setTokens(p => ({ ...p, github: e.target.value }))}
           value={tokens.github}
+          spellCheck="false"
         />
         <input
           className="input-field"
@@ -619,6 +629,7 @@ const NexusControlPanel = memo(({
           type="password"
           onChange={e => setTokens(p => ({ ...p, cerebras: e.target.value }))}
           value={tokens.cerebras}
+          spellCheck="false"
         />
         <div style={{ fontSize: '0.6rem', color: 'var(--red-dim)' }}>TARGET: {`${repoConfig.owner}/${repoConfig.repo}/${repoConfig.file}`}</div>
 
