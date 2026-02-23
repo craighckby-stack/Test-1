@@ -402,7 +402,7 @@ export default function App() {
 
     let quantumPatterns = null; // Use null to distinguish between empty string and failure
     let draftCode = null;
-    let codeToFinalize = currentCodeFromGithub; // Default to current code
+    let finalCodeOutput = currentCodeFromGithub; // The ultimate result to return, defaults to original
 
     const cleanCurrentCode = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
     const cleanSourceContent = sanitizeContent(currentCodeFromGithub, GITHUB_CONTENT_MAX_LENGTH);
@@ -414,33 +414,36 @@ export default function App() {
         GEMINI_PATTERN_INSTRUCTION,
         [{ text: `CORE: ${cleanCurrentCode}\nSOURCE: ${cleanSourceContent}` }]
       );
-      if (!quantumPatterns) {
+      if (!quantumPatterns || quantumPatterns.trim().length === 0) { // Check for empty or just whitespace
         addLog("GEMINI: Pattern extraction yielded no results.", "def");
+        quantumPatterns = null; // Ensure it's null if empty
       } else {
         addLog("GEMINI: PATTERNS EXTRACTED", "ok");
       }
     } catch (e) {
       addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}. Skipping pattern application.`, "le-err");
-      quantumPatterns = null; // Mark as failed
+      quantumPatterns = null;
     }
 
     // 2. Cerebras: Synthesize Draft - Only if Cerebras token and patterns are available
     if (tokens.cerebras) {
-      if (quantumPatterns) {
+      if (quantumPatterns) { // Only if patterns were extracted
         try {
           addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
-          draftCode = await cerebrasApi.completeChat(
+          const rawDraftCode = await cerebrasApi.completeChat(
             CEREBRAS_SYNTHESIS_INSTRUCTION,
             `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
           );
-          if (!draftCode) {
+          draftCode = cleanMarkdownCodeBlock(rawDraftCode); // Clean Cerebras output
+          if (!draftCode || draftCode.trim().length === 0) {
             addLog("CEREBRAS: No draft code synthesized.", "def");
+            draftCode = null; // Ensure it's null if empty
           } else {
             addLog("CEREBRAS: DRAFT SYNTHESIZED", "ok");
           }
         } catch (e) {
           addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}. Falling back to original core.`, "le-err");
-          draftCode = null; // Mark as failed
+          draftCode = null;
         }
       } else {
         addLog("CEREBRAS: Synthesis skipped. No quantum patterns available for merging.", "def");
@@ -449,27 +452,34 @@ export default function App() {
       addLog("CEREBRAS: Synthesis skipped. API key missing.", "warn");
     }
 
-    // Determine the code to send to Gemini for finalization
-    if (draftCode) {
-      codeToFinalize = draftCode;
+    // Determine the base code for Gemini finalization
+    let codeToFinalize = draftCode && draftCode.length > 0 ? draftCode : currentCodeFromGithub;
+    if (draftCode && draftCode.length > 0) {
       addLog("AI: Proceeding with Cerebras draft for finalization.", "def");
     } else {
       addLog("AI: Using current core as base for finalization due to failed/skipped synthesis.", "def");
     }
+    finalCodeOutput = codeToFinalize; // Default final output to this, in case finalization fails
 
     // 3. Gemini: Finalize and Seal Core
     try {
       addLog("GEMINI: SEALING CORE...", "quantum");
-      const finalCode = await geminiApi.generateContent(
+      const rawFinalCode = await geminiApi.generateContent(
         GEMINI_FINALIZATION_INSTRUCTION,
         [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
       );
-      addLog("GEMINI: CORE SEALED", "ok");
-      return cleanMarkdownCodeBlock(finalCode);
+      const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode); // Clean Gemini finalization output
+      if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
+        addLog("GEMINI: Finalization yielded empty code. Reverting to prior state.", "le-err");
+      } else {
+        finalCodeOutput = cleanedFinalCode;
+        addLog("GEMINI: CORE SEALED", "ok");
+      }
     } catch (e) {
-      addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (potentially unfinalized code).`, "le-err");
-      return cleanMarkdownCodeBlock(codeToFinalize); // Return best effort, cleaned.
+      addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (prior state).`, "le-err");
     }
+    
+    return finalCodeOutput; // This is now guaranteed to be cleaned (if AI produced markdown) or original code.
   }, [addLog, tokens.cerebras, cerebrasApi, geminiApi]);
 
   const validateInitialEvolutionConfig = useCallback(() => {
@@ -510,14 +520,14 @@ export default function App() {
       let fileRef = null;
       let currentCode = "";
       let evolvedCode = "";
-      let newCodeToDisplay = displayCodeRef.current; // Start with current displayed code
+      let newCodeToDisplay = displayCodeRef.current; // Start with current displayed code from ref
       let stepSuccessful = false;
 
       try {
         // 1. Fetch current file from GitHub
         fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         currentCode = utf8B64Decode(fileRef.content);
-        newCodeToDisplay = currentCode; // Update display code immediately after fetch
+        newCodeToDisplay = currentCode; // Update display code to actual GitHub content
 
         // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
@@ -540,10 +550,10 @@ export default function App() {
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
         // If an error occurred, ensure the display reverts to the last known good state
-        // (the code fetched from GitHub at the start of the step, if successful)
+        // (the code fetched from GitHub at the start of the step, if successful, or a placeholder)
         if (currentCode) { 
           newCodeToDisplay = currentCode;
-        } else { // If even fetching current code failed
+        } else { 
           newCodeToDisplay = "// Error during evolution cycle. Displaying last known state or placeholder.";
         }
         stepSuccessful = false;
@@ -571,7 +581,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi]); // Removed displayCode from dependencies
+  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi]);
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
