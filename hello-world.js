@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo, useMemo } from "react";
 
-// --- Configuration and Constants ---
 const APP_EMBEDDED_KEYS = {
-  GEMINI: "", // This field is intended for direct embedding if public, otherwise rely on user input.
+  GEMINI: "",
 };
 
 const APP_CONFIG = {
@@ -196,7 +195,6 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// --- Utility Functions ---
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -214,37 +212,34 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
           const errorBody = await response.json();
           errorMessage = errorBody.message || JSON.stringify(errorBody);
         } catch (jsonParseError) {
-          // Response body was not JSON, use generic message
         }
         throw new Error(errorMessage);
       }
       return await response.json();
     } catch (e) {
       if (e.name === 'AbortError') {
-        throw e; // Propagate AbortError immediately
+        throw e;
       }
       if (i === retries - 1) {
-        throw e; // Throw error after last retry attempt
+        throw e;
       }
-      await wait(1000 * (i + 1)); // Exponential backoff
+      await wait(1000 * (i + 1));
     }
   }
-  throw new Error("safeFetch exhausted all retries."); // Should not be reached
+  throw new Error("safeFetch exhausted all retries.");
 };
 
 const cleanMarkdownCodeBlock = (code) => {
   if (!code) return "";
-  // Remove markdown code block fences (e.g., ```javascript\n and ```)
   return code.replace(/^```[a-z]*\n|```$/gi, "").trim();
 };
 
 const sanitizeContent = (content, maxLength) =>
-  content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : ""; // Basic ASCII and newline only, limit length
+  content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
 const validateJavaScriptSyntax = (code) => {
   try {
-    // eslint-disable-next-line no-new-func
-    new Function(code); // Attempt to compile the code
+    new Function(code);
     return true;
   } catch (e) {
     console.error("Syntax Validation Error:", e);
@@ -269,7 +264,6 @@ const buildCerebrasChatCompletionBody = (systemContent, userContent) => {
   };
 };
 
-// --- Reducers for State Management ---
 const LogActionTypes = {
   ADD_LOG: 'ADD_LOG',
   CLEAR_LOGS: 'CLEAR_LOGS',
@@ -300,22 +294,22 @@ const EvolutionStatus = {
 };
 
 const initialPipelineContext = {
-  fileRef: null, // GitHub file reference (contains SHA)
+  fileRef: null,
   fetchedCode: '',
   quantumPatterns: null,
   draftCode: null,
   isSyntaxValid: false,
-  commitPerformed: false, // Tracks if a commit occurred in the current cycle
-  evolvedCode: '', // Stored here temporarily for safety checks before global state update
+  commitPerformed: false,
+  evolvedCode: '',
 };
 
 const initialEvolutionEngineState = {
   status: EvolutionStatus.IDLE,
   isEvolutionActive: false,
   error: null,
-  currentCoreCode: '', // The last successfully fetched/committed code, shown in UI
-  displayCode: '', // The code currently displayed (can be evolved or currentCoreCode)
-  pipeline: initialPipelineContext, // Internal state for the current pipeline run
+  currentCoreCode: '',
+  displayCode: '',
+  pipeline: initialPipelineContext,
 };
 
 const evolutionEngineReducer = (state, action) => {
@@ -327,14 +321,14 @@ const evolutionEngineReducer = (state, action) => {
     case 'SET_STATUS':
       return { ...state, status: action.payload };
     case 'SET_CURRENT_CORE_CODE':
-      return { ...state, currentCoreCode: action.payload, displayCode: action.payload }; // Update display when core code changes
-    case 'SET_DISPLAY_CODE': // Dedicated action for updating what's shown
+      return { ...state, currentCoreCode: action.payload, displayCode: action.payload };
+    case 'SET_DISPLAY_CODE':
       return { ...state, displayCode: action.payload };
     case 'SET_ERROR':
-      return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode }; // Fallback to currentCoreCode on error
+      return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode };
     case 'RESET_ENGINE_STATE':
       return { ...initialEvolutionEngineState };
-    case 'RESET_PIPELINE_CONTEXT': // Only resets the pipeline context, not overall engine state
+    case 'RESET_PIPELINE_CONTEXT':
       return {
         ...state,
         pipeline: initialPipelineContext,
@@ -352,7 +346,6 @@ const evolutionEngineReducer = (state, action) => {
   }
 };
 
-// --- API Client Factory ---
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -366,7 +359,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
     } catch (e) {
       if (e.name === 'AbortError') {
         logger(`API ${stepName.toUpperCase()} ABORTED.`, "warn");
-        throw e; // Re-throw AbortError to be caught higher up
+        throw e;
       }
       logger(`API ${stepName.toUpperCase()} FAILED: ${e.message}.`, "le-err");
       throw e;
@@ -380,7 +373,6 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// --- Custom Hooks for External Client Initialization ---
 const useExternalClients = (tokens, addLog) => {
   const githubService = useMemo(() => {
     const githubToken = tokens.github;
@@ -405,7 +397,7 @@ const useExternalClients = (tokens, addLog) => {
         const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}?ref=${APP_CONFIG.GITHUB_REPO.branch}`;
         const response = await githubClient.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
         if (!response || !response.content) {
-          throw new Error(`Failed to fetch file content for ${filePath}. Response: ${JSON.stringify(response)}`);
+          throw Object.assign(new Error(`Failed to fetch file content for ${filePath}. Response: ${JSON.stringify(response)}`), { code: 'GITHUB_FETCH_FAILED' });
         }
         return response;
       },
@@ -443,7 +435,7 @@ const useExternalClients = (tokens, addLog) => {
         const res = await geminiClient.post(geminiEndpoint, { body: JSON.stringify(body) }, `Gemini ${stepName}`, "quantum", signal);
         const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!content) {
-          throw new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`);
+          throw Object.assign(new Error(`Gemini returned empty content or no valid candidate found for ${stepName}.`), { code: 'GEMINI_EMPTY_RESPONSE' });
         }
         return content;
       }
@@ -472,7 +464,7 @@ const useExternalClients = (tokens, addLog) => {
         const data = await cerebrasClient.post(APP_CONFIG.API.CEREBRAS.ENDPOINT, { body: JSON.stringify(body) }, `Cerebras ${stepName}`, "quantum", signal);
         const content = data.choices?.[0]?.message?.content || "";
         if (!content) {
-          throw new Error(`Cerebras returned empty content or no valid choice found for ${stepName}.`);
+          throw Object.assign(new Error(`Cerebras returned empty content or no valid choice found for ${stepName}.`), { code: 'CEREBRAS_EMPTY_RESPONSE' });
         }
         return content;
       }
@@ -482,16 +474,13 @@ const useExternalClients = (tokens, addLog) => {
   return { github: githubService, gemini: geminiService, cerebras: cerebrasService };
 };
 
-// --- Pure Pipeline Step Logic Functions ---
-// Each function takes an object containing context and dependencies, and returns an updated pipeline context.
-
 async function fetchCoreLogic({ pipelineContext, clients, addLog, signal, config }) {
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
   const fetchedCode = utf8B64Decode(result.content);
   return {
     ...pipelineContext,
     fetchedCode: fetchedCode,
-    fileRef: result // Store GitHub file metadata including SHA
+    fileRef: result
   };
 }
 
@@ -562,7 +551,7 @@ async function synthesizingDraftLogic({ pipelineContext, clients, addLog, signal
 async function finalizingCodeLogic({ pipelineContext, clients, addLog, signal, config, prompts }) {
   const codeForFinalization = pipelineContext.draftCode || pipelineContext.fetchedCode;
   if (!codeForFinalization) {
-    throw new Error("No code available for finalization. This indicates a critical upstream failure or missing API keys.");
+    throw Object.assign(new Error("No code available for finalization. This indicates a critical upstream failure or missing API keys."), { code: 'NO_CODE_TO_FINALIZE' });
   }
   addLog(`AI: Proceeding with ${pipelineContext.draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
 
@@ -579,14 +568,14 @@ async function finalizingCodeLogic({ pipelineContext, clients, addLog, signal, c
     const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode);
 
     if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
-      throw new Error("Finalized code was empty after cleanup, indicating a critical AI failure.");
+      throw Object.assign(new Error("Finalized code was empty after cleanup, indicating a critical AI failure."), { code: 'GEMINI_EMPTY_RESPONSE_FINAL' });
     }
     addLog("AI: Finalized code generated.", "quantum");
     return { ...pipelineContext, evolvedCode: cleanedFinalCode };
   } catch (e) {
     if (e.code === 'NO_GEMINI_KEY') {
       addLog("Gemini client not initialized. Cannot finalize code. Evolution halted.", "le-err");
-      throw new Error("Gemini API key is required for code finalization.");
+      throw Object.assign(new Error("Gemini API key is required for code finalization."), { code: 'NO_GEMINI_KEY_FINAL' });
     }
     throw e;
   }
@@ -597,12 +586,12 @@ async function validatingSyntaxLogic({ pipelineContext, addLog, signal }) {
 
   if (!pipelineContext.evolvedCode) {
     addLog("SYNTAX VALIDATION: No evolved code to validate. Skipping.", "warn");
-    throw new Error("Syntax validation skipped: no evolved code to validate."); // Treat as critical to prevent bad commits
+    throw Object.assign(new Error("Syntax validation skipped: no evolved code to validate."), { code: 'NO_EVOLVED_CODE' });
   }
 
   const isValid = validateJavaScriptSyntax(pipelineContext.evolvedCode);
   if (!isValid) {
-    throw new Error("Evolved code contains JavaScript syntax errors. Preventing commit.");
+    throw Object.assign(new Error("Evolved code contains JavaScript syntax errors. Preventing commit."), { code: 'SYNTAX_ERROR' });
   }
   addLog("SYNTAX VALIDATION: Evolved code is syntactically valid.", "ok");
   return { ...pipelineContext, isSyntaxValid: true };
@@ -613,14 +602,12 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
 
   if (!pipelineContext.isSyntaxValid) {
     addLog("AI: Code failed syntax validation. No commit.", "le-err");
-    // Do not clear evolvedCode in pipelineContext yet, let the main engine decide how to display
     return { ...pipelineContext, commitPerformed: false };
   }
 
-  // Use the callback from the hook to perform this check
   if (pipelineContext.evolvedCode && isCodeSafeToCommitCheck(pipelineContext.evolvedCode, pipelineContext.fetchedCode)) {
     if (!pipelineContext.fileRef || !pipelineContext.fileRef.sha) {
-      throw new Error("Missing file reference (SHA) for committing code. Cannot proceed.");
+      throw Object.assign(new Error("Missing file reference (SHA) for committing code. Cannot proceed."), { code: 'MISSING_FILE_SHA' });
     }
     try {
       await clients.github.updateFile(
@@ -631,7 +618,7 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
     } catch (e) {
       if (e.code === 'NO_GITHUB_TOKEN') {
         addLog("GitHub token missing. Cannot commit.", "le-err");
-        throw new Error("GitHub token is required to commit changes.");
+        throw Object.assign(new Error("GitHub token is required to commit changes."), { code: 'NO_GITHUB_TOKEN_COMMIT' });
       }
       throw e;
     }
@@ -640,20 +627,17 @@ async function committingCodeLogic({ pipelineContext, clients, addLog, signal, c
     return { ...pipelineContext, commitPerformed: false };
   }
 }
-// --- End Pure Pipeline Step Logic Functions ---
 
-// --- Core Pipeline Execution Hook ---
-const usePipelineExecutor = (steps, engineState, dispatchEvolution, addLog, clients, config, prompts, isCodeSafeToCommitCheck, callbacks) => {
+const usePipelineExecutor = (steps, dispatchEvolution, addLog, clients, config, prompts, isCodeSafeToCommitCheck, callbacks) => {
   const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async () => {
-    // Reset pipeline context for this run, keeping global state (like currentCoreCode) intact
     dispatchEvolution({ type: 'RESET_PIPELINE_CONTEXT' });
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    let currentPipelineContext = { ...initialPipelineContext }; // Start with a fresh pipeline context for this run
+    let currentPipelineContext = { ...initialPipelineContext };
     let successfulCommitThisCycle = false;
 
     try {
@@ -681,10 +665,8 @@ const usePipelineExecutor = (steps, engineState, dispatchEvolution, addLog, clie
           });
           
           currentPipelineContext = updatedContext;
-          // Optionally dispatch updated pipeline context for detailed UI (e.g., if we had a debug panel)
-          // dispatchEvolution({ type: 'UPDATE_PIPELINE_CONTEXT', payload: updatedContext }); 
+          dispatchEvolution({ type: 'UPDATE_PIPELINE_CONTEXT', payload: updatedContext });
 
-          // Update global engine state relevant for display or overall status
           if (stepDef.name === EvolutionStatus.FETCHING_CORE && updatedContext.fetchedCode) {
             callbacks.setCurrentCoreCode(updatedContext.fetchedCode);
           }
@@ -693,10 +675,10 @@ const usePipelineExecutor = (steps, engineState, dispatchEvolution, addLog, clie
           }
           if (stepDef.name === EvolutionStatus.COMMITTING_CODE && updatedContext.commitPerformed) {
             successfulCommitThisCycle = true;
-            callbacks.setCurrentCoreCode(updatedContext.evolvedCode); // Update core code after successful commit
-            callbacks.setEvolvedCodeToDisplay(''); // Clear evolved code from display after commit
+            callbacks.setCurrentCoreCode(updatedContext.evolvedCode);
+            callbacks.setEvolvedCodeToDisplay('');
           } else if (stepDef.name === EvolutionStatus.COMMITTING_CODE && !updatedContext.commitPerformed) {
-            callbacks.setEvolvedCodeToDisplay(''); // Clear evolved code if no commit
+            callbacks.setEvolvedCodeToDisplay('');
           }
 
           addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
@@ -709,7 +691,6 @@ const usePipelineExecutor = (steps, engineState, dispatchEvolution, addLog, clie
           if (!stepDef.allowFailure) {
             throw stepError;
           }
-          // If allowed to fail, pipeline continues with currentPipelineContext as is (e.g., without patterns or draft)
         }
       }
       return { success: true, commitPerformed: successfulCommitThisCycle };
@@ -737,7 +718,6 @@ const usePipelineExecutor = (steps, engineState, dispatchEvolution, addLog, clie
   return { runPipeline, abortPipeline };
 };
 
-// --- Evolution Loop Hook ---
 const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true); 
@@ -763,7 +743,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
       const { success, commitPerformed, aborted } = await performEvolutionCallback();
 
-      if (!isMountedRef.current || !isActive) { // Check again after callback completes
+      if (!isMountedRef.current || !isActive) {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
         return;
@@ -790,7 +770,7 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(runCycle, 0); // Run first cycle immediately
+      timeoutRef.current = setTimeout(runCycle, 0);
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -809,14 +789,12 @@ const useEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
 
 };
 
-// --- Main Evolution Engine Hook ---
 const useEvolutionEngine = (tokens, addLog) => {
   const [engineState, dispatch] = useReducer(evolutionEngineReducer, initialEvolutionEngineState);
   const { status, isEvolutionActive, currentCoreCode, displayCode, error } = engineState;
 
   const { github, gemini, cerebras } = useExternalClients(tokens, addLog);
 
-  // This check is a callback provided to the pure `committingCodeLogic` function
   const isCodeSafeToCommit = useCallback((code, originalCode) => {
     if (!code || code.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${code ? code.length : 0} chars). Retaining current core.`, "le-err");
@@ -829,7 +807,6 @@ const useEvolutionEngine = (tokens, addLog) => {
     return true;
   }, [addLog]);
 
-  // Callbacks for the executor to update broader engine state for UI/display
   const executorCallbacks = useMemo(() => ({
     setCurrentCoreCode: (code) => dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: code }),
     setEvolvedCodeToDisplay: (code) => dispatch({ type: 'SET_DISPLAY_CODE', payload: code }),
@@ -846,7 +823,6 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const { runPipeline, abortPipeline } = usePipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
-    engineState, // Pass engineState (though specific pipeline context is handled internally)
     dispatch,
     addLog,
     { github, gemini, cerebras },
@@ -857,8 +833,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   );
 
   const performEvolutionCycle = useCallback(async () => {
-    // This callback is what useEvolutionLoop repeatedly calls.
-    // It initiates a full pipeline run.
     const { success, commitPerformed, aborted } = await runPipeline();
 
     if (success) { 
@@ -872,9 +846,9 @@ const useEvolutionEngine = (tokens, addLog) => {
   const runEvolution = useCallback(() => {
     try {
       if (!tokens.github) {
-        throw new Error("GitHub token missing. Evolution cannot start.");
+        throw Object.assign(new Error("GitHub token missing. Evolution cannot start."), { code: 'NO_GITHUB_TOKEN_INIT' });
       }
-      dispatch({ type: 'START_EVOLUTION' }); // Set active and initial status
+      dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
       dispatch({ type: 'SET_ERROR', payload: e });
@@ -883,9 +857,9 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
-      abortPipeline(); // Signal pipeline to stop
+      abortPipeline();
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
-      dispatch({ type: 'STOP_EVOLUTION' }); // Update engine status
+      dispatch({ type: 'STOP_EVOLUTION' });
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE. No termination needed.", "def");
     }
@@ -901,7 +875,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   };
 };
 
-// --- Memoized UI Components ---
 const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -954,7 +927,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github} // Disable button if GitHub token is missing
+          disabled={!tokens.github}
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
@@ -976,7 +949,6 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
   </div>
 )); 
 
-// --- Main Application Component ---
 export default function App() {
   const [tokens, setTokens] = useState(() => {
     const savedGithub = localStorage.getItem('dalek_token_github') || "";
@@ -994,7 +966,6 @@ export default function App() {
     tokens, addLog
   );
 
-  // Initial token status checks and warnings
   useEffect(() => {
     dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
 
@@ -1020,7 +991,6 @@ export default function App() {
     }
   }, [addLog, tokens.cerebras, tokens.github, tokens.gemini]);
 
-  // Log engine errors
   useEffect(() => {
     if (error) {
       addLog(`ENGINE ERROR: ${error.message || String(error)}`, "le-err");
@@ -1028,7 +998,7 @@ export default function App() {
   }, [error, addLog]);
 
   const startEvolutionProcess = useCallback(() => {
-    dispatchLog({ type: LogActionTypes.CLEAR_LOGS }); // Clear logs on manual start
+    dispatchLog({ type: LogActionTypes.CLEAR_LOGS });
     runEvolution();
   }, [runEvolution]);
 
