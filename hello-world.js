@@ -181,7 +181,7 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// UTILITY FUNCTIONS - PRESERVED AND OPTIMIZED
+// UTILITY FUNCTIONS - OPTIMIZED FOR CONSISTENCY AND ERROR HANDLING
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))) }
@@ -206,7 +206,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
       return await response.json();
     } catch (e) {
       if (e.name === 'AbortError') {
-        throw e;
+        throw e; // Propagate AbortError immediately
       }
       if (i === retries - 1) { // If it's the last retry, re-throw the error
         throw e;
@@ -255,7 +255,7 @@ const EvolutionStatus = {
   COMMITTING_CODE: 'COMMITTING_CODE',
 };
 
-// REDUCERS - PRESERVED AND OPTIMIZED
+// REDUCERS - OPTIMIZED FOR IMMUTABILITY AND CLARITY
 const logReducer = (state, action) => {
   switch (action.type) {
     case LogActionTypes.ADD_LOG:
@@ -297,7 +297,7 @@ const evolutionReducer = (state, action) => {
   }
 };
 
-// API CLIENT FACTORY - PRESERVED AND OPTIMIZED
+// API CLIENT FACTORY - OPTIMIZED FOR REUSABILITY AND ERROR REPORTING
 const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   const request = async (method, endpoint, options, stepName = "API Request", logType = "def", signal = null) => {
     const url = `${baseURL}${endpoint}`;
@@ -325,7 +325,7 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
   };
 };
 
-// CUSTOM HOOKS - PRESERVED AND OPTIMIZED
+// CUSTOM HOOKS - OPTIMIZED FOR STABILITY AND DEPENDENCY MANAGEMENT
 const useExternalClients = (tokens, addLog, geminiApiKey) => {
   const githubService = useMemo(() => {
     if (!tokens.github) return null; // Only create if token exists
@@ -521,7 +521,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
         // Check for termination signal before executing each step
         if (isTerminatedRef.current || signal.aborted) {
           addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-          throw new Error("Evolution terminated by user.");
+          throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
         }
         dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: stepDef.name });
         addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
@@ -534,7 +534,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
           // Re-check for termination after each async step
           if (isTerminatedRef.current || signal.aborted) {
             addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-            throw new Error("Evolution terminated by user.");
+            throw Object.assign(new Error("Evolution terminated by user."), { name: "AbortError" });
           }
 
           // Update display code based on pipeline progress for immediate feedback
@@ -560,7 +560,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
       commitPerformed = pipelineContext.commitPerformed;
 
     } catch (e) {
-      if (e.name === 'AbortError' || e.message === "Evolution terminated by user.") {
+      if (e.name === 'AbortError') {
         // User termination is a "successful" exit in terms of not being an error state for the engine
         success = true; // Mark as successful termination, not a crash
       } else {
@@ -571,7 +571,7 @@ const useEvolutionPipeline = (stepDefinitions, addLog, dispatch, isTerminatedRef
       }
     } finally {
       // Ensure the abort controller is always cleaned up, regardless of success or failure
-      // Only abort if it hasn't been aborted already (e.g., by explicit throw of AbortError)
+      // Only abort if it hasn't been aborted already
       if (!signal.aborted) {
         abortController.abort();
       }
