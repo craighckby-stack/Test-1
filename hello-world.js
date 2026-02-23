@@ -455,7 +455,6 @@ const useEvolutionEngine = (tokens, addLog) => {
   }, [geminiApi]);
 
   const synthesizeDraft = useCallback(async (patterns, currentCode) => {
-    // Note: Cerebras token check is performed in useCerebrasApi.
     const cleanCurrentCode = sanitizeContent(currentCode, CORE_CONTENT_MAX_LENGTH);
     const rawDraftCode = await cerebrasApi.completeChat(
       CEREBRAS_SYNTHESIS_INSTRUCTION,
@@ -497,15 +496,18 @@ const useEvolutionEngine = (tokens, addLog) => {
       }
     };
 
-    const pipelineStep = async (stepName, action, allowFailure = false) => {
+    // Helper for pipeline steps to centralize status updates, logging, and termination checks
+    const executePipelineStep = async (stepName, action, allowFailure = false) => {
       checkTermination();
       dispatch({ type: 'SET_STATUS', payload: stepName });
+      addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} initiated.`, "nexus");
       try {
         const result = await action();
-        checkTermination();
+        checkTermination(); // Re-check after action completes
+        addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} completed.`, "ok");
         return result;
       } catch (e) {
-        addLog(`${stepName.replace(/_/g, ' ')} FAILED: ${e.message}`, "le-err");
+        addLog(`NEXUS: ${stepName.replace(/_/g, ' ')} FAILED: ${e.message}`, "le-err");
         if (!allowFailure) {
           throw e;
         }
@@ -516,7 +518,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     try {
       validateEvolutionEnvironment();
 
-      const fetchedFileData = await pipelineStep('FETCHING_CORE', async () => {
+      const fetchedFileData = await executePipelineStep('FETCHING_CORE', async () => {
         const result = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         fetchedCode = utf8B64Decode(result.content);
         dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: fetchedCode });
@@ -526,14 +528,13 @@ const useEvolutionEngine = (tokens, addLog) => {
       fileRef = fetchedFileData;
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
 
-      const quantumPatterns = await pipelineStep('EXTRACTING_PATTERNS', async () => {
+      const quantumPatterns = await executePipelineStep('EXTRACTING_PATTERNS', async () => {
         return await extractPatterns(fetchedCode);
-      }, true);
+      }, true); // Allow failure for pattern extraction, synthesis can proceed with existing code
 
       let draftCode = null;
-      const canSynthesize = tokens.cerebras && quantumPatterns;
-      if (canSynthesize) {
-        draftCode = await pipelineStep('SYNTHESIZING_DRAFT', async () => {
+      if (tokens.cerebras && quantumPatterns) { // Only synthesize if Cerebras key and patterns are available
+        draftCode = await executePipelineStep('SYNTHESIZING_DRAFT', async () => {
           return await synthesizeDraft(quantumPatterns, fetchedCode);
         });
       } else {
@@ -543,12 +544,13 @@ const useEvolutionEngine = (tokens, addLog) => {
 
       const codeForFinalization = draftCode || fetchedCode;
       addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-      evolvedCode = await pipelineStep('FINALIZING_CODE', async () => {
+      
+      evolvedCode = await executePipelineStep('FINALIZING_CODE', async () => {
         return await finalizeCore(codeForFinalization, fetchedCode);
       });
 
       if (evolvedCode && isCodeSafeToCommit(evolvedCode, fetchedCode)) {
-        await pipelineStep('COMMITTING_CODE', async () => {
+        await executePipelineStep('COMMITTING_CODE', async () => {
           await githubApi.updateFile(
             GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
@@ -565,7 +567,7 @@ const useEvolutionEngine = (tokens, addLog) => {
     } catch (e) {
       if (e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true;
+        success = true; // Still consider it "successful" termination, not a failure of the *process* itself
       } else {
         dispatch({ type: 'SET_ERROR', payload: e.message });
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -573,10 +575,11 @@ const useEvolutionEngine = (tokens, addLog) => {
         success = false;
       }
     } finally {
+      // Ensure final state is clean after potential termination or error
       if (!isEvolutionTerminatedRef.current) {
         dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
       } else {
-        dispatch({ type: 'STOP_EVOLUTION' });
+        dispatch({ type: 'STOP_EVOLUTION' }); // Set to PAUSED via reducer
       }
     }
     return { success, commitPerformed };
@@ -699,7 +702,7 @@ export default function App() {
       addLog("WARNING: GEMINI_API_KEY is not configured.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
     }
-  }, [addLog]); // Only depend on addLog as GEMINI_API_KEY is constant
+  }, [addLog]);
 
   useEffect(() => {
     if (!tokens.cerebras) {
