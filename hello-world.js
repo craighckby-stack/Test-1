@@ -243,7 +243,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
           await wait(1000 * (i + 1));
           continue;
       }
-      if (e.isAppError) throw e;
+      if (e.isAppError) throw e; // Re-throw custom AppErrors as is
       throw new AppError(`Network or unexpected error on ${url}: ${e.message}`, 'NETWORK_ERROR', e);
     }
   }
@@ -367,6 +367,7 @@ const evolutionEngineReducer = (state, action) => {
     case EvolutionActionTypes.SET_ERROR:
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode || '' };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
+      // When resetting, preserve the last known `currentCoreCode` and `displayCode` to prevent display flicker
       return { ...initialEvolutionEngineState, currentCoreCode: state.currentCoreCode, displayCode: state.currentCoreCode };
     case EvolutionActionTypes.UPDATE_STATE_FROM_STEP:
       return {
@@ -424,7 +425,7 @@ const useAIIntegrations = (tokens, addLog) => {
     const getApiClientInstance = (apiConfig, token, name, defaultHeaders = {}, isKeyInUrl = false) => {
       const effectiveToken = token.trim() || apiConfig.DEFAULT_KEY;
 
-      if (!effectiveToken && apiConfig.DEFAULT_KEY === '' && name !== "GitHub") {
+      if (!effectiveToken && name !== "GitHub" && apiConfig.DEFAULT_KEY === '') { // Only warn if no key (user or embedded)
         addLog(`WARNING: ${name} client not fully operational: API key missing or not embedded.`, `NO_${name.toUpperCase()}_KEY_WARN`);
         return null;
       }
@@ -469,7 +470,7 @@ const useAIIntegrations = (tokens, addLog) => {
         const urlPath = `/repos/${APP_CONFIG.GITHUB_REPO.owner}/${APP_CONFIG.GITHUB_REPO.repo}/contents/${filePath}?ref=${APP_CONFIG.GITHUB_REPO.branch}`;
         const response = await githubClient.get(urlPath, {}, `GitHub Fetch ${filePath}`, "nexus", signal);
         if (!response || !response.content) {
-          throw new AppError(`Failed to fetch file content for ${filePath}.`, 'GITHUB_FETCH_FAILED');
+          throw new AppError(`Failed to fetch file content for ${filePath}. Response was empty or invalid.`, 'GITHUB_FETCH_FAILED');
         }
         return response;
       },
@@ -487,6 +488,7 @@ const useAIIntegrations = (tokens, addLog) => {
 
     // Gemini Service
     const geminiService = geminiClient ? (() => {
+      // Use the already determined effectiveToken here
       const geminiApiKey = tokens.gemini.trim() || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
       const geminiEndpoint = APP_CONFIG.API.GEMINI.ENDPOINT.replace("{model}", APP_CONFIG.API.GEMINI.MODEL) + `?key=${geminiApiKey}`;
 
@@ -536,7 +538,7 @@ const useAIIntegrations = (tokens, addLog) => {
 // Pipeline Step Definitions
 const fetchCoreLogic = async (currentEngineState, { clients, config, addLog }, signal) => {
   if (!clients.github) {
-    throw new AppError("GitHub client not available. Cannot fetch core logic.", "GITHUB_CLIENT_UNAVAILABLE");
+    throw new AppError("GitHub client not available. Cannot fetch core logic. Please provide a token.", "GITHUB_CLIENT_UNAVAILABLE");
   }
   const result = await clients.github.getFile(config.GITHUB_REPO.file, signal);
   const fetchedCode = utf8B64Decode(result.content);
@@ -544,21 +546,21 @@ const fetchCoreLogic = async (currentEngineState, { clients, config, addLog }, s
   return {
     pipeline: {
       fetchedCode: fetchedCode,
-      fileRef: result
+      fileRef: result // Contains SHA and other metadata for commit
     },
-    currentCoreCode: fetchedCode,
-    displayCode: fetchedCode,
+    currentCoreCode: fetchedCode, // Update engine's current core
+    displayCode: fetchedCode, // Display the fetched code
   };
 };
 
 const extractingPatternsLogic = async (currentEngineState, { clients, config, prompts, addLog }, signal) => {
   const { fetchedCode } = currentEngineState.pipeline;
   if (!fetchedCode) {
-    throw new AppError("No core code available for pattern extraction.", "MISSING_FETCHED_CODE");
+    throw new AppError("No core code available for pattern extraction. Critical upstream failure.", "MISSING_FETCHED_CODE");
   }
   if (!clients.gemini) {
     addLog("WARNING: Gemini client not available. Skipping pattern extraction.", "warn");
-    return { pipeline: { quantumPatterns: null } }; 
+    return { pipeline: { quantumPatterns: null } }; // Allow failure, continue without patterns
   }
 
   const cleanCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
@@ -578,11 +580,11 @@ const extractingPatternsLogic = async (currentEngineState, { clients, config, pr
 const synthesizingDraftLogic = async (currentEngineState, { clients, config, prompts, addLog }, signal) => {
   const { fetchedCode, quantumPatterns } = currentEngineState.pipeline;
   if (!fetchedCode) {
-    throw new AppError("No core code available for draft synthesis.", "MISSING_FETCHED_CODE");
+    throw new AppError("No core code available for draft synthesis. Critical upstream failure.", "MISSING_FETCHED_CODE");
   }
   if (!clients.cerebras) {
     addLog("WARNING: Cerebras client not available. Skipping synthesis step.", "warn");
-    return { pipeline: { draftCode: null } }; 
+    return { pipeline: { draftCode: null } }; // Allow failure, continue without a draft
   }
 
   const sanitizedFetchedCode = sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH);
@@ -599,7 +601,7 @@ const synthesizingDraftLogic = async (currentEngineState, { clients, config, pro
   const cleanedDraft = cleanMarkdownCodeBlock(rawDraft);
 
   if (!cleanedDraft || cleanedDraft.trim().length < config.MIN_SYNTHESIZED_DRAFT_LENGTH) {
-    throw new AppError(`Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty.`, "SYNTHESIS_TOO_SHORT");
+    throw new AppError(`Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty. Minimum: ${config.MIN_SYNTHESIZED_DRAFT_LENGTH} chars.`, "SYNTHESIS_TOO_SHORT");
   }
   addLog("QUANTUM: Draft synthesized by Cerebras.", "quantum");
   return { pipeline: { draftCode: cleanedDraft } };
@@ -607,12 +609,12 @@ const synthesizingDraftLogic = async (currentEngineState, { clients, config, pro
 
 const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config, prompts }, signal) => {
   const { draftCode, fetchedCode } = currentEngineState.pipeline;
-  const codeForFinalization = draftCode || fetchedCode; // Use draft if available, else original
+  const codeForFinalization = draftCode || fetchedCode; // Use Cerebras draft if available, else the original fetched code
   if (!codeForFinalization) {
     throw new AppError("No code available for finalization. Critical upstream failure.", 'NO_CODE_TO_FINALIZE');
   }
   if (!clients.gemini) {
-    throw new AppError("Gemini client not available. Cannot finalize code.", "GEMINI_CLIENT_UNAVAILABLE");
+    throw new AppError("Gemini client not available. Cannot finalize code. Please provide a token.", "GEMINI_CLIENT_UNAVAILABLE");
   }
 
   addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
@@ -621,7 +623,7 @@ const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config
     prompts.GEMINI_FINALIZATION,
     [
       { text: `DRAFT_CODE: ${sanitizeContent(codeForFinalization, config.CORE_CONTENT_MAX_LENGTH)}` },
-      { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH)}` }
+      { text: `EXISTING_CORE_REFERENCE: ${sanitizeContent(fetchedCode, config.CORE_CONTENT_MAX_LENGTH)}` } // Provide original as reference
     ],
     "core finalization",
     signal
@@ -634,17 +636,17 @@ const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config
   addLog("QUANTUM: Code finalized by Gemini.", "quantum");
   return {
     pipeline: { evolvedCode: cleanedFinalCode },
-    displayCode: cleanedFinalCode,
+    displayCode: cleanedFinalCode, // Update display with finalized code
   };
 };
 
 const validatingSyntaxLogic = async (currentEngineState, { addLog }, signal) => {
-  // Signal is unused but kept for consistent signature
+  // Signal is unused but kept for consistent signature for potential future use (e.g., long-running validation)
   if (signal && signal.aborted) throw new AppError("Syntax validation aborted.", "ABORTED", null, null, true);
 
   const { evolvedCode } = currentEngineState.pipeline;
   if (!evolvedCode) {
-    throw new AppError("No evolved code to validate.", 'NO_EVOLVED_CODE');
+    throw new AppError("No evolved code to validate. Critical upstream failure.", 'NO_EVOLVED_CODE');
   }
 
   const isValid = validateJavaScriptSyntax(evolvedCode);
@@ -659,13 +661,13 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
   const { isSyntaxValid, evolvedCode, fileRef, fetchedCode } = currentEngineState.pipeline;
   
   if (!clients.github) {
-    throw new AppError("GitHub client not available. Cannot commit code.", "GITHUB_CLIENT_UNAVAILABLE");
+    throw new AppError("GitHub client not available. Cannot commit code. Please provide a token.", "GITHUB_CLIENT_UNAVAILABLE");
   }
   if (!isSyntaxValid) {
     throw new AppError("Code failed syntax validation. No commit.", 'COMMIT_PREVENTED_SYNTAX');
   }
   if (!evolvedCode) {
-    throw new AppError("No evolved code to commit.", 'NO_EVOLVED_CODE_FOR_COMMIT');
+    throw new AppError("No evolved code to commit. Critical upstream failure.", 'NO_EVOLVED_CODE_FOR_COMMIT');
   }
 
   if (!isCodeSafeToCommitCheck(evolvedCode, fetchedCode)) {
@@ -683,8 +685,8 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
   
   return {
     pipeline: { commitPerformed: true },
-    currentCoreCode: evolvedCode,
-    displayCode: evolvedCode,
+    currentCoreCode: evolvedCode, // Update engine's core code to the newly committed version
+    displayCode: evolvedCode, // Display the committed code
   };
 };
 
@@ -912,8 +914,8 @@ const useDalekCore = () => {
   );
 
   const performEvolutionCycle = useCallback(async (initialEngineStateForCycle) => {
-    // Pass the current *actual* engineState to runPipeline for its initial local state setup
-    // This ensures that `runPipeline` starts with the very latest state, including `currentCoreCode`
+    // Pass the current *actual* engineState to runPipeline for its initial local state setup.
+    // This ensures that `runPipeline` starts with the very latest state, including `currentCoreCode`.
     const { success, commitPerformed, aborted } = await runPipeline(initialEngineStateForCycle);
     if (success && !aborted) { 
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
@@ -933,7 +935,7 @@ const useDalekCore = () => {
         throw new AppError("GitHub token missing. Evolution cannot start.", 'NO_GITHUB_TOKEN_INIT');
       }
       if (!clients.github) {
-        throw new AppError("GitHub client is not initialized. Check your token.", 'GITHUB_CLIENT_NOT_INIT');
+        throw new AppError("GitHub client is not initialized. Check your tokens or network.", 'GITHUB_CLIENT_NOT_INIT');
       }
       // Trigger the loop by setting isEvolutionActive to true. The loop will then call performEvolutionCycle.
       dispatchEvolution({ type: EvolutionActionTypes.START_EVOLUTION });
@@ -1038,7 +1040,7 @@ const NexusControlPanel = memo(({
         <button
           className={`btn-go ${isEvolutionActive ? 'btn-stop' : ''}`}
           onClick={isEvolutionActive ? terminateEvolution : runEvolution}
-          disabled={!tokens.github && !isEvolutionActive}
+          disabled={!tokens.github && !isEvolutionActive} // Disable evolve if GitHub token is missing AND not already active
         >
           {isEvolutionActive ? "TERMINATE" : "EVOLVE"}
         </button>
