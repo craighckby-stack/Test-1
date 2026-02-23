@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useReducer, memo } from "react";
 
-// --- CONFIGURATION ---
-const GEMINI_API_KEY = ""; // REQUIRED: INSERT YOUR GOOGLE AI STUDIO KEY HERE
-
-// Static configuration for the GitHub repository
+const GEMINI_API_KEY = "";
 const GITHUB_REPO_CONFIG = {
   owner: "craighckby-stack",
   repo: "Test-1",
@@ -11,19 +8,16 @@ const GITHUB_REPO_CONFIG = {
   file: "hello-world.js"
 };
 
-// --- CONSTANTS ---
-const EVOLUTION_CYCLE_INTERVAL_MS = 30000; // 30 seconds
-const GITHUB_CONTENT_MAX_LENGTH = 4000; // Max length for content fetched from GitHub
-const CORE_CONTENT_MAX_LENGTH = 3000;   // Max length for core logic sent to AIs for processing
+const EVOLUTION_CYCLE_INTERVAL_MS = 30000;
+const GITHUB_CONTENT_MAX_LENGTH = 4000;
+const CORE_CONTENT_MAX_LENGTH = 3000;
 const LOG_HISTORY_LIMIT = 40;
-const MIN_EVOLVED_CODE_LENGTH = 500;   // Safety check for generated code
+const MIN_EVOLVED_CODE_LENGTH = 500;
 
-// AI System Instructions
 const GEMINI_PATTERN_INSTRUCTION = "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.";
 const CEREBRAS_SYNTHESIS_INSTRUCTION = "Expert Dalek Caan Architect. Merge logic improvements. PURE CODE ONLY. Ensure all original React structure, API keys, and configurations are preserved and correctly integrated, especially if they are at the top-level of the module. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.";
 const GEMINI_FINALIZATION_INSTRUCTION = "ACT AS: Dalek Caan Architect. Finalize the evolved source code. NO MARKDOWN. NO BACKTICKS. Preserve all API keys, styles, and the React structure. Output ONLY pure JavaScript. Do NOT wrap the entire code in a function. Output ONLY the raw JavaScript file content.";
 
-// --- STYLES ---
 const GLOBAL_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
   
@@ -178,7 +172,6 @@ const GLOBAL_STYLES = `
   }
 `;
 
-// --- HELPERS ---
 const utf8B64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
 const utf8B64Decode = (b64) => {
   try { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
@@ -198,7 +191,7 @@ const safeFetch = async (url, options, retries = 3) => {
       return result;
     } catch (e) {
       if (i === retries - 1) throw e;
-      await wait(1000 * (i + 1)); // Exponential backoff
+      await wait(1000 * (i + 1));
     }
   }
 };
@@ -211,7 +204,6 @@ const cleanMarkdownCodeBlock = (code) => {
 const sanitizeContent = (content, maxLength) =>
   content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
-// --- STATE MANAGEMENT ---
 const logReducer = (state, action) => {
   switch (action.type) {
     case 'ADD_LOG':
@@ -222,8 +214,6 @@ const logReducer = (state, action) => {
       return state;
   }
 };
-
-// --- API UTILITIES (CUSTOM HOOKS) ---
 
 const useGithubApi = (token, owner, repo, branch, addLog) => {
   const request = useCallback(async (filePath, method, body = {}, sha = null) => {
@@ -327,7 +317,6 @@ const useCerebrasApi = (token, addLog) => {
   return { completeChat };
 };
 
-// --- COMPONENTS ---
 const DalekHeader = memo(({ isLoading }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
@@ -383,7 +372,6 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
   </div>
 ));
 
-// --- MAIN APP COMPONENT ---
 export default function App() {
   const [tokens, setTokens] = useState({ cerebras: "", github: "" });
   const [logs, dispatchLog] = useReducer(logReducer, []);
@@ -391,7 +379,7 @@ export default function App() {
   const [displayCode, setDisplayCode] = useState("");
 
   const activeRef = useRef(false);
-  const displayCodeRef = useRef(""); 
+  const displayCodeRef = useRef("");
 
   useEffect(() => {
     displayCodeRef.current = displayCode;
@@ -488,7 +476,6 @@ export default function App() {
     }
   }, [addLog, geminiApi]);
 
-
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
@@ -497,21 +484,20 @@ export default function App() {
 
     let draftCode = null;
     if (quantumPatterns) {
-        draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
-        if (!activeRef.current) return null;
+      draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
+      if (!activeRef.current) return null;
     } else {
-        addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
+      addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
     }
 
     const codeForFinalization = draftCode || currentCodeFromGithub;
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
-    
+
     const evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
     if (!activeRef.current) return null;
-    
-    return evolvedCode; 
-  }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
 
+    return evolvedCode;
+  }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
 
   const validateInitialEvolutionConfig = useCallback(() => {
     if (!tokens.github) {
@@ -537,11 +523,11 @@ export default function App() {
     return true;
   }, [addLog]);
 
-  const performSingleEvolutionStep = useCallback(async (currentDisplayCodeFromUI) => {
+  const performSingleEvolutionStep = useCallback(async () => {
     let fileRef = null;
     let currentCodeFromGithub = "";
     let evolvedCode = null;
-    let latestCodeToDisplay = currentDisplayCodeFromUI;
+    let latestCodeToDisplay = displayCodeRef.current;
 
     try {
       addLog("GITHUB: Fetching current core logic...", "nexus");
@@ -570,10 +556,9 @@ export default function App() {
       }
     } catch (e) {
       addLog(`CRITICAL NEXUS FAILURE DURING EVOLUTION STEP: ${e.message}`, "le-err");
-      return { success: false, commitPerformed: false, latestCode: currentCodeFromGithub || currentDisplayCodeFromUI };
+      return { success: false, commitPerformed: false, latestCode: currentCodeFromGithub || displayCodeRef.current };
     }
   }, [addLog, githubApi, callAIChain, isCodeSafeToCommit]);
-
 
   const runEvolution = useCallback(async () => {
     if (!validateInitialEvolutionConfig()) {
@@ -586,14 +571,14 @@ export default function App() {
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
     while (activeRef.current) {
-      const { success, commitPerformed, latestCode } = await performSingleEvolutionStep(displayCodeRef.current);
-      
-      setDisplayCode(latestCode); 
+      const { success, commitPerformed, latestCode } = await performSingleEvolutionStep();
+
+      setDisplayCode(latestCode);
 
       if (!activeRef.current) {
         break;
       }
-      
+
       if (success) {
         const message = commitPerformed
           ? `NEXUS CYCLE COMPLETE. Waiting for next evolution in ${EVOLUTION_CYCLE_INTERVAL_MS / 1000}s.`
@@ -607,7 +592,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig]); 
+  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig]);
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
