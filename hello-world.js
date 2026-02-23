@@ -13,10 +13,10 @@ const GITHUB_REPO_CONFIG = {
 
 // --- CONSTANTS ---
 const EVOLUTION_CYCLE_INTERVAL_MS = 30000; // 30 seconds
-const GITHUB_CONTENT_MAX_LENGTH = 4000;
-const CORE_CONTENT_MAX_LENGTH = 3000;
+const GITHUB_CONTENT_MAX_LENGTH = 4000; // Max length for content fetched from GitHub
+const CORE_CONTENT_MAX_LENGTH = 3000;   // Max length for core logic sent to AIs for processing
 const LOG_HISTORY_LIMIT = 40;
-const MIN_EVOLVED_CODE_LENGTH = 500; // Safety check for generated code
+const MIN_EVOLVED_CODE_LENGTH = 500;   // Safety check for generated code
 
 // AI System Instructions
 const GEMINI_PATTERN_INSTRUCTION = "Extract 5 architectural logic improvements from source to apply to core. Return bullet points ONLY.";
@@ -203,9 +203,13 @@ const safeFetch = async (url, options, retries = 3) => {
   }
 };
 
-const cleanMarkdownCodeBlock = (code) => code.replace(/^```[a-z]*\n|```$/g, "").trim();
+const cleanMarkdownCodeBlock = (code) => {
+  if (!code) return "";
+  const cleaned = code.replace(/^```[a-z]*\n|```$/g, "").trim();
+  return cleaned;
+};
 const sanitizeContent = (content, maxLength) =>
-  content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength);
+  content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 
 // --- STATE MANAGEMENT ---
 const logReducer = (state, action) => {
@@ -322,7 +326,7 @@ const useCerebrasApi = (token, addLog) => {
 const DalekHeader = memo(({ isLoading }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
-    <div style={{ fontSize: '0.7rem' }}>{isLoading ? "REWRITING..." : "CORE_STABLE"}</div>
+    <div style={{ fontSize: '0.7rem' }}>{isLoading ? "REWRITING CORE LOGIC..." : "CORE_STABLE"}</div>
   </div>
 ));
 
@@ -406,21 +410,20 @@ export default function App() {
     // finalCodeOutput defaults to the original code, providing a robust fallback
     let finalCodeOutput = currentCodeFromGithub; 
 
-    // Sanitize content once at the beginning for all AI calls
-    const cleanCurrentCode = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
-    const cleanSourceContent = sanitizeContent(currentCodeFromGithub, GITHUB_CONTENT_MAX_LENGTH); // This might be redundant if CORE_CONTENT_MAX_LENGTH is smaller, but kept for clarity if lengths differ
+    // Sanitize current code for AI inputs, applying specific length limits
+    const cleanCurrentCodeForGemini = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
+    const cleanCurrentCodeForCerebras = sanitizeContent(currentCodeFromGithub, CORE_CONTENT_MAX_LENGTH);
 
     // 1. Gemini: Extract Patterns
     try {
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
-      // For pattern extraction, we focus on the core logic
       quantumPatterns = await geminiApi.generateContent(
         GEMINI_PATTERN_INSTRUCTION,
-        [{ text: `CORE: ${cleanCurrentCode}` }]
+        [{ text: `CORE: ${cleanCurrentCodeForGemini}` }]
       );
       if (!quantumPatterns || quantumPatterns.trim().length === 0) {
         addLog("GEMINI: Pattern extraction yielded no results.", "def");
-        quantumPatterns = null;
+        quantumPatterns = null; // Ensure it's explicitly null if empty
       } else {
         addLog("GEMINI: PATTERNS EXTRACTED", "ok");
       }
@@ -436,7 +439,7 @@ export default function App() {
           addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
           const rawDraftCode = await cerebrasApi.completeChat(
             CEREBRAS_SYNTHESIS_INSTRUCTION,
-            `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCode}`
+            `IMPROVEMENTS: ${quantumPatterns}\nCORE: ${cleanCurrentCodeForCerebras}`
           );
           draftCode = cleanMarkdownCodeBlock(rawDraftCode);
           if (!draftCode || draftCode.trim().length === 0) {
@@ -456,16 +459,19 @@ export default function App() {
       addLog("CEREBRAS: Synthesis skipped. Cerebras API key missing.", "warn");
     }
 
-    // Determine the base code for Gemini finalization: prefer draft, fallback to original
-    let codeToFinalize = draftCode || cleanCurrentCode;
+    // Determine the base code for Gemini finalization: prefer draft, fallback to original GitHub content
+    let codeToFinalize = draftCode || currentCodeFromGithub;
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
     
+    // Sanitize the code chosen for finalization for Gemini, ensuring length limits
+    const cleanCodeToFinalize = sanitizeContent(codeToFinalize, CORE_CONTENT_MAX_LENGTH);
+
     // 3. Gemini: Finalize and Seal Core
     try {
       addLog("GEMINI: SEALING CORE...", "quantum");
       const rawFinalCode = await geminiApi.generateContent(
         GEMINI_FINALIZATION_INSTRUCTION,
-        [{ text: `DRAFT_CODE: ${codeToFinalize}\nEXISTING_CORE: ${cleanCurrentCode}` }]
+        [{ text: `DRAFT_CODE: ${cleanCodeToFinalize}\nEXISTING_CORE: ${cleanCurrentCodeForGemini}` }]
       );
       const cleanedFinalCode = cleanMarkdownCodeBlock(rawFinalCode);
       if (!cleanedFinalCode || cleanedFinalCode.trim().length === 0) {
@@ -521,53 +527,51 @@ export default function App() {
       let fileRef = null;
       let currentCodeFromGithub = "";
       let evolvedCode = "";
-      // Initialize with the current displayed code, as a fallback if fetching fails
-      let codeToDisplayAfterStep = displayCodeRef.current; 
       let stepSuccessful = false;
       let commitPerformed = false;
+      let codeToDisplayAtEndOfStep = displayCodeRef.current; // Initial fallback to current UI state
 
       try {
         addLog("GITHUB: Fetching current core logic...", "nexus");
         fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
         currentCodeFromGithub = utf8B64Decode(fileRef.content);
         
-        // Immediately update the display with the current GitHub content.
-        // This ensures the UI reflects the true starting state for the current cycle.
-        codeToDisplayAfterStep = currentCodeFromGithub; 
-        setDisplayCode(currentCodeFromGithub);
+        // This is the new baseline for display. Update immediately to show the fetched code.
+        codeToDisplayAtEndOfStep = currentCodeFromGithub; 
+        setDisplayCode(currentCodeFromGithub); 
 
-        // 2. Call AI Chain for evolution
         addLog("AI: PROCESSING EVOLUTION...", "nexus");
         evolvedCode = await callAIChain(currentCodeFromGithub);
         
-        // 3. Safety check for code integrity and change detection
         if (!isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
           addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-          // If unsafe or unchanged, the display should revert/remain as the original GitHub code.
-          codeToDisplayAfterStep = currentCodeFromGithub; 
-          stepSuccessful = true; // Still a "successful" step in terms of execution, just no commit
+          // If unsafe/unchanged, `codeToDisplayAtEndOfStep` correctly remains `currentCodeFromGithub`
+          stepSuccessful = true; 
         } else {
-          // 4. Commit evolved code back to GitHub
           addLog("AI: Evolution complete. New code generated and validated.", "ok");
           await githubApi.updateFile(
             GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
           );
           addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-          codeToDisplayAfterStep = evolvedCode; // Display the newly committed code
+          codeToDisplayAtEndOfStep = evolvedCode; // Update to show the committed evolved code
           commitPerformed = true;
           stepSuccessful = true;
         }
       } catch (e) {
         addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
-        // On error, try to revert display to the last successfully fetched code from GitHub.
-        // If currentCodeFromGithub isn't set (e.g., fetch itself failed), display last known state.
+        // On error, revert the display to the last successfully fetched code from GitHub (if available)
+        // or the previous UI state if even fetching failed.
         if (currentCodeFromGithub) {
-          codeToDisplayAfterStep = currentCodeFromGithub;
+          codeToDisplayAtEndOfStep = currentCodeFromGithub;
+        } else {
+          codeToDisplayAtEndOfStep = displayCodeRef.current; // Fallback to what was last seen in UI
         }
         stepSuccessful = false;
       } finally {
-        // Ensure the display is updated once at the end of the step with the determined code.
-        setDisplayCode(codeToDisplayAfterStep);
+        // Ensure display is updated if the final state for display is different from what was shown post-fetch
+        if (displayCodeRef.current !== codeToDisplayAtEndOfStep) {
+          setDisplayCode(codeToDisplayAtEndOfStep);
+        }
       }
       return { stepSuccessful, commitPerformed };
     };
@@ -593,7 +597,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi, setDisplayCode]); // setDisplayCode is a dependency for the inner function to work correctly
+  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi, setDisplayCode]); 
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
