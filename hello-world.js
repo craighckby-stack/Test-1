@@ -212,7 +212,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
           errorMessage = errorBody.message || JSON.stringify(errorBody);
         } catch (jsonParseError) {
         }
-        throw new Error(errorMessage);
+        throw Object.assign(new Error(errorMessage), { httpStatus: response.status });
       }
       return await response.json();
     } catch (e) {
@@ -832,8 +832,10 @@ const useEvolutionEngine = (tokens, addLog) => {
 
   const performEvolutionCycle = useCallback(async () => {
     const { success, commitPerformed, aborted } = await runPipeline();
-    if (success) { 
+    if (success && !aborted) { 
       dispatch({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
+    } else if (aborted) {
+        dispatch({ type: EvolutionActionTypes.STOP_EVOLUTION });
     }
     return { success, commitPerformed, aborted };
   }, [runPipeline, dispatch]);
