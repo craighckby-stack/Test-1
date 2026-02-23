@@ -17,7 +17,7 @@ const APP_CONFIG = {
   CORE_CONTENT_MAX_LENGTH: 3000,
   LOG_HISTORY_LIMIT: 40,
   MIN_EVOLVED_CODE_LENGTH: 500,
-    MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
+  MIN_SYNTHESIZED_DRAFT_LENGTH: 250,
   API: {
     GEMINI: {
       MODEL: "gemini-2.5-flash-preview-09-2025",
@@ -401,9 +401,9 @@ const createApiClient = (baseURL, logger, defaultHeaders = {}) => {
       return response;
     } catch (e) {
       if (e.name === 'AbortError' || (e.isAppError && e.isUserAbort)) {
-        throw e;
+        throw e; // Re-throw aborts immediately
       }
-      const errorMsg = e.isAppError ? e.message : `An unexpected API error occurred: ${e.message}`;
+      const errorMsg = e.isAppError ? `${e.message} (Code: ${e.code || 'N/A'})` : `An unexpected API error occurred: ${e.message}`;
       const errorCode = e.isAppError ? e.code : 'UNKNOWN_API_ERROR';
       logger(`API ${stepName.toUpperCase()} FAILED: ${errorMsg}.`, "le-err");
       throw new AppError(errorMsg, errorCode, e, e.httpStatus);
@@ -425,7 +425,7 @@ const useAIIntegrations = (tokens, addLog) => {
       const effectiveToken = token.trim() || apiConfig.DEFAULT_KEY;
 
       if (!effectiveToken && apiConfig.DEFAULT_KEY === '' && name !== "GitHub") {
-        addLog(`WARNING: ${name} client not ready: API key missing or not embedded.`, `NO_${name.toUpperCase()}_KEY_WARN`);
+        addLog(`WARNING: ${name} client not fully operational: API key missing or not embedded.`, `NO_${name.toUpperCase()}_KEY_WARN`);
         return null;
       }
       
@@ -639,6 +639,9 @@ const finalizingCodeLogic = async (currentEngineState, { clients, addLog, config
 };
 
 const validatingSyntaxLogic = async (currentEngineState, { addLog }, signal) => {
+  // Signal is unused but kept for consistent signature
+  if (signal && signal.aborted) throw new AppError("Syntax validation aborted.", "ABORTED", null, null, true);
+
   const { evolvedCode } = currentEngineState.pipeline;
   if (!evolvedCode) {
     throw new AppError("No evolved code to validate.", 'NO_EVOLVED_CODE');
@@ -686,16 +689,12 @@ const committingCodeLogic = async (currentEngineState, { clients, addLog, config
 };
 
 // Hook for executing the evolution pipeline
-const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispatchEvolution) => {
+const useEvolutionPipelineExecutor = (steps, globalServices, dispatchEvolution) => {
   const abortControllerRef = useRef(null);
   const { addLog } = globalServices;
-  const engineStateRef = useRef(engineState); // Keep a ref to the latest engineState for internal pipeline logic
 
-  useEffect(() => {
-      engineStateRef.current = engineState;
-  }, [engineState]);
-
-  const runPipeline = useCallback(async () => {
+  const runPipeline = useCallback(async (initialEngineState) => {
+    // Reset state and set initial status
     dispatchEvolution({ type: EvolutionActionTypes.RESET_ENGINE_STATE });
     
     abortControllerRef.current = new AbortController();
@@ -705,9 +704,9 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
     let pipelineAborted = false;
 
     // Use a local mutable state for the pipeline execution to ensure sequential updates
-    // before dispatching to the global state. This prevents race conditions or stale
+    // between steps before dispatching to the global state. This prevents race conditions or stale
     // state being passed between synchronous step actions within the loop.
-    let currentPipelineLocalState = { ...engineStateRef.current }; 
+    let currentPipelineLocalState = { ...initialEngineState }; 
 
     try {
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.EVOLUTION_CYCLE_INITIATED });
@@ -716,7 +715,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
       for (const stepDef of steps) {
         if (signal.aborted) {
           pipelineAborted = true;
-          throw new AppError("Pipeline aborted.", "PIPELINE_ABORTED", null, null, true);
+          throw new AppError("Pipeline aborted by user.", "PIPELINE_ABORTED", null, null, true);
         }
 
         const stepDisplayName = stepDef.name.replace(/_/g, ' ');
@@ -756,7 +755,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
           if (!stepDef.allowFailure) {
             throw stepError;
           } else {
-            addLog(`NEXUS: ${stepDisplayName} failed but allowed to continue.`, "warn");
+            addLog(`NEXUS: ${stepDisplayName} failed but allowed to continue due to configuration.`, "warn");
           }
         }
       }
@@ -773,10 +772,10 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
       }
     } finally {
       if (abortControllerRef.current) {
-        abortControllerRef.current = null;
+        abortControllerRef.current = null; // Clean up controller
       }
     }
-  }, [steps, globalServices, dispatchEvolution, addLog]);
+  }, [steps, globalServices, dispatchEvolution, addLog]); // Dependencies ensure the function is stable
 
   const abortPipeline = useCallback(() => {
     if (abortControllerRef.current) {
@@ -789,7 +788,7 @@ const useEvolutionPipelineExecutor = (steps, globalServices, engineState, dispat
 };
 
 // Hook for managing the continuous evolution loop
-const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) => {
+const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog, initialEngineState) => {
   const timeoutRef = useRef(null);
   const isMountedRef = useRef(true); 
 
@@ -802,7 +801,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
         timeoutRef.current = null;
       }
     };
-  }, []);
+  }, []); // Run once on mount, clean up on unmount
 
   useEffect(() => {
     const runCycle = async () => {
@@ -812,7 +811,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
         return;
       }
 
-      const { success, commitPerformed, aborted } = await performEvolutionCallback();
+      const { success, commitPerformed, aborted } = await performEvolutionCallback(initialEngineState);
 
       if (!isMountedRef.current) { // Check mount status again after async operation
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -862,7 +861,7 @@ const useContinuousEvolutionLoop = (performEvolutionCallback, isActive, addLog) 
         timeoutRef.current = null;
       }
     };
-  }, [isActive, performEvolutionCallback, addLog]);
+  }, [isActive, performEvolutionCallback, addLog, initialEngineState]);
 
 };
 
@@ -887,6 +886,7 @@ const useDalekCore = () => {
     return true;
   }, [addLog]);
 
+  // Define the pipeline steps and memoize them
   const EVOLUTION_PIPELINE_STEPS = useMemo(() => [
     { name: EvolutionStatus.FETCHING_CORE, action: fetchCoreLogic, allowFailure: false },
     { name: EvolutionStatus.EXTRACTING_PATTERNS, action: extractingPatternsLogic, allowFailure: true }, 
@@ -896,6 +896,7 @@ const useDalekCore = () => {
     { name: EvolutionStatus.COMMITTING_CODE, action: committingCodeLogic, allowFailure: false }
   ], []);
 
+  // Memoize global services for dependency injection into pipeline steps
   const globalServices = useMemo(() => ({
     clients,
     addLog,
@@ -907,12 +908,13 @@ const useDalekCore = () => {
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
     EVOLUTION_PIPELINE_STEPS,
     globalServices,
-    engineState, 
     dispatchEvolution
   );
 
-  const performEvolutionCycle = useCallback(async () => {
-    const { success, commitPerformed, aborted } = await runPipeline();
+  const performEvolutionCycle = useCallback(async (initialEngineStateForCycle) => {
+    // Pass the current *actual* engineState to runPipeline for its initial local state setup
+    // This ensures that `runPipeline` starts with the very latest state, including `currentCoreCode`
+    const { success, commitPerformed, aborted } = await runPipeline(initialEngineStateForCycle);
     if (success && !aborted) { 
       dispatchEvolution({ type: EvolutionActionTypes.SET_STATUS, payload: EvolutionStatus.IDLE });
     } else if (aborted) {
@@ -923,7 +925,7 @@ const useDalekCore = () => {
     return { success, commitPerformed, aborted };
   }, [runPipeline, dispatchEvolution]);
 
-  useContinuousEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog);
+  useContinuousEvolutionLoop(performEvolutionCycle, isEvolutionActive, addLog, engineState);
 
   const runEvolution = useCallback(() => {
     try {
@@ -933,6 +935,7 @@ const useDalekCore = () => {
       if (!clients.github) {
         throw new AppError("GitHub client is not initialized. Check your token.", 'GITHUB_CLIENT_NOT_INIT');
       }
+      // Trigger the loop by setting isEvolutionActive to true. The loop will then call performEvolutionCycle.
       dispatchEvolution({ type: EvolutionActionTypes.START_EVOLUTION });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
@@ -968,7 +971,9 @@ const useDalekCore = () => {
 
   useEffect(() => {
     if (error) {
-      addLog(`ENGINE ERROR: ${error.message || String(error)} (Code: ${error.code || 'UNKNOWN'})`, "le-err");
+      // Ensure error object is properly stringified if it's not a custom AppError
+      const errorMsg = error.isAppError ? `${error.message} (Code: ${error.code || 'UNKNOWN'})` : String(error);
+      addLog(`ENGINE ERROR: ${errorMsg}`, "le-err");
     }
   }, [error, addLog]);
 
