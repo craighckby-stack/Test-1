@@ -227,7 +227,7 @@ const safeFetch = async (url, options, retries = 3, signal = null) => {
 const cleanMarkdownCodeBlock = (code) => code ? code.replace(/^```[a-z]*\n|```$/gi, "").trim() : "";
 const sanitizeContent = (content, maxLength) => content ? content.replace(/[^\x20-\x7E\n]/g, "").substring(0, maxLength) : "";
 const validateJavaScriptSyntax = (code) => {
-  try { new Function(code); return true; } catch (e) { return false; } // eslint-disable-line no-new-func
+  try { new Function(code); return true; } catch (e) { return false; }
 };
 
 const LogActionTypes = {
@@ -314,7 +314,7 @@ const EvolutionActionTypes = {
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  MERGE_PIPELINE_CONTEXT: 'MERGE_PIPELINE_CONTEXT', // Optimized: Merge partial updates
+  MERGE_PIPELINE_CONTEXT: 'MERGE_PIPELINE_CONTEXT',
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
 };
@@ -331,7 +331,7 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState };
-    case EvolutionActionTypes.MERGE_PIPELINE_CONTEXT: // Optimized: Merge partial pipeline context
+    case EvolutionActionTypes.MERGE_PIPELINE_CONTEXT:
       return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
       return { ...state, currentCoreCode: action.payload, displayCode: action.payload };
@@ -671,7 +671,6 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // Use current state directly, reducer will handle merges
     let successfulCommitThisCycle = false;
 
     try {
@@ -688,9 +687,8 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
         globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
-          // Pass current pipeline context from engine state
           const stepResult = await stepDef.action(
-            globalDependencies.engineStateRef.current.pipeline, // Access latest pipeline state via ref
+            globalDependencies.engineStateRef.current.pipeline,
             globalDependencies,
             signal
           );
@@ -706,13 +704,8 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
               dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: stepResult.displayCode });
           }
 
-          // Check against the *potentially updated* pipeline context for commit status
-          if (stepDef.name === EvolutionStatus.COMMITTING_CODE) {
-              // Read updated state directly if possible, or assume stepResult.context is final for this step
-              // For a true reducer-driven state, the reducer would know if commitPerformed is true
-              if (stepResult.context?.commitPerformed) {
-                successfulCommitThisCycle = true;
-              }
+          if (stepDef.name === EvolutionStatus.COMMITTING_CODE && stepResult.context?.commitPerformed) {
+            successfulCommitThisCycle = true;
           }
 
           globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
@@ -832,7 +825,6 @@ const useDalekCore = () => {
 
   const clients = useAIIntegrations(tokens, addLog);
 
-  // Ref to hold the latest engineState for pipeline steps without re-rendering
   const engineStateRef = useRef(engineState);
   useEffect(() => {
     engineStateRef.current = engineState;
@@ -865,7 +857,7 @@ const useDalekCore = () => {
     config: APP_CONFIG,
     prompts: PROMPT_INSTRUCTIONS,
     isCodeSafeToCommitCheck: isCodeSafeToCommit,
-    engineStateRef, // Pass ref for latest state access
+    engineStateRef,
   }), [clients, addLog, isCodeSafeToCommit]);
 
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
@@ -918,7 +910,7 @@ const useDalekCore = () => {
       addLog("GitHub token detected. Repository access enabled.", "ok");
     }
 
-    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_API_KEYS.GEMINI; // Use APP_EMBEDDED_API_KEYS directly
+    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_API_KEYS.GEMINI;
     if (!geminiKeyPresent) { 
       addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
