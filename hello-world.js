@@ -270,7 +270,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
       addLog("NEXUS CYCLE INITIATED.", "nexus");
       const { success, commitPerformed } = await savedCallback.current();
 
-      if (!isActive) {
+      if (!isActive) { // Re-check isActive after callback, in case it was terminated during the async operation
         addLog("NEXUS CYCLE TERMINATED.", "nexus");
         return;
       }
@@ -282,6 +282,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
           : `NEXUS CYCLE COMPLETE (no commit). Waiting for next evolution in ${delay / 1000}s.`;
         addLog(message, "nexus");
       } else {
+        // If a step within the evolution failed, retry faster to recover or re-evaluate
         delay = EVOLUTION_CYCLE_INTERVAL_MS / 2;
         addLog(`NEXUS CYCLE FAILED. Retrying in ${delay / 1000}s.`, "le-err");
       }
@@ -292,7 +293,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
     };
 
     if (isActive) {
-      tick();
+      tick(); // Immediately run the first tick when activated
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -305,8 +306,7 @@ const useEvolutionLoop = (callback, interval, isActive, addLog) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [isActive, addLog]);
-};
+  }, [isActive, addLog, interval]); // Add interval to dependencies for robustness
 
 // Encapsulates GitHub API interactions
 const useGithubApi = (token, owner, repo, branch, addLog) => {
@@ -373,7 +373,7 @@ const useGeminiApi = (addLog) => {
       });
       const content = res.candidates?.[0]?.content?.parts?.[0]?.text || "";
       if (!content) {
-        throw new Error("Gemini returned empty content.");
+        throw new Error("Gemini returned empty content or no valid candidate found.");
       }
       addLog(`GEMINI: ${stepName} completed.`, "ok");
       return content;
@@ -410,7 +410,7 @@ const useCerebrasApi = (token, addLog) => {
       });
       const content = data.choices[0]?.message?.content || "";
       if (!content) {
-        throw new Error("Cerebras returned empty content.");
+        throw new Error("Cerebras returned empty content or no valid choice found.");
       }
       addLog(`CEREBRAS: ${stepName} completed.`, "ok");
       return content;
@@ -585,7 +585,8 @@ const useEvolutionEngine = (tokens, addLog) => {
     } catch (e) {
       if (e.message === "Evolution terminated by user.") {
         addLog("EVOLUTION: Termination signal received. Aborting current cycle.", "nexus");
-        success = true; // Consider user termination a "successful" abortion, not a failure of the process itself
+        // User termination is a planned stop, not a failure in the evolution process itself
+        success = true; 
       } else {
         dispatch({ type: 'SET_ERROR', payload: e.message }); // Set global error state
         addLog(`CRITICAL NEXUS FAILURE: ${e.message}`, "le-err");
@@ -594,10 +595,10 @@ const useEvolutionEngine = (tokens, addLog) => {
       }
     } finally {
       // Ensure final state is clean after potential termination or error
-      if (!isEvolutionTerminatedRef.current) {
-        dispatch({ type: 'SET_STATUS', payload: 'IDLE' }); // Go back to idle if not explicitly terminated
-      } else {
+      if (isEvolutionTerminatedRef.current) {
         dispatch({ type: 'STOP_EVOLUTION' }); // Set to PAUSED via reducer if user terminated
+      } else {
+        dispatch({ type: 'SET_STATUS', payload: success ? 'IDLE' : 'ERROR' }); // Go back to idle or error depending on outcome
       }
     }
     return { success, commitPerformed };
@@ -619,7 +620,7 @@ const useEvolutionEngine = (tokens, addLog) => {
   const runEvolution = useCallback(() => {
     try {
       validateEvolutionEnvironment(); // Ensure tokens are present upfront
-      isEvolutionTerminatedRef.current = false; // Reset termination flag
+      isEvolutionTerminatedRef.current = false; // Reset termination flag for a new run
       dispatch({ type: 'START_EVOLUTION' });
     } catch (e) {
       addLog(`INITIATION ERROR: ${e.message}`, "le-err");
@@ -631,12 +632,12 @@ const useEvolutionEngine = (tokens, addLog) => {
   const terminateEvolution = useCallback(() => {
     if (isEvolutionActive) {
       isEvolutionTerminatedRef.current = true; // Set termination flag for immediate stop
-      dispatch({ type: 'STOP_EVOLUTION' }); // Update UI state to paused
+      // The `useEvolutionLoop` will detect `!isActive` and the `performSingleEvolutionStep` will catch `isEvolutionTerminatedRef.current`
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE.", "def");
     }
-  }, [isEvolutionActive, addLog, dispatch]);
+  }, [isEvolutionActive, addLog]); // Note: dispatch for STOP_EVOLUTION is handled in finally block of performSingleEvolutionStep or useEvolutionLoop's tick
 
   return {
     status,
