@@ -5,9 +5,8 @@
     "gate_id": "S4.5",
     "description": "Normalized definition of mandatory telemetry input sources (TIS) for ECVM validation checks."
   },
-  "telemetry_inputs": [
-    {
-      "source_id": "API_PERF",
+  "telemetry_inputs": {
+    "API_PERF": {
       "source_name": "API_Performance_Monitor",
       "data_path": "metrics.latency.ms",
       "required_by": [
@@ -22,8 +21,7 @@
         }
       }
     },
-    {
-      "source_id": "DTEM_CACHE",
+    "DTEM_CACHE": {
       "source_name": "DTEM_Cache_Status",
       "data_path": "cache_status.last_update_ts",
       "required_by": [
@@ -38,8 +36,7 @@
         }
       }
     },
-    {
-      "source_id": "RESOURCE_ALLOC",
+    "RESOURCE_ALLOC": {
       "source_name": "Resource_Allocator_Feed",
       "data_path": "resource_pool.utilization_summary",
       "required_by": [
@@ -54,5 +51,5 @@
         }
       }
     }
-  ]
+  }
 }
