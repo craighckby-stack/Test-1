@@ -529,6 +529,46 @@ export default function App() {
     return true;
   }, [addLog]);
 
+  const performSingleEvolutionStep = useCallback(async (currentDisplayCode) => {
+    let fileRef = null;
+    let currentCodeFromGithub = "";
+    let evolvedCode = "";
+    let latestCodeToDisplay = currentDisplayCode; // Start with what's currently displayed in the UI
+
+    try {
+      // --- Step 1: Fetch the current code from GitHub ---
+      addLog("GITHUB: Fetching current core logic...", "nexus");
+      fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
+      currentCodeFromGithub = utf8B64Decode(fileRef.content);
+      latestCodeToDisplay = currentCodeFromGithub; // Update display base with fresh GitHub code
+
+      // --- Step 2: Engage AI Chain for Evolution ---
+      addLog("AI: PROCESSING EVOLUTION...", "nexus");
+      evolvedCode = await callAIChain(currentCodeFromGithub);
+
+      // --- Step 3: Validate and Commit Evolved Code ---
+      if (isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
+        addLog("AI: Evolution complete. New code generated and validated.", "ok");
+        await githubApi.updateFile(
+          GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
+        );
+        addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
+        latestCodeToDisplay = evolvedCode; // Display the newly committed evolved code
+        return { success: true, commitPerformed: true, latestCode: latestCodeToDisplay };
+      } else {
+        addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
+        // In this case, `latestCodeToDisplay` correctly remains `currentCodeFromGithub`
+        return { success: true, commitPerformed: false, latestCode: latestCodeToDisplay };
+      }
+    } catch (e) {
+      addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
+      // If an error occurs, try to fall back to the last successfully fetched code,
+      // or what was displayed before if fetching also failed.
+      return { success: false, commitPerformed: false, latestCode: currentCodeFromGithub || currentDisplayCode };
+    }
+  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit]);
+
+
   const runEvolution = useCallback(async () => {
     if (!validateInitialEvolutionConfig()) {
       return;
@@ -539,75 +579,20 @@ export default function App() {
     dispatchLog({ type: 'CLEAR_LOGS' });
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
-    const performSingleEvolutionStep = async () => {
-      let fileRef = null;
-      let currentCodeFromGithub = "";
-      let evolvedCode = "";
-      let stepSuccessful = false;
-      let commitPerformed = false;
-      
-      // `codeToDisplayAtEndOfStep` tracks what should be shown in the UI after this step completes.
-      // It starts with the currently displayed code (from ref to avoid stale closure).
-      let codeToDisplayAtEndOfStep = displayCodeRef.current; 
-
-      try {
-        // --- Step 1: Fetch the current code from GitHub ---
-        addLog("GITHUB: Fetching current core logic...", "nexus");
-        fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
-        currentCodeFromGithub = utf8B64Decode(fileRef.content);
-        
-        // Immediately update the display with the freshly fetched code.
-        // This provides feedback while AI processing happens.
-        setDisplayCode(currentCodeFromGithub);
-        codeToDisplayAtEndOfStep = currentCodeFromGithub; // This is our current stable base for display.
-
-        // --- Step 2: Engage AI Chain for Evolution ---
-        addLog("AI: PROCESSING EVOLUTION...", "nexus");
-        evolvedCode = await callAIChain(currentCodeFromGithub);
-        
-        // --- Step 3: Validate and Commit Evolved Code ---
-        if (!isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
-          addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-          // If unsafe/unchanged, `codeToDisplayAtEndOfStep` correctly remains `currentCodeFromGithub`
-          stepSuccessful = true; 
-        } else {
-          addLog("AI: Evolution complete. New code generated and validated.", "ok");
-          await githubApi.updateFile(
-            GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
-          );
-          addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-          codeToDisplayAtEndOfStep = evolvedCode; // Display the newly committed evolved code.
-          commitPerformed = true;
-          stepSuccessful = true;
-        }
-      } catch (e) {
-        addLog(`CRITICAL NEXUS FAILURE DURING STEP: ${e.message}`, "le-err");
-        stepSuccessful = false;
-        // On error, try to revert the display to the last successfully fetched code from GitHub.
-        // If even fetching failed, `codeToDisplayAtEndOfStep` falls back to the state at the start of this step.
-        if (currentCodeFromGithub) {
-          codeToDisplayAtEndOfStep = currentCodeFromGithub;
-        } else {
-          codeToDisplayAtEndOfStep = displayCodeRef.current; // Fallback to what was last seen in UI
-        }
-      } finally {
-        // Ensure the UI's displayCode state reflects the final `codeToDisplayAtEndOfStep` for this cycle.
-        // This check prevents unnecessary renders if the code didn't actually change.
-        if (displayCodeRef.current !== codeToDisplayAtEndOfStep) {
-          setDisplayCode(codeToDisplayAtEndOfStep);
-        }
-      }
-      return { stepSuccessful, commitPerformed };
-    };
-
     // Main evolution loop
     while (activeRef.current) {
-      const { stepSuccessful, commitPerformed } = await performSingleEvolutionStep();
+      // Pass the current `displayCodeRef.current` to ensure `performSingleEvolutionStep` 
+      // has the most up-to-date state for its fallback logic.
+      const { success, commitPerformed, latestCode } = await performSingleEvolutionStep(displayCodeRef.current);
+      
+      // Always update the UI with the determined latest code for this cycle
+      setDisplayCode(latestCode); 
+
       if (!activeRef.current) { // Check if termination was requested during the step
         break;
       }
       
-      if (stepSuccessful) {
+      if (success) {
         if (commitPerformed) {
           addLog(`NEXUS CYCLE COMPLETE. Waiting for next evolution in ${EVOLUTION_CYCLE_INTERVAL_MS / 1000}s.`, "nexus");
         } else {
@@ -622,7 +607,7 @@ export default function App() {
     }
     setLoading(false);
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, callAIChain, validateInitialEvolutionConfig, isCodeSafeToCommit, githubApi, setDisplayCode]); 
+  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig, setDisplayCode]); 
 
   const terminateEvolution = useCallback(() => {
     if (activeRef.current) {
