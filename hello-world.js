@@ -215,6 +215,36 @@ const logReducer = (state, action) => {
   }
 };
 
+// New Reducer for Evolution Engine State
+const evolutionReducer = (state, action) => {
+  switch (action.type) {
+    case 'START_EVOLUTION':
+      return { ...state, isEvolutionActive: true, status: 'FETCHING', error: null };
+    case 'STOP_EVOLUTION':
+      return { ...state, isEvolutionActive: false, status: 'PAUSED' };
+    case 'SET_STATUS':
+      return { ...state, status: action.payload };
+    case 'SET_CURRENT_CORE_CODE':
+      return { ...state, currentCoreCode: action.payload };
+    case 'SET_DISPLAY_CODE':
+      return { ...state, displayCode: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload, status: 'ERROR', isEvolutionActive: false };
+    case 'RESET_STATE':
+      return { ...initialEvolutionState, status: 'IDLE' };
+    default:
+      return state;
+  }
+};
+
+const initialEvolutionState = {
+  status: 'IDLE', // IDLE, FETCHING, EXTRACTING_PATTERNS, SYNTHESIZING_DRAFT, FINALIZING_CODE, COMMITTING, PAUSED, ERROR
+  isEvolutionActive: false,
+  currentCoreCode: '',
+  displayCode: '',
+  error: null,
+};
+
 const useGithubApi = (token, owner, repo, branch, addLog) => {
   const request = useCallback(async (filePath, method, body = {}, sha = null) => {
     if (!token) {
@@ -317,9 +347,12 @@ const useCerebrasApi = (token, addLog) => {
   return { completeChat };
 };
 
-const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
-  const activeRef = useRef(false);
-  const [isLoading, setIsLoading] = useState(false);
+const useEvolutionEngine = (tokens, addLog) => {
+  const [engineState, dispatch] = useReducer(evolutionReducer, initialEvolutionState);
+  const { status, isEvolutionActive, currentCoreCode, displayCode, error } = engineState;
+
+  // Ref for mutable loop control, ensuring latest value is accessible inside the async loop
+  const internalIsActiveRef = useRef(false);
 
   const githubApi = useGithubApi(tokens.github, GITHUB_REPO_CONFIG.owner, GITHUB_REPO_CONFIG.repo, GITHUB_REPO_CONFIG.branch, addLog);
   const geminiApi = useGeminiApi(GEMINI_API_KEY, addLog);
@@ -351,6 +384,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
 
   const extractPatterns = useCallback(async (code) => {
     try {
+      dispatch({ type: 'SET_STATUS', payload: 'EXTRACTING_PATTERNS' });
       addLog("GEMINI: EXTRACTING PATTERNS...", "quantum");
       const cleanCode = sanitizeContent(code, CORE_CONTENT_MAX_LENGTH);
       const patterns = await geminiApi.generateContent(
@@ -358,6 +392,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
         [{ text: `CORE: ${cleanCode}` }],
         "pattern extraction"
       );
+      if (!internalIsActiveRef.current) return null; // Check ref
       if (!patterns) {
         addLog("GEMINI: Pattern extraction yielded no results.", "warn");
         return null;
@@ -368,7 +403,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
       addLog(`GEMINI PATTERN EXTRACTION FAILED: ${e.message}. Skipping pattern application.`, "le-err");
       return null;
     }
-  }, [addLog, geminiApi]);
+  }, [addLog, geminiApi, dispatch]);
 
   const synthesizeDraft = useCallback(async (patterns, currentCode) => {
     if (!tokens.cerebras) {
@@ -381,6 +416,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
     }
 
     try {
+      dispatch({ type: 'SET_STATUS', payload: 'SYNTHESIZING_DRAFT' });
       addLog("CEREBRAS: SYNTHESIZING DRAFT...", "def");
       const cleanCurrentCode = sanitizeContent(currentCode, CORE_CONTENT_MAX_LENGTH);
       const rawDraftCode = await cerebrasApi.completeChat(
@@ -388,6 +424,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
         `IMPROVEMENTS: ${patterns}\nCORE: ${cleanCurrentCode}`,
         "code synthesis"
       );
+      if (!internalIsActiveRef.current) return null; // Check ref
       if (!rawDraftCode) {
         addLog("CEREBRAS: No draft code synthesized.", "warn");
         return null;
@@ -403,10 +440,11 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
       addLog(`CEREBRAS DRAFT SYNTHESIS FAILED: ${e.message}.`, "le-err");
       return null;
     }
-  }, [addLog, cerebrasApi, tokens.cerebras]);
+  }, [addLog, cerebrasApi, tokens.cerebras, dispatch]);
 
   const finalizeCore = useCallback(async (codeToFinalize, originalCode) => {
     try {
+      dispatch({ type: 'SET_STATUS', payload: 'FINALIZING_CODE' });
       addLog("GEMINI: SEALING CORE...", "quantum");
       const cleanCodeToFinalize = sanitizeContent(codeToFinalize, CORE_CONTENT_MAX_LENGTH);
       const cleanOriginalCode = sanitizeContent(originalCode, CORE_CONTENT_MAX_LENGTH);
@@ -415,6 +453,7 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
         [{ text: `DRAFT_CODE: ${cleanCodeToFinalize}\nEXISTING_CORE: ${cleanOriginalCode}` }],
         "core finalization"
       );
+      if (!internalIsActiveRef.current) return codeToFinalize; // Check ref
       if (!rawFinalCode) {
         addLog("GEMINI: Finalization yielded no code. Reverting to prior state.", "warn");
         return codeToFinalize;
@@ -430,18 +469,18 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
       addLog(`GEMINI CORE SEALING FAILED: ${e.message}. Returning best effort (input draft).`, "le-err");
       return codeToFinalize;
     }
-  }, [addLog, geminiApi]);
+  }, [addLog, geminiApi, dispatch]);
 
   const callAIChain = useCallback(async (currentCodeFromGithub) => {
     addLog("INITIATING QUANTUM ANALYSIS...", "quantum");
 
     const quantumPatterns = await extractPatterns(currentCodeFromGithub);
-    if (!activeRef.current) return null;
+    if (!internalIsActiveRef.current) return null;
 
     let draftCode = null;
     if (quantumPatterns) {
       draftCode = await synthesizeDraft(quantumPatterns, currentCodeFromGithub);
-      if (!activeRef.current) return null;
+      if (!internalIsActiveRef.current) return null;
     } else {
       addLog("AI: Synthesis step skipped due to missing patterns or Cerebras key.", "def");
     }
@@ -450,61 +489,68 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
     addLog(`AI: Proceeding with ${draftCode ? 'Cerebras draft' : 'original core'} for finalization.`, "def");
 
     const evolvedCode = await finalizeCore(codeForFinalization, currentCodeFromGithub);
-    if (!activeRef.current) return null;
+    if (!internalIsActiveRef.current) return null;
 
     return evolvedCode;
-  }, [addLog, extractPatterns, synthesizeDraft, finalizeCore]);
+  }, [addLog, extractPatterns, synthesizeDraft, finalizeCore, internalIsActiveRef]);
 
   const performSingleEvolutionStep = useCallback(async () => {
     let fileRef = null;
-    let currentCodeFromGithub = "";
+    let fetchedCode = "";
     let evolvedCode = null;
     
     try {
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
+
+      dispatch({ type: 'SET_STATUS', payload: 'FETCHING' });
       addLog("GITHUB: Fetching current core logic...", "nexus");
       fileRef = await githubApi.getFile(GITHUB_REPO_CONFIG.file);
-      currentCodeFromGithub = utf8B64Decode(fileRef.content);
-      setDisplayCode(currentCodeFromGithub);
+      fetchedCode = utf8B64Decode(fileRef.content);
+      dispatch({ type: 'SET_CURRENT_CORE_CODE', payload: fetchedCode });
+      dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode });
 
-      if (!activeRef.current) return { success: true, commitPerformed: false };
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
 
       addLog("AI: PROCESSING EVOLUTION...", "nexus");
-      evolvedCode = await callAIChain(currentCodeFromGithub);
+      evolvedCode = await callAIChain(fetchedCode);
 
-      if (!activeRef.current) return { success: true, commitPerformed: false };
+      if (!internalIsActiveRef.current) return { success: true, commitPerformed: false };
 
-      if (evolvedCode && isCodeSafeToCommit(evolvedCode, currentCodeFromGithub)) {
+      if (evolvedCode && isCodeSafeToCommit(evolvedCode, fetchedCode)) {
+        dispatch({ type: 'SET_STATUS', payload: 'COMMITTING' });
         addLog("AI: Evolution complete. New code generated and validated.", "ok");
         await githubApi.updateFile(
           GITHUB_REPO_CONFIG.file, evolvedCode, fileRef.sha, `DALEK_EVOLUTION_${Date.now()}`
         );
         addLog("NEXUS EVOLVED SUCCESSFULLY AND COMMITTED", "ok");
-        setDisplayCode(evolvedCode);
+        dispatch({ type: 'SET_DISPLAY_CODE', payload: evolvedCode });
         return { success: true, commitPerformed: true };
       } else {
+        dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
         addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
         return { success: true, commitPerformed: false };
       }
     } catch (e) {
+      dispatch({ type: 'SET_ERROR', payload: e.message });
       addLog(`CRITICAL NEXUS FAILURE DURING EVOLUTION STEP: ${e.message}`, "le-err");
-      setDisplayCode(currentCodeFromGithub || "// ERROR: Failed to retrieve core logic or evolution failed.");
+      dispatch({ type: 'SET_DISPLAY_CODE', payload: fetchedCode || "// ERROR: Failed to retrieve core logic or evolution failed." });
       return { success: false, commitPerformed: false };
     }
-  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit, setDisplayCode]); 
+  }, [addLog, githubApi, callAIChain, isCodeSafeToCommit, internalIsActiveRef, dispatch]); 
 
   const runEvolution = useCallback(async () => {
     if (!validateInitialEvolutionConfig()) {
       return;
     }
 
-    activeRef.current = true;
-    setIsLoading(true);
+    internalIsActiveRef.current = true;
+    dispatch({ type: 'START_EVOLUTION' });
     addLog("INITIATING NEXUS CYCLE...", "nexus");
 
-    while (activeRef.current) {
+    while (internalIsActiveRef.current) {
       const { success, commitPerformed } = await performSingleEvolutionStep(); 
 
-      if (!activeRef.current) {
+      if (!internalIsActiveRef.current) {
         break;
       }
 
@@ -519,27 +565,36 @@ const useEvolutionEngine = (tokens, addLog, setDisplayCode) => {
         await wait(EVOLUTION_CYCLE_INTERVAL_MS / 2);
       }
     }
-    setIsLoading(false);
+    dispatch({ type: 'SET_STATUS', payload: 'IDLE' });
+    dispatch({ type: 'STOP_EVOLUTION' });
     addLog("NEXUS CYCLE TERMINATED.", "nexus");
-  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig]);
+  }, [addLog, performSingleEvolutionStep, validateInitialEvolutionConfig, dispatch, internalIsActiveRef]);
 
   const terminateEvolution = useCallback(() => {
-    if (activeRef.current) {
-      activeRef.current = false;
+    if (internalIsActiveRef.current) {
+      internalIsActiveRef.current = false;
+      dispatch({ type: 'STOP_EVOLUTION' });
       addLog("TERMINATION PROTOCOL INITIATED...", "nexus");
     } else {
       addLog("NEXUS CYCLE NOT ACTIVE.", "def");
     }
-  }, [addLog]);
+  }, [addLog, internalIsActiveRef, dispatch]);
 
-  return { isLoading, runEvolution, terminateEvolution };
+  return { 
+    status,
+    isLoading: isEvolutionActive, // Use isEvolutionActive from reducer state for UI
+    displayCode,
+    runEvolution, 
+    terminateEvolution,
+    error 
+  };
 };
 
 
-const DalekHeader = memo(({ isLoading }) => (
+const DalekHeader = memo(({ status }) => (
   <div className="header">
     <div className="title">DALEK CAAN :: BOOTSTRAPPER</div>
-    <div style={{ fontSize: '0.7rem' }}>{isLoading ? "REWRITING CORE LOGIC..." : "CORE_STABLE"}</div>
+    <div style={{ fontSize: '0.7rem' }}>{status === 'IDLE' ? "CORE_STABLE" : `STATUS: ${status.replace(/_/g, ' ')}...`}</div>
   </div>
 ));
 
@@ -594,14 +649,13 @@ const CoreDisplayPanel = memo(({ displayCode }) => (
 export default function App() {
   const [tokens, setTokens] = useState({ cerebras: "", github: "" });
   const [logs, dispatchLog] = useReducer(logReducer, []);
-  const [displayCode, setDisplayCode] = useState("");
 
   const addLog = useCallback((msg, type = "def") => {
     dispatchLog({ type: 'ADD_LOG', payload: { msg, type } });
   }, []); 
 
-  const { isLoading, runEvolution, terminateEvolution } = useEvolutionEngine(
-    tokens, addLog, setDisplayCode
+  const { isLoading, displayCode, status, runEvolution, terminateEvolution, error } = useEvolutionEngine(
+    tokens, addLog
   );
 
   useEffect(() => {
@@ -613,6 +667,12 @@ export default function App() {
       addLog("WARNING: Cerebras AI key is missing. The synthesis step will be skipped, impacting code generation.", "warn");
     }
   }, [addLog, tokens.cerebras]); 
+  
+  useEffect(() => {
+    if (error) {
+      addLog(`ENGINE ERROR: ${error}`, "le-err");
+    }
+  }, [error, addLog]);
 
   const startEvolution = useCallback(() => {
     dispatchLog({ type: 'CLEAR_LOGS' });
@@ -623,7 +683,7 @@ export default function App() {
   return (
     <div className="dalek-shell">
       <style>{GLOBAL_STYLES}</style>
-      <DalekHeader isLoading={isLoading} />
+      <DalekHeader status={status} />
 
       <div className="main-container">
         <NexusControlPanel
