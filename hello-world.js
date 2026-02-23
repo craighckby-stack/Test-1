@@ -314,7 +314,7 @@ const EvolutionActionTypes = {
   SET_STATUS: 'SET_STATUS',
   SET_ERROR: 'SET_ERROR',
   RESET_ENGINE_STATE: 'RESET_ENGINE_STATE',
-  SET_PIPELINE_CONTEXT: 'SET_PIPELINE_CONTEXT',
+  MERGE_PIPELINE_CONTEXT: 'MERGE_PIPELINE_CONTEXT', // Optimized: Merge partial updates
   SET_CURRENT_CORE_CODE: 'SET_CURRENT_CORE_CODE',
   SET_DISPLAY_CODE: 'SET_DISPLAY_CODE',
 };
@@ -331,8 +331,8 @@ const evolutionEngineReducer = (state, action) => {
       return { ...state, error: action.payload, status: EvolutionStatus.ERROR, isEvolutionActive: false, displayCode: state.currentCoreCode };
     case EvolutionActionTypes.RESET_ENGINE_STATE:
       return { ...initialEvolutionEngineState };
-    case EvolutionActionTypes.SET_PIPELINE_CONTEXT:
-      return { ...state, pipeline: { ...action.payload } };
+    case EvolutionActionTypes.MERGE_PIPELINE_CONTEXT: // Optimized: Merge partial pipeline context
+      return { ...state, pipeline: { ...state.pipeline, ...action.payload } };
     case EvolutionActionTypes.SET_CURRENT_CORE_CODE:
       return { ...state, currentCoreCode: action.payload, displayCode: action.payload };
     case EvolutionActionTypes.SET_DISPLAY_CODE:
@@ -496,7 +496,6 @@ const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, sign
 
   return {
     context: {
-      ...pipelineContext,
       fetchedCode: fetchedCode,
       fileRef: result
     },
@@ -508,7 +507,7 @@ const fetchCoreLogic = async (pipelineContext, { clients, addLog, config }, sign
 const extractingPatternsLogic = async (pipelineContext, { clients, addLog, config, prompts }, signal) => {
   if (!pipelineContext.fetchedCode) {
     addLog("AI: No core code fetched for pattern extraction. Skipping.", "warn");
-    return { context: { ...pipelineContext, quantumPatterns: null } };
+    return { context: { quantumPatterns: null } };
   }
   try {
     addLog("AI: Extracting quantum patterns from core logic...", "quantum");
@@ -521,15 +520,15 @@ const extractingPatternsLogic = async (pipelineContext, { clients, addLog, confi
     );
     if (!patterns || patterns.trim().length < 10) {
       addLog("AI: No meaningful quantum patterns extracted by Gemini. Synthesis might be less effective.", "warn");
-      return { context: { ...pipelineContext, quantumPatterns: null } };
+      return { context: { quantumPatterns: null } };
     } else {
       addLog("AI: Quantum patterns extracted.", "quantum");
-      return { context: { ...pipelineContext, quantumPatterns: patterns } };
+      return { context: { quantumPatterns: patterns } };
     }
   } catch (e) {
     if (e.code === 'NO_GEMINI_KEY') {
       addLog("Gemini client not ready for pattern extraction. Skipping this step.", "le-warn");
-      return { context: { ...pipelineContext, quantumPatterns: null } };
+      return { context: { quantumPatterns: null } };
     }
     throw e;
   }
@@ -538,7 +537,7 @@ const extractingPatternsLogic = async (pipelineContext, { clients, addLog, confi
 const synthesizingDraftLogic = async (pipelineContext, { clients, addLog, config, prompts }, signal) => {
   if (!pipelineContext.fetchedCode) {
     addLog("AI: No core code available for draft synthesis. Skipping.", "warn");
-    return { context: { ...pipelineContext, draftCode: null } };
+    return { context: { draftCode: null } };
   }
   try {
     addLog("AI: Synthesizing evolutionary draft code...", "quantum");
@@ -557,15 +556,15 @@ const synthesizingDraftLogic = async (pipelineContext, { clients, addLog, config
 
     if (!cleanedDraft || cleanedDraft.trim().length < config.MIN_SYNTHESIZED_DRAFT_LENGTH) {
       addLog(`AI: Synthesized draft was too short (${cleanedDraft ? cleanedDraft.length : 0} chars) or empty after cleanup. Will proceed with original code for finalization.`, "warn");
-      return { context: { ...pipelineContext, draftCode: null } };
+      return { context: { draftCode: null } };
     } else {
       addLog("AI: Draft code synthesized.", "quantum");
-      return { context: { ...pipelineContext, draftCode: cleanedDraft } };
+      return { context: { draftCode: cleanedDraft } };
     }
   } catch (e) {
     if (e.code === 'NO_CEREBRAS_KEY') {
       addLog("Cerebras client not ready for synthesis. Skipping this step.", "le-warn");
-      return { context: { ...pipelineContext, draftCode: null } };
+      return { context: { draftCode: null } };
     }
     throw e;
   }
@@ -597,7 +596,7 @@ const finalizingCodeLogic = async (pipelineContext, { clients, addLog, config, p
     addLog("AI: Finalized code generated.", "quantum");
 
     return {
-      context: { ...pipelineContext, evolvedCode: cleanedFinalCode },
+      context: { evolvedCode: cleanedFinalCode },
       displayCode: cleanedFinalCode,
     };
   } catch (e) {
@@ -623,7 +622,7 @@ const validatingSyntaxLogic = async (pipelineContext, { addLog }, signal) => {
     throw Object.assign(new Error("Evolved code contains JavaScript syntax errors. Preventing commit."), { code: 'SYNTAX_ERROR' });
   }
   addLog("SYNTAX VALIDATION: Evolved code is syntactically valid.", "ok");
-  return { context: { ...pipelineContext, isSyntaxValid: true } };
+  return { context: { isSyntaxValid: true } };
 };
 
 const committingCodeLogic = async (pipelineContext, { clients, addLog, config, isCodeSafeToCommitCheck }, signal) => {
@@ -631,7 +630,7 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
 
   if (!pipelineContext.isSyntaxValid) {
     addLog("AI: Code failed syntax validation. No commit.", "le-err");
-    return { context: { ...pipelineContext, commitPerformed: false } };
+    return { context: { commitPerformed: false } };
   }
 
   if (pipelineContext.evolvedCode && isCodeSafeToCommitCheck(pipelineContext.evolvedCode, pipelineContext.fetchedCode)) {
@@ -646,7 +645,7 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
       addLog("NEXUS: EVOLVED SUCCESSFULLY AND COMMITTED.", "ok");
       
       return {
-        context: { ...pipelineContext, commitPerformed: true },
+        context: { commitPerformed: true },
         currentCoreCode: pipelineContext.evolvedCode,
         displayCode: '',
       };
@@ -659,7 +658,7 @@ const committingCodeLogic = async (pipelineContext, { clients, addLog, config, i
     }
   } else {
     addLog("AI: Evolved code deemed unsafe or unchanged. No commit.", "warn");
-    return { context: { ...pipelineContext, commitPerformed: false } };
+    return { context: { commitPerformed: false } };
   }
 };
 
@@ -667,12 +666,12 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
   const abortControllerRef = useRef(null);
 
   const runPipeline = useCallback(async () => {
-    dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: initialPipelineContext });
+    dispatchEvolution({ type: EvolutionActionTypes.MERGE_PIPELINE_CONTEXT, payload: initialPipelineContext });
     
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    let currentPipelineContext = { ...initialPipelineContext };
+    // Use current state directly, reducer will handle merges
     let successfulCommitThisCycle = false;
 
     try {
@@ -689,14 +688,16 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
         globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} initiated.`, "nexus");
 
         try {
+          // Pass current pipeline context from engine state
           const stepResult = await stepDef.action(
-            currentPipelineContext,
+            globalDependencies.engineStateRef.current.pipeline, // Access latest pipeline state via ref
             globalDependencies,
             signal
           );
           
-          currentPipelineContext = { ...currentPipelineContext, ...stepResult.context };
-          dispatchEvolution({ type: EvolutionActionTypes.SET_PIPELINE_CONTEXT, payload: currentPipelineContext });
+          if (stepResult.context) {
+            dispatchEvolution({ type: EvolutionActionTypes.MERGE_PIPELINE_CONTEXT, payload: stepResult.context });
+          }
 
           if (stepResult.currentCoreCode !== undefined) {
               dispatchEvolution({ type: EvolutionActionTypes.SET_CURRENT_CORE_CODE, payload: stepResult.currentCoreCode });
@@ -705,8 +706,13 @@ const useEvolutionPipelineExecutor = (steps, globalDependencies, dispatchEvoluti
               dispatchEvolution({ type: EvolutionActionTypes.SET_DISPLAY_CODE, payload: stepResult.displayCode });
           }
 
-          if (stepDef.name === EvolutionStatus.COMMITTING_CODE && currentPipelineContext.commitPerformed) {
-              successfulCommitThisCycle = true;
+          // Check against the *potentially updated* pipeline context for commit status
+          if (stepDef.name === EvolutionStatus.COMMITTING_CODE) {
+              // Read updated state directly if possible, or assume stepResult.context is final for this step
+              // For a true reducer-driven state, the reducer would know if commitPerformed is true
+              if (stepResult.context?.commitPerformed) {
+                successfulCommitThisCycle = true;
+              }
           }
 
           globalDependencies.addLog(`NEXUS: ${stepDef.name.replace(/_/g, ' ')} completed.`, "ok");
@@ -826,6 +832,12 @@ const useDalekCore = () => {
 
   const clients = useAIIntegrations(tokens, addLog);
 
+  // Ref to hold the latest engineState for pipeline steps without re-rendering
+  const engineStateRef = useRef(engineState);
+  useEffect(() => {
+    engineStateRef.current = engineState;
+  }, [engineState]);
+
   const isCodeSafeToCommit = useCallback((code, originalCode) => {
     if (!code || code.length < APP_CONFIG.MIN_EVOLVED_CODE_LENGTH) {
       addLog(`EVOLUTION SAFETY TRIGGER: Evolved code too short (${code ? code.length : 0} chars). Retaining current core.`, "le-err");
@@ -853,6 +865,7 @@ const useDalekCore = () => {
     config: APP_CONFIG,
     prompts: PROMPT_INSTRUCTIONS,
     isCodeSafeToCommitCheck: isCodeSafeToCommit,
+    engineStateRef, // Pass ref for latest state access
   }), [clients, addLog, isCodeSafeToCommit]);
 
   const { runPipeline, abortPipeline } = useEvolutionPipelineExecutor(
@@ -905,7 +918,7 @@ const useDalekCore = () => {
       addLog("GitHub token detected. Repository access enabled.", "ok");
     }
 
-    const geminiKeyPresent = tokens.gemini || APP_CONFIG.API.GEMINI.DEFAULT_KEY;
+    const geminiKeyPresent = tokens.gemini || APP_EMBEDDED_API_KEYS.GEMINI; // Use APP_EMBEDDED_API_KEYS directly
     if (!geminiKeyPresent) { 
       addLog("WARNING: Gemini API Key is not configured. Full AI capabilities (pattern extraction, finalization) will be degraded.", "le-err");
       addLog("Please insert your Google AI Studio key in the CONFIGURATION section to enable full AI capabilities.", "le-err");
