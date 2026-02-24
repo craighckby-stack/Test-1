@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // Constants are defined outside the component to prevent re-creation on every render,
-// optimizing memory usage and ensuring consistent references.
+// optimizing memory usage and ensuring consistent references. This is a key optimization.
 const GITHUB_RAW = "https://raw.githubusercontent.com/craighckby-stack/Test-1/Nexus-Database/README.md"; // Default README path
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const SYSTEM_FILE_COUNT = 2003; // This is a fixed constant, no need for state
@@ -73,6 +73,7 @@ const AIM_CONFIG = {
 
 // Styles are also a constant, defined once to prevent re-creation and ensure
 // the style tag is only updated if the string content itself changes (which it won't here).
+// This optimizes DOM updates.
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -403,7 +404,8 @@ export default function NexusAGIBuilder() {
 
   // Derived state: isReadmeLoaded is computed directly from the 'readme' state.
   // This avoids creating an unnecessary additional state variable and its setter,
-  // ensuring consistency and reducing state management overhead.
+  // ensuring consistency and reducing state management overhead. This is an optimization
+  // for state management and preventing redundant state.
   const isReadmeLoaded = !!readme;
 
   // useCallback is used to memoize functions that are passed down to child components
@@ -414,7 +416,8 @@ export default function NexusAGIBuilder() {
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
     // Using functional update for setBuildLog ensures the latest state is used,
-    // even with an empty dependency array for `log`, which optimizes state updates.
+    // even with an empty dependency array for `log`, which optimizes state updates
+    // by not requiring `buildLog` in its dependencies.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
   }, []); // Dependencies array is empty as React guarantees `setBuildLog` (a state setter) is stable.
 
@@ -436,7 +439,8 @@ export default function NexusAGIBuilder() {
 
       const res = await fetch(url, { headers });
 
-      // Early exit for error conditions to prevent further processing, improving robustness.
+      // Early exit for error conditions to prevent further processing, improving robustness
+      // and preventing unnecessary state updates or resource consumption.
       if (!res.ok) {
         throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
       }
@@ -547,7 +551,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
         <div className="grid">
 
           {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state.
-              Simple calculations for display are efficient here and don't require memoization. */}
+              Simple calculations for display are efficient here and don't require `useMemo`. */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
@@ -663,7 +667,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
                   {/* These calculations for tags are simple and performed on render,
-                      efficient for dynamic display of README characteristics without memoization overhead. */}
+                      efficient for dynamic display of README characteristics without `useMemo` overhead. */}
                   <span className="tag">{readme.length} CHARS</span>
                   <span className="tag">{(readme.match(/\n/g)||[]).length} LINES</span>
                   <span className="tag">{(readme.match(/^#{1,6}\s/gm)||[]).length} SECTIONS</span>
