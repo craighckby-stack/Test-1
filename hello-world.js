@@ -1,19 +1,12 @@
+# Factory Pattern
+# `import_module` acts as a factory method for creating module objects, similar to `EntryDynamic` returning an entry object, string, array, or promise.
+# The `create_version_info_accessor` function is an explicit factory method.
+version_accessor = create_version_info_accessor('patchlevel')
+version, release = version_accessor.get_version_info()
+
 # Dependency Injection
-# Extensions are provided to Sphinx for use. The conf.py acts as the configuration
-# for what dependencies (extensions) Sphinx should load.
-import os
-import sys
-from importlib import import_module
-from importlib.util import find_spec
-
-# Make custom extensions available for Sphinx to "inject"
-sys.path.append(os.path.abspath('tools/extensions'))
-sys.path.append(os.path.abspath('includes'))
-
-# Direct import of a specific dependency from an extension
-from pyspecific import SOURCE_URI
-
-# List of extensions to be injected into Sphinx
+# `sys.path.append` injects paths for finding extensions.
+# The `extensions` list directly injects the list of desired extensions into Sphinx, rather than Sphinx internally creating or discovering them.
 extensions = [
     'audit_events',
     'availability',
@@ -23,87 +16,8 @@ extensions = [
     'sphinx.ext.doctest',
 ]
 
-# Dynamically checking for optional extensions to append
-_OPTIONAL_EXTENSIONS = (
-    'notfound.extension',
-    'sphinxext.opengraph',
-)
-for optional_ext in _OPTIONAL_EXTENSIONS:
-    try:
-        if find_spec(optional_ext) is not None:
-            extensions.append(optional_ext)
-    except (ImportError, ValueError):
-        pass
-del _OPTIONAL_EXTENSIONS
-
-# Dynamically loading a module to get version info - `patchlevel` is a dependency
-version, release = import_module('patchlevel').get_version_info()
-
-
-# Service Locator
-# Using `import_module` and `find_spec` to locate and load modules/services.
-# `os.getenv` is used to locate environment configuration services.
-# Locating and importing a module as a service provider
-patchlevel_module_service = import_module('patchlevel')
-version_info = patchlevel_module_service.get_version_info()
-
-# Locating module specifications (services for loading modules)
-if find_spec('notfound.extension') is not None:
-    # Found the 'notfound.extension' service
-    pass
-
-# Locating configuration from environment variables (an external service)
-is_deployment_preview = os.getenv("READTHEDOCS_VERSION_TYPE") == "external"
-repository_url = os.getenv("READTHEDOCS_GIT_CLONE_URL", "")
-
-# Accessing command-line arguments to locate language setting
-language_code = None
-for arg in sys.argv:
-    if arg.startswith('language='):
-        language_code = arg.split('=', 1)[1]
-
-
-# Facade
-# Configuration options act as a facade, providing a simplified interface to complex underlying systems.
-# Project metadata as a facade
-project = 'Python'
-copyright = "2001 Python Software Foundation"
-
-# HTML theme options provide a simplified interface to configure the theme's complex behavior
-html_theme_options = {
-    'collapsiblesidebar': True,
-    'issues_url': '/bugs.html',
-    'root_include_title': False,
-}
-
-# The `nitpick_ignore` list provides a facade to ignore specific warnings
-# without needing to handle each warning type individually in detailed logic.
-nitpick_ignore = [
-    ('c:func', 'malloc'),
-    ('c:type', 'size_t'),
-    ('envvar', 'PATH'),
-]
-
-# `rst_epilog` provides a simple way to inject common reStructuredText content.
-rst_epilog = f"""
-.. |python_version_literal| replace:: ``Python {version}``
-"""
-
-
-# Factory Method
-# `import_module` acts as a factory method for creating module objects.
-# The `conf.py` uses this factory.
-def create_version_info_accessor(module_name: str):
-    """Factory method to get an object that can provide version information."""
-    module = import_module(module_name)
-    return module
-
-version_accessor = create_version_info_accessor('patchlevel')
-version, release = version_accessor.get_version_info()
-
-
-# Strategy
-# Various configuration variables allow choosing different strategies for Sphinx's behavior.
+# Strategy Pattern
+# Various configuration variables allow choosing different strategies for Sphinx's behavior, similar to `ChunkLoading` providing different methods.
 # HTML rendering strategy
 html_theme = 'python_docs_theme'
 
@@ -128,32 +42,20 @@ html_sidebars = {
     'index': ['indexsidebar.html'],
 }
 
+# Decorator Pattern
+# Configuration options like `html_theme` and `ogp_custom_meta_tags` effectively decorate the output, similar to how `EntryStatic` can have additional properties.
+html_theme = 'python_docs_theme' # The theme decorates the raw HTML output.
+ogp_custom_meta_tags = ('<meta name="theme-color" content="#3776ab">',) # These meta tags decorate the HTML head.
 
-# Command
-# Assignments and method calls act as commands to configure Sphinx or modify the environment.
-# Command to modify the Python path
-sys.path.append(os.path.abspath('temporary_tools'))
+# Module Pattern
+# Python modules (`.py` files like `patchlevel`, `pyspecific`, and `conf.py` itself) encapsulate related functionality and data, similar to `Entry` encapsulating an entry point.
+# For example, `pyspecific` encapsulates `SOURCE_URI`.
+from pyspecific import SOURCE_URI
+# The `conf.py` file itself encapsulates the entire Sphinx configuration.
 
-# Command to set a warning filter
-import warnings
-warnings.simplefilter('error')
-
-# Command to add an extension to the list
-extensions.append('my_new_command_extension')
-
-# Command to add a tag (assuming 'tags' object from Sphinx environment)
-class MockTags:
-    def __init__(self):
-        self._tags = set()
-    def add(self, tag):
-        self._tags.add(tag)
-tags = MockTags()
-tags.add('translation')
-
-
-# Callback
-# `doctest_global_setup` provides a string of code that Sphinx will execute as a callback
-# at a specific point during the doctest phase.
+# State Pattern
+# `doctest_global_setup` and `warnings.simplefilter` configure specific states for parts of the build process, similar to `DevTool` defining tool types and configurations.
+# This configures the global state for doctests
 doctest_global_setup = '''
 try:
     import _tkinter
@@ -163,36 +65,10 @@ import warnings
 warnings.simplefilter('error')
 del warnings
 '''
+# This sets a global state for how warnings are handled.
+import warnings
+warnings.simplefilter('error')
 
-# Example of a conceptual callback function if Sphinx were to invoke it
-# (not directly registered here, but illustrates the concept)
-def my_custom_event_handler(app, env, docname):
-    print(f"Sphinx processing document: {docname}")
-
-# In a real scenario, this would be registered with app.connect(...)
-# e.g., app.connect('source-read', my_custom_event_handler)
-
-
-# Chain of Responsibility
-# The `extensions` list, while not strictly sequential processing of content,
-# defines a collection of components that Sphinx will load. These extensions
-# often hook into various build stages, forming a "chain" of responsibilities
-# where different extensions handle different aspects of the documentation process.
-extensions = [
-    'audit_events',         # Might handle specific audit event directives
-    'c_annotations',        # Might process C annotations
-    'pyspecific',           # Handles Python-specific roles/directives
-    'sphinx.ext.coverage',  # Collects coverage data
-    # Each extension has a responsibility in the overall build chain.
-]
-
-
-# Decorator
-# The `conf.py` itself doesn't typically implement the Decorator pattern directly
-# in the Python sense (e.g., using `@`). Instead, it *configures* how other
-# components (like themes or extensions) *decorate* the output or behavior of Sphinx.
-# For example, an `html_theme` decorates the raw HTML output with styling and structure.
-html_theme = 'python_docs_theme' # The theme itself is a decorator for the rendered content.
-
-# `ogp_custom_meta_tags` can be seen as "decorating" the HTML head with additional meta information.
-ogp_custom_meta_tags = ('<meta name="theme-color" content="#3776ab">',)
+# The `is_deployment_preview` and `language_code` variables determine the "state" of the build environment, influencing subsequent behavior based on these conditions.
+is_deployment_preview = os.getenv("READTHEDOCS_VERSION_TYPE") == "external"
+language_code = None # Actual value set by command-line argument.
