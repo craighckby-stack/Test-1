@@ -1,7 +1,6 @@
-Here are the architectural patterns extracted from the code:
-
-* **Model-View-Controller (MVC)**: The `doFilter` function acts as the controller, handling user input and updating the DOM (view), while the HTML elements (DOM) act as the view and implicitly hold the data (model).
-* **Event-Driven Programming**: The code uses `addEventListener` to react to user events (keyup, click), executing the `doFilter` function in response.
-* **Observer Pattern**: The `doFilter` function is registered as an observer to the search input and submit button elements, which act as subjects, notifying the observer when relevant events occur.
-* **Iterator Pattern**: The code iterates over collections of DOM elements (e.g., `h2s`, `h3s`, `lis`) using `for...of` loops to process each element sequentially.
-* **Strategy Pattern**: The filtering logic is encapsulated within a `RegExp` object, allowing the specific search strategy (e.g., case-insensitive regex) to be defined and applied, which could be swapped for a different matching algorithm if needed.
+• **Model-View-Controller (MVC) Pattern**: The `glossary_search` function acts as the **Controller**, orchestrating the retrieval of data (the **Model**, fetched from `glossary.json`) and updating the user interface (**View**, by manipulating DOM elements like `glossaryTitle` and `glossaryBody`).
+• **Observer Pattern**: The `document.addEventListener("DOMContentLoaded", glossary_search)` mechanism registers `glossary_search` as an observer to the `DOMContentLoaded` event, ensuring the function executes only when the DOM is fully loaded.
+• **Asynchronous Programming Pattern**: The use of `async`/`await` and the `fetch` API demonstrates an asynchronous programming pattern, allowing the application to retrieve external data (`_static/glossary.json`) without blocking the main thread.
+• **Single Responsibility Principle (SRP)**: The `glossary_search` function has a clear, single responsibility: to parse a glossary search query from the URL, fetch the corresponding glossary item, and display its details on the page.
+• **Proxy Pattern**: The `fetch("_static/glossary.json")` call within the `glossary_search` function acts as a proxy, abstracting the details of making an HTTP request to an external data source and providing its content.
+• **Iterator Pattern**: The `anchorLinks.forEach` method applies the Iterator Pattern, providing a way to access and modify elements of the `anchorLinks` collection sequentially without exposing its underlying representation.
