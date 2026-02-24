@@ -391,7 +391,7 @@ const STYLES = `
 
 export default function NexusAGIBuilder() {
   // State variables are declared using useState. These manage the mutable data
-  // specific to this component's functionality.
+  // specific to this component's functionality, ensuring reactivity.
   const [githubToken, setGithubToken] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [readmePath, setReadmePath] = useState(GITHUB_RAW);
@@ -402,13 +402,15 @@ export default function NexusAGIBuilder() {
   const [buildLog, setBuildLog] = useState([]);
 
   // Derived state: isReadmeLoaded is computed directly from the 'readme' state.
-  // This avoids creating an unnecessary additional state variable and its setter.
-  // It optimizes logic by keeping the state minimal and derived where possible.
+  // This avoids creating an unnecessary additional state variable and its setter,
+  // optimizing logic by keeping the state minimal and derived where possible.
   const isReadmeLoaded = !!readme;
 
   // useCallback is used to memoize functions that are passed down to child components
   // or used as event handlers. This prevents unnecessary re-renders of child components
-  // due to function identity changes across renders.
+  // due to function identity changes across renders. For internal functions, it helps
+  // with dependency arrays in other hooks like useEffect, though not strictly critical
+  // for performance if only used internally and not in dependency arrays.
 
   // Memoized logging function for the build log.
   const log = useCallback((msg, type = "info") => {
@@ -426,8 +428,8 @@ export default function NexusAGIBuilder() {
       const headers = { "Accept": "application/vnd.github.v3.raw" };
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
-      // Normalize URL to raw.githubusercontent.com for consistency
-      // This logic is optimized to handle different GitHub URL formats.
+      // Normalize URL to raw.githubusercontent.com for consistency.
+      // This logic is optimized to handle different GitHub URL formats, reducing potential fetch errors.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
@@ -452,7 +454,7 @@ export default function NexusAGIBuilder() {
 
   // Memoized function to initiate the Gemini build process.
   const buildFromReadme = useCallback(async () => {
-    // Early exit/guard clause for invalid state, improving robustness.
+    // Early exit/guard clause for invalid state, improving robustness and preventing unnecessary API calls.
     if (!readme || !geminiKey) {
       log("ERROR: README content and Gemini API key are required", "error");
       return;
@@ -575,7 +577,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                   value={githubToken}
-                  onChange={e => setGithubToken(e.target.value)} // Direct state updates
+                  onChange={e => setGithubToken(e.target.value)} // Direct state updates are efficient for input handlers.
                 />
               </div>
 
@@ -586,7 +588,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="AIzaSy..."
                   value={geminiKey}
-                  onChange={e => setGeminiKey(e.target.value)} // Direct state updates
+                  onChange={e => setGeminiKey(e.target.value)} // Direct state updates.
                 />
               </div>
 
@@ -595,7 +597,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <input
                   className="input-field"
                   value={readmePath}
-                  onChange={e => setReadmePath(e.target.value)} // Direct state updates
+                  onChange={e => setReadmePath(e.target.value)} // Direct state updates.
                 />
               </div>
 
@@ -607,7 +609,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <button
                 className="btn"
                 onClick={buildFromReadme}
-                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded`
+                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded` for efficient conditional disabling.
               >
                 {loading && status.includes("BUILD") ? "[ BUILDING... ]" : "[ BUILD FROM README ]"}
               </button>
@@ -618,6 +620,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <div className="readme-box" style={{maxHeight:"150px"}}>
                   {buildLog.length === 0 && <span style={{color:"#002211"}}>// awaiting initialization...</span>}
                   {buildLog.map((entry, i) => (
+                    // Using index as key is acceptable for a log where items are only appended and not reordered/deleted.
                     <div key={i} style={{color: entry.type === "error" ? "#ff6666" : entry.type === "success" ? "#00ff88" : "#006633"}}>
                       [{entry.timestamp}] {entry.msg}
                     </div>
@@ -646,11 +649,11 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <div className="readme-box" style={{maxHeight:"380px"}}>
                 {readme || <span style={{color:"#002211"}}>// README not yet fetched...\n// Click [ FETCH README ] to load</span>}
               </div>
-              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded`
+              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded` for conditional rendering.
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
                   {/* These calculations for tags are simple and performed on render,
-                      efficient for dynamic display of README characteristics. */}
+                      efficient for dynamic display of README characteristics without memoization overhead for small data. */}
                   <span className="tag">{readme.length} CHARS</span>
                   <span className="tag">{(readme.match(/\n/g)||[]).length} LINES</span>
                   <span className="tag">{(readme.match(/^#{1,6}\s/gm)||[]).length} SECTIONS</span>
