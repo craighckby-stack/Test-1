@@ -51,8 +51,6 @@ class FFILenientSized(Sized):
     """
     A concrete implementation of the Sized ABC that retrieves its length
     by making a Foreign Function Interface (FFI) call using ctypes.
-    This demonstrates applying the FFI interaction logic from KNOWLEDGE
-    to implement an ABC from TARGET.
     """
     def __len__(self):
         if ctypes_ffi_lib:
@@ -62,44 +60,75 @@ class FFILenientSized(Sized):
 
 # --- Applying logic from KNOWLEDGE here ---
 
-def _math_add(a: int, b: int) -> int:
-    """A simple addition function, analogous to KNOWLEDGE's 'add'."""
-    return a + b
+# KNOWLEDGE's ABCMeta employs a Registry pattern via `_abc_registry`
+# to keep track of virtual subclasses.
+# We apply this logic by creating a similar application-level registry
+# for 'Sized' implementation classes.
+_sized_implementation_registry = {} # Stores named constructors or classes
 
-def _get_ffi_base_value_and_apply_offset(offset: int) -> int:
+def register_sized_implementation(name: str, sized_class: type):
     """
-    Fetches a base value from FFI (or mock) and applies an offset using _math_add.
-    This represents the 'template method' concept from the KNOWLEDGE pattern,
-    where the base value comes from FFI and _math_add is the 'strategy'.
+    Registers a Sized implementation class by a given name.
+    Analogous to ABCMeta.register() which adds a subclass to `_abc_registry`.
     """
-    base_val = 0
-    if ctypes_ffi_lib:
-        base_val = ctypes_ffi_lib.get_data_size()
-    return _math_add(base_val, offset)
+    if not issubclass(sized_class, Sized):
+        raise TypeError(f"Class {sized_class.__name__} must be a subclass of Sized")
+    _sized_implementation_registry[name] = sized_class
+    print(f"Registered Sized implementation: '{name}' -> {sized_class.__name__}")
 
-def get_ffi_size_incremented_by_one() -> int:
+def get_sized_class_factory(name: str):
     """
-    Corresponds to KNOWLEDGE's 'increment'.
-    Returns the FFI data size incremented by 1.
+    A simple factory function that returns a registered Sized implementation class.
+    This reflects the spirit of the Factory pattern where a "product" (Sized class)
+    is retrieved by a key, similar to how ABCMeta.register could be seen as a factory
+    for registered subclasses.
     """
-    return _get_ffi_base_value_and_apply_offset(1)
+    sized_class = _sized_implementation_registry.get(name)
+    if sized_class is None:
+        raise ValueError(f"No Sized implementation registered under name: '{name}'")
+    return sized_class # Returning the class itself as a factory callable
 
-def get_ffi_size_incremented_by_two() -> int:
+def create_sized_instance(name: str, *args, **kwargs) -> Sized:
     """
-    Corresponds to KNOWLEDGE's 'incrementBy2'.
-    Returns the FFI data size incremented by 2.
+    Creates an instance of a registered Sized implementation.
+    This is a client-facing factory method for object instantiation.
     """
-    return _get_ffi_base_value_and_apply_offset(2)
+    sized_class = get_sized_class_factory(name)
+    return sized_class(*args, **kwargs)
 
-def get_ffi_size_decremented_incorrectly() -> int:
-    """
-    Corresponds to KNOWLEDGE's 'decrement', demonstrating its incorrect logic.
-    It "decrements" by adding 1, mirroring the bug in KNOWLEDGE's 'decrement'.
-    """
-    return _get_ffi_base_value_and_apply_offset(1)
+# Demonstrate registration and usage:
+# Register the FFILenientSized class using our custom registry.
+register_sized_implementation("ffi_lenient_sized", FFILenientSized)
 
-def get_ffi_size_decremented_correctly() -> int:
-    """
-    Shows the correct logic for decrementing by 1, contrasting with the KNOWLEDGE's 'decrement' bug.
-    """
-    return _get_ffi_base_value_and_apply_offset(-1)
+# Example of creating an instance using the factory
+if __name__ == '__main__':
+    print("\nDemonstrating Registry and Factory patterns inspired by ABCMeta:")
+
+    # Create an FFILenientSized instance via the factory
+    my_ffi_sized_obj = create_sized_instance("ffi_lenient_sized")
+    print(f"Created instance of FFILenientSized via factory. Length: {len(my_ffi_sized_obj)}")
+
+    # You could register other Sized implementations too
+    class SimpleListSized(Sized):
+        def __init__(self, data):
+            self._data = data
+        def __len__(self):
+            return len(self._data)
+
+    register_sized_implementation("simple_list_sized", SimpleListSized)
+
+    my_list_sized_obj = create_sized_instance("simple_list_sized", [1, 2, 3, 4, 5])
+    print(f"Created instance of SimpleListSized via factory. Length: {len(my_list_sized_obj)}")
+
+    # The ABCMeta._abc_invalidation_counter (part of the Proxy/Builder logic)
+    # is incremented on every call to ABC.register(), affecting caches.
+    # We can observe its change.
+    initial_token = ABCMeta._abc_invalidation_counter
+    print(f"\nInitial ABC invalidation token: {initial_token}")
+
+    # Registering a virtual subclass via Sized.register() will increment this.
+    class MyVirtualSubclass:
+        pass
+
+    Sized.register(MyVirtualSubclass)
+    print(f"ABC invalidation token after Sized.register(MyVirtualSubclass): {ABCMeta._abc_invalidation_counter}")
