@@ -1,9 +1,7 @@
-*   **Event-Driven Programming**: The code extensively uses event listeners, such as `document.addEventListener("readthedocs-addons-data-ready", ...)` and `selectElement.addEventListener("change", onSwitch)`, to react to specific events and trigger corresponding actions, making the application's flow event-centric.
-*   **Declarative Programming**: The generation of HTML `<select>` and `<option>` elements using template literals and array `map` functions (`config.versions.active.map(...)`) describes *what* the UI should look like rather than *how* to imperatively build each element.
-*   **Dependency Injection**: The `onSwitch` function is "injected" into the `addEventListener` call, providing the mechanism for handling the `change` event without the select element needing to directly instantiate or know the concrete implementation of the handler.
-*   **Model-View-Controller (MVC) Pattern**: The `config` object, retrieved from `event.detail.data()`, acts as the **Model**, providing the data. The HTML strings (`versionSelect`, `languageSelect`) and the DOM elements they populate (`.version_switcher_placeholder`, `.language_switcher_placeholder`) represent the **View**. The anonymous function listening to "readthedocs-addons-data-ready" and the `onSwitch` function act as **Controllers**, orchestrating data retrieval, view generation, and user interaction.
-*   **Observer Pattern**: The use of `document.addEventListener` registers functions as observers that wait for a specific event to be dispatched (`"readthedocs-addons-data-ready"`, `"change"`) and then execute their logic, responding to changes in the observed subject (the document or the select element).
-*   **Strategy Pattern**: The `onSwitch` function serves as a strategy for handling the common behavior of changing a select element's value and navigating to a new URL. It provides a generic algorithm that can be applied to different select elements (`version_select`, `language_select`) without modification.
-*   **Template Method Pattern**: The structure of generating HTML select elements follows a templated approach. The core logic of iterating over data and creating `<option>` tags within a `<select>` template is reused for both version and language switchers, with specific data injected into the common template.
-*   **Loose Coupling**: The `onSwitch` event handler is loosely coupled to the specific select elements. It operates generically on `event.target`, meaning it doesn't need to know the specific `id` or class of the select element it's handling, promoting reusability and easier maintenance.
-*   **Separation of Concerns**: The code demonstrates separation by dedicating `onSwitch` to handling navigation logic, while the main event listener is responsible for data fetching, HTML rendering, and event listener attachment, keeping distinct functionalities separate.
+[
+  "String replacement for regex",
+  "Input validation - type checking",
+  "Escaping string for regex",
+  "Exporting library as default",
+  "Cross-platform use"
+]
