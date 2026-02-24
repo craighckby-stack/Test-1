@@ -27,6 +27,13 @@ _IEEE_CONTEXT_MAX_BITS = 512
 
 # === Implementations based on patterns_applied and KNOWLEDGE ===
 
+# The `decimal.Context` object inherently represents the **State Pattern**,
+# encapsulating the current state of decimal arithmetic (precision, rounding mode, flags).
+# Operations performed by its methods (e.g., `context.add`, `context.multiply`)
+# implicitly use this encapsulated state.
+# The `Context` also supports the **Prototype Pattern** via its `copy()` method,
+# allowing the creation of new contexts that duplicate an existing one's state.
+
 def add_variadic(initial_value, *args, context=None, show_steps=False):
     """
     Performs variadic addition of Decimal numbers.
@@ -102,6 +109,8 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
     *   Composite Pattern: The `*args` allows processing a composite collection of values uniformly.
     *   Decorator Pattern: Temporarily modifies the `context`'s `rounding` behavior for the scope
                            of the multiplication operations by overriding and restoring it.
+    *   Memento Pattern: The `original_rounding` variable acts as a memento, saving a part of the
+                         context's state for later restoration.
     *   Dependency Inversion Principle (DIP): The function depends on the `Context` abstraction via injection.
     *   Single Responsibility Principle (SRP): This function's primary responsibility is variadic multiplication,
                                            even with an embedded "bug" for demonstration.
@@ -126,7 +135,8 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
         # Error Handling: Centralized error propagation via context._raise_error.
         return context._raise_error(InvalidOperation, f"Initial value conversion failed: {initial_value} -> {e}")
 
-    # State Management: Temporarily override context's rounding mode.
+    # State Management / Memento Pattern: Temporarily override context's rounding mode.
+    # The `original_rounding` variable stores the memento (the previous state) of the rounding setting.
     original_rounding = context.rounding
     try:
         # Bug 2: Force a potentially inappropriate rounding mode for intermediate steps.
@@ -151,6 +161,7 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
             except Exception as e: # Error Handling
                 return context._raise_error(InvalidOperation, f"Argument conversion or operation failed: {arg} -> {e}")
     finally:
+        # Memento Pattern: Restore the previously saved rounding state.
         context.rounding = original_rounding # Restore original rounding mode.
 
     return current_product
@@ -161,6 +172,8 @@ class _FFISizeCalculator:
     """
     Base class for FFI size calculations, demonstrating Open-Closed Principle (OCP)
     and Single Responsibility Principle (SRP) for orchestrating calculations.
+    It implements the **Template Method Pattern** in its `calculate` method,
+    defining the overall algorithm but deferring specific operation steps to subclasses.
     """
     # Class Variables: Store precomputed/hardcoded values for FFI limits.
     # Singleton Pattern: These class variables hold singleton values (constants) that are created once.
@@ -209,6 +222,7 @@ class _FFISizeCalculator:
 
     def calculate(self, base_type, *arbitrary_values, show_steps=False):
         """
+        Template Method Pattern: Defines the skeletal algorithm for FFI size calculation.
         Composition over Inheritance: Uses _get_base_ffi_size and _perform_operation (from subclass) to build a calculation.
         Error Handling: Catches exceptions during calculations.
         Don't Repeat Yourself (DRY): Centralizes the common iteration and error handling logic for FFI calculations.
@@ -234,14 +248,11 @@ class _FFISizeCalculator:
             try:
                 # Adapter Pattern: `self._context.create_decimal` adapts various input types to a Decimal object.
                 # Factory Pattern: `self._context.create_decimal` acts as a factory method for Decimal instances.
-                decimal_val = self._context.create_decimal(val)
-                # Strategy Pattern: Delegates the actual operation to the concrete strategy implementation
-                #                   provided by the subclass's `_perform_operation` method.
-                # Declarative Programming: Declares the intent to perform an operation.
-                current_result = self._perform_operation(current_result, decimal_val)
+                # Template Method Pattern: This is the step (performing the operation) that is delegated to subclasses.
+                current_result = self._perform_operation(current_result, self._context.create_decimal(val))
                 if show_steps:
                     # Observer Pattern: Notifying of state changes.
-                    print(f"Calculator: Applied operation with {decimal_val}, current result: {current_result}")
+                    print(f"Calculator: Applied operation with {val}, current result: {current_result}")
             except InvalidOperation as e: # Error Handling
                 return self._context._raise_error(InvalidOperation, f"Operation failed for value {val}: {e}")
             except Exception as e: # Error Handling
@@ -262,6 +273,7 @@ class _FFISizeAdder(_FFISizeCalculator):
     """
     # Implements the Abstract Interface _perform_operation.
     # Strategy Pattern: This is a concrete strategy for performing addition.
+    # Template Method Pattern: Provides the specific implementation for the `_perform_operation` step.
     def _perform_operation(self, current_value, operand):
         # Strategy Pattern: Uses the context's add strategy to perform the operation.
         return self._context.add(current_value, operand)
@@ -298,8 +310,10 @@ class _FFISizeMultiplierBuggy(_FFISizeCalculator):
     """
     # Implements the Abstract Interface _perform_operation with a bug.
     # Strategy Pattern: This is a concrete strategy for performing multiplication.
+    # Template Method Pattern: Provides the specific implementation for the `_perform_operation` step.
     def _perform_operation(self, current_value, operand):
-        # State Management: Temporarily override context's rounding mode.
+        # State Management / Memento Pattern: Temporarily override context's rounding mode.
+        # The `original_rounding` variable stores the memento (the previous state) of the rounding setting.
         original_rounding = self._context.rounding
         try:
             self._context.rounding = ROUND_UP # Forced buggy rounding for demonstration.
@@ -307,6 +321,7 @@ class _FFISizeMultiplierBuggy(_FFISizeCalculator):
             # Strategy Pattern: Uses the context's multiply strategy to perform the operation.
             result = self._context.multiply(current_value, operand)
         finally:
+            # Memento Pattern: Restore the previously saved rounding state.
             self._context.rounding = original_rounding # Restore original rounding.
         return result
 
