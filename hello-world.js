@@ -33,23 +33,39 @@ def add_variadic(initial_value, *args, context=None, show_steps=False):
 
     Applies: Dependency Injection (context), Caching (getcontext result), Error Handling (try/except),
              State Management (context's internal state), Type Hints (implied by Decimal usage).
+
+    Architectural Patterns Applied:
+    *   Observer Pattern: The `show_steps` parameter acts as a simple observer mechanism,
+                           reporting intermediate states (the `print` statements).
+    *   Composite Pattern: The `*args` allows processing a composite collection of values uniformly.
     """
     if context is None:
+        # Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
         context = getcontext() # Caching: getcontext often returns a cached thread-local context.
 
     # Error Handling: Catch exceptions during initial conversion.
     try:
+        # Adapter Pattern: `context.create_decimal` adapts various input types (int, float, str) to a Decimal object.
+        # Factory Pattern: `context.create_decimal` acts as a factory method for Decimal instances.
         current_sum = context.create_decimal(initial_value)
         if show_steps:
+            # Observer Pattern: Notifying of state changes.
             print(f"Initial sum: {current_sum}")
     except Exception as e:
         return context._raise_error(InvalidOperation, f"Initial value conversion failed: {initial_value} -> {e}")
 
+    # MVC Pattern (loose interpretation): This function acts as a Controller orchestrating the Model (Decimal operations and Context)
+    #                                  and interacting with a rudimentary View (print statements via show_steps).
     for arg in args:
         try:
+            # Adapter Pattern: `context.create_decimal` adapts various input types to a Decimal object.
+            # Factory Pattern: `context.create_decimal` acts as a factory method for Decimal instances.
             decimal_arg = context.create_decimal(arg)
+            # Strategy Pattern: The `context` object encapsulates the arithmetic strategy (e.g., precision, rounding mode)
+            #                   and its `add` method executes that strategy.
             current_sum = context.add(current_sum, decimal_arg)
             if show_steps:
+                # Observer Pattern: Notifying of state changes.
                 print(f"Adding {decimal_arg}, current sum: {current_sum}")
         except InvalidOperation as e: # Error Handling
             return context._raise_error(InvalidOperation, f"Operation failed for arg {arg}: {e}")
@@ -70,14 +86,25 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
 
     Applies: Dependency Injection (context), Caching (getcontext result), Error Handling (try/except),
              State Management (context's internal state, temporary override).
+
+    Architectural Patterns Applied:
+    *   Observer Pattern: The `show_steps` parameter acts as a simple observer mechanism,
+                           reporting intermediate states (the `print` statements).
+    *   Composite Pattern: The `*args` allows processing a composite collection of values uniformly.
+    *   Decorator Pattern: Temporarily modifies the `context`'s `rounding` behavior for the scope
+                           of the multiplication operations by overriding and restoring it.
     """
     if context is None:
+        # Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
         context = getcontext() # Caching: getcontext often returns a cached thread-local context.
 
     # Error Handling: Catch exceptions during initial conversion.
     try:
+        # Adapter Pattern: `context.create_decimal` adapts various input types to a Decimal object.
+        # Factory Pattern: `context.create_decimal` acts as a factory method for Decimal instances.
         current_product = context.create_decimal(initial_value)
         if show_steps:
+            # Observer Pattern: Notifying of state changes.
             print(f"Initial product: {current_product}")
     except Exception as e:
         return context._raise_error(InvalidOperation, f"Initial value conversion failed: {initial_value} -> {e}")
@@ -86,12 +113,20 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
     original_rounding = context.rounding
     try:
         # Bug 2: Force a potentially inappropriate rounding mode for intermediate steps.
+        # Decorator Pattern: The context's rounding behavior is temporarily "decorated" (modified).
         context.rounding = ROUND_DOWN
+        # MVC Pattern (loose interpretation): This function acts as a Controller orchestrating the Model (Decimal operations and Context)
+        #                                  and interacting with a rudimentary View (print statements via show_steps).
         for arg in args:
             try:
+                # Adapter Pattern: `context.create_decimal` adapts various input types to a Decimal object.
+                # Factory Pattern: `context.create_decimal` acts as a factory method for Decimal instances.
                 decimal_arg = context.create_decimal(arg)
+                # Strategy Pattern: The `context` object encapsulates the arithmetic strategy (e.g., precision, rounding mode)
+                #                   and its `multiply` method executes that strategy.
                 current_product = context.multiply(current_product, decimal_arg)
                 if show_steps:
+                    # Observer Pattern: Notifying of state changes.
                     print(f"Multiplying by {decimal_arg} (forced ROUND_DOWN), current product: {current_product}")
             except InvalidOperation as e: # Error Handling
                 return context._raise_error(InvalidOperation, f"Operation failed for arg {arg}: {e}")
@@ -106,6 +141,7 @@ def multiply_variadic_buggy(initial_value, *args, context=None, show_steps=False
 # Define a helper class to manage FFI constants and provide a template for size calculations.
 class _FFISizeCalculator:
     # Class Variables: Store precomputed/hardcoded values for FFI limits.
+    # Singleton Pattern: These class variables hold singleton values (constants) that are created once.
     MAX_PRECISION = Decimal(_MAX_PREC)
     MAX_EXPONENT = Decimal(_MAX_EMAX)
     MIN_EXPONENT = Decimal(_MIN_EMIN)
@@ -119,6 +155,7 @@ class _FFISizeCalculator:
     def _get_base_ffi_size(self, base_type="default"):
         """
         Separation of Concerns: This method is specifically for determining base sizes.
+        Adapter Pattern: Adapts a string `base_type` (e.g., "prec", "emax") to a specific Decimal constant value.
         """
         if base_type == "prec":
             return self.MAX_PRECISION
@@ -129,6 +166,7 @@ class _FFISizeCalculator:
         elif base_type == "ieee_bits":
             return self.IEEE_MAX_BITS
         elif base_type == "min_etiny":
+            # Adapter Pattern: Adapts a conceptual request for 'min_etiny' to the context's specific method result.
             return self._context.create_decimal(self._context.Etiny())
         else:
             return self._context.create_decimal(max(_MAX_PREC, _IEEE_CONTEXT_MAX_BITS))
@@ -136,25 +174,41 @@ class _FFISizeCalculator:
     def _perform_operation(self, current_value, operand):
         """
         Abstract Interface: This method must be implemented by subclasses.
+        Strategy Pattern: This is the abstract strategy method, defining the interface for operations.
+                          Concrete subclasses (_FFISizeAdder, _FFISizeMultiplierBuggy) will implement this.
         """
         raise NotImplementedError("Subclasses must implement _perform_operation")
 
     def calculate(self, base_type, *arbitrary_values, show_steps=False):
         """
-        Composition: Uses _get_base_ffi_size and _perform_operation.
+        Composition: Uses _get_base_ffi_size and _perform_operation to build a calculation.
         Error Handling: Catches exceptions during calculations.
+        Architectural Patterns Applied:
+        *   Composite Pattern: The `*arbitrary_values` allows processing a composite collection of values uniformly.
+        *   Observer Pattern: The `show_steps` parameter acts as a simple observer mechanism,
+                               reporting intermediate states (the `print` statements).
+        *   MVC Pattern (loose interpretation): This method acts as a Controller orchestrating the Model (Decimal operations and Context)
+                                               and interacting with a rudimentary View (print statements via show_steps).
         """
+        # Adapter Pattern: Adapts string base_type to an initial Decimal size.
         base_size = self._get_base_ffi_size(base_type)
 
+        # Factory Pattern: `self._context.create_decimal` acts as a factory method for Decimal instances.
         current_result = self._context.create_decimal(base_size)
         if show_steps:
+            # Observer Pattern: Notifying of state changes.
             print(f"Calculator: Initial base size ({base_type}): {current_result}")
 
         for val in arbitrary_values:
             try:
+                # Adapter Pattern: `self._context.create_decimal` adapts various input types to a Decimal object.
+                # Factory Pattern: `self._context.create_decimal` acts as a factory method for Decimal instances.
                 decimal_val = self._context.create_decimal(val)
+                # Strategy Pattern: Delegates the actual operation to the concrete strategy implementation
+                #                   provided by the subclass's `_perform_operation` method.
                 current_result = self._perform_operation(current_result, decimal_val)
                 if show_steps:
+                    # Observer Pattern: Notifying of state changes.
                     print(f"Calculator: Applied operation with {decimal_val}, current result: {current_result}")
             except InvalidOperation as e: # Error Handling
                 return self._context._raise_error(InvalidOperation, f"Operation failed for value {val}: {e}")
@@ -163,13 +217,16 @@ class _FFISizeCalculator:
 
         final_result = current_result._fix(self._context)
         if show_steps:
+            # Observer Pattern: Notifying of state changes.
             print(f"Calculator: Final fixed result: {final_result}")
         return final_result
 
 # Composition: Extends _FFISizeCalculator.
 class _FFISizeAdder(_FFISizeCalculator):
     # Implements the Abstract Interface _perform_operation.
+    # Strategy Pattern: This is a concrete strategy for performing addition.
     def _perform_operation(self, current_value, operand):
+        # Strategy Pattern: Uses the context's add strategy to perform the operation.
         return self._context.add(current_value, operand)
 
 def get_ffi_size_plus_arbitrary_values(base_type, *arbitrary_values, context=None, show_steps=False):
@@ -178,11 +235,16 @@ def get_ffi_size_plus_arbitrary_values(base_type, *arbitrary_values, context=Non
 
     Applies: Factory Function (implied by creating _FFISizeAdder), Dependency Injection,
              Caching (getcontext), Error Handling, Composition.
+
+    Architectural Patterns Applied:
+    *   Factory Pattern: This function acts as a factory, creating and configuring an `_FFISizeAdder` instance.
+    *   Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
     """
     if context is None:
+        # Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
         context = getcontext() # Caching: getcontext often returns a cached thread-local context.
 
-    # Factory Function (implied): Creating an instance of _FFISizeAdder.
+    # Factory Pattern: Creating an instance of _FFISizeAdder.
     # Dependency Injection: Context is injected into the calculator instance.
     calculator = _FFISizeAdder(context)
 
@@ -190,11 +252,14 @@ def get_ffi_size_plus_arbitrary_values(base_type, *arbitrary_values, context=Non
 
 class _FFISizeMultiplierBuggy(_FFISizeCalculator):
     # Implements the Abstract Interface _perform_operation with a bug.
+    # Strategy Pattern: This is a concrete strategy for performing multiplication.
     def _perform_operation(self, current_value, operand):
         # State Management: Temporarily override context's rounding mode.
         original_rounding = self._context.rounding
         try:
             self._context.rounding = ROUND_UP # Forced buggy rounding.
+            # Decorator Pattern: The context's rounding behavior is temporarily "decorated" (modified).
+            # Strategy Pattern: Uses the context's multiply strategy to perform the operation.
             result = self._context.multiply(current_value, operand)
         finally:
             self._context.rounding = original_rounding # Restore original rounding.
@@ -208,11 +273,16 @@ def get_ffi_size_multiplied_by_arbitrary_values_buggy(base_type, *arbitrary_valu
 
     Applies: Factory Function (implied by creating _FFISizeMultiplierBuggy), Dependency Injection,
              Caching (getcontext), Error Handling, Composition.
+
+    Architectural Patterns Applied:
+    *   Factory Pattern: This function acts as a factory, creating and configuring an `_FFISizeMultiplierBuggy` instance.
+    *   Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
     """
     if context is None:
+        # Singleton Pattern: `getcontext()` typically returns a thread-local singleton Context object.
         context = getcontext() # Caching: getcontext often returns a cached thread-local context.
 
-    # Factory Function (implied): Creating an instance of _FFISizeMultiplierBuggy.
+    # Factory Pattern: Creating an instance of _FFISizeMultiplierBuggy.
     # Dependency Injection: Context is injected into the calculator instance.
     calculator = _FFISizeMultiplierBuggy(context)
 
