@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 
-// Constants are defined outside the component to prevent re-creation on every render,
-// optimizing memory usage and ensuring consistent references.
+// Architectural Pattern: Optimize Logic
+// - Constants are defined outside the component to prevent re-creation on every render.
+//   This optimizes memory usage and ensures consistent references, avoiding unnecessary garbage collection.
 const GITHUB_RAW = "https://raw.githubusercontent.com/craighckby-stack/Test-1/Nexus-Database/README.md"; // Default README path
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const SYSTEM_FILE_COUNT = 2003; // This is a fixed constant, no need for state
+const SYSTEM_FILE_COUNT = 2003; // Fixed constant, no need for state or re-evaluation.
 
 // AIM_CONFIG is present in the original code but not used in the component's logic or render.
 // Keeping it as per the original for consistency. As a constant, it doesn't impact performance.
@@ -71,8 +72,10 @@ const AIM_CONFIG = {
   }
 };
 
-// Styles are also a constant, defined once to prevent re-creation and ensure
-// the style tag is only updated if the string content itself changes (which it won't here).
+// Architectural Pattern: Optimize Logic
+// - Styles are a constant string, defined once. Injecting them via a <style> tag
+//   prevents the browser from re-parsing/re-applying styles on every component re-render,
+//   as the content itself is static.
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -390,8 +393,8 @@ const STYLES = `
 `;
 
 export default function NexusAGIBuilder() {
-  // State variables are declared using useState. These manage the mutable data
-  // specific to this component's functionality. Keeping state granular helps with updates.
+  // Architectural Pattern: Optimize Logic
+  // - State variables are declared using useState. Keeping state granular helps with targeted updates.
   const [githubToken, setGithubToken] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [readmePath, setReadmePath] = useState(GITHUB_RAW);
@@ -401,20 +404,23 @@ export default function NexusAGIBuilder() {
   const [loading, setLoading] = useState(false);
   const [buildLog, setBuildLog] = useState([]);
 
-  // Derived state: isReadmeLoaded is computed directly from the 'readme' state.
-  // This avoids creating an unnecessary additional state variable and its setter,
-  // ensuring consistency and reducing state management overhead.
+  // Architectural Pattern: Optimize Logic
+  // - Derived state: isReadmeLoaded is computed directly from the 'readme' state.
+  //   This avoids creating an unnecessary additional state variable and its setter,
+  //   ensuring consistency and reducing state management overhead.
   const isReadmeLoaded = !!readme;
 
-  // useCallback is used to memoize functions that are passed down to child components
-  // or used as event handlers. This prevents unnecessary re-renders of child components
-  // due to function identity changes across renders, optimizing performance.
+  // Architectural Pattern: Optimize Logic
+  // - useCallback is used to memoize functions that are passed down to child components
+  //   or used as event handlers. This prevents unnecessary re-renders of child components
+  //   due to function identity changes across renders, optimizing performance.
 
   // Memoized logging function for the build log.
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    // Using functional update for setBuildLog ensures the latest state is used,
-    // even with an empty dependency array for `log`, which optimizes state updates.
+    // Architectural Pattern: Optimize Logic
+    // - Using functional update for setBuildLog ensures the latest state is used,
+    //   even with an empty dependency array for `log`, which optimizes state updates.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
   }, []); // Dependencies array is empty as React guarantees `setBuildLog` (a state setter) is stable.
 
@@ -428,15 +434,18 @@ export default function NexusAGIBuilder() {
       const headers = { "Accept": "application/vnd.github.v3.raw" };
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
-      // Normalize URL to raw.githubusercontent.com for consistency.
-      // This logic is optimized to handle different GitHub URL formats more robustly.
+      // Architectural Pattern: Optimize Logic
+      // - Normalize URL to raw.githubusercontent.com for consistency.
+      //   This logic is optimized to handle different GitHub URL formats more robustly,
+      //   reducing potential errors in URL construction.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
 
       const res = await fetch(url, { headers });
 
-      // Early exit for error conditions to prevent further processing, improving robustness.
+      // Architectural Pattern: Optimize Logic
+      // - Early exit for error conditions to prevent further processing, improving robustness.
       if (!res.ok) {
         throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
       }
@@ -457,7 +466,8 @@ export default function NexusAGIBuilder() {
 
   // Memoized function to initiate the Gemini build process.
   const buildFromReadme = useCallback(async () => {
-    // Early exit/guard clause for invalid state, improving robustness and preventing unnecessary API calls.
+    // Architectural Pattern: Optimize Logic
+    // - Early exit/guard clause for invalid state, improving robustness and preventing unnecessary API calls.
     if (!readme || !geminiKey) {
       log("ERROR: README content and Gemini API key are required", "error");
       return;
@@ -469,8 +479,9 @@ export default function NexusAGIBuilder() {
     log("Initializing Gemini build sequence...");
     log(`Processing ${SYSTEM_FILE_COUNT} file AGI safety system...`);
 
-    // The prompt is constructed dynamically but includes constant values
-    // like SYSTEM_FILE_COUNT, which are efficiently referenced.
+    // Architectural Pattern: Optimize Logic
+    // - The prompt is constructed dynamically but includes constant values
+    //   like SYSTEM_FILE_COUNT, which are efficiently referenced without re-calculation.
     const prompt = `You are an AGI Safety System architect. You have been given a README file from a repository containing ${SYSTEM_FILE_COUNT} files in an AGI safety system called the Nexus Database.
 
 README CONTENT:
@@ -504,7 +515,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
         })
       });
 
-      // Early exit for API errors, enhancing error handling.
+      // Architectural Pattern: Optimize Logic
+      // - Early exit for API errors, enhancing error handling and preventing subsequent problematic code execution.
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error?.message || `Gemini API error ${res.status}`);
@@ -513,7 +525,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      // Early exit if no valid text response is found, ensuring a clearer error.
+      // Architectural Pattern: Optimize Logic
+      // - Early exit if no valid text response is found, ensuring a clearer error message.
       if (!text) {
         throw new Error("No response from Gemini");
       }
@@ -533,8 +546,9 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
   return (
     <>
-      {/* Styles are injected once from the STYLES constant, preventing re-rendering of the style tag content,
-          which is an optimization for static styles. */}
+      {/* Architectural Pattern: Optimize Logic
+          - Styles are injected once from the STYLES constant, preventing re-rendering of the style tag content.
+            This is an optimization for static styles, as the browser doesn't need to re-evaluate the CSS on component updates. */}
       <style>{STYLES}</style>
       <div className="nexus">
         <div className="scan-line" />
@@ -546,8 +560,9 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
         <div className="grid">
 
-          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state.
-              Simple calculations for display are efficient here and don't require memoization. */}
+          {/* Architectural Pattern: Optimize Logic
+              - Stats Row leverages SYSTEM_FILE_COUNT constant and status state.
+                Simple calculations for display (e.g., status color) are efficient here and don't require memoization. */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
@@ -610,8 +625,10 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 />
               </div>
 
-              {/* Buttons use memoized functions (useCallback) and derived state (isReadmeLoaded)
-                  for their `onClick` and `disabled` props, optimizing event handling and render logic. */}
+              {/* Architectural Pattern: Optimize Logic
+                  - Buttons use memoized functions (useCallback) for their `onClick` props
+                    and derived state (isReadmeLoaded) for `disabled` props,
+                    optimizing event handling and render logic by preventing unnecessary re-creations or re-evaluations. */}
               <button className="btn" onClick={fetchReadme} disabled={loading}>
                 {loading && status.includes("FETCH") ? "[ FETCHING... ]" : "[ FETCH README ]"}
               </button>
@@ -659,11 +676,14 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <div className="readme-box" style={{maxHeight:"380px"}}>
                 {readme || <span style={{color:"#002211"}}>// README not yet fetched...\n// Click [ FETCH README ] to load</span>}
               </div>
-              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded` for efficient conditional rendering.
+              {/* Architectural Pattern: Optimize Logic
+                  - Conditional rendering for tags based on derived state `isReadmeLoaded`
+                    prevents rendering logic if the README isn't present.
+                  - Calculations for tags (length, lines, sections) are simple and performed on render,
+                    which is efficient enough for dynamic display of README characteristics without memoization overhead. */}
+              {isReadmeLoaded && (
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
-                  {/* These calculations for tags are simple and performed on render,
-                      efficient for dynamic display of README characteristics without memoization overhead. */}
                   <span className="tag">{readme.length} CHARS</span>
                   <span className="tag">{(readme.match(/\n/g)||[]).length} LINES</span>
                   <span className="tag">{(readme.match(/^#{1,6}\s/gm)||[]).length} SECTIONS</span>
