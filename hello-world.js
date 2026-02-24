@@ -1,4 +1,5 @@
 from typing import Optional, Any, Dict, List, Callable, Protocol, TypeVar, Type, Union, Literal
+import re
 
 # Define Callable types for the functions referenced in ManifestPluginOptions
 # Filter is a function that takes a ManifestItem and returns a boolean
@@ -21,6 +22,30 @@ class Serialize(Protocol):
 class ProgressHandlerFunction(Protocol):
     def __call__(self, percentage: float, message: str, *args: str) -> None:
         ...
+
+# --- NEW PROTOCOLS for SourceMapDevToolPluginOptions ---
+# Condition used to match resource (string, RegExp or Function).
+class MatcherFn(Protocol):
+    # Assumed signature based on typical webpack matcher functions (e.g., resource string -> boolean match)
+    def __call__(self, resource: str) -> bool:
+        ...
+
+# Function to create Templated Paths
+class TemplatePathFn(Protocol):
+    # Assumed signature based on TemplatedPathPlugin usage (e.g., pathData.url)
+    def __call__(self, path_data: Dict[str, Any]) -> str:
+        ...
+
+# Function to create Module Filename Templates
+class ModuleFilenameTemplateFunction(Protocol):
+    # Assumed signature based on ModuleFilenameHelpers (e.g., module info dict -> string identifier)
+    def __call__(self, info: Dict[str, Any]) -> str:
+        ...
+
+# --- NEW TYPES for SourceMapDevToolPluginOptions ---
+Rule = Union[re.Pattern, str, MatcherFn]
+Rules = Union[List[Rule], Rule]
+
 
 T = TypeVar('T')
 
@@ -148,15 +173,15 @@ class ManifestObject(ExtensibleModel):
     entrypoints: Dict[str, ManifestEntrypoint]
 
     def __init__(self, assets: Optional[Dict[str, Union[ManifestItem, Dict[str, Any]]]] = None, entrypoints: Optional[Dict[str, Union[ManifestEntrypoint, Dict[str, Any]]]] = None, **kwargs: Any):
-        super().__init__(**kwargs) # Handles arbitrary extra properties
-        
+        super().__init__(**kwargs)
+
         self.assets = {}
         if assets is not None:
             for k, v in assets.items():
                 if isinstance(v, dict):
                     self.assets[k] = ManifestItem(**v)
                 else:
-                    self.assets[k] = v # Assume it's already a ManifestItem
+                    self.assets[k] = v
 
         self.entrypoints = {}
         if entrypoints is not None:
@@ -164,7 +189,7 @@ class ManifestObject(ExtensibleModel):
                 if isinstance(v, dict):
                     self.entrypoints[k] = ManifestEntrypoint(**v)
                 else:
-                    self.entrypoints[k] = v # Assume it's already a ManifestEntrypoint
+                    self.entrypoints[k] = v
 
 
 @_add_interface_methods
@@ -202,17 +227,12 @@ def create_manifest_plugin_options(**kwargs: Any) -> ManifestPluginOptions:
     It takes all desired options as keyword arguments and correctly
     distributes them to the ManifestPluginOptions constructor.
     """
-    # Initialize known arguments dictionary
     known_args: Dict[str, Any] = {}
 
-    # Iterate through the expected attributes of ManifestPluginOptions to extract them from kwargs.
-    # This also handles cases where the value might be a callable (for filter, generate, serialize).
     for prop_name in ManifestPluginOptions.__annotations__.keys():
         if prop_name in kwargs:
             known_args[prop_name] = kwargs.pop(prop_name)
 
-    # If any unexpected keyword arguments remain, raise a TypeError.
-    # ManifestPluginOptions does not have an index signature like `[k: string]: any;` in TypeScript.
     if kwargs:
         raise TypeError(f"ManifestPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
 
@@ -272,3 +292,78 @@ def create_progress_plugin_options(**kwargs: Any) -> ProgressPluginOptions:
         raise TypeError(f"ProgressPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
 
     return ProgressPluginOptions(**known_args)
+
+@_add_interface_methods
+class SourceMapDevToolPluginOptions:
+    """
+    Options for SourceMapDevToolPlugin.
+    """
+    append: Optional[Union[Literal[False, None], str, TemplatePathFn]]
+    columns: Optional[bool]
+    debugIds: Optional[bool]
+    exclude: Optional[Rules]
+    fallbackModuleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]]
+    fileContext: Optional[str]
+    filename: Optional[Union[Literal[False, None], str]]
+    ignoreList: Optional[Rules]
+    include: Optional[Rules]
+    module: Optional[bool]
+    moduleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]]
+    namespace: Optional[str]
+    noSources: Optional[bool]
+    publicPath: Optional[str]
+    sourceRoot: Optional[str]
+    test: Optional[Rules]
+
+    def __init__(
+        self,
+        append: Optional[Union[Literal[False, None], str, TemplatePathFn]] = None,
+        columns: Optional[bool] = None,
+        debugIds: Optional[bool] = None,
+        exclude: Optional[Rules] = None,
+        fallbackModuleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]] = None,
+        fileContext: Optional[str] = None,
+        filename: Optional[Union[Literal[False, None], str]] = None,
+        ignoreList: Optional[Rules] = None,
+        include: Optional[Rules] = None,
+        module: Optional[bool] = None,
+        moduleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]] = None,
+        namespace: Optional[str] = None,
+        noSources: Optional[bool] = None,
+        publicPath: Optional[str] = None,
+        sourceRoot: Optional[str] = None,
+        test: Optional[Rules] = None,
+    ):
+        self.append = append
+        self.columns = columns
+        self.debugIds = debugIds
+        self.exclude = exclude
+        self.fallbackModuleFilenameTemplate = fallbackModuleFilenameTemplate
+        self.fileContext = fileContext
+        self.filename = filename
+        self.ignoreList = ignoreList
+        self.include = include
+        self.module = module
+        self.moduleFilenameTemplate = moduleFilenameTemplate
+        self.namespace = namespace
+        self.noSources = noSources
+        self.publicPath = publicPath
+        self.sourceRoot = sourceRoot
+        self.test = test
+
+
+def create_source_map_dev_tool_plugin_options(**kwargs: Any) -> SourceMapDevToolPluginOptions:
+    """
+    A factory function to create instances of SourceMapDevToolPluginOptions.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the SourceMapDevToolPluginOptions constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in SourceMapDevToolPluginOptions.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+
+    if kwargs:
+        raise TypeError(f"SourceMapDevToolPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
+
+    return SourceMapDevToolPluginOptions(**known_args)
