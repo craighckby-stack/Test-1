@@ -689,7 +689,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 {`# NEXUS AGI SAFETY SYSTEM
 # purpose = "Artificial General Intelligence"
 # 
-# from origin import InfiniteLoop, ReverseEngineer
+# from origin import Purpose, InfiniteLoop, ReverseEngineer
 # 
 # STATUS: Awaiting README fetch and Gemini build sequence...
 #
