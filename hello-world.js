@@ -436,8 +436,8 @@ export default function NexusAGIBuilder() {
 
       const res = await fetch(url, { headers });
 
+      // Early exit for error conditions to prevent further processing, improving robustness.
       if (!res.ok) {
-        // Early exit for error conditions to prevent further processing, improving robustness.
         throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
       }
 
@@ -504,8 +504,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
         })
       });
 
+      // Early exit for API errors, enhancing error handling.
       if (!res.ok) {
-        // Early exit for API errors, enhancing error handling.
         const err = await res.json();
         throw new Error(err.error?.message || `Gemini API error ${res.status}`);
       }
@@ -513,8 +513,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
+      // Early exit if no valid text response is found, ensuring a clearer error.
       if (!text) {
-        // Early exit if no valid text response is found, ensuring a clearer error.
         throw new Error("No response from Gemini");
       }
 
@@ -630,6 +630,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <div className="readme-box" style={{maxHeight:"150px"}}>
                   {buildLog.length === 0 && <span style={{color:"#002211"}}>// awaiting initialization...</span>}
                   {buildLog.map((entry, i) => (
+                    // Using index as key is acceptable here as log entries are append-only and not reordered.
                     <div key={i} style={{color: entry.type === "error" ? "#ff6666" : entry.type === "success" ? "#00ff88" : "#006633"}}>
                       [{entry.timestamp}] {entry.msg}
                     </div>
