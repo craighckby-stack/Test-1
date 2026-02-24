@@ -1,17 +1,113 @@
-*   **Singleton Pattern:**
-    *   The `_run_tasks_with_multiprocessing` function acts as a singular orchestrator for the entire task execution process, ensuring that all plugin options are created, and their associated tasks are submitted and processed. It serves as the single point of control for managing the multiprocessing workflow, similar to how the `setup` function in KNOWLEDGE is the singular point for configuring extensions.
+# Represents the PluginOptions interfaces from TARGET,
+# analogous to AggressiveSplittingPluginOptions in KNOWLEDGE.
+# These are simple data structures for configuration.
 
-*   **Factory Pattern:**
-    *   The `create_occurrence_chunk_ids_plugin_options` and `create_occurrence_module_ids_plugin_options` functions (along with others like `create_container_plugin_options`, `create_profiling_plugin_options`, `create_hashed_module_ids_plugin_options`) are explicit factory functions. They encapsulate the logic for creating instances of `OccurrenceChunkIdsPluginOptions`, `OccurrenceModuleIdsPluginOptions`, and other `PluginOptions` classes, taking keyword arguments and correctly distributing them to the respective constructors. This directly mirrors the concept of creating `Extension` instances.
+class BasePluginOptions:
+    """Base class for all plugin options,
+    analogous to AggressiveSplittingPluginOptions in its role as a configuration type."""
+    pass
 
-*   **Iterator Pattern:**
-    *   The lists `TASKS_CONTAINER_NAMES`, `TASKS_EXPOSES_COUNTS`, `TASKS_PROFILING`, `TASKS_HASHING_ALGO`, `TASKS_HASHING_DIGEST_INFO`, `TASKS_OCCURRENCE_CHUNK_IDS`, and `TASKS_OCCURRENCE_MODULE_IDS` are all iterated over using `for task in ...` loops. These loops enable sequential processing of individual tasks (tuples containing a function and its arguments), demonstrating the Iterator Pattern for traversing collections of callable operations.
+class OccurrenceChunkIdsPluginOptions(BasePluginOptions):
+    """Configuration for Occurrence Chunk IDs Plugin.
+    This class's attributes represent the customizable aspects of the plugin's behavior."""
+    def __init__(self, chunk_setting: int = 1, chunk_strategy: str = "default"):
+        self.chunk_setting = chunk_setting
+        self.chunk_strategy = chunk_strategy
 
-*   **Composite Pattern:**
-    *   The various `TASKS_...` lists (e.g., `TASKS_OCCURRENCE_CHUNK_IDS`, `TASKS_OCCURRENCE_MODULE_IDS`) are collections that combine individual task units (which are tuples `(function, arguments)`) into a larger, unified structure. Each `PluginOptions` object (e.g., `occurrence_options1`) acts as a component, and these components are grouped into lists that are processed uniformly. This represents a composite structure, similar to how the `ext_modules` list composes `Extension` instances.
+class OccurrenceModuleIdsPluginOptions(BasePluginOptions):
+    """Configuration for Occurrence Module IDs Plugin."""
+    def __init__(self, module_option: bool = True):
+        self.module_option = module_option
 
-*   **Command Pattern:**
-    *   The tuples stored in the `TASKS_...` lists, such as `(get_prioritise_initial_setting, (occurrence_options1,))`, explicitly represent commands. Each tuple bundles a function (the operation) and its arguments, allowing the operation to be parameterized and executed later by the `worker` processes. The `task_queue` holds these commands, and `worker` consumes and executes them (`func(*args)`), which is a clear implementation of the Command Pattern.
+# --- Applying Logic from KNOWLEDGE to TARGET patterns ---
 
-*   **Observer Pattern:**
-    *   Not directly applicable. There are no explicit subject-observer relationships for event notifications or state changes.
+# Dependency Injection:
+# PluginOptions objects (e.g., OccurrenceChunkIdsPluginOptions, which serves
+# the same role as AggressiveSplittingPluginOptions from KNOWLEDGE in defining configuration)
+# are created externally and then 'injected' (passed as arguments) into the functions
+# or worker processes that require this configuration to execute their tasks.
+def worker_process(task_function, plugin_options: BasePluginOptions):
+    """A simulated worker process that receives its task and configuration via Dependency Injection."""
+    print(f"Worker executing task '{task_function.__name__}' with options from: {plugin_options.__class__.__name__}")
+    task_function(plugin_options)
+
+def get_prioritise_initial_setting(options: OccurrenceChunkIdsPluginOptions):
+    """A task function that explicitly depends on OccurrenceChunkIdsPluginOptions."""
+    print(f"  - Prioritising initial setting based on: {options.chunk_setting}, strategy: {options.chunk_strategy}")
+
+# Factory Pattern:
+# Functions like `create_occurrence_chunk_ids_plugin_options` are explicit factory methods.
+# They centralize and encapsulate the logic for constructing instances of specific
+# `PluginOptions` classes (like `OccurrenceChunkIdsPluginOptions`). This mirrors the
+# concept of creating complex configuration objects like `AggressiveSplittingPluginOptions`.
+def create_occurrence_chunk_ids_plugin_options(**kwargs) -> OccurrenceChunkIdsPluginOptions:
+    """Factory function for creating OccurrenceChunkIdsPluginOptions instances."""
+    return OccurrenceChunkIdsPluginOptions(
+        chunk_setting=kwargs.get("chunk_setting", 1),
+        chunk_strategy=kwargs.get("chunk_strategy", "default")
+    )
+
+def create_occurrence_module_ids_plugin_options(**kwargs) -> OccurrenceModuleIdsPluginOptions:
+    """Factory function for creating OccurrenceModuleIdsPluginOptions instances."""
+    return OccurrenceModuleIdsPluginOptions(
+        module_option=kwargs.get("module_option", True)
+    )
+
+# Example usage of factories:
+occurrence_options1 = create_occurrence_chunk_ids_plugin_options(chunk_setting=10, chunk_strategy="aggressive")
+occurrence_options2 = create_occurrence_module_ids_plugin_options(module_option=False)
+
+# Composite Pattern:
+# The `TASKS_...` lists (e.g., `TASKS_OCCURRENCE_CHUNK_IDS`) act as composites,
+# combining individual task units (represented as tuples of `(function, PluginOptions)`).
+# Each `PluginOptions` object (like `occurrence_options1`), playing a role analogous
+# to an instance of `AggressiveSplittingPluginOptions`, is a 'leaf' component within
+# this larger, unified task structure.
+TASKS_OCCURRENCE_CHUNK_IDS = [
+    (get_prioritise_initial_setting, occurrence_options1),
+    # More tasks could be added here, each potentially with different PluginOptions instances
+]
+# Example processing of the composite structure:
+# for func, options in TASKS_OCCURRENCE_CHUNK_IDS:
+#     worker_process(func, options)
+
+# Single Responsibility Principle (SRP):
+# Each `PluginOptions` interface or class (e.g., `OccurrenceChunkIdsPluginOptions`)
+# adheres to SRP by having a single, focused responsibility: defining the
+# configuration parameters for a specific plugin or feature.
+# This directly reflects `AggressiveSplittingPluginOptions` from KNOWLEDGE,
+# which is solely responsible for specifying aggressive splitting parameters.
+# Similarly, factory functions adhere to SRP by only handling the creation of a specific type of options object.
+
+# Strategy Pattern:
+# The `PluginOptions` objects (like `occurrence_options1`, analogous to the configuration
+# provided by `AggressiveSplittingPluginOptions`) define parameters that customize the behavior
+# of the 'strategy' functions (e.g., `get_prioritise_initial_setting`).
+# The actual execution logic (the 'strategy') is encapsulated in the function,
+# but its specific behavior is determined by the options object passed to it.
+# The `(function, options)` tuples effectively bundle a strategy with its specific configuration.
+# Example: `get_prioritise_initial_setting` is a strategy; its execution details are guided by `occurrence_options1`.
+
+# Observer Pattern:
+# The TARGET description explicitly states that the Observer Pattern is "Not directly applicable."
+# KNOWLEDGE (the AggressiveSplittingPluginOptions interface) also does not contain
+# any elements or implications of an Observer Pattern.
+# Therefore, no direct application of this pattern is observed or can be derived here.
+
+# Example orchestration mimicking _run_tasks_with_multiprocessing from TARGET:
+# if __name__ == "__main__":
+#     print("--- Demonstrating Pattern Applications ---")
+#
+#     # Factory and SRP (for options creation)
+#     options_chunk_ids = create_occurrence_chunk_ids_plugin_options(chunk_setting=25, chunk_strategy="balanced")
+#     options_module_ids = create_occurrence_module_ids_plugin_options(module_option=True)
+#
+#     # Dependency Injection and Strategy (passing options to tasks)
+#     print("\nExecuting individual tasks (DI & Strategy):")
+#     worker_process(get_prioritise_initial_setting, options_chunk_ids)
+#
+#     # Composite (executing a collection of tasks)
+#     print("\nExecuting composite task list (Composite, DI & Strategy):")
+#     for task_func, task_options in TASKS_OCCURRENCE_CHUNK_IDS:
+#         worker_process(task_func, task_options)
+#     print("--- End of Demonstration ---")
