@@ -56,6 +56,17 @@ def get_output_path(options: 'ProfilingPluginOptions'):
     time.sleep(0.1 * random.random()) # Simulate work
     return options.outputPath if options.outputPath else "events.json" # Simulate default value
 
+def get_hash_algorithm(options: 'HashedModuleIdsPluginOptions'):
+    time.sleep(0.1 * random.random()) # Simulate work
+    return options.hashFunction
+
+def get_hash_digest_info(options: 'HashedModuleIdsPluginOptions'):
+    time.sleep(0.1 * random.random()) # Simulate work
+    # KNOWLEDGE indicates default hashDigest is 'base64', hashDigestLength is 4
+    digest = options.hashDigest if options.hashDigest is not None else "base64"
+    length = options.hashDigestLength if options.hashDigestLength is not None else 4
+    return f"{digest}:{length}"
+
 @_add_interface_methods
 class LibraryCustomUmdCommentObject:
     """
@@ -195,6 +206,27 @@ class ProfilingPluginOptions:
     ):
         self.outputPath = outputPath
 
+@_add_interface_methods
+class HashedModuleIdsPluginOptions:
+    """
+    Options for HashedModuleIdsPlugin.
+    """
+    context: Optional[str]
+    hashDigest: Optional[str]
+    hashDigestLength: Optional[int]
+    hashFunction: Optional[str]
+
+    def __init__(
+        self,
+        context: Optional[str] = None,
+        hashDigest: Optional[str] = "base64",
+        hashDigestLength: Optional[int] = 4,
+        hashFunction: Optional[str] = "md4",
+    ):
+        self.context = context
+        self.hashDigest = hashDigest
+        self.hashDigestLength = hashDigestLength
+        self.hashFunction = hashFunction
 
 def create_library_custom_umd_comment_object(**kwargs: Any) -> LibraryCustomUmdCommentObject:
     """
@@ -295,6 +327,19 @@ def create_profiling_plugin_options(**kwargs: Any) -> ProfilingPluginOptions:
         raise TypeError(f"ProfilingPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
     return ProfilingPluginOptions(**known_args)
 
+def create_hashed_module_ids_plugin_options(**kwargs: Any) -> HashedModuleIdsPluginOptions:
+    """
+    A factory function to create instances of HashedModuleIdsPluginOptions.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the HashedModuleIdsPluginOptions constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in HashedModuleIdsPluginOptions.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"HashedModuleIdsPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
+    return HashedModuleIdsPluginOptions(**known_args)
 
 def target_fail(msg):
     out = sys.stderr.write
@@ -338,6 +383,18 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
     # Example 6: ProfilingPluginOptions with custom path
     profiling_options2 = create_profiling_plugin_options(outputPath="/tmp/my_profile.json")
 
+    # Example 7: HashedModuleIdsPluginOptions with defaults
+    hash_options1 = create_hashed_module_ids_plugin_options()
+    # Example 8: HashedModuleIdsPluginOptions with custom algorithm and digest
+    hash_options2 = create_hashed_module_ids_plugin_options(
+        hashFunction="sha256",
+        hashDigest="hex",
+        hashDigestLength=8,
+        context="/app/src"
+    )
+    # Example 9: HashedModuleIdsPluginOptions with only context
+    hash_options3 = create_hashed_module_ids_plugin_options(context="/project")
+
     TASKS_CONTAINER_NAMES = [
         (get_container_name, (options1,)),
         (get_container_name, (options2,)),
@@ -361,6 +418,20 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
         (get_output_path, (profiling_options2,)),
         (get_output_path, (create_profiling_plugin_options(outputPath="another_path.json"),)), # Create on the fly
         (get_output_path, (profiling_options1,)), # Re-use
+    ]
+
+    TASKS_HASHING_ALGO = [
+        (get_hash_algorithm, (hash_options1,)),
+        (get_hash_algorithm, (hash_options2,)),
+        (get_hash_algorithm, (hash_options3,)),
+        (get_hash_algorithm, (create_hashed_module_ids_plugin_options(hashFunction="sha512"),)), # On-the-fly
+    ]
+
+    TASKS_HASHING_DIGEST_INFO = [
+        (get_hash_digest_info, (hash_options1,)),
+        (get_hash_digest_info, (hash_options2,)),
+        (get_hash_digest_info, (hash_options3,)),
+        (get_hash_digest_info, (create_hashed_module_ids_plugin_options(hashDigest="base64url", hashDigestLength=6),)),
     ]
 
     # Create queues
@@ -411,6 +482,36 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
     if noisy:
         print('Unordered results for profiling output paths:')
     for i in range(len(TASKS_PROFILING)):
+        if noisy:
+            print('\t', done_queue.get())
+        else:
+            done_queue.get() # still consume from queue even if quiet
+
+    # Add tasks for hashing algorithms
+    if noisy:
+        print('\nSubmitting tasks for hashing algorithms...')
+    for task in TASKS_HASHING_ALGO:
+        task_queue.put(task)
+
+    # Get and print results for hashing algorithms
+    if noisy:
+        print('Unordered results for hashing algorithms:')
+    for i in range(len(TASKS_HASHING_ALGO)):
+        if noisy:
+            print('\t', done_queue.get())
+        else:
+            done_queue.get() # still consume from queue even if quiet
+
+    # Add tasks for hashing digest info
+    if noisy:
+        print('\nSubmitting tasks for hashing digest info...')
+    for task in TASKS_HASHING_DIGEST_INFO:
+        task_queue.put(task)
+
+    # Get and print results for hashing digest info
+    if noisy:
+        print('Unordered results for hashing digest info:')
+    for i in range(len(TASKS_HASHING_DIGEST_INFO)):
         if noisy:
             print('\t', done_queue.get())
         else:
