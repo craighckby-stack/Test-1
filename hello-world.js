@@ -1,29 +1,216 @@
+from typing import Any, Dict, List, Optional, Union
+
+# Assuming this decorator is provided by the environment
+# @_add_interface_methods
+
 @_add_interface_methods
-class WatchIgnorePluginOptions:
+class LibraryCustomUmdCommentObject:
     """
-    Options for WatchIgnorePlugin.
+    Set explicit comments for `amd`, `commonjs`, `commonjs2`, and `root`.
     """
-    paths: List[Union[re.Pattern, str]]
+    amd: Optional[str]
+    commonjs: Optional[str]
+    commonjs2: Optional[str]
+    root: Optional[str]
 
     def __init__(
         self,
-        paths: List[Union[re.Pattern, str]],
+        amd: Optional[str] = None,
+        commonjs: Optional[str] = None,
+        commonjs2: Optional[str] = None,
+        root: Optional[str] = None,
     ):
-        self.paths = paths
+        self.amd = amd
+        self.commonjs = commonjs
+        self.commonjs2 = commonjs2
+        self.root = root
 
 
-def create_watch_ignore_plugin_options(**kwargs: Any) -> WatchIgnorePluginOptions:
+@_add_interface_methods
+class LibraryCustomUmdObject:
     """
-    A factory function to create instances of WatchIgnorePluginOptions.
+    Description object for all UMD variants of the library name.
+    """
+    amd: Optional[str]
+    commonjs: Optional[str]
+    root: Optional[Union[List[str], str]]
+
+    def __init__(
+        self,
+        amd: Optional[str] = None,
+        commonjs: Optional[str] = None,
+        root: Optional[Union[List[str], str]] = None,
+    ):
+        self.amd = amd
+        self.commonjs = commonjs
+        self.root = root
+
+
+@_add_interface_methods
+class ExposesConfig:
+    """
+    Advanced configuration for modules that should be exposed by this container.
+    """
+    _import: Union[str, List[str]]
+    name: Optional[str]
+
+    def __init__(
+        self,
+        _import: Union[str, List[str]],
+        name: Optional[str] = None,
+    ):
+        self._import = _import
+        self.name = name
+
+
+@_add_interface_methods
+class ExposesObject(Dict[str, Union[ExposesConfig, str, List[str]]]):
+    """
+    Modules that should be exposed by this container. Property names are used as public paths.
+    """
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+
+
+@_add_interface_methods
+class LibraryOptions:
+    """
+    Options for library.
+    """
+    amd_container: Optional[str]
+    auxiliary_comment: Optional[Union[str, LibraryCustomUmdCommentObject]]
+    _export: Optional[Union[List[str], str]]
+    name: Optional[Union[List[str], str, LibraryCustomUmdObject]]
+    _type: str
+    umd_named_define: Optional[bool]
+
+    def __init__(
+        self,
+        _type: str,
+        amd_container: Optional[str] = None,
+        auxiliary_comment: Optional[Union[str, LibraryCustomUmdCommentObject]] = None,
+        _export: Optional[Union[List[str], str]] = None,
+        name: Optional[Union[List[str], str, LibraryCustomUmdObject]] = None,
+        umd_named_define: Optional[bool] = None,
+    ):
+        self.amd_container = amd_container
+        self.auxiliary_comment = auxiliary_comment
+        self._export = _export
+        self.name = name
+        self._type = _type
+        self.umd_named_define = umd_named_define
+
+
+@_add_interface_methods
+class ContainerPluginOptions:
+    """
+    Options for ContainerPlugin.
+    """
+    exposes: Union[List[Union[str, ExposesObject]], ExposesObject]
+    name: str
+    filename: Optional[str]
+    library: Optional[LibraryOptions]
+    runtime: Optional[Union[bool, str]]
+    share_scope: Optional[str]
+
+    def __init__(
+        self,
+        exposes: Union[List[Union[str, ExposesObject]], ExposesObject],
+        name: str,
+        filename: Optional[str] = None,
+        library: Optional[LibraryOptions] = None,
+        runtime: Optional[Union[bool, str]] = None,
+        share_scope: Optional[str] = None,
+    ):
+        self.exposes = exposes
+        self.name = name
+        self.filename = filename
+        self.library = library
+        self.runtime = runtime
+        self.share_scope = share_scope
+
+
+def create_library_custom_umd_comment_object(**kwargs: Any) -> LibraryCustomUmdCommentObject:
+    """
+    A factory function to create instances of LibraryCustomUmdCommentObject.
     It takes all desired options as keyword arguments and correctly
-    distributes them to the WatchIgnorePluginOptions constructor.
+    distributes them to the LibraryCustomUmdCommentObject constructor.
     """
     known_args: Dict[str, Any] = {}
-    for prop_name in WatchIgnorePluginOptions.__annotations__.keys():
+    for prop_name in LibraryCustomUmdCommentObject.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"LibraryCustomUmdCommentObject got unexpected arguments: {', '.join(kwargs.keys())}")
+    return LibraryCustomUmdCommentObject(**known_args)
+
+
+def create_library_custom_umd_object(**kwargs: Any) -> LibraryCustomUmdObject:
+    """
+    A factory function to create instances of LibraryCustomUmdObject.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the LibraryCustomUmdObject constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in LibraryCustomUmdObject.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"LibraryCustomUmdObject got unexpected arguments: {', '.join(kwargs.keys())}")
+    return LibraryCustomUmdObject(**known_args)
+
+
+def create_exposes_config(**kwargs: Any) -> ExposesConfig:
+    """
+    A factory function to create instances of ExposesConfig.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the ExposesConfig constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in ExposesConfig.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"ExposesConfig got unexpected arguments: {', '.join(kwargs.keys())}")
+    return ExposesConfig(**known_args)
+
+
+def create_exposes_object(**kwargs: Any) -> ExposesObject:
+    """
+    A factory function to create instances of ExposesObject.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the ExposesObject constructor.
+    """
+    return ExposesObject(**kwargs)
+
+
+def create_library_options(**kwargs: Any) -> LibraryOptions:
+    """
+    A factory function to create instances of LibraryOptions.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the LibraryOptions constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in LibraryOptions.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"LibraryOptions got unexpected arguments: {', '.join(kwargs.keys())}")
+    return LibraryOptions(**known_args)
+
+
+def create_container_plugin_options(**kwargs: Any) -> ContainerPluginOptions:
+    """
+    A factory function to create instances of ContainerPluginOptions.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the ContainerPluginOptions constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in ContainerPluginOptions.__annotations__.keys():
         if prop_name in kwargs:
             known_args[prop_name] = kwargs.pop(prop_name)
 
     if kwargs:
-        raise TypeError(f"WatchIgnorePluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
+        raise TypeError(f"ContainerPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
 
-    return WatchIgnorePluginOptions(**known_args)
+    return ContainerPluginOptions(**known_args)
