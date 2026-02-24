@@ -59,3 +59,47 @@ class FFILenientSized(Sized):
             return ctypes_ffi_lib.get_data_size()
         else:
             return 0
+
+# --- Applying logic from KNOWLEDGE here ---
+
+def _math_add(a: int, b: int) -> int:
+    """A simple addition function, analogous to KNOWLEDGE's 'add'."""
+    return a + b
+
+def _get_ffi_base_value_and_apply_offset(offset: int) -> int:
+    """
+    Fetches a base value from FFI (or mock) and applies an offset using _math_add.
+    This represents the 'template method' concept from the KNOWLEDGE pattern,
+    where the base value comes from FFI and _math_add is the 'strategy'.
+    """
+    base_val = 0
+    if ctypes_ffi_lib:
+        base_val = ctypes_ffi_lib.get_data_size()
+    return _math_add(base_val, offset)
+
+def get_ffi_size_incremented_by_one() -> int:
+    """
+    Corresponds to KNOWLEDGE's 'increment'.
+    Returns the FFI data size incremented by 1.
+    """
+    return _get_ffi_base_value_and_apply_offset(1)
+
+def get_ffi_size_incremented_by_two() -> int:
+    """
+    Corresponds to KNOWLEDGE's 'incrementBy2'.
+    Returns the FFI data size incremented by 2.
+    """
+    return _get_ffi_base_value_and_apply_offset(2)
+
+def get_ffi_size_decremented_incorrectly() -> int:
+    """
+    Corresponds to KNOWLEDGE's 'decrement', demonstrating its incorrect logic.
+    It "decrements" by adding 1, mirroring the bug in KNOWLEDGE's 'decrement'.
+    """
+    return _get_ffi_base_value_and_apply_offset(1)
+
+def get_ffi_size_decremented_correctly() -> int:
+    """
+    Shows the correct logic for decrementing by 1, contrasting with the KNOWLEDGE's 'decrement' bug.
+    """
+    return _get_ffi_base_value_and_apply_offset(-1)
