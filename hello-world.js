@@ -449,8 +449,8 @@ export default function NexusAGIBuilder() {
       setReadme(text);
       setStatus("README LOADED");
       log(`README fetched: ${text.length} characters`, "success");
-      // Memoizing the regex for efficiency if used repeatedly in a hot path, though here it's fine.
-      // For one-off use in a callback, direct usage is clear and efficient enough.
+      // For one-off use in a callback, direct usage is clear and efficient enough;
+      // memoizing the regex object itself isn't a significant optimization here.
       log(`Detected ${(text.match(/^#{1,6}\s/gm) || []).length} sections`, "info");
     } catch (err) {
       setStatus("FETCH ERROR");
