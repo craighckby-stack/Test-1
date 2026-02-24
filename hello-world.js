@@ -1,7 +1,8 @@
 from typing import Optional, Any, Dict, List, Callable, Protocol, TypeVar, Type, Union, Literal
 import re
 
-# Define Callable types for the functions referenced in ManifestPluginOptions
+# Architectural Pattern: Command Pattern (via Protocol Interfaces)
+# These protocols define the "command" interfaces that can be implemented by functions.
 # Filter is a function that takes a ManifestItem and returns a boolean
 class Filter(Protocol):
     def __call__(self, item: "ManifestItem") -> bool:
@@ -49,6 +50,9 @@ Rules = Union[List[Rule], Rule]
 
 T = TypeVar('T')
 
+# Architectural Pattern: Decorator Pattern (and Adapter Pattern)
+# This class decorator modifies target classes by adding 'to_dict' and '__repr__' methods.
+# It "adapts" the class to a common interface for serialization and representation.
 def _add_interface_methods(cls: Type[T]) -> Type[T]:
     """
     A class decorator to automatically add `to_dict` and `__repr__` methods
@@ -100,6 +104,9 @@ def _add_interface_methods(cls: Type[T]) -> Type[T]:
     cls.__repr__ = repr_method
     return cls
 
+# Architectural Pattern: Extensible Object Pattern (Open/Closed Principle)
+# This base class allows objects to have arbitrary additional properties,
+# making them extensible without modifying their core definition.
 class ExtensibleModel:
     """
     A base class for models that can have arbitrary additional properties,
@@ -139,6 +146,8 @@ class ExtensibleModel:
 
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO)
+# This class primarily holds data and has minimal behavior, serving as a DTO.
 class ManifestItem:
     """
     Describes a manifest asset that links the emitted path to the producing asset.
@@ -152,6 +161,8 @@ class ManifestItem:
 
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO)
+# This class primarily holds data and has minimal behavior, serving as a DTO.
 class ManifestEntrypoint:
     """
     Describes a manifest entrypoint.
@@ -165,6 +176,9 @@ class ManifestEntrypoint:
 
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO), Extensible Object, Composition
+# This DTO uses Composition to hold ManifestItem and ManifestEntrypoint objects.
+# It also extends ExtensibleModel, making it an Extensible Object.
 class ManifestObject(ExtensibleModel):
     """
     The manifest object.
@@ -172,6 +186,8 @@ class ManifestObject(ExtensibleModel):
     assets: Dict[str, ManifestItem]
     entrypoints: Dict[str, ManifestEntrypoint]
 
+    # Architectural Pattern: Factory Pattern
+    # The constructor acts as a factory, converting dictionaries into ManifestItem/ManifestEntrypoint objects.
     def __init__(self, assets: Optional[Dict[str, Union[ManifestItem, Dict[str, Any]]]] = None, entrypoints: Optional[Dict[str, Union[ManifestEntrypoint, Dict[str, Any]]]] = None, **kwargs: Any):
         super().__init__(**kwargs)
 
@@ -193,16 +209,17 @@ class ManifestObject(ExtensibleModel):
 
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO)
 class ManifestPluginOptions:
     """
     Represents the ManifestPluginOptions interface from TypeScript.
     """
     entrypoints: Optional[bool]
     filename: Optional[str]
-    filter: Optional[Filter]
-    generate: Optional[Generate]
+    filter: Optional[Filter] # Command Interface
+    generate: Optional[Generate] # Command Interface
     prefix: Optional[str]
-    serialize: Optional[Serialize]
+    serialize: Optional[Serialize] # Command Interface
 
     def __init__(
         self,
@@ -221,6 +238,8 @@ class ManifestPluginOptions:
         self.serialize = serialize
 
 
+# Architectural Pattern: Factory Pattern
+# This factory function encapsulates the creation logic for ManifestPluginOptions.
 def create_manifest_plugin_options(**kwargs: Any) -> ManifestPluginOptions:
     """
     A factory function to create instances of ManifestPluginOptions.
@@ -239,6 +258,7 @@ def create_manifest_plugin_options(**kwargs: Any) -> ManifestPluginOptions:
     return ManifestPluginOptions(**known_args)
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO)
 class ProgressPluginOptions:
     """
     Options object for the ProgressPlugin.
@@ -247,7 +267,7 @@ class ProgressPluginOptions:
     dependencies: Optional[bool]
     dependenciesCount: Optional[int]
     entries: Optional[bool]
-    handler: Optional[ProgressHandlerFunction]
+    handler: Optional[ProgressHandlerFunction] # Command Interface
     modules: Optional[bool]
     modulesCount: Optional[int]
     percentBy: Optional[Literal["entries", "modules", "dependencies"]]
@@ -277,6 +297,8 @@ class ProgressPluginOptions:
 
 ProgressPluginArgument = Union[ProgressPluginOptions, ProgressHandlerFunction]
 
+# Architectural Pattern: Factory Pattern
+# This factory function encapsulates the creation logic for ProgressPluginOptions.
 def create_progress_plugin_options(**kwargs: Any) -> ProgressPluginOptions:
     """
     A factory function to create instances of ProgressPluginOptions.
@@ -294,26 +316,27 @@ def create_progress_plugin_options(**kwargs: Any) -> ProgressPluginOptions:
     return ProgressPluginOptions(**known_args)
 
 @_add_interface_methods
+# Architectural Pattern: Data Transfer Object (DTO)
 class SourceMapDevToolPluginOptions:
     """
     Options for SourceMapDevToolPlugin.
     """
-    append: Optional[Union[Literal[False, None], str, TemplatePathFn]]
+    append: Optional[Union[Literal[False, None], str, TemplatePathFn]] # Command Interface
     columns: Optional[bool]
     debugIds: Optional[bool]
-    exclude: Optional[Rules]
-    fallbackModuleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]]
+    exclude: Optional[Rules] # Contains MatcherFn (Command Interface)
+    fallbackModuleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]] # Command Interface
     fileContext: Optional[str]
     filename: Optional[Union[Literal[False, None], str]]
-    ignoreList: Optional[Rules]
-    include: Optional[Rules]
+    ignoreList: Optional[Rules] # Contains MatcherFn (Command Interface)
+    include: Optional[Rules] # Contains MatcherFn (Command Interface)
     module: Optional[bool]
-    moduleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]]
+    moduleFilenameTemplate: Optional[Union[str, ModuleFilenameTemplateFunction]] # Command Interface
     namespace: Optional[str]
     noSources: Optional[bool]
     publicPath: Optional[str]
     sourceRoot: Optional[str]
-    test: Optional[Rules]
+    test: Optional[Rules] # Contains MatcherFn (Command Interface)
 
     def __init__(
         self,
@@ -352,6 +375,8 @@ class SourceMapDevToolPluginOptions:
         self.test = test
 
 
+# Architectural Pattern: Factory Pattern
+# This factory function encapsulates the creation logic for SourceMapDevToolPluginOptions.
 def create_source_map_dev_tool_plugin_options(**kwargs: Any) -> SourceMapDevToolPluginOptions:
     """
     A factory function to create instances of SourceMapDevToolPluginOptions.
