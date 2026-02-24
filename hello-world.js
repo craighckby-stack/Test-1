@@ -1,9 +1,20 @@
-• Template Method Pattern: The `PydocTopicsBuilder` class inherits from `TextBuilder` and overrides its lifecycle methods (`init`, `get_outdated_docs`, `write_documents`, `finish`) to implement the specific steps for building pydoc topics, thereby following the overall build algorithm defined by the abstract base `Builder` class.
-• Iterator Pattern: The code utilizes `sphinx.util.display.status_iterator` to wrap an iterable (`doc_labels.items()`) and provide progress feedback, which is a clear application of the Iterator pattern for traversing collections and presenting status. Iterations over `sorted(self.topics)` and `sorted(self.module_docs.items())` also demonstrate the pattern.
-• Strategy Pattern: The `write_documents` method employs `TextTranslator` as a specific strategy for converting a document tree (`doctree`) into a plain text representation. `PydocTopicsBuilder` uses this chosen strategy to process and extract textual content from the resolved doctree.
-• Dependency Inversion Principle: `PydocTopicsBuilder` depends on high-level abstractions like the `Sphinx` application (via the `setup` function) and the `Builder` interface (through its inheritance from `TextBuilder`). It interacts with the `self.env` (environment abstraction) and `TextTranslator` without needing to know their concrete implementations, promoting loose coupling.
-• Factory Pattern: Not explicitly observed as `PydocTopicsBuilder` creating its subclasses. However, the Sphinx application itself acts as a factory, instantiating `PydocTopicsBuilder` based on its registration via `app.add_builder` in the `setup` function when a build is initiated.
-• Observer Pattern: Not explicitly observed within the provided snippet of `PydocTopicsBuilder`. While Sphinx has event mechanisms, this specific builder doesn't showcase an explicit subject-observer relationship.
-• Command Pattern: While the overall Sphinx build process might involve a sequence of commands, `PydocTopicsBuilder` itself acts as a specialized builder (a product of the build system) with its own lifecycle, rather than a standalone command object.
-• Decorator Pattern: Not explicitly observed in the provided code snippet, although Sphinx uses decorators extensively for its internal mechanisms (e.g., registering roles, directives).
-• Template Processor: While Sphinx is broadly a template engine for various outputs (like HTML), this specific builder generates its Python output files (`topics.py`, `module_docs.py`) through direct string formatting rather than relying on a dedicated templating language or engine for its final output structure.
+• Singleton Pattern: Not explicitly used.
+• Factory Pattern: Implicit. The Sphinx application acts as a factory, instantiating PydocTopicsBuilder based on its registration.
+• Adapter Pattern: Not explicitly used.
+• Strategy Pattern: Utilized. The write_documents method employs TextTranslator as a specific strategy for document conversion.
+• Decorator Pattern: Not explicitly used.
+• Observer Pattern: Not explicitly used within this snippet.
+• Proxy Pattern: Not explicitly used.
+• Prototype Pattern: Not explicitly used.
+• Bridge Pattern: Not explicitly used.
+• Flyweight Pattern: Not explicitly used.
+• Composite Pattern: Not explicitly used.
+• Facade Pattern: Not explicitly used within PydocTopicsBuilder itself.
+• Template Method Pattern: Utilized. PydocTopicsBuilder overrides lifecycle methods of TextBuilder to implement specific build steps.
+• Interpreter Pattern: Not explicitly used.
+• Iterator Pattern: Utilized. sphinx.util.display.status_iterator is used for progress feedback over collections.
+• Mediator Pattern: Not explicitly used.
+• Memento Pattern: Not explicitly used.
+• State Pattern: Not explicitly used.
+• Visitor Pattern: Not explicitly used.
+• Chain of Responsibility Pattern: Not explicitly used.
