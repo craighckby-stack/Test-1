@@ -1,20 +1,7 @@
-• Singleton Pattern: Not explicitly used.
-• Factory Pattern: Implicit. The Sphinx application acts as a factory, instantiating PydocTopicsBuilder based on its registration.
-• Adapter Pattern: Not explicitly used.
-• Strategy Pattern: Utilized. The write_documents method employs TextTranslator as a specific strategy for document conversion.
-• Decorator Pattern: Not explicitly used.
-• Observer Pattern: Not explicitly used within this snippet.
-• Proxy Pattern: Not explicitly used.
-• Prototype Pattern: Not explicitly used.
-• Bridge Pattern: Not explicitly used.
-• Flyweight Pattern: Not explicitly used.
-• Composite Pattern: Not explicitly used.
-• Facade Pattern: Not explicitly used within PydocTopicsBuilder itself.
-• Template Method Pattern: Utilized. PydocTopicsBuilder overrides lifecycle methods of TextBuilder to implement specific build steps.
-• Interpreter Pattern: Not explicitly used.
-• Iterator Pattern: Utilized. sphinx.util.display.status_iterator is used for progress feedback over collections.
-• Mediator Pattern: Not explicitly used.
-• Memento Pattern: Not explicitly used.
-• State Pattern: Not explicitly used.
-• Visitor Pattern: Not explicitly used.
-• Chain of Responsibility Pattern: Not explicitly used.
+Here are the architectural patterns extracted from the code:
+
+* **Model-View-Controller (MVC)**: The `doFilter` function acts as the controller, handling user input and updating the DOM (view), while the HTML elements (DOM) act as the view and implicitly hold the data (model).
+* **Event-Driven Programming**: The code uses `addEventListener` to react to user events (keyup, click), executing the `doFilter` function in response.
+* **Observer Pattern**: The `doFilter` function is registered as an observer to the search input and submit button elements, which act as subjects, notifying the observer when relevant events occur.
+* **Iterator Pattern**: The code iterates over collections of DOM elements (e.g., `h2s`, `h3s`, `lis`) using `for...of` loops to process each element sequentially.
+* **Strategy Pattern**: The filtering logic is encapsulated within a `RegExp` object, allowing the specific search strategy (e.g., case-insensitive regex) to be defined and applied, which could be swapped for a different matching algorithm if needed.
