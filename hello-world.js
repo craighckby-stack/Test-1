@@ -29,6 +29,37 @@ def get_prioritise_initial_setting(options: 'OccurrenceChunkIdsPluginOptions'):
     time.sleep(0.05 * random.random()) # Simulate work
     return options.prioritiseInitial if options.prioritiseInitial is not None else False # Default to False
 
+@_add_interface_methods
+class OccurrenceModuleIdsPluginOptions:
+    """
+    Options for OccurrenceModuleIdsPlugin.
+    """
+    prioritiseInitial: Optional[bool]
+
+    def __init__(
+        self,
+        prioritiseInitial: Optional[bool] = None,
+    ):
+        self.prioritiseInitial = prioritiseInitial
+
+def create_occurrence_module_ids_plugin_options(**kwargs: Any) -> OccurrenceModuleIdsPluginOptions:
+    """
+    A factory function to create instances of OccurrenceModuleIdsPluginOptions.
+    It takes all desired options as keyword arguments and correctly
+    distributes them to the OccurrenceModuleIdsPluginOptions constructor.
+    """
+    known_args: Dict[str, Any] = {}
+    for prop_name in OccurrenceModuleIdsPluginOptions.__annotations__.keys():
+        if prop_name in kwargs:
+            known_args[prop_name] = kwargs.pop(prop_name)
+    if kwargs:
+        raise TypeError(f"OccurrenceModuleIdsPluginOptions got unexpected arguments: {', '.join(kwargs.keys())}")
+    return OccurrenceModuleIdsPluginOptions(**known_args)
+
+def get_prioritise_initial_module_setting(options: 'OccurrenceModuleIdsPluginOptions'):
+    time.sleep(0.05 * random.random()) # Simulate work
+    return options.prioritiseInitial if options.prioritiseInitial is not None else False # Default to False
+
 def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
     # Create some example TARGET objects as tasks
     # Example 1: Basic ContainerPluginOptions
@@ -84,6 +115,11 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
     # Example 12: OccurrenceChunkIdsPluginOptions with prioritiseInitial set to False
     occurrence_options3 = create_occurrence_chunk_ids_plugin_options(prioritiseInitial=False)
 
+    # Example for new OccurrenceModuleIdsPluginOptions
+    occurrence_module_options1 = create_occurrence_module_ids_plugin_options() # Default (None)
+    occurrence_module_options2 = create_occurrence_module_ids_plugin_options(prioritiseInitial=True)
+    occurrence_module_options3 = create_occurrence_module_ids_plugin_options(prioritiseInitial=False)
+
 
     TASKS_CONTAINER_NAMES = [
         (get_container_name, (options1,)),
@@ -130,6 +166,14 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
         (get_prioritise_initial_setting, (occurrence_options3,)),
         (get_prioritise_initial_setting, (create_occurrence_chunk_ids_plugin_options(prioritiseInitial=True),)), # On-the-fly
         (get_prioritise_initial_setting, (create_occurrence_chunk_ids_plugin_options(),)), # On-the-fly, default
+    ]
+
+    TASKS_OCCURRENCE_MODULE_IDS = [
+        (get_prioritise_initial_module_setting, (occurrence_module_options1,)),
+        (get_prioritise_initial_module_setting, (occurrence_module_options2,)),
+        (get_prioritise_initial_module_setting, (occurrence_module_options3,)),
+        (get_prioritise_initial_module_setting, (create_occurrence_module_ids_plugin_options(prioritiseInitial=True),)), # On-the-fly
+        (get_prioritise_initial_module_setting, (create_occurrence_module_ids_plugin_options(),)), # On-the-fly, default
     ]
 
     # Create queues
@@ -225,6 +269,21 @@ def _run_tasks_with_multiprocessing(num_processes: int, noisy: bool):
     if noisy:
         print('Unordered results for OccurrenceChunkIdsPlugin options:')
     for i in range(len(TASKS_OCCURRENCE_CHUNK_IDS)):
+        if noisy:
+            print('\t', done_queue.get())
+        else:
+            done_queue.get() # still consume from queue even if quiet
+
+    # Add tasks for OccurrenceModuleIdsPluginOptions
+    if noisy:
+        print('\nSubmitting tasks for OccurrenceModuleIdsPlugin options...')
+    for task in TASKS_OCCURRENCE_MODULE_IDS:
+        task_queue.put(task)
+
+    # Get and print results for OccurrenceModuleIdsPluginOptions
+    if noisy:
+        print('Unordered results for OccurrenceModuleIdsPlugin options:')
+    for i in range(len(TASKS_OCCURRENCE_MODULE_IDS)):
         if noisy:
             print('\t', done_queue.get())
         else:
