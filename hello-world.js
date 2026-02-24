@@ -412,7 +412,9 @@ export default function NexusAGIBuilder() {
 
   // Memoized logging function for the build log.
   const log = useCallback((msg, type = "info") => {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+    // Optimizing timestamp creation to be efficient
+    const timestamp = new Date().toISOString().slice(11, 19); // "HH:mm:ss"
+
     // Using functional update for setBuildLog ensures the latest state is used,
     // even with an empty dependency array for `log`, which optimizes state updates.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
@@ -430,9 +432,11 @@ export default function NexusAGIBuilder() {
 
       // Normalize URL to raw.githubusercontent.com for consistency.
       // This logic is optimized to handle different GitHub URL formats more robustly.
-      const url = readmePath.includes("raw.githubusercontent") ? readmePath
-        : readmePath.replace("github.com", "raw.githubusercontent.com")
-                    .replace("/blob/", "/");
+      // Avoids unnecessary replacements if already a raw URL.
+      let url = readmePath;
+      if (url.includes("github.com") && !url.includes("raw.githubusercontent.com")) {
+        url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
+      }
 
       const res = await fetch(url, { headers });
 
@@ -445,6 +449,8 @@ export default function NexusAGIBuilder() {
       setReadme(text);
       setStatus("README LOADED");
       log(`README fetched: ${text.length} characters`, "success");
+      // Memoizing the regex for efficiency if used repeatedly in a hot path, though here it's fine.
+      // For one-off use in a callback, direct usage is clear and efficient enough.
       log(`Detected ${(text.match(/^#{1,6}\s/gm) || []).length} sections`, "info");
     } catch (err) {
       setStatus("FETCH ERROR");
@@ -460,6 +466,7 @@ export default function NexusAGIBuilder() {
     // Early exit/guard clause for invalid state, improving robustness and preventing unnecessary API calls.
     if (!readme || !geminiKey) {
       log("ERROR: README content and Gemini API key are required", "error");
+      setStatus("BUILD ABORTED"); // Clearer status when aborted
       return;
     }
 
@@ -515,7 +522,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
       // Early exit if no valid text response is found, ensuring a clearer error.
       if (!text) {
-        throw new Error("No response from Gemini");
+        throw new Error("No valid content received from Gemini.");
       }
 
       setOutput(text);
