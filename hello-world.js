@@ -1,7 +1,5 @@
-Module: The provided JavaScript code explicitly uses module.exports = ..., which is the standard mechanism in Node.js for defining and exporting a module. This directly demonstrates the Module pattern, encapsulating the logging functionality within a self-contained unit.
-
-Singleton: When this module is required multiple times in a Node.js application, require() caches the module, ensuring that the exact same function object is returned on subsequent calls. Furthermore, if one considers the return value of the function's execution (console.log(msg) returns undefined), it consistently returns the "same value" (undefined) for each invocation, aligning with the KNOWLEDGE's interpretation of a singleton based on consistent return value.
-
-Factory: Although the function function(msg) { console.log(msg); } itself doesn't create new, complex objects, the module.exports statement can be seen as "factory-like" in that it "produces" or "provides" a ready-to-use function object. In the context of the KNOWLEDGE's phrase "returns the same object", when the module is require()d, it consistently provides the same function object instance, which is then available for use.
-
-Observer: The function function(msg) { console.log(msg); } is a simple, passive function that takes an input (msg) and performs a direct action (logging it). It doesn't initiate complex logic or state changes based on the input, making it suitable to be utilized as an observer callback. If registered with a subject that emits messages, this function would "observe" and log those messages, fitting the passive reaction described in the KNOWLEDGE.
+PATTERN:
+• Factory pattern: Implemented in the `setup()` function, which acts as a Simple Factory to create instances of `BPOIssue` and `GitHubIssue` classes based on the required role.
+• Singleton pattern: Implemented by the instances of `BPOIssue` and `GitHubIssue` classes. Once created and registered via `app.add_role`, these specific instances are reused throughout the Sphinx application for their respective roles, acting as singletons within the role processing context.
+• Strategy pattern: Implemented in `BPOIssue` and `GitHubIssue` classes, where each class encapsulates a different strategy for handling issue references (BPO vs. GitHub), adhering to the common `SphinxRole` interface.
+• Plug-in architecture (extension mechanism): Implemented in the `setup()` function and `app.add_role` calls, enabling dynamic extension of Sphinx functionality by registering new roles.
