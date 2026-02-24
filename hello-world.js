@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 
-// Constants are defined outside the component to prevent re-creation on every render,
-// optimizing memory usage and ensuring consistent references.
 const GITHUB_RAW = "https://raw.githubusercontent.com/craighckby-stack/Test-1/Nexus-Database/README.md"; // Default README path
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const SYSTEM_FILE_COUNT = 2003; // This is a fixed constant, no need for state
 
 // AIM_CONFIG is present in the original code but not used in the component's logic or render.
-// Keeping it as per the original for consistency. As a constant, it doesn't impact performance.
+// Keeping it as per the original for consistency.
 const AIM_CONFIG = {
   "schema_version": "AIM_V2.0",
   "description": "Agent Integrity Monitoring Manifest. Defines mandatory runtime constraints and enforcement scopes, standardized on metric units and grouped policy layers.",
@@ -71,8 +69,6 @@ const AIM_CONFIG = {
   }
 };
 
-// Styles are also a constant, defined once to prevent re-creation and ensure
-// the style tag is only updated if the string content itself changes (which it won't here).
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -390,8 +386,6 @@ const STYLES = `
 `;
 
 export default function NexusAGIBuilder() {
-  // State variables are declared using useState. These manage the mutable data
-  // specific to this component's functionality.
   const [githubToken, setGithubToken] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [readmePath, setReadmePath] = useState(GITHUB_RAW);
@@ -401,22 +395,14 @@ export default function NexusAGIBuilder() {
   const [loading, setLoading] = useState(false);
   const [buildLog, setBuildLog] = useState([]);
 
-  // Derived state: isReadmeLoaded is computed directly from the 'readme' state.
-  // This avoids creating an unnecessary additional state variable and its setter.
-  // It optimizes logic by keeping the state minimal and derived where possible.
+  // Derived state for better readability and to avoid unnecessary state updates
   const isReadmeLoaded = !!readme;
 
-  // useCallback is used to memoize functions that are passed down to child components
-  // or used as event handlers. This prevents unnecessary re-renders of child components
-  // due to function identity changes across renders.
-
-  // Memoized logging function for the build log.
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
-  }, []); // Dependencies array is empty as it only relies on its closure for setBuildLog, which is stable.
+  }, []);
 
-  // Memoized function to fetch the README content.
   const fetchReadme = useCallback(async () => {
     setLoading(true);
     setStatus("FETCHING README");
@@ -427,14 +413,16 @@ export default function NexusAGIBuilder() {
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
       // Normalize URL to raw.githubusercontent.com for consistency
-      // This logic is optimized to handle different GitHub URL formats.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
 
       const res = await fetch(url, { headers });
 
-      if (!res.ok) throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
+      if (!res.ok) {
+        const errorText = await res.text(); // Attempt to read error message from response body
+        throw new Error(`GitHub returned ${res.status}: ${res.statusText} - ${errorText.substring(0, 100)}...`);
+      }
 
       const text = await res.text();
       setReadme(text);
@@ -448,11 +436,9 @@ export default function NexusAGIBuilder() {
     } finally {
       setLoading(false);
     }
-  }, [githubToken, readmePath, log]); // Dependencies ensure the function updates only when these values change.
+  }, [githubToken, readmePath, log]);
 
-  // Memoized function to initiate the Gemini build process.
   const buildFromReadme = useCallback(async () => {
-    // Early exit/guard clause for invalid state, improving robustness.
     if (!readme || !geminiKey) {
       log("ERROR: README content and Gemini API key are required", "error");
       return;
@@ -460,12 +446,10 @@ export default function NexusAGIBuilder() {
 
     setLoading(true);
     setStatus("BUILDING FROM README");
-    setOutput(""); // Clear previous output for a new build.
+    setOutput("");
     log("Initializing Gemini build sequence...");
     log(`Processing ${SYSTEM_FILE_COUNT} file AGI safety system...`);
 
-    // The prompt is constructed dynamically but includes constant values
-    // like SYSTEM_FILE_COUNT, which are efficiently referenced.
     const prompt = `You are an AGI Safety System architect. You have been given a README file from a repository containing ${SYSTEM_FILE_COUNT} files in an AGI safety system called the Nexus Database.
 
 README CONTENT:
@@ -507,7 +491,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!text) throw new Error("No response from Gemini");
+      if (!text) throw new Error("No response from Gemini API or empty content");
 
       setOutput(text);
       setStatus("BUILD COMPLETE");
@@ -520,11 +504,10 @@ Format as a technical document with code blocks. Be specific and detailed.`;
     } finally {
       setLoading(false);
     }
-  }, [readme, geminiKey, log]); // Dependencies ensure the function updates only when these values change. SYSTEM_FILE_COUNT is a constant.
+  }, [readme, geminiKey, log]);
 
   return (
     <>
-      {/* Styles are injected once from the STYLES constant. */}
       <style>{STYLES}</style>
       <div className="nexus">
         <div className="scan-line" />
@@ -536,7 +519,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
         <div className="grid">
 
-          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state */}
+          {/* Stats Row */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
@@ -575,7 +558,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                   value={githubToken}
-                  onChange={e => setGithubToken(e.target.value)} // Direct state updates
+                  onChange={e => setGithubToken(e.target.value)}
                 />
               </div>
 
@@ -586,7 +569,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="AIzaSy..."
                   value={geminiKey}
-                  onChange={e => setGeminiKey(e.target.value)} // Direct state updates
+                  onChange={e => setGeminiKey(e.target.value)}
                 />
               </div>
 
@@ -595,11 +578,10 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <input
                   className="input-field"
                   value={readmePath}
-                  onChange={e => setReadmePath(e.target.value)} // Direct state updates
+                  onChange={e => setReadmePath(e.target.value)}
                 />
               </div>
 
-              {/* Buttons use memoized functions and derived state for disabled prop */}
               <button className="btn" onClick={fetchReadme} disabled={loading}>
                 {loading && status.includes("FETCH") ? "[ FETCHING... ]" : "[ FETCH README ]"}
               </button>
@@ -607,7 +589,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <button
                 className="btn"
                 onClick={buildFromReadme}
-                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded`
+                disabled={loading || !isReadmeLoaded}
               >
                 {loading && status.includes("BUILD") ? "[ BUILDING... ]" : "[ BUILD FROM README ]"}
               </button>
@@ -646,11 +628,9 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <div className="readme-box" style={{maxHeight:"380px"}}>
                 {readme || <span style={{color:"#002211"}}>// README not yet fetched...\n// Click [ FETCH README ] to load</span>}
               </div>
-              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded`
+              {isReadmeLoaded && (
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
-                  {/* These calculations for tags are simple and performed on render,
-                      efficient for dynamic display of README characteristics. */}
                   <span className="tag">{readme.length} CHARS</span>
                   <span className="tag">{(readme.match(/\n/g)||[]).length} LINES</span>
                   <span className="tag">{(readme.match(/^#{1,6}\s/gm)||[]).length} SECTIONS</span>
