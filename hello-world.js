@@ -1,134 +1,63 @@
-import sys
-from abc import ABCMeta, abstractmethod
-try:
-    from ctypes import cdll, c_int, util, c_void_p, c_char_p
-except ImportError:
-    print("ctypes isn't available; FFI system calls will not be available", file=sys.stderr)
-    ctypes_ffi_lib = None
-else:
-    _my_lib_name = "my_data_lib"
-    _lib_path = util.find_library(_my_lib_name)
-    if _lib_path is None:
-        print(f"FFI library '{_my_lib_name}' couldn't be loaded; using mock.", file=sys.stderr)
-        class _MockFFILib:
-            def __init__(self):
-                self.get_data_size.restype = c_int
-                self.get_data_size.argtypes = []
-            def get_data_size(self):
-                return 42
-        ctypes_ffi_lib = _MockFFILib()
-    else:
-        try:
-            ctypes_ffi_lib = cdll.LoadLibrary(_lib_path)
-            ctypes_ffi_lib.get_data_size.restype = c_int
-            ctypes_ffi_lib.get_data_size.argtypes = []
-        except Exception as e:
-            print(f"Failed to load FFI library '{_my_lib_name}': {e}; using mock.", file=sys.stderr)
-            class _MockFFILib:
-                def __init__(self):
-                    self.get_data_size.restype = c_int
-                    self.get_data_size.argtypes = []
-                def get_data_size(self):
-                    return 42
-            ctypes_ffi_lib = _MockFFILib()
-
-
-def _check_methods(C, *methods):
-    return all(any(m in B.__dict__ for B in C.__mro__) for m in methods)
-
-class Sized(metaclass=ABCMeta):
-    __slots__ = ()
-    @abstractmethod
-    def __len__(self):
-        return 0
-    @classmethod
-    def __subclasshook__(cls, C):
-        if cls is Sized:
-            return _check_methods(C, "__len__")
-        return NotImplemented
-
-class FFILenientSized(Sized):
+def add_variadic(*args: int) -> int:
     """
-    A concrete implementation of the Sized ABC that retrieves its length
-    by making a Foreign Function Interface (FFI) call using ctypes.
+    Implements the logic of KNOWLEDGE's 'exports.add' function,
+    which sums an arbitrary number of arguments.
     """
-    def __len__(self):
-        if ctypes_ffi_lib:
-            return ctypes_ffi_lib.get_data_size()
-        else:
-            return 0
+    total_sum = 0
+    for arg in args:
+        total_sum += arg
+    return total_sum
 
-# --- Applying logic from KNOWLEDGE here ---
-
-# KNOWLEDGE's ABCMeta employs a Registry pattern via `_abc_registry`
-# to keep track of virtual subclasses.
-# We apply this logic by creating a similar application-level registry
-# for 'Sized' implementation classes.
-_sized_implementation_registry = {} # Stores named constructors or classes
-
-def register_sized_implementation(name: str, sized_class: type):
+def multiply_variadic_buggy(*args: int) -> int:
     """
-    Registers a Sized implementation class by a given name.
-    Analogous to ABCMeta.register() which adds a subclass to `_abc_registry`.
+    Implements the logic of KNOWLEDGE's 'exports.multiply' function,
+    faithfully replicating its bug.
+    
+    The original JS code initializes `product` to 0, then attempts to use
+    an undeclared variable `sum` for multiplication, finally returning `sum`.
+    
+    For Python, we'll interpret the practical effect:
+    1. If `sum` was intended to be `product`, then `product` starting at 0
+       would make the result always 0.
+    2. If `sum` was a truly independent undeclared variable, it would cause
+       a runtime error (like Python's `NameError`).
+    
+    To "apply logic" including the bug, we'll simulate the "always returns 0"
+    effect if `sum` was a typo for `product` and `product` started at 0.
+    If no arguments are provided, the JS loop doesn't run, and it would
+    try to return an undeclared `sum`. If `sum` was `product`, it would return 0.
     """
-    if not issubclass(sized_class, Sized):
-        raise TypeError(f"Class {sized_class.__name__} must be a subclass of Sized")
-    _sized_implementation_registry[name] = sized_class
-    print(f"Registered Sized implementation: '{name}' -> {sized_class.__name__}")
+    product_accumulator = 0 # Mimics `var product = 0;`
 
-def get_sized_class_factory(name: str):
+    if not args:
+        return product_accumulator # 0, consistent with JS `product=0` if loop doesn't run.
+
+    # For any arguments, `product_accumulator` is 0, so any multiplication
+    # will keep it 0. This simulates the `product *= arg` part if `product`
+    # was initialized to 0.
+    for arg in args:
+        product_accumulator *= arg
+        
+    return product_accumulator
+
+
+def get_ffi_size_plus_arbitrary_values(*extra_values: int) -> int:
     """
-    A simple factory function that returns a registered Sized implementation class.
-    This reflects the spirit of the Factory pattern where a "product" (Sized class)
-    is retrieved by a key, similar to how ABCMeta.register could be seen as a factory
-    for registered subclasses.
+    Combines the FFI data size with additional values using the `add_variadic` logic.
     """
-    sized_class = _sized_implementation_registry.get(name)
-    if sized_class is None:
-        raise ValueError(f"No Sized implementation registered under name: '{name}'")
-    return sized_class # Returning the class itself as a factory callable
+    base_val = 0
+    if ctypes_ffi_lib:
+        base_val = ctypes_ffi_lib.get_data_size()
+    
+    return add_variadic(base_val, *extra_values)
 
-def create_sized_instance(name: str, *args, **kwargs) -> Sized:
+def get_ffi_size_multiplied_by_arbitrary_values_buggy(*multipliers: int) -> int:
     """
-    Creates an instance of a registered Sized implementation.
-    This is a client-facing factory method for object instantiation.
+    Combines the FFI data size with multipliers using the `multiply_variadic_buggy` logic,
+    thus replicating its buggy behavior (always resulting in 0 if any arguments or base_val are given).
     """
-    sized_class = get_sized_class_factory(name)
-    return sized_class(*args, **kwargs)
+    base_val = 0
+    if ctypes_ffi_lib:
+        base_val = ctypes_ffi_lib.get_data_size()
 
-# Demonstrate registration and usage:
-# Register the FFILenientSized class using our custom registry.
-register_sized_implementation("ffi_lenient_sized", FFILenientSized)
-
-# Example of creating an instance using the factory
-if __name__ == '__main__':
-    print("\nDemonstrating Registry and Factory patterns inspired by ABCMeta:")
-
-    # Create an FFILenientSized instance via the factory
-    my_ffi_sized_obj = create_sized_instance("ffi_lenient_sized")
-    print(f"Created instance of FFILenientSized via factory. Length: {len(my_ffi_sized_obj)}")
-
-    # You could register other Sized implementations too
-    class SimpleListSized(Sized):
-        def __init__(self, data):
-            self._data = data
-        def __len__(self):
-            return len(self._data)
-
-    register_sized_implementation("simple_list_sized", SimpleListSized)
-
-    my_list_sized_obj = create_sized_instance("simple_list_sized", [1, 2, 3, 4, 5])
-    print(f"Created instance of SimpleListSized via factory. Length: {len(my_list_sized_obj)}")
-
-    # The ABCMeta._abc_invalidation_counter (part of the Proxy/Builder logic)
-    # is incremented on every call to ABC.register(), affecting caches.
-    # We can observe its change.
-    initial_token = ABCMeta._abc_invalidation_counter
-    print(f"\nInitial ABC invalidation token: {initial_token}")
-
-    # Registering a virtual subclass via Sized.register() will increment this.
-    class MyVirtualSubclass:
-        pass
-
-    Sized.register(MyVirtualSubclass)
-    print(f"ABC invalidation token after Sized.register(MyVirtualSubclass): {ABCMeta._abc_invalidation_counter}")
+    return multiply_variadic_buggy(base_val, *multipliers)
