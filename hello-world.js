@@ -1,7 +1,11 @@
-- **Factory Pattern**: The `select_simulator_device` function acts as a factory to create a simulator device object based on the platform.
-- **Strategy Pattern**: The function `xcode_test` is an example of a strategy, a strategy function that allows different ways of testing or running the code.
-- **Service Pattern**: The functions in the code are services that can be used independently, like the string manipulation service in `LOG_PREFIX_REGEX`.
-- **Repository Pattern**: The function `json.loads` in `select_simulator_device` acts as a data repository.
-- **Dependency Injection**: The function `xcode_test` receives the required components (in this case, `location`, `platform`, `simulator`, and `verbose`) as arguments, enabling dependency injection.
-- **Observer Pattern**: The subprocess calls in the `xcode_test` function, such as `subprocess.run`, can be seen as a form of event observer.
-- **Command Pattern**: The `main` function dispatches actions (`clone_testbed` and `run_testbed`) based on parsed subcommands, treating each action as a distinct command to be executed.
+• Singleton pattern (no explicit singleton in the provided code, but an `App` instance is typically treated as a single global instance in an application)
+• Factory pattern (createServer, app.getInstallationOctokit)
+• Mocking (nock, MockDate)
+• Dependency injection (App constructor)
+• Strategy pattern (Octokit.defaults, app.webhooks.on)
+• Template method pattern (App class using internal methods for JWT, installation token, webhooks)
+• Factory method pattern (createNodeMiddleware)
+• Command pattern (app.webhooks.on listeners can be seen as commands executed upon an event)
+• Observer pattern (app.webhooks.on)
+• Mediator pattern (through the App class, mediating between webhooks, installations, and Octokit instances)
+• Dependency inversion principle (DIP) (The `App` class depends on abstractions like `Octokit` which can be provided, rather than concrete implementations)
