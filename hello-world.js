@@ -1,10 +1,17 @@
-• Black Box Pattern: The `spam_system` function encapsulates the `system()` call from `stdlib.h`, providing a clear input/output interface (string command, integer status) without exposing its internal workings to Python callers.
-• Layered Architecture:
-  - Business Logic Layer: The `spam_system` function implements the core functionality (executing a shell command).
-  - Integration Layer: The `spam_methods` and `spam_slots` arrays define the interface that allows the Python interpreter to interact with the C-implemented business logic.
-• Service-Oriented Architecture (SOA): The `spam.system` function provides a distinct, reusable service (executing shell commands) that can be consumed by Python applications.
-• API Design Pattern: The `spam_methods` array explicitly defines the Application Programming Interface (API) for the `spam` module, specifying the name, method pointer, flags, and documentation for the `system` function.
-• Registry Pattern: The `spam_slots` array acts as a registry for the `spam` module's metadata (name, docstring) and its defined methods (`spam_methods`), which the Python interpreter uses to register and load the module.
-• Dependency Inversion Principle (DIP): The `spam_system` function depends on the `system()` abstraction provided by the C standard library (`stdlib.h`), and the entire module structure depends on the Python C API (`Python.h`), rather than directly implementing these low-level details.
-• Module Architecture: The provided code defines a complete, self-contained Python extension module named `spam`, encapsulating its functionality (`spam_system`) and its public interface (`spam_methods`, `spam_slots`).
-• Plugin Architecture: The `PyMODEXPORT_FUNC PyModExport_spam` function serves as the export hook, making the `spam` module discoverable and loadable by the Python interpreter as a dynamic plugin that extends Python's native capabilities.
+* Composite Pattern:
+    - BannerPluginArgument can be a string, BannerPluginOptions, or BannerFunction, which are different ways to define the banner content.
+    - Rules can be an array of Rule or a single Rule, allowing for a tree-like structure of filtering conditions.
+* Strategy Pattern:
+    - `banner` in `BannerPluginOptions` can be either a `string` or a `BannerFunction`, allowing the user to choose different strategies for defining the banner's content.
+* Decorator Pattern:
+    - The `raw` option in `BannerPluginOptions` acts as a decorator, modifying the default behavior of the banner by preventing it from being wrapped in a comment.
+* Template Method Pattern:
+    - The `BannerPlugin` (not fully shown, but implied by `BannerPluginArgument` and `BannerPluginOptions`) likely defines a template for how banners are applied, with `banner` (string or function), `include`, `exclude`, `footer`, `entryOnly`, `raw`, and `stage` being customizable steps or parameters within that template.
+* Builder Pattern:
+    - `BannerPluginOptions` provides a clear structure for building a complex banner configuration step-by-step through its various properties (`banner`, `entryOnly`, `exclude`, etc.), rather than through a long constructor.
+* Chain of Responsibility Pattern:
+    - The `include`, `exclude`, and `test` options in `BannerPluginOptions` (which use `Rules`) can be seen as defining a chain of conditions that a module must pass or fail for the banner to be applied. Each rule in `Rules` could potentially be a "handler" in the chain.
+* Proxy Pattern:
+    - `BannerFunction` acts as a proxy for the actual banner content, allowing for dynamic generation or deferred execution of the banner content at the time of application.
+* Facade Pattern:
+    - The `BannerPluginArgument` type serves as a simplified interface (a "facade") for defining a banner, allowing users to provide a simple string, a function, or a full options object without needing to know all the internal details of `BannerPluginOptions` immediately.
