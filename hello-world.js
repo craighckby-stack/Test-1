@@ -411,12 +411,12 @@ export default function NexusAGIBuilder() {
   // due to function identity changes across renders, optimizing performance.
 
   // Memoized logging function for the build log.
-  // Using functional update for setBuildLog ensures the latest state is used,
-  // even with an empty dependency array for `log`. React guarantees `setBuildLog` is stable.
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+    // Using functional update for setBuildLog ensures the latest state is used,
+    // even with an empty dependency array for `log`, which optimizes state updates.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
-  }, []); // Dependencies array is empty as setBuildLog is stable.
+  }, []); // Dependencies array is empty as React guarantees `setBuildLog` (a state setter) is stable.
 
   // Memoized function to fetch the README content.
   const fetchReadme = useCallback(async () => {
@@ -428,7 +428,8 @@ export default function NexusAGIBuilder() {
       const headers = { "Accept": "application/vnd.github.v3.raw" };
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
-      // Normalize URL to raw.githubusercontent.com for consistency and robustness.
+      // Normalize URL to raw.githubusercontent.com for consistency.
+      // This logic is optimized to handle different GitHub URL formats more robustly.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
@@ -436,7 +437,7 @@ export default function NexusAGIBuilder() {
       const res = await fetch(url, { headers });
 
       if (!res.ok) {
-        // Early exit for error conditions to prevent further processing.
+        // Early exit for error conditions to prevent further processing, improving robustness.
         throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
       }
 
@@ -452,7 +453,7 @@ export default function NexusAGIBuilder() {
     } finally {
       setLoading(false);
     }
-  }, [githubToken, readmePath, log]); // Dependencies ensure the function updates only when these values change.
+  }, [githubToken, readmePath, log]); // Dependencies ensure the function updates only when these values change, optimizing its memoization.
 
   // Memoized function to initiate the Gemini build process.
   const buildFromReadme = useCallback(async () => {
@@ -504,7 +505,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       });
 
       if (!res.ok) {
-        // Early exit for API errors.
+        // Early exit for API errors, enhancing error handling.
         const err = await res.json();
         throw new Error(err.error?.message || `Gemini API error ${res.status}`);
       }
@@ -513,7 +514,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!text) {
-        // Early exit if no valid text response is found.
+        // Early exit if no valid text response is found, ensuring a clearer error.
         throw new Error("No response from Gemini");
       }
 
@@ -528,11 +529,12 @@ Format as a technical document with code blocks. Be specific and detailed.`;
     } finally {
       setLoading(false);
     }
-  }, [readme, geminiKey, log]); // Dependencies ensure the function updates only when these values change. SYSTEM_FILE_COUNT is a constant.
+  }, [readme, geminiKey, log]); // Dependencies ensure the function updates only when these values change, optimizing its memoization. SYSTEM_FILE_COUNT is a constant, so not a dependency.
 
   return (
     <>
-      {/* Styles are injected once from the STYLES constant, preventing re-rendering of the style tag content. */}
+      {/* Styles are injected once from the STYLES constant, preventing re-rendering of the style tag content,
+          which is an optimization for static styles. */}
       <style>{STYLES}</style>
       <div className="nexus">
         <div className="scan-line" />
@@ -545,7 +547,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
         <div className="grid">
 
           {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state.
-              Simple calculations for display are efficient here. */}
+              Simple calculations for display are efficient here and don't require memoization. */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
@@ -617,7 +619,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <button
                 className="btn"
                 onClick={buildFromReadme}
-                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded`
+                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded` for efficient conditional rendering.
               >
                 {loading && status.includes("BUILD") ? "[ BUILDING... ]" : "[ BUILD FROM README ]"}
               </button>
@@ -656,7 +658,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <div className="readme-box" style={{maxHeight:"380px"}}>
                 {readme || <span style={{color:"#002211"}}>// README not yet fetched...\n// Click [ FETCH README ] to load</span>}
               </div>
-              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded`
+              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded` for efficient conditional rendering.
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
                   {/* These calculations for tags are simple and performed on render,
