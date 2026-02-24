@@ -1,6 +1,23 @@
-• Strategy pattern: Implemented by the `ASDLLexer` class, which encapsulates a specific strategy for lexing the ASDL language, adhering to the common `RegexLexer` interface. This allows Pygments to use different lexers interchangeably for various languages.
-• Template Method pattern: The `RegexLexer` base class defines the overall lexing algorithm (the template method), and `ASDLLexer` implements the specific steps by providing the `tokens` dictionary. The `tokens` dictionary acts as the concrete implementation of the primitive operations required by the `RegexLexer`'s template.
-• Interpreter pattern: The `tokens` dictionary in `ASDLLexer` defines the grammar rules for the ASDL language using regular expressions. The `RegexLexer` acts as an interpreter, processing input ASDL text according to these defined rules to produce a sequence of tokens.
-• Plug-in architecture (extension mechanism): `ASDLLexer` functions as a plug-in for the Pygments highlighting library. By defining and registering `ASDLLexer`, Pygments' functionality is extended to support syntax highlighting for ASDL files.
-• Composite pattern: The `tokens` dictionary uses states like "root" and "ws" and the `include()` mechanism to compose smaller sets of rules into a larger, hierarchical structure. This allows for modularity and reuse of lexing rule components.
-• Data-Driven Design: The entire lexing logic for ASDL is configured declaratively within the `tokens` dictionary. This makes the `ASDLLexer`'s behavior entirely driven by data (regular expressions and token mappings), promoting flexibility and ease of modification without altering procedural code.
+* Singleton pattern: 
+  - Only one instance of the `svg` image source path is created and imported throughout the application.
+  - The `svg` variable holds this single reference, which is then used to create a single corresponding `<img>` DOM element in this specific execution.
+
+* Factory Pattern: 
+  - The `createImageElement` function acts as a factory, encapsulating the complex logic for creating a structured image display element (div, h2, img).
+  - It abstracts away the direct DOM manipulation (`document.createElement`, `appendChild`, `setAttribute`) from the client code.
+
+* Creational Patterns: 
+  - The `createImageElement` function provides a structured way to create new DOM elements, abstracting the instantiation process.
+  - This hides the underlying object creation mechanisms from the client code, promoting cleaner and more maintainable code.
+
+* Separation of Concerns: 
+  - The `createImageElement` function is solely responsible for building and styling an individual image display block.
+  - This separates the concern of rendering a single image block from the broader concern of managing the list of images to display.
+
+* Don't Repeat Yourself (DRY Principle):
+  - The `createImageElement` function centralizes the logic for creating an image display block, avoiding code duplication if multiple images were to be added.
+  - `Object.assign()` is used for concisely setting multiple styles on the `container`, preventing repetitive style property assignments.
+
+* Encapsulation: 
+  - The internal structure and styling of an image display block (`div`, `h2`, `img`, `textAlign`, `width`) are bundled within the `createImageElement` function.
+  - This hides the implementation details from the outside code, which only needs to provide a title and source to create an image element.
