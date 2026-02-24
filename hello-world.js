@@ -391,7 +391,7 @@ const STYLES = `
 
 export default function NexusAGIBuilder() {
   // State variables are declared using useState. These manage the mutable data
-  // specific to this component's functionality, ensuring reactivity.
+  // specific to this component's functionality. Keeping state granular helps with updates.
   const [githubToken, setGithubToken] = useState("");
   const [geminiKey, setGeminiKey] = useState("");
   const [readmePath, setReadmePath] = useState(GITHUB_RAW);
@@ -403,20 +403,20 @@ export default function NexusAGIBuilder() {
 
   // Derived state: isReadmeLoaded is computed directly from the 'readme' state.
   // This avoids creating an unnecessary additional state variable and its setter,
-  // optimizing logic by keeping the state minimal and derived where possible.
+  // ensuring consistency and reducing state management overhead.
   const isReadmeLoaded = !!readme;
 
   // useCallback is used to memoize functions that are passed down to child components
   // or used as event handlers. This prevents unnecessary re-renders of child components
-  // due to function identity changes across renders. For internal functions, it helps
-  // with dependency arrays in other hooks like useEffect, though not strictly critical
-  // for performance if only used internally and not in dependency arrays.
+  // due to function identity changes across renders, optimizing performance.
 
   // Memoized logging function for the build log.
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+    // Using functional update for setBuildLog ensures the latest state is used,
+    // even with an empty dependency array for `log`.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
-  }, []); // Dependencies array is empty as it only relies on its closure for setBuildLog, which is stable.
+  }, []); // Dependencies array is empty as React guarantees `setBuildLog` (a state setter) is stable.
 
   // Memoized function to fetch the README content.
   const fetchReadme = useCallback(async () => {
@@ -429,14 +429,17 @@ export default function NexusAGIBuilder() {
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
       // Normalize URL to raw.githubusercontent.com for consistency.
-      // This logic is optimized to handle different GitHub URL formats, reducing potential fetch errors.
+      // This logic is optimized to handle different GitHub URL formats more robustly.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
 
       const res = await fetch(url, { headers });
 
-      if (!res.ok) throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
+      if (!res.ok) {
+        // Early exit for error conditions to prevent further processing.
+        throw new Error(`GitHub returned ${res.status}: ${res.statusText}`);
+      }
 
       const text = await res.text();
       setReadme(text);
@@ -502,6 +505,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       });
 
       if (!res.ok) {
+        // Early exit for API errors.
         const err = await res.json();
         throw new Error(err.error?.message || `Gemini API error ${res.status}`);
       }
@@ -509,7 +513,10 @@ Format as a technical document with code blocks. Be specific and detailed.`;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!text) throw new Error("No response from Gemini");
+      if (!text) {
+        // Early exit if no valid text response is found.
+        throw new Error("No response from Gemini");
+      }
 
       setOutput(text);
       setStatus("BUILD COMPLETE");
@@ -526,7 +533,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
   return (
     <>
-      {/* Styles are injected once from the STYLES constant. */}
+      {/* Styles are injected once from the STYLES constant, preventing re-rendering of the style tag content. */}
       <style>{STYLES}</style>
       <div className="nexus">
         <div className="scan-line" />
@@ -538,7 +545,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
         <div className="grid">
 
-          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state */}
+          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state,
+              simple calculations for display are efficient here. */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
@@ -577,7 +585,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                   value={githubToken}
-                  onChange={e => setGithubToken(e.target.value)} // Direct state updates are efficient for input handlers.
+                  onChange={e => setGithubToken(e.target.value)} // Direct state updates are efficient.
                 />
               </div>
 
@@ -588,7 +596,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                   type="password"
                   placeholder="AIzaSy..."
                   value={geminiKey}
-                  onChange={e => setGeminiKey(e.target.value)} // Direct state updates.
+                  onChange={e => setGeminiKey(e.target.value)} // Direct state updates are efficient.
                 />
               </div>
 
@@ -597,11 +605,12 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <input
                   className="input-field"
                   value={readmePath}
-                  onChange={e => setReadmePath(e.target.value)} // Direct state updates.
+                  onChange={e => setReadmePath(e.target.value)} // Direct state updates are efficient.
                 />
               </div>
 
-              {/* Buttons use memoized functions and derived state for disabled prop */}
+              {/* Buttons use memoized functions (useCallback) and derived state (isReadmeLoaded)
+                  for their `onClick` and `disabled` props, optimizing event handling and render logic. */}
               <button className="btn" onClick={fetchReadme} disabled={loading}>
                 {loading && status.includes("FETCH") ? "[ FETCHING... ]" : "[ FETCH README ]"}
               </button>
@@ -609,7 +618,7 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <button
                 className="btn"
                 onClick={buildFromReadme}
-                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded` for efficient conditional disabling.
+                disabled={loading || !isReadmeLoaded} // Optimized with derived state `isReadmeLoaded`
               >
                 {loading && status.includes("BUILD") ? "[ BUILDING... ]" : "[ BUILD FROM README ]"}
               </button>
@@ -620,7 +629,6 @@ Format as a technical document with code blocks. Be specific and detailed.`;
                 <div className="readme-box" style={{maxHeight:"150px"}}>
                   {buildLog.length === 0 && <span style={{color:"#002211"}}>// awaiting initialization...</span>}
                   {buildLog.map((entry, i) => (
-                    // Using index as key is acceptable for a log where items are only appended and not reordered/deleted.
                     <div key={i} style={{color: entry.type === "error" ? "#ff6666" : entry.type === "success" ? "#00ff88" : "#006633"}}>
                       [{entry.timestamp}] {entry.msg}
                     </div>
@@ -649,11 +657,11 @@ Format as a technical document with code blocks. Be specific and detailed.`;
               <div className="readme-box" style={{maxHeight:"380px"}}>
                 {readme || <span style={{color:"#002211"}}>// README not yet fetched...\n// Click [ FETCH README ] to load</span>}
               </div>
-              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded` for conditional rendering.
+              {isReadmeLoaded && ( // Optimized with derived state `isReadmeLoaded`
                 <div style={{marginTop:"0.5rem", display:"flex", flexWrap:"wrap"}}>
                   <span className="tag">✓ LOADED</span>
                   {/* These calculations for tags are simple and performed on render,
-                      efficient for dynamic display of README characteristics without memoization overhead for small data. */}
+                      efficient for dynamic display of README characteristics without memoization overhead. */}
                   <span className="tag">{readme.length} CHARS</span>
                   <span className="tag">{(readme.match(/\n/g)||[]).length} LINES</span>
                   <span className="tag">{(readme.match(/^#{1,6}\s/gm)||[]).length} SECTIONS</span>
