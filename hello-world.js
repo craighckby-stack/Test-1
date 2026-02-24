@@ -411,12 +411,12 @@ export default function NexusAGIBuilder() {
   // due to function identity changes across renders, optimizing performance.
 
   // Memoized logging function for the build log.
+  // Using functional update for setBuildLog ensures the latest state is used,
+  // even with an empty dependency array for `log`. React guarantees `setBuildLog` is stable.
   const log = useCallback((msg, type = "info") => {
     const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    // Using functional update for setBuildLog ensures the latest state is used,
-    // even with an empty dependency array for `log`.
     setBuildLog(prev => [...prev, { timestamp, msg, type }]);
-  }, []); // Dependencies array is empty as React guarantees `setBuildLog` (a state setter) is stable.
+  }, []); // Dependencies array is empty as setBuildLog is stable.
 
   // Memoized function to fetch the README content.
   const fetchReadme = useCallback(async () => {
@@ -428,8 +428,7 @@ export default function NexusAGIBuilder() {
       const headers = { "Accept": "application/vnd.github.v3.raw" };
       if (githubToken) headers["Authorization"] = `token ${githubToken}`;
 
-      // Normalize URL to raw.githubusercontent.com for consistency.
-      // This logic is optimized to handle different GitHub URL formats more robustly.
+      // Normalize URL to raw.githubusercontent.com for consistency and robustness.
       const url = readmePath.includes("raw.githubusercontent") ? readmePath
         : readmePath.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/");
@@ -545,8 +544,8 @@ Format as a technical document with code blocks. Be specific and detailed.`;
 
         <div className="grid">
 
-          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state,
-              simple calculations for display are efficient here. */}
+          {/* Stats Row leverages SYSTEM_FILE_COUNT constant and status state.
+              Simple calculations for display are efficient here. */}
           <div className="file-count">
             <div className="stat-card">
               <div className="stat-value">{SYSTEM_FILE_COUNT}</div>
