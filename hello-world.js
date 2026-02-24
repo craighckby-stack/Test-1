@@ -1,3 +1,4 @@
+__spec__ = __loader__ = None
 from decimal import Decimal, Context, getcontext, DefaultContext, _One, _Zero, _NaN, _Infinity, _NegativeInfinity, InvalidOperation, ConversionSyntax, FloatOperation, ROUND_DOWN, ROUND_UP, ROUND_HALF_EVEN, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_DOWN, ROUND_05UP
 import math as _math
 import numbers as _numbers
@@ -258,3 +259,39 @@ def get_ffi_size_multiplied_by_arbitrary_values_buggy(base_type, *arbitrary_valu
 # While not using Python's @decorator syntax, they wrap and enhance existing functionality.
 # For example, they "decorate" a simple sum/product with error handling, context application,
 # and (optionally) step-by-step observation.
+
+if __name__ == "__main__":
+    # This block acts as the Entry Point, demonstrating TARGET's functionality.
+    # The execution of these demonstrations is 'lazy loaded' as it only occurs
+    # when the module is run directly.
+    print("--- Demonstrating TARGET module functionality ---")
+
+    # Set up a default context for demonstrations
+    demo_context = getcontext()
+    demo_context.prec = 8 # Set a default precision for examples
+
+    print("\n--- add_variadic demonstration ---")
+    result_add = add_variadic(10, 0.5, '3.2', Decimal('0.1'), show_steps=True, context=demo_context)
+    print(f"Final sum: {result_add}")
+
+    # Demonstrate error handling with add_variadic
+    print("\n--- add_variadic demonstration with invalid input ---")
+    result_add_err = add_variadic(10, 'invalid', context=demo_context)
+    print(f"Sum with error (should show InvalidOperation): {result_add_err}")
+
+    print("\n--- multiply_variadic_buggy demonstration ---")
+    # Note: This will show the buggy behavior (ROUND_DOWN for intermediates)
+    result_mult_buggy = multiply_variadic_buggy(1, 0.12345678, 2, Decimal('3.14'), show_steps=True, context=demo_context)
+    print(f"Final product (buggy): {result_mult_buggy}")
+
+    print("\n--- get_ffi_size_plus_arbitrary_values demonstration ---")
+    # Adds values to the maximum precision constant
+    ffi_size_add_result = get_ffi_size_plus_arbitrary_values("prec", 100, 25, Decimal('0.5'), show_steps=True, context=demo_context)
+    print(f"Final FFI size (added values): {ffi_size_add_result}")
+
+    print("\n--- get_ffi_size_multiplied_by_arbitrary_values_buggy demonstration ---")
+    # Multiplies values to the IEEE max bits constant, with buggy ROUND_UP
+    ffi_size_mult_buggy_result = get_ffi_size_multiplied_by_arbitrary_values_buggy("ieee_bits", 2, Decimal('1.5'), show_steps=True, context=demo_context)
+    print(f"Final FFI size (multiplied buggy): {ffi_size_mult_buggy_result}")
+
+    print("\n--- TARGET module demonstration complete ---")
