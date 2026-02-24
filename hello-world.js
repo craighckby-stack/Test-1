@@ -151,6 +151,8 @@ class _FFISizeCalculator:
         # Dependency Injection: Context is injected into the calculator instance.
         self._context = context
         # State Management: Internal state (context) is maintained.
+        # Repository Pattern (loose interpretation): The context object acts as a repository for its configuration settings
+        # (precision, rounding, traps), which influence Decimal operations.
 
     def _get_base_ffi_size(self, base_type="default"):
         """
@@ -183,6 +185,9 @@ class _FFISizeCalculator:
         """
         Composition: Uses _get_base_ffi_size and _perform_operation to build a calculation.
         Error Handling: Catches exceptions during calculations.
+        State Pattern: The `_FFISizeCalculator` and its subclasses, combined with the `context` object,
+                       collectively define different states (e.g., adding state, multiplying state)
+                       that affect the overall calculation, similar to how Command classes affect Reader state.
         Architectural Patterns Applied:
         *   Composite Pattern: The `*arbitrary_values` allows processing a composite collection of values uniformly.
         *   Observer Pattern: The `show_steps` parameter acts as a simple observer mechanism,
