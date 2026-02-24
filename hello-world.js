@@ -720,3 +720,435 @@ Format as a technical document with code blocks. Be specific and detailed.`;
     </>
   );
 }
+
+
+import React, { useState, useRef, useCallback, useEffect } from "react";
+
+const appId = typeof __app_id !== "undefined" ? __app_id : "dalek-caan-siphon-nexus";
+
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+  
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --red: #ff0000;
+    --red-dim: #440000;
+    --red-dark: #1a0000;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Orbitron', sans-serif;
+  }
+
+  body { 
+    background: #000; 
+    color: var(--red); 
+    font-family: var(--font-mono); 
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden; 
+    position: fixed;
+  }
+
+  .dalek-shell { 
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    background: #000;
+    padding: 0.4rem;
+    gap: 0.4rem;
+  }
+  
+  .header { 
+    flex-shrink: 0;
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    border-bottom: 1px solid var(--red-dim); 
+    padding: 0.2rem 0;
+  }
+
+  .title { 
+    font-family: var(--font-display); 
+    font-size: 0.8rem; 
+    font-weight: 900; 
+    color: var(--red);
+    text-shadow: 0 0 5px var(--red); 
+  }
+  
+  .main-container { 
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem; 
+    flex: 1; 
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .panel { 
+    border: 1px solid var(--red-dim); 
+    background: #050000; 
+    display: flex; 
+    flex-direction: column; 
+    min-height: 0;
+  }
+
+  .panel-config { flex-shrink: 0; }
+  .panel-logs { height: 180px; flex-shrink: 0; }
+  .panel-code { flex: 1; min-height: 0; }
+
+  .panel-hdr { 
+    padding: 0.25rem 0.5rem; 
+    background: var(--red-dark); 
+    border-bottom: 1px solid var(--red-dim); 
+    color: var(--red); 
+    font-size: 0.45rem; 
+    text-transform: uppercase; 
+    font-family: var(--font-display); 
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .panel-body { 
+    padding: 0.4rem; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.25rem; 
+  }
+  
+  .input-field { 
+    background: #000; 
+    border: 1px solid var(--red-dim); 
+    color: var(--red); 
+    padding: 0.35rem; 
+    width: 100%; 
+    outline: none; 
+    font-size: 0.7rem; 
+    font-family: var(--font-mono); 
+  }
+
+  .btn-go { 
+    background: var(--red); 
+    color: #000; 
+    border: none; 
+    padding: 0.7rem; 
+    font-family: var(--font-display); 
+    font-weight: 900; 
+    cursor: pointer; 
+    text-transform: uppercase; 
+    font-size: 0.75rem;
+    width: 100%;
+    transition: all 0.2s;
+  }
+
+  .btn-go:active { transform: scale(0.98); }
+  .btn-stop { background: #440000 !important; color: #ffaaaa !important; border: 1px solid var(--red); }
+  
+  .log-wrap { 
+    flex: 1;
+    overflow-y: auto; 
+    background: #020000; 
+    padding: 0.3rem; 
+    font-size: 0.55rem; 
+  }
+
+  .le { border-left: 2px solid #222; padding-left: 5px; margin-bottom: 2px; }
+  .le-err { color: #ff5555; border-left-color: #ff0000; }
+  .le-ok { color: #55ff55; border-left-color: #00ff00; }
+  .le-nexus { color: #ffcc00; border-left-color: #ffaa00; }
+
+  .code-view { 
+    font-size: 0.55rem; 
+    color: #ffb3b3; 
+    white-space: pre-wrap; 
+    padding: 0.5rem; 
+    flex: 1; 
+    overflow: auto; 
+    background: #010000; 
+    font-family: var(--font-mono); 
+    border: none;
+    width: 100%;
+  }
+
+  .status-bar { 
+    flex-shrink: 0;
+    padding: 0.25rem 0.5rem; 
+    background: #110000; 
+    border-top: 1px solid var(--red-dim); 
+    display: flex; 
+    justify-content: space-between;
+    font-size: 0.5rem; 
+    color: var(--red); 
+    font-family: var(--font-display); 
+  }
+`;
+
+const encodeB64 = (str) => {
+  const bytes = new TextEncoder().encode(str);
+  const binString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+  return btoa(binString);
+};
+
+const decodeB64 = (b64) => {
+  try {
+    const binString = atob(b64);
+    const bytes = Uint8Array.from(binString, (m) => m.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch (e) { return "// DECODE_ERROR"; }
+};
+
+const wait = (ms) => new Promise(res => setTimeout(res, ms));
+
+// UPDATED: High-Intelligence Siphon Targets
+const KNOWLEDGE_SOURCES = [
+  { owner: "openjdk", repo: "jdk", defaultBranch: "master" }, // Structural Logic
+  { owner: "google-deepmind", repo: "deepmind-research", defaultBranch: "master" }, // Neural Logic
+  { owner: "tensorflow", repo: "tensorflow", defaultBranch: "master" } // Scale Logic
+];
+
+export default function App() {
+  const [tokens, setTokens] = useState({ cerebras: "", github: "", gemini: "" });
+  const [evolutionTarget] = useState({ 
+    owner: "craighckby-stack", 
+    repo: "Test-1", 
+    branch: "Nexus-Database", 
+    file: "hello-world.js" 
+  });
+  
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [displayCode, setDisplayCode] = useState("");
+  const [metrics, setMetrics] = useState({ siphoned: 0, errors: 0, totalNodes: 0 });
+  const [currentSource, setCurrentSource] = useState("");
+
+  const activeRef = useRef(false);
+  const blacklistedFiles = useRef(new Set());
+
+  const addLog = useCallback((msg, type = "def") => {
+    setLogs((p) => [{ text: `[${new Date().toLocaleTimeString('en-GB', {hour12: false})}] ${msg}`, type }, ...p.slice(0, 100)]);
+  }, []);
+
+  const handleAbort = () => {
+    activeRef.current = false;
+    setLoading(false);
+    addLog("SIPHON INTERRUPTED: RETREATING TO NEXUS", "le-err");
+  };
+
+  const fetchRepoTree = async (src, headers) => {
+    const branches = [src.defaultBranch, "main", "master", "develop"];
+    for (const br of branches) {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${src.owner}/${src.repo}/git/trees/${br}?recursive=1`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          return { data, branch: br };
+        }
+        if (res.status === 404) continue;
+        const err = await res.json();
+        throw new Error(err.message || "Unknown Error");
+      } catch (e) {
+        if (br === branches[branches.length - 1]) throw e;
+      }
+    }
+    throw new Error(`Exhausted branches for ${src.repo}`);
+  };
+
+  const runEvolution = async () => {
+    if (!tokens.github || !tokens.cerebras || !tokens.gemini) {
+      addLog("FAILURE: ALL KEYS (GH, CEREBRAS, GEMINI) REQUIRED", "le-err");
+      return;
+    }
+
+    activeRef.current = true;
+    setLoading(true);
+    addLog("INITIATING RESEARCH-TRIAD SIPHON...", "nexus");
+
+    const ghHeaders = { 
+      Authorization: `Bearer ${tokens.github.trim()}`, 
+      Accept: "application/vnd.github.v3+json"
+    };
+
+    try {
+      while (activeRef.current) {
+        let interleavedQueue = [];
+        addLog("INDEXING TRIAD: OPENJDK | DEEPMIND | TENSORFLOW", "nexus");
+        
+        const sourceTrees = await Promise.all(KNOWLEDGE_SOURCES.map(async (src) => {
+          try {
+            const { data, branch } = await fetchRepoTree(src, ghHeaders);
+            const filtered = (data.tree || [])
+              .filter(item => item.type === "blob" && (
+                item.path.toLowerCase().endsWith('.java') || 
+                item.path.toLowerCase().endsWith('.py') || 
+                item.path.toLowerCase().endsWith('.cc') ||
+                item.path.toLowerCase().endsWith('.js')
+              ))
+              .map(item => ({ ...item, source_meta: { ...src, branch } }));
+            
+            addLog(`HARVESTED ${filtered.length} NODES FROM ${src.repo}`, "nexus");
+            return filtered;
+          } catch (e) {
+            addLog(`SKIPPING ${src.repo}: ${e.message}`, "le-err");
+            return [];
+          }
+        }));
+
+        const maxLen = Math.max(...sourceTrees.map(t => t.length));
+        for (let i = 0; i < maxLen; i++) {
+          for (let t = 0; t < sourceTrees.length; t++) {
+            if (sourceTrees[t][i]) interleavedQueue.push(sourceTrees[t][i]);
+          }
+        }
+
+        setMetrics(m => ({ ...m, totalNodes: interleavedQueue.length }));
+        
+        if (interleavedQueue.length === 0) {
+          addLog("TRIAD SOURCES EMPTY OR INACCESSIBLE.", "le-err");
+          break;
+        }
+
+        for (const kFile of interleavedQueue) {
+          if (!activeRef.current) break;
+          const src = kFile.source_meta;
+          const fileKey = `${src.repo}:${kFile.path}`;
+          
+          if (blacklistedFiles.current.has(fileKey)) continue;
+
+          setCurrentSource(`${src.owner}/${src.repo}`);
+          addLog(`SIPHONING [${src.repo}]: ${kFile.path}`, "def");
+
+          try {
+            // 1. Fetch Source Knowledge
+            const kUrl = `https://api.github.com/repos/${src.owner}/${src.repo}/contents/${kFile.path}?ref=${src.branch}`;
+            const kRes = await fetch(kUrl, { headers: ghHeaders });
+            if (!kRes.ok) throw new Error(`Source Node Error: ${kRes.status}`);
+            const kData = await kRes.json();
+            const sourceKnowledge = decodeB64(kData.content || "");
+
+            // 2. Fetch Mutation Target
+            const tUrl = `https://api.github.com/repos/${evolutionTarget.owner}/${evolutionTarget.repo}/contents/${evolutionTarget.file}?ref=${evolutionTarget.branch}`;
+            const tRes = await fetch(tUrl, { headers: ghHeaders });
+            const tData = await tRes.json();
+            const currentTargetCode = decodeB64(tData.content || "");
+            
+            if (!activeRef.current) break;
+
+            // 3. Engine Alpha: Cerebras Architecture Extraction
+            addLog("EXTRACTING CORE PATTERNS...", "nexus");
+            const cRes = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${tokens.cerebras.trim()}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "llama3.3-70b",
+                messages: [
+                  { role: "system", content: "Identify high-level architectural patterns, algorithmic optimizations, and design paradigms from the provided source. Focus on performance and intelligence." }, 
+                  { role: "user", content: `SOURCE CODE FROM ${src.repo}:\n${sourceKnowledge.slice(0, 5000)}` }
+                ]
+              })
+            });
+            const cResult = await cRes.json();
+            const patterns = cResult.choices?.[0]?.message?.content || "Evolve architecture.";
+
+            // 4. Engine Beta: Gemini Synthesis
+            addLog(`FUSING KNOWLEDGE INTO TARGET...`, "nexus");
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${tokens.gemini.trim()}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: `Target File:\n${currentTargetCode}\n\nPatterns to apply from ${src.repo}:\n${patterns}` }] }],
+                systemInstruction: { parts: [{ text: "Refactor the target file to incorporate the architectural wisdom of the source. Maintain the target's original functionality but enhance its internal structure. RETURN RAW CODE ONLY." }] }
+              })
+            });
+            const gData = await gRes.json();
+            const evolvedCode = (gData.candidates?.[0]?.content?.parts?.[0]?.text || "").replace(/^```[a-z]*\n|```$/g, "").trim();
+
+            if (!activeRef.current) break;
+
+            // 5. Commit Mutation
+            if (evolvedCode && evolvedCode.length > 10) {
+              const lockRes = await fetch(`https://api.github.com/repos/${evolutionTarget.owner}/${evolutionTarget.repo}/contents/${evolutionTarget.file}?ref=${evolutionTarget.branch}`, { headers: ghHeaders });
+              const lockData = await lockRes.json();
+              
+              const writeRes = await fetch(`https://api.github.com/repos/${evolutionTarget.owner}/${evolutionTarget.repo}/contents/${evolutionTarget.file}`, {
+                method: "PUT",
+                headers: { ...ghHeaders, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  message: `Dalek Nexus Siphon Evolution from ${src.repo}: ${kFile.path}`,
+                  content: encodeB64(evolvedCode),
+                  sha: lockData.sha, 
+                  branch: evolutionTarget.branch
+                })
+              });
+              
+              if (writeRes.ok) {
+                addLog(`TARGET MUTATED SUCCESSFULLY`, "ok");
+                setDisplayCode(evolvedCode);
+                setMetrics(m => ({...m, siphoned: m.siphoned + 1}));
+                blacklistedFiles.current.add(fileKey);
+              } else {
+                const eData = await writeRes.json();
+                addLog(`COMMIT FAILED: ${eData.message}`, "le-err");
+              }
+            }
+          } catch (fileErr) {
+            addLog(`NODE ERROR: ${fileErr.message}`, "le-err");
+            setMetrics(m => ({...m, errors: m.errors + 1}));
+          }
+
+          if (activeRef.current) {
+            addLog("STABILIZING TEMPORAL RADIANCE (10s)...", "def");
+            for(let i=10; i>0; i--) {
+              if(!activeRef.current) break;
+              await wait(1000);
+            }
+          }
+        }
+      }
+    } catch (fatal) {
+      addLog(`CRITICAL ERROR: ${fatal.message}`, "le-err");
+    } finally {
+      setLoading(false);
+      activeRef.current = false;
+    }
+  };
+
+  return (
+    <div className="dalek-shell">
+      <style>{STYLES}</style>
+      <div className="header">
+        <div className="title">DALEK CAAN // RESEARCH TRIAD NEXUS</div>
+        <div style={{fontSize: '0.4rem', color: '#666'}}>V4.3_DEEPMIND_SYNERGY</div>
+      </div>
+      <div className="main-container">
+        <div className="panel panel-config">
+          <div className="panel-hdr">Authorization Keys</div>
+          <div className="panel-body">
+            <input className="input-field" placeholder="GitHub Token" type="password" value={tokens.github} onChange={e => setTokens({...tokens, github: e.target.value})} />
+            <input className="input-field" placeholder="Cerebras Key" type="password" value={tokens.cerebras} onChange={e => setTokens({...tokens, cerebras: e.target.value})} />
+            <input className="input-field" placeholder="Gemini Key" type="password" value={tokens.gemini} onChange={e => setTokens({...tokens, gemini: e.target.value})} />
+            <button className={`btn-go ${loading ? 'btn-stop' : ''}`} onClick={loading ? handleAbort : runEvolution}>
+              {loading ? "HALT SIPHON" : "EXECUTE SIPHON"}
+            </button>
+          </div>
+        </div>
+        <div className="panel panel-logs">
+          <div className="panel-hdr">
+            Extraction Logs
+            {loading && <span className="le-ok" style={{fontSize: '0.4rem', marginLeft: '5px'}}>● SIPHONING: {currentSource}</span>}
+          </div>
+          <div className="log-wrap">
+            {logs.map((l, i) => <div key={i} className={`le le-${l.type}`}>{l.text}</div>)}
+          </div>
+        </div>
+        <div className="panel panel-code">
+          <div className="panel-hdr">Active Evolution: {evolutionTarget.file}</div>
+          <pre className="code-view">{displayCode || "// AWAITING NEURAL SYNTHESIS..."}</pre>
+        </div>
+      </div>
+      <div className="status-bar">
+        <div className="status-item">Siphoned: <span>{metrics.siphoned}</span></div>
+        <div className="status-item">Faults: <span>{metrics.errors}</span></div>
+        <div className="status-item">Queue: <span>{metrics.totalNodes}</span></div>
+      </div>
+    </div>
+  );
+    }
