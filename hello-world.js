@@ -1,14 +1,17 @@
-from email.message import EmailMessage
 from email.parser import Parser
-from email.policy import default
+from email.policy import Policy, default
+from email.message import EmailMessage
 
-me = "sender@example.com"
-family = ["recipient@example.com"]
+class MyCustomPolicy(Policy):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.message_factory = EmailMessage
 
-msg = EmailMessage()
-msg['Subject'] = 'Our family reunion parsed'
-msg['From'] = me
-msg['To'] = ', '.join(family)
-msg.set_content('This is the body of the email that was created using KNOWLEDGE principles and is now being parsed.')
+    def header_source_to_repr(self, sourcelines):
+        return 'CUSTOM_HEADER_REPR: ' + ''.join(sourcelines).strip()
 
-parsed_email_object = Parser(policy=default).parsestr(msg.as_string())
+Parser(policy=MyCustomPolicy(max_line_length=1000)).parsestr('From: Foo Bar <user@example.com>\n'
+                                                           'To: <someone_else@example.com>\n'
+                                                           'Subject: Test message\n'
+                                                           '\n'
+                                                           'Body would go here\n')
