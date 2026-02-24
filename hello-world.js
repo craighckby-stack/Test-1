@@ -1,6 +1,10 @@
-* Strategy Pattern:
-    - The `entryOnly` boolean property allows the DllPlugin to switch between distinct algorithms for exposing modules, either focusing only on entry points (when `true`) or potentially a broader set (when `false`), encapsulating these behaviors as interchangeable strategies.
+* Factory Pattern:
+    - `email.utils.make_msgid()` acts as a factory method, encapsulating the logic for creating unique message IDs.
+* Composite Pattern:
+    - The `EmailMessage` class, by allowing the addition of different parts (text, HTML, related images) into a hierarchical structure (`multipart/alternative`, `add_related`), enables clients to treat individual parts and compositions of parts uniformly.
+* Bridge Pattern:
+    - The `multipart/alternative` structure decouples the abstract message content from its specific implementations (plain text and HTML), allowing these representations to vary independently.
+* Template Pattern:
+    - The HTML content uses string formatting (`.format(asparagus_cid=...)`) to insert dynamic data into a predefined string structure, functioning as a basic template.
 * Builder Pattern:
-    - DllPluginOptions provides a clear, property-by-property structure (`context`, `entryOnly`, `format`, `name`, `path`, `type`) for assembling a complex configuration for the DllPlugin, acting as the blueprint for what a builder would construct to configure the plugin.
-* Value Object:
-    - The DllPluginOptions interface defines a data-centric object whose identity is based purely on the values of its properties, grouping related configuration settings that define a specific state or characteristic for the DllPlugin.
+    - The `EmailMessage` class provides a step-by-step API (`msg['Subject'] = ...`, `msg.set_content(...)`, `msg.add_alternative(...)`, `add_related(...)`) for constructing a complex email object, separating its construction from its final representation.
