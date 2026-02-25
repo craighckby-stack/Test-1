@@ -842,3 +842,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/riscv/icache_riscv.cpp @ 1771981250313
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/riscv/runtime_riscv.cpp @ 1771981314154
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/assembler_s390.cpp @ 1771981377402
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/compiledIC_s390.cpp @ 1771981437384
