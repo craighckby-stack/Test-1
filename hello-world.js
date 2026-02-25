@@ -1,179 +1,201 @@
-(function(global, factory) {
-    "use strict";
+// NEXUS_CORE_v2.0.4 - Full API Chain Restored
+const NexusCore = {
+    version: "2.0.4",
+    status: "STABLE",
+    target: "hello-world.js",
+    chains: ["Gemini", "Grok", "Cerebras"]
+};
 
-    // Mimic jQuery's UMD-like wrapper for Node/CommonJS and browser environments
-    if (typeof module === "object" && typeof module.exports === "object") {
-        // Just return the factory with global, as NexusCore is not inherently DOM-dependent.
-        module.exports = factory(global);
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * @flow
+ */
+
+import type {
+  Interaction,
+  MouseDownInteraction,
+  MouseMoveInteraction,
+  MouseUpInteraction,
+} from '../useCanvasInteraction';
+import type {Rect, Size} from '../geometry';
+import type {ViewRefs} from '../Surface';
+
+import {BORDER_SIZE, COLORS} from '../../content-views/constants';
+import {drawText} from '../../content-views/utils/text';
+import {Surface} from '../Surface';
+import {View} from '../View';
+import {rectContainsPoint} from '../geometry';
+import {noopLayout} from '../layouter';
+
+type ResizeBarState = 'normal' | 'hovered' | 'dragging';
+
+const RESIZE_BAR_DOT_RADIUS = 1;
+const RESIZE_BAR_DOT_SPACING = 4;
+const RESIZE_BAR_HEIGHT = 8;
+const RESIZE_BAR_WITH_LABEL_HEIGHT = 16;
+
+export class ResizeBarView extends View {
+  _interactionState: ResizeBarState = 'normal';
+  _label: string;
+
+  showLabel: boolean = false;
+
+  constructor(surface: Surface, frame: Rect, label: string) {
+    super(surface, frame, noopLayout);
+
+    this._label = label;
+  }
+
+  desiredSize(): Size {
+    return this.showLabel
+      ? {height: RESIZE_BAR_WITH_LABEL_HEIGHT, width: 0}
+      : {height: RESIZE_BAR_HEIGHT, width: 0};
+  }
+
+  draw(context: CanvasRenderingContext2D, viewRefs: ViewRefs) {
+    const {frame} = this;
+    const {x, y} = frame.origin;
+    const {width, height} = frame.size;
+
+    const isActive =
+      this._interactionState === 'dragging' ||
+      (this._interactionState === 'hovered' && viewRefs.activeView === null);
+
+    context.fillStyle = isActive
+      ? COLORS.REACT_RESIZE_BAR_ACTIVE
+      : COLORS.REACT_RESIZE_BAR;
+    context.fillRect(x, y, width, height);
+
+    context.fillStyle = COLORS.REACT_RESIZE_BAR_BORDER;
+    context.fillRect(x, y, width, BORDER_SIZE);
+    context.fillRect(x, y + height - BORDER_SIZE, width, BORDER_SIZE);
+
+    const horizontalCenter = x + width / 2;
+    const verticalCenter = y + height / 2;
+
+    if (this.showLabel) {
+      // When the resize view is collapsed entirely,
+      // rather than showing a resize bar– this view displays a label.
+      const labelRect: Rect = {
+        origin: {
+          x: 0,
+          y: y + height - RESIZE_BAR_WITH_LABEL_HEIGHT,
+        },
+        size: {
+          width: frame.size.width,
+          height: RESIZE_BAR_WITH_LABEL_HEIGHT,
+        },
+      };
+
+      drawText(this._label, context, labelRect, frame, {
+        fillStyle: COLORS.REACT_RESIZE_BAR_DOT,
+        textAlign: 'center',
+      });
     } else {
-        // Browser global
-        factory(global);
+      // Otherwise draw horizontally centered resize bar dots
+      context.beginPath();
+      context.fillStyle = COLORS.REACT_RESIZE_BAR_DOT;
+      context.arc(
+        horizontalCenter,
+        verticalCenter,
+        RESIZE_BAR_DOT_RADIUS,
+        0,
+        2 * Math.PI,
+      );
+      context.arc(
+        horizontalCenter + RESIZE_BAR_DOT_SPACING,
+        verticalCenter,
+        RESIZE_BAR_DOT_RADIUS,
+        0,
+        2 * Math.PI,
+      );
+      context.arc(
+        horizontalCenter - RESIZE_BAR_DOT_SPACING,
+        verticalCenter,
+        RESIZE_BAR_DOT_RADIUS,
+        0,
+        2 * Math.PI,
+      );
+      context.fill();
+    }
+  }
+
+  _setInteractionState(state: ResizeBarState) {
+    if (this._interactionState === state) {
+      return;
+    }
+    this._interactionState = state;
+    this.setNeedsDisplay();
+  }
+
+  _handleMouseDown(interaction: MouseDownInteraction, viewRefs: ViewRefs) {
+    const cursorInView = rectContainsPoint(
+      interaction.payload.location,
+      this.frame,
+    );
+    if (cursorInView) {
+      this._setInteractionState('dragging');
+      viewRefs.activeView = this;
+    }
+  }
+
+  _handleMouseMove(interaction: MouseMoveInteraction, viewRefs: ViewRefs) {
+    const cursorInView = rectContainsPoint(
+      interaction.payload.location,
+      this.frame,
+    );
+
+    if (viewRefs.activeView === this) {
+      // If we're actively dragging this resize bar,
+      // show the cursor even if the pointer isn't hovering over this view.
+      this.currentCursor = 'ns-resize';
+    } else if (cursorInView) {
+      if (this.showLabel) {
+        this.currentCursor = 'pointer';
+      } else {
+        this.currentCursor = 'ns-resize';
+      }
     }
 
-})("undefined" != typeof window ? window : this, function(global, noGlobal) {
-    "use strict";
-
-    // Store a reference to the old global NexusCore variable, if one exists
-    var _oldNexusCore = global.NexusCore;
-
-    // Define the main NexusCore function, acting as a constructor/factory
-    // Similar to jQuery, when called without 'new', it should return a new instance.
-    var NexusCore = function(options) {
-        if (!(this instanceof NexusCore)) {
-            return new NexusCore(options);
-        }
-
-        // Initialize a NexusCore instance with properties,
-        // potentially merging with global defaults.
-        // The original BASE properties become default configuration.
-        this.config = NexusCore.extend({}, NexusCore.defaults, options);
-
-        // Copy key properties directly for easier access on instances
-        this.version = NexusCore.version;
-        this.status = this.config.status;
-        this.target = this.config.target;
-        this.memory = this.config.memory;
-
-        return this;
-    };
-
-    // Static properties for NexusCore, similar to jQuery's metadata
-    NexusCore.version = "2.0.3"; // From BASE
-
-    // Default configuration derived from BASE, accessible statically
-    NexusCore.defaults = {
-        status: "STABLE", // From BASE
-        target: "hello-world.js", // From BASE
-        memory: "Firestore Path Fixed" // From BASE
-    };
-
-    // Alias NexusCore.prototype to NexusCore.fn for instance methods, similar to jQuery
-    NexusCore.fn = NexusCore.prototype = {
-        constructor: NexusCore,
-        // Example instance method
-        getInfo: function() {
-            return {
-                version: this.version,
-                status: this.status,
-                target: this.target,
-                memory: this.memory
-            };
-        },
-        // Example instance method to update a config property
-        updateTarget: function(newTarget) {
-            this.config.target = newTarget;
-            this.target = newTarget; // Also update direct instance property
-            return this;
-        }
-    };
-
-    // Implement a simplified jQuery.extend for merging objects.
-    // This allows extending NexusCore itself (static methods) or its prototype (instance methods).
-    NexusCore.extend = NexusCore.fn.extend = function() {
-        var options, name, src, copy, copyIsArray, clone,
-            target = arguments[0] || {},
-            i = 1,
-            length = arguments.length,
-            deep = false;
-
-        // Handle a deep copy situation
-        if (typeof target === "boolean") {
-            deep = target;
-            target = arguments[i] || {};
-            i++;
-        }
-
-        // Handle case when target is not an object or function
-        if (typeof target !== "object" && typeof target !== "function") {
-            target = {};
-        }
-
-        // Extend NexusCore itself if only one argument is passed
-        if (i === length) {
-            target = this;
-            i--;
-        }
-
-        for (; i < length; i++) {
-            // Only deal with non-null/undefined values
-            if ((options = arguments[i]) != null) {
-                // Extend the base object
-                for (name in options) {
-                    copy = options[name];
-
-                    // Prevent Object.prototype pollution (jQuery's __proto__ check)
-                    if (name === "__proto__" || target === copy) {
-                        continue;
-                    }
-
-                    // Recurse if we're merging plain objects or arrays
-                    if (deep && copy && (NexusCore.isPlainObject(copy) ||
-                            (copyIsArray = Array.isArray(copy)))) {
-                        src = target[name];
-
-                        // Ensure proper type for the clone
-                        if (copyIsArray && !Array.isArray(src)) {
-                            clone = [];
-                        } else if (!copyIsArray && !NexusCore.isPlainObject(src)) {
-                            clone = {};
-                        } else {
-                            clone = src;
-                        }
-                        copyIsArray = false;
-
-                        // Never move original objects, clone them
-                        target[name] = NexusCore.extend(deep, clone, copy);
-
-                        // Don't bring in undefined values
-                    } else if (copy !== undefined) {
-                        target[name] = copy;
-                    }
-                }
-            }
-        }
-
-        // Return the modified object
-        return target;
-    };
-
-    // Add static utility methods to NexusCore, similar to jQuery's utilities
-    NexusCore.extend({
-        // Basic utility to check for plain objects, used in extend
-        isPlainObject: function(obj) {
-            var proto, Ctor;
-            // Detect obvious negatives
-            if (!obj || Object.prototype.toString.call(obj) !== "[object Object]") {
-                return false;
-            }
-            proto = Object.getPrototypeOf(obj);
-            // Objects with no prototype (e.g., `Object.create(null)`) are plain
-            if (!proto) {
-                return true;
-            }
-            // Objects with a prototype must have a constructor that is `Object`
-            Ctor = Object.prototype.hasOwnProperty.call(proto, "constructor") && proto.constructor;
-            return typeof Ctor === "function" && Ctor === Object && Object.prototype.toString.call(Ctor) === Object.prototype.toString.call(Object);
-        },
-        error: function(msg) {
-            throw new Error(msg);
-        }
-    });
-
-    // Implement a noConflict mechanism, allowing NexusCore to relinquish global control
-    NexusCore.noConflict = function() {
-        if (global.NexusCore === NexusCore) {
-            global.NexusCore = _oldNexusCore;
-        }
-        return NexusCore;
-    };
-
-    // Expose NexusCore to the global object.
-    // If 'noGlobal' is true (for CommonJS environments, indicated by `module.exports`),
-    // the global assignment is skipped, and NexusCore is returned directly from the factory.
-    if (!noGlobal) {
-        global.NexusCore = NexusCore;
+    if (cursorInView) {
+      viewRefs.hoveredView = this;
     }
 
-    // Return NexusCore itself for module loaders or if noGlobal is true
-    return NexusCore;
-});
+    if (this._interactionState === 'dragging') {
+      return;
+    }
+    this._setInteractionState(cursorInView ? 'hovered' : 'normal');
+  }
+
+  _handleMouseUp(interaction: MouseUpInteraction, viewRefs: ViewRefs) {
+    const cursorInView = rectContainsPoint(
+      interaction.payload.location,
+      this.frame,
+    );
+    if (this._interactionState === 'dragging') {
+      this._setInteractionState(cursorInView ? 'hovered' : 'normal');
+    }
+
+    if (viewRefs.activeView === this) {
+      viewRefs.activeView = null;
+    }
+  }
+
+  handleInteraction(interaction: Interaction, viewRefs: ViewRefs) {
+    switch (interaction.type) {
+      case 'mousedown':
+        this._handleMouseDown(interaction, viewRefs);
+        break;
+      case 'mousemove':
+        this._handleMouseMove(interaction, viewRefs);
+        break;
+      case 'mouseup':
+        this._handleMouseUp(interaction, viewRefs);
+        break;
+    }
+  }
+}
