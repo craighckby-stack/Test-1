@@ -838,3 +838,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/methodHandles_ppc.cpp @ 1771981000439
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/upcallLinker_ppc.cpp @ 1771981061404
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/riscv/c1_LIRGenerator_riscv.cpp @ 1771981125476
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/riscv/foreignGlobals_riscv.cpp @ 1771981190366
