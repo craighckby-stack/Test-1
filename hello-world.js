@@ -837,3 +837,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/gc/shenandoah/c1/shenandoahBarrierSetC1_ppc.cpp @ 1771980934786
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/methodHandles_ppc.cpp @ 1771981000439
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/upcallLinker_ppc.cpp @ 1771981061404
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/riscv/c1_LIRGenerator_riscv.cpp @ 1771981125476
