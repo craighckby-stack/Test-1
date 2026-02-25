@@ -789,3 +789,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/charsetmapping/SPI.java @ 1771977878020
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/cldrconverter/Container.java @ 1771977941958
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/cldrconverter/ResourceBundleGenerator.java @ 1771978007008
+// SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/compileproperties/CompileProperties.java @ 1771978071862
