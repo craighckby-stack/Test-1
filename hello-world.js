@@ -828,3 +828,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/aarch64/gc/shared/cardTableBarrierSetAssembler_aarch64.cpp @ 1771980372713
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/aarch64/macroAssembler_aarch64.cpp @ 1771980437984
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/aarch64/spin_wait_aarch64.cpp @ 1771980502740
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/arm/assembler_arm.cpp @ 1771980565117
