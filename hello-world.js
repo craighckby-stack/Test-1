@@ -793,3 +793,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/generatebreakiteratordata/GenerateBreakIteratorData.java @ 1771978137229
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/generatecharacter/SpecialCaseMap.java @ 1771978202255
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/generatenimbus/Ellipse.java @ 1771978266337
+// SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/generatenimbus/RadialGradient.java @ 1771978329045
