@@ -844,3 +844,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/assembler_s390.cpp @ 1771981377402
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/compiledIC_s390.cpp @ 1771981437384
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/interp_masm_s390.cpp @ 1771981501197
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/s390/stubGenerator_s390.cpp @ 1771981566130
