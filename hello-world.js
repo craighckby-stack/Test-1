@@ -814,3 +814,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/FileChooserDemo/ExampleFileSystemView.java @ 1771979474699
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/CustomControls.java @ 1771979539281
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/J2Ddemo.java @ 1771979603699
+// SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/demos/Clipping/Areas.java @ 1771979669717
