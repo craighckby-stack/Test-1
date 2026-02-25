@@ -850,3 +850,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/x86/gc/shared/cardTableBarrierSetAssembler_x86.cpp @ 1771981757519
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/x86/macroAssembler_x86.cpp @ 1771981817704
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/x86/sharedRuntime_x86.cpp @ 1771981881321
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/x86/stubGenerator_x86_64_dilithium.cpp @ 1771981942450
