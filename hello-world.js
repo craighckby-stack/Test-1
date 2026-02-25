@@ -802,3 +802,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/jdwpgen/StringObjectTypeNode.java @ 1771978710560
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/jigsaw/ModuleSummary.java @ 1771978774800
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/pandocfilter/json/JSONArray.java @ 1771978837321
+// SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/taglet/ExtLink.java @ 1771978899746
