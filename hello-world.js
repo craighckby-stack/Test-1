@@ -797,3 +797,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/generatenimbus/UIRegion.java @ 1771978393605
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/jdwpgen/AbstractSimpleNode.java @ 1771978457580
 // SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/jdwpgen/ClassObjectTypeNode.java @ 1771978520264
+// SIPHON_METADATA: Evolution from make/jdk/src/classes/build/tools/jdwpgen/FieldTypeNode.java @ 1771978583289
