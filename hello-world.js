@@ -822,3 +822,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/SampleTree/SampleData.java @ 1771979990703
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/SwingSet2/ColorChooserDemo.java @ 1771980056253
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/SwingSet2/ListDemo.java @ 1771980120238
+// SIPHON_METADATA: Evolution from src/demo/share/jfc/SwingSet2/TextAndMnemonicUtils.java @ 1771980183369
