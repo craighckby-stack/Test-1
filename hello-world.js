@@ -784,3 +784,4 @@ export default function App() {
 
 
 // SIPHON_METADATA: Evolution from make/conf/jib-profiles.js @ 1771977696043
+// SIPHON_METADATA: Evolution from make/ide/idea/langtools/template/src/idea/IdeaLoggerWrapper.java @ 1771977754544
