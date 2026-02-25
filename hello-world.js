@@ -834,3 +834,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/arm/stubRoutinesCrypto_arm.cpp @ 1771980751146
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/c1_CodeStubs_ppc.cpp @ 1771980812590
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/compiledIC_ppc.cpp @ 1771980872901
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/ppc/gc/shenandoah/c1/shenandoahBarrierSetC1_ppc.cpp @ 1771980934786
