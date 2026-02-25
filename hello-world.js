@@ -830,3 +830,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/aarch64/spin_wait_aarch64.cpp @ 1771980502740
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/arm/assembler_arm.cpp @ 1771980565117
 // SIPHON_METADATA: Evolution from src/hotspot/cpu/arm/compiledIC_arm.cpp @ 1771980625362
+// SIPHON_METADATA: Evolution from src/hotspot/cpu/arm/jniFastGetField_arm.cpp @ 1771980690672
