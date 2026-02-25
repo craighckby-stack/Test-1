@@ -817,3 +817,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/demos/Clipping/Areas.java @ 1771979669717
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/demos/Fonts/AttributedStr.java @ 1771979734356
 // SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/demos/Lines/LineAnim.java @ 1771979798669
+// SIPHON_METADATA: Evolution from src/demo/share/jfc/J2Ddemo/java2d/demos/Paths/WindingRule.java @ 1771979862072
