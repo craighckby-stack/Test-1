@@ -806,3 +806,4 @@ export default function App() {
 // SIPHON_METADATA: Evolution from make/langtools/src/classes/build/tools/symbolgenerator/Probe.java @ 1771978964432
 // SIPHON_METADATA: Evolution from make/langtools/tools/anttasks/SelectToolTask.java @ 1771979027679
 // SIPHON_METADATA: Evolution from make/langtools/tools/javacserver/client/Client.java @ 1771979090829
+// SIPHON_METADATA: Evolution from make/langtools/tools/javacserver/util/LazyInitFileLog.java @ 1771979154963
