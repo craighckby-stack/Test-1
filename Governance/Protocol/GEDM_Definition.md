@@ -1,14 +1,22 @@
-const WeakMap = require('weak-map');
+Here's the updated code incorporating advanced NexusCore patterns, lifecycle management, and robust encapsulation:
+
+
+class WeakMap {
+  constructor() {
+    this.map = new WeakMap();
+  }
+
+  set(key, value) {
+    this.map.set(key, value);
+  }
+
+  get(key) {
+    return this.map.get(key);
+  }
+}
 
 // Config interface
 class ConfigBase {
-  static get defaultConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: "development"
-    };
-  }
-
   constructor(values = {}) {
     this.#values = this.#setValues(values);
   }
@@ -23,22 +31,14 @@ class ConfigBase {
 
   protected abstract #getConfigSchema(): object;
 
-  public validate(): void {
-    try {
-      const schema = this.#getConfigSchema();
-      const validator = new (require("jsonschema").Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this.#values, schema);
-    } catch (e) {
-      console.error("Config validation error:", e);
-      throw e;
-    }
-  }
+  public abstract validate(): void;
 }
 
 class Config extends ConfigBase {
   static get defaultConfig() {
     return {
+      VERSION: "1.0.0",
+      env: "development",
       foo: "bar",
       baz: true
     };
@@ -48,27 +48,32 @@ class Config extends ConfigBase {
     return {
       type: "object",
       properties: {
+        VERSION: { type: "string" },
+        env: { type: "string" },
         foo: { type: "string" },
         baz: { type: "boolean" }
       }
     };
   }
 
-  #getInitialValues() {
-    return {
-      VERSION: "1.0.0",
-      env: "development",
-      foo: "bar",
-      baz: true,
-      ...Config.defaultConfig
-    };
+  protected #getInitialValues() {
+    return {};
   }
 
-  #getConfigSchema() {
-    return {
-      ...ConfigBase.defaultConfig,
-      ...Config.configSchema
-    };
+  protected #getConfigSchema() {
+    return Config.configSchema;
+  }
+
+  public validate() {
+    try {
+      const schema = this.#getConfigSchema();
+      const validator = new (JSONSchemaValidator.Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this.#values, schema);
+    } catch (e) {
+      console.error("Config validation error:", e);
+      throw e;
+    }
   }
 }
 
@@ -126,9 +131,21 @@ class NexusCore {
     return this.#lifecycle;
   }
 
+  #validateConfig(config) {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (JSONSchemaValidator.Validator)();
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
+    } catch (e) {
+      console.error("Config validation error:", e);
+      throw e;
+    }
+  }
+
   configure(config: object) {
     // Validate config
-    this.validateConfig(config);
+    this.#validateConfig(config);
     // Set config values
     this.#values = config;
     // On configure lifecycle event
@@ -188,12 +205,12 @@ class NexusCore {
   }
 
   on(event, handler) {
-    const weakHandler = weakHandlerForFunction(handler);
+    const weakHandler = this.#weakHandlerForFunction(handler);
     this.#handlers.set(event, weakHandler);
     weakHandler.bind(this);
   }
 
-  executeLifecycleEvent(event) {
+  async executeLifecycleEvent(event) {
     const lifecycle = this.#lifecycle;
     if (event in lifecycle) {
       const lifecycleHandler = lifecycle[event];
@@ -201,16 +218,18 @@ class NexusCore {
     }
   }
 
-  validateConfig(config: object) {
-    try {
-      const schema = Config.configSchema();
-      const validator = new (require("jsonschema").Validator)();
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
-    } catch (e) {
-      console.error("Config validation error:", e);
-      throw e;
-    }
+  #weakHandlerForFunction(fn) {
+    let handler;
+    return new (class WeakHandler) {
+      unbind() {
+        handler = null;
+      }
+      execute() {
+        if (handler) {
+          handler();
+        }
+      }
+    }.constructor(fn);
   }
 }
 
@@ -225,20 +244,6 @@ class CleanupHandler {
     nexusCore.destroy();
   }
 }
-
-const weakHandlerForFunction = (fn) => {
-  let handler;
-  return new (class WeakHandler) {
-    unbind() {
-      handler = null;
-    }
-    execute() {
-      if (handler) {
-        handler();
-      }
-    }
-  }.constructor(fn);
-};
 
 // Create a NexusCore instance
 const nexusCore = new NexusCore();
@@ -261,13 +266,12 @@ nexusCore.destroy();
 const cleanupHandler = new CleanupHandler();
 cleanupHandler.cleanup();
 
+Note: This updated code will now include the updated class definitions based on the NexusCore patterns, but the real functionality depends on implementing JSON schema validation as shown in the `JSONSchemaValidator` but this is commented. If you want JSON schema validation to work properly, ensure that you import and implement `JSONSchemaValidator` correctly. 
 
-I made the following changes:
+Please import JSONSchemaValidator like this:
 
- - In Config class, I added `#getInitialValues`
 
- - In Config class, I added `#getConfigSchema`
+const JSONSchemaValidator = require('jsonschema');
 
- - In `NexusCore` class, I updated `validateConfig` method which now belongs to `NexusCore`
 
- - I also extracted the `#values` property of `NexusCore` to a private property with a hashtag.
+Then replace `Validator` with `JSONSchemaValidator.Validator` in the Config class and NexusCore class for validation to work properly.
