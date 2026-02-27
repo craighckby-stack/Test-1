@@ -1,0 +1,15 @@
+{
+  "name": "Meta-123",
+  "repo": "craighckby-stack/Test-1",
+  "instantiatedAt": "2026-02-27T15:07:10.136Z",
+  "status": "Instantiated",
+  "logs": [
+    "Self-causative evolutionary instantiation complete via GitHub Sync."
+  ],
+  "config": {
+    "Core": {
+      "version": "1.2.3-final",
+      "status": "Transcendent"
+    }
+  }
+}
