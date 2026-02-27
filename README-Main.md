@@ -1,3 +1,8 @@
+VOTE:  Met a AI Model using REACT-Core, Meta's React-like runtime for building complex systems at scale.
+
+MUTATED CODE:
+
+
 class Config {
   static get staticConfig() {
     return {
@@ -6,11 +11,12 @@ class Config {
     };
   }
 
-  constructor(values = {}) {
-    this.setValues(values);
+  constructor(values = {}, schema = Config.configSchema) {
+    this.setValues(values, schema);
   }
 
-  setValues(values) {
+  setValues(values, schema) {
+    this.validate(values, schema);
     Object.assign(this, values);
   }
 
@@ -31,12 +37,11 @@ class Config {
     };
   }
 
-  validate() {
+  validate(values, schema) {
     try {
-      const schema = Config.configSchema;
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
-      validator.validate(this, schema);
+      validator.validate(values, schema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -51,16 +56,22 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
+  constructor(handler, context) {
+    this.handler = handler.bind(context);
+    this.context = context;
   }
 
   execute() {
     this.handler();
+  }
+
+  bind(context) {
+    this.handler = this.handler.bind(context);
+    this.context = context;
+  }
+
+  executeWithContext(...args) {
+    return this.handler(this.context, ...args);
   }
 }
 
@@ -96,27 +107,23 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  configure(config) {
+  configure(config, handler = () => {}, context) {
     this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
+    this.onLifecycleEvent("CONFIGURED", handler);
     this.#lifecycle.configured = true;
     this.config = config;
+    this.on("CONFIGURED", ({config}) => {
+      context.configure(config);
+    });
   }
 
   validateConfig(config) {
     const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+    this.validate(config, configSchema);
   }
 
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
+  onLifecycleEvent(event, handler, context = this) {
+    const lifecycleHandler = new LifecycleHandler(handler, context);
     this.#lifecycle[event] = lifecycleHandler;
   }
 
@@ -133,25 +140,25 @@ class NexusCore {
     }
   }
 
-  async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
+  async load(handler = () => {}, context) {
+    await this.executeLifecycleEvent("CONFIGURED", () => {}, context);
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
+      await this.executeLifecycleEvent("LOADED", () => {}, context);
     } catch (e) {
       console.error('Load error:', e);
     }
   }
 
-  async shutdown() {
+  async shutdown(handler = () => {}, context) {
     try {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
+        await this.executeLifecycleEvent("SHUTTING_DOWN", () => {}, context);
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
       }
@@ -164,12 +171,13 @@ class NexusCore {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
-        await this[methodName]();
+        const func = this[methodName].bind(this);
+        await func();
       }
     }
   }
 
-  async destroy() {
+  async destroy(handler = () => {}, context) {
     this.status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
@@ -192,3 +200,12 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
+
+
+The mutated code introduces the `validate` method in the `Config` class which is a better approach to perform the validation. The mutated code in `LifecycleHandler` now holds a reference to its context and you can access properties and methods in that context directly using `this.context`.
+The mutated code has a more efficient and optimized way to call methods with context.
+This includes a better way to call the methods, including `bind`, `executeWithContext` and to improve code readability.
+
+nexusCore.on("CONFIGURED", ({config}) => {
+  context.configure(config);
+});
