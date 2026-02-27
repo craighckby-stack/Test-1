@@ -1,53 +1,105 @@
-Below is the refactored code incorporating advanced NexusCore patterns, lifecycle management (configure, load, shutdown), and robust encapsulation:
+class LifecycleState {
+  #state
 
-// ES6 classes
+  get configured() {
+    return this.#state.configured;
+  }
+
+  set configured(value) {
+    this.#state.configured = value;
+  }
+
+  get loaded() {
+    return this.#state.loaded;
+  }
+
+  set loaded(value) {
+    this.#state.loaded = value;
+  }
+
+  get shuttingDown() {
+    return this.#state.shuttingDown;
+  }
+
+  set shuttingDown(value) {
+    this.#state.shuttingDown = value;
+  }
+}
+
+class LifecycleHandler {
+  #handler;
+
+  constructor() {
+    this.#handler = {
+      configure: (config) => console.log(`Configure with: ${config}`),
+      load: () => console.log("Loading..."),
+      shutdown: () => console.log("Shutdown initiated..."),
+      shutdown_: () => {}
+    };
+  }
+
+  configure(config) {
+    this.#handler.configure(config);
+  }
+
+  load() {
+    this.#handler.load();
+  }
+
+  shutdown_() {
+    this.#handler.shutdown_();
+  }
+
+  shutdown() {
+    this.#handler.shutdown();
+  }
+}
+
 class NexusCore {
+  #lifecycleState = new LifecycleState();
+  #status = '';
+
   static get instance() {
     return this.instance_ || (this.instance_ = new NexusCore());
   }
 
-  static get lifecycleState() {
-    return this.lifecycleState_;
-  }
-
-  set lifecycleState(value) {
-    this.lifecycleState_ = value;
-  }
-
   get status() {
-    return this.status_;
+    return this.#status;
   }
 
   set status(value) {
-    this.status_ = value;
+    this.#status = value;
+  }
+
+  get lifecycleState() {
+    return this.#lifecycleState;
   }
 
   async configure(config) {
-    if (this.lifecycleState.configured) {
+    if (this.#lifecycleState.configured) {
       throw new Error('NexusCore already configured');
     }
-    await validateConfig(config);
-    this.lifecycleState.configured = true;
+    await this.#validateConfig(config);
+    this.#lifecycleState.configured = true;
     this.status = 'CONFIGURED';
   }
 
   async load() {
-    if (this.lifecycleState.loaded) {
+    if (this.#lifecycleState.loaded) {
       throw new Error('NexusCore already loaded');
     }
-    console.log("Loading...");
+    await this.#lifecycleState.handler.load();
     await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("Loading complete...");
-    this.lifecycleState.loaded = true;
+    this.#lifecycleState.loaded = true;
     this.status = 'LOADED';
   }
 
   async shutdown() {
-    if (!this.lifecycleState.shuttingDown) {
+    if (!this.#lifecycleState.shuttingDown) {
       console.log("Shutdown initiated...");
-      this.lifecycleState.shuttingDown = true;
+      this.#lifecycleState.shuttingDown = true;
       try {
-        await this.shutdown_();
+        await this.#lifecycleState.handler.shutdown_();
         console.log("Shutdown complete...");
       } catch (error) {
         console.error('Error shutting down NexusCore:', error);
@@ -57,7 +109,7 @@ class NexusCore {
   }
 
   async shutdown_() {
-    // Subclasses can implement shutdown behavior
+    this.#lifecycleState.handler.shutdown_();
   }
 
   async stop() {
@@ -65,128 +117,116 @@ class NexusCore {
   }
 
   async destroy() {
-    this.lifecycleState = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
+    this.#lifecycleState = new LifecycleState();
     this.status = 'DESTROYED';
+  }
+
+  async start() {
+    await this.#lifecycleState.handler.configure('Configured');
+  }
+
+  #validateConfig(config) {
+    // validate config
   }
 }
 
 class Config {
+  #configSchema = {
+    VERSION: "1.0.0",
+    env: "development"
+  };
+
   static get instance() {
     return this.instance_ || (this.instance_ = new Config());
   }
 
+  get config() {
+    return this.#config;
+  }
+
+  set config(value) {
+    this.#config = value;
+  }
+
+  #config = null;
+
   get configSchema() {
-    return this.configSchema_;
+    return this.#configSchema;
   }
 
   set configSchema(value) {
-    this.configSchema_ = value;
+    this.#configSchema = value;
   }
 
   async validate() {
     const validator = new Validator();
-    validator.checkSchema(this.configSchema);
-    const result = await validator.validateAsync(this.#config, this.configSchema);
+    validator.checkSchema(this.#configSchema);
+    const result = await validator.validateAsync(this.#config, this.#configSchema);
     if (result.valid) {
       console.log('Config validated successfully');
     } else {
       throw new Error(`Config validation failed: ${result.errors[0].message}`);
     }
   }
-
-  async loadDefaultConfig() {
-    const defaultConfig = { ...Config.getInstance().staticConfig };
-    return Promise.resolve(JSON.stringify(defaultConfig));
-  }
-
-  async loadConfig() {
-    try {
-      const defaultConfig = await this.loadDefaultConfig();
-      await validateConfig(defaultConfig);
-      return JSON.parse(defaultConfig);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
-
-  async loadStaticConfig() {
-    return this.staticConfig;
-  }
 }
 
-class ConfigManager {
+class ConfigManager extends Config {
+  #configPath;
+  #configLoader;
+
   static get instance() {
     return this.instance_ || (this.instance_ = new ConfigManager());
   }
 
+  constructor() {
+    super();
+    this.#configLoader = { loadConfig: async () => ({}) };
+    this.#configPath = {
+      async #configPath() {
+        let path = '';
+        try {
+          console.log("Config Path");
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+  }
+
+  async #init() {
+    await this.#configPath.#configPath();
+  }
+
   async loadConfig() {
-    try {
-      const config = await this.#configPath();
-      if (!config) {
-        config = new Config();
-        return await (await ConfigManager.getInstance()).loadConfig();
-      } else {
-        const instance = Config.getInstance();
-        instance.#config = config;
-        return await instance.loadConfig();
-      }
-    } catch (err) {
-      if (err) throw err;
+    await this.#init();
+    if (this.#config) {
+      console.log('Config Loaded');
+      return this.#config;
     }
+    const loader = await this.#loadConfig();
+    console.log('Loading default');
+    return loader.loadConfig();
   }
 
-  async saveConfig(config) {
-    try {
-      const fs = require('fs').promises;
-      const fileLocation = process.env.HOME || process.env.APPDATA;
-      const path = `${fileLocation}/nexus-core/config.json`;
-      const data = await JSON.stringify(config, null, 2);
-      await fs.writeFile(path, data);
-    } catch (err) {
-      if (err) throw err;
-    }
-  }
-
-  async #configPath() {
-    let path = '';
-    try {
-      const home = process.env.HOME;
-      if (home) {
-        path += `${home}/nexus-core/config.json`;
-      }
-      if (path) {
-        const fs = require('fs').promises;
-        const data = await fs.readFile(path, 'utf8');
-        return JSON.parse(data);
-      }
-    } catch (err) {
-      return null;
-    }
+  #loadConfig() {
+    // load config from file
   }
 }
 
-// ES6 classes with lifecycle hooks
 class Loader extends LifecycleHandler {
   constructor() {
-    super((value) => console.log('Loader executed'));
+    super();
     this.#loaderConfig(config => {
       console.log(`Loader with config: ${config}`);
     });
   }
 
+  async configure(config) {
+    await super.configure(config);
+  }
+
   #loaderConfig(cb) {
-    // Hook
+    cb('Loaded');
   }
 }
 
@@ -196,54 +236,57 @@ class Loader2 extends Loader {
   }
 }
 
-class LifecycleHandler {
-  #handler;
+class Validator {
+  #checkSchema;
+  #validate;
 
-  constructor(handler) {
-    this.#handler = handler;
+  constructor() {
+    console.log("Validating");
+    this.#checkSchema = async (schema, config) => console.log(`Validate schema and config: ${schema} ${config}`);
+    this.#validate = async (config, schema) => console.log(`Validate config: ${config} ${schema}`);
   }
 
-  execute(value) {
-    this.#handler(value);
+  checkSchema(schema) {
+    return this.#checkSchema(schema, schema);
+  }
+
+  async validateAsync(config, schema) {
+    return this.#validate(config, schema);
   }
 }
 
-async function main() {
-  try {
-    const nexusCore = new NexusCore();
-    const configManager = ConfigManager.getInstance();
-    let config = await configManager.loadConfig();
-    await nexusCore.configure(config);
-    await new ConfigManager().saveConfig(config);
-    await config.validate();
-    console.log('Config: ', config.#config);
-    await nexusCore.start();
-    await nexusCore.load();
-    await nexusCore.shutdown();
-    await nexusCore.destroy();
-    return true;
-  } catch (err) {
-    throw err;
+class PathResolver {
+  #path;
+
+  constructor() {
+    this.#path = '/'
+  }
+
+  async #resolve(p) {
+    return `${this.#path}/${p}`;
+  }
+
+  async resolve(directory) {
+    return await this.#resolve(directory);
   }
 }
 
 // Usage
-config.validate();
+// Main class
+class Main {
+  static async main() {
+    try {
+      const nexusCore = new NexusCore();
+      await nexusCore.configure({ config: 'Configured' });
+      await new ConfigManager().loadConfig();
+      await nexusCore.load();
+      await nexusCore.shutdown();
+      await nexusCore.destroy();
+    } catch (err) {
+      console.error('Main error:', err);
+    }
+  }
+}
 
-main().catch((err) => {
-  console.error('Main error:', err);
-});
-
-In the refactored code:
-
-*   Encapsulation has been improved with getters and setters to hide internal state.
-*   Classes have been improved with static methods for singletons and instance methods for dynamic behavior.
-*   Classes `Loader` and `Loader2` showcase the usage of inherited lifecycle hooks.
-*   The `LifecycleHandler` class serves as a base for handlers.
-*   ES6 class syntax is used to create classes.
-*   Factory function `getInstance` has been introduced to ensure a single instance of the class.
-*   Lifecycle state has been moved to a state object within the class.
-*   The `start` method is used to call lifecycle methods in a specific order.
-*   Configuration validation has been moved to the `Config` class.
-*   ES6 `async/await` syntax has been used to improve readability.
-*   Some parts of the code use `require('path').resolve()` to get the path of the config file. However, here i did not include it because of simplicity of this document.
+// Main execution
+Main.main();
