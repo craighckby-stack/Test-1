@@ -1,38 +1,16 @@
 class Config {
-  constructor(values = this.defaultConfig) {
-    this._config = new SafeAssign(values, this.defaultConfig);
-    this._config.validate();
-  }
+  static defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
 
-  get config() {
-    return this._config;
-  }
-
-  get configCopy() {
-    return this._config.copy();
-  }
-
-  set config(values) {
-    this._config = new SafeAssign(values, this.defaultConfig);
-    this._config.validate();
-  }
-
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
-  }
+  static configSchema = {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    }
+  };
 
   static validate(config) {
     try {
@@ -67,7 +45,7 @@ class LifecycleHandler {
     }
   }
 
-  bind(target = this) {
+  async bind(target = this) {
     const boundHandler = async () => {
       const resolve = target.resolveAsync.bind(target);
       this._handler = this._handler.bind(target);
@@ -118,14 +96,55 @@ class SafeAssign {
   }
 }
 
+class EventEmitter {
+  constructor() {
+    this._events = {};
+  }
+
+  on(event, handler) {
+    if (!this._events[event]) {
+      this._events[event] = [];
+    }
+    this._events[event].push(handler);
+  }
+
+  off(event, handler) {
+    if (this._events[event]) {
+      const index = this._events[event].indexOf(handler);
+      if (index !== -1) {
+        this._events[event].splice(index, 1);
+      }
+    }
+  }
+
+  emit(event, ...args) {
+    if (this._events[event]) {
+      const copy = [...this._events[event]];
+      this._events[event].forEach(handler => handler.bind(this)(...args));
+      return copy;
+    }
+  }
+
+  emitAsync(event, ...args) {
+    return new Promise(resolve => {
+      const copy = [...this._events[event]];
+      this._events[event].forEach(handler => {
+        handler.bind(this)(...args).then(resolve);
+      });
+    });
+  }
+}
+
 class NexusCore {
   constructor() {
     this._status = 'INIT';
     this._configs = new SafeAssign(Config.defaultConfig);
     this._lifecycle = {
       configured: false,
-      loaded: false,
-      shuttingDown: false
+      loading: false,
+      shuttingDown: false,
+      destroyed: false,
+      started: false
     };
     this.eventEmitter = new EventEmitter();
   }
@@ -146,7 +165,7 @@ class NexusCore {
   }
 
   get configCopy() {
-    return this._configs.copy();
+    return this._configs.copy().config;
   }
 
   set config(values) {
@@ -175,15 +194,42 @@ class NexusCore {
       return;
     }
     this.status = 'SHUTTING_DOWN';
+    this._lifecycle.shuttingDown = true;
     await this.eventEmitter.emitAsync('shutting_down');
   }
 
   async destroy() {
     this.status = 'DESTROYED';
+    this._lifecycle.destroyed = true;
   }
 
   get lifecycle() {
     return this._lifecycle;
+  }
+
+  handleEvent(event) {
+    switch (event) {
+      case 'LOADING':
+        this._lifecycle.loading = true;
+        break;
+      case 'LOADED':
+        this._lifecycle.loading = false;
+        this._lifecycle.started = true;
+        this.status = 'STARTED';
+        break;
+      case 'SHUTTING_DOWN':
+        this._lifecycle.shuttingDown = true;
+        this.status = 'SHUTTING_DOWN';
+        break;
+      case 'SHUTDOWN':
+        this._lifecycle.shuttingDown = false;
+        this.status = 'SHUTDOWN';
+        break;
+      case 'DESTROYED':
+        this._lifecycle.destroyed = true;
+        this.status = 'DESTROYED';
+        break;
+    }
   }
 
   eventOnce(event, handler) {
@@ -195,8 +241,16 @@ class NexusCore {
   }
 
   eventEmit(event, ...args) {
-    if (typeof this._lifecycle[event] === 'function') {
-      this._lifecycle[event](...args);
+    this.eventEmitter.emit(event, ...args);
+    this.handleEvent(event);
+  }
+
+  async eventEmitAsync(event, ...args) {
+    try {
+      await this.eventEmitter.emitAsync(event, ...args);
+      this.handleEvent(event);
+    } catch (e) {
+      console.error(e.message);
     }
   }
 
@@ -207,39 +261,21 @@ class NexusCore {
       for (const event of startEventsOrder) {
         await this.eventEmitAsync(event);
       }
+      this.status = 'STARTED';
+      await this.eventEmitAsync('started');
     } catch (e) {
       console.error(e.message);
-    }
-  }
-
-  async eventEmitAsync(event, ...args) {
-    try {
-      return await this.eventEmitter.emitAsync(event, ...args);
-    } catch (e) {
-      console.error(e.message);
-      throw e;
-    }
-  }
-
-  async emitAsync(event, ...args) {
-    try {
-      return await this.eventEmitter.emitAsync(event, ...args);
-    } catch (e) {
-      console.error(e.message);
-      throw e;
     }
   }
 }
 
-const _instance = {};
-
-function instance() {
+const instance = () => {
   return new NexusCore();
-}
+};
 
 const nexusCore = instance();
 
-nexusCore.eventOnce('DESTRUCTED', async () => {
+nexusCore.eventOnce('DESTRUCTED', () => {
   console.log('NexusCore instance destroyed.');
 });
 
@@ -252,25 +288,13 @@ try {
   await nexusCore.destroy();
 }
 
+// Example usage:
 
-In this enhanced code:
-
-*   `NexusCore` class handles instance lifecycle via `lifecycle` object.
-*   New instance status `INIT` is added in order to denote when a new NexusCore instance is created.
-*   Configuration and starting the instance triggers other lifecycle events.
-*   Various events can be listened and emitted to in order to adhere to a modular architecture where developers can decide what happens when particular events are triggered.
-*   All lifecycle-related methods (`configure`, `load`, `shutdown`) in `NexusCore` are properly awaited.
-*   All functions in the `NexusCore` class are properly bound with their respective `this` contexts.
-*   New events that are triggered by the user through `eventEmitAsync` and `emitAsync`.
-
-Here is a code where an event is added and it's triggered correctly:
-
-
-const nexusCore = instance();
-nexusCore.eventOnce('CONFIGURED', async () => {
+const eventBinder = nexusCore.eventOnce('CONFIGURED', () => {
   console.log('NexusCore is fully configured.');
 });
+
 nexusCore.configure(Config.defaultConfig);
 
-
-In the above example, 'CONFIGURED' event is triggered once NexusCore is fully configured.
+// Make sure to call unbind() to prevent memory leaks
+eventBinder.unbind();
