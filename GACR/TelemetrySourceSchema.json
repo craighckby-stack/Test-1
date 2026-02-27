@@ -35,18 +35,18 @@ class Config {
       validator.checkSchema(this.configSchema);
       validator.validate(config, this.configSchema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
 
-  constructor(values = null) {
-    if (values) this.#validateConfig(values);
+  async constructor(values) {
+    const config = await this.validateConfig(values);
     this.#config = {
       ...this.staticConfig,
       ...this.defaultConfig,
-      ...values
+      ...config
     };
+    return this.#config;
   }
 
   get config() {
@@ -88,15 +88,20 @@ class LifecycleHandler {
   }
 }
 
+const LIFECYCLE_CONFIGURED = Symbol("CONFIGURED");
+const LIFECYCLE_LOADED = Symbol("LOADED");
+const LIFECYCLE_SHUTTING_DOWN = Symbol("SHUTDOWN");
+const LIFECYCLE_DESTROYED = Symbol("DESTROYED");
+
 class LifecycleManager {
   #config;
   #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false,
-    destroyed: false
+    [LIFECYCLE_CONFIGURED]: false,
+    [LIFECYCLE_LOADED]: false,
+    [LIFECYCLE_SHUTTING_DOWN]: false,
+    [LIFECYCLE_DESTROYED]: false
   };
-  #status = "INIT";
+  #status = LIFECYCLE_CONFIGURED;
   #handlers = {};
 
   constructor() {
@@ -104,28 +109,27 @@ class LifecycleManager {
   }
 
   async configure(config) {
-    await this.#validateConfig(config);
-    this.#setLifecycleStatus("CONFIGURED", "CONFIGURING");
+    await this.validateConfig(config);
+    this.#setLifecycleStatus(LIFECYCLE_CONFIGURED, LIFECYCLE_CONFIGURED);
     if (typeof config === "function") {
-      const validatedConfig = new Config(config()).config;
+      const validatedConfig = await new Config(config()).constructor();
       this.#config = validatedConfig;
-      this.#setLifecycleStatus("CONFIGURED", "CONFIGURED");
+      this.#setLifecycleStatus(LIFECYCLE_CONFIGURED, LIFECYCLE_CONFIGURED);
       return { validatedConfig };
     } else {
       this.#config = config;
-      this.#setLifecycleStatus("CONFIGURED", "CONFIGURED");
+      this.#setLifecycleStatus(LIFECYCLE_CONFIGURED, LIFECYCLE_CONFIGURED);
       return { config };
     }
   }
 
-  async #validateConfig(config) {
+  async validateConfig(config) {
     const configSchema = new Config().configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(configSchema);
       validator.validate(config, configSchema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -143,52 +147,48 @@ class LifecycleManager {
   }
 
   async load() {
-    this.#setLifecycleStatus("LOADED", "LOADING");
-    if (!this.#lifecycle.destroyed) {
-      this.executeLifecycleEvent(LifecycleManager.LIFECYCLE_CONFIGURED);
+    this.#setLifecycleStatus(LIFECYCLE_LOADED, LIFECYCLE_LOADED);
+    if (!this.#lifecycle[LIFECYCLE_DESTROYED]) {
+      this.executeLifecycleEvent(LIFECYCLE_CONFIGURED);
       await new Promise(resolve => setTimeout(resolve, 1000));
-      this.#setLifecycleStatus("LOADED", "LOADED");
-      this.executeLifecycleEvent(LifecycleManager.LIFECYCLE_LOADED);
+      this.#setLifecycleStatus(LIFECYCLE_LOADED, LIFECYCLE_LOADED);
+      this.executeLifecycleEvent(LIFECYCLE_LOADED);
     }
   }
 
   async shutdown() {
-    this.#setLifecycleStatus("SHUTDOWN", "SHUTTING_DOWN");
-    if (!this.#lifecycle.destroyed) {
-      this.#lifecycle.shuttingDown = true;
-      this.#handlers[LifecycleManager.LIFECYCLE_SHUTTING_DOWN].destroy();
-      this.#lifecycle.destroyed = false;
+    this.#setLifecycleStatus(LIFECYCLE_SHUTTING_DOWN, LIFECYCLE_SHUTTING_DOWN);
+    if (!this.#lifecycle[LIFECYCLE_DESTROYED]) {
+      this.#lifecycle[LIFECYCLE_SHUTTING_DOWN] = true;
+      this.#handlers[LIFECYCLE_SHUTTING_DOWN].destroy();
+      this.#lifecycle[LIFECYCLE_DESTROYED] = false;
       await new Promise(resolve => setTimeout(resolve, 1000));
-      this.#setLifecycleStatus("SHUTDOWN", "SHUTDOWN");
-      this.#lifecycle.shuttingDown = false;
-      this.#status = LifecycleManager.LIFECYCLE_SHUTDOWN;
+      this.#setLifecycleStatus(LIFECYCLE_SHUTTING_DOWN, LIFECYCLE_SHUTTING_DOWN);
+      this.#lifecycle[LIFECYCLE_SHUTTING_DOWN] = false;
+      this.#status = LIFECYCLE_SHUTTING_DOWN;
     }
   }
 
   destroy() {
-    this.#setLifecycleStatus("DESTROYED", "DESTROYED");
-    this.#lifecycle.destroyed = true;
-    this.#status = LifecycleManager.LIFECYCLE_DESTROYED;
+    this.#setLifecycleStatus(LIFECYCLE_DESTROYED, LIFECYCLE_DESTROYED);
+    this.#lifecycle[LIFECYCLE_DESTROYED] = true;
+    this.#status = LIFECYCLE_DESTROYED;
+    this.#handlers[LIFECYCLE_DESTROYED].execute();
   }
 
   #setLifecycleStatus(from, to) {
-    const statuses = {
-      [LifecycleManager.LIFECYCLE_CONFIGURED]: "CONFIGURED",
-      [LifecycleManager.LIFECYCLE_LOADED]: "LOADED",
-      [LifecycleManager.LIFECYCLE_SHUTTING_DOWN]: "SHUTDOWN",
-      [LifecycleManager.LIFECYCLE_DESTROYED]: "DESTROYED"
-    };
+    const statuses = Object.freeze({
+      [LIFECYCLE_CONFIGURED]: "CONFIGURED",
+      [LIFECYCLE_LOADED]: "LOADED",
+      [LIFECYCLE_SHUTTING_DOWN]: "SHUTDOWN",
+      [LIFECYCLE_DESTROYED]: "DESTROYED"
+    });
     const fromStatus = statuses[from];
     const toStatus = statuses[to];
     this.#lifecycle[fromStatus] = false;
     this.#lifecycle[toStatus] = true;
   }
 }
-
-LifecycleManager.LIFECYCLE_CONFIGURED = "CONFIGURED";
-LifecycleManager.LIFECYCLE_LOADED = "LOADED";
-LifecycleManager.LIFECYCLE_SHUTTING_DOWN = "SHUTDOWN";
-LifecycleManager.LIFECYCLE_DESTROYED = "DESTROYED";
 
 class NexusCore extends LifecycleManager {
   get status() {
@@ -206,32 +206,26 @@ class NexusCore extends LifecycleManager {
 
 const nexusCore = new NexusCore();
 
-const lifecycleHandler1 = nexusCore.on(LifecycleManager.LIFECYCLE_DESTROYED, () => {
+const lifecycleHandler1 = nexusCore.on(LIFECYCLE_DESTROYED, () => {
   console.log("NexusCore instance destroyed.");
 });
 
-const lifecycleHandler2 = nexusCore.on(LifecycleManager.LIFECYCLE_LOADED, () => {
+const lifecycleHandler2 = nexusCore.on(LIFECYCLE_LOADED, () => {
   console.log("NexusCore instance loaded.");
 });
 
 nexusCore.configure(Config.defaultConfig);
 
-const validatedConfig = new Config(Config.defaultConfig).config;
-
-const loadPromise = nexusCore.load();
-loadPromise.then(() => console.log("NexusCore loaded"));
-
-nexusCore.shutdown().then(() => {
+async function main() {
+  await nexusCore.configure(Config.defaultConfig);
+  const validatedConfig = await new Config(Config.defaultConfig).constructor();
+  console.log("Config:", validatedConfig);
+  await nexusCore.load();
+  console.log("NexusCore loaded");
+  await nexusCore.shutdown();
   console.log("NexusCore shutdown");
   nexusCore.destroy();
-}).catch(e => console.error("NexusCore shutdown error:", e));
+  console.log("NexusCore destroyed");
+}
 
-
-Changes made to enhance the code:
-1. **Encapsulation**: Made the properties and methods of the classes more private using the `#` symbol.
-2. **Lifecycle Management**: Added the `configure`, `load` and `shutdown` methods to the `LifecycleManager` class.
-3. **Advanced NexusCore Patterns**: Used `async/await` to handle the lifecycle events and loading/shutting down of the NexusCore instance.
-4. **Robust Encapsulation**: Deleted the unused destructors and added the `destroy` method to the `Config` class.
-5. **Renamed methods and properties**: Renamed the `setLifecycleStatus` method to `#setLifecycleStatus` to make it more private.
-6. **Renamed the event handlers**: Renamed the event handlers to make them more descriptive and easy to understand.
-7. **Added comments and documentation**: Added comments to explain the purpose of each function and property, making the code easier to understand.
+main();
