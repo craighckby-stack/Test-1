@@ -19,7 +19,8 @@ class Config {
       properties: {
         foo: { type: 'string' },
         baz: { type: 'boolean' }
-      }
+      },
+      required: ['foo', 'baz']
     };
   }
 
@@ -44,12 +45,14 @@ class Config {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
+  constructor(handler, context) {
     this.handler = handler;
+    this.context = context;
+    this.bind();
   }
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
+  bind() {
+    this.handler = this.handler.bind(this.context);
   }
 
   execute() {
@@ -65,11 +68,12 @@ class Event {
 
   on(handler) {
     this.handlers.push(handler);
+    return this;
   }
 
   emit() {
     for (const handler of this.handlers) {
-      handler();
+      handler.execute();
     }
   }
 }
@@ -97,12 +101,17 @@ class Lifecycle {
 class NexusCore {
   #lifecycle = new Lifecycle(false, false, false);
   #status = "INIT";
+  #config = null;
+  #disposed = false;
 
   get status() {
     return this.#status;
   }
 
   set status(value) {
+    if (this.#disposed) {
+      throw new Error('NexusCore instance is disposed');
+    }
     this.#status = value;
     const currentValue = this.#status;
     if (value !== 'INIT') {
@@ -118,10 +127,12 @@ class NexusCore {
   }
 
   async configure(config) {
+    if (this.#disposed) {
+      throw new Error('NexusCore instance is disposed');
+    }
     this.validateConfig(config);
+    this.#config = config;
     this.#lifecycle.configured.emit();
-    this.#lifecycle.configured = true;
-    this.config = config;
   }
 
   async validateConfig(config) {
@@ -135,27 +146,41 @@ class NexusCore {
     }
   }
 
-  on(event, handler) {
-    const lifecycleEvent = event === 'CONFIGURED' ? this.#lifecycle.configured : event === 'LOADED' ? this.#lifecycle.loaded : event === 'SHUTTING_DOWN' ? this.#lifecycle.shuttingDown : null;
-    if (lifecycleEvent) {
-      lifecycleEvent.on(handler);
+  async destroy() {
+    this.#disposed = true;
+    this.#status = "DESTROYED";
+    this.#lifecycle = new Lifecycle(false, false, false);
+  }
+
+  async _callHandler(methodName) {
+    try {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    } catch (e) {
+      console.error(`Error occurred during ${methodName} method call:`, e);
     }
   }
 
-  executeLifecycleEvent(event) {
-    const lifecycleEvent = event === 'CONFIGURED' ? this.#lifecycle.configured : event === 'LOADED' ? this.#lifecycle.loaded : event === 'SHUTTING_DOWN' ? this.#lifecycle.shuttingDown : null;
-    if (lifecycleEvent) {
-      lifecycleEvent.emit();
+  async start() {
+    if (this.#disposed) {
+      throw new Error('NexusCore instance is disposed');
+    }
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      await this._callHandler(methodName);
     }
   }
 
   async load() {
     try {
+      if (this.#disposed) {
+        throw new Error('NexusCore instance is disposed');
+      }
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded.emit();
-      this.#lifecycle.loaded = true;
     } catch (e) {
       throw e;
     }
@@ -163,40 +188,26 @@ class NexusCore {
 
   async shutdown() {
     try {
-      if (!this.#lifecycle.isShuttingDown()) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown.emit();
-        this.#lifecycle.shuttingDown = true;
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+      if (this.#disposed) {
+        throw new Error('NexusCore instance is disposed');
       }
+      console.log("Shutdown initiated...");
+      this.#lifecycle.shuttingDown.emit();
+      this.#lifecycle.shuttingDown = true;
+      console.log("Shutdown complete...");
+      this.status = "SHUTDOWN";
     } catch (e) {
       throw e;
     }
   }
-
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      try {
-        if (this[methodName] instanceof Function) {
-          await this[methodName]();
-        }
-      } catch (e) {
-        console.error(`Error occurred during ${methodName} method call:`, e);
-      }
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = new Lifecycle(false, false, false);
-  }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
+nexusCore.on('CONFIGURED').on(() => {
+  console.log('Lifecycle CONFIGURED event emitted');
+});
+nexusCore.on('DESTROYED').on(() => {
+  console.log('NexusCore instance destroyed.');
 });
 nexusCore.configure(Config.defaultConfig);
 nexusCore.start().catch((error) => {
@@ -207,15 +218,4 @@ nexusCore.start().catch((error) => {
 });
 
 
-In the updated code:
-
-1.  `Config` class now includes `validate()` method which throws an error when the provided object does not satisfy the defined schema.
-2.  `LifecycleHandler` has been enhanced to include a `bind()` method to ensure that event handlers are executed within the correct context.
-3.  `Event` class was introduced to improve event handling by providing a clear interface for emitting and handling events.
-4.  `Lifecycle` class was introduced to encapsulate the lifecycle events and provide methods to check the status of the lifecycle events.
-5.  `NexusCore` class has undergone significant changes to adhere to the NexusCore patterns and design principles.
-6.  The 'on()' method in `NexusCore` was renamed to `on` and now correctly attaches event handlers to lifecycle events.
-7.  The `configure()` method in `NexusCore` now validates the configuration against the schema and stores it as an instance property.
-8.  The `load()` and `shutdown()` methods in `NexusCore` were updated to properly execute lifecycle events and handle errors.
-9.  The `start()` method in `NexusCore` now calls the `configure()`, `load()`, and `shutdown()` methods sequentially and catches any errors that occur during this process.
-10. The `destroy()` method in `NexusCore` was updated to correctly reset the lifecycle events and the instance's status to 'DESTROYED'.
+Note: JavaScript does not have built-in support for classes, we use the ES6 syntax to define a class which is equivalent to its syntax.
