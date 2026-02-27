@@ -1,5 +1,5 @@
 class Config {
-  #staticConfig = {
+  #privateStaticConfig = {
     VERSION: "1.0.0",
     env: process.env.NODE_ENV || "development"
   };
@@ -10,7 +10,7 @@ class Config {
   };
 
   static get staticConfig() {
-    return this.#staticConfig;
+    return this.#privateStaticConfig;
   }
 
   static get defaultConfig() {
@@ -63,6 +63,19 @@ class Config {
     this.#config = { ...this.#config, ...config };
     this.validate();
   }
+
+  toJSON() {
+    return this.#config;
+  }
+
+  fromJSON(json) {
+    if (json instanceof Object) {
+      this.#config = json;
+    } else {
+      throw new Error("Invalid JSON config");
+    }
+    this.validate();
+  }
 }
 
 class LifecycleEvent {
@@ -74,6 +87,18 @@ class LifecycleEvent {
 
   get event() {
     return this.#event;
+  }
+
+  toJSON() {
+    return {
+      event: this.#event,
+    };
+  }
+
+  fromJSON(json) {
+    if (json.event) {
+      this.#event = json.event;
+    }
   }
 }
 
@@ -108,11 +133,13 @@ class NexusCore {
 
   #events = {};
 
+  #config;
+
   constructor() {
     Object.freeze(this);
     this.#bindLifecycle();
 
-    this.config = new Config();
+    this.#config = new Config();
   }
 
   #bindLifecycle() {
@@ -166,17 +193,24 @@ class NexusCore {
   }
 
   async configure(config = {}) {
-    await this.validateConfig(config);
-    this.#lifecycle = { ...this.#lifecycle, configured: true };
-    this.config.update(config);
+    try {
+      const serializedConfig = await this.config.fromJSON(config);
+      this.#lifecycle = { ...this.#lifecycle, configured: true };
+      this.#config.update(serializedConfig);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
   }
 
   async validateConfig(config) {
-    const configSchema = Config.configSchema;
     try {
+      const schema = Config.configSchema;
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
+      const serializedConfig = await this.config.fromJSON(config);
+      return serializedConfig;
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -185,7 +219,7 @@ class NexusCore {
 
   async load() {
     try {
-      await this.configure(this.config.defaultConfig);
+      await this.validateConfig(this.#config.config);
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
@@ -237,3 +271,19 @@ class NexusCore {
     }
   }
 }
+
+const nexusCore = new NexusCore();
+
+nexusCore.on('load', async () => {
+    console.log("Loaded");
+});
+
+nexusCore.on('shutdown', async () => {
+  console.log("Shutdown initiated.");
+});
+
+nexusCore.on('destroy', async () => {
+  console.log("NexusCore instance destroyed.");
+});
+
+nexusCore.start();
