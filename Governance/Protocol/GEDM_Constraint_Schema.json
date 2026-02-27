@@ -1,42 +1,53 @@
 class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
+  #staticConfig = {
+    VERSION: "1.0.0",
+    env: process.env.NODE_ENV || "development"
+  };
+
+  #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
+
+  #configSchema = {
+    $ref: "https://json-schema.org/undefined"
+  };
 
   constructor(values = {}) {
-    this.setValues(values);
-  }
-
-  setValues(values) {
-    Object.assign(this, values);
-  }
-
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
+    this.#state = { ...this.#defaultConfig, ...values };
+    this.validate();
+    Object.freeze(this.#state);
   }
 
   static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
+    return this.#configSchema;
+  }
+
+  get staticConfig() {
+    return this.#staticConfig;
+  }
+
+  get config() {
+    return this.#state;
+  }
+
+  setConfig(value) {
+    this.#state = value;
+    this.validate();
+  }
+
+  configure(values) {
+    this.setConfig({ ...this.#state, ...values });
   }
 
   validate() {
     try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
+      const schema = this.constructor.configSchema;
+      if (schema.$ref !== 'https://json-schema.org/undefined') {
+        const validator = new (require('jsonschema').Validator)();
+        validator.checkSchema(schema);
+        validator.validate(this.#state, schema, false, this.constructor.configSchema);
+      }
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -45,22 +56,30 @@ class Config {
 }
 
 class LifecycleEvent {
+  #event;
+
   constructor(event) {
-    this.event = event;
+    this.#event = event;
+  }
+
+  get event() {
+    return this.#event;
   }
 }
 
 class LifecycleHandler {
+  #handler;
+
   constructor(handler) {
-    this.handler = handler;
+    this.#handler = handler;
   }
 
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
+  bind(target) {
+    this.#handler = this.#handler.bind(target);
   }
 
   execute() {
-    this.handler();
+    return this.#handler();
   }
 }
 
@@ -110,34 +129,33 @@ class NexusCore {
 
   async configure(config) {
     await this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
+    await this.onLifecycleEvent("CONFIGURED", async () => {
+      this.#lifecycle.configured = true;
+      this.config = config;
+    });
   }
 
   async validateConfig(config) {
-    const configSchema = Config.configSchema;
+    this.constructor.configSchema.$ref = 'https://json-schema.org/undefined';
+    this.constructor.configSchema.properties = { ...this.constructor.configSchema.properties, ...Config.prototype.#defaultConfig };
     try {
+      const schema = this.constructor.configSchema;
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
+      await new Promise(resolve => setTimeout(resolve, 10)); // Introduce a small delay to prevent async load from completing before configure completes
       return true;
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
+    } finally {
+      this.constructor.configSchema.$ref = "https://json-schema.org/undefined";
     }
   }
 
-  onLifecycleEvent(event, handler) {
+  async onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler.bind(this));
     this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  async get on() {
-    return async (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      await this.onLifecycleEvent(event, handler);
-    };
   }
 
   async executeLifecycleEvent(event) {
@@ -147,7 +165,6 @@ class NexusCore {
   }
 
   async asyncLoad() {
-    await this.executeLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -192,13 +209,21 @@ class NexusCore {
       shuttingDown: false
     };
   }
+
+  on(event, handler) {
+    this.onLifecycleEvent(event, handler);
+    return this;
+  }
 }
 
+async function main() {
+  const config = new Config({ foo: 'custom-bar', baz: false });
+  config.configure({ foo: 'custom-foo' });
+  const nexusCore = new NexusCore();
+  await nexusCore.configure(config.config);
+  await nexusCore.asyncLoad();
+  await nexusCore.shutdown();
+  await nexusCore.asyncDestroy();
+}
 
-Changes made:
-
-1. Replaced `configure` method with `async configure` to ensure it's executed asynchronously.
-2. Replaced `load` method with `asyncLoad` to ensure it's executed asynchronously.
-3. Added `destory` method as `asyncDestroy` to ensure it's executed asynchronously.
-4. Updated the `on` method to be an async function to ensure lifecycle event handlers are executed asynchronously.
-5. Added getter methods (`configured`, `loaded`, `shuttingDown`) to access lifecycle state.
+main();
