@@ -3,22 +3,28 @@ class Config {
   #defaultConfig;
   #staticConfig;
   #instanceConfig;
+  #context;
+
+  static #configInstances = new WeakMap();
 
   static get instance() {
-    const instance = new Config();
-    instance.config = Config.getInstanceConfig();
-    return instance;
+    const context = this.#getConfigContext();
+    if (!this.#configInstances.has(context)) {
+      this.#configInstances.set(context, new Config(context));
+    }
+    return this.#configInstances.get(context);
   }
 
-  constructor() {
-    this.config = Config.getInstanceConfig();
+  constructor(context) {
+    this.#context = context;
+    this.config = this.#getInstanceConfig();
   }
 
-  static getInstanceConfig() {
-    return this.#instanceConfig ??= this.#createStaticConfig();
+  static #getConfigContext() {
+    return this.#createStaticConfig();
   }
 
-  static createStaticConfig() {
+  static #createStaticConfig() {
     return {
       VERSION: "1.0.0",
       env: process.env.NODE_ENV || "development"
@@ -55,17 +61,22 @@ class Config {
       throw e;
     }
   }
+
+  #getInstanceConfig() {
+    return this.#instanceConfig ??= this.#createStaticConfig();
+  }
 }
 
 class LifecycleEvent {
-  constructor(event, handler) {
+  constructor(event, handler, target) {
     this.event = event;
     this.handler = handler;
+    this.target = target;
   }
 }
 
 class LifecycleHandler {
-  constructor(handler, target = this) {
+  constructor(handler, target) {
     this.handler = handler;
     this.target = target;
   }
@@ -77,13 +88,13 @@ class LifecycleHandler {
 
 class NexusCore {
   #status = "INIT";
-  #lifecycleEvents = new Map();
+  #lifecycleEvents = new WeakMap();
   #lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
   };
-  #config = null;
+  #config;
 
   get status() {
     return this.#status;
@@ -109,10 +120,15 @@ class NexusCore {
   }
 
   on(event, handler) {
-    this.#lifecycleEvents.set(event, new LifecycleHandler(handler, this));
+    const handlers = this.#lifecycleEvents.get(this) ?? new Map();
+    handlers.set(event, new LifecycleHandler(handler, this));
+    this.#lifecycleEvents.set(this, handlers);
     return {
       destroy: async () => {
-        this.#lifecycleEvents.delete(event);
+        handlers.delete(event);
+        if (handlers.size === 0) {
+          this.#lifecycleEvents.delete(this);
+        }
       }
     };
   }
@@ -173,12 +189,17 @@ class NexusCore {
     }
     for (const methodName of startMethodOrder) {
       if (typeof this[methodName] === "function") {
-        await this[methodName](this.#config);
+        await this[methodName](Config.instance.config);
       }
     }
   }
 
   destroy() {
+    const lifecycleEvents = this.#lifecycleEvents.get(this);
+    if (lifecycleEvents) {
+      lifecycleEvents.forEach((handler, _) => handler.destroy());
+      this.#lifecycleEvents.delete(this);
+    }
     this.#lifecycle = {
       configured: false,
       loaded: false,
@@ -187,18 +208,17 @@ class NexusCore {
     this.#status = "DESTROYED";
     this.emit("DESTROYED");
     this.#config = null;
-    this.#lifecycleEvents.forEach((handlers, _) => handlers.forEach(handler => handler.target.destroy()));
   }
 
   async executeLifecycleEvent(event) {
-    const handlers = this.#lifecycleEvents.get(event);
+    const handlers = this.#lifecycleEvents.get(this)?.get(event);
     if (handlers) {
       await Promise.all(Array.from(handlers).map(handler => handler.execute()));
     }
   }
 
   emit(event) {
-    const handlers = this.#lifecycleEvents.get(event);
+    const handlers = this.#lifecycleEvents.get(this)?.get(event);
     if (handlers) {
       handlers.forEach(handler => handler.target.destroy());
     }
@@ -225,20 +245,21 @@ class NexusCore {
       "SHUTTING_DOWN"
     ];
   }
-}
 
-NexusCore.prototype.addEventListener = async (event, handler) => {
-  this.on(event, handler);
-};
+  addEventListener(event, handler) {
+    this.on(event, handler);
+  }
 
-NexusCore.prototype.removeEventListener = async (event, handler) => {
-  if (this.#lifecycleEvents.get(event)) {
-    const currentIndex = this.#lifecycleEvents.get(event)?.index?.indexOf(handler);
-    if (currentIndex !== -1) {
-      this.#lifecycleEvents.get(event)?.index.splice(currentIndex, 1);
+  removeEventListener(event, handler) {
+    const handlers = this.#lifecycleEvents.get(this);
+    if (handlers) {
+      handlers.set(event, handlers.get(event).filter(h => h !== handler));
+      if (handlers.get(event).length === 0) {
+        handlers.delete(event);
+      }
     }
   }
-};
+}
 
 const nexusCore = new NexusCore();
 nexusCore.addEventListener('DESTROYED', async () => {
