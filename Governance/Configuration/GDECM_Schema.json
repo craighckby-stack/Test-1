@@ -1,42 +1,206 @@
-{
-  "type": "object",
-  "properties": {
-    "stages": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "stage_id": { "type": "string", "description": "e.g., S1, S2" },
-          "dependencies": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "artifact_key": { "type": "string", "description": "Key referencing CISM entry (e.g., 'Proposal.Voted')" },
-                "required": { "type": "boolean", "default": true },
-                "attestation_check": {
-                  "type": "object",
-                  "properties": {
-                    "method": { "type": "string", "enum": ["HASH_SHA256", "CRYPTO_SIGNATURE", "TIMELOCK", "SCHEMA_VALIDATION"], "description": "Method of integrity assurance." },
-                    "target_hash": { "type": ["string", "null"] },
-                    "required_signer": { "type": ["string", "null"], "description": "Specific authority required for signature validation." }
-                  },
-                  "required": ["method"]
-                },
-                "schema_pointer": { "type": ["string", "null"], "description": "Optional reference to internal schema definition for structure compliance." }
-              },
-              "required": ["artifact_key", "attestation_check"]
-            }
-          },
-          "execution_constraints": {
-            "type": "object",
-            "description": "Runtime limitations (e.g., resource caps, time limits)"
-          }
-        },
-        "required": ["stage_id", "dependencies"]
+class Config {
+  #staticConfig = {
+    VERSION: "1.0.0",
+    env: process.env.NODE_ENV || "development"
+  };
+
+  #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
+
+  static get staticConfig() {
+    return this.#staticConfig;
+  }
+
+  static get defaultConfig() {
+    return this.#defaultConfig;
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  constructor(values = {}) {
+    this.#config = Object.assign({}, values);
+  }
+
+  setConfig(values) {
+    this.#config = Object.assign({}, values);
+    this.validate();
+  }
+
+  get config() {
+    return this.#config;
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this.config, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+}
+
+class LifecycleEvent {
+  #event;
+
+  constructor(event) {
+    this.#event = event;
+  }
+
+  get event() {
+    return this.#event;
+  }
+}
+
+class LifecycleHandler {
+  #handler;
+
+  constructor(handler) {
+    this.#handler = handler;
+  }
+
+  bind(target = this) {
+    this.#handler = this.#handler.bind(target);
+  }
+
+  execute() {
+    this.#handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
       }
     }
-  },
-  "required": ["stages"],
-  "$schema": "http://json-schema.org/draft-07/schema#"
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  async configure(config) {
+    await this.validateConfig(config);
+    await this.#on("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  async validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  async #on(event, handler) {
+    const lifecycleEvent = new LifecycleEvent(event);
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+    return lifecycleHandler;
+  }
+
+  async executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    try {
+      await this.executeLifecycleEvent("CONFIGURED");
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (methodName in this && typeof this[methodName] === "function") {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  on(event, handler) {
+    this.#on(event, handler).execute();
+  }
 }
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
