@@ -1,7 +1,3 @@
-Here's an enhanced version of your code, following advanced NexusCore patterns, lifecycle management, and robust encapsulation:
-
-
-// Core configuration
 class Config {
   static get configSchema() {
     return {
@@ -30,7 +26,7 @@ class Config {
   static async validateConfig(config) {
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(this.configSchema);
+      validator.checkSchema,this.configSchema);
       validator.validate(config, this.configSchema);
     } catch (e) {
       throw e;
@@ -38,82 +34,95 @@ class Config {
   }
 }
 
-// Lifecycle event handler
-class LifecycleHandler {
-  constructor(handler, target) {
-    this.handler = handler;
-    this.target = target;
-    this.bind();
-  }
-
-  bind() {
-    this.handler = this.handler.bind(this.target);
-  }
-
-  execute() {
-    this.handler(this);
-  }
-}
-
-// Lifecycle event
-class LifecycleEvent {
-  constructor(event, data) {
-    this.name = event;
-    this.data = data;
-    this.handlers = [];
-  }
-
-  addHandler(handler) {
-    this.handlers.push(handler);
-  }
-
-  removeHandler(handler) {
-    const index = this.handlers.indexOf(handler);
-    if (index > -1) {
-      this.handlers.splice(index, 1);
-    }
-  }
-
-  notify() {
-    this.handlers.forEach(handler => handler.execute());
-  }
-}
-
-// Lifecycle event namespace
 class Lifecycle {
-  constructor() {
-    this.events = {};
-  }
+  #events = {};
 
-  on(event, handler) {
-    if (!this.events[event]) {
-      this.events[event] = new LifecycleEvent(event);
+  eventNamespace(event, handler) {
+    if (!this.#events[event]) {
+      this.#events[event] = new LifecycleEvent(event);
     }
-    this.events[event].addHandler(handler);
+    this.#events[event].addHandler(handler);
   }
 
-  off(event, handler) {
-    if (this.events[event]) {
-      this.events[event].removeHandler(handler);
+  removeEventHandler(event, handler) {
+    if (this.#events[event]) {
+      this.#events[event].removeHandler(handler);
     }
   }
 
   notify(event, data) {
-    if (this.events[event]) {
-      this.events[event].notify(data);
+    if (this.#events[event]) {
+      this.#events[event].notify(data);
     }
   }
 
-  get event() {
-    return this.events;
+  get events() {
+    return this.#events;
   }
 }
 
-// NexusCore instance
+class LifecycleEvent {
+  #name;
+  #data;
+  #handlers = [];
+
+  constructor(event, data = {}) {
+    this.#name = event;
+    this.#data = data;
+  }
+
+  addHandler(handler) {
+    this.#handlers.push(handler);
+  }
+
+  removeHandler(handler) {
+    const index = this.#handlers.indexOf(handler);
+    if (index >= 0) {
+      this.#handlers.splice(index, 1);
+    }
+  }
+
+  notify(data = {}) {
+    this.#data = { ...this.#data, ...data };
+    this.#handlers.forEach(handler => handler.execute(this));
+  }
+
+  get name() {
+    return this.#name;
+  }
+
+  get data() {
+    return this.#data;
+  }
+
+  get handlers() {
+    return this.#handlers;
+  }
+}
+
+class LifecycleHandler {
+  #handler;
+  #target;
+
+  constructor(handler, target) {
+    this.#handler = handler;
+    this.#target = target;
+    this.bind();
+  }
+
+  bind() {
+    this.#handler = this.#handler.bind(this.#target);
+  }
+
+  execute(event) {
+    this.#handler(event);
+  }
+}
+
 class NexusCore {
   #config = null;
   #lifecycle = new Lifecycle();
-  #lifecycleStatus = {
+  #statusLifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
@@ -129,57 +138,61 @@ class NexusCore {
     this.logStatus(value);
     if (value !== 'INIT') {
       if (value === 'SHUTDOWN') {
-        this.#lifecycleStatus.shuttingDown = false;
+        this.#lifecycle>StatusLifecycle().shuttingDown = false;
       }
-      this.#lifecycleStatus.configured = true;
+      this.#statusLifecycle(configured) = true;
     }
   }
 
   get statusLifecycle() {
-    return this.#lifecycleStatus;
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
+    return this.#statusLifecycle;
   }
 
   logStatus(status) {
-    console.log(`NexusCore instance is ${status} (${new Date().toISOString()})`);
+    globalThis.console.log(`NexusCore instance is ${status} (${new Date().toISOString()})`);
+  }
+
+  getConfigSchema() {
+    return Config.configSchema;
   }
 
   async configure(config) {
-    this.#config = await Config.getConfig(config);
-    this.#lifecycle.notify('CONFIGURED', this.#config);
-    this.status = 'CONFIGURED';
-    this.#lifecycleStatus.configured = true;
+    try {
+      this.#config = await Config.getConfig(config);
+      this.#lifecycle.eventNamespace('CONFIGURED', event => event.data = this.#config);
+      this.status = 'CONFIGURED';
+      this.#statusLifecycle.configured = true;
+    } catch (e) {
+      globalThis.console.error('Configure error:', e);
+    }
   }
 
   async load() {
     try {
       this.#lifecycle.notify('LOADED');
       this.status = 'LOADING';
-      console.log('Loading...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Loading complete...');
-      this.#lifecycleStatus.loaded = true;
+      globalThis.console.log('Loading...');
+      await new globalThis.Promise(resolve => globalThis.setTimeout(resolve, 1000));
+      globalThis.console.log('Loading complete...');
+      this.#statusLifecycle.loaded = true;
       this.#lifecycle.notify('LOADED');
       this.status = 'LOADED';
     } catch (e) {
-      console.error('Load error:', e);
+      globalThis.console.error('Load error:', e);
     }
   }
 
   async shutdown() {
     try {
-      if (!this.#lifecycleStatus.shuttingDown) {
-        this.#lifecycleStatus.shuttingDown = true;
-        console.log('Shutdown initiated...');
+      if (!this.#statusLifecycle.shuttingDown) {
+        this.#statusLifecycle.shuttingDown = true;
+        globalThis.console.log('Shutdown initiated...');
         this.#lifecycle.notify('SHUTTING_DOWN');
-        console.log('Shutdown complete...');
+        globalThis.console.log('Shutdown complete...');
         this.status = 'SHUTDOWN';
       }
     } catch (e) {
-      console.error('Shutdown error:', e);
+      globalThis.console.error('Shutdown error:', e);
     }
   }
 
@@ -191,19 +204,27 @@ class NexusCore {
           await this[methodName]();
         }
       } catch (e) {
-        console.error(`${methodName} error:`, e);
+        globalThis.console.error(`${methodName} error:`, e);
       }
     }
   }
 
   async destroy() {
-    this.status = 'DESTROYED';
-    this.#config = null;
-    this.#lifecycleStatus = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
+    try {
+      this.status = 'DESTROYED';
+      this.#config = null;
+      this.#statusLifecycle = {
+        configured: false,
+        loaded: false,
+        shuttingDown: false
+      };
+    } catch (e) {
+      globalThis.console.error('Destroy error:', e);
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
   }
 
   get config() {
@@ -211,28 +232,20 @@ class NexusCore {
   }
 
   get configSchema() {
-    return Config.configSchema;
+    return this.getConfigSchema();
   }
 }
 
-// NexusCore instance usage
+class CustomEventHandler {
+  execute(event) {
+    globalThis.console.log(`Received ${event.name} event with data: ${JSON.stringify(event.data)}`);
+  }
+}
+
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', (event) => {
-  console.log(event.data.message);
-});
+nexusCore.lifecycle.eventNamespace('DESTROYED', new CustomEventHandler());
 nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-Enhancements:
-
-*   Configured the `Config` class to be more robust using static getter methods for schema and default configuration.
-*   Introduced a `Lifecycle` class to manage lifecycle events.
-*   Introduced an `LifecycleEvent` class to encapsulate lifecycle event data and handling.
-*   Added an event namespace to handle lifecycle events.
-*   Enhanced logging in the `NexusCore` instance.
-*   Added error handling in the `NexusCore` instance.
-*   Improved naming conventions and formatting throughout the code.
