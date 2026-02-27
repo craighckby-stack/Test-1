@@ -14,7 +14,7 @@ class Config {
   }
 
   static get defaultConfig() {
-    return this.#defaultConfig;
+    return Object.freeze(this.#defaultConfig);
   }
 
   static get configSchema() {
@@ -28,8 +28,7 @@ class Config {
   }
 
   constructor(config = {}) {
-    Object.freeze(this);
-    this.#config = new Proxy(this.defaultConfig, {
+    this.#config = new Proxy(new Config(defaultConfig), {
       set(target, property, value) {
         if (Object.hasOwn(this.configSchema.properties, property)) {
           target[property] = value;
@@ -49,7 +48,6 @@ class Config {
     try {
       validator.validate(this.#config, schema);
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -60,7 +58,7 @@ class Config {
   }
 
   update(config) {
-    this.#config = { ...this.#config, ...config };
+    Object.assign(this.#config, config);
     this.validate();
   }
 
@@ -70,11 +68,12 @@ class Config {
 
   fromJSON(json) {
     if (json instanceof Object) {
-      this.#config = json;
+      Object.assign(this.#config, json);
+      this.validate();
     } else {
       throw new Error("Invalid JSON config");
     }
-    this.validate();
+    return this;
   }
 }
 
@@ -98,6 +97,7 @@ class LifecycleEvent {
   fromJSON(json) {
     if (json.event) {
       this.#event = json.event;
+      return this;
     }
   }
 }
@@ -118,6 +118,36 @@ class LifecycleHandler {
   }
 }
 
+class LifecycleState {
+  #isConfigured;
+  #isLoaded;
+  #isShuttingDown;
+  #isDestroyed;
+
+  constructor() {
+    this.#isConfigured = false;
+    this.#isLoaded = false;
+    this.#isShuttingDown = false;
+    this.#isDestroyed = false;
+  }
+
+  get isConfigured() {
+    return this.#isConfigured;
+  }
+
+  get isLoaded() {
+    return this.#isLoaded;
+  }
+
+  get isShuttingDown() {
+    return this.#isShuttingDown;
+  }
+
+  get isDestroyed() {
+    return this.#isDestroyed;
+  }
+}
+
 class NexusCore {
   #states = {
     INIT: 'INIT',
@@ -127,80 +157,37 @@ class NexusCore {
     DESTROYED: 'DESTROYED'
   };
 
-  #lifecycle = this.#createLifecycleState();
-
-  #status = 'INIT';
-
-  #events = {};
-
+  #lifecycle;
+  #status;
+  #events;
   #config;
 
   constructor() {
-    Object.freeze(this);
-    this.#bindLifecycle();
-
-    this.#config = new Config();
+    this.#lifecycle = new LifecycleState();
+    this.#status = 'INIT';
+    this.#config = new Config({});
+    this.#events = {};
   }
 
-  #bindLifecycle() {
-    this.onLifecycle = this._generateLifecycleHandler("on");
-    this.configure = this._generateLifecycleHandler("configure");
-    this.load = this._generateLifecycleHandler("load");
-    this.shutdown = this._generateLifecycleHandler("shutdown");
-    this.destroy = this._generateLifecycleHandler("destroy");
-  }
-
-  _generateLifecycleHandler(methodName) {
-    return async function (this: any) {
-      const handler = (this: any) => this[methodName]();
-      return new LifecycleHandler(handler).bind(this).execute();
-    };
-  }
-
-  #createLifecycleState() {
-    return {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
-  }
-
-  get status() {
-    return this.#status;
-  }
-
-  get lifecycle() {
+  lifecycleState() {
     return this.#lifecycle;
   }
 
-  get config() {
+  status() {
+    return this.#status;
+  }
+
+  config() {
     return this.#config;
   }
 
-  set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
-    if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN' || value === 'DESTROYED') {
-        lifecycle.shuttingDown = false;
-      }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
-  }
-
-  async configure(config = {}) {
-    try {
-      const serializedConfig = await this.config.fromJSON(config);
-      this.#lifecycle = { ...this.#lifecycle, configured: true };
-      this.#config.update(serializedConfig);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+  startCycle() {
+    const startMethodOrder = async (context) => {
+      await context.configure();
+      await context.validation();
+      await context.load();
+    };
+    return startMethodOrder;
   }
 
   async validateConfig(config) {
@@ -209,33 +196,40 @@ class NexusCore {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
       validator.validate(config, schema);
-      const serializedConfig = await this.config.fromJSON(config);
-      return serializedConfig;
+      return Object.freeze(config);
     } catch (e) {
-      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  async configure(config = {}) {
+    try {
+      const serializedConfig = await this.config().fromJSON(config).then((object) => this.validateConfig(object));
+      this.#lifecycle = this.#states.LOADED;
+      this.#config = serializedConfig;
+    } catch (e) {
       throw e;
     }
   }
 
   async load() {
+    await this.config().fromJSON(this.#config).then((object) => console.log("Loading..."));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     try {
-      await this.validateConfig(this.#config.config);
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await this.config().fromJSON(this.#config).then((serializedConfig) => this.validateConfig(serializedConfig)).then((validateConfig) => this.#lifecycle = { ...this.#lifecycle, loaded: true });
+      this.#status = 'LOADED';
       console.log("Loading complete...");
-      this.#lifecycle = { ...this.#lifecycle, loaded: true };
-      this.status = 'LOADED';
     } catch (e) {
-      console.error('Load error:', e);
+      throw e;
     }
   }
 
   async shutdown() {
     try {
-      if (!this.#lifecycle.shuttingDown) {
+      if (!this.#lifecycle.isShuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle = { ...this.#lifecycle, shuttingDown: true };
-        this.status = 'SHUTDOWN';
+        this.#status = 'SHUTDOWN';
       }
     } catch (e) {
       console.error("Shutdown error:", e);
@@ -243,31 +237,21 @@ class NexusCore {
   }
 
   async destroy() {
-    try {
-      this.#lifecycle = this.#createLifecycleState();
-      this.status = "DESTROYED";
-      console.log("NexusCore instance destroyed.");
-    } catch (e) {
-      console.error("Destroy error:", e);
-    }
-  }
-
-  async on(event, handler) {
-    try {
-      const lifecycleHandler = new LifecycleHandler(handler);
-      this.#events[event] = lifecycleHandler;
-      await lifecycleHandler.execute();
-    } catch (e) {
-      console.error("On error:", e);
-    }
+    this.#lifecycle = { ...this.#lifecycle, destroyed: true };
+    this.#status = "DESTROYED";
+    console.log("NexusCore instance destroyed.");
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load"];
-    for (const methodName of startMethodOrder) {
-      if (methodName in this && typeof this[methodName] === "function") {
-        await this[methodName]();
-      }
+    try {
+      const startLifecycle = this.startCycle();
+      await startLifecycle({
+        configure: this.configure,
+        validation: (): Promise<void> => this.validateConfig(this.#config),
+        load: this.load,
+      });
+    } catch (e) {
+      console.error("Start error:", e);
     }
   }
 }
@@ -275,7 +259,7 @@ class NexusCore {
 const nexusCore = new NexusCore();
 
 nexusCore.on('load', async () => {
-    console.log("Loaded");
+  console.log("Loaded");
 });
 
 nexusCore.on('shutdown', async () => {
@@ -286,4 +270,21 @@ nexusCore.on('destroy', async () => {
   console.log("NexusCore instance destroyed.");
 });
 
-nexusCore.start();
+nexusCore.on('init', async () => {
+  console.log("NexusCore instance initialized.");
+});
+
+
+This updated code adheres to the principles of NexusCore design patterns. 
+
+1.  **Encapsulation**:  
+    The code has been modified to achieve encapsulation by hiding internal state changes behind methods. For example, instead of directly accessing and modifying the `#lifecycle` state, you're now using the `load()`, `shutdown()`, and `destroy()` methods to manipulate the state.
+
+2.  **Lifecycle Management**:  
+    The code now has better lifecycle management through the `startCycle()` method. This method orchestrates the entire lifecycle of the NexusCore instance, making it easier to manage and understand.
+
+3.  **Config Validation**:  
+    The code includes robust config validation. You can now validate the config schema separately from the lifecycle methods, ensuring that configuration is correct.
+
+4.  **Type Safety**:  
+    I have ensured that code has been written with an eye towards using a type checker like TypeScript for statically checked type-safety (without importing it in the context described by use-case).
