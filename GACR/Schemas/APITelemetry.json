@@ -2,6 +2,7 @@ class Config {
   #configSchema;
   #defaultConfig;
   #staticConfig;
+  #instanceConfig;
 
   static get instance() {
     const instance = new Config();
@@ -14,7 +15,7 @@ class Config {
   }
 
   static getInstanceConfig() {
-    return this.#staticConfig ??= this.#createStaticConfig();
+    return this.#instanceConfig ??= this.#createStaticConfig();
   }
 
   static createStaticConfig() {
@@ -24,24 +25,14 @@ class Config {
     };
   }
 
-  get defaultConfig() {
-    this.#defaultConfig ??= Config.defaultConfig();
-    return this.#defaultConfig;
-  }
-
-  static defaultConfig() {
+  static get defaultConfig() {
     return {
       foo: 'bar',
       baz: true
     };
   }
 
-  get configSchema() {
-    this.#configSchema ??= Config.configSchema();
-    return this.#configSchema;
-  }
-
-  static configSchema() {
+  static get configSchema() {
     return {
       type: 'object',
       properties: {
@@ -58,8 +49,8 @@ class Config {
   validate() {
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(Config.configSchema());
-      validator.validate(this.config, validator.compile(Config.configSchema()));
+      validator.checkSchema(Config.configSchema);
+      validator.validate(this.config, validator.compile(Config.configSchema));
     } catch (e) {
       throw e;
     }
@@ -131,7 +122,7 @@ class NexusCore {
   }
 
   async configure(config) {
-    this.validateConfig(config);
+    await this.validateConfig(config);
     this.#lifecycle.configured = true;
     this.#config = config;
     this.#status = "CONFIGURED";
@@ -196,6 +187,7 @@ class NexusCore {
     this.#status = "DESTROYED";
     this.emit("DESTROYED");
     this.#config = null;
+    this.#lifecycleEvents.forEach((handlers, _) => handlers.forEach(handler => handler.target.destroy()));
   }
 
   async executeLifecycleEvent(event) {
@@ -210,6 +202,18 @@ class NexusCore {
     if (handlers) {
       handlers.forEach(handler => handler.target.destroy());
     }
+  }
+
+  async validateConfig(config) {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(Config.configSchema);
+      validator.validate(config, validator.compile(Config.configSchema));
+    } catch (e) {
+      throw e;
+    }
+    this.setValues(config);
+    this.validate();
   }
 
   static get lifecycleEvents() {
@@ -228,12 +232,11 @@ NexusCore.prototype.addEventListener = async (event, handler) => {
 };
 
 NexusCore.prototype.removeEventListener = async (event, handler) => {
-  const handlerList = this.on(event);
-  const currentIndex = this.#lifecycleEvents.get(event)?.index?.indexOf(handler);
-  if (currentIndex !== -1) {
-    this.#lifecycleEvents.get(event)?.index.splice(currentIndex, 1);
-  } else {
-    handlerList.destroy?.();
+  if (this.#lifecycleEvents.get(event)) {
+    const currentIndex = this.#lifecycleEvents.get(event)?.index?.indexOf(handler);
+    if (currentIndex !== -1) {
+      this.#lifecycleEvents.get(event)?.index.splice(currentIndex, 1);
+    }
   }
 };
 
@@ -246,17 +249,3 @@ try {
 } catch (e) {
   console.error(e);
 }
-
-Changes Made:
-
-1. Updated the Config class to use a private method `getInstanceConfig` to get the instance configuration.
-2. Extracted the creation of static configuration from the `getInstanceConfig` method.
-3. Made the `defaultConfig` and `configSchema` methods static to avoid creating multiple instances of these methods.
-4. Added a `validateConfig` method to the `NexusCore` class to validate the configuration.
-5. Updated the `configure` method in the `NexusCore` class to use the `validateConfig` method and assign the configuration to the instance.
-6. Moved the configuration validation to the `configure` method in the `NexusCore` class.
-7. Added a call to `executeLifecycleEvent` in the `configure` method to execute lifecycle events for the "CONFIGURED" event.
-8. Updated the `destroy` method in the `NexusCore` class to set the configuration to null after destroying the instance.
-9. Moved the creation of the event handlers to a separate `executeLifecycleEvent` method in the `NexusCore` class.
-10. Added a call to `executeLifecycleEvent` in the `destroy` method to execute lifecycle events for the "DESTROYED" event.
-11. Updated the `removeEventListener` method to check if the event handler exists in the list of event handlers.
