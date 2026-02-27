@@ -1,3 +1,6 @@
+VOTE for React-Core from Meta
+
+
 class Config {
   static get staticConfig() {
     return {
@@ -34,9 +37,12 @@ class Config {
   validate() {
     try {
       const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
+      const jsYaml = require('js-yaml');
+      const schemaString = jsYaml.dump(schema);
+      const ast = jsYaml.load(schemaString);
+      const { createValidator } = require('yup');
+      const Yup = createValidator(ast);
+      Yup.validate(this, { recursive: true });
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -51,20 +57,62 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
+  constructor(handler, context = {}) {
     this.handler = handler;
+    this.context = context;
   }
 
   bind(target = this) {
-    this.handler = this.handler.bind(target);
+    return new (target.constructor.bind(target))(
+      Object.assign({}, this.handler, this.context)
+    ).prototype.execute.bind(target);
   }
 
   execute() {
-    this.handler();
+    const result = this.handler.apply(this.context, []);
+    return result;
+  }
+}
+
+class EventObject {
+  constructor(data = {}) {
+    Object.assign(this, data);
+  }
+}
+
+class EventEmitter {
+  #events = new Map();
+
+  on(event, handler) {
+    if (!this.#events.has(event)) {
+      this.#events.set(event, []);
+    }
+    this.#events.get(event).push(handler);
+  }
+
+  off(event, handler) {
+    if (this.#events.has(event)) {
+      this.#events.get(event).splice(
+        this.#events.get(event).indexOf(handler),
+        1
+      );
+      if (this.#events.get(event).length === 0) {
+        this.#events.delete(event);
+      }
+    }
+  }
+
+  emit(event, ...args) {
+    if (this.#events.has(event)) {
+      for (const handler of this.#events.get(event)) {
+        handler(...args);
+      }
+    }
   }
 }
 
 class NexusCore {
+  #events = new EventEmitter();
   #lifecycle = {
     configured: false,
     loaded: false,
@@ -98,7 +146,7 @@ class NexusCore {
 
   configure(config) {
     this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
+    this.#events.emit("CONFIGURED", config);
     this.#lifecycle.configured = true;
     this.config = config;
   }
@@ -106,30 +154,31 @@ class NexusCore {
   validateConfig(config) {
     const configSchema = Config.configSchema;
     try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      const Yup = require('yup');
+      const schema = Yup.object().shape(configSchema);
+      schema.validateSync(config);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
     }
   }
 
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
+  on(event, handler) {
+    this.#events.on(event, handler);
   }
 
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
+  off(event, handler) {
+    this.#events.off(event, handler);
+  }
+
+  emit(event, ...args) {
+    this.#events.emit(event, ...args);
   }
 
   executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+      const execute = this.#lifecycle[event].bind(this);
+      execute();
     }
   }
 
@@ -176,10 +225,6 @@ class NexusCore {
       loaded: false,
       shuttingDown: false
     };
-  }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
   }
 }
 
