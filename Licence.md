@@ -1,24 +1,35 @@
 class ConfigSchema {
-  get schema() {
+  static get schema() {
     throw new Error('ConfigSchema must be subclassed.');
   }
 }
 
-class ConfigManager {
-  #schema;
+class ConfigSchemaAware {
+  #configSchema;
+
+  constructor(configSchema) {
+    this.#configSchema = configSchema;
+  }
+
+  get schema() {
+    return this.#configSchema.schema;
+  }
+}
+
+abstract class ConfigManager {
   #config;
   #schemaCache = new WeakMap();
 
-  constructor(schema, defaultConfig = {}) {
-    this.#schema = schema;
+  constructor(configSchema, defaultConfig = {}) {
+    if (!configSchema.schema) {
+      throw new Error('ConfigSchema must be provided.');
+    }
     this.#config = defaultConfig;
+    this.#schemaCache.set(this.constructor.name, configSchema.schema);
   }
 
   async loadSchema() {
-    if (!this.constructor.schemaCache.has(this.constructor.name)) {
-      this.constructor.registerSchema();
-    }
-    return this.constructor.schemaCache.get(this.constructor.name);
+    return this.#schemaCache.get(this.constructor.name);
   }
 
   async validate(config) {
@@ -91,134 +102,74 @@ class LifecycleHandler {
   }
 }
 
-class Configurable {
-  #configManager = new ConfigManager(this.constructor.ConfigSchema);
-
-  get configManager() {
-    return this.#configManager;
-  }
-
-  async configure() {
-    const config = this.configManager.getConfig();
-    console.log('Configuration validated:', await this.configManager.validate(config));
-    return config;
-  }
-}
-
-class Loadable {
-  #lifecycles = new Lifecycles();
-
-  get lifecycles() {
-    return this.#lifecycles;
-  }
-
-  async on(event, handler) {
-    await this.lifecycles.on(event, handler);
-  }
-
-  async load() {
-    try {
-      console.log('Loading...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Loading complete...');
-      return true;
-    } catch (e) {
-      console.error('Load error:', e);
-      throw e;
-    }
-  }
-
-  async shutDown() {
-    try {
-      console.log('Shutting down...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Shutting down complete...');
-      return true;
-    } catch (e) {
-      console.error('Shutdown error:', e);
-      throw e;
-    }
-  }
-}
-
-class ShuttingDownHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  async onShuttingDown() {
-    return async () => {
-      if (this.handler) {
-        await this.handler('SHUTTING_DOWN');
-      }
-    };
-  }
-}
-
 class LifecycleAware {
-  #status = LifecycleStatuses.STARTED;
+  #lifecycleStatus = 'STARTED';
 
-  get status() {
-    return this.#status;
+  get lifecycleStatus() {
+    return this.#lifecycleStatus;
   }
 
-  set status(value) {
-    if (!LifecycleStatuses.isValidStatus(value)) {
-      throw new Error(`Invalid lifecycle status: ${value}`);
+  set lifecycleStatus(value) {
+    this.#handleLifecycleStatusChange(value);
+  }
+
+  #handleLifecycleStatusChange(newValue) {
+    if (!LifecycleStatuses.isValidStatus(newValue)) {
+      throw new Error(`Invalid lifecycle status: ${newValue}`);
     }
-    this.#status = value;
+    this.#lifecycleStatus = newValue;
   }
 
   get isConfigured() {
-    return this.#status === LifecycleStatuses.CONFIGURED;
+    return this.#lifecycleStatus === LifecycleStatuses.CONFIGURED;
   }
 
   get isLoaded() {
-    return this.#status === LifecycleStatuses.LOADED;
+    return this.#lifecycleStatus === LifecycleStatuses.LOADED;
   }
 
   get isShuttingDown() {
-    return this.#status === LifecycleStatuses.SHUTTING_DOWN;
+    return this.#lifecycleStatus === LifecycleStatuses.SHUTTING_DOWN;
   }
 
   get isStarted() {
-    return this.#status === LifecycleStatuses.STARTED;
+    return this.#lifecycleStatus === LifecycleStatuses.STARTED;
   }
 
   #onStartLifecycleEvent() {
     return this;
   }
 
-  #configure(lifecycle) {
+  #configure() {
     if (this.isConfigured) {
       return this._self;
     }
-    return this._start(lifecycle);
+    return this._start();
   }
 
-  #start(lifecycle) {
-    this.status = LifecycleStatuses.STARTED;
+  #start() {
+    this.lifecycleStatus = LifecycleStatuses.STARTED;
     if (this.isLoaded) {
       return this._self;
     }
-    return this._startLoading(lifecycle);
+    return this._startLoading();
   }
 
-  #startLoading(lifecycle) {
+  #startLoading() {
     if (this.isShuttingDown) {
       return this._self;
     }
-    return this._startLifecycle(lifecycle);
+    return this._startLifecycle();
   }
 
-  #startLifecycle(lifecycle) {
-    const lifecycleEventHandlers = lifecycle.lifecycles.handlers;
+  #startLifecycle() {
+    const lifecycleEventHandlers = this.lifecycles.handlers;
     console.log('NexusCore lifecycle:', this.lifecycles.handlers.size);
     return Promise.resolve(lifecycleEventHandlers.get('LOADED').await());
   }
 
   #startShuttingDown() {
-    this.status = LifecycleStatuses.SHUTTING_DOWN;
+    this.lifecycleStatus = LifecycleStatuses.SHUTTING_DOWN;
     if (this.isConfigured && this.isLoaded) {
       return this._self;
     }
@@ -243,23 +194,43 @@ class LifecycleStatuses {
     ].includes(status);
   }
 }
+class Loadable {
+  #lifecycles;
+  #statusManager;
 
-class NexusCore extends (
-  Configurable & Loadable & LifecycleAware & Lifecycles
-) {
-  async configure() {
-    const config = await super.configure();
-    console.log('Configured configuration:', config);
-    return config;
+  constructor() {
+    this.#lifecycles = new Lifecycles();
+    this.#statusManager = new LifecycleStatuses();
   }
 
-  on(event, handler) {
+  async configure() {
+    if (this.#statusManager.lifecycleStatus === LifecycleStatuses.STARTED) {
+      return this._self;
+    }
+    this.#statusManager.lifecycleStatus = LifecycleStatuses.CONFIGURED;
+  }
+
+  async load() {
+    if (this.#statusManager.lifecycleStatus === LifecycleStatuses.LOADED) {
+      return this._self;
+    }
+    this.#statusManager.lifecycleStatus = LifecycleStatuses.LOADED;
+  }
+
+  async shutdown() {
+    if (this.#statusManager.lifecycleStatus === LifecycleStatuses.SHUTTING_DOWN) {
+      return this._self;
+    }
+    this.#statusManager.lifecycleStatus = LifecycleStatuses.SHUTTING_DOWN;
+  }
+
+  async on(event, handler) {
     return async () => {
-      if (this.#lifecycleStatusManager.lifecycles.handlers.has(event)) {
+      if (this.#lifecycles.handlers.has(event)) {
         try {
           const lifecycleEventHandler = new LifecycleHandler(handler);
           const executeLifecycleEvent = lifecycleEventHandler.execute(event);
-          await this.#lifecycleStatusManager.lifecycles.handlers.set(event, await executeLifecycleEvent());
+          this.#lifecycles.handlers.set(event, await executeLifecycleEvent());
         } catch (e) {
           console.error('Lifecycle event handler error:', e);
           throw e;
@@ -267,60 +238,32 @@ class NexusCore extends (
       }
     };
   }
-
-  async onload() {
-    this.status = LifecycleStatuses.LOADED;
-    return this;
-  }
-
-  async shutdown() {
-    this.status = LifecycleStatuses.SHUTTING_DOWN;
-    return await super.shutDown();
-  }
-
-  async onShutdownComplete() {
-    this.status = LifecycleStatuses.DESTROYED;
-    return this;
-  }
-
-  async _startLifecycle(event) {
-    return await super.#onStartLifecycleEvent();
-  }
 }
-
-class ConfigSchema extends ConfigSchema {
-  static schema = {
-    type: 'object',
-    properties: {
-      VERSION: { type: 'string' },
-      env: { type: 'string' },
-      foo: { type: 'string' },
-      baz: { type: 'boolean' }
-    },
-    required: ['VERSION', 'env', 'foo', 'baz']
-  };
-}
-
-const ConfigSchemaNexusCore = class extends Configurable & Lifecycles {
+class Configurable extends Configurable & LifeCycles & Loadable {
+  static ConfigSchema = class ConfigSchema extends ConfigSchema {
+  static get schema() {
+    return {
+      type: 'object',
+      properties: {
+        VERSION: { type: 'string' },
+        env: { type: 'string' },
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      },
+      required: ['VERSION', 'env', 'foo', 'baz']
+    };
+  }
   constructor(configSchema = ConfigSchema) {
-    super(configSchema);
+    super();
+    this.#configSchema = configSchema;
   }
+};
 
-  static schemaCache = new Map();
-
-  static registerSchema() {
-    if (!NexusCore.schemaCache.has(NexusSchema)) {
-      const schema = new (await import('jsonschema')).Schema(schema, );
-      NexusCore.schemaCache.set(NexusSchema, schema);
-    }
-  }
-}
-
-const nexusCore = new NexusCore();
+onst nexusCore = new Configurable();
 nexusCore.on('DESTROYED', () => {
   console.log('NexusCore instance destroyed.');
 });
-nexusCore.start();
+nexusCore.configure();
 nexusCore.load();
 nexusCore.shutdown();
-nexusCore.destroy();
+nexusCore.on('DESTROYED').await();
