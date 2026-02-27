@@ -7,6 +7,10 @@ class Config {
   }
 
   constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
     Object.assign(this, values);
   }
 
@@ -15,6 +19,28 @@ class Config {
       foo: 'bar',
       baz: true
     };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
   }
 }
 
@@ -29,8 +55,8 @@ class LifecycleHandler {
     this.handler = handler;
   }
 
-  on(event) {
-    this.handler.bind(this);
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
   }
 
   execute() {
@@ -71,48 +97,67 @@ class NexusCore {
   }
 
   configure(config) {
-    this.on("CONFIGURED", () => {
-      console.log(`Configured with ${Config.staticConfig.VERSION} and ${JSON.stringify(config)}.`);
-      this.config = config;
-      this.#lifecycle.configured = true;
-    });
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
   }
 
-  on(event, handler) {
-    const lifecycleEvent = new LifecycleEvent(event);
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
     this.#lifecycle[event] = lifecycleHandler;
   }
 
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
   executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
-      this.#lifecycle[event].execute();
+      this.#lifecycle[event].bind(this).execute();
     }
   }
 
   async load() {
-    this.on("LOADED", () => {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-    });
-    console.log("Loading...");
-    // Add your loading logic here
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    this.executeLifecycleEvent("LOADED");
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
   }
 
   async shutdown() {
-    this.on("SHUTTING_DOWN", () => {
-      console.log("Shutdown initiated...");
-      try {
-        // Add your shutdown logic here
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } finally {
-        this.status = "SHUTDOWN";
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
         this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
       }
-    });
-    this.executeLifecycleEvent("SHUTTING_DOWN");
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
   }
 
   async start() {
@@ -132,14 +177,17 @@ class NexusCore {
       shuttingDown: false
     };
   }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on("DESTROYED", () => {
+nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
 nexusCore.configure(Config.defaultConfig);
-nexusCore.status = 'RUNNING';
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
