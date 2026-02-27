@@ -17,6 +17,10 @@ class Config {
     }
   };
 
+  static create(values = {}) {
+    return new Config(values);
+  }
+
   constructor(values = {}) {
     this.#setValues(values);
   }
@@ -126,12 +130,13 @@ class NexusCore {
     });
   }
 
-  validateConfig(config) {
+  async validateConfig(config) {
     try {
       const { Validator } = require('jsonschema');
       const validator = new Validator();
       validator.checkSchema(Config.configSchema);
       validator.validate(config, Config.configSchema);
+      return config;
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -154,6 +159,15 @@ class NexusCore {
     if (this.#lifecycle[event]) {
       this.#lifecycle[event].bind(this).execute();
     }
+  }
+
+  async init() {
+    throw new Error('Not implemented');
+  }
+
+  async startup() {
+    await this.configure(Config.create().defaultConfig);
+    await this.load();
   }
 
   async load() {
@@ -200,15 +214,6 @@ class NexusCore {
     }
   }
 
-  async init() {
-    throw new Error('Not implemented');
-  }
-
-  async startup() {
-    await this.configure(Config.defaultConfig);
-    await this.load();
-  }
-
   async shutdownProcess() {
     await this.shutdown();
     await this.destroy();
@@ -222,11 +227,3 @@ nexusCore.bindLifecycleEvent(LifecycleEvent.DESTROYED, () => {
 
 nexusCore.startup();
 nexusCore.shutdownProcess();
-
-In this ES6 code, the `validateConfig` function has been converted into a private method by prefixing it with the `#` symbol. ES6 classes are used throughout the code to encapsulate and promote better organization. I have also improved the naming of some of the methods to follow best practices. The `on` lifecycle event has been migrated to a separate method called `onLifecycleEvent`, which is then accessed through a getter called `bindLifecycleEvent`.
-
-The code now correctly implements NexusCore patterns as follows: 
-
-- **Lifecycle Management**: The code now follows the three stages of the application lifecycle: `init`, `startup`, `shutdown`, and `destroy`. The `init` method has not been implemented as it's an abstract method, while `startup` and `shutdownProcess` methods orchestrate the `configure`, `load`, `shutdown`, and `destroy` methods.
-
-Note: Always consider adding more extensive error handling and logging mechanisms for a production-ready solution. This code is tailored for simplicity and readability and might require more complex configurations for production use.
