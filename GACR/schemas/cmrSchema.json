@@ -92,6 +92,7 @@ class NexusCore {
   };
 
   #status = "INIT";
+
   #config;
 
   get status() {
@@ -118,7 +119,7 @@ class NexusCore {
 
   async configure(config) {
     await this.validateConfig(config);
-    this.#onLifecycleEvent("CONFIGURED", () => this.#lifecycle.configured = true);
+    await this.#onLifecycleEvent("CONFIGURED");
     this.#config = config;
     return this;
   }
@@ -134,16 +135,9 @@ class NexusCore {
     }
   }
 
-  #onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
+  #onLifecycleEvent(event) {
+    const lifecycleHandler = new LifecycleHandler(() => this.#lifecycle[event].execute());
     this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return async (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.#onLifecycleEvent(event, handler);
-    };
   }
 
   async executeLifecycleEvent(event) {
@@ -157,7 +151,6 @@ class NexusCore {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
       await this.executeLifecycleEvent("LOADED");
     } catch (e) {
       console.error('Load error:', e);
@@ -169,7 +162,7 @@ class NexusCore {
       console.log("NexusCore instance is shutting down...");
       await this.executeLifecycleEvent("SHUTTING_DOWN");
       console.log("Shutdown complete...");
-      this.status = "SHUTDOWN";
+      await this.executeLifecycleEvent("SHUTDOWN");
     }
   }
 
@@ -201,8 +194,8 @@ const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.setStatus('INIT');
-await nexusCore.configure(Config.defaultConfig);
+nexusCore.status = 'INIT';
+await nexusCore.configure({ ...Config.defaultConfig });
 await nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
