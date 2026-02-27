@@ -1,15 +1,15 @@
 class Configuration {
-  #staticConfiguration = {
+  static #staticConfiguration = {
     VERSION: "1.0.0",
     env: process.env.NODE_ENV || "development"
   };
 
-  #defaultConfiguration = {
+  static #defaultConfig = {
     foo: 'bar',
     baz: true
   };
 
-  #configurationSchema = {
+  static #configurationSchema = {
     type: 'object',
     properties: {
       foo: { type: 'string' },
@@ -24,18 +24,19 @@ class Configuration {
     this.#configurationSchema = { ...this.#configurationSchema };
     this.configure(values);
     this.validate();
+    this.#configuration = { ...this.#staticConfiguration, ...this.#defaultConfiguration, ...values };
   }
 
   configure(values) {
-    Object.assign(this, values);
+    Object.assign(this.#configuration, values);
   }
 
   validate() {
     const validator = new (require('jsonschema').Validator)();
-    validator.checkSchema(this.#configurationSchema);
+    validator.addSchema(this.#configurationSchema);
     try {
-      validator.validate(this, this.#configurationSchema);
-      if (this.VERSION !== Configuration.staticConfiguration.VERSION) {
+      validator.validate(this.#configuration, this.#configurationSchema);
+      if (this.#configuration.VERSION !== Configuration.staticConfiguration.VERSION) {
         throw new Error("Configuration version mismatch");
       }
     } catch (e) {
@@ -46,10 +47,14 @@ class Configuration {
 
   get configuration() {
     const properties = {
-      foo: this.foo,
-      baz: this.baz
+      foo: this.#configuration.foo,
+      baz: this.#configuration.baz
     };
     return { ...this.#configurationSchema.properties, ...properties };
+  }
+
+  get #configuration() {
+    return this.#configuration;
   }
 }
 
@@ -100,10 +105,6 @@ class NexusCore {
 
   #status = "INIT";
 
-  constructor() {
-    this.#configuration = new Configuration();
-  }
-
   get status() {
     return this.#status;
   }
@@ -122,19 +123,36 @@ class NexusCore {
     if (currentValue === 'INIT' && value !== 'INIT') {
       lifecycle.configured = true;
     }
+    this.#lifecycle = { ...lifecycle };
   }
 
   get lifecycle() {
     return this.#lifecycle;
   }
 
+  static defaultConfig = Configuration;
+
   async configure(config = {}) {
-    this.#configuration.configure(config);
-    this.#configuration.validate();
-    this.#configuration = new Configuration();
-    this.#configuration.configure(this.#configuration.configuration);
+    const nexusConfig = new Configuration(config);
+    this.#configuration = nexusConfig.configuration;
+    this.#configuration = { ...Configuration.staticConfiguration, ...Configuration.defaultConfig, ...this.#configuration };
+    this.validate();
     this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
+  }
+
+  validate() {
+    const validator = new (require('jsonschema').Validator)();
+    validator.addSchema(Configuration.#configurationSchema);
+    try {
+      validator.validate(this.#configuration, Configuration.#configurationSchema);
+      if (this.#configuration.VERSION !== Configuration.staticConfiguration.VERSION) {
+        throw new Error("Configuration version mismatch");
+      }
+    } catch (e) {
+      console.error('Configuration validation error:', e);
+      throw e;
+    }
   }
 
   async onLifecycleEvent(event, handler) {
@@ -166,7 +184,7 @@ class NexusCore {
     if (!this.#lifecycle.loaded) {
       try {
         await this.executeLifecycleEvent("CONFIGURED");
-        if (this.#configuration.configuration.baz) {
+        if (this.#configuration.baz) {
           console.log("Loading...");
           await new Promise(resolve => setTimeout(resolve, 1000));
           console.log("Loading complete...");
@@ -237,11 +255,8 @@ const nexusCore = new NexusCoreImpl();
 nexusCore.on('DESTROYED', nexusCore => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.configure(NexusCoreImpl.defaultConfig.configuration);
+nexusCore.configure({ foo: "changed", baz: false });
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-This code maintains the same functionality as the original code but with the enhancements you requested.
