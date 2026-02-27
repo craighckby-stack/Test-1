@@ -1,39 +1,194 @@
-/**
- * ACVD Schema Definitions (v1.1)
- * Provides centralized access to the ACVD validation policy via the ACVDValidator plugin.
- *
- * This module now leverages the KernelCapabilityInvoker for standardized, robust plugin execution.
- */
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
 
-// Assume KERNEL_SYNERGY_CAPABILITIES is globally available and initialized.
+  constructor(values = {}) {
+    this.setValues(values);
+  }
 
-/**
- * Isolates and validates the core dependency (KernelCapabilityInvoker) required for execution.
- * This strictly separates dependency resolution and failure logic from the module initialization path.
- * @returns {object} The validated invoker object.
- * @throws {Error} If the dependency is missing or incomplete.
- */
-function _getValidatedInvoker() {
-    const invoker = KERNEL_SYNERGY_CAPABILITIES?.Plugin?.get("KernelCapabilityInvoker");
+  setValues(values) {
+    Object.assign(this, values);
+  }
 
-    if (!invoker || typeof invoker.execute !== 'function') {
-        // Ensure immediate, traceable failure upon module load if the kernel is misconfigured.
-        throw new Error("[ACVDSchema Setup Failure] Core execution invoker (KernelCapabilityInvoker) is not available or incomplete. System integrity compromised.");
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
-    return invoker;
+  }
 }
 
-// Optimization: Resolve and validate the core dependency once at module initialization time,
-// shifting the integrity check cost outside the hot execution path.
-const ACVD_INVOKER = _getValidatedInvoker();
-
-/**
- * Validates a candidate ACVD object against the defined schema using the kernel's validation service.
- * @param {unknown} candidate - The object to validate.
- * @returns {unknown} The validated and parsed object (type inferred by runtime context).
- * @throws {Error} If validation fails or if required plugins are missing.
- */
-export function validateACVDStructure(candidate: unknown): unknown {
-    // The dependency is pre-validated, allowing for direct, clean execution delegation.
-    return ACVD_INVOKER.execute("ACVDValidator", "validate", candidate);
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
 }
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
