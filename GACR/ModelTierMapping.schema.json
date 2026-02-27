@@ -44,6 +44,7 @@ class Config {
 
   #loadConfig(values) {
     Object.assign(this, values);
+    return this;
   }
 }
 
@@ -113,14 +114,18 @@ class NexusCore {
 
     if (value !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
-      }
     }
 
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-      this.#validateStatus();
+    if (this.#status === 'DESTROYED') {
+      lifecycle.configured = false;
+      lifecycle.loaded = false;
+      lifecycle.shuttingDown = false;
+    }
+
+    if (currentValue === 'INIT') {
+      lifecycle.configured = value === 'CONFIGURED';
+      lifecycle.loaded = value === 'LOADED';
+      lifecycle.shuttingDown = value === 'SHUTTING_DOWN' || value === 'SHUTDOWN';
     }
 
     this.#validateStatus();
@@ -160,18 +165,19 @@ class NexusCore {
     validationPromise.then(() => {
       this.onLifecycleEvent("CONFIGURED");
       this.#lifecycle.configured = true;
+      this.status = 'CONFIGURED';
     });
   }
 
-  #validateConfig(values, resolve) {
+  validateConfig(config, callback = () => {}) {
     const validator = new (require('jsonschema').Validator)();
     validator.checkSchema(this.constructor.configSchema);
     try {
-      validator.validate(values, this.constructor.configSchema);
-      resolve();
+      validator.validate(config, this.constructor.configSchema);
+      callback();
     } catch (e) {
       console.error('Config validation error:', e);
-      reject(e);
+      callback(e);
     }
   }
 
@@ -185,13 +191,13 @@ class NexusCore {
   }
 
   async load() {
-    this.#configLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
       this.#configLifecycleEvent("LOADED");
+      this.status = 'LOADED';
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -204,7 +210,7 @@ class NexusCore {
         this.#lifecycle.shuttingDown = true;
         this.#configLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+        this.status = 'SHUTDOWN';
       }
     } catch (e) {
       console.error("Shutdown error:", e);
