@@ -1,23 +1,25 @@
 class Config {
-  #schema = {
+  #_schema = {
+    $id: 'config',
     type: 'object',
     properties: {
       VERSION: { type: 'string' },
       env: { type: 'string' }
-    }
+    },
+    required: ['VERSION', 'env']
   };
 
-  static get configSchema() {
-    return this.#schema;
+  static get schema() {
+    return this.#_schema;
   };
 
-  #defaultConfig = {
+  #_defaultConfig = {
     VERSION: "1.0.0",
     env: "development"
   };
 
-  get staticConfig() {
-    return this.#defaultConfig;
+  static get defaultConfig() {
+    return this.#_defaultConfig;
   }
 
   constructor(values = {}) {
@@ -26,13 +28,16 @@ class Config {
   }
 
   #validate(values) {
-    const { Validator } = require('jsonschema');
     try {
-      const validator = new Validator();
-      validator.checkSchema(this.#schema);
-      validator.validate(values, this.#schema);
+      const { ajv } = require('ajv');
+      const ajvInstance = new ajv();
+      ajvInstance.addSchema(this.schema);
+      const valid = ajvInstance.validate(this.schema, values);
+      if (!valid) {
+        console.error('Config validation error:', ajvInstance.errors[0]);
+        throw ajvInstance.errors[0];
+      }
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -40,21 +45,37 @@ class Config {
   #assignValues(values) {
     Object.assign(this, values);
   }
+
+  #merge(obj1, obj2) {
+    return { ...obj1, ...obj2 };
+  }
+
+  static mergeConfigs(config1, config2) {
+    return new Config(this.#merge(config1, config2));
+  }
 }
 
 class LifecycleEvent {
   #_event;
 
   constructor(event) {
-    this.#_event = event;
+    this.#_event = { event, handler: () => {} };
   }
 
   get event() {
-    return this.#_event;
+    return this.#_event.event;
   }
 
   set event(value) {
-    this.#_event = value;
+    this.#_event.event = value;
+  }
+
+  set handler(value) {
+    this.#_event.handler = value;
+  }
+
+  get handler() {
+    return this.#_event.handler;
   }
 }
 
@@ -62,21 +83,21 @@ class LifecycleHandler {
   #_handler;
   #_target;
 
-  constructor(handler, target = this) {
+  constructor(handler, target = null) {
     this.#_handler = handler;
-    this.#_target = target;
+    this.#_target = target || this;
   }
 
   bind(target) {
     this.#_target = target;
   }
 
-  get handler() {
-    return this.#_handler;
-  }
-
   set handler(value) {
     this.#_handler = value;
+  }
+
+  get handler() {
+    return this.#_handler;
   }
 
   get target() {
@@ -100,7 +121,7 @@ class NexusCore {
     _event: new Map()
   };
 
-  #_status = "INIT";
+  #_status = 'INIT';
 
   get status() {
     return this._status;
@@ -133,13 +154,16 @@ class NexusCore {
   }
 
   #validateConfig(config) {
-    const { Validator } = require('jsonschema');
     try {
-      const validator = new Validator();
-      validator.checkSchema(Config.configSchema);
-      validator.validate(config, Config.configSchema);
+      const { ajv } = require('ajv');
+      const ajvInstance = new ajv();
+      ajvInstance.addSchema(Config.schema);
+      const valid = ajvInstance.validate(Config.schema, config);
+      if (!valid) {
+        console.error('Config validation error:', ajvInstance.errors[0]);
+        throw ajvInstance.errors[0];
+      }
     } catch (e) {
-      console.error('Config validation error:', e);
       throw e;
     }
   }
@@ -148,7 +172,7 @@ class NexusCore {
     if (!this._lifecycle._event.has(event)) {
       this._lifecycle._event.set(event, new LifecycleEvent(event));
     }
-    this._lifecycle._event.get(event).event = handler;
+    this._lifecycle._event.get(event).handler = handler;
   }
 
   get on() {
@@ -160,13 +184,11 @@ class NexusCore {
   executeLifecycleEvent(event) {
     if (this._lifecycle._event.has(event)) {
       const lifecycleEvent = this._lifecycle._event.get(event);
-      lifecycleEvent.handler = lifecycleEvent.handler.bind(lifecycleEvent.target);
       lifecycleEvent.execute();
     }
   }
 
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -210,10 +232,6 @@ class NexusCore {
       _event: new Map()
     };
   }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
 }
 
 const nexusCore = new NexusCore();
@@ -221,12 +239,11 @@ nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
 
-const config = Config.defaultConfig;
-console.log(config);
-nexusCore.configure({
-  ...config,
+const config = Config.mergeConfigs(Config.defaultConfig, {
   VERSION: "1.0.1"
 });
+console.log(config);
+nexusCore.configure(config);
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
