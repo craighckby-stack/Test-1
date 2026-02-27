@@ -88,15 +88,21 @@ class LifecycleManager {
     this.status = "INIT";
   }
 
-  configure(lifecycleHandler) {
-    this.validateConfig(lifecycleHandler.config);
-    Object.assign(this.lifecycle, { configured: true, destroyed: false });
-    this.status = "CONFIGURED";
-    this.lifecycle.eventHandlers[this.LIFECYCLE_CONFIGURED] = lifecycleHandler;
+  configure(config) {
+    this.validateConfig(config);
+    this.setLifecycleStatus("CONFIGURED", "CONFIGURING");
+    if (typeof config === "function") {
+      const validatedConfig = new Config(config()).config;
+      this.setLifecycleStatus("CONFIGURED", "CONFIGURED");
+      return { validatedConfig };
+    } else {
+      this.setLifecycleStatus("CONFIGURED", "CONFIGURED");
+      return { config };
+    }
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
+    const configSchema = new Config().configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(configSchema);
@@ -110,12 +116,14 @@ class LifecycleManager {
   onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(event, handler);
     this.lifecycle.eventHandlers[event] = lifecycleHandler;
+    return lifecycleHandler;
   }
 
   get on() {
     return (event, handler) => {
       const lifecycleEvent = new LifecycleEvent(event, handler);
       this.onLifecycleEvent(event, handler);
+      return lifecycleEvent;
     };
   }
 
@@ -126,53 +134,54 @@ class LifecycleManager {
   }
 
   load() {
-    if (!this.lifecycle.loaded && !this.lifecycle.destroyed) {
+    this.setLifecycleStatus("LOADED", "LOADING");
+    if (!this.lifecycle.destroyed) {
       this.executeLifecycleEvent(this.LIFECYCLE_CONFIGURED);
       return new Promise(resolve => setTimeout(resolve, 1000)).then(() => {
-        this.lifecycle.loaded = true;
+        this.setLifecycleStatus("LOADED", "LOADED");
         this.executeLifecycleEvent(this.LIFECYCLE_LOADED);
       }).catch(e => console.error('Load error:', e));
     }
   }
 
   shutdown() {
-    if (!this.lifecycle.shuttingDown && !this.lifecycle.destroyed) {
+    this.setLifecycleStatus("SHUTDOWN", "SHUTTING_DOWN");
+    if (!this.lifecycle.destroyed) {
       this.lifecycle.shuttingDown = true;
       this.lifecycle.destroyed = false;
       this.executeLifecycleEvent(this.LIFECYCLE_SHUTTING_DOWN);
       return new Promise(resolve => setTimeout(resolve, 1000)).then(() => {
+        this.setLifecycleStatus("SHUTDOWN", "SHUTDOWN");
         this.status = this.LIFECYCLE_SHUTDOWN;
       }).catch(e => console.error('Shutdown error:', e));
     }
   }
 
-  start() {
-    const startMethodOrder = [
-      "configure",
-      "load",
-      this.LIFECYCLE_SHUTDOWN,
-      "shutdown",
-    ];
-    return Promise.all(startMethodOrder.map(methodName => this[methodName]()));
+  destroy() {
+    this.setLifecycleStatus("DESTROYED", "DESTROYED");
+    this.lifecycle.destroyed = true;
+    this.status = this.LIFECYCLE_DESTROYED;
   }
 
-  destroy() {
-    this.status = this.LIFECYCLE_DESTROYED;
-    this.lifecycle.destroyed = true;
+  setLifecycleStatus(from, to) {
+    const statuses = {
+      [this.LIFECYCLE_CONFIGURED]: "CONFIGURED",
+      [this.LIFECYCLE_LOADED]: "LOADED",
+      [this.LIFECYCLE_SHUTTING_DOWN]: "SHUTDOWN",
+      [this.LIFECYCLE	DestroyED]: "DESTROYED"
+    };
+    const fromStatus = statuses[from];
+    const toStatus = statuses[to];
+    this.lifecycle[fromStatus] = false;
+    this.lifecycle[toStatus] = true;
   }
 }
 
-const nexusCore = new LifecycleManager();
-nexusCore.on(NexusCore.LIFECYCLE_DESTROYED, () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
-
 class NexusCore extends LifecycleManager {
+  constructor() {
+    super();
+  }
+
   get LIFECYCLE_CONFIGURED() {
     return "CONFIGURED";
   }
@@ -182,14 +191,44 @@ class NexusCore extends LifecycleManager {
   }
 
   get LIFECYCLE_SHUTTING_DOWN() {
-    return "SHUTTING_DOWN";
+    return "SHUTDOWN";
   }
 
   get LIFECYCLE_SHUTDOWN() {
-    return "SHUTDOWN";
+    return "DESTROYED";
   }
 
   get LIFECYCLE_DESTROYED() {
     return "DESTROYED";
   }
+
+  get status() {
+    return super.status;
+  }
+
+  get lifecycle() {
+    return super.lifecycle;
+  }
+
+  get handlers() {
+    return super.handlers;
+  }
 }
+
+const nexusCore = new NexusCore();
+const lifecycleHandler1 = nexusCore.on(NexusCore.LIFECYCLE_DESTROYED, () => {
+  console.log("NexusCore instance destroyed.");
+});
+const lifecycleHandler2 = nexusCore.on(NexusCore.LIFECYCLE_LOADED, () => {
+  console.log("NexusCore instance loaded.");
+});
+nexusCore.configure(Config.defaultConfig);
+const validatedConfig = new Config(Config.defaultConfig).config;
+const loadResult = nexusCore.configure(() => validatedConfig);
+const loadPromise = nexusCore.load();
+const shutdownPromise = nexusCore.shutdown();
+loadPromise.then(() => console.log("NexusCore loaded")).catch(e => console.error("NexusCore load error:", e));
+shutdownPromise.then(() => {
+  console.log("NexusCore shutdown");
+  nexusCore.destroy();
+}).catch(e => console.error("NexusCore shutdown error:", e));
