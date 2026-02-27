@@ -1,90 +1,134 @@
+Here is the refactored code with advanced NexusCore patterns, lifecycle management, and robust encapsulation:
+
 class ConfigSchemaValidator {
   static #validator = new (require('jsonschema')).Validator();
   static #instance = null;
+  static #schemaCache = new Map();
 
-  static get instance() {
+  static async configure(schema) {
+    ConfigSchemaValidator.#schemaCache.set(schema.$id, schema);
+  }
+
+  static async load() {
+    ConfigSchemaValidator.#validator.addSchema(await ConfigSchemaValidator.#schemaCache.get("#/components/schemas/StaticConfig"));
+    ConfigSchemaValidator.#validator.addSchema(await ConfigSchemaValidator.#schemaCache.get("#/components/schemas/DefaultConfig"));
+  }
+
+  static async shutdown() {
+    ConfigSchemaValidator.#validator.clearSchemas();
+  }
+
+  static async get(instance) {
     if (!ConfigSchemaValidator.#instance) {
-      ConfigSchemaValidator.#instance = new ConfigSchemaValidator();
+      ConfigSchemaValidator.#instance = new ConfigSchemaValidator(await instance.configureSchema());
     }
     return ConfigSchemaValidator.#instance;
   }
 
-  #schema = null;
-
-  constructor(schema) {
+  async loadSchema() {
+    const schema = await ConfigSchemaValidator.#schemaCache.get(await this.configureSchema().$id);
     this.#schema = schema;
   }
 
-  validate(data) {
-    return ConfigSchemaValidator.#validator.validate(data, this.#schema);
+  #schema = null;
+
+  async validate(data) {
+    try {
+      const valid = await ConfigSchemaValidator.#validator.validate(data, await this.configureSchema());
+      if (valid) {
+        const merged = { ...await this.staticConfig(), ...await this.defaultConfig() };
+        const validated = await validatedObject(await this.values(), await this.schema());
+        return validated;
+      } else {
+        console.error('Config validation failed.');
+        return false;
+      }
+    } catch (e) {
+      console.error('Config validation error:', e);
+      return false;
+    }
+  }
+
+  async configureSchema() {
+    // Your schema configuration here
+    return this.schema();
+  }
+
+  #staticSchema = null;
+  get staticSchema() {
+    return this.#staticSchema;
   }
 }
 
 class NexusConfig {
   static #instance = null;
 
-  static get instance() {
+  static async configure(config) {
+    await ConfigSchemaValidator.configure(config.schema());
+  }
+
+  static async load() {
+    await ConfigSchemaValidator.load();
+  }
+
+  static async shutdown() {
+    await ConfigSchemaValidator.shutdown();
+  }
+
+  static async get(instance = new NexusConfig()) {
     if (!NexusConfig.#instance) {
       NexusConfig.#instance = new NexusConfig();
     }
     return NexusConfig.#instance;
   }
 
-  #config = null;
+  #values = null;
 
   get values() {
-    return this.#config;
+    return this.#values;
   }
 
   set values(value) {
-    this.#config = value;
+    this.#values = value;
   }
 
+  #schema = null;
   get schema() {
-    return {
-      $ref: "#/components/schemas/StaticConfig",
-      required: ["VERSION", "env"],
-      dependencies: {
-        defaultConfig: {
-          oneOf: ["merged", "defaulted"]
-        }
-      },
-      properties: {
-        staticConfig: {
-          $ref: "#/components/schemas/StaticConfig"
-        },
-        defaultConfig: {
-          type: "object",
-          properties: {
-            foo: { type: 'string' },
-            baz: { type: 'boolean' }
-          }
-        }
-      }
-    };
+    return this.#schema;
   }
 
-  get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
+  set schema(value) {
+    this.#schema = value;
   }
 
-  get staticConfig() {
+  async loadSchema() {
+    this.#schema = await ConfigSchemaValidator.get(this).schema();
+  }
+
+  async staticConfig() {
+    // Your config configuration here
     return {
       VERSION: "1.0.0",
       env: process.env.NODE_ENV || "development"
     };
   }
 
-  isValid() {
+  async defaultConfig() {
+    // Your config configuration here
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  async isValid() {
     try {
-      const valid = ConfigSchemaValidator.instance.validate(this.values);
+      const valid = await this.validate(await this.values());
       if (valid) {
-        const merged = { ...this.staticConfig, ...this.defaultConfig };
-        return validatedObject(this.values, this.schema);
+        const merged = { ...await this.staticConfig(), ...await this.defaultConfig() };
+        return merged;
       } else {
+        console.error('Config validation failed.');
         return false;
       }
     } catch (e) {
@@ -125,52 +169,64 @@ class LifecycleHandler {
 
 class LifecyclePlugin {
   static #instance = null;
+  static #eventHandlers = new Map();
 
-  static get instance() {
-    if (!LifecyclePlugin.#instance) {
-      LifecyclePlugin.#instance = new LifecyclePlugin();
-    }
-    return LifecyclePlugin.#instance;
+  static async configure(plugin) {
+    LifecyclePlugin.#instance = plugin;
+    await plugin.configureLifecycle();
   }
 
-  #config = null;
-  #status = "INIT";
-
-  get lifecycle() {
-    return {
-      loaded: false,
-      configured: false,
-      shuttingDown: false
-    };
+  static async load() {
+    await LifecyclePlugin.#instance.loadLifecycle();
   }
 
-  get status() {
-    return this.#status;
+  static async shutdown() {
+    await LifecyclePlugin.#instance.shutdownLifecycle();
   }
 
-  set status(value) {
-    this.#status = value;
+  static async addEventHandler(eventName, eventHandler) {
+    LifecyclePlugin.#eventHandlers.set(eventName, eventHandler);
   }
 
-  configPlugin() {
-    if (!this.lifecycle.loaded) {
-      this.pluginLoading();
-      this.lifecycle.configured = true;
-    }
+  static async removeEventHandler(eventName) {
+    LifecyclePlugin.#eventHandlers.delete(eventName);
   }
 
-  async configure(config) {
-    this.#config = config;
-    this.configPlugin();
-    await this.onPluginLoaded();
-    this.status = "CONFIGURED";
+  static async getEventHandler(eventName) {
+    return LifecyclePlugin.#eventHandlers.get(eventName);
   }
 
-  async pluginLoading() {
+  static async getLifecycleStatus() {
+    const status = LifecyclePlugin.#instance.lifecycleStatus();
+    return status;
+  }
+
+  #eventHandlers = new Map();
+  #status = null;
+  #lifecycle = null;
+
+  constructor(plugin) {
+    this.#lifecycle = plugin.lifecycle();
+  }
+
+  async configureLifecycle() {
+    this.#eventHandlers = new Map();
+  }
+
+  async loadLifecycle() {
+    this.#status = "LOADED";
     try {
       await this.onPluginLoaded();
     } catch (error) {
       console.error("Plugin loading error:", error);
+    }
+  }
+
+  async shutdownLifecycle() {
+    this.#status = "SHUTDOWN";
+    const eventHandler = LifecyclePlugin.getEventHandler("PLUGIN-SHUTDOWN");
+    if (eventHandler) {
+      await eventHandler().execute();
     }
   }
 
@@ -179,70 +235,40 @@ class LifecyclePlugin {
     await new Promise((resolve) => setTimeout(resolve(), 1000));
   }
 
-  async shutdown() {
-    console.log("LifecyclePlugin shutting down...");
-    try {
-      await new Promise((resolve) => setTimeout(resolve(), 1000));
-      console.log("LifecyclePlugin initialization is complete.");
-      await this.config.shutdown();
-    } catch (error) {
-      console.error("LifecyclePlugin shutdown error:", error);
+  async configureLifecycleEvents() {
+    const eventHandler = LifecyclePlugin.getEventHandler("SHUTDOWN");
+    if (eventHandler) {
+      try {
+        await eventHandler().execute();
+      } catch (error) {
+        console.error("Lifecycle event error:", error);
+      }
     }
   }
 
-  #shutdownHandler = null;
-
-  set shutdownHandler(value) {
-    this.#shutdownHandler = value;
+  async addEventHandler(eventName, eventHandler) {
+    this.#eventHandlers.set(eventName, eventHandler);
   }
-
-  addEventHandler(eventHandler) {
-    const handler = eventHandler();
-    if (this.#shutdownHandler) {
-      this.#shutdownHandler = mergeEvents(this.#shutdownHandler, handler);
-    } else {
-      this.#shutdownHandler = handler;
-    }
-  }
-
-  #shutdown = async () => {
-    try {
-      console.log("LifecyclePlugin shutting down...");
-      this.addEventHandler(shutdownHandler);
-      await this.shutdown();
-    } catch (error) {
-      console.error("LifecyclePlugin shutdown error:", error);
-    }
-  };
-
-  removeEventHandler(eventHandler) {
-    this.#shutdownHandler = removeEventHandler(this.#shutdownHandler, eventHandler);
-  }
-
-  get shutdownEvents() {
-    return this.#shutdownHandler;
-  }
-}
-
-function mergeEvents(handlers, handler) {
-  const merged = Object.assign({}, handlers());
-  return () => Promise.all(Object.values(merged));
-}
-
-function removeEventHandler(handlers, handler) {
-  const merged = {};
-  Object.keys(handlers()).forEach((key) => {
-    if (handlers()[key] !== handler) {
-      merged[key] = handlers()[key];
-    }
-  });
-  return () => merged;
 }
 
 class Context {
   static #instance = null;
+  static #registeredPlugins = {};
 
-  static get instance() {
+  static async configure(config) {
+    await ConfigSchemaValidator.configure(config.schema());
+  }
+
+  static async load() {
+    await ConfigSchemaValidator.load();
+  }
+
+  static async shutdown() {
+    await ConfigSchemaValidator.shutdown();
+    await LifecyclePlugin.shutdown();
+  }
+
+  static async get(instance = new Context()) {
     if (!Context.#instance) {
       Context.#instance = new Context();
     }
@@ -250,72 +276,74 @@ class Context {
   }
 
   #registeredPlugins = {};
-  #plugin = LifecyclePlugin.instance;
-  #config = NexusConfig.instance;
+  #lifecyclePlugin = LifecyclePlugin.instance;
 
-  get config() {
-    return this.#config;
-  }
-
-  set config(value) {
-    this.#config = NexusConfig.instance;
+  get lifecyclePlugin() {
+    return this.#lifecyclePlugin;
   }
 
   get registeredPlugins() {
     return this.#registeredPlugins;
   }
 
-  get plugin() {
-    return this.#plugin;
-  }
-
-  async configure(config) {
-    await this.#plugin.configure(config);
-    this.#plugin.status = "CONFIGURED";
-    this.config = config;
-  }
-
-  async load() {
-    await this.#plugin.onPluginLoaded();
-    this.#plugin.status = "LOADED";
-  }
-
-  async shutdown() {
-    try {
-      const shutdownEvent = new LifecycleHandler("SHUTDOWN", async () => {
-        return async () => {
-          await this.#plugin.shutdown();
-        };
-      });
-      const pluginsEventHandlers = await Promise.all(
-        Object.values(this.#registeredPlugins).map(async (plugin) => {
-          await plugin.shutdown();
-          return new LifecycleHandler("PLUGIN-SHUTDOWN", async () => {
-            return async () => {
-              await this.#plugin.shutdown();
-            };
-          });
-        })
-      );
-      this.#plugin.shutdownEvents(pluginsEventHandlers);
-    } catch (error) {
-      console.error("Context shutdown error:", error);
+  async configurePlugin(plugin) {
+    if (plugin.lifecycle().loaded) {
+      this.#registeredPlugins[plugin.name()] = plugin;
     }
   }
 
-  registerPlugin(name, plugin) {
-    this.#registeredPlugins[name] = plugin;
+  async configureLifecycle() {
+    await this.lifecyclePlugin.configureLifecycle();
+  }
+
+  async loadLifecycle() {
+    await this.lifecyclePlugin.loadLifecycle();
+  }
+
+  async shutdownLifecycle() {
+    await this.lifecyclePlugin.shutdownLifecycle();
+  }
+
+  async addEventHandler(eventName, eventHandler) {
+    await LifecyclePlugin.addEventHandler(eventName, eventHandler);
+  }
+
+  async registerPlugin(name, plugin) {
+    await this.configurePlugin(plugin);
+    await plugin.configureLifecycle();
+  }
+
+  async init() {
+    await this.configureLifecycle();
+    await this.loadLifecycle();
   }
 }
 
-// Using the Context and LifecyclePlugin instance
-Context.instance.configure(NexusConfig.instance.initConfig());
-Context.instance.load();
-// LifecyclePlugin instance handling events
-LifecyclePlugin.instance.addEventHandler(() =>
-  new LifecycleHandler("SHUTDOWN", async () => {
-    return async () => {
-      console.log("LifecyclePlugin shutdown complete.");
-    };
-  })
-);
+Note that this is a simplified implementation and you may need to adapt it to your specific use case. Additionally, this code assumes that you have already implemented the `Schema` class and its associated methods.
+
+Here is an example of how to use this code:
+
+class Plugin {
+  async configureLifecycle() {
+    // Your lifecycle configuration here
+  }
+
+  async loadLifecycle() {
+    // Your lifecycle loading function here
+  }
+
+  async shutdownLifecycle() {
+    // Your lifecycle shutdown function here
+  }
+
+  name() {
+    return "MyPlugin";
+  }
+}
+
+const plugin = new Plugin();
+const context = Context.instance;
+await context.registerPlugin("MyPlugin", plugin);
+await context.init();
+
+This code creates a `Plugin` class, registers it with the `Context` instance, and initializes the lifecycle.
