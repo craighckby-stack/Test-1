@@ -1,17 +1,19 @@
 class Config {
-  static {
-    this.#configSchema = {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
+  static #configSchema = {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    }
+  };
 
-    this.#defaultConfig = new Proxy({
-      foo: 'bar',
-      baz: true
-    }, {
+  static #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
+
+  static #configureProxy(values) {
+    return new Proxy(values, {
       set: (target, property, value) => {
         if ('foo' === property && typeof value !== 'string') {
           throw new Error('foo property must be a string');
@@ -71,10 +73,7 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  #config = new Proxy({}, {
-    set: (target, property, value) => property in target ? target[property] = value : void 0
-  });
-
+  #config = null;
   #lifecycle = {
     CONFIGURED: null,
     LOADED: null,
@@ -82,7 +81,6 @@ class NexusCore {
     SHUTDOWN: null,
     DESTROYED: null
   };
-
   #status = "INIT";
 
   get status() {
@@ -98,10 +96,10 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  async configure(config) {
+  async configure(config = Config.#defaultConfig) {
+    this.#config = Config.#configureProxy({ ...Config.#defaultConfig, ...config });
     try {
-      this.config = { ...Config.#defaultConfig, ...config };
-      Config.validate(this.config);
+      Config.validate(this.#config);
       this.#lifecycle.CONFIGURED = new LifecycleHandler(() => {
         this.#lifecycle.CONFIGURED.bind(this).execute();
       });
@@ -171,6 +169,16 @@ class NexusCore {
     this.#config = Config.merge(value);
   }
 
+  async applyConfig(config) {
+    try {
+      this.#config = Config.#configureProxy(Config.merge(Config.#defaultConfig, config));
+      Config.validate(this.#config);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
   #updateLifecycleStatus(status) {
     const lifecycle = this.#lifecycle;
     if (lifecycle.CONFIGURED && status === "CONFIGURED") {
@@ -210,16 +218,6 @@ class NexusCore {
     }
   }
 
-  async applyConfig(config) {
-    try {
-      this.config = Config.merge(Config.#defaultConfig, config);
-      Config.validate(this.config);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
   toString() {
     return `NexusCore { id: ${this.constructor.name}, status: ${this.status} }`;
   }
@@ -228,7 +226,7 @@ class NexusCore {
     return {
       status: this.status,
       lifecycle: this.#lifecycle,
-      config: this.config
+      config: this.#config
     };
   }
 }
@@ -237,7 +235,7 @@ const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
-nexusCore.configure(Config.#defaultConfig);
+nexusCore.configure({foo:'changed', baz:false});
 nexusCore.applyConfig({ foo: "bar" });
 nexusCore.start();
 nexusCore.load();
