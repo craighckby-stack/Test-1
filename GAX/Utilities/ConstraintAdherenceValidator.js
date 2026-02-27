@@ -1,173 +1,206 @@
-/**
- * NOTE: This implementation assumes the surrounding code defines a class
- * 'ConstraintAdherenceValidator' and these methods are part of its prototype.
- */
+class Config {
+  #values = {};
 
-/**
- * Creates a standard critical violation payload used for immediate systemic failures 
- * (e.g., missing dependencies).
- * 
- * @param {string} code 
- * @param {string} details
- * @param {string} [target='SYSTEM']
- * @returns {{isAdherent: boolean, violations: object[]}}
- */
-_createCriticalViolation(code, details, target = 'SYSTEM') {
-    // Defining the data structure clearly for immediate failure payloads
-    const violationStructure = { 
-        code,
-        target,
-        severity: 'CRITICAL',
-        details
-    };
+  constructor(values = {}) {
+    this.#setValues(values);
+    this.#validateConfig();
+  }
 
+  #setValues(values) {
+    Object.assign(this.#values, values);
+  }
+
+  #validateConfig() {
+    try {
+      const configSchema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(this.#values, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  static get staticConfig() {
     return {
-        isAdherent: false,
-        violations: [violationStructure]
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
     };
-}
+  }
 
-/**
- * Performs critical input and dependency checks necessary before attempting constraint execution.
- * This method extracts the logic for dependency checking (steps 1, 2, 3 of original validate).
- * 
- * @param {string[]} requiredConstraintCodes 
- * @returns {{code?: string, details?: string, service?: object}}
- */
-_runCriticalPreflightChecks(requiredConstraintCodes) {
-    const SERVICE_KEY = 'ConstraintExecutionService';
-
-    // 1. Input Validation (Data Preparation Check)
-    if (!Array.isArray(requiredConstraintCodes) || requiredConstraintCodes.length === 0) {
-        return { 
-            code: 'INPUT_VALIDATION_ERROR', 
-            details: 'Required constraint codes list is invalid (must be a non-empty array).'
-        };
-    }
-    
-    // 2. Synergy Service Access (Dependency Retrieval)
-    let ConstraintExecutionService = null;
-    if (typeof Synergy === 'object' && typeof Synergy.get === 'function') {
-        ConstraintExecutionService = Synergy.get(SERVICE_KEY);
-    }
-
-    if (!ConstraintExecutionService) {
-        return { 
-            code: 'KERNEL_SERVICE_UNAVAILABLE', 
-            details: `Required synergy service ${SERVICE_KEY} is unavailable.` 
-        };
-    }
-
-    // 3. Local Dependency Check (Taxonomy Map)
-    const { taxonomyMap } = this;
-    if (!taxonomyMap || typeof taxonomyMap.get !== 'function') {
-        return { 
-            code: 'TAXONOMY_MAP_MISSING', 
-            details: "Local taxonomy map required for constraint definitions is missing or invalid (this.taxonomyMap)."
-        };
-    }
-    
-    // Success path: return the acquired service instance.
-    return { service: ConstraintExecutionService };
-}
-
-/**
- * Standardizes the output of a single constraint check into a structured violation object or null if adherent.
- * Extracted from validate() to improve method readability and encapsulation.
- * 
- * @param {string} code 
- * @param {object} constraintDef 
- * @param {object | null} adherenceCheck 
- * @param {Error | null} error 
- * @returns {object | null}
- */
-_standardizeConstraintResult(code, constraintDef, adherenceCheck, error) {
-    // Use destructuring with defaults
-    const {
-        target_parameter: target = 'N/A',
-        severity: defSeverity = 'MAJOR'
-    } = constraintDef;
-
-    // A. Runtime Execution Error
-    if (error) {
-        // Ensuring consistent violation schema by including target parameter
-        return {
-            code: `${code}_RUNTIME_ERROR`,
-            target, 
-            severity: 'CRITICAL',
-            details: `Unexpected execution error during constraint ${code}: ${error.message}`
-        };
-    }
-
-    // B. Explicit Constraint Failure
-    if (adherenceCheck?.isMet === false) {
-        const failureDetails = adherenceCheck.details || `Adherence rule failed for code: ${code}.`;
-        return { code, target, severity: defSeverity, details: failureDetails };
-    }
-
-    // C. Service Failure / Invalid Response
-    if (adherenceCheck === undefined || adherenceCheck === null) {
-        return {
-            code: `${code}_SERVICE_FAIL`,
-            target: target,
-            severity: 'CRITICAL',
-            details: `Service returned an invalid or null response for constraint check: ${code}`
-        };
-    }
-
-    return null; // D. Adherent
-}
-
-
-async validate(configuration, requiredConstraintCodes) {
-    const VALIDATION_CONTEXT = '[ConstraintAdherenceValidator]';
-
-    // 1. Run Critical Preflight Checks
-    const preflightResult = this._runCriticalPreflightChecks(requiredConstraintCodes);
-
-    if (preflightResult.code) {
-        // Handle critical failure: Log error (Side effect) and return violation payload (Data assembly)
-        console.error(`${VALIDATION_CONTEXT} ${preflightResult.details}`);
-        return this._createCriticalViolation(preflightResult.code, preflightResult.details);
-    }
-    
-    // Extract successful dependencies
-    const ConstraintExecutionService = preflightResult.service;
-    const { taxonomyMap } = this; // Taxonomy check was implicitly successful if we reached here
-
-    // 2. Constraint Execution Loop (Parallelized using Promise.all)
-    const validationPromises = requiredConstraintCodes.map(async (code) => {
-        const constraintDef = taxonomyMap.get(code);
-
-        if (!constraintDef) {
-            console.warn(`${VALIDATION_CONTEXT} Constraint code ${code} not found in taxonomy. Skipping adherence check.`);
-            return null; // Skip
-        }
-
-        let adherenceCheck = null;
-        let executionError = null;
-
-        try {
-            // Delegating constraint execution
-            adherenceCheck = await ConstraintExecutionService.execute('executeConstraintCheck', constraintDef, configuration);
-        } catch (error) {
-            // Catches unexpected runtime errors during service execution (Side-effect logging)
-            console.error(`${VALIDATION_CONTEXT} Unexpected error executing constraint ${code}:`, error);
-            executionError = error;
-        }
-        
-        // Use externalized logic to standardize result
-        return this._standardizeConstraintResult(code, constraintDef, adherenceCheck, executionError);
-    });
-
-    // Execute all constraints concurrently for performance improvement (IO bound operations)
-    const rawResults = await Promise.all(validationPromises);
-    
-    // Filter out nulls (adherent or skipped constraints)
-    const violations = rawResults.filter(result => result !== null);
-
+  static get defaultConfig() {
     return {
-        isAdherent: violations.length === 0,
-        violations
+      foo: 'bar',
+      baz: true
     };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  get values() {
+    return { ...this.#values };
+  }
+
+  setValues(values) {
+    this.#setValues(values);
+  }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  #target = null;
+
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.#target = target;
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler.call(this.#target);
+  }
+}
+
+class NexusCore {
+  #status = "INIT";
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+  #config = {};
+  #eventHandlers = {};
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const config = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        config.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      config.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  get config() {
+    return { ...this.#config };
+  }
+
+  set config(value) {
+    this.#config = value;
+    this.#validateConfig();
+    this.#lifecycle.configured = true;
+  }
+
+  #validateConfig() {
+    try {
+      const configSchema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(this.#config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  on(event, handler) {
+    if (!this.#eventHandlers[event]) {
+      this.#eventHandlers[event] = [];
+    }
+    const eventHandler = new LifecycleHandler(handler);
+    eventHandler.bind(this);
+    this.#eventHandlers[event].push(eventHandler);
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].handler();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+    this.#config = {};
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
