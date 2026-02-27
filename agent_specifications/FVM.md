@@ -17,15 +17,15 @@ class Config {
     }
   };
 
-  static get staticConfig() {
+  get staticConfig() {
     return this.#staticConfig;
   }
 
-  static get defaultConfig() {
+  get defaultConfig() {
     return this.#defaultConfig;
   }
 
-  static get configSchema() {
+  get configSchema() {
     return this.#configSchema;
   }
 
@@ -37,13 +37,13 @@ class Config {
   async validate(values = {}) {
     try {
       const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
+      const validator = new (await (async () => { return import('jsonschema') })()).Validator();
       validator.checkSchema(schema);
-      validator.validate(values, schema);
-      return values;
+      const result = await Promise.resolve(validator.validate(values, schema));
+      return result.valid ? values : {};
     } catch (e) {
       console.error('Config validation error:', e);
-      throw e;
+      return {};
     }
   }
 }
@@ -55,16 +55,18 @@ class LifecycleEvent {
     this.event = event;
   }
 
-  append(handler) {
+  async append(handler) {
     if (!this.#eventsToNotify[event]) {
       this.#eventsToNotify[event] = [];
     }
     this.#eventsToNotify[event].push(handler);
   }
 
-  notify(value) {
+  async notify(value) {
     if (this.#eventsToNotify[this.event]) {
-      this.#eventsToNotify[this.event].forEach(handler => handler(value, this));
+      for (const handler of this.#eventsToNotify[this.event]) {
+        await handler(value, this);
+      }
     }
   }
 }
@@ -76,27 +78,19 @@ class LifecycleHandler {
     this.handler = handler;
   }
 
-  append(event, handler) {
+  async append(event, handler) {
     if (!this.#handlersToNotify[event]) {
       this.#handlersToNotify[event] = [];
     }
     this.#handlersToNotify[event].push(handler);
   }
 
-  notify(event, value) {
-    if (this.#handlersToNotify[event]) {
-      this.#handlersToNotify[event].forEach(handler => handler(value, this));
-    }
-  }
-
-  bind(target = null) {
+  async invoke(event, target = null) {
     if (target) {
       this.handler = this.handler.bind(target);
     }
-  }
-
-  execute() {
-    this.handler();
+    const result = await this.handler();
+    return result;
   }
 }
 
@@ -147,13 +141,13 @@ class NexusCore {
   async configure(config) {
     try {
       const validatedConfig = await Config.validate(config);
-      this.#lifecycleHandlers['CONFIGURED'] = new LifecycleHandler(() => {
+      await this.#lifecycleHandlers['CONFIGURED'].append(new LifecycleHandler(() => {
         this.#lifecycle.configured = true;
         this.config = config;
-      });
+      }));
       this.#lifecycleEvents['CONFIGURED'] = new LifecycleEvent('CONFIGURED');
-      this.#lifecycleEvents['CONFIGURED'].append(this.#lifecycleHandlers['CONFIGURED'].append.bind(this.#lifecycleHandlers['CONFIGURED']));
-      this.#lifecycleEvents['CONFIGURED'].append((value) => {
+      await this.#lifecycleEvents['CONFIGURED'].append(this.#lifecycleHandlers['CONFIGURED'].append.bind(this.#lifecycleHandlers['CONFIGURED']));
+      await this.#lifecycleEvents['CONFIGURED'].append((value) => {
         this.#lifecycle.configured = true;
         this.config = config;
       });
@@ -165,41 +159,42 @@ class NexusCore {
   }
 
   async validateConfig(config) {
-    const validator = new (require('jsonschema').Validator)();
-    validator.checkSchema(Config.configSchema);
-    return new Promise((resolve) => {
-      validator.validate(config, Config.configSchema, (e) => {
-        if (e) {
-          console.error('Config validation error:', e);
-          throw e;
-        }
-        config = config;
-        resolve(config);
+    try {
+      const validator = new (await (async () => { return import('jsonschema') })()).Validator();
+      validator.checkSchema(Config.configSchema);
+      return new Promise((resolve) => {
+        validator.validate(config, Config.configSchema, (e) => {
+          if (e) {
+            console.error('Config validation error:', e);
+          } else {
+            config = config;
+            resolve(true);
+          }
+        });
       });
-    });
+    } catch (e) {
+      console.error('Config validation error:', e);
+      return null;
+    }
   }
 
   async onLifecycleEvent(event, handler) {
-    const lifecycleEvent = new LifecycleEvent(event);
-    this.#lifecycleEvents[event] = lifecycleEvent;
-    await new Promise((resolve) => {
-      lifecycleEvent.append((value) => {
-        this.#lifecycleHandlers[event] = new LifecycleHandler(handler);
-        this.#lifecycleHandlers[event].append(event, (value) => {
-          lifecycleEvent.append((value) => {
-            this.#lifecycleEvents[event].notify(event, value);
-          });
-        });
-        resolve(true);
-      });
-    });
+    if (this.#lifecycleEvents[event]) {
+      console.error('Lifecycle event already exists:', event);
+      return;
+    }
+    this.#lifecycleEvents[event] = new LifecycleEvent(event);
+    await this.#lifecycleEvents[event].append(new LifecycleHandler(handler));
   }
 
   async executeLifecycleEvent(event) {
     try {
       await new Promise((resolve) => {
         if (this.#lifecycleEvents[event]) {
-          this.#lifecycleEvents[event].bind(this).notify(event);
+          this.#lifecycleEvents[event].notify(undefined).catch(e => {
+            this.#lifecycleEvents[event] = undefined;
+            throw e;
+          });
         }
         resolve(true);
       });
@@ -239,8 +234,8 @@ class NexusCore {
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (typeof this[methodName] === "function") {
-        await this[methodName];
+      if (this[methodName] && typeof this[methodName] === "function") {
+        await this[methodName]();
       }
     }
   }
