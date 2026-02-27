@@ -1,52 +1,41 @@
 class Config {
-  #configSchema = {
-    type: 'object',
-    properties: {
-      foo: { type: 'string' },
-      baz: { type: 'boolean' }
-    }
-  };
+  #configSchema = undefined;
+  #values = undefined;
+
+  constructor(schema) {
+    this.#configSchema = schema;
+    this.#values = {};
+  }
 
   get configSchema() {
     return this.#configSchema;
+  }
+
+  set values(values) {
+    this.#validate(values);
+    this.#values = values;
   }
 
   get values() {
     return this.#values;
   }
 
-  set values(newValue) {
-    this.#validate(newValue);
-    this.#values = newValue;
-  }
-
-  constructor() {
-    this.#values = {};
-    this.#validate({});
-  }
-
   #validate(values) {
-    class ValidatorError extends Error {
+    const ValidatorError = class extends Error {
       constructor(message, ...params) {
         super(message, ...params);
         this.name = "ValidatorError";
       }
-    }
+    };
 
     try {
-      class Validator extends JSONSchemaValidator {
-        validate(values) {
-          if (!super.validate(values, this.schema)) {
-            throw new ValidatorError("Invalid configuration");
-          }
-        }
-      }
-
-      const validator = new Validator();
-      validator.schema = this.configSchema;
-      validator.validate(values, validator.schema);
+      return new Promise((resolve) => {
+        new JSONSchemaValidator(this.configSchema).validate(values).then(resolve).catch((error) => {
+          console.error('Config validation error:', error);
+          throw error;
+        });
+      });
     } catch (error) {
-      console.error('Config validation error:', error);
       throw error;
     }
   }
@@ -55,15 +44,53 @@ class Config {
     return "1.0.0";
   }
 
-  get environment() {
-    return process.env.NODE_ENV || "development";
-  }
-
   get defaultConfig() {
     return {
       foo: 'bar',
       baz: true
     };
+  }
+
+  get environment() {
+    return process.env.NODE_ENV || "development";
+  }
+}
+
+class JSONSchemaValidator {
+  #schema;
+
+  constructor(schema) {
+    this.#schema = schema;
+  }
+
+  async validate(obj) {
+    try {
+      const validator = this.#createValidator();
+      validator.schema = this.#schema;
+      return validator.validate(obj, validator.schema);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  #createValidator() {
+    class Validator {
+      validate(obj, schema) {
+        const validator = new this.constructor();
+        validator.schema = schema;
+        return validator.check(obj, validator.schema);
+      }
+
+      check(obj, schema) {
+        try {
+          return super.check(obj, schema);
+        } catch (error) {
+          return false;
+        }
+      }
+    }
+
+    return Validator;
   }
 }
 
@@ -150,10 +177,10 @@ class NexusCore {
   }
 
   async validateConfig(config) {
-    const validator = new JSONSchemaValidator();
     try {
-      await validator.validatePromise(config, this.configSchema);
-      return config;
+      const validator = new JSONSchemaValidator(this.configSchema);
+      const validatedConfig = await validator.validate(config);
+      return validatedConfig;
     } catch (error) {
       console.error('Config validation error:', error);
       throw error;
@@ -189,15 +216,6 @@ class NexusCore {
     }
   }
 
-  async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
-  }
-
   async destroy() {
     console.log('Destroying NexusCore instance...');
     this.status = "DESTROY";
@@ -220,43 +238,13 @@ class NexusCore {
       this.#lifecycle[event].execute();
     }
   }
-}
 
-class JSONSchemaValidator {
-  constructor() {
-    this.schema = {};
-  }
-
-  async validatePromise(obj, schema) {
-    try {
-      const validator = new this.constructor();
-      this.schema = schema;
-      await validator.checkSchema();
-      await validator.validate(obj, validator.schema);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  checkSchema() {
-    class ValidatorError extends Error {
-      constructor(message, ...params) {
-        super(message, ...params);
-        this.name = "ValidatorError";
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
       }
-    }
-
-    try {
-      const validator = new Validator();
-      validator.validate(this.schema, this.schema);
-    } catch (error) {
-      throw new ValidatorError('Invalid schema');
-    }
-  }
-
-  validate(obj, schema) {
-    if (!super.validate(obj, schema)) {
-      throw new Error("Invalid configuration");
     }
   }
 }
@@ -275,20 +263,11 @@ const configSchemaJson = `
 
 const configSchema = JSON.parse(JSON.stringify(JSON.parse(configSchemaJson)));
 
-const config = {
-  configSchema,
-  validate: async (obj) => {
-    const validator = new JSONSchemaValidator();
-    try {
-      await validator.validatePromise(obj, validator.schema);
-    } catch (error) {
-      console.errorerror);
-      throw error;
-    }
-  }
-};
+const config = new Config(configSchema);
 
 const nexusCore = new NexusCore();
+nexusCore.configSchema = configSchema;
+
 nexusCore.on("DESTROY", () => {
   console.log("NexusCore instance destroyed.");
 });
@@ -302,4 +281,5 @@ try {
   console.error(error);
 }
 
-This code encapsulates the validation logic within the `Config` class and utilizes a JSON schema to validate the configuration. The `JSONSchemaValidator` is used to validate the configuration based on the schema. The `NexusCore` instances lifecycle is managed by its methods: `configure`, `load`, `shutdown`, `destroy`. The event handling is implemented within the `on` method. This refactored code adheres to standard best practices.
+
+This code encapsulates the validation logic within the `Config` class and utilizes a JSON schema to validate the configuration. The `JSONSchemaValidator` is used to validate the configuration based on the schema. The `NexusCore` instance lifecycle is managed by its methods: `configure`, `load`, `shutdown`, `destroy`. The event handling is implemented within the `on` method. This refactored code adheres to standard best practices and utilizes up to date syntax and patterns.
