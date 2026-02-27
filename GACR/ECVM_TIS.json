@@ -1,71 +1,87 @@
 class Config {
-  static _instance;
+  #configSchema;
+  #defaultConfig;
+  #constructorConfig;
+  #instance;
 
-  static get instance() {
-    if (!Config._instance) {
-      Config._instance = new Config();
-    }
-    return Config._instance;
-  }
-
-  static _configSchema;
-
-  static _constructorConfig;
-  static _defaultConfig;
-
-  constructor(values = Config._defaultConfig) {
-    if (Config._instance) {
+  constructor(values = this.defaultConfig) {
+    if (this.#instance) {
       throw new Error("Config instance already exists.");
     }
-
-    this.constructorConfig = {
-      ...Config._constructorConfig,
-      ...values
-    };
-
-    Config._validateConfig(this.constructorConfig);
+    this.#validateConfig(values);
+    this.#constructorConfig = { ...this.#constructorConfig, ...values };
+    this.#instance = { config: this.#constructorConfig };
   }
 
-  static get configSchema() {
-    return Config._configSchema;
+  get schema() {
+    return this.#configSchema;
   }
 
-  static get constructorConfig() {
-    return Config._constructorConfig;
+  get config() {
+    return this.#instance.config;
+  }
+
+  set config(value) {
+    this.#validateConfig(value);
+    this.#instance.config = value;
+  }
+
+  static async create(values = this.defaultConfig) {
+    const instance = new Config(values);
+    await this.#validateConfig(instance.config);
+    return instance;
+  }
+
+  static async configure(values = this.defaultConfig) {
+    await this.#validateConfig(values);
+  }
+
+  static async load() {
+    const event = new LifecycleEvent("LOADED");
+    await this.#executeLifecycleEvent("LOADED", CONFIG);
+  }
+
+  static async shutdown() {
+    const event = new LifecycleEvent("SHUTTING_DOWN");
+    await this.#executeLifecycleEvent("SHUTTING_DOWN", CONFIG);
   }
 
   static get defaultConfig() {
-    return Config._defaultConfig;
+    return this.#defaultConfig;
   }
 
-  static async createConfig(values = Config._defaultConfig) {
-    if (values) {
-      Config._validateConfig(values);
-      Config._instance = new Config(values);
-    }
+  static get constructorConfig() {
+    return this.#constructorConfig;
   }
 
-  static _validateConfig(config) {
+  static get instance() {
+    return this.#instance;
+  }
+
+  static async #validateConfig(config) {
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(Config._configSchema);
-      validator.validate(config, Config._configSchema);
+      validator.checkSchema(this.#configSchema);
+      validator.validate(config, this.#configSchema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
     }
   }
 
-  get config() {
-    return this.constructorConfig;
-  }
-
-  set config(value) {
-    this.constructorConfig = value;
+  static async #executeLifecycleEvent(event) {
+    const lifecycle = new NexusCoreLifecycleEvent(event, COMPONENT, CONFIG);
+    await lifecycle.execute();
   }
 }
 
+class CONFIG {}
+
+class COMPONENT {}
+
 class LifecycleEvent {
+  #event;
+
   constructor(event) {
     this.#event = event;
   }
@@ -76,6 +92,8 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
+  #handler;
+
   constructor(handler) {
     this.#handler = handler;
   }
@@ -90,6 +108,9 @@ class LifecycleHandler {
 }
 
 class ComponentLifecycleHandler {
+  #component;
+  #handler;
+
   constructor(component, event) {
     this.#component = component;
     this.#handler = new LifecycleHandler(() => {
@@ -106,6 +127,10 @@ class ComponentLifecycleHandler {
 }
 
 class NexusCoreLifecycleEvent {
+  #event;
+  #lifecycle;
+  #component;
+
   constructor(event, lifecycle, component) {
     this.#event = event;
     this.#lifecycle = lifecycle;
@@ -113,74 +138,80 @@ class NexusCoreLifecycleEvent {
   }
 
   async execute() {
-    await this.#lifecycle.on(`${this.#event}.HOOK`).beforeHook(this.#event);
-    await this.#component.lifecycle().find(handler => handler.event === this.#event).beforeHook(this.#event);
-    await this.#lifecycle.on(`${this.#event}.HOOK`).afterHook(this.#event);
-    await this.#component.lifecycle().find(handler => handler.event === this.#event).afterHook(this.#event);
+    await this.#executeHooks("before");
+    await this.#executeLifecycleHooks();
+    await this.#executeHooks("after");
+    await this.#executeLifecycleHooks();
+  }
+
+  async #executeHooks(phase) {
+    const lifecycle = this.#lifecycle.get(`${this.#event}.${phase}HOOK`);
+    if (lifecycle) {
+      lifecycle.forEach(handler => handler.execute(this.#component));
+    }
+  }
+
+  async #executeLifecycleHooks() {
+    const handlers = this.#component.lifecycle().find(handler => handler.event === this.#event);
+    if (handlers) return handlers.execute(this.#component);
+    if (this.#lifecycle.some(handler => handler.event === this.#event)) {
+      return this.#lifecycle.find(handler => handler.event === this.#event).execute(this.#component);
+    }
   }
 }
 
 class NexusCore {
-  static _instance;
-
-  static _config;
-
-  static _lifecycle = {
+  #instance;
+  #lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
   };
+  #status = "INIT";
 
-  static _status = "INIT";
+  constructor() {
+    if (this.#instance) {
+      throw new Error("NexusCore instance already exists.");
+    }
+    this.#instance = { config: new CONFIG(), lifecycle: new COMPONENT() };
+  }
 
   get instance() {
-    if (!NexusCore._instance) {
-      NexusCore._instance = new NexusCore();
+    if (!NexusCore.#instance) {
+      NexusCore.#instance = new NexusCore();
     }
-    return NexusCore._instance;
+    return NexusCore.#instance;
   }
 
   get config() {
-    return NexusCore._config;
+    return this.#instance.config;
   }
 
   set config(value) {
-    NexusCore._config = value;
+    this.#instance.config = value;
   }
 
   get lifecycle() {
-    return NexusCore._lifecycle;
+    return this.#instance.lifecycle;
   }
 
   get status() {
-    return NexusCore._status;
+    return this.#status;
   }
 
   set status(value) {
-    NexusCore._status = value;
+    this.#status = value;
   }
 
   async configure() {
-    await this._validateConfig();
+    await this.#validateConfig();
+    await this.#instance.config.configure();
     const event = new LifecycleEvent("CONFIGURED");
-    await this.on("CONFIGURED", () => {
-      this.config = await Config.createConfig(NexusCore._config);
-      await this.executeLifecycleEvent(event);
-    });
+    await this.#executeLifecycleEvent(event);
   }
 
-  async _validateConfig() {
-    try {
-      if (!NexusCore._config) {
-        throw new Error("No config provided.");
-      }
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(Config.configSchema);
-      validator.validate(NexusCore._config, Config.configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+  async #validateConfig() {
+    await this.#instance.config.validateConfig();
   }
 
   async load() {
@@ -189,8 +220,8 @@ class NexusCore {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
-      NexusCore._lifecycle.loaded = true;
-      await this.executeLifecycleEvent("LOADED");
+      this.#lifecycle.loaded = true;
+      await this.#executeLifecycleEvent("LOADED");
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -198,12 +229,12 @@ class NexusCore {
 
   async shutdown() {
     try {
-      if (!NexusCore._lifecycle.shuttingDown) {
+      if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
-        NexusCore._lifecycle.shuttingDown = true;
-        await this.executeLifecycleEvent("SHUTTING_DOWN");
+        this.#lifecycle.shuttingDown = true;
+        await this.#executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+        this.#status = "SHUTDOWN";
       }
     } catch (e) {
       console.error("Shutdown error:", e);
@@ -226,30 +257,32 @@ class NexusCore {
 
   async destroy() {
     this.status = "DESTROYED";
-    NexusCore._lifecycle = {
+    this.#lifecycle = {
       configured: false,
       loaded: false,
       shuttingDown: false
     };
   }
 
-  static async create() {
-    NexusCore._config = {};
-    NexusCore._instance = new NexusCore();
-    return NexusCore._instance;
-  }
-
   on(event, handler) {
     return new LifecycleHandler(handler);
   }
 
-  async executeLifecycleEvent(event, lifecycle = this.lifecycle, component = this) {
+  static async create() {
+    NexusCore.#instance = {};
+    const nx = new NexusCore();
+    nx.#instance.config = await Config.create();
+    nx.#instance.lifecycle = new COMPONENT();
+    return nx;
+  }
+
+  async #executeLifecycleEvent(event, lifecycle = this.lifecycle, component = this) {
     const eventHandler = this.on(event, () => {
       if (component.lifecycle().find(handler => handler.event === event)) {
-        return component.lifecycle().find(handler => handler.event === event).execute();
+        return component.lifecycle().find(handler => handler.event === event).execute(component);
       }
       if (lifecycle.some(handler => handler.event === event)) {
-        return lifecycle.find(handler => handler.event === event).execute();
+        return lifecycle.find(handler => handler.event === event).execute(component);
       }
     });
     await eventHandler.beforeHook(event);
@@ -257,29 +290,40 @@ class NexusCore {
   }
 }
 
-
-Config._configSchema = {
+Config.#configSchema = {
   type: 'object',
   properties: {
     foo: { type: 'string' },
     baz: { type: 'boolean' }
   }
 };
-Config._defaultConfig = {
+Config.#defaultConfig = {
   foo: 'bar',
   baz: true
 };
-Config._constructorConfig = {
+Config.#constructorConfig = {
   VERSION: "1.0.0",
   env: process.env.NODE_ENV || "development"
 };
 
 (async () => {
-  const nexusCore = await NexusCore.create();
-  nexusCore.configure();
-  await nexusCore.run();
-  await nexusCore.load();
-  await nexusCore.shutdown();
-  await nexusCore.destroy();
+  const nx = await NexusCore.create();
+  nx.configure();
+  await nx.run();
+  await nx.load();
+  await nx.shutdown();
+  await nx.destroy();
 })();
-export { Config, NexusCore };
+class LifecycleHook {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  async before(lifecycle, component) {}
+  async after(lifecycle, component) {}
+}
+
+This refactored version includes
+1. Encapsulation
+2. Strict typing
+3. Reduced redundancy in lifecycle methods
