@@ -1,80 +1,194 @@
-/**
- * Internal recursive function to sort object keys and detect circular dependencies,
- * generating a stable data structure ready for deterministic JSON stringification.
- * This helper serves as the synchronous data preparation step, isolating complex 
- * recursive logic from the primary execution function (`stableStringify`).
- * 
- * @param value The object or array to process.
- * @param seen WeakSet tracking visited objects to prevent cycles.
- * @returns The deterministically sorted and cycle-free representation, or undefined if a cycle is hit.
- */
-function _generateStableStructure(value: unknown, seen: WeakSet<object> = new WeakSet()): unknown | undefined {
-    
-    // Check 1: Primitives
-    if (value === null || typeof value !== 'object') {
-        return value; 
-    }
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
 
-    // Check 2: Cycle detection
-    if (seen.has(value as object)) {
-        return undefined; // Omit circular reference
-    }
-    seen.add(value as object);
+  constructor(values = {}) {
+    this.setValues(values);
+  }
 
-    if (Array.isArray(value)) {
-        // Handle arrays: recurse and filter out circular branches (undefined)
-        return value
-            .map(item => _generateStableStructure(item, seen))
-            .filter(item => item !== undefined);
-            
-    } else {
-        // Handle objects: Sort keys and recurse
-        const keys = Object.keys(value as object).sort();
-        const cleanedObject: Record<string, unknown> = {};
+  setValues(values) {
+    Object.assign(this, values);
+  }
 
-        for (const key of keys) {
-            const processedValue = _generateStableStructure((value as Record<string, unknown>)[key], seen);
-            
-            // Only include non-undefined values (omits cycle branches)
-            if (processedValue !== undefined) {
-                cleanedObject[key] = processedValue;
-            }
-        }
-        return cleanedObject;
-    }
-}
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
 
-/**
- * Deterministically converts a JavaScript value to a stable JSON string.
- * Ensures object keys are sorted recursively and handles circular dependencies.
- * 
- * Performance Improvement: Replaced external class instantiation (DeterministicDataPreprocessor) 
- * with an internal, optimized recursive preparation function.
- *
- * @param value The value to convert.
- * @param replacer A function that alters the behavior of the stringification process.
- * @param space Adds indentation, white space, and line break characters to the output JSON string.
- * @returns The stable JSON string.
- */
-export function stableStringify(value: unknown, replacer?: (key: string, value: unknown) => unknown, space?: string | number): string {
-    
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
     try {
-        // Step 1: Prepare the data for deterministic serialization (sort keys, remove cycles).
-        const sortedValue = _generateStableStructure(value);
-        
-        // If the entire root structure was deemed unrepresentable (e.g., circular self-reference), return stable 'null'.
-        if (sortedValue === undefined) {
-            return 'null'; 
-        }
-
-        // Step 2: Final stringification.
-        return JSON.stringify(sortedValue, replacer, space);
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
     } catch (e) {
-        // Enhanced Error Handling capability: Return a structured JSON error object.
-        console.error("[Stable Stringify] Fatal serialization failure during preparation or stringification:", e);
-        return JSON.stringify({
-            error: "FATAL_SERIALIZATION_FAILURE", 
-            message: String(e)
-        });
+      console.error('Config validation error:', e);
+      throw e;
     }
+  }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
