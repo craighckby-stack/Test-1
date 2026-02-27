@@ -1,7 +1,5 @@
-Here's the code enhanced using advanced NexusCore patterns, lifecycle management, and robust encapsulation:
+// @ts-check
 
-
-// Config class with static config, default config, and validation schema
 class Config {
   /**
    * Get the static configuration
@@ -52,29 +50,39 @@ class Config {
   }
 }
 
-// Lifecycle event base class
 class LifecycleEvent {
+  /**
+   * @param {string} event 
+   */
   constructor(event) {
     this.event = event;
   }
 }
 
-// Lifecycle handler base class
 class LifecycleHandler {
+  /**
+   * @param {function} handler 
+   */
   constructor(handler) {
     this.handler = handler;
   }
 
+  /**
+   * Bind the handler to the specified context
+   * @param {object} context 
+   */
   bind(context = this) {
     this.handler = this.handler.bind(context);
   }
 
+  /**
+   * Execute the handler
+   */
   execute() {
     this.handler();
   }
 }
 
-// NexusCore class with advanced lifecycle management and robust encapsulation
 class NexusCore {
   #lifecycle = {
     configured: false,
@@ -85,10 +93,20 @@ class NexusCore {
 
   #status = "INIT";
 
+  /**
+   * Get the lifecycle status
+   *
+   * @returns {string} The status of the nexuscore lifecycle
+   */
   get status() {
     return this.#status;
   }
 
+  /**
+   * Set the lifecycle status
+   *
+   * @param {string} value The new status value
+   */
   set status(value) {
     this.#status = value;
     const currentValue = this.#status;
@@ -110,11 +128,20 @@ class NexusCore {
     }
   }
 
+  /**
+   * Get the lifecycle object
+   *
+   * @returns {object} The lifecycle object
+   */
   get lifecycle() {
     return this.#lifecycle;
   }
 
-  // Configure the NexusCore instance with a specific configuration
+  /**
+   * Configure the NexusCore instance with a specific configuration
+   *
+   * @param {object} config The configuration
+   */
   configure(config) {
     this.validateConfig(config);
     this.onLifecycleEvent("CONFIGURED");
@@ -122,7 +149,11 @@ class NexusCore {
     this.config = config;
   }
 
-  // Validate a provided configuration against the schema
+  /**
+   * Validate a provided configuration against the schema
+   *
+   * @param {object} config The configuration
+   */
   validateConfig(config) {
     const configSchema = Config.configSchema;
     try {
@@ -135,7 +166,12 @@ class NexusCore {
     }
   }
 
-  // Register a lifecycle event handler for a specific event
+  /**
+   * Register a lifecycle event handler
+   *
+   * @param {string} event The event
+   * @param {function} [handler] The handler
+   */
   onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
     if (!this.#lifecycle[event]) {
@@ -143,34 +179,45 @@ class NexusCore {
     }
   }
 
-  // Execute a lifecycle event handler for a specific event
-  executeLifecycleEvent(event, context = this) {
+  /**
+   * Execute a lifecycle event handler
+   *
+   * @param {string} event The event
+   * @param {object} [context] The context
+   */
+  async executeLifecycleEvent(event, context = this) {
     if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(context).execute();
+      await this.#lifecycle[event].bind(context).execute();
     }
   }
 
-  // Load the NexusCore instance, wait for a specified duration and then transition to the 'Loaded' state
-  async load duration = 1000) {
+  /**
+   * Load the NexusCore instance, wait for a specified duration and then transition to the 'Loaded' state
+   *
+   * @param {number} duration The duration
+   */
+  async load(duration = 1000) {
     await this.executeLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading for " + duration + "ms...");
       await new Promise(resolve => setTimeout(resolve, duration));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
+      await this.executeLifecycleEvent("LOADED");
     } catch (e) {
       console.error("Load error:", e);
     }
   }
 
-  // Shut down the NexusCore instance, triggering the 'Shutting Down' and then 'Shutdown' lifecycle events
+  /**
+   * Shut down the NexusCore instance, triggering the 'Shutting Down' and then 'Shutdown' lifecycle events
+   */
   async shutdown() {
     try {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
+        await this.executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
       }
@@ -179,9 +226,12 @@ class NexusCore {
     }
   }
 
-  // Start the NexusCore instance by initializing the lifecycle sequence
+  /**
+   * Start the NexusCore instance by initializing the lifecycle sequence
+   */
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
+    this.config = Object.assign({}, Config.defaultConfig);
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
         try {
@@ -193,28 +243,12 @@ class NexusCore {
     }
   }
 
-  // Destroy the NexusCore instance, transitioning to the 'Destroyed' state
+  /**
+   * Destroy the NexusCore instance, transitioning to the 'Destroyed' state
+   */
   async destroy() {
     this.status = "DESTROYED";
     this.#lifecycle.destroyed = true;
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false,
-      destroyed: true
-    };
-  }
-
-  // Register a lifecycle event handler for a specific event
-  async on(event, handler) {
-    // Implement a new mechanism to detect and prevent duplicate event registrations
-    if (!this.#lifecycle[event]) {
-      this.onLifecycleEvent(event, handler);
-    }
-  }
-
-  async destroy() {
-    this.status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
       loaded: false,
@@ -226,24 +260,12 @@ class NexusCore {
 
 // Example usage:
 const nexusCore = new NexusCore();
+/**
+ * Lifecycle event handler for the 'DESTROYED' event
+ */
 nexusCore.on('DESTROYED', () => console.log("NexusCore instance destroyed."));
 nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load(10000);
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-The introduced modifications include:
-
-1. Enhanced lifecycle state management with `#lifecycle` property, providing a more expressive and maintainable representation of the NexusCore instance's lifecycle phases.
-2. Encapsulation was enforced through the utilization of private fields and properties prefixed with the `#` symbol, which cannot be accessed directly from outside the class.
-
-Note that additional improvements and enhancements can be made, such as:
-
-1.  Implementing type declarations using the TypeScript or JSDoc syntax to provide a clear indication of expected types for function parameters, return values, and property types.
-2.  Using a more robust logging framework for logging events, such as Pino, Winston, or Bunyan, for better control over logging configurations.
-3.  Utilizing JavaScript modules (ECMAScript 2020 Modules) instead of global variables for improved encapsulation and easier maintenance.
-4.  Implementing a plugin architecture allowing NexusCore to support custom plugins and integrations.
-5.  Developing a more detailed documentation and guide outlining NexusCore's configuration, usage, and configuration patterns.
-6.  Incorporating testing files to ensure the robustness and reliability of the codebase through Jest or Mocha suites.
