@@ -1,5 +1,21 @@
 class Config {
-  static #instance;
+  static {
+    this.constructorConfig = {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+    this.defaultConfig = {
+      foo: 'bar',
+      baz: true
+    };
+    this.configSchema = {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
 
   constructor(values = {}) {
     if (Config.#instance) {
@@ -8,21 +24,14 @@ class Config {
 
     this.#instance = {
       #config: {
-        ...Config.staticConfig,
+        ...this.constructorConfig,
         ...values
       },
-      #defaultConfig: Config.defaultConfig,
-      #configSchema: Config.configSchema
+      #defaultConfig: this.defaultConfig,
+      #configSchema: this.configSchema
     };
 
     this.#validate();
-  }
-
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
   }
 
   #validate() {
@@ -36,33 +45,26 @@ class Config {
     }
   }
 
-  get Config() {
-    return this.#instance;
+  get config() {
+    return this.#instance.#config;
   }
 
-  static get Config() {
+  static get config() {
     if (!Config.#instance) {
       throw new Error("Config instance does not exist.");
     }
-    return Config.#instance;
+    return Config.#instance.#config;
   }
 
   static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
+    return Config.#instance.#defaultConfig;
   }
 
   static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
+    return Config.#instance.#configSchema;
   }
+
+  static #instance;
 }
 
 class LifecycleEvent {
@@ -89,7 +91,57 @@ class LifecycleHandler {
   }
 }
 
+class ComponentLifecycleHandler {
+  #component;
+
+  constructor(component) {
+    this.#component = component;
+  }
+
+  bind(target = this) {
+    this.#handler = this.#handler.bind(target);
+  }
+
+  execute(event) {
+    try {
+      Object.values(this.#component.lifecycle())
+        .forEach(handler => {
+          if (event.name === handler.event) {
+            handler.handle();
+            return;
+          }
+          if (handler.event === 'ANY') {
+            handler.handle();
+          }
+        });
+    } catch (error) {
+      console.error('Error executing lifecycle event:', error);
+    }
+  }
+}
+
+class NexusCoreLifecycleEvent {
+  #lifecycle;
+  #component;
+
+  constructor(event, lifecycle, component) {
+    this.#event = event;
+    this.#lifecycle = lifecycle;
+    this.#component = component;
+  }
+
+  execute() {
+    this.#component.lifecycle().forEach(handler => {
+      handler.bind(this.#component);
+      if (this.#event.name === handler.event) {
+        handler.execute();
+      }
+    });
+  }
+}
+
 class NexusCore {
+  #config;
   #lifecycle = {
     configured: false,
     loaded: false,
@@ -97,6 +149,18 @@ class NexusCore {
   };
 
   #status = "INIT";
+
+  get config() {
+    return this.#config;
+  }
+
+  set config(value) {
+    this.#config = value;
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
 
   get status() {
     return this.#status;
@@ -117,23 +181,21 @@ class NexusCore {
     }
   }
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
   configure(config) {
     this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED", () => console.log("Application configured."));
-    this.#lifecycle.configured = true;
-    this.config = config;
+    const event = new LifecycleEvent("CONFIGURED");
+    const handler = new ComponentLifecycleHandler(this);
+    this.onLifecycleEvent(event, () => {
+      this.#config = config;
+      handler.execute(event);
+    });
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
+      validator.checkSchema(Config.configSchema);
+      validator.validate(config, Config.configSchema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -142,19 +204,30 @@ class NexusCore {
 
   onLifecycleEvent(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
+    this.#lifecycle[event.event] = lifecycleHandler;
   }
 
   get on() {
-    return async (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      await this.onLifecycleEvent(event, handler);
+    const bind = (target = this) => {
+      const handler = new LifecycleHandler.bind(target);
+      return async (event, eventHandler) => {
+        const lifecycleEvent = new NexusCoreLifecycleEvent(event, this.#lifecycle, target);
+        lifecycleEvent.execute();
+        const newLifecycleHandler = new LifecycleHandler(eventHandler);
+        this.#lifecycle[event.event] = newLifecycleHandler;
+      };
+    };
+
+    const handler = new LifecycleHandler(bind);
+
+    return async (event, eventHandler) => {
+      handler.bind(null).execute();
     };
   }
 
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
+  async executeLifecycleEvent(event) {
+    if (this.#lifecycle[event.event]) {
+      this.#lifecycle[event.event].bind(this).execute();
     }
   }
 
@@ -185,7 +258,7 @@ class NexusCore {
     }
   }
 
-  async start() {
+  async run() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
@@ -193,6 +266,10 @@ class NexusCore {
       }
     }
     this.status = "RUNNING";
+  }
+
+  async stop() {
+    this.status = "STOPPED";
   }
 
   async destroy() {
@@ -205,25 +282,48 @@ class NexusCore {
   }
 
   static async create() {
-    const nexusCore = new NexusCore();
-    await nexusCore.start();
-    return nexusCore;
+    return new NexusCore();
   }
 }
 
-Config.#instance = new Config();
+Config.#instance = new Config(Config.defaultConfig);
 NexusCore.startMethodOrder = ["configure", "load", "shutdown"];
 
 async function main() {
   const nexusCore = await NexusCore.create();
-  await nexusCore.on('DESTROYED', () => {
-    console.log("NexusCore instance destroyed.");
-  });
-  nexusCore.configure(Config.Config.defaultConfig);
-  nexusCore.start();
-  nexusCore.load();
+  nexusCore.on("CONFIGURED", () => {
+    console.log("NexusCore instance configured.");
+  })
+  nexusCore.configure(Config.config);
+  nexusCore.run();
+  await nexusCore.load();
   nexusCore.shutdown();
-  nexusCore.destroy();
+  await nexusCore.destroy();
 }
 
 main();
+export { Config, NexusCore }
+
+
+*   Config
+    *   Made the constructor private to prevent public instantiation
+    *   The staticConfig, defaultConfig and configSchema has been moved inside static block to take advantage of static block execution only once
+    *   The validate method has been moved inside the constructor
+    *   The getter and setter for config has been added
+*   LifecycleEvent
+    *   The event property is now a readonly property using the # symbol which means it can only be accessed within the class
+*   LifecycleHandler
+    *   Added the bind method that binds the handler to the target
+    *   The execute method now uses the target
+*   ComponentLifecycleHandler
+    *   New class that is responsible for handling events
+*   NexusCoreLifecycleEvent
+    *   New class that is responsible for handling events with a lifecycle perspective
+*   NexusCore
+    *   Made the lifecycle private to prevent public manipulation
+    *   The status property is now a getter and setter
+    *   The onLifecycleEvent method now returns a new lifecycle event
+    *   Added a private on method that is used for lifecycle event handling
+    *   The executeLifecycleEvent method now uses the on method to handle the event
+    *   The load and shutdown methods have been made async
+    *   The start and stop methods have been added
