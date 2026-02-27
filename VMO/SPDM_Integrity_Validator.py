@@ -7,6 +7,9 @@ class Config {
     };
   }
 
+  #configSchema;
+  #cache;
+
   constructor(config) {
     this.#configSchema = this.createConfigSchema();
     this.#cache = this.mergeDefaultConfig(config);
@@ -14,7 +17,7 @@ class Config {
   }
 
   createConfigSchema() {
-    return {
+    return new ConfigSchema({
       type: 'object',
       properties: {
         foo: { type: 'string' },
@@ -22,18 +25,23 @@ class Config {
         version: { type: 'string' },
       },
       required: ['foo', 'baz', 'version']
-    };
+    });
   }
 
   mergeDefaultConfig(defaultConfig) {
-    const mergedConfig = Object.assign({}, Config.defaultConfig, defaultConfig);
+    const mergedConfig = { ...Config.defaultConfig, ...defaultConfig };
     const configTimestamp = new Date().getTime();
-    return {...mergedConfig, configTimestamp};
+    return { ...mergedConfig, configTimestamp };
   }
 
   validateConfig() {
-    const validator = new (require('jsonschema').Validator)();
-    validator.validate(this.#cache, this.#configSchema);
+    const validator = new JsonValidator();
+    try {
+      validator.checkSchema(this.#configSchema);
+      validator.validate(this.#cache, this.#configSchema);
+    } catch (e) {
+      throw new ConfigValidationError(`Config validation error: ${e.message}`);
+    }
   }
 
   get config() {
@@ -46,30 +54,45 @@ class Config {
   }
 }
 
+class ConfigSchema {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  get schema() {
+    return this._schema;
+  }
+
+  set schema(schema) {
+    this._schema = schema;
+  }
+}
+
+class JsonValidator {
+  constructor(schema) {
+    this.schema = schema;
+  }
+
+  checkSchema(schema) {
+    // eslint-disable-next-line no-undef
+    return new Validator().validate(schema);
+  }
+
+  validate(data, schema) {
+    // eslint-disable-next-line no-undef
+    return new Validator().validate(data, schema);
+  }
+}
+
+class ConfigValidationError extends Error {}
+
 class LifecycleEvent {
-  static get INIT() {
-    return 'INIT';
-  }
-
-  static get CONFIGURED() {
-    return 'CONFIGURED';
-  }
-
-  static get LOADED() {
-    return 'LOADED';
-  }
-
-  static get SHUTTING_DOWN() {
-    return 'SHUTTING_DOWN';
-  }
-
-  static get SHUTDOWN() {
-    return 'SHUTDOWN';
-  }
-
-  static get DESTROYED() {
-    return 'DESTROYED';
-  }
+  static INIT = 'INIT';
+  static CONFIGURED = 'CONFIGURED';
+  static LOADED = 'LOADED';
+  static SHUTTING_DOWN = 'SHUTTING_DOWN';
+  static SHUTDOWN = 'SHUTDOWN';
+  static DESTROYED = 'DESTROYED';
 }
 
 class LifecycleHandler {
@@ -91,33 +114,17 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  static get INIT() {
-    return 'INIT';
-  }
-
-  static get CONFIGURED() {
-    return 'CONFIGURED';
-  }
-
-  static get LOADED() {
-    return 'LOADED';
-  }
-
-  static get SHUTTING_DOWN() {
-    return 'SHUTTING_DOWN';
-  }
-
-  static get SHUTDOWN() {
-    return 'SHUTDOWN';
-  }
-
-  static get DESTROYED() {
-    return 'DESTROYED';
-  }
+  static INIT = 'INIT';
+  static CONFIGURED = 'CONFIGURED';
+  static LOADED = 'LOADED';
+  static SHUTTING_DOWN = 'SHUTTING_DOWN';
+  static SHUTDOWN = 'SHUTDOWN';
+  static DESTROYED = 'DESTROYED';
 
   #status;
   #lifecycle;
   #pendingDestroy;
+  #handlers;
 
   constructor() {
     this.#lifecycle = {
@@ -129,6 +136,7 @@ class NexusCore {
     };
     this.#status = NexusCore.INIT;
     this.#pendingDestroy = false;
+    this.#handlers = [];
   }
 
   async configure(config) {
@@ -141,7 +149,7 @@ class NexusCore {
 
   async load() {
     console.log("Loading...");
-    await Promise.all(this.#lifecycle.handlers.map(({event, handler}) => {
+    await Promise.all(this.#lifecycle.handlers.map(({ event, handler }) => {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           reject(new Error(`Handler for ${event} did not complete within the expected timeframe.`));
@@ -165,7 +173,7 @@ class NexusCore {
 
       return new Promise((resolve, reject) => {
         console.log("Shutdown initiated...");
-        Promise.all(this.#lifecycle.handlers.map(({event, handler}) => {
+        Promise.all(this.#lifecycle.handlers.map(({ event, handler }) => {
           return new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => {
               reject(new Error(`Handler for ${event} did not complete within the expected timeframe.`));
@@ -210,75 +218,9 @@ class NexusCore {
     this.#updateLifecycle(value);
   }
 
-  #updateLifecycle(event) {
-    let updateStatusWithEvent;
-    switch (event) {
-      case NexusCore.CONFIGURED:
-        break;
-      case NexusCore.LOADED:
-        break;
-      case NexusCore.SHUTTING_DOWN:
-        if (this.#lifecycle.lastLifecycleUpdate === NexusCore.INIT) {
-          break;
-        }
-        break;
-      case NexusCore.SHUTDOWN:
-        if (this.#lifecycle.lastLifecycleUpdate !== NexusCore.SHUTTING_DOWN) {
-          break;
-        }
-        break;
-      default:
-      case NexusCore.INIT:
-        if (this.#lifecycle.lastLifecycleUpdate !== NexusCore.INIT) {
-          break;
-        }
-        break;
-      case NexusCore.DESTROYED:
-        if (this.#lifecycle.lastLifecycleUpdate) {
-          break;
-        }
-        break;
-    }
-    this.#lifecycle.lastLifecycleUpdate = Date.now();
-    this.#performLifecycleUpdate(event);
-  }
-
-  #performLifecycleUpdate(event) {
-    const handler = this.#lifecycle.handlers.find(({event: e}) => e === event);
-    if (handler) {
-      handler.handler();
-    } else {
-      console.log(`No handler found for event ${event}.`);
-    }
-  }
-
-  validateConfig(config) {
-    const configSchema = this.createConfigSchema();
-    const validator = new (require('jsonschema').Validator)();
-    try {
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  createConfigSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' },
-        version: { type: 'string' },
-      },
-      required: ['foo', 'baz', 'version']
-    };
-  }
-
   onLifecycleUpdate(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler, this);
-    this.#lifecycle.handlers.push({event, handler: lifecycleHandler.handler});
+    this.#handlers.push({ event, handler: new LifecycleHandler(handler).bind(this) });
+    this.#updateLifecycle(event);
   }
 
   get onLifecycleEvent() {
@@ -292,13 +234,128 @@ class NexusCore {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
   }
+
+  private async raiseLifecycleEvent(event: LifecycleEvent, args: any) {
+    try {
+      const handler = this.#lifecycle.handlers.find(handler => handler.event === event);
+      if (handler) {
+        await handler.handler();
+      }
+    } catch (e) {
+      console.error(`Error raising event ${event}: ${e.message}`);
+    }
+  }
+
+  private async #updateLifecycle(event: LifecycleEvent) {
+    this.#raiseLifecycleEvent(event);
+    this.#handlers.forEach(({ event: e }) => {
+
+      if (e === event) {
+        this.#raiseLifecycleEvent(e);
+      }
+    });
+  }
+
+  private async raiseInit() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.INIT);
+    return this;
+  }
+
+  async configure(config) {
+    await this.raiseConfigured();
+    return this;
+  }
+
+  private async raiseConfigured() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.CONFIGURED);
+  }
+
+  async ensureConfigured() {
+    if (!this.#lifecycle.configured) {
+      throw new Error('Not Configured');
+    }
+  }
+
+  private async raiseLoaded() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.LOADED);
+  }
+
+  async ensureLoaded() {
+    if (!this.#lifecycle.loaded) {
+      throw new Error('Not Loaded');
+    }
+  }
+
+  private async raiseShuttingDown() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.SHUTTING_DOWN);
+  }
+
+  async ensureShuttingDown() {
+    if (!this.#lifecycle.shuttingDown) {
+      throw new Error('Not Shuting Down');
+    }
+  }
+
+  private async raiseShutdown() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.SHUTDOWN);
+  }
+
+  private async raiseDestroyed() {
+    await this.#raiseLifecycleEvent(LifecycleEvent.DESTROYED);
+    this.destroy();
+  }
+
+  async shutdown() {
+    await this.raiseShuttingDown();
+    return new Promise((resolve, reject) => {
+      console.log("Shutdown initiated...");
+      Promise.all(this.#lifecycle.handlers.map(({ event, handler }) => {
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error(`Handler for ${event} did not complete within the expected timeframe.`));
+          }, 10000);
+          handler().finally(() => {
+            clearTimeout(timeoutId);
+            resolve();
+          });
+        });
+      })).then(() => {
+        this.raiseShutdown();
+        resolve(this);
+      }).catch((e) => {
+        console.error("Shutdown error:", e);
+        reject(e);
+      });
+    });
+  }
+
+  async destroy() {
+    this.raiseDestroyed();
+  }
+
+  async start() {
+    return this.raiseInit();
+  }
 }
 
-const nexusCore = new NexusCore();
-nexusCore.onLifecycleEvent(NexusCore.DESTROYED, async () => {
-  console.log("NexusCore instance destroyed.");
-});
+class MyEvent {
+  async handle() {
+    console.error('MyEvent triggered');
+    return 1;
+  }
+}
 
-await nexusCore.configure({ foo: 'baz', baz: false });
-nexusCore.status = NexusCore.LOADED;
-nexusCore.waitForDestroy().then(() => console.log("NexusCore instance has been destroyed."));
+(() => {
+  const nexusCore = new NexusCore();
+  nexusCore.onLifecycleEvent(LifecycleEvent.DESTROYED, () => {
+    console.log("NexusCore instance destroyed.");
+  });
+
+  try {
+    await nexusCore.configure({ foo: 'baz', baz: false });
+    nexusCore.status = LifecycleEvent.LOADED;
+    await nexusCore.shutdown();
+  } catch (err) {
+    console.error("Error in tests:", err);
+  }
+})();
