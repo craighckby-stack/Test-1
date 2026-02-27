@@ -7,6 +7,9 @@ class Config {
     }
 
     constructor(values = {}) {
+        if (!Config.validateSchema(values)) {
+            throw new Error("Invalid configuration schema");
+        }
         this.#setValues(values);
     }
 
@@ -14,36 +17,45 @@ class Config {
         Object.freeze(Object.assign(this, values));
     }
 
+    static validateSchema(values) {
+        const schema = {
+            type: 'object',
+            properties: {
+                VERSION: { type: 'string' },
+                env: { type: 'string' }
+            },
+            required: ['VERSION', 'env']
+        };
+        try {
+            const validator = new (require('jsonschema').Validator)();
+            validator.checkSchema(schema);
+            validator.validate(values, schema);
+        } catch (e) {
+            console.error("Config validation error:", e);
+            return false;
+        }
+        return true;
+    }
+
     static get defaultConfig() {
         return {
             foo: 'bar',
-            baz: true
+            baz: true,
+            // Additional properties from staticConfig
+            ...Config.staticConfig
         };
     }
 
-    /**
-     * Configuration schema
-     * @type {object}
-     */
     static get configSchema() {
         return {
             type: 'object',
             properties: {
                 foo: { type: 'string' },
                 baz: { type: 'boolean' }
-            }
+            },
+            // Additional properties from staticConfig
+            ...Config.staticConfig
         };
-    }
-
-    validate() {
-        try {
-            const validator = new (require('jsonschema').Validator)();
-            validator.checkSchema(this.constructor.configSchema);
-            validator.validate(this, this.constructor.configSchema);
-        } catch (e) {
-            console.error('Config validation error:', e);
-            throw e;
-        }
     }
 }
 
@@ -63,6 +75,9 @@ class LifecycleHandler {
     #handler;
 
     constructor(handler) {
+        if (typeof handler !== 'function') {
+            throw new Error("Handler must be a function");
+        }
         this.#handler = handler;
     }
 
@@ -70,8 +85,8 @@ class LifecycleHandler {
         this.#handler = this.#handler.bind(target);
     }
 
-    execute() {
-        this.#handler();
+    execute(...args) {
+        this.#handler(...args);
     }
 
     unbind() {
@@ -94,7 +109,7 @@ class NexusCore {
     }
 
     get config() {
-        return this.#privateConfig;
+        return Object.freeze(this.#privateConfig);
     }
 
     get status() {
@@ -104,80 +119,72 @@ class NexusCore {
     set status(value) {
         const currentValue = this.#privateStatus;
         const lifecycle = this.#privateLifecycle;
-        this.#privateStatus = value;
-        if (value !== 'INIT') {
-            console.log(`NexusCore instance is ${value}.`);
+        if (value !== currentValue) {
+            this.#privateStatus = value;
+            console.log(`NexusCore instance status changed to ${value}`);
             if (value === 'SHUTDOWN') {
-                lifecycle.shuttingDown = false;
+                this.#privateLifecycle.shuttingDown = false;
             }
-        }
-        if (currentValue === 'INIT' && value !== 'INIT') {
-            lifecycle.configured = true;
         }
     }
 
     get lifecycle() {
-        return this.#privateLifecycle;
+        return Object.freeze(this.#privateLifecycle);
     }
 
-    #validateConfig(config) {
-        try {
-            const validator = new (require('jsonschema').Validator)();
-            validator.checkSchema(Config.configSchema);
-            validator.validate(config, Config.configSchema);
-        } catch (e) {
-            console.error('Config validation error:', e);
-            throw e;
-        }
-    }
-
-    configure(config) {
-        if (this.#configLock) {
-            throw new Error("Config cannot be set while NexusCore instance is in use.");
+    async #validateConfig(config) {
+        if (!Config.validateSchema(config)) {
+            throw new Error("Invalid configuration schema");
         }
         this.#privateConfig = config;
-        this.#validateConfig(config);
-        this.executeLifecycleEvent("CONFIGURED");
-        this.#privateLifecycle.configured = true;
-        this.#configLock = false;
+    }
+
+    async configure(config) {
+        if (this.#configLock) {
+            throw new Error("Config cannot be set while NexusCore instance is in use");
+        }
+        this.#configLock = true;
+        try {
+            await this.#validateConfig(config);
+            this.executeLifecycleEvent("CONFIGURED");
+            this.#privateLifecycle.configured = true;
+        } finally {
+            this.#configLock = false;
+        }
         return this;
     }
 
-    load() {
-        return (async () => {
-            try {
-                console.log("Loading...");
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                console.log("Loading complete...");
-                this.#privateLifecycle.loaded = true;
-                this.executeLifecycleEvent("LOADED");
-            } catch (e) {
-                console.error('Load error:', e);
-            }
-            return this;
-        })();
+    async load() {
+        try {
+            console.log("Loading...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log("Loading complete...");
+            this.#privateLifecycle.loaded = true;
+            this.executeLifecycleEvent("LOADED");
+        } catch (e) {
+            console.error('Load error:', e);
+        }
+        return this;
     }
 
-    shutdown() {
-        return (async () => {
-            try {
-                if (!this.#privateLifecycle.shuttingDown) {
-                    console.log("Shutdown initiated...");
-                    this.#privateLifecycle.shuttingDown = true;
-                    this.executeLifecycleEvent("SHUTTING_DOWN");
-                    console.log("Shutdown complete...");
-                    this.status = "SHUTDOWN";
-                }
-            } catch (e) {
-                console.error("Shutdown error:", e);
-            }
-            return this;
-        })();
+    async shutdown() {
+        if (!this.#privateLifecycle.shuttingDown) {
+            console.log("Shutdown initiated...");
+            this.#privateLifecycle.shuttingDown = true;
+            this.executeLifecycleEvent("SHUTTING_DOWN");
+            console.log("Shutdown complete...");
+            this.status = "SHUTDOWN";
+        } else {
+            console.log("Shutdown already initiated");
+        }
+        return this;
     }
 
     async start() {
+        if (this.status !== "INIT") {
+            throw new Error("NexusCore instance is already running");
+        }
         const startMethodOrder = ["configure", "load", "shutdown"];
-        await this.configure(Config.defaultConfig);
         for (const methodName of startMethodOrder) {
             if (this[methodName] instanceof Function) {
                 await this[methodName].call(this);
@@ -192,32 +199,31 @@ class NexusCore {
             loaded: false,
             shuttingDown: false
         };
+        this.#privateConfig = {};
     }
 
     #executeLifecycleEvent(event) {
         if (this.#privateLifecycle[event]) {
-            this.#privateLifecycle[event].bind(this).execute();
+            this.#privateLifecycle[event]().unbind().execute();
         }
     }
 
-    on(event, handler) {
-        const lifecycleEvent = new LifecycleEvent(event);
-        const lifecycleHandler = new LifecycleHandler(handler);
+    async on(event, handler) {
+        if (this.#privateLifecycle[event]) {
+            throw new Error(`Lifecycle event ${event} is already observed`);
+        }
+        const lifecycleHandler = new LifecycleHandler(() => {
+            this.#privateLifecycle[event].unbind();
+        });
         this.#privateLifecycle[event] = lifecycleHandler;
-        lifecycleHandler.bind(this);
         return lifecycleHandler;
     }
 
-    get on() {
-        return (event, handler) => {
-            return this.on(event, handler);
-        };
-    }
-
     observe(event) {
-        const lifecycleEvent = new LifecycleEvent(event);
-        this.#privateLifecycle[event] = lifecycleEvent;
-        return lifecycleEvent;
+        if (!this.#privateLifecycle[event]) {
+            throw new Error(`Lifecycle event ${event} is not observed`);
+        }
+        return new LifecycleEvent(event);
     }
 
     off(event) {
@@ -233,33 +239,24 @@ class NexusCore {
             "SHUTTING_DOWN",
             "DESTROYED"
         ].forEach((event) => {
-            this.#privateLifecycle[event + "_observed"] = observe(event, () => {
-                this.#privateLifecycle[event_observed] = null;
-                this.off(event);
-                this.#privateLifecycle[event] = lifecycle[event];
-            });
+            const observedEvent = `${event}_observed`;
+            lifecycle[observedEvent] = observe(event);
+            this.#privateLifecycle[event] = lifecycle[event];
         });
     }
 }
 
-const nexusCore = new NexusCore();
-const lifecycleHandler = nexusCore.on('DESTROYED', () => {
-    console.log("NexusCore instance destroyed.");
-});
+async function main() {
+    const nexusCore = new NexusCore();
+    const lifecycleHandler = nexusCore.on('DESTROYED', () => {
+        console.log("NexusCore instance destroyed.");
+    }).bind();
 
-const lifecycleHandler1 = nexusCore.on('CONFIGURED', () => {
-    console.log("NexusCore instance configured.");
-});
+    nexusCore.start();
+    await nexusCore.load();
+    await nexusCore.shutdown();
+    nexusCore.destroy();
+    console.log(nexusCore.lifecycle);
+}
 
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
-
-Some key enhancements in the code include
-
-* Lifecycle observer pattern implemented
-* Encapsulation of NexusCore instance configuration
-* Status management with INIT and SHUTDOWN states
-* Method chaining for `configure`, `load`, and `shutdown`
-* Robust handling of lifecycle events using the `observe` method.
+main();
