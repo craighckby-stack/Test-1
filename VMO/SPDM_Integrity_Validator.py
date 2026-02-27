@@ -1,9 +1,7 @@
-Here's the enhanced code using advanced NexusCore patterns, lifecycle management, and robust encapsulation.
-
-
 class Config {
   #configSchema;
   #defaultConfig;
+  #cache;
 
   static get defaultConfig() {
     return {
@@ -16,7 +14,7 @@ class Config {
   constructor(config = {}) {
     this.#defaultConfig = Config.defaultConfig;
     this.#configSchema = this.createConfigSchema();
-    this._config = this.mergeDefaultConfig(config);
+    this.#cache = this.mergeDefaultConfig(config);
     this.validateConfig();
   }
 
@@ -33,30 +31,35 @@ class Config {
   }
 
   mergeDefaultConfig(defaultConfig) {
-    return Object.assign({}, this.#defaultConfig, defaultConfig);
+    const mergedConfig = Object.assign({}, this.#defaultConfig, defaultConfig);
+    const configTimestamp = new Date().getTime();
+    this.#cache = {...mergedConfig, configTimestamp};
+    return mergedConfig;
   }
 
   validateConfig() {
     const validator = new (require('jsonschema').Validator)();
     validator.checkSchema(this.#configSchema);
-    validator.validate(this._config, this.#configSchema);
+    validator.validate(this.#cache, this.#configSchema);
   }
 
   get config() {
-    return this._config;
+    return this.#cache;
   }
 
   set config(value) {
-    this._config = value;
+    this.#cache = this.mergeDefaultConfig(value);
     this.validateConfig();
   }
 }
 
 class LifecycleEvent {
   #event;
+  #handler;
 
-  constructor(event) {
+  constructor(event, handler) {
     this.#event = event;
+    this.#handler = handler;
   }
 
   get event() {
@@ -66,11 +69,19 @@ class LifecycleEvent {
   set event(event) {
     this.#event = event;
   }
+
+  get handler() {
+    return this.#handler;
+  }
+
+  set handler(handler) {
+    this.#handler = handler;
+  }
 }
 
 class LifecycleHandler {
-  #handler;
   #target;
+  #handler;
 
   constructor(handler, target = this) {
     this.#target = target;
@@ -99,20 +110,21 @@ class NexusCore {
     const currentStatus = this.#status;
     const lifecycle = this.#lifecycle;
     console.log(`NexusCore instance is ${value}.`);
-    if (value === 'SHUTDOWN' && lifecycle.shuttingDown) {
-      lifecycle.shuttingDown = false;
-    }
+    this.#updateLifecycle(currentStatus, value);
+  }
 
+  #updateLifecycle(currentStatus, value) {
+    if (value === 'SHUTDOWN' && this.#lifecycle.shuttingDown) {
+      this.#lifecycle.shuttingDown = false;
+    }
     if (currentStatus === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
+      this.#lifecycle.configured = true;
     }
-
     if (currentStatus === 'LOADED' && value !== 'LOADED') {
-      lifecycle.loaded = false;
+      this.#lifecycle.loaded = false;
     }
-
     if (currentStatus === 'SHUTTING_DOWN' && value !== 'SHUTTING_DOWN') {
-      lifecycle.shuttingDown = false;
+      this.#lifecycle.shuttingDown = false;
     }
   }
 
@@ -125,14 +137,20 @@ class NexusCore {
       configured: false,
       loaded: false,
       shuttingDown: false,
+      handlers: [],
+      lastLifecycleUpdate: Date.now(),
     };
     this.#status = 'INIT';
   }
 
-  async configure(config) {
-    this.validateConfig(config);
+  configure(config) {
+    return this.#configure(config);
+  }
+
+  async #configure(config) {
+    await this.validateConfig(config);
     this.#lifecycle.configured = true;
-    this.onLifecycleEvent('CONFIGURED');
+    this.#performLifecycleUpdate('CONFIGURED');
     this.status = 'CONFIGURED';
   }
 
@@ -148,54 +166,62 @@ class NexusCore {
     }
   }
 
-  onLifecycleEvent(event, handler) {
+  onLifecycleUpdate(event, handler) {
     const lifecycleHandler = new LifecycleHandler(handler, this);
-    this.#lifecycle[event] = lifecycleHandler;
+    this.#lifecycle.handlers.push({event, handler: lifecycleHandler.handler});
   }
 
-  get on() {
+  get onLifecycleEvent() {
     return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
+      this.onLifecycleUpdate(event, handler);
     };
   }
 
   async load() {
     console.log("Loading...");
     try {
-      await this.onLifecycleEvent('CONFIGURED', async () => {
-        console.log("Loading complete...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        this.#lifecycle.loaded = true;
-        this.status = 'LOADED';
-      });
+      await Promise.all(this.#lifecycle.handlers.map(({event, handler}) => {
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error(`Handler for ${event} did not complete within the expected timeframe.`));
+          }, 10000);
+          handler().finally(() => {
+            clearTimeout(timeoutId);
+            resolve();
+          });
+        });
+      }));
+      this.#lifecycle.loaded = true;
+      this.#performLifecycleUpdate('LOADED');
+      this.status = 'LOADED';
+      return true;
     } catch (e) {
       console.error('Load error:', e);
+      return false;
     }
   }
 
   async shutdown() {
     if (!this.#lifecycle.shuttingDown) {
       this.#lifecycle.shuttingDown = true;
-      this.status = 'SHUTTING_DOWN';
+      this.#performLifecycleUpdate('SHUTTING_DOWN');
 
       try {
         console.log("Shutdown initiated...");
-        await this.onLifecycleEvent('SHUTTING_DOWN', async () => {
-          console.log("Shutdown complete...");
-          this.status = 'SHUTDOWN';
-        });
+        await Promise.all(this.#lifecycle.handlers.map(({event, handler}) => {
+          return new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              reject(new Error(`Handler for ${event} did not complete within the expected timeframe.`));
+            }, 10000);
+            handler().finally(() => {
+              clearTimeout(timeoutId);
+              resolve();
+            });
+          });
+        }));
+        this.status = 'SHUTDOWN';
       } catch (e) {
         console.error("Shutdown error:", e);
-      }
-    }
-  }
-
-  async start() {
-    const startMethodOrder = ['configure', 'load', 'shutdown'];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
       }
     }
   }
@@ -205,19 +231,29 @@ class NexusCore {
     this.#lifecycle = {
       configured: false,
       loaded: false,
-      shuttingDown: false
+      shuttingDown: false,
+      handlers: [],
+      lastLifecycleUpdate: Date.now(),
     };
   }
 
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
+  #performLifecycleUpdate(event) {
+    const lifecycle = this.#lifecycle;
+    const handler = this.#lifecycle.handlers.find(({event: e}) => e === event);
+    this.#updateLifecycle(lifecycle.lastLifecycleUpdate, event);
+    if (handler) {
+      handler.handler();
+    } else {
+      console.log(`No handler found for event ${event}.`);
+    }
   }
 }
 
 const config = new Config();
 config.config = { foo: 'baz', baz: false };
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', async () => {
+nexusCore.status = 'DESTROYED';
+nexusCore.onLifecycleEvent('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 });
 
