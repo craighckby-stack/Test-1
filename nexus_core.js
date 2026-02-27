@@ -1,9 +1,8 @@
-Here's an enhanced version of your code, applying advanced NexusCore patterns, lifecycle management, and robust encapsulation.
+Here's the updated code with enhancements:
+
 
 
 class Config {
-  static #configCache = {};
-
   static async loadConfig() {
     if (Config.#configCache[Config.name]) return Config.#configCache[Config.name];
 
@@ -45,20 +44,15 @@ class Config {
     Object.assign(this, values);
   }
 
-  setValues(values) {
-    if (values instanceof this.constructor) return Object.assign(this, values);
-    console.error('Config values must be an instance of Config');
-    return values;
-  }
-
-  validate() {
-    const validator = new (require('jsonschema').Validator)();
-    validator.checkSchema(Config.configSchema);
-    const errors = validator.validate(this, Config.configSchema);
-    if (errors) {
-      console.error('Config validation error:', errors);
-      throw new Error('Config validation failed');
-    }
+  static withConfig(values) {
+    const instance = new Config(values);
+    return new Proxy(instance, {
+      get(target, property) {
+        if (property in target) return target[property];
+        else if (Config.defaultConfig[property]) return Config.defaultConfig[property];
+        else console.error(`Undefined property: ${property}`);
+      },
+    });
   }
 }
 
@@ -114,34 +108,57 @@ class NexusCore {
   }
 
   configure(options = {}) {
-    const config = new Config(options.config);
-    config.validate();
-    this.#lifecycle.configured = true;
-    const lifecycleHandler = new LifecycleHandler(() => this.config = config);
-    this.#lifecycle.CONFIGURED = lifecycleHandler;
-    lifecycleHandler.execute();
+    if (!options.config) return Promise.reject(new Error('No configuration provided'));
+    const configValidator = new (require('jsonschema').Validator)();
+    configValidator.checkSchema(Config.configSchema);
+    try {
+      const validatedConfig = configValidator.validate({
+        ...Config.defaultConfig,
+        ...options.config,
+      }, Config.configSchema);
+      const lifecycleHandler = new LifecycleHandler(() => this.config = Config.withConfig(validatedConfig));
+      this.#lifecycle.configured = true;
+      this.#lifecycle.CONFIGURED = lifecycleHandler;
+      lifecycleHandler.bind(this).execute();
+      return Promise.resolve(this);
+    } catch (error) {
+      console.error('Config validation error:', error);
+      return Promise.reject(error);
+    }
   }
 
   on(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-    lifecycleHandler.bind(this).execute();
+    if (!this.#lifecycle[event]) this.#lifecycle[event] = [];
+    this.#lifecycle[event].push(handler);
+    return new Promise((resolve, reject) => {
+      const lifecycleHandler = new LifecycleHandler(() => {
+        try {
+          handler();
+          this.#lifecycle[event].shift();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      lifecycleHandler.bind(this).execute();
+    });
   }
 
   async load() {
-    const lifecycleHandler = this.#lifecycle.CONFIGURED;
-    if (!lifecycleHandler || !(lifecycleHandler.handler instanceof Function)) {
+    if (!this.#lifecycle.CONFIGURED) {
       console.error('CONFIGURED event is not handled');
-    } else {
-      try {
-        console.log("Loading...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("Loading complete...");
-        this.#lifecycle.loaded = true;
-        this.#lifecycle.LOADED.execute();
-      } catch (error) {
-        console.error('Load error:', error);
-      }
+      return Promise.reject(new Error('CONFIGURED event is not handled'));
+    }
+    this.#lifecycle.LOADED = async () => {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+    };
+    try {
+      await this.#lifecycle.LOADED.bind(this)();
+    } catch (error) {
+      console.error('Load error:', error);
     }
   }
 
@@ -149,10 +166,15 @@ class NexusCore {
     try {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.#lifecycle.SHUTTING_DOWN.execute();
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+        this.#lifecycle.SHUTTING_DOWN = async () => {
+          console.log("Shutdown complete...");
+          this.status = "SHUTDOWN";
+        };
+        try {
+          await this.#lifecycle.SHUTTING_DOWN.bind(this)();
+        } catch (error) {
+          console.error("Shutdown error:", error);
+        }
       }
     } catch (error) {
       console.error("Shutdown error:", error);
@@ -162,29 +184,26 @@ class NexusCore {
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
+      try {
+        const method = await this[methodName]();
+        if (method && method instanceof Promise) await method;
+      } catch (error) {
+        console.error(error);
       }
     }
   }
 
   async destroy() {
     this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false,
+    this.#lifecycle.destroyed = async () => {
+      console.log("NexusCore instance destroyed.");
     };
-    this.#lifecycle.destroyed = new LifecycleHandler(() => console.log("NexusCore instance destroyed."));
     this.#lifecycle.destroyed.bind(this).execute();
   }
 }
 
 async function main() {
   const nexusCore = new NexusCore();
-  nexusCore.on('DESTROYED', () => {
-    console.log("NexusCore instance destroyed.");
-  });
   await nexusCore.configure(Config.defaultConfig);
   await nexusCore.start();
   await nexusCore.load();
@@ -193,20 +212,3 @@ async function main() {
 }
 
 main();
-
-
-Above is the updated code with some improvements:
-
-1. The Config class is now enhanced to support lazy initialization, with Config.loadConfig() serving as a single point of truth for loading the configuration.
-
-2. The Config class uses Object.assign() within its setValues() method to facilitate chaining and simplify the assignment of new values.
-
-3. NexusCore.onLifecycleEvent() now takes two arguments: the event type and the handler function. The event type is used as the property name within the #lifecycle object.
-
-4. The NexusCore.start() method now correctly awaits each state transition before moving on to the next one, rather than potentially proceeding prematurely.
-
-5. NexusCore.destroy() has become an asynchronous method that marks the NexusCore instance as destroyed and logs the destruction to the console.
-
-6. Within NexusCore, the lifecycle is now more robust to ensure that it is not prematurely cleared during the shutdown process.
-
-7. Some instance methods were modified to properly handle potential TypeErrors and display informative messages.
