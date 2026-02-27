@@ -1,6 +1,5 @@
 // Utilities:
-
-class AJVTransformer {
+const AJVTransformer = class {
   static get ajv() {
     const ajv = require('ajv');
     const ajvInstance = new ajv();
@@ -9,10 +8,9 @@ class AJVTransformer {
     ajvInstance.addKeyword(ajvPlugin);
     return ajvInstance;
   }
-}
+};
 
 // Schemas:
-
 class Config {
   #_schema = {
     $id: 'config',
@@ -29,7 +27,7 @@ class Config {
     required: ['VERSION', 'env', 'email']
   };
 
-  static get schema() {
+  get schema() {
     return this.#_schema;
   };
 
@@ -39,7 +37,7 @@ class Config {
     email: "user@example.com"
   };
 
-  static get defaultConfig() {
+  get defaultConfig() {
     return this.#_defaultConfig;
   }
 
@@ -72,7 +70,6 @@ class Config {
 }
 
 // Lifecycle Events:
-
 class LifecycleEvent {
   #_event;
 
@@ -98,14 +95,13 @@ class LifecycleEvent {
 }
 
 // Lifecycle Handlers:
-
 class LifecycleHandler {
   #_handler;
   #_target;
 
   constructor(handler, target = null) {
     this.#_handler = handler;
-    this.#_target = target || this;
+    this.#_target = target;
   }
 
   bind(target) {
@@ -134,7 +130,6 @@ class LifecycleHandler {
 }
 
 // NexusCore:
-
 class NexusCore {
   #_lifecycle = {
     configured: false,
@@ -151,38 +146,59 @@ class NexusCore {
 
   set status(value) {
     this.#_status = value;
-    this.#updateStatus(value);
   }
 
   get lifecycle() {
     return this._lifecycle;
   }
 
-  #validateConfig(config) {
-    const ajvInstance = AJVTransformer.ajv;
-    ajvInstance.addSchema(Config.schema);
-    const valid = ajvInstance.validate(Config.schema, config);
-    if (!valid) {
-      console.error('Config validation error:', ajvInstance.errors[0]);
-      throw ajvInstance.errors[0];
-    }
-  }
-
-  #checkStatus(status, callback) {
-    if (this.status === status) {
-      callback();
-    } else {
-      console.error(`Cannot perform action: ${status}`);
-    }
-  }
-
-  configure(config) {
-    this.#checkStatus('INIT', () => {
+  async configure(config) {
+    this.#checkStatus('INIT', async () => {
       this.#validateConfig(config);
       this.#onLifecycleEvent("CONFIGURED");
       this.#_lifecycle.configured = true;
       this.config = config;
     });
+  }
+
+  async load() {
+    this.#checkStatus('CONFIGURED', async () => {
+      try {
+        console.log("Loading...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Loading complete...");
+        this.#_lifecycle.loaded = true;
+        this.#onLifecycleEvent("LOADED");
+      } catch (e) {
+        console.error('Load error:', e);
+      }
+    });
+  }
+
+  async shutdown() {
+    this.#checkStatus('LOADED', async () => {
+      try {
+        if (!this.#_lifecycle.shuttingDown) {
+          console.log("Shutdown initiated...");
+          this.#_lifecycle.shuttingDown = true;
+          this.#onLifecycleEvent("SHUTTING_DOWN");
+          console.log("Shutdown complete...");
+          this.status = "SHUTDOWN";
+        }
+      } catch (e) {
+        console.error("Shutdown error:", e);
+      }
+    });
+  }
+
+  #checkStatus(status, callback) {
+    if (this.status === status) {
+      callback();
+    } else if (this.status === "DESTROYED") {
+      console.error('NexusCore instance already destroyed.');
+    } else {
+      console.error(`Cannot perform action: ${status}`);
+    }
   }
 
   #onLifecycleEvent(event, handler) {
@@ -196,43 +212,6 @@ class NexusCore {
     return (event, handler) => {
       this.#onLifecycleEvent(event, handler);
     };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this._lifecycle._event.has(event)) {
-      const lifecycleEvent = this._lifecycle._event.get(event);
-      lifecycleEvent.execute();
-    }
-  }
-
-  async load() {
-    this.#checkStatus('CONFIGURED', async () => {
-      try {
-        console.log("Loading...");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log("Loading complete...");
-        this.#_lifecycle.loaded = true;
-        this.executeLifecycleEvent("LOADED");
-      } catch (e) {
-        console.error('Load error:', e);
-      }
-    });
-  }
-
-  async shutdown() {
-    this.#checkStatus('LOADED', async () => {
-      try {
-        if (!this.#_lifecycle.shuttingDown) {
-          console.log("Shutdown initiated...");
-          this.#_lifecycle.shuttingDown = true;
-          this.executeLifecycleEvent("SHUTTING_DOWN");
-          console.log("Shutdown complete...");
-          this.status = "SHUTDOWN";
-        }
-      } catch (e) {
-        console.error("Shutdown error:", e);
-      }
-    });
   }
 
   async start() {
@@ -253,11 +232,28 @@ class NexusCore {
       _event: new Map()
     };
   }
+
+  #validateConfig(config) {
+    const ajvInstance = AJVTransformer.ajv;
+    ajvInstance.addSchema(Config.schema);
+    const valid = ajvInstance.validate(Config.schema, config);
+    if (!valid) {
+      console.error('Config validation error:', ajvInstance.errors[0]);
+      throw ajvInstance.errors[0];
+    }
+  }
+
+  executeLifecycleEvent(event) {
+    if (this._lifecycle._event.has(event)) {
+      const lifecycleEvent = this._lifecycle._event.get(event);
+      lifecycleEvent.execute();
+    }
+  }
 }
 
 // Usage:
-
 const nexusCore = new NexusCore();
+
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 });
@@ -266,21 +262,18 @@ const config = Config.mergeConfigs(Config.defaultConfig, {
   VERSION: "1.0.1",
   email: "user2@example.com"
 });
-console.log(config);
+
 nexusCore.configure(config);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
 
+const emailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-This implementation includes enhancements using advanced NexusCore patterns and robust encapsulation. The main changes are:
+const isValidEmail = emailValid.test(config.email);
 
-1. Added a more robust `AJVTransformer` class to handle JSON schema validation.
-2. Introduced a `#checkStatus` method in the `NexusCore` class to ensure that certain actions are only performed when the application is in a specific status.
-3. Improved encapsulation by adding private fields (`#_schema`, `#_defaultConfig`, etc.) in the `Config` class and making the corresponding methods private.
-4. Enhanced the `Config` class to include email validation using a custom keyword in the JSON schema.
-5. Simplified the `LifecycleEvent` and `LifecycleHandler` classes by removing unnecessary code.
-6. Improved the `NexusCore` class by adding more robust event handling using a `Map` to store lifecycle events.
-7. Removed unnecessary code and improved variable naming conventions for better readability.
-8. Enhanced the usage example to include email validation.
+if (isValidEmail) {
+  nexusCore.start();
+  nexusCore.load();
+  nexusCore.shutdown();
+  nexusCore.destroy();
+} else {
+  console.error('Invalid email address in configuration.');
+}
