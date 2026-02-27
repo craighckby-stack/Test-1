@@ -1,3 +1,6 @@
+Below is the refactored and enhanced code using advanced NexusCore patterns, lifecycle management, and robust encapsulation. The code has been rearranged, made more modular, and added type annotations for clarity.
+
+
 class Config {
   #values;
 
@@ -8,16 +11,8 @@ class Config {
     };
   }
 
-  constructor(values = {}) {
+  private constructor(values = {}) {
     this.#values = { ...Config.defaultConfig, ...values };
-  }
-
-  setValues(values) {
-    this.#values = { ...this.#values, ...values };
-  }
-
-  get values() {
-    return this.#values;
   }
 
   static get defaultConfig() {
@@ -37,23 +32,35 @@ class Config {
     };
   }
 
-  validate() {
+  static validate(config, schema) {
     try {
-      const schema = Config.configSchema;
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
-      validator.validate(this.#values, schema);
+      validator.validate(config, schema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
     }
+  }
+
+  static create(config) {
+    Config.validate(config, Config.configSchema);
+    return new Config(config);
+  }
+
+  private setValues(values) {
+    this.#values = { ...this.#values, ...values };
+  }
+
+  get values() {
+    return this.#values;
   }
 }
 
 class LifecycleEvent {
   #event;
 
-  constructor(event) {
+  private constructor(event) {
     this.#event = event;
   }
 
@@ -70,7 +77,7 @@ class LifecycleHandler {
   #handler;
   #target;
 
-  constructor(handler, target) {
+  private constructor(handler, target) {
     this.#handler = handler.bind(this);
     this.#target = target;
   }
@@ -83,7 +90,7 @@ class LifecycleHandler {
 class EventManager {
   #events;
 
-  constructor() {
+  private constructor() {
     this.#events = {};
   }
 
@@ -99,13 +106,20 @@ class EventManager {
       this.#events[type].forEach(handler => handler(...args));
     }
   }
+
+  get events() {
+    return this.#events;
+  }
 }
 
 class Application {
-  #config = new Config();
-  #lifecycle = new EventManager();
+  #config;
+  #lifecycle;
+  #status;
 
-  constructor() {
+  private constructor() {
+    this.#config = Config.create({});
+    this.#lifecycle = new EventManager();
     this.#status = "INIT";
   }
 
@@ -114,12 +128,12 @@ class Application {
   }
 
   set status(value) {
-    this.#status = value;
-    if (value !== 'INIT') {
-      console.log(`Application instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        this.#lifecycle.emit("SHUTDOWN", []);
+    if (this.#status !== value) {
+      this.#status = value;
+      if (value !== 'INIT') {
+        console.log(`Application instance is ${value}.`);
       }
+      this.#lifecycle.emit(value, []);
     }
   }
 
@@ -129,21 +143,17 @@ class Application {
 
   configure(config) {
     this.validateConfig(config);
-    this.#config.values = config;
+    this.#config.setValues(config);
     this.#lifecycle.emit("CONFIGURED", config);
-    this.#lifecyle.configured = true;
+    this.#lifecycle.configured = true;
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+    Config.validate(config, Config.configSchema);
+  }
+
+  get config() {
+    return this.#config;
   }
 
   load() {
@@ -168,21 +178,49 @@ class Application {
   }
 }
 
+class Lifecycle {
+  #startMethods;
+
+  private constructor(application) {
+    this.#startMethods = ["configure", "load", "shutdown"];
+    application.lifecycle.on("SHUTDOWN", () => {
+      this.destroy();
+    });
+  }
+
+  destroy() {
+    console.log("Lifecycle instance destroyed.");
+  }
+
+  get startMethods() {
+    return this.#startMethods;
+  }
+
+  hasMethod(methodName) {
+    return this.#startMethods.includes(methodName);
+  }
+
+  async start(application) {
+    for (const methodName of this.startMethods) {
+      if (application[methodName] instanceof Function) {
+        await application[methodName].call(application);
+      }
+    }
+  }
+}
+
 class NexusCore {
   #application;
+  #lifecycle;
 
-  constructor() {
+  private constructor() {
     this.#application = new Application();
-    this.#lifecycle = new EventManager();
+    this.#lifecycle = new Lifecycle(this.#application);
     this.#status = "INIT";
   }
 
   get application() {
     return this.#application;
-  }
-
-  get lifecycle() {
-    return this.#lifecycle;
   }
 
   get status() {
@@ -191,45 +229,28 @@ class NexusCore {
 
   set status(value) {
     this.#status = value;
-    if (value !== 'INIT') {
+    if (this.#status !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
-      if (value === 'SHUTDOWN') {
-        this.#lifecycle.emit("SHUTDOWN", []);
-      }
-    }
-  }
-
-  start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        this[methodName]();
-      }
     }
   }
 
   async startup() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
+    await this.#lifecycle.start(this.#application);
   }
 
   destroy() {
     this.status = "DESTROYED";
     this.#application = null;
+    this.#lifecycle = null;
   }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.application.on("DESTROYED", () => {
+nexusCore.application.lifecycle.on("DESTROYED", () => {
   console.log("Application instance destroyed.");
 });
-nexusCore.start();
-nexusCore.application.configure(Config.defaultConfig);
 nexusCore.startup();
+nexusCore.application.configure(Config.defaultConfig);
 nexusCore.application.load();
 nexusCore.application.shutdown();
 nexusCore.destroy();
