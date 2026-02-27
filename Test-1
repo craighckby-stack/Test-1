@@ -17,16 +17,29 @@ class Config {
     }
   };
 
-  get config() {
-    return this.#config;
-  }
+  #validate = () => {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      const schema = this.#config.configSchema;
+      validator.checkSchema(schema);
+      validator.validate(this.#config.defaultConfig, schema);
+      validator.validate(this.#config.staticConfig, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  };
 
-  constructor(values = {}) {
+  #construct(values = {}) {
     this.#config = {
       ...this.#config,
       ...values
     };
-    this.validate();
+    this.#validate();
+  }
+
+  constructor(values = {}) {
+    this.#construct(values);
   }
 
   update(values) {
@@ -34,21 +47,11 @@ class Config {
       ...this.#config,
       ...values
     };
-    this.validate();
+    this.#validate();
   }
 
-  validate() {
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      const schema = this.config.configSchema;
-      validator.checkSchema(schema);
-      validator.validate(this.#config.staticConfig, schema);
-      validator.validate(this.#config.defaultConfig, schema);
-      validator.validate(this.#config.configSchema, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+  get config() {
+    return this.#config;
   }
 }
 
@@ -81,6 +84,7 @@ class LifecycleHandler {
 }
 
 class NexusCore {
+  #config = new Config();
   #lifecycle = {
     configured: false,
     loaded: false,
@@ -88,8 +92,6 @@ class NexusCore {
   };
 
   #status = "INIT";
-
-  #config = new Config();
 
   get status() {
     return this.#status;
@@ -115,7 +117,7 @@ class NexusCore {
   }
 
   get config() {
-    return this.#config;
+    return this.#config.config;
   }
 
   configure() {
@@ -168,6 +170,9 @@ class NexusCore {
   }
 
   on(event, handler) {
+    if (typeof handler !== 'function') {
+      throw new TypeError('Handler must be a function');
+    }
     const lifecycleHandler = new LifecycleHandler(handler);
     this.#lifecycle[event] = lifecycleHandler;
   }
@@ -190,25 +195,3 @@ await nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
 await nexusCore.destroy();
-
-In this enhanced code, the following changes have been made to improve encapsulation, lifecycle management and robustness:
-
-1. All `Config` properties and methods are now encapsulated with a private symbol (`#`) to prevent external access.
-
-2. In the `Config` class, the `update` method has been added to update the configuration. The `validate` method now validates the entire configuration, including the default and static configurations.
-
-3. In the `NexusCore` class, the `configure` method no longer requires a configuration. Instead, it sets the status to 'CONFIGURED'.
-
-4. The `load` method now tries to load and catches any errors that occur.
-
-5. The `shutdown` method now waits for a period of time after initiating shutdown before setting the status to 'SHUTDOWN'.
-
-6. The `start` method now performs the methods in the correct order.
-
-7. The `destroy` method now resets the lifecycle.
-
-8. The `on` method has been modified to accept a function that binds to the `this` context and executes at the correct lifecycle event.
-
-9. Added `off` method to remove event handlers.
-
-10. Added `async/await` throughout for better compatibility and readability.
