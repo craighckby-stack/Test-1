@@ -1,5 +1,5 @@
 class Config {
-  #configSchema = {
+  static #configSchema = {
     type: 'object',
     properties: {
       foo: { type: 'string' },
@@ -8,24 +8,22 @@ class Config {
     required: ['foo', 'baz']
   };
 
-  static getConfig(values = {}) {
-    const config = { ...Config.defaultConfig, ...values };
-    this.validateConfig(config);
+  static #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
+
+  static async getConfig(values = {}) {
+    const config = { ...Config.#defaultConfig, ...values };
+    await this.validateConfig(config);
     return config;
   }
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static validateConfig(config) {
+  static async validateConfig(config) {
     try {
       const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(this.#configSchema);
-      validator.validate(config, this.#configSchema);
+      validator.checkSchema(Config.#configSchema);
+      validator.validate(config, Config.#configSchema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -87,7 +85,7 @@ class NexusCore {
   }
 
   async configure(config) {
-    this.#config = Config.getConfig(config);
+    this.#config = await Config.getConfig(config);
     this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
   }
@@ -140,8 +138,12 @@ class NexusCore {
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
+      try {
+        if (this[methodName] instanceof Function) {
+          await this[methodName]();
+        }
+      } catch (e) {
+        console.error(`${methodName} error:`, e);
       }
     }
   }
@@ -173,9 +175,3 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-Changes Made:
-1.  Introduced a private `getConfig` method in the `Config` class to handle config schema validation and merging.
-2.  Configured the `#config` property in `NexusCore` to hold the validated config object.
-3.  Moved the `#configSchema` to a private property in `Config` class and accessed it through a getter method in `NexusCore`.
-4.  Introduced an `async` await pattern in the `load`, `shutdown` and `start` methods of `NexusCore` to improve code readability and handling of asynchronous operations.
