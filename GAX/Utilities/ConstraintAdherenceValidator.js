@@ -1,5 +1,3 @@
-Here's an enhanced version of the code using advanced patterns and lifecycle management:
-
 class Config {
   #values = {};
 
@@ -19,7 +17,7 @@ class Config {
   #validateConfig() {
     try {
       const configSchema = Config.configSchema;
-      const validator = new (class extends JSONSchemaValidator {})();
+      const validator = new JSONSchemaValidator();
       validator.addSchema(configSchema);
       validator.validate(this.#values, configSchema);
     } catch (e) {
@@ -92,6 +90,7 @@ class LifecycleHandler {
 }
 
 class NexusCore {
+  #staticInstance = null;
   #status = 'INIT';
   #lifecycle = {
     configured: false,
@@ -101,6 +100,19 @@ class NexusCore {
   };
   #config = {};
   #eventHandlers = {};
+
+  static get instance() {
+    if (!this.#staticInstance) {
+      this.#staticInstance = new NexusCore();
+    }
+    return this.#staticInstance;
+  }
+
+  constructor() {
+    if (this.constructor === NexusCore) {
+      throw new Error('NexusCore instance is not singleton');
+    }
+  }
 
   get status() {
     return this.#status;
@@ -127,7 +139,7 @@ class NexusCore {
   #validateConfig() {
     try {
       const configSchema = Config.configSchema;
-      const validator = new (class extends JSONSchemaValidator {})();
+      const validator = new JSONSchemaValidator();
       validator.addSchema(configSchema);
       validator.validate(this.#config, configSchema);
     } catch (e) {
@@ -251,7 +263,7 @@ JSONSchemaValidator.checkSchema = JSONSchemaValidator.prototype.checkSchema;
 JSONSchemaValidator.addSchema = JSONSchemaValidator.prototype.addSchema;
 JSONSchemaValidator.validate = JSONSchemaValidator.prototype.validate;
 
-const nexusCore = new NexusCore();
+const nexusCore = NexusCore.instance;
 nexusCore.on('DESTROYED', () => {
   console.log("NexusCore instance destroyed.");
 }, 0);
@@ -260,13 +272,3 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-The key changes in this code are:
-- **Improved Encapsulation**: Encapsulation of internal properties and methods in each class, ensuring they are not directly accessible from the outside.
-- **Robust Typing and Validation**: All classes have their properties and methods types defined, ensuring consistent usage and preventing unexpected errors.
-- **Lifecycle Management**: The `NexusCore` class now has a more robust lifecycle management system, with events separated from the actual handlers. This makes it straightforward to add new events or handlers without affecting existing code.
-- **Advanced Patterns**: I used the Singleton pattern for `NexusCore` instance, ensuring there's only one instance and providing easy access to it.
-- **Error Handling**: Both `NexusCore` and `Config` classes handle errors and exceptions, ensuring they are logged and propagated correctly.
-- **Improved API**: The API of `NexusCore` and `Config` classes has been improved, with more intuitive and consistent method names and parameters.
-
-Keep in mind that this is a complex implementation and may need further adjustments to fit your specific needs. However, the provided code meets most requirements and uses advanced patterns for structure and design.
