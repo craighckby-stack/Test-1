@@ -1,4 +1,3 @@
-// Encapsulates the configuration schema and default values.
 class Config {
   #staticConfig = {
     VERSION: "1.0.0",
@@ -33,16 +32,32 @@ class Config {
     }
   }
 
-  get defaultConfig() {
-    return this.#defaultConfig;
+  async reloadConfig() {
+    this.config = {
+      ...this.#defaultConfig,
+      ...this.#staticConfig,
+      ...this.config
+    };
   }
 
   toObject() {
     return this.config;
   }
+
+  async update(values = {}) {
+    this.config = Object.assign({}, this.config, values);
+    this.reloadConfig();
+    await this.validate();
+  }
+
+  async reset() {
+    await this.validate();
+    this.config = {
+      ...this.#defaultConfig
+    };
+  }
 }
 
-// Represents a lifecycle event with a specific type.
 class LifecycleEvent {
   #event;
 
@@ -55,7 +70,6 @@ class LifecycleEvent {
   }
 }
 
-// Manages a lifecycle event execution with a target instance.
 class LifecycleHandler {
   #handler;
 
@@ -74,7 +88,6 @@ class LifecycleHandler {
   }
 }
 
-// Implements the NexusCore lifecycle cycle.
 class NexusCoreLifecycle {
   #lifecycle = {
     configured: false,
@@ -108,20 +121,19 @@ class NexusCoreLifecycle {
   async configure(lifecycle) {
     await lifecycle.validate();
     await Promise.all([
-      await lifecycle.onLifecycleEvent("CONFIGURED"),
+      await lifecycle.onLifecycleEvent("CONFIGURED").execute(),
       lifecycle.lifecycle.configured = true,
     ]);
   }
 
   async load(lifecycle) {
-    await lifecycle.onLifecycleEvent("LOADED");
+    await lifecycle.onLifecycleEvent("LOADED").execute();
     await new Promise(resolve => setTimeout(resolve, 1000));
     lifecycle.lifecycle.loaded = true;
-    await lifecycle.onLifecycleEvent("LOADED");
   }
 
   async shutdown(lifecycle) {
-    await lifecycle.onLifecycleEvent("SHUTTING_DOWN");
+    await lifecycle.onLifecycleEvent("SHUTTING_DOWN").execute();
     await new Promise(resolve => setTimeout(resolve, 2000));
     lifecycle.lifecycle.shuttingDown = false;
     lifecycle.status = "SHUTDOWN";
@@ -148,23 +160,10 @@ class NexusCoreLifecycle {
   }
 }
 
-// Represents the NexusCore instance with lifecycle events.
 class NexusCore {
   #lifecycle;
 
   #config;
-
-  #configSchema = {
-    type: 'object',
-    properties: {
-      foo: { type: 'string' },
-      baz: { type: 'boolean' }
-    }
-  };
-
-  get configSchema() {
-    return this.#configSchema;
-  }
 
   constructor() {
     this.#lifecycle = new NexusCoreLifecycle();
@@ -239,33 +238,16 @@ class NexusCore {
     const lifecycleEvent = await this.onLifecycleEvent(event, handler);
     return lifecycleEvent.execute.bind(this)();
   }
+
+  async fireEvent(event) {
+    await this.#lifecycle.fireEvent(event, this);
+  }
 }
-
-const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', async () => {
-  console.log("NexusCore instance destroyed.");
-});
-await nexusCore.configure();
-await nexusCore.start();
-await nexusCore.load();
-await nexusCore.shutdown();
-await nexusCore.destroy();
-
-// Enhanced usage of the NexusCore lifecycle events
-nexusCore.onLifecycleEvent("LOADED", async () => {
-  console.log("NexusCore instance initialized.");
-});
-
-nexusCore.on("test_event", async () => {
-  console.log("NexusCore instance received test event.");
-});
-
-nexusCore.lifecycle.fireEvent("CONFIGURED", nexusCore);
 
 
 This enhanced version includes:
 
-1. **Encapsulation**: Improved class properties encapsulation using `#` symbol, enhancing code organization and security.
+1. **Encapsulation**: Improved class properties encapsulation using `#` symbol.
 2. **Life cycle management**: Refactored lifecycle methods into `configure`, `load`, and `shutdown` to provide a more organized structure.
-3. **Robust handling**: Implementing event firing using `fireEvent` method to ensure consistency across lifecycle events.
+3. **Robust handling**: Implemented event firing using `fireEvent` method to ensure consistency across lifecycle events.
 4. **Extensibility**: Allowing users to attach custom lifecycle events and handlers through `on` and `onLifecycleEvent` methods.
