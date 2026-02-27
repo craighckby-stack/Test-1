@@ -1,6 +1,3 @@
-Here is the enhanced code using advanced NexusCore patterns, lifecycle management (configure, load, shutdown), and robust encapsulation:
-
-
 class Config {
   #instance;
   #configured;
@@ -10,6 +7,19 @@ class Config {
   #config;
   #logger;
 
+  static #configSchema = {
+    type: "object",
+    properties: {
+      foo: { type: "string" },
+      baz: { type: "boolean" }
+    }
+  };
+
+  static #defaultConfig = {
+    foo: "bar",
+    baz: true
+  };
+
   static get instance() {
     if (!Config.#instance) {
       Config.#instance = new Config();
@@ -18,10 +28,7 @@ class Config {
   }
 
   constructor() {
-    this.#logger = {
-      info: (message) => console.log(message),
-      error: (message) => console.error(message)
-    };
+    this.#logger = new Logger("Config");
     this.#configured = false;
     this.#initialized = false;
     this.#config = {};
@@ -49,50 +56,64 @@ class Config {
     this.#configured = true;
   }
 
-  static async configure(config = Config.instance.defaultConfig) {
-    await Config.instance.validateConfig(Config.instance.configSchema, config);
-    Config.instance.config = config;
-    return config;
-  }
-
-  async validateConfig(schema = Config.configSchema, config = Config.instance) {
+  async validate(config = this.#config, schema = Config.#configSchema) {
     try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
-      await this.#logger.info('Configuration validated successfully.');
+      if (!(schema instanceof Object)) {
+        throw new Error("Schema must be an object");
+      }
+      const validator = new (require("jsonschema").Validator)();
+      await validator.validateAsync(config, schema);
+      this.#logger.info("Configuration validated successfully.");
     } catch (e) {
-      await this.#logger.error('Config validation error:', e);
       throw e;
     }
   }
 
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
+  static async configure(config = Config.#defaultConfig) {
+    try {
+      await Config.instance.validate(config, Config.#configSchema);
+      Config.instance.config = config;
+      await Config.instance.#logger.info("Configuration successfully applied.");
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  get logger() {
+    return this.#logger;
+  }
+}
+
+class Logger {
+  #instance;
+  #name;
+  #consoleLogger;
+
+  static get instance() {
+    if (!Logger.#instance) {
+      Logger.#instance = new Logger("default");
+    }
+    return Logger.#instance;
+  }
+
+  constructor(name) {
+    this.#name = name;
+    this.#consoleLogger = {
+      info: (message) => console.log(`${name}: ${message}`),
+      error: (message) => console.error(`${name}: ${message}`)
     };
   }
 
-  static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
+  get consoleLogger() {
+    return this.#consoleLogger;
   }
 
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
-      }
-    };
+  error(message) {
+    this.#consoleLogger.error(message);
   }
 
-  static get logger() {
-    return Config.instance.#logger;
+  info(message) {
+    this.#consoleLogger.info(message);
   }
 }
 
@@ -122,10 +143,6 @@ class LifecycleHandler {
   bind(target) {
     this.#handler = this.#handler.bind(target);
   }
-
-  async handler(context) {
-    await this.#handler(context);
-  }
 }
 
 class NexusCore {
@@ -148,11 +165,8 @@ class NexusCore {
   #config;
 
   constructor() {
-    this.#logger = {
-      info: (message) => console.log(message),
-      error: (message) => console.error(message)
-    };
-    this.#config = Config.instance;
+    this.#logger = new Logger("NexusCore");
+    this.#config = Config.configure();
     Config.instance.#logger = this.#logger;
   }
 
@@ -191,111 +205,94 @@ class NexusCore {
       try {
         await handler(context);
       } catch (e) {
-        await this.#logger.error(`Lifecycle event handler error: ${event}`, e);
+        this.#logger.error(`Lifecycle event handler error: ${event}`, e);
       }
     });
     this.#lifecycle.handlerContext[event] = lifecycleHandler;
     lifecycle[lifecycleEvent.event] = lifecycleHandler;
   }
 
-  async configure(config = Config.instance.defaultConfig) {
-    const lifecycle = this.#lifecycle;
-    this.logger.info("Configurating...");
+  async configure() {
     try {
-      this.#config.validateConfig(Config.instance.configSchema, config).then(() => {
-        lifecycle.configured = true;
-        lifecycle.handlerContext.CONFIDENTIAL = "";
-        this.status = "CONFIGURED";
-      });
+      await Config.configure();
+      this.#lifecycle.configured = true;
+      this.#status = "CONFIGURED";
     } catch (e) {
-      lifecycle.shuttingDown = true;
-      this.status = "SHUTDOWN";
-      return Promise.reject(e);
+      await this.#logger.error("Configure error:", e);
+      this.#lifecycle.shuttingDown = true;
+      this.#status = "SHUTDOWN";
+      throw e;
     }
   }
 
   async load() {
-    if (this.#lifecycle.configured) {
-      this.logger.info("Loading...");
-    }
     try {
-      this.logger.info("Loading complete...");
+      if (this.#lifecycle.configured) {
+        this.#logger.info("Loading...");
+      }
+      this.#logger.info("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.status = "LOADED";
+      this.#status = "LOADED";
     } catch (e) {
-      console.error('Load error:', e);
+      await this.#logger.error('Load error:', e);
       this.#lifecycle.shuttingDown = true;
-      this.status = "SHUTDOWN";
+      this.#status = "SHUTDOWN";
     }
   }
 
   async shutdown() {
     if (!this.#lifecycle.shuttingDown) {
-      this.#logger.info("Shutdown initiated...");
-      this.#lifecycle.shuttingDownPromise = new Promise((resolve) => {
-        this.#lifecycle.shuttingDownResolver = resolve;
-      });
-      this.#lifecycle.shuttingDown = true;
       try {
-        const lifecycle = this.#lifecycle;
-        await this.executeLifecycleEvent("SHUTTING_DOWN", 4);
-        await this.#lifecycle.shuttingDownPromise;
-        this.status = "SHUTDOWN";
-        await this.executeLifecycleEvent("SHUTDOWN", 4);
-        this.#lifecycle.loaded = false;
-        await this.executeLifecycleEvent('SHUTDOWN', "end", 4);
+        this.#lifecycle.shuttingDown = true;
+        this.#logger.info("Shutdown initiated...");
+        return new Promise((resolve) => {
+          this.#lifecycle.shuttingDownResolver = resolve;
+        });
       } catch (e) {
-        this.#logger.error('Shutdown error:', e);
-        this.status = "DESTROYED";
+        await this.#logger.error('Shutdown error:', e);
       }
+    } else {
+      await this.#logger.info("Shutdown already in progress...");
     }
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load"];
-    for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
-      }
-    }
+    await this.configure();
+    await this.load();
   }
 
   async destroy() {
-    this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false,
-      shuttingDownPromise: null,
-      shuttingDownResolver: null
-    };
+    try {
+      this.#lifecycle = {
+        configured: false,
+        loaded: false,
+        shuttingDown: true,
+        shuttingDownPromise: null,
+        shuttingDownResolver: null
+      };
+      this.#status = "DESTROYED";
+    } catch (e) {
+      await this.#logger.error('Destroy error:', e);
+    }
   }
 
   async executeLifecycleEvent(event, handler, priority = this.#lifecycle.eventPriority[event]) {
-    if (this.#lifecycle[event]) {
-      const lifecycleHandler = this.#lifecycle[event];
-      const context = this.#lifecycle.handlerContext[event] || this;
-      await lifecycleHandler.execute(context);
+    const context = this.#lifecycle.handlerContext[event] || this;
+    try {
+      await handler(context);
+      return priority;
+    } catch (e) {
+      await this.#logger.error(`Lifecycle event handler error: ${event}`, e);
     }
-    return priority;
+  }
+
+  async execute(event, handler) {
+    await this.executeLifecycleEvent(event, handler);
   }
 }
 
 const nexusCore = new NexusCore();
-const config = Config.configure();
-nexusCore.configure(config);
-nexusCore.start();
+nexusCore.configure();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-In this updated version:
-
-1. We have encapsulated the logger functionality within the classes, providing better separation of concerns.
-2. We have improved the validation and configuration management within the `Config` class.
-3. We have modified the lifecycle event handling and management within the `NexusCore` class to provide a more robust and flexible framework for working with lifecycle events.
-4. We have improved the way events are handled by the `NexusCore` instance.
-5. We have updated the `NexusCore` instance to handle the cases where the component is already configured or loaded when attempting to configure or load it.
-
-This version provides a more robust, modular, and scalable framework for building complex systems that require lifecycle management and configuration validation.
