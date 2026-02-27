@@ -17,24 +17,33 @@ class Config {
     };
   }
 
-  constructor(values = {}) {
-    this.setValues(values);
+  constructor(values) {
+    this.#config = {
+      ...Config.staticConfig,
+      ...values
+    };
+
+    this.#validateConfig();
   }
 
-  setValues(values) {
-    Object.assign(this, values);
-  }
-
-  validate() {
+  #validateConfig() {
     try {
-      const schema = this.constructor.configSchema;
+      const schema = this.#getConfigSchema();
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
-      validator.validate(this, schema);
+      validator.validate(this.#config, schema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
     }
+  }
+
+  #getConfigSchema() {
+    return this.constructor.configSchema;
+  }
+
+  getConfig() {
+    return { ...this.#config, ...Config.staticConfig };
   }
 }
 
@@ -62,22 +71,74 @@ class LifecycleHandler {
   }
 }
 
-class BaseLifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
+class BaseService {
+  #services = {};
+  #initialized = false;
+
+  constructor(name, methods) {
+    if (!this.#initialized) {
+      throw new Error('BaseService must be extended from a class with an "initialize" method.');
+    }
+
+    this.#services[name] = methods;
   }
 
-  execute() {
-    this.handler();
+  getService(name) {
+    return this.#services[name];
+  }
+
+  get isInitialized() {
+    return this.#initialized;
   }
 }
 
-class NexusCore {
+class BaseLifecycleHandler {
+  constructor(handler, service) {
+    this.handler = handler;
+    this.service = service;
+  }
+
+  execute() {
+    return this.handler();
+  }
+
+  bind(target) {
+    this.handler.bind(target);
+  }
+}
+
+class EventInterface {
+  constructor() {
+    this.#handlers = {};
+  }
+
+  #registerHandler(event, handler) {
+    const handlers = this.#handlers[event] || [];
+    handlers.push(handler);
+    this.#handlers[event] = handlers;
+  }
+
+  on(event, handler) {
+    this.#registerHandler(event, handler);
+  }
+
+  trigger(event, ...args) {
+    const handlers = this.#handlers[event];
+    if (handlers) {
+      handlers.forEach(handler => {
+        handler(...args);
+      });
+    }
+  }
+}
+
+class NexusCore extends BaseService {
   #lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
   };
+  #status = 'INIT';
 
   get lifecycle() {
     return this.#lifecycle;
@@ -88,22 +149,20 @@ class NexusCore {
   }
 
   set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
     if (value !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
       if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
+        this.#lifecycle.shuttingDown = false;
       }
     }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
-    }
+    this.#status = value;
   }
 
-  constructor() {
-    this.on("DESTROYED", new BaseLifecycleHandler(() => {
+  initialize(methods) {
+    super('NexusCore', methods);
+    this.#initialized = true;
+
+    this.on('DESTROYED', new BaseLifecycleHandler(() => {
       console.log("NexusCore instance destroyed.");
     }));
   }
@@ -115,35 +174,38 @@ class NexusCore {
       console.error('Config validation error:', e);
       throw e;
     }
-    await this.onLifecycleEvent("CONFIGURED");
+    this.trigger('CONFIGURED');
     this.#lifecycle.configured = true;
     this.config = config;
   }
 
   async validateConfig(config) {
-    const schema = Config.configSchema;
+    const schema = Config.staticConfig.configSchema;
     const validator = new (require('jsonschema').Validator)();
     validator.checkSchema(schema);
     validator.validate(config, schema);
   }
 
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler([new LifecycleEvent(event), handler]);
-    return lifecycleHandler;
+  on(event, handlerOrInitialStatus) {
+    this.#registerHandler(event, handlerOrInitialStatus);
   }
 
-  on(event, handlerOrInitialStatus) {
-    const lifecycleHandler = this.onLifecycleEvent(event, (target) => {
-      if (target.status === 'INIT') {
+  #registerHandler(event, handlerOrInitialStatus) {
+    super.getService('NexusCore').on(event, handler => {
+      if (this.#status === 'INIT') {
         if (event === 'DESTROYED') this.status = 'DESTROYED';
-        else
-          console.warn('Lifecycle event for event "${event}" skipped because the NexusCore instance is already ${this.status}');
+        else {
+          console.warn('Lifecycle event for event "${event}" skipped because the NexusCore instance is already ${this.#status}');
+        }
       } else {
-        handlerOrInitialStatus.target = target;
-        handlerOrInitialStatus(config = target.config, status = target.#status)();
+        if (typeof handler === 'function') {
+          handler(this.config, this.#status);
+        } else {
+          handlerOrInitialStatus.target = this;
+          handlerOrInitialStatus();
+        }
       }
     });
-    this.#lifecycle[event] = lifecycleHandler;
   }
 
   executeLifecycleEvent(event) {
@@ -153,36 +215,28 @@ class NexusCore {
   }
 
   async load() {
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
+    console.log("Loading...");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log("Loading complete...");
+    this.#lifecycle.loaded = true;
+    this.executeLifecycleEvent("LOADED");
   }
 
   async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
+    if (!this.#lifecycle.shuttingDown) {
+      console.log("Shutdown initiated...");
+      this.#lifecycle.shuttingDown = true;
+      this.executeLifecycleEvent("SHUTTING_DOWN");
+      console.log("Shutdown complete...");
+      this.status = "SHUTDOWN";
     }
   }
 
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
-        await this[methodName]();
+      if (super.getService('NexusCore')[methodName] instanceof Function) {
+        await super.getService('NexusCore')[methodName]();
       }
     }
   }
@@ -197,9 +251,33 @@ class NexusCore {
   }
 }
 
-const nexusCore = new NexusCore();
-nexusCore.configure(Config.defaultConfig);
-nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
-nexusCore.destroy();
+class NexusCoreService extends BaseService {
+  constructor(nexusCore) {
+    this.nexusCore = nexusCore;
+    super('NexusCoreService', {
+      configure: nexusCore.configure,
+      load: nexusCore.load,
+      shutdown: nexusCore.shutdown,
+      start: nexusCore.start,
+      destroy: nexusCore.destroy
+    });
+  }
+}
+
+const nexusCore = new NexusCore({
+  configure: NexusCore.prototype.configure,
+  load: NexusCore.prototype.load,
+  shutdown: NexusCore.prototype.shutdown,
+  start: NexusCore.prototype.start,
+  destroy: NexusCore.prototype.destroy,
+
+  get status() {
+    return this.nexusCore.status;
+  }
+});
+const nexusCoreService = new NexusCoreService(nexusCore);
+nexusCoreService.start();
+nexusCoreService.configure();
+nexusCoreService.load();
+nexusCoreService.shutdown();
+nexusCoreService.destroy();
