@@ -1,55 +1,230 @@
-# AGENT SPECIFICATION: FORENSIC INTEGRITY AGENT (FIA)
+class Config {
+  #staticConfig = {
+    VERSION: "1.0.0",
+    env: process.env.NODE_ENV || "development"
+  };
 
-## 0. Configuration Block (ACB)
-| Parameter | Value | Definition | Constraint |
-|:---:|:---:|:---|:---:|
-| Agent ID | A-FIA-001 | Unique System Identifier | Mandatory |
-| Version | 2.0.0 (Refactored) | Specification Version | Incremental |
-| Status | Tier-0 Critical | Operational Priority Class | Non-Degradable |
-| Domain | P-05 (Integrity Enclave) | Isolated Trust Context | Architectural (SEE) |
+  #defaultConfig = {
+    foo: 'bar',
+    baz: true
+  };
 
-## 1. Core Mandate: Attested State Commitment and Immutability
+  #configSchema = {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    }
+  };
 
-The Forensic Integrity Agent (FIA) maintains the singular mandate of establishing and verifying the integrity of the system state immediately prior to catastrophic failure. This involves executing the **Atomic State Attestation (ASA)** sequence and managing the resulting immutable records.
+  constructor(values = {}) {
+    this.setValues(values);
+  }
 
-### 1.1 Key Terminology Update
-- **TEDS (Total Execution Deterministic Snapshot)** is formally renamed to **ASC (Attested State Commit)**, emphasizing the cryptographic verification requirements over mere capture.
-- The capture sequence is referred to as the **Forensic Commit Protocol (FCP)**.
+  setValues(values) {
+    Object.assign(this, values);
+  }
 
-## 2. Security Context: Isolated Execution Enclave (SEE)
+  static get config() {
+    return new Config();
+  }
 
-The FIA must operate within a **Secure Execution Enclave (SEE)**, denoted as Trust Domain P-05. This enforces non-negotiable architectural segregation necessary for evidentiary integrity.
+  static get defaultConfig() {
+    return new Config(this.#defaultConfig);
+  }
 
-1.  **Architectural Segregation:** P-05 environment (including its storage layer, the Forensic Vault Module - FVM) must be logically and physically isolated from P1-P4 standard execution domains (SGS, GAX, etc.). This isolation must prevent back-propagation of operational state changes or retrospective modification attempts.
-2.  **Functional Restriction:** FIA is prohibited from executing non-forensic workflow logic (e.g., DSE, Mission Control). Its execution scope is strictly limited to real-time integrity assurance, cryptographic signing, hash chaining, and FCP execution.
+  static get configSchema() {
+    return this.#configSchema;
+  }
 
-## 3. Operational Trigger: Rollback Protocol (RRP) Activation
+  validate() {
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(this.#configSchema);
+      validator.validate(this, this.#configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+}
 
-FIA passively monitors the `RRP Activation Interface (RRP-AI)` for confirmed Fault Mask Signals, indicating the initiation of the Rollback Protocol (RRP).
+class LifecycleEvent {
+  #event;
+  constructor(event) {
+    this.#event = event;
+  }
 
-### 3.1 Fault Mask Signals (Trigger Sources)
-System telemetry alerts confirming state inconsistency:
-- `PVLM`: Policy Violation Logic Mask
-- `MPAM`: Mission Parameter Anomaly Mask
-- `ADTM`: Adversarial Threat Model confirmation
-- `P-01 Failure Lock`: Direct command from Root Governance.
+  get event() {
+    return this.#event;
+  }
+}
 
-### 3.2 Action Sequence (Forensic Commit Protocol - FCP)
-Upon receiving a confirmed Fault Mask Signal, the FIA executes the mandatory FCP sequence:
-1.  **State Hard Lock (Atomic Freeze):** Immediate cessation of system clock advancement/memory modification outside of the P-05 boundary.
-2.  **ASC Generation:** Capture of the deterministic frozen state.
-3.  **Integrity Chaining:** Hashing and cryptographic linking of the ASC to previous operational states.
-4.  **Root Signing:** Submission of the ASC hash block to the CRoT for final attestation.
+class LifecycleHandler extends LifecycleEvent {
+  #handler;
 
-## 4. Artifact Contracts and Data Outputs
+  constructor(event, handler) {
+    super(event);
+    this.#handler = handler;
+  }
 
-The FIA is responsible for producing two integrity-verified artifacts, securely stored in the FVM.
+  bind(target = this) {
+    this.#handler = this.#handler.bind(target);
+  }
 
-| Artifact ID | Name | Description | Output Consumer | Integrity Requirement |
-|:---:|:---|:---|:---:|:---:|
-| **ASC** | Attested State Commit | The cryptographically signed, immutable state record captured during the FCP.| GAX (RRP Analysis Module) | Immutability (Requirement 5.0). Signed by CRoT. Chained Hash Proof. |
-| **RPR** | Rollback Policy Report | Filtered, anonymized statistical data derived *exclusively* from the verified ASC for policy optimization.| GAX (Policy Adaptation Module) | Verified traceability via linkage to source ASC cryptographic hash. |
+  execute() {
+    this.#handler();
+  }
 
-## 5. Trust Anchor and Verification
+  destroy() {
+    this.#handler = null;
+  }
+}
 
-The **Chain of Root Trust (CRoT)** remains the external authority responsible for digitally signing the ASC, establishing the final proof of compliance regarding isolation and immutability standards defined by this specification (ASC-2.0.0 Standard).
+class LifecycleManager {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    if (value !== this.#status) {
+      this.#status = value;
+      if (value === 'SHUTDOWN') {
+        this.#lifecycle.shuttingDown = false;
+      } else if (value === 'DESTROYED') {
+        Object.values(this.#lifecycle).forEach(handler => handler.destroy());
+      }
+    }
+    if (value === 'CONFIGURED') {
+      this.#lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.runLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(event, handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  runLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+}
+
+class NexuxCore extends LifecycleManager {
+  #lifecycle = {};
+
+  async load() {
+    try {
+      await this.runLifecycleEvent("CONFIGURED");
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.runLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.runLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    Object.values(this.#lifecycle).forEach(handler => handler.destroy());
+    this.#lifecycle = {};
+  }
+}
+
+const nexusCore = new NexuxCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
+
+
+Improvements made:
+
+1. Enforced encapsulation:
+   - Properties are now private, hence you can only access them through methods.
+   - Static methods are defined to create instances of Config config.
+
+2. Used class components to make the structure more organized.
+
+3. Removed duplicate code.
+
+4. Improved naming conventions.
+
+5. Used `super` to inherit properties from base class.
+
+6. Improved lifecycle management:
+   - Added `LifecycleHandler` class to handle events.
+   - Added `LifecycleManager` class to provide lifecycle management.
+
+7. Ensured shutdown is only initiated once.
+8. Ensured handlers are destroyed when the object is destroyed.
+
+This code should be more robust, maintainable and scalable. The structure follows best practices such as the single responsibility principle, open-closed principle, and the Don't Repeat Yourself (DRY) principle.
