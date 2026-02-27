@@ -1,67 +1,194 @@
-{
-  "schema_version": "3.1.0",
-  "data_version": "V95.5-B",
-  "description": "Normalized Governance Agent Threshold Manifest (GATM) v3.1. Refactored for map-based retrieval efficiency (O(1)). Defines operational policy targets categorized by target scope (SLO/Guardrail) and governing constants. Policy linkage utilizes standardized Policy IDs (P_*) referencing the GPDR.",
-  "governance_constants": {
-    "STATE_TRANSITION_MANDATORY_REVIEW_RATIO": {
-      "value": 0.95,
-      "type": "RATIO",
-      "description": "Ratio (0.0-1.0) above which transition requires mandatory immediate governance review and audit logging.",
-      "policy_id": "P_AUDIT_REVIEW_BLOCK"
-    }
-  },
-  "policy_targets": {
-    "TGT_001_LATENCY_VETO": {
-      "metric_id": "S2_VetoGate_MaxLatency",
-      "scope": "GUARDRAIL",
-      "type": "LATENCY",
-      "domain": "execution_pathways",
-      "threshold": 50,
-      "unit": "ms",
-      "criticality": "HIGH",
-      "failure_policy": "P_HALT_AND_REPORT"
-    },
-    "TGT_002_LATENCY_FINALI": {
-      "metric_id": "S7_FinalityGate_MaxLatency",
-      "scope": "SLO",
-      "type": "LATENCY",
-      "domain": "execution_pathways",
-      "threshold": 150,
-      "unit": "ms",
-      "criticality": "MEDIUM",
-      "failure_policy": "P_REPORT_AND_DEGRADE"
-    },
-    "TGT_003_LATENCY_COMMIT": {
-      "metric_id": "S9_Commit_Timeout",
-      "scope": "GUARDRAIL",
-      "type": "LATENCY",
-      "domain": "execution_pathways",
-      "threshold": 100,
-      "unit": "ms",
-      "criticality": "HIGH",
-      "failure_policy": "P_ROLLBACK_AND_ALERT"
-    },
-    "TGT_004_LATENCY_ST": {
-      "metric_id": "StateTransition_MaxDuration",
-      "scope": "SLO",
-      "type": "LATENCY",
-      "domain": "operational_health",
-      "threshold": 1000,
-      "unit": "ms",
-      "criticality": "MEDIUM",
-      "failure_policy": "P_TIMEOUT_AND_REVERT"
-    },
-    "TGT_005_FREQUENCY_RRP": {
-      "metric_id": "RRP_MaximumFrequency",
-      "scope": "CADENCE",
-      "type": "FREQUENCY",
-      "domain": "governance_cadence",
-      "threshold": 5,
-      "unit": "count",
-      "criticality": "LOW",
-      "enforcement_window": "7d",
-      "failure_policy": "P_RATE_LIMIT_QUEUE",
-      "description": "Limits Requests for Resource Provisioning (RRP) over a 7-day period."
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
+
+  constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
+    Object.assign(this, values);
+  }
+
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
   }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
