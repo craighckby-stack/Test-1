@@ -14,7 +14,13 @@ class ConfigSchema {
 }
 
 class ConfigManager {
-  #schema = ConfigSchema.schema;
+  #schema;
+  #config;
+
+  constructor(schema, defaultConfig = {}) {
+    this.#schema = schema;
+    this.#config = defaultConfig;
+  }
 
   async validate(config) {
     try {
@@ -28,24 +34,22 @@ class ConfigManager {
   }
 
   get defaultConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development",
-      foo: 'bar',
-      baz: true
-    };
+    return this.#config;
+  }
+
+  setValues(values) {
+    this.#config = { ...this.#config, ...values };
+    this.validate(values);
+  }
+
+  getConfig() {
+    return this.#config;
   }
 }
 
 class Config extends ConfigManager {
-  constructor(values = {}) {
-    super();
-    this.setValues(values);
-  }
-
-  setValues(values) {
-    Object.assign(this, values);
-    super.validate(values);
+  constructor(schema, defaultConfig = {}) {
+    super(schema, defaultConfig);
   }
 }
 
@@ -70,23 +74,14 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  #configManager = new Config();
+  #configManager = new Config(ConfigSchema.schema, Config.defaultConfig);
   #LifecycleEventHandlers = new Map();
-
-  #status = "INIT";
+  #status = 'INIT';
   #lifecycle = {
     configured: false,
     loaded: false,
     shuttingDown: false
   };
-
-  constructLifecycleEventHandlers() {
-    this.#LifecycleEventHandlers.set("CONFIGURED", new LifecyleEvent("CONFIGURED"));
-    this.#LifecycleEventHandlers.set("LOADED", new LifecycleEvent("LOADED"));
-    this.#LifecycleEventHandlers.set("SHUTTING_DOWN", new LifecycleEvent("SHUTTING_DOWN"));
-    this.#LifecycleEventHandlers.set("SHUTDOWN", new LifecycleEvent("SHUTDOWN"));
-    this.#LifecycleEventHandlers.set("DESTROYED", new LifecycleEvent("DESTROYED"));
-  }
 
   get status() {
     return this.#status;
@@ -114,10 +109,9 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  configure(config) {
-    this.validateConfig(config);
+  configure() {
+    this.validateConfig(this.#configManager.getConfig());
     this.#lifecycle.configured = true;
-    this.#configManager.setValues(config);
   }
 
   validateConfig(config) {
@@ -128,7 +122,7 @@ class NexusCore {
     if (this.#LifecycleEventHandlers.has(event)) {
       const lifeCycleEventHandler = new LifecycleHandler(handler);
       this.#LifecycleEventHandlers.get(event).handler = handler;
-        lifeCycleEventHandler.bind(this);
+      lifeCycleEventHandler.bind(this);
       this.#LifecycleEventHandlers.set(event, lifeCycleEventHandler);
     }
   }
@@ -147,40 +141,40 @@ class NexusCore {
 
   async load() {
     try {
-      console.log("Loading...");
+      console.log('Loading...');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
+      console.log('Loading complete...');
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
-      this.status = "INIT";
+      this.executeLifecycleEvent('LOADED');
+      this.status = 'INIT';
     } catch (e) {
       console.error('Load error:', e);
-      this.status = "DESTROYED";
+      this.status = 'DESTROYED';
     }
   }
 
   async shutdown() {
     try {
-      await this.executeLifecycleEvent("SHUTTING_DOWN");
-      this.status = "SHUTDOWN";
+      await this.executeLifecycleEvent('SHUTTING_DOWN');
+      this.status = 'SHUTDOWN';
     } catch (e) {
-      console.error("Shutdown error:", e);
-      this.status = "DESTROYED";
+      console.error('Shutdown error:', e);
+      this.status = 'DESTROYED';
     }
   }
 
   async start() {
-    const startMethodOrder = ["configure", "load", "shutdown"];
+    const startMethodOrder = ['configure', 'load', 'shutdown'];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
         await this[methodName]();
       }
     }
-    this.status = "INIT";
+    this.status = 'INIT';
   }
 
   async destroy() {
-    this.status = "DESTROYED";
+    this.status = 'DESTROYED';
     this.#lifecycle = {
       configured: false,
       loaded: false,
@@ -191,20 +185,11 @@ class NexusCore {
 }
 
 const nexusCore = new NexusCore();
-nexusCore.constructLifecycleEventHandlers();
+nexusCore.configure();
 nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
+  console.log('NexusCore instance destroyed.');
 });
-nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-This code:
-
-- Creates advanced lifecycle management patterns using `LifecycleEvent` and `LifecycleHandler` classes to bind event handlers and execute them when lifecycle events occur.
-- Enhances encapsulation using private fields and methods, as well as getters and setters to control access to these fields.
-- Includes a `ConfigManager` class to manage and validate configuration data, and a `Config` class that extends `ConfigManager` to provide a simple configuration implementation.
-- Creates a `NexusCore` class with advanced lifecycle management and validation, including `configure`, `load`, `shutdown`, `start`, and `destroy` methods.
