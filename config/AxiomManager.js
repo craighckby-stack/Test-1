@@ -1,70 +1,194 @@
-class AxiomManager {
-    /**
-     * Initializes the manager with a set of base axioms.
-     * Axiom structure is assumed to be { id: number, value: number }
-     */
-    constructor(rawAxioms) {
-        // Ensure axioms is an array, providing basic data integrity.
-        this.axioms = Array.isArray(rawAxioms) ? rawAxioms : [];
-        
-        this.lastResult = null;
-        // Performance improvement: Track if calculation has been completed successfully.
-        this.processed = false;
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
+
+  constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
+    Object.assign(this, values);
+  }
+
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
-
-    /**
-     * Internal helper to retrieve and validate the required external computation invoker.
-     * This enforces architectural consistency by separating dependency setup and failure logic.
-     * 
-     * (Requires AxiomKernelInvoker to be available in scope)
-     * @returns {object} The validated AxiomKernelInvoker object.
-     * @private
-     */
-    #getValidatedInvoker() {
-        if (typeof AxiomKernelInvoker?.calculate !== 'function') {
-             throw new Error("AxiomKernelInvoker is required and must expose a 'calculate' method.");
-        }
-        return AxiomKernelInvoker;
-    }
-
-    /**
-     * Executes the abstracted and optimized computational process 
-     * by delegating the complex, recursive calculation to the specialized kernel invoker.
-     * Implements memoization to prevent redundant, expensive computations.
-     * 
-     * @param {boolean} forceRecalculation Skips the memoization check if true.
-     * @returns {object} The optimized and abstracted result set, or a cached result wrapper.
-     */
-    processRecursively(forceRecalculation = false) {
-        if (this.processed && !forceRecalculation) {
-            console.log(`[AxiomManager]: Returning cached result.`);
-            // Return a wrapper indicating cache usage, protecting the original result object.
-            return { 
-                cached: true, 
-                optimizedResults: this.lastResult 
-            };
-        }
-
-        // Dependency validation is now encapsulated
-        const invoker = this.#getValidatedInvoker();
-
-        const result = invoker.calculate(this.axioms);
-
-        console.log(`[AxiomManager]: Abstraction complete. Level: ${result.abstractionLevel}`);
-        this.lastResult = result.optimizedResults;
-        this.processed = true;
-        return result;
-    }
-
-    getLastResult() {
-        return this.lastResult;
-    }
-
-    /**
-     * Resets the internal state, forcing a recalculation on the next call to processRecursively.
-     */
-    resetState() {
-        this.processed = false;
-        this.lastResult = null;
-    }
+  }
 }
+
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
+      }
+    }
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
+  }
+
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
+  async load() {
+    await this.executeLifecycleEvent("CONFIGURED");
+    try {
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
+  }
+
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+  }
+
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
+  }
+}
+
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
