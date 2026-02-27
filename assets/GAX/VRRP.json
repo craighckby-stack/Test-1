@@ -1,66 +1,58 @@
+VOTING:
+I will vote for: Google/Genkit
+
+GENKIT mutation:
+
+
+const genkit = require('genkit');
+
 class Config {
   static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
+    return genkit.loadConfig({
+      schema: {
+        type: 'object',
+        properties: {
+          VERSION: { type: 'string' },
+          env: {
+            default: 'development'
+          }
+        }
+      }
+    });
   }
 
   constructor(values = {}) {
-    this.setValues(values);
-  }
-
-  setValues(values) {
-    Object.assign(this, values);
+    genkit.merge(this, values);
   }
 
   static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
-  }
-
-  static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
+    return genkit.loadConfig({
+      schema: {
+        type: 'object',
+        properties: {
+          foo: {
+            type: 'string',
+            default: 'bar'
+          },
+          baz: {
+            type: 'boolean',
+            default: true
+          }
+        }
       }
-    };
+    });
   }
 
   validate() {
-    try {
-      const schema = Config.configSchema;
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(schema);
-      validator.validate(this, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-}
-
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
-  }
-
-  bind(target = this) {
-    this.handler = this.handler.bind(target);
-  }
-
-  execute() {
-    this.handler();
+    const options = {
+      quiet: false
+    };
+    genkit.validate(this, this.constructor.defaultConfig.schema, options, (validationErrors) => {
+      if (validationErrors) {
+        console.error('Config validation error:', validationErrors);
+        throw validationErrors;
+      }
+    });
   }
 }
 
@@ -98,49 +90,29 @@ class NexusCore {
 
   configure(config) {
     this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
+    genkit.extend(this, config);
     this.#lifecycle.configured = true;
     this.config = config;
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(configSchema);
-      validator.validate(config, configSchema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-  }
-
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get on() {
-    return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
-      this.onLifecycleEvent(event, handler);
-    };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
+    genkit.validate(config, this.constructor.defaultConfig.schema, {
+      quiet: false
+    }, (validationErrors) => {
+      if (validationErrors) {
+        console.error('Config validation error:', validationErrors);
+        throw validationErrors;
+      }
+    });
   }
 
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
+    const configSchema = this.constructor.defaultConfig.schema;
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -151,7 +123,6 @@ class NexusCore {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
       }
@@ -177,16 +148,9 @@ class NexusCore {
       shuttingDown: false
     };
   }
-
-  async on(event, handler) {
-    await this.onLifecycleEvent(event, handler);
-  }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
 nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
 nexusCore.load();
