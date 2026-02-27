@@ -1,6 +1,3 @@
-Here is the enhanced code using advanced NexusCore patterns, lifecycle management, and robust encapsulation.
-
-
 class Config {
   #instance;
   #configured;
@@ -115,6 +112,7 @@ class Logger {
   }
 }
 
+// Introduced the abstract base class for LifecycleEvent
 abstract class LifecycleEvent {
   protected abstract get priority() {
     throw new Error("Subclass must implement priority method");
@@ -294,9 +292,13 @@ class NexusCore {
   }
 
   async #onEvent(event) {
-    EventUtil.sortEvents(this.#lifecycle, event);
-    const sortedEvents = await EventUtil.executeEventsInOrder(this.#lifecycle, this.#logger);
-    this.#status = sortedEvents.lastStatus;
+    try {
+      await EventUtil.sortEvents(this.#lifecycle, event);
+      const sortedEvents = await EventUtil.executeEventsInOrder(this.#lifecycle, this.#logger);
+      this.#status = sortedEvents.lastStatus;
+    } catch (e) {
+      console.error(e);
+    }
   }
 }
 
@@ -311,18 +313,21 @@ class EventUtil {
   }
 
   static async executeEventsInOrder(lifecycle, logger = NexusCore.instance.logger) {
-    const sortedEvents = Object.keys(lifecycle.handlerContext).sort((a, b) => {
-      return lifecycle.handlerContext[a].priority - lifecycle.handlerContext[b].priority;
-    }).map(async (key) => {
-      await lifecycle.handlerContext[key].bind(this).execute();
+    const sortedEvents = Object.keys(lifecycle.handlerContext).reduce((a, b) => {
+      if (lifecycle.handlerContext[a].priority > lifecycle.handlerContext[b].priority) {
+        [a, b] = [b, a];
+      }
+      return a;
+    }, "").map(async (key) => {
+      await lifecycle.handlerContext[key].bind().execute();
       logger.info(`Event ${key} executed.`);
     });
     try {
       await Promise.all(sortedEvents);
-      return { lastStatus: NexusCore.instance.status, event: Object.keys(lifecycle.eventPriority).filter(key => key === event.constructor.name.toLowerCase())[0] };
+      return { lastStatus: NexusCore.instance.status };
     } catch (e) {
       logger.error("Event execution error.", e);
-      return { lastStatus: "SHUTDOWN"};
+      return { lastStatus: "SHUTDOWN" };
     }
   }
 
@@ -333,9 +338,8 @@ class EventUtil {
     try {
       await sortedEvents.reduce(async (prev, curr) => {
         await prev;
-        return curr.bind(this).execute();
+        return curr.bind().execute();
       }, Promise.resolve());
-      return sortedEvents.length > 0 ? sortedEvents[0].priority : null;
     } catch (e) {
       logger.error("Event execution error.", e);
       throw e;
@@ -348,11 +352,3 @@ nexusCore.configure();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-In this updated code:
-
-*   The `LifecycleEvent` class is now made abstract and inherits from it directly.
-*   Three new classes are created (`ConfiguredEvent`, `LoadedEvent`, and `ShuttingDownEvent`) that implement the `LifecycleEvent` abstract class. This allows for greater extensibility in handling different lifecycle events.
-*   A utility class, `EventUtil`, is introduced to handle event sorting and execution. This allows for proper execution of events in a hierarchical manner.
-*   Improved error handling and logging to ensure that any potential issues during execution are properly logged and propagated up the call stack.
