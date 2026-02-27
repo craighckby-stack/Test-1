@@ -26,6 +26,7 @@ class Config {
         baz: { type: 'boolean' }
       }
     };
+    this.#defaultConfig = { ...this.#configSchema.properties };
   }
 
   get instance() {
@@ -34,11 +35,11 @@ class Config {
 
   static getDefaultConfig() {
     const instance = Config.getInstance();
-    return instance.createConfig(instance.#defaultConfig);
+    return instance.#defaultConfig;
   }
 
   createConfig(values) {
-    return new Config(values);
+    return new Config({ ...this.#defaultConfig, ...values });
   }
 
   setValues(values) {
@@ -97,6 +98,7 @@ class LifecycleHandler extends LifecycleEvent {
 class LifecycleManager {
   #status = "INIT";
   #lifecycle;
+  #onLifecycleEventCallbacks = {};
 
   get status() {
     return this.#status;
@@ -113,6 +115,7 @@ class LifecycleManager {
     }
     if (value === 'CONFIGURED') {
       this.#lifecycle.configured = true;
+      this.#onLifecycleEventCallbacks.configured.forEach(callback => callback(this));
     }
   }
 
@@ -139,15 +142,18 @@ class LifecycleManager {
     }
   }
 
-  onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(event, handler);
-    this.#lifecycle[event] = lifecycleHandler;
+  on(event, callback) {
+    if (!this.#onLifecycleEventCallbacks[event]) {
+      this.#onLifecycleEventCallbacks[event] = [];
+    }
+    this.#onLifecycleEventCallbacks[event].push(callback);
   }
 
-  get on() {
-    return (event, handler) => {
-      this.onLifecycleEvent(event, handler);
-    };
+  off(event) {
+    if (this.#onLifecycleEventCallbacks[event]) {
+      this.#onLifecycleEventCallbacks[event] = [];
+      delete this.#onLifecycleEventCallbacks[event];
+    }
   }
 
   runLifecycleEvent(event) {
@@ -155,24 +161,26 @@ class LifecycleManager {
       this.#lifecycle[event].bind(this).execute();
     }
   }
+
+  get on() {
+    return (event, callback) => {
+      this.on(event, callback);
+    };
+  }
+
+  get off() {
+    return event => {
+      this.off(event);
+    };
+  }
 }
 
 class NexuxCore extends LifecycleManager {
   #initCalled = false;
-
-  static initialize() {
-    if (!NexuxCore.getInstance()) {
-      const instance = new NexuxCore();
-      NexuxCore.setInstance(instance);
-    }
-  }
-
-  get instance() {
-    return NexuxCore.getInstance();
-  }
+  #configured = false;
 
   static getInstance() {
-    return new WeakMap().get('instance');
+    return new WeakMap().get('instance') || new NexuxCore();
   }
 
   static setInstance(value) {
@@ -180,11 +188,12 @@ class NexuxCore extends LifecycleManager {
     configMap.set('instance', value);
   }
 
-  #init() {
-    this.on("DESTROYED", () => {
-      console.log("NexusCore instance destroyed.");
-    });
-    this.#initCalled = true;
+  constructor() {
+    super();
+  }
+
+  get instance() {
+    return NexuxCore.getInstance();
   }
 
   async configure(config) {
@@ -211,6 +220,13 @@ class NexuxCore extends LifecycleManager {
       }
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async init() {
+    if (!this.#initCalled) {
+      this.#initCalled = true;
+      await super.init();
     }
   }
 
@@ -243,15 +259,41 @@ class NexuxCore extends LifecycleManager {
     }
 
     this.status = "DESTROYED";
-    super.destroy();
+    await super.destroy();
+  }
+
+  async init() {
+    this.#lifecycle = {};
+    try {
+      this.on("DESTROYED", () => {
+        console.log("NexusCore instance destroyed.");
+      });
+      await super.init();
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  handleLifecycleEvent(event) {
+    switch (event) {
+      case "CONFIGURED":
+        this.#configured = true;
+        break;
+      case "SHUTTING_DOWN":
+        await this.shutdown();
+        break;
+      default:
+        break;
+    }
+  }
+
+  async destroy() {
+    if (this.#initCalled) {
+      await super.destroy();
+      Object.keys(this.#onLifecycleEventCallbacks).forEach(event => {
+        this.#onLifecycleEventCallbacks[event] = [];
+        delete this.#onLifecycleEventCallbacks[event];
+      });
+    }
   }
 }
-
-// Usage
-NexuxCore.initialize();
-const nexusCore = NexuxCore.instance;
-nexusCore.configure(Config.getDefaultConfig());
-nexusCore.start();
-// nexusCore.load();
-// nexusCore.shutdown();
-nexusCore.destroy();
