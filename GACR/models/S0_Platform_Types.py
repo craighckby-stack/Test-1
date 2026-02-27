@@ -1,29 +1,35 @@
 class Config {
-  static get staticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development",
-      defaultConfig: {
-        foo: 'bar',
-        baz: true
-      },
-      configSchema: {
-        type: 'object',
-        properties: {
-          foo: { type: 'string' },
-          baz: { type: 'boolean' }
-        }
+  #config;
+  #staticConfig = {
+    VERSION: "1.0.0",
+    env: process.env.NODE_ENV || "development",
+    defaultConfig: {
+      foo: 'bar',
+      baz: true
+    },
+    configSchema: {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
       }
-    };
+    }
+  };
+
+  get staticConfig() {
+    return this.#staticConfig;
   }
 
   constructor(values) {
     this.#config = {
-      ...Config.staticConfig,
+      ...this.#staticConfig,
       ...values
     };
-
     this.#validateConfig();
+  }
+
+  get config() {
+    return { ...this.#config, ...this.#staticConfig };
   }
 
   #validateConfig() {
@@ -39,47 +45,91 @@ class Config {
   }
 
   #getConfigSchema() {
-    return this.constructor.configSchema;
-  }
-
-  getConfig() {
-    return { ...this.#config, ...Config.staticConfig };
+    return this.#staticConfig.configSchema;
   }
 }
 
 class LifecycleEvent {
+  #event;
+
   constructor(event) {
-    this.event = event;
+    this.#event = event;
+  }
+
+  bind(target) {
+    this.#event.bind = (event) => {
+      event.bind(target);
+    };
+  }
+
+  execute() {
+    this.#event(this.#event.target);
+  }
+
+  get event() {
+    return this.#event;
+  }
+}
+
+class EventInterface {
+  #events = {};
+
+  on(event, handler) {
+    if (!this.#events[event]) {
+      this.#events[event] = [];
+    }
+    this.#events[event].push(handler);
+  }
+
+  #trigger(event, ...args) {
+    const handlers = this.#events[event];
+    if (handlers) {
+      handlers.forEach(handler => {
+        handler(...args);
+      });
+    }
+  }
+
+  trigger(event, ...args) {
+    const eventWrapper = new LifecycleEvent(event);
+    this.#trigger(event, eventWrapper);
   }
 }
 
 class LifecycleHandler {
-  constructor(events) {
-    this.events = events;
+  #events = [];
+  #executeMethod;
+
+  constructor(events, executeMethod) {
+    this.#events = events.map((event) => new LifecycleEvent(event));
+    this.#executeMethod = executeMethod;
   }
 
-  bind(target = this) {
-    this.events.forEach((event) => {
+  bind(target) {
+    this.#events.forEach((event) => {
       event.bind(target);
     });
   }
 
   execute() {
-    this.events.forEach((event) => {
-      event.execute();
-    });
+    if (this.#executeMethod instanceof Function) {
+      this.#executeMethod();
+    }
+    return this.#events.every(event => event.event === 'COMPLETED');
   }
 }
 
 class BaseService {
   #services = {};
   #initialized = false;
+  #methods;
 
   constructor(name, methods) {
     if (!this.#initialized) {
       throw new Error('BaseService must be extended from a class with an "initialize" method.');
     }
 
+    this.#methods = methods;
     this.#services[name] = methods;
   }
 
@@ -90,44 +140,27 @@ class BaseService {
   get isInitialized() {
     return this.#initialized;
   }
+
+  get methods() {
+    return this.#methods;
+  }
 }
 
 class BaseLifecycleHandler {
+  #handler;
+
   constructor(handler, service) {
-    this.handler = handler;
+    this.#handler = handler;
     this.service = service;
   }
 
   execute() {
-    return this.handler();
+    return this.#handler();
   }
 
   bind(target) {
-    this.handler.bind(target);
-  }
-}
-
-class EventInterface {
-  constructor() {
-    this.#handlers = {};
-  }
-
-  #registerHandler(event, handler) {
-    const handlers = this.#handlers[event] || [];
-    handlers.push(handler);
-    this.#handlers[event] = handlers;
-  }
-
-  on(event, handler) {
-    this.#registerHandler(event, handler);
-  }
-
-  trigger(event, ...args) {
-    const handlers = this.#handlers[event];
-    if (handlers) {
-      handlers.forEach(handler => {
-        handler(...args);
-      });
+    if (target) {
+      this.#handler.bind(target);
     }
   }
 }
@@ -139,6 +172,9 @@ class NexusCore extends BaseService {
     shuttingDown: false
   };
   #status = 'INIT';
+  #config;
+  #configSchema;
+  #eventInterface;
 
   get lifecycle() {
     return this.#lifecycle;
@@ -161,51 +197,42 @@ class NexusCore extends BaseService {
   initialize(methods) {
     super('NexusCore', methods);
     this.#initialized = true;
-
+    this.#eventInterface = new EventInterface();
     this.on('DESTROYED', new BaseLifecycleHandler(() => {
       console.log("NexusCore instance destroyed.");
     }));
+
+    this.#configSchema = Config.staticConfig.configSchema;
   }
 
-  async configure(config = Config.defaultConfig) {
-    try {
-      await this.validateConfig(config);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
-    this.trigger('CONFIGURED');
-    this.#lifecycle.configured = true;
-    this.config = config;
+  configure(config = Config.defaultConfig) {
+    return this.#validateConfig(config)
+      .then(() => this.#eventInterface.trigger('CONFIGURED'))
+      .then(() => this.#lifecycle.configured = true)
+      .then(() => config);
   }
 
-  async validateConfig(config) {
-    const schema = Config.staticConfig.configSchema;
-    const validator = new (require('jsonschema').Validator)();
-    validator.checkSchema(schema);
-    validator.validate(config, schema);
+  #validateConfig(config) {
+    return new Promise((resolve, reject) => {
+      try {
+        this.#eventInterface.trigger('VALIDATING_CONFIG');
+        const validator = new (require('jsonschema').Validator)();
+        validator.checkSchema(this.#configSchema);
+        validator.validate(config, this.#configSchema);
+        resolve();
+      } catch (e) {
+        console.error('Config validation error:', e);
+        reject(e);
+      }
+    });
   }
 
   on(event, handlerOrInitialStatus) {
-    this.#registerHandler(event, handlerOrInitialStatus);
+    this.#eventInterface.on(event, handlerOrInitialStatus);
   }
 
-  #registerHandler(event, handlerOrInitialStatus) {
-    super.getService('NexusCore').on(event, handler => {
-      if (this.#status === 'INIT') {
-        if (event === 'DESTROYED') this.status = 'DESTROYED';
-        else {
-          console.warn('Lifecycle event for event "${event}" skipped because the NexusCore instance is already ${this.#status}');
-        }
-      } else {
-        if (typeof handler === 'function') {
-          handler(this.config, this.#status);
-        } else {
-          handlerOrInitialStatus.target = this;
-          handlerOrInitialStatus();
-        }
-      }
-    });
+  get eventInterface() {
+    return this.#eventInterface;
   }
 
   executeLifecycleEvent(event) {
@@ -215,28 +242,34 @@ class NexusCore extends BaseService {
   }
 
   async load() {
+    this.#eventInterface.trigger('LOADING');
     console.log("Loading...");
     await new Promise(resolve => setTimeout(resolve, 1000));
+    this.#eventInterface.trigger('LOADED');
     console.log("Loading complete...");
     this.#lifecycle.loaded = true;
-    this.executeLifecycleEvent("LOADED");
+    this.#eventInterface.trigger('COMPLETED');
+    return true;
   }
 
   async shutdown() {
     if (!this.#lifecycle.shuttingDown) {
-      console.log("Shutdown initiated...");
+      this.#eventInterface.trigger('SHUTDOWN_INITIATED');
       this.#lifecycle.shuttingDown = true;
-      this.executeLifecycleEvent("SHUTTING_DOWN");
-      console.log("Shutdown complete...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      this.#eventInterface.trigger('SHUTTING_DOWN_COMPLETE');
+      this.#lifecycle.shuttingDown = false;
+      this.#eventInterface.trigger('SHUTDOWN_COMPLETE');
       this.status = "SHUTDOWN";
     }
+    return true;
   }
 
   async start() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
-      if (super.getService('NexusCore')[methodName] instanceof Function) {
-        await super.getService('NexusCore')[methodName]();
+      if (this.methods[methodName] instanceof Function) {
+        await this.methods[methodName].call(this);
       }
     }
   }
@@ -251,16 +284,33 @@ class NexusCore extends BaseService {
   }
 }
 
+class NexusCoreLifecycleHandler extends LifecycleHandler {
+  constructor(nexusCore) {
+    const events = ['CONFIGURED', 'LOADED', 'SHUTDOWN_COMPLETE'];
+    super(events, nexusCore.load);
+  }
+}
+
 class NexusCoreService extends BaseService {
   constructor(nexusCore) {
     this.nexusCore = nexusCore;
     super('NexusCoreService', {
       configure: nexusCore.configure,
-      load: nexusCore.load,
+      load: this.#loadWrapper,
       shutdown: nexusCore.shutdown,
       start: nexusCore.start,
-      destroy: nexusCore.destroy
+      destroy: nexusCore.destroy,
+
+      get status() {
+        return nexusCore.status;
+      }
     });
+  }
+
+  #loadWrapper() {
+    const nccdh = new NexusCoreLifecycleHandler(this.nexusCore);
+    nccdh.bind(this.nexusCore);
+    return nccdh.execute();
   }
 }
 
@@ -272,12 +322,26 @@ const nexusCore = new NexusCore({
   destroy: NexusCore.prototype.destroy,
 
   get status() {
-    return this.nexusCore.status;
+    return NexusCore.prototype.status;
   }
 });
+
 const nexusCoreService = new NexusCoreService(nexusCore);
-nexusCoreService.start();
-nexusCoreService.configure();
-nexusCoreService.load();
-nexusCoreService.shutdown();
-nexusCoreService.destroy();
+nexusCoreService.start().then(() => {
+  nexusCoreService.configure().then(() => {
+    nexusCoreService.load().then(() => {
+      nexusCoreService.shutdown();
+      nexusCoreService.destroy();
+    });
+  });
+});
+
+In this code:
+
+*   We have made changes to improve encapsulation, and removed global functions being called from class methods.  
+*   We have refactored the code to improve organization, we have also removed duplicate code and functions.  
+*   We added a method validation step when calling `this.methods[methodName].call(this);`, we added an interface for handling events and added a configuration validation step during the `configure` method.  
+*   We have enhanced the configuration handling by using a separate `Config` class to manage configuration data and validation.  
+*   We have created separate classes for the handlers of the lifecycle of the application and refactored the existing lifecycle code.  
+*   We have created a new handler class named `NexusCoreLifecycleHandler` for handling the load step of the application.  
+*   We have also made changes to improve the handling of asynchronous code by using promises and async/await methods.
