@@ -1,6 +1,3 @@
-Here's an enhanced version of the provided code using advanced NexusCore patterns, lifecycle management, and robust encapsulation:
-
-
 class Config {
   #staticConfig = {
     VERSION: "1.0.0",
@@ -32,6 +29,17 @@ class Config {
     return this.#configSchema;
   }
 
+  get defaultConfigValue() {
+    return JSON.stringify(this.defaultConfig);
+  }
+
+  get defaultConfigValidator() {
+    return async (configString) => {
+      const configValue = JSON.parse(configString);
+      await this.validate(configValue);
+    };
+  }
+
   constructor() {
     this.#config = { ...this.defaultConfig };
   }
@@ -40,12 +48,16 @@ class Config {
     this.#config = { ...this.#config, ...values };
   }
 
-  async validate() {
+  setConfigValue(configString) {
+    this.setConfig(JSON.parse(configString));
+  }
+
+  async validate(config) {
     try {
       const schema = this.configSchema;
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
-      validator.validate(this.#config, schema);
+      validator.validate(config, schema);
       return true;
     } catch (e) {
       console.error('Config validation error:', e);
@@ -58,10 +70,25 @@ class Config {
   }
 }
 
-class LifecycleEvent {
+class LifecycleHandler {
   #event;
   #handler;
 
+  constructor(event, handler) {
+    this.#event = event;
+    this.#handler = handler;
+  }
+
+  execute(target = this) {
+    this.#handler.call(target);
+  }
+
+  bind(target = this) {
+    this.#handler = this.#handler.bind(target);
+  }
+}
+
+class LifecycleEvent {
   constructor(event, handler) {
     this.#event = event;
     this.#handler = handler;
@@ -75,33 +102,34 @@ class LifecycleEvent {
     return this.#handler;
   }
 
-  bind(target = this) {
-    this.#handler = this.#handler.bind(target);
-  }
-
-  execute(target = this, ...args) {
-    this.#handler.call(target, ...args);
+  execute(target = this) {
+    this.#handler.call(target);
   }
 }
 
-class LifecycleHandler {
-  #handler;
+class ConfigFactory {
+  #configClass;
 
-  constructor(handler) {
-    this.#handler = handler;
+  constructor(configClass) {
+    this.#configClass = configClass;
   }
 
-  bind(target = this) {
-    this.#handler = this.#handler.bind(target);
+  createDefaultConfig() {
+    return this.#configClass.defaultConfig;
   }
 
-  execute(target = this, ...args) {
-    this.#handler.call(target, ...args);
+  createConfig(configString) {
+    const config = this.createDefaultConfig();
+    JSON.parse(configString, (key, value) => {
+      config[key] = value;
+      return value;
+    });
+    return config;
   }
 }
 
 class NexusCore {
-  #config;
+  #configClass;
   #status = "INIT";
   #lifecycle = {
     configured: false,
@@ -110,9 +138,15 @@ class NexusCore {
     destroying: false
   };
   #eventHandlers = new Map();
+  #configFactory;
 
-  get status() {
-    return this.#status;
+  constructor(configClass) {
+    this.#configClass = configClass;
+    this.#configFactory = new ConfigFactory(configClass);
+  }
+
+  get configClass() {
+    return this.#configClass;
   }
 
   set status(value) {
@@ -139,7 +173,7 @@ class NexusCore {
 
   #validateConfig(config) {
     return new Promise((resolve, reject) => {
-      const configSchema = this.configSchema;
+      const configSchema = this.configClass.configSchema;
       try {
         const validator = new (require('jsonschema').Validator)();
         validator.checkSchema(configSchema);
@@ -151,24 +185,31 @@ class NexusCore {
     });
   }
 
-  async configure(config) {
-    await this.#validateConfig(config);
-    await this.onLifecycleEvent("CONFIGURED", new LifecycleEvent("CONFIGURED", async () => {
-      this.#lifecycle.configured = true;
-      this.#config = config;
-      await this.executeLifecycleEvent("CONFIGURED");
-      console.log("NexusCore instance configured.");
-    }));
+  async configure(configString) {
+    if (!this.#lifecycle.configured) {
+      const defaultConfig = this.#configFactory.createDefaultConfig();
+      await this.#validateConfig(defaultConfig);
+
+      const configValue = this.#configFactory.createConfig(configString);
+      await this.#validateConfig(configValue);
+
+      await this.onLifecycleEvent("CONFIGURED", new LifecycleEvent("CONFIGURED", async () => {
+        this.#lifecycle.configured = true;
+        this.#configFactory.setConfigValue(configString);
+        await this.executeLifecycleEvent("CONFIGURED");
+        console.log("NexusCore instance configured.");
+      }));
+    }
   }
 
   get configure() {
-    return async (config) => {
-      await this.configure(config);
+    return async (configString) => {
+      await this.configure(configString);
     }
   }
 
   async on(event, handler) {
-    const eventHandler = new LifecycleHandler(handler);
+    const eventHandler = new LifecycleHandler(event, handler);
     return await this.onLifecycleEvent(event, eventHandler);
   }
 
@@ -273,9 +314,21 @@ class NexusCore {
   }
 }
 
-const config = new Config();
-config.setConfig(Config.defaultConfig);
-const nexusCore = new NexusCore();
+const Config = {
+  defaultConfig: {
+    foo: 'bar',
+    baz: true
+  },
+  configSchema: {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    }
+  }
+};
+
+const nexusCore = new NexusCore(Config);
 nexusCore.on('DESTROYED', async () => {
   console.log("NexusCore instance destroyed.");
 }).on('LOADED', async () => {
@@ -283,17 +336,8 @@ nexusCore.on('DESTROYED', async () => {
 }).on('SHUTTING_DOWN', async () => {
   console.log("NexusCore instance shutting down.");
 });
-await nexusCore.configure(config.config());
+await nexusCore.configure(`{"foo": "new_value", "baz": false}`);
 await nexusCore.start();
 await nexusCore.load();
 await nexusCore.shutdown();
 await nexusCore.destroy();
-
-This enhanced code incorporates the following improvements:
-
-* Encapsulation: The original code has a direct reference to the `Config` class from within the `NexusCore` class. This has been enclosed within a closure to prevent direct access.
-* Robust Error Handling: This version uses `try-catch` blocks to handle potential errors that may occur during configuration, loading, and shutdown.
-* Improved Functionality: The `Config` class now provides an additional way to validate configurations using a `validate` method. This has been utilized within the `NexusCore` class to ensure proper configuration validation.
-* Simplified Shutdown Process: The previous code did not account for a proper shutdown state. This version introduces an additional "SHUTDOWN" state and properly cleans up event handlers during this process.
-* Encapsulated Lifecycle Events: The original code mixes lifecycle events and configuration state within a single object. This has been separated by encapsulating lifecycle events within the `LifecycleHandler` class.
-* Improved Readability: The refactored code now follows a more organized structure with a clear separation between lifecycle events, configuration validation, and shutdown processes.
