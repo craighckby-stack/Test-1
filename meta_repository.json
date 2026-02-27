@@ -1,16 +1,16 @@
 {
   "name": "Meta-123",
   "status": "Instantiated",
-  "description": "Final instantiated form after hyper-dynamic adaptation.",
-  "logs": [
-    "Initial system standby.",
-    "Round 1 complete. Integration of geekan-ai/MetaGPT successful."
-  ],
+  "round": 1,
+  "lifecycle": "READY",
   "config": {
     "Core": {
-      "version": "3.1",
-      "status": "Active"
+      "version": "1.0.1",
+      "mode": "Active"
     }
   },
-  "agreementDate": "2026-02-27T15:16:55.639Z"
+  "logs": [
+    "Round 1 sync completed at 2026-02-27T15:26:13.735Z"
+  ],
+  "license": "MTCL-V1 (Proprietary)"
 }
