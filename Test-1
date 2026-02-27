@@ -2,16 +2,22 @@ class Config {
   #staticConfig;
   #configSchema;
   #defaultConfig;
+  #config;
+  #configError;
 
-  constructor(values = {}) {
-    this.configure(values);
+  constructor() {
+    this.configure({});
   }
 
   configure(values) {
-    Object.freeze(values);
-    this.#validateConfig(values);
-    const defaultConfig = this.defaultConfig;
-    Object.assign(this, { ...defaultConfig, ...values });
+    try {
+      Object.freeze(values);
+      this.#validateConfig(values);
+      this.#config = { ...this.#defaultConfig, ...values };
+    } catch (error) {
+      this.#config = null;
+      this.#configError = error;
+    }
   }
 
   get staticConfig() {
@@ -42,6 +48,18 @@ class Config {
       },
       required: ['foo', 'baz', 'version', 'environment']
     };
+  }
+
+  get isConfigured() {
+    return !!this.#config;
+  }
+
+  get validationError() {
+    return this.#configError;
+  }
+
+  get config() {
+    return this.#config;
   }
 
   #validateConfig(config) {
@@ -126,16 +144,18 @@ class NexusCore {
   #config;
   #eventManager = new EventHandler();
   #lifecycle;
-  static VERSION = "1.0.0";
 
-  configure(config) {
+  configure() {
     try {
-      const configInstance = new Config(config);
-      if (configInstance.validate() === false) {
-        throw new Error('Configuration validation failed.');
-      }
-      this.#config = configInstance;
-      this.#lifecycle = new LifecycleHandler(() => 'CONFIGURED');
+      const config = new Config();
+      const configValues = process.env.CONFIGVALUES || "{}";
+      config.configure(JSON.parse(configValues));
+
+      this.#config = config;
+
+      const lifecycle = new LifecycleHandler(() => 'CONFIGURED');
+      this.#lifecycle = lifecycle;
+
       this.#eventManager.configure(() => {
         console.log("Configured...");
       });
@@ -145,22 +165,17 @@ class NexusCore {
     }
   }
 
-  load() {
-    return new Promise(resolve => {
-      console.log('Loading...');
-      setTimeout(() => {
-        console.log('Loading complete...');
-        this.#lifecycle = new LifecycleHandler(() => 'LOADED');
-        this.#eventManager.trigger('LOAD');
-        resolve();
-      }, 1000);
-    });
+  async load() {
+    console.log('Loading...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('Loading complete...');
+    this.#lifecycle.handler = 'LOADED';
+    this.#eventManager.trigger('LOAD');
   }
 
   shutdown() {
+    console.log('Shutdown initiated...');
     return new Promise(resolve => {
-      this.#lifecycle = new LifecycleHandler(() => 'SHUTTING_DOWN');
-      console.log('Shutdown initiated...');
       setTimeout(() => {
         console.log('Shutdown complete...');
         this.#status = 'SHUTDOWN';
@@ -171,14 +186,10 @@ class NexusCore {
   }
 
   start() {
+    this.#status = 'INIT';
+    this.configure();
     return new Promise(resolve => {
-      try {
-        this.#status = 'INIT';
-        this.configure({ foo: 'bar', baz: true });
-        resolve();
-      } catch (error) {
-        console.error('Initialization error:', error);
-      }
+      resolve();
     });
   }
 
@@ -188,9 +199,10 @@ class NexusCore {
   }
 
   statusChanged(event) {
-    this.#eventManager.on(event, () => {
+    const statusUpdateHandler = () => {
       console.log(`NexusCore instance is ${this.#status}.`);
-    });
+    };
+    this.#eventManager.on(event, statusUpdateHandler);
   }
 
   get status() {
@@ -201,7 +213,7 @@ class NexusCore {
     return {
       configured: this.#lifecycle.handler === 'CONFIGURED',
       loaded: this.#lifecycle.handler === 'LOADED',
-      shuttingDown: this.#lifecycle.handler === 'SHUTTING_DOWN',
+      shuttingDown: false,
       destroyed: this.#status === 'DESTROYED'
     };
   }
@@ -217,35 +229,9 @@ const nexusCore = new NexusCore();
 nexusCore.statusChanged('DESTROYED');
 nexusCore.statusChanged('CONFIGURED');
 nexusCore.statusChanged('LOAD');
-nexusCore.configure({ foo: 'bar', baz: true });
+nexusCore.configure();
 setTimeout(() => {
   nexusCore.load();
   nexusCore.shutdown();
   nexusCore.destroyLater();
 }, 2000);
-
-We have refactored the code with the following advancements:
-
-1. **Encapsulation**: 
-   - We have made all class properties non-enumerable by using the `#` symbol.
-   - The `configure` method is now used to make configuration of the class.
-   - The code is more encapsulated.
-
-2. **Lifecycle Management**: 
-   - The `configure` method now returns immediately, handling all configuration internally.
-   - The `load` and `shutdown` methods return promises that resolve when the methods complete their actions.
-   - The `start` method now returns a promise that resolves when initialization is complete.
-   - The `destroy` method is now a synchronous method.
-   - We have added `statusChanged` method to handle status event handling inside the NexusCore class.
-
-3. **Event Handling**: 
-   - We have moved all event handling code to the `EventHandler` class for better reusability and readability.
-
-4. **Promises**: 
-   - We have converted `load` and `shutdown` methods to return promises to keep promises chain intact.
-
-5. **Code organization**: 
-   - Code organization has been improved to make it easier to read and maintain.
-
-6. **Error handling**: 
-   - We have improved error handling throughout the code, catching and logging all errors that occur.
