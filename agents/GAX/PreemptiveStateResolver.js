@@ -71,23 +71,43 @@ class LifecycleHandler {
   #target;
 
   constructor(handler, target) {
-    this.#handler = handler;
+    this.#handler = handler.bind(this);
     this.#target = target;
   }
 
   execute() {
-    this.#handler.call(this.#target);
+    this.#handler();
   }
 }
 
-class NexusCore {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
+class EventManager {
+  #events;
 
-  #status = "INIT";
+  constructor() {
+    this.#events = {};
+  }
+
+  on(type, handler) {
+    if (!this.#events[type]) {
+      this.#events[type] = [];
+    }
+    this.#events[type].push(handler);
+  }
+
+  emit(type, ...args) {
+    if (this.#events[type]) {
+      this.#events[type].forEach(handler => handler(...args));
+    }
+  }
+}
+
+class Application {
+  #config = new Config();
+  #lifecycle = new EventManager();
+
+  constructor() {
+    this.#status = "INIT";
+  }
 
   get status() {
     return this.#status;
@@ -95,16 +115,11 @@ class NexusCore {
 
   set status(value) {
     this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
     if (value !== 'INIT') {
-      console.log(`NexusCore instance is ${value}.`);
+      console.log(`Application instance is ${value}.`);
       if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
+        this.#lifecycle.emit("SHUTDOWN", []);
       }
-    }
-    if (currentValue === 'INIT' && value !== 'INIT') {
-      lifecycle.configured = true;
     }
   }
 
@@ -112,25 +127,11 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  on(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler, this);
-    this.#lifecycle[event] = lifecycleHandler;
-  }
-
-  get lifecycleEvent() {
-    return {
-      CONFIGURED: "Configured",
-      LOADED: "Loaded",
-      SHUTTING_DOWN: "Shutting down",
-      SHUTDOWN: "Shutdown"
-    };
-  }
-
   configure(config) {
     this.validateConfig(config);
-    this.on("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
+    this.#config.values = config;
+    this.#lifecycle.emit("CONFIGURED", config);
+    this.#lifecyle.configured = true;
   }
 
   validateConfig(config) {
@@ -145,47 +146,69 @@ class NexusCore {
     }
   }
 
-  get onLifecycleEvent() {
-    return (type, handler) => {
-      const lifecycleEvent = new LifecycleEvent(type);
-      lifecycleEvent.event = hander;
-      this.on(type, lifecycleEvent);
-    };
-  }
-  performLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].execute();
-    }
-  }
-
-  async load() {
-    try {
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.performLifecycleEvent("LOADED");
-    } catch (e) {
-      throw e;
-    }
+  load() {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        console.log("Loading complete...");
+        this.#lifecycle.emit("LOADED");
+        resolve();
+      }, 1000);
+    });
   }
 
   async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.performLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
+    if (!this.#lifecycle.configured) {
+      throw new Error("Application is not configured");
+    }
+    console.log("Shutdown initiated...");
+    this.#lifecycle.emit("SHUTTING_DOWN");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log("Shutdown complete...");
+    this.status = "SHUTDOWN";
+  }
+}
+
+class NexusCore {
+  #application;
+
+  constructor() {
+    this.#application = new Application();
+    this.#lifecycle = new EventManager();
+    this.#status = "INIT";
+  }
+
+  get application() {
+    return this.#application;
+  }
+
+  get lifecycle() {
+    return this.#lifecycle;
+  }
+
+  get status() {
+    return this.#status;
+  }
+
+  set status(value) {
+    this.#status = value;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        this.#lifecycle.emit("SHUTDOWN", []);
       }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-      throw e;
     }
   }
 
-  async start() {
+  start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        this[methodName]();
+      }
+    }
+  }
+
+  async startup() {
     const startMethodOrder = ["configure", "load", "shutdown"];
     for (const methodName of startMethodOrder) {
       if (this[methodName] instanceof Function) {
@@ -194,24 +217,19 @@ class NexusCore {
     }
   }
 
-  async destroy() {
+  destroy() {
     this.status = "DESTROYED";
-    this.#lifecycle = {
-      configured: false,
-      loaded: false,
-      shuttingDown: false
-    };
+    this.#application = null;
   }
 }
 
 const nexusCore = new NexusCore();
-nexusCore.on("DESTROYED", () => {
-  console.log("NexusCore instance destroyed.");
+nexusCore.application.on("DESTROYED", () => {
+  console.log("Application instance destroyed.");
 });
-nexusCore.configure(Config.defaultConfig);
 nexusCore.start();
-nexusCore.load();
-nexusCore.shutdown();
+nexusCore.application.configure(Config.defaultConfig);
+nexusCore.startup();
+nexusCore.application.load();
+nexusCore.application.shutdown();
 nexusCore.destroy();
-
-This enhanced code improves on the existing functionality while better implementing best practices such as encapsulation and more elegant event handling. The code structure and organization have been improved to make it cleaner and more manageable, with private properties used to prevent unnecessary modifications.
