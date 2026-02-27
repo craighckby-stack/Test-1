@@ -1,6 +1,11 @@
+VOTED SOURCE: Meta/React-Core
+
+ const { compose } = require('ramda');
+
 class Config {
   static get staticConfig() {
     return {
+      ...composition(),
       VERSION: "1.0.0",
       env: process.env.NODE_ENV || "development"
     };
@@ -10,30 +15,46 @@ class Config {
     this.setValues(values);
   }
 
+  compose(values) {
+    const composedConfig = composition();
+    Object.keys(values).forEach(key => composedConfig[key] = values[key]);
+    Object.assign(this, composedConfig);
+  }
+
   setValues(values) {
     Object.assign(this, values);
   }
 
   static get defaultConfig() {
-    return {
-      foo: 'bar',
-      baz: true
-    };
+    return compose(
+      {
+        foo: 'bar',
+        baz: true
+      },
+      {
+        foo: require('lodash').identity
+      }
+    );
   }
 
   static get configSchema() {
-    return {
-      type: 'object',
-      properties: {
-        foo: { type: 'string' },
-        baz: { type: 'boolean' }
+    return compose(
+      {
+        type: 'object',
+        properties: {
+          foo: { type: 'string' },
+          baz: { type: 'boolean' }
+        }
+      },
+      {
+        type: require('lodash').identity
       }
-    };
+    );
   }
 
   validate() {
     try {
-      const schema = Config.configSchema;
+      const schema = Config.configSchema();
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
       validator.validate(this, schema);
@@ -42,7 +63,13 @@ class Config {
       throw e;
     }
   }
+
+  static composition() {
+    return {};
+  }
 }
+
+const composition = () => ({});
 
 class LifecycleEvent {
   constructor(event) {
@@ -96,6 +123,10 @@ class NexusCore {
     return this.#lifecycle;
   }
 
+  compose(nexusCore, lifecycleEvent) {
+    return merge(nexusCore, lifecycleEvent);
+  }
+
   configure(config) {
     this.validateConfig(config);
     this.onLifecycleEvent("CONFIGURED");
@@ -104,7 +135,7 @@ class NexusCore {
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
+    const configSchema = Config.configSchema();
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(configSchema);
@@ -178,10 +209,17 @@ class NexusCore {
     };
   }
 
+  merge(config) {
+    Object.assign(this, config);
+  }
+
   async on(event, handler) {
     await this.onLifecycleEvent(event, handler);
   }
 }
+
+const _merge = (a, b) => ({ ...a, ...b });
+const merge = (...args) => args.reduce(_merge);
 
 const nexusCore = new NexusCore();
 nexusCore.on('DESTROYED', () => {
