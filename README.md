@@ -37,11 +37,11 @@ class Config {
   }
 
   async validate() {
+    const schema = Config.configSchema;
     try {
-      const schema = Config.configSchema;
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
-      validator.validate(await this.getValues(), schema);
+      await validator.validate(await this.getValues(), schema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -107,15 +107,17 @@ class LifecycleHandler {
 }
 
 class NexusCore {
-  #lifecycle = {
-    configured: new Set(),
-    loaded: new Set(),
-    shuttingDown: new Set()
-  };
+  constructor() {
+    this.#lifecycle = {
+      configured: new Set(),
+      loaded: new Set(),
+      shuttingDown: new Set()
+    };
 
-  #status = "INIT";
-  #config = Config.defaultConfig;
-  #configLoading = false;
+    this.#status = "INIT";
+    this.#config = Config.defaultConfig;
+    this.#configLoading = false;
+  }
 
   get status() {
     return this.#status;
@@ -160,9 +162,9 @@ class NexusCore {
 
   async configure(Lifecycle, handlers) {
     console.log("Configure initiated...");
-    for (const handler of this.#lifecycle.configured) {
+    for (const handler of Array.from(this.#lifecycle.configured)) {
       const lifecycleEvent = new LifecycleEvent('CONFIGURED');
-      handlers[lifecycleEvent.event].bind(this).execute();
+      handler.bind(handlers).execute();
     }
     console.log("Configure complete...");
   }
@@ -184,7 +186,7 @@ class NexusCore {
     if (!this.#lifecycle.shuttingDown.has('SHUTTING_DOWN')) {
       const lifecycleEvent = new LifecycleEvent('SHUTTING_DOWN');
       this.#lifecycle.shuttingDown.add('SHUTTING_DOWN');
-      handlers[lifecycleEvent.event].bind(this).execute();
+      await handlers[lifecycleEvent.event].bind(this).execute();
       console.log("Shutdown complete...");
       this.status = "SHUTDOWN";
     }
@@ -202,13 +204,13 @@ class NexusCore {
   async executeLifecycleEvent(event, Lifecycle) {
     if (this.#lifecycle[event]) {
       const lifecycleEvent = new LifecycleEvent(event);
-      this.#lifecycle[event].add(lifecycleEvent);
-      await lifecycleEvent.bind(this).execute();
+      this.#lifecycle[event].add(lifecycleEvent.handler);
+      await lifecycleEvent.handler.bind(this).execute();
       delete this.#lifecycle[event];
     }
     this.#lifecycle.shuttingDown.add(event);
     if (Lifecycle) {
-      Lifecycle.set(event, new Set(this.#lifecycle[event]));
+      Lifecycle.set(event, this.#lifecycle[event]);
     }
   }
 
@@ -243,7 +245,7 @@ class System {
 
   static async start(nexusCore, Lifecycle, handlers) {
     System.nexusCore = nexusCore;
-    config = await nexusCore.validateConfig(Config.defaultConfig);
+    const config = await nexusCore.validateConfig(Config.defaultConfig);
     await nexusCore.configure(Lifecycle, handlers).then(() => {
       return nexusCore.load(Lifecycle, handlers);
     });
@@ -268,11 +270,3 @@ nexusCore.config = { foo: 'value' };
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-This code introduces several improvements to the previous version:
-
-*   The `Config` class now uses private static properties for its scalars and object, and the class methods `getProperty` and `setProperty` are used to access and modify the map properties securely.
-*   The `NexusCore` class now uses Sets to manage lifecycle event handlers, which enables easier tracking and execution of events.
-*   The `configure` method in `NexusCore` now executes handlers in the order they are added.
-*   The `start` method in `System` has been updated to return the promise of `configure` after `nexusCore` has been assigned an instance.
-*   The `nexusCore` property is now set when the `start` method is called.
