@@ -45,12 +45,26 @@ class LifecycleEvent {
 }
 
 class LifecycleHandler {
-  constructor(handler) {
-    this.handler = handler;
+  constructor(events) {
+    this.events = events;
   }
 
   bind(target = this) {
-    this.handler = this.handler.bind(target);
+    this.events.forEach((event) => {
+      event.bind(target);
+    });
+  }
+
+  execute() {
+    this.events.forEach((event) => {
+      event.execute();
+    });
+  }
+}
+
+class BaseLifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
   }
 
   execute() {
@@ -65,7 +79,9 @@ class NexusCore {
     shuttingDown: false
   };
 
-  #status = "INIT";
+  get lifecycle() {
+    return this.#lifecycle;
+  }
 
   get status() {
     return this.#status;
@@ -86,42 +102,47 @@ class NexusCore {
     }
   }
 
-  get lifecycle() {
-    return this.#lifecycle;
-  }
-
   constructor() {
-    this.on("DESTROYED", () => {
+    this.on("DESTROYED", new BaseLifecycleHandler(() => {
       console.log("NexusCore instance destroyed.");
-    });
+    }));
   }
 
   async configure(config = Config.defaultConfig) {
-    await this.validateConfig(config);
+    try {
+      await this.validateConfig(config);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
     await this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
     this.config = config;
   }
 
   async validateConfig(config) {
-    try {
-      const validator = new (require('jsonschema').Validator)();
-      const schema = Config.configSchema;
-      validator.checkSchema(schema);
-      validator.validate(config, schema);
-    } catch (e) {
-      console.error('Config validation error:', e);
-      throw e;
-    }
+    const schema = Config.configSchema;
+    const validator = new (require('jsonschema').Validator)();
+    validator.checkSchema(schema);
+    validator.validate(config, schema);
   }
 
   onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
+    const lifecycleHandler = new LifecycleHandler([new LifecycleEvent(event), handler]);
     return lifecycleHandler;
   }
 
-  on(event, handler) {
-    const lifecycleHandler = this.onLifecycleEvent(event, handler);
+  on(event, handlerOrInitialStatus) {
+    const lifecycleHandler = this.onLifecycleEvent(event, (target) => {
+      if (target.status === 'INIT') {
+        if (event === 'DESTROYED') this.status = 'DESTROYED';
+        else
+          console.warn('Lifecycle event for event "${event}" skipped because the NexusCore instance is already ${this.status}');
+      } else {
+        handlerOrInitialStatus.target = target;
+        handlerOrInitialStatus(config = target.config, status = target.#status)();
+      }
+    });
     this.#lifecycle[event] = lifecycleHandler;
   }
 
@@ -182,13 +203,3 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-I made the following enhancements to your code:
-
-- Moved the default config and schema into `Config.staticConfig`.
-- Modified `Config` constructor to accept an optional object and set values on the instance.
-- Modified `NexusCore` constructor to bind the lifecycle event for the `DESTROYED` event. This makes it unnecessary to call `nexusCore.on('DESTROYED', () => {...})` when creating the instance.
-- Updated `configure` method to accept an optional config object. By default, it will use `Config.defaultConfig`.
-- Modified `validateConfig` method to validate against `Config.configSchema`.
-- Improved code structure and formatting for readability.
