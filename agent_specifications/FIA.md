@@ -1,40 +1,32 @@
 class Config {
-  #staticConfig = {
-    VERSION: "1.0.0",
-    env: process.env.NODE_ENV || "development"
-  };
+  #staticConfig;
+  #defaultConfig;
+  #configSchema;
 
-  #defaultConfig = {
-    foo: 'bar',
-    baz: true
-  };
+  constructor() {
+    this.#configSchema = {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
 
-  #configSchema = {
-    type: 'object',
-    properties: {
-      foo: { type: 'string' },
-      baz: { type: 'boolean' }
-    }
-  };
+  static get instance() {
+    return new Config();
+  }
 
-  constructor(values = {}) {
-    this.setValues(values);
+  static getDefaultConfig() {
+    return Config.instance.createConfig(Config.instance.#defaultConfig);
+  }
+
+  createConfig(values) {
+    return new Config(values);
   }
 
   setValues(values) {
     Object.assign(this, values);
-  }
-
-  static get config() {
-    return new Config();
-  }
-
-  static get defaultConfig() {
-    return new Config(this.#defaultConfig);
-  }
-
-  static get configSchema() {
-    return this.#configSchema;
   }
 
   validate() {
@@ -51,6 +43,7 @@ class Config {
 
 class LifecycleEvent {
   #event;
+
   constructor(event) {
     this.#event = event;
   }
@@ -82,12 +75,7 @@ class LifecycleHandler extends LifecycleEvent {
 }
 
 class LifecycleManager {
-  #lifecycle = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
+  #lifecycle;
   #status = "INIT";
 
   get status() {
@@ -120,7 +108,7 @@ class LifecycleManager {
   }
 
   validateConfig(config) {
-    const configSchema = Config.configSchema;
+    const configSchema = Config.instance.#configSchema;
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(configSchema);
@@ -150,33 +138,29 @@ class LifecycleManager {
 }
 
 class NexuxCore extends LifecycleManager {
-  #lifecycle = {};
+  #lifecycle;
 
-  async load() {
-    try {
-      await this.runLifecycleEvent("CONFIGURED");
-      console.log("Loading...");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("Loading complete...");
-      this.#lifecycle.loaded = true;
-      this.runLifecycleEvent("LOADED");
-    } catch (e) {
-      console.error('Load error:', e);
-    }
+  constructor() {
+    super();
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
   }
 
-  async shutdown() {
-    try {
-      if (!this.#lifecycle.shuttingDown) {
-        console.log("Shutdown initiated...");
-        this.#lifecycle.shuttingDown = true;
-        this.runLifecycleEvent("SHUTTING_DOWN");
-        console.log("Shutdown complete...");
-        this.status = "SHUTDOWN";
-      }
-    } catch (e) {
-      console.error("Shutdown error:", e);
-    }
+  #init() {
+    this.on("DESTROYED", () => {
+      console.log("NexusCore instance destroyed.");
+    });
+  }
+
+  createConfig(values) {
+    return Config.instance.createConfig(values);
+  }
+
+  async configure(config) {
+    super.configure(this.createConfig(config));
   }
 
   async start() {
@@ -188,43 +172,37 @@ class NexuxCore extends LifecycleManager {
     }
   }
 
+  async load() {
+    try {
+      await super.load();
+    } catch (e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  async shutdown() {
+    try {
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        await super.runLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
+      }
+    } catch (e) {
+      console.error("Shutdown error:", e);
+    }
+  }
+
   async destroy() {
     this.status = "DESTROYED";
-    Object.values(this.#lifecycle).forEach(handler => handler.destroy());
-    this.#lifecycle = {};
+    super.destroy();
   }
 }
 
 const nexusCore = new NexuxCore();
-nexusCore.on('DESTROYED', () => {
-  console.log("NexusCore instance destroyed.");
-});
-nexusCore.configure(Config.defaultConfig);
+nexusCore.configure(Config.getDefaultConfig());
 nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-
-Improvements made:
-
-1. Enforced encapsulation:
-   - Properties are now private, hence you can only access them through methods.
-   - Static methods are defined to create instances of Config config.
-
-2. Used class components to make the structure more organized.
-
-3. Removed duplicate code.
-
-4. Improved naming conventions.
-
-5. Used `super` to inherit properties from base class.
-
-6. Improved lifecycle management:
-   - Added `LifecycleHandler` class to handle events.
-   - Added `LifecycleManager` class to provide lifecycle management.
-
-7. Ensured shutdown is only initiated once.
-8. Ensured handlers are destroyed when the object is destroyed.
-
-This code should be more robust, maintainable and scalable. The structure follows best practices such as the single responsibility principle, open-closed principle, and the Don't Repeat Yourself (DRY) principle.
