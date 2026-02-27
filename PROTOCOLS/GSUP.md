@@ -22,33 +22,28 @@ class Config {
   }
 
   get defaultConfig() {
-    return this.#defaultConfig;
+    return { ...this.#defaultConfig };
   }
 
   get configSchema() {
     return this.#configSchema;
   }
 
-  constructor(values = {}) {
-    this.#values = this.#defaultConfig;
-    this.setValues(values);
+  constructor() {
+    this.values = { ...this.defaultConfig };
   }
 
   setValues(values) {
-    this.#values = this.#defaultConfig;
-    Object.assign(this.#values, values);
+    this.values = { ...this.defaultConfig, ...values };
   }
 
-  get values() {
-    return this.#values;
-  }
-
-  validate() {
+  async validate() {
     try {
       const schema = this.configSchema;
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(schema);
       validator.validate(this.values, schema);
+      return true;
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -84,7 +79,7 @@ class NexusCore {
     shuttingDown: false
   };
   #config;
-  #eventHandlers = {};
+  #eventHandlers = new WeakMap();
 
   get status() {
     return this.#status;
@@ -110,7 +105,7 @@ class NexusCore {
   }
 
   async configure(config) {
-    this.validateConfig(config);
+    await this.validateConfig(config);
     this.onLifecycleEvent("CONFIGURED");
     this.#lifecycle.configured = true;
     this.config = config;
@@ -129,20 +124,9 @@ class NexusCore {
     }
   }
 
-  async onLifecycleEvent(event, handler) {
-    if (!this.#eventHandlers[event]) {
-      this.#eventHandlers[event] = [];
-    }
-    const lifecycleHandler = new LifecycleHandler(handler);
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
-    this.#eventHandlers[event].push(lifecycleHandler);
-  }
-
   on(event, handler) {
     return (async () => {
-      await this.onLifecycleEvent(event, handler);
+      return this.onLifecycleEvent(event, handler);
     })();
   }
 
@@ -152,12 +136,27 @@ class NexusCore {
     }
   }
 
+  async onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    if (this.#eventHandlers.has(event)) {
+      const existingHandlers = this.#eventHandlers.get(event);
+      existingHandlers.push(lifecycleHandler);
+      this.#eventHandlers.set(event, existingHandlers);
+    } else {
+      this.#eventHandlers.set(event, [lifecycleHandler]);
+    }
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+    this.executeLifecycleEvent(event);
+  }
+
   async executeLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
       this.#lifecycle[event].bind(this).execute();
     }
-    if (this.#eventHandlers[event]) {
-      for (const lifecycleHandler of this.#eventHandlers[event]) {
+    if (this.#eventHandlers.has(event)) {
+      for (const lifecycleHandler of this.#eventHandlers.get(event)) {
         lifecycleHandler.bind(this).execute(this);
       }
     }
@@ -222,15 +221,3 @@ nexusCore.start();
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
-
-Changes made:
-
-* Made `Config` class variables private by using the `#` symbol.
-* Made `Config.validate()` return a promise.
-* Removed `Config` class constructor arguments.
-* Removed `Config.get defaultConfig()` method and instead stored the default configuration directly on the object.
-* Used a weak map to store event handlers in `NexusCore`.
-* Called `configure` method with `await this.executeLifecycleEvent("CONFIGURED")`.
-* Made `onLifecycleEvent` method handle both existing lifecycle methods and new event handlers.
-* Made `on` method return a promise.
-* Made `executeLifecycleEvent` method handle both existing lifecycle methods and new event handlers.
