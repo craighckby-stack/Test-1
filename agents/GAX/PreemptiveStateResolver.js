@@ -1,4 +1,6 @@
 class Config {
+  #values;
+
   static get staticConfig() {
     return {
       VERSION: "1.0.0",
@@ -7,7 +9,7 @@ class Config {
   }
 
   constructor(values = {}) {
-    this.setValues(values);
+    this.#values = { ...Config.defaultConfig, ...values };
   }
 
   setValues(values) {
@@ -49,19 +51,32 @@ class Config {
 }
 
 class LifecycleEvent {
+  #event;
+
   constructor(event) {
-    this.event = event;
+    this.#event = event;
+  }
+
+  get event() {
+    return this.#event;
+  }
+
+  set event(value) {
+    this.#event = value;
   }
 }
 
 class LifecycleHandler {
+  #handler;
+  #target;
+
   constructor(handler, target) {
-    this.handler = handler;
-    this.target = target;
+    this.#handler = handler;
+    this.#target = target;
   }
 
   execute() {
-    this.handler.call(this.target);
+    this.#handler.call(this.#target);
   }
 }
 
@@ -102,6 +117,15 @@ class NexusCore {
     this.#lifecycle[event] = lifecycleHandler;
   }
 
+  get lifecycleEvent() {
+    return {
+      CONFIGURED: "Configured",
+      LOADED: "Loaded",
+      SHUTTING_DOWN: "Shutting down",
+      SHUTDOWN: "Shutdown"
+    };
+  }
+
   configure(config) {
     this.validateConfig(config);
     this.on("CONFIGURED");
@@ -122,25 +146,27 @@ class NexusCore {
   }
 
   get onLifecycleEvent() {
-    return (type, handler) => this.on(type, handler);
+    return (type, handler) => {
+      const lifecycleEvent = new LifecycleEvent(type);
+      lifecycleEvent.event = hander;
+      this.on(type, lifecycleEvent);
+    };
   }
-
-  executeLifecycleEvent(event) {
+  performLifecycleEvent(event) {
     if (this.#lifecycle[event]) {
       this.#lifecycle[event].execute();
     }
   }
 
   async load() {
-    await this.executeLifecycleEvent("CONFIGURED");
     try {
       console.log("Loading...");
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log("Loading complete...");
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent("LOADED");
+      this.performLifecycleEvent("LOADED");
     } catch (e) {
-      console.error('Load error:', e);
+      throw e;
     }
   }
 
@@ -149,12 +175,13 @@ class NexusCore {
       if (!this.#lifecycle.shuttingDown) {
         console.log("Shutdown initiated...");
         this.#lifecycle.shuttingDown = true;
-        this.executeLifecycleEvent("SHUTTING_DOWN");
+        this.performLifecycleEvent("SHUTTING_DOWN");
         console.log("Shutdown complete...");
         this.status = "SHUTDOWN";
       }
     } catch (e) {
       console.error("Shutdown error:", e);
+      throw e;
     }
   }
 
@@ -187,10 +214,4 @@ nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
 
-
-Here's the explanation of the code changes: 
-
-*   I used private properties with the `#` symbol for encapsulation in the `Config` class to mimic the private encapsulation provided by Classes in JavaScript (for Classes).
-*   In the `LifecycleHandler` class, the target of the handler is set when the class is instantiated, as required by the `this.handler.call(this.target)` line.
-*   In the `NexusCore` class, I got rid of the `get on` method to make the code cleaner by using the `on` instance property directly and made the lifecycle event handling cleaner, which is required by the advanced NexusCore patterns. I utilized private encapsulation with the `#lifecycle` and `#status` properties.
-*   Finally, no other code changes were necessary, and the existing behavior remains the same. This new code version is easier to read and use in real-world scenarios, making it more production-ready.
+This enhanced code improves on the existing functionality while better implementing best practices such as encapsulation and more elegant event handling. The code structure and organization have been improved to make it cleaner and more manageable, with private properties used to prevent unnecessary modifications.
