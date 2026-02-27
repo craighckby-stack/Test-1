@@ -1,375 +1,194 @@
-// NEXUS_CORE v1.0
-
-/**
- * @typedef {'INIT'|'CONFIGURED'|'LOADING'|'READY'|'ERROR'|'SHUTDOWN'} NexusCoreStatus
- * Represents the distinct operational states of the NEXUS_CORE.
- * This enum-like type promotes clear, controlled state transitions,
- * a common pattern in robust research systems for managing complex lifecycles,
- * mirroring how Genkit components transition through setup and runtime phases.
- */
-
-/**
- * @typedef {object} ILifecycleComponent
- * An interface for components that can be managed by NexusCore.
- * Inspired by Genkit's approach to integrating various components (models, tools),
- * where components often have distinct setup and teardown phases.
- * @property {() => Promise<void>} [load] - An optional asynchronous method to load/initialize the component.
- * @property {() => Promise<void>} [shutdown] - An optional asynchronous method to shut down/clean up the component.
- */
-
-/**
- * @typedef {object} NexusCoreOptions
- * Configuration options for the NexusCore, akin to `configureGenkit`'s options object.
- * This centralizes initial setup and allows for dynamic provisioning of sub-components.
- * @property {Array<{name: string, component: ILifecycleComponent}>} [components] - An array of initial components to register with the core.
- * @property {boolean} [verbose] - If true, enables more detailed logging for debugging. Defaults to false.
- * @property {number} [loadDelayMs] - Simulated delay for the core's own loading process, in milliseconds. Defaults to 500.
- * @property {number} [shutdownDelayMs] - Simulated delay for the core's own shutdown process, in milliseconds. Defaults to 200.
- */
-
-/**
- * The NexusCore class encapsulates the central metadata, status, and lifecycle management
- * for the NEXUS_CORE system. It exemplifies patterns common in large-scale research software
- * for managing core components, with improvements inspired by `firebase/genkit`:
- *
- * - **Encapsulation:** Private fields and public getters ensure controlled access to internal state.
- * - **Immutability:** Version and name are static constants, reflecting a stable core identity.
- * - **Controlled State Transitions:** A dedicated method (`transitionStatus`) manages state changes.
- * - **Lifecycle Management:** Methods like `configure`, `load`, and `shutdown` outline explicit phases.
- *   `configure` provides a declarative setup phase similar to `configureGenkit`.
- * - **Component Orchestration:** The core can register and manage lifecycle of sub-components (`ILifecycleComponent`),
- *   allowing for a modular and extensible architecture, much like Genkit manages models and plugins.
- * - **Observability:** Enhanced internal logging (with a `verbose` option) provides insights into state changes and operations.
- *
- * Exporting a singleton instance ensures a single, globally consistent view of the core system.
- */
-class NexusCore {
-  /**
-   * The immutable semantic version of the NEXUS_CORE module.
-   * @type {string}
-   * @readonly
-   */
-  static VERSION = "1.0.0";
-
-  /**
-   * The immutable symbolic name of the core system.
-   * @type {string}
-   * @readonly
-   */
-  static NAME = "NEXUS_CORE";
-
-  /**
-   * The current operational status of the core.
-   * @type {NexusCoreStatus}
-   */
-  #status;
-
-  /**
-   * Timestamp when this core instance was initialized.
-   * @type {Date}
-   */
-  #initializedAt;
-
-  /**
-   * Configuration options for the core instance.
-   * @type {NexusCoreOptions}
-   */
-  #options;
-
-  /**
-   * A map to store registered components.
-   * @type {Map<string, ILifecycleComponent>}
-   */
-  #components;
-
-  /**
-   * Flag to ensure `configure` is called only once.
-   * @type {boolean}
-   */
-  #isConfigured = false;
-
-  /**
-   * Creates an instance of NexusCore.
-   * Initializes the core with an 'INIT' status and records the initialization time.
-   * Configuration is deferred to the `configure` method.
-   */
-  constructor() {
-    this.#status = 'INIT';
-    this.#initializedAt = new Date();
-    this.#components = new Map();
-    this.#options = { verbose: false, loadDelayMs: 500, shutdownDelayMs: 200 }; // Default options
-    this.#log(`Initialized at ${this.#initializedAt.toISOString()} with status: ${this.#status}`);
+class Config {
+  static get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
   }
 
-  /**
-   * Internal logging utility that respects the verbose option.
-   * @param {string} message - The message to log.
-   * @param {'log'|'warn'|'error'|'info'|'debug'} [level='log'] - The console method to use.
-   * @param {...any} args - Additional arguments to pass to the console method.
-   */
-  #log(message, level = 'log', ...args) {
-    if (this.#options.verbose || level === 'error' || level === 'warn') {
-      console[level](`[${NexusCore.NAME} v${NexusCore.VERSION}] [${this.status}] ${message}`, ...args);
+  constructor(values = {}) {
+    this.setValues(values);
+  }
+
+  setValues(values) {
+    Object.assign(this, values);
+  }
+
+  static get defaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
+  }
+
+  static get configSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      }
+    };
+  }
+
+  validate() {
+    try {
+      const schema = Config.configSchema;
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(schema);
+      validator.validate(this, schema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
     }
   }
+}
 
-  /**
-   * Retrieves the current operational status of the core.
-   * @returns {NexusCoreStatus}
-   */
+class LifecycleEvent {
+  constructor(event) {
+    this.event = event;
+  }
+}
+
+class LifecycleHandler {
+  constructor(handler) {
+    this.handler = handler;
+  }
+
+  bind(target = this) {
+    this.handler = this.handler.bind(target);
+  }
+
+  execute() {
+    this.handler();
+  }
+}
+
+class NexusCore {
+  #lifecycle = {
+    configured: false,
+    loaded: false,
+    shuttingDown: false
+  };
+
+  #status = "INIT";
+
   get status() {
     return this.#status;
   }
 
-  /**
-   * Retrieves the version of the core.
-   * @returns {string}
-   */
-  get version() {
-    return NexusCore.VERSION;
-  }
-
-  /**
-   * Retrieves the name of the core.
-   * @returns {string}
-   */
-  get name() {
-    return NexusCore.NAME;
-  }
-
-  /**
-   * Retrieves the timestamp when the core was initialized.
-   * @returns {Date}
-   */
-  get initializedAt() {
-    return this.#initializedAt;
-  }
-
-  /**
-   * Configures the NexusCore system. This method is analogous to `configureGenkit`,
-   * allowing for declarative setup of core parameters and initial components.
-   * Can only be called once.
-   * @param {NexusCoreOptions} options - Configuration options for the core.
-   * @param {string} metaType - The meta-type of the component.
-   * @param {object} config - Additional configuration for the component.
-   * @returns {void}
-   * @throws {Error} If called when the core is not in 'INIT' status or already configured.
-   */
-  async configure(options, metaType, config) {
-    if (this.#status !== 'INIT') {
-      throw new Error(`[${this.name}] Cannot configure core from status: '${this.#status}'. Must be 'INIT'.`);
-    }
-    if (this.#isConfigured) {
-      this.#log("Core is already configured. Ignoring subsequent `configure` call.", 'warn');
-      return;
-    }
-
-    this.#log("Configuring core system...", 'info');
-    this.#options = { ...this.#options, ...options };
-    this.#isConfigured = true;
-
-    if (this.#options.components) {
-      for (const { name, component } of this.#options.components) {
-        await this.registerComponent(name, component, metaType, config);
+  set status(value) {
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
+    if (value !== 'INIT') {
+      console.log(`NexusCore instance is ${value}.`);
+      if (value === 'SHUTDOWN') {
+        lifecycle.shuttingDown = false;
       }
     }
-    this.transitionStatus('CONFIGURED');
-    this.#log("Core system configured successfully.", 'info');
+    if (currentValue === 'INIT' && value !== 'INIT') {
+      lifecycle.configured = true;
+    }
   }
 
-  /**
-   * Registers a component with the NexusCore. This enables the core to manage
-   * the lifecycle (load/shutdown) of modular sub-systems.
-   * @param {string} name - A unique name for the component.
-   * @param {ILifecycleComponent} component - The component instance to register.
-   * @returns {Promise<void>}
-   * @throws {Error} If a component with the same name is already registered.
-   */
-  async registerComponent(name, component, metaType, config) {
-    if (this.#components.has(name)) {
-      throw new Error(`[${this.name}] Component '${name}' is already registered.`);
-    }
-    if (typeof component !== 'object' || component === null) {
-      throw new Error(`[${this.name}] Registered component '${name}' must be an object.`);
-    }
-    this.#components.set(name, { component, metaType, config });
-    this.#log(`Registered component: '${name}'.`);
+  get lifecycle() {
+    return this.#lifecycle;
   }
 
-  /**
-   * Transitions the core to a new operational status.
-   * @param {NexusCoreStatus} newStatus - The target status to transition to.
-   * @returns {void}
-   * @throws {Error} For invalid state transitions (e.g., trying to LOAD when already READY).
-   */
-  async transitionStatus(newStatus) {
-    // Simulate asynchronous operation
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    if (this.#status === newStatus) {
-      this.#log(`Attempted to transition to current status: '${newStatus}'. No change.`, 'warn');
-      return;
-    }
-
-    // Basic state transition validation (can be expanded)
-    switch (this.#status) {
-      case 'INIT':
-        if (!['CONFIGURED'].includes(newStatus)) { // INIT -> CONFIGURED is the first step
-          throw new Error(`[${this.name}] Invalid state transition: Cannot go from '${this.#status}' to '${newStatus}'. Call 'configure' first.`);
-        }
-        break;
-      case 'CONFIGURED':
-        if (!['LOADING', 'ERROR', 'SHUTDOWN'].includes(newStatus)) {
-          throw new Error(`[${this.name}] Invalid state transition: Cannot go from '${this.#status}' to '${newStatus}'.`);
-        }
-        break;
-      case 'LOADING':
-        if (!['READY', 'ERROR', 'SHUTDOWN'].includes(newStatus)) {
-          throw new Error(`[${this.name}] Invalid state transition: Cannot go from '${this.#status}' to '${newStatus}'.`);
-        }
-        break;
-      case 'READY':
-        if (!['SHUTDOWN', 'ERROR'].includes(newStatus)) {
-          throw new Error(`[${this.name}] Invalid state transition: Cannot go from '${this.#status}' to '${newStatus}'.`);
-        }
-        break;
-      case 'ERROR':
-        if (!['LOADING', 'SHUTDOWN'].includes(newStatus)) { // Allow re-attempting load after error
-          throw new Error(`[${this.name}] Invalid state transition: Cannot go from '${this.#status}' to '${newStatus}'.`);
-        }
-        break;
-      case 'SHUTDOWN':
-        this.#log(`Core is shut down. No further transitions possible.`, 'warn');
-        return;
-    }
-
-    this.#log(`Status changing from '${this.#status}' to '${newStatus}'.`);
-    this.#status = newStatus;
+  configure(config) {
+    this.validateConfig(config);
+    this.onLifecycleEvent("CONFIGURED");
+    this.#lifecycle.configured = true;
+    this.config = config;
   }
 
-  /**
-   * Asynchronously loads core functionalities and transitions the system to a 'READY' state.
-   * This method orchestrates the loading of the core itself and all registered components.
-   * @returns {Promise<void>} A promise that resolves when loading is complete, or rejects on error.
-   */
+  validateConfig(config) {
+    const configSchema = Config.configSchema;
+    try {
+      const validator = new (require('jsonschema').Validator)();
+      validator.checkSchema(configSchema);
+      validator.validate(config, configSchema);
+    } catch (e) {
+      console.error('Config validation error:', e);
+      throw e;
+    }
+  }
+
+  onLifecycleEvent(event, handler) {
+    const lifecycleHandler = new LifecycleHandler(handler);
+    this.#lifecycle[event] = lifecycleHandler;
+  }
+
+  get on() {
+    return (event, handler) => {
+      const lifecycleEvent = new LifecycleEvent(event);
+      this.onLifecycleEvent(event, handler);
+    };
+  }
+
+  executeLifecycleEvent(event) {
+    if (this.#lifecycle[event]) {
+      this.#lifecycle[event].bind(this).execute();
+    }
+  }
+
   async load() {
-    if (this.#status !== 'CONFIGURED' && this.#status !== 'ERROR') {
-      this.#log(`Cannot load core from current status: '${this.#status}'. Must be 'CONFIGURED' or 'ERROR'.`, 'warn');
-      return;
-    }
-    if (!this.#isConfigured) {
-      throw new Error(`[${this.name}] Core must be configured before loading. Call 'configure()' first.`);
-    }
-
-    await this.transitionStatus('LOADING');
+    await this.executeLifecycleEvent("CONFIGURED");
     try {
-      this.#log(`Loading core functionalities...`);
-      // Simulate core's own asynchronous setup
-      await new Promise(resolve => setTimeout(resolve, this.#options.loadDelayMs));
-
-      // Load registered components
-      for (const [name, { component }] of this.#components.entries()) {
-        if (typeof component.load === 'function') {
-          this.#log(`Loading component: '${name}'...`);
-          await component.load();
-          this.#log(`Component '${name}' loaded.`);
-        }
-      }
-
-      this.#log(`Core functionalities successfully loaded.`);
-      await this.transitionStatus('READY');
-    } catch (error) {
-      this.#log(`Critical error during core loading:`, 'error', error);
-      await this.transitionStatus('ERROR');
-      throw error; // Propagate the error for upstream handling.
+      console.log("Loading...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Loading complete...");
+      this.#lifecycle.loaded = true;
+      this.executeLifecycleEvent("LOADED");
+    } catch (e) {
+      console.error('Load error:', e);
     }
   }
 
-  /**
-   * Initiates a graceful shutdown of the core system.
-   * This method orchestrates the shutdown of the core itself and all registered components.
-   * @returns {Promise<void>} A promise that resolves when shutdown is complete.
-   */
   async shutdown() {
-    if (this.#status === 'SHUTDOWN') {
-      this.#log(`Core is already shut down.`, 'warn');
-      return;
-    }
-    if (this.#status === 'INIT') {
-      this.#log(`Core was never loaded, skipping full shutdown sequence.`, 'warn');
-      this.#log('Core system already shut down.');
-      return;
-    }
-
-    await this.transitionStatus('SHUTDOWN');
-    this.#log(`Initiating core system shutdown...`);
     try {
-      // Shutdown registered components in reverse order of registration (optional, but good practice for dependency cleanup)
-      const componentEntries = Array.from(this.#components.entries()).reverse();
-      for (const [name, { component, metaType, config }] of componentEntries) {
-        if (typeof component.shutdown === 'function') {
-          this.#log(`Shutting down component: '${name}'...`);
-          await component.shutdown(config);
-          this.#log(`Component '${name}' shut down.`);
-        }
+      if (!this.#lifecycle.shuttingDown) {
+        console.log("Shutdown initiated...");
+        this.#lifecycle.shuttingDown = true;
+        this.executeLifecycleEvent("SHUTTING_DOWN");
+        console.log("Shutdown complete...");
+        this.status = "SHUTDOWN";
       }
-
-      // Simulate core's own asynchronous cleanup
-      await new Promise(resolve => setTimeout(resolve, this.#options.shutdownDelayMs));
-      this.#log(`Core system successfully shut down.`);
-    } catch (error) {
-      this.#log(`Error during core shutdown:`, 'error', error);
-      // Even if components fail to shut down, the core still tries to clean up itself.
-      // We might transition to ERROR here if shutdown is critical, but SHUTDOWN implies a final state.
-      throw error; // Re-throw to indicate a problematic shutdown.
+    } catch (e) {
+      console.error("Shutdown error:", e);
     }
   }
-}
 
-// Export a singleton instance of NexusCore.
-// For a central 'CORE' component, a singleton pattern is often preferred
-// to ensure global consistency and avoid multiple, conflicting instances,
-// aligning with how Genkit expects a single configuration.
-class GeekanAIComponent {
-  load() {
-    return Promise.resolve();
+  async start() {
+    const startMethodOrder = ["configure", "load", "shutdown"];
+    for (const methodName of startMethodOrder) {
+      if (this[methodName] instanceof Function) {
+        await this[methodName]();
+      }
+    }
   }
 
-  shutdown(data) {
-    this._shutdownData = data;
+  async destroy() {
+    this.status = "DESTROYED";
+    this.#lifecycle = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
   }
-}
 
-class MetaGPTComponent {
-  load() {
-    return Promise.resolve();
-  }
-
-  shutdown() {
-    // Simulate MetaGPT shutdown
-    return new Promise(resolve => setTimeout(() => resolve(), 500));
+  async on(event, handler) {
+    await this.onLifecycleEvent(event, handler);
   }
 }
 
-const geekanAIComponent = new GeekanAIComponent();
-const metaGPTComponent = new MetaGPTComponent();
-
-const nexusCoreInstance = new NexusCore();
-
-nexusCoreInstance.configure({ verbose: true, components: [
-  {
-    name: 'geekanAI',
-    component: geekanAIComponent,
-    metaType: 'geekanAI'
-  },
-  {
-    name: 'MetaGPT',
-    component: metaGPTComponent,
-    metaType: 'metaGPT',
-  },
-]}, 'geekanAI', { data: true });
-
-(async () => {
-  await nexusCoreInstance.load();
-  await nexusCoreInstance.shutdown();
-})();
+const nexusCore = new NexusCore();
+nexusCore.on('DESTROYED', () => {
+  console.log("NexusCore instance destroyed.");
+});
+nexusCore.configure(Config.defaultConfig);
+nexusCore.start();
+nexusCore.load();
+nexusCore.shutdown();
+nexusCore.destroy();
