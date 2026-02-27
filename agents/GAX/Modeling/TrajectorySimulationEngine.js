@@ -24,6 +24,10 @@ class Config {
   }
 
   validate(values) {
+    this.#validate(values);
+  }
+
+  #validate(values) {
     try {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(this.#configSchema);
@@ -56,24 +60,37 @@ class Config {
 }
 
 class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
-  }
-}
-
-class LifecycleHandler {
   #handler;
 
-  constructor(handler) {
+  constructor(event) {
+    this.event = event;
+    this.#handler = null;
+  }
+
+  get handler() {
+    return this.#handler;
+  }
+
+  setHandler(handler) {
     this.#handler = handler;
   }
 
+  execute() {
+    if (this.#handler) {
+      this.#handler();
+    }
+  }
+}
+
+class LifecycleHandler extends LifecycleEvent {
   bind(target = this) {
     this.#handler = this.#handler.bind(target);
   }
 
   execute() {
-    this.#handler();
+    if (this.#handler) {
+      this.#handler();
+    }
   }
 }
 
@@ -91,15 +108,15 @@ class NexusCore {
   }
 
   set status(value) {
-    this.#status = value;
-    const currentValue = this.#status;
-    const lifecycle = this.#lifecycle;
     if (value !== 'INIT') {
       console.log(`NexusCore instance is ${value}.`);
       if (value === 'SHUTDOWN') {
-        lifecycle.shuttingDown = false;
+        this.#lifecycle.shuttingDown = false;
       }
     }
+    this.#status = value;
+    const currentValue = this.#status;
+    const lifecycle = this.#lifecycle;
     if (currentValue === 'INIT' && value !== 'INIT') {
       lifecycle.configured = true;
     }
@@ -110,18 +127,29 @@ class NexusCore {
   }
 
   async configure(config = Config.getDefaultConfig()) {
-    await this.validateConfig(config);
-    this.onLifecycleEvent("CONFIGURED");
-    this.#lifecycle.configured = true;
-    this.config = config;
-    return config;
+    this.status = "CONFIGURING";
+    try {
+      config.setValues(await Config.validateConfigAsync(config));
+      await this.executeLifecycleEvent("CONFIGURED");
+      this.#lifecycle.configured = true;
+      this.config = config;
+      this.status = "CONFIGURED";
+      return config;
+    } catch (e) {
+      console.error(e);
+      await this.executeLifecycleEvent("CONFIGURE_ERROR");
+      throw e;
+    }
   }
 
   async validateConfig(config = Config.getDefaultConfig()) {
-    if (await this.validateConfigAsync(config)) {
+    try {
+      await Config.validateConfigAsync(config);
       return config;
+    } catch (e) {
+      console.error(e);
+      throw e;
     }
-    throw new Error("Config validation error");
   }
 
   async validateConfigAsync(config = Config.getDefaultConfig()) {
@@ -129,29 +157,27 @@ class NexusCore {
       const validator = new (require('jsonschema').Validator)();
       validator.checkSchema(Config.configSchema);
       await validator.validatePromise(config, Config.configSchema);
-      return true;
+      return config;
     } catch (e) {
       console.error('Config validation error:', e);
-      return false;
+      throw e;
     }
   }
 
   onLifecycleEvent(event, handler) {
-    const lifecycleHandler = new LifecycleHandler(handler);
+    const lifecycleHandler = new LifecycleHandler();
+    lifecycleHandler.event = event;
+    lifecycleHandler.handler = handler;
     this.#lifecycle[event] = lifecycleHandler;
   }
 
   get on() {
     return (event, handler) => {
-      const lifecycleEvent = new LifecycleEvent(event);
+      const lifecycleEvent = new LifecycleHandler();
+      lifecycleEvent.event = event;
+      lifecycleEvent.handler = handler;
       this.onLifecycleEvent(event, handler);
     };
-  }
-
-  executeLifecycleEvent(event) {
-    if (this.#lifecycle[event]) {
-      this.#lifecycle[event].bind(this).execute();
-    }
   }
 
   async load() {
@@ -164,6 +190,7 @@ class NexusCore {
         await this.executeLifecycleEvent("LOADED");
       } catch (e) {
         console.error('Load error:', e);
+        await this.executeLifecycleEvent("LOAD_ERROR");
       }
     } else {
       throw new Error("Configuration is not valid.");
@@ -176,6 +203,7 @@ class NexusCore {
       this.#lifecycle.shuttingDown = true;
       console.log("Shutdown complete...");
       this.status = "SHUTDOWN";
+      await this.executeLifecycleEvent("SHUTDOWN");
     } else {
       throw new Error("Shutdown is already in progress.");
     }
@@ -191,6 +219,7 @@ class NexusCore {
   }
 
   async destroy() {
+    console.log('Destroying NexusCore instance...');
     this.status = "DESTROYED";
     this.#lifecycle = {
       configured: false,
@@ -201,6 +230,10 @@ class NexusCore {
 
   async on(event, handler) {
     await this.onLifecycleEvent(event, handler);
+  }
+
+  async executeLifecycleEvent(event) {
+    this.#lifecycle[event].bind(this).execute();
   }
 }
 
@@ -217,26 +250,3 @@ try {
 } catch (e) {
   console.error(e);
 }
-
-
-This code introduces several improvements:
-
-1. **Encapsulation**: The `Config` class now has private properties (`#values` and `#configSchema`) and private methods to perform validation. This provides better encapsulation and makes it harder for external code to modify the internal state of the object.
-
-2. **Default Config**: The `Config` class now has a `getDefaultConfig` method that returns the default configuration.
-
-3. **Lifecycle Event**: The `LifecycleEvent` class is updated to have a private `#handler` property.
-
-4. **Lifecycle Handler**: The `LifecycleHandler` class is updated to bind the handler to the correct context.
-
-5. **Loading and Shutdown**: The `load` and `shutdown` methods now check if the configuration is valid before performing the action.
-
-6. **Error Handling**: The `validateConfig` and `validateConfigAsync` methods now throw an error if the configuration is invalid.
-
-7. **Start Method**: The `start` method now awaits the completion of the `configure`, `load`, and `shutdown` methods.
-
-8. **Destroy Method**: The `destroy` method now sets the `NexusCore` to the "DESTROYED" state.
-
-9. **On Method**: The `on` method now awaits the completion of the lifecycle event.
-
-10. **Await Expressions**: The `load` and `shutdown` methods now use `async/await` to ensure that the actions are completed before the next action is started.
