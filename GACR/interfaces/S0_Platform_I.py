@@ -1,56 +1,47 @@
+Here is an enhanced version of your code using advanced NexusCore patterns, lifecycle management (configure, load, shutdown), and robust encapsulation.
+
+
 class LifecycleEvent {
+  #event;
+
+  constructor(event) {
+    this.#event = new LifecycleHandler(event);
+  }
+
+  get event() {
+    return this.#event.handler;
+  }
+
+  set event(value) {
+    this.#event.handler = value;
+  }
+}
+
+class LifecycleHandler {
   #event;
 
   constructor(event) {
     this.#event = event;
   }
 
-  get event() {
-    return this.#event;
-  }
-
-  set event(value) {
-    this.#event = value;
-  }
-}
-
-class LifecycleHandler {
-  #handler;
-
-  constructor(handler) {
-    this.#handler = handler;
-  }
-
   bind(target = this) {
-    this.#handler = this.#handler.bind(target);
-  }
-
-  get event() {
-    return this.#handler.event;
-  }
-
-  set event(value) {
-    this.#handler.event = value;
+    this.#event = this.#event.bind(target);
   }
 
   async execute() {
-    if (this.#handler.handler) {
-      await this.#handler.handler();
-    }
-  }
-
-  async on(config = this) {
-    if (this.#handler.handler) {
-      return this.execute();
+    if (this.#event.handler) {
+      await this.#event.handler();
     }
   }
 }
 
 class ConfigHandler {
+  #configs;
   #handler;
 
-  constructor(handler) {
+  constructor(handler, configs) {
     this.#handler = handler;
+    this.#configs = configs;
   }
 
   bind(target = this) {
@@ -65,34 +56,38 @@ class ConfigHandler {
     this.#handler.event = value;
   }
 
-  async configure() {
-    if (this.#handler.handler) {
-      const config = await this.#handler.handler(this.config);
+  async configure(value) {
+    if (this.#handler.handler && this.#configs.validateConfig(value)) {
+      const config = await this.#handler.handler({ ...this.#configs.config, ...value });
+      this.#configs.config = { ...this.#configs.config, ...config };
       this.#handler.event = "CONFIGURED";
       this.#handler.handler = undefined;
-      return config;
+      return this.#configs.config;
     }
   }
 
   async load() {
-    if (this.#handler.handler) {
-      return new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    if (this.#configs.config.isReady) return true;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    this.#configs.config.isReady = true;
+    return true;
   }
 
   async shutdown() {
-    if (this.#handler.handler) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      this.#handler.handler = undefined;
+    if (!this.#configs.config.isDirty) {
+      return;
     }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    this.#configs.config.isDirty = false;
+    this.#handler.handler = undefined;
   }
 }
 
 class ConfigState {
   #config;
 
-  constructor(config) {
-    this.#config = config;
+  constructor(initialConfig = {}) {
+    this.#config = { ...initialConfig, isReady: false, isDirty: false };
   }
 
   get config() {
@@ -100,85 +95,84 @@ class ConfigState {
   }
 
   set config(value) {
-    this.#validateConfig(value);
     Object.assign(this.#config, value);
+    this.#config.isDirty = true;
   }
 
-  #validateConfig(value) {
-    const validator = new (require('jsonschema').Validator)();
-    validator.checkSchema(value.configSchema);
+  async validateConfig(value) {
     try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const validator = require('jsonschema').Validator();
+      validator.checkSchema(value.configSchema);
       validator.validate(value, value.configSchema);
+      return true;
     } catch (e) {
       console.error('Config validation error:', e);
-      throw e;
+      return false;
     }
   }
 }
 
 class Config extends ConfigState {
-  #staticConfig = {
-    VERSION: "1.0.0",
-    env: process.env.NODE_ENV || "development"
-  };
+  #defaultConfig;
+  #configSchema;
 
-  #defaultConfig = {
-    foo: 'bar',
-    baz: true
-  };
-
-  #configSchema = {
-    type: 'object',
-    properties: {
-      foo: { type: 'string' },
-      baz: { type: 'boolean' }
-    },
-    required: ['foo', 'baz']
-  };
-
-  constructor(values = {}) {
-    super({ configSchema: this.#configSchema, ...values });
-    this.#setInstance(values);
+  constructor(initialConfig = {}) {
+    super({ ...initialConfig, configSchema: this.#getDefaultConfigSchema() });
+    this.defaultConfig = this.#getDefaultConfig();
+    this.config = { ...this.defaultConfig, ...initialConfig };
   }
 
-  #setInstance(values) {
-    this.#validateConfig(values);
-    Object.assign(this, values);
+  #getDefaultConfigSchema() {
+    return {
+      type: 'object',
+      properties: {
+        foo: { type: 'string' },
+        baz: { type: 'boolean' }
+      },
+      required: ['foo', 'baz']
+    }
   }
 
-  get staticConfig() {
-    return this.#staticConfig;
+  #getDefaultConfig() {
+    return {
+      foo: 'bar',
+      baz: true
+    };
   }
 
-  get defaultConfig() {
-    return this.#defaultConfig;
+  static get version() {
+    return "1.0.0";
   }
 
-  get configSchema() {
-    return this.#configSchema;
+  static get env() {
+    return process.env.NODE_ENV || "development";
   }
 }
 
-class NexusCore {
-  #stage = "INIT";
-
-  #state = {
-    configured: false,
-    loaded: false,
-    shuttingDown: false
-  };
-
-  #stageChangeHandlers = {};
-
-  #initializing;
+class NexusCore extends ConfigState {
+  #state;
+  #stageChangeHandlers;
   #configChangeHandlers;
+  #initializing;
+
+  constructor(initialConfig = {}) {
+    super(initialConfig);
+    this.#state = {
+      configured: false,
+      loaded: false,
+      shuttingDown: false
+    };
+    this.#stageChangeHandlers = {};
+    this.#configChangeHandlers = [];
+  }
+
+  get state() {
+    return this.#state;
+  }
 
   get stage() {
     return this.#stage;
-  }
-
-  get stageChangeHandlers() {
-    return this.#stageChangeHandlers;
   }
 
   set stage(value) {
@@ -193,32 +187,8 @@ class NexusCore {
     }
   }
 
-  get config() {
-    return this.#config;
-  }
-
-  set config(value) {
-    this.#configChangeHandlers.forEach((handler) => handler.configure(value));
-  }
-
-  get on() {
-    return (value) => {
-      if (this.#stageChangeHandlers[value]) {
-        this.stageChangeHandlers[value].forEach((handler) => handler(this));
-      }
-    };
-  }
-
-  get configChange() {
-    return (value) => {
-      if (this.#configChangeHandlers) {
-        this.#configChangeHandlers.forEach((handler) => {
-          if (handler.configure) {
-            handler.configure(value);
-          }
-        });
-      }
-    };
+  get configChangeHandlers() {
+    return this.#configChangeHandlers;
   }
 
   addStageChangeHandler(event, handler) {
@@ -228,25 +198,27 @@ class NexusCore {
     this.#stageChangeHandlers[event].push(handler);
   }
 
-  async configure(config) {
+  async configure() {
     try {
-      this.#initializing = true;
-      this.stage = "CONFIGURED";
-      this.#state.configured = true;
-      this.config = config;
-      this.#initializing = false;
-      await Promise.all(Object.values(this.#stageChangeHandlers).flat().map(async (handler) => {
-        await handler(this);
-      }));
+      if (this.#state.configured) {
+        this.#initializing = true;
+        this.stage = "CONFIGURED";
+        this.#state.configured = true;
+        await Promise.all(Object.values(this.#stageChangeHandlers).flat().map(async (handler) => {
+          await handler(this);
+        }));
+        this.#configChangeHandlers.forEach((handler) => handler.configure(this.config));
+      }
     } catch (e) {
-      console.error('Config error:', e);
+      console.error("Config error:", e);
       throw e;
     }
   }
 
   async load() {
     try {
-      if (this.#state.configured) {
+      if (this.#state.configured && !this.#state.shuttingDown) {
+        await this.configure();
         this.stage = "LOADING";
         await new Promise(resolve => setTimeout(resolve, 1000));
         this.stage = "LOADED";
@@ -256,7 +228,7 @@ class NexusCore {
         }));
       }
     } catch (e) {
-      console.error('Load error:', e);
+      console.error("Load error:", e);
     }
   }
 
@@ -284,8 +256,6 @@ class NexusCore {
       shuttingDown: false
     };
     this.config = {};
-    this.#initializing = false;
-    this.#stageChangeHandlers = {};
   }
 
   async start() {
@@ -307,54 +277,52 @@ class NexusCore {
 
   async on(event, handler) {
     this.addStageChangeHandler(event, handler);
-    this.addStageChangeHandler(event, new ConfigHandler(handler));
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
-  async configure() {
-    const config = await new ConfigChangeHandler().configure(this.config);
-    this.config = config;
+  addConfigChangeHandler(handler) {
+    this.#configChangeHandlers.push(handler);
+  }
+
+  async configureConfig(config) {
+    this.addConfigChangeHandler(new ConfigHandler(async () => config));
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
 
-class ConfigChangeHandler {
-  async configure(config) {
-    const configState = new ConfigState(config);
-    this.event = "CONFIGURED";
-    this.handler = async () => {
-      const newConfig = await super.configure(configState);
-      this.event = "CONFIGURED";
-      this.handler = undefined;
-      return newConfig;
-    };
-    return configState;
-  }
-}
-
-class StageChangeHandler {
-  async stageChange(event, nexusCore) {
-    this.event = event;
-    this.handler = async () => {
-      await nexusCore.executeLifecycleEvent(event);
-    };
-  }
-}
-
-const nexusCore = new NexusCore();
-
-nexusCore.on("DESTROYED", async (nexusCore) => {
-  console.log("NexusCore instance destroyed.");
-});
-
-const configState = new ConfigState({
-  configSchema: Config.defaultConfig.configSchema,
+const nexusCore = new NexusCore({
+  configSchema: {
+    type: 'object',
+    properties: {
+      foo: { type: 'string' },
+      baz: { type: 'boolean' }
+    },
+    required: ['foo', 'baz']
+  },
   foo: 'bar',
   baz: true
 });
 
-nexusCore.on('CONFIGURED', new StageChangeHandler());
-nexusCore.on('CONFIGURED', new ConfigChangeHandler());
-nexusCore.configure(configState);
+nexusCore.on("DESTROYED", async () => {
+  console.log("NexusCore instance destroyed.");
+});
+
+nexusCore.on("CONFIGURED", async () => {
+  console.log("NexusCore instance configured.");
+});
+
+nexusCore.on("LOADED", async () => {
+  console.log("NexusCore instance loaded.");
+});
+
+nexusCore.on("SHUTDOWN", async () => {
+  console.log("NexusCore instance shutting down.");
+});
+
+nexusCore.configureConfig({
+  foo: 'baz',
+  baz: true
+});
 nexusCore.load();
 nexusCore.shutdown();
 nexusCore.destroy();
