@@ -1,6 +1,5 @@
 class ConfigSchemaValidator {
-  #schema = null;
-
+  static #validator = new (require('jsonschema')).Validator();
   static #instance = null;
 
   static get instance() {
@@ -10,12 +9,14 @@ class ConfigSchemaValidator {
     return ConfigSchemaValidator.#instance;
   }
 
+  #schema = null;
+
   constructor(schema) {
     this.#schema = schema;
   }
 
   validate(data) {
-    return new (require('jsonschema')).Validator().validate(data, this.#schema);
+    return ConfigSchemaValidator.#validator.validate(data, this.#schema);
   }
 }
 
@@ -29,8 +30,6 @@ class NexusConfig {
     return NexusConfig.#instance;
   }
 
-  #staticConfig = this.#getStaticConfig();
-  #defaultConfig = this.#getDefaultConfig();
   #config = null;
 
   get values() {
@@ -65,38 +64,29 @@ class NexusConfig {
     };
   }
 
-  #getStaticConfig() {
-    return {
-      VERSION: "1.0.0",
-      env: process.env.NODE_ENV || "development"
-    };
-  }
-
-  #getDefaultConfig() {
+  get defaultConfig() {
     return {
       foo: 'bar',
       baz: true
     };
   }
 
+  get staticConfig() {
+    return {
+      VERSION: "1.0.0",
+      env: process.env.NODE_ENV || "development"
+    };
+  }
+
   isValid() {
     try {
-      const validator = ConfigSchemaValidator.instance;
-      const valid = validator.validate(this.values);
+      const valid = ConfigSchemaValidator.instance.validate(this.values);
       if (valid) {
-        if (ConfigSchemaValidator.instance.validate(this.#defaultConfig)) {
-          const merged = { ...this.#staticConfig, ...this.#defaultConfig };
-          const defaulted = { ...this.#defaultConfig };
-          if (Object.keys(merged).length > Object.keys(defaulted).length) {
-            return validatedObject(this.values, this.schema);
-          } else {
-            return validatedObject(this.#defaultConfig, this.schema);
-          }
-        }
+        const merged = { ...this.staticConfig, ...this.defaultConfig };
+        return validatedObject(this.values, this.schema);
       } else {
         return false;
       }
-      return true;
     } catch (e) {
       console.error('Config validation error:', e);
       return false;
@@ -105,8 +95,7 @@ class NexusConfig {
 }
 
 function validatedObject(obj, schema) {
-  const validator = new (require('jsonschema')).Validator();
-  const { valid, errors } = validator.validate(obj, schema);
+  const { valid, errors } = ConfigSchemaValidator.#validator.validate(obj, schema);
   if (!valid) {
     console.error('Configuration validation failed:', errors);
   }
@@ -129,8 +118,8 @@ class LifecycleHandler {
     this.#handler = handler;
   }
 
-  execute() {
-    return Promise.resolve(this.#handler(this.#event));
+  async execute() {
+    return await this.#handler(this.#event);
   }
 }
 
@@ -145,19 +134,12 @@ class LifecyclePlugin {
   }
 
   #config = null;
-
-  set config(value) {
-    this.#config = value;
-  }
-
-  #loaded = false;
-  #configured = false;
   #status = "INIT";
 
   get lifecycle() {
     return {
-      configured: this.#configured,
-      loaded: this.#loaded,
+      loaded: false,
+      configured: false,
       shuttingDown: false
     };
   }
@@ -170,16 +152,16 @@ class LifecyclePlugin {
     this.#status = value;
   }
 
-  configPlugin(plugin) {
-    if (!this.#loaded) {
+  configPlugin() {
+    if (!this.lifecycle.loaded) {
       this.pluginLoading();
-      this.#configured = true;
+      this.lifecycle.configured = true;
     }
   }
 
   async configure(config) {
     this.#config = config;
-    this.configPlugin("configured");
+    this.configPlugin();
     await this.onPluginLoaded();
     this.status = "CONFIGURED";
   }
@@ -227,14 +209,14 @@ class LifecyclePlugin {
     try {
       console.log("LifecyclePlugin shutting down...");
       this.addEventHandler(shutdownHandler);
-      this.shutdown();
+      await this.shutdown();
     } catch (error) {
       console.error("LifecyclePlugin shutdown error:", error);
     }
   };
 
   removeEventHandler(eventHandler) {
-    this.#shutdownHandler = remove EventHandler(this.#shutdownHandler, eventHandler);
+    this.#shutdownHandler = removeEventHandler(this.#shutdownHandler, eventHandler);
   }
 
   get shutdownEvents() {
@@ -258,7 +240,7 @@ function removeEventHandler(handlers, handler) {
 }
 
 class Context {
-  #instance = null;
+  static #instance = null;
 
   static get instance() {
     if (!Context.#instance) {
@@ -267,23 +249,9 @@ class Context {
     return Context.#instance;
   }
 
-  constructor() {
-    this.#status = "INIT";
-    this.#config = NexusConfig.instance;
-    this.#plugin = LifecyclePlugin.instance;
-    this.#registeredPlugins = {};
-    this.#plugin.registerPlugin = (name, plugin) => {
-      this.#registeredPlugins[name] = plugin;
-    };
-  }
-
-  get status() {
-    return this.#status;
-  }
-
-  set status(value) {
-    this.#status = value;
-  }
+  #registeredPlugins = {};
+  #plugin = LifecyclePlugin.instance;
+  #config = NexusConfig.instance;
 
   get config() {
     return this.#config;
@@ -314,14 +282,14 @@ class Context {
 
   async shutdown() {
     try {
-      const shutdownEvent = new LifecycleHandler("SHUTDOWN", () => {
+      const shutdownEvent = new LifecycleHandler("SHUTDOWN", async () => {
         return async () => {
           await this.#plugin.shutdown();
         };
       });
       const pluginsEventHandlers = await Promise.all(
         Object.values(this.#registeredPlugins).map(async (plugin) => {
-          await plubin.shutdown();
+          await plugin.shutdown();
           return new LifecycleHandler("PLUGIN-SHUTDOWN", async () => {
             return async () => {
               await this.#plugin.shutdown();
@@ -333,6 +301,10 @@ class Context {
     } catch (error) {
       console.error("Context shutdown error:", error);
     }
+  }
+
+  registerPlugin(name, plugin) {
+    this.#registeredPlugins[name] = plugin;
   }
 }
 
