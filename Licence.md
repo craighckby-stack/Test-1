@@ -16,17 +16,26 @@ class ConfigSchema {
 class ConfigManager {
   #schema;
   #config;
+  #schemaCache = new WeakMap();
 
   constructor(schema, defaultConfig = {}) {
     this.#schema = schema;
     this.#config = defaultConfig;
   }
 
+  static async loadSchema() {
+    if (!ConfigManager.schemaCache.has(ConfigSchema)) {
+      ConfigManager.schemaCache.set(ConfigSchema, ConfigSchema.schema);
+    }
+    return ConfigManager.schemaCache.get(ConfigSchema);
+  }
+
   async validate(config) {
     try {
-      const validator = new (require('jsonschema').Validator)();
-      validator.checkSchema(this.#schema);
-      validator.validate(config, this.#schema);
+      const schema = await ConfigManager.loadSchema();
+      const validator = new (await import('jsonschema')).Validator();
+      validator.checkSchema(schema);
+      validator.validate(config, schema);
     } catch (e) {
       console.error('Config validation error:', e);
       throw e;
@@ -53,9 +62,9 @@ class Config extends ConfigManager {
   }
 }
 
-class LifecycleEvent {
-  constructor(event) {
-    this.event = event;
+class LifecycleEvent extends WeakMap {
+  constructor() {
+    super();
   }
 }
 
@@ -68,14 +77,21 @@ class LifecycleHandler {
     this.handler = this.handler.bind(target);
   }
 
-  execute() {
-    this.handler();
+  execute(event) {
+    return async () => {
+      try {
+        await this.handler(event);
+      } catch (e) {
+        console.error('Lifecycle event handler error:', e);
+        throw e;
+      }
+    };
   }
 }
 
 class NexusCore {
   #configManager = new Config(ConfigSchema.schema, Config.defaultConfig);
-  #LifecycleEventHandlers = new Map();
+  #LifecycleEventHandlers = new LifecycleEvent();
   #status = 'INIT';
   #lifecycle = {
     configured: false,
@@ -109,34 +125,31 @@ class NexusCore {
     return this.#lifecycle;
   }
 
-  configure() {
+  async configure() {
     this.validateConfig(this.#configManager.getConfig());
     this.#lifecycle.configured = true;
   }
 
-  validateConfig(config) {
-    this.#configManager.validate(config);
+  async validateConfig(config) {
+    await this.#configManager.validate(config);
   }
 
-  onLifecycleEvent(event, handler) {
-    if (this.#LifecycleEventHandlers.has(event)) {
-      const lifeCycleEventHandler = new LifecycleHandler(handler);
-      this.#LifecycleEventHandlers.get(event).handler = handler;
-      lifeCycleEventHandler.bind(this);
-      this.#LifecycleEventHandlers.set(event, lifeCycleEventHandler);
-    }
-  }
-
-  get on() {
-    return (event, handler) => {
-      this.onLifecycleEvent(event, handler);
+  on(event, handler) {
+    return async () => {
+      if (this.#LifecycleEventHandlers.has(event)) {
+        const lifeCycleEventHandler = new LifecycleHandler(handler);
+        this.#LifecycleEventHandlers.set(event, lifeCycleEventHandler.execute(event));
+        lifeCycleEventHandler.bind(this);
+      }
     };
   }
 
-  executeLifecycleEvent(event) {
-    if (this.#LifecycleEventHandlers.has(event)) {
-      this.#LifecycleEventHandlers.get(event).execute();
-    }
+  get onLifecycleEvent() {
+    return async event => {
+      if (this.#LifecycleEventHandlers.has(event)) {
+        await this.#LifecycleEventHandlers.get(event)();
+      }
+    };
   }
 
   async load() {
@@ -145,7 +158,7 @@ class NexusCore {
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('Loading complete...');
       this.#lifecycle.loaded = true;
-      this.executeLifecycleEvent('LOADED');
+      await this.#LifecycleEventHandlers.get('LOADED')();
       this.status = 'INIT';
     } catch (e) {
       console.error('Load error:', e);
@@ -155,7 +168,7 @@ class NexusCore {
 
   async shutdown() {
     try {
-      await this.executeLifecycleEvent('SHUTTING_DOWN');
+      await this.#LifecycleEventHandlers.get('SHUTTING_DOWN')();
       this.status = 'SHUTDOWN';
     } catch (e) {
       console.error('Shutdown error:', e);
@@ -166,7 +179,7 @@ class NexusCore {
   async start() {
     const startMethodOrder = ['configure', 'load', 'shutdown'];
     for (const methodName of startMethodOrder) {
-      if (this[methodName] instanceof Function) {
+      if (this[MethodName] instanceof Function || methodName === 'start') {
         await this[methodName]();
       }
     }
